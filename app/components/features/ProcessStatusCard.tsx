@@ -7,6 +7,8 @@ import { ConnectionDetailModal } from './ConnectionDetailModal';
 import { ConnectionHistoryTab } from './ConnectionHistoryTab';
 import { CredentialListTab } from './CredentialListTab';
 import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { AwsServiceIcon } from '../ui/AwsServiceIcon';
 import { approveProject, rejectProject } from '../../lib/api';
 
 type ConnectionTabType = 'history' | 'credentials' | 'missing';
@@ -328,11 +330,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
                     disabled={testLoading}
                     className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
-                    {testLoading && (
-                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
-                      </svg>
-                    )}
+                    {testLoading && <LoadingSpinner />}
                     {latestHistory ? '재실행' : 'Test Connection'}
                   </button>
                   {/* 툴팁 */}
@@ -445,11 +443,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
                 disabled={submitting}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                {submitting && (
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
-                  </svg>
-                )}
+                {submitting && <LoadingSpinner />}
                 승인하기
               </button>
             </div>
@@ -500,11 +494,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
                 disabled={submitting}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                {submitting && (
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
-                  </svg>
-                )}
+                {submitting && <LoadingSpinner />}
                 반려하기
               </button>
             </div>
@@ -600,45 +590,3 @@ const MissingCredentialsTab = ({ resources, credentials, onCredentialChange }: M
   );
 };
 
-// AWS 서비스 아이콘
-const AwsServiceIcon = ({ type }: { type: AwsResourceType }) => {
-  const icons: Record<AwsResourceType, React.ReactNode> = {
-    RDS: (
-      <svg className="w-5 h-5" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#3B48CC" />
-        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill="#5294CF" />
-        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill="#1A476F" />
-      </svg>
-    ),
-    RDS_CLUSTER: (
-      <svg className="w-5 h-5" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#3B48CC" />
-        <path d="M20 6c-6 0-11 2.2-11 5v18c0 2.8 5 5 11 5s11-2.2 11-5V11c0-2.8-5-5-11-5z" fill="#5294CF" />
-        <ellipse cx="20" cy="11" rx="11" ry="5" fill="#1A476F" />
-        <circle cx="28" cy="28" r="6" fill="#FF9900" />
-        <path d="M26 28h4M28 26v4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-    DYNAMODB: (
-      <svg className="w-5 h-5" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#3B48CC" />
-        <path d="M8 12l12-4 12 4v16l-12 4-12-4V12z" fill="#5294CF" />
-        <ellipse cx="20" cy="12" rx="12" ry="4" fill="#2E73B8" />
-      </svg>
-    ),
-    ATHENA: (
-      <svg className="w-5 h-5" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#8C4FFF" />
-        <path d="M20 8l10 6v12l-10 6-10-6V14l10-6z" fill="#B98AFF" />
-      </svg>
-    ),
-    REDSHIFT: (
-      <svg className="w-5 h-5" viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#205B99" />
-        <path d="M10 14h20v16H10V14z" fill="#5294CF" />
-        <rect x="10" y="14" width="20" height="4" fill="#1A476F" />
-      </svg>
-    ),
-  };
-  return <>{icons[type] || null}</>;
-};

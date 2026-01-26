@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Project, DBCredential, ConnectionTestResult, needsCredential, Resource } from '../../../lib/types';
 import { getCredentials, runConnectionTest, ResourceCredentialInput } from '../../lib/api';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 interface TestConnectionTabProps {
   project: Project;
@@ -187,11 +188,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
             disabled={loading}
             className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
-            {loading && (
-              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
-              </svg>
-            )}
+            {loading && <LoadingSpinner />}
             Test Connection
           </button>
         </div>

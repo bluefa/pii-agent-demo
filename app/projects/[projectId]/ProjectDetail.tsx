@@ -16,6 +16,7 @@ import {
 import { ProjectInfoCard } from '../../components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '../../components/features/ProcessStatusCard';
 import { ResourceTable } from '../../components/features/ResourceTable';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -294,11 +295,7 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
                 disabled={submitting || selectedIds.length === 0}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                {submitting && (
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
-                  </svg>
-                )}
+                {submitting && <LoadingSpinner />}
                 연동 대상 확정 승인 요청
               </button>
             </>
