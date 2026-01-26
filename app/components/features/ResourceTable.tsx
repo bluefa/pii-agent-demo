@@ -15,6 +15,8 @@ interface ResourceTableProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
+  isEditMode?: boolean;
+  selectedIds?: string[];
   onSelectionChange?: (selectedIds: string[]) => void;
 }
 
@@ -37,15 +39,21 @@ export const ResourceTable = ({
   resources,
   cloudProvider,
   processStatus,
+  isEditMode = false,
+  selectedIds: externalSelectedIds,
   onSelectionChange,
 }: ResourceTableProps) => {
   const [filter, setFilter] = useState<FilterType>('selected');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(resources.filter((r) => r.isSelected).map((r) => r.id))
+
+  // 외부에서 selectedIds를 받으면 그것을 사용, 아니면 내부 상태 사용
+  const selectedIdsSet = new Set(
+    externalSelectedIds ?? resources.filter((r) => r.isSelected).map((r) => r.id)
   );
 
   const isAWS = cloudProvider === 'AWS';
-  const isCheckboxEnabled = processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  // 1단계이거나 편집 모드일 때 체크박스 활성화
+  const isCheckboxEnabled =
+    processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
   const showConnectionStatus =
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
@@ -54,7 +62,7 @@ export const ResourceTable = ({
   const filteredResources = resources.filter((resource) => {
     switch (filter) {
       case 'selected':
-        return resource.isSelected || selectedIds.has(resource.id);
+        return resource.isSelected || selectedIdsSet.has(resource.id);
       default:
         return true;
     }
@@ -80,13 +88,12 @@ export const ResourceTable = ({
   }, [filteredResources, isAWS]);
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
-    const newSelectedIds = new Set(selectedIds);
+    const newSelectedIds = new Set(selectedIdsSet);
     if (checked) {
       newSelectedIds.add(resourceId);
     } else {
       newSelectedIds.delete(resourceId);
     }
-    setSelectedIds(newSelectedIds);
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
@@ -94,14 +101,13 @@ export const ResourceTable = ({
     const newSelectedIds = checked
       ? new Set(filteredResources.map((r) => r.id))
       : new Set<string>();
-    setSelectedIds(newSelectedIds);
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
   const isAllSelected =
-    filteredResources.length > 0 && filteredResources.every((r) => selectedIds.has(r.id));
+    filteredResources.length > 0 && filteredResources.every((r) => selectedIdsSet.has(r.id));
   const isSomeSelected =
-    filteredResources.some((r) => selectedIds.has(r.id)) && !isAllSelected;
+    filteredResources.some((r) => selectedIdsSet.has(r.id)) && !isAllSelected;
 
   const colSpan = showConnectionStatus ? 6 : 5;
 
@@ -171,7 +177,7 @@ export const ResourceTable = ({
                     key={region}
                     region={region}
                     resources={regionResources}
-                    selectedIds={selectedIds}
+                    selectedIds={selectedIdsSet}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
                     onCheckboxChange={handleCheckboxChange}
@@ -185,7 +191,7 @@ export const ResourceTable = ({
                     key={resource.id}
                     resource={resource}
                     isAWS={false}
-                    selectedIds={selectedIds}
+                    selectedIds={selectedIdsSet}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
                     onCheckboxChange={handleCheckboxChange}

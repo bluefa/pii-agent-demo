@@ -1,6 +1,21 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project } from '../../lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole } from '../../lib/types';
 
 const BASE_URL = '/api';
+
+export interface CurrentUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  serviceCodePermissions: string[];
+}
+
+export const getCurrentUser = async (): Promise<CurrentUser> => {
+  const res = await fetch(`${BASE_URL}/user/me`);
+  if (!res.ok) throw new Error('Failed to fetch current user');
+  const data = await res.json();
+  return data.user;
+};
 
 export const getServices = async (): Promise<ServiceCode[]> => {
   const res = await fetch(`${BASE_URL}/user/services`);
@@ -81,4 +96,83 @@ export const searchUsers = async (
   if (!res.ok) throw new Error('Failed to search users');
   const data = await res.json();
   return data.users;
+};
+
+export const confirmTargets = async (
+  projectId: string,
+  resourceIds: string[]
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-targets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resourceIds }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to confirm targets');
+  }
+  const data = await res.json();
+  return data.project;
+};
+
+export const approveProject = async (
+  projectId: string,
+  comment?: string
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comment }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to approve project');
+  }
+  const data = await res.json();
+  return data.project;
+};
+
+export const rejectProject = async (
+  projectId: string,
+  reason?: string
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to reject project');
+  }
+  const data = await res.json();
+  return data.project;
+};
+
+export const completeInstallation = async (
+  projectId: string
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/complete-installation`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to complete installation');
+  }
+  const data = await res.json();
+  return data.project;
+};
+
+export const confirmPiiAgent = async (
+  projectId: string
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-pii-agent`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to confirm PII Agent');
+  }
+  const data = await res.json();
+  return data.project;
 };

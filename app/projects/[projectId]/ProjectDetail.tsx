@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Project } from '../../../lib/types';
-import { getProject } from '../../lib/api';
+import { Project, ProcessStatus } from '../../../lib/types';
+import { getProject, confirmTargets, getCurrentUser, CurrentUser } from '../../lib/api';
 import { ProjectInfoCard } from '../../components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '../../components/features/ProcessStatusCard';
 import { ResourceTable } from '../../components/features/ResourceTable';
@@ -17,13 +17,23 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
-    const fetchProject = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await getProject(projectId);
-        setProject(data);
+        const [projectData, userData] = await Promise.all([
+          getProject(projectId),
+          getCurrentUser(),
+        ]);
+        setProject(projectData);
+        setCurrentUser(userData);
+        // 초기 선택 상태: isSelected가 true인 리소스들
+        setSelectedIds(projectData.resources.filter((r) => r.isSelected).map((r) => r.id));
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
@@ -31,8 +41,43 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
         setLoading(false);
       }
     };
-    fetchProject();
+    fetchData();
   }, [projectId]);
+
+  // 1단계이면 기본적으로 편집 모드
+  const isStep1 = project?.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  const effectiveEditMode = isStep1 || isEditMode;
+
+  const handleConfirmTargets = async () => {
+    if (!project || selectedIds.length === 0) return;
+
+    try {
+      setSubmitting(true);
+      const updatedProject = await confirmTargets(projectId, selectedIds);
+      setProject(updatedProject);
+      setIsEditMode(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStartEdit = () => {
+    if (!project) return;
+    // 현재 선택된 리소스로 초기화
+    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setIsEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (!project) return;
+    // 원래 선택 상태로 복원
+    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setIsEditMode(false);
+  };
+
+  const isAdmin = currentUser?.role === 'ADMIN';
 
   if (loading) {
     return (
@@ -122,7 +167,11 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           <ProjectInfoCard project={project} />
 
           {/* Right: Process Status */}
-          <ProcessStatusCard project={project} />
+          <ProcessStatusCard
+            project={project}
+            isAdmin={isAdmin}
+            onProjectUpdate={setProject}
+          />
         </div>
 
         {/* Resource Table */}
@@ -130,8 +179,69 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           resources={project.resources}
           cloudProvider={project.cloudProvider}
           processStatus={project.processStatus}
-          onSelectionChange={(ids) => console.log('Selected:', ids)}
+          isEditMode={effectiveEditMode}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
         />
+
+        {/* Rejection Alert */}
+        {project.isRejected && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h4 className="text-red-800 font-medium">승인 요청이 반려되었습니다</h4>
+                {project.rejectionReason && (
+                  <p className="text-red-600 text-sm mt-1">사유: {project.rejectionReason}</p>
+                )}
+                {project.rejectedAt && (
+                  <p className="text-red-500 text-xs mt-1">
+                    반려일시: {new Date(project.rejectedAt).toLocaleString('ko-KR')}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-3">
+          {effectiveEditMode ? (
+            <>
+              {!isStep1 && (
+                <button
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  취소
+                </button>
+              )}
+              <button
+                onClick={handleConfirmTargets}
+                disabled={submitting || selectedIds.length === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {submitting && (
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
+                  </svg>
+                )}
+                연동 대상 확정 승인 요청
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleStartEdit}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              확정 대상 수정
+            </button>
+          )}
+        </div>
       </main>
     </div>
   );

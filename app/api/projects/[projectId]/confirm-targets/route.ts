@@ -32,16 +32,8 @@ export async function POST(
     );
   }
 
-  // 1단계 또는 5단계(재설치)에서만 가능
-  if (
-    project.processStatus !== ProcessStatus.WAITING_TARGET_CONFIRMATION &&
-    project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE
-  ) {
-    return NextResponse.json(
-      { error: 'INVALID_STATE', message: '현재 상태에서는 연동 대상을 확정할 수 없습니다.' },
-      { status: 400 }
-    );
-  }
+  // 어느 시점에서든 연동 대상 확정 승인 요청 가능
+  // (설치 진행 중인 3단계만 제외)
 
   const body = await request.json();
   const { resourceIds } = body as { resourceIds: string[] };
@@ -50,14 +42,18 @@ export async function POST(
   const updatedResources = project.resources.map((r) => {
     const isSelected = selectedSet.has(r.id);
 
-    const lifecycleStatus: ResourceLifecycleStatus = isSelected
-      ? 'PENDING_APPROVAL'
-      : 'DISCOVERED';
+    // 이미 ACTIVE인 리소스는 lifecycleStatus 유지
+    let lifecycleStatus: ResourceLifecycleStatus;
+    if (r.lifecycleStatus === 'ACTIVE') {
+      lifecycleStatus = 'ACTIVE';
+    } else {
+      lifecycleStatus = isSelected ? 'PENDING_APPROVAL' : 'DISCOVERED';
+    }
 
     return {
       ...r,
       isSelected,
-      lifecycleStatus: lifecycleStatus,
+      lifecycleStatus,
     };
   });
 

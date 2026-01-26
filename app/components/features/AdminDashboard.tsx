@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
 import { UserSearchInput } from '../ui/UserSearchInput';
 import { ProjectCreateModal } from './ProjectCreateModal';
-import { getServices, getProjects, getPermissions, addPermission, deletePermission, UserSearchResult } from '../../lib/api';
+import { getServices, getProjects, getPermissions, addPermission, deletePermission, completeInstallation, confirmPiiAgent, UserSearchResult } from '../../lib/api';
 import { ServiceCode, ProjectSummary, ProcessStatus, User } from '../../../lib/types';
 
 const getStatusBadge = (status: ProcessStatus, hasDisconnected: boolean, hasNew: boolean) => {
@@ -68,6 +68,7 @@ export const AdminDashboard = () => {
   const [permissions, setPermissions] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -125,6 +126,32 @@ export const AdminDashboard = () => {
       setPermissions(data);
     } catch {
       alert('사용자 삭제 실패');
+    }
+  };
+
+  const handleCompleteInstallation = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setActionLoading(projectId);
+      await completeInstallation(projectId);
+      await refreshProjects();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '설치 완료 처리 실패');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleConfirmPiiAgent = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      setActionLoading(projectId);
+      await confirmPiiAgent(projectId);
+      await refreshProjects();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'PII Agent 설치 확정 실패');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -300,6 +327,7 @@ export const AdminDashboard = () => {
                           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">설명</th>
                           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">상태</th>
                           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider w-20"></th>
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">액션</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -333,6 +361,40 @@ export const AdminDashboard = () => {
                                 >
                                   {badge.text}
                                 </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                {project.processStatus === ProcessStatus.INSTALLING && (
+                                  <button
+                                    onClick={(e) => handleCompleteInstallation(project.id, e)}
+                                    disabled={actionLoading === project.id}
+                                    className="px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                  >
+                                    {actionLoading === project.id ? (
+                                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                    설치 완료
+                                  </button>
+                                )}
+                                {project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST && (
+                                  <button
+                                    onClick={(e) => handleConfirmPiiAgent(project.id, e)}
+                                    disabled={actionLoading === project.id}
+                                    className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                  >
+                                    {actionLoading === project.id ? (
+                                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                      </svg>
+                                    )}
+                                    PII Agent 확정
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );

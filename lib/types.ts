@@ -98,6 +98,13 @@ export interface Project {
   isRejected: boolean;
   rejectionReason?: string;
   rejectedAt?: string;
+
+  // 승인 관련
+  approvalComment?: string;
+  approvedAt?: string;
+
+  // PII Agent 설치 확정 (최초 1회)
+  piiAgentInstalled?: boolean;
 }
 
 // ===== API Response Types =====

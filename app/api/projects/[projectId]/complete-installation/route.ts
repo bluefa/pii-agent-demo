@@ -11,7 +11,7 @@ export async function POST(
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
-      { error: 'FORBIDDEN', message: '관리자만 승인할 수 있습니다.' },
+      { error: 'FORBIDDEN', message: '관리자만 설치 완료 처리할 수 있습니다.' },
       { status: 403 }
     );
   }
@@ -25,41 +25,34 @@ export async function POST(
     );
   }
 
-  if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+  if (project.processStatus !== ProcessStatus.INSTALLING) {
     return NextResponse.json(
-      { error: 'INVALID_STATE', message: '승인 대기 상태가 아닙니다.' },
+      { error: 'INVALID_STATE', message: '설치중 상태가 아닙니다.' },
       { status: 400 }
     );
   }
 
-  const body = await request.json().catch(() => ({}));
-  const { comment } = body as { comment?: string };
-
+  // INSTALLING 상태인 리소스를 READY_TO_TEST로 변경
   const updatedResources = project.resources.map((r) => {
-    // PENDING_APPROVAL 상태인 리소스만 INSTALLING으로 변경
-    // (이미 ACTIVE인 리소스는 유지)
-    if (r.lifecycleStatus !== 'PENDING_APPROVAL') return r;
+    if (r.lifecycleStatus !== 'INSTALLING') return r;
 
     return {
       ...r,
-      lifecycleStatus: 'INSTALLING' as ResourceLifecycleStatus,
-      isNew: false, // 승인 시 신규 플래그 리셋
+      lifecycleStatus: 'READY_TO_TEST' as ResourceLifecycleStatus,
     };
   });
 
-  const terraformState = project.cloudProvider === 'AWS'
-    ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
-    : { bdcTf: 'PENDING' as const };
+  // Terraform 상태 완료 처리
+  const terraformState = {
+    ...project.terraformState,
+    serviceTf: project.cloudProvider === 'AWS' ? 'COMPLETED' as const : undefined,
+    bdcTf: 'COMPLETED' as const,
+  };
 
   const updatedProject = updateProject(projectId, {
-    processStatus: ProcessStatus.INSTALLING,
+    processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     resources: updatedResources,
     terraformState,
-    isRejected: false,
-    rejectionReason: undefined,
-    rejectedAt: undefined,
-    approvalComment: comment,
-    approvedAt: new Date().toISOString(),
   });
 
   return NextResponse.json({ success: true, project: updatedProject });

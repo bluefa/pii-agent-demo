@@ -3,9 +3,12 @@
 import { useState } from 'react';
 import { ProcessStatus, Project, TerraformStatus } from '../../../lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
+import { approveProject, rejectProject } from '../../lib/api';
 
 interface ProcessStatusCardProps {
   project: Project;
+  isAdmin?: boolean;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 const getProgress = (project: Project) => {
@@ -42,11 +45,45 @@ const getStepGuideText = (status: ProcessStatus) => {
   }
 };
 
-export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
+export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate }: ProcessStatusCardProps) => {
   const [showTerraformModal, setShowTerraformModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [approveComment, setApproveComment] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
   const currentStep = project.processStatus;
   const guideText = getStepGuideText(currentStep);
   const progress = getProgress(project);
+
+  const handleApprove = async () => {
+    try {
+      setSubmitting(true);
+      const updated = await approveProject(project.id, approveComment);
+      onProjectUpdate?.(updated);
+      setShowApproveModal(false);
+      setApproveComment('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '승인에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    try {
+      setSubmitting(true);
+      const updated = await rejectProject(project.id, rejectReason);
+      onProjectUpdate?.(updated);
+      setShowRejectModal(false);
+      setRejectReason('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '반려에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
@@ -160,18 +197,26 @@ export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
           )}
           {currentStep === ProcessStatus.WAITING_APPROVAL && (
             <div className="flex gap-2">
-              <button
-                disabled
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg font-medium cursor-not-allowed"
-              >
-                승인 (Phase 3)
-              </button>
-              <button
-                disabled
-                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg font-medium cursor-not-allowed"
-              >
-                반려 (Phase 3)
-              </button>
+              {isAdmin ? (
+                <>
+                  <button
+                    onClick={() => setShowApproveModal(true)}
+                    className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                  >
+                    승인
+                  </button>
+                  <button
+                    onClick={() => setShowRejectModal(true)}
+                    className="flex-1 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition-colors"
+                  >
+                    반려
+                  </button>
+                </>
+              ) : (
+                <div className="w-full text-center py-2.5 text-gray-500 text-sm">
+                  관리자 승인을 기다리는 중입니다
+                </div>
+              )}
             </div>
           )}
           {currentStep === ProcessStatus.INSTALLING && (
@@ -214,6 +259,94 @@ export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
           cloudProvider={project.cloudProvider}
           onClose={() => setShowTerraformModal(false)}
         />
+      )}
+
+      {/* Approve Modal */}
+      {showApproveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">승인</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                승인 코멘트 (선택)
+              </label>
+              <textarea
+                value={approveComment}
+                onChange={(e) => setApproveComment(e.target.value)}
+                placeholder="승인 코멘트를 입력하세요..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-gray-900"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowApproveModal(false);
+                  setApproveComment('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleApprove}
+                disabled={submitting}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {submitting && (
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
+                  </svg>
+                )}
+                승인하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">반려</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                반려 사유
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="반려 사유를 입력하세요..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-gray-900"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectReason('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={submitting}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {submitting && (
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
+                  </svg>
+                )}
+                반려하기
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

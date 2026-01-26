@@ -28,6 +28,7 @@ Project (과제)
 	•	terraformState: TerraformState
 	•	createdAt: string (ISO)
 	•	updatedAt: string (ISO)
+	•	piiAgentInstalled?: boolean (최초 PII Agent 설치 확정 여부)
 
 Resource (리소스)
 
@@ -173,6 +174,44 @@ Side Effect (리소스 상태 변경):
 
 응답:
 	•	{ success: true, project, reason }
+
+⸻
+
+POST /api/projects/{projectId}/complete-installation (ADMIN)
+
+설치 완료 처리 (관리자 액션)
+
+프로세스 전이:
+	•	3 → 4
+
+Side Effect (리소스 상태 변경):
+	•	INSTALLING 상태 리소스:
+	•	lifecycleStatus = 'READY_TO_TEST'
+	•	terraformState:
+	•	serviceTf = 'COMPLETED' (AWS만)
+	•	bdcTf = 'COMPLETED'
+
+응답:
+	•	{ success: true, project }
+
+⸻
+
+POST /api/projects/{projectId}/confirm-pii-agent (ADMIN)
+
+PII Agent 설치 확정 (관리자 액션, 최초 1회)
+
+프로세스 전이:
+	•	4 → 5
+
+Side Effect:
+	•	READY_TO_TEST 상태 리소스:
+	•	lifecycleStatus = 'ACTIVE'
+	•	connectionStatus = 'CONNECTED'
+	•	프로젝트:
+	•	piiAgentInstalled = true
+
+응답:
+	•	{ success: true, project }
 
 ⸻
 

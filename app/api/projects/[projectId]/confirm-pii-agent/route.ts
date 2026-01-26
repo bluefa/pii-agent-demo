@@ -11,7 +11,7 @@ export async function POST(
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
-      { error: 'FORBIDDEN', message: '관리자만 반려할 수 있습니다.' },
+      { error: 'FORBIDDEN', message: '관리자만 설치 확정할 수 있습니다.' },
       { status: 403 }
     );
   }
@@ -25,34 +25,29 @@ export async function POST(
     );
   }
 
-  if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+  if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST) {
     return NextResponse.json(
-      { error: 'INVALID_STATE', message: '승인 대기 상태가 아닙니다.' },
+      { error: 'INVALID_STATE', message: '연결 테스트 대기 상태가 아닙니다.' },
       { status: 400 }
     );
   }
 
-  const body = await request.json().catch(() => ({}));
-  const { reason } = body as { reason?: string };
-
+  // READY_TO_TEST 상태인 리소스를 ACTIVE로 변경, connectionStatus도 CONNECTED로
   const updatedResources = project.resources.map((r) => {
-    const lifecycleStatus: ResourceLifecycleStatus = 'DISCOVERED';
+    if (r.lifecycleStatus !== 'READY_TO_TEST') return r;
 
     return {
       ...r,
-      isSelected: false,
-      lifecycleStatus,
-      note: reason ? `반려: ${reason}` : r.note,
+      lifecycleStatus: 'ACTIVE' as ResourceLifecycleStatus,
+      connectionStatus: 'CONNECTED' as const,
     };
   });
 
   const updatedProject = updateProject(projectId, {
-    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    processStatus: ProcessStatus.INSTALLATION_COMPLETE,
     resources: updatedResources,
-    isRejected: true,
-    rejectionReason: reason,
-    rejectedAt: new Date().toISOString(),
+    piiAgentInstalled: true,
   });
 
-  return NextResponse.json({ success: true, project: updatedProject, reason });
+  return NextResponse.json({ success: true, project: updatedProject });
 }
