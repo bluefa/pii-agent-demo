@@ -1,10 +1,21 @@
 'use client';
 
-import { ProcessStatus, Project } from '../../../lib/types';
+import { useState } from 'react';
+import { ProcessStatus, Project, TerraformStatus } from '../../../lib/types';
+import { TerraformStatusModal } from './TerraformStatusModal';
 
 interface ProcessStatusCardProps {
   project: Project;
 }
+
+const getProgress = (project: Project) => {
+  const items: TerraformStatus[] = [project.terraformState.bdcTf];
+  if (project.cloudProvider === 'AWS' && project.terraformState.serviceTf) {
+    items.unshift(project.terraformState.serviceTf);
+  }
+  const completed = items.filter(s => s === 'COMPLETED').length;
+  return { completed, total: items.length };
+};
 
 const steps = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 확정' },
@@ -32,8 +43,10 @@ const getStepGuideText = (status: ProcessStatus) => {
 };
 
 export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
+  const [showTerraformModal, setShowTerraformModal] = useState(false);
   const currentStep = project.processStatus;
   const guideText = getStepGuideText(currentStep);
+  const progress = getProgress(project);
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
@@ -163,15 +176,15 @@ export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
           )}
           {currentStep === ProcessStatus.INSTALLING && (
             <button
-              disabled
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg cursor-not-allowed"
+              onClick={() => setShowTerraformModal(true)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                <span className="font-medium text-orange-600">설치 상태 확인 (Phase 3)</span>
+                <span className="font-medium text-orange-600">설치 상태 확인</span>
               </div>
               <span className="px-2 py-0.5 bg-orange-100 text-orange-500 text-sm font-medium rounded-full">
-                ?/3
+                {progress.completed}/{progress.total}
               </span>
             </button>
           )}
@@ -193,6 +206,15 @@ export const ProcessStatusCard = ({ project }: ProcessStatusCardProps) => {
           )}
         </div>
       </div>
+
+      {/* Terraform Status Modal */}
+      {showTerraformModal && (
+        <TerraformStatusModal
+          terraformState={project.terraformState}
+          cloudProvider={project.cloudProvider}
+          onClose={() => setShowTerraformModal(false)}
+        />
+      )}
     </div>
   );
 };

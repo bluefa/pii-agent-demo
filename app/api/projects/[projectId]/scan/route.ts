@@ -1,6 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject, generateId } from '@/lib/mock-data';
-import { AwsResourceType, AwsRegion } from '@/lib/types';
+import { AwsResourceType, DatabaseType } from '@/lib/types';
+
+const awsTypeToDatabaseType = (awsType: AwsResourceType): DatabaseType => {
+  switch (awsType) {
+    case 'RDS':
+    case 'RDS_CLUSTER':
+      // RDS는 MySQL이나 PostgreSQL일 수 있음 - 랜덤 선택
+      return Math.random() > 0.5 ? 'MYSQL' : 'POSTGRESQL';
+    case 'DYNAMODB':
+      return 'DYNAMODB';
+    case 'ATHENA':
+      return 'ATHENA';
+    case 'REDSHIFT':
+      return 'REDSHIFT';
+    default:
+      return 'MYSQL';
+  }
+};
 
 export async function POST(
   request: Request,
@@ -88,7 +105,8 @@ export async function POST(
       id: generateId('res'),
       type: awsType,
       resourceId: makeArn(),
-      connectionStatus: 'NEW' as const,
+      databaseType: awsTypeToDatabaseType(awsType),
+      connectionStatus: 'PENDING' as const,
       isSelected: false,
 
       awsType,

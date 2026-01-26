@@ -1,0 +1,524 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import {
+  Resource,
+  CloudProvider,
+  ProcessStatus,
+  ConnectionStatus,
+  AwsResourceType,
+  DatabaseType,
+} from '../../../lib/types';
+import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
+
+interface ResourceTableProps {
+  resources: Resource[];
+  cloudProvider: CloudProvider;
+  processStatus: ProcessStatus;
+  onSelectionChange?: (selectedIds: string[]) => void;
+}
+
+type FilterType = 'all' | 'selected';
+
+const CONNECTION_STATUS_CONFIG: Record<ConnectionStatus, { label: string; className: string; icon: string }> = {
+  CONNECTED: { label: '연결됨', className: 'text-green-500', icon: '●' },
+  DISCONNECTED: { label: '연결 끊김', className: 'text-red-500', icon: '●' },
+  PENDING: { label: '대기중', className: 'text-gray-400', icon: '○' },
+};
+
+const REGION_LABELS: Record<string, string> = {
+  'ap-northeast-2': '서울 (ap-northeast-2)',
+  'ap-northeast-1': '도쿄 (ap-northeast-1)',
+  'us-east-1': '버지니아 (us-east-1)',
+  'us-west-2': '오레곤 (us-west-2)',
+};
+
+export const ResourceTable = ({
+  resources,
+  cloudProvider,
+  processStatus,
+  onSelectionChange,
+}: ResourceTableProps) => {
+  const [filter, setFilter] = useState<FilterType>('selected');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(resources.filter((r) => r.isSelected).map((r) => r.id))
+  );
+
+  const isAWS = cloudProvider === 'AWS';
+  const isCheckboxEnabled = processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  const showConnectionStatus =
+    processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+    processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+
+  // 필터링된 리소스
+  const filteredResources = resources.filter((resource) => {
+    switch (filter) {
+      case 'selected':
+        return resource.isSelected || selectedIds.has(resource.id);
+      default:
+        return true;
+    }
+  });
+
+  // Region별 그룹화 (AWS만)
+  const groupedByRegion = useMemo(() => {
+    if (!isAWS) return null;
+
+    const groups: Record<string, Resource[]> = {};
+    filteredResources.forEach((resource) => {
+      const region = resource.region || 'unknown';
+      if (!groups[region]) groups[region] = [];
+      groups[region].push(resource);
+    });
+
+    // Region 정렬: 서울 먼저, 나머지는 알파벳순
+    return Object.entries(groups).sort(([a], [b]) => {
+      if (a === 'ap-northeast-2') return -1;
+      if (b === 'ap-northeast-2') return 1;
+      return a.localeCompare(b);
+    });
+  }, [filteredResources, isAWS]);
+
+  const handleCheckboxChange = (resourceId: string, checked: boolean) => {
+    const newSelectedIds = new Set(selectedIds);
+    if (checked) {
+      newSelectedIds.add(resourceId);
+    } else {
+      newSelectedIds.delete(resourceId);
+    }
+    setSelectedIds(newSelectedIds);
+    onSelectionChange?.(Array.from(newSelectedIds));
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    const newSelectedIds = checked
+      ? new Set(filteredResources.map((r) => r.id))
+      : new Set<string>();
+    setSelectedIds(newSelectedIds);
+    onSelectionChange?.(Array.from(newSelectedIds));
+  };
+
+  const isAllSelected =
+    filteredResources.length > 0 && filteredResources.every((r) => selectedIds.has(r.id));
+  const isSomeSelected =
+    filteredResources.some((r) => selectedIds.has(r.id)) && !isAllSelected;
+
+  const colSpan = showConnectionStatus ? 6 : 5;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            리소스 목록
+          </h3>
+          <span className="text-sm text-gray-500">총 {resources.length}개</span>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="px-6 pt-4 pb-2 border-b border-gray-100">
+        <div className="flex gap-2">
+          <FilterTab
+            label="연동 대상"
+            count={resources.filter((r) => r.isSelected).length}
+            active={filter === 'selected'}
+            onClick={() => setFilter('selected')}
+          />
+          <FilterTab
+            label="전체"
+            count={resources.length}
+            active={filter === 'all'}
+            onClick={() => setFilter('all')}
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      {filteredResources.length === 0 ? (
+        <EmptyState filter={filter} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 w-12">
+                  {isCheckboxEnabled && (
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  )}
+                </th>
+                <th className="px-6 py-3">인스턴스 타입</th>
+                <th className="px-6 py-3">데이터베이스</th>
+                <th className="px-6 py-3">리소스 ID</th>
+                {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
+                <th className="px-6 py-3 w-16"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {isAWS && groupedByRegion ? (
+                // AWS: Region별 그룹화
+                groupedByRegion.map(([region, regionResources]) => (
+                  <RegionGroup
+                    key={region}
+                    region={region}
+                    resources={regionResources}
+                    selectedIds={selectedIds}
+                    isCheckboxEnabled={isCheckboxEnabled}
+                    showConnectionStatus={showConnectionStatus}
+                    onCheckboxChange={handleCheckboxChange}
+                    colSpan={colSpan}
+                  />
+                ))
+              ) : (
+                // IDC: Flat list
+                filteredResources.map((resource) => (
+                  <ResourceRow
+                    key={resource.id}
+                    resource={resource}
+                    isAWS={false}
+                    selectedIds={selectedIds}
+                    isCheckboxEnabled={isCheckboxEnabled}
+                    showConnectionStatus={showConnectionStatus}
+                    onCheckboxChange={handleCheckboxChange}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Region Group Component
+interface RegionGroupProps {
+  region: string;
+  resources: Resource[];
+  selectedIds: Set<string>;
+  isCheckboxEnabled: boolean;
+  showConnectionStatus: boolean;
+  onCheckboxChange: (id: string, checked: boolean) => void;
+  colSpan: number;
+}
+
+const RegionGroup = ({
+  region,
+  resources,
+  selectedIds,
+  isCheckboxEnabled,
+  showConnectionStatus,
+  onCheckboxChange,
+  colSpan,
+}: RegionGroupProps) => (
+  <>
+    {/* Region Header */}
+    <tr className="bg-gradient-to-r from-slate-50 to-transparent">
+      <td colSpan={colSpan} className="px-6 py-2">
+        <div className="flex items-center gap-2">
+          <RegionIcon />
+          <span className="text-sm font-semibold text-slate-700">
+            {REGION_LABELS[region] || region}
+          </span>
+          <span className="text-xs text-slate-400">({resources.length})</span>
+        </div>
+      </td>
+    </tr>
+    {/* Region Resources */}
+    {resources.map((resource) => (
+      <ResourceRow
+        key={resource.id}
+        resource={resource}
+        isAWS={true}
+        selectedIds={selectedIds}
+        isCheckboxEnabled={isCheckboxEnabled}
+        showConnectionStatus={showConnectionStatus}
+        onCheckboxChange={onCheckboxChange}
+      />
+    ))}
+  </>
+);
+
+// Resource Row Component
+interface ResourceRowProps {
+  resource: Resource;
+  isAWS: boolean;
+  selectedIds: Set<string>;
+  isCheckboxEnabled: boolean;
+  showConnectionStatus: boolean;
+  onCheckboxChange: (id: string, checked: boolean) => void;
+}
+
+const ResourceRow = ({
+  resource,
+  isAWS,
+  selectedIds,
+  isCheckboxEnabled,
+  showConnectionStatus,
+  onCheckboxChange,
+}: ResourceRowProps) => (
+  <tr className="hover:bg-gray-50 transition-colors">
+    {/* Checkbox (1단계에서만 활성화) */}
+    <td className="px-6 py-4 w-12">
+      {isCheckboxEnabled && (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(resource.id)}
+          onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
+          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      )}
+    </td>
+
+    {/* Instance Type */}
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-2">
+        {isAWS && resource.awsType && <AwsServiceIcon type={resource.awsType} />}
+        <span className="font-medium text-gray-900">{resource.awsType || resource.type}</span>
+      </div>
+    </td>
+
+    {/* Database Type */}
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-2">
+        <DatabaseIcon type={resource.databaseType} size="sm" />
+        <span className="text-sm text-gray-700">{getDatabaseLabel(resource.databaseType)}</span>
+      </div>
+    </td>
+
+    {/* Resource ID */}
+    <td className="px-6 py-4">
+      <span className="text-gray-600 font-mono text-sm">{resource.resourceId}</span>
+    </td>
+
+    {/* Connection Status (4단계, 5단계만) */}
+    {showConnectionStatus && (
+      <td className="px-6 py-4">
+        <ConnectionIndicator status={resource.connectionStatus} />
+      </td>
+    )}
+
+    {/* Status Icons */}
+    <td className="px-6 py-4">
+      <div className="flex items-center gap-1">
+        {resource.isSelected && <StatusIcon type="selected" />}
+        {resource.isNew && <StatusIcon type="new" />}
+        {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
+      </div>
+    </td>
+  </tr>
+);
+
+// AWS Service Icons
+interface AwsServiceIconProps {
+  type: AwsResourceType;
+}
+
+const AwsServiceIcon = ({ type }: AwsServiceIconProps) => {
+  const icons: Record<AwsResourceType, React.ReactNode> = {
+    RDS: (
+      <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="4" fill="#3B48CC" />
+        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill="#5294CF" />
+        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill="#1A476F" />
+        <ellipse cx="20" cy="12.5" rx="7" ry="3" fill="#2E73B8" />
+        <path d="M10 20c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#1A476F" strokeWidth="1.5" />
+        <path d="M10 27c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#1A476F" strokeWidth="1.5" />
+      </svg>
+    ),
+    RDS_CLUSTER: (
+      <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="4" fill="#3B48CC" />
+        <path d="M20 6c-6 0-11 2.2-11 5v18c0 2.8 5 5 11 5s11-2.2 11-5V11c0-2.8-5-5-11-5z" fill="#5294CF" />
+        <ellipse cx="20" cy="11" rx="11" ry="5" fill="#1A476F" />
+        <ellipse cx="20" cy="11" rx="8" ry="3.5" fill="#2E73B8" />
+        <path d="M9 18c0 2.8 5 5 11 5s11-2.2 11-5" stroke="#1A476F" strokeWidth="1.5" />
+        <path d="M9 25c0 2.8 5 5 11 5s11-2.2 11-5" stroke="#1A476F" strokeWidth="1.5" />
+        <circle cx="28" cy="28" r="6" fill="#FF9900" />
+        <path d="M26 28h4M28 26v4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+    DYNAMODB: (
+      <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="4" fill="#3B48CC" />
+        <path d="M8 12l12-4 12 4v16l-12 4-12-4V12z" fill="#5294CF" />
+        <path d="M8 12l12 4 12-4" stroke="#1A476F" strokeWidth="1.5" />
+        <path d="M20 16v16" stroke="#1A476F" strokeWidth="1.5" />
+        <path d="M8 20l12 4 12-4" stroke="#1A476F" strokeWidth="1" strokeDasharray="2 2" />
+        <path d="M8 24l12 4 12-4" stroke="#1A476F" strokeWidth="1" strokeDasharray="2 2" />
+        <ellipse cx="20" cy="12" rx="12" ry="4" fill="#2E73B8" />
+      </svg>
+    ),
+    ATHENA: (
+      <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="4" fill="#8C4FFF" />
+        <path d="M20 8l10 6v12l-10 6-10-6V14l10-6z" fill="#B98AFF" />
+        <path d="M20 8l10 6-10 6-10-6 10-6z" fill="#6B2FD9" />
+        <path d="M20 20v12l10-6V14" fill="#9D5CFF" />
+        <path d="M20 20v12l-10-6V14" fill="#B98AFF" />
+        <circle cx="20" cy="18" r="4" fill="white" fillOpacity="0.9" />
+        <path d="M18 18l1.5 1.5 3-3" stroke="#6B2FD9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    REDSHIFT: (
+      <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="4" fill="#205B99" />
+        <path d="M10 14h20v16H10V14z" fill="#5294CF" />
+        <rect x="10" y="14" width="20" height="4" fill="#1A476F" />
+        <rect x="10" y="22" width="20" height="4" fill="#1A476F" />
+        <path d="M12 8h16l4 6H8l4-6z" fill="#2E73B8" />
+        <rect x="14" y="16" width="4" height="2" rx="0.5" fill="white" fillOpacity="0.8" />
+        <rect x="20" y="16" width="6" height="2" rx="0.5" fill="white" fillOpacity="0.5" />
+        <rect x="14" y="24" width="6" height="2" rx="0.5" fill="white" fillOpacity="0.5" />
+        <rect x="22" y="24" width="4" height="2" rx="0.5" fill="white" fillOpacity="0.8" />
+      </svg>
+    ),
+  };
+
+  return icons[type] || <DefaultDbIcon />;
+};
+
+const DefaultDbIcon = () => (
+  <svg className="w-6 h-6" viewBox="0 0 40 40" fill="none">
+    <rect width="40" height="40" rx="4" fill="#6B7280" />
+    <ellipse cx="20" cy="12" rx="10" ry="4" fill="#9CA3AF" />
+    <path d="M10 12v16c0 2.2 4.5 4 10 4s10-1.8 10-4V12" fill="#4B5563" />
+    <path d="M10 20c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#374151" strokeWidth="1.5" />
+    <path d="M10 26c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#374151" strokeWidth="1.5" />
+  </svg>
+);
+
+const RegionIcon = () => (
+  <svg className="w-4 h-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+  </svg>
+);
+
+// Sub-components
+
+interface FilterTabProps {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}
+
+const FilterTab = ({ label, count, active, onClick }: FilterTabProps) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+      active ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+    }`}
+  >
+    {label}
+    <span
+      className={`ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+        active ? 'bg-blue-200 text-blue-800' : 'bg-gray-200 text-gray-600'
+      }`}
+    >
+      {count}
+    </span>
+  </button>
+);
+
+interface ConnectionIndicatorProps {
+  status: ConnectionStatus;
+}
+
+const ConnectionIndicator = ({ status }: ConnectionIndicatorProps) => {
+  const config = CONNECTION_STATUS_CONFIG[status];
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`text-lg ${config.className}`}>{config.icon}</span>
+      <span className="text-sm text-gray-600">{config.label}</span>
+    </div>
+  );
+};
+
+// Status Icons with Tooltip
+interface StatusIconProps {
+  type: 'selected' | 'new' | 'disconnected';
+}
+
+const StatusIcon = ({ type }: StatusIconProps) => {
+  const configs = {
+    selected: {
+      icon: (
+        <svg className="w-5 h-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+      ),
+      tooltip: '연동 대상',
+      bgColor: 'bg-green-50',
+    },
+    new: {
+      icon: (
+        <svg className="w-5 h-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zm7-10a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+        </svg>
+      ),
+      tooltip: '신규 발견된 리소스',
+      bgColor: 'bg-blue-50',
+    },
+    disconnected: {
+      icon: (
+        <svg className="w-5 h-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+      ),
+      tooltip: '연결이 끊어졌습니다',
+      bgColor: 'bg-red-50',
+    },
+  };
+
+  const config = configs[type];
+
+  return (
+    <div className="group relative">
+      <div className={`p-1 rounded ${config.bgColor} cursor-help`}>
+        {config.icon}
+      </div>
+      {/* Tooltip */}
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+        {config.tooltip}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+      </div>
+    </div>
+  );
+};
+
+interface EmptyStateProps {
+  filter: FilterType;
+}
+
+const EmptyState = ({ filter }: EmptyStateProps) => {
+  const messages: Record<FilterType, string> = {
+    all: '리소스가 없습니다.',
+    selected: '연동 대상으로 선택된 리소스가 없습니다.',
+  };
+
+  return (
+    <div className="text-center py-12">
+      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
+          />
+        </svg>
+      </div>
+      <p className="text-gray-500">{messages[filter]}</p>
+    </div>
+  );
+};

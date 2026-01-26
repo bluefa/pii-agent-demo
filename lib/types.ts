@@ -10,11 +10,15 @@ export enum ProcessStatus {
 
 export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
 
-export type TerraformStatus = 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
+export type TerraformStatus = 'COMPLETED' | 'FAILED' | 'PENDING';
+
+export type FirewallStatus = 'CONNECTED' | 'CONNECTION_FAIL';
 
 export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
 export type CloudProvider = 'AWS' | 'IDC';
+
+export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT';
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT';
 
@@ -55,20 +59,25 @@ export interface Resource {
   resourceId: string;
   connectionStatus: ConnectionStatus;
   isSelected: boolean;
+  databaseType: DatabaseType;             // DB 종류 (필수)
 
-
-  // --- 추가 (AWS 표시/상태 확장용) ---
+  // --- AWS 전용 ---
   awsType?: AwsResourceType;              // AWS일 때만
   region?: AwsRegion;                     // AWS일 때만
+
+  // --- 상태/표시 ---
   lifecycleStatus: ResourceLifecycleStatus; // UI 상태(필수)
   isNew?: boolean;                        // NEW 라벨 고정용(선택)
   note?: string;                          // 비고(선택)
 }
 
 export interface TerraformState {
-  serviceTf: TerraformStatus;
-  bdcCommonTf: TerraformStatus;
-  bdcServiceTf: TerraformStatus;
+  // AWS 전용: 서비스 측 Terraform
+  serviceTf?: TerraformStatus;
+  // 공통: BDC 측 Terraform
+  bdcTf: TerraformStatus;
+  // IDC 전용: 방화벽 연결 확인
+  firewallCheck?: FirewallStatus;
 }
 
 export interface Project {

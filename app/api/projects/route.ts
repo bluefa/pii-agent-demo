@@ -13,10 +13,11 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { projectCode, serviceCode, cloudProvider } = body as {
+  const { projectCode, serviceCode, cloudProvider, description } = body as {
     projectCode: string;
     serviceCode: string;
     cloudProvider: CloudProvider;
+    description?: string;
   };
 
   if (!projectCode || !serviceCode || !cloudProvider) {
@@ -41,15 +42,14 @@ export async function POST(request: Request) {
     cloudProvider,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     resources: [],
-    terraformState: {
-      serviceTf: 'PENDING',
-      bdcCommonTf: 'PENDING',
-      bdcServiceTf: 'PENDING',
-    },
+    terraformState: cloudProvider === 'AWS'
+      ? { serviceTf: 'PENDING', bdcTf: 'PENDING' }
+      : { bdcTf: 'PENDING' },
     createdAt: now,
     updatedAt: now,
     name: projectCode,
-    description: '',
+    description: description || '',
+    isRejected: false,
   };
 
   addProject(newProject);

@@ -20,6 +20,7 @@ export const createProject = async (payload: {
   projectCode: string;
   serviceCode: string;
   cloudProvider: CloudProvider;
+  description?: string;
 }): Promise<void> => {
   const res = await fetch(`${BASE_URL}/projects`, {
     method: 'POST',

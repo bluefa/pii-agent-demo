@@ -43,14 +43,15 @@ export async function POST(
     };
   });
 
+  const terraformState = project.cloudProvider === 'AWS'
+    ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
+    : { bdcTf: 'PENDING' as const };
+
   const updatedProject = updateProject(projectId, {
     processStatus: ProcessStatus.INSTALLING,
     resources: updatedResources,
-    terraformState: {
-      serviceTf: 'IN_PROGRESS',
-      bdcCommonTf: 'PENDING',
-      bdcServiceTf: 'PENDING',
-    },
+    terraformState,
+    isRejected: false,
   });
 
   return NextResponse.json({ success: true, project: updatedProject });

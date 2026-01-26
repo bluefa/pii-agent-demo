@@ -6,6 +6,7 @@ import { Project } from '../../../lib/types';
 import { getProject } from '../../lib/api';
 import { ProjectInfoCard } from '../../components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '../../components/features/ProcessStatusCard';
+import { ResourceTable } from '../../components/features/ResourceTable';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -124,19 +125,13 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           <ProcessStatusCard project={project} />
         </div>
 
-        {/* Resource Table Placeholder (Phase 2) */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">리소스 목록</h3>
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-              </svg>
-            </div>
-            <p className="text-gray-500">리소스 테이블 (Phase 2에서 구현)</p>
-            <p className="text-gray-400 text-sm mt-1">총 {project.resources.length}개의 리소스</p>
-          </div>
-        </div>
+        {/* Resource Table */}
+        <ResourceTable
+          resources={project.resources}
+          cloudProvider={project.cloudProvider}
+          processStatus={project.processStatus}
+          onSelectionChange={(ids) => console.log('Selected:', ids)}
+        />
       </main>
     </div>
   );

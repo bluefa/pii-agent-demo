@@ -2,19 +2,43 @@
 
 ## 개요
 
-PII Agent 시스템의 상태는 크게 4가지 관점으로 구분됩니다.
+PII Agent 시스템의 상태는 다음과 같이 구분됩니다.
 
 | 관점 | 필드 | 적용 대상 |
 |------|------|-----------|
+| 데이터베이스 종류 | `databaseType` | Resource |
 | PII Agent 연결 상태 | `connectionStatus` | Resource |
 | 리소스 라이프사이클 | `lifecycleStatus` | Resource |
 | 신규 리소스 여부 | `isNew` | Resource |
 | 프로세스 진행 상태 | `processStatus` | Project |
+| Terraform 설치 상태 | `terraformState` | Project |
 | 반려 상태 | `isRejected`, `rejectionReason`, `rejectedAt` | Project |
 
 ---
 
-## 1. ConnectionStatus (PII Agent 연결 상태)
+## 1. DatabaseType (데이터베이스 종류)
+
+리소스의 데이터베이스 종류를 나타냅니다. AWS/IDC 모두 동일하게 적용됩니다.
+
+```typescript
+type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT';
+```
+
+| 타입 | 설명 | 아이콘 |
+|------|------|--------|
+| `MYSQL` | MySQL 데이터베이스 | 돌고래 로고 |
+| `POSTGRESQL` | PostgreSQL 데이터베이스 | 코끼리 로고 |
+| `DYNAMODB` | AWS DynamoDB | DynamoDB 로고 |
+| `ATHENA` | AWS Athena | Athena 로고 |
+| `REDSHIFT` | AWS Redshift | Redshift 로고 |
+
+### AWS vs IDC
+- **AWS**: awsType에 따라 databaseType 결정 (RDS → MYSQL/POSTGRESQL, DYNAMODB → DYNAMODB 등)
+- **IDC**: 직접 databaseType 지정 (MYSQL, POSTGRESQL)
+
+---
+
+## 2. ConnectionStatus (PII Agent 연결 상태)
 
 리소스와 PII Agent 간의 실제 연결 상태를 나타냅니다.
 
@@ -36,7 +60,7 @@ type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
 
 ---
 
-## 2. ResourceLifecycleStatus (리소스 라이프사이클)
+## 3. ResourceLifecycleStatus (리소스 라이프사이클)
 
 리소스의 설치 프로세스 내 현재 단계를 나타냅니다.
 
@@ -68,7 +92,7 @@ DISCOVERED → TARGET → PENDING_APPROVAL → INSTALLING → READY_TO_TEST → 
 
 ---
 
-## 3. isNew (신규 리소스 플래그)
+## 4. isNew (신규 리소스 플래그)
 
 스캔으로 새로 발견된 리소스임을 표시합니다.
 
@@ -89,7 +113,7 @@ interface Resource {
 
 ---
 
-## 4. ProcessStatus (프로세스 진행 상태)
+## 5. ProcessStatus (프로세스 진행 상태)
 
 과제(Project)의 전체 설치 프로세스 진행 단계입니다.
 
@@ -119,7 +143,47 @@ enum ProcessStatus {
 
 ---
 
-## 5. 반려 상태 (Project Rejection)
+## 6. TerraformState (설치 진행 상태)
+
+3단계(INSTALLING)에서 Terraform 설치 진행 상태를 표시합니다.
+
+```typescript
+type TerraformStatus = 'COMPLETED' | 'FAILED' | 'PENDING';
+type FirewallStatus = 'CONNECTED' | 'CONNECTION_FAIL';
+
+interface TerraformState {
+  // AWS 전용: 서비스 측 Terraform
+  serviceTf?: TerraformStatus;
+  // 공통: BDC 측 Terraform
+  bdcTf: TerraformStatus;
+  // IDC 전용: 방화벽 연결 확인
+  firewallCheck?: FirewallStatus;
+}
+```
+
+### TerraformStatus
+| 상태 | 설명 | UI 표시 |
+|------|------|---------|
+| `COMPLETED` | 설치 완료 | 녹색 (green) |
+| `FAILED` | 설치 실패 | 빨강 (red) |
+| `PENDING` | 대기중 | 회색 (gray) |
+
+### FirewallStatus (IDC 전용)
+| 상태 | 설명 | UI 표시 |
+|------|------|---------|
+| `CONNECTED` | 방화벽 연결 성공 | 녹색 (green) |
+| `CONNECTION_FAIL` | 방화벽 연결 실패 | 빨강 (red) |
+
+### AWS vs IDC 표시 항목
+| 항목 | AWS | IDC |
+|------|-----|-----|
+| Service Terraform | O | X |
+| BDC Terraform | O | O |
+| 방화벽 연결 | X | O |
+
+---
+
+## 7. 반려 상태 (Project Rejection)
 
 관리자가 승인 요청을 반려한 경우의 상태입니다.
 

@@ -112,7 +112,7 @@ export const AdminDashboard = () => {
       await addPermission(selectedService, user.id);
       const data = await getPermissions(selectedService);
       setPermissions(data);
-    } catch (error) {
+    } catch {
       alert('사용자 추가 실패');
     }
   };
@@ -123,7 +123,7 @@ export const AdminDashboard = () => {
       await deletePermission(selectedService, userId);
       const data = await getPermissions(selectedService);
       setPermissions(data);
-    } catch (error) {
+    } catch {
       alert('사용자 삭제 실패');
     }
   };
@@ -158,9 +158,7 @@ export const AdminDashboard = () => {
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">서비스 코드</h2>
           </div>
           <ul className="py-2">
-            {services.map((service) => {
-              const projectCount = projects.filter(() => selectedService === service.code).length;
-              return (
+            {services.map((service) => (
                 <li
                   key={service.code}
                   onClick={() => setSelectedService(service.code)}
@@ -183,8 +181,7 @@ export const AdminDashboard = () => {
                     {service.name}
                   </div>
                 </li>
-              );
-            })}
+            ))}
           </ul>
         </aside>
 
