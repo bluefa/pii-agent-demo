@@ -4,6 +4,7 @@ import {
   Project,
   ProcessStatus,
 } from './types';
+import { getStore } from '@/lib/mock-store';
 
 // ===== Mock Users =====
 export const mockUsers: User[] = [
@@ -59,7 +60,7 @@ export const mockServiceCodes: ServiceCode[] = [
     description: '내부 운영 시스템',
   },
 ];// ===== Mock Projects (각 단계별 1개씩) =====
-export const mockProjects: Project[] = [
+export let mockProjects: Project[] = [
   {
     id: 'proj-1',
     projectCode: 'N-IRP-001',
@@ -313,43 +314,42 @@ export const mockProjects: Project[] = [
 ];
 // ===== Helper Functions =====
 
-export const getProjectById = (id: string): Project | undefined => {
-  return mockProjects.find((p) => p.id === id);
+export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
+  const store = getStore();
+  return store.projects.filter((p) => p.serviceCode === serviceCode);
 };
 
-export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
-  return mockProjects.filter((p) => p.serviceCode === serviceCode);
+export const getProjectById = (id: string): Project | undefined => {
+  const store = getStore();
+  return store.projects.find((p) => p.id === id);
+};
+
+export const addProject = (project: Project): Project => {
+  const store = getStore();
+  store.projects.push(project);
+  return project;
 };
 
 export const updateProject = (id: string, updates: Partial<Project>): Project | undefined => {
-  const index = mockProjects.findIndex((p) => p.id === id);
+  const store = getStore();
+  const index = store.projects.findIndex((p) => p.id === id);
   if (index === -1) return undefined;
 
-  mockProjects[index] = {
-    ...mockProjects[index],
+  store.projects[index] = {
+    ...store.projects[index],
     ...updates,
     updatedAt: new Date().toISOString(),
   };
 
-  return mockProjects[index];
-};
-
-export const addProject = (project: Project): Project => {
-  mockProjects.push(project);
-  return project;
+  return store.projects[index];
 };
 
 export const deleteProject = (id: string): boolean => {
-  const index = mockProjects.findIndex((p) => p.id === id);
+  const store = getStore();
+  const index = store.projects.findIndex((p) => p.id === id);
   if (index === -1) return false;
-  mockProjects.splice(index, 1);
+  store.projects.splice(index, 1);
   return true;
-};
-
-export const getUsersByServiceCode = (serviceCode: string): User[] => {
-  return mockUsers.filter(
-    (u) => u.role === 'ADMIN' || u.serviceCodePermissions.includes(serviceCode)
-  );
 };
 
 export const generateId = (prefix: string): string => {

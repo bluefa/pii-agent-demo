@@ -2,18 +2,18 @@
 
 import { useState } from 'react';
 import { Button } from '../ui/Button';
-import { ServiceCode, CloudProvider } from '../../../lib/types';
+import { CloudProvider } from '../../../lib/types';
 import { createProject } from '../../lib/api';
 
 interface ProjectCreateModalProps {
-  services: ServiceCode[];
+  selectedServiceCode: string;
+  serviceName: string;
   onClose: () => void;
   onCreated: () => void;
 }
 
-export const ProjectCreateModal = ({ services, onClose, onCreated }: ProjectCreateModalProps) => {
+export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, onCreated }: ProjectCreateModalProps) => {
   const [projectCode, setProjectCode] = useState('');
-  const [serviceCode, setServiceCode] = useState(services[0]?.code || '');
   const [cloudProvider, setCloudProvider] = useState<CloudProvider>('AWS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,11 +27,12 @@ export const ProjectCreateModal = ({ services, onClose, onCreated }: ProjectCrea
     setLoading(true);
     setError('');
     try {
-      await createProject({ projectCode, serviceCode, cloudProvider });
+      await createProject({ projectCode, serviceCode: selectedServiceCode, cloudProvider });
       onCreated();
       onClose();
-    } catch {
-      setError('과제 생성에 실패했습니다');
+    } catch (err) {
+      console.error('과제 생성 실패:', err);
+      setError('과제 생성에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
     } finally {
       setLoading(false);
     }
@@ -54,17 +55,9 @@ export const ProjectCreateModal = ({ services, onClose, onCreated }: ProjectCrea
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">서비스 코드</label>
-            <select
-              value={serviceCode}
-              onChange={(e) => setServiceCode(e.target.value)}
-              className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {services.map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.code} - {s.name}
-                </option>
-              ))}
-            </select>
+            <div className="w-full border rounded px-3 py-2 bg-gray-50 text-gray-700">
+              {selectedServiceCode} - {serviceName}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Cloud Provider</label>

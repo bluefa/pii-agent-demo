@@ -96,6 +96,7 @@ export interface ProjectSummary {
   resourceCount: number;
   hasDisconnected: boolean;
   hasNew: boolean;
+  description?: string;
 }
 
 export interface ErrorResponse {

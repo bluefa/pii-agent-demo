@@ -30,6 +30,7 @@ export async function GET(
     resourceCount: p.resources.length,
     hasDisconnected: p.resources.some((r) => r.connectionStatus === 'DISCONNECTED'),
     hasNew: p.resources.some((r) => r.connectionStatus === 'NEW'),
+    description: p.description,
   }));
 
   return NextResponse.json({ projects });
