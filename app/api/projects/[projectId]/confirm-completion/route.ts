@@ -40,9 +40,13 @@ export async function POST(
     );
   }
 
+  const now = new Date().toISOString();
   const updatedProject = updateProject(projectId, {
     processStatus: ProcessStatus.INSTALLATION_COMPLETE,
-    completionConfirmedAt: new Date().toISOString(),
+    completionConfirmedAt: now,
+    // 최초 1회 연동 완료 표시
+    piiAgentInstalled: true,
+    piiAgentConnectedAt: project.piiAgentConnectedAt || now,
   });
 
   return NextResponse.json({ project: updatedProject });

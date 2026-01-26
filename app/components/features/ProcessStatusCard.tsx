@@ -7,7 +7,7 @@ import { ConnectionDetailModal } from './ConnectionDetailModal';
 import { ConnectionHistoryTab } from './ConnectionHistoryTab';
 import { CredentialListTab } from './CredentialListTab';
 import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
-import { approveProject, rejectProject, confirmCompletion } from '../../lib/api';
+import { approveProject, rejectProject } from '../../lib/api';
 
 type ConnectionTabType = 'history' | 'credentials' | 'missing';
 
@@ -399,41 +399,6 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
                 )}
               </div>
 
-              {/* 관리자 설치 완료 확정 버튼 (5단계: CONNECTION_VERIFIED) */}
-              {currentStep === ProcessStatus.CONNECTION_VERIFIED && isAdmin && (
-                <div className="px-4 py-3 bg-green-50 border-t border-green-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-sm text-green-700">연결 테스트가 완료되었습니다</span>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        try {
-                          setSubmitting(true);
-                          const updated = await confirmCompletion(project.id);
-                          onProjectUpdate?.(updated);
-                        } catch (err) {
-                          alert(err instanceof Error ? err.message : '설치 완료 확정에 실패했습니다.');
-                        } finally {
-                          setSubmitting(false);
-                        }
-                      }}
-                      disabled={submitting}
-                      className="px-4 py-1.5 bg-green-600 text-white text-sm rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                    >
-                      {submitting && (
-                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="31.4 31.4" />
-                        </svg>
-                      )}
-                      설치 완료 확정
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
