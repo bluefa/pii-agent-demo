@@ -8,7 +8,7 @@ export enum ProcessStatus {
   INSTALLATION_COMPLETE = 5          // 설치 완료
 }
 
-export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'NEW';
+export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
 
 export type TerraformStatus = 'COMPLETED' | 'IN_PROGRESS' | 'PENDING';
 
@@ -84,6 +84,11 @@ export interface Project {
 
   name: string;
   description: string;
+
+  // 반려 관련
+  isRejected: boolean;
+  rejectionReason?: string;
+  rejectedAt?: string;
 }
 
 // ===== API Response Types =====
@@ -97,6 +102,8 @@ export interface ProjectSummary {
   hasDisconnected: boolean;
   hasNew: boolean;
   description?: string;
+  isRejected: boolean;
+  rejectionReason?: string;
 }
 
 export interface ErrorResponse {

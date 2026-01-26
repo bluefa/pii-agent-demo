@@ -1,4 +1,4 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider } from '../../lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project } from '../../lib/types';
 
 const BASE_URL = '/api';
 
@@ -50,4 +50,14 @@ export const deletePermission = async (serviceCode: string, userId: string): Pro
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete permission');
+};
+
+export const getProject = async (id: string): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${id}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to fetch project');
+  }
+  const data = await res.json();
+  return data.project;
 };

@@ -1,0 +1,143 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Project } from '../../../lib/types';
+import { getProject } from '../../lib/api';
+import { ProjectInfoCard } from '../../components/features/ProjectInfoCard';
+import { ProcessStatusCard } from '../../components/features/ProcessStatusCard';
+
+interface ProjectDetailProps {
+  projectId: string;
+}
+
+export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
+  const router = useRouter();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        setLoading(true);
+        const data = await getProject(projectId);
+        setProject(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProject();
+  }, [projectId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <p className="text-gray-900 font-medium mb-2">오류가 발생했습니다</p>
+          <p className="text-gray-500 text-sm mb-4">{error || '과제를 찾을 수 없습니다.'}</p>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-gray-900">PII Agent</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-600">관리자</span>
+          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+        </div>
+      </header>
+
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-gray-100 px-6 py-3">
+        <nav className="flex items-center gap-2 text-sm">
+          <button
+            onClick={() => router.push('/admin')}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            관리자
+          </button>
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <button
+            onClick={() => router.push('/admin')}
+            className="text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            {project.serviceCode}
+          </button>
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          <span className="font-medium text-gray-900">{project.projectCode}</span>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <main className="p-6 space-y-6">
+        {/* Info & Process Status Cards - Side by Side */}
+        <div className="grid grid-cols-[350px_1fr] gap-6">
+          {/* Left: Project Info */}
+          <ProjectInfoCard project={project} />
+
+          {/* Right: Process Status */}
+          <ProcessStatusCard project={project} />
+        </div>
+
+        {/* Resource Table Placeholder (Phase 2) */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">리소스 목록</h3>
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+              </svg>
+            </div>
+            <p className="text-gray-500">리소스 테이블 (Phase 2에서 구현)</p>
+            <p className="text-gray-400 text-sm mt-1">총 {project.resources.length}개의 리소스</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};

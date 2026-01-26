@@ -29,8 +29,10 @@ export async function GET(
     cloudProvider: p.cloudProvider,
     resourceCount: p.resources.length,
     hasDisconnected: p.resources.some((r) => r.connectionStatus === 'DISCONNECTED'),
-    hasNew: p.resources.some((r) => r.connectionStatus === 'NEW'),
+    hasNew: p.resources.some((r) => r.isNew === true),
     description: p.description,
+    isRejected: p.isRejected,
+    rejectionReason: p.rejectionReason,
   }));
 
   return NextResponse.json({ projects });
