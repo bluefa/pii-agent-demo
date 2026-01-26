@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
-import { ProcessStatus, ResourceLifecycleStatus, ConnectionStatus } from '@/lib/types';
+import { getCurrentUser, getProjectById, updateProject, simulateConnectionTest, getCredentialById, generateId } from '@/lib/mock-data';
+import { ProcessStatus, ResourceLifecycleStatus, ConnectionStatus, ConnectionTestResult, ConnectionTestHistory, needsCredential } from '@/lib/types';
+
+interface ResourceCredentialInput {
+  resourceId: string;
+  credentialId?: string;
+}
 
 export async function POST(
   request: Request,
@@ -32,44 +37,115 @@ export async function POST(
     );
   }
 
-  if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST) {
+  // 4단계(연결 테스트), 5단계(연결 확인), 6단계(완료)에서 테스트 가능
+  if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST &&
+      project.processStatus !== ProcessStatus.CONNECTION_VERIFIED &&
+      project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE) {
     return NextResponse.json(
       { error: 'INVALID_STATE', message: '연결 테스트가 필요한 상태가 아닙니다.' },
       { status: 400 }
     );
   }
 
-  // Mock: 모든 연결 성공
-  const results = project.resources
-    .filter((r) => r.isSelected)
-    .map((r) => ({
-      resourceId: r.resourceId,
-      success: true,
-      message: '연결 성공',
-    }));
+  // Request body에서 resourceCredentials 가져오기
+  let resourceCredentials: ResourceCredentialInput[] = [];
+  try {
+    const body = await request.json();
+    resourceCredentials = body.resourceCredentials || [];
+  } catch {
+    // body가 없으면 빈 배열로 처리
+  }
+
+  // 선택된 리소스들에 대해 테스트 실행
+  const selectedResources = project.resources.filter((r) => r.isSelected);
+
+  // resourceCredentials를 map으로 변환
+  const credentialMap = new Map<string, string | undefined>();
+  resourceCredentials.forEach((rc) => {
+    credentialMap.set(rc.resourceId, rc.credentialId);
+  });
+
+  // 각 리소스에 대해 시뮬레이션
+  const results: ConnectionTestResult[] = selectedResources.map((r) => {
+    const credentialId = credentialMap.get(r.id);
+    const credential = credentialId ? getCredentialById(credentialId) : undefined;
+    return simulateConnectionTest(
+      r.resourceId,
+      r.type,
+      r.databaseType,
+      credentialId,
+      credential?.name
+    );
+  });
+
+  // 성공/실패 카운트
+  const successCount = results.filter((r) => r.success).length;
+  const failCount = results.filter((r) => !r.success).length;
+  const allSuccess = failCount === 0;
+
+  // History 생성
+  const historyEntry: ConnectionTestHistory = {
+    id: generateId('history'),
+    executedAt: new Date().toISOString(),
+    status: allSuccess ? 'SUCCESS' : 'FAIL',
+    successCount,
+    failCount,
+    results,
+  };
+
+  // 리소스 상태 업데이트 (selectedCredentialId도 저장)
   const updatedResources = project.resources.map((r) => {
     if (!r.isSelected) return r;
 
-    const lifecycleStatus: ResourceLifecycleStatus = 'ACTIVE';
-    const connectionStatus: ConnectionStatus = 'CONNECTED';
+    const credentialId = credentialMap.get(r.id);
+    const result = results.find((res) => res.resourceId === r.resourceId);
 
-    return {
-      ...r,
-      connectionStatus: connectionStatus,
-      lifecycleStatus,
-      isNew: false,
-      note: r.note === 'NEW' ? undefined : r.note,
-    };
+    if (!result) {
+      return {
+        ...r,
+        selectedCredentialId: credentialId,
+      };
+    }
+
+    if (result.success) {
+      return {
+        ...r,
+        connectionStatus: 'CONNECTED' as ConnectionStatus,
+        lifecycleStatus: 'ACTIVE' as ResourceLifecycleStatus,
+        isNew: false,
+        note: r.note === 'NEW' ? undefined : r.note,
+        selectedCredentialId: credentialId,
+      };
+    } else {
+      return {
+        ...r,
+        connectionStatus: 'DISCONNECTED' as ConnectionStatus,
+        selectedCredentialId: credentialId,
+      };
+    }
   });
+
+  // 기존 히스토리에 추가 (최신이 앞으로)
+  const existingHistory = project.connectionTestHistory || [];
+  const updatedHistory = [historyEntry, ...existingHistory];
+
+  // 프로젝트 업데이트
+  // 4단계에서 첫 성공 시 5단계(CONNECTION_VERIFIED)로 전환
+  const shouldUpdateStatus = allSuccess && project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST;
+
+  // 최초 연결 성공 시간 기록 (기존에 기록이 없을 때만)
+  const isFirstSuccess = allSuccess && !project.piiAgentConnectedAt;
 
   const updatedProject = updateProject(projectId, {
     resources: updatedResources,
-    processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+    connectionTestHistory: updatedHistory,
+    ...(shouldUpdateStatus ? { processStatus: ProcessStatus.CONNECTION_VERIFIED } : {}),
+    ...(isFirstSuccess ? { piiAgentConnectedAt: new Date().toISOString() } : {}),
   });
 
   return NextResponse.json({
-    success: true,
+    success: allSuccess,
     project: updatedProject,
-    results,
+    history: historyEntry,
   });
 }

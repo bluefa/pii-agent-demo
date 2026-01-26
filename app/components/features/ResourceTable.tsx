@@ -8,6 +8,8 @@ import {
   ConnectionStatus,
   AwsResourceType,
   DatabaseType,
+  DBCredential,
+  needsCredential,
 } from '../../../lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
 
@@ -18,6 +20,9 @@ interface ResourceTableProps {
   isEditMode?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (selectedIds: string[]) => void;
+  // 4단계 Credential 관련
+  credentials?: DBCredential[];
+  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
 }
 
 type FilterType = 'all' | 'selected';
@@ -42,6 +47,8 @@ export const ResourceTable = ({
   isEditMode = false,
   selectedIds: externalSelectedIds,
   onSelectionChange,
+  credentials = [],
+  onCredentialChange,
 }: ResourceTableProps) => {
   const [filter, setFilter] = useState<FilterType>('selected');
 
@@ -56,6 +63,12 @@ export const ResourceTable = ({
     processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
   const showConnectionStatus =
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+    processStatus === ProcessStatus.CONNECTION_VERIFIED ||
+    processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+  // 4단계, 5단계, 6단계에서 Credential 컬럼 표시
+  const showCredentialColumn =
+    processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+    processStatus === ProcessStatus.CONNECTION_VERIFIED ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
   // 필터링된 리소스
@@ -109,7 +122,12 @@ export const ResourceTable = ({
   const isSomeSelected =
     filteredResources.some((r) => selectedIdsSet.has(r.id)) && !isAllSelected;
 
-  const colSpan = showConnectionStatus ? 6 : 5;
+  const colSpan = 5 + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
+
+  // DB 타입에 맞는 credential 목록 가져오기
+  const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] => {
+    return (credentials || []).filter((c) => c.databaseType === databaseType);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm">
@@ -165,6 +183,24 @@ export const ResourceTable = ({
                 <th className="px-6 py-3">인스턴스 타입</th>
                 <th className="px-6 py-3">데이터베이스</th>
                 <th className="px-6 py-3">리소스 ID</th>
+                {showCredentialColumn && (
+                  <th className="px-6 py-3">
+                    <div className="flex items-center gap-1">
+                      <span>Credential</span>
+                      <div className="group relative">
+                        <svg className="w-4 h-4 text-gray-400 cursor-help" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                        </svg>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-xs">
+                          <p>RDS, PostgreSQL, Redshift는</p>
+                          <p>DB 접속 정보가 필요합니다.</p>
+                          <p className="mt-1 text-gray-300">DynamoDB, Athena는 불필요</p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                        </div>
+                      </div>
+                    </div>
+                  </th>
+                )}
                 {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
                 <th className="px-6 py-3 w-16"></th>
               </tr>
@@ -180,8 +216,12 @@ export const ResourceTable = ({
                     selectedIds={selectedIdsSet}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
                     onCheckboxChange={handleCheckboxChange}
                     colSpan={colSpan}
+                    credentials={credentials}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
                   />
                 ))
               ) : (
@@ -194,7 +234,11 @@ export const ResourceTable = ({
                     selectedIds={selectedIdsSet}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
                     onCheckboxChange={handleCheckboxChange}
+                    credentials={credentials}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
                   />
                 ))
               )}
@@ -213,8 +257,12 @@ interface RegionGroupProps {
   selectedIds: Set<string>;
   isCheckboxEnabled: boolean;
   showConnectionStatus: boolean;
+  showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
+  credentials: DBCredential[];
+  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
 }
 
 const RegionGroup = ({
@@ -223,8 +271,12 @@ const RegionGroup = ({
   selectedIds,
   isCheckboxEnabled,
   showConnectionStatus,
+  showCredentialColumn,
   onCheckboxChange,
   colSpan,
+  credentials,
+  getCredentialsForType,
+  onCredentialChange,
 }: RegionGroupProps) => (
   <>
     {/* Region Header */}
@@ -248,7 +300,11 @@ const RegionGroup = ({
         selectedIds={selectedIds}
         isCheckboxEnabled={isCheckboxEnabled}
         showConnectionStatus={showConnectionStatus}
+        showCredentialColumn={showCredentialColumn}
         onCheckboxChange={onCheckboxChange}
+        credentials={credentials}
+        getCredentialsForType={getCredentialsForType}
+        onCredentialChange={onCredentialChange}
       />
     ))}
   </>
@@ -261,7 +317,11 @@ interface ResourceRowProps {
   selectedIds: Set<string>;
   isCheckboxEnabled: boolean;
   showConnectionStatus: boolean;
+  showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
+  credentials: DBCredential[];
+  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
 }
 
 const ResourceRow = ({
@@ -270,59 +330,96 @@ const ResourceRow = ({
   selectedIds,
   isCheckboxEnabled,
   showConnectionStatus,
+  showCredentialColumn,
   onCheckboxChange,
-}: ResourceRowProps) => (
-  <tr className="hover:bg-gray-50 transition-colors">
-    {/* Checkbox (1단계에서만 활성화) */}
-    <td className="px-6 py-4 w-12">
-      {isCheckboxEnabled && (
-        <input
-          type="checkbox"
-          checked={selectedIds.has(resource.id)}
-          onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
-          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-        />
-      )}
-    </td>
+  getCredentialsForType,
+  onCredentialChange,
+}: ResourceRowProps) => {
+  const needsCred = needsCredential(resource.databaseType);
+  const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
+  const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
 
-    {/* Instance Type */}
-    <td className="px-6 py-4">
-      <div className="flex items-center gap-2">
-        {isAWS && resource.awsType && <AwsServiceIcon type={resource.awsType} />}
-        <span className="font-medium text-gray-900">{resource.awsType || resource.type}</span>
-      </div>
-    </td>
-
-    {/* Database Type */}
-    <td className="px-6 py-4">
-      <div className="flex items-center gap-2">
-        <DatabaseIcon type={resource.databaseType} size="sm" />
-        <span className="text-sm text-gray-700">{getDatabaseLabel(resource.databaseType)}</span>
-      </div>
-    </td>
-
-    {/* Resource ID */}
-    <td className="px-6 py-4">
-      <span className="text-gray-600 font-mono text-sm">{resource.resourceId}</span>
-    </td>
-
-    {/* Connection Status (4단계, 5단계만) */}
-    {showConnectionStatus && (
-      <td className="px-6 py-4">
-        <ConnectionIndicator status={resource.connectionStatus} />
+  return (
+    <tr className="hover:bg-gray-50 transition-colors">
+      {/* Checkbox (1단계에서만 활성화) */}
+      <td className="px-6 py-4 w-12">
+        {isCheckboxEnabled && (
+          <input
+            type="checkbox"
+            checked={selectedIds.has(resource.id)}
+            onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+        )}
       </td>
-    )}
 
-    {/* Status Icons */}
-    <td className="px-6 py-4">
-      <div className="flex items-center gap-1">
-        {resource.isSelected && <StatusIcon type="selected" />}
-        {resource.isNew && <StatusIcon type="new" />}
-        {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
-      </div>
-    </td>
-  </tr>
-);
+      {/* Instance Type */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-2">
+          {isAWS && resource.awsType && <AwsServiceIcon type={resource.awsType} />}
+          <span className="font-medium text-gray-900">{resource.awsType || resource.type}</span>
+        </div>
+      </td>
+
+      {/* Database Type */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-2">
+          <DatabaseIcon type={resource.databaseType} size="sm" />
+          <span className="text-sm text-gray-700">{getDatabaseLabel(resource.databaseType)}</span>
+        </div>
+      </td>
+
+      {/* Resource ID */}
+      <td className="px-6 py-4">
+        <span className="text-gray-600 font-mono text-sm">{resource.resourceId}</span>
+      </td>
+
+      {/* Credential (4단계만) */}
+      {showCredentialColumn && (
+        <td className="px-6 py-4">
+          {needsCred ? (
+            <select
+              value={resource.selectedCredentialId || ''}
+              onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
+              className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                hasCredentialError
+                  ? 'border-red-300 bg-red-50 text-red-700'
+                  : resource.selectedCredentialId
+                  ? 'border-green-300 bg-green-50 text-gray-900'
+                  : 'border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
+              {availableCredentials.map((cred) => (
+                <option key={cred.id} value={cred.id}>
+                  {cred.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-sm text-gray-400">불필요</span>
+          )}
+        </td>
+      )}
+
+      {/* Connection Status (4단계, 5단계만) */}
+      {showConnectionStatus && (
+        <td className="px-6 py-4">
+          <ConnectionIndicator status={resource.connectionStatus} hasCredentialError={hasCredentialError} />
+        </td>
+      )}
+
+      {/* Status Icons */}
+      <td className="px-6 py-4">
+        <div className="flex items-center gap-1">
+          {resource.isSelected && <StatusIcon type="selected" />}
+          {resource.isNew && <StatusIcon type="new" />}
+          {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 // AWS Service Icons
 interface AwsServiceIconProps {
@@ -438,9 +535,20 @@ const FilterTab = ({ label, count, active, onClick }: FilterTabProps) => (
 
 interface ConnectionIndicatorProps {
   status: ConnectionStatus;
+  hasCredentialError?: boolean;
 }
 
-const ConnectionIndicator = ({ status }: ConnectionIndicatorProps) => {
+const ConnectionIndicator = ({ status, hasCredentialError }: ConnectionIndicatorProps) => {
+  // Credential 미선택 에러가 있으면 빨간색 표시
+  if (hasCredentialError) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-lg text-red-500">●</span>
+        <span className="text-sm text-red-500">Credential 미선택</span>
+      </div>
+    );
+  }
+
   const config = CONNECTION_STATUS_CONFIG[status];
   return (
     <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole } from '../../lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, DBCredential, ConnectionTestResult, ConnectionTestHistory } from '../../lib/types';
 
 const BASE_URL = '/api';
 
@@ -172,6 +172,78 @@ export const confirmPiiAgent = async (
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.message || 'Failed to confirm PII Agent');
+  }
+  const data = await res.json();
+  return data.project;
+};
+
+// ===== Connection Test API =====
+
+export const getCredentials = async (projectId: string): Promise<DBCredential[]> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/credentials`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to fetch credentials');
+  }
+  const data = await res.json();
+  return data.credentials;
+};
+
+export interface ResourceCredentialInput {
+  resourceId: string;
+  credentialId?: string;
+}
+
+export interface ConnectionTestResponse {
+  success: boolean;
+  project: Project;
+  history: ConnectionTestHistory;
+}
+
+export const runConnectionTest = async (
+  projectId: string,
+  resourceCredentials: ResourceCredentialInput[]
+): Promise<ConnectionTestResponse> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/test-connection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resourceCredentials }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to run connection test');
+  }
+  return await res.json();
+};
+
+export const updateResourceCredential = async (
+  projectId: string,
+  resourceId: string,
+  credentialId: string | null
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/resources/credential`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resourceId, credentialId }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to update resource credential');
+  }
+  const data = await res.json();
+  return data.project;
+};
+
+// 설치 완료 확정 (관리자)
+export const confirmCompletion = async (
+  projectId: string
+): Promise<Project> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-completion`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'Failed to confirm completion');
   }
   const data = await res.json();
   return data.project;

@@ -5,7 +5,8 @@ export enum ProcessStatus {
   WAITING_APPROVAL = 2,              // 승인 대기
   INSTALLING = 3,                    // 설치 진행 중
   WAITING_CONNECTION_TEST = 4,       // 연결 테스트 필요
-  INSTALLATION_COMPLETE = 5          // 설치 완료
+  CONNECTION_VERIFIED = 5,           // 연결 확인 완료 (관리자 확정 대기)
+  INSTALLATION_COMPLETE = 6          // 설치 완료
 }
 
 export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
@@ -69,6 +70,9 @@ export interface Resource {
   lifecycleStatus: ResourceLifecycleStatus; // UI 상태(필수)
   isNew?: boolean;                        // NEW 라벨 고정용(선택)
   note?: string;                          // 비고(선택)
+
+  // --- Credential ---
+  selectedCredentialId?: string;          // 선택된 credential ID (4단계용)
 }
 
 export interface TerraformState {
@@ -105,6 +109,15 @@ export interface Project {
 
   // PII Agent 설치 확정 (최초 1회)
   piiAgentInstalled?: boolean;
+
+  // PII Agent 최초 연결 성공 시간
+  piiAgentConnectedAt?: string;
+
+  // 설치 완료 확정 시간 (관리자)
+  completionConfirmedAt?: string;
+
+  // Connection Test 이력
+  connectionTestHistory?: ConnectionTestHistory[];
 }
 
 // ===== API Response Types =====
@@ -127,3 +140,61 @@ export interface ErrorResponse {
   error: string;
   message: string;
 }
+
+// ===== Connection Test Types =====
+
+// Credential이 필요한 DB 타입 (RDS, IDC)
+export type CredentialRequiredDBType = 'MYSQL' | 'POSTGRESQL' | 'REDSHIFT';
+
+// DB Credential
+export interface DBCredential {
+  id: string;
+  name: string;
+  databaseType: CredentialRequiredDBType;
+  host?: string;
+  port?: number;
+  username: string;
+  maskedPassword: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+// 연결 에러 타입
+export type ConnectionErrorType =
+  | 'AUTH_FAILED'
+  | 'PERMISSION_DENIED'
+  | 'NETWORK_ERROR'
+  | 'TIMEOUT'
+  | 'UNKNOWN_ERROR';
+
+export interface ConnectionError {
+  type: ConnectionErrorType;
+  message: string;
+}
+
+// 테스트 결과 (동기)
+export interface ConnectionTestResult {
+  resourceId: string;
+  resourceType: string;
+  databaseType: DatabaseType;
+  credentialName?: string;
+  success: boolean;
+  error?: ConnectionError;
+}
+
+// Test Connection 실행 이력
+export type ConnectionTestStatus = 'PENDING' | 'SUCCESS' | 'FAIL';
+
+export interface ConnectionTestHistory {
+  id: string;
+  executedAt: string;
+  status: ConnectionTestStatus;
+  successCount: number;
+  failCount: number;
+  results: ConnectionTestResult[];
+}
+
+// Credential이 필요한지 확인하는 헬퍼
+export const needsCredential = (databaseType: DatabaseType): boolean => {
+  return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
+};

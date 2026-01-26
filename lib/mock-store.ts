@@ -1,10 +1,11 @@
-import type { Project, User, ServiceCode } from '@/lib/types';
-import { mockUsers, mockServiceCodes, mockProjects as initialProjects } from '@/lib/mock-data';
+import type { Project, User, ServiceCode, DBCredential } from '@/lib/types';
+import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials } from '@/lib/mock-data';
 
 type Store = {
     users: User[];
     serviceCodes: ServiceCode[];
     projects: Project[];
+    credentials: DBCredential[];
     currentUserId: string;
 };
 
@@ -19,6 +20,7 @@ export const getStore = (): Store => {
             users: mockUsers,
             serviceCodes: mockServiceCodes,
             projects: [...initialProjects],
+            credentials: [...initialCredentials],
             currentUserId: 'admin-1',
         };
     }

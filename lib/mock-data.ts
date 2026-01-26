@@ -3,6 +3,11 @@ import {
   ServiceCode,
   Project,
   ProcessStatus,
+  DBCredential,
+  ConnectionTestResult,
+  ConnectionErrorType,
+  DatabaseType,
+  needsCredential,
 } from './types';
 import { getStore } from '@/lib/mock-store';
 
@@ -372,4 +377,109 @@ export const deleteProject = (id: string): boolean => {
 
 export const generateId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+};
+
+// ===== Mock DB Credentials =====
+export const mockCredentials: DBCredential[] = [
+  {
+    id: 'cred-1',
+    name: '운영DB-MySQL',
+    databaseType: 'MYSQL',
+    host: 'prod-mysql.example.com',
+    port: 3306,
+    username: 'pii_agent',
+    maskedPassword: '********',
+    createdAt: '2024-01-10T09:00:00Z',
+    createdBy: 'user-1',
+  },
+  {
+    id: 'cred-2',
+    name: '분석DB-PostgreSQL',
+    databaseType: 'POSTGRESQL',
+    host: 'analytics-pg.example.com',
+    port: 5432,
+    username: 'analyst',
+    maskedPassword: '********',
+    createdAt: '2024-01-12T10:00:00Z',
+    createdBy: 'user-1',
+  },
+  {
+    id: 'cred-3',
+    name: 'DW-Redshift',
+    databaseType: 'REDSHIFT',
+    host: 'dw-cluster.example.com',
+    port: 5439,
+    username: 'dw_reader',
+    maskedPassword: '********',
+    createdAt: '2024-01-15T11:00:00Z',
+    createdBy: 'admin-1',
+  },
+];
+
+// ===== Connection Test Simulation =====
+const ERROR_MESSAGES: Record<ConnectionErrorType, string> = {
+  AUTH_FAILED: '인증에 실패했습니다. Credential을 확인하세요.',
+  PERMISSION_DENIED: '권한이 부족합니다. DB 권한을 확인하세요.',
+  NETWORK_ERROR: '네트워크 연결에 실패했습니다. 방화벽 설정을 확인하세요.',
+  TIMEOUT: '연결 시간이 초과되었습니다.',
+  UNKNOWN_ERROR: '알 수 없는 오류가 발생했습니다.',
+};
+
+export const getCredentials = (): DBCredential[] => {
+  const store = getStore();
+  return store.credentials;
+};
+
+export const getCredentialsByDatabaseType = (databaseType: DatabaseType): DBCredential[] => {
+  const store = getStore();
+  return store.credentials.filter((c) => c.databaseType === databaseType);
+};
+
+export const simulateConnectionTest = (
+  resourceId: string,
+  resourceType: string,
+  databaseType: DatabaseType,
+  credentialId?: string,
+  credentialName?: string
+): ConnectionTestResult => {
+  // Credential 필요한데 없으면 실패
+  if (needsCredential(databaseType) && !credentialId) {
+    return {
+      resourceId,
+      resourceType,
+      databaseType,
+      credentialName,
+      success: false,
+      error: {
+        type: 'AUTH_FAILED',
+        message: 'Credential이 선택되지 않았습니다.',
+      },
+    };
+  }
+
+  // 80% 성공, 10% 인증 문제, 10% 권한 문제
+  const rand = Math.random();
+
+  if (rand < 0.8) {
+    return { resourceId, resourceType, databaseType, credentialName, success: true };
+  }
+
+  const errorType: ConnectionErrorType = rand < 0.9 ? 'AUTH_FAILED' : 'PERMISSION_DENIED';
+
+  return {
+    resourceId,
+    resourceType,
+    databaseType,
+    credentialName,
+    success: false,
+    error: {
+      type: errorType,
+      message: ERROR_MESSAGES[errorType],
+    },
+  };
+};
+
+export const getCredentialById = (id: string): DBCredential | undefined => {
+  const store = getStore();
+  return store.credentials.find((c) => c.id === id);
 };

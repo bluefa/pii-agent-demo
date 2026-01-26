@@ -2,8 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Project, ProcessStatus } from '../../../lib/types';
-import { getProject, confirmTargets, getCurrentUser, CurrentUser } from '../../lib/api';
+import { Project, ProcessStatus, DBCredential, needsCredential } from '../../../lib/types';
+import {
+  getProject,
+  confirmTargets,
+  getCurrentUser,
+  CurrentUser,
+  getCredentials,
+  updateResourceCredential,
+  runConnectionTest,
+  ResourceCredentialInput,
+} from '../../lib/api';
 import { ProjectInfoCard } from '../../components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '../../components/features/ProcessStatusCard';
 import { ResourceTable } from '../../components/features/ResourceTable';
@@ -21,6 +30,8 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [credentials, setCredentials] = useState<DBCredential[]>([]);
+  const [testLoading, setTestLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,6 +46,14 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
         // 초기 선택 상태: isSelected가 true인 리소스들
         setSelectedIds(projectData.resources.filter((r) => r.isSelected).map((r) => r.id));
         setError(null);
+
+        // 4단계, 5단계, 6단계면 Credential 목록 가져오기
+        if (projectData.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+            projectData.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
+            projectData.processStatus === ProcessStatus.INSTALLATION_COMPLETE) {
+          const creds = await getCredentials(projectId);
+          setCredentials(creds || []);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
       } finally {
@@ -43,6 +62,49 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     };
     fetchData();
   }, [projectId]);
+
+  // Credential 변경 핸들러
+  const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
+    if (!project) return;
+    try {
+      const updatedProject = await updateResourceCredential(projectId, resourceId, credentialId);
+      setProject(updatedProject);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+    }
+  };
+
+  // Test Connection 핸들러
+  const handleTestConnection = async () => {
+    if (!project) return;
+
+    const selectedResources = project.resources.filter((r) => r.isSelected);
+
+    // Credential 필요한 리소스에 credential이 선택되었는지 확인
+    const missingCredentials = selectedResources.filter(
+      (r) => needsCredential(r.databaseType) && !r.selectedCredentialId
+    );
+
+    if (missingCredentials.length > 0) {
+      alert(`다음 리소스에 Credential을 선택해주세요:\n${missingCredentials.map((r) => r.resourceId).join('\n')}`);
+      return;
+    }
+
+    try {
+      setTestLoading(true);
+      const resourceCredentials: ResourceCredentialInput[] = selectedResources.map((r) => ({
+        resourceId: r.id,
+        credentialId: r.selectedCredentialId,
+      }));
+
+      const response = await runConnectionTest(projectId, resourceCredentials);
+      setProject(response.project);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
+    } finally {
+      setTestLoading(false);
+    }
+  };
 
   // 1단계이면 기본적으로 편집 모드
   const isStep1 = project?.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
@@ -171,10 +233,14 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
             project={project}
             isAdmin={isAdmin}
             onProjectUpdate={setProject}
+            onTestConnection={handleTestConnection}
+            testLoading={testLoading}
+            credentials={credentials}
+            onCredentialChange={handleCredentialChange}
           />
         </div>
 
-        {/* Resource Table */}
+        {/* Resource Table - 4단계에서는 Credential 컬럼 표시 */}
         <ResourceTable
           resources={project.resources}
           cloudProvider={project.cloudProvider}
@@ -182,6 +248,8 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           isEditMode={effectiveEditMode}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
+          credentials={credentials}
+          onCredentialChange={handleCredentialChange}
         />
 
         {/* Rejection Alert */}
