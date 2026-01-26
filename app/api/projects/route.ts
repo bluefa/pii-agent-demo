@@ -48,6 +48,8 @@ export async function POST(request: Request) {
     },
     createdAt: now,
     updatedAt: now,
+    name: projectCode,
+    description: '',
   };
 
   addProject(newProject);

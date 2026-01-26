@@ -16,7 +16,6 @@ PII Agent 관리 시스템 (Demo)
 
 폴더 구조 (고정)
 
-src/
 	•	app/ : 페이지(App Router)
 	•	page.tsx : 서비스 코드 목록 + 과제 목록(2-pane)
 	•	projects/[id]/ : 과제 상세
