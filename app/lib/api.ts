@@ -61,3 +61,23 @@ export const getProject = async (id: string): Promise<Project> => {
   const data = await res.json();
   return data.project;
 };
+
+export interface UserSearchResult {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const searchUsers = async (
+  query: string,
+  excludeIds: string[] = []
+): Promise<UserSearchResult[]> => {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
+
+  const res = await fetch(`${BASE_URL}/users/search?${params.toString()}`);
+  if (!res.ok) throw new Error('Failed to search users');
+  const data = await res.json();
+  return data.users;
+};

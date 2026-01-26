@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
+import { UserSearchInput } from '../ui/UserSearchInput';
 import { ProjectCreateModal } from './ProjectCreateModal';
-import { getServices, getProjects, getPermissions, addPermission, deletePermission } from '../../lib/api';
+import { getServices, getProjects, getPermissions, addPermission, deletePermission, UserSearchResult } from '../../lib/api';
 import { ServiceCode, ProjectSummary, ProcessStatus, User } from '../../../lib/types';
 
 const getStatusBadge = (status: ProcessStatus, hasDisconnected: boolean, hasNew: boolean) => {
@@ -67,7 +68,6 @@ export const AdminDashboard = () => {
   const [permissions, setPermissions] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newUserId, setNewUserId] = useState('');
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -106,13 +106,12 @@ export const AdminDashboard = () => {
     setLoading(false);
   };
 
-  const handleAddUser = async () => {
-    if (!selectedService || !newUserId.trim()) return;
+  const handleAddUser = async (user: UserSearchResult) => {
+    if (!selectedService) return;
     try {
-      await addPermission(selectedService, newUserId.trim());
+      await addPermission(selectedService, user.id);
       const data = await getPermissions(selectedService);
       setPermissions(data);
-      setNewUserId('');
     } catch (error) {
       alert('사용자 추가 실패');
     }
@@ -265,17 +264,11 @@ export const AdminDashboard = () => {
 
                     {/* Add User */}
                     <div className="pt-3 border-t border-gray-100">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={newUserId}
-                          onChange={(e) => setNewUserId(e.target.value)}
-                          placeholder="사용자 ID 입력"
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddUser()}
-                        />
-                        <Button onClick={handleAddUser} className="px-4">추가</Button>
-                      </div>
+                      <UserSearchInput
+                        excludeIds={permissions.map((u) => u.id)}
+                        onSelect={handleAddUser}
+                        placeholder="사용자 검색 (이름, 이메일)"
+                      />
                     </div>
                   </div>
                 </div>

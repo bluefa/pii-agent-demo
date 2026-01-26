@@ -48,13 +48,13 @@ export async function POST(
   }
 
   const body = await request.json();
-  const { email } = body as { email: string };
+  const { userId } = body as { userId: string };
 
-  const targetUser = mockUsers.find((u) => u.email === email);
+  const targetUser = mockUsers.find((u) => u.id === userId);
 
   if (!targetUser) {
     return NextResponse.json(
-      { error: 'NOT_FOUND', message: '해당 이메일의 사용자를 찾을 수 없습니다.' },
+      { error: 'NOT_FOUND', message: '해당 사용자를 찾을 수 없습니다.' },
       { status: 404 }
     );
   }
