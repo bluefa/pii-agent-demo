@@ -380,20 +380,26 @@ export const AdminDashboard = () => {
                                   </button>
                                 )}
                                 {project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST && (
-                                  <button
-                                    onClick={(e) => handleConfirmPiiAgent(project.id, e)}
-                                    disabled={actionLoading === project.id}
-                                    className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                                  >
-                                    {actionLoading === project.id ? (
-                                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                      </svg>
-                                    )}
-                                    PII Agent 확정
-                                  </button>
+                                  project.connectionTestComplete ? (
+                                    <button
+                                      onClick={(e) => handleConfirmPiiAgent(project.id, e)}
+                                      disabled={actionLoading === project.id}
+                                      className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                    >
+                                      {actionLoading === project.id ? (
+                                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                        </svg>
+                                      )}
+                                      PII Agent 확정
+                                    </button>
+                                  ) : (
+                                    <span className="px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-lg">
+                                      연결 테스트 필요
+                                    </span>
+                                  )
                                 )}
                               </td>
                             </tr>

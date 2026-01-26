@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, mockUsers, mockServiceCodes } from '@/lib/mock-data';
+import { getCurrentUser } from '@/lib/mock-data';
+import { getStore } from '@/lib/mock-store';
 
 export async function GET(
   request: Request,
@@ -7,6 +8,7 @@ export async function GET(
 ) {
   const user = getCurrentUser();
   const { serviceCode } = await params;
+  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -15,7 +17,7 @@ export async function GET(
     );
   }
 
-  const usersWithPermission = mockUsers
+  const usersWithPermission = store.users
     .filter((u) => u.serviceCodePermissions.includes(serviceCode))
     .map((u) => ({
       id: u.id,
@@ -32,6 +34,7 @@ export async function POST(
 ) {
   const user = getCurrentUser();
   const { serviceCode } = await params;
+  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -40,7 +43,7 @@ export async function POST(
     );
   }
 
-  if (!mockServiceCodes.find((s) => s.code === serviceCode)) {
+  if (!store.serviceCodes.find((s) => s.code === serviceCode)) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
       { status: 404 }
@@ -50,7 +53,7 @@ export async function POST(
   const body = await request.json();
   const { userId } = body as { userId: string };
 
-  const targetUser = mockUsers.find((u) => u.id === userId);
+  const targetUser = store.users.find((u) => u.id === userId);
 
   if (!targetUser) {
     return NextResponse.json(

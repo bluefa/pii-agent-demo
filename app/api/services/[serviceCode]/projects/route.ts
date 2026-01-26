@@ -22,18 +22,30 @@ export async function GET(
     );
   }
 
-  const projects = getProjectsByServiceCode(serviceCode).map((p) => ({
-    id: p.id,
-    projectCode: p.projectCode,
-    processStatus: p.processStatus,
-    cloudProvider: p.cloudProvider,
-    resourceCount: p.resources.length,
-    hasDisconnected: p.resources.some((r) => r.connectionStatus === 'DISCONNECTED'),
-    hasNew: p.resources.some((r) => r.isNew === true),
-    description: p.description,
-    isRejected: p.isRejected,
-    rejectionReason: p.rejectionReason,
-  }));
+  const projects = getProjectsByServiceCode(serviceCode).map((p) => {
+    // 선택된 리소스 (DISCOVERED가 아닌 리소스)
+    const selectedResources = p.resources.filter(
+      (r) => r.isSelected || r.lifecycleStatus !== 'DISCOVERED'
+    );
+    // 연결 테스트 완료: 선택된 리소스가 있고, 모두 CONNECTED 상태
+    const connectionTestComplete =
+      selectedResources.length > 0 &&
+      selectedResources.every((r) => r.connectionStatus === 'CONNECTED');
+
+    return {
+      id: p.id,
+      projectCode: p.projectCode,
+      processStatus: p.processStatus,
+      cloudProvider: p.cloudProvider,
+      resourceCount: p.resources.length,
+      hasDisconnected: p.resources.some((r) => r.connectionStatus === 'DISCONNECTED'),
+      hasNew: p.resources.some((r) => r.isNew === true),
+      description: p.description,
+      isRejected: p.isRejected,
+      rejectionReason: p.rejectionReason,
+      connectionTestComplete,
+    };
+  });
 
   return NextResponse.json({ projects });
 }
