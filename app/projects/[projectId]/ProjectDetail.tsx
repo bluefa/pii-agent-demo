@@ -139,7 +139,9 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     setIsEditMode(false);
   };
 
-  const isAdmin = currentUser?.role === 'ADMIN';
+  // 이 페이지는 서비스 담당자용 페이지이므로 isAdmin은 항상 false
+  // 관리자 기능(승인/반려, 설치 완료 확정)은 AdminDashboard에서 처리
+  const isAdmin = false;
 
   if (loading) {
     return (

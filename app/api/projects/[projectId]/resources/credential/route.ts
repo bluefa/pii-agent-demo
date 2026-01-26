@@ -32,7 +32,9 @@ export async function PATCH(
     );
   }
 
-  if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST) {
+  if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST &&
+      project.processStatus !== ProcessStatus.CONNECTION_VERIFIED &&
+      project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE) {
     return NextResponse.json(
       { error: 'INVALID_STATE', message: '연결 테스트 단계에서만 Credential을 변경할 수 있습니다.' },
       { status: 400 }
