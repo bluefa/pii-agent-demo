@@ -4,7 +4,7 @@
  * UI에서 사용되는 라벨, 에러 메시지, 상태 텍스트 등을 중앙에서 관리합니다.
  */
 
-import { ProcessStatus, ConnectionStatus } from '../types';
+import { ProcessStatus, ConnectionStatus } from '@/lib/types';
 
 /**
  * 연결 에러 타입 라벨

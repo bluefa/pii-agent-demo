@@ -1,8 +1,8 @@
 'use client';
 
-import { Resource, DBCredential } from '../../../../lib/types';
-import { DatabaseIcon, getDatabaseLabel } from '../../ui/DatabaseIcon';
-import { AwsServiceIcon } from '../../ui/AwsServiceIcon';
+import { Resource, DBCredential } from '@/lib/types';
+import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 
 interface MissingCredentialsTabProps {
   resources: Resource[];

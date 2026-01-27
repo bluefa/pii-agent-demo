@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '../ui/Button';
-import { CloudProvider } from '../../../lib/types';
-import { createProject } from '../../lib/api';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { Button } from '@/app/components/ui/Button';
+import { CloudProvider } from '@/lib/types';
+import { createProject } from '@/app/lib/api';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;

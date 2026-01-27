@@ -2,7 +2,7 @@
  * 자격증명 관련 유틸리티
  */
 
-import { DBCredential, DatabaseType } from '../types';
+import { DBCredential, DatabaseType } from '@/lib/types';
 
 /**
  * 데이터베이스 타입별로 자격증명을 필터링합니다.

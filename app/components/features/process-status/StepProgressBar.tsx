@@ -1,6 +1,6 @@
 'use client';
 
-import { ProcessStatus } from '../../../../lib/types';
+import { ProcessStatus } from '@/lib/types';
 
 export const steps = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 확정' },

@@ -1,7 +1,7 @@
 'use client';
 
-import { Resource, DatabaseType, DBCredential } from '../../../../lib/types';
-import { REGION_LABELS } from '../../../../lib/constants/labels';
+import { Resource, DatabaseType, DBCredential } from '@/lib/types';
+import { REGION_LABELS } from '@/lib/constants/labels';
 import { ResourceRow } from './ResourceRow';
 
 interface RegionGroupProps {

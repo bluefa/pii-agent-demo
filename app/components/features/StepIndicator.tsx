@@ -1,6 +1,6 @@
 'use client';
 
-import { ProcessStatus } from '../../../lib/types';
+import { ProcessStatus } from '@/lib/types';
 
 interface StepIndicatorProps {
   currentStep: ProcessStatus;

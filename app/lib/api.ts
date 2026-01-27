@@ -1,4 +1,4 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, DBCredential, ConnectionTestResult, ConnectionTestHistory } from '../../lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, DBCredential, ConnectionTestResult, ConnectionTestHistory } from '@/lib/types';
 
 const BASE_URL = '/api';
 

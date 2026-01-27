@@ -1,6 +1,6 @@
 'use client';
 
-import { ServiceCode, ProjectSummary } from '../../../../lib/types';
+import { ServiceCode, ProjectSummary } from '@/lib/types';
 
 interface ServiceSidebarProps {
   services: ServiceCode[];

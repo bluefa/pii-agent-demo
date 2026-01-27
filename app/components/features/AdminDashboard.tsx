@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '../ui/Button';
+import { Button } from '@/app/components/ui/Button';
 import { ProjectCreateModal } from './ProjectCreateModal';
 import {
   getServices,
@@ -12,8 +12,8 @@ import {
   completeInstallation,
   confirmCompletion,
   UserSearchResult,
-} from '../../lib/api';
-import { ServiceCode, ProjectSummary, User } from '../../../lib/types';
+} from '@/app/lib/api';
+import { ServiceCode, ProjectSummary, User } from '@/lib/types';
 import {
   AdminHeader,
   ServiceSidebar,

@@ -1,8 +1,8 @@
 'use client';
 
-import { User } from '../../../../lib/types';
-import { UserSearchInput } from '../../ui/UserSearchInput';
-import { UserSearchResult } from '../../../lib/api';
+import { User } from '@/lib/types';
+import { UserSearchInput } from '@/app/components/ui/UserSearchInput';
+import { UserSearchResult } from '@/app/lib/api';
 
 interface PermissionsPanelProps {
   permissions: User[];

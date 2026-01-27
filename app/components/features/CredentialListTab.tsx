@@ -1,7 +1,7 @@
 'use client';
 
-import { DBCredential } from '../../../lib/types';
-import { formatDateOnly } from '../../../lib/utils/date';
+import { DBCredential } from '@/lib/types';
+import { formatDateOnly } from '@/lib/utils/date';
 
 interface CredentialListTabProps {
   credentials: DBCredential[];

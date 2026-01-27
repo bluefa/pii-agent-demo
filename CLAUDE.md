@@ -40,6 +40,9 @@ PII Agent 관리 시스템 (Demo)
 	•	any 금지
 	•	Tailwind 클래스 직접 사용 (CSS 파일 최소화)
 	•	반응형 불필요 (Desktop only)
+	•	Import: 절대 경로(@/) 사용, 상대 경로(../) 금지
+		•	예: `import { Button } from '@/app/components/ui/Button'`
+		•	예: `import { Project } from '@/lib/types'`
 
 UI 컬러 규칙
 	•	연결됨/완료: green-500

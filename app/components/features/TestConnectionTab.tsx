@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, DBCredential, ConnectionTestResult, needsCredential, Resource, DatabaseType } from '../../../lib/types';
-import { getCredentials, runConnectionTest, ResourceCredentialInput } from '../../lib/api';
-import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { ERROR_TYPE_LABELS } from '../../../lib/constants/labels';
-import { filterCredentialsByType } from '../../../lib/utils/credentials';
+import { Project, DBCredential, ConnectionTestResult, needsCredential, Resource, DatabaseType } from '@/lib/types';
+import { getCredentials, runConnectionTest, ResourceCredentialInput } from '@/app/lib/api';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { ERROR_TYPE_LABELS } from '@/lib/constants/labels';
+import { filterCredentialsByType } from '@/lib/utils/credentials';
 
 interface TestConnectionTabProps {
   project: Project;

@@ -7,8 +7,8 @@ import {
   ProcessStatus,
   DatabaseType,
   DBCredential,
-} from '../../../lib/types';
-import { filterCredentialsByType } from '../../../lib/utils/credentials';
+} from '@/lib/types';
+import { filterCredentialsByType } from '@/lib/utils/credentials';
 import {
   ResourceRow,
   RegionGroup,

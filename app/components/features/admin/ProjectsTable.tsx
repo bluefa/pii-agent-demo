@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ProjectSummary, ProcessStatus } from '../../../../lib/types';
+import { ProjectSummary, ProcessStatus } from '@/lib/types';
 
 interface ProjectsTableProps {
   projects: ProjectSummary[];

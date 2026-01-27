@@ -1,8 +1,8 @@
 'use client';
 
-import { Resource, DatabaseType, DBCredential, needsCredential } from '../../../../lib/types';
-import { DatabaseIcon, getDatabaseLabel } from '../../ui/DatabaseIcon';
-import { AwsServiceIcon } from '../../ui/AwsServiceIcon';
+import { Resource, DatabaseType, DBCredential, needsCredential } from '@/lib/types';
+import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
 import { StatusIcon } from './StatusIcon';
 

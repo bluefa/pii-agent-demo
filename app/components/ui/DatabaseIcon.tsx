@@ -1,6 +1,6 @@
 'use client';
 
-import { DatabaseType } from '../../../lib/types';
+import { DatabaseType } from '@/lib/types';
 
 interface DatabaseIconProps {
   type: DatabaseType;

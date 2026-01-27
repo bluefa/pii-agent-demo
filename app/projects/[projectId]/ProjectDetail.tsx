@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Project, ProcessStatus, DBCredential, needsCredential } from '../../../lib/types';
+import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
 import {
   getProject,
   confirmTargets,
@@ -12,11 +12,11 @@ import {
   updateResourceCredential,
   runConnectionTest,
   ResourceCredentialInput,
-} from '../../lib/api';
-import { ProjectInfoCard } from '../../components/features/ProjectInfoCard';
-import { ProcessStatusCard } from '../../components/features/ProcessStatusCard';
-import { ResourceTable } from '../../components/features/ResourceTable';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+} from '@/app/lib/api';
+import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
+import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
+import { ResourceTable } from '@/app/components/features/ResourceTable';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 
 interface ProjectDetailProps {
   projectId: string;

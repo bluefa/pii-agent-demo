@@ -1,6 +1,6 @@
 'use client';
 
-import { LoadingSpinner } from '../../ui/LoadingSpinner';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 
 interface ApprovalModalProps {
   isOpen: boolean;

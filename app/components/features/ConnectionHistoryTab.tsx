@@ -1,10 +1,10 @@
 'use client';
 
-import { ConnectionTestHistory } from '../../../lib/types';
+import { ConnectionTestHistory } from '@/lib/types';
 import { ConnectionDetailModal } from './ConnectionDetailModal';
-import { formatDateTime } from '../../../lib/utils/date';
-import { Badge } from '../ui/Badge';
-import { useModal } from '../../hooks/useModal';
+import { formatDateTime } from '@/lib/utils/date';
+import { Badge } from '@/app/components/ui/Badge';
+import { useModal } from '@/app/hooks/useModal';
 
 interface ConnectionHistoryTabProps {
   history: ConnectionTestHistory[];

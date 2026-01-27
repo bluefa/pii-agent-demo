@@ -1,10 +1,10 @@
 'use client';
 
-import { ConnectionTestHistory } from '../../../lib/types';
-import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
-import { formatDateTimeSeconds } from '../../../lib/utils/date';
-import { ERROR_TYPE_LABELS } from '../../../lib/constants/labels';
-import { Badge } from '../ui/Badge';
+import { ConnectionTestHistory } from '@/lib/types';
+import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+import { formatDateTimeSeconds } from '@/lib/utils/date';
+import { ERROR_TYPE_LABELS } from '@/lib/constants/labels';
+import { Badge } from '@/app/components/ui/Badge';
 
 interface ConnectionDetailModalProps {
   history: ConnectionTestHistory;

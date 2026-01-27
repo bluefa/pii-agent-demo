@@ -1,4 +1,4 @@
-import { AwsResourceType } from '../../../lib/types';
+import { AwsResourceType } from '@/lib/types';
 
 interface AwsServiceIconProps {
   type: AwsResourceType;

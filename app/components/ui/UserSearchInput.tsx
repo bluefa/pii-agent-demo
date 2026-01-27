@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { searchUsers, UserSearchResult } from '../../lib/api';
+import { searchUsers, UserSearchResult } from '@/app/lib/api';
 
 interface UserSearchInputProps {
   excludeIds: string[];

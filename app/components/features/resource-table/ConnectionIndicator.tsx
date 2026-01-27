@@ -1,7 +1,7 @@
 'use client';
 
-import { ConnectionStatus } from '../../../../lib/types';
-import { CONNECTION_STATUS_CONFIG } from '../../../../lib/constants/labels';
+import { ConnectionStatus } from '@/lib/types';
+import { CONNECTION_STATUS_CONFIG } from '@/lib/constants/labels';
 
 interface ConnectionIndicatorProps {
   status: ConnectionStatus;

@@ -1,7 +1,7 @@
 'use client';
 
-import { Project } from '../../../lib/types';
-import { formatDateOnly } from '../../../lib/utils/date';
+import { Project } from '@/lib/types';
+import { formatDateOnly } from '@/lib/utils/date';
 
 interface ProjectInfoCardProps {
   project: Project;

@@ -1,6 +1,6 @@
 'use client';
 
-import { TerraformState, TerraformStatus, FirewallStatus, CloudProvider } from '../../../lib/types';
+import { TerraformState, TerraformStatus, FirewallStatus, CloudProvider } from '@/lib/types';
 
 interface TerraformStatusModalProps {
   terraformState: TerraformState;

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ConnectionTestHistory, DBCredential, Resource, needsCredential } from '../../../../lib/types';
-import { ConnectionHistoryTab } from '../ConnectionHistoryTab';
-import { CredentialListTab } from '../CredentialListTab';
-import { ConnectionDetailModal } from '../ConnectionDetailModal';
-import { LoadingSpinner } from '../../ui/LoadingSpinner';
-import { useModal } from '../../../hooks/useModal';
+import { ConnectionTestHistory, DBCredential, Resource, needsCredential } from '@/lib/types';
+import { ConnectionHistoryTab } from '@/app/components/features/ConnectionHistoryTab';
+import { CredentialListTab } from '@/app/components/features/CredentialListTab';
+import { ConnectionDetailModal } from '@/app/components/features/ConnectionDetailModal';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { useModal } from '@/app/hooks/useModal';
 import { MissingCredentialsTab } from './MissingCredentialsTab';
 
 type ConnectionTabType = 'history' | 'credentials' | 'missing';

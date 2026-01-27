@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { ProcessStatus, Project, TerraformStatus, DBCredential } from '../../../lib/types';
+import { ProcessStatus, Project, TerraformStatus, DBCredential } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
-import { approveProject, rejectProject } from '../../lib/api';
-import { useModal } from '../../hooks/useModal';
-import { useApiMutation } from '../../hooks/useApiMutation';
+import { approveProject, rejectProject } from '@/app/lib/api';
+import { useModal } from '@/app/hooks/useModal';
+import { useApiMutation } from '@/app/hooks/useApiMutation';
 import {
   StepProgressBar,
   StepGuide,
