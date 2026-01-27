@@ -1,17 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import { ConnectionTestHistory } from '../../../lib/types';
 import { ConnectionDetailModal } from './ConnectionDetailModal';
 import { formatDateTime } from '../../../lib/utils/date';
-import { Badge, BadgeVariant } from '../ui/Badge';
+import { Badge } from '../ui/Badge';
+import { useModal } from '../../hooks/useModal';
 
 interface ConnectionHistoryTabProps {
   history: ConnectionTestHistory[];
 }
 
 export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => {
-  const [selectedHistory, setSelectedHistory] = useState<ConnectionTestHistory | null>(null);
+  const detailModal = useModal<ConnectionTestHistory>();
 
   if (history.length === 0) {
     return (
@@ -67,7 +67,7 @@ export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => 
                 </td>
                 <td className="px-6 py-4">
                   <button
-                    onClick={() => setSelectedHistory(item)}
+                    onClick={() => detailModal.open(item)}
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
                     보기
@@ -80,10 +80,10 @@ export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => 
       </div>
 
       {/* Detail Modal */}
-      {selectedHistory && (
+      {detailModal.data && (
         <ConnectionDetailModal
-          history={selectedHistory}
-          onClose={() => setSelectedHistory(null)}
+          history={detailModal.data}
+          onClose={detailModal.close}
         />
       )}
     </>

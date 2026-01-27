@@ -10,6 +10,8 @@ import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { AwsServiceIcon } from '../ui/AwsServiceIcon';
 import { approveProject, rejectProject } from '../../lib/api';
+import { useModal } from '../../hooks/useModal';
+import { useApiMutation } from '../../hooks/useApiMutation';
 
 type ConnectionTabType = 'history' | 'credentials' | 'missing';
 
@@ -61,15 +63,43 @@ const getStepGuideText = (status: ProcessStatus) => {
 };
 
 export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestConnection, testLoading, credentials = [], onCredentialChange }: ProcessStatusCardProps) => {
-  const [showTerraformModal, setShowTerraformModal] = useState(false);
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showConnectionDetailModal, setShowConnectionDetailModal] = useState(false);
-  const [selectedHistory, setSelectedHistory] = useState<ConnectionTestHistory | null>(null);
+  // Modal states
+  const terraformModal = useModal();
+  const approveModal = useModal();
+  const rejectModal = useModal();
+  const connectionDetailModal = useModal<ConnectionTestHistory>();
+
+  // Form states
   const [approveComment, setApproveComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [connectionTab, setConnectionTab] = useState<ConnectionTabType>('history');
+
+  // API mutations
+  const { mutate: doApprove, loading: approving } = useApiMutation(
+    (comment: string) => approveProject(project.id, comment),
+    {
+      onSuccess: (updated) => {
+        onProjectUpdate?.(updated);
+        approveModal.close();
+        setApproveComment('');
+      },
+      errorMessage: '승인에 실패했습니다.',
+    }
+  );
+
+  const { mutate: doReject, loading: rejecting } = useApiMutation(
+    (reason: string) => rejectProject(project.id, reason),
+    {
+      onSuccess: (updated) => {
+        onProjectUpdate?.(updated);
+        rejectModal.close();
+        setRejectReason('');
+      },
+      errorMessage: '반려에 실패했습니다.',
+    }
+  );
+
+  const submitting = approving || rejecting;
 
   const currentStep = project.processStatus;
   const guideText = getStepGuideText(currentStep);
@@ -107,38 +137,12 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
 
   const handleShowLatestResult = () => {
     if (latestHistory) {
-      setSelectedHistory(latestHistory);
-      setShowConnectionDetailModal(true);
+      connectionDetailModal.open(latestHistory);
     }
   };
 
-  const handleApprove = async () => {
-    try {
-      setSubmitting(true);
-      const updated = await approveProject(project.id, approveComment);
-      onProjectUpdate?.(updated);
-      setShowApproveModal(false);
-      setApproveComment('');
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '승인에 실패했습니다.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReject = async () => {
-    try {
-      setSubmitting(true);
-      const updated = await rejectProject(project.id, rejectReason);
-      onProjectUpdate?.(updated);
-      setShowRejectModal(false);
-      setRejectReason('');
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '반려에 실패했습니다.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const handleApprove = () => doApprove(approveComment);
+  const handleReject = () => doReject(rejectReason);
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
@@ -257,13 +261,13 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
               {isAdmin ? (
                 <>
                   <button
-                    onClick={() => setShowApproveModal(true)}
+                    onClick={() => approveModal.open()}
                     className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
                   >
                     승인
                   </button>
                   <button
-                    onClick={() => setShowRejectModal(true)}
+                    onClick={() => rejectModal.open()}
                     className="flex-1 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition-colors"
                   >
                     반려
@@ -278,7 +282,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
           )}
           {currentStep === ProcessStatus.INSTALLING && (
             <button
-              onClick={() => setShowTerraformModal(true)}
+              onClick={() => terraformModal.open()}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -298,10 +302,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
               <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
                 {lastSuccessHistory ? (
                   <button
-                    onClick={() => {
-                      setSelectedHistory(lastSuccessHistory);
-                      setShowConnectionDetailModal(true);
-                    }}
+                    onClick={() => connectionDetailModal.open(lastSuccessHistory)}
                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                   >
                     <span className="text-sm text-gray-600">마지막 연결 성공</span>
@@ -403,16 +404,16 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
       </div>
 
       {/* Terraform Status Modal */}
-      {showTerraformModal && (
+      {terraformModal.isOpen && (
         <TerraformStatusModal
           terraformState={project.terraformState}
           cloudProvider={project.cloudProvider}
-          onClose={() => setShowTerraformModal(false)}
+          onClose={() => terraformModal.close()}
         />
       )}
 
       {/* Approve Modal */}
-      {showApproveModal && (
+      {approveModal.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">승인</h3>
@@ -431,7 +432,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
-                  setShowApproveModal(false);
+                  approveModal.close();
                   setApproveComment('');
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -452,18 +453,15 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
       )}
 
       {/* Connection Detail Modal */}
-      {showConnectionDetailModal && selectedHistory && (
+      {connectionDetailModal.data && (
         <ConnectionDetailModal
-          history={selectedHistory}
-          onClose={() => {
-            setShowConnectionDetailModal(false);
-            setSelectedHistory(null);
-          }}
+          history={connectionDetailModal.data}
+          onClose={connectionDetailModal.close}
         />
       )}
 
       {/* Reject Modal */}
-      {showRejectModal && (
+      {rejectModal.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">반려</h3>
@@ -482,7 +480,7 @@ export const ProcessStatusCard = ({ project, isAdmin, onProjectUpdate, onTestCon
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
-                  setShowRejectModal(false);
+                  rejectModal.close();
                   setRejectReason('');
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
