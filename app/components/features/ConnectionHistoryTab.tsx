@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ConnectionTestHistory } from '../../../lib/types';
 import { ConnectionDetailModal } from './ConnectionDetailModal';
 import { formatDateTime } from '../../../lib/utils/date';
+import { Badge, BadgeVariant } from '../ui/Badge';
 
 interface ConnectionHistoryTabProps {
   history: ConnectionTestHistory[];
@@ -46,15 +47,17 @@ export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => 
                   {formatDateTime(item.executedAt)}
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    item.status === 'SUCCESS'
-                      ? 'bg-green-100 text-green-800'
-                      : item.status === 'PENDING'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}>
+                  <Badge
+                    variant={
+                      item.status === 'SUCCESS'
+                        ? 'success'
+                        : item.status === 'PENDING'
+                        ? 'pending'
+                        : 'error'
+                    }
+                  >
                     {item.status}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="px-6 py-4 text-sm text-green-600 font-medium">
                   {item.successCount}개

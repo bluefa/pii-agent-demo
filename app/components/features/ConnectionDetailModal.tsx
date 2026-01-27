@@ -4,6 +4,7 @@ import { ConnectionTestHistory } from '../../../lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
 import { formatDateTimeSeconds } from '../../../lib/utils/date';
 import { ERROR_TYPE_LABELS } from '../../../lib/constants/labels';
+import { Badge } from '../ui/Badge';
 
 interface ConnectionDetailModalProps {
   history: ConnectionTestHistory;
@@ -74,13 +75,9 @@ export const ConnectionDetailModal = ({ history, onClose }: ConnectionDetailModa
             <div className="text-right">
               <p className="text-sm text-gray-500">결과</p>
               <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                  history.status === 'SUCCESS'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-red-100 text-red-800'
-                }`}>
+                <Badge variant={history.status === 'SUCCESS' ? 'success' : 'error'} size="md">
                   {history.status === 'SUCCESS' ? 'SUCCESS' : 'FAIL'}
-                </span>
+                </Badge>
                 <span className="text-sm text-gray-600">
                   (성공 {history.successCount}개 / 실패 {history.failCount}개)
                 </span>
