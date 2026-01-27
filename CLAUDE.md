@@ -20,12 +20,18 @@ PII Agent 관리 시스템 (Demo)
 	•	page.tsx : 서비스 코드 목록 + 과제 목록(2-pane)
 	•	projects/[id]/ : 과제 상세
 	•	admin/ : 관리자 화면
+	•	hooks/ : 커스텀 훅 (useModal, useApiMutation, useAsync)
+	•	lib/api.ts : API 호출 함수
 	•	components/
-	•	ui/ : Button/Badge/Modal 등 기본 UI
+	•	ui/ : 기본 UI (Button, Badge, Modal, Card, Table, LoadingSpinner 등)
 	•	features/ : 도메인/비즈니스 컴포넌트
+		•	대형 컴포넌트는 하위 폴더로 분리 (process-status/, resource-table/, admin/)
 	•	mocks/ : MSW를 쓰는 경우만
 	•	types/ : 공용 타입
 	•	lib/ : 유틸/데이터 접근/상태 전이 로직
+	•	utils/ : 유틸리티 함수 (date.ts, credentials.ts)
+	•	constants/ : 공용 상수 (labels.ts)
+	•	theme.ts : 디자인 토큰 (색상, 스타일, 헬퍼 함수)
 
 코딩 규칙 (필수)
 	•	컴포넌트 파일: PascalCase (예: StepIndicator.tsx)
@@ -41,6 +47,23 @@ UI 컬러 규칙
 	•	신규: blue-500
 	•	진행중: orange-500
 	•	대기중: gray-400
+	•	Primary (버튼/링크): blue-600
+
+디자인 토큰 (lib/theme.ts)
+	•	스타일 변경 시 theme.ts의 토큰 사용 권장
+	•	statusColors, buttonStyles, cardStyles 등 정의됨
+	•	cn() 헬퍼로 클래스 조합
+	•	CSS 변수는 globals.css에 정의
+
+커스텀 훅 규칙
+	•	모달 상태: useModal() 훅 사용
+	•	API 호출 (mutation): useApiMutation() 훅 사용
+	•	try-catch-finally 패턴 직접 작성 대신 훅 활용
+
+컴포넌트 분리 규칙
+	•	300줄 이상 컴포넌트는 하위 폴더로 분리 검토
+	•	폴더 구조: ComponentName/ 폴더에 index.ts로 내보내기
+	•	예: process-status/, resource-table/, admin/
 
 역할/권한 (요약)
 	•	권한 단위: 서비스 코드(serviceCode)
@@ -70,6 +93,7 @@ UI 컬러 규칙
 	•	전체 요구사항 원문: docs/spec.md
 	•	진행상태/현재 이슈: docs/state.md
 	•	API 요약(엔드포인트 표): docs/api.md
+	•	리팩토링 문서: docs/refactoring/*.md (phase1~5)
 
 ⸻
 
@@ -88,7 +112,24 @@ UI 컬러 규칙
 ⸻
 
 다음 액션 버튼 규칙(요약)
-	•	1단계: “PII Agent 연동 대상 확정”
+	•	1단계: "PII Agent 연동 대상 확정"
 	•	2단계: (관리자) 승인/반려
-	•	4단계: “Test Connection”
-	•	AWS만 “스캔 재실행” 표시, IDC는 숨김
+	•	4단계: "Test Connection"
+	•	AWS만 "스캔 재실행" 표시, IDC는 숨김
+
+⸻
+
+TODO (향후 작업)
+
+클라우드별 상태 분리 (ProjectDetail 리팩토링)
+	•	현재: AWS/IDC 2개 클라우드만 지원, 조건문으로 분기
+	•	문제: GCP/Azure 추가 시 모든 파일에서 분기문 증가
+	•	해결 방향:
+	•	CloudProvider별 프로세스 상태 판단 로직 분리
+	•	CloudProvider별 리소스 상태/표시 방식 분리
+	•	전략 패턴 또는 Provider별 설정 객체 도입
+	•	영향 범위:
+	•	ProjectDetail.tsx (메인 페이지)
+	•	ProcessStatusCard (Terraform 상태, 설치 진행)
+	•	ResourceTable (리전 그룹핑, 아이콘, Credential 타입)
+	•	ConnectionTestPanel (연결 테스트 검증 로직)
