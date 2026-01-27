@@ -2,19 +2,13 @@
 
 import { ConnectionTestHistory } from '../../../lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
+import { formatDateTimeSeconds } from '../../../lib/utils/date';
+import { ERROR_TYPE_LABELS } from '../../../lib/constants/labels';
 
 interface ConnectionDetailModalProps {
   history: ConnectionTestHistory;
   onClose: () => void;
 }
-
-const ERROR_TYPE_LABELS: Record<string, string> = {
-  AUTH_FAILED: '인증 실패',
-  PERMISSION_DENIED: '권한 부족',
-  NETWORK_ERROR: '네트워크 오류',
-  TIMEOUT: '연결 타임아웃',
-  UNKNOWN_ERROR: '알 수 없는 오류',
-};
 
 const RESOURCE_TYPE_ICONS: Record<string, React.ReactNode> = {
   RDS: (
@@ -54,17 +48,6 @@ const DefaultIcon = () => (
 );
 
 export const ConnectionDetailModal = ({ history, onClose }: ConnectionDetailModalProps) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
@@ -86,7 +69,7 @@ export const ConnectionDetailModal = ({ history, onClose }: ConnectionDetailModa
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">실행 일시</p>
-              <p className="font-medium text-gray-900">{formatDate(history.executedAt)}</p>
+              <p className="font-medium text-gray-900">{formatDateTimeSeconds(history.executedAt)}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">결과</p>

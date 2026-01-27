@@ -1,6 +1,7 @@
 'use client';
 
 import { Project } from '../../../lib/types';
+import { formatDateOnly } from '../../../lib/utils/date';
 
 interface ProjectInfoCardProps {
   project: Project;
@@ -31,15 +32,6 @@ const CloudProviderIcon = ({ provider }: { provider: string }) => {
   );
 };
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-};
-
 export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -66,7 +58,7 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
         {/* 생성일 */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">생성일</span>
-          <span className="text-gray-700">{formatDate(project.createdAt)}</span>
+          <span className="text-gray-700">{formatDateOnly(project.createdAt)}</span>
         </div>
 
         {/* 리소스 수 */}

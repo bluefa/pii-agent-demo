@@ -1,22 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, DBCredential, ConnectionTestResult, needsCredential, Resource } from '../../../lib/types';
+import { Project, DBCredential, ConnectionTestResult, needsCredential, Resource, DatabaseType } from '../../../lib/types';
 import { getCredentials, runConnectionTest, ResourceCredentialInput } from '../../lib/api';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { ERROR_TYPE_LABELS } from '../../../lib/constants/labels';
+import { filterCredentialsByType } from '../../../lib/utils/credentials';
 
 interface TestConnectionTabProps {
   project: Project;
   onProjectUpdate: (project: Project) => void;
 }
-
-const ERROR_TYPE_LABELS: Record<string, string> = {
-  AUTH_FAILED: '인증 실패',
-  PERMISSION_DENIED: '권한 부족',
-  NETWORK_ERROR: '네트워크 오류',
-  TIMEOUT: '연결 타임아웃',
-  UNKNOWN_ERROR: '알 수 없는 오류',
-};
 
 export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTabProps) => {
   const [credentials, setCredentials] = useState<DBCredential[]>([]);
@@ -86,7 +80,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
   };
 
   const getCredentialsForType = (databaseType: string): DBCredential[] => {
-    return (credentials || []).filter((c) => c.databaseType === databaseType);
+    return filterCredentialsByType(credentials, databaseType as DatabaseType);
   };
 
   const renderStatus = (resource: Resource) => {

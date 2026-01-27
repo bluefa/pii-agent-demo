@@ -13,6 +13,8 @@ import {
 } from '../../../lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '../ui/DatabaseIcon';
 import { AwsServiceIcon } from '../ui/AwsServiceIcon';
+import { REGION_LABELS, CONNECTION_STATUS_CONFIG } from '../../../lib/constants/labels';
+import { filterCredentialsByType } from '../../../lib/utils/credentials';
 
 interface ResourceTableProps {
   resources: Resource[];
@@ -27,19 +29,6 @@ interface ResourceTableProps {
 }
 
 type FilterType = 'all' | 'selected';
-
-const CONNECTION_STATUS_CONFIG: Record<ConnectionStatus, { label: string; className: string; icon: string }> = {
-  CONNECTED: { label: '연결됨', className: 'text-green-500', icon: '●' },
-  DISCONNECTED: { label: '연결 끊김', className: 'text-red-500', icon: '●' },
-  PENDING: { label: '대기중', className: 'text-gray-400', icon: '○' },
-};
-
-const REGION_LABELS: Record<string, string> = {
-  'ap-northeast-2': '서울 (ap-northeast-2)',
-  'ap-northeast-1': '도쿄 (ap-northeast-1)',
-  'us-east-1': '버지니아 (us-east-1)',
-  'us-west-2': '오레곤 (us-west-2)',
-};
 
 export const ResourceTable = ({
   resources,
@@ -127,7 +116,7 @@ export const ResourceTable = ({
 
   // DB 타입에 맞는 credential 목록 가져오기
   const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] => {
-    return (credentials || []).filter((c) => c.databaseType === databaseType);
+    return filterCredentialsByType(credentials, databaseType);
   };
 
   return (

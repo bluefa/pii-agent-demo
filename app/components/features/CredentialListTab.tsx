@@ -1,19 +1,13 @@
 'use client';
 
 import { DBCredential } from '../../../lib/types';
+import { formatDateOnly } from '../../../lib/utils/date';
 
 interface CredentialListTabProps {
   credentials: DBCredential[];
 }
 
 export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  };
 
   if (credentials.length === 0) {
     return (
@@ -82,7 +76,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
                   <span className="text-sm font-medium text-gray-900">{cred.name}</span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">
-                  {formatDate(cred.createdAt)}
+                  {formatDateOnly(cred.createdAt)}
                 </td>
               </tr>
             ))}

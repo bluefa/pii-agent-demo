@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ConnectionTestHistory } from '../../../lib/types';
 import { ConnectionDetailModal } from './ConnectionDetailModal';
+import { formatDateTime } from '../../../lib/utils/date';
 
 interface ConnectionHistoryTabProps {
   history: ConnectionTestHistory[];
@@ -10,16 +11,6 @@ interface ConnectionHistoryTabProps {
 
 export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => {
   const [selectedHistory, setSelectedHistory] = useState<ConnectionTestHistory | null>(null);
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   if (history.length === 0) {
     return (
@@ -52,7 +43,7 @@ export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => 
             {history.map((item) => (
               <tr key={item.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 text-sm text-gray-900">
-                  {formatDate(item.executedAt)}
+                  {formatDateTime(item.executedAt)}
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
