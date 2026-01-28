@@ -582,9 +582,22 @@ GET /api/services/{serviceCode}/new-resources-summary
 
 # 데이터 모델
 
-## ResourceType
+> Production 수준 설계. 용도별 API 분리.
+
+---
+
+## 공통 타입
 
 ```typescript
+type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
+
+type ProcessStatus =
+  | 'WAITING_TARGET_CONFIRMATION'  // 1. 연동 대상 확정 대기
+  | 'WAITING_APPROVAL'             // 2. 승인 대기
+  | 'INSTALLING'                   // 3. 설치 진행 중
+  | 'WAITING_CONNECTION_TEST'      // 4. 연결 테스트 대기
+  | 'COMPLETED';                   // 5. 완료
+
 type ResourceType =
   // AWS
   | 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2'
@@ -593,17 +606,41 @@ type ResourceType =
   // GCP
   | 'CLOUD_SQL' | 'BIGQUERY' | 'SPANNER'
   // IDC
-  | 'ORACLE' | 'MYSQL' | 'POSTGRESQL' | 'MSSQL'
+  | 'IDC'
   // SDU
   | 'ATHENA_TABLE'
   ;
 ```
 
+---
+
+## Project (핵심 정보만)
+
+```typescript
+// GET /api/projects/{projectId}
+
+interface Project {
+  id: string;
+  projectCode: string;
+  name: string;
+  description?: string;
+  serviceCode: string;
+  cloudProvider: CloudProvider;
+  processStatus: ProcessStatus;
+  vmIntegrationEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+---
+
 ## Resource
 
 ```typescript
+// GET /api/projects/{projectId}/resources
+
 interface Resource {
-  // 식별
   id: string;
   resourceType: ResourceType;
   resourceId: string;  // ARN, Azure Resource ID 등
@@ -619,12 +656,18 @@ interface Resource {
   isSelected: boolean;
   selectedCredentialId?: string;
 
-  // Provider별 조회용 메타데이터
+  // Provider별 메타데이터
   metadata: ResourceMetadata;
+}
+
+interface ResourcesResponse {
+  resources: Resource[];
+  totalCount: number;
+  selectedCount: number;
 }
 ```
 
-## ResourceMetadata (Discriminated Union)
+### ResourceMetadata (Discriminated Union)
 
 ```typescript
 interface AwsMetadata {
@@ -664,37 +707,28 @@ type ResourceMetadata =
   | SduMetadata;
 ```
 
-## Project
+---
+
+## ScanInfo (스캔 정보)
 
 ```typescript
-interface Project {
-  id: string;
-  projectCode: string;
-  name: string;
-  serviceCode: string;
-  cloudProvider: 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
-  processStatus: ProcessStatus;
-  resources: Resource[];
+// GET /api/projects/{projectId}/scan-info
+// 대상: AWS, Azure, GCP만
 
-  // 설정
-  vmIntegrationEnabled: boolean;
-
-  // 스캔 정보 (AWS/Azure/GCP)
-  lastScannedAt?: string;
-  hasNewResources: boolean;
-
-  // 설치 상태 요약 (초기 로드용)
-  installationSummary: {
-    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
-    message?: string;  // "TF Script 다운로드 필요", "PE 승인 대기 중" 등
-  };
+interface ScanInfo {
+  lastScannedAt: string | null;
+  canScan: boolean;            // 5분 경과 여부
+  hasNewResources: boolean;    // 신규 리소스 존재
+  newResourceCount: number;
 }
 ```
 
-## InstallationStatus (상세 설치 상태 - Union Type)
+---
+
+## InstallationStatus (설치 상태 - Union Type)
 
 ```typescript
-// GET /api/projects/{projectId}/installation-status 응답
+// GET /api/projects/{projectId}/installation-status
 
 interface AwsInstallationStatus {
   provider: 'AWS';
@@ -709,10 +743,8 @@ interface AwsInstallationStatus {
 
 interface AzureInstallationStatus {
   provider: 'Azure';
-  // DB
   serviceTf: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
-  privateEndpointsPending: number;  // 승인 대기 PE 수
-  // VM (vmIntegrationEnabled인 경우)
+  privateEndpointsPending: number;
   vmTfScriptDownloaded?: boolean;
   vmInstalled?: boolean;
 }
@@ -744,29 +776,56 @@ type InstallationStatus =
   | SduInstallationStatus;
 ```
 
-## API 호출 전략
+---
+
+## API 호출 전략 (페이지별)
+
+### Project Detail 페이지
 
 ```
 페이지 진입
     │
-    ▼
-GET /projects/{id}  ← 기본 정보 + resources + installationSummary
+    ├─▶ GET /projects/{id}              ← 기본 정보
+    ├─▶ GET /projects/{id}/resources    ← 리소스 목록
+    └─▶ GET /projects/{id}/scan-info    ← 스캔 정보 (AWS/Azure/GCP)
     │
-    ▼ (필요시)
-GET /installation-status  ← 상세 설치 상태 (Union Type)
-GET /private-endpoints    ← Azure PE 상태 (자주 갱신)
-GET /history              ← 이력 (탭 클릭시)
-GET /services/{code}/settings  ← 사전조치 상태
+    ▼ (processStatus에 따라)
+    ├─▶ GET /installation-status        ← 설치 상태 (3단계)
+    ├─▶ GET /private-endpoints          ← Azure PE 상태
+    └─▶ GET /history                    ← 이력 (탭 클릭시)
 ```
 
-## 별도 API로 조회하는 정보
+### Admin 목록 페이지
 
-| 정보 | API | 조회 시점 |
-|------|-----|----------|
-| 상세 설치 상태 | `GET /installation-status` | 설치 상세 필요시 |
-| Azure PE 상태 | `GET /private-endpoints` | Azure + 설치 단계 |
-| 서비스 설정 | `GET /services/{code}/settings` | 사전조치 확인시 |
-| History | `GET /history` | 이력 탭 클릭시 |
+```
+페이지 진입
+    │
+    └─▶ GET /services/{code}/projects   ← 과제 목록 (요약 정보)
+```
+
+### 서비스 설정 페이지
+
+```
+페이지 진입
+    │
+    ├─▶ GET /services/{code}/settings      ← 사전조치 상태
+    └─▶ GET /services/{code}/credentials   ← Credential 목록
+```
+
+---
+
+## 별도 API 정리
+
+| API | 설명 | 조회 시점 |
+|-----|------|----------|
+| `GET /projects/{id}` | 프로젝트 기본 정보 | 페이지 진입 |
+| `GET /projects/{id}/resources` | 리소스 목록 | 페이지 진입 |
+| `GET /projects/{id}/scan-info` | 스캔 정보 | 페이지 진입 (AWS/Azure/GCP) |
+| `GET /projects/{id}/installation-status` | 설치 상태 상세 | 3단계 (설치 중) |
+| `GET /projects/{id}/private-endpoints` | PE 상태 | Azure + 3단계 |
+| `GET /projects/{id}/history` | 이력 | 탭 클릭 |
+| `GET /services/{code}/settings` | 서비스 설정 | 설정 페이지 |
+| `GET /services/{code}/credentials` | Credential 목록 | 설정 페이지 |
 
 ---
 
