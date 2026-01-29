@@ -15,29 +15,7 @@
 
 ## 스캔
 
-### 스캔 실행
-
-```
-POST /api/projects/{projectId}/scan
-```
-
-> TODO: 비동기 작업 - 응답 형식 정의 필요
-
-### 스캔 정보 조회
-
-```
-GET /api/projects/{projectId}/scan-info
-```
-
-**응답**:
-```typescript
-{
-  lastScannedAt: string | null,
-  canScan: boolean,
-  hasNewResources: boolean,
-  newResourceCount: number
-}
-```
+> 스캔 API는 [scan.md](../scan.md) 참조
 
 ---
 
