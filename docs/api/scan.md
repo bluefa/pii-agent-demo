@@ -56,7 +56,7 @@ GET /api/projects/{projectId}/scan/permission
 
 ## 스캔 실행
 
-### 스캔 시작 (비동기)
+### 스캔 시작 [ASYNC]
 
 ```
 POST /api/projects/{projectId}/scan

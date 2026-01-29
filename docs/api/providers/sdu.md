@@ -21,7 +21,9 @@ Crawler 설정 → Athena Table 확인 → Test Connection → 완료
 
 ---
 
-## Crawler
+## Crawler [ASYNC]
+
+> Crawler 실행은 비동기 - 'IDLE' | 'RUNNING' | 'FAILED' 상태로 추적
 
 ### Crawler 설정
 

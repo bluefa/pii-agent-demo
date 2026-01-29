@@ -19,7 +19,9 @@
 
 ---
 
-## 설치 상태
+## 설치 상태 [ASYNC]
+
+> TF 설치는 비동기 작업 - TfStatus로 상태 추적
 
 ### 설치 상태 조회
 
@@ -42,7 +44,9 @@ GET /api/projects/{projectId}/installation-status
 
 ---
 
-## Private Endpoint
+## Private Endpoint [ASYNC]
+
+> PE 승인은 서비스 담당자가 Azure Portal에서 수동 승인 - 비동기 확인 필요
 
 ### PE 상태 목록 조회
 
@@ -73,7 +77,9 @@ POST /api/projects/{projectId}/private-endpoints/{resourceId}/confirm
 
 ---
 
-## VM TF Script
+## VM TF Script [ASYNC]
+
+> VM 설치 상태는 시스템이 주기적으로 폴링하여 확인
 
 ### TF Script 다운로드
 

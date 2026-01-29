@@ -54,7 +54,9 @@ DELETE /api/projects/{projectId}/resources/{resourceId}
 
 ---
 
-## 설치 상태
+## 설치 상태 [ASYNC]
+
+> BDC TF 설치는 비동기 작업 - TfStatus로 상태 추적
 
 ### 설치 상태 조회
 

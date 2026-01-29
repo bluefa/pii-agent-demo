@@ -22,7 +22,9 @@
 
 ---
 
-## 설치 상태
+## 설치 상태 [ASYNC]
+
+> TF 설치는 비동기 작업 - TfStatus로 상태 추적
 
 ### 설치 상태 조회
 
@@ -42,9 +44,9 @@ GET /api/projects/{projectId}/installation-status
 
 ---
 
-## Subnet
+## Subnet [ASYNC]
 
-> GCP는 시스템이 직접 생성 권한 있음
+> GCP는 시스템이 직접 생성 권한 있음 - Subnet 생성은 비동기 처리
 
 ### Subnet 목록 조회
 
