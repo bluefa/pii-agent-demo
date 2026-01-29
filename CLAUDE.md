@@ -93,8 +93,15 @@ Cloud Provider: AWS, Azure, GCP, IDC, SDU (+ 수동조사 예정)
 
 스펙/문서 위치
 	•	Cloud Provider별 프로세스: docs/cloud-provider-states.md
-	•	API 설계: docs/api-design.md
-	•	기존 API 요약: docs/api.md
+	•	API 문서:
+		•	docs/api/common.md - 공통 타입, 인증, 에러
+		•	docs/api/core.md - 공통 API (프로젝트, 리소스, 프로세스)
+		•	docs/api/scan.md - 스캔 API (AWS/Azure/GCP 공통)
+		•	docs/api/providers/aws.md
+		•	docs/api/providers/azure.md
+		•	docs/api/providers/gcp.md
+		•	docs/api/providers/idc.md
+		•	docs/api/providers/sdu.md
 
 ⸻
 
