@@ -8,75 +8,49 @@
 
 ## AWS
 
-### Case 1: TF 권한 O + DB Only
+> **케이스 분류**: TF 권한(TerraformExecutionRole) 여부로만 구분
+> **VM (EC2)**: 프로세스에 영향 없음, 리소스 확정 시 UI 필터로 선택
+
+### Case 1: TF 권한 O
 
 ```
 [사전 조치]
 ├─ 스캔 Role 등록
-├─ TF 권한 부여 ✓
+├─ TF 권한 부여 ✓ (프로젝트 생성 시 선택, immutable)
 └─ DB Credential 등록
 
 [프로세스]
-1. 스캔 → 리소스 확정 (DB)
+1. 스캔 → 리소스 확정 (VM 포함 여부는 UI 필터)
 2. 승인 대기
 3. 설치 (Service TF + BDC TF) ← 자동
 4. Test Connection
 5. 연결 완료
 ```
 
-### Case 2: TF 권한 O + DB + VM
+### Case 2: TF 권한 X
 
 ```
 [사전 조치]
 ├─ 스캔 Role 등록
-├─ TF 권한 부여 ✓
-├─ DB Credential 등록
-└─ VM 연동 선택 ✓
-
-[프로세스]
-1. 스캔 → 리소스 확정 (DB + VM)
-2. 승인 대기
-3. 설치 (Service TF + BDC TF) ← 자동
-4. Test Connection
-5. 연결 완료
-```
-
-### Case 3: TF 권한 X + DB Only
-
-```
-[사전 조치]
-├─ 스캔 Role 등록
-├─ TF 권한 없음 ✗
+├─ TF 권한 없음 ✗ (프로젝트 생성 시 선택, immutable)
 └─ DB Credential 등록
 
 [프로세스]
-1. 스캔 → 리소스 확정 (DB)
+1. 스캔 → 리소스 확정 (VM 포함 여부는 UI 필터)
 2. 승인 대기
 3. TF Script 다운로드 → 담당자와 설치 일정 조율 ⚠️
 4. Test Connection
 5. 연결 완료
 ```
 
-### Case 4: TF 권한 X + DB + VM
-
-```
-[사전 조치]
-├─ 스캔 Role 등록
-├─ TF 권한 없음 ✗
-├─ DB Credential 등록
-└─ VM 연동 선택 ✓
-
-[프로세스]
-1. 스캔 → 리소스 확정 (DB + VM)
-2. 승인 대기
-3. TF Script 다운로드 → 담당자와 설치 일정 조율 ⚠️
-4. Test Connection
-5. 연결 완료
-```
+**TF 권한 관련:**
+- 프로젝트 생성 시 TerraformExecutionRole 검증 API로 확인
+- 권한 없으면 Role 생성 가이드 제공
+- 최초 선택 후 변경 불가
 
 **TF 권한 없음 시 UI:**
 - "TF Script를 다운로드 받아서 담당자와 함께 설치 일정을 조율하세요" 메시지 표시
-- TF Script 다운로드 버튼 제공
+- TF Script 다운로드 버튼 제공 (Service TF만)
 
 ---
 
@@ -232,7 +206,7 @@
 
 | Provider | 사전조치 | 리소스발견 | 승인 | 설치 특이사항 | VM |
 |----------|---------|-----------|------|--------------|-----|
-| **AWS** | Role, TF권한, Cred | 스캔 | O | TF권한O:자동 / TF권한X:수동 | 지원 |
+| **AWS** | Role, TF권한, Cred | 스캔 | O | TF권한O:자동 / TF권한X:수동 | UI 필터 |
 | **Azure** | App, Cred | 스캔 | O | TF+Private Endpoint | 지원 (수동 TF) |
 | **Azure+VM** | App, Cred, Subnet | 스캔 | O | DB자동 + VM수동 | Subnet 필수 |
 | **GCP** | 프로젝트권한, Cred | 스캔 | O | TF (+Subnet 옵션) | 미지원 |
@@ -245,10 +219,8 @@
 
 | Provider | 케이스 | 프로세스 단계 |
 |----------|--------|--------------|
-| **AWS** | TF권한O + DB Only | 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
-| **AWS** | TF권한O + DB+VM | 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
-| **AWS** | TF권한X + DB Only | 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
-| **AWS** | TF권한X + DB+VM | 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
+| **AWS** | TF권한 O | 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
+| **AWS** | TF권한 X | 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
 | **Azure** | DB Only | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → PE승인대기 → Test Connection → 완료 |
 | **Azure** | DB + VM | 스캔 → 리소스 확정 → 승인 대기 → 설치(DB:TF+PE / VM:수동TF) → Test Connection → 완료 |
 | **GCP** | 기본 | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → Test Connection → 완료 |
@@ -272,9 +244,16 @@
 
 ---
 
-## VM 연동 설정 불일치 처리
+## VM 연동 관련 (Provider별)
 
-> VM 연동을 선택했는데 리소스 확정 단계에서 VM이 없는 경우
+### AWS
+- VM(EC2)은 프로세스에 영향 없음
+- 리소스 확정 시 UI 필터로 "VM 포함" 선택
+- 스캔 결과에 EC2가 없어도 문제 없음 (단순히 필터 결과가 비어있음)
+
+### Azure
+- VM 연동 시 Subnet 필수, 프로세스 변경 (Case 2)
+- VM 연동 선택 후 스캔된 VM이 없는 경우 → 안내 팝업
 
 ```
 ┌─────────────────────────────────────┐
@@ -288,9 +267,6 @@
 │     [취소]  [설정 변경]               │
 └─────────────────────────────────────┘
 ```
-
-- 팝업으로 안내
-- 설정 변경 시 VM 연동 해제
 
 ---
 
@@ -461,4 +437,5 @@
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | AWS 케이스 단순화 (TF 권한만), VM은 UI 필터로 변경 |
 | 2026-01-27 | 초안 작성 (AWS 기준), IDC 제거 |

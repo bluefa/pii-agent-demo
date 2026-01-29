@@ -172,8 +172,7 @@ GET /api/services/{serviceCode}/settings
 {
   cloudProvider: 'AWS',
   scanRoleRegistered: boolean,
-  tfPermissionGranted: boolean,
-  vmIntegrationEnabled: boolean
+  tfPermissionGranted: boolean  // 프로젝트 레벨, immutable (VM은 UI 필터)
 }
 
 // Azure
@@ -275,7 +274,8 @@ DELETE /api/services/{serviceCode}/credentials/{credentialId}
 
 ## TF Script 다운로드
 
-AWS (TF 권한 없음), Azure VM 수동 설치 시 사용
+AWS (TF 권한 없음): Service TF만 다운로드
+Azure VM: VM TF 다운로드
 
 ```
 GET /api/projects/{projectId}/terraform-script
@@ -283,7 +283,7 @@ GET /api/projects/{projectId}/terraform-script
 
 **Query Params**:
 ```
-?type=service|bdc|vm
+?type=service|vm  // AWS는 service만, Azure VM은 vm
 ```
 
 **응답**:
@@ -627,7 +627,7 @@ interface Project {
   serviceCode: string;
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
-  vmIntegrationEnabled: boolean;
+  tfPermissionGranted?: boolean;  // AWS 전용, immutable
   createdAt: string;
   updatedAt: string;
 }

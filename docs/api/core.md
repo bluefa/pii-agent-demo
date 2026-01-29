@@ -58,8 +58,8 @@ GET /api/projects/{projectId}
   description?: string,
   serviceCode: string,
   cloudProvider: CloudProvider,
-  processStatus: ProcessStatus,
-  vmIntegrationEnabled: boolean,
+  isIntegrated: boolean,  // 연동 완료 여부
+  tfPermissionGranted?: boolean,  // AWS 전용, 프로젝트 생성 시 선택, immutable
   createdAt: string,
   updatedAt: string
 }
@@ -79,7 +79,7 @@ GET /api/services/{serviceCode}/projects
     projectCode: string,
     name: string,
     cloudProvider: CloudProvider,
-    processStatus: ProcessStatus,
+    isIntegrated: boolean,  // 연동 완료 여부
     createdAt: string
   }>
 }
@@ -101,7 +101,7 @@ POST /api/projects
   description?: string,
   serviceCode: string,
   cloudProvider: CloudProvider,
-  vmIntegrationEnabled?: boolean
+  tfPermissionGranted?: boolean  // AWS 전용, 필수 (cloudProvider=AWS인 경우)
 }
 ```
 
@@ -187,6 +187,39 @@ type ResourceMetadata =
   | GcpMetadata
   | IdcMetadata
   | SduMetadata;
+```
+
+---
+
+## 프로세스 상태
+
+### 프로세스 상태 조회
+
+```
+GET /api/projects/{projectId}/process-status
+```
+
+**응답**:
+```typescript
+{
+  status: ProcessStatus,
+  // 1: WAITING_TARGET_CONFIRMATION (연동 대상 확정 대기)
+  // 2: WAITING_APPROVAL (승인 대기)
+  // 3: INSTALLING (설치 진행 중)
+  // 4: WAITING_CONNECTION_TEST (연결 테스트 대기)
+  // 5: COMPLETED (완료)
+
+  canConfirmTargets: boolean,   // 연동 대상 확정 가능 여부
+  canRequestApproval: boolean,  // 승인 요청 가능 여부 (status=1 && 선택된 리소스 있음)
+  canApprove: boolean,          // 승인 가능 여부 (ADMIN && status=2)
+  canTestConnection: boolean,   // 연결 테스트 가능 여부 (status=4)
+
+  lastRejection?: {             // 최근 반려 정보 (있는 경우)
+    reason: string,
+    rejectedAt: string,
+    rejectedBy: string
+  }
+}
 ```
 
 ---
@@ -400,4 +433,5 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | AWS tfPermissionGranted 추가 (프로젝트 레벨, immutable) |
 | 2026-01-29 | 초안 작성 |
