@@ -191,40 +191,79 @@ type ResourceMetadata =
 
 ---
 
-## 프로세스 상태
+## 프로젝트 상태
 
-### 프로세스 상태 조회
+> **설계 원칙**: Backend는 비즈니스 상태 데이터만 제공하고, Frontend가 이를 해석하여 Process UI를 구성합니다.
+> 상세 내용은 [ADR-001: Process 상태 관리 아키텍처](../adr/001-process-state-architecture.md) 참조.
+
+### 프로젝트 상태 조회
 
 ```
-GET /api/projects/{projectId}/process-status
+GET /api/projects/{projectId}/status
 ```
 
 **응답**:
 ```typescript
 {
-  status: ProcessStatus,
-  // 1: WAITING_TARGET_CONFIRMATION (연동 대상 확정 대기)
-  // 2: WAITING_APPROVAL (승인 대기)
-  // 3: INSTALLING (설치 진행 중)
-  // 4: WAITING_CONNECTION_TEST (연결 테스트 대기)
-  // 5: COMPLETED (완료)
+  // 스캔 상태 (AWS/Azure/GCP)
+  scan?: {
+    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+    lastScanAt?: string,
+    totalResourceCount?: number,
+    newResourceCount?: number
+  },
 
-  canConfirmTargets: boolean,   // 연동 대상 확정 가능 여부
-  canRequestApproval: boolean,  // 승인 요청 가능 여부 (status=1 && 선택된 리소스 있음)
-  canApprove: boolean,          // 승인 가능 여부 (ADMIN && status=2)
-  canTestConnection: boolean,   // 연결 테스트 가능 여부 (status=4)
+  // 리소스 확정 상태
+  targets: {
+    confirmed: boolean,
+    confirmedAt?: string,
+    selectedCount: number
+  },
 
-  lastRejection?: {             // 최근 반려 정보 (있는 경우)
-    reason: string,
-    rejectedAt: string,
-    rejectedBy: string
+  // 승인 상태 (AWS/Azure/GCP만 해당, IDC/SDU는 null)
+  approval: {
+    required: boolean,
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | null,
+    approvedAt?: string,
+    lastRejection?: {
+      reason: string,
+      rejectedAt: string,
+      rejectedBy: { id: string, name: string }
+    }
+  },
+
+  // 설치 상태
+  installation: {
+    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+    // Provider별 상세는 별도 API 참조
+  },
+
+  // 연결 테스트 상태
+  connectionTest: {
+    status: 'NOT_TESTED' | 'PASSED' | 'FAILED',
+    lastTestedAt?: string,
+    passedCount?: number,
+    failedCount?: number
   }
+}
+```
+
+**Frontend 해석 예시**:
+```typescript
+// Frontend에서 현재 단계 계산
+function getCurrentStep(status: ProjectStatus): Step {
+  if (status.scan?.status !== 'COMPLETED') return 'SCAN';
+  if (!status.targets.confirmed) return 'CONFIRM_TARGETS';
+  if (status.approval.required && status.approval.status === 'PENDING') return 'WAITING_APPROVAL';
+  if (status.installation.status !== 'COMPLETED') return 'INSTALLING';
+  if (status.connectionTest.status !== 'PASSED') return 'CONNECTION_TEST';
+  return 'COMPLETED';
 }
 ```
 
 ---
 
-## 프로세스 진행
+## 상태 전이 API
 
 ### 연동 대상 확정
 
@@ -433,5 +472,6 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | 프로젝트 상태 API를 Data-Driven 방식으로 변경 (ADR-001) |
 | 2026-01-30 | AWS tfPermissionGranted 추가 (프로젝트 레벨, immutable) |
 | 2026-01-29 | 초안 작성 |
