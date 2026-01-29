@@ -170,7 +170,8 @@ PUT /api/services/{serviceCode}/settings/aws
 - [ ] TF Role 생성 가이드 문서 작성
 - [ ] 스캔 API 비동기 처리 방식 정의
 - [ ] TF 설치 상태 폴링 vs 웹훅
-- [ ] 에러 케이스 정의
+
+> 예외 처리는 [common.md](../common.md)의 "예외 처리 규칙" 참조
 
 ---
 

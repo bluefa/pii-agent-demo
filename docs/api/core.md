@@ -149,44 +149,229 @@ interface Resource {
 }
 ```
 
-### ResourceMetadata (Provider별)
+### ResourceMetadata (ResourceType별 Discriminated Union)
+
+> Provider + ResourceType으로 discriminate하여 타입 안전성 확보
+
+#### AWS
 
 ```typescript
-interface AwsMetadata {
+interface DynamoDbMetadata {
   provider: 'AWS',
-  region: string,
-  arn: string
+  resourceType: 'DYNAMODB',
+  region: string
 }
 
-interface AzureMetadata {
+interface RdsMetadata {
+  provider: 'AWS',
+  resourceType: 'RDS',
+  region: string,
+  arn: string,
+  host: string,
+  port: number,
+  databaseName?: string,
+  vpcId: string
+}
+
+interface RdsClusterMetadata {
+  provider: 'AWS',
+  resourceType: 'RDS_CLUSTER',
+  region: string,
+  arn: string,
+  host: string,
+  port: number,
+  databaseName?: string,
+  vpcId: string
+}
+
+interface AthenaMetadata {
+  provider: 'AWS',
+  resourceType: 'ATHENA',
+  region: string,
+  databaseName: string,
+  catalog: string
+}
+
+interface RedshiftMetadata {
+  provider: 'AWS',
+  resourceType: 'REDSHIFT',
+  region: string,
+  arn: string,
+  host: string,
+  port: number,
+  databaseName: string,
+  vpcId: string
+}
+
+interface Ec2Metadata {
+  provider: 'AWS',
+  resourceType: 'EC2',
+  region: string,
+  instanceId: string,
+  hostName?: string,       // VPC 설정에 따라 존재
+  privateIp: string,       // 항상 존재
+  vpcId: string
+}
+
+type AwsResourceMetadata =
+  | DynamoDbMetadata
+  | RdsMetadata
+  | RdsClusterMetadata
+  | AthenaMetadata
+  | RedshiftMetadata
+  | Ec2Metadata;
+```
+
+#### Azure
+
+```typescript
+// Azure Database 공통 필드
+interface AzureDbBase {
   provider: 'Azure',
   region: string,
   subscriptionId: string,
-  resourceGroup: string
+  resourceGroup: string,
+  serverName: string,
+  host: string,
+  port: number
 }
 
-interface GcpMetadata {
+interface AzureMssqlMetadata extends AzureDbBase {
+  resourceType: 'AZURE_MSSQL'
+}
+
+interface AzurePostgresqlMetadata extends AzureDbBase {
+  resourceType: 'AZURE_POSTGRESQL'
+}
+
+interface AzureMysqlMetadata extends AzureDbBase {
+  resourceType: 'AZURE_MYSQL'
+}
+
+interface AzureMariadbMetadata extends AzureDbBase {
+  resourceType: 'AZURE_MARIADB'
+}
+
+interface AzureCosmosMetadata {
+  provider: 'Azure',
+  resourceType: 'AZURE_COSMOS_NOSQL',
+  region: string,
+  subscriptionId: string,
+  resourceGroup: string,
+  accountName: string,
+  endpoint: string
+}
+
+interface AzureSynapseMetadata {
+  provider: 'Azure',
+  resourceType: 'AZURE_SYNAPSE',
+  region: string,
+  subscriptionId: string,
+  resourceGroup: string,
+  workspaceName: string,
+  host: string,
+  port: number
+}
+
+interface AzureVmMetadata {
+  provider: 'Azure',
+  resourceType: 'AZURE_VM',
+  region: string,
+  subscriptionId: string,
+  resourceGroup: string,
+  vmName: string,
+  hostName?: string,       // 설정에 따라 존재
+  privateIp: string        // 항상 존재
+}
+
+type AzureResourceMetadata =
+  | AzureMssqlMetadata
+  | AzurePostgresqlMetadata
+  | AzureMysqlMetadata
+  | AzureMariadbMetadata
+  | AzureCosmosMetadata
+  | AzureSynapseMetadata
+  | AzureVmMetadata;
+```
+
+#### GCP
+
+```typescript
+interface CloudSqlMetadata {
   provider: 'GCP',
+  resourceType: 'CLOUD_SQL',
+  region: string,
+  projectId: string,
+  instanceName: string,
+  ip: string,
+  serviceAttachment?: string
+}
+
+interface BigQueryMetadata {
+  provider: 'GCP',
+  resourceType: 'BIGQUERY',
   region: string,
   projectId: string
 }
 
+interface SpannerMetadata {
+  provider: 'GCP',
+  resourceType: 'SPANNER',
+  region: string,
+  projectId: string,
+  instanceId: string
+}
+
+type GcpResourceMetadata =
+  | CloudSqlMetadata
+  | BigQueryMetadata
+  | SpannerMetadata;
+```
+
+#### IDC / SDU
+
+```typescript
 interface IdcMetadata {
-  provider: 'IDC'
+  provider: 'IDC',
+  resourceType: 'IDC'
+  // 수동 입력이므로 추가 메타데이터 없음
 }
 
 interface SduMetadata {
   provider: 'SDU',
+  resourceType: 'ATHENA_TABLE',
   s3Bucket: string,
-  athenaDatabase: string
+  athenaDatabase: string,
+  tableName: string
 }
 
+type OtherResourceMetadata = IdcMetadata | SduMetadata;
+```
+
+#### Union Type
+
+```typescript
 type ResourceMetadata =
-  | AwsMetadata
-  | AzureMetadata
-  | GcpMetadata
-  | IdcMetadata
-  | SduMetadata;
+  | AwsResourceMetadata
+  | AzureResourceMetadata
+  | GcpResourceMetadata
+  | OtherResourceMetadata;
+```
+
+#### Frontend 타입 가드 예시
+
+```typescript
+function getConnectionInfo(metadata: ResourceMetadata) {
+  if (metadata.provider === 'AWS' && metadata.resourceType === 'RDS') {
+    // TypeScript가 RdsMetadata로 타입 좁히기
+    return `${metadata.host}:${metadata.port}`;
+  }
+  if (metadata.provider === 'AWS' && metadata.resourceType === 'EC2') {
+    // Ec2Metadata로 타입 좁히기
+    return metadata.hostName ?? metadata.privateIp;
+  }
+  // ...
+}
 ```
 
 ---
@@ -276,8 +461,29 @@ POST /api/projects/{projectId}/confirm-targets
 **요청**:
 ```typescript
 {
-  resourceIds: string[]
+  resources: Array<{
+    resourceId: string,
+    // VM 타입 (EC2, AZURE_VM) 전용 - 필수 입력
+    port?: number
+  }>
 }
+```
+
+**VM (EC2, AZURE_VM) 연동 규칙**:
+| 항목 | 설명 |
+|------|------|
+| `port` 필수 | VM 타입은 port 입력 필수 |
+| Backend 검증 | port 미입력 시 400 Bad Request |
+| **Frontend 검증** | VM 리소스 선택 시 port 미입력이면 Submit 버튼 비활성화 |
+
+**Frontend Validation 예시**:
+```typescript
+const canSubmit = selectedResources.every(r => {
+  if (r.resourceType === 'EC2' || r.resourceType === 'AZURE_VM') {
+    return r.port != null && r.port > 0;
+  }
+  return true;
+});
 ```
 
 ### 승인
@@ -472,6 +678,10 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | Azure DB 타입 세분화 (MSSQL, PostgreSQL, MySQL, MariaDB, CosmosDB NoSQL) |
+| 2026-01-30 | VM (EC2, AZURE_VM) 연동 시 port 필수 + Frontend validation 규칙 추가 |
+| 2026-01-30 | GCP Cloud SQL에 ip, serviceAttachment 추가, BigQuery 단순화 |
+| 2026-01-30 | ResourceMetadata를 ResourceType별 Discriminated Union으로 확장 |
 | 2026-01-30 | 프로젝트 상태 API를 Data-Driven 방식으로 변경 (ADR-001) |
 | 2026-01-30 | AWS tfPermissionGranted 추가 (프로젝트 레벨, immutable) |
 | 2026-01-29 | 초안 작성 |
