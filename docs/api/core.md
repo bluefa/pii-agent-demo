@@ -429,6 +429,17 @@ GET /api/projects/{projectId}/status
     lastTestedAt?: string,
     passedCount?: number,
     failedCount?: number
+  },
+
+  // 폐기 요청 상태
+  decommission?: {
+    status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    reason: string,
+    requestedAt: string,
+    requestedBy: { id: string, name: string },
+    processedAt?: string,
+    processedBy?: { id: string, name: string },
+    rejectionReason?: string  // 반려 시
   }
 }
 ```
@@ -539,6 +550,56 @@ POST /api/projects/{projectId}/test-connection
 
 ---
 
+## 프로젝트 폐기 (Decommission)
+
+> 프로젝트 서비스 종료 시 폐기 요청 → 승인 프로세스를 거칩니다.
+
+### 폐기 요청
+
+```
+POST /api/projects/{projectId}/decommission-request
+```
+
+**요청**:
+```typescript
+{
+  reason: string  // 필수, 폐기 사유
+}
+```
+
+**응답**:
+```typescript
+{
+  requestId: string,
+  requestedAt: string
+}
+```
+
+### 폐기 승인
+
+```
+POST /api/projects/{projectId}/decommission-approve
+```
+
+**권한**: ADMIN
+
+### 폐기 반려
+
+```
+POST /api/projects/{projectId}/decommission-reject
+```
+
+**권한**: ADMIN
+
+**요청**:
+```typescript
+{
+  reason: string  // 필수, 반려 사유
+}
+```
+
+---
+
 ## Credential
 
 ### 서비스별 Credential 목록
@@ -624,7 +685,7 @@ GET /api/projects/{projectId}/history
 {
   history: Array<{
     id: string,
-    type: 'APPROVAL' | 'REJECTION' | 'RESOURCE_ADD' | 'RESOURCE_EXCLUDE',
+    type: 'APPROVAL' | 'REJECTION' | 'RESOURCE_ADD' | 'RESOURCE_EXCLUDE' | 'DECOMMISSION_REQUEST' | 'DECOMMISSION_APPROVED' | 'DECOMMISSION_REJECTED',
     actor: { id: string, name: string },
     timestamp: string,
     details: {
@@ -678,6 +739,7 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | 프로젝트 폐기(Decommission) API 추가 - 요청/승인/반려 프로세스 |
 | 2026-01-30 | Azure DB 타입 세분화 (MSSQL, PostgreSQL, MySQL, MariaDB, CosmosDB NoSQL) |
 | 2026-01-30 | VM (EC2, AZURE_VM) 연동 시 port 필수 + Frontend validation 규칙 추가 |
 | 2026-01-30 | GCP Cloud SQL에 ip, serviceAttachment 추가, BigQuery 단순화 |
