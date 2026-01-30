@@ -492,15 +492,20 @@ describe('mock-scan', () => {
         }
       });
 
-      it('GCP resourceId 형식 생성', () => {
-        const resource = generateGcpResource();
-        expect(resource.resourceId).toMatch(/^projects\//);
+      it('CLOUD_SQL은 projects/ 형식 resourceId', () => {
+        for (let i = 0; i < 50; i++) {
+          const resource = generateGcpResource();
+          if (resource.type === 'CLOUD_SQL') {
+            expect(resource.resourceId).toMatch(/^projects\//);
+          }
+        }
       });
 
-      it('BIGQUERY는 BIGQUERY databaseType', () => {
+      it('BIGQUERY는 bigquery:// URI 형식', () => {
         for (let i = 0; i < 50; i++) {
           const resource = generateGcpResource();
           if (resource.type === 'BIGQUERY') {
+            expect(resource.resourceId).toMatch(/^bigquery:\/\//);
             expect(resource.databaseType).toBe('BIGQUERY');
           }
         }

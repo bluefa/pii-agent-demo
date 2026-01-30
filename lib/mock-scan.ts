@@ -35,6 +35,39 @@ const pickRandom = <T>(arr: readonly T[]): T => {
   return arr[Math.floor(Math.random() * arr.length)];
 };
 
+// 실제 형식의 ID 생성 헬퍼
+const generateHex = (length: number): string => {
+  return Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+};
+
+const generateEc2InstanceId = (): string => {
+  return `i-${generateHex(17)}`;
+};
+
+const generateUuid = (): string => {
+  return `${generateHex(8)}-${generateHex(4)}-${generateHex(4)}-${generateHex(4)}-${generateHex(12)}`;
+};
+
+// 의미 있는 리소스 이름 생성
+const DB_PREFIXES = ['prod', 'stg', 'dev', 'analytics', 'user', 'order', 'payment', 'log'];
+const DB_SUFFIXES = ['primary', 'replica', 'master', '01', '02', 'main', 'backup'];
+const APP_NAMES = ['user', 'order', 'payment', 'inventory', 'notification', 'auth', 'catalog', 'search'];
+const TABLE_NAMES = ['UserSession', 'OrderHistory', 'PaymentLog', 'AuditTrail', 'EventStream', 'ClickStream'];
+const DATASET_NAMES = ['analytics_events', 'user_behavior', 'sales_data', 'marketing_reports', 'ml_features'];
+
+const generateResourceName = (type: 'db' | 'table' | 'dataset' | 'app'): string => {
+  switch (type) {
+    case 'db':
+      return `${pickRandom(DB_PREFIXES)}-${pickRandom(APP_NAMES)}-${pickRandom(DB_SUFFIXES)}`;
+    case 'table':
+      return pickRandom(TABLE_NAMES);
+    case 'dataset':
+      return pickRandom(DATASET_NAMES);
+    case 'app':
+      return `${pickRandom(DB_PREFIXES)}-${pickRandom(APP_NAMES)}-${pickRandom(DB_SUFFIXES)}`;
+  }
+};
+
 // ===== Validation =====
 
 export interface ScanValidationResult {
@@ -351,39 +384,38 @@ export const generateAwsResource = (): Resource => {
   const awsTypes: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
   const awsType = pickRandom(awsTypes);
   const region = pickRandom(AWS_REGIONS);
-  const accountId = '123456789012';
-  const rand = Math.random().toString(36).substring(2, 6);
+  const accountId = `${Math.floor(100000000000 + Math.random() * 900000000000)}`;
 
   let resourceId: string;
   let databaseType: DatabaseType;
 
   switch (awsType) {
     case 'RDS':
-      resourceId = `arn:aws:rds:${region}:${accountId}:db:pii-demo-db-${rand}`;
+      resourceId = `arn:aws:rds:${region}:${accountId}:db:${generateResourceName('db')}`;
       databaseType = pickRandom(['MYSQL', 'POSTGRESQL'] as DatabaseType[]);
       break;
     case 'RDS_CLUSTER':
-      resourceId = `arn:aws:rds:${region}:${accountId}:cluster:pii-demo-cluster-${rand}`;
+      resourceId = `arn:aws:rds:${region}:${accountId}:cluster:aurora-${generateResourceName('db')}`;
       databaseType = pickRandom(['MYSQL', 'POSTGRESQL'] as DatabaseType[]);
       break;
     case 'DYNAMODB':
-      resourceId = `arn:aws:dynamodb:${region}:${accountId}:table/pii_demo_table_${rand}`;
+      resourceId = `arn:aws:dynamodb:${region}:${accountId}:table/${generateResourceName('table')}`;
       databaseType = 'DYNAMODB';
       break;
     case 'ATHENA':
-      resourceId = `arn:aws:athena:${region}:${accountId}:workgroup/pii-demo-wg-${rand}`;
+      resourceId = `arn:aws:athena:${region}:${accountId}:workgroup/${pickRandom(['primary', 'analytics', 'reporting'])}`;
       databaseType = 'ATHENA';
       break;
     case 'REDSHIFT':
-      resourceId = `arn:aws:redshift:${region}:${accountId}:cluster:pii-demo-rs-${rand}`;
+      resourceId = `arn:aws:redshift:${region}:${accountId}:cluster:${generateResourceName('db')}`;
       databaseType = 'REDSHIFT';
       break;
     case 'EC2':
-      resourceId = `arn:aws:ec2:${region}:${accountId}:instance/i-${rand}`;
+      resourceId = `arn:aws:ec2:${region}:${accountId}:instance/${generateEc2InstanceId()}`;
       databaseType = pickRandom(['MYSQL', 'POSTGRESQL'] as DatabaseType[]);
       break;
     default:
-      resourceId = `arn:aws:rds:${region}:${accountId}:db:pii-demo-db-${rand}`;
+      resourceId = `arn:aws:rds:${region}:${accountId}:db:${generateResourceName('db')}`;
       databaseType = 'MYSQL';
   }
 
@@ -406,44 +438,44 @@ export const generateAzureResource = (): Resource => {
   const azureTypes: AzureResourceType[] = ['AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL', 'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM'];
   const azureType = pickRandom(azureTypes);
   const region = pickRandom(AZURE_REGIONS);
-  const subscriptionId = 'sub-12345678-1234-1234-1234-123456789012';
-  const resourceGroup = 'pii-demo-rg';
-  const rand = Math.random().toString(36).substring(2, 6);
+  const subscriptionId = generateUuid();
+  const resourceGroup = `rg-${pickRandom(DB_PREFIXES)}-${pickRandom(APP_NAMES)}`;
+  const resourceName = generateResourceName('db');
 
   let resourceId: string;
   let databaseType: DatabaseType;
 
   switch (azureType) {
     case 'AZURE_MSSQL':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Sql/servers/pii-demo-sql-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Sql/servers/sql-${resourceName}`;
       databaseType = 'MSSQL';
       break;
     case 'AZURE_POSTGRESQL':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforPostgreSQL/servers/pii-demo-pg-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-${resourceName}`;
       databaseType = 'POSTGRESQL';
       break;
     case 'AZURE_MYSQL':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforMySQL/servers/pii-demo-mysql-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforMySQL/flexibleServers/mysql-${resourceName}`;
       databaseType = 'MYSQL';
       break;
     case 'AZURE_MARIADB':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforMariaDB/servers/pii-demo-mariadb-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforMariaDB/servers/mariadb-${resourceName}`;
       databaseType = 'MYSQL';
       break;
     case 'AZURE_COSMOS_NOSQL':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DocumentDB/databaseAccounts/pii-demo-cosmos-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DocumentDB/databaseAccounts/cosmos-${resourceName}`;
       databaseType = 'COSMOSDB';
       break;
     case 'AZURE_SYNAPSE':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Synapse/workspaces/pii-demo-synapse-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Synapse/workspaces/synapse-${resourceName}`;
       databaseType = 'MSSQL';
       break;
     case 'AZURE_VM':
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Compute/virtualMachines/pii-demo-vm-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Compute/virtualMachines/vm-${resourceName}`;
       databaseType = pickRandom(['MYSQL', 'POSTGRESQL', 'MSSQL'] as DatabaseType[]);
       break;
     default:
-      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Sql/servers/pii-demo-sql-${rand}`;
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Sql/servers/sql-${resourceName}`;
       databaseType = 'MSSQL';
   }
 
@@ -464,23 +496,22 @@ export const generateGcpResource = (): Resource => {
   const gcpTypes: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
   const gcpType = pickRandom(gcpTypes);
   const region = pickRandom(GCP_REGIONS);
-  const projectId = 'pii-demo-project';
-  const rand = Math.random().toString(36).substring(2, 6);
+  const projectId = `${pickRandom(APP_NAMES)}-${pickRandom(DB_PREFIXES)}-${Math.floor(10000 + Math.random() * 90000)}`;
 
   let resourceId: string;
   let databaseType: DatabaseType;
 
   switch (gcpType) {
     case 'CLOUD_SQL':
-      resourceId = `projects/${projectId}/instances/pii-demo-sql-${rand}`;
+      resourceId = `projects/${projectId}/instances/cloudsql-${generateResourceName('db')}`;
       databaseType = pickRandom(['MYSQL', 'POSTGRESQL'] as DatabaseType[]);
       break;
     case 'BIGQUERY':
-      resourceId = `projects/${projectId}/datasets/pii_demo_dataset_${rand}`;
+      resourceId = `bigquery://${region}/${projectId}/${generateResourceName('dataset')}`;
       databaseType = 'BIGQUERY';
       break;
     default:
-      resourceId = `projects/${projectId}/instances/pii-demo-sql-${rand}`;
+      resourceId = `projects/${projectId}/instances/cloudsql-${generateResourceName('db')}`;
       databaseType = 'MYSQL';
   }
 
