@@ -1,4 +1,23 @@
-# 상태 관리 정의서
+> ⚠️ **DEPRECATED** (2026-01-30)
+>
+> 이 문서는 더 이상 사용되지 않습니다.
+> 최신 상태 정의는 아래를 참조하세요:
+>
+> - **공통 타입 정의**: [docs/api/common.md](./api/common.md)
+> - **프로젝트 상태 API**: [docs/api/core.md](./api/core.md) - `GET /projects/{id}/status`
+> - **상태 아키텍처**: [ADR-001](./adr/001-process-state-architecture.md)
+>
+> **주요 변경사항**:
+> - `DatabaseType` → `ResourceType`으로 확장 (AWS/Azure/GCP/IDC/SDU 전체 지원)
+> - `ConnectionStatus`: 'PENDING' → 'NEW'로 변경
+> - `ProcessStatus`: 숫자(1~5) → 문자열 enum
+> - `isRejected`, `rejectedAt` → `approval.lastRejection` 객체로 통합
+> - `isNew` 플래그 → `connectionStatus = 'NEW'`로 통합
+> - `TerraformState` → Data-Driven 방식 (`GET /projects/{id}/status`)
+
+---
+
+# [DEPRECATED] 상태 관리 정의서 (Legacy)
 
 ## 개요
 

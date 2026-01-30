@@ -1,3 +1,25 @@
+> ⚠️ **DEPRECATED** (2026-01-30)
+>
+> 이 문서는 더 이상 사용되지 않습니다.
+> 최신 API 문서는 아래를 참조하세요:
+>
+> - **공통 타입/에러**: [docs/api/common.md](./api/common.md)
+> - **Core API**: [docs/api/core.md](./api/core.md)
+> - **Scan API**: [docs/api/scan.md](./api/scan.md)
+> - **Provider별 API**: [docs/api/providers/](./api/providers/)
+>
+> **주요 변경사항**:
+> - `processStatus`: 숫자(1~5) → 문자열 enum (`WAITING_TARGET_CONFIRMATION`, `WAITING_APPROVAL`, ...)
+> - `ConnectionStatus`: 'PENDING' → 'NEW'로 변경
+> - `DatabaseType` → `ResourceType`으로 확장 (AWS/Azure/GCP/IDC/SDU 지원)
+> - `Project.resources` 분리 → 별도 API (`GET /projects/{id}/resources`)
+> - `TerraformState` → Data-Driven 방식으로 변경 ([ADR-001](./adr/001-process-state-architecture.md) 참조)
+> - Credential API: 프로젝트 레벨 → 서비스 레벨로 변경
+
+---
+
+# [DEPRECATED] API 문서 (Legacy)
+
 공통
 	•	Base URL: /api
 	•	인증: 실제 구현 없음 (Mock 사용자 고정)
