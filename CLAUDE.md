@@ -93,15 +93,41 @@ Cloud Provider: AWS, Azure, GCP, IDC, SDU (+ 수동조사 예정)
 
 스펙/문서 위치
 	•	Cloud Provider별 프로세스: docs/cloud-provider-states.md
-	•	API 문서:
+	•	BFF API 문서 (백엔드 명세):
 		•	docs/api/common.md - 공통 타입, 인증, 에러
 		•	docs/api/core.md - 공통 API (프로젝트, 리소스, 프로세스)
 		•	docs/api/scan.md - 스캔 API (AWS/Azure/GCP 공통)
-		•	docs/api/providers/aws.md
-		•	docs/api/providers/azure.md
-		•	docs/api/providers/gcp.md
-		•	docs/api/providers/idc.md
-		•	docs/api/providers/sdu.md
+		•	docs/api/providers/*.md - Provider별 API
+	•	API Routes 문서 (Next.js):
+		•	docs/api-routes/README.md - 사용법, 엔드포인트 목록
+
+⸻
+
+API 아키텍처 (필수)
+
+이 프로젝트는 두 종류의 API가 존재한다:
+
+1. BFF API (Backend for Frontend)
+	•	위치: docs/api/
+	•	역할: 실제 백엔드 서버 API 명세
+	•	용도: 백엔드 팀과의 계약서, Production 환경에서 호출
+	•	문서: docs/api/common.md, core.md, scan.md, providers/*.md
+
+2. API Routes (Next.js)
+	•	위치: app/api/
+	•	역할: Next.js 서버 내부 API
+	•	용도: 개발 환경에서 BFF API 시뮬레이션, 프론트엔드 전용 로직
+	•	문서: docs/api-routes/README.md
+
+규칙:
+	•	API Routes는 BFF API 명세를 따라 구현한다
+	•	새 API 추가 시: BFF API 명세(docs/api/) 먼저 정의 → API Routes(app/api/) 구현
+	•	API Routes 코드에 "mock"이라는 용어 사용 금지 (변수명, 주석 등)
+	•	lib/mock-*.ts 파일은 예외 (내부 구현 헬퍼)
+
+호출 흐름:
+	•	개발: 프론트엔드 → API Routes (app/api/)
+	•	운영: 프론트엔드 → BFF API (실제 백엔드)
 
 ⸻
 
