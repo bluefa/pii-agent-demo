@@ -246,9 +246,31 @@ GET /api/projects/{projectId}/scan/history
 
 ---
 
+## 구현 상태
+
+### API Routes (Next.js)
+
+| 엔드포인트 | 상태 | 비고 |
+|-----------|------|------|
+| POST /scan | ✅ 구현 | v2 API |
+| GET /scan/status | ✅ 구현 | v2 API |
+| GET /scan/{scanId} | ✅ 구현 | v2 API |
+| GET /scan/history | ✅ 구현 | v2 API |
+| GET /scan/permission | ❌ 미구현 | |
+| GET /scan-info | ❌ 미구현 | |
+
+### 테스트
+
+- ✅ 유닛 테스트 36개 (lib/__tests__/mock-scan.test.ts)
+- Provider별 리소스 생성 검증
+- 스캔 정책 검증 (IDC/SDU 제외, 5분 쿨다운, 최대 10개 리소스)
+
+---
+
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | API Routes v2 구현 완료, 유닛 테스트 추가 |
 | 2026-01-30 | 스캔 결과에 리소스 타입별 카운트(byResourceType) 추가 |
 | 2026-01-29 | 초안 작성 |
