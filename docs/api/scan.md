@@ -129,7 +129,11 @@ GET /api/projects/{projectId}/scan/{scanId}
     totalFound: number,
     newFound: number,
     updated: number,
-    removed: number
+    removed: number,
+    byResourceType: Array<{
+      resourceType: ResourceType,
+      count: number
+    }>
   },
   error?: string
 }
@@ -184,7 +188,12 @@ GET /api/projects/{projectId}/scan/history
       totalFound: number,
       newFound: number,
       updated: number,
-      removed: number
+      removed: number,
+      byResourceType: Array<{
+        resourceType: ResourceType,
+        count: number,
+        newCount: number
+      }>
     } | null,
     error?: string
   }>,
@@ -242,4 +251,5 @@ GET /api/projects/{projectId}/scan/history
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-30 | 스캔 결과에 리소스 타입별 카운트(byResourceType) 추가 |
 | 2026-01-29 | 초안 작성 |
