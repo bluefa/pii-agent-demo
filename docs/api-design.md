@@ -1,4 +1,29 @@
-# API 설계 문서
+> ⚠️ **DEPRECATED** (2026-01-30)
+>
+> 이 문서는 더 이상 사용되지 않습니다.
+> 최신 API 문서는 아래를 참조하세요:
+>
+> - **공통 타입/에러**: [docs/api/common.md](./api/common.md)
+> - **Core API**: [docs/api/core.md](./api/core.md)
+> - **Scan API**: [docs/api/scan.md](./api/scan.md)
+> - **Provider별 API**:
+>   - [AWS](./api/providers/aws.md)
+>   - [Azure](./api/providers/azure.md)
+>   - [GCP](./api/providers/gcp.md)
+>   - [IDC](./api/providers/idc.md)
+>   - [SDU](./api/providers/sdu.md)
+>
+> **주요 변경사항**:
+> - 상태 관리: Data-Driven 아키텍처 ([ADR-001](./adr/001-process-state-architecture.md))
+> - `processStatus`: 숫자 → 문자열 enum
+> - `ResourceMetadata`: ResourceType별 Discriminated Union으로 확장
+> - `InstallationStatus` → `GET /projects/{id}/status` API로 통합
+> - 페이지별 API 호출 전략 → Core API 문서로 이동
+> - "구현된 API"와 "필요한 API" 구분 제거
+
+---
+
+# [DEPRECATED] API 설계 문서 (Legacy)
 
 > 현재 구현된 API와 Cloud Provider 확장을 위해 필요한 API를 정리합니다.
 

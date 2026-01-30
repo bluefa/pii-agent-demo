@@ -171,31 +171,32 @@ const getProgress = (project: Project) => {
 
 ---
 
-## AWS vs IDC 차이점
+## Provider별 차이점
+
+> **상세 프로세스**: [cloud-provider-states.md](./cloud-provider-states.md) 참조
 
 ### 공통 (재활용)
 | 영역 | 설명 |
 |------|------|
 | Header | 로고 + 유저 프로필 |
 | Breadcrumb | 서비스 코드 > 과제 코드 |
-| Step Indicator | 5단계 프로세스 표시 |
+| Step Indicator | Provider별 단계 수 다름 (Frontend 계산) |
 | 기본 정보 카드 | 과제 코드, 서비스 코드, Cloud Provider, 생성일, 설명 |
 | 현재 단계 액션 카드 | 안내 텍스트 + 단계별 액션 버튼 |
-| Terraform 상태 모달 | 3단계에서만 표시 |
 
-### AWS 전용
-| 영역 | 설명 |
-|------|------|
-| 스캔 재실행 버튼 | 액션 카드에 항상 표시 |
-| 리소스 테이블 컬럼 | Region, awsType 표시 |
-| 필터 | "신규" 필터 표시 |
-| 신규 리소스 | isNew 플래그로 NEW 뱃지 표시 |
+### Provider별 특성
 
-### IDC 전용
-| 영역 | 설명 |
-|------|------|
-| 리소스 테이블 컬럼 | Region 컬럼 숨김 |
-| 필터 | "신규" 필터 숨김 |
+| Provider | 스캔 | 승인 | 설치 상태 | 특이사항 |
+|----------|-----|-----|----------|---------|
+| **AWS** | O | O | TF 권한에 따라 자동/수동 | TF Script 다운로드 (권한 없을 시) |
+| **Azure** | O | O | Service TF + (VM TF) | PE 승인 필요, VM 선택 시 추가 단계 |
+| **GCP** | O | O | Subnet 옵션 | Subnet 생성 필요 시 추가 단계 |
+| **IDC** | X | X | BDC TF | 수동 리소스 입력, 방화벽 설정 |
+| **SDU** | X | X | Crawler 설정 | S3 + Athena 기반 |
+
+### 신규 리소스 표시
+- AWS/Azure/GCP: 스캔 후 `connectionStatus = 'NEW'`로 표시
+- IDC/SDU: 스캔 없음 (수동 입력/Crawler)
 
 ---
 
@@ -445,56 +446,70 @@ POST  /api/projects/:projectId/scan             # AWS 스캔 재실행
 
 ## API 스펙
 
+> **최신 API 문서**: [docs/api/core.md](./api/core.md), [docs/api/scan.md](./api/scan.md) 참조
+
 ### GET /api/projects/:projectId
-**Response**: `Project` 객체 전체
+**Response**: 프로젝트 기본 정보
 
 ```typescript
 {
   id: string;
   projectCode: string;
   serviceCode: string;
-  cloudProvider: 'AWS' | 'IDC';
-  processStatus: 1 | 2 | 3 | 4 | 5;
-  resources: Resource[];
-  terraformState: TerraformState;
+  cloudProvider: 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
+  isIntegrated: boolean;
+  tfPermissionGranted?: boolean;  // AWS 전용
   createdAt: string;
   updatedAt: string;
   name: string;
-  description: string;
+  description?: string;
 }
 ```
 
-### PATCH /api/projects/:projectId/confirm-targets
-**Request Body**: `{ resourceIds: string[] }`
-**Response**: 업데이트된 `Project`
-**로직**:
-- 선택된 리소스의 isSelected = true, lifecycleStatus = 'PENDING_APPROVAL'
-- processStatus = 2
+### GET /api/projects/:projectId/resources
+**Response**: 리소스 목록 (별도 API)
 
-### PATCH /api/projects/:projectId/approve
-**Response**: 업데이트된 `Project`
-**로직**:
-- 선택된 리소스의 lifecycleStatus = 'INSTALLING'
-- processStatus = 3
-- (데모용) 일정 시간 후 자동으로 processStatus = 4로 전이
+```typescript
+{
+  resources: Resource[];
+  totalCount: number;
+  selectedCount: number;
+}
+```
 
-### PATCH /api/projects/:projectId/reject
-**Response**: 업데이트된 `Project`
-**로직**:
-- 선택된 리소스의 lifecycleStatus = 'DISCOVERED', isSelected = false
-- processStatus = 1
+### GET /api/projects/:projectId/status
+**Response**: 프로젝트 상태 ([Data-Driven 아키텍처](./adr/001-process-state-architecture.md))
 
-### PATCH /api/projects/:projectId/test-connection
-**Response**: 업데이트된 `Project`
-**로직**:
-- 선택된 리소스의 connectionStatus = 'CONNECTED', lifecycleStatus = 'ACTIVE'
-- processStatus = 5
+```typescript
+{
+  scan?: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED', ... },
+  targets: { confirmed: boolean, selectedCount: number },
+  approval: { status: 'PENDING' | 'APPROVED' | 'REJECTED' | null, ... },
+  installation: { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' },
+  connectionTest: { status: 'NOT_TESTED' | 'PASSED' | 'FAILED', ... }
+}
+```
 
-### POST /api/projects/:projectId/scan (AWS만)
-**Response**: 업데이트된 `Project`
-**로직**:
-- 새로운 리소스 추가 (Mock)
-- 기존 리소스 상태 변경 없음
+### POST /api/projects/:projectId/confirm-targets
+**Request Body**: `{ resources: [{ resourceId, port? }] }` (VM 타입은 port 필수)
+**프로세스 전이**: 1 → 2
+
+### POST /api/projects/:projectId/approve
+**권한**: ADMIN
+**프로세스 전이**: 2 → 3
+
+### POST /api/projects/:projectId/reject
+**권한**: ADMIN
+**Request Body**: `{ reason: string }` (필수, 3000자 이하)
+**프로세스 전이**: 2 → 1
+
+### POST /api/projects/:projectId/test-connection
+**Request Body**: `{ resourceIds?: string[] }` (생략 시 전체)
+**프로세스 전이**: 4 → 5
+
+### POST /api/projects/:projectId/scan (AWS/Azure/GCP)
+**Response**: 스캔 시작 정보
+**로직**: 비동기 작업, scanId 반환 후 polling
 
 ---
 

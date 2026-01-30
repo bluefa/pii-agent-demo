@@ -30,15 +30,30 @@ PII Agent 관리 시스템 요구사항 (원문 + 구현 가이드)
 2. Cloud Provider
 
 2.1 Provider 범위
-	•	AWS: 리소스 스캔 가능
-	•	IDC: 리소스 스캔 불가
 
-2.2 AWS 리소스 예시
-	•	RDS, Athena, DynamoDB 등
+| Provider | 스캔 | 승인 필요 | 특징 |
+|----------|-----|----------|------|
+| **AWS** | O | O | TF 권한 유무에 따라 자동/수동 설치 분기 |
+| **Azure** | O | O | DB + VM 선택 시 추가 설치 단계 (PE 승인, VM TF) |
+| **GCP** | O | O | Subnet 생성 옵션 |
+| **IDC** | X (수동 입력) | X | 방화벽 설정 필요 |
+| **SDU** | X (Crawler) | X | S3 기반 Crawler 연동 |
+
+> **상세 프로세스**: [cloud-provider-states.md](./cloud-provider-states.md) 참조
+
+2.2 Provider별 리소스 타입
+
+| Provider | 리소스 타입 |
+|----------|-----------|
+| AWS | RDS, RDS_CLUSTER, DYNAMODB, ATHENA, REDSHIFT, EC2 |
+| Azure | AZURE_MSSQL, AZURE_POSTGRESQL, AZURE_MYSQL, AZURE_MARIADB, AZURE_COSMOS_NOSQL, AZURE_SYNAPSE, AZURE_VM |
+| GCP | CLOUD_SQL, BIGQUERY, SPANNER |
+| IDC | IDC (수동 입력) |
+| SDU | ATHENA_TABLE |
 
 2.3 신규 리소스 정의
-	•	ScanRole 기반 주기적 스캔
-	•	“이전에 없던 리소스” = 신규
+	•	AWS/Azure/GCP: Scan Role/App 기반 주기적 스캔
+	•	"이전에 없던 리소스" = 신규 (`connectionStatus = 'NEW'`)
 
 ⸻
 
