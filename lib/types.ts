@@ -17,11 +17,17 @@ export type FirewallStatus = 'CONNECTED' | 'CONNECTION_FAIL';
 
 export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
-export type CloudProvider = 'AWS' | 'IDC';
+export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
 export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT';
 
-export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT';
+export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
+
+export type AzureResourceType = 'AZURE_MSSQL' | 'AZURE_POSTGRESQL' | 'AZURE_MYSQL' | 'AZURE_MARIADB' | 'AZURE_COSMOS_NOSQL' | 'AZURE_SYNAPSE' | 'AZURE_VM';
+
+export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY' | 'SPANNER';
+
+export type ResourceType = AwsResourceType | AzureResourceType | GcpResourceType | 'IDC';
 
 export type AwsRegion =
   | 'ap-northeast-2'
@@ -198,3 +204,53 @@ export interface ConnectionTestHistory {
 export const needsCredential = (databaseType: DatabaseType): boolean => {
   return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
 };
+
+// ===== Scan Types =====
+
+export type ScanStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+
+export interface ScanResult {
+  totalFound: number;
+  newFound: number;
+  updated: number;
+  removed: number;
+  byResourceType: Array<{
+    resourceType: ResourceType;
+    count: number;
+  }>;
+}
+
+export interface ScanJob {
+  id: string;
+  projectId: string;
+  provider: CloudProvider;
+  status: ScanStatus;
+  startedAt: string;
+  completedAt?: string;
+
+  // Mock 진행 상태
+  progress: number;
+  estimatedEndAt: string;
+
+  // 결과
+  result?: ScanResult;
+  error?: string;
+}
+
+export interface ScanHistory {
+  id: string;
+  projectId: string;
+  scanId: string;
+  provider: CloudProvider;
+  status: 'COMPLETED' | 'FAILED';
+  startedAt: string;
+  completedAt: string;
+  duration: number;
+  result: ScanResult | null;
+  error?: string;
+
+  // 스냅샷
+  resourceCountBefore: number;
+  resourceCountAfter: number;
+  addedResourceIds: string[];
+}
