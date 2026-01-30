@@ -1,4 +1,4 @@
-import type { Project, User, ServiceCode, DBCredential } from '@/lib/types';
+import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory } from '@/lib/types';
 import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials } from '@/lib/mock-data';
 
 type Store = {
@@ -7,6 +7,9 @@ type Store = {
     projects: Project[];
     credentials: DBCredential[];
     currentUserId: string;
+    // v2 Scan 관련
+    scans: ScanJob[];
+    scanHistory: ScanHistory[];
 };
 
 declare global {
@@ -22,6 +25,9 @@ export const getStore = (): Store => {
             projects: [...initialProjects],
             credentials: [...initialCredentials],
             currentUserId: 'admin-1',
+            // v2 Scan 관련
+            scans: [],
+            scanHistory: [],
         };
     }
     return globalThis.__piiAgentMockStore;
