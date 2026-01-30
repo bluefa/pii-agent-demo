@@ -19,13 +19,13 @@ export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
-export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'SPANNER';
+export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY';
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
 export type AzureResourceType = 'AZURE_MSSQL' | 'AZURE_POSTGRESQL' | 'AZURE_MYSQL' | 'AZURE_MARIADB' | 'AZURE_COSMOS_NOSQL' | 'AZURE_SYNAPSE' | 'AZURE_VM';
 
-export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY' | 'SPANNER';
+export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
 
 export type ResourceType = AwsResourceType | AzureResourceType | GcpResourceType | 'IDC';
 
