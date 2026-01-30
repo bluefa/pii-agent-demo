@@ -347,7 +347,7 @@ const generateRandomResource = (provider: CloudProvider): Resource => {
   }
 };
 
-const generateAwsResource = (): Resource => {
+export const generateAwsResource = (): Resource => {
   const awsTypes: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
   const awsType = pickRandom(awsTypes);
   const region = pickRandom(AWS_REGIONS);
@@ -402,7 +402,7 @@ const generateAwsResource = (): Resource => {
   };
 };
 
-const generateAzureResource = (): Resource => {
+export const generateAzureResource = (): Resource => {
   const azureTypes: AzureResourceType[] = ['AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL', 'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM'];
   const azureType = pickRandom(azureTypes);
   const region = pickRandom(AZURE_REGIONS);
@@ -460,7 +460,7 @@ const generateAzureResource = (): Resource => {
   };
 };
 
-const generateGcpResource = (): Resource => {
+export const generateGcpResource = (): Resource => {
   const gcpTypes: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
   const gcpType = pickRandom(gcpTypes);
   const region = pickRandom(GCP_REGIONS);
