@@ -348,7 +348,7 @@ const generateRandomResource = (provider: CloudProvider): Resource => {
 };
 
 const generateAwsResource = (): Resource => {
-  const awsTypes: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT'];
+  const awsTypes: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
   const awsType = pickRandom(awsTypes);
   const region = pickRandom(AWS_REGIONS);
   const accountId = '123456789012';
@@ -378,6 +378,10 @@ const generateAwsResource = (): Resource => {
       resourceId = `arn:aws:redshift:${region}:${accountId}:cluster:pii-demo-rs-${rand}`;
       databaseType = 'REDSHIFT';
       break;
+    case 'EC2':
+      resourceId = `arn:aws:ec2:${region}:${accountId}:instance/i-${rand}`;
+      databaseType = pickRandom(['MYSQL', 'POSTGRESQL'] as DatabaseType[]);
+      break;
     default:
       resourceId = `arn:aws:rds:${region}:${accountId}:db:pii-demo-db-${rand}`;
       databaseType = 'MYSQL';
@@ -399,7 +403,7 @@ const generateAwsResource = (): Resource => {
 };
 
 const generateAzureResource = (): Resource => {
-  const azureTypes: AzureResourceType[] = ['AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL', 'AZURE_COSMOS_NOSQL'];
+  const azureTypes: AzureResourceType[] = ['AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL', 'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM'];
   const azureType = pickRandom(azureTypes);
   const region = pickRandom(AZURE_REGIONS);
   const subscriptionId = 'sub-12345678-1234-1234-1234-123456789012';
@@ -412,7 +416,7 @@ const generateAzureResource = (): Resource => {
   switch (azureType) {
     case 'AZURE_MSSQL':
       resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Sql/servers/pii-demo-sql-${rand}`;
-      databaseType = 'MYSQL'; // Mapping for simplicity
+      databaseType = 'MSSQL';
       break;
     case 'AZURE_POSTGRESQL':
       resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforPostgreSQL/servers/pii-demo-pg-${rand}`;
@@ -422,13 +426,25 @@ const generateAzureResource = (): Resource => {
       resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforMySQL/servers/pii-demo-mysql-${rand}`;
       databaseType = 'MYSQL';
       break;
+    case 'AZURE_MARIADB':
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DBforMariaDB/servers/pii-demo-mariadb-${rand}`;
+      databaseType = 'MYSQL';
+      break;
     case 'AZURE_COSMOS_NOSQL':
       resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.DocumentDB/databaseAccounts/pii-demo-cosmos-${rand}`;
-      databaseType = 'DYNAMODB'; // NoSQL mapping
+      databaseType = 'COSMOSDB';
+      break;
+    case 'AZURE_SYNAPSE':
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Synapse/workspaces/pii-demo-synapse-${rand}`;
+      databaseType = 'MSSQL';
+      break;
+    case 'AZURE_VM':
+      resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Compute/virtualMachines/pii-demo-vm-${rand}`;
+      databaseType = pickRandom(['MYSQL', 'POSTGRESQL', 'MSSQL'] as DatabaseType[]);
       break;
     default:
       resourceId = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Sql/servers/pii-demo-sql-${rand}`;
-      databaseType = 'MYSQL';
+      databaseType = 'MSSQL';
   }
 
   return {
@@ -461,11 +477,11 @@ const generateGcpResource = (): Resource => {
       break;
     case 'BIGQUERY':
       resourceId = `projects/${projectId}/datasets/pii_demo_dataset_${rand}`;
-      databaseType = 'ATHENA'; // BigQuery mapping
+      databaseType = 'BIGQUERY';
       break;
     case 'SPANNER':
       resourceId = `projects/${projectId}/instances/pii-demo-spanner-${rand}`;
-      databaseType = 'POSTGRESQL'; // Spanner mapping
+      databaseType = 'SPANNER';
       break;
     default:
       resourceId = `projects/${projectId}/instances/pii-demo-sql-${rand}`;

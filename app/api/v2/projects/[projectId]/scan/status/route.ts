@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { getLatestScanForProject, getScanHistory, canScan, calculateScanStatus } from '@/lib/mock-scan';
+import { getScanHistory, canScan, calculateScanStatus } from '@/lib/mock-scan';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
 import { getStore } from '@/lib/mock-store';
 

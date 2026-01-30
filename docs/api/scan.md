@@ -191,8 +191,7 @@ GET /api/projects/{projectId}/scan/history
       removed: number,
       byResourceType: Array<{
         resourceType: ResourceType,
-        count: number,
-        newCount: number
+        count: number
       }>
     } | null,
     error?: string
