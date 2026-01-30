@@ -19,7 +19,7 @@ export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
-export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT';
+export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'SPANNER';
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
