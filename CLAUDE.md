@@ -149,6 +149,8 @@ API 설계 원칙
 
 비동기 작업 (설계 필요)
 	•	스캔: AWS/Azure/GCP - 페이지 진입 시 트리거, 5분 중복 방지
+		•	✅ API Routes 구현 완료 (app/api/v2/projects/[projectId]/scan/)
+		•	✅ 시간 기반 상태 변경, Provider별 리소스 생성, 유닛 테스트 36개
 	•	TF 설치: 자동(권한O) / 수동(권한X) 분기
 	•	Azure PE 승인: 서비스 담당자 수동 확인
 	•	Azure VM TF: 주기적 상태 확인
@@ -156,7 +158,7 @@ API 설계 원칙
 ⸻
 
 TODO
-	•	[ ] 비동기 작업 상태 관리 설계
+	•	[x] 스캔 API Routes 구현 (v2)
+	•	[ ] 비동기 작업 상태 관리 설계 (TF 설치, Azure PE 등)
 	•	[ ] 에러 처리 전략 정의
-	•	[ ] API 서버 구현 (Production 수준)
 	•	[ ] Provider별 UI 컴포넌트 분리
