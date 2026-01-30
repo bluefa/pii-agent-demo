@@ -24,7 +24,7 @@ export const SCAN_POLICY: Record<CloudProvider, ScanPolicy> = {
   },
   GCP: {
     enabled: true,
-    resourceTypes: ['CLOUD_SQL', 'BIGQUERY', 'SPANNER'],
+    resourceTypes: ['CLOUD_SQL', 'BIGQUERY'],
   },
   IDC: {
     enabled: false,

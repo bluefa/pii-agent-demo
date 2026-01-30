@@ -461,7 +461,7 @@ const generateAzureResource = (): Resource => {
 };
 
 const generateGcpResource = (): Resource => {
-  const gcpTypes: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY', 'SPANNER'];
+  const gcpTypes: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
   const gcpType = pickRandom(gcpTypes);
   const region = pickRandom(GCP_REGIONS);
   const projectId = 'pii-demo-project';
@@ -478,10 +478,6 @@ const generateGcpResource = (): Resource => {
     case 'BIGQUERY':
       resourceId = `projects/${projectId}/datasets/pii_demo_dataset_${rand}`;
       databaseType = 'BIGQUERY';
-      break;
-    case 'SPANNER':
-      resourceId = `projects/${projectId}/instances/pii-demo-spanner-${rand}`;
-      databaseType = 'SPANNER';
       break;
     default:
       resourceId = `projects/${projectId}/instances/pii-demo-sql-${rand}`;
