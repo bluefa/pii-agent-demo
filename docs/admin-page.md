@@ -96,13 +96,13 @@
 ```
 
 ### 컬럼 설명
-1. **Cloud Provider**: AWS/IDC 로고 아이콘
+1. **Cloud Provider**: AWS/Azure/GCP/IDC/SDU 로고 아이콘
 2. **과제 코드**: 클릭 가능한 링크
 3. **설명**: 과제 설명 텍스트
-4. **상태**: ProcessStatus에 따른 텍스트 표시
+4. **상태**: ProcessStatus에 따른 텍스트 표시 (문자열 enum)
 5. **배지**:
-   - NEW 라벨 (파란색)
-   - DISCONNECTED 라벨 (빨간색)
+   - NEW 라벨 (파란색) - 신규 리소스 존재
+   - DISCONNECTED 라벨 (빨간색) - 연결 끊김
 
 ---
 
