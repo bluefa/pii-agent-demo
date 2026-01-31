@@ -522,6 +522,13 @@ POST /api/projects/{projectId}/confirm-targets
 | `reason` 필수 | 각 제외 리소스에 대해 사유 필수 (1자 이상) |
 | 리소스 커버리지 | resources + exclusions = 전체 리소스 |
 
+**제외 사유 관리 규칙**:
+| 상황 | 동작 |
+|------|------|
+| 리소스 선택 (연동 대상) | 기존 exclusion 정보 삭제 |
+| 리소스 제외 | exclusion 정보 저장 (reason, excludedAt, excludedBy) |
+| 재선택 (제외 → 선택) | exclusion 정보 삭제 |
+
 **Frontend Validation**:
 ```typescript
 const allResourceIds = project.resources.map(r => r.id);
