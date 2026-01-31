@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
 import { ProcessStatus, ResourceLifecycleStatus } from '@/lib/types';
+import { addRejectionHistory } from '@/lib/mock-history';
 
 export async function POST(
   request: Request,
@@ -53,6 +54,9 @@ export async function POST(
     rejectionReason: reason,
     rejectedAt: new Date().toISOString(),
   });
+
+  // History 기록
+  addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
 
   return NextResponse.json({ success: true, project: updatedProject, reason });
 }
