@@ -60,6 +60,12 @@ export interface ServiceCode {
   description?: string;
 }
 
+export interface ResourceExclusion {
+  reason: string;
+  excludedAt: string;
+  excludedBy: { id: string; name: string };
+}
+
 export interface Resource {
   id: string;
   type: string;
@@ -79,6 +85,9 @@ export interface Resource {
 
   // --- Credential ---
   selectedCredentialId?: string;          // 선택된 credential ID (4단계용)
+
+  // --- 연동 제외 정보 ---
+  exclusion?: ResourceExclusion;          // 제외된 리소스만
 }
 
 export interface TerraformState {

@@ -26,6 +26,7 @@ Next.js App Router의 API Route Handlers 문서.
 | GET | `/api/projects/[projectId]/resources` | 리소스 목록 조회 |
 | PATCH | `/api/projects/[projectId]/resources` | 리소스 선택/해제 |
 | POST | `/api/projects/[projectId]/resources/credential` | 리소스 인증정보 등록 |
+| GET | `/api/projects/[projectId]/resources/exclusions` | 연동 제외 리소스 조회 |
 
 ### 스캔 (v2)
 
