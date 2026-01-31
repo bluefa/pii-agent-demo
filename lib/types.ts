@@ -263,3 +263,34 @@ export interface ScanHistory {
   resourceCountAfter: number;
   addedResourceIds: string[];
 }
+
+// ===== Project History Types =====
+
+export type ProjectHistoryType =
+  | 'APPROVAL'
+  | 'REJECTION'
+  | 'RESOURCE_ADD'
+  | 'RESOURCE_EXCLUDE'
+  | 'DECOMMISSION_REQUEST'
+  | 'DECOMMISSION_APPROVED'
+  | 'DECOMMISSION_REJECTED';
+
+export interface ProjectHistoryActor {
+  id: string;
+  name: string;
+}
+
+export interface ProjectHistoryDetails {
+  reason?: string;
+  resourceId?: string;
+  resourceName?: string;
+}
+
+export interface ProjectHistory {
+  id: string;
+  projectId: string;
+  type: ProjectHistoryType;
+  actor: ProjectHistoryActor;
+  timestamp: string;
+  details: ProjectHistoryDetails;
+}
