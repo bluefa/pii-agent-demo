@@ -99,24 +99,19 @@ GET /api/projects/{projectId}/installation-status
   provider: 'AWS',
   hasTfPermission: boolean,
 
-  // TF 권한 O (자동 설치)
-  serviceTfCompleted?: boolean,  // Service TF 설치 완료 여부
-  bdcTfCompleted?: boolean,      // BDC TF 설치 완료 여부
+  // TF 설치 완료 여부 (자동/수동 무관하게 동일)
+  serviceTfCompleted: boolean,
+  bdcTfCompleted: boolean,
+  completedAt?: string,
 
-  // TF 권한 X (수동 설치)
-  tfScriptDownloaded?: boolean,      // TF Script 다운로드 여부
-  installationConfirmed?: boolean,   // 설치 완료 확인 여부
-  confirmedAt?: string               // 확인 일시
+  // 수동 설치 UI용 (다운로드 버튼 표시)
+  tfScriptDownloaded?: boolean
 }
 ```
 
-**설치 완료 판단**:
+**설치 완료 판단** (자동/수동 동일):
 ```typescript
-// TF 권한 O: 두 TF 모두 완료
-const autoInstallCompleted = serviceTfCompleted && bdcTfCompleted;
-
-// TF 권한 X: 서비스 담당자가 설치 완료 확인
-const manualInstallCompleted = installationConfirmed;
+const installationCompleted = serviceTfCompleted && bdcTfCompleted;
 ```
 
 ---
@@ -147,7 +142,8 @@ POST /api/projects/{projectId}/confirm-installation
 ```
 
 > TF 권한이 없는 경우(Case 2), 서비스 담당자가 수동으로 TF Script를 실행한 후 호출합니다.
-> Backend는 이 API 호출 시 AWS API를 통해 필요한 리소스가 생성되었는지 검증할 수 있습니다.
+> Backend는 AWS API를 통해 리소스 생성 여부를 검증하고, 성공 시 `serviceTfCompleted = true`로 변경합니다.
+> BDC TF는 이 시점에 시스템이 자동으로 실행합니다.
 
 **요청**:
 ```typescript
@@ -231,6 +227,7 @@ PUT /api/services/{serviceCode}/settings/aws
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | installation-status 자동/수동 구분 제거, Service/BDC 구분 유지 |
 | 2026-01-31 | TfStatus → boolean 단순화 (완료/미완료만 표시) |
 | 2026-01-31 | confirm-installation API 상세 정의 (요청/응답/에러) |
 | 2026-01-30 | TerraformExecutionRole 검증 API 추가 |
