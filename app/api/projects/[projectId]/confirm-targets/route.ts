@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
-import { ProcessStatus, ResourceLifecycleStatus } from '@/lib/types';
+import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion } from '@/lib/types';
+
+interface ConfirmTargetsRequest {
+  resourceIds: string[];
+  exclusions?: Array<{
+    resourceId: string;
+    reason: string;
+  }>;
+}
 
 export async function POST(
   request: Request,
@@ -32,14 +40,35 @@ export async function POST(
     );
   }
 
-  // 어느 시점에서든 연동 대상 확정 승인 요청 가능
-  // (설치 진행 중인 3단계만 제외)
-
-  const body = await request.json();
-  const { resourceIds } = body as { resourceIds: string[] };
+  const body = await request.json() as ConfirmTargetsRequest;
+  const { resourceIds, exclusions = [] } = body;
   const selectedSet = new Set(resourceIds);
 
-  const updatedResources = project.resources.map((r) => {
+  // 제외 사유 맵 생성
+  const exclusionMap = new Map(exclusions.map(e => [e.resourceId, e.reason]));
+
+  // 선택되지 않은 리소스 중 제외 사유가 없는 것 검증
+  const unselectedWithoutReason = project.resources.filter(r =>
+    !selectedSet.has(r.id) &&
+    r.lifecycleStatus !== 'ACTIVE' &&
+    !exclusionMap.has(r.id)
+  );
+
+  if (unselectedWithoutReason.length > 0) {
+    return NextResponse.json(
+      {
+        error: 'MISSING_EXCLUSION_REASON',
+        message: '제외되는 리소스에 대해 제외 사유를 입력해주세요.',
+        missingResourceIds: unselectedWithoutReason.map(r => r.id)
+      },
+      { status: 400 }
+    );
+  }
+
+  const now = new Date().toISOString();
+  const excludedBy = { id: user.id, name: user.name };
+
+  const updatedResources: Resource[] = project.resources.map((r) => {
     const isSelected = selectedSet.has(r.id);
 
     // 이미 ACTIVE인 리소스는 lifecycleStatus 유지
@@ -50,10 +79,21 @@ export async function POST(
       lifecycleStatus = isSelected ? 'PENDING_APPROVAL' : 'DISCOVERED';
     }
 
+    // 제외 정보 설정
+    let exclusion: ResourceExclusion | undefined;
+    if (!isSelected && exclusionMap.has(r.id)) {
+      exclusion = {
+        reason: exclusionMap.get(r.id)!,
+        excludedAt: now,
+        excludedBy,
+      };
+    }
+
     return {
       ...r,
       isSelected,
       lifecycleStatus,
+      exclusion,
     };
   });
 
