@@ -145,7 +145,35 @@ interface Resource {
   lifecycleStatus: LifecycleStatus,
   isSelected: boolean,
   selectedCredentialId?: string,
-  metadata: ResourceMetadata
+  metadata: ResourceMetadata,
+
+  // 연동 제외 정보 (제외된 리소스만)
+  exclusion?: {
+    reason: string,
+    excludedAt: string,
+    excludedBy: { id: string, name: string }
+  }
+}
+```
+
+### 리소스 제외 이력 조회
+
+```
+GET /api/projects/{projectId}/resources/exclusions
+```
+
+**응답**:
+```typescript
+{
+  exclusions: Array<{
+    resourceId: string,
+    resourceName: string,
+    resourceType: ResourceType,
+    reason: string,
+    excludedAt: string,
+    excludedBy: { id: string, name: string }
+  }>,
+  total: number
 }
 ```
 
@@ -472,13 +500,50 @@ POST /api/projects/{projectId}/confirm-targets
 **요청**:
 ```typescript
 {
+  // 연동 대상 리소스
   resources: Array<{
     resourceId: string,
     // VM 타입 (EC2, AZURE_VM) 전용 - 필수 입력
     port?: number
+  }>,
+
+  // 연동 제외 리소스 (선택되지 않은 리소스)
+  exclusions?: Array<{
+    resourceId: string,
+    reason: string  // 필수, 제외 사유
   }>
 }
 ```
+
+**검증 규칙**:
+| 항목 | 설명 |
+|------|------|
+| `exclusions` 필수 | 선택되지 않은 리소스가 있으면 exclusions 필수 |
+| `reason` 필수 | 각 제외 리소스에 대해 사유 필수 (1자 이상) |
+| 리소스 커버리지 | resources + exclusions = 전체 리소스 |
+
+**제외 사유 관리 규칙**:
+| 상황 | 동작 |
+|------|------|
+| 리소스 선택 (연동 대상) | 기존 exclusion 정보 삭제 |
+| 리소스 제외 | exclusion 정보 저장 (reason, excludedAt, excludedBy) |
+| 재선택 (제외 → 선택) | exclusion 정보 삭제 |
+
+**Frontend Validation**:
+```typescript
+const allResourceIds = project.resources.map(r => r.id);
+const selectedIds = new Set(selectedResources.map(r => r.id));
+const excludedIds = allResourceIds.filter(id => !selectedIds.has(id));
+
+// 제외 리소스에 대해 사유 입력 필요
+const canSubmit = excludedIds.every(id => exclusionReasons[id]?.length > 0);
+```
+
+**에러 케이스**:
+| 에러 코드 | 설명 |
+|-----------|------|
+| MISSING_EXCLUSION_REASON | 제외 리소스에 사유 미입력 |
+| INCOMPLETE_RESOURCE_COVERAGE | resources + exclusions가 전체 리소스를 커버하지 않음 |
 
 **VM (EC2, AZURE_VM) 연동 규칙**:
 | 항목 | 설명 |
@@ -739,6 +804,7 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | 연동 제외사유 기능 추가 - confirm-targets에 exclusions 추가, Resource에 exclusion 정보, 제외 이력 조회 API |
 | 2026-01-30 | 프로젝트 폐기(Decommission) API 추가 - 요청/승인/반려 프로세스 |
 | 2026-01-30 | Azure DB 타입 세분화 (MSSQL, PostgreSQL, MySQL, MariaDB, CosmosDB NoSQL) |
 | 2026-01-30 | VM (EC2, AZURE_VM) 연동 시 port 필수 + Frontend validation 규칙 추가 |
