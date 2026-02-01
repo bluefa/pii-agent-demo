@@ -39,7 +39,7 @@ GET /api/azure/projects/{projectId}/installation-status
 {
   provider: 'azure',
 
-  // 리소스별 TF + PE 상태
+  // 리소스별 TF + PE 상태 (DB + VM 모든 확정 리소스 포함)
   resources: Array<{
     resourceId: string,
     resourceName: string,
@@ -50,6 +50,7 @@ GET /api/azure/projects/{projectId}/installation-status
 
     // Private Endpoint 상태
     privateEndpoint?: {
+      id: string,
       name: string,
       status: PeStatus,
       requestedAt?: string,
@@ -107,12 +108,14 @@ POST /api/azure/projects/{projectId}/check-installation
 {
   provider: 'azure',
 
+  // 리소스별 TF + PE 상태 (DB + VM 모든 확정 리소스 포함)
   resources: Array<{
     resourceId: string,
     resourceName: string,
     resourceType: string,
     tfCompleted: boolean,
     privateEndpoint?: {
+      id: string,
       name: string,
       status: PeStatus,
       requestedAt?: string,
