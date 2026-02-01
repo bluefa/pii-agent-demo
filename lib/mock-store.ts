@@ -1,4 +1,4 @@
-import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory } from '@/lib/types';
+import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory } from '@/lib/types';
 import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials } from '@/lib/mock-data';
 
 type Store = {
@@ -10,6 +10,8 @@ type Store = {
     // v2 Scan 관련
     scans: ScanJob[];
     scanHistory: ScanHistory[];
+    // Project History (승인/반려/리소스 변경 이력)
+    projectHistory: ProjectHistory[];
 };
 
 declare global {
@@ -28,6 +30,8 @@ export const getStore = (): Store => {
             // v2 Scan 관련
             scans: [],
             scanHistory: [],
+            // Project History
+            projectHistory: [],
         };
     }
     return globalThis.__piiAgentMockStore;

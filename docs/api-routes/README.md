@@ -28,6 +28,12 @@ Next.js App Router의 API Route Handlers 문서.
 | POST | `/api/projects/[projectId]/resources/credential` | 리소스 인증정보 등록 |
 | GET | `/api/projects/[projectId]/resources/exclusions` | 연동 제외 리소스 조회 |
 
+### History
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/projects/[projectId]/history` | 프로젝트 변경 이력 조회 |
+
 ### 스캔 (v2)
 
 | Method | Endpoint | 설명 |
