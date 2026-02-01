@@ -83,14 +83,14 @@ POST /api/aws/verify-tf-role
 
 ---
 
-## 설치 상태 [ASYNC]
+## 설치 상태
 
-> TF 설치는 비동기 작업 - TfStatus로 상태 추적
+> TF 설치는 Backend에서 자동 처리되며, Frontend는 완료 여부만 확인합니다.
 
 ### 설치 상태 조회
 
 ```
-GET /api/projects/{projectId}/installation-status
+GET /api/aws/projects/{projectId}/installation-status
 ```
 
 **응답**:
@@ -99,14 +99,19 @@ GET /api/projects/{projectId}/installation-status
   provider: 'AWS',
   hasTfPermission: boolean,
 
-  // TF 권한 O
-  serviceTf?: TfStatus,
-  bdcTf?: TfStatus,
+  // TF 설치 완료 여부 (자동/수동 무관하게 동일)
+  serviceTfCompleted: boolean,
+  bdcTfCompleted: boolean,
+  completedAt?: string,
 
-  // TF 권한 X
-  tfScriptDownloaded?: boolean,
-  installationConfirmed?: boolean
+  // 마지막 확인 시간 (자동 탐지 또는 수동 refresh)
+  lastCheckedAt?: string
 }
+```
+
+**설치 완료 판단** (자동/수동 동일):
+```typescript
+const installationCompleted = serviceTfCompleted && bdcTfCompleted;
 ```
 
 ---
@@ -118,7 +123,7 @@ GET /api/projects/{projectId}/installation-status
 ### TF Script 다운로드
 
 ```
-GET /api/projects/{projectId}/terraform-script
+GET /api/aws/projects/{projectId}/terraform-script
 ```
 
 **응답**:
@@ -130,17 +135,50 @@ GET /api/projects/{projectId}/terraform-script
 }
 ```
 
-### 설치 완료 확인
+### 설치 상태 확인 (Refresh)
 
 ```
-POST /api/projects/{projectId}/confirm-installation
+POST /api/aws/projects/{projectId}/check-installation
 ```
 
-> 서비스 담당자가 수동으로 TF 실행 후 호출
+> Backend가 AWS API를 통해 TF 리소스 존재 여부를 자동 탐지합니다.
+> Frontend는 "새로고침" 버튼으로 이 API를 호출하여 최신 상태를 확인합니다.
+>
+> **동작 방식**:
+> - Backend가 AWS API로 Service TF 리소스 존재 여부 검증
+> - 검증 성공 시 `serviceTfCompleted = true`로 업데이트
+> - Service TF 완료 확인 시 BDC TF 자동 실행
+
+**응답** (installation-status와 동일 + error):
+```typescript
+{
+  provider: 'AWS',
+  hasTfPermission: boolean,
+
+  serviceTfCompleted: boolean,
+  bdcTfCompleted: boolean,
+  completedAt?: string,
+  lastCheckedAt: string,  // 방금 확인한 시간
+
+  // 에러 시에만 포함
+  error?: {
+    code: 'VALIDATION_FAILED' | 'ACCESS_DENIED',
+    message: string,
+    guide?: {
+      title: string,
+      steps: string[]
+    }
+  }
+}
+```
+
+**프로세스 전이**: Service TF 완료 확인 → BDC TF 자동 실행 → 연결 테스트 대기
 
 ---
 
 ## 서비스 설정
+
+> 서비스 단위로 AWS 연동에 필요한 설정을 관리합니다.
 
 ### 설정 조회
 
@@ -151,8 +189,23 @@ GET /api/services/{serviceCode}/settings/aws
 **응답**:
 ```typescript
 {
-  scanRoleRegistered: boolean,
-  tfPermissionGranted: boolean  // 프로젝트 레벨, immutable
+  // AWS 계정 정보
+  accountId?: string,
+
+  // Scan Role 설정
+  scanRole: {
+    registered: boolean,
+    roleArn?: string,
+    lastVerifiedAt?: string,
+    status?: 'VALID' | 'INVALID' | 'NOT_VERIFIED'
+  },
+
+  // 안내 정보 (미등록 시)
+  guide?: {
+    title: string,
+    steps: string[],
+    documentUrl?: string
+  }
 }
 ```
 
@@ -162,14 +215,82 @@ GET /api/services/{serviceCode}/settings/aws
 PUT /api/services/{serviceCode}/settings/aws
 ```
 
+**요청**:
+```typescript
+{
+  accountId: string,
+  scanRoleArn: string
+}
+```
+
+**응답 (성공)**:
+```typescript
+{
+  updated: true,
+  accountId: string,
+  scanRole: {
+    registered: true,
+    roleArn: string,
+    lastVerifiedAt: string,
+    status: 'VALID'
+  }
+}
+```
+
+**응답 (검증 실패)**:
+```typescript
+{
+  updated: false,
+  errorCode: 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED' | 'INVALID_ACCOUNT_ID',
+  errorMessage: string,
+  guide: {
+    title: string,
+    steps: string[],
+    documentUrl?: string
+  }
+}
+```
+
+### Scan Role 검증
+
+```
+POST /api/services/{serviceCode}/settings/aws/verify-scan-role
+```
+
+> 이미 등록된 Scan Role의 유효성을 재검증합니다.
+
+**응답 (성공)**:
+```typescript
+{
+  valid: true,
+  roleArn: string,
+  verifiedAt: string
+}
+```
+
+**응답 (실패)**:
+```typescript
+{
+  valid: false,
+  errorCode: 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED',
+  errorMessage: string,
+  guide: {
+    title: string,
+    steps: string[]
+  }
+}
+```
+
 ---
 
 ## TODO
 
 - [ ] TF Role 검증 시 필요한 최소 권한 목록 정의
 - [ ] TF Role 생성 가이드 문서 작성
-- [ ] 스캔 API 비동기 처리 방식 정의
-- [ ] TF 설치 상태 폴링 vs 웹훅
+- [ ] Scan Role 필요 권한 목록 정의
+- [x] TF 설치 상태 단순화 (완료/미완료 boolean)
+- [x] check-installation API 상세 정의 (자동 탐지 방식)
+- [x] 서비스 설정 API 상세 정의
 
 > 예외 처리는 [common.md](../common.md)의 "예외 처리 규칙" 참조
 
@@ -179,6 +300,12 @@ PUT /api/services/{serviceCode}/settings/aws
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | check-installation 응답을 installation-status와 통일 |
+| 2026-01-31 | API 경로에 /aws/ prefix 추가 (Provider 명시) |
+| 2026-01-31 | confirm-installation → check-installation 변경 (자동 탐지 방식) |
+| 2026-01-31 | 서비스 설정 API 상세 정의 (조회/수정/검증) |
+| 2026-01-31 | installation-status 자동/수동 구분 제거, Service/BDC 구분 유지 |
+| 2026-01-31 | TfStatus → boolean 단순화 (완료/미완료만 표시) |
 | 2026-01-30 | TerraformExecutionRole 검증 API 추가 |
 | 2026-01-30 | 케이스 단순화 (TF 권한만), VM은 UI 필터로 변경 |
 | 2026-01-29 | 초안 작성 |
