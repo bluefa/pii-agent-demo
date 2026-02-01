@@ -189,15 +189,7 @@ GET /api/projects/{projectId}/azure/subnet-guide
 **응답**:
 ```typescript
 {
-  title: string,
   description: string,
-  requirements: {
-    // PLS Subnet 요구사항
-    purpose: 'PrivateLinkService',
-    networkPolicies: 'privateLinkServiceNetworkPolicies: Disabled',
-    recommendedAddressPrefix: string
-  },
-  steps: string[],
   documentUrl?: string
 }
 ```
