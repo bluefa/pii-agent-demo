@@ -265,8 +265,7 @@ GET /api/services/{serviceCode}/settings/azure
 
   // 안내 정보 (미등록 시)
   guide?: {
-    title: string,
-    steps: string[],
+    description: string,
     documentUrl?: string
   }
 }
