@@ -104,6 +104,9 @@ GET /api/projects/{projectId}/installation-status
   bdcTfCompleted: boolean,
   completedAt?: string,
 
+  // 마지막 확인 시간 (자동 탐지 또는 수동 refresh)
+  lastCheckedAt?: string,
+
   // 수동 설치 UI용 (다운로드 버튼 표시)
   tfScriptDownloaded?: boolean
 }
@@ -135,56 +138,55 @@ GET /api/projects/{projectId}/terraform-script
 }
 ```
 
-### 설치 완료 확인
+### 설치 상태 확인 (Refresh)
 
 ```
-POST /api/projects/{projectId}/confirm-installation
+POST /api/projects/{projectId}/check-installation
 ```
 
-> TF 권한이 없는 경우(Case 2), 서비스 담당자가 수동으로 TF Script를 실행한 후 호출합니다.
-> Backend는 AWS API를 통해 리소스 생성 여부를 검증하고, 성공 시 `serviceTfCompleted = true`로 변경합니다.
-> BDC TF는 이 시점에 시스템이 자동으로 실행합니다.
+> Backend가 AWS API를 통해 TF 리소스 존재 여부를 자동 탐지합니다.
+> Frontend는 "새로고침" 버튼으로 이 API를 호출하여 최신 상태를 확인합니다.
+>
+> **동작 방식**:
+> - Backend가 AWS API로 Service TF 리소스 존재 여부 검증
+> - 검증 성공 시 `serviceTfCompleted = true`로 업데이트
+> - Service TF 완료 확인 시 BDC TF 자동 실행
 
-**요청**:
+**응답 (설치 완료)**:
 ```typescript
 {
-  // 현재 별도 파라미터 없음
-  // 필요시 확장: executionId, remarks 등
+  serviceTfCompleted: true,
+  bdcTfCompleted: boolean,
+  checkedAt: string,
+  message?: string  // "Service TF 설치가 확인되었습니다"
 }
 ```
 
-**응답 (성공)**:
+**응답 (설치 미완료)**:
 ```typescript
 {
-  confirmed: true,
-  confirmedAt: string,
-  validationResult?: {
-    serviceTfResources: boolean,  // Service TF 리소스 존재 확인
-    message?: string
-  }
+  serviceTfCompleted: false,
+  bdcTfCompleted: false,
+  checkedAt: string,
+  message: string  // "TF 리소스가 아직 생성되지 않았습니다"
 }
 ```
 
 **응답 (검증 실패)**:
 ```typescript
 {
-  confirmed: false,
-  errorCode: 'TF_RESOURCES_NOT_FOUND' | 'VALIDATION_FAILED',
+  serviceTfCompleted: false,
+  checkedAt: string,
+  errorCode: 'VALIDATION_FAILED' | 'ACCESS_DENIED',
   errorMessage: string,
-  guide: {
+  guide?: {
     title: string,
     steps: string[]
   }
 }
 ```
 
-**에러 케이스**:
-| 에러 코드 | 설명 | 가이드 |
-|-----------|------|--------|
-| TF_RESOURCES_NOT_FOUND | TF로 생성되어야 할 리소스가 없음 | TF Script 재실행 가이드 |
-| VALIDATION_FAILED | 리소스 검증 실패 | 문제 해결 가이드 |
-
-**프로세스 전이**: 설치 완료 확인 → 연결 테스트 대기
+**프로세스 전이**: Service TF 완료 확인 → BDC TF 자동 실행 → 연결 테스트 대기
 
 ---
 
@@ -301,7 +303,7 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 - [ ] TF Role 생성 가이드 문서 작성
 - [ ] Scan Role 필요 권한 목록 정의
 - [x] TF 설치 상태 단순화 (완료/미완료 boolean)
-- [x] confirm-installation API 상세 정의
+- [x] check-installation API 상세 정의 (자동 탐지 방식)
 - [x] 서비스 설정 API 상세 정의
 
 > 예외 처리는 [common.md](../common.md)의 "예외 처리 규칙" 참조
@@ -312,10 +314,10 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | confirm-installation → check-installation 변경 (자동 탐지 방식) |
 | 2026-01-31 | 서비스 설정 API 상세 정의 (조회/수정/검증) |
 | 2026-01-31 | installation-status 자동/수동 구분 제거, Service/BDC 구분 유지 |
 | 2026-01-31 | TfStatus → boolean 단순화 (완료/미완료만 표시) |
-| 2026-01-31 | confirm-installation API 상세 정의 (요청/응답/에러) |
 | 2026-01-30 | TerraformExecutionRole 검증 API 추가 |
 | 2026-01-30 | 케이스 단순화 (TF 권한만), VM은 UI 필터로 변경 |
 | 2026-01-29 | 초안 작성 |
