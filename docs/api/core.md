@@ -800,10 +800,21 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 ---
 
+## 구현 상태
+
+### API Routes (Next.js)
+
+| 엔드포인트 | 상태 | 비고 |
+|-----------|------|------|
+| GET /projects/{projectId}/history | ✅ 구현 | type, limit, offset 지원 |
+
+---
+
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | History API Routes 구현 - 승인/반려/리소스 변경 이력 조회 |
 | 2026-01-31 | 연동 제외사유 기능 추가 - confirm-targets에 exclusions 추가, Resource에 exclusion 정보, 제외 이력 조회 API |
 | 2026-01-30 | 프로젝트 폐기(Decommission) API 추가 - 요청/승인/반려 프로세스 |
 | 2026-01-30 | Azure DB 타입 세분화 (MSSQL, PostgreSQL, MySQL, MariaDB, CosmosDB NoSQL) |

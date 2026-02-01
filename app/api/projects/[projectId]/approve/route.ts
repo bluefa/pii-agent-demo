@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
 import { ProcessStatus, ResourceLifecycleStatus } from '@/lib/types';
+import { addApprovalHistory } from '@/lib/mock-history';
 
 export async function POST(
   request: Request,
@@ -61,6 +62,9 @@ export async function POST(
     approvalComment: comment,
     approvedAt: new Date().toISOString(),
   });
+
+  // History 기록
+  addApprovalHistory(projectId, { id: user.id, name: user.name });
 
   return NextResponse.json({ success: true, project: updatedProject });
 }

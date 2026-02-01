@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
 import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion } from '@/lib/types';
+import { addResourceExcludeHistory, addResourceAddHistory } from '@/lib/mock-history';
 
 interface ConfirmTargetsRequest {
   resourceIds: string[];
@@ -101,6 +102,29 @@ export async function POST(
     resources: updatedResources,
     processStatus: ProcessStatus.WAITING_APPROVAL,
   });
+
+  // History 기록: 리소스 변경 사항
+  const actor = { id: user.id, name: user.name };
+
+  // 제외된 리소스 기록 (이전에 제외되지 않았던 리소스만)
+  for (const r of project.resources) {
+    const isNowSelected = selectedSet.has(r.id);
+    const wasExcluded = !!r.exclusion;
+
+    if (!isNowSelected && !wasExcluded && exclusionMap.has(r.id)) {
+      // 새로 제외됨
+      addResourceExcludeHistory(
+        projectId,
+        actor,
+        r.id,
+        r.resourceId,
+        exclusionMap.get(r.id)!
+      );
+    } else if (isNowSelected && wasExcluded) {
+      // 제외 → 재선택
+      addResourceAddHistory(projectId, actor, r.id, r.resourceId);
+    }
+  }
 
   return NextResponse.json({ success: true, project: updatedProject });
 }
