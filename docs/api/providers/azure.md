@@ -37,7 +37,7 @@ GET /api/azure/projects/{projectId}/installation-status
 **응답**:
 ```typescript
 {
-  provider: 'Azure',
+  provider: 'azure',
 
   // 리소스별 TF + PE 상태
   resources: Array<{
@@ -105,7 +105,7 @@ POST /api/azure/projects/{projectId}/check-installation
 **응답** (installation-status와 동일 + error):
 ```typescript
 {
-  provider: 'Azure',
+  provider: 'azure',
 
   resources: Array<{
     resourceId: string,
