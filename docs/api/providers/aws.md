@@ -149,36 +149,25 @@ POST /api/aws/projects/{projectId}/check-installation
 > - 검증 성공 시 `serviceTfCompleted = true`로 업데이트
 > - Service TF 완료 확인 시 BDC TF 자동 실행
 
-**응답 (설치 완료)**:
+**응답** (installation-status와 동일 + error):
 ```typescript
 {
-  serviceTfCompleted: true,
+  provider: 'AWS',
+  hasTfPermission: boolean,
+
+  serviceTfCompleted: boolean,
   bdcTfCompleted: boolean,
-  checkedAt: string,
-  message?: string  // "Service TF 설치가 확인되었습니다"
-}
-```
+  completedAt?: string,
+  lastCheckedAt: string,  // 방금 확인한 시간
 
-**응답 (설치 미완료)**:
-```typescript
-{
-  serviceTfCompleted: false,
-  bdcTfCompleted: false,
-  checkedAt: string,
-  message: string  // "TF 리소스가 아직 생성되지 않았습니다"
-}
-```
-
-**응답 (검증 실패)**:
-```typescript
-{
-  serviceTfCompleted: false,
-  checkedAt: string,
-  errorCode: 'VALIDATION_FAILED' | 'ACCESS_DENIED',
-  errorMessage: string,
-  guide?: {
-    title: string,
-    steps: string[]
+  // 에러 시에만 포함
+  error?: {
+    code: 'VALIDATION_FAILED' | 'ACCESS_DENIED',
+    message: string,
+    guide?: {
+      title: string,
+      steps: string[]
+    }
   }
 }
 ```
@@ -311,6 +300,7 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | check-installation 응답을 installation-status와 통일 |
 | 2026-01-31 | API 경로에 /aws/ prefix 추가 (Provider 명시) |
 | 2026-01-31 | confirm-installation → check-installation 변경 (자동 탐지 방식) |
 | 2026-01-31 | 서비스 설정 API 상세 정의 (조회/수정/검증) |
