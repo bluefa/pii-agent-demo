@@ -273,6 +273,30 @@ GET /api/services/{serviceCode}/settings/azure
 
 ---
 
+## 구현 상태
+
+### BFF API
+
+| 엔드포인트 | 상태 | 비고 |
+|-----------|------|------|
+| GET /api/azure/projects/{projectId}/installation-status | ❌ 미구현 | 리소스별 TF + PE 상태 |
+| POST /api/azure/projects/{projectId}/check-installation | ❌ 미구현 | Azure API 연동 필요 |
+| GET /api/azure/projects/{projectId}/vm-installation-status | ❌ 미구현 | VM별 Subnet + TF 상태 |
+| POST /api/azure/projects/{projectId}/vm-check-installation | ❌ 미구현 | Azure API 연동 필요 |
+| GET /api/azure/projects/{projectId}/vm-terraform-script | ❌ 미구현 | TF Script 생성 |
+| GET /api/azure/projects/{projectId}/subnet-guide | ❌ 미구현 | 가이드 문서 연결 |
+| GET /api/services/{serviceCode}/settings/azure | ❌ 미구현 | Scan App 상태 |
+
+### 구현 우선순위
+
+1. **서비스 설정** - Scan App 등록 상태 조회
+2. **설치 상태 (DB)** - TF + PE 상태 조회/새로고침
+3. **설치 상태 (VM)** - Subnet + TF 상태 조회/새로고침
+4. **VM TF Script** - Script 생성 및 다운로드
+5. **Subnet 가이드** - 가이드 문서 URL 제공
+
+---
+
 ## TODO
 
 - [x] 스캔 API 비동기 처리 방식 정의 → scan.md 참조
