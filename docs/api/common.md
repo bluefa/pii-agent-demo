@@ -289,10 +289,18 @@ type LifecycleStatus =
   | 'ACTIVE';           // 연동 완료
 ```
 
-### TfStatus
+### TfStatus (Deprecated)
+
+> TF 설치 상태는 boolean으로 단순화되었습니다. (완료/미완료만 표시)
+> 상세 상태(IN_PROGRESS 등)는 현재 UI에서 표기하지 않습니다.
 
 ```typescript
-type TfStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+// 기존 (사용 안 함)
+// type TfStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+
+// 현재: boolean으로 완료 여부만 표시
+// serviceTfCompleted: boolean
+// bdcTfCompleted: boolean
 ```
 
 ---
@@ -338,6 +346,7 @@ type Role = 'ADMIN' | 'SERVICE_MANAGER';
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | TfStatus 타입 deprecated (boolean으로 단순화) |
 | 2026-01-30 | Azure ResourceType 세분화, VmResourceType 타입 추가 |
 | 2026-01-30 | 에러 컴포넌트 설계 추가 (InlineError, PageError, Toast, ModalError) |
 | 2026-01-30 | Frontend 에러 처리 가이드 추가 (읽기/쓰기 구분) |
