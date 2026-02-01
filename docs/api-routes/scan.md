@@ -8,14 +8,25 @@
 
 이 API Routes는 **BFF API 명세**(`docs/api/scan.md`)를 기반으로 구현되었습니다.
 
-| 환경 | API 호출 대상 |
-|-----|-------------|
-| 개발 | Next.js API Routes (BFF 시뮬레이션) |
-| 운영 | BFF API (실제 백엔드 서버) |
+| 환경 | API 호출 대상 | Base Path |
+|-----|-------------|-----------|
+| 개발 | Next.js API Routes | `/api/v2/projects/{projectId}/scan/*` |
+| 운영 | BFF API (백엔드 서버) | `/api/projects/{projectId}/scan/*` |
+
+> **Note**: API Routes는 `/api/v2/` prefix를 사용하고, BFF API는 `/api/`를 사용합니다.
 
 ---
 
-## 파일 구조
+## 엔드포인트
+
+| Method | API Routes (개발) | BFF API (운영) | 설명 |
+|--------|-------------------|----------------|------|
+| POST | `/api/v2/projects/{id}/scan` | `/api/projects/{id}/scan` | 스캔 시작 |
+| GET | `/api/v2/projects/{id}/scan/status` | `/api/projects/{id}/scan/status` | 현재 상태 |
+| GET | `/api/v2/projects/{id}/scan/{scanId}` | `/api/projects/{id}/scan/{scanId}` | 특정 스캔 조회 |
+| GET | `/api/v2/projects/{id}/scan/history` | `/api/projects/{id}/scan/history` | 스캔 이력 |
+
+### 파일 구조
 
 ```
 app/api/v2/projects/[projectId]/scan/
@@ -29,22 +40,34 @@ app/api/v2/projects/[projectId]/scan/
 
 ## 핵심 흐름
 
+### 개발 환경
 ```
-클라이언트                    API Routes                    BFF API (운영)
-    │                            │                              │
-    │  POST /scan               │                              │
-    ├──────────────────────────>│  (개발: 내부 처리)            │
-    │                           │  (운영: BFF 호출) ──────────>│
-    │  202 { scanId, status }   │                              │
-    │<──────────────────────────┤                              │
-    │                           │                              │
-    │  GET /scan/status (폴링)  │                              │
-    ├──────────────────────────>│                              │
-    │  { isScanning, progress } │                              │
-    │<──────────────────────────┤                              │
-    │                           │                              │
-    │  (status=COMPLETED)       │                              │
-    │  리소스 목록 새로고침      │                              │
+클라이언트                         API Routes (/api/v2/...)
+    │                                   │
+    │  POST /api/v2/.../scan           │
+    ├─────────────────────────────────>│  (내부 시뮬레이션)
+    │  202 { scanId, status }          │
+    │<─────────────────────────────────┤
+    │                                   │
+    │  GET /api/v2/.../scan/status     │
+    ├─────────────────────────────────>│
+    │  { isScanning, progress }        │
+    │<─────────────────────────────────┤
+```
+
+### 운영 환경
+```
+클라이언트                         BFF API (/api/...)
+    │                                   │
+    │  POST /api/.../scan              │
+    ├─────────────────────────────────>│  (백엔드 서버)
+    │  202 { scanId, status }          │
+    │<─────────────────────────────────┤
+    │                                   │
+    │  GET /api/.../scan/status        │
+    ├─────────────────────────────────>│
+    │  { isScanning, progress }        │
+    │<─────────────────────────────────┤
 ```
 
 ---
@@ -103,7 +126,11 @@ PENDING → IN_PROGRESS → COMPLETED
 
 ## BFF API 명세
 
-상세 스펙은 `docs/api/scan.md` 참조.
+운영 환경에서 호출하는 BFF API의 상세 스펙은 `docs/api/scan.md` 참조.
+
+- 요청/응답 타입 정의
+- Provider별 특이사항
+- 비동기 작업 패턴
 
 ---
 
