@@ -90,7 +90,7 @@ POST /api/aws/verify-tf-role
 ### 설치 상태 조회
 
 ```
-GET /api/projects/{projectId}/installation-status
+GET /api/aws/projects/{projectId}/installation-status
 ```
 
 **응답**:
@@ -123,7 +123,7 @@ const installationCompleted = serviceTfCompleted && bdcTfCompleted;
 ### TF Script 다운로드
 
 ```
-GET /api/projects/{projectId}/terraform-script
+GET /api/aws/projects/{projectId}/terraform-script
 ```
 
 **응답**:
@@ -138,7 +138,7 @@ GET /api/projects/{projectId}/terraform-script
 ### 설치 상태 확인 (Refresh)
 
 ```
-POST /api/projects/{projectId}/check-installation
+POST /api/aws/projects/{projectId}/check-installation
 ```
 
 > Backend가 AWS API를 통해 TF 리소스 존재 여부를 자동 탐지합니다.
@@ -311,6 +311,7 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | API 경로에 /aws/ prefix 추가 (Provider 명시) |
 | 2026-01-31 | confirm-installation → check-installation 변경 (자동 탐지 방식) |
 | 2026-01-31 | 서비스 설정 API 상세 정의 (조회/수정/검증) |
 | 2026-01-31 | installation-status 자동/수동 구분 제거, Service/BDC 구분 유지 |
