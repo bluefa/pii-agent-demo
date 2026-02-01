@@ -215,8 +215,7 @@ GET /api/azure/projects/{projectId}/vm-terraform-script
 ```typescript
 {
   downloadUrl: string,
-  fileName: string,
-  expiresAt: string
+  fileName: string
 }
 ```
 
