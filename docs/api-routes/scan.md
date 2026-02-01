@@ -101,34 +101,6 @@ PENDING → IN_PROGRESS → COMPLETED
 - `COMPLETED`: 스캔 완료, 리소스 갱신됨
 - `FAILED`: 스캔 실패
 
-### 폴링 구현 가이드
-
-| 항목 | 값 |
-|------|-----|
-| 폴링 간격 | 2초 |
-| 최대 폴링 시간 | 5분 |
-| 종료 조건 | `isScanning === false` |
-
-```typescript
-const pollScanStatus = async (projectId: string) => {
-  const maxAttempts = 150; // 5분 / 2초
-  let attempts = 0;
-
-  while (attempts < maxAttempts) {
-    const res = await fetch(`/api/v2/projects/${projectId}/scan/status`);
-    const data = await res.json();
-
-    if (!data.isScanning) {
-      return data.lastCompletedScan;
-    }
-
-    await new Promise(r => setTimeout(r, 2000));
-    attempts++;
-  }
-  throw new Error('스캔 타임아웃');
-};
-```
-
 ---
 
 ## 스캔 정책
