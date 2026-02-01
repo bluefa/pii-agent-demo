@@ -190,6 +190,8 @@ POST /api/projects/{projectId}/confirm-installation
 
 ## 서비스 설정
 
+> 서비스 단위로 AWS 연동에 필요한 설정을 관리합니다.
+
 ### 설정 조회
 
 ```
@@ -199,8 +201,23 @@ GET /api/services/{serviceCode}/settings/aws
 **응답**:
 ```typescript
 {
-  scanRoleRegistered: boolean,
-  tfPermissionGranted: boolean  // 프로젝트 레벨, immutable
+  // AWS 계정 정보
+  accountId?: string,
+
+  // Scan Role 설정
+  scanRole: {
+    registered: boolean,
+    roleArn?: string,
+    lastVerifiedAt?: string,
+    status?: 'VALID' | 'INVALID' | 'NOT_VERIFIED'
+  },
+
+  // 안내 정보 (미등록 시)
+  guide?: {
+    title: string,
+    steps: string[],
+    documentUrl?: string
+  }
 }
 ```
 
@@ -210,14 +227,82 @@ GET /api/services/{serviceCode}/settings/aws
 PUT /api/services/{serviceCode}/settings/aws
 ```
 
+**요청**:
+```typescript
+{
+  accountId: string,
+  scanRoleArn: string
+}
+```
+
+**응답 (성공)**:
+```typescript
+{
+  updated: true,
+  accountId: string,
+  scanRole: {
+    registered: true,
+    roleArn: string,
+    lastVerifiedAt: string,
+    status: 'VALID'
+  }
+}
+```
+
+**응답 (검증 실패)**:
+```typescript
+{
+  updated: false,
+  errorCode: 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED' | 'INVALID_ACCOUNT_ID',
+  errorMessage: string,
+  guide: {
+    title: string,
+    steps: string[],
+    documentUrl?: string
+  }
+}
+```
+
+### Scan Role 검증
+
+```
+POST /api/services/{serviceCode}/settings/aws/verify-scan-role
+```
+
+> 이미 등록된 Scan Role의 유효성을 재검증합니다.
+
+**응답 (성공)**:
+```typescript
+{
+  valid: true,
+  roleArn: string,
+  verifiedAt: string
+}
+```
+
+**응답 (실패)**:
+```typescript
+{
+  valid: false,
+  errorCode: 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED',
+  errorMessage: string,
+  guide: {
+    title: string,
+    steps: string[]
+  }
+}
+```
+
 ---
 
 ## TODO
 
 - [ ] TF Role 검증 시 필요한 최소 권한 목록 정의
 - [ ] TF Role 생성 가이드 문서 작성
+- [ ] Scan Role 필요 권한 목록 정의
 - [x] TF 설치 상태 단순화 (완료/미완료 boolean)
 - [x] confirm-installation API 상세 정의
+- [x] 서비스 설정 API 상세 정의
 
 > 예외 처리는 [common.md](../common.md)의 "예외 처리 규칙" 참조
 
@@ -227,6 +312,7 @@ PUT /api/services/{serviceCode}/settings/aws
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-01-31 | 서비스 설정 API 상세 정의 (조회/수정/검증) |
 | 2026-01-31 | installation-status 자동/수동 구분 제거, Service/BDC 구분 유지 |
 | 2026-01-31 | TfStatus → boolean 단순화 (완료/미완료만 표시) |
 | 2026-01-31 | confirm-installation API 상세 정의 (요청/응답/에러) |
