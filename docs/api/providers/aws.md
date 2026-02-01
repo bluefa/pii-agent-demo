@@ -105,10 +105,7 @@ GET /api/projects/{projectId}/installation-status
   completedAt?: string,
 
   // 마지막 확인 시간 (자동 탐지 또는 수동 refresh)
-  lastCheckedAt?: string,
-
-  // 수동 설치 UI용 (다운로드 버튼 표시)
-  tfScriptDownloaded?: boolean
+  lastCheckedAt?: string
 }
 ```
 
