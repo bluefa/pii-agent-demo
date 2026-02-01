@@ -11,7 +11,7 @@
 | # | 엔드포인트 | 메서드 | 설명 | 우선순위 |
 |---|-----------|--------|------|----------|
 | 1 | `/api/services/{serviceCode}/settings/azure` | GET | Scan App 등록 상태 | P1 |
-| 2 | `/api/azure/projects/{projectId}/installation-status` | GET | 리소스별 TF + PE 상태 | P1 |
+| 2 | `/api/azure/projects/{projectId}/installation-status` | GET | 리소스별 TF + Private Endpoint 상태 | P1 |
 | 3 | `/api/azure/projects/{projectId}/check-installation` | POST | 설치 상태 새로고침 | P1 |
 | 4 | `/api/azure/projects/{projectId}/vm-installation-status` | GET | VM별 Subnet + TF 상태 | P2 |
 | 5 | `/api/azure/projects/{projectId}/vm-check-installation` | POST | VM 설치 상태 새로고침 | P2 |
@@ -46,7 +46,7 @@ app/api/
 
 lib/
 ├── mock-azure.ts              # Azure 전용 헬퍼 함수
-├── constants/azure.ts         # Azure 상수 (PeStatus 등)
+├── constants/azure.ts         # Azure 상수 (PrivateEndpointStatus 등)
 ├── types/azure.ts             # Azure 전용 타입
 └── __tests__/
     └── mock-azure.test.ts     # 유닛 테스트
@@ -61,8 +61,8 @@ lib/
 #### 3.1.1 타입 정의 (`lib/types/azure.ts`)
 
 ```typescript
-// PE 상태
-export type PeStatus =
+// Private Endpoint 상태
+export type PrivateEndpointStatus =
   | 'NOT_REQUESTED'      // BDC측 확인 필요
   | 'PENDING_APPROVAL'   // 승인 대기
   | 'APPROVED'           // 승인 완료
@@ -84,7 +84,7 @@ export interface AzureResourceStatus {
   privateEndpoint?: {
     id: string;
     name: string;
-    status: PeStatus;
+    status: PrivateEndpointStatus;
     requestedAt?: string;
     approvedAt?: string;
     rejectedAt?: string;
@@ -123,7 +123,7 @@ export interface AzureServiceSettings {
 #### 3.1.2 상수 정의 (`lib/constants/azure.ts`)
 
 ```typescript
-export const PE_STATUS_LABELS = {
+export const PRIVATE_ENDPOINT_STATUS_LABELS = {
   NOT_REQUESTED: 'BDC측 확인 필요',
   PENDING_APPROVAL: 'Azure Portal에서 승인 필요',
   APPROVED: '승인 완료',
@@ -179,8 +179,8 @@ export const AZURE_ERROR_CODES = {
 ```
 
 **검증 케이스**:
-- [ ] 정상: 리소스 목록 + PE 상태 반환
-- [ ] 정상: PE 없는 리소스 (AZURE_VM 등)
+- [ ] 정상: 리소스 목록 + Private Endpoint 상태 반환
+- [ ] 정상: Private Endpoint 없는 리소스 (AZURE_VM 등)
 - [ ] 에러: Azure 프로젝트 아님 (400)
 - [ ] 에러: 프로젝트 없음 (404)
 
@@ -245,7 +245,7 @@ export const AZURE_ERROR_CODES = {
 
 | 테스트 그룹 | 테스트 케이스 | 예상 개수 |
 |------------|--------------|----------|
-| 설치 상태 조회 | Azure 프로젝트 여부, 리소스 상태, PE 상태 | 8개 |
+| 설치 상태 조회 | Azure 프로젝트 여부, 리소스 상태, Private Endpoint 상태 | 8개 |
 | 설치 상태 갱신 | 상태 변경, 시간 갱신, 에러 처리 | 5개 |
 | VM 설치 상태 | VM 포함/미포함, Subnet/TF 상태 조합 | 6개 |
 | 서비스 설정 | 등록/미등록, 상태값 검증 | 4개 |
@@ -283,7 +283,7 @@ curl http://localhost:3000/api/azure/projects/PRJ002/subnet-guide
 - [ ] TypeScript 타입 에러 없음
 
 **기능 검증**:
-- [ ] PE 상태 전이 로직 (NOT_REQUESTED → PENDING → APPROVED/REJECTED)
+- [ ] Private Endpoint 상태 전이 로직 (NOT_REQUESTED → PENDING → APPROVED/REJECTED)
 - [ ] TF 완료 상태 표시 (boolean)
 - [ ] VM 포함 케이스 분기 (Case 1 vs Case 2)
 - [ ] lastCheckedAt 갱신 정상
@@ -327,7 +327,7 @@ curl http://localhost:3000/api/azure/projects/PRJ002/subnet-guide
 
 | 위험 | 영향 | 대응 |
 |------|-----|------|
-| PE 상태 전이 로직 복잡 | 버그 발생 | 상태 머신 테스트 강화 |
+| Private Endpoint 상태 전이 로직 복잡 | 버그 발생 | 상태 머신 테스트 강화 |
 | VM 포함 여부 판단 오류 | 잘못된 UI 표시 | 리소스 타입 검사 명확화 |
 | Mock 데이터 불일치 | API 응답 오류 | BFF 명세 기준 검증 |
 
