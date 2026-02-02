@@ -72,6 +72,16 @@ export const AwsServiceIcon = ({ type, size = 'md' }: AwsServiceIconProps) => {
         <rect x="22" y="24" width="4" height="2" rx="0.5" fill="white" fillOpacity="0.8" />
       </svg>
     ),
+    EC2: (
+      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="4" fill="#ED7100" />
+        <rect x="10" y="10" width="20" height="20" rx="2" fill="#F9A826" />
+        <rect x="13" y="13" width="14" height="14" rx="1" fill="#1A476F" />
+        <rect x="15" y="15" width="10" height="10" rx="0.5" fill="#2E73B8" />
+        <rect x="17" y="17" width="6" height="6" fill="#5294CF" />
+        <circle cx="20" cy="20" r="2" fill="white" />
+      </svg>
+    ),
   };
 
   return icons[type] || <DefaultDbIcon size={size} />;

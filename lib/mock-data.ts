@@ -8,6 +8,8 @@ import {
   ConnectionErrorType,
   DatabaseType,
   needsCredential,
+  AwsInstallationStatus,
+  AwsServiceSettings,
 } from './types';
 import { getStore } from '@/lib/mock-store';
 
@@ -572,4 +574,110 @@ export const simulateConnectionTest = (
 export const getCredentialById = (id: string): DBCredential | undefined => {
   const store = getStore();
   return store.credentials.find((c) => c.id === id);
+};
+
+// ===== Mock AWS Installation Status =====
+// 기존 AWS 프로젝트들의 설치 상태 초기 데이터
+export const mockAwsInstallations: Map<string, AwsInstallationStatus> = new Map([
+  // proj-1: 설치 완료 상태 (INSTALLATION_COMPLETE)
+  [
+    'proj-1',
+    {
+      provider: 'AWS',
+      hasTfPermission: true,
+      serviceTfCompleted: true,
+      bdcTfCompleted: true,
+      completedAt: '2024-01-20T14:00:00Z',
+      lastCheckedAt: '2024-01-20T14:30:00Z',
+    },
+  ],
+  // proj-3: 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
+  [
+    'proj-3',
+    {
+      provider: 'AWS',
+      hasTfPermission: true,
+      serviceTfCompleted: true,
+      bdcTfCompleted: false,
+      lastCheckedAt: '2024-01-19T09:00:00Z',
+    },
+  ],
+  // proj-5: 연결 테스트 대기 (WAITING_CONNECTION_TEST) - 설치 완료
+  [
+    'proj-5',
+    {
+      provider: 'AWS',
+      hasTfPermission: true,
+      serviceTfCompleted: true,
+      bdcTfCompleted: true,
+      completedAt: '2024-01-21T14:00:00Z',
+      lastCheckedAt: '2024-01-21T15:00:00Z',
+    },
+  ],
+]);
+
+// ===== Mock AWS Service Settings =====
+// 서비스별 AWS 연동 설정 초기 데이터
+export const mockAwsServiceSettings: Map<string, AwsServiceSettings> = new Map([
+  // SERVICE-A: AWS 설정 완료
+  [
+    'SERVICE-A',
+    {
+      accountId: '123456789012',
+      scanRole: {
+        registered: true,
+        roleArn: 'arn:aws:iam::123456789012:role/PIIAgentScanRole',
+        lastVerifiedAt: '2024-01-15T10:00:00Z',
+        status: 'VALID',
+      },
+    },
+  ],
+  // SERVICE-B: AWS 설정 미완료 (IDC 프로젝트만 있음)
+  [
+    'SERVICE-B',
+    {
+      scanRole: {
+        registered: false,
+      },
+      guide: {
+        title: 'AWS 연동 설정 필요',
+        steps: [
+          '서비스에 사용할 AWS 계정 ID를 입력하세요.',
+          'Scan Role ARN을 입력하세요.',
+          'Scan Role은 BDC가 AWS 리소스를 스캔할 때 사용됩니다.',
+          '필요한 권한: ReadOnlyAccess 또는 커스텀 정책',
+        ],
+        documentUrl: 'https://docs.example.com/aws/scan-role-setup',
+      },
+    },
+  ],
+  // SERVICE-C: AWS 설정 완료되었으나 Role 검증 필요
+  [
+    'SERVICE-C',
+    {
+      accountId: '987654321098',
+      scanRole: {
+        registered: true,
+        roleArn: 'arn:aws:iam::987654321098:role/PIIAgentScanRole',
+        lastVerifiedAt: '2024-01-10T09:00:00Z',
+        status: 'NOT_VERIFIED',
+      },
+    },
+  ],
+]);
+
+// ===== AWS Installation Helper Functions =====
+
+export const initializeAwsStoreData = () => {
+  const store = getStore();
+
+  // 초기 AWS 설치 상태 로드
+  mockAwsInstallations.forEach((status, projectId) => {
+    store.awsInstallations.set(projectId, status);
+  });
+
+  // 초기 AWS 서비스 설정 로드
+  mockAwsServiceSettings.forEach((settings, serviceCode) => {
+    store.awsServiceSettings.set(serviceCode, settings);
+  });
 };

@@ -264,6 +264,127 @@ export interface ScanHistory {
   addedResourceIds: string[];
 }
 
+// ===== AWS API Types =====
+
+// TF Role 검증
+export interface VerifyTfRoleRequest {
+  accountId: string;
+  roleArn?: string;
+}
+
+export interface TfRolePermissions {
+  canCreateResources: boolean;
+  canManageIam: boolean;
+  canAccessS3: boolean;
+}
+
+export interface VerifyTfRoleSuccessResponse {
+  valid: true;
+  roleArn: string;
+  permissions: TfRolePermissions;
+}
+
+export type TfRoleErrorCode = 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED';
+
+export interface ApiGuide {
+  title: string;
+  steps: string[];
+  documentUrl?: string;
+}
+
+export interface VerifyTfRoleFailureResponse {
+  valid: false;
+  errorCode: TfRoleErrorCode;
+  errorMessage: string;
+  guide: ApiGuide;
+}
+
+export type VerifyTfRoleResponse = VerifyTfRoleSuccessResponse | VerifyTfRoleFailureResponse;
+
+// 설치 상태
+export interface AwsInstallationStatus {
+  provider: 'AWS';
+  hasTfPermission: boolean;
+  serviceTfCompleted: boolean;
+  bdcTfCompleted: boolean;
+  completedAt?: string;
+  lastCheckedAt?: string;
+}
+
+export type CheckInstallationErrorCode = 'VALIDATION_FAILED' | 'ACCESS_DENIED';
+
+export interface CheckInstallationError {
+  code: CheckInstallationErrorCode;
+  message: string;
+  guide?: ApiGuide;
+}
+
+export interface CheckInstallationResponse extends AwsInstallationStatus {
+  lastCheckedAt: string;
+  error?: CheckInstallationError;
+}
+
+// TF Script
+export interface TerraformScriptResponse {
+  downloadUrl: string;
+  fileName: string;
+  expiresAt: string;
+}
+
+// 서비스 AWS 설정
+export type ScanRoleStatus = 'VALID' | 'INVALID' | 'NOT_VERIFIED';
+
+export interface ScanRoleInfo {
+  registered: boolean;
+  roleArn?: string;
+  lastVerifiedAt?: string;
+  status?: ScanRoleStatus;
+}
+
+export interface AwsServiceSettings {
+  accountId?: string;
+  scanRole: ScanRoleInfo;
+  guide?: ApiGuide;
+}
+
+export interface UpdateAwsSettingsRequest {
+  accountId: string;
+  scanRoleArn: string;
+}
+
+export interface UpdateAwsSettingsSuccessResponse {
+  updated: true;
+  accountId: string;
+  scanRole: ScanRoleInfo;
+}
+
+export type AwsSettingsErrorCode = 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED' | 'INVALID_ACCOUNT_ID';
+
+export interface UpdateAwsSettingsFailureResponse {
+  updated: false;
+  errorCode: AwsSettingsErrorCode;
+  errorMessage: string;
+  guide: ApiGuide;
+}
+
+export type UpdateAwsSettingsResponse = UpdateAwsSettingsSuccessResponse | UpdateAwsSettingsFailureResponse;
+
+// Scan Role 검증
+export interface VerifyScanRoleSuccessResponse {
+  valid: true;
+  roleArn: string;
+  verifiedAt: string;
+}
+
+export interface VerifyScanRoleFailureResponse {
+  valid: false;
+  errorCode: TfRoleErrorCode;
+  errorMessage: string;
+  guide: ApiGuide;
+}
+
+export type VerifyScanRoleResponse = VerifyScanRoleSuccessResponse | VerifyScanRoleFailureResponse;
+
 // ===== Project History Types =====
 
 export type ProjectHistoryType =
