@@ -13,6 +13,7 @@ import {
   RejectModal,
   ConnectionTestPanel,
 } from './process-status';
+import { AzureInstallationInline } from './process-status/azure';
 
 interface ProcessStatusCardProps {
   project: Project;
@@ -131,18 +132,22 @@ export const ProcessStatusCard = ({
           )}
 
           {currentStep === ProcessStatus.INSTALLING && (
-            <button
-              onClick={() => terraformModal.open()}
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                <span className="font-medium text-orange-600">설치 상태 확인</span>
-              </div>
-              <span className="px-2 py-0.5 bg-orange-100 text-orange-500 text-sm font-medium rounded-full">
-                {progress.completed}/{progress.total}
-              </span>
-            </button>
+            project.cloudProvider === 'Azure' ? (
+              <AzureInstallationInline projectId={project.id} resources={project.resources} />
+            ) : (
+              <button
+                onClick={() => terraformModal.open()}
+                className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="font-medium text-orange-600">설치 상태 확인</span>
+                </div>
+                <span className="px-2 py-0.5 bg-orange-100 text-orange-500 text-sm font-medium rounded-full">
+                  {progress.completed}/{progress.total}
+                </span>
+              </button>
+            )
           )}
 
           {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||
@@ -160,8 +165,8 @@ export const ProcessStatusCard = ({
         </div>
       </div>
 
-      {/* Terraform Status Modal */}
-      {terraformModal.isOpen && (
+      {/* Terraform Status Modal (AWS/GCP only) */}
+      {terraformModal.isOpen && project.cloudProvider !== 'Azure' && (
         <TerraformStatusModal
           terraformState={project.terraformState}
           cloudProvider={project.cloudProvider}

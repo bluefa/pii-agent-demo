@@ -28,8 +28,9 @@ const getStepGuideText = (status: ProcessStatus): string => {
 export const StepGuide = ({ currentStep }: StepGuideProps) => {
   const guideText = getStepGuideText(currentStep);
 
-  // 4단계는 ConnectionTestPanel에 표시되므로 제외
-  if (currentStep === ProcessStatus.WAITING_CONNECTION_TEST) {
+  // 3단계(INSTALLING), 4단계(WAITING_CONNECTION_TEST)는 별도 패널에서 표시
+  if (currentStep === ProcessStatus.INSTALLING ||
+      currentStep === ProcessStatus.WAITING_CONNECTION_TEST) {
     return null;
   }
 
@@ -38,16 +39,12 @@ export const StepGuide = ({ currentStep }: StepGuideProps) => {
       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
         currentStep === ProcessStatus.INSTALLATION_COMPLETE
           ? 'bg-green-100'
-          : currentStep === ProcessStatus.INSTALLING
-          ? 'bg-orange-100'
           : 'bg-blue-100'
       }`}>
         {currentStep === ProcessStatus.INSTALLATION_COMPLETE ? (
           <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-        ) : currentStep === ProcessStatus.INSTALLING ? (
-          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
         ) : (
           <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -62,11 +59,6 @@ export const StepGuide = ({ currentStep }: StepGuideProps) => {
         }`}>
           {guideText}
         </p>
-        {currentStep === ProcessStatus.INSTALLING && (
-          <p className="text-sm text-gray-500 mt-1">
-            설치가 완료되면 자동으로 다음 단계로 진행됩니다.
-          </p>
-        )}
       </div>
     </div>
   );
