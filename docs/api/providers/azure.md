@@ -39,20 +39,22 @@ GET /api/azure/projects/{projectId}/installation-status
 {
   provider: 'azure',
 
-  // 리소스별 TF + PE 상태 (DB + VM 모든 확정 리소스 포함)
+  // 전체 설치 완료 여부 (모든 리소스가 APPROVED일 때 true)
+  installed: boolean,
+
+  // 리소스별 Private Endpoint 상태 (DB 확정 리소스)
   resources: Array<{
     resourceId: string,
     resourceName: string,
     resourceType: string,
 
-    // TF 설치 완료 여부
-    tfCompleted: boolean,
-
     // Private Endpoint 상태
-    privateEndpoint?: {
+    // - NOT_REQUESTED: TF 미완료 (BDC측 확인 필요)
+    // - PENDING_APPROVAL 이상: TF 완료
+    privateEndpoint: {
       id: string,
       name: string,
-      status: PeStatus,
+      status: PrivateEndpointStatus,
       requestedAt?: string,
       approvedAt?: string,
       rejectedAt?: string
@@ -64,29 +66,31 @@ GET /api/azure/projects/{projectId}/installation-status
 }
 ```
 
-**PeStatus 정의**:
+**PrivateEndpointStatus 정의**:
 ```typescript
-type PeStatus =
-  | 'NOT_REQUESTED'      // BDC측 확인 필요 (PE 생성 요청 전)
-  | 'PENDING_APPROVAL'   // 승인 대기 (서비스 담당자가 Azure Portal에서 승인 필요)
-  | 'APPROVED'           // 승인 완료
-  | 'REJECTED'           // 거부됨 (BDC측 재신청 필요)
+type PrivateEndpointStatus =
+  | 'NOT_REQUESTED'      // TF 미완료, BDC측 확인 필요
+  | 'PENDING_APPROVAL'   // TF 완료, 승인 대기 (서비스 담당자가 Azure Portal에서 승인 필요)
+  | 'APPROVED'           // TF 완료, 승인 완료
+  | 'REJECTED'           // TF 완료, 거부됨 (BDC측 재신청 필요)
 ```
 
 **Frontend 해석 예시**:
 ```typescript
-// 전체 TF 설치 완료 여부
-const allTfCompleted = resources.every(r => r.tfCompleted);
+// 전체 설치 완료 여부 (Backend에서 계산된 값 사용)
+if (installed) {
+  // 프로세스 다음 단계로 진행 가능
+}
 
-// 전체 PE 승인 완료 여부
-const allPeApproved = resources.every(r =>
-  r.privateEndpoint?.status === 'APPROVED'
+// 전체 TF 설치 완료 여부 (NOT_REQUESTED가 아니면 TF 완료)
+const allTfCompleted = resources.every(r =>
+  r.privateEndpoint.status !== 'NOT_REQUESTED'
 );
 
-// PE 상태별 UI 표시
-function getPeStatusMessage(status: PeStatus) {
+// Private Endpoint 상태별 UI 표시
+function getStatusMessage(status: PrivateEndpointStatus) {
   switch (status) {
-    case 'NOT_REQUESTED': return 'BDC측 확인 필요';
+    case 'NOT_REQUESTED': return 'TF 설치 대기 (BDC측 확인 필요)';
     case 'PENDING_APPROVAL': return 'Azure Portal에서 승인 필요';
     case 'APPROVED': return '승인 완료';
     case 'REJECTED': return 'BDC측 재신청 필요';
@@ -108,16 +112,18 @@ POST /api/azure/projects/{projectId}/check-installation
 {
   provider: 'azure',
 
-  // 리소스별 TF + PE 상태 (DB + VM 모든 확정 리소스 포함)
+  // 전체 설치 완료 여부 (모든 리소스가 APPROVED일 때 true)
+  installed: boolean,
+
+  // 리소스별 Private Endpoint 상태 (DB 확정 리소스)
   resources: Array<{
     resourceId: string,
     resourceName: string,
     resourceType: string,
-    tfCompleted: boolean,
-    privateEndpoint?: {
+    privateEndpoint: {
       id: string,
       name: string,
-      status: PeStatus,
+      status: PrivateEndpointStatus,
       requestedAt?: string,
       approvedAt?: string,
       rejectedAt?: string
@@ -282,21 +288,22 @@ GET /api/services/{serviceCode}/settings/azure
 
 | 엔드포인트 | 상태 | 비고 |
 |-----------|------|------|
-| GET /api/azure/projects/{projectId}/installation-status | ❌ 미구현 | 리소스별 TF + PE 상태 |
-| POST /api/azure/projects/{projectId}/check-installation | ❌ 미구현 | Azure API 연동 필요 |
-| GET /api/azure/projects/{projectId}/vm-installation-status | ❌ 미구현 | VM별 Subnet + TF 상태 |
-| POST /api/azure/projects/{projectId}/vm-check-installation | ❌ 미구현 | Azure API 연동 필요 |
-| GET /api/azure/projects/{projectId}/vm-terraform-script | ❌ 미구현 | TF Script 생성 |
-| GET /api/azure/projects/{projectId}/subnet-guide | ❌ 미구현 | 가이드 문서 연결 |
-| GET /api/services/{serviceCode}/settings/azure | ❌ 미구현 | Scan App 상태 |
+| GET /api/azure/projects/{projectId}/installation-status | ✅ 구현 완료 | 리소스별 TF + Private Endpoint 상태 |
+| POST /api/azure/projects/{projectId}/check-installation | ✅ 구현 완료 | 상태 새로고침 (캐시 갱신) |
+| GET /api/azure/projects/{projectId}/vm-installation-status | ✅ 구현 완료 | VM별 Subnet + TF 상태 |
+| POST /api/azure/projects/{projectId}/vm-check-installation | ✅ 구현 완료 | VM 상태 새로고침 |
+| GET /api/azure/projects/{projectId}/vm-terraform-script | ✅ 구현 완료 | TF Script 다운로드 정보 |
+| GET /api/azure/projects/{projectId}/subnet-guide | ✅ 구현 완료 | 가이드 문서 URL |
+| GET /api/services/{serviceCode}/settings/azure | ✅ 구현 완료 | Scan App 상태 |
 
-### 구현 우선순위
+### 관련 파일
 
-1. **서비스 설정** - Scan App 등록 상태 조회
-2. **설치 상태 (DB)** - TF + PE 상태 조회/새로고침
-3. **설치 상태 (VM)** - Subnet + TF 상태 조회/새로고침
-4. **VM TF Script** - Script 생성 및 다운로드
-5. **Subnet 가이드** - 가이드 문서 URL 제공
+| 파일 | 설명 |
+|------|------|
+| `lib/types/azure.ts` | Azure 전용 타입 정의 |
+| `lib/constants/azure.ts` | Private Endpoint 상태, 에러 코드 상수 |
+| `lib/mock-azure.ts` | Azure Mock 헬퍼 함수 |
+| `lib/__tests__/mock-azure.test.ts` | 유닛 테스트 (25개 케이스) |
 
 ---
 
@@ -319,6 +326,8 @@ GET /api/services/{serviceCode}/settings/azure
 | 날짜 | 내용 |
 |------|------|
 | 2026-02-01 | API 경로에 /azure/ prefix 추가 (AWS와 통일) |
+| 2026-02-02 | installed 필드 추가 (모든 리소스 APPROVED일 때 true) |
+| 2026-02-02 | tfCompleted 제거 (privateEndpoint.status로 TF 완료 여부 판단) |
 | 2026-02-01 | tfStatus → tfCompleted boolean 단순화 |
 | 2026-02-01 | check-installation, vm-check-installation API 추가 (자동 탐지) |
 | 2026-02-01 | 서비스 설정 API 상세 정의 (AWS와 패턴 통일) |
