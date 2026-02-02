@@ -1,5 +1,5 @@
-import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory } from '@/lib/types';
-import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials } from '@/lib/mock-data';
+import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory, AwsInstallationStatus, AwsServiceSettings } from '@/lib/types';
+import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings } from '@/lib/mock-data';
 
 type Store = {
     users: User[];
@@ -12,6 +12,10 @@ type Store = {
     scanHistory: ScanHistory[];
     // Project History (승인/반려/리소스 변경 이력)
     projectHistory: ProjectHistory[];
+    // AWS 설치 상태 (projectId → status)
+    awsInstallations: Map<string, AwsInstallationStatus>;
+    // AWS 서비스 설정 (serviceCode → settings)
+    awsServiceSettings: Map<string, AwsServiceSettings>;
 };
 
 declare global {
@@ -32,6 +36,10 @@ export const getStore = (): Store => {
             scanHistory: [],
             // Project History
             projectHistory: [],
+            // AWS 설치 상태 (초기 데이터 로드)
+            awsInstallations: new Map(mockAwsInstallations),
+            // AWS 서비스 설정 (초기 데이터 로드)
+            awsServiceSettings: new Map(mockAwsServiceSettings),
         };
     }
     return globalThis.__piiAgentMockStore;
