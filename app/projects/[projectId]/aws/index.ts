@@ -1,0 +1,1 @@
+export { AwsProjectPage } from './AwsProjectPage';
