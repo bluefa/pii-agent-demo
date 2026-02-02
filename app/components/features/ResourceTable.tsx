@@ -7,6 +7,7 @@ import {
   ProcessStatus,
   DatabaseType,
   DBCredential,
+  VmDatabaseConfig,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
 import {
@@ -26,6 +27,10 @@ interface ResourceTableProps {
   onSelectionChange?: (selectedIds: string[]) => void;
   credentials?: DBCredential[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
+  // VM 설정 관련
+  expandedVmId?: string | null;
+  onVmConfigToggle?: (resourceId: string | null) => void;
+  onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
 }
 
 export const ResourceTable = ({
@@ -37,6 +42,9 @@ export const ResourceTable = ({
   onSelectionChange,
   credentials = [],
   onCredentialChange,
+  expandedVmId,
+  onVmConfigToggle,
+  onVmConfigSave,
 }: ResourceTableProps) => {
   const [filter, setFilter] = useState<FilterType>('selected');
 
@@ -202,6 +210,9 @@ export const ResourceTable = ({
                     credentials={credentials}
                     getCredentialsForType={getCredentialsForType}
                     onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
                   />
                 ))
               ) : (
@@ -218,6 +229,9 @@ export const ResourceTable = ({
                     onCheckboxChange={handleCheckboxChange}
                     getCredentialsForType={getCredentialsForType}
                     onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
                   />
                 ))
               )}

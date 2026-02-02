@@ -19,7 +19,17 @@ export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
-export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY';
+export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'MONGODB' | 'ORACLE';
+
+// VM 전용 데이터베이스 타입
+export type VmDatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'MONGODB' | 'ORACLE';
+
+// VM 데이터베이스 설정
+export interface VmDatabaseConfig {
+  databaseType: VmDatabaseType;
+  port: number;
+  oracleServiceId?: string;  // Oracle인 경우만
+}
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
@@ -88,6 +98,9 @@ export interface Resource {
 
   // --- 연동 제외 정보 ---
   exclusion?: ResourceExclusion;          // 제외된 리소스만
+
+  // --- VM 전용 설정 ---
+  vmDatabaseConfig?: VmDatabaseConfig;    // VM 리소스(EC2, AZURE_VM)만
 }
 
 export interface TerraformState {

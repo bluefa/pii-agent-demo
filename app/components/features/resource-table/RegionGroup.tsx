@@ -1,6 +1,6 @@
 'use client';
 
-import { Resource, DatabaseType, DBCredential } from '@/lib/types';
+import { Resource, DatabaseType, DBCredential, VmDatabaseConfig } from '@/lib/types';
 import { REGION_LABELS } from '@/lib/constants/labels';
 import { ResourceRow } from './ResourceRow';
 
@@ -16,6 +16,10 @@ interface RegionGroupProps {
   credentials: DBCredential[];
   getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
+  // VM 설정 관련
+  expandedVmId?: string | null;
+  onVmConfigToggle?: (resourceId: string | null) => void;
+  onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
 }
 
 const RegionIcon = () => (
@@ -35,6 +39,9 @@ export const RegionGroup = ({
   colSpan,
   getCredentialsForType,
   onCredentialChange,
+  expandedVmId,
+  onVmConfigToggle,
+  onVmConfigSave,
 }: RegionGroupProps) => (
   <>
     {/* Region Header */}
@@ -63,6 +70,9 @@ export const RegionGroup = ({
         onCheckboxChange={onCheckboxChange}
         getCredentialsForType={getCredentialsForType}
         onCredentialChange={onCredentialChange}
+        expandedVmId={expandedVmId}
+        onVmConfigToggle={onVmConfigToggle}
+        onVmConfigSave={onVmConfigSave}
       />
     ))}
   </>

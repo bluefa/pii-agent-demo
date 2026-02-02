@@ -1,18 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
+import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import {
   confirmTargets,
   updateResourceCredential,
   runConnectionTest,
   ResourceCredentialInput,
+  VmConfigInput,
 } from '@/app/lib/api';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectHeader, RejectionAlert } from '../common';
+import { isVmResource } from '@/app/components/features/resource-table';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -33,6 +35,18 @@ export const AwsProjectPage = ({
   );
   const [submitting, setSubmitting] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+
+  // VM 설정 상태
+  const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
+  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
+    const initial: Record<string, VmDatabaseConfig> = {};
+    project.resources.forEach((r) => {
+      if (r.vmDatabaseConfig) {
+        initial[r.id] = r.vmDatabaseConfig;
+      }
+    });
+    return initial;
+  });
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -72,14 +86,39 @@ export const AwsProjectPage = ({
   const isStep1 = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
 
+  const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
+    setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
+  };
+
   const handleConfirmTargets = async () => {
     if (selectedIds.length === 0) return;
 
+    // VM 리소스 중 설정되지 않은 것 체크
+    const selectedVmResources = project.resources.filter(
+      (r) => selectedIds.includes(r.id) && isVmResource(r)
+    );
+    const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
+
+    if (unconfiguredVms.length > 0) {
+      alert(`다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n${unconfiguredVms.map((r) => r.resourceId).join('\n')}`);
+      return;
+    }
+
+    // vmConfigs를 API 형식으로 변환
+    const vmConfigInputs: VmConfigInput[] = Object.entries(vmConfigs)
+      .filter(([resourceId]) => selectedIds.includes(resourceId))
+      .map(([resourceId, config]) => ({ resourceId, config }));
+
     try {
       setSubmitting(true);
-      const updatedProject = await confirmTargets(project.id, selectedIds);
+      const updatedProject = await confirmTargets(
+        project.id,
+        selectedIds,
+        vmConfigInputs.length > 0 ? vmConfigInputs : undefined
+      );
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
+      setExpandedVmId(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
     } finally {
@@ -116,7 +155,10 @@ export const AwsProjectPage = ({
         </div>
 
         <ResourceTable
-          resources={project.resources}
+          resources={project.resources.map((r) => ({
+            ...r,
+            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+          }))}
           cloudProvider={project.cloudProvider}
           processStatus={project.processStatus}
           isEditMode={effectiveEditMode}
@@ -124,6 +166,9 @@ export const AwsProjectPage = ({
           onSelectionChange={setSelectedIds}
           credentials={credentials}
           onCredentialChange={handleCredentialChange}
+          expandedVmId={expandedVmId}
+          onVmConfigToggle={setExpandedVmId}
+          onVmConfigSave={handleVmConfigSave}
         />
 
         <RejectionAlert project={project} />
