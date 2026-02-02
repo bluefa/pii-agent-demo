@@ -39,20 +39,19 @@ GET /api/azure/projects/{projectId}/installation-status
 {
   provider: 'azure',
 
-  // 리소스별 TF + PE 상태 (DB + VM 모든 확정 리소스 포함)
+  // 리소스별 Private Endpoint 상태 (DB 확정 리소스)
   resources: Array<{
     resourceId: string,
     resourceName: string,
     resourceType: string,
 
-    // TF 설치 완료 여부
-    tfCompleted: boolean,
-
     // Private Endpoint 상태
-    privateEndpoint?: {
+    // - NOT_REQUESTED: TF 미완료 (BDC측 확인 필요)
+    // - PENDING_APPROVAL 이상: TF 완료
+    privateEndpoint: {
       id: string,
       name: string,
-      status: PeStatus,
+      status: PrivateEndpointStatus,
       requestedAt?: string,
       approvedAt?: string,
       rejectedAt?: string
@@ -64,29 +63,31 @@ GET /api/azure/projects/{projectId}/installation-status
 }
 ```
 
-**PeStatus 정의**:
+**PrivateEndpointStatus 정의**:
 ```typescript
-type PeStatus =
-  | 'NOT_REQUESTED'      // BDC측 확인 필요 (PE 생성 요청 전)
-  | 'PENDING_APPROVAL'   // 승인 대기 (서비스 담당자가 Azure Portal에서 승인 필요)
-  | 'APPROVED'           // 승인 완료
-  | 'REJECTED'           // 거부됨 (BDC측 재신청 필요)
+type PrivateEndpointStatus =
+  | 'NOT_REQUESTED'      // TF 미완료, BDC측 확인 필요
+  | 'PENDING_APPROVAL'   // TF 완료, 승인 대기 (서비스 담당자가 Azure Portal에서 승인 필요)
+  | 'APPROVED'           // TF 완료, 승인 완료
+  | 'REJECTED'           // TF 완료, 거부됨 (BDC측 재신청 필요)
 ```
 
 **Frontend 해석 예시**:
 ```typescript
-// 전체 TF 설치 완료 여부
-const allTfCompleted = resources.every(r => r.tfCompleted);
-
-// 전체 PE 승인 완료 여부
-const allPeApproved = resources.every(r =>
-  r.privateEndpoint?.status === 'APPROVED'
+// 전체 TF 설치 완료 여부 (NOT_REQUESTED가 아니면 TF 완료)
+const allTfCompleted = resources.every(r =>
+  r.privateEndpoint.status !== 'NOT_REQUESTED'
 );
 
-// PE 상태별 UI 표시
-function getPeStatusMessage(status: PeStatus) {
+// 전체 Private Endpoint 승인 완료 여부
+const allApproved = resources.every(r =>
+  r.privateEndpoint.status === 'APPROVED'
+);
+
+// Private Endpoint 상태별 UI 표시
+function getStatusMessage(status: PrivateEndpointStatus) {
   switch (status) {
-    case 'NOT_REQUESTED': return 'BDC측 확인 필요';
+    case 'NOT_REQUESTED': return 'TF 설치 대기 (BDC측 확인 필요)';
     case 'PENDING_APPROVAL': return 'Azure Portal에서 승인 필요';
     case 'APPROVED': return '승인 완료';
     case 'REJECTED': return 'BDC측 재신청 필요';
@@ -108,16 +109,15 @@ POST /api/azure/projects/{projectId}/check-installation
 {
   provider: 'azure',
 
-  // 리소스별 TF + PE 상태 (DB + VM 모든 확정 리소스 포함)
+  // 리소스별 Private Endpoint 상태 (DB 확정 리소스)
   resources: Array<{
     resourceId: string,
     resourceName: string,
     resourceType: string,
-    tfCompleted: boolean,
-    privateEndpoint?: {
+    privateEndpoint: {
       id: string,
       name: string,
-      status: PeStatus,
+      status: PrivateEndpointStatus,
       requestedAt?: string,
       approvedAt?: string,
       rejectedAt?: string
@@ -319,6 +319,7 @@ GET /api/services/{serviceCode}/settings/azure
 | 날짜 | 내용 |
 |------|------|
 | 2026-02-01 | API 경로에 /azure/ prefix 추가 (AWS와 통일) |
+| 2026-02-02 | tfCompleted 제거 (privateEndpoint.status로 TF 완료 여부 판단) |
 | 2026-02-01 | tfStatus → tfCompleted boolean 단순화 |
 | 2026-02-01 | check-installation, vm-check-installation API 추가 (자동 탐지) |
 | 2026-02-01 | 서비스 설정 API 상세 정의 (AWS와 패턴 통일) |

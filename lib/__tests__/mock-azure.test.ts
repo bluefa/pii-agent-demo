@@ -142,7 +142,7 @@ describe('mock-azure', () => {
       expect(result.data?.lastCheckedAt).toBeDefined();
     });
 
-    it('DB 리소스는 Private Endpoint 정보 포함', () => {
+    it('DB 리소스는 Private Endpoint 정보 포함 (TF 완료 여부는 status로 판단)', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
@@ -152,10 +152,12 @@ describe('mock-azure', () => {
       resources.forEach((resource) => {
         expect(resource.resourceId).toBeDefined();
         expect(resource.resourceType).toBeDefined();
-        expect(typeof resource.tfCompleted).toBe('boolean');
-        // AZURE_MSSQL, AZURE_POSTGRESQL은 Private Endpoint 필요
+        // privateEndpoint는 필수
         expect(resource.privateEndpoint).toBeDefined();
-        expect(resource.privateEndpoint?.status).toBeDefined();
+        expect(resource.privateEndpoint.status).toBeDefined();
+        // TF 완료 여부는 status로 판단: NOT_REQUESTED가 아니면 TF 완료
+        const validStatuses = ['NOT_REQUESTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'];
+        expect(validStatuses).toContain(resource.privateEndpoint.status);
       });
     });
 

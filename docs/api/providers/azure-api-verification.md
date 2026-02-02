@@ -77,7 +77,6 @@ GET /api/azure/projects/azure-proj-1/installation-status
       "resourceId": "mssql-prod-001",
       "resourceName": "mssql-prod-001",
       "resourceType": "AZURE_MSSQL",
-      "tfCompleted": true,
       "privateEndpoint": {
         "id": "pe-mssql-prod-001",
         "name": "pe-mssql-prod-001",
@@ -88,7 +87,6 @@ GET /api/azure/projects/azure-proj-1/installation-status
       "resourceId": "pg-analytics-001",
       "resourceName": "pg-analytics-001",
       "resourceType": "AZURE_POSTGRESQL",
-      "tfCompleted": true,
       "privateEndpoint": {
         "id": "pe-pg-analytics-001",
         "name": "pe-pg-analytics-001",
@@ -101,7 +99,6 @@ GET /api/azure/projects/azure-proj-1/installation-status
       "resourceId": "mysql-app-001",
       "resourceName": "mysql-app-001",
       "resourceType": "AZURE_MYSQL",
-      "tfCompleted": true,
       "privateEndpoint": {
         "id": "pe-mysql-app-001",
         "name": "pe-mysql-app-001",
@@ -113,6 +110,11 @@ GET /api/azure/projects/azure-proj-1/installation-status
   ],
   "lastCheckedAt": "2026-02-02T00:05:39.378Z"
 }
+```
+
+> **TF 완료 여부 판단**: `privateEndpoint.status`로 판단
+> - `NOT_REQUESTED`: TF 미완료
+> - `PENDING_APPROVAL`, `APPROVED`, `REJECTED`: TF 완료
 ```
 
 ---
@@ -133,7 +135,6 @@ POST /api/azure/projects/azure-proj-1/check-installation
       "resourceId": "mssql-prod-001",
       "resourceName": "mssql-prod-001",
       "resourceType": "AZURE_MSSQL",
-      "tfCompleted": true,
       "privateEndpoint": {
         "id": "pe-mssql-prod-001",
         "name": "pe-mssql-prod-001",
@@ -144,7 +145,6 @@ POST /api/azure/projects/azure-proj-1/check-installation
       "resourceId": "pg-analytics-001",
       "resourceName": "pg-analytics-001",
       "resourceType": "AZURE_POSTGRESQL",
-      "tfCompleted": true,
       "privateEndpoint": {
         "id": "pe-pg-analytics-001",
         "name": "pe-pg-analytics-001",
@@ -157,7 +157,6 @@ POST /api/azure/projects/azure-proj-1/check-installation
       "resourceId": "mysql-app-001",
       "resourceName": "mysql-app-001",
       "resourceType": "AZURE_MYSQL",
-      "tfCompleted": true,
       "privateEndpoint": {
         "id": "pe-mysql-app-001",
         "name": "pe-mysql-app-001",
@@ -374,7 +373,7 @@ GET /api/azure/projects/non-existent/installation-status
 ### 기능 검증
 
 - [x] Private Endpoint 상태 표시 (NOT_REQUESTED, PENDING_APPROVAL, APPROVED, REJECTED)
-- [x] TF 완료 상태 표시 (boolean)
+- [x] TF 완료 여부는 `privateEndpoint.status`로 판단 (NOT_REQUESTED = 미완료)
 - [x] VM 포함 케이스 분기 (DB only vs DB + VM)
 - [x] lastCheckedAt 갱신 정상
 

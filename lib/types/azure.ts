@@ -21,8 +21,10 @@ export interface AzureResourceStatus {
   resourceId: string;
   resourceName: string;
   resourceType: string;
-  tfCompleted: boolean;
-  privateEndpoint?: AzurePrivateEndpoint;
+  // TF 완료 여부는 privateEndpoint.status로 판단
+  // - NOT_REQUESTED: TF 미완료
+  // - PENDING_APPROVAL 이상: TF 완료
+  privateEndpoint: AzurePrivateEndpoint;
 }
 
 export interface AzureInstallationStatus {
