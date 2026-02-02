@@ -43,6 +43,18 @@ Next.js App Router의 API Route Handlers 문서.
 | GET | `/api/v2/projects/[projectId]/scan/[scanId]` | 특정 스캔 결과 조회 |
 | GET | `/api/v2/projects/[projectId]/scan/history` | 스캔 이력 조회 |
 
+### AWS
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| POST | `/api/aws/verify-tf-role` | TF Role 검증 |
+| GET | `/api/aws/projects/[projectId]/installation-status` | 설치 상태 조회 |
+| POST | `/api/aws/projects/[projectId]/check-installation` | 설치 상태 확인 (Refresh) |
+| GET | `/api/aws/projects/[projectId]/terraform-script` | TF Script 다운로드 URL |
+| GET | `/api/services/[serviceCode]/settings/aws` | 서비스 AWS 설정 조회 |
+| PUT | `/api/services/[serviceCode]/settings/aws` | 서비스 AWS 설정 수정 |
+| POST | `/api/services/[serviceCode]/settings/aws/verify-scan-role` | Scan Role 재검증 |
+
 ### 서비스/권한
 
 | Method | Endpoint | 설명 |
