@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
 import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion } from '@/lib/types';
-import { addResourceExcludeHistory, addResourceAddHistory } from '@/lib/mock-history';
+import { addTargetConfirmedHistory, addAutoApprovedHistory } from '@/lib/mock-history';
 
 interface ConfirmTargetsRequest {
   resourceIds: string[];
@@ -103,27 +103,34 @@ export async function POST(
     processStatus: ProcessStatus.WAITING_APPROVAL,
   });
 
-  // History 기록: 리소스 변경 사항
+  // History 기록: 연동 대상 확정
   const actor = { id: user.id, name: user.name };
+  const selectedCount = resourceIds.length;
+  const excludedCount = exclusions.length;
 
-  // 제외된 리소스 기록 (이전에 제외되지 않았던 리소스만)
-  for (const r of project.resources) {
-    const isNowSelected = selectedSet.has(r.id);
-    const wasExcluded = !!r.exclusion;
+  // 연동 확정 히스토리 추가
+  addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
 
-    if (!isNowSelected && !wasExcluded && exclusionMap.has(r.id)) {
-      // 새로 제외됨
-      addResourceExcludeHistory(
-        projectId,
-        actor,
-        r.id,
-        r.resourceId,
-        exclusionMap.get(r.id)!
-      );
-    } else if (isNowSelected && wasExcluded) {
-      // 제외 → 재선택
-      addResourceAddHistory(projectId, actor, r.id, r.resourceId);
-    }
+  // 자동 승인 조건 체크:
+  // 기존에 제외된 리소스가 있고, 해당 리소스를 제외한 모든 리소스가 연동 대상인 경우
+  const previouslyExcludedIds = new Set(
+    project.resources.filter(r => r.exclusion).map(r => r.id)
+  );
+
+  const shouldAutoApprove = previouslyExcludedIds.size > 0 &&
+    project.resources.every(r => {
+      // 기존 제외 리소스는 계속 제외되어야 함
+      if (previouslyExcludedIds.has(r.id)) {
+        return !selectedSet.has(r.id);
+      }
+      // 나머지는 모두 선택되어야 함
+      return selectedSet.has(r.id);
+    });
+
+  if (shouldAutoApprove) {
+    addAutoApprovedHistory(projectId);
+    // 자동 승인 시 상태를 INSTALLING으로 변경
+    updateProject(projectId, { processStatus: ProcessStatus.INSTALLING });
   }
 
   return NextResponse.json({ success: true, project: updatedProject });
