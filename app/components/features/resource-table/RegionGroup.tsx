@@ -55,6 +55,7 @@ export const RegionGroup = ({
         key={resource.id}
         resource={resource}
         isAWS={true}
+        cloudProvider="AWS"
         selectedIds={selectedIds}
         isCheckboxEnabled={isCheckboxEnabled}
         showConnectionStatus={showConnectionStatus}

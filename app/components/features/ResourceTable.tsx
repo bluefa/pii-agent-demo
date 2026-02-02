@@ -210,6 +210,7 @@ export const ResourceTable = ({
                     key={resource.id}
                     resource={resource}
                     isAWS={false}
+                    cloudProvider={cloudProvider}
                     selectedIds={selectedIdsSet}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
