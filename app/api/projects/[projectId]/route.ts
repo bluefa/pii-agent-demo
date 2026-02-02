@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, deleteProject } from '@/lib/mock-data';
-import { ProcessStatus } from '@/lib/types';
 
 export async function GET(
   request: Request,
@@ -32,20 +31,9 @@ export async function GET(
     );
   }
 
-  // core.md 스펙에 맞게 필드 선별 반환
-  const isIntegrated = project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
-
+  // 프로젝트 상세 정보 반환 (프론트엔드에서 필요한 모든 필드 포함)
   return NextResponse.json({
-    id: project.id,
-    projectCode: project.projectCode,
-    name: project.name,
-    description: project.description,
-    serviceCode: project.serviceCode,
-    cloudProvider: project.cloudProvider,
-    isIntegrated,
-    tfPermissionGranted: project.cloudProvider === 'AWS' ? true : undefined, // TODO: 실제 값으로 대체
-    createdAt: project.createdAt,
-    updatedAt: project.updatedAt,
+    project,
   });
 }
 
