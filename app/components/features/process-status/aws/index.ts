@@ -1,0 +1,1 @@
+export { AwsInstallationInline } from './AwsInstallationInline';

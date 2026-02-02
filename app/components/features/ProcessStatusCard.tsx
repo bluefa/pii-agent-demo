@@ -14,6 +14,7 @@ import {
   ConnectionTestPanel,
 } from './process-status';
 import { AzureInstallationInline } from './process-status/azure';
+import { AwsInstallationInline } from './process-status/aws';
 
 interface ProcessStatusCardProps {
   project: Project;
@@ -134,6 +135,8 @@ export const ProcessStatusCard = ({
           {currentStep === ProcessStatus.INSTALLING && (
             project.cloudProvider === 'Azure' ? (
               <AzureInstallationInline projectId={project.id} resources={project.resources} />
+            ) : project.cloudProvider === 'AWS' ? (
+              <AwsInstallationInline projectId={project.id} />
             ) : (
               <button
                 onClick={() => terraformModal.open()}
