@@ -14,8 +14,8 @@ const AwsIcon = ({ className }: { className?: string }) => (
 );
 
 const AzureIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M5.483 21.004H24L14.025 4.539l-3.497 6.267 5.194 7.455H5.483zm-5.483 0h6.763L12.696 9.57 8.532 2.996 0 21.004z" />
+  <svg className={className} viewBox="0 0 18 18" fill="currentColor">
+    <path d="M6.5 1L0 14.76h4.58L6.5 1zM7.09 3.36l2.19 6.3-4.2 5.1h8.92l-6.91-11.4z" />
   </svg>
 );
 

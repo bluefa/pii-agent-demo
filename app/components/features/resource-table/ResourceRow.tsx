@@ -1,14 +1,16 @@
 'use client';
 
-import { Resource, DatabaseType, DBCredential, needsCredential } from '@/lib/types';
+import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider } from '@/lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
+import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
 import { StatusIcon } from './StatusIcon';
 
 interface ResourceRowProps {
   resource: Resource;
   isAWS: boolean;
+  cloudProvider: CloudProvider;
   selectedIds: Set<string>;
   isCheckboxEnabled: boolean;
   showConnectionStatus: boolean;
@@ -21,6 +23,7 @@ interface ResourceRowProps {
 export const ResourceRow = ({
   resource,
   isAWS,
+  cloudProvider,
   selectedIds,
   isCheckboxEnabled,
   showConnectionStatus,
@@ -51,6 +54,9 @@ export const ResourceRow = ({
       <td className="px-6 py-4">
         <div className="flex items-center gap-2">
           {isAWS && resource.awsType && <AwsServiceIcon type={resource.awsType} size="lg" />}
+          {cloudProvider === 'Azure' && isAzureResourceType(resource.type) && (
+            <AzureServiceIcon type={resource.type} size="lg" />
+          )}
           <span className="font-medium text-gray-900">{resource.awsType || resource.type}</span>
         </div>
       </td>
