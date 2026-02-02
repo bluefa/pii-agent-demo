@@ -5,10 +5,11 @@ import { Resource } from '@/lib/types';
 import { AzureInstallationStatus, AzureVmInstallationStatus } from '@/lib/types/azure';
 import { getAzureInstallationStatus, checkAzureInstallation, getAzureVmInstallationStatus } from '@/app/lib/api/azure';
 import { AzureSubnetGuide } from '@/app/projects/[projectId]/azure/AzureSubnetGuide';
+import { AzureServiceIcon, AzureResourceType, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 
 interface AzureInstallationInlineProps {
   projectId: string;
-  resources: Resource[];  // project.resources
+  resources: Resource[];
   onInstallComplete?: () => void;
 }
 
@@ -18,6 +19,7 @@ type TabType = 'all' | 'action';
 interface UnifiedInstallResource {
   id: string;
   name: string;
+  resourceType: string;
   tfStatus: 'PENDING' | 'COMPLETED';
   actionRequired?: {
     type: 'PE_APPROVAL' | 'SUBNET_SETUP' | 'BDC_CHECK' | 'BDC_RESUBMIT';
@@ -25,6 +27,7 @@ interface UnifiedInstallResource {
     peId?: string;
   };
   isCompleted: boolean;
+  isVm: boolean;
 }
 
 const ITEMS_PER_PAGE = 5;
@@ -42,52 +45,87 @@ const ACTION_MESSAGES = {
   BDC_RESUBMIT: 'BDC측 재신청 필요',
 };
 
+// TF Script 다운로드
+const downloadTfScript = (projectId: string) => {
+  window.open(`/api/azure/projects/${projectId}/vm-terraform-script`, '_blank');
+};
+
 // 리소스 행 컴포넌트
 const ResourceRow = ({
   resource,
+  projectId,
   onShowSubnetGuide
 }: {
   resource: UnifiedInstallResource;
+  projectId: string;
   onShowSubnetGuide: () => void;
 }) => {
+  const iconType = isAzureResourceType(resource.resourceType)
+    ? resource.resourceType as AzureResourceType
+    : 'AZURE_MSSQL';
+
   return (
     <div className={`p-3 rounded-lg border ${resource.isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2 min-w-0 flex-1">
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${resource.isCompleted ? 'bg-green-500' : 'bg-orange-500'}`} />
-          <div className="min-w-0 flex-1">
-            {/* 리소스 이름 */}
-            <div className="text-sm font-medium text-gray-900 truncate">
-              {resource.name}
-            </div>
+      <div className="flex items-start justify-between gap-3">
+        {/* 아이콘 */}
+        <div className="flex-shrink-0 mt-0.5">
+          <AzureServiceIcon type={iconType} size="md" />
+        </div>
 
-            {/* TF 상태 | 추가 조치 */}
-            <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
-              <span>TF: {resource.tfStatus === 'COMPLETED' ? '완료' : '대기 중'}</span>
-              {resource.actionRequired && (
-                <>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-orange-600">
-                    {ACTION_MESSAGES[resource.actionRequired.type]}
-                  </span>
-                </>
-              )}
-            </div>
+        {/* 내용 */}
+        <div className="min-w-0 flex-1">
+          {/* 리소스 이름 */}
+          <div className="text-sm font-medium text-gray-900 truncate">
+            {resource.name}
+          </div>
 
-            {/* PE ID (있는 경우) */}
-            {resource.actionRequired?.peId && (
-              <div className="text-xs text-gray-400 mt-0.5 font-mono truncate">
-                PE: {resource.actionRequired.peId}
-              </div>
+          {/* TF 상태 | 추가 조치 */}
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1 text-xs">
+            <span className={resource.tfStatus === 'COMPLETED' ? 'text-green-600' : 'text-gray-500'}>
+              TF: {resource.tfStatus === 'COMPLETED' ? '완료' : '대기 중'}
+            </span>
+            {resource.actionRequired && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-orange-600 font-medium">
+                  {ACTION_MESSAGES[resource.actionRequired.type]}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* PE ID (있는 경우) */}
+          {resource.actionRequired?.peId && (
+            <div className="text-xs text-gray-400 mt-1 font-mono truncate">
+              PE: {resource.actionRequired.peId}
+            </div>
+          )}
+
+          {/* 액션 버튼들 */}
+          <div className="flex items-center gap-2 mt-2">
+            {/* VM: TF Script 다운로드 */}
+            {resource.isVm && resource.tfStatus === 'PENDING' && (
+              <button
+                onClick={() => downloadTfScript(projectId)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                TF Script
+              </button>
             )}
 
-            {/* Subnet 가이드 링크 */}
+            {/* Subnet 가이드 */}
             {resource.actionRequired?.type === 'SUBNET_SETUP' && (
               <button
                 onClick={onShowSubnetGuide}
-                className="text-xs text-blue-600 hover:underline mt-1"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-50 text-orange-600 rounded hover:bg-orange-100 transition-colors"
               >
-                Subnet 설정 가이드
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Subnet 가이드
               </button>
             )}
           </div>
@@ -95,7 +133,7 @@ const ResourceRow = ({
 
         {/* 완료 체크 아이콘 */}
         {resource.isCompleted && (
-          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         )}
@@ -235,12 +273,14 @@ export const AzureInstallationInline = ({
         return {
           id: resource.id,
           name: resource.resourceId,
-          tfStatus: tfCompleted ? 'COMPLETED' : 'PENDING',
+          resourceType: resource.type,
+          tfStatus: tfCompleted ? 'COMPLETED' as const : 'PENDING' as const,
           actionRequired: !subnetExists ? {
             type: 'SUBNET_SETUP' as const,
             message: ACTION_MESSAGES.SUBNET_SETUP,
           } : undefined,
           isCompleted,
+          isVm: true,
         };
       } else {
         // DB 리소스 (PE 기반)
@@ -261,7 +301,7 @@ export const AzureInstallationInline = ({
             type: 'BDC_RESUBMIT',
             message: ACTION_MESSAGES.BDC_RESUBMIT,
           };
-        } else if (peStatus === 'NOT_REQUESTED') {
+        } else if (peStatus === 'NOT_REQUESTED' || !peStatus) {
           actionRequired = {
             type: 'BDC_CHECK',
             message: ACTION_MESSAGES.BDC_CHECK,
@@ -271,9 +311,11 @@ export const AzureInstallationInline = ({
         return {
           id: resource.id,
           name: resource.resourceId,
-          tfStatus: tfCompleted ? 'COMPLETED' : 'PENDING',
+          resourceType: resource.type,
+          tfStatus: tfCompleted ? 'COMPLETED' as const : 'PENDING' as const,
           actionRequired,
           isCompleted,
+          isVm: false,
         };
       }
     });
@@ -403,6 +445,7 @@ export const AzureInstallationInline = ({
               <ResourceRow
                 key={resource.id}
                 resource={resource}
+                projectId={projectId}
                 onShowSubnetGuide={() => setShowSubnetGuide(true)}
               />
             ))
