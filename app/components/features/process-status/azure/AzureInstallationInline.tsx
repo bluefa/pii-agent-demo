@@ -1,83 +1,45 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { AzureInstallationStatus, AzureVmStatus, AzureResourceStatus } from '@/lib/types/azure';
-import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
+import { Resource } from '@/lib/types';
+import { AzureInstallationStatus, AzureVmInstallationStatus } from '@/lib/types/azure';
+import { getAzureInstallationStatus, checkAzureInstallation, getAzureVmInstallationStatus } from '@/app/lib/api/azure';
 import { AzureSubnetGuide } from '@/app/projects/[projectId]/azure/AzureSubnetGuide';
 
 interface AzureInstallationInlineProps {
   projectId: string;
-  vmStatus?: AzureVmStatus[];
+  resources: Resource[];  // project.resources
   onInstallComplete?: () => void;
 }
 
 type TabType = 'all' | 'action';
-type UnifiedResource =
-  | { type: 'db'; data: AzureResourceStatus }
-  | { type: 'vm'; data: AzureVmStatus };
+
+// 통합 설치 리소스
+interface UnifiedInstallResource {
+  id: string;
+  name: string;
+  tfStatus: 'PENDING' | 'COMPLETED';
+  actionRequired?: {
+    type: 'PE_APPROVAL' | 'SUBNET_SETUP' | 'BDC_CHECK' | 'BDC_RESUBMIT';
+    message: string;
+    peId?: string;
+  };
+  isCompleted: boolean;
+}
 
 const ITEMS_PER_PAGE = 5;
 
-// 조치 필요 여부 판단
-const needsAction = (resource: UnifiedResource): boolean => {
-  if (resource.type === 'db') {
-    const status = resource.data.privateEndpoint.status;
-    return status !== 'APPROVED';
-  } else {
-    return !resource.data.subnetExists || !resource.data.terraformInstalled;
-  }
+// 조치 필요 여부
+const needsAction = (resource: UnifiedInstallResource): boolean => {
+  return !resource.isCompleted;
 };
 
-// 완료 여부 판단
-const isCompleted = (resource: UnifiedResource): boolean => {
-  if (resource.type === 'db') {
-    return resource.data.privateEndpoint.status === 'APPROVED';
-  } else {
-    return resource.data.subnetExists && resource.data.terraformInstalled;
-  }
-};
-
-// 조치 안내 메시지
-const getActionMessage = (resource: UnifiedResource): string | null => {
-  if (resource.type === 'db') {
-    const status = resource.data.privateEndpoint.status;
-    switch (status) {
-      case 'PENDING_APPROVAL':
-        return 'Azure Portal에서 Private Endpoint 승인';
-      case 'REJECTED':
-        return 'BDC측 재신청 필요';
-      case 'NOT_REQUESTED':
-        return 'BDC측 확인 필요';
-      default:
-        return null;
-    }
-  } else {
-    if (!resource.data.subnetExists) {
-      return 'Subnet 설정 필요';
-    }
-    if (!resource.data.terraformInstalled) {
-      return 'Terraform 설치 대기 중';
-    }
-    return null;
-  }
-};
-
-// 상태 색상
-const getStatusColor = (resource: UnifiedResource): string => {
-  if (resource.type === 'db') {
-    const status = resource.data.privateEndpoint.status;
-    switch (status) {
-      case 'APPROVED': return 'bg-green-500';
-      case 'PENDING_APPROVAL': return 'bg-orange-500';
-      case 'REJECTED': return 'bg-red-500';
-      default: return 'bg-gray-400';
-    }
-  } else {
-    if (resource.data.subnetExists && resource.data.terraformInstalled) {
-      return 'bg-green-500';
-    }
-    return 'bg-orange-500';
-  }
+// 조치 메시지 매핑
+const ACTION_MESSAGES = {
+  PE_APPROVAL: 'Azure Portal에서 승인 필요',
+  SUBNET_SETUP: 'Subnet 미설정',
+  BDC_CHECK: 'BDC측 확인 필요',
+  BDC_RESUBMIT: 'BDC측 재신청 필요',
 };
 
 // 리소스 행 컴포넌트
@@ -85,51 +47,54 @@ const ResourceRow = ({
   resource,
   onShowSubnetGuide
 }: {
-  resource: UnifiedResource;
+  resource: UnifiedInstallResource;
   onShowSubnetGuide: () => void;
 }) => {
-  const actionMessage = getActionMessage(resource);
-  const statusColor = getStatusColor(resource);
-  const completed = isCompleted(resource);
-
-  const name = resource.type === 'db' ? resource.data.resourceName : resource.data.vmName;
-  const peId = resource.type === 'db' ? resource.data.privateEndpoint.id : null;
-
   return (
-    <div className={`p-3 rounded-lg border ${completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
+    <div className={`p-3 rounded-lg border ${resource.isCompleted ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 min-w-0 flex-1">
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${statusColor}`} />
+          <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${resource.isCompleted ? 'bg-green-500' : 'bg-orange-500'}`} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-900 truncate">{name}</span>
-              <span className={`px-1.5 py-0.5 text-xs font-medium rounded ${
-                resource.type === 'db' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-              }`}>
-                {resource.type === 'db' ? 'DB' : 'VM'}
-              </span>
+            {/* 리소스 이름 */}
+            <div className="text-sm font-medium text-gray-900 truncate">
+              {resource.name}
             </div>
-            {peId && (
-              <div className="text-xs text-gray-500 mt-0.5 font-mono truncate">
-                PE: {peId}
+
+            {/* TF 상태 | 추가 조치 */}
+            <div className="flex items-center gap-1 mt-1 text-xs text-gray-600">
+              <span>TF: {resource.tfStatus === 'COMPLETED' ? '완료' : '대기 중'}</span>
+              {resource.actionRequired && (
+                <>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-orange-600">
+                    {ACTION_MESSAGES[resource.actionRequired.type]}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* PE ID (있는 경우) */}
+            {resource.actionRequired?.peId && (
+              <div className="text-xs text-gray-400 mt-0.5 font-mono truncate">
+                PE: {resource.actionRequired.peId}
               </div>
             )}
-            {actionMessage && (
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs text-orange-600">👉 {actionMessage}</span>
-                {resource.type === 'vm' && !resource.data.subnetExists && (
-                  <button
-                    onClick={onShowSubnetGuide}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    [가이드]
-                  </button>
-                )}
-              </div>
+
+            {/* Subnet 가이드 링크 */}
+            {resource.actionRequired?.type === 'SUBNET_SETUP' && (
+              <button
+                onClick={onShowSubnetGuide}
+                className="text-xs text-blue-600 hover:underline mt-1"
+              >
+                Subnet 설정 가이드
+              </button>
             )}
           </div>
         </div>
-        {completed && (
+
+        {/* 완료 체크 아이콘 */}
+        {resource.isCompleted && (
           <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
@@ -180,10 +145,11 @@ const Pagination = ({
 
 export const AzureInstallationInline = ({
   projectId,
-  vmStatus = [],
+  resources,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
-  const [status, setStatus] = useState<AzureInstallationStatus | null>(null);
+  const [dbStatus, setDbStatus] = useState<AzureInstallationStatus | null>(null);
+  const [vmStatus, setVmStatus] = useState<AzureVmInstallationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,13 +157,23 @@ export const AzureInstallationInline = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [showSubnetGuide, setShowSubnetGuide] = useState(false);
 
+  // 선택된 리소스만 필터링
+  const selectedResources = resources.filter(r => r.isSelected);
+
   const fetchStatus = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getAzureInstallationStatus(projectId);
-      setStatus(data);
-      if (data.installed) {
+
+      const [dbData, vmData] = await Promise.all([
+        getAzureInstallationStatus(projectId),
+        getAzureVmInstallationStatus(projectId).catch(() => null),
+      ]);
+
+      setDbStatus(dbData);
+      setVmStatus(vmData);
+
+      if (dbData.installed) {
         onInstallComplete?.();
       }
     } catch (err) {
@@ -211,9 +187,16 @@ export const AzureInstallationInline = ({
     try {
       setRefreshing(true);
       setError(null);
-      const data = await checkAzureInstallation(projectId);
-      setStatus(data);
-      if (data.installed) {
+
+      const [dbData, vmData] = await Promise.all([
+        checkAzureInstallation(projectId),
+        getAzureVmInstallationStatus(projectId).catch(() => null),
+      ]);
+
+      setDbStatus(dbData);
+      setVmStatus(vmData);
+
+      if (dbData.installed) {
         onInstallComplete?.();
       }
     } catch (err) {
@@ -227,12 +210,74 @@ export const AzureInstallationInline = ({
     fetchStatus();
   }, [projectId]);
 
-  // 통합 리소스 목록
-  const unifiedResources: UnifiedResource[] = useMemo(() => {
-    const dbResources: UnifiedResource[] = (status?.resources || []).map(r => ({ type: 'db', data: r }));
-    const vmResources: UnifiedResource[] = vmStatus.map(v => ({ type: 'vm', data: v }));
-    return [...dbResources, ...vmResources];
-  }, [status, vmStatus]);
+  // project.resources + API 응답을 통합
+  const unifiedResources: UnifiedInstallResource[] = useMemo(() => {
+    // DB 상태 맵 (resourceId -> AzureResourceStatus)
+    const dbStatusMap = new Map(
+      (dbStatus?.resources || []).map(r => [r.resourceId, r])
+    );
+
+    // VM 상태 맵 (vmId -> AzureVmStatus)
+    const vmStatusMap = new Map(
+      (vmStatus?.vms || []).map(v => [v.vmId, v])
+    );
+
+    return selectedResources.map(resource => {
+      const isVm = resource.type === 'AZURE_VM';
+
+      if (isVm) {
+        // VM 리소스
+        const vm = vmStatusMap.get(resource.id);
+        const tfCompleted = vm?.terraformInstalled ?? false;
+        const subnetExists = vm?.subnetExists ?? false;
+        const isCompleted = tfCompleted && subnetExists;
+
+        return {
+          id: resource.id,
+          name: resource.resourceId,
+          tfStatus: tfCompleted ? 'COMPLETED' : 'PENDING',
+          actionRequired: !subnetExists ? {
+            type: 'SUBNET_SETUP' as const,
+            message: ACTION_MESSAGES.SUBNET_SETUP,
+          } : undefined,
+          isCompleted,
+        };
+      } else {
+        // DB 리소스 (PE 기반)
+        const db = dbStatusMap.get(resource.id);
+        const peStatus = db?.privateEndpoint.status;
+        const tfCompleted = peStatus && peStatus !== 'NOT_REQUESTED';
+        const isCompleted = peStatus === 'APPROVED';
+
+        let actionRequired: UnifiedInstallResource['actionRequired'] = undefined;
+        if (peStatus === 'PENDING_APPROVAL') {
+          actionRequired = {
+            type: 'PE_APPROVAL',
+            message: ACTION_MESSAGES.PE_APPROVAL,
+            peId: db?.privateEndpoint.id,
+          };
+        } else if (peStatus === 'REJECTED') {
+          actionRequired = {
+            type: 'BDC_RESUBMIT',
+            message: ACTION_MESSAGES.BDC_RESUBMIT,
+          };
+        } else if (peStatus === 'NOT_REQUESTED') {
+          actionRequired = {
+            type: 'BDC_CHECK',
+            message: ACTION_MESSAGES.BDC_CHECK,
+          };
+        }
+
+        return {
+          id: resource.id,
+          name: resource.resourceId,
+          tfStatus: tfCompleted ? 'COMPLETED' : 'PENDING',
+          actionRequired,
+          isCompleted,
+        };
+      }
+    });
+  }, [selectedResources, dbStatus, vmStatus]);
 
   // 조치 필요 리소스
   const actionNeededResources = useMemo(() =>
@@ -256,7 +301,7 @@ export const AzureInstallationInline = ({
   }, [activeTab]);
 
   // 진행률
-  const completedCount = unifiedResources.filter(isCompleted).length;
+  const completedCount = unifiedResources.filter(r => r.isCompleted).length;
   const totalCount = unifiedResources.length;
 
   // 로딩 상태
@@ -356,7 +401,7 @@ export const AzureInstallationInline = ({
           ) : (
             paginatedResources.map((resource) => (
               <ResourceRow
-                key={resource.type === 'db' ? resource.data.resourceId : resource.data.vmId}
+                key={resource.id}
                 resource={resource}
                 onShowSubnetGuide={() => setShowSubnetGuide(true)}
               />

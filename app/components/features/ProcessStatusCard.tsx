@@ -133,7 +133,7 @@ export const ProcessStatusCard = ({
 
           {currentStep === ProcessStatus.INSTALLING && (
             project.cloudProvider === 'Azure' ? (
-              <AzureInstallationInline projectId={project.id} />
+              <AzureInstallationInline projectId={project.id} resources={project.resources} />
             ) : (
               <button
                 onClick={() => terraformModal.open()}
