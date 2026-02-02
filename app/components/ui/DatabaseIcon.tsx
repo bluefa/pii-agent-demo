@@ -98,6 +98,16 @@ export const getDatabaseLabel = (type: DatabaseType): string => {
       return 'Athena';
     case 'REDSHIFT':
       return 'Redshift';
+    case 'MSSQL':
+      return 'SQL Server';
+    case 'COSMOSDB':
+      return 'Cosmos DB';
+    case 'BIGQUERY':
+      return 'BigQuery';
+    case 'MONGODB':
+      return 'MongoDB';
+    case 'ORACLE':
+      return 'Oracle';
     default:
       return type;
   }
