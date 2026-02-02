@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
-import { AzureVmStatus } from '@/lib/types/azure';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -14,8 +13,6 @@ import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectHeader, RejectionAlert } from '../common';
-import { AzureDbPanel } from './AzureDbPanel';
-import { AzureVmPanel } from './AzureVmPanel';
 
 interface AzureProjectPageProps {
   project: Project;
@@ -36,38 +33,6 @@ export const AzureProjectPage = ({
   );
   const [submitting, setSubmitting] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
-  const [vmStatus, setVmStatus] = useState<AzureVmStatus[]>([]);
-  const [vmRefreshing, setVmRefreshing] = useState(false);
-
-  // VM 리소스 여부 확인
-  const hasVmResources = project.resources.some(r => r.type === 'AZURE_VM' && r.isSelected);
-  const hasDbResources = project.resources.some(r => r.type !== 'AZURE_VM' && r.isSelected);
-
-  // VM 상태 조회 (INSTALLING 단계에서만)
-  useEffect(() => {
-    if (project.processStatus === ProcessStatus.INSTALLING && hasVmResources) {
-      fetchVmStatus();
-    }
-  }, [project.processStatus, hasVmResources]);
-
-  const fetchVmStatus = async () => {
-    try {
-      setVmRefreshing(true);
-      // VM 리소스에서 상태 생성 (실제로는 API 호출 필요)
-      const vmResources = project.resources.filter(r => r.type === 'AZURE_VM' && r.isSelected);
-      const vms: AzureVmStatus[] = vmResources.map(r => ({
-        vmId: r.resourceId,
-        vmName: r.resourceId,
-        subnetExists: false, // API에서 가져와야 함
-        terraformInstalled: false, // API에서 가져와야 함
-      }));
-      setVmStatus(vms);
-    } catch (err) {
-      console.error('VM 상태 조회 실패:', err);
-    } finally {
-      setVmRefreshing(false);
-    }
-  };
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -105,7 +70,6 @@ export const AzureProjectPage = ({
   };
 
   const isStep1 = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  const isInstalling = project.processStatus === ProcessStatus.INSTALLING;
   const effectiveEditMode = isStep1 || isEditMode;
 
   const handleConfirmTargets = async () => {
@@ -152,27 +116,6 @@ export const AzureProjectPage = ({
           />
         </div>
 
-        {/* Azure Installation Panels (INSTALLING 단계) */}
-        {isInstalling && (
-          <div className={`grid gap-6 ${hasDbResources && hasVmResources ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {hasDbResources && (
-              <AzureDbPanel
-                projectId={project.id}
-                onInstallComplete={() => {
-                  // 설치 완료 시 프로젝트 새로고침
-                }}
-              />
-            )}
-            {hasVmResources && (
-              <AzureVmPanel
-                projectId={project.id}
-                vms={vmStatus}
-                onRefresh={fetchVmStatus}
-                refreshing={vmRefreshing}
-              />
-            )}
-          </div>
-        )}
 
         {/* Resource Table */}
         <ResourceTable
