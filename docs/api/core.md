@@ -500,11 +500,15 @@ POST /api/projects/{projectId}/confirm-targets
 **요청**:
 ```typescript
 {
-  // 연동 대상 리소스
-  resources: Array<{
+  // 연동 대상 리소스 ID 배열
+  resourceIds: string[],
+
+  // VM 리소스 (EC2, AZURE_VM) 설정 - VM 선택 시 필수
+  vmConfigs?: Array<{
     resourceId: string,
-    // VM 타입 (EC2, AZURE_VM) 전용 - 필수 입력
-    port?: number
+    databaseType: 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'MONGODB' | 'ORACLE',
+    port: number,              // 1-65535 범위
+    oracleServiceId?: string   // Oracle인 경우 필수
   }>,
 
   // 연동 제외 리소스 (선택되지 않은 리소스)
@@ -548,18 +552,26 @@ const canSubmit = excludedIds.every(id => exclusionReasons[id]?.length > 0);
 **VM (EC2, AZURE_VM) 연동 규칙**:
 | 항목 | 설명 |
 |------|------|
-| `port` 필수 | VM 타입은 port 입력 필수 |
-| Backend 검증 | port 미입력 시 400 Bad Request |
-| **Frontend 검증** | VM 리소스 선택 시 port 미입력이면 Submit 버튼 비활성화 |
+| `vmConfigs` 필수 | VM 타입 선택 시 vmConfigs에 설정 필수 |
+| `databaseType` 필수 | MYSQL, POSTGRESQL, MSSQL, MONGODB, ORACLE 중 선택 |
+| `port` 필수 | 1-65535 범위 |
+| `oracleServiceId` | Oracle 선택 시 필수 (SID) |
+| Backend 검증 | VM 설정 미입력 시 400 Bad Request |
+| **Frontend 검증** | VM 리소스 선택 시 설정 미완료면 Submit 버튼 비활성화 |
 
 **Frontend Validation 예시**:
 ```typescript
-const canSubmit = selectedResources.every(r => {
-  if (r.resourceType === 'EC2' || r.resourceType === 'AZURE_VM') {
-    return r.port != null && r.port > 0;
-  }
-  return true;
-});
+const selectedVmResources = selectedResources.filter(
+  r => r.type === 'AZURE_VM' || r.awsType === 'EC2'
+);
+const unconfiguredVms = selectedVmResources.filter(
+  r => !vmConfigs[r.id] && !r.vmDatabaseConfig
+);
+
+if (unconfiguredVms.length > 0) {
+  alert('VM 리소스의 데이터베이스 설정을 완료해주세요');
+  return;
+}
 ```
 
 ### 승인
@@ -814,6 +826,7 @@ DELETE /api/services/{serviceCode}/permissions/{userId}
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-02 | VM 설정 기능 추가 - confirm-targets에 vmConfigs 파라미터 (databaseType, port, oracleServiceId) |
 | 2026-01-31 | History API Routes 구현 - 승인/반려/리소스 변경 이력 조회 |
 | 2026-01-31 | 연동 제외사유 기능 추가 - confirm-targets에 exclusions 추가, Resource에 exclusion 정보, 제외 이력 조회 API |
 | 2026-01-30 | 프로젝트 폐기(Decommission) API 추가 - 요청/승인/반려 프로세스 |
