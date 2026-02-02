@@ -256,8 +256,8 @@
 
 | Provider | 케이스 | 프로세스 단계 |
 |----------|--------|--------------|
-| **AWS** | TF권한 O | 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
-| **AWS** | TF권한 X | 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
+| **AWS** | TF권한 O | 설치 모드 선택 → 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
+| **AWS** | TF권한 X | 설치 모드 선택 → 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
 | **Azure** | DB Only | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → PE승인대기 → Test Connection → 완료 |
 | **Azure** | DB + VM | 스캔 → 리소스 확정 → 승인 대기 → 설치(DB:TF+PE / VM:수동TF) → Test Connection → 완료 |
 | **GCP** | 기본 | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → Test Connection → 완료 |

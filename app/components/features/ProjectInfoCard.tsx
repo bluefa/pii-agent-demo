@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Project, AwsInstallationStatus } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
+import { TfRoleGuideModal } from '@/app/components/features/process-status/aws';
 
 interface ProjectInfoCardProps {
   project: Project;
@@ -91,6 +92,7 @@ const InstallationModeBadge = ({ isAutoInstall }: { isAutoInstall: boolean }) =>
 
 export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
   const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
+  const [showTfRoleGuide, setShowTfRoleGuide] = useState(false);
 
   // AWS 프로젝트인 경우 설치 모드 조회
   useEffect(() => {
@@ -131,6 +133,22 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
           </div>
         )}
 
+        {/* TF Role 상태 (자동 설치만) */}
+        {project.cloudProvider === 'AWS' && awsStatus?.hasTfPermission && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">TF Role</span>
+            <button
+              onClick={() => setShowTfRoleGuide(true)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 hover:text-green-700"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              등록됨
+            </button>
+          </div>
+        )}
+
         {/* 생성일 */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">생성일</span>
@@ -151,6 +169,10 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
           </div>
         )}
       </div>
+
+      {showTfRoleGuide && (
+        <TfRoleGuideModal onClose={() => setShowTfRoleGuide(false)} />
+      )}
     </div>
   );
 };
