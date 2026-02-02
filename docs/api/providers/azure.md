@@ -39,6 +39,9 @@ GET /api/azure/projects/{projectId}/installation-status
 {
   provider: 'azure',
 
+  // 전체 설치 완료 여부 (모든 리소스가 APPROVED일 때 true)
+  installed: boolean,
+
   // 리소스별 Private Endpoint 상태 (DB 확정 리소스)
   resources: Array<{
     resourceId: string,
@@ -74,14 +77,14 @@ type PrivateEndpointStatus =
 
 **Frontend 해석 예시**:
 ```typescript
+// 전체 설치 완료 여부 (Backend에서 계산된 값 사용)
+if (installed) {
+  // 프로세스 다음 단계로 진행 가능
+}
+
 // 전체 TF 설치 완료 여부 (NOT_REQUESTED가 아니면 TF 완료)
 const allTfCompleted = resources.every(r =>
   r.privateEndpoint.status !== 'NOT_REQUESTED'
-);
-
-// 전체 Private Endpoint 승인 완료 여부
-const allApproved = resources.every(r =>
-  r.privateEndpoint.status === 'APPROVED'
 );
 
 // Private Endpoint 상태별 UI 표시
@@ -108,6 +111,9 @@ POST /api/azure/projects/{projectId}/check-installation
 ```typescript
 {
   provider: 'azure',
+
+  // 전체 설치 완료 여부 (모든 리소스가 APPROVED일 때 true)
+  installed: boolean,
 
   // 리소스별 Private Endpoint 상태 (DB 확정 리소스)
   resources: Array<{
@@ -319,6 +325,7 @@ GET /api/services/{serviceCode}/settings/azure
 | 날짜 | 내용 |
 |------|------|
 | 2026-02-01 | API 경로에 /azure/ prefix 추가 (AWS와 통일) |
+| 2026-02-02 | installed 필드 추가 (모든 리소스 APPROVED일 때 true) |
 | 2026-02-02 | tfCompleted 제거 (privateEndpoint.status로 TF 완료 여부 판단) |
 | 2026-02-01 | tfStatus → tfCompleted boolean 단순화 |
 | 2026-02-01 | check-installation, vm-check-installation API 추가 (자동 탐지) |
