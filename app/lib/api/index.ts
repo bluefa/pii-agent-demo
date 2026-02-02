@@ -248,3 +248,6 @@ export const confirmCompletion = async (
   const data = await res.json();
   return data.project;
 };
+
+// ===== Azure API =====
+export * from './azure';
