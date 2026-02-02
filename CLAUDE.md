@@ -100,6 +100,11 @@ Cloud Provider: AWS, Azure, GCP, IDC, SDU (+ 수동조사 예정)
 		•	docs/api/providers/*.md - Provider별 API
 	•	API Routes 문서 (Next.js):
 		•	docs/api-routes/README.md - 사용법, 엔드포인트 목록
+	•	ADR (Architecture Decision Records):
+		•	docs/adr/README.md - ADR 목록 및 작성 규칙
+		•	주요 설계 결정만 기록 (구현 계획, 검증 결과는 제외)
+	•	Skills (개발 워크플로우):
+		•	docs/skills/feature-development.md - 기능 개발 프로세스
 
 ⸻
 
@@ -159,6 +164,7 @@ API 설계 원칙
 
 TODO
 	•	[x] 스캔 API Routes 구현 (v2)
+	•	[x] Azure BFF API 구현 (7개 엔드포인트) - [ADR-001](docs/adr/001-remove-tfcompleted.md), [ADR-002](docs/adr/002-installed-field.md)
 	•	[ ] 비동기 작업 상태 관리 설계 (TF 설치, Azure PE 등)
 	•	[ ] 에러 처리 전략 정의
 	•	[ ] Provider별 UI 컴포넌트 분리
