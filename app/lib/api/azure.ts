@@ -1,4 +1,4 @@
-import { AzureInstallationStatus } from '@/lib/types/azure';
+import { AzureInstallationStatus, AzureVmInstallationStatus } from '@/lib/types/azure';
 
 const BASE_URL = '/api/azure';
 
@@ -22,6 +22,17 @@ export const checkAzureInstallation = async (
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.message || 'Azure 설치 상태 새로고침에 실패했습니다.');
+  }
+  return await res.json();
+};
+
+export const getAzureVmInstallationStatus = async (
+  projectId: string
+): Promise<AzureVmInstallationStatus> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/vm-installation-status`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'VM 설치 상태 조회에 실패했습니다.');
   }
   return await res.json();
 };
