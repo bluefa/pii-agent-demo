@@ -103,11 +103,8 @@ export const ResourceRow = ({
             {isVm && hasVmConfig ? (
               <>
                 <DatabaseIcon type={resource.vmDatabaseConfig!.databaseType} size="sm" />
-                <span className="text-sm text-gray-700">
+                <span className="text-sm text-gray-900">
                   {getDatabaseLabel(resource.vmDatabaseConfig!.databaseType)}
-                </span>
-                <span className="text-xs text-gray-500">
-                  (:{resource.vmDatabaseConfig!.port})
                 </span>
               </>
             ) : (
