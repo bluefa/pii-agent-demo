@@ -204,11 +204,26 @@ export const getAzureVmInstallationStatus = (
 
   const vms: AzureVmStatus[] = vmResources.map((resource) => {
     const hash = resource.resourceId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const subnetExists = hash % 3 !== 0; // 66% 확률로 존재
+    const terraformInstalled = subnetExists && hash % 2 === 0; // Subnet 있어야 TF 설치 가능, 50% 확률
+
+    // PE 상태는 Subnet + TF 완료 후에만 의미 있음
+    const peStatus = generatePrivateEndpointStatus(resource.resourceId);
+    const hasPe = subnetExists && terraformInstalled;
+
     return {
       vmId: resource.resourceId,
       vmName: resource.resourceId,
-      subnetExists: hash % 3 !== 0, // 66% 확률로 존재
-      terraformInstalled: hash % 2 === 0, // 50% 확률로 설치됨
+      subnetExists,
+      terraformInstalled,
+      privateEndpoint: hasPe ? {
+        id: `pe-${resource.resourceId}`,
+        name: `pe-${resource.resourceId}`,
+        status: peStatus,
+        requestedAt: peStatus !== 'NOT_REQUESTED' ? '2026-01-15T10:00:00Z' : undefined,
+        approvedAt: peStatus === 'APPROVED' ? '2026-01-16T14:30:00Z' : undefined,
+        rejectedAt: peStatus === 'REJECTED' ? '2026-01-16T14:30:00Z' : undefined,
+      } : undefined,
     };
   });
 
