@@ -400,11 +400,19 @@ export type VerifyScanRoleResponse = VerifyScanRoleSuccessResponse | VerifyScanR
 
 // ===== Project History Types =====
 
+/**
+ * 프로젝트 히스토리 유형
+ * - TARGET_CONFIRMED: 연동 대상 확정 (서비스 담당자가 리소스 선택 완료)
+ * - AUTO_APPROVED: 자동 승인 (기존 연동 제외 리소스 외 모든 리소스가 연동 대상인 경우)
+ * - APPROVAL: 승인 (관리자 수동 승인)
+ * - REJECTION: 반려 (관리자 반려, 사유 필수)
+ * - DECOMMISSION_*: 폐기 관련
+ */
 export type ProjectHistoryType =
+  | 'TARGET_CONFIRMED'
+  | 'AUTO_APPROVED'
   | 'APPROVAL'
   | 'REJECTION'
-  | 'RESOURCE_ADD'
-  | 'RESOURCE_EXCLUDE'
   | 'DECOMMISSION_REQUEST'
   | 'DECOMMISSION_APPROVED'
   | 'DECOMMISSION_REJECTED';
@@ -415,9 +423,9 @@ export interface ProjectHistoryActor {
 }
 
 export interface ProjectHistoryDetails {
-  reason?: string;
-  resourceId?: string;
-  resourceName?: string;
+  reason?: string;                    // 반려/폐기 사유
+  resourceCount?: number;             // 연동 확정 시 리소스 개수
+  excludedResourceCount?: number;     // 연동 제외된 리소스 개수
 }
 
 export interface ProjectHistory {

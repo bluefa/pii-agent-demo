@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getProjectHistory,
   addProjectHistory,
+  addTargetConfirmedHistory,
+  addAutoApprovedHistory,
   addApprovalHistory,
   addRejectionHistory,
-  addResourceExcludeHistory,
-  addResourceAddHistory,
   addDecommissionRequestHistory,
   addDecommissionApprovedHistory,
   addDecommissionRejectedHistory,
@@ -57,6 +57,23 @@ describe('mock-history', () => {
   });
 
   describe('convenience functions', () => {
+    it('addTargetConfirmedHistory: 연동 확정 이력을 생성한다', () => {
+      const history = addTargetConfirmedHistory(testProjectId, testActor, 5, 2);
+
+      expect(history.type).toBe('TARGET_CONFIRMED');
+      expect(history.projectId).toBe(testProjectId);
+      expect(history.details.resourceCount).toBe(5);
+      expect(history.details.excludedResourceCount).toBe(2);
+    });
+
+    it('addAutoApprovedHistory: 자동 승인 이력을 생성한다', () => {
+      const history = addAutoApprovedHistory(testProjectId);
+
+      expect(history.type).toBe('AUTO_APPROVED');
+      expect(history.actor.id).toBe('system');
+      expect(history.actor.name).toBe('시스템');
+    });
+
     it('addApprovalHistory: 승인 이력을 생성한다', () => {
       const history = addApprovalHistory(testProjectId, testActor);
 
@@ -70,33 +87,6 @@ describe('mock-history', () => {
 
       expect(history.type).toBe('REJECTION');
       expect(history.details.reason).toBe(reason);
-    });
-
-    it('addResourceExcludeHistory: 리소스 제외 이력을 생성한다', () => {
-      const history = addResourceExcludeHistory(
-        testProjectId,
-        testActor,
-        'res-1',
-        'arn:aws:rds:ap-northeast-2:123:db:test',
-        '테스트 환경 제외'
-      );
-
-      expect(history.type).toBe('RESOURCE_EXCLUDE');
-      expect(history.details.resourceId).toBe('res-1');
-      expect(history.details.resourceName).toBe('arn:aws:rds:ap-northeast-2:123:db:test');
-      expect(history.details.reason).toBe('테스트 환경 제외');
-    });
-
-    it('addResourceAddHistory: 리소스 추가 이력을 생성한다', () => {
-      const history = addResourceAddHistory(
-        testProjectId,
-        testActor,
-        'res-1',
-        'arn:aws:rds:ap-northeast-2:123:db:test'
-      );
-
-      expect(history.type).toBe('RESOURCE_ADD');
-      expect(history.details.resourceId).toBe('res-1');
     });
 
     it('addDecommissionRequestHistory: 폐기 요청 이력을 생성한다', () => {
@@ -123,10 +113,10 @@ describe('mock-history', () => {
   describe('getProjectHistory', () => {
     beforeEach(() => {
       // 테스트 데이터 생성
+      addTargetConfirmedHistory(testProjectId, testActor, 5, 1);
+      addAutoApprovedHistory(testProjectId);
       addApprovalHistory(testProjectId, testActor);
       addRejectionHistory(testProjectId, testActor, '사유1');
-      addResourceExcludeHistory(testProjectId, testActor, 'res-1', 'resource-name', '제외 사유');
-      addResourceAddHistory(testProjectId, testActor, 'res-2', 'resource-name-2');
       addDecommissionRequestHistory(testProjectId, testActor, '폐기 사유');
 
       // 다른 프로젝트 데이터
@@ -146,21 +136,21 @@ describe('mock-history', () => {
       expect(result.total).toBe(1);
     });
 
-    it('type=approval 필터: 승인/반려/폐기 관련만 조회한다', () => {
+    it('type=approval 필터: 승인/반려 관련만 조회한다', () => {
       const result = getProjectHistory({ projectId: testProjectId, type: 'approval' });
 
-      expect(result.total).toBe(3); // APPROVAL, REJECTION, DECOMMISSION_REQUEST
+      // 모든 타입이 approval 관련이므로 전체 조회
+      expect(result.total).toBe(5);
       result.history.forEach((h) => {
-        expect(['APPROVAL', 'REJECTION', 'DECOMMISSION_REQUEST', 'DECOMMISSION_APPROVED', 'DECOMMISSION_REJECTED']).toContain(h.type);
-      });
-    });
-
-    it('type=resource 필터: 리소스 변경만 조회한다', () => {
-      const result = getProjectHistory({ projectId: testProjectId, type: 'resource' });
-
-      expect(result.total).toBe(2); // RESOURCE_EXCLUDE, RESOURCE_ADD
-      result.history.forEach((h) => {
-        expect(['RESOURCE_ADD', 'RESOURCE_EXCLUDE']).toContain(h.type);
+        expect([
+          'TARGET_CONFIRMED',
+          'AUTO_APPROVED',
+          'APPROVAL',
+          'REJECTION',
+          'DECOMMISSION_REQUEST',
+          'DECOMMISSION_APPROVED',
+          'DECOMMISSION_REJECTED',
+        ]).toContain(h.type);
       });
     });
 
