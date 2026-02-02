@@ -12,7 +12,6 @@ import {
 } from '@/lib/types/azure';
 import {
   AZURE_RESOURCE_TYPES,
-  PRIVATE_ENDPOINT_REQUIRED_TYPES,
   AZURE_GUIDE_URLS,
 } from '@/lib/constants/azure';
 
@@ -44,23 +43,12 @@ const isVmResource = (resource: Resource): boolean => {
   return AZURE_RESOURCE_TYPES.VM.includes(resource.type as typeof AZURE_RESOURCE_TYPES.VM[number]);
 };
 
-const needsPrivateEndpoint = (resourceType: string): boolean => {
-  return PRIVATE_ENDPOINT_REQUIRED_TYPES.includes(
-    resourceType as typeof PRIVATE_ENDPOINT_REQUIRED_TYPES[number]
-  );
-};
-
 const generatePrivateEndpointStatus = (resourceId: string): PrivateEndpointStatus => {
   // 시뮬레이션: resourceId 해시 기반으로 상태 결정
+  // NOT_REQUESTED = TF 미완료, 나머지 = TF 완료
   const hash = resourceId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const statuses: PrivateEndpointStatus[] = ['NOT_REQUESTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'];
   return statuses[hash % statuses.length];
-};
-
-const generateTfCompleted = (resourceId: string): boolean => {
-  // 시뮬레이션: 50% 확률로 완료
-  const hash = resourceId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return hash % 2 === 0;
 };
 
 // ===== API 함수 =====
@@ -94,27 +82,24 @@ export const getAzureInstallationStatus = (
   const dbResources = project.resources.filter(isDbResource);
 
   const resources: AzureResourceStatus[] = dbResources.map((resource) => {
-    const status: AzureResourceStatus = {
-      resourceId: resource.resourceId,
-      resourceName: resource.resourceId, // 실제로는 이름이 다를 수 있음
-      resourceType: resource.type,
-      tfCompleted: generateTfCompleted(resource.resourceId),
-    };
+    const peStatus = generatePrivateEndpointStatus(resource.resourceId);
 
-    // Private Endpoint 필요한 리소스에만 추가
-    if (needsPrivateEndpoint(resource.type)) {
-      const peStatus = generatePrivateEndpointStatus(resource.resourceId);
-      status.privateEndpoint = {
+    // TF 완료 여부는 privateEndpoint.status로 판단
+    // - NOT_REQUESTED: TF 미완료
+    // - PENDING_APPROVAL 이상: TF 완료
+    return {
+      resourceId: resource.resourceId,
+      resourceName: resource.resourceId,
+      resourceType: resource.type,
+      privateEndpoint: {
         id: `pe-${resource.resourceId}`,
         name: `pe-${resource.resourceId}`,
         status: peStatus,
         requestedAt: peStatus !== 'NOT_REQUESTED' ? '2026-01-15T10:00:00Z' : undefined,
         approvedAt: peStatus === 'APPROVED' ? '2026-01-16T14:30:00Z' : undefined,
         rejectedAt: peStatus === 'REJECTED' ? '2026-01-16T14:30:00Z' : undefined,
-      };
-    }
-
-    return status;
+      },
+    };
   });
 
   const result: AzureInstallationStatus = {
