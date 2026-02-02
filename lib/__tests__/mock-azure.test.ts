@@ -140,6 +140,19 @@ describe('mock-azure', () => {
       expect(result.data?.provider).toBe('Azure');
       expect(result.data?.resources).toHaveLength(2);
       expect(result.data?.lastCheckedAt).toBeDefined();
+      // installed는 boolean 타입
+      expect(typeof result.data?.installed).toBe('boolean');
+    });
+
+    it('installed는 모든 리소스가 APPROVED일 때 true', () => {
+      const store = getStore();
+      store.projects.push(createAzureProject());
+
+      const result = getAzureInstallationStatus('azure-test-project');
+      const allApproved = result.data?.resources.every(
+        (r) => r.privateEndpoint.status === 'APPROVED'
+      );
+      expect(result.data?.installed).toBe(allApproved);
     });
 
     it('DB 리소스는 Private Endpoint 정보 포함 (TF 완료 여부는 status로 판단)', () => {

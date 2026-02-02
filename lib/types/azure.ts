@@ -29,6 +29,8 @@ export interface AzureResourceStatus {
 
 export interface AzureInstallationStatus {
   provider: 'Azure';
+  // 전체 설치 완료 여부 (모든 리소스가 APPROVED일 때 true)
+  installed: boolean;
   resources: AzureResourceStatus[];
   lastCheckedAt?: string;
   error?: {

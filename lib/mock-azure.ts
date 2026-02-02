@@ -102,8 +102,14 @@ export const getAzureInstallationStatus = (
     };
   });
 
+  // 전체 설치 완료 여부: 모든 리소스가 APPROVED일 때 true
+  const installed = resources.length > 0 && resources.every(
+    (r) => r.privateEndpoint.status === 'APPROVED'
+  );
+
   const result: AzureInstallationStatus = {
     provider: 'Azure',
+    installed,
     resources,
     lastCheckedAt: new Date().toISOString(),
   };
@@ -155,6 +161,11 @@ export const checkAzureInstallation = (
       }
       return resource;
     });
+
+    // installed 재계산: 모든 리소스가 APPROVED일 때 true
+    result.data.installed = result.data.resources.length > 0 && result.data.resources.every(
+      (r) => r.privateEndpoint.status === 'APPROVED'
+    );
 
     result.data.lastCheckedAt = new Date().toISOString();
     azureStore.installationStatus[projectId] = result.data;
