@@ -144,8 +144,10 @@ POST /api/azure/projects/{projectId}/check-installation
 
 ## VM 설치 상태
 
-> VM TF 설치는 서비스 담당자가 수동 실행, 시스템이 자동 감지
-> Subnet 존재 여부 + TF 설치 여부를 VM별로 확인
+> VM 설치는 3단계로 진행됩니다:
+> 1. **Subnet 설정** - 서비스 담당자가 PLS용 Subnet 생성 (수동)
+> 2. **VM TF 설치** - 서비스 담당자가 TF Script 실행 (수동)
+> 3. **Private Endpoint 승인** - 서비스 담당자가 Azure Portal에서 승인 (수동)
 
 ### VM 설치 상태 조회
 
@@ -159,25 +161,39 @@ GET /api/azure/projects/{projectId}/vm-installation-status
   vms: Array<{
     vmId: string,
     vmName: string,
-    subnetExists: boolean,      // PLS용 Subnet 존재 여부
-    terraformInstalled: boolean // VM TF 설치 완료 여부
+
+    // 설치 단계: 1. Subnet → 2. Terraform → 3. Private Endpoint
+    subnetExists: boolean,        // PLS용 Subnet 존재 여부
+    terraformInstalled: boolean,  // VM TF 설치 완료 여부
+
+    // Subnet + TF 완료 후에만 PE 상태 존재
+    privateEndpoint?: {
+      id: string,
+      name: string,
+      status: PrivateEndpointStatus,
+      requestedAt?: string,
+      approvedAt?: string,
+      rejectedAt?: string
+    }
   }>,
 
   lastCheckedAt?: string
 }
 ```
 
-**Frontend 해석 예시**:
+**Frontend 설치 단계 판단**:
 ```typescript
-// 모든 VM의 Subnet 준비 완료 여부
-const allSubnetsReady = vms.every(vm => vm.subnetExists);
-
-// 모든 VM의 TF 설치 완료 여부
-const allVmTfInstalled = vms.every(vm => vm.terraformInstalled);
-
-// Subnet 미준비 시 가이드 표시
-if (!allSubnetsReady) {
-  showSubnetGuide();
+function getVmInstallStep(vm: VmStatus): InstallStep {
+  // 1. Subnet 확인
+  if (!vm.subnetExists) return 'SUBNET_REQUIRED';
+  // 2. TF 설치 확인
+  if (!vm.terraformInstalled) return 'VM_TF_REQUIRED';
+  // 3. PE 상태 확인
+  const peStatus = vm.privateEndpoint?.status;
+  if (!peStatus || peStatus === 'NOT_REQUESTED') return 'PE_NOT_REQUESTED';
+  if (peStatus === 'PENDING_APPROVAL') return 'PE_PENDING';
+  if (peStatus === 'REJECTED') return 'PE_REJECTED';
+  return 'COMPLETED';
 }
 ```
 
@@ -187,7 +203,7 @@ if (!allSubnetsReady) {
 POST /api/azure/projects/{projectId}/vm-check-installation
 ```
 
-> Backend가 Azure API를 통해 VM TF 설치 상태를 자동 탐지합니다.
+> Backend가 Azure API를 통해 VM 설치 상태를 자동 탐지합니다.
 
 **응답** (vm-installation-status와 동일 + error):
 ```typescript
@@ -196,7 +212,15 @@ POST /api/azure/projects/{projectId}/vm-check-installation
     vmId: string,
     vmName: string,
     subnetExists: boolean,
-    terraformInstalled: boolean
+    terraformInstalled: boolean,
+    privateEndpoint?: {
+      id: string,
+      name: string,
+      status: PrivateEndpointStatus,
+      requestedAt?: string,
+      approvedAt?: string,
+      rejectedAt?: string
+    }
   }>,
 
   lastCheckedAt: string,
@@ -325,6 +349,7 @@ GET /api/services/{serviceCode}/settings/azure
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-02 | VM 설치 상태에 Private Endpoint 정보 추가 (Subnet → TF → PE 3단계) |
 | 2026-02-01 | API 경로에 /azure/ prefix 추가 (AWS와 통일) |
 | 2026-02-02 | installed 필드 추가 (모든 리소스 APPROVED일 때 true) |
 | 2026-02-02 | tfCompleted 제거 (privateEndpoint.status로 TF 완료 여부 판단) |

@@ -44,8 +44,10 @@ export interface AzureInstallationStatus {
 export interface AzureVmStatus {
   vmId: string;
   vmName: string;
+  // 설치 단계: 1. Subnet → 2. Terraform → 3. Private Endpoint
   subnetExists: boolean;
   terraformInstalled: boolean;
+  privateEndpoint?: AzurePrivateEndpoint;
 }
 
 export interface AzureVmInstallationStatus {
