@@ -68,6 +68,96 @@ export const mockServiceCodes: ServiceCode[] = [
 
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
+  // ===== Azure 프로젝트 =====
+  {
+    id: 'azure-proj-1',
+    projectCode: 'AZURE-001',
+    name: 'Azure PII Agent - DB 연동',
+    description: 'Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치',
+    serviceCode: 'SERVICE-A',
+    cloudProvider: 'Azure',
+    processStatus: ProcessStatus.INSTALLING,
+    resources: [
+      {
+        id: 'azure-res-1',
+        type: 'AZURE_MSSQL',
+        resourceId: 'mssql-prod-001',
+        databaseType: 'MSSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'INSTALLING',
+      },
+      {
+        id: 'azure-res-2',
+        type: 'AZURE_POSTGRESQL',
+        resourceId: 'pg-analytics-001',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'INSTALLING',
+      },
+      {
+        id: 'azure-res-3',
+        type: 'AZURE_MYSQL',
+        resourceId: 'mysql-app-001',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'INSTALLING',
+      },
+    ],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-01-20T09:00:00Z',
+    updatedAt: '2026-01-25T14:00:00Z',
+    isRejected: false,
+  },
+  {
+    id: 'azure-proj-2',
+    projectCode: 'AZURE-002',
+    name: 'Azure PII Agent - VM 포함',
+    description: 'Azure DB + VM 리소스에 PII Agent 설치 (Case 2)',
+    serviceCode: 'SERVICE-B',
+    cloudProvider: 'Azure',
+    processStatus: ProcessStatus.INSTALLING,
+    resources: [
+      {
+        id: 'azure-res-4',
+        type: 'AZURE_SYNAPSE',
+        resourceId: 'synapse-dw-001',
+        databaseType: 'MSSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'INSTALLING',
+      },
+      {
+        id: 'azure-res-5',
+        type: 'AZURE_VM',
+        resourceId: 'vm-agent-001',
+        databaseType: 'MSSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'INSTALLING',
+      },
+      {
+        id: 'azure-res-6',
+        type: 'AZURE_VM',
+        resourceId: 'vm-agent-002',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'INSTALLING',
+      },
+    ],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-01-22T10:00:00Z',
+    updatedAt: '2026-01-26T11:00:00Z',
+    isRejected: false,
+  },
+  // ===== AWS 프로젝트 =====
   {
     id: 'proj-1',
     projectCode: 'N-IRP-001',
