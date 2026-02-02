@@ -10,8 +10,6 @@ AWS 프로젝트의 설치 상태 관리 및 서비스별 AWS 연동 설정을 �
 
 ### 참조
 - BFF API 명세: `docs/api/providers/aws.md`
-- 구현 계획: `docs/implementation/aws-bff-api-plan.md`
-- 검증 시나리오: `docs/implementation/aws-bff-api-verification.md`
 
 ---
 
@@ -82,6 +80,20 @@ export const verifyTfRole = async (accountId: string, roleArn?: string) => {
 };
 ```
 
+#### curl 테스트
+
+```bash
+# 성공
+curl -X POST http://localhost:3000/api/aws/verify-tf-role \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "123456789012"}'
+
+# ROLE_NOT_FOUND
+curl -X POST http://localhost:3000/api/aws/verify-tf-role \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "123456789000"}'
+```
+
 ---
 
 ## 설치 상태 조회
@@ -124,13 +136,20 @@ interface AwsInstallationStatus {
 | 10~15초 | true | false |
 | 15초 이후 | true | true |
 
-#### 예시
+#### curl 테스트
 
-```typescript
-export const getInstallationStatus = async (projectId: string) => {
-  const res = await fetch(`/api/aws/projects/${projectId}/installation-status`);
-  return res.json();
-};
+```bash
+# 설치 완료 상태 (proj-1)
+curl http://localhost:3000/api/aws/projects/proj-1/installation-status
+
+# 설치 진행 중 (proj-3)
+curl http://localhost:3000/api/aws/projects/proj-3/installation-status
+
+# 404 에러
+curl http://localhost:3000/api/aws/projects/invalid-id/installation-status
+
+# 400 에러 (IDC 프로젝트)
+curl http://localhost:3000/api/aws/projects/proj-4/installation-status
 ```
 
 ---
@@ -168,15 +187,11 @@ interface CheckInstallationResponse {
 - `projectId`에 `'fail'` 포함 시 → `VALIDATION_FAILED` 에러
 - 수동 설치 검증 성공 시 → `serviceTfCompleted: true` 설정 + BDC TF 자동 시작
 
-#### 예시
+#### curl 테스트
 
-```typescript
-export const checkInstallation = async (projectId: string) => {
-  const res = await fetch(`/api/aws/projects/${projectId}/check-installation`, {
-    method: 'POST',
-  });
-  return res.json();
-};
+```bash
+# 자동 설치 상태 확인
+curl -X POST http://localhost:3000/api/aws/projects/proj-3/check-installation
 ```
 
 ---
@@ -205,13 +220,11 @@ interface TerraformScriptResponse {
 { error: 'NOT_AVAILABLE', message: 'TF 권한이 있어 스크립트가 필요하지 않습니다.' }
 ```
 
-#### 예시
+#### curl 테스트
 
-```typescript
-export const getTerraformScript = async (projectId: string) => {
-  const res = await fetch(`/api/aws/projects/${projectId}/terraform-script`);
-  return res.json();
-};
+```bash
+# TF 권한 있는 프로젝트 → 400 에러
+curl http://localhost:3000/api/aws/projects/proj-1/terraform-script
 ```
 
 ---
@@ -251,13 +264,14 @@ interface AwsServiceSettings {
 }
 ```
 
-#### 예시
+#### curl 테스트
 
-```typescript
-export const getAwsSettings = async (serviceCode: string) => {
-  const res = await fetch(`/api/services/${serviceCode}/settings/aws`);
-  return res.json();
-};
+```bash
+# 설정 완료 (SERVICE-A)
+curl http://localhost:3000/api/services/SERVICE-A/settings/aws
+
+# 설정 미완료 (SERVICE-B)
+curl http://localhost:3000/api/services/SERVICE-B/settings/aws
 ```
 
 ---
@@ -317,21 +331,18 @@ interface UpdateAwsSettingsFailureResponse {
 | accountId가 `111`로 끝남 | INSUFFICIENT_PERMISSIONS |
 | accountId가 `222`로 끝남 | ACCESS_DENIED |
 
-#### 예시
+#### curl 테스트
 
-```typescript
-export const updateAwsSettings = async (
-  serviceCode: string,
-  accountId: string,
-  scanRoleArn: string
-) => {
-  const res = await fetch(`/api/services/${serviceCode}/settings/aws`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accountId, scanRoleArn }),
-  });
-  return res.json();
-};
+```bash
+# 설정 등록 성공
+curl -X PUT http://localhost:3000/api/services/SERVICE-B/settings/aws \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "555555555555", "scanRoleArn": "arn:aws:iam::555555555555:role/ScanRole"}'
+
+# INVALID_ACCOUNT_ID
+curl -X PUT http://localhost:3000/api/services/SERVICE-B/settings/aws \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "12345", "scanRoleArn": "arn:aws:iam::12345:role/ScanRole"}'
 ```
 
 ---
@@ -375,16 +386,56 @@ interface VerifyScanRoleFailureResponse {
 | `444` | INSUFFICIENT_PERMISSIONS (권한 변경됨) |
 | 그 외 | 성공 |
 
-#### 예시
+#### curl 테스트
 
-```typescript
-export const verifyScanRole = async (serviceCode: string) => {
-  const res = await fetch(
-    `/api/services/${serviceCode}/settings/aws/verify-scan-role`,
-    { method: 'POST' }
-  );
-  return res.json();
-};
+```bash
+# 검증 성공 (SERVICE-A)
+curl -X POST http://localhost:3000/api/services/SERVICE-A/settings/aws/verify-scan-role
+
+# 미등록 상태 (SERVICE-B)
+curl -X POST http://localhost:3000/api/services/SERVICE-B/settings/aws/verify-scan-role
+```
+
+---
+
+## E2E 시나리오
+
+### 시나리오 1: AWS 프로젝트 생성 (TF 권한 있음)
+
+```bash
+# 1. TF Role 검증
+curl -X POST http://localhost:3000/api/aws/verify-tf-role \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "123456789012"}'
+# → valid: true
+
+# 2. 프로젝트 생성 후 설치 상태 조회
+curl http://localhost:3000/api/aws/projects/{projectId}/installation-status
+# → serviceTfCompleted: false
+
+# 3. 10초 후 다시 조회
+# → serviceTfCompleted: true, bdcTfCompleted: false
+
+# 4. 15초 후 완료 확인
+# → bdcTfCompleted: true, completedAt: "..."
+```
+
+### 시나리오 2: 서비스 AWS 설정 흐름
+
+```bash
+# 1. 설정 조회 (미등록)
+curl http://localhost:3000/api/services/SERVICE-B/settings/aws
+# → scanRole.registered: false, guide 포함
+
+# 2. 설정 등록
+curl -X PUT http://localhost:3000/api/services/SERVICE-B/settings/aws \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "555555555555", "scanRoleArn": "arn:aws:iam::555555555555:role/ScanRole"}'
+# → updated: true
+
+# 3. Scan Role 재검증
+curl -X POST http://localhost:3000/api/services/SERVICE-B/settings/aws/verify-scan-role
+# → valid: true
 ```
 
 ---
@@ -435,7 +486,7 @@ app/api/
 lib/
 ├── mock-installation.ts       # 설치 상태 비즈니스 로직
 ├── mock-service-settings.ts   # 서비스 설정 비즈니스 로직
-├── mock-data.ts               # 초기 데이터 (mockAwsInstallations, mockAwsServiceSettings)
+├── mock-data.ts               # 초기 데이터
 └── types.ts                   # AWS 타입 정의
 ```
 
@@ -445,4 +496,4 @@ lib/
 
 | 날짜 | 내용 |
 |------|------|
-| 2026-02-02 | 문서 작성 |
+| 2026-02-02 | 문서 작성, 검증 내용 통합 |
