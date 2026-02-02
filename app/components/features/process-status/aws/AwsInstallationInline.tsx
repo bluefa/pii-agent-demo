@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { AwsInstallationStatus } from '@/lib/types';
 import { getAwsInstallationStatus, checkAwsInstallation } from '@/app/lib/api/aws';
+import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
+import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 
 interface AwsInstallationInlineProps {
   projectId: string;
@@ -54,6 +56,8 @@ export const AwsInstallationInline = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRoleGuide, setShowRoleGuide] = useState(false);
+  const [showScriptGuide, setShowScriptGuide] = useState(false);
 
   // 상태 조회
   const fetchStatus = async () => {
@@ -176,8 +180,16 @@ export const AwsInstallationInline = ({
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <div>
-                  <span className="text-sm font-medium text-blue-700">자동 설치 모드</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-blue-700">자동 설치 모드</span>
+                    <button
+                      onClick={() => setShowRoleGuide(true)}
+                      className="text-xs text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Role 등록 가이드
+                    </button>
+                  </div>
                   <p className="text-xs text-blue-600">시스템이 자동으로 Terraform을 실행합니다.</p>
                 </div>
               </>
@@ -186,8 +198,16 @@ export const AwsInstallationInline = ({
                 <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <div>
-                  <span className="text-sm font-medium text-gray-700">수동 설치 모드</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">수동 설치 모드</span>
+                    <button
+                      onClick={() => setShowScriptGuide(true)}
+                      className="text-xs text-gray-600 hover:text-gray-700 underline"
+                    >
+                      설치 가이드
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-600">TF Script를 다운로드하여 직접 실행해주세요.</p>
                 </div>
               </>
@@ -215,18 +235,34 @@ export const AwsInstallationInline = ({
             <p className="text-sm text-amber-700 mb-3">
               TF Script를 다운로드 받아서 담당자와 함께 설치 일정을 조율하세요.
             </p>
-            <button
-              onClick={handleDownloadScript}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              TF Script 다운로드
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadScript}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                TF Script 다운로드
+              </button>
+              <button
+                onClick={() => setShowScriptGuide(true)}
+                className="text-sm text-amber-600 hover:text-amber-700 underline"
+              >
+                설치 가이드 보기
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* 가이드 모달 */}
+      {showRoleGuide && (
+        <TfRoleGuideModal onClose={() => setShowRoleGuide(false)} />
+      )}
+      {showScriptGuide && (
+        <TfScriptGuideModal onClose={() => setShowScriptGuide(false)} />
+      )}
     </div>
   );
 };
