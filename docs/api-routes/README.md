@@ -60,6 +60,18 @@ Next.js App Router의 API Route Handlers 문서.
 | GET | `/api/user/services` | 사용자 서비스 목록 |
 | GET | `/api/users/search` | 사용자 검색 |
 
+### Azure
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/azure/projects/[projectId]/installation-status` | DB 설치 상태 조회 |
+| POST | `/api/azure/projects/[projectId]/check-installation` | DB 설치 상태 새로고침 |
+| GET | `/api/azure/projects/[projectId]/vm-installation-status` | VM 설치 상태 조회 |
+| POST | `/api/azure/projects/[projectId]/vm-check-installation` | VM 설치 상태 새로고침 |
+| GET | `/api/azure/projects/[projectId]/vm-terraform-script` | VM TF Script 다운로드 정보 |
+| GET | `/api/azure/projects/[projectId]/subnet-guide` | Subnet 가이드 조회 |
+| GET | `/api/services/[serviceCode]/settings/azure` | Azure 서비스 설정 조회 |
+
 ### 개발용
 
 | Method | Endpoint | 설명 |
