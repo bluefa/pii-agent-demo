@@ -13,6 +13,7 @@ import {
   RejectModal,
   ConnectionTestPanel,
 } from './process-status';
+import { AzureInstallationPanel } from './process-status/azure';
 
 interface ProcessStatusCardProps {
   project: Project;
@@ -139,9 +140,11 @@ export const ProcessStatusCard = ({
                 <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
                 <span className="font-medium text-orange-600">설치 상태 확인</span>
               </div>
-              <span className="px-2 py-0.5 bg-orange-100 text-orange-500 text-sm font-medium rounded-full">
-                {progress.completed}/{progress.total}
-              </span>
+              {project.cloudProvider !== 'Azure' && (
+                <span className="px-2 py-0.5 bg-orange-100 text-orange-500 text-sm font-medium rounded-full">
+                  {progress.completed}/{progress.total}
+                </span>
+              )}
             </button>
           )}
 
@@ -161,10 +164,18 @@ export const ProcessStatusCard = ({
       </div>
 
       {/* Terraform Status Modal */}
-      {terraformModal.isOpen && (
+      {terraformModal.isOpen && project.cloudProvider !== 'Azure' && (
         <TerraformStatusModal
           terraformState={project.terraformState}
           cloudProvider={project.cloudProvider}
+          onClose={() => terraformModal.close()}
+        />
+      )}
+
+      {/* Azure Installation Panel */}
+      {terraformModal.isOpen && project.cloudProvider === 'Azure' && (
+        <AzureInstallationPanel
+          projectId={project.id}
           onClose={() => terraformModal.close()}
         />
       )}
