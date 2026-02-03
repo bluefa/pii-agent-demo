@@ -48,6 +48,7 @@ Next.js App Router의 API Route Handlers 문서.
 | Method | Endpoint | 설명 |
 |--------|----------|------|
 | POST | `/api/aws/verify-tf-role` | TF Role 검증 |
+| POST | `/api/aws/projects/[projectId]/installation-mode` | 설치 모드 선택 (AUTO/MANUAL) |
 | GET | `/api/aws/projects/[projectId]/installation-status` | 설치 상태 조회 |
 | POST | `/api/aws/projects/[projectId]/check-installation` | 설치 상태 확인 (Refresh) |
 | GET | `/api/aws/projects/[projectId]/terraform-script` | TF Script 다운로드 URL |

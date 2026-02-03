@@ -17,6 +17,8 @@ export type FirewallStatus = 'CONNECTED' | 'CONNECTION_FAIL';
 
 export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
+export type AwsInstallationMode = 'AUTO' | 'MANUAL';
+
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
 export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'MONGODB' | 'ORACLE';
@@ -146,6 +148,9 @@ export interface Project {
 
   // Connection Test 이력
   connectionTestHistory?: ConnectionTestHistory[];
+
+  // AWS 전용: 설치 모드 (자동/수동)
+  awsInstallationMode?: AwsInstallationMode;
 }
 
 // ===== API Response Types =====

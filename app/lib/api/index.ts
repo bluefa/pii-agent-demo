@@ -257,3 +257,6 @@ export const confirmCompletion = async (
 
 // ===== Azure API =====
 export * from './azure';
+
+// ===== AWS API =====
+export * from './aws';

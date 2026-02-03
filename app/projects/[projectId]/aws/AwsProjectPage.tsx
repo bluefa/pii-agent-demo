@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+import { Project, ProcessStatus, DBCredential, needsCredential, AwsInstallationMode, VmDatabaseConfig } from '@/lib/types';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -13,6 +14,7 @@ import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { ProjectHeader, RejectionAlert } from '../common';
 import { isVmResource } from '@/app/components/features/resource-table';
 
@@ -29,6 +31,7 @@ export const AwsProjectPage = ({
   credentials,
   onProjectUpdate,
 }: AwsProjectPageProps) => {
+  const router = useRouter();
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
@@ -47,6 +50,25 @@ export const AwsProjectPage = ({
     });
     return initial;
   });
+
+  const handleModeSelected = (_mode: AwsInstallationMode) => {
+    router.refresh();
+  };
+
+  // 설치 모드 미선택 시 선택 UI 표시
+  if (!project.awsInstallationMode) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <ProjectHeader project={project} />
+        <main className="p-6">
+          <AwsInstallationModeSelector
+            projectId={project.id}
+            onModeSelected={handleModeSelected}
+          />
+        </main>
+      </div>
+    );
+  }
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
