@@ -1,5 +1,8 @@
 # Skill: 기능 개발 워크플로우
 
+> **Note**: 이 문서는 `.claude/skills/feature-development/SKILL.md`로 이동되었습니다.
+> Claude Code Agent Skills 표준에 맞게 마이그레이션되었습니다.
+
 Claude Code가 새 기능을 구현할 때 따르는 프로세스.
 
 ## 1. 구현 전
