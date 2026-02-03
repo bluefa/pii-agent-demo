@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Project, ProcessStatus, DBCredential, needsCredential, AwsInstallationMode, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -31,7 +30,6 @@ export const AwsProjectPage = ({
   credentials,
   onProjectUpdate,
 }: AwsProjectPageProps) => {
-  const router = useRouter();
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
@@ -51,8 +49,8 @@ export const AwsProjectPage = ({
     return initial;
   });
 
-  const handleModeSelected = (_mode: AwsInstallationMode) => {
-    router.refresh();
+  const handleModeSelected = (updatedProject: Project) => {
+    onProjectUpdate(updatedProject);
   };
 
   // 설치 모드 미선택 시 선택 UI 표시
