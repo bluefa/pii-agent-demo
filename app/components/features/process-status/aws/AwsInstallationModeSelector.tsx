@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
-import type { AwsInstallationMode } from '@/lib/types';
+import type { AwsInstallationMode, Project } from '@/lib/types';
 
 interface AwsInstallationModeSelectorProps {
   projectId: string;
-  onModeSelected: (mode: AwsInstallationMode) => void;
+  onModeSelected: (project: Project) => void;
 }
 
 export const AwsInstallationModeSelector = ({
@@ -32,7 +32,8 @@ export const AwsInstallationModeSelector = ({
         throw new Error('설치 모드 선택에 실패했습니다.');
       }
 
-      onModeSelected(mode);
+      const data = await response.json();
+      onModeSelected(data.project);
     } catch (error) {
       console.error('Failed to select installation mode:', error);
       alert('설치 모드 선택에 실패했습니다. 다시 시도해주세요.');
