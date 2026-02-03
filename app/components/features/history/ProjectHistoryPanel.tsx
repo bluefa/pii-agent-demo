@@ -4,12 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { ProjectHistory } from '@/lib/types';
 import { ProjectHistoryFilter, HistoryFilterType } from './ProjectHistoryFilter';
 import { ProjectHistoryTable } from './ProjectHistoryTable';
+import { ProjectHistoryDetailModal } from './ProjectHistoryDetailModal';
 import { cardStyles, cn } from '@/lib/theme';
+
+const ITEMS_PER_PAGE = 5;
 
 interface ProjectHistoryPanelProps {
   projectId: string;
   initialHistory?: ProjectHistory[];
   title?: string;
+  embedded?: boolean;
 }
 
 interface HistoryResponse {
@@ -21,22 +25,28 @@ export const ProjectHistoryPanel = ({
   projectId,
   initialHistory,
   title = '프로젝트 이력',
+  embedded = false,
 }: ProjectHistoryPanelProps) => {
   const [filter, setFilter] = useState<HistoryFilterType>('all');
   const [history, setHistory] = useState<ProjectHistory[]>(initialHistory ?? []);
   const [total, setTotal] = useState(initialHistory?.length ?? 0);
   const [loading, setLoading] = useState(!initialHistory);
   const [error, setError] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ProjectHistory | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const offset = (currentPage - 1) * ITEMS_PER_PAGE;
       const params = new URLSearchParams({
         type: filter,
-        limit: '50',
-        offset: '0',
+        limit: String(ITEMS_PER_PAGE),
+        offset: String(offset),
       });
 
       const response = await fetch(`/api/projects/${projectId}/history?${params}`);
@@ -53,23 +63,29 @@ export const ProjectHistoryPanel = ({
     } finally {
       setLoading(false);
     }
-  }, [projectId, filter]);
+  }, [projectId, filter, currentPage]);
 
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
 
+  // 필터 변경 시 첫 페이지로 리셋
+  const handleFilterChange = (newFilter: HistoryFilterType) => {
+    setFilter(newFilter);
+    setCurrentPage(1);
+  };
+
   return (
-    <div className={cn(cardStyles.base, 'overflow-hidden')}>
+    <div className={cn(embedded ? '' : cardStyles.base, 'overflow-hidden')}>
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className={cn(
+        'flex items-center justify-between',
+        embedded ? 'pb-4' : 'px-6 py-4 border-b border-gray-100'
+      )}>
+        {!embedded && (
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          {total > 0 && (
-            <span className="text-sm text-gray-500">({total}건)</span>
-          )}
-        </div>
-        <ProjectHistoryFilter value={filter} onChange={setFilter} />
+        )}
+        <ProjectHistoryFilter value={filter} onChange={handleFilterChange} />
       </div>
 
       {/* Content */}
@@ -85,9 +101,45 @@ export const ProjectHistoryPanel = ({
             </button>
           </div>
         ) : (
-          <ProjectHistoryTable history={history} loading={loading} />
+          <>
+            <ProjectHistoryTable
+              history={history}
+              loading={loading}
+              onRowClick={setSelectedItem}
+            />
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 py-4 border-t border-gray-100">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <span className="text-sm text-gray-600">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedItem && (
+        <ProjectHistoryDetailModal
+          history={selectedItem}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </div>
   );
 };
