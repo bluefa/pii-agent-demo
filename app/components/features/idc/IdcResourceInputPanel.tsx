@@ -2,12 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import { Button } from '@/app/components/ui/Button';
+import { DBCredential } from '@/lib/types';
 import { IdcResourceInput, IdcInputFormat, IdcDatabaseType } from '@/lib/types/idc';
 import { IDC_VALIDATION, IDC_DEFAULT_PORTS, IDC_DATABASE_TYPE_LABELS } from '@/lib/constants/idc';
 import { cn, inputStyles } from '@/lib/theme';
 
 interface IdcResourceInputPanelProps {
   initialData?: IdcResourceInput;
+  credentials?: DBCredential[];
   onSave: (data: IdcResourceInput) => void;
   onCancel: () => void;
 }
@@ -20,6 +22,7 @@ const validateIp = (ip: string): boolean => {
 
 export const IdcResourceInputPanel = ({
   initialData,
+  credentials = [],
   onSave,
   onCancel,
 }: IdcResourceInputPanelProps) => {
@@ -30,6 +33,7 @@ export const IdcResourceInputPanel = ({
   const [databaseType, setDatabaseType] = useState<IdcDatabaseType>(initialData?.databaseType ?? 'MYSQL');
   const [port, setPort] = useState<number>(initialData?.port ?? IDC_DEFAULT_PORTS.MYSQL);
   const [serviceId, setServiceId] = useState(initialData?.serviceId ?? '');
+  const [credentialId, setCredentialId] = useState(initialData?.credentialId ?? '');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // IP 추가
@@ -140,8 +144,13 @@ export const IdcResourceInputPanel = ({
       data.serviceId = serviceId.trim();
     }
 
+    // Credential ID (Optional)
+    if (credentialId) {
+      data.credentialId = credentialId;
+    }
+
     onSave(data);
-  }, [name, inputFormat, ips, host, port, databaseType, serviceId, validate, onSave]);
+  }, [name, inputFormat, ips, host, port, databaseType, serviceId, credentialId, validate, onSave]);
 
   // IP 2개 이상 경고
   const showClusterWarning = inputFormat === 'IP' && ips.filter(ip => ip.trim()).length >= 2;
@@ -372,6 +381,41 @@ export const IdcResourceInputPanel = ({
             {errors.serviceId && <p className="mt-1 text-sm text-red-600">{errors.serviceId}</p>}
           </div>
         )}
+
+        {/* DB Credential (Optional) */}
+        <div className="border-t border-gray-200 pt-5">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+            <label className="text-sm font-medium text-gray-700">
+              DB Credential <span className="text-gray-400 font-normal">(Optional)</span>
+            </label>
+          </div>
+          <select
+            value={credentialId}
+            onChange={(e) => setCredentialId(e.target.value)}
+            className={cn(
+              inputStyles.base,
+              credentialId ? 'border-green-300 bg-green-50' : ''
+            )}
+          >
+            <option value="">선택 안 함</option>
+            {credentials.map((cred) => (
+              <option key={cred.id} value={cred.id}>
+                {cred.name} ({cred.username})
+              </option>
+            ))}
+          </select>
+          {credentials.length === 0 && (
+            <p className="mt-2 text-xs text-orange-600">
+              등록된 Credential이 없습니다.
+            </p>
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            연결 테스트에 사용됩니다. 선택하지 않으면 테스트 시 별도 선택이 필요합니다.
+          </p>
+        </div>
       </div>
 
       {/* Footer */}
