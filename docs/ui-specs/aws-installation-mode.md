@@ -408,5 +408,6 @@ AwsProjectPage
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-03 | Step 0 설치 모드 선택 UI 구현 완료 (AwsInstallationModeSelector, API Route) |
 | 2026-02-03 | Step 0 설치 모드 선택 UI, TF Role/Script 가이드 모달, ProjectInfoCard TF Role 표시 추가 |
 | 2026-02-02 | 초안 작성 |
