@@ -10,8 +10,85 @@ import {
   needsCredential,
   AwsInstallationStatus,
   AwsServiceSettings,
+  ProjectStatus,
 } from './types';
 import { getStore } from '@/lib/mock-store';
+import { createInitialProjectStatus } from '@/lib/process';
+
+/**
+ * ProcessStatus에 맞는 ProjectStatus를 생성합니다.
+ * Mock 데이터 초기화용 헬퍼 함수입니다.
+ */
+const createStatusForProcessStatus = (
+  processStatus: ProcessStatus,
+  options?: {
+    isRejected?: boolean;
+    selectedCount?: number;
+    excludedCount?: number;
+  }
+): ProjectStatus => {
+  const base = createInitialProjectStatus();
+  const selectedCount = options?.selectedCount ?? 0;
+  const excludedCount = options?.excludedCount ?? 0;
+
+  switch (processStatus) {
+    case ProcessStatus.WAITING_TARGET_CONFIRMATION:
+      return {
+        ...base,
+        scan: { status: 'COMPLETED' },
+      };
+
+    case ProcessStatus.WAITING_APPROVAL:
+      return {
+        ...base,
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount, excludedCount },
+        approval: { status: options?.isRejected ? 'REJECTED' : 'PENDING' },
+      };
+
+    case ProcessStatus.INSTALLING:
+      return {
+        ...base,
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount, excludedCount },
+        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
+        installation: { status: 'IN_PROGRESS' },
+      };
+
+    case ProcessStatus.WAITING_CONNECTION_TEST:
+      return {
+        ...base,
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount, excludedCount },
+        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
+        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
+        connectionTest: { status: 'NOT_TESTED' },
+      };
+
+    case ProcessStatus.CONNECTION_VERIFIED:
+      return {
+        ...base,
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount, excludedCount },
+        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
+        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
+        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString() },
+      };
+
+    case ProcessStatus.INSTALLATION_COMPLETE:
+      return {
+        ...base,
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount, excludedCount },
+        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
+        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
+        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString() },
+      };
+
+    default:
+      return base;
+  }
+};
 
 // ===== Mock Users =====
 export const mockUsers: User[] = [
@@ -79,6 +156,7 @@ export const mockProjects: Project[] = [
     serviceCode: 'SERVICE-A',
     cloudProvider: 'Azure',
     processStatus: ProcessStatus.INSTALLING,
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
     resources: [
       {
         id: 'azure-res-1',
@@ -123,6 +201,7 @@ export const mockProjects: Project[] = [
     serviceCode: 'SERVICE-B',
     cloudProvider: 'Azure',
     processStatus: ProcessStatus.INSTALLING,
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
     resources: [
       {
         id: 'azure-res-4',
@@ -169,6 +248,7 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
     resources: [
       {
         id: 'res-1',
@@ -252,6 +332,7 @@ export const mockProjects: Project[] = [
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
     processStatus: ProcessStatus.WAITING_APPROVAL,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { isRejected: true, selectedCount: 2, excludedCount: 1 }),
     resources: [
       {
         id: 'res-4',
@@ -312,6 +393,7 @@ export const mockProjects: Project[] = [
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
     processStatus: ProcessStatus.INSTALLING,
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 1, excludedCount: 1 }),
     resources: [
       {
         id: 'res-6',
@@ -356,6 +438,7 @@ export const mockProjects: Project[] = [
     serviceCode: 'SERVICE-B',
     cloudProvider: 'IDC',
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
     resources: [
       {
         id: 'res-7',
@@ -411,6 +494,7 @@ export const mockProjects: Project[] = [
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
     resources: [
       {
         id: 'res-9',

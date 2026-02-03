@@ -12,6 +12,7 @@ import {
 import { getStore } from '@/lib/mock-store';
 import { Project, ProcessStatus, ScanJob } from '@/lib/types';
 import { MAX_RESOURCES, SCAN_COOLDOWN_MS } from '@/lib/constants/scan';
+import { createInitialProjectStatus } from '@/lib/process';
 
 // 테스트용 프로젝트 생성 헬퍼
 const createTestProject = (overrides: Partial<Project> = {}): Project => ({
@@ -20,6 +21,7 @@ const createTestProject = (overrides: Partial<Project> = {}): Project => ({
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',
   processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+  status: createInitialProjectStatus(),
   resources: [],
   terraformState: { bdcTf: 'PENDING' },
   createdAt: new Date().toISOString(),

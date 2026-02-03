@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
-import { ProcessStatus, ResourceLifecycleStatus } from '@/lib/types';
+import { ProcessStatus, ResourceLifecycleStatus, ProjectStatus } from '@/lib/types';
 import { addApprovalHistory } from '@/lib/mock-history';
+import { getCurrentStep } from '@/lib/process';
 
 export async function POST(
   request: Request,
@@ -52,15 +53,33 @@ export async function POST(
     ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
     : { bdcTf: 'PENDING' as const };
 
+  const now = new Date().toISOString();
+
+  // status 필드 업데이트 (ADR-004)
+  const updatedStatus: ProjectStatus = {
+    ...project.status,
+    approval: {
+      status: 'APPROVED',
+      approvedAt: now,
+    },
+    installation: {
+      status: 'IN_PROGRESS',
+    },
+  };
+
+  // 계산된 processStatus
+  const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
   const updatedProject = updateProject(projectId, {
-    processStatus: ProcessStatus.INSTALLING,
+    processStatus: calculatedProcessStatus,
+    status: updatedStatus,
     resources: updatedResources,
     terraformState,
     isRejected: false,
     rejectionReason: undefined,
     rejectedAt: undefined,
     approvalComment: comment,
-    approvedAt: new Date().toISOString(),
+    approvedAt: now,
   });
 
   // History 기록
