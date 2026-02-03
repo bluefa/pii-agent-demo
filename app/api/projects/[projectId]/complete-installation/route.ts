@@ -9,10 +9,10 @@ export async function POST(
   const user = getCurrentUser();
   const { projectId } = await params;
 
-  if (!user || user.role !== 'ADMIN') {
+  if (!user) {
     return NextResponse.json(
-      { error: 'FORBIDDEN', message: '관리자만 설치 완료 처리할 수 있습니다.' },
-      { status: 403 }
+      { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+      { status: 401 }
     );
   }
 

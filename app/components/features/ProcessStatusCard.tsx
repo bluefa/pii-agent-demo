@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ProcessStatus, Project, TerraformStatus, DBCredential } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
-import { approveProject, rejectProject } from '@/app/lib/api';
+import { approveProject, rejectProject, completeInstallation } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import {
@@ -94,6 +94,18 @@ export const ProcessStatusCard = ({
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
 
+  // 설치 완료 핸들러
+  const handleInstallComplete = async () => {
+    try {
+      const updatedProject = await completeInstallation(project.id);
+      if (updatedProject) {
+        onProjectUpdate?.(updatedProject);
+      }
+    } catch (err) {
+      console.error('설치 완료 처리 실패:', err);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
       {/* 탭 헤더 */}
@@ -130,12 +142,15 @@ export const ProcessStatusCard = ({
               {/* Action Buttons */}
               <div className="mt-auto pt-4">
                 {currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
-                  <button
-                    disabled
-                    className="w-full px-4 py-2.5 bg-gray-100 text-gray-400 rounded-lg font-medium cursor-not-allowed"
-                  >
-                    PII Agent 연동 대상 확정 (Phase 3)
-                  </button>
+                  <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      리소스 스캔을 진행하시고 리소스 목록에서 연동 대상을 확인해주세요.
+                      <br />
+                      <span className="text-blue-600">
+                        리소스 목록이 조회되지 않는다면 관리자에게 문의해주세요.
+                      </span>
+                    </p>
+                  </div>
                 )}
 
                 {currentStep === ProcessStatus.WAITING_APPROVAL && (
@@ -167,7 +182,10 @@ export const ProcessStatusCard = ({
                   project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline projectId={project.id} resources={project.resources} />
                   ) : project.cloudProvider === 'AWS' ? (
-                    <AwsInstallationInline projectId={project.id} />
+                    <AwsInstallationInline
+                      projectId={project.id}
+                      onInstallComplete={handleInstallComplete}
+                    />
                   ) : (
                     <button
                       onClick={() => terraformModal.open()}
