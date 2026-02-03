@@ -6,6 +6,7 @@ import { getProject, getCurrentUser, CurrentUser, getCredentials } from '@/app/l
 import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
+import { IdcProjectPage } from './idc';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -61,6 +62,15 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     case 'Azure':
       return (
         <AzureProjectPage
+          project={project}
+          isAdmin={isAdmin}
+          credentials={credentials}
+          onProjectUpdate={setProject}
+        />
+      );
+    case 'IDC':
+      return (
+        <IdcProjectPage
           project={project}
           isAdmin={isAdmin}
           credentials={credentials}
