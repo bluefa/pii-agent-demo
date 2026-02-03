@@ -60,17 +60,25 @@ npm run type-check
 npm run build
 ```
 
-## 5. 문서 업데이트
+## 5. 문서화 (PR Merge 이전 필수)
 
-**항상 업데이트:**
-- `docs/api-routes/README.md` - 새 API 엔드포인트 추가
+**문서화 체크리스트 (PR 생성 전 확인):**
+- [ ] 새 API 추가 → `docs/api-routes/README.md` 업데이트
+- [ ] 새 컴포넌트/훅 추가 → 필요시 관련 문서 업데이트
+- [ ] 설계 결정 → `docs/adr/*.md` 작성
+- [ ] BFF 명세 변경 → `docs/api/providers/*.md` 구현 상태 갱신
+- [ ] 주요 기능 완료 → `CLAUDE.md` TODO 업데이트
 
-**조건부 업데이트:**
-- `docs/api/providers/*.md` - BFF 명세 변경 시 구현 상태 갱신
-- `docs/adr/*.md` - 설계 결정 시 ADR 작성
-- `CLAUDE.md` TODO - 주요 기능 완료 시
+**주의:** 문서화 없이 PR Merge 금지
 
-## 6. 커밋 규칙
+## 6. Git 규칙
+
+### 브랜치
+- main 직접 push 금지
+- git worktree 사용 권장 (병렬 작업 시)
+- 기능 개발 완료 시 반드시 commit & push
+
+### 커밋 메시지
 
 ```
 <type>: <description>
