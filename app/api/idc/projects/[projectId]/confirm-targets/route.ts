@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById } from '@/lib/mock-data';
 import { confirmIdcTargets } from '@/lib/mock-idc';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
+import { IdcResourceInput } from '@/lib/types/idc';
 
-// IDC confirm-targets는 resourceIds를 받아서 처리
-// 리소스 데이터는 이미 PUT /resources로 저장되어 있음
+// IDC confirm-targets는 전체 리소스 데이터를 받아서 처리
 interface IdcConfirmTargetsBody {
-  resourceIds: string[];
+  resources: IdcResourceInput[];
 }
 
 export async function POST(
@@ -52,15 +52,15 @@ export async function POST(
     );
   }
 
-  if (!body.resourceIds || !Array.isArray(body.resourceIds) || body.resourceIds.length === 0) {
+  if (!body.resources || !Array.isArray(body.resources) || body.resources.length === 0) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.VALIDATION_FAILED.code, message: '최소 1개 이상의 리소스를 선택해야 합니다.' },
       { status: IDC_ERROR_CODES.VALIDATION_FAILED.status }
     );
   }
 
-  // 5. IDC 연동 대상 확정 (resourceIds 기반)
-  const result = confirmIdcTargets(projectId, body.resourceIds);
+  // 5. IDC 연동 대상 확정 (resources 전체 데이터)
+  const result = confirmIdcTargets(projectId, body.resources);
 
   if (result.error) {
     return NextResponse.json(

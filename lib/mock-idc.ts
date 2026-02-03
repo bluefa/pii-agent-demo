@@ -1,5 +1,5 @@
-import { getProjectById } from '@/lib/mock-data';
-import { Project } from '@/lib/types';
+import { getProjectById, updateProject, generateId } from '@/lib/mock-data';
+import { Project, Resource, DatabaseType } from '@/lib/types';
 import {
   IdcInstallationStatus,
   IdcTfStatus,
@@ -267,7 +267,7 @@ export const getIdcResources = (
 };
 
 /**
- * IDC 리소스 전체 저장
+ * IDC 리소스 전체 저장 (임시 저장용 - 프로젝트에 반영 안 함)
  */
 export const updateIdcResources = (
   projectId: string,
@@ -287,17 +287,19 @@ export const updateIdcResources = (
     return { error: IDC_ERROR_CODES.NO_RESOURCES };
   }
 
+  // 임시 저장만 (프로젝트 리소스에는 반영하지 않음)
   idcStore.resources[projectId] = resources;
+
   return { data: resources };
 };
 
 /**
- * IDC 연동 대상 확정
+ * IDC 연동 대상 확정 - 리소스를 프로젝트에 추가하고 단계 전이
  */
 export const confirmIdcTargets = (
   projectId: string,
-  resourceIds: string[]
-): { data?: { confirmed: boolean; confirmedAt: string }; error?: { code: string; message: string; status: number } } => {
+  resources: IdcResourceInput[]
+): { data?: { confirmed: boolean; confirmedAt: string; project: Project }; error?: { code: string; message: string; status: number } } => {
   const project = getProjectById(projectId);
 
   if (!project) {
@@ -308,15 +310,47 @@ export const confirmIdcTargets = (
     return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
   }
 
-  // resourceIds 기반 검증 (저장된 리소스 또는 프로젝트 리소스와 매칭)
-  if (!resourceIds || resourceIds.length === 0) {
+  if (!resources || resources.length === 0) {
     return { error: IDC_ERROR_CODES.NO_RESOURCES };
   }
+
+  // IdcResourceInput을 Resource로 변환
+  const convertedResources: Resource[] = resources.map((input) => {
+    const hostInfo = input.inputFormat === 'IP'
+      ? (input.ips?.join(', ') || '')
+      : (input.host || '');
+
+    return {
+      id: generateId('idc-res'),
+      type: 'IDC',
+      resourceId: `${input.name} (${hostInfo}:${input.port})`,
+      connectionStatus: 'PENDING' as const,
+      isSelected: true, // 확정된 리소스는 선택된 상태
+      databaseType: input.databaseType as DatabaseType,
+      lifecycleStatus: 'TARGET' as const,
+      isNew: true,
+    };
+  });
+
+  // 프로젝트 리소스 추가 및 단계 전이 (INSTALLING으로)
+  const updatedProject = updateProject(projectId, {
+    resources: convertedResources,
+    processStatus: 3, // ProcessStatus.INSTALLING
+  });
+
+  // IDC 설치 상태 초기화
+  idcStore.installationStatus[projectId] = {
+    provider: 'IDC',
+    bdcTf: 'PENDING',
+    firewallOpened: false,
+    lastCheckedAt: new Date().toISOString(),
+  };
 
   return {
     data: {
       confirmed: true,
       confirmedAt: new Date().toISOString(),
+      project: updatedProject!,
     },
   };
 };
