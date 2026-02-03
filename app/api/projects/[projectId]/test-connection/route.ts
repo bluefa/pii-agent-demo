@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject, simulateConnectionTest, getCredentialById, generateId } from '@/lib/mock-data';
-import { ProcessStatus, ResourceLifecycleStatus, ConnectionStatus, ConnectionTestResult, ConnectionTestHistory, needsCredential } from '@/lib/types';
+import { ProcessStatus, ResourceLifecycleStatus, ConnectionStatus, ConnectionTestResult, ConnectionTestHistory, needsCredential, ProjectStatus } from '@/lib/types';
+import { getCurrentStep } from '@/lib/process';
 
 interface ResourceCredentialInput {
   resourceId: string;
@@ -131,16 +132,40 @@ export async function POST(
 
   // 프로젝트 업데이트
   // 4단계에서 첫 성공 시 5단계(CONNECTION_VERIFIED)로 전환
-  const shouldUpdateStatus = allSuccess && project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST;
+  const shouldUpdateConnectionTest = allSuccess && project.status.connectionTest.status !== 'PASSED';
 
   // 최초 연결 성공 시간 기록 (기존에 기록이 없을 때만)
   const isFirstSuccess = allSuccess && !project.piiAgentConnectedAt;
+  const now = new Date().toISOString();
+
+  // status 필드 업데이트 (ADR-004)
+  const updatedStatus: ProjectStatus = shouldUpdateConnectionTest
+    ? {
+        ...project.status,
+        connectionTest: {
+          status: 'PASSED',
+          lastTestedAt: now,
+          passedAt: now,
+        },
+      }
+    : {
+        ...project.status,
+        connectionTest: {
+          ...project.status.connectionTest,
+          status: allSuccess ? 'PASSED' : 'FAILED',
+          lastTestedAt: now,
+        },
+      };
+
+  // 계산된 processStatus
+  const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
   const updatedProject = updateProject(projectId, {
     resources: updatedResources,
     connectionTestHistory: updatedHistory,
-    ...(shouldUpdateStatus ? { processStatus: ProcessStatus.CONNECTION_VERIFIED } : {}),
-    ...(isFirstSuccess ? { piiAgentConnectedAt: new Date().toISOString() } : {}),
+    status: updatedStatus,
+    processStatus: calculatedProcessStatus,
+    ...(isFirstSuccess ? { piiAgentConnectedAt: now } : {}),
   });
 
   return NextResponse.json({

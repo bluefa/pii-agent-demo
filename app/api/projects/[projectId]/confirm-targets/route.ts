@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
-import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion } from '@/lib/types';
+import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus } from '@/lib/types';
 import { addTargetConfirmedHistory, addAutoApprovedHistory } from '@/lib/mock-history';
 import { evaluateAutoApproval } from '@/lib/policies';
+import { getCurrentStep } from '@/lib/process';
 
 interface ConfirmTargetsRequest {
   resourceIds: string[];
@@ -110,18 +111,10 @@ export async function POST(
     };
   });
 
-  const updatedProject = updateProject(projectId, {
-    resources: updatedResources,
-    processStatus: ProcessStatus.WAITING_APPROVAL,
-  });
-
   // History 기록: 연동 대상 확정
   const actor = { id: user.id, name: user.name };
   const selectedCount = resourceIds.length;
   const excludedCount = exclusions.length;
-
-  // 연동 확정 히스토리 추가
-  addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
 
   // 자동 승인 정책 평가
   const autoApprovalResult = evaluateAutoApproval({
@@ -129,17 +122,42 @@ export async function POST(
     selectedResourceIds: resourceIds,
   });
 
-  let finalProject = updatedProject;
+  // status 필드 업데이트 (ADR-004)
+  const updatedStatus: ProjectStatus = {
+    ...project.status,
+    scan: { ...project.status.scan, status: 'COMPLETED' },
+    targets: {
+      confirmed: true,
+      selectedCount,
+      excludedCount,
+    },
+    approval: autoApprovalResult.shouldAutoApprove
+      ? { status: 'AUTO_APPROVED', approvedAt: now }
+      : { status: 'PENDING' },
+    installation: autoApprovalResult.shouldAutoApprove
+      ? { status: 'IN_PROGRESS' }
+      : { status: 'PENDING' },
+  };
+
+  // 계산된 processStatus
+  const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
+  const updatedProject = updateProject(projectId, {
+    resources: updatedResources,
+    status: updatedStatus,
+    processStatus: calculatedProcessStatus,  // 계산된 값으로 업데이트 (하위 호환성)
+  });
+
+  // 연동 확정 히스토리 추가
+  addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
 
   if (autoApprovalResult.shouldAutoApprove) {
     addAutoApprovedHistory(projectId);
-    // 자동 승인 시 상태를 INSTALLING으로 변경
-    finalProject = updateProject(projectId, { processStatus: ProcessStatus.INSTALLING });
   }
 
   return NextResponse.json({
     success: true,
-    project: finalProject,
+    project: updatedProject,
     autoApproval: autoApprovalResult,
   });
 }
