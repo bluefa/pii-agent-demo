@@ -65,3 +65,39 @@ export interface IdcServiceSettings {
 export interface UpdateIdcSettingsRequest {
   firewallPrepared: boolean;
 }
+
+// ===== IDC 입력 포맷 =====
+
+export type IdcInputFormat = 'IP' | 'HOST';
+
+// ===== IDC 리소스 입력 (UI용) =====
+
+export interface IdcResourceInput {
+  name: string;
+  inputFormat: IdcInputFormat;
+  ips?: string[];           // IP 선택 시: 최대 3개
+  host?: string;            // HOST 선택 시: 단일, 100자 이내
+  port: number;
+  databaseType: IdcDatabaseType;
+  serviceId?: string;       // Oracle 필수
+}
+
+// ===== IDC Confirm 요청 (API용) =====
+
+export interface IdcConfirmTargetsRequest {
+  resources: Array<{
+    name: string;
+    database_hosts: string[];
+    port: number;
+    databaseType: IdcDatabaseType;
+    serviceId?: string;
+  }>;
+}
+
+// ===== IDC Credential 입력 =====
+
+export interface IdcCredentialInput {
+  username: string;
+  password: string;
+  description?: string;
+}
