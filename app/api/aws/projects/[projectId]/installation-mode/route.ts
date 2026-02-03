@@ -64,11 +64,12 @@ export const POST = async (
     const hasTfPermission = body.mode === 'AUTO';
 
     // 프로젝트 업데이트
-    store.projects[projectIndex] = {
+    const updatedProject = {
       ...project,
       awsInstallationMode: body.mode,
       updatedAt: new Date().toISOString(),
     };
+    store.projects[projectIndex] = updatedProject;
 
     // AWS 설치 상태도 함께 업데이트 (있는 경우)
     const existingStatus = store.awsInstallations.get(projectId);
@@ -91,9 +92,7 @@ export const POST = async (
 
     return NextResponse.json({
       success: true,
-      projectId,
-      mode: body.mode,
-      hasTfPermission,
+      project: updatedProject,
     });
   } catch {
     return NextResponse.json(
