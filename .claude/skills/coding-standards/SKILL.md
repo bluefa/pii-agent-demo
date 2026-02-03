@@ -130,7 +130,7 @@ try { ... } catch (e) { ... } finally { ... }
 
 ## 6. 컴포넌트 구조
 
-### 300줄 이상 → 폴더로 분리
+### 300줄 이상시 폴더 분리 검토
 ```
 components/features/
 ├── resource-table/
@@ -140,14 +140,6 @@ components/features/
 │   └── useResourceFilter.ts
 ```
 
-### Props 정의
-```typescript
-interface ResourceTableProps {
-  resources: Resource[];
-  onSelect: (id: string) => void;
-  isLoading?: boolean;  // optional은 마지막에
-}
-```
 
 ### UI 컴포넌트 개발 패턴
 
