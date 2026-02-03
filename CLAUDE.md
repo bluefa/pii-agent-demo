@@ -175,4 +175,4 @@ TODO
 	•	[ ] Provider별 UI 컴포넌트 분리
 	•	[ ] AWS TF Role 등록 가이드 API 구현
 	•	[ ] AWS TF Script 설치 가이드 API 구현
-	•	[ ] AWS 설치 모드 선택 프로세스 (Step 0)
+	•	[x] AWS 설치 모드 선택 프로세스 (Step 0)
