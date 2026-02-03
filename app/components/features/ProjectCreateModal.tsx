@@ -5,6 +5,7 @@ import { Button } from '@/app/components/ui/Button';
 import { CloudProvider } from '@/lib/types';
 import { createProject } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { AwsIcon, IdcIcon } from '@/app/components/ui/CloudProviderIcon';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -134,11 +135,9 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
                 )}
                 <div className="flex flex-col items-center gap-2">
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                    cloudProvider === 'AWS' ? 'bg-orange-100' : 'bg-gray-100'
+                    cloudProvider === 'AWS' ? 'bg-[#FF9900]/10' : 'bg-gray-100'
                   }`}>
-                    <svg className={`w-7 h-7 ${cloudProvider === 'AWS' ? 'text-orange-600' : 'text-gray-500'}`} viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M6.76 10.17c0 .4.03.73.09 1 .06.26.14.49.26.68.04.06.06.12.06.17 0 .07-.04.14-.13.2l-.42.28c-.06.04-.12.06-.17.06-.07 0-.14-.03-.2-.1a2.1 2.1 0 01-.31-.42c-.09-.16-.17-.33-.26-.52-.65.77-1.47 1.16-2.46 1.16-.7 0-1.26-.2-1.67-.6-.41-.4-.62-.94-.62-1.61 0-.71.25-1.29.76-1.73.51-.44 1.18-.66 2.03-.66.28 0 .57.02.87.07.3.04.61.11.93.18v-.6c0-.62-.13-1.06-.38-1.31-.26-.25-.69-.38-1.31-.38-.28 0-.57.03-.87.1-.3.07-.59.15-.87.25-.13.05-.22.08-.27.09-.05.01-.09.02-.12.02-.1 0-.15-.08-.15-.23v-.37c0-.12.02-.21.05-.27.03-.06.09-.12.18-.17.28-.15.62-.27 1.02-.37.4-.1.83-.15 1.28-.15.98 0 1.7.22 2.17.67.47.45.7 1.14.7 2.06v2.72zM3.36 11.44c.27 0 .55-.05.84-.15.29-.1.55-.28.77-.52.13-.15.23-.32.3-.52.06-.2.09-.43.09-.71v-.34a6.62 6.62 0 00-1.48-.18c-.53 0-.92.1-1.18.31-.26.21-.39.51-.39.89 0 .37.1.65.29.84.19.2.47.29.82.29l-.06.09zm6.27.85c-.13 0-.22-.02-.28-.07-.06-.05-.12-.15-.17-.29l-1.9-6.28c-.05-.14-.08-.24-.08-.29 0-.12.06-.18.18-.18h.73c.14 0 .23.02.29.07.06.05.11.15.16.29l1.36 5.38 1.26-5.38c.04-.14.09-.24.15-.29.06-.05.16-.07.29-.07h.59c.14 0 .24.02.29.07.06.05.12.15.16.29l1.27 5.45 1.4-5.45c.05-.14.1-.24.16-.29.06-.05.16-.07.29-.07h.69c.12 0 .18.06.18.18 0 .04-.01.09-.02.15-.01.06-.03.13-.06.22l-1.95 6.29c-.05.14-.1.24-.17.29-.06.05-.16.07-.28.07h-.64c-.14 0-.23-.02-.29-.07-.06-.05-.11-.15-.16-.3l-1.25-5.25-1.24 5.25c-.04.15-.09.25-.15.3-.06.05-.16.07-.29.07h-.64zm10.02.21c-.43 0-.85-.05-1.26-.14-.4-.09-.72-.19-.93-.3-.13-.07-.21-.14-.24-.22a.56.56 0 01-.05-.22v-.38c0-.15.06-.23.17-.23.04 0 .09.01.13.02.05.02.11.04.19.07.26.12.54.21.85.27.31.07.61.1.92.1.49 0 .87-.09 1.14-.26.27-.17.4-.42.4-.74 0-.22-.07-.4-.21-.55-.14-.15-.42-.28-.81-.41l-1.17-.36c-.59-.19-1.03-.46-1.3-.83-.27-.36-.41-.77-.41-1.21 0-.35.08-.66.23-.93.16-.27.36-.51.62-.7.26-.19.56-.34.9-.44.34-.1.7-.15 1.08-.15.19 0 .39.01.58.03.2.02.38.05.56.09.17.04.33.08.48.12.15.05.27.1.36.15.12.07.21.14.26.21.05.07.08.16.08.27v.35c0 .15-.06.23-.17.23a.83.83 0 01-.28-.09c-.43-.2-.91-.29-1.45-.29-.44 0-.79.07-1.04.22-.25.15-.37.38-.37.7 0 .22.08.41.24.56.16.15.46.3.88.44l1.15.36c.58.18 1 .44 1.26.77.26.33.38.71.38 1.14 0 .36-.08.68-.23.97-.15.29-.36.55-.63.76-.27.21-.6.37-.98.49-.4.11-.82.17-1.27.17z"/>
-                    </svg>
+                    <AwsIcon className={`w-7 h-7 ${cloudProvider === 'AWS' ? 'text-[#FF9900]' : 'text-gray-500'}`} />
                   </div>
                   <span className={`font-medium ${cloudProvider === 'AWS' ? 'text-orange-700' : 'text-gray-700'}`}>AWS</span>
                   <span className="text-xs text-gray-500">자동 스캔 지원</span>
@@ -166,9 +165,7 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
                   <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                     cloudProvider === 'IDC' ? 'bg-gray-200' : 'bg-gray-100'
                   }`}>
-                    <svg className={`w-7 h-7 ${cloudProvider === 'IDC' ? 'text-gray-700' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                    </svg>
+                    <IdcIcon className={`w-7 h-7 ${cloudProvider === 'IDC' ? 'text-gray-700' : 'text-gray-500'}`} />
                   </div>
                   <span className={`font-medium ${cloudProvider === 'IDC' ? 'text-gray-900' : 'text-gray-700'}`}>IDC</span>
                   <span className="text-xs text-gray-500">수동 등록</span>
