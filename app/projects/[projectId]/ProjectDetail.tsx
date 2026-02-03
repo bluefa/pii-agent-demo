@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
+import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
   getProject,
   confirmTargets,
@@ -15,12 +16,146 @@ import {
 } from '@/app/lib/api';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
+import { IdcResourceInputPanel, IdcInstallationStatus } from '@/app/components/features/idc';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 
 interface ProjectDetailProps {
   projectId: string;
 }
+
+// IDC Step Progress Bar - 승인 단계 없음 (4단계)
+const idcSteps = [
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '리소스 등록' },
+  { step: ProcessStatus.INSTALLING, label: '환경 구성' },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트' },
+  { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
+];
+
+const IdcStepProgressBar = ({ currentStep }: { currentStep: ProcessStatus }) => {
+  // IDC는 승인 단계(2)를 건너뜀
+  const getIdcStepIndex = (step: ProcessStatus): number => {
+    if (step === ProcessStatus.WAITING_TARGET_CONFIRMATION) return 0;
+    if (step === ProcessStatus.INSTALLING) return 1;
+    if (step === ProcessStatus.WAITING_CONNECTION_TEST || step === ProcessStatus.CONNECTION_VERIFIED) return 2;
+    if (step === ProcessStatus.INSTALLATION_COMPLETE) return 3;
+    return 0;
+  };
+
+  const currentIndex = getIdcStepIndex(currentStep);
+
+  return (
+    <div className="flex items-center justify-between mb-6">
+      {idcSteps.map((item, index) => {
+        const isCompleted = currentIndex > index;
+        const isCurrent = currentIndex === index;
+        const isLast = index === idcSteps.length - 1;
+
+        return (
+          <div key={item.step} className="flex items-center flex-1">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
+                  isCompleted
+                    ? 'bg-green-500 text-white'
+                    : isCurrent
+                    ? 'bg-blue-500 text-white ring-2 ring-blue-200'
+                    : 'bg-gray-100 text-gray-400'
+                }`}
+              >
+                {isCompleted ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  index + 1
+                )}
+              </div>
+              <span
+                className={`mt-1.5 text-xs text-center max-w-[70px] leading-tight ${
+                  isCompleted
+                    ? 'text-green-600 font-medium'
+                    : isCurrent
+                    ? 'text-blue-600 font-medium'
+                    : 'text-gray-400'
+                }`}
+              >
+                {item.label}
+              </span>
+            </div>
+            {!isLast && (
+              <div className="flex-1 mx-1 mt-[-20px]">
+                <div
+                  className={`h-0.5 rounded-full ${
+                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                  }`}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
+  const getGuideText = (): string => {
+    switch (currentStep) {
+      case ProcessStatus.WAITING_TARGET_CONFIRMATION:
+        return '연결할 데이터베이스 정보를 입력하세요';
+      case ProcessStatus.INSTALLING:
+        return 'BDC 환경을 구성하고 방화벽을 확인하세요';
+      case ProcessStatus.WAITING_CONNECTION_TEST:
+      case ProcessStatus.CONNECTION_VERIFIED:
+        return '설치가 완료되었습니다. DB 연결을 테스트하세요';
+      case ProcessStatus.INSTALLATION_COMPLETE:
+        return 'PII Agent 연동이 완료되었습니다.';
+      default:
+        return '';
+    }
+  };
+
+  const guideText = getGuideText();
+
+  return (
+    <div className="flex items-start gap-3 mb-4">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+        currentStep === ProcessStatus.INSTALLATION_COMPLETE
+          ? 'bg-green-100'
+          : currentStep === ProcessStatus.INSTALLING
+          ? 'bg-orange-100'
+          : 'bg-blue-100'
+      }`}>
+        {currentStep === ProcessStatus.INSTALLATION_COMPLETE ? (
+          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : currentStep === ProcessStatus.INSTALLING ? (
+          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+          </svg>
+        )}
+      </div>
+      <div>
+        <p className={`font-medium ${
+          currentStep === ProcessStatus.INSTALLATION_COMPLETE
+            ? 'text-green-700'
+            : 'text-gray-900'
+        }`}>
+          {guideText}
+        </p>
+        {currentStep === ProcessStatus.INSTALLING && (
+          <p className="text-sm text-gray-500 mt-1">
+            방화벽 확인 완료 후 연결 테스트를 진행할 수 있습니다.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
   const router = useRouter();
@@ -33,6 +168,13 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [credentials, setCredentials] = useState<DBCredential[]>([]);
   const [testLoading, setTestLoading] = useState(false);
+
+  // IDC-specific states
+  const [showIdcResourceInput, setShowIdcResourceInput] = useState(false);
+  const [idcInstallationStatus, setIdcInstallationStatus] = useState<IdcInstallationStatusType | null>(null);
+  const [idcActionLoading, setIdcActionLoading] = useState(false);
+
+  const isIdc = project?.cloudProvider === 'IDC';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,6 +196,19 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
             projectData.processStatus === ProcessStatus.INSTALLATION_COMPLETE) {
           const creds = await getCredentials(projectId);
           setCredentials(creds || []);
+        }
+
+        // IDC: 설치 단계면 설치 상태 가져오기
+        if (projectData.cloudProvider === 'IDC' && projectData.processStatus === ProcessStatus.INSTALLING) {
+          try {
+            const statusRes = await fetch(`/api/idc/projects/${projectId}/installation-status`);
+            if (statusRes.ok) {
+              const statusData = await statusRes.json();
+              setIdcInstallationStatus(statusData);
+            }
+          } catch {
+            // 설치 상태 조회 실패 시 무시
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
@@ -139,6 +294,131 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(false);
   };
+
+  // IDC: 리소스 저장 핸들러
+  const handleIdcResourceSave = useCallback(async (data: IdcResourceInput) => {
+    if (!project) return;
+
+    try {
+      setIdcActionLoading(true);
+      const res = await fetch(`/api/idc/projects/${projectId}/resources`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resources: [data] }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || '리소스 저장에 실패했습니다.');
+      }
+
+      // 프로젝트 데이터 새로고침
+      const updatedProject = await getProject(projectId);
+      setProject(updatedProject);
+      setShowIdcResourceInput(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '리소스 저장에 실패했습니다.');
+    } finally {
+      setIdcActionLoading(false);
+    }
+  }, [project, projectId]);
+
+  // IDC: 방화벽 확인 완료 핸들러
+  const handleIdcConfirmFirewall = useCallback(async () => {
+    if (!project) return;
+
+    try {
+      setIdcActionLoading(true);
+      const res = await fetch(`/api/idc/projects/${projectId}/confirm-firewall`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || '방화벽 확인에 실패했습니다.');
+      }
+
+      // 설치 상태 새로고침
+      const statusRes = await fetch(`/api/idc/projects/${projectId}/installation-status`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setIdcInstallationStatus(statusData);
+      }
+
+      // 프로젝트 데이터 새로고침
+      const updatedProject = await getProject(projectId);
+      setProject(updatedProject);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '방화벽 확인에 실패했습니다.');
+    } finally {
+      setIdcActionLoading(false);
+    }
+  }, [project, projectId]);
+
+  // IDC: 설치 재시도 핸들러
+  const handleIdcRetry = useCallback(async () => {
+    if (!project) return;
+
+    try {
+      setIdcActionLoading(true);
+      const res = await fetch(`/api/idc/projects/${projectId}/check-installation`, {
+        method: 'POST',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || '재시도에 실패했습니다.');
+      }
+
+      // 설치 상태 새로고침
+      const statusRes = await fetch(`/api/idc/projects/${projectId}/installation-status`);
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setIdcInstallationStatus(statusData);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '재시도에 실패했습니다.');
+    } finally {
+      setIdcActionLoading(false);
+    }
+  }, [project, projectId]);
+
+  // IDC: 연동 대상 확정 (승인 없이 바로 설치 시작)
+  const handleIdcConfirmTargets = useCallback(async () => {
+    if (!project || selectedIds.length === 0) return;
+
+    try {
+      setSubmitting(true);
+      const res = await fetch(`/api/idc/projects/${projectId}/confirm-targets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resourceIds: selectedIds }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || '연동 대상 확정에 실패했습니다.');
+      }
+
+      // 프로젝트 데이터 새로고침
+      const updatedProject = await getProject(projectId);
+      setProject(updatedProject);
+      setIsEditMode(false);
+
+      // 설치 상태 가져오기
+      if (updatedProject.processStatus === ProcessStatus.INSTALLING) {
+        const statusRes = await fetch(`/api/idc/projects/${projectId}/installation-status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          setIdcInstallationStatus(statusData);
+        }
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '연동 대상 확정에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [project, projectId, selectedIds]);
 
   // 현재 사용자가 관리자인지 확인
   const isAdmin = currentUser?.role === 'ADMIN';
@@ -230,17 +510,89 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           {/* Left: Project Info */}
           <ProjectInfoCard project={project} />
 
-          {/* Right: Process Status */}
-          <ProcessStatusCard
-            project={project}
-            isAdmin={isAdmin}
-            onProjectUpdate={setProject}
-            onTestConnection={handleTestConnection}
-            testLoading={testLoading}
-            credentials={credentials}
-            onCredentialChange={handleCredentialChange}
-          />
+          {/* Right: Process Status - IDC vs Others */}
+          {isIdc ? (
+            <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
+                프로세스 진행 상태
+              </h3>
+
+              {/* IDC Step Progress - 승인 단계 없이 4단계 */}
+              <IdcStepProgressBar currentStep={project.processStatus} />
+
+              <div className="border-t border-gray-100 my-4" />
+
+              <div className="flex-1 flex flex-col">
+                {/* IDC Step Guide */}
+                <IdcStepGuide currentStep={project.processStatus} />
+
+                {/* IDC Action Buttons */}
+                <div className="mt-auto pt-4">
+                  {project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
+                    <div className="space-y-3">
+                      {project.resources.length === 0 && !showIdcResourceInput && (
+                        <button
+                          onClick={() => setShowIdcResourceInput(true)}
+                          disabled={idcActionLoading}
+                          className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                        >
+                          리소스 등록
+                        </button>
+                      )}
+                      {project.resources.length > 0 && (
+                        <p className="text-sm text-gray-500">
+                          아래 리소스 목록에서 연동 대상을 선택하세요
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {project.processStatus === ProcessStatus.INSTALLING && idcInstallationStatus && (
+                    <IdcInstallationStatus
+                      status={idcInstallationStatus}
+                      onConfirmFirewall={handleIdcConfirmFirewall}
+                      onRetry={handleIdcRetry}
+                      onTestConnection={handleTestConnection}
+                    />
+                  )}
+
+                  {(project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+                    project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
+                    project.processStatus === ProcessStatus.INSTALLATION_COMPLETE) && (
+                    <div className="space-y-3">
+                      <button
+                        onClick={handleTestConnection}
+                        disabled={testLoading}
+                        className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        {testLoading && <LoadingSpinner />}
+                        Test Connection
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <ProcessStatusCard
+              project={project}
+              isAdmin={isAdmin}
+              onProjectUpdate={setProject}
+              onTestConnection={handleTestConnection}
+              testLoading={testLoading}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+            />
+          )}
         </div>
+
+        {/* IDC Resource Input Panel - 1단계에서만 표시 */}
+        {isIdc && showIdcResourceInput && project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
+          <IdcResourceInputPanel
+            onSave={handleIdcResourceSave}
+            onCancel={() => setShowIdcResourceInput(false)}
+          />
+        )}
 
         {/* Resource Table - 4단계에서는 Credential 컬럼 표시 */}
         <ResourceTable
@@ -278,34 +630,71 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Action Buttons - IDC vs Others */}
         <div className="flex justify-end gap-3">
-          {effectiveEditMode ? (
+          {isIdc ? (
+            // IDC: 승인 단계 없음 - 바로 설치 진행
             <>
-              {!isStep1 && (
+              {effectiveEditMode && (
+                <>
+                  {!isStep1 && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      취소
+                    </button>
+                  )}
+                  <button
+                    onClick={handleIdcConfirmTargets}
+                    disabled={submitting || selectedIds.length === 0}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {submitting && <LoadingSpinner />}
+                    연동 대상 확정
+                  </button>
+                </>
+              )}
+              {!effectiveEditMode && project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE && (
                 <button
-                  onClick={handleCancelEdit}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  onClick={handleStartEdit}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
-                  취소
+                  확정 대상 수정
                 </button>
               )}
-              <button
-                onClick={handleConfirmTargets}
-                disabled={submitting || selectedIds.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                {submitting && <LoadingSpinner />}
-                연동 대상 확정 승인 요청
-              </button>
             </>
           ) : (
-            <button
-              onClick={handleStartEdit}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              확정 대상 수정
-            </button>
+            // 다른 Provider: 승인 요청 필요
+            <>
+              {effectiveEditMode ? (
+                <>
+                  {!isStep1 && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      취소
+                    </button>
+                  )}
+                  <button
+                    onClick={handleConfirmTargets}
+                    disabled={submitting || selectedIds.length === 0}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {submitting && <LoadingSpinner />}
+                    연동 대상 확정 승인 요청
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleStartEdit}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  확정 대상 수정
+                </button>
+              )}
+            </>
           )}
         </div>
       </main>

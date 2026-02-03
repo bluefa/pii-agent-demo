@@ -7,6 +7,7 @@ import {
   SourceIpRecommendation,
   ConfirmFirewallResponse,
   IpType,
+  IdcResourceInput,
 } from '@/lib/types/idc';
 import {
   IDC_SOURCE_IP_RECOMMENDATIONS,
@@ -18,12 +19,23 @@ import {
 interface IdcStore {
   installationStatus: Record<string, IdcInstallationStatus>;
   serviceSettings: Record<string, IdcServiceSettings>;
+  resources: Record<string, IdcResourceInput[]>;
 }
 
 const idcStore: IdcStore = {
   installationStatus: {},
   serviceSettings: {},
+  resources: {},
 };
+
+// ===== 에러 코드 =====
+
+const IDC_ERROR_CODES = {
+  NOT_FOUND: { code: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.', status: 404 },
+  NOT_IDC_PROJECT: { code: 'NOT_IDC_PROJECT', message: 'IDC 프로젝트가 아닙니다.', status: 400 },
+  NO_RESOURCES: { code: 'NO_RESOURCES', message: '최소 1개 이상의 리소스가 필요합니다.', status: 400 },
+  INVALID_IP_TYPE: { code: 'INVALID_IP_TYPE', message: '유효하지 않은 IP 타입입니다.', status: 400 },
+} as const;
 
 // ===== 헬퍼 함수 =====
 
@@ -55,15 +67,11 @@ export const getIdcInstallationStatus = (
   const project = getProjectById(projectId);
 
   if (!project) {
-    return {
-      error: { code: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.', status: 404 },
-    };
+    return { error: IDC_ERROR_CODES.NOT_FOUND };
   }
 
   if (!isIdcProject(project)) {
-    return {
-      error: { code: 'NOT_IDC_PROJECT', message: 'IDC 프로젝트가 아닙니다.', status: 400 },
-    };
+    return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
   }
 
   // 캐시된 상태가 있으면 반환
@@ -94,15 +102,11 @@ export const checkIdcInstallation = (
   const project = getProjectById(projectId);
 
   if (!project) {
-    return {
-      error: { code: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.', status: 404 },
-    };
+    return { error: IDC_ERROR_CODES.NOT_FOUND };
   }
 
   if (!isIdcProject(project)) {
-    return {
-      error: { code: 'NOT_IDC_PROJECT', message: 'IDC 프로젝트가 아닙니다.', status: 400 },
-    };
+    return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
   }
 
   // 캐시 삭제 후 새로 조회
@@ -137,15 +141,11 @@ export const confirmFirewall = (
   const project = getProjectById(projectId);
 
   if (!project) {
-    return {
-      error: { code: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.', status: 404 },
-    };
+    return { error: IDC_ERROR_CODES.NOT_FOUND };
   }
 
   if (!isIdcProject(project)) {
-    return {
-      error: { code: 'NOT_IDC_PROJECT', message: 'IDC 프로젝트가 아닙니다.', status: 400 },
-    };
+    return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
   }
 
   // 설치 상태 업데이트
@@ -177,9 +177,7 @@ export const getSourceIpRecommendation = (
   const recommendation = IDC_SOURCE_IP_RECOMMENDATIONS[ipType];
 
   if (!recommendation) {
-    return {
-      error: { code: 'INVALID_IP_TYPE', message: '유효하지 않은 IP 타입입니다.', status: 400 },
-    };
+    return { error: IDC_ERROR_CODES.INVALID_IP_TYPE };
   }
 
   return {
@@ -246,11 +244,89 @@ export const updateIdcServiceSettings = (
   return { data: updatedSettings };
 };
 
+// ===== 리소스 관련 함수 =====
+
+/**
+ * IDC 리소스 목록 조회
+ */
+export const getIdcResources = (
+  projectId: string
+): { data?: IdcResourceInput[]; error?: { code: string; message: string; status: number } } => {
+  const project = getProjectById(projectId);
+
+  if (!project) {
+    return { error: IDC_ERROR_CODES.NOT_FOUND };
+  }
+
+  if (!isIdcProject(project)) {
+    return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
+  }
+
+  const resources = idcStore.resources[projectId] || [];
+  return { data: resources };
+};
+
+/**
+ * IDC 리소스 전체 저장
+ */
+export const updateIdcResources = (
+  projectId: string,
+  resources: IdcResourceInput[]
+): { data?: IdcResourceInput[]; error?: { code: string; message: string; status: number } } => {
+  const project = getProjectById(projectId);
+
+  if (!project) {
+    return { error: IDC_ERROR_CODES.NOT_FOUND };
+  }
+
+  if (!isIdcProject(project)) {
+    return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
+  }
+
+  if (resources.length === 0) {
+    return { error: IDC_ERROR_CODES.NO_RESOURCES };
+  }
+
+  idcStore.resources[projectId] = resources;
+  return { data: resources };
+};
+
+/**
+ * IDC 연동 대상 확정
+ */
+export const confirmIdcTargets = (
+  projectId: string,
+  resourceIds: string[]
+): { data?: { confirmed: boolean; confirmedAt: string }; error?: { code: string; message: string; status: number } } => {
+  const project = getProjectById(projectId);
+
+  if (!project) {
+    return { error: IDC_ERROR_CODES.NOT_FOUND };
+  }
+
+  if (!isIdcProject(project)) {
+    return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
+  }
+
+  // resourceIds 기반 검증 (저장된 리소스 또는 프로젝트 리소스와 매칭)
+  if (!resourceIds || resourceIds.length === 0) {
+    return { error: IDC_ERROR_CODES.NO_RESOURCES };
+  }
+
+  return {
+    data: {
+      confirmed: true,
+      confirmedAt: new Date().toISOString(),
+    },
+  };
+};
+
 // ===== 테스트용 유틸리티 =====
 
 export const resetIdcStore = (): void => {
   idcStore.installationStatus = {};
   idcStore.serviceSettings = {};
+  idcStore.resources = {};
 };
 
 export const getIdcStore = (): IdcStore => {
