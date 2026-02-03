@@ -21,7 +21,7 @@ const createResource = (id: string, hasExclusion: boolean = false): Resource => 
 
 describe('AutoApprovalPolicy', () => {
   describe('evaluateAutoApproval', () => {
-    it('제외된 리소스가 없으면 자동 승인 불가', () => {
+    it('모든 리소스 선택 시 자동 승인', () => {
       const context: AutoApprovalContext = {
         resources: [
           createResource('res-1'),
@@ -32,11 +32,11 @@ describe('AutoApprovalPolicy', () => {
 
       const result = evaluateAutoApproval(context);
 
-      expect(result.shouldAutoApprove).toBe(false);
-      expect(result.reason).toBe('NO_EXCLUDED_RESOURCES');
+      expect(result.shouldAutoApprove).toBe(true);
+      expect(result.reason).toBe('AUTO_APPROVED');
     });
 
-    it('제외된 리소스가 선택되면 자동 승인 불가', () => {
+    it('제외된 리소스를 선택해도 자동 승인 가능', () => {
       const context: AutoApprovalContext = {
         resources: [
           createResource('res-1'),
@@ -47,11 +47,11 @@ describe('AutoApprovalPolicy', () => {
 
       const result = evaluateAutoApproval(context);
 
-      expect(result.shouldAutoApprove).toBe(false);
-      expect(result.reason).toBe('EXCLUDED_RESOURCE_SELECTED');
+      expect(result.shouldAutoApprove).toBe(true);
+      expect(result.reason).toBe('AUTO_APPROVED');
     });
 
-    it('제외되지 않은 리소스 중 선택 안 된 것이 있으면 자동 승인 불가', () => {
+    it('제외되지 않은 리소스 중 선택 안 된 것이 있으면 수동 승인 필요', () => {
       const context: AutoApprovalContext = {
         resources: [
           createResource('res-1'),
@@ -83,7 +83,7 @@ describe('AutoApprovalPolicy', () => {
       expect(result.reason).toBe('AUTO_APPROVED');
     });
 
-    it('문서 예시: 신규 리소스 추가 시 자동 승인', () => {
+    it('문서 예시 1: 신규 리소스 추가 시 자동 승인', () => {
       // [기존 상태]
       // - 리소스 A: 연동됨 (lifecycleStatus: ACTIVE)
       // - 리소스 B: 연동 제외
@@ -95,6 +95,24 @@ describe('AutoApprovalPolicy', () => {
           createResource('res-C'), // 신규
         ],
         selectedResourceIds: ['res-A', 'res-C'], // B 제외, A와 C 선택
+      };
+
+      const result = evaluateAutoApproval(context);
+
+      expect(result.shouldAutoApprove).toBe(true);
+      expect(result.reason).toBe('AUTO_APPROVED');
+    });
+
+    it('문서 예시 2: 최초 연동 전체 선택 시 자동 승인', () => {
+      // [기존 상태]
+      // - 리소스 A: 신규 발견 (DISCOVERED)
+      // - 리소스 B: 신규 발견 (DISCOVERED)
+      const context: AutoApprovalContext = {
+        resources: [
+          createResource('res-A'),
+          createResource('res-B'),
+        ],
+        selectedResourceIds: ['res-A', 'res-B'], // 모두 선택
       };
 
       const result = evaluateAutoApproval(context);
@@ -118,6 +136,38 @@ describe('AutoApprovalPolicy', () => {
 
       expect(result.shouldAutoApprove).toBe(true);
       expect(result.reason).toBe('AUTO_APPROVED');
+    });
+
+    it('미선택 리소스가 모두 제외 확정된 경우 자동 승인', () => {
+      const context: AutoApprovalContext = {
+        resources: [
+          createResource('res-1'),
+          createResource('res-2', true), // 제외됨
+          createResource('res-3', true), // 제외됨
+        ],
+        selectedResourceIds: ['res-1'], // res-2, res-3은 이미 제외됨
+      };
+
+      const result = evaluateAutoApproval(context);
+
+      expect(result.shouldAutoApprove).toBe(true);
+      expect(result.reason).toBe('AUTO_APPROVED');
+    });
+
+    it('미선택 리소스 중 하나라도 제외 확정 안 되면 수동 승인', () => {
+      const context: AutoApprovalContext = {
+        resources: [
+          createResource('res-1'),
+          createResource('res-2', true), // 제외됨
+          createResource('res-3'), // 제외 안 됨
+        ],
+        selectedResourceIds: ['res-1'], // res-3이 제외 안 되었는데 미선택
+      };
+
+      const result = evaluateAutoApproval(context);
+
+      expect(result.shouldAutoApprove).toBe(false);
+      expect(result.reason).toBe('NON_EXCLUDED_NOT_SELECTED');
     });
   });
 });
