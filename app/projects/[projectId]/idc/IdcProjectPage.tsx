@@ -323,6 +323,7 @@ export const IdcProjectPage = ({
         {/* IDC Resource Input Panel - 1단계에서만 표시 */}
         {showIdcResourceInput && isStep1 && (
           <IdcResourceInputPanel
+            credentials={credentials}
             onSave={handleIdcResourceSave}
             onCancel={() => setShowIdcResourceInput(false)}
           />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, ProcessStatus, DBCredential } from '@/lib/types';
+import { Project, DBCredential } from '@/lib/types';
 import { getProject, getCurrentUser, CurrentUser, getCredentials } from '@/app/lib/api';
 import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
@@ -31,13 +31,9 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
         setCurrentUser(userData);
         setError(null);
 
-        // 4단계, 5단계, 6단계면 Credential 목록 가져오기
-        if (projectData.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-            projectData.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-            projectData.processStatus === ProcessStatus.INSTALLATION_COMPLETE) {
-          const creds = await getCredentials(projectId);
-          setCredentials(creds || []);
-        }
+        // Credential 목록 가져오기
+        const creds = await getCredentials(projectId);
+        setCredentials(creds || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
       } finally {

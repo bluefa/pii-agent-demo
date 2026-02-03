@@ -80,6 +80,7 @@ export interface IdcResourceInput {
   port: number;
   databaseType: IdcDatabaseType;
   serviceId?: string;       // Oracle 필수
+  credentialId?: string;    // 선택된 Credential ID (Optional)
 }
 
 // ===== IDC Confirm 요청 (API용) =====
