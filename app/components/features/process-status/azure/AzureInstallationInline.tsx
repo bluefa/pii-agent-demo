@@ -43,7 +43,7 @@ const ITEMS_PER_PAGE = 5;
 const STEP_INFO: Record<InstallStep, { label: string; color: string; bgColor: string }> = {
   SUBNET_REQUIRED: { label: 'Subnet 설정 필요', color: 'text-orange-600', bgColor: 'bg-orange-50' },
   VM_TF_REQUIRED: { label: 'VM TF 설치 필요', color: 'text-blue-600', bgColor: 'bg-blue-50' },
-  PE_NOT_REQUESTED: { label: 'PE 승인 요청 필요', color: 'text-gray-600', bgColor: 'bg-gray-50' },
+  PE_NOT_REQUESTED: { label: 'BDC측 Private Endpoint 승인요청 필요', color: 'text-gray-600', bgColor: 'bg-gray-50' },
   PE_PENDING: { label: 'PE 승인 대기', color: 'text-orange-600', bgColor: 'bg-orange-50' },
   PE_REJECTED: { label: 'PE 거부됨 (재신청 필요)', color: 'text-red-600', bgColor: 'bg-red-50' },
   COMPLETED: { label: '완료', color: 'text-green-600', bgColor: 'bg-green-50' },
@@ -157,32 +157,40 @@ const ResourceRow = ({
             </div>
           )}
 
-          {/* 액션 버튼 */}
+          {/* 안내 문구 및 액션 버튼 */}
           {!resource.isCompleted && (
-            <div className="flex items-center gap-2 mt-2">
-              {resource.step === 'SUBNET_REQUIRED' && (
-                <button
-                  onClick={onShowSubnetGuide}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-50 text-orange-600 rounded hover:bg-orange-100 transition-colors"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Subnet 가이드
-                </button>
+            <div className="mt-2">
+              {resource.step === 'PE_NOT_REQUESTED' && (
+                <p className="text-xs text-gray-500">
+                  현재는 조치가 필요 없습니다. BDC에서 승인요청 완료 후 Azure Portal에서 승인하시면 됩니다.
+                </p>
               )}
 
-              {resource.step === 'PE_PENDING' && (
-                <button
-                  onClick={() => onShowPeGuide(resource.peId)}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-50 text-orange-600 rounded hover:bg-orange-100 transition-colors"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  승인 가이드
-                </button>
-              )}
+              <div className="flex items-center gap-2 mt-1">
+                {resource.step === 'SUBNET_REQUIRED' && (
+                  <button
+                    onClick={onShowSubnetGuide}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-50 text-orange-600 rounded hover:bg-orange-100 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Subnet 가이드
+                  </button>
+                )}
+
+                {resource.step === 'PE_PENDING' && (
+                  <button
+                    onClick={() => onShowPeGuide(resource.peId)}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-50 text-orange-600 rounded hover:bg-orange-100 transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    승인 가이드
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
