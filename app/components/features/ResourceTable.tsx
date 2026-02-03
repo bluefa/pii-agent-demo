@@ -100,17 +100,20 @@ export const ResourceTable = ({
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
+  // 제외된 리소스는 선택 불가
+  const selectableResources = filteredResources.filter((r) => !r.exclusion);
+
   const handleSelectAll = (checked: boolean) => {
     const newSelectedIds = checked
-      ? new Set(filteredResources.map((r) => r.id))
+      ? new Set(selectableResources.map((r) => r.id))
       : new Set<string>();
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
   const isAllSelected =
-    filteredResources.length > 0 && filteredResources.every((r) => selectedIdsSet.has(r.id));
+    selectableResources.length > 0 && selectableResources.every((r) => selectedIdsSet.has(r.id));
   const isSomeSelected =
-    filteredResources.some((r) => selectedIdsSet.has(r.id)) && !isAllSelected;
+    selectableResources.some((r) => selectedIdsSet.has(r.id)) && !isAllSelected;
 
   const colSpan = 5 + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
