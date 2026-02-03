@@ -43,6 +43,33 @@ Next.js App Router의 API Route Handlers 문서.
 | GET | `/api/v2/projects/[projectId]/scan/[scanId]` | 특정 스캔 결과 조회 |
 | GET | `/api/v2/projects/[projectId]/scan/history` | 스캔 이력 조회 |
 
+#### 스캔 상태 응답 (`/scan/status`)
+
+```typescript
+{
+  isScanning: boolean;        // 스캔 진행 중 여부
+  canScan: boolean;           // 스캔 가능 여부
+  canScanReason?: string;     // 스캔 불가 사유
+  cooldownUntil?: string;     // 쿨다운 종료 시간 (ISO 8601)
+  currentScan: {              // 진행 중인 스캔 (없으면 null)
+    scanId: string;
+    status: 'PENDING' | 'IN_PROGRESS';
+    startedAt: string;
+    progress: number;         // 0-100
+  } | null;
+  lastCompletedScan: {        // 마지막 완료된 스캔 (없으면 null)
+    scanId: string;
+    completedAt: string;
+    result: ScanResult | null;
+  } | null;
+}
+```
+
+#### 스캔 정책
+- **쿨다운**: 스캔 완료 후 5분간 재스캔 불가
+- **최대 리소스**: 프로젝트당 10개 제한
+- **지원 Provider**: AWS, Azure, GCP (IDC, SDU 미지원)
+
 ### AWS
 
 | Method | Endpoint | 설명 |

@@ -329,16 +329,12 @@ const generateResourceChanges = (
   const addedIds: string[] = [];
   let newFound = 0;
 
-  // 여유 슬롯이 있고 30% 확률로 신규 리소스 추가
-  if (availableSlots > 0 && Math.random() < 0.3) {
-    const addCount = Math.min(Math.floor(Math.random() * 2) + 1, availableSlots);
-
-    for (let i = 0; i < addCount; i++) {
-      const resource = generateRandomResource(provider);
-      newResources.push(resource);
-      addedIds.push(resource.id);
-      newFound++;
-    }
+  // 여유 슬롯이 있으면 반드시 1개 추가
+  if (availableSlots > 0) {
+    const resource = generateRandomResource(provider);
+    newResources.push(resource);
+    addedIds.push(resource.id);
+    newFound++;
   }
 
   const result = buildScanResult(newResources, newFound);
@@ -548,7 +544,7 @@ export const getScanHistory = (
 
 // ===== Utility Functions =====
 
-export const canScan = (project: Project): { canScan: boolean; reason?: string } => {
+export const canScan = (project: Project): { canScan: boolean; reason?: string; cooldownUntil?: string } => {
   const policy = SCAN_POLICY[project.cloudProvider];
   if (!policy.enabled) {
     return { canScan: false, reason: policy.reason };
@@ -577,10 +573,12 @@ export const canScan = (project: Project): { canScan: boolean; reason?: string }
     .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
   if (lastCompletedScan) {
-    const timeSinceLastScan = Date.now() - new Date(lastCompletedScan.completedAt).getTime();
+    const completedAt = new Date(lastCompletedScan.completedAt).getTime();
+    const timeSinceLastScan = Date.now() - completedAt;
     if (timeSinceLastScan < SCAN_COOLDOWN_MS) {
       const remainingSeconds = Math.ceil((SCAN_COOLDOWN_MS - timeSinceLastScan) / 1000);
-      return { canScan: false, reason: `${remainingSeconds}초 후 스캔 가능` };
+      const cooldownUntil = new Date(completedAt + SCAN_COOLDOWN_MS).toISOString();
+      return { canScan: false, reason: `${remainingSeconds}초 후 스캔 가능`, cooldownUntil };
     }
   }
 
