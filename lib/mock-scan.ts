@@ -548,7 +548,7 @@ export const getScanHistory = (
 
 // ===== Utility Functions =====
 
-export const canScan = (project: Project): { canScan: boolean; reason?: string } => {
+export const canScan = (project: Project): { canScan: boolean; reason?: string; cooldownUntil?: string } => {
   const policy = SCAN_POLICY[project.cloudProvider];
   if (!policy.enabled) {
     return { canScan: false, reason: policy.reason };
@@ -577,10 +577,12 @@ export const canScan = (project: Project): { canScan: boolean; reason?: string }
     .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
   if (lastCompletedScan) {
-    const timeSinceLastScan = Date.now() - new Date(lastCompletedScan.completedAt).getTime();
+    const completedAt = new Date(lastCompletedScan.completedAt).getTime();
+    const timeSinceLastScan = Date.now() - completedAt;
     if (timeSinceLastScan < SCAN_COOLDOWN_MS) {
       const remainingSeconds = Math.ceil((SCAN_COOLDOWN_MS - timeSinceLastScan) / 1000);
-      return { canScan: false, reason: `${remainingSeconds}초 후 스캔 가능` };
+      const cooldownUntil = new Date(completedAt + SCAN_COOLDOWN_MS).toISOString();
+      return { canScan: false, reason: `${remainingSeconds}초 후 스캔 가능`, cooldownUntil };
     }
   }
 

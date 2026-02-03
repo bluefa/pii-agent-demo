@@ -73,6 +73,7 @@ export async function GET(
     isScanning,
     canScan: scanability.canScan,
     canScanReason: scanability.reason,
+    cooldownUntil: scanability.cooldownUntil,
     currentScan,
     lastCompletedScan,
   });
