@@ -613,18 +613,6 @@ export const getCredentialById = (id: string): DBCredential | undefined => {
 // ===== Mock AWS Installation Status =====
 // 기존 AWS 프로젝트들의 설치 상태 초기 데이터
 export const mockAwsInstallations: Map<string, AwsInstallationStatus> = new Map([
-  // proj-1: 설치 완료 상태 (INSTALLATION_COMPLETE)
-  [
-    'proj-1',
-    {
-      provider: 'AWS',
-      hasTfPermission: true,
-      serviceTfCompleted: true,
-      bdcTfCompleted: true,
-      completedAt: '2024-01-20T14:00:00Z',
-      lastCheckedAt: '2024-01-20T14:30:00Z',
-    },
-  ],
   // proj-3: 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
   [
     'proj-3',
