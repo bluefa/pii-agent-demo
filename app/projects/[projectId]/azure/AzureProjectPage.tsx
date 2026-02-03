@@ -10,6 +10,7 @@ import {
   ResourceCredentialInput,
   VmConfigInput,
 } from '@/app/lib/api';
+import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -85,7 +86,9 @@ export const AzureProjectPage = ({
     }
   };
 
-  const isStep1 = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  // ADR-004: status 필드에서 현재 단계 계산
+  const currentStep = getProjectCurrentStep(project);
+  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
@@ -174,7 +177,7 @@ export const AzureProjectPage = ({
             vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
           }))}
           cloudProvider={project.cloudProvider}
-          processStatus={project.processStatus}
+          processStatus={currentStep}
           isEditMode={effectiveEditMode}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}

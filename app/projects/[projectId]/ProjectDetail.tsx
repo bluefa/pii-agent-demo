@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Project, ProcessStatus, DBCredential } from '@/lib/types';
 import { getProject, getCurrentUser, CurrentUser, getCredentials } from '@/app/lib/api';
+import { getProjectCurrentStep } from '@/lib/process';
 import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
@@ -30,10 +31,12 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
         setCurrentUser(userData);
         setError(null);
 
+        // ADR-004: status 필드에서 현재 단계 계산
+        const currentStep = getProjectCurrentStep(projectData);
         // 4단계, 5단계, 6단계면 Credential 목록 가져오기
-        if (projectData.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-            projectData.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-            projectData.processStatus === ProcessStatus.INSTALLATION_COMPLETE) {
+        if (currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||
+            currentStep === ProcessStatus.CONNECTION_VERIFIED ||
+            currentStep === ProcessStatus.INSTALLATION_COMPLETE) {
           const creds = await getCredentials(projectId);
           setCredentials(creds || []);
         }
