@@ -50,10 +50,12 @@ export async function POST(
   const exclusionMap = new Map(exclusions.map(e => [e.resourceId, e.reason]));
 
   // 선택되지 않은 리소스 중 제외 사유가 없는 것 검증
+  // (이미 exclusion이 있는 리소스는 제외 - 기존 제외 유지)
   const unselectedWithoutReason = project.resources.filter(r =>
     !selectedSet.has(r.id) &&
     r.lifecycleStatus !== 'ACTIVE' &&
-    !exclusionMap.has(r.id)
+    !exclusionMap.has(r.id) &&
+    !r.exclusion
   );
 
   if (unselectedWithoutReason.length > 0) {
@@ -81,8 +83,8 @@ export async function POST(
       lifecycleStatus = isSelected ? 'PENDING_APPROVAL' : 'DISCOVERED';
     }
 
-    // 제외 정보 설정
-    let exclusion: ResourceExclusion | undefined;
+    // 제외 정보 설정 (기존 exclusion 보존)
+    let exclusion: ResourceExclusion | undefined = r.exclusion;
     if (!isSelected && exclusionMap.has(r.id)) {
       exclusion = {
         reason: exclusionMap.get(r.id)!,
