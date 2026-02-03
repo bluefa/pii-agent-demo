@@ -44,6 +44,15 @@ export async function POST(
 
   const body = await request.json() as ConfirmTargetsRequest;
   const { resourceIds, exclusions = [] } = body;
+
+  // 선택한 리소스가 1개 이상이어야 함
+  if (!resourceIds || resourceIds.length === 0) {
+    return NextResponse.json(
+      { error: 'BAD_REQUEST', message: '연동 대상으로 선택한 리소스가 1개 이상이어야 합니다.' },
+      { status: 400 }
+    );
+  }
+
   const selectedSet = new Set(resourceIds);
 
   // 제외 사유 맵 생성
