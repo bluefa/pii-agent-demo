@@ -101,3 +101,11 @@ export const IDC_SOURCE_IP_RECOMMENDATIONS = {
     description: 'VPC 연동 환경에서 사용하는 BDC 서버 IP입니다.',
   },
 } as const;
+
+// ===== IDC 유효성 검증 =====
+
+export const IDC_VALIDATION = {
+  MAX_IPS: 3,
+  MAX_HOST_LENGTH: 100,
+  IP_REGEX: /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/,
+} as const;
