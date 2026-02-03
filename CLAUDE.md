@@ -108,8 +108,11 @@ Cloud Provider: AWS, Azure, GCP, IDC, SDU (+ 수동조사 예정)
 	•	ADR (Architecture Decision Records):
 		•	docs/adr/README.md - ADR 목록 및 작성 규칙
 		•	주요 설계 결정만 기록 (구현 계획, 검증 결과는 제외)
-	•	Skills (개발 워크플로우):
-		•	docs/skills/feature-development.md - 기능 개발 프로세스
+	•	Skills (Claude Code Agent Skills):
+		•	.claude/skills/README.md - 스킬 목록 및 사용법
+		•	.claude/skills/feature-development/ - 기능 개발 워크플로우
+		•	.claude/skills/coding-standards/ - 코딩 규칙
+		•	.claude/skills/code-review/ - 코드 리뷰 가이드
 
 ⸻
 
