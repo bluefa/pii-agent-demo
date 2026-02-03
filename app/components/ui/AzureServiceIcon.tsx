@@ -18,110 +18,100 @@ const sizeMap = {
   lg: 'w-6 h-6',
 };
 
-// Azure 공식 색상
-const AZURE_BLUE = '#0078D4';
-const AZURE_DARK = '#004E8C';
-const AZURE_LIGHT = '#50E6FF';
+// 공식 브랜드 색상
+const colorMap: Record<AzureResourceType, string> = {
+  AZURE_MSSQL: '#CC2927',
+  AZURE_POSTGRESQL: '#4169E1',
+  AZURE_MYSQL: '#4479A1',
+  AZURE_MARIADB: '#003545',
+  AZURE_COSMOS_NOSQL: '#0078D4',
+  AZURE_SYNAPSE: '#0078D4',
+  AZURE_VM: '#0078D4',
+};
+
+// Simple Icons - Microsoft SQL Server (https://simpleicons.org/)
+const MssqlIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M4.724 2.505s-.08.127-.004.315c.046.116.186.256.34.404 0 0 1.615 1.576 1.813 1.804.895 1.033 1.284 2.05 1.32 3.453.022.9-.151 1.692-.573 2.613-.756 1.649-2.35 3.468-4.81 5.49l.36-.12c.233-.173.548-.359 1.292-.766 1.713-.936 3.636-1.798 5.999-2.686 3.399-1.277 8.99-2.776 12.172-3.263l.331-.051-.05-.08c-.292-.452-.49-.731-.73-1.027-.697-.863-1.542-1.567-2.577-2.146-1.422-.797-3.267-1.416-5.6-1.88a67.93 67.93 0 00-2.191-.375 209.29 209.29 0 01-3.924-.64c-.425-.075-1.06-.181-1.481-.272a9.404 9.404 0 01-.961-.258c-.268-.105-.645-.207-.726-.515zm.936.909c.003-.002.063.017.137.042.136.046.316.1.526.159.146.04.307.084.479.127.218.056.399.104.401.107.024.027.391 1.198.516 1.647.048.172.084.315.081.318a.789.789 0 01-.09-.14c-.424-.746-1.097-1.505-1.874-2.116a3.104 3.104 0 01-.176-.144zm1.79.494c.018-.001.099.012.195.034.619.136 1.725.35 2.435.47.119.02.216.04.216.047a.348.348 0 01-.098.062c-.119.06-.602.349-.763.457-.403.27-.766.559-1.03.821a5.4 5.4 0 01-.197.192c-.003 0-.022-.062-.041-.137a12.09 12.09 0 00-.65-1.779 1.801 1.801 0 01-.071-.165c0-.001 0-.002.004-.002zm3.147.598c.02.007.06.13.129.404a6.05 6.05 0 01.153 1.977l-.012.038-.187-.06c-.388-.124-1.02-.31-1.562-.46a6.625 6.625 0 01-.56-.17c0-.022.449-.471.642-.642.369-.326 1.362-1.098 1.397-1.087zm.25.036c.011-.01 1.504.248 2.182.378.506.097 1.237.25 1.281.269.022.008-.054.05-.297.16-.96.432-1.672.82-2.38 1.293-.186.124-.341.226-.344.226-.004 0-.006-.104-.006-.23 0-.69-.139-1.387-.391-1.976a.688.688 0 01-.045-.12zm3.86.764c.011.011-.038.306-.08.48-.132.54-.482 1.344-.914 2.099a2.26 2.26 0 01-.152.246 1.499 1.499 0 01-.219-.115c-.422-.247-.9-.48-1.425-.697a4.588 4.588 0 01-.278-.12c-.024-.022 1.143-.795 1.762-1.166.495-.297 1.292-.741 1.306-.727zm.276.043c.033 0 .695.18 1.037.283.853.255 1.837.614 2.475.904l.265.12-.187.043c-1.561.36-2.9.773-4.188 1.296-.107.044-.2.08-.207.08a.911.911 0 01.075-.185c.388-.823.638-1.687.703-2.42.006-.067.018-.121.027-.121zM9.925 0c-.08-.01-1.371.455-2.2.791-1.123.457-1.996.894-2.534 1.272-.2.14-.452.393-.488.49a.356.356 0 00-.021.123l.488.46 1.158.37L9.087 4l3.153.542.032-.27-.028-.005-.415-.066-.085-.148a27.702 27.702 0 01-1.177-2.325 12.264 12.264 0 01-.53-1.465C9.969.02 9.962.005 9.925 0z"/>
+  </svg>
+);
+
+// Simple Icons - PostgreSQL (https://simpleicons.org/)
+const PostgresqlIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M23.5594 14.7228a.5269.5269 0 0 0-.0563-.1191c-.139-.2632-.4768-.3418-1.0074-.2321-1.6533.3411-2.2935.1312-2.5256-.0191 1.342-2.0482 2.445-4.522 3.0411-6.8297.2714-1.0507.7982-3.5237.1222-4.7316a1.5641 1.5641 0 0 0-.1509-.235C21.6931.9086 19.8007.0248 17.5099.0005c-1.4947-.0158-2.7705.3461-3.1161.4794a9.449 9.449 0 0 0-.5159-.0816 8.044 8.044 0 0 0-1.3114-.1278c-1.1822-.0184-2.2038.2642-3.0498.8406-.8573-.3211-4.7888-1.645-7.2219.0788C.9359 2.1526.3086 3.8733.4302 6.3043c.0409.818.5069 3.334 1.2423 5.7436.4598 1.5065.9387 2.7019 1.4334 3.582.553.9942 1.1259 1.5933 1.7143 1.7895.4474.1491 1.1327.1441 1.8581-.7279.8012-.9635 1.5903-1.8258 1.9446-2.2069.4351.2355.9064.3625 1.39.3772a.0569.0569 0 0 0 .0004.0041 11.0312 11.0312 0 0 0-.2472.3054c-.3389.4302-.4094.5197-1.5002.7443-.3102.064-1.1344.2339-1.1464.8115-.0025.1224.0329.2309.0919.3268.2269.4231.9216.6097 1.015.6331 1.3345.3335 2.5044.092 3.3714-.6787-.017 2.231.0775 4.4174.3454 5.0874.2212.5529.7618 1.9045 2.4692 1.9043.2505 0 .5263-.0291.8296-.0941 1.7819-.3821 2.5557-1.1696 2.855-2.9059.1503-.8707.4016-2.8753.5388-4.1012.0169-.0703.0357-.1207.057-.1362.0007-.0005.0697-.0471.4272.0307a.3673.3673 0 0 0 .0443.0068l.2539.0223.0149.001c.8468.0384 1.9114-.1426 2.5312-.4308.6438-.2988 1.8057-1.0323 1.5951-1.6698z"/>
+  </svg>
+);
+
+// Simple Icons - MySQL (https://simpleicons.org/)
+const MysqlIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M16.405 5.501c-.115 0-.193.014-.274.033v.013h.014c.054.104.146.18.214.273.054.107.1.214.154.32l.014-.015c.094-.066.14-.172.14-.333-.04-.047-.046-.094-.08-.14-.04-.067-.126-.1-.18-.153zM5.77 18.695h-.927a50.854 50.854 0 00-.27-4.41h-.008l-1.41 4.41H2.45l-1.4-4.41h-.01a72.892 72.892 0 00-.195 4.41H0c.055-1.966.192-3.81.41-5.53h1.15l1.335 4.064h.008l1.347-4.064h1.095c.242 2.015.384 3.86.428 5.53zm4.017-4.08c-.378 2.045-.876 3.533-1.492 4.46-.482.716-1.01 1.073-1.583 1.073-.153 0-.34-.046-.566-.138v-.494c.11.017.24.026.386.026.268 0 .483-.075.647-.222.197-.18.295-.382.295-.605 0-.155-.077-.47-.23-.944L6.23 14.615h.91l.727 2.36c.164.536.233.91.205 1.123.4-1.064.678-2.227.835-3.483zm12.325 4.08h-2.63v-5.53h.885v4.85h1.745zm-3.32.135l-1.016-.5c.09-.076.177-.158.255-.25.433-.506.648-1.258.648-2.253 0-1.83-.718-2.746-2.155-2.746-.704 0-1.254.232-1.65.697-.43.508-.646 1.256-.646 2.245 0 .972.19 1.686.574 2.14.35.41.877.615 1.583.615.264 0 .506-.033.725-.098l1.325.772.36-.622zM15.5 17.588c-.225-.36-.337-.94-.337-1.736 0-1.393.424-2.09 1.27-2.09.443 0 .77.167.977.5.224.362.336.936.336 1.723 0 1.404-.424 2.108-1.27 2.108-.445 0-.77-.167-.978-.5z"/>
+  </svg>
+);
+
+// Simple Icons - MariaDB (https://simpleicons.org/)
+const MariadbIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M23.157 4.412c-.676.284-.79.31-1.673.372-.65.045-.757.057-1.212.209-.75.246-1.395.75-2.02 1.59-.296.398-1.249 1.913-1.249 1.988 0 .057-.65.998-.915 1.32-.574.713-1.08 1.079-2.14 1.59-.77.36-1.224.524-4.102 1.477-1.073.353-2.133.738-2.367.864-.852.449-1.515 1.036-2.203 1.938-1.003 1.32-.972 1.313-3.042.947a12.264 12.264 0 00-.675-.063c-.644-.05-1.023.044-1.332.334L0 17.193l.177.088c.094.05.353.234.561.398.215.17.461.347.55.391.088.044.17.088.183.101.012.013-.089.17-.228.353-.435.581-.593.871-.574 1.048.019.164.032.17.43.17.517-.006.826-.056 1.261-.208.65-.233 2.058-.94 2.784-1.4.776-.5 1.717-.998 1.956-1.042.082-.02.354-.07.594-.114.58-.107 1.464-.095 2.587.05.108.013.373.045.6.064.227.025.43.057.454.076.026.012.474.037.998.056.934.026 1.104.007 1.3-.189.126-.133.385-.631.498-.985.209-.643.417-.921.366-.492-.113.966-.322 1.692-.713 2.411-.259.499-.663 1.092-.934 1.395-.322.347-.315.36.088.315.619-.063 1.471-.397 2.096-.82.827-.562 1.647-1.691 2.19-3.03.107-.27.22-.22.183.083-.013.094-.038.315-.057.498l-.031.328.353-.202c.833-.48 1.414-1.262 2.127-2.884.227-.518.877-2.922 1.073-3.976a9.64 9.64 0 01.271-1.042c.127-.429.196-.555.48-.858.183-.19.625-.555.978-.808.72-.505.953-.75 1.187-1.205.208-.417.284-1.13.132-1.357-.132-.202-.284-.196-.763.006Z"/>
+  </svg>
+);
+
+// Azure Cosmos DB - Simple Icons에 없어서 커스텀 아이콘 유지
+const CosmosIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <circle cx="12" cy="12" r="10" fillOpacity="0.2"/>
+    <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke={color} strokeWidth="1.5"/>
+    <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke={color} strokeWidth="1.5" transform="rotate(60 12 12)"/>
+    <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke={color} strokeWidth="1.5" transform="rotate(120 12 12)"/>
+    <circle cx="12" cy="12" r="3" fill={color}/>
+  </svg>
+);
+
+// Azure Synapse - Simple Icons에 없어서 커스텀 아이콘 유지
+const SynapseIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M4 12h16" stroke={color} strokeWidth="2" fill="none"/>
+    <path d="M12 4v16" stroke={color} strokeWidth="2" fill="none"/>
+    <circle cx="8" cy="8" r="3" fillOpacity="0.3"/>
+    <circle cx="16" cy="8" r="3" fillOpacity="0.3"/>
+    <circle cx="8" cy="16" r="3" fillOpacity="0.3"/>
+    <circle cx="16" cy="16" r="3" fillOpacity="0.3"/>
+    <circle cx="12" cy="12" r="4"/>
+  </svg>
+);
+
+// Azure VM - Simple Icons에 없어서 커스텀 아이콘 유지
+const VmIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <rect x="3" y="4" width="18" height="12" rx="1" fillOpacity="0.2" stroke={color} strokeWidth="1.5"/>
+    <rect x="5" y="6" width="14" height="8" rx="0.5" fill="none" stroke={color} strokeWidth="1"/>
+    <rect x="9" y="16" width="6" height="1.5" fill={color}/>
+    <rect x="6" y="18" width="12" height="2" rx="0.5" fill={color}/>
+    <circle cx="12" cy="10" r="2.5" fill={color}/>
+  </svg>
+);
 
 export const AzureServiceIcon = ({ type, size = 'md' }: AzureServiceIconProps) => {
   const sizeClass = sizeMap[size];
+  const color = colorMap[type] || '#0078D4';
 
   const icons: Record<AzureResourceType, React.ReactNode> = {
-    AZURE_MSSQL: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill={AZURE_BLUE} />
-        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill={AZURE_LIGHT} fillOpacity="0.3" />
-        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill={AZURE_DARK} />
-        <ellipse cx="20" cy="12.5" rx="7" ry="3" fill={AZURE_LIGHT} fillOpacity="0.5" />
-        <path d="M10 20c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke={AZURE_DARK} strokeWidth="1.5" />
-        <path d="M10 27c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke={AZURE_DARK} strokeWidth="1.5" />
-        <text x="20" y="22" textAnchor="middle" fill="white" fontSize="6" fontWeight="bold">SQL</text>
-      </svg>
-    ),
-    AZURE_POSTGRESQL: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#336791" />
-        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill="white" fillOpacity="0.2" />
-        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill="#1D4F6F" />
-        <ellipse cx="20" cy="12.5" rx="7" ry="3" fill="white" fillOpacity="0.3" />
-        <path d="M10 20c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#1D4F6F" strokeWidth="1.5" />
-        <path d="M10 27c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#1D4F6F" strokeWidth="1.5" />
-        <text x="20" y="22" textAnchor="middle" fill="white" fontSize="5" fontWeight="bold">PG</text>
-      </svg>
-    ),
-    AZURE_MYSQL: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#00758F" />
-        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill="#F29111" fillOpacity="0.3" />
-        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill="#00546B" />
-        <ellipse cx="20" cy="12.5" rx="7" ry="3" fill="#F29111" fillOpacity="0.5" />
-        <path d="M10 20c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#00546B" strokeWidth="1.5" />
-        <path d="M10 27c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#00546B" strokeWidth="1.5" />
-      </svg>
-    ),
-    AZURE_MARIADB: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#C0765A" />
-        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill="white" fillOpacity="0.2" />
-        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill="#8B4D3B" />
-        <ellipse cx="20" cy="12.5" rx="7" ry="3" fill="white" fillOpacity="0.3" />
-        <path d="M10 20c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#8B4D3B" strokeWidth="1.5" />
-        <path d="M10 27c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#8B4D3B" strokeWidth="1.5" />
-      </svg>
-    ),
-    AZURE_COSMOS_NOSQL: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill={AZURE_BLUE} />
-        <circle cx="20" cy="20" r="10" fill={AZURE_DARK} />
-        <ellipse cx="20" cy="20" rx="10" ry="4" fill="none" stroke={AZURE_LIGHT} strokeWidth="1.5" />
-        <ellipse cx="20" cy="20" rx="10" ry="4" fill="none" stroke={AZURE_LIGHT} strokeWidth="1.5" transform="rotate(60 20 20)" />
-        <ellipse cx="20" cy="20" rx="10" ry="4" fill="none" stroke={AZURE_LIGHT} strokeWidth="1.5" transform="rotate(120 20 20)" />
-        <circle cx="20" cy="20" r="3" fill={AZURE_LIGHT} />
-      </svg>
-    ),
-    AZURE_SYNAPSE: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#0078D4" />
-        <path d="M8 20h24" stroke={AZURE_LIGHT} strokeWidth="2" />
-        <path d="M20 8v24" stroke={AZURE_LIGHT} strokeWidth="2" />
-        <circle cx="14" cy="14" r="4" fill={AZURE_DARK} stroke={AZURE_LIGHT} strokeWidth="1" />
-        <circle cx="26" cy="14" r="4" fill={AZURE_DARK} stroke={AZURE_LIGHT} strokeWidth="1" />
-        <circle cx="14" cy="26" r="4" fill={AZURE_DARK} stroke={AZURE_LIGHT} strokeWidth="1" />
-        <circle cx="26" cy="26" r="4" fill={AZURE_DARK} stroke={AZURE_LIGHT} strokeWidth="1" />
-        <circle cx="20" cy="20" r="5" fill={AZURE_LIGHT} />
-      </svg>
-    ),
-    AZURE_VM: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill={AZURE_BLUE} />
-        <rect x="8" y="10" width="24" height="16" rx="2" fill={AZURE_DARK} />
-        <rect x="10" y="12" width="20" height="12" rx="1" fill={AZURE_LIGHT} fillOpacity="0.3" />
-        <rect x="16" y="26" width="8" height="2" fill={AZURE_DARK} />
-        <rect x="12" y="28" width="16" height="2" rx="1" fill={AZURE_DARK} />
-        <circle cx="20" cy="18" r="4" fill="white" fillOpacity="0.8" />
-        <path d="M18 18l1.5 1.5 3-3" stroke={AZURE_BLUE} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    AZURE_MSSQL: <MssqlIcon className={sizeClass} color={color} />,
+    AZURE_POSTGRESQL: <PostgresqlIcon className={sizeClass} color={color} />,
+    AZURE_MYSQL: <MysqlIcon className={sizeClass} color={color} />,
+    AZURE_MARIADB: <MariadbIcon className={sizeClass} color={color} />,
+    AZURE_COSMOS_NOSQL: <CosmosIcon className={sizeClass} color={color} />,
+    AZURE_SYNAPSE: <SynapseIcon className={sizeClass} color={color} />,
+    AZURE_VM: <VmIcon className={sizeClass} color={color} />,
   };
 
-  return icons[type] || <DefaultAzureIcon size={size} />;
+  return icons[type] || <DefaultAzureIcon className={sizeClass} />;
 };
 
-const DefaultAzureIcon = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClass = sizeMap[size];
-  return (
-    <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="4" fill={AZURE_BLUE} />
-      <path d="M11.5 28h17L19.5 10l-3 6 4.5 8H11.5z" fill="white" />
-    </svg>
-  );
-};
-
-// Azure 공식 로고 (ProjectInfoCard용)
-export const AzureLogo = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 96 96" fill="currentColor">
-    <path d="M34.36 59.89L52.68 15.38C53.05 14.49 53.92 13.91 54.88 13.91H67.43C69.26 13.91 70.47 15.78 69.71 17.44L47.02 67.02C46.19 68.83 44.01 69.62 42.2 68.79C41.53 68.48 40.98 67.99 40.6 67.38L34.36 59.89Z" />
-    <path d="M18.23 63.29L40.62 33.29C41.12 32.62 41.89 32.22 42.71 32.22H55.94C57.31 32.22 58.42 33.33 58.42 34.7C58.42 35.09 58.33 35.47 58.16 35.82L37.75 82.09C37.38 82.98 36.51 83.56 35.55 83.56H22.22C20.39 83.56 19.18 81.69 19.94 80.03L18.23 63.29Z" />
+const DefaultAzureIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="#0078D4">
+    <path d="M22.379 23.343a1.62 1.62 0 0 0 1.536-2.14v.002L17.35 1.76A1.62 1.62 0 0 0 15.816.657H8.184A1.62 1.62 0 0 0 6.65 1.76L.086 21.204a1.62 1.62 0 0 0 1.536 2.139h4.741a1.62 1.62 0 0 0 1.535-1.103l.977-2.892 4.947 3.675c.28.208.618.32.966.32m-3.084-12.531 3.624 10.739a.54.54 0 0 1-.51.713v-.001h-.03a.54.54 0 0 1-.322-.106l-9.287-6.9h4.853m6.313 7.006c.116-.326.13-.694.007-1.058L9.79 1.76a1.722 1.722 0 0 0-.007-.02h6.034a.54.54 0 0 1 .512.366l6.562 19.445a.54.54 0 0 1-.338.684"/>
   </svg>
 );
 
