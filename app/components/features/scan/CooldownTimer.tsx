@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface CooldownTimerProps {
   /** 쿨다운 종료 시간 (ISO 8601) */
@@ -9,7 +9,7 @@ interface CooldownTimerProps {
   onCooldownEnd?: () => void;
 }
 
-const formatRemainingTime = (remainingMs: number): string => {
+export const formatRemainingTime = (remainingMs: number): string => {
   if (remainingMs <= 0) return '0초';
 
   const seconds = Math.ceil(remainingMs / 1000);
@@ -20,29 +20,46 @@ const formatRemainingTime = (remainingMs: number): string => {
   return `${minutes}분 ${remainingSeconds}초`;
 };
 
-export const CooldownTimer = ({ cooldownUntil, onCooldownEnd }: CooldownTimerProps) => {
+/** 쿨다운 남은 시간을 계산하는 훅 */
+export const useCooldownTimer = (cooldownUntil: string | undefined, onCooldownEnd?: () => void) => {
   const [remainingMs, setRemainingMs] = useState(() => {
-    return new Date(cooldownUntil).getTime() - Date.now();
+    if (!cooldownUntil) return 0;
+    return Math.max(0, new Date(cooldownUntil).getTime() - Date.now());
   });
 
+  const onCooldownEndRef = useRef(onCooldownEnd);
+  onCooldownEndRef.current = onCooldownEnd;
+
   useEffect(() => {
+    if (!cooldownUntil) {
+      setRemainingMs(0);
+      return;
+    }
+
     const updateRemaining = () => {
-      const remaining = new Date(cooldownUntil).getTime() - Date.now();
+      const remaining = Math.max(0, new Date(cooldownUntil).getTime() - Date.now());
       setRemainingMs(remaining);
 
       if (remaining <= 0) {
-        onCooldownEnd?.();
+        onCooldownEndRef.current?.();
       }
     };
 
-    // 초기 업데이트
     updateRemaining();
-
-    // 1초마다 업데이트
     const intervalId = setInterval(updateRemaining, 1000);
 
     return () => clearInterval(intervalId);
-  }, [cooldownUntil, onCooldownEnd]);
+  }, [cooldownUntil]);
+
+  return {
+    remainingMs,
+    isExpired: remainingMs <= 0,
+    formatted: formatRemainingTime(remainingMs),
+  };
+};
+
+export const CooldownTimer = ({ cooldownUntil, onCooldownEnd }: CooldownTimerProps) => {
+  const { remainingMs, formatted } = useCooldownTimer(cooldownUntil, onCooldownEnd);
 
   if (remainingMs <= 0) {
     return (
@@ -51,7 +68,7 @@ export const CooldownTimer = ({ cooldownUntil, onCooldownEnd }: CooldownTimerPro
   }
 
   return (
-    <span>{formatRemainingTime(remainingMs)} 후 스캔 가능</span>
+    <span>{formatted} 후 스캔 가능</span>
   );
 };
 

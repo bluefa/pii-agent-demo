@@ -10,7 +10,7 @@ import { ScanStatusBadge } from './ScanStatusBadge';
 import { ScanProgressBar } from './ScanProgressBar';
 import { ScanResultSummary } from './ScanResultSummary';
 import { ScanHistoryList } from './ScanHistoryList';
-import { CooldownTimer } from './CooldownTimer';
+import { useCooldownTimer } from './CooldownTimer';
 
 interface ScanPanelProps {
   projectId: string;
@@ -50,6 +50,13 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
       errorMessage: '스캔을 시작할 수 없습니다.',
     }
   );
+
+  // 쿨다운 타이머
+  const { remainingMs, formatted: cooldownText } = useCooldownTimer(
+    status?.cooldownUntil,
+    refresh
+  );
+  const isCooldown = uiState === 'COOLDOWN' && remainingMs > 0;
 
   const handleStartScan = () => {
     if (status?.canScan) {
@@ -94,6 +101,13 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
                 <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 시작 중...
               </span>
+            ) : isCooldown ? (
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {cooldownText} 후
+              </span>
             ) : (
               '스캔 시작'
             )}
@@ -119,32 +133,13 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
           />
         )}
 
-        {/* COMPLETED: Result Summary */}
-        {!loading && uiState === 'COMPLETED' && status?.lastCompletedScan?.result && showResult && (
+        {/* COMPLETED or COOLDOWN: Result Summary (쿨다운 상태에서도 결과 표시) */}
+        {!loading && (uiState === 'COMPLETED' || uiState === 'COOLDOWN') && status?.lastCompletedScan?.result && showResult && (
           <ScanResultSummary
             result={status.lastCompletedScan.result}
             completedAt={status.lastCompletedScan.completedAt}
             onClose={() => setShowResult(false)}
           />
-        )}
-
-        {/* COOLDOWN: Message */}
-        {!loading && uiState === 'COOLDOWN' && (
-          <div className="flex items-center gap-2 py-4 px-3 bg-yellow-50 rounded-lg">
-            <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-yellow-700">
-              {status?.cooldownUntil ? (
-                <CooldownTimer
-                  cooldownUntil={status.cooldownUntil}
-                  onCooldownEnd={refresh}
-                />
-              ) : (
-                status?.canScanReason || '잠시 후 다시 스캔할 수 있습니다.'
-              )}
-            </span>
-          </div>
         )}
 
         {/* FAILED: Error Message */}
@@ -166,8 +161,8 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
           </div>
         )}
 
-        {/* 결과 닫힘 상태일 때 마지막 스캔 정보 간략 표시 */}
-        {!loading && uiState === 'COMPLETED' && status?.lastCompletedScan?.result && !showResult && (
+        {/* 결과 닫힘 상태일 때 마지막 스캔 정보 간략 표시 (쿨다운 포함) */}
+        {!loading && (uiState === 'COMPLETED' || uiState === 'COOLDOWN') && status?.lastCompletedScan?.result && !showResult && (
           <button
             onClick={() => setShowResult(true)}
             className="w-full text-center py-3 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
