@@ -6,9 +6,11 @@ import {
   confirmTargets,
   updateResourceCredential,
   runConnectionTest,
+  getProject,
   ResourceCredentialInput,
   VmConfigInput,
 } from '@/app/lib/api';
+import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
@@ -155,6 +157,15 @@ export const AzureProjectPage = ({
           />
         </div>
 
+        {/* Scan Panel */}
+        <ScanPanel
+          projectId={project.id}
+          cloudProvider={project.cloudProvider}
+          onScanComplete={async () => {
+            const updatedProject = await getProject(project.id);
+            onProjectUpdate(updatedProject);
+          }}
+        />
 
         {/* Resource Table */}
         <ResourceTable

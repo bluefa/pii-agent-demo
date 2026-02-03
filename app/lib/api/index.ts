@@ -260,3 +260,6 @@ export * from './azure';
 
 // ===== AWS API =====
 export * from './aws';
+
+// ===== Scan API =====
+export * from './scan';
