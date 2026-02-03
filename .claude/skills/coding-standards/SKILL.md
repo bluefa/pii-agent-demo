@@ -149,6 +149,18 @@ interface ResourceTableProps {
 }
 ```
 
+### UI 컴포넌트 개발 패턴
+
+#### Tooltip
+- 용도: 가이드 및 실행 방식 설명 (프로젝트 전반에 자주 사용)
+- 위치: 부모 컴포넌트 영역을 벗어나지 않도록 처리 (portal 사용 권장)
+- 데이터: API 전달 가이드 / 하드코딩 가이드 혼용 가능
+- overflow 주의: 부모에 `overflow: hidden` 있으면 잘림 → portal로 해결
+
+#### 공통 UI 컴포넌트
+- theme.ts 토큰 반드시 사용
+- theme.ts 수정 시 영향 범위 확인 필수
+
 ## 7. API Routes 규칙
 
 ### BFF 명세 준수
