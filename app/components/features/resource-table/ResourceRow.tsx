@@ -77,8 +77,9 @@ export const ResourceRow = ({
             <input
               type="checkbox"
               checked={isSelected}
+              disabled={!!resource.exclusion}
               onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           )}
         </td>

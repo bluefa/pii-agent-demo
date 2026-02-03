@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
 import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion } from '@/lib/types';
 import { addTargetConfirmedHistory, addAutoApprovedHistory } from '@/lib/mock-history';
+import { evaluateAutoApproval } from '@/lib/policies';
 
 interface ConfirmTargetsRequest {
   resourceIds: string[];
@@ -49,10 +50,12 @@ export async function POST(
   const exclusionMap = new Map(exclusions.map(e => [e.resourceId, e.reason]));
 
   // 선택되지 않은 리소스 중 제외 사유가 없는 것 검증
+  // (이미 exclusion이 있는 리소스는 제외 - 기존 제외 유지)
   const unselectedWithoutReason = project.resources.filter(r =>
     !selectedSet.has(r.id) &&
     r.lifecycleStatus !== 'ACTIVE' &&
-    !exclusionMap.has(r.id)
+    !exclusionMap.has(r.id) &&
+    !r.exclusion
   );
 
   if (unselectedWithoutReason.length > 0) {
@@ -80,8 +83,8 @@ export async function POST(
       lifecycleStatus = isSelected ? 'PENDING_APPROVAL' : 'DISCOVERED';
     }
 
-    // 제외 정보 설정
-    let exclusion: ResourceExclusion | undefined;
+    // 제외 정보 설정 (기존 exclusion 보존)
+    let exclusion: ResourceExclusion | undefined = r.exclusion;
     if (!isSelected && exclusionMap.has(r.id)) {
       exclusion = {
         reason: exclusionMap.get(r.id)!,
@@ -111,27 +114,23 @@ export async function POST(
   // 연동 확정 히스토리 추가
   addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
 
-  // 자동 승인 조건 체크:
-  // 기존에 제외된 리소스가 있고, 해당 리소스를 제외한 모든 리소스가 연동 대상인 경우
-  const previouslyExcludedIds = new Set(
-    project.resources.filter(r => r.exclusion).map(r => r.id)
-  );
+  // 자동 승인 정책 평가
+  const autoApprovalResult = evaluateAutoApproval({
+    resources: project.resources,
+    selectedResourceIds: resourceIds,
+  });
 
-  const shouldAutoApprove = previouslyExcludedIds.size > 0 &&
-    project.resources.every(r => {
-      // 기존 제외 리소스는 계속 제외되어야 함
-      if (previouslyExcludedIds.has(r.id)) {
-        return !selectedSet.has(r.id);
-      }
-      // 나머지는 모두 선택되어야 함
-      return selectedSet.has(r.id);
-    });
+  let finalProject = updatedProject;
 
-  if (shouldAutoApprove) {
+  if (autoApprovalResult.shouldAutoApprove) {
     addAutoApprovedHistory(projectId);
     // 자동 승인 시 상태를 INSTALLING으로 변경
-    updateProject(projectId, { processStatus: ProcessStatus.INSTALLING });
+    finalProject = updateProject(projectId, { processStatus: ProcessStatus.INSTALLING });
   }
 
-  return NextResponse.json({ success: true, project: updatedProject });
+  return NextResponse.json({
+    success: true,
+    project: finalProject,
+    autoApproval: autoApprovalResult,
+  });
 }
