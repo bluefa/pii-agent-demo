@@ -11,28 +11,43 @@
 > **케이스 분류**: TF 권한(TerraformExecutionRole) 여부로만 구분
 > **VM (EC2)**: 프로세스에 영향 없음, 리소스 확정 시 UI 필터로 선택
 
-### Case 1: TF 권한 O
+### 설치 모드 (자동/수동)
+
+| 구분 | 자동 설치 | 수동 설치 |
+|------|----------|----------|
+| **TF 권한** | TerraformExecutionRole 등록 필요 | 불필요 |
+| **설치 방식** | 시스템이 자동 실행 | 담당자가 직접 TF Script 실행 |
+| **선택 시점** | 프로젝트 생성 시 | 프로젝트 생성 시 |
+| **변경 가능** | ❌ **변경 불가 (immutable)** | ❌ **변경 불가 (immutable)** |
+
+> ⚠️ **중요**: 설치 모드는 프로젝트 생성 시 1회만 선택 가능하며, 이후 변경할 수 없습니다.
+
+### Case 1: 자동 설치 (TF 권한 O)
 
 ```
 [사전 조치]
 ├─ 스캔 Role 등록
-├─ TF 권한 부여 ✓ (프로젝트 생성 시 선택, immutable)
+├─ TerraformExecutionRole 등록 ✓ ⚠️ 필수
 └─ DB Credential 등록
 
 [프로세스]
 1. 스캔 → 리소스 확정 (VM 포함 여부는 UI 필터)
 2. 승인 대기
-3. 설치 (Service TF + BDC TF) ← 자동
+3. 설치 (Service TF + BDC TF) ← 자동 실행
 4. Test Connection
 5. 연결 완료
 ```
 
-### Case 2: TF 권한 X
+**자동 설치 모드 요구사항:**
+- TerraformExecutionRole이 AWS 계정에 등록되어 있어야 함
+- Role 미등록 시 **모든 프로세스 단계에서 경고 표시**
+- 경고 내용: "TerraformExecutionRole이 등록되지 않았습니다. 자동 설치를 진행하려면 Role을 등록하세요."
+
+### Case 2: 수동 설치 (TF 권한 X)
 
 ```
 [사전 조치]
 ├─ 스캔 Role 등록
-├─ TF 권한 없음 ✗ (프로젝트 생성 시 선택, immutable)
 └─ DB Credential 등록
 
 [프로세스]
@@ -43,14 +58,36 @@
 5. 연결 완료
 ```
 
-**TF 권한 관련:**
-- 프로젝트 생성 시 TerraformExecutionRole 검증 API로 확인
-- 권한 없으면 Role 생성 가이드 제공
-- 최초 선택 후 변경 불가
+**수동 설치 모드 특징:**
+- TerraformExecutionRole 불필요
+- 담당자가 직접 TF Script를 실행해야 함
 
-**TF 권한 없음 시 UI:**
-- "TF Script를 다운로드 받아서 담당자와 함께 설치 일정을 조율하세요" 메시지 표시
-- TF Script 다운로드 버튼 제공 (Service TF만)
+### TF 권한 관련 규칙
+
+| 항목 | 설명 |
+|------|------|
+| **선택 시점** | 프로젝트 생성 시 |
+| **검증 방법** | TerraformExecutionRole 검증 API 호출 |
+| **변경 가능 여부** | ❌ 최초 선택 후 변경 불가 |
+| **Role 미등록 시** | Role 생성 가이드 제공 |
+
+### UI 표시 규칙
+
+**1. 설치 모드 표시 (프로세스 전반)**
+- 프로젝트 상세 페이지 헤더 또는 정보 카드에 설치 모드 뱃지 표시
+- 자동 설치: `🔄 자동 설치` (blue)
+- 수동 설치: `📋 수동 설치` (gray)
+
+**2. 자동 설치 + TF Role 미등록 경고**
+- 모든 프로세스 단계에서 경고 배너 표시
+- 경고 색상: orange/amber
+- 내용: "TerraformExecutionRole이 등록되지 않았습니다."
+- 액션: [Role 등록 가이드] 버튼
+
+**3. 수동 설치 안내**
+- INSTALLING 단계에서 표시
+- 내용: "TF Script를 다운로드 받아서 담당자와 함께 설치 일정을 조율하세요."
+- 액션: [TF Script 다운로드] 버튼
 
 ---
 
@@ -219,8 +256,8 @@
 
 | Provider | 케이스 | 프로세스 단계 |
 |----------|--------|--------------|
-| **AWS** | TF권한 O | 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
-| **AWS** | TF권한 X | 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
+| **AWS** | TF권한 O | 설치 모드 선택 → 스캔 → 리소스 확정 → 승인 대기 → 설치(자동) → Test Connection → 완료 |
+| **AWS** | TF권한 X | 설치 모드 선택 → 스캔 → 리소스 확정 → 승인 대기 → TF Script(수동) → Test Connection → 완료 |
 | **Azure** | DB Only | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → PE승인대기 → Test Connection → 완료 |
 | **Azure** | DB + VM | 스캔 → 리소스 확정 → 승인 대기 → 설치(DB:TF+PE / VM:수동TF) → Test Connection → 완료 |
 | **GCP** | 기본 | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → Test Connection → 완료 |
@@ -469,5 +506,6 @@ History는 **프로세스 상태 변경**만 기록합니다.
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-02 | AWS 설치 모드(자동/수동) 상세 정의, UI 표시 규칙 추가 |
 | 2026-01-30 | AWS 케이스 단순화 (TF 권한만), VM은 UI 필터로 변경 |
 | 2026-01-27 | 초안 작성 (AWS 기준), IDC 제거 |

@@ -173,3 +173,6 @@ TODO
 	•	[ ] 비동기 작업 상태 관리 설계 (TF 설치, Azure PE 등)
 	•	[ ] 에러 처리 전략 정의
 	•	[ ] Provider별 UI 컴포넌트 분리
+	•	[ ] AWS TF Role 등록 가이드 API 구현
+	•	[ ] AWS TF Script 설치 가이드 API 구현
+	•	[x] AWS 설치 모드 선택 프로세스 (Step 0)

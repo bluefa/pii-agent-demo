@@ -1,7 +1,10 @@
 'use client';
 
-import { Project } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { Project, AwsInstallationStatus } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
+import { getAwsInstallationStatus } from '@/app/lib/api/aws';
+import { TfRoleGuideModal } from '@/app/components/features/process-status/aws';
 
 interface ProjectInfoCardProps {
   project: Project;
@@ -53,7 +56,53 @@ const CloudProviderIcon = ({ provider }: { provider: string }) => {
   );
 };
 
+// 설치 모드 뱃지 (AWS 전용)
+const InstallationModeBadge = ({ isAutoInstall }: { isAutoInstall: boolean }) => {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium ${
+        isAutoInstall
+          ? 'bg-blue-100 text-blue-700'
+          : 'bg-gray-100 text-gray-700'
+      }`}>
+        {isAutoInstall ? (
+          <>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            자동 설치
+          </>
+        ) : (
+          <>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            수동 설치
+          </>
+        )}
+      </span>
+      <span className="text-gray-400" title="설치 모드는 프로젝트 생성 시 결정되며 변경할 수 없습니다">
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+        </svg>
+      </span>
+    </div>
+  );
+};
+
 export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
+  const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
+  const [showTfRoleGuide, setShowTfRoleGuide] = useState(false);
+
+  // AWS 프로젝트인 경우 설치 모드 조회
+  useEffect(() => {
+    if (project.cloudProvider === 'AWS') {
+      getAwsInstallationStatus(project.id)
+        .then(setAwsStatus)
+        .catch(() => {}); // 에러 시 무시 (뱃지 미표시)
+    }
+  }, [project.id, project.cloudProvider]);
+
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">기본 정보</h3>
@@ -76,6 +125,30 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
           <CloudProviderIcon provider={project.cloudProvider} />
         </div>
 
+        {/* 설치 모드 (AWS만) */}
+        {project.cloudProvider === 'AWS' && awsStatus && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">설치 모드</span>
+            <InstallationModeBadge isAutoInstall={awsStatus.hasTfPermission} />
+          </div>
+        )}
+
+        {/* TF Role 상태 (자동 설치만) */}
+        {project.cloudProvider === 'AWS' && awsStatus?.hasTfPermission && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">TF Role</span>
+            <button
+              onClick={() => setShowTfRoleGuide(true)}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 hover:text-green-700"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              등록됨
+            </button>
+          </div>
+        )}
+
         {/* 생성일 */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">생성일</span>
@@ -96,6 +169,10 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
           </div>
         )}
       </div>
+
+      {showTfRoleGuide && (
+        <TfRoleGuideModal onClose={() => setShowTfRoleGuide(false)} />
+      )}
     </div>
   );
 };
