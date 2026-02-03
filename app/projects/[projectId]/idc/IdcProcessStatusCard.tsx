@@ -1,6 +1,7 @@
 'use client';
 
-import { Project, ProcessStatus } from '@/lib/types';
+import { useState } from 'react';
+import { Project, ProcessStatus, Resource } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType } from '@/lib/types/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 
@@ -84,7 +85,7 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
       case ProcessStatus.WAITING_TARGET_CONFIRMATION:
         return '연결할 데이터베이스 정보를 입력하세요';
       case ProcessStatus.INSTALLING:
-        return 'BDC 환경을 구성하고 방화벽을 확인하세요';
+        return 'BDC에서 환경을 구성하고 있습니다';
       case ProcessStatus.WAITING_CONNECTION_TEST:
       case ProcessStatus.CONNECTION_VERIFIED:
         return '설치가 완료되었습니다. DB 연결을 테스트하세요';
@@ -126,11 +127,135 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
         }`}>
           {guideText}
         </p>
-        {currentStep === ProcessStatus.INSTALLING && (
-          <p className="text-sm text-gray-500 mt-1">
-            방화벽 확인 완료 후 연결 테스트를 진행할 수 있습니다.
-          </p>
-        )}
+      </div>
+    </div>
+  );
+};
+
+// BDC 서버 IP (방화벽 결재용)
+const BDC_SERVER_IP = '10.100.50.10';
+
+// 리소스에서 IP/Host와 Port 추출
+interface FirewallRule {
+  sourceIp: string;
+  destinationIp: string;
+  port: number;
+}
+
+const extractFirewallRules = (resources: Resource[]): FirewallRule[] => {
+  const rules: FirewallRule[] = [];
+
+  resources.forEach((r) => {
+    // resourceId에서 IP/Host와 Port 추출 (예: "DB명 (192.168.1.100:3306)")
+    const match = r.resourceId.match(/\(([^)]+):(\d+)\)/);
+    if (match) {
+      const destinations = match[1].split(', '); // 여러 IP인 경우
+      const port = parseInt(match[2], 10);
+      destinations.forEach((dest) => {
+        rules.push({
+          sourceIp: BDC_SERVER_IP,
+          destinationIp: dest.trim(),
+          port,
+        });
+      });
+    }
+  });
+
+  // 중복 제거
+  const uniqueRules = rules.filter((rule, index, self) =>
+    index === self.findIndex((r) =>
+      r.sourceIp === rule.sourceIp && r.destinationIp === rule.destinationIp && r.port === rule.port
+    )
+  );
+
+  return uniqueRules;
+};
+
+// 방화벽 가이드 컴포넌트
+const FirewallGuide = ({ resources }: { resources: Resource[] }) => {
+  const [copied, setCopied] = useState(false);
+  const rules = extractFirewallRules(resources);
+
+  if (rules.length === 0) {
+    return (
+      <div className="p-3 bg-gray-50 rounded-lg">
+        <p className="text-sm text-gray-500">
+          등록된 리소스가 없습니다. 리소스를 추가하면 방화벽 결재 정보가 표시됩니다.
+        </p>
+      </div>
+    );
+  }
+
+  const generateCsv = (): string => {
+    const header = 'Source IP,Destination IP,Port';
+    const rows = rules.map((r) => `${r.sourceIp},${r.destinationIp},${r.port}`);
+    return [header, ...rows].join('\n');
+  };
+
+  const handleCopyCsv = async () => {
+    try {
+      await navigator.clipboard.writeText(generateCsv());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-sm font-medium text-yellow-800">방화벽 결재 필요</span>
+        </div>
+        <button
+          onClick={handleCopyCsv}
+          className="text-xs px-2 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 flex items-center gap-1"
+        >
+          {copied ? (
+            <>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              복사됨
+            </>
+          ) : (
+            <>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              CSV 복사
+            </>
+          )}
+        </button>
+      </div>
+      <p className="text-xs text-yellow-700 mb-2">
+        아래 정보로 방화벽 결재를 진행하세요.
+      </p>
+      <div className="overflow-hidden rounded border border-yellow-200">
+        <table className="w-full text-xs">
+          <thead className="bg-yellow-100">
+            <tr>
+              <th className="px-2 py-1.5 text-left font-medium text-yellow-800">Source IP</th>
+              <th className="px-2 py-1.5 text-center font-medium text-yellow-800"></th>
+              <th className="px-2 py-1.5 text-left font-medium text-yellow-800">Destination IP (등록된 DB)</th>
+              <th className="px-2 py-1.5 text-left font-medium text-yellow-800">Port</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-yellow-100">
+            {rules.map((rule, idx) => (
+              <tr key={idx}>
+                <td className="px-2 py-1.5 font-mono text-gray-700">{rule.sourceIp}</td>
+                <td className="px-1 py-1.5 text-center text-gray-400">→</td>
+                <td className="px-2 py-1.5 font-mono text-gray-700">{rule.destinationIp}</td>
+                <td className="px-2 py-1.5 font-mono text-gray-700">{rule.port}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -139,12 +264,12 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
 // IDC 설치 상태 표시
 const IdcInstallationStatusDisplay = ({
   status,
-  onConfirmFirewall,
+  resources,
   onRetry,
   onTestConnection,
 }: {
   status: IdcInstallationStatusType;
-  onConfirmFirewall: () => void;
+  resources: Resource[];
   onRetry: () => void;
   onTestConnection: () => void;
 }) => {
@@ -176,7 +301,7 @@ const IdcInstallationStatusDisplay = ({
         <span className={`text-sm font-medium ${
           isBdcCompleted ? 'text-green-700' : isBdcFailed ? 'text-red-700' : 'text-blue-700'
         }`}>
-          BDC TF {isBdcCompleted ? '완료' : isBdcFailed ? '실패' : isBdcInProgress ? '진행 중' : '대기 중'}
+          BDC 환경 구성 {isBdcCompleted ? '완료' : isBdcFailed ? '실패' : isBdcInProgress ? '진행 중' : '대기 중'}
         </span>
         {isBdcFailed && (
           <button
@@ -188,14 +313,9 @@ const IdcInstallationStatusDisplay = ({
         )}
       </div>
 
-      {/* 방화벽 확인 */}
-      {isBdcCompleted && !status.firewallOpened && (
-        <button
-          onClick={onConfirmFirewall}
-          className="w-full px-4 py-2.5 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors"
-        >
-          방화벽 확인 완료
-        </button>
+      {/* 방화벽 가이드 - 방화벽 미확인 상태일 때 항상 표시 (BDC 진행 중에도 미리 결재 가능) */}
+      {!status.firewallOpened && (
+        <FirewallGuide resources={resources} />
       )}
 
       {/* 연결 테스트 */}
@@ -217,6 +337,8 @@ interface IdcProcessStatusCardProps {
   showResourceInput: boolean;
   idcActionLoading: boolean;
   testLoading: boolean;
+  hasPendingResources?: boolean;
+  pendingResources?: Resource[];
   onShowResourceInput: () => void;
   onConfirmFirewall: () => void;
   onRetry: () => void;
@@ -229,11 +351,17 @@ export const IdcProcessStatusCard = ({
   showResourceInput,
   idcActionLoading,
   testLoading,
+  hasPendingResources = false,
+  pendingResources = [],
   onShowResourceInput,
   onConfirmFirewall,
   onRetry,
   onTestConnection,
 }: IdcProcessStatusCardProps) => {
+  // 리소스 입력 단계에서는 pendingResources 사용, 그 이후에는 project.resources 사용
+  const displayResources = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION
+    ? pendingResources
+    : project.resources;
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
@@ -250,27 +378,20 @@ export const IdcProcessStatusCard = ({
         <div className="mt-auto pt-4">
           {project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
             <div className="space-y-3">
-              {project.resources.length === 0 && !showResourceInput && (
-                <button
-                  onClick={onShowResourceInput}
-                  disabled={idcActionLoading}
-                  className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  리소스 등록
-                </button>
-              )}
-              {project.resources.length > 0 && (
-                <p className="text-sm text-gray-500">
-                  아래 리소스 목록에서 연동 대상을 선택하세요
-                </p>
-              )}
+              <p className="text-sm text-gray-500">
+                {hasPendingResources
+                  ? '아래 리소스 목록에서 연동 대상을 확인하고 확정하세요'
+                  : '아래 리소스 목록에서 연결할 데이터베이스를 등록하세요'}
+              </p>
+              {/* 리소스 입력 단계에서도 방화벽 가이드 미리 표시 */}
+              <FirewallGuide resources={displayResources} />
             </div>
           )}
 
           {project.processStatus === ProcessStatus.INSTALLING && idcInstallationStatus && (
             <IdcInstallationStatusDisplay
               status={idcInstallationStatus}
-              onConfirmFirewall={onConfirmFirewall}
+              resources={displayResources}
               onRetry={onRetry}
               onTestConnection={onTestConnection}
             />
