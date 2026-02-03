@@ -329,16 +329,12 @@ const generateResourceChanges = (
   const addedIds: string[] = [];
   let newFound = 0;
 
-  // 여유 슬롯이 있고 30% 확률로 신규 리소스 추가
-  if (availableSlots > 0 && Math.random() < 0.3) {
-    const addCount = Math.min(Math.floor(Math.random() * 2) + 1, availableSlots);
-
-    for (let i = 0; i < addCount; i++) {
-      const resource = generateRandomResource(provider);
-      newResources.push(resource);
-      addedIds.push(resource.id);
-      newFound++;
-    }
+  // 여유 슬롯이 있으면 반드시 1개 추가
+  if (availableSlots > 0) {
+    const resource = generateRandomResource(provider);
+    newResources.push(resource);
+    addedIds.push(resource.id);
+    newFound++;
   }
 
   const result = buildScanResult(newResources, newFound);
