@@ -86,9 +86,9 @@ Cloud Provider: AWS, Azure, GCP, IDC, SDU (+ 수동조사 예정)
 
 작업 방식
 	•	브랜치/PR 규칙 (필수):
-		•	main 직접 push 금지 - 모든 작업은 별도 브랜치에서 진행
+		•	⚠️ 코드 수정 전 반드시 브랜치 먼저 생성 (main 직접 수정 금지)
+		•	git worktree 사용: `git worktree add ../프로젝트명-브랜치명 -b 브랜치명`
 		•	브랜치명: `feat/`, `fix/`, `docs/` 등 prefix 사용
-		•	git worktree 사용 권장 (병렬 작업 시)
 		•	기능 개발 완료 시 반드시 commit & push
 		•	PR Merge 이전 문서화 필수
 		•	작업 완료 후 PR 생성
