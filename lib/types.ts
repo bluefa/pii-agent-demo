@@ -21,7 +21,17 @@ export type AwsInstallationMode = 'AUTO' | 'MANUAL';
 
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
-export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY';
+export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'MONGODB' | 'ORACLE';
+
+// VM 전용 데이터베이스 타입
+export type VmDatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'MONGODB' | 'ORACLE';
+
+// VM 데이터베이스 설정
+export interface VmDatabaseConfig {
+  databaseType: VmDatabaseType;
+  port: number;
+  oracleServiceId?: string;  // Oracle인 경우만
+}
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
@@ -90,6 +100,9 @@ export interface Resource {
 
   // --- 연동 제외 정보 ---
   exclusion?: ResourceExclusion;          // 제외된 리소스만
+
+  // --- VM 전용 설정 ---
+  vmDatabaseConfig?: VmDatabaseConfig;    // VM 리소스(EC2, AZURE_VM)만
 }
 
 export interface TerraformState {
@@ -392,11 +405,19 @@ export type VerifyScanRoleResponse = VerifyScanRoleSuccessResponse | VerifyScanR
 
 // ===== Project History Types =====
 
+/**
+ * 프로젝트 히스토리 유형
+ * - TARGET_CONFIRMED: 연동 대상 확정 (서비스 담당자가 리소스 선택 완료)
+ * - AUTO_APPROVED: 자동 승인 (기존 연동 제외 리소스 외 모든 리소스가 연동 대상인 경우)
+ * - APPROVAL: 승인 (관리자 수동 승인)
+ * - REJECTION: 반려 (관리자 반려, 사유 필수)
+ * - DECOMMISSION_*: 폐기 관련
+ */
 export type ProjectHistoryType =
+  | 'TARGET_CONFIRMED'
+  | 'AUTO_APPROVED'
   | 'APPROVAL'
   | 'REJECTION'
-  | 'RESOURCE_ADD'
-  | 'RESOURCE_EXCLUDE'
   | 'DECOMMISSION_REQUEST'
   | 'DECOMMISSION_APPROVED'
   | 'DECOMMISSION_REJECTED';
@@ -407,9 +428,9 @@ export interface ProjectHistoryActor {
 }
 
 export interface ProjectHistoryDetails {
-  reason?: string;
-  resourceId?: string;
-  resourceName?: string;
+  reason?: string;                    // 반려/폐기 사유
+  resourceCount?: number;             // 연동 확정 시 리소스 개수
+  excludedResourceCount?: number;     // 연동 제외된 리소스 개수
 }
 
 export interface ProjectHistory {

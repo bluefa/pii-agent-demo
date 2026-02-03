@@ -1,4 +1,4 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, DBCredential, ConnectionTestResult, ConnectionTestHistory } from '@/lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, DBCredential, ConnectionTestResult, ConnectionTestHistory, VmDatabaseConfig } from '@/lib/types';
 
 const BASE_URL = '/api';
 
@@ -98,14 +98,20 @@ export const searchUsers = async (
   return data.users;
 };
 
+export interface VmConfigInput {
+  resourceId: string;
+  config: VmDatabaseConfig;
+}
+
 export const confirmTargets = async (
   projectId: string,
-  resourceIds: string[]
+  resourceIds: string[],
+  vmConfigs?: VmConfigInput[]
 ): Promise<Project> => {
   const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-targets`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resourceIds }),
+    body: JSON.stringify({ resourceIds, vmConfigs }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

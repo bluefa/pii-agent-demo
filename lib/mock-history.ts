@@ -9,17 +9,17 @@ const generateId = (prefix: string): string => {
 
 // ===== History Query =====
 
-export type HistoryFilterType = 'all' | 'approval' | 'resource';
+export type HistoryFilterType = 'all' | 'approval';
 
 const APPROVAL_TYPES: ProjectHistoryType[] = [
+  'TARGET_CONFIRMED',
+  'AUTO_APPROVED',
   'APPROVAL',
   'REJECTION',
   'DECOMMISSION_REQUEST',
   'DECOMMISSION_APPROVED',
   'DECOMMISSION_REJECTED',
 ];
-
-const RESOURCE_TYPES: ProjectHistoryType[] = ['RESOURCE_ADD', 'RESOURCE_EXCLUDE'];
 
 export interface GetProjectHistoryOptions {
   projectId: string;
@@ -39,11 +39,9 @@ export const getProjectHistory = (options: GetProjectHistoryOptions): GetProject
 
   let filtered = store.projectHistory.filter((h) => h.projectId === projectId);
 
-  // 타입 필터링
+  // 타입 필터링 (현재는 all과 approval이 동일 - 모든 타입이 approval 관련)
   if (type === 'approval') {
     filtered = filtered.filter((h) => APPROVAL_TYPES.includes(h.type));
-  } else if (type === 'resource') {
-    filtered = filtered.filter((h) => RESOURCE_TYPES.includes(h.type));
   }
 
   // 최신순 정렬
@@ -63,8 +61,8 @@ export interface AddHistoryOptions {
   actor: ProjectHistoryActor;
   details?: {
     reason?: string;
-    resourceId?: string;
-    resourceName?: string;
+    resourceCount?: number;
+    excludedResourceCount?: number;
   };
 }
 
@@ -87,6 +85,31 @@ export const addProjectHistory = (options: AddHistoryOptions): ProjectHistory =>
 
 // ===== Convenience Functions =====
 
+/** 연동 대상 확정 */
+export const addTargetConfirmedHistory = (
+  projectId: string,
+  actor: ProjectHistoryActor,
+  resourceCount: number,
+  excludedResourceCount: number
+): ProjectHistory => {
+  return addProjectHistory({
+    projectId,
+    type: 'TARGET_CONFIRMED',
+    actor,
+    details: { resourceCount, excludedResourceCount },
+  });
+};
+
+/** 자동 승인 (시스템) */
+export const addAutoApprovedHistory = (projectId: string): ProjectHistory => {
+  return addProjectHistory({
+    projectId,
+    type: 'AUTO_APPROVED',
+    actor: { id: 'system', name: '시스템' },
+  });
+};
+
+/** 승인 (수동) */
 export const addApprovalHistory = (projectId: string, actor: ProjectHistoryActor): ProjectHistory => {
   return addProjectHistory({
     projectId,
@@ -95,6 +118,7 @@ export const addApprovalHistory = (projectId: string, actor: ProjectHistoryActor
   });
 };
 
+/** 반려 */
 export const addRejectionHistory = (
   projectId: string,
   actor: ProjectHistoryActor,
@@ -108,35 +132,7 @@ export const addRejectionHistory = (
   });
 };
 
-export const addResourceExcludeHistory = (
-  projectId: string,
-  actor: ProjectHistoryActor,
-  resourceId: string,
-  resourceName: string,
-  reason: string
-): ProjectHistory => {
-  return addProjectHistory({
-    projectId,
-    type: 'RESOURCE_EXCLUDE',
-    actor,
-    details: { resourceId, resourceName, reason },
-  });
-};
-
-export const addResourceAddHistory = (
-  projectId: string,
-  actor: ProjectHistoryActor,
-  resourceId: string,
-  resourceName: string
-): ProjectHistory => {
-  return addProjectHistory({
-    projectId,
-    type: 'RESOURCE_ADD',
-    actor,
-    details: { resourceId, resourceName },
-  });
-};
-
+/** 폐기 요청 */
 export const addDecommissionRequestHistory = (
   projectId: string,
   actor: ProjectHistoryActor,
@@ -150,6 +146,7 @@ export const addDecommissionRequestHistory = (
   });
 };
 
+/** 폐기 승인 */
 export const addDecommissionApprovedHistory = (
   projectId: string,
   actor: ProjectHistoryActor
@@ -161,6 +158,7 @@ export const addDecommissionApprovedHistory = (
   });
 };
 
+/** 폐기 반려 */
 export const addDecommissionRejectedHistory = (
   projectId: string,
   actor: ProjectHistoryActor,
