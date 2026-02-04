@@ -24,13 +24,13 @@ interface IdcProjectPageProps {
 }
 
 // IdcResourceInput을 임시 Resource로 변환 (표시용)
-const convertToTempResource = (input: IdcResourceInput, index: number): Resource => {
+const convertToTempResource = (input: IdcResourceInput): Resource => {
   const hostInfo = input.inputFormat === 'IP'
     ? (input.ips?.join(', ') || '')
     : (input.host || '');
 
   return {
-    id: `temp-idc-${index}`,
+    id: `temp-${crypto.randomUUID()}`,
     type: 'IDC',
     resourceId: `${input.name} (${hostInfo}:${input.port})`,
     connectionStatus: 'PENDING',
@@ -81,13 +81,11 @@ export const IdcProjectPage = ({
   // 표시할 리소스 목록 계산
   const displayResources = useMemo(() => {
     if (isStep1) {
-      return pendingResources.map((r, i) => convertToTempResource(r, i));
+      return pendingResources.map((r) => convertToTempResource(r));
     }
     // Step 1 이후: 기존 리소스 + 편집 모드에서 추가된 리소스 - 삭제된 리소스
     const existingResources = project.resources.filter((r) => !editDeletedIds.has(r.id));
-    const newResources = editPendingResources.map((r, i) =>
-      convertToTempResource(r, i + 1000) // 새 리소스는 1000부터 인덱스 시작
-    );
+    const newResources = editPendingResources.map((r) => convertToTempResource(r));
     return [...existingResources, ...newResources];
   }, [isStep1, pendingResources, project.resources, editDeletedIds, editPendingResources]);
 
