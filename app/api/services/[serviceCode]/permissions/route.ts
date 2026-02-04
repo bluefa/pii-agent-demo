@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/mock-data';
-import { getStore } from '@/lib/mock-store';
+import {
+  getCurrentUser,
+  getUsersByServiceCode,
+  getServiceCodeByCode,
+  addUserPermission,
+} from '@/lib/mock-data';
 
 export async function GET(
   request: Request,
@@ -8,7 +12,6 @@ export async function GET(
 ) {
   const user = getCurrentUser();
   const { serviceCode } = await params;
-  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -17,13 +20,11 @@ export async function GET(
     );
   }
 
-  const usersWithPermission = store.users
-    .filter((u) => u.serviceCodePermissions.includes(serviceCode))
-    .map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-    }));
+  const usersWithPermission = getUsersByServiceCode(serviceCode).map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+  }));
 
   return NextResponse.json({ users: usersWithPermission });
 }
@@ -34,7 +35,6 @@ export async function POST(
 ) {
   const user = getCurrentUser();
   const { serviceCode } = await params;
-  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -43,7 +43,7 @@ export async function POST(
     );
   }
 
-  if (!store.serviceCodes.find((s) => s.code === serviceCode)) {
+  if (!getServiceCodeByCode(serviceCode)) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
       { status: 404 }
@@ -53,24 +53,24 @@ export async function POST(
   const body = await request.json();
   const { userId } = body as { userId: string };
 
-  const targetUser = store.users.find((u) => u.id === userId);
+  const result = addUserPermission(userId, serviceCode);
 
-  if (!targetUser) {
-    return NextResponse.json(
-      { error: 'NOT_FOUND', message: '해당 사용자를 찾을 수 없습니다.' },
-      { status: 404 }
-    );
+  if (!result.success) {
+    if (result.error === 'USER_NOT_FOUND') {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '해당 사용자를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+    if (result.error === 'ALREADY_EXISTS') {
+      return NextResponse.json(
+        { error: 'ALREADY_EXISTS', message: '이미 해당 서비스에 대한 권한이 있습니다.' },
+        { status: 400 }
+      );
+    }
   }
 
-  if (targetUser.serviceCodePermissions.includes(serviceCode)) {
-    return NextResponse.json(
-      { error: 'ALREADY_EXISTS', message: '이미 해당 서비스에 대한 권한이 있습니다.' },
-      { status: 400 }
-    );
-  }
-
-  targetUser.serviceCodePermissions.push(serviceCode);
-
+  const targetUser = result.user!;
   return NextResponse.json({
     success: true,
     user: { id: targetUser.id, name: targetUser.name, email: targetUser.email },

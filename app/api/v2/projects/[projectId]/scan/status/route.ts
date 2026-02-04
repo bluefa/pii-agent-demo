@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { getScanHistory, canScan, calculateScanStatus } from '@/lib/mock-scan';
+import { getScanHistory, canScan, calculateScanStatus, getActiveScan } from '@/lib/mock-scan';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
-import { getStore } from '@/lib/mock-store';
 
 export async function GET(
   request: Request,
@@ -37,10 +36,7 @@ export async function GET(
   }
 
   // 4. 현재 스캔 상태 확인
-  const store = getStore();
-  const activeScan = store.scans.find(
-    (s) => s.projectId === projectId && (s.status === 'PENDING' || s.status === 'IN_PROGRESS')
-  );
+  const activeScan = getActiveScan(projectId);
 
   let currentScan = null;
   let isScanning = false;

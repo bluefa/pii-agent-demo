@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTerraformScript, getInstallationStatus, initializeInstallation } from '@/lib/mock-installation';
-import { getStore } from '@/lib/mock-store';
+import { getProjectById } from '@/lib/mock-data';
 
 type RouteParams = { params: Promise<{ projectId: string }> };
 
@@ -16,8 +16,7 @@ export const GET = async (
     const { projectId } = await params;
 
     // 프로젝트 존재 확인
-    const store = getStore();
-    const project = store.projects.find(p => p.id === projectId);
+    const project = getProjectById(projectId);
 
     if (!project) {
       return NextResponse.json(

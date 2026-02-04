@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStore } from '@/lib/mock-store';
+import { getProjectById, updateProject } from '@/lib/mock-data';
+import { setAwsInstallationMode } from '@/lib/mock-installation';
 import type { AwsInstallationMode } from '@/lib/types';
 
 type RouteParams = { params: Promise<{ projectId: string }> };
@@ -32,17 +33,14 @@ export const POST = async (
     }
 
     // 프로젝트 존재 확인
-    const store = getStore();
-    const projectIndex = store.projects.findIndex(p => p.id === projectId);
+    const project = getProjectById(projectId);
 
-    if (projectIndex === -1) {
+    if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
         { status: 404 }
       );
     }
-
-    const project = store.projects[projectIndex];
 
     // AWS 프로젝트 확인
     if (project.cloudProvider !== 'AWS') {
@@ -64,31 +62,12 @@ export const POST = async (
     const hasTfPermission = body.mode === 'AUTO';
 
     // 프로젝트 업데이트
-    const updatedProject = {
-      ...project,
+    const updatedProject = updateProject(projectId, {
       awsInstallationMode: body.mode,
-      updatedAt: new Date().toISOString(),
-    };
-    store.projects[projectIndex] = updatedProject;
+    });
 
-    // AWS 설치 상태도 함께 업데이트 (있는 경우)
-    const existingStatus = store.awsInstallations.get(projectId);
-    if (existingStatus) {
-      store.awsInstallations.set(projectId, {
-        ...existingStatus,
-        hasTfPermission,
-        lastCheckedAt: new Date().toISOString(),
-      });
-    } else {
-      // 새로 생성
-      store.awsInstallations.set(projectId, {
-        provider: 'AWS',
-        hasTfPermission,
-        serviceTfCompleted: false,
-        bdcTfCompleted: false,
-        lastCheckedAt: new Date().toISOString(),
-      });
-    }
+    // AWS 설치 상태도 함께 업데이트
+    setAwsInstallationMode(projectId, hasTfPermission);
 
     return NextResponse.json({
       success: true,

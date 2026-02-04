@@ -524,6 +524,16 @@ export const generateGcpResource = (): Resource => {
   };
 };
 
+// ===== Scan Query Helpers =====
+
+export const getActiveScan = (projectId: string): ScanJob | null => {
+  const store = getStore();
+  const activeScan = store.scans.find(
+    (s) => s.projectId === projectId && (s.status === 'PENDING' || s.status === 'IN_PROGRESS')
+  );
+  return activeScan || null;
+};
+
 // ===== Scan History =====
 
 export const getScanHistory = (

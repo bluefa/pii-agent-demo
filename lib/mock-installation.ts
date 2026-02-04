@@ -237,6 +237,38 @@ export const checkInstallation = (projectId: string): CheckInstallationResponse 
   };
 };
 
+// ===== 설치 모드 설정 =====
+
+export const setAwsInstallationMode = (
+  projectId: string,
+  hasTfPermission: boolean
+): AwsInstallationStatus => {
+  const store = getStore();
+
+  const existingStatus = store.awsInstallations.get(projectId);
+
+  if (existingStatus) {
+    const updatedStatus = {
+      ...existingStatus,
+      hasTfPermission,
+      lastCheckedAt: new Date().toISOString(),
+    };
+    store.awsInstallations.set(projectId, updatedStatus);
+    return updatedStatus;
+  }
+
+  // 새로 생성
+  const newStatus: AwsInstallationStatus = {
+    provider: 'AWS',
+    hasTfPermission,
+    serviceTfCompleted: false,
+    bdcTfCompleted: false,
+    lastCheckedAt: new Date().toISOString(),
+  };
+  store.awsInstallations.set(projectId, newStatus);
+  return newStatus;
+};
+
 // ===== TF Script =====
 
 export const getTerraformScript = (projectId: string): TerraformScriptResponse | null => {

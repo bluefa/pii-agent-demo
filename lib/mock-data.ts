@@ -547,6 +547,73 @@ export const mockProjects: Project[] = [
 ];
 // ===== Helper Functions =====
 
+// ----- User Helpers -----
+export const getUserById = (id: string): User | undefined => {
+  const store = getStore();
+  return store.users.find((u) => u.id === id);
+};
+
+export const getUsers = (): User[] => {
+  const store = getStore();
+  return store.users;
+};
+
+export const getUsersByServiceCode = (serviceCode: string): User[] => {
+  const store = getStore();
+  return store.users.filter((u) => u.serviceCodePermissions.includes(serviceCode));
+};
+
+export const addUserPermission = (
+  userId: string,
+  serviceCode: string
+): { success: boolean; user?: User; error?: string } => {
+  const store = getStore();
+  const user = store.users.find((u) => u.id === userId);
+
+  if (!user) {
+    return { success: false, error: 'USER_NOT_FOUND' };
+  }
+
+  if (user.serviceCodePermissions.includes(serviceCode)) {
+    return { success: false, error: 'ALREADY_EXISTS' };
+  }
+
+  user.serviceCodePermissions.push(serviceCode);
+  return { success: true, user };
+};
+
+export const removeUserPermission = (
+  userId: string,
+  serviceCode: string
+): { success: boolean; user?: User; error?: string } => {
+  const store = getStore();
+  const user = store.users.find((u) => u.id === userId);
+
+  if (!user) {
+    return { success: false, error: 'USER_NOT_FOUND' };
+  }
+
+  const index = user.serviceCodePermissions.indexOf(serviceCode);
+  if (index === -1) {
+    return { success: false, error: 'NOT_FOUND' };
+  }
+
+  user.serviceCodePermissions.splice(index, 1);
+  return { success: true, user };
+};
+
+// ----- ServiceCode Helpers -----
+export const getServiceCodeByCode = (code: string): ServiceCode | undefined => {
+  const store = getStore();
+  return store.serviceCodes.find((s) => s.code === code);
+};
+
+export const getServiceCodes = (): ServiceCode[] => {
+  const store = getStore();
+  return store.serviceCodes;
+};
+
+// ----- Project Helpers -----
 export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
   const store = getStore();
   return store.projects.filter((p) => p.serviceCode === serviceCode);

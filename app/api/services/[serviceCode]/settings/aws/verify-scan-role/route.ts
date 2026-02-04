@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyScanRole } from '@/lib/mock-service-settings';
-import { getStore } from '@/lib/mock-store';
+import { getServiceCodeByCode } from '@/lib/mock-data';
 
 type RouteParams = { params: Promise<{ serviceCode: string }> };
 
@@ -16,10 +16,7 @@ export const POST = async (
     const { serviceCode } = await params;
 
     // 서비스 코드 존재 확인
-    const store = getStore();
-    const service = store.serviceCodes.find(s => s.code === serviceCode);
-
-    if (!service) {
+    if (!getServiceCodeByCode(serviceCode)) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '서비스를 찾을 수 없습니다.' },
         { status: 404 }

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/mock-data';
-import { getStore } from '@/lib/mock-store';
+import { getCurrentUser, removeUserPermission } from '@/lib/mock-data';
 
 export async function DELETE(
   request: Request,
@@ -8,7 +7,6 @@ export async function DELETE(
 ) {
   const user = getCurrentUser();
   const { serviceCode, userId } = await params;
-  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -17,25 +15,22 @@ export async function DELETE(
     );
   }
 
-  const targetUser = store.users.find((u) => u.id === userId);
+  const result = removeUserPermission(userId, serviceCode);
 
-  if (!targetUser) {
-    return NextResponse.json(
-      { error: 'NOT_FOUND', message: '사용자를 찾을 수 없습니다.' },
-      { status: 404 }
-    );
+  if (!result.success) {
+    if (result.error === 'USER_NOT_FOUND') {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '사용자를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+    if (result.error === 'NOT_FOUND') {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '해당 사용자는 이 서비스에 대한 권한이 없습니다.' },
+        { status: 404 }
+      );
+    }
   }
-
-  const index = targetUser.serviceCodePermissions.indexOf(serviceCode);
-
-  if (index === -1) {
-    return NextResponse.json(
-      { error: 'NOT_FOUND', message: '해당 사용자는 이 서비스에 대한 권한이 없습니다.' },
-      { status: 404 }
-    );
-  }
-
-  targetUser.serviceCodePermissions.splice(index, 1);
 
   return NextResponse.json({ success: true });
 }
