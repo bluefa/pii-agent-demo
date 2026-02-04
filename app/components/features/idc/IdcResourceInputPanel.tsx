@@ -12,6 +12,8 @@ interface IdcResourceInputPanelProps {
   credentials?: DBCredential[];
   onSave: (data: IdcResourceInput) => void;
   onCancel: () => void;
+  /** 'modal': 헤더/푸터/외부스타일 제거 */
+  variant?: 'card' | 'modal';
 }
 
 const DATABASE_TYPES: IdcDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'ORACLE'];
@@ -25,7 +27,9 @@ export const IdcResourceInputPanel = ({
   credentials = [],
   onSave,
   onCancel,
+  variant = 'card',
 }: IdcResourceInputPanelProps) => {
+  const isModal = variant === 'modal';
   const [name, setName] = useState(initialData?.name ?? '');
   const [inputFormat, setInputFormat] = useState<IdcInputFormat>(initialData?.inputFormat ?? 'IP');
   const [ips, setIps] = useState<string[]>(initialData?.ips ?? ['']);
@@ -156,24 +160,26 @@ export const IdcResourceInputPanel = ({
   const showClusterWarning = inputFormat === 'IP' && ips.filter(ip => ip.trim()).length >= 2;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">IDC 리소스 등록</h2>
-            <p className="text-sm text-gray-500">데이터베이스 연결 정보를 입력하세요</p>
+    <div className={isModal ? '' : 'bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden'}>
+      {/* Header - Modal 모드에서는 숨김 */}
+      {!isModal && (
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">IDC 리소스 등록</h2>
+              <p className="text-sm text-gray-500">데이터베이스 연결 정보를 입력하세요</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Body */}
-      <div className="p-6 space-y-5">
+      <div className={isModal ? 'space-y-5' : 'p-6 space-y-5'}>
         {/* 리소스 이름 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">리소스 이름</label>
@@ -419,7 +425,10 @@ export const IdcResourceInputPanel = ({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+      <div className={isModal
+        ? 'pt-5 flex justify-end gap-3'
+        : 'px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3'
+      }>
         <Button variant="secondary" onClick={onCancel}>
           취소
         </Button>
