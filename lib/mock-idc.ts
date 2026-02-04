@@ -328,7 +328,7 @@ export const confirmIdcTargets = (
       isSelected: true, // 확정된 리소스는 선택된 상태
       databaseType: input.databaseType as DatabaseType,
       lifecycleStatus: 'TARGET' as const,
-      isNew: true,
+      // IDC는 스캔이 없으므로 isNew 플래그 사용하지 않음
     };
   });
 
