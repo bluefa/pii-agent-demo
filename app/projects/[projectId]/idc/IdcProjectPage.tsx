@@ -10,10 +10,9 @@ import {
   ResourceCredentialInput,
 } from '@/app/lib/api';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
-import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectHeader, RejectionAlert } from '../common';
-import { IdcResourceInputPanel, IdcPendingResourceList } from '@/app/components/features/idc';
+import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { IdcProcessStatusCard } from './IdcProcessStatusCard';
 
 interface IdcProjectPageProps {
@@ -342,15 +341,11 @@ export const IdcProjectPage = ({
           </div>
         )}
 
-        {/* Resource Table - 1단계 이후에는 기존 방식 */}
+        {/* Resource Table - 1단계 이후 */}
         {!isStep1 && displayResources.length > 0 && (
-          <ResourceTable
+          <IdcResourceTable
             resources={displayResources}
-            cloudProvider={project.cloudProvider}
             processStatus={project.processStatus}
-            isEditMode={effectiveEditMode}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
             credentials={credentials}
             onCredentialChange={handleCredentialChange}
           />
