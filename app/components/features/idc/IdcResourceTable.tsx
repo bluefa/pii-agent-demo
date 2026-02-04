@@ -13,6 +13,7 @@ interface IdcResourceTableProps {
   // 편집 모드
   isEditMode?: boolean;
   onRemove?: (resourceId: string) => void;
+  onAdd?: () => void;
 }
 
 export const IdcResourceTable = ({
@@ -22,6 +23,7 @@ export const IdcResourceTable = ({
   onCredentialChange,
   isEditMode = false,
   onRemove,
+  onAdd,
 }: IdcResourceTableProps) => {
   const showCredentialColumn =
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
@@ -144,6 +146,25 @@ export const IdcResourceTable = ({
                 </tr>
               );
             })}
+            {/* Inline Add Row - Notion/Airtable 스타일 */}
+            {isEditMode && onAdd && (
+              <tr
+                onClick={onAdd}
+                className="hover:bg-blue-50 cursor-pointer transition-colors group"
+              >
+                <td
+                  colSpan={2 + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0) + 1}
+                  className="px-6 py-3"
+                >
+                  <div className="flex items-center gap-2 text-gray-400 group-hover:text-blue-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="text-sm">새 리소스 추가</span>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
