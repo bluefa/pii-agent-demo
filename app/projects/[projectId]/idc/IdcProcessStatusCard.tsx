@@ -338,7 +338,6 @@ interface IdcProcessStatusCardProps {
   idcActionLoading: boolean;
   testLoading: boolean;
   hasPendingResources?: boolean;
-  pendingResources?: Resource[];
   onShowResourceInput: () => void;
   onConfirmFirewall: () => void;
   onRetry: () => void;
@@ -352,16 +351,11 @@ export const IdcProcessStatusCard = ({
   idcActionLoading,
   testLoading,
   hasPendingResources = false,
-  pendingResources = [],
   onShowResourceInput,
   onConfirmFirewall,
   onRetry,
   onTestConnection,
 }: IdcProcessStatusCardProps) => {
-  // 리소스 입력 단계에서는 pendingResources 사용, 그 이후에는 project.resources 사용
-  const displayResources = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION
-    ? pendingResources
-    : project.resources;
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
@@ -387,7 +381,7 @@ export const IdcProcessStatusCard = ({
           {project.processStatus === ProcessStatus.INSTALLING && idcInstallationStatus && (
             <IdcInstallationStatusDisplay
               status={idcInstallationStatus}
-              resources={displayResources}
+              resources={project.resources}
               onRetry={onRetry}
               onTestConnection={onTestConnection}
             />

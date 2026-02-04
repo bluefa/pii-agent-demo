@@ -1,12 +1,20 @@
 'use client';
 
-import { Resource } from '@/lib/types';
+import { IdcResourceInput } from '@/lib/types/idc';
 import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 
 interface IdcPendingResourceListProps {
-  resources: Resource[];
-  onRemove: (resourceId: string) => void;
+  resources: IdcResourceInput[];
+  onRemove: (index: number) => void;
 }
+
+// 표시용 리소스 ID 생성
+const getDisplayResourceId = (input: IdcResourceInput): string => {
+  const hostInfo = input.inputFormat === 'IP'
+    ? (input.ips?.join(', ') || '')
+    : (input.host || '');
+  return `${input.name} (${hostInfo}:${input.port})`;
+};
 
 export const IdcPendingResourceList = ({
   resources,
@@ -22,13 +30,13 @@ export const IdcPendingResourceList = ({
         <thead>
           <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             <th className="px-6 py-3">데이터베이스</th>
-            <th className="px-6 py-3">리소스 ID</th>
+            <th className="px-6 py-3">리소스 정보</th>
             <th className="px-6 py-3 w-16"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {resources.map((resource) => (
-            <tr key={resource.id} className="hover:bg-gray-50 transition-colors">
+          {resources.map((resource, index) => (
+            <tr key={index} className="hover:bg-gray-50 transition-colors">
               <td className="px-6 py-4">
                 <div className="flex items-center gap-2">
                   <DatabaseIcon type={resource.databaseType} size="sm" />
@@ -38,11 +46,11 @@ export const IdcPendingResourceList = ({
                 </div>
               </td>
               <td className="px-6 py-4">
-                <span className="text-gray-600 font-mono text-sm">{resource.resourceId}</span>
+                <span className="text-gray-600 font-mono text-sm">{getDisplayResourceId(resource)}</span>
               </td>
               <td className="px-6 py-4">
                 <button
-                  onClick={() => onRemove(resource.id)}
+                  onClick={() => onRemove(index)}
                   className="text-gray-400 hover:text-red-500 transition-colors"
                   title="삭제"
                 >
