@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, getCredentials } from '@/lib/mock-data';
-import { ProcessStatus } from '@/lib/types';
 
 export async function GET(
   request: Request,
@@ -29,16 +28,6 @@ export async function GET(
     return NextResponse.json(
       { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
       { status: 403 }
-    );
-  }
-
-  // 4단계(WAITING_CONNECTION_TEST), 5단계(CONNECTION_VERIFIED), 6단계(INSTALLATION_COMPLETE)에서 조회 가능
-  if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST &&
-      project.processStatus !== ProcessStatus.CONNECTION_VERIFIED &&
-      project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE) {
-    return NextResponse.json(
-      { error: 'INVALID_STATE', message: '연결 테스트 단계에서만 Credential을 조회할 수 있습니다.' },
-      { status: 400 }
     );
   }
 
