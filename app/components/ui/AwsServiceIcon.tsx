@@ -11,91 +11,72 @@ const sizeMap = {
   lg: 'w-6 h-6',
 };
 
+// AWS 공식 브랜드 색상
+const colorMap: Record<AwsResourceType, string> = {
+  RDS: '#527FFF',
+  RDS_CLUSTER: '#527FFF',
+  DYNAMODB: '#4053D6',
+  ATHENA: '#8C4FFF',
+  REDSHIFT: '#8C4FFF',
+  EC2: '#FF9900',
+};
+
+// Simple Icons - Amazon RDS (https://simpleicons.org/)
+const RdsIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M1.463.857 5.446 4.84l-.606.606L.857 1.463v3.251H0V.43A.43.43 0 0 1 .429 0h4.285v.857ZM24 .43v4.285h-.857v-3.25l-3.983 3.98-.606-.606L22.537.857h-3.251V0h4.285c.237 0 .429.192.429.429Zm-.857 18.857H24v4.285a.428.428 0 0 1-.429.429h-4.285v-.857h3.25l-3.982-3.983.606-.606 3.983 3.983Zm-.214-7.623c0-1.423-1.643-2.828-4.393-3.76l.274-.811c3.162 1.07 4.976 2.736 4.976 4.57 0 1.836-1.814 3.502-4.976 4.572l-.275-.812c2.751-.931 4.394-2.336 4.394-3.76Zm-21.834 0c0 1.363 1.538 2.73 4.113 3.66l-.291.806C1.944 15.057.238 13.43.238 11.664S1.944 8.27 4.917 7.197l.291.806c-2.575.93-4.113 2.297-4.113 3.66Zm4.35 7.497-3.982 3.983h3.251V24H.43a.428.428 0 0 1-.43-.429v-4.285h.857v3.25l3.983-3.982ZM12 8.265c-3.063 0-4.714-.79-4.714-1.114 0-.323 1.651-1.114 4.714-1.114 3.062 0 4.714.79 4.714 1.114 0 .323-1.652 1.114-4.714 1.114Zm.012 3.32c-2.932 0-4.726-.801-4.726-1.237V8.265c1.055.582 2.928.858 4.714.858 1.786 0 3.659-.276 4.714-.858v2.083c0 .436-1.785 1.237-4.702 1.237Zm0 3.272c-2.932 0-4.726-.8-4.726-1.237v-2.108c1.042.613 2.89.93 4.726.93 1.827 0 3.664-.317 4.702-.928v2.106c0 .437-1.785 1.237-4.702 1.237ZM12 17.793c-3.05 0-4.714-.82-4.714-1.24v-1.768c1.042.612 2.89.93 4.726.93 1.827 0 3.664-.317 4.702-.928v1.765c0 .422-1.664 1.241-4.714 1.241ZM12 5.18c-2.683 0-5.571.616-5.571 1.971v9.401c0 1.378 2.802 2.099 5.571 2.099 2.769 0 5.571-.721 5.571-2.099v-9.4c0-1.356-2.888-1.972-5.571-1.972Z"/>
+  </svg>
+);
+
+// Simple Icons - Amazon DynamoDB (https://simpleicons.org/)
+const DynamoDbIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M16.606 20.705v-2.371c-1.263 1.082-3.884 1.795-7.066 1.795-3.184 0-5.805-.714-7.068-1.797v2.369c0 1.168 2.903 2.47 7.068 2.47 4.16 0 7.06-1.3 7.066-2.466zm.001-6.765l.817-.005v.005c0 .517-.258.998-.75 1.441.601.54.75 1.071.75 1.449a1661.7 1661.7 0 0 0 0 3.87c0 1.881-3.389 3.3-7.884 3.3-4.471 0-7.846-1.404-7.88-3.27a583.119 583.119 0 0 1-.003-3.909c.001-.375.15-.9.745-1.437-.592-.538-.743-1.062-.746-1.435v-3.892c.002-.377.153-.903.747-1.438-.593-.54-.744-1.062-.747-1.435 0-1.357-.002-2.735.002-3.897C1.674 1.412 5.056 0 9.54 0c2.159 0 4.233.356 5.689.974l-.315.766c-1.36-.58-3.319-.91-5.374-.91-4.165 0-7.067 1.3-7.067 2.47 0 1.168 2.902 2.47 7.067 2.47.115 0 .222 0 .334-.005l.033.828c-.122.006-.245.006-.367.006-3.184 0-5.805-.714-7.068-1.798v2.38c.005.45.45.843.821 1.093 1.116.736 3.114 1.239 5.34 1.342l-.037.829c-2.254-.105-4.23-.59-5.5-1.332-.318.245-.623.573-.623.952 0 1.168 2.902 2.47 7.067 2.47.411 0 .812-.014 1.203-.042l.06.826c-.41.03-.833.045-1.263.045-3.184 0-5.805-.713-7.068-1.797v2.368c.005.462.449.855.821 1.104 1.275.842 3.67 1.366 6.247 1.366h.182v.83H9.54c-2.62 0-4.99-.507-6.444-1.359-.317.245-.623.574-.623.954 0 1.168 2.902 2.47 7.067 2.47 4.159 0 7.058-1.298 7.066-2.465v-.007c0-.377-.303-.705-.62-.948a5.732 5.732 0 0 1-.662.336l-.316-.764c.3-.128.56-.266.776-.412.376-.254.823-.651.823-1.1zm4.377-6.915h-2.717a.406.406 0 0 1-.332-.173.42.42 0 0 1-.055-.375l1.204-3.597h-5.403l-2.583 4.974h2.623c.128 0 .248.06.325.164a.418.418 0 0 1 .069.36l-2.249 8.365zm1.249-.128l-10.89 11.608a.408.408 0 0 1-.498.075.418.418 0 0 1-.192-.471l2.534-9.426h-2.766a.407.407 0 0 1-.349-.2.418.418 0 0 1-.012-.407l3.014-5.804a.408.408 0 0 1 .36-.222h6.22c.132 0 .256.065.332.174a.422.422 0 0 1 .055.374l-1.204 3.598h3.1c.164 0 .31.099.375.251a.422.422 0 0 1-.08.45zM3.085 20.723a8.107 8.107 0 0 0 1.72.72l.233-.794a7.32 7.32 0 0 1-1.546-.645zm1.72-5.984l.233-.795a7.262 7.262 0 0 1-1.546-.646l-.407.72a8.051 8.051 0 0 0 1.72.72zm-1.72-7.427l.407-.719c.418.244.939.462 1.546.646l-.232.794a8.046 8.046 0 0 1-1.72-.72Z"/>
+  </svg>
+);
+
+// Simple Icons - Amazon EC2 (https://simpleicons.org/)
+const Ec2Icon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M6.429 17.571h10.714V6.857H6.429v10.714ZM18 6.857h1.714v.857H18V9.43h1.714v.857H18v1.285h1.714v.858H18v1.714h1.714V15H18v1.714h1.714v.857H18v.059a.8.8 0 0 1-.799.799h-.058v1.714h-.857v-1.714H14.57v1.714h-.857v-1.714H12.43v1.714h-.858v-1.714H9.857v1.714H9v-1.714H7.286v1.714h-.857v-1.714H6.37a.8.8 0 0 1-.799-.8v-.058H4.286v-.857H5.57V15H4.286v-.857H5.57v-1.714H4.286v-.858H5.57v-1.285H4.286v-.857H5.57V7.714H4.286v-.857H5.57V6.8a.8.8 0 0 1 .8-.799h.058V4.286h.857V6H9V4.286h.857V6h1.714V4.286h.858V6h1.285V4.286h.857V6h1.715V4.286h.857V6h.058a.8.8 0 0 1 .799.799v.058ZM12.429 23.09a.054.054 0 0 1-.054.053H.91a.053.053 0 0 1-.053-.053V11.625c0-.03.024-.054.053-.054h2.52v-.857H.91a.911.911 0 0 0-.91.91V23.09c0 .502.408.91.91.91h11.465a.91.91 0 0 0 .91-.91V21h-.856ZM24 .91v11.465a.91.91 0 0 1-.91.91h-2.52v-.856h2.519a.054.054 0 0 0 .053-.054V.91a.053.053 0 0 0-.053-.053H11.625a.053.053 0 0 0-.054.053v2.52h-.857V.91c0-.502.409-.91.91-.91H23.09a.91.91 0 0 1 .91.91Z"/>
+  </svg>
+);
+
+// Simple Icons - Amazon Redshift (https://simpleicons.org/)
+const RedshiftIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M16.639 9.932a.822.822 0 0 1-.822-.82.823.823 0 0 1 1.645 0c0 .452-.37.82-.823.82m-2.086 4.994a.823.823 0 0 1-.822-.822.822.822 0 0 1 1.645 0 .822.822 0 0 1-.823.822m-5.004-.833a.822.822 0 1 1 .002-1.644.822.822 0 0 1-.002 1.644m-2.083 4.578a.823.823 0 0 1-.823-.82.823.823 0 0 1 1.645 0c0 .452-.37.82-.822.82m9.173-11.236a1.68 1.68 0 0 0-1.68 1.676c0 .566.285 1.066.718 1.37l-.782 1.982a1.674 1.674 0 0 0-1.923 1.104l-1.753-.398a1.675 1.675 0 0 0-3.348.103c0 .432.169.823.438 1.12l-.764 1.79c-.028-.001-.053-.008-.08-.008a1.68 1.68 0 0 0-1.68 1.676 1.68 1.68 0 0 0 3.36 0c0-.593-.312-1.112-.778-1.41l.674-1.579c.161.052.33.088.508.088.661 0 1.228-.386 1.502-.94l1.856.42a1.68 1.68 0 0 0 3.327-.325c0-.5-.224-.943-.574-1.25l.822-2.083c.053.005.104.016.157.016a1.68 1.68 0 0 0 1.68-1.676 1.68 1.68 0 0 0-1.68-1.676M12 23.145c-4.17 0-7.286-1.252-7.286-2.37V4.79C6.14 5.938 9.131 6.547 12 6.547c2.869 0 5.86-.609 7.286-1.756v15.983c0 1.12-3.116 2.37-7.286 2.37M12 .856c4.293 0 7.286 1.274 7.286 2.419 0 1.143-2.993 2.418-7.286 2.418-4.293 0-7.286-1.275-7.286-2.418C4.714 2.129 7.707.855 12 .855m8.143 2.419C20.143 1.147 15.947 0 12 0 8.052 0 3.857 1.147 3.857 3.274l.002.01h-.002v17.49C3.857 22.87 8.052 24 12 24c3.947 0 8.143-1.13 8.143-3.226V3.284h-.002l.002-.01"/>
+  </svg>
+);
+
+// Athena - Simple Icons에 없어서 커스텀 아이콘 유지
+const AthenaIcon = ({ className, color }: { className?: string; color: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 2l8 5v10l-8 5-8-5V7l8-5zm0 2.5L6 7.5v9l6 3.5 6-3.5v-9L12 4.5zm0 3a4 4 0 110 8 4 4 0 010-8zm0 1.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/>
+  </svg>
+);
+
 export const AwsServiceIcon = ({ type, size = 'md' }: AwsServiceIconProps) => {
   const sizeClass = sizeMap[size];
+  const color = colorMap[type] || '#6B7280';
 
   const icons: Record<AwsResourceType, React.ReactNode> = {
-    RDS: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#3B48CC" />
-        <path d="M20 8c-5.5 0-10 2-10 4.5v15c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5v-15c0-2.5-4.5-4.5-10-4.5z" fill="#5294CF" />
-        <ellipse cx="20" cy="12.5" rx="10" ry="4.5" fill="#1A476F" />
-        <ellipse cx="20" cy="12.5" rx="7" ry="3" fill="#2E73B8" />
-        <path d="M10 20c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#1A476F" strokeWidth="1.5" />
-        <path d="M10 27c0 2.5 4.5 4.5 10 4.5s10-2 10-4.5" stroke="#1A476F" strokeWidth="1.5" />
-      </svg>
-    ),
-    RDS_CLUSTER: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#3B48CC" />
-        <path d="M20 6c-6 0-11 2.2-11 5v18c0 2.8 5 5 11 5s11-2.2 11-5V11c0-2.8-5-5-11-5z" fill="#5294CF" />
-        <ellipse cx="20" cy="11" rx="11" ry="5" fill="#1A476F" />
-        <ellipse cx="20" cy="11" rx="8" ry="3.5" fill="#2E73B8" />
-        <path d="M9 18c0 2.8 5 5 11 5s11-2.2 11-5" stroke="#1A476F" strokeWidth="1.5" />
-        <path d="M9 25c0 2.8 5 5 11 5s11-2.2 11-5" stroke="#1A476F" strokeWidth="1.5" />
-        <circle cx="28" cy="28" r="6" fill="#FF9900" />
-        <path d="M26 28h4M28 26v4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-    DYNAMODB: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#3B48CC" />
-        <path d="M8 12l12-4 12 4v16l-12 4-12-4V12z" fill="#5294CF" />
-        <path d="M8 12l12 4 12-4" stroke="#1A476F" strokeWidth="1.5" />
-        <path d="M20 16v16" stroke="#1A476F" strokeWidth="1.5" />
-        <path d="M8 20l12 4 12-4" stroke="#1A476F" strokeWidth="1" strokeDasharray="2 2" />
-        <path d="M8 24l12 4 12-4" stroke="#1A476F" strokeWidth="1" strokeDasharray="2 2" />
-        <ellipse cx="20" cy="12" rx="12" ry="4" fill="#2E73B8" />
-      </svg>
-    ),
-    ATHENA: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#8C4FFF" />
-        <path d="M20 8l10 6v12l-10 6-10-6V14l10-6z" fill="#B98AFF" />
-        <path d="M20 8l10 6-10 6-10-6 10-6z" fill="#6B2FD9" />
-        <path d="M20 20v12l10-6V14" fill="#9D5CFF" />
-        <path d="M20 20v12l-10-6V14" fill="#B98AFF" />
-        <circle cx="20" cy="18" r="4" fill="white" fillOpacity="0.9" />
-        <path d="M18 18l1.5 1.5 3-3" stroke="#6B2FD9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-    REDSHIFT: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#205B99" />
-        <path d="M10 14h20v16H10V14z" fill="#5294CF" />
-        <rect x="10" y="14" width="20" height="4" fill="#1A476F" />
-        <rect x="10" y="22" width="20" height="4" fill="#1A476F" />
-        <path d="M12 8h16l4 6H8l4-6z" fill="#2E73B8" />
-        <rect x="14" y="16" width="4" height="2" rx="0.5" fill="white" fillOpacity="0.8" />
-        <rect x="20" y="16" width="6" height="2" rx="0.5" fill="white" fillOpacity="0.5" />
-        <rect x="14" y="24" width="6" height="2" rx="0.5" fill="white" fillOpacity="0.5" />
-        <rect x="22" y="24" width="4" height="2" rx="0.5" fill="white" fillOpacity="0.8" />
-      </svg>
-    ),
-    EC2: (
-      <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-        <rect width="40" height="40" rx="4" fill="#ED7100" />
-        <rect x="10" y="10" width="20" height="20" rx="2" fill="#F9A826" />
-        <rect x="13" y="13" width="14" height="14" rx="1" fill="#1A476F" />
-        <rect x="15" y="15" width="10" height="10" rx="0.5" fill="#2E73B8" />
-        <rect x="17" y="17" width="6" height="6" fill="#5294CF" />
-        <circle cx="20" cy="20" r="2" fill="white" />
-      </svg>
-    ),
+    RDS: <RdsIcon className={sizeClass} color={color} />,
+    RDS_CLUSTER: <RdsIcon className={sizeClass} color={color} />,
+    DYNAMODB: <DynamoDbIcon className={sizeClass} color={color} />,
+    ATHENA: <AthenaIcon className={sizeClass} color={color} />,
+    REDSHIFT: <RedshiftIcon className={sizeClass} color={color} />,
+    EC2: <Ec2Icon className={sizeClass} color={color} />,
   };
 
-  return icons[type] || <DefaultDbIcon size={size} />;
+  return icons[type] || <DefaultDbIcon className={sizeClass} />;
 };
 
-const DefaultDbIcon = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClass = sizeMap[size];
-  return (
-    <svg className={sizeClass} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="4" fill="#6B7280" />
-      <ellipse cx="20" cy="12" rx="10" ry="4" fill="#9CA3AF" />
-      <path d="M10 12v16c0 2.2 4.5 4 10 4s10-1.8 10-4V12" fill="#4B5563" />
-      <path d="M10 20c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#374151" strokeWidth="1.5" />
-      <path d="M10 26c0 2.2 4.5 4 10 4s10-1.8 10-4" stroke="#374151" strokeWidth="1.5" />
-    </svg>
-  );
-};
+const DefaultDbIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="#6B7280">
+    <ellipse cx="12" cy="5" rx="8" ry="3"/>
+    <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/>
+    <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" fill="none" stroke="#6B7280" strokeWidth="1"/>
+    <path d="M4 17c0 1.66 3.58 3 8 3s8-1.34 8-3" fill="none" stroke="#6B7280" strokeWidth="1"/>
+  </svg>
+);

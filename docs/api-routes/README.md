@@ -112,6 +112,17 @@ Next.js App Router의 API Route Handlers 문서.
 | GET | `/api/azure/projects/[projectId]/subnet-guide` | Subnet 가이드 조회 |
 | GET | `/api/services/[serviceCode]/settings/azure` | Azure 서비스 설정 조회 |
 
+### IDC
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/idc/projects/[projectId]/installation-status` | 설치 상태 조회 (BDC TF + 방화벽) |
+| POST | `/api/idc/projects/[projectId]/check-installation` | 설치 상태 새로고침 |
+| POST | `/api/idc/projects/[projectId]/confirm-firewall` | 방화벽 오픈 확인 |
+| GET | `/api/idc/firewall/source-ip-recommendation` | Source IP 추천 조회 |
+| GET | `/api/services/[serviceCode]/settings/idc` | IDC 서비스 설정 조회 |
+| PUT | `/api/services/[serviceCode]/settings/idc` | IDC 서비스 설정 수정 |
+
 ### 개발용
 
 | Method | Endpoint | 설명 |

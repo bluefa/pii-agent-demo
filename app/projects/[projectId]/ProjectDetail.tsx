@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, ProcessStatus, DBCredential } from '@/lib/types';
+import { Project, DBCredential } from '@/lib/types';
 import { getProject, getCurrentUser, CurrentUser, getCredentials } from '@/app/lib/api';
-import { getProjectCurrentStep } from '@/lib/process';
 import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
+import { IdcProjectPage } from './idc';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -31,15 +31,9 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
         setCurrentUser(userData);
         setError(null);
 
-        // ADR-004: status 필드에서 현재 단계 계산
-        const currentStep = getProjectCurrentStep(projectData);
-        // 4단계, 5단계, 6단계면 Credential 목록 가져오기
-        if (currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||
-            currentStep === ProcessStatus.CONNECTION_VERIFIED ||
-            currentStep === ProcessStatus.INSTALLATION_COMPLETE) {
-          const creds = await getCredentials(projectId);
-          setCredentials(creds || []);
-        }
+        // Credential 목록 가져오기
+        const creds = await getCredentials(projectId);
+        setCredentials(creds || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
       } finally {
@@ -64,6 +58,15 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     case 'Azure':
       return (
         <AzureProjectPage
+          project={project}
+          isAdmin={isAdmin}
+          credentials={credentials}
+          onProjectUpdate={setProject}
+        />
+      );
+    case 'IDC':
+      return (
+        <IdcProjectPage
           project={project}
           isAdmin={isAdmin}
           credentials={credentials}
