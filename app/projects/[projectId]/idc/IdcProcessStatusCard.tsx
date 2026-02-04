@@ -338,7 +338,6 @@ interface IdcProcessStatusCardProps {
   idcActionLoading: boolean;
   testLoading: boolean;
   hasPendingResources?: boolean;
-  pendingResources?: Resource[];
   onShowResourceInput: () => void;
   onConfirmFirewall: () => void;
   onRetry: () => void;
@@ -352,16 +351,11 @@ export const IdcProcessStatusCard = ({
   idcActionLoading,
   testLoading,
   hasPendingResources = false,
-  pendingResources = [],
   onShowResourceInput,
   onConfirmFirewall,
   onRetry,
   onTestConnection,
 }: IdcProcessStatusCardProps) => {
-  // 리소스 입력 단계에서는 pendingResources 사용, 그 이후에는 project.resources 사용
-  const displayResources = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION
-    ? pendingResources
-    : project.resources;
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
@@ -377,21 +371,17 @@ export const IdcProcessStatusCard = ({
 
         <div className="mt-auto pt-4">
           {project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-500">
-                {hasPendingResources
-                  ? '아래 리소스 목록에서 연동 대상을 확인하고 확정하세요'
-                  : '아래 리소스 목록에서 연결할 데이터베이스를 등록하세요'}
-              </p>
-              {/* 리소스 입력 단계에서도 방화벽 가이드 미리 표시 */}
-              <FirewallGuide resources={displayResources} />
-            </div>
+            <p className="text-sm text-gray-500">
+              {hasPendingResources
+                ? '아래 리소스 목록에서 연동 대상을 확인하고 확정하세요'
+                : '아래 리소스 목록에서 연결할 데이터베이스를 등록하세요'}
+            </p>
           )}
 
           {project.processStatus === ProcessStatus.INSTALLING && idcInstallationStatus && (
             <IdcInstallationStatusDisplay
               status={idcInstallationStatus}
-              resources={displayResources}
+              resources={project.resources}
               onRetry={onRetry}
               onTestConnection={onTestConnection}
             />

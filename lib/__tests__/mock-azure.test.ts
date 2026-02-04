@@ -13,6 +13,7 @@ import {
 } from '@/lib/mock-azure';
 import { getStore } from '@/lib/mock-store';
 import { Project, ProcessStatus } from '@/lib/types';
+import { createInitialProjectStatus } from '@/lib/process';
 
 // 테스트용 Azure 프로젝트 생성 헬퍼
 const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
@@ -21,6 +22,13 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
   serviceCode: 'SERVICE-A',
   cloudProvider: 'Azure',
   processStatus: ProcessStatus.INSTALLING,
+  status: {
+    ...createInitialProjectStatus(),
+    scan: { status: 'COMPLETED' },
+    targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+    approval: { status: 'APPROVED' },
+    installation: { status: 'IN_PROGRESS' },
+  },
   resources: [
     {
       id: 'res-1',
@@ -91,6 +99,13 @@ const createAwsProject = (): Project => ({
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',
   processStatus: ProcessStatus.INSTALLING,
+  status: {
+    ...createInitialProjectStatus(),
+    scan: { status: 'COMPLETED' },
+    targets: { confirmed: true, selectedCount: 0, excludedCount: 0 },
+    approval: { status: 'APPROVED' },
+    installation: { status: 'IN_PROGRESS' },
+  },
   resources: [],
   terraformState: { bdcTf: 'PENDING' },
   createdAt: new Date().toISOString(),

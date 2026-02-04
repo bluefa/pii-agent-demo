@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, addProject, generateId, mockServiceCodes } from '@/lib/mock-data';
 import { ProcessStatus, Project, CloudProvider } from '@/lib/types';
+import { createInitialProjectStatus } from '@/lib/process';
 
 export async function POST(request: Request) {
   const user = getCurrentUser();
@@ -35,12 +36,14 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString();
+  const initialStatus = createInitialProjectStatus();
   const newProject: Project = {
     id: generateId('proj'),
     projectCode,
     serviceCode,
     cloudProvider,
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: initialStatus,
     resources: [],
     terraformState: cloudProvider === 'AWS'
       ? { serviceTf: 'PENDING', bdcTf: 'PENDING' }

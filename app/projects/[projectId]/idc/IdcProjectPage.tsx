@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential, Resource } from '@/lib/types';
+import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
   updateResourceCredential,
@@ -10,10 +10,10 @@ import {
   ResourceCredentialInput,
 } from '@/app/lib/api';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
-import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { Modal } from '@/app/components/ui/Modal';
 import { ProjectHeader, RejectionAlert } from '../common';
-import { IdcResourceInputPanel } from '@/app/components/features/idc';
+import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { IdcProcessStatusCard } from './IdcProcessStatusCard';
 
 interface IdcProjectPageProps {
@@ -22,23 +22,6 @@ interface IdcProjectPageProps {
   credentials: DBCredential[];
   onProjectUpdate: (project: Project) => void;
 }
-
-// IdcResourceInput을 임시 Resource로 변환 (표시용)
-const convertToTempResource = (input: IdcResourceInput, index: number): Resource => {
-  const hostInfo = input.inputFormat === 'IP'
-    ? (input.ips?.join(', ') || '')
-    : (input.host || '');
-
-  return {
-    id: `temp-idc-${index}-${Date.now()}`,
-    type: 'IDC',
-    resourceId: `${input.name} (${hostInfo}:${input.port})`,
-    connectionStatus: 'PENDING',
-    isSelected: false,
-    databaseType: input.databaseType,
-    lifecycleStatus: 'DISCOVERED',
-  };
-};
 
 export const IdcProjectPage = ({
   project,
@@ -56,7 +39,10 @@ export const IdcProjectPage = ({
 
   // 임시 리소스 관리 (1단계에서만 사용)
   const [pendingResources, setPendingResources] = useState<IdcResourceInput[]>([]);
-  const [excludedTempIds, setExcludedTempIds] = useState<Set<string>>(new Set());
+
+  // 편집 모드용 상태 (Step 1 이후)
+  const [editPendingResources, setEditPendingResources] = useState<IdcResourceInput[]>([]);
+  const [editDeletedIds, setEditDeletedIds] = useState<Set<string>>(new Set());
 
   // 1단계이면 기본적으로 편집 모드
   const isStep1 = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
@@ -75,23 +61,14 @@ export const IdcProjectPage = ({
     }
   }, [isInstalling, project.id]);
 
-  // 표시할 리소스 목록 계산
+  // 확정 후 표시할 리소스 목록 계산 (Step 1 이후에만 사용)
   const displayResources = useMemo(() => {
-    if (isStep1) {
-      // 1단계: 임시 리소스를 Resource 형태로 변환하여 표시
-      return pendingResources
-        .map((r, i) => convertToTempResource(r, i))
-        .filter((r) => !excludedTempIds.has(r.id));
-    }
-    // 다른 단계: 프로젝트 리소스 표시
-    return project.resources;
-  }, [isStep1, pendingResources, excludedTempIds, project.resources]);
+    // 기존 리소스 중 삭제되지 않은 것만 필터링
+    return project.resources.filter((r) => !editDeletedIds.has(r.id));
+  }, [project.resources, editDeletedIds]);
 
-  // 선택된 ID 관리 (1단계에서는 임시 리소스 ID 사용)
+  // 선택된 ID 관리 (Step 1 이후에만 사용)
   const [selectedIds, setSelectedIds] = useState<string[]>(() => {
-    if (isStep1) {
-      return displayResources.map((r) => r.id); // 기본적으로 모두 선택
-    }
     return project.resources.filter((r) => r.isSelected).map((r) => r.id);
   });
 
@@ -131,29 +108,55 @@ export const IdcProjectPage = ({
   };
 
   const handleStartEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setEditPendingResources([]);
+    setEditDeletedIds(new Set());
     setIsEditMode(true);
   };
 
   const handleCancelEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setEditPendingResources([]);
+    setEditDeletedIds(new Set());
     setIsEditMode(false);
   };
 
+  // 편집 모드: 리소스 추가
+  const handleEditAddResource = useCallback((data: IdcResourceInput) => {
+    setEditPendingResources((prev) => [...prev, data]);
+    setShowIdcResourceInput(false);
+  }, []);
+
+  // 편집 모드: 기존 리소스 삭제 표시
+  const handleEditRemoveResource = useCallback((resourceId: string) => {
+    setEditDeletedIds((prev) => new Set([...prev, resourceId]));
+  }, []);
+
+  // 편집 모드: 임시 리소스 삭제 (index 기반)
+  const handleEditRemovePendingInput = useCallback((index: number) => {
+    setEditPendingResources((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
   // 확정 수정 완료 핸들러
   const handleEditConfirm = useCallback(async () => {
-    if (selectedIds.length === 0) {
-      alert('최소 1개 이상의 리소스를 선택해주세요.');
+    // 유지할 리소스 ID (기존 리소스 중 삭제되지 않은 것)
+    const keepResourceIds = project.resources
+      .filter((r) => !editDeletedIds.has(r.id))
+      .map((r) => r.id);
+
+    // 최소 1개 리소스 확인
+    if (keepResourceIds.length === 0 && editPendingResources.length === 0) {
+      alert('최소 1개 이상의 리소스가 필요합니다.');
       return;
     }
 
     try {
       setSubmitting(true);
-      // 선택된 리소스 업데이트 API 호출
-      const res = await fetch(`/api/projects/${project.id}/resources`, {
-        method: 'PUT',
+      const res = await fetch(`/api/idc/projects/${project.id}/update-resources`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedIds }),
+        body: JSON.stringify({
+          keepResourceIds,
+          newResources: editPendingResources,
+        }),
       });
 
       if (!res.ok) {
@@ -161,29 +164,34 @@ export const IdcProjectPage = ({
         throw new Error(errorData.message || '리소스 업데이트에 실패했습니다.');
       }
 
-      const updatedProject = await getProject(project.id);
-      onProjectUpdate(updatedProject);
+      const data = await res.json();
+      if (data.project) {
+        onProjectUpdate(data.project);
+      } else {
+        const updatedProject = await getProject(project.id);
+        onProjectUpdate(updatedProject);
+      }
+
+      // 편집 상태 초기화
+      setEditPendingResources([]);
+      setEditDeletedIds(new Set());
       setIsEditMode(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : '리소스 업데이트에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
-  }, [project.id, selectedIds, onProjectUpdate]);
+  }, [project.id, project.resources, editDeletedIds, editPendingResources, onProjectUpdate]);
 
   // IDC: 리소스 추가 (로컬 상태에만 - API 호출 안 함)
   const handleIdcResourceSave = useCallback((data: IdcResourceInput) => {
     setPendingResources((prev) => [...prev, data]);
     setShowIdcResourceInput(false);
-    // 새로 추가된 리소스는 기본 선택
-    const newResource = convertToTempResource(data, pendingResources.length);
-    setSelectedIds((prev) => [...prev, newResource.id]);
-  }, [pendingResources.length]);
+  }, []);
 
-  // IDC: 리소스 제외 (로컬 상태에만)
-  const handleExcludeResource = useCallback((resourceId: string) => {
-    setExcludedTempIds((prev) => new Set([...prev, resourceId]));
-    setSelectedIds((prev) => prev.filter((id) => id !== resourceId));
+  // IDC: 리소스 제거 (로컬 상태에만 - index 기반)
+  const handleRemovePendingResource = useCallback((index: number) => {
+    setPendingResources((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   // IDC: 방화벽 확인 완료 핸들러
@@ -233,24 +241,10 @@ export const IdcProjectPage = ({
     }
   }, [project.id]);
 
-  // IDC: 연동 대상 확정 (선택된 리소스만 API로 전송)
+  // IDC: 연동 대상 확정 (모든 입력된 리소스를 API로 전송)
   const handleIdcConfirmTargets = useCallback(async () => {
-    // 선택된 임시 리소스만 필터링
-    const selectedResources = pendingResources.filter((_, index) => {
-      const tempId = `temp-idc-${index}-${Date.now()}`;
-      // displayResources에서 해당 인덱스의 리소스가 선택되었는지 확인
-      const resource = displayResources.find((r) => r.id.startsWith(`temp-idc-${index}-`));
-      return resource && selectedIds.includes(resource.id);
-    });
-
-    // 실제로는 선택된 인덱스 기반으로 필터링
-    const resourcesToConfirm = pendingResources.filter((_, idx) => {
-      const matchingDisplay = displayResources[idx];
-      return matchingDisplay && selectedIds.includes(matchingDisplay.id);
-    });
-
-    if (resourcesToConfirm.length === 0) {
-      alert('확정할 리소스를 선택해주세요.');
+    if (pendingResources.length === 0) {
+      alert('확정할 리소스가 없습니다. 먼저 리소스를 추가해주세요.');
       return;
     }
 
@@ -259,7 +253,7 @@ export const IdcProjectPage = ({
       const res = await fetch(`/api/idc/projects/${project.id}/confirm-targets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resources: resourcesToConfirm }),
+        body: JSON.stringify({ resources: pendingResources }),
       });
 
       if (!res.ok) {
@@ -277,7 +271,6 @@ export const IdcProjectPage = ({
 
       // 상태 초기화
       setPendingResources([]);
-      setExcludedTempIds(new Set());
       setIsEditMode(false);
 
       // 설치 상태 가져오기
@@ -291,10 +284,9 @@ export const IdcProjectPage = ({
     } finally {
       setSubmitting(false);
     }
-  }, [project.id, pendingResources, displayResources, selectedIds, onProjectUpdate]);
+  }, [project.id, pendingResources, onProjectUpdate]);
 
   const hasPendingResources = pendingResources.length > 0 && isStep1;
-  const hasSelectedResources = selectedIds.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -312,7 +304,6 @@ export const IdcProjectPage = ({
             idcActionLoading={submitting}
             testLoading={testLoading}
             hasPendingResources={hasPendingResources}
-            pendingResources={displayResources}
             onShowResourceInput={() => setShowIdcResourceInput(true)}
             onConfirmFirewall={handleIdcConfirmFirewall}
             onRetry={handleIdcRetry}
@@ -346,16 +337,10 @@ export const IdcProjectPage = ({
                 </button>
               )}
             </div>
-            {displayResources.length > 0 ? (
-              <ResourceTable
-                resources={displayResources}
-                cloudProvider={project.cloudProvider}
-                processStatus={project.processStatus}
-                isEditMode={effectiveEditMode}
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-                credentials={credentials}
-                onCredentialChange={handleCredentialChange}
+            {pendingResources.length > 0 ? (
+              <IdcPendingResourceList
+                resources={pendingResources}
+                onRemove={handleRemovePendingResource}
               />
             ) : (
               <div className="px-6 py-12 text-center">
@@ -371,17 +356,34 @@ export const IdcProjectPage = ({
           </div>
         )}
 
-        {/* Resource Table - 1단계 이후에는 기존 방식 */}
-        {!isStep1 && displayResources.length > 0 && (
-          <ResourceTable
+        {/* IDC Resource Input Modal - 편집 모드에서 사용 */}
+        <Modal
+          isOpen={showIdcResourceInput && !isStep1 && isEditMode}
+          onClose={() => setShowIdcResourceInput(false)}
+          title="리소스 추가"
+          subtitle="데이터베이스 연결 정보를 입력하세요"
+          size="lg"
+        >
+          <IdcResourceInputPanel
+            credentials={credentials}
+            onSave={handleEditAddResource}
+            onCancel={() => setShowIdcResourceInput(false)}
+            variant="modal"
+          />
+        </Modal>
+
+        {/* Resource Table - 1단계 이후 */}
+        {!isStep1 && (displayResources.length > 0 || editPendingResources.length > 0) && (
+          <IdcResourceTable
             resources={displayResources}
-            cloudProvider={project.cloudProvider}
             processStatus={project.processStatus}
-            isEditMode={effectiveEditMode}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
             credentials={credentials}
             onCredentialChange={handleCredentialChange}
+            isEditMode={isEditMode}
+            onRemove={handleEditRemoveResource}
+            onAdd={() => setShowIdcResourceInput(true)}
+            pendingInputs={editPendingResources}
+            onRemovePendingInput={handleEditRemovePendingInput}
           />
         )}
 
@@ -394,7 +396,7 @@ export const IdcProjectPage = ({
           {isStep1 && hasPendingResources && (
             <button
               onClick={handleIdcConfirmTargets}
-              disabled={submitting || !hasSelectedResources}
+              disabled={submitting}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {submitting && <LoadingSpinner />}
@@ -412,7 +414,7 @@ export const IdcProjectPage = ({
               </button>
               <button
                 onClick={handleEditConfirm}
-                disabled={submitting || !hasSelectedResources}
+                disabled={submitting || selectedIds.length === 0}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {submitting && <LoadingSpinner />}
