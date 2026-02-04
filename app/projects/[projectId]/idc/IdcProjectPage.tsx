@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential, Resource } from '@/lib/types';
+import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
   updateResourceCredential,
@@ -22,23 +22,6 @@ interface IdcProjectPageProps {
   credentials: DBCredential[];
   onProjectUpdate: (project: Project) => void;
 }
-
-// IdcResourceInput을 임시 Resource로 변환 (표시용)
-const convertToTempResource = (input: IdcResourceInput): Resource => {
-  const hostInfo = input.inputFormat === 'IP'
-    ? (input.ips?.join(', ') || '')
-    : (input.host || '');
-
-  return {
-    id: `temp-${crypto.randomUUID()}`,
-    type: 'IDC',
-    resourceId: `${input.name} (${hostInfo}:${input.port})`,
-    connectionStatus: 'PENDING',
-    isSelected: false,
-    databaseType: input.databaseType,
-    lifecycleStatus: 'DISCOVERED',
-  };
-};
 
 export const IdcProjectPage = ({
   project,
@@ -78,16 +61,11 @@ export const IdcProjectPage = ({
     }
   }, [isInstalling, project.id]);
 
-  // 표시할 리소스 목록 계산
+  // 확정 후 표시할 리소스 목록 계산 (Step 1 이후에만 사용)
   const displayResources = useMemo(() => {
-    if (isStep1) {
-      return pendingResources.map((r) => convertToTempResource(r));
-    }
-    // Step 1 이후: 기존 리소스 + 편집 모드에서 추가된 리소스 - 삭제된 리소스
-    const existingResources = project.resources.filter((r) => !editDeletedIds.has(r.id));
-    const newResources = editPendingResources.map((r) => convertToTempResource(r));
-    return [...existingResources, ...newResources];
-  }, [isStep1, pendingResources, project.resources, editDeletedIds, editPendingResources]);
+    // 기존 리소스 중 삭제되지 않은 것만 필터링
+    return project.resources.filter((r) => !editDeletedIds.has(r.id));
+  }, [project.resources, editDeletedIds]);
 
   // 선택된 ID 관리 (Step 1 이후에만 사용)
   const [selectedIds, setSelectedIds] = useState<string[]>(() => {
@@ -147,22 +125,14 @@ export const IdcProjectPage = ({
     setShowIdcResourceInput(false);
   }, []);
 
-  // 편집 모드: 리소스 삭제
+  // 편집 모드: 기존 리소스 삭제 표시
   const handleEditRemoveResource = useCallback((resourceId: string) => {
-    // 새로 추가된 리소스인지 확인
-    if (resourceId.startsWith('temp-idc-')) {
-      const indexMatch = resourceId.match(/^temp-idc-(\d+)$/);
-      if (indexMatch) {
-        const index = parseInt(indexMatch[1], 10);
-        if (index >= 1000) {
-          // 편집 모드에서 추가된 리소스 삭제
-          setEditPendingResources((prev) => prev.filter((_, i) => i !== index - 1000));
-          return;
-        }
-      }
-    }
-    // 기존 리소스 삭제 표시
     setEditDeletedIds((prev) => new Set([...prev, resourceId]));
+  }, []);
+
+  // 편집 모드: 임시 리소스 삭제 (index 기반)
+  const handleEditRemovePendingInput = useCallback((index: number) => {
+    setEditPendingResources((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   // 확정 수정 완료 핸들러
@@ -219,14 +189,9 @@ export const IdcProjectPage = ({
     setShowIdcResourceInput(false);
   }, []);
 
-  // IDC: 리소스 제거 (로컬 상태에만)
-  const handleRemoveResource = useCallback((resourceId: string) => {
-    // resourceId는 "temp-idc-{index}" 형식
-    const indexMatch = resourceId.match(/^temp-idc-(\d+)$/);
-    if (indexMatch) {
-      const index = parseInt(indexMatch[1], 10);
-      setPendingResources((prev) => prev.filter((_, i) => i !== index));
-    }
+  // IDC: 리소스 제거 (로컬 상태에만 - index 기반)
+  const handleRemovePendingResource = useCallback((index: number) => {
+    setPendingResources((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   // IDC: 방화벽 확인 완료 핸들러
@@ -339,7 +304,6 @@ export const IdcProjectPage = ({
             idcActionLoading={submitting}
             testLoading={testLoading}
             hasPendingResources={hasPendingResources}
-            pendingResources={displayResources}
             onShowResourceInput={() => setShowIdcResourceInput(true)}
             onConfirmFirewall={handleIdcConfirmFirewall}
             onRetry={handleIdcRetry}
@@ -373,10 +337,10 @@ export const IdcProjectPage = ({
                 </button>
               )}
             </div>
-            {displayResources.length > 0 ? (
+            {pendingResources.length > 0 ? (
               <IdcPendingResourceList
-                resources={displayResources}
-                onRemove={handleRemoveResource}
+                resources={pendingResources}
+                onRemove={handleRemovePendingResource}
               />
             ) : (
               <div className="px-6 py-12 text-center">
@@ -409,7 +373,7 @@ export const IdcProjectPage = ({
         </Modal>
 
         {/* Resource Table - 1단계 이후 */}
-        {!isStep1 && displayResources.length > 0 && (
+        {!isStep1 && (displayResources.length > 0 || editPendingResources.length > 0) && (
           <IdcResourceTable
             resources={displayResources}
             processStatus={project.processStatus}
@@ -418,6 +382,8 @@ export const IdcProjectPage = ({
             isEditMode={isEditMode}
             onRemove={handleEditRemoveResource}
             onAdd={() => setShowIdcResourceInput(true)}
+            pendingInputs={editPendingResources}
+            onRemovePendingInput={handleEditRemovePendingInput}
           />
         )}
 
