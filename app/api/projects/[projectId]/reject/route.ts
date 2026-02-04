@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
-import { ProcessStatus, ResourceLifecycleStatus } from '@/lib/types';
+import { ProcessStatus, ResourceLifecycleStatus, ProjectStatus } from '@/lib/types';
 import { addRejectionHistory } from '@/lib/mock-history';
+import { getCurrentStep } from '@/lib/process';
 
 export async function POST(
   request: Request,
@@ -47,12 +48,33 @@ export async function POST(
     };
   });
 
+  const now = new Date().toISOString();
+
+  // status 필드 업데이트 (ADR-004)
+  const updatedStatus: ProjectStatus = {
+    ...project.status,
+    targets: {
+      confirmed: false,
+      selectedCount: 0,
+      excludedCount: 0,
+    },
+    approval: {
+      status: 'REJECTED',
+      rejectedAt: now,
+      rejectionReason: reason,
+    },
+  };
+
+  // 계산된 processStatus
+  const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
   const updatedProject = updateProject(projectId, {
-    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    processStatus: calculatedProcessStatus,
+    status: updatedStatus,
     resources: updatedResources,
     isRejected: true,
     rejectionReason: reason,
-    rejectedAt: new Date().toISOString(),
+    rejectedAt: now,
   });
 
   // History 기록

@@ -119,7 +119,8 @@ export interface Project {
   projectCode: string;
   serviceCode: string;
   cloudProvider: CloudProvider;
-  processStatus: ProcessStatus;
+  processStatus: ProcessStatus;  // deprecated: status 필드에서 계산됨 (ADR-004)
+  status: ProjectStatus;         // 비즈니스 상태 데이터 (ADR-004)
   resources: Resource[];
   terraformState: TerraformState;
   createdAt: string;
@@ -231,6 +232,57 @@ export interface ConnectionTestHistory {
 export const needsCredential = (databaseType: DatabaseType): boolean => {
   return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
 };
+
+// ===== Project Status Types (ADR-004) =====
+// processStatus를 계산하기 위한 상태 데이터 구조
+
+export interface ProjectScanStatus {
+  status: ScanStatus;
+  lastCompletedAt?: string;
+}
+
+export interface ProjectTargetsStatus {
+  confirmed: boolean;
+  selectedCount: number;
+  excludedCount: number;
+}
+
+export type ApprovalStatusType = 'PENDING' | 'APPROVED' | 'REJECTED' | 'AUTO_APPROVED';
+
+export interface ProjectApprovalStatus {
+  status: ApprovalStatusType;
+  approvedAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+}
+
+export type InstallationStatusType = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+
+export interface ProjectInstallationStatus {
+  status: InstallationStatusType;
+  completedAt?: string;
+}
+
+export type ProjectConnectionTestStatusType = 'NOT_TESTED' | 'PASSED' | 'FAILED';
+
+export interface ProjectConnectionTestStatus {
+  status: ProjectConnectionTestStatusType;
+  lastTestedAt?: string;
+  passedAt?: string;
+}
+
+/**
+ * 프로젝트의 비즈니스 상태 데이터 (ADR-004)
+ * - Backend가 제공하는 상태 데이터
+ * - Frontend는 이 데이터를 해석하여 현재 단계(ProcessStatus)를 계산
+ */
+export interface ProjectStatus {
+  scan: ProjectScanStatus;
+  targets: ProjectTargetsStatus;
+  approval: ProjectApprovalStatus;
+  installation: ProjectInstallationStatus;
+  connectionTest: ProjectConnectionTestStatus;
+}
 
 // ===== Scan Types =====
 

@@ -6,6 +6,7 @@ import { TerraformStatusModal } from './TerraformStatusModal';
 import { approveProject, rejectProject, completeInstallation } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
+import { getProjectCurrentStep } from '@/lib/process';
 import {
   StepProgressBar,
   StepGuide,
@@ -90,7 +91,8 @@ export const ProcessStatusCard = ({
   );
 
   const submitting = approving || rejecting;
-  const currentStep = project.processStatus;
+  // ADR-004: status 필드에서 현재 단계 계산
+  const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
 

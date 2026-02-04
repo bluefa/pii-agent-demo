@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
-import { ProcessStatus } from '@/lib/types';
+import { ProcessStatus, ProjectStatus } from '@/lib/types';
+import { getCurrentStep } from '@/lib/process';
 
 export async function POST(
   request: Request,
@@ -41,8 +42,25 @@ export async function POST(
   }
 
   const now = new Date().toISOString();
+
+  // status 필드 업데이트 (ADR-004)
+  // confirm-completion은 관리자가 최종 확정하는 단계
+  // connectionTest가 PASSED인 상태에서 호출됨
+  const updatedStatus: ProjectStatus = {
+    ...project.status,
+    connectionTest: {
+      ...project.status.connectionTest,
+      status: 'PASSED',
+      passedAt: project.status.connectionTest.passedAt || now,
+    },
+  };
+
+  // 계산된 processStatus (INSTALLATION_COMPLETE)
+  const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
   const updatedProject = updateProject(projectId, {
-    processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+    processStatus: calculatedProcessStatus,
+    status: updatedStatus,
     completionConfirmedAt: now,
     // 최초 1회 연동 완료 표시
     piiAgentInstalled: true,
