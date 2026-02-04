@@ -377,15 +377,11 @@ export const IdcProcessStatusCard = ({
 
         <div className="mt-auto pt-4">
           {project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-500">
-                {hasPendingResources
-                  ? '아래 리소스 목록에서 연동 대상을 확인하고 확정하세요'
-                  : '아래 리소스 목록에서 연결할 데이터베이스를 등록하세요'}
-              </p>
-              {/* 리소스 입력 단계에서도 방화벽 가이드 미리 표시 */}
-              <FirewallGuide resources={displayResources} />
-            </div>
+            <p className="text-sm text-gray-500">
+              {hasPendingResources
+                ? '아래 리소스 목록에서 연동 대상을 확인하고 확정하세요'
+                : '아래 리소스 목록에서 연결할 데이터베이스를 등록하세요'}
+            </p>
           )}
 
           {project.processStatus === ProcessStatus.INSTALLING && idcInstallationStatus && (
