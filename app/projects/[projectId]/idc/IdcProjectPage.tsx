@@ -11,6 +11,7 @@ import {
 } from '@/app/lib/api';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { Modal } from '@/app/components/ui/Modal';
 import { ProjectHeader, RejectionAlert } from '../common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { IdcProcessStatusCard } from './IdcProcessStatusCard';
@@ -393,14 +394,21 @@ export const IdcProjectPage = ({
           </div>
         )}
 
-        {/* IDC Resource Input Panel - 편집 모드에서도 표시 */}
-        {showIdcResourceInput && !isStep1 && isEditMode && (
+        {/* IDC Resource Input Modal - 편집 모드에서 사용 */}
+        <Modal
+          isOpen={showIdcResourceInput && !isStep1 && isEditMode}
+          onClose={() => setShowIdcResourceInput(false)}
+          title="리소스 추가"
+          subtitle="데이터베이스 연결 정보를 입력하세요"
+          size="lg"
+        >
           <IdcResourceInputPanel
             credentials={credentials}
             onSave={handleEditAddResource}
             onCancel={() => setShowIdcResourceInput(false)}
+            variant="modal"
           />
-        )}
+        </Modal>
 
         {/* Resource Table - 1단계 이후 */}
         {!isStep1 && displayResources.length > 0 && (
