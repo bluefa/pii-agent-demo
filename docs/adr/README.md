@@ -10,6 +10,7 @@
 | [ADR-002](./002-installed-field.md) | installed 필드 추가 | 승인됨 | 2026-02-02 |
 | [ADR-003](./003-documentation-strategy.md) | 문서 관리 전략 | 승인됨 | 2026-02-02 |
 | [ADR-004](./004-process-status-refactoring.md) | processStatus 저장 필드 리팩토링 | 제안됨 | 2026-02-04 |
+| [ADR-005](./005-data-adapter-pattern.md) | 데이터 어댑터 패턴 도입 | 제안됨 | 2026-02-06 |
 
 ## ADR 작성 규칙
 
