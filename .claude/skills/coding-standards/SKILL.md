@@ -5,173 +5,109 @@ description: 코드 작성 시 따르는 코딩 규칙과 패턴. 컴포넌트, 
 
 # PII Agent 코딩 규칙
 
-코드 작성 시 반드시 따르는 규칙입니다.
+## 1. 파일 및 명명
 
-## 1. 파일 및 명명 규칙
+- 컴포넌트: **PascalCase** (`StepIndicator.tsx`)
+- 훅/유틸: **camelCase** (`useModal.ts`)
+- 함수: **arrow function**, Props: **interface**, 상수: **UPPER_SNAKE_CASE**
 
-### 파일명
-- 컴포넌트: **PascalCase** (`StepIndicator.tsx`, `ResourceTable.tsx`)
-- 훅/유틸: **camelCase** (`useModal.ts`, `date.ts`)
-- 타입: **PascalCase** (`Project.ts`, `Resource.ts`)
+## 2. Import
 
-### 코드 명명
-- 함수: **arrow function** 사용
-- Props: **interface**로 정의
-- 상수: **UPPER_SNAKE_CASE**
-
-```typescript
-// Good
-interface ButtonProps {
-  variant: 'primary' | 'secondary';
-  onClick: () => void;
-}
-
-const Button = ({ variant, onClick }: ButtonProps) => {
-  return <button onClick={onClick}>{variant}</button>;
-};
-
-// Bad
-type ButtonProps = { ... }  // interface 사용
-function Button(props) { ... }  // arrow function 사용
-```
-
-## 2. Import 규칙
-
-### 절대 경로 필수
-```typescript
-// Good
-import { Button } from '@/app/components/ui/Button';
-import { Project } from '@/lib/types';
-import { useModal } from '@/hooks/useModal';
-
-// Bad
-import { Button } from '../../../components/ui/Button';
-import { Project } from '../../lib/types';
-```
-
-### Import 순서
-```typescript
-// 1. React/Next.js
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-// 2. 외부 라이브러리
-import { format } from 'date-fns';
-
-// 3. 내부 컴포넌트/훅
-import { Button } from '@/app/components/ui/Button';
-import { useModal } from '@/hooks/useModal';
-
-// 4. 타입
-import type { Project } from '@/lib/types';
-```
+- `@/` 절대 경로만 (상대 경로 금지)
+- 순서: React/Next → 외부 → 내부(`@/`) → Types(`import type`)
 
 ## 3. 타입 안전성
 
-### any 금지
-```typescript
-// Good
-const handleData = (data: ProjectData) => { ... };
+- `any` 금지 — 구체적 타입 또는 `unknown` + 타입 가드
+- Provider별 분기: Discriminated Union 활용
 
-// Bad
-const handleData = (data: any) => { ... };
+## 4. 커스텀 훅
+
+- Modal → `useModal()` (useState 직접 관리 금지)
+- API mutation → `useApiMutation()` (try-catch 직접 작성 금지)
+
+## 5. 스타일링 — Design System (⛔ 핵심 규칙)
+
+### 색상 사용 원칙
+- **색상 클래스 직접 사용 금지** (`bg-blue-600`, `text-red-500` 등)
+- 반드시 `theme.ts` 토큰 경유:
+  - 상태 색상 → `statusColors.{success|error|info|warning|pending}`
+  - 버튼 → `getButtonClass(variant, size)` 또는 `<Button>` 컴포넌트
+  - 카드 → `cardStyles` 토큰
+  - 입력 → `getInputClass(state)`
+
+### 허용/금지
+```
+✅ 레이아웃 직접 사용: flex, grid, gap-*, p-*, m-*, w-*, h-*, text-{sm|base|lg}
+✅ theme.ts 헬퍼: cn(), getButtonClass(), getInputClass()
+✅ 구조 클래스: rounded-*, border, shadow-*, overflow-*
+
+❌ 색상 직접 사용: bg-{color}-*, text-{color}-*, border-{color}-*
+❌ 컴포넌트 스타일 하드코딩: 버튼/카드/모달/뱃지/테이블
 ```
 
-### 타입 가드 활용
-```typescript
-// Provider별 분기 처리
-if (resource.provider === 'AWS') {
-  // resource.metadata는 AwsMetadata 타입
-}
+### 예시
+```tsx
+// ❌ Bad
+<button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+
+// ✅ Good
+<button className={getButtonClass('primary', 'md')}>
+
+// ❌ Bad
+<span className="bg-green-100 text-green-800 px-2 py-1 rounded-full">완료</span>
+
+// ✅ Good
+<span className={cn(statusColors.success.bg, statusColors.success.textDark, 'px-2 py-1 rounded-full')}>완료</span>
 ```
 
-## 4. 커스텀 훅 활용
+## 6. Code Style — Compact 원칙
 
-### 모달 상태: useModal()
-```typescript
-// Good
-const { isOpen, open, close } = useModal();
+- 자명한 코드에 주석 금지
+- Early return 사용
+- 조건부 렌더링: `&&` 또는 삼항연산자 (if/else 블록 지양)
+- 불필요한 중간 변수 금지
+- 한 줄로 가능하면 한 줄로
+- JSDoc은 exported function에만
+- 설명적 함수명으로 주석 대체
 
-// Bad
-const [isOpen, setIsOpen] = useState(false);
-const open = () => setIsOpen(true);
-const close = () => setIsOpen(false);
+```tsx
+// ❌ Verbose
+const items = data.filter(item => item.active);
+const sortedItems = items.sort((a, b) => a.name.localeCompare(b.name));
+return (
+  <div>
+    {sortedItems.map(item => (
+      <Item key={item.id} data={item} />
+    ))}
+  </div>
+);
+
+// ✅ Compact
+return (
+  <div>
+    {data
+      .filter(item => item.active)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(item => <Item key={item.id} data={item} />)}
+  </div>
+);
 ```
 
-### API Mutation: useApiMutation()
-```typescript
-// Good
-const { mutate, isLoading, error } = useApiMutation('/api/projects');
+## 7. 컴포넌트 구조
 
-// Bad
-const [isLoading, setIsLoading] = useState(false);
-const [error, setError] = useState(null);
-try { ... } catch (e) { ... } finally { ... }
-```
+- 300줄 초과 시 폴더 분리 (`ComponentName/index.ts`)
+- CSS 파일 생성 금지, 반응형 불필요
+- Tooltip: portal 사용 (overflow 이슈 방지)
+- UI 컴포넌트는 theme.ts 토큰 필수
 
-## 5. 스타일링 규칙
+## 8. API Routes
 
-### Tailwind 직접 사용
-```typescript
-// Good
-<div className="flex items-center gap-4 p-4 bg-white rounded-lg">
+- BFF 명세(`docs/api/`) 준수
+- "mock" 용어 금지 (`lib/mock-*.ts` 예외)
 
-// Bad
-<div className={styles.container}>  // CSS 모듈 지양
-```
+## 9. 금지 패턴
 
-### 상태별 색상 (theme.ts 참조)
-- 연결됨/완료: `green-500`
-- 끊김/에러: `red-500`
-- 신규: `blue-500`
-- 진행중: `orange-500`
-- 대기중: `gray-400`
-- Primary (버튼/링크): `blue-600`
-
-## 6. 컴포넌트 구조
-
-### 300줄 이상시 폴더 분리 검토
-```
-components/features/
-├── resource-table/
-│   ├── index.ts          # 내보내기
-│   ├── ResourceTable.tsx # 메인 컴포넌트
-│   ├── ResourceRow.tsx   # 하위 컴포넌트
-│   └── useResourceFilter.ts
-```
-
-
-### UI 컴포넌트 개발 패턴
-
-#### Tooltip
-- 용도: 가이드 및 실행 방식 설명 (프로젝트 전반에 자주 사용)
-- 위치: 부모 컴포넌트 영역을 벗어나지 않도록 처리 (portal 사용 권장)
-- 데이터: API 전달 가이드 / 하드코딩 가이드 혼용 가능
-- overflow 주의: 부모에 `overflow: hidden` 있으면 잘림 → portal로 해결
-
-#### 공통 UI 컴포넌트
-- theme.ts 토큰 반드시 사용
-- theme.ts 수정 시 영향 범위 확인 필수
-
-## 7. API Routes 규칙
-
-### BFF 명세 준수
-- API Routes는 `docs/api/` 명세를 따라 구현
-- 응답 형식은 BFF API와 동일하게
-
-### mock 용어 금지
-```typescript
-// Good
-const projectData = { ... };
-
-// Bad (lib/mock-*.ts 파일은 예외)
-const mockProject = { ... };
-```
-
-## 8. 피해야 할 패턴
-
-- CSS 파일 생성 (Tailwind 사용)
-- 반응형 스타일 (Desktop only)
-- 불필요한 추상화
-- try-catch-finally 직접 작성 (훅 사용)
-- 상대 경로 import
+- CSS 파일 생성, 반응형 스타일, 불필요한 추상화
+- try-catch 직접 작성, 상대 경로 import, any 타입
+- Raw 색상 클래스 직접 사용
