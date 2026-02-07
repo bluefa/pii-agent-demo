@@ -7,6 +7,7 @@ import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
 import { IdcProjectPage } from './idc';
+import { GcpProjectPage } from './gcp';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -67,6 +68,15 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     case 'IDC':
       return (
         <IdcProjectPage
+          project={project}
+          isAdmin={isAdmin}
+          credentials={credentials}
+          onProjectUpdate={setProject}
+        />
+      );
+    case 'GCP':
+      return (
+        <GcpProjectPage
           project={project}
           isAdmin={isAdmin}
           credentials={credentials}

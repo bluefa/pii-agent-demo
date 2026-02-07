@@ -11,6 +11,7 @@ import * as mockScan from '@/lib/mock-scan';
 import * as mockHistory from '@/lib/mock-history';
 import * as mockAzure from '@/lib/mock-azure';
 import * as mockIdc from '@/lib/mock-idc';
+import * as mockGcp from '@/lib/mock-gcp';
 
 export const mockAdapter: DataAdapter = {
   // --- User ---
@@ -110,4 +111,15 @@ export const mockAdapter: DataAdapter = {
     mockIdc.updateIdcResources(projectId, resources),
   confirmIdcTargets: async (projectId, resources) =>
     mockIdc.confirmIdcTargets(projectId, resources),
+
+  // --- GCP ---
+  getGcpInstallationStatus: async (projectId) => mockGcp.getGcpInstallationStatus(projectId),
+  checkGcpInstallation: async (projectId) => mockGcp.checkGcpInstallation(projectId),
+  getGcpRegionalManagedProxy: async (projectId, resourceId) =>
+    mockGcp.getGcpRegionalManagedProxy(projectId, resourceId),
+  createGcpProxySubnet: async (projectId, resourceId) =>
+    mockGcp.createGcpProxySubnet(projectId, resourceId),
+  getGcpServiceTfResources: async (_projectId, connectionType) =>
+    mockGcp.getGcpServiceTfResources(_projectId, connectionType),
+  getGcpServiceSettings: async (serviceCode) => mockGcp.getGcpServiceSettings(serviceCode),
 };

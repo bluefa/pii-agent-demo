@@ -42,6 +42,13 @@ import type {
   IpType,
   IdcResourceInput,
 } from '@/lib/types/idc';
+import type {
+  GcpInstallationStatus,
+  GcpRegionalManagedProxyStatus,
+  GcpConnectionType,
+  GcpServiceTfResources,
+  GcpServiceSettings,
+} from '@/lib/types/gcp';
 import type { ScanValidationResult } from '@/lib/mock-scan';
 import type {
   HistoryFilterType,
@@ -139,4 +146,12 @@ export interface DataAdapter {
   getIdcResources: (projectId: string) => Promise<ProviderResult<IdcResourceInput[]>>;
   updateIdcResources: (projectId: string, resources: IdcResourceInput[]) => Promise<ProviderResult<IdcResourceInput[]>>;
   confirmIdcTargets: (projectId: string, resources: IdcResourceInput[]) => Promise<ProviderResult<{ confirmed: boolean; confirmedAt: string; project: Project }>>;
+
+  // --- GCP ---
+  getGcpInstallationStatus: (projectId: string) => Promise<ProviderResult<GcpInstallationStatus>>;
+  checkGcpInstallation: (projectId: string) => Promise<ProviderResult<GcpInstallationStatus>>;
+  getGcpRegionalManagedProxy: (projectId: string, resourceId: string) => Promise<ProviderResult<GcpRegionalManagedProxyStatus>>;
+  createGcpProxySubnet: (projectId: string, resourceId: string) => Promise<ProviderResult<{ created: boolean }>>;
+  getGcpServiceTfResources: (projectId: string, connectionType: GcpConnectionType) => Promise<ProviderResult<GcpServiceTfResources>>;
+  getGcpServiceSettings: (serviceCode: string) => Promise<ProviderResult<GcpServiceSettings>>;
 }
