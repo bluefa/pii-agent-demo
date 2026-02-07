@@ -29,14 +29,19 @@ git worktree add ../pii-agent-demo-{name} -b {prefix}/{name}
 ## 2. 구현 순서
 
 ```
-1. lib/types/*.ts      → 타입 정의
-2. lib/constants/*.ts  → 상수 정의
-3. lib/mock-*.ts       → Mock 헬퍼 (개발용)
-4. app/api/**          → API Routes
-5. lib/__tests__/*.ts  → 유닛 테스트
-6. app/components/**   → UI 컴포넌트 (theme.ts 토큰 사용)
-7. app/**              → 페이지 통합
+1. lib/types/*.ts             → 타입 정의
+2. lib/constants/*.ts         → 상수 정의
+3. lib/mock-*.ts              → Mock 헬퍼 (개발용)
+4. lib/adapters/types.ts      → DataAdapter 인터페이스 확장
+5. lib/adapters/mock-adapter  → Mock 어댑터에 메서드 추가
+6. lib/adapters/bff-adapter   → BFF 어댑터에 메서드 추가
+7. app/api/**                 → API Routes (dataAdapter 사용)
+8. lib/__tests__/*.ts         → 유닛 테스트
+9. app/components/**          → UI 컴포넌트 (theme.ts 토큰 사용)
+10. app/**                    → 페이지 통합
 ```
+
+> ⛔ API Routes에서 `@/lib/mock-*` 직접 import 금지 — 반드시 `dataAdapter` 경유 (ADR-005)
 
 ## 3. 구현 후 검증
 
@@ -53,7 +58,8 @@ npm run build         # (선택) 빌드 확인
 - BFF 명세 변경 → `docs/api/providers/*.md`
 - 주요 기능 완료 → `docs/domain/README.md` TODO
 
-## 5. Git
+## 5. Git (필수 — 작업 완료 시 자동 수행)
 
-- commit & push → PR 생성
+- 기능 개발 또는 문서 업데이트 완료 시 반드시 commit & push 수행
 - 커밋: `<type>: <description>` (feat, fix, refactor, docs, test, chore)
+- push 후 필요 시 PR 생성
