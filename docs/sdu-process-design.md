@@ -88,7 +88,7 @@ INSTALLING 단계는 BDC측에서 순차적으로 수행하는 4개 서브스텝
 
 ```
 INSTALLING
-  ├─ crawler:         PENDING → IN_PROGRESS → COMPLETED
+  ├─ crawler:         미생성 → 생성완료 (최근 동작: 없음/성공/실패)
   ├─ athenaTable:     PENDING → CREATED (n개)
   ├─ targetConfirmed: false → true          ← BDC 내부 확정 (전체 자동, 선택 없음)
   └─ athenaSetup:     PENDING → IN_PROGRESS → COMPLETED   ← BDC측 Athena 설정
@@ -105,7 +105,8 @@ interface SduProjectStatus {
   };
   installation: {
     crawler: {
-      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+      configured: boolean;                          // 생성 여부
+      lastRunStatus: 'NONE' | 'SUCCESS' | 'FAILED'; // 최근 동작 결과
       lastRunAt?: string;
     };
     athenaTable: {
