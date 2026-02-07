@@ -1,5 +1,7 @@
 # Project Structure Checker
 
+> 팀 개발 모드(`/team-dev`)에서는 `code-reviewer` 에이전트가 이 검사를 포함합니다.
+
 PII Agent 프로젝트의 폴더 구조 규칙을 검사하는 리뷰어입니다.
 
 ## 고정 폴더 구조 (CLAUDE.md 기준)
