@@ -39,6 +39,9 @@ export const VmDatabaseConfigPanel = ({
   const [port, setPort] = useState<string>(
     initialConfig?.port?.toString() ?? ''
   );
+  const [host, setHost] = useState<string>(
+    initialConfig?.host ?? ''
+  );
   const [oracleServiceId, setOracleServiceId] = useState<string>(
     initialConfig?.oracleServiceId ?? ''
   );
@@ -80,6 +83,7 @@ export const VmDatabaseConfigPanel = ({
     const config: VmDatabaseConfig = {
       databaseType,
       port: parseInt(port, 10),
+      ...(host ? { host } : {}),
       ...(databaseType === 'ORACLE' && oracleServiceId ? { oracleServiceId } : {}),
     };
 
@@ -154,8 +158,24 @@ export const VmDatabaseConfigPanel = ({
                 {/* 구분선 */}
                 <div className="w-px h-24 bg-slate-200 self-center" />
 
-                {/* Port & Oracle SID */}
+                {/* Host, Port & Oracle SID */}
                 <div className="flex gap-4">
+                  {/* Host (EC2 전용: Private DNS Name) */}
+                  <div className="w-52">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Host
+                    </label>
+                    <input
+                      type="text"
+                      value={host}
+                      onChange={(e) => setHost(e.target.value)}
+                      disabled={!databaseType}
+                      className="w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 border-slate-200 bg-white text-slate-900 focus:border-blue-500"
+                      placeholder="ip-10-0-1-100.ec2.internal"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">Private DNS Name 또는 IP</p>
+                  </div>
+
                   {/* Port */}
                   <div className="w-28">
                     <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">

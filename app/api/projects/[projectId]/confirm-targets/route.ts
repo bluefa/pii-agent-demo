@@ -60,11 +60,13 @@ export async function POST(
 
   // 선택되지 않은 리소스 중 제외 사유가 없는 것 검증
   // (이미 exclusion이 있는 리소스는 제외 - 기존 제외 유지)
+  // EC2 리소스는 제외 사유 없이 미선택 가능
   const unselectedWithoutReason = project.resources.filter(r =>
     !selectedSet.has(r.id) &&
     r.lifecycleStatus !== 'ACTIVE' &&
     !exclusionMap.has(r.id) &&
-    !r.exclusion
+    !r.exclusion &&
+    r.awsType !== 'EC2'
   );
 
   if (unselectedWithoutReason.length > 0) {
