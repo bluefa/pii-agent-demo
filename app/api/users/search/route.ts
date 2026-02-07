@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mockUsers } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q')?.toLowerCase() || '';
   const excludeIds = searchParams.get('exclude')?.split(',').filter(Boolean) || [];
 
-  let users = mockUsers.filter((u) => u.role !== 'ADMIN');
+  const allUsers = await dataAdapter.getUsers();
+  let users = allUsers.filter((u) => u.role !== 'ADMIN');
 
   if (excludeIds.length > 0) {
     users = users.filter((u) => !excludeIds.includes(u.id));

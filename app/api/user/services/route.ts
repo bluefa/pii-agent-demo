@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, mockServiceCodes } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function GET() {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
 
   if (!user) {
     return NextResponse.json(
@@ -11,10 +11,11 @@ export async function GET() {
     );
   }
 
+  const allServiceCodes = await dataAdapter.getServiceCodes();
   const services =
     user.role === 'ADMIN'
-      ? mockServiceCodes
-      : mockServiceCodes.filter((s) => user.serviceCodePermissions.includes(s.code));
+      ? allServiceCodes
+      : allServiceCodes.filter((s) => user.serviceCodePermissions.includes(s.code));
 
   return NextResponse.json({ services });
 }

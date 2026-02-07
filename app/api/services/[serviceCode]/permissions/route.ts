@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/mock-data';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ serviceCode: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { serviceCode } = await params;
-  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -17,7 +15,8 @@ export async function GET(
     );
   }
 
-  const usersWithPermission = store.users
+  const allUsers = await dataAdapter.getUsers();
+  const usersWithPermission = allUsers
     .filter((u) => u.serviceCodePermissions.includes(serviceCode))
     .map((u) => ({
       id: u.id,
@@ -32,9 +31,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ serviceCode: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { serviceCode } = await params;
-  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -43,7 +41,7 @@ export async function POST(
     );
   }
 
-  if (!store.serviceCodes.find((s) => s.code === serviceCode)) {
+  if (!(await dataAdapter.getServiceCodeByCode(serviceCode))) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
       { status: 404 }
@@ -53,7 +51,8 @@ export async function POST(
   const body = await request.json();
   const { userId } = body as { userId: string };
 
-  const targetUser = store.users.find((u) => u.id === userId);
+  const allUsers = await dataAdapter.getUsers();
+  const targetUser = allUsers.find((u) => u.id === userId);
 
   if (!targetUser) {
     return NextResponse.json(

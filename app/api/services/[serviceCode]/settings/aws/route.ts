@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAwsServiceSettings, updateAwsServiceSettings } from '@/lib/mock-service-settings';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 import type { UpdateAwsSettingsRequest } from '@/lib/types';
 
 type RouteParams = { params: Promise<{ serviceCode: string }> };
@@ -17,8 +16,7 @@ export const GET = async (
     const { serviceCode } = await params;
 
     // 서비스 코드 존재 확인
-    const store = getStore();
-    const service = store.serviceCodes.find(s => s.code === serviceCode);
+    const service = await dataAdapter.getServiceCodeByCode(serviceCode);
 
     if (!service) {
       return NextResponse.json(
@@ -27,7 +25,7 @@ export const GET = async (
       );
     }
 
-    const settings = getAwsServiceSettings(serviceCode);
+    const settings = await dataAdapter.getAwsServiceSettings(serviceCode);
     return NextResponse.json(settings);
   } catch {
     return NextResponse.json(
@@ -49,8 +47,7 @@ export const PUT = async (
     const { serviceCode } = await params;
 
     // 서비스 코드 존재 확인
-    const store = getStore();
-    const service = store.serviceCodes.find(s => s.code === serviceCode);
+    const service = await dataAdapter.getServiceCodeByCode(serviceCode);
 
     if (!service) {
       return NextResponse.json(
@@ -68,7 +65,7 @@ export const PUT = async (
       );
     }
 
-    const result = updateAwsServiceSettings(serviceCode, body);
+    const result = await dataAdapter.updateAwsServiceSettings(serviceCode, body);
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(

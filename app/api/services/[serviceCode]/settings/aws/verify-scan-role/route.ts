@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyScanRole } from '@/lib/mock-service-settings';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 
 type RouteParams = { params: Promise<{ serviceCode: string }> };
 
@@ -16,8 +15,7 @@ export const POST = async (
     const { serviceCode } = await params;
 
     // 서비스 코드 존재 확인
-    const store = getStore();
-    const service = store.serviceCodes.find(s => s.code === serviceCode);
+    const service = await dataAdapter.getServiceCodeByCode(serviceCode);
 
     if (!service) {
       return NextResponse.json(
@@ -26,7 +24,7 @@ export const POST = async (
       );
     }
 
-    const result = verifyScanRole(serviceCode);
+    const result = await dataAdapter.verifyScanRole(serviceCode);
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(

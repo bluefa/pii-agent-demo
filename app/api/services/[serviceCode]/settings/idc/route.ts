@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, mockServiceCodes } from '@/lib/mock-data';
-import { getIdcServiceSettings, updateIdcServiceSettings } from '@/lib/mock-idc';
+import { dataAdapter } from '@/lib/adapters';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import { UpdateIdcSettingsRequest } from '@/lib/types/idc';
 
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ serviceCode: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -20,7 +19,7 @@ export async function GET(
   const { serviceCode } = await params;
 
   // 2. 서비스 존재 확인
-  const service = mockServiceCodes.find((s) => s.code === serviceCode);
+  const service = await dataAdapter.getServiceCodeByCode(serviceCode);
   if (!service) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.SERVICE_NOT_FOUND.code, message: IDC_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -37,7 +36,7 @@ export async function GET(
   }
 
   // 4. IDC 서비스 설정 조회
-  const result = getIdcServiceSettings(serviceCode);
+  const result = await dataAdapter.getIdcServiceSettings(serviceCode);
 
   if (result.error) {
     return NextResponse.json(
@@ -54,7 +53,7 @@ export async function PUT(
   { params }: { params: Promise<{ serviceCode: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -65,7 +64,7 @@ export async function PUT(
   const { serviceCode } = await params;
 
   // 2. 서비스 존재 확인
-  const service = mockServiceCodes.find((s) => s.code === serviceCode);
+  const service = await dataAdapter.getServiceCodeByCode(serviceCode);
   if (!service) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.SERVICE_NOT_FOUND.code, message: IDC_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -100,7 +99,7 @@ export async function PUT(
   }
 
   // 5. IDC 서비스 설정 수정
-  const result = updateIdcServiceSettings(serviceCode, body.firewallPrepared);
+  const result = await dataAdapter.updateIdcServiceSettings(serviceCode, body.firewallPrepared);
 
   if (result.error) {
     return NextResponse.json(

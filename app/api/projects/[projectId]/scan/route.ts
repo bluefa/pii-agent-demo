@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject, generateId } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { AwsResourceType, DatabaseType } from '@/lib/types';
 
 const awsTypeToDatabaseType = (awsType: AwsResourceType): DatabaseType => {
@@ -23,7 +23,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user) {
@@ -33,7 +33,7 @@ export async function POST(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json(
@@ -102,7 +102,7 @@ export async function POST(
     };
 
     const newResource = {
-      id: generateId('res'),
+      id: await dataAdapter.generateId('res'),
       type: awsType,
       resourceId: makeArn(),
       databaseType: awsTypeToDatabaseType(awsType),
@@ -120,7 +120,7 @@ export async function POST(
     newResourcesFound = 1;
   }
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     resources: updatedResources,
   });
 

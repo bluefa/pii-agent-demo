@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus } from '@/lib/types';
-import { addTargetConfirmedHistory, addAutoApprovedHistory } from '@/lib/mock-history';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { getCurrentStep } from '@/lib/process';
 
@@ -17,7 +16,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user) {
@@ -27,7 +26,7 @@ export async function POST(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json(
@@ -142,17 +141,17 @@ export async function POST(
   // 계산된 processStatus
   const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     resources: updatedResources,
     status: updatedStatus,
     processStatus: calculatedProcessStatus,  // 계산된 값으로 업데이트 (하위 호환성)
   });
 
   // 연동 확정 히스토리 추가
-  addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
+  await dataAdapter.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
 
   if (autoApprovalResult.shouldAutoApprove) {
-    addAutoApprovedHistory(projectId);
+    await dataAdapter.addAutoApprovedHistory(projectId);
   }
 
   return NextResponse.json({

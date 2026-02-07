@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { getScanHistory, canScan, calculateScanStatus } from '@/lib/mock-scan';
+import { dataAdapter } from '@/lib/adapters';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
-import { getStore } from '@/lib/mock-store';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -20,7 +18,7 @@ export async function GET(
   const { projectId } = await params;
 
   // 2. 프로젝트 존재 확인
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -37,16 +35,13 @@ export async function GET(
   }
 
   // 4. 현재 스캔 상태 확인
-  const store = getStore();
-  const activeScan = store.scans.find(
-    (s) => s.projectId === projectId && (s.status === 'PENDING' || s.status === 'IN_PROGRESS')
-  );
+  const activeScan = await dataAdapter.getLatestScanForProject(projectId);
 
   let currentScan = null;
   let isScanning = false;
 
   if (activeScan) {
-    const updated = calculateScanStatus(activeScan);
+    const updated = await dataAdapter.calculateScanStatus(activeScan);
     if (updated.status === 'PENDING' || updated.status === 'IN_PROGRESS') {
       isScanning = true;
       currentScan = {
@@ -59,7 +54,7 @@ export async function GET(
   }
 
   // 5. 마지막 완료된 스캔 조회
-  const { history } = getScanHistory(projectId, 1, 0);
+  const { history } = await dataAdapter.getScanHistory(projectId, 1, 0);
   const lastCompletedScan = history.length > 0 ? {
     scanId: history[0].scanId,
     completedAt: history[0].completedAt,
@@ -67,7 +62,7 @@ export async function GET(
   } : null;
 
   // 6. 스캔 가능 여부 확인
-  const scanability = canScan(project);
+  const scanability = await dataAdapter.canScan(project);
 
   return NextResponse.json({
     isScanning,

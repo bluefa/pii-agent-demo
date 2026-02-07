@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInstallationStatus, initializeInstallation } from '@/lib/mock-installation';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 
 type RouteParams = { params: Promise<{ projectId: string }> };
 
@@ -16,8 +15,7 @@ export const GET = async (
     const { projectId } = await params;
 
     // 프로젝트 존재 확인
-    const store = getStore();
-    const project = store.projects.find(p => p.id === projectId);
+    const project = await dataAdapter.getProjectById(projectId);
 
     if (!project) {
       return NextResponse.json(
@@ -34,13 +32,13 @@ export const GET = async (
     }
 
     // 설치 상태 조회 (없으면 초기화)
-    let status = getInstallationStatus(projectId);
+    let status = await dataAdapter.getInstallationStatus(projectId);
 
     if (!status) {
       // 프로젝트의 TF 권한 여부에 따라 초기화
       // Service TF 완료 여부로 TF 권한 판단
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      status = initializeInstallation(projectId, hasTfPermission);
+      status = await dataAdapter.initializeInstallation(projectId, hasTfPermission);
     }
 
     return NextResponse.json(status);
