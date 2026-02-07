@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { getIdcResources, updateIdcResources } from '@/lib/mock-idc';
+import { dataAdapter } from '@/lib/adapters';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import { IdcResourceInput } from '@/lib/types/idc';
 
@@ -9,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -20,7 +19,7 @@ export async function GET(
   const { projectId } = await params;
 
   // 2. 프로젝트 존재 확인
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.NOT_FOUND.code, message: IDC_ERROR_CODES.NOT_FOUND.message },
@@ -37,7 +36,7 @@ export async function GET(
   }
 
   // 4. IDC 리소스 목록 조회
-  const result = getIdcResources(projectId);
+  const result = await dataAdapter.getIdcResources(projectId);
 
   if (result.error) {
     return NextResponse.json(
@@ -54,7 +53,7 @@ export async function PUT(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -65,7 +64,7 @@ export async function PUT(
   const { projectId } = await params;
 
   // 2. 프로젝트 존재 확인
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.NOT_FOUND.code, message: IDC_ERROR_CODES.NOT_FOUND.message },
@@ -100,7 +99,7 @@ export async function PUT(
   }
 
   // 5. IDC 리소스 저장
-  const result = updateIdcResources(projectId, body.resources);
+  const result = await dataAdapter.updateIdcResources(projectId, body.resources);
 
   if (result.error) {
     return NextResponse.json(

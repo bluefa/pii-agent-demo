@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus, ResourceLifecycleStatus, ProjectStatus } from '@/lib/types';
-import { addRejectionHistory } from '@/lib/mock-history';
 import { getCurrentStep } from '@/lib/process';
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user || user.role !== 'ADMIN') {
@@ -18,7 +17,7 @@ export async function POST(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json(
@@ -68,7 +67,7 @@ export async function POST(
   // 계산된 processStatus
   const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     processStatus: calculatedProcessStatus,
     status: updatedStatus,
     resources: updatedResources,
@@ -78,7 +77,7 @@ export async function POST(
   });
 
   // History 기록
-  addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+  await dataAdapter.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
 
   return NextResponse.json({ success: true, project: updatedProject, reason });
 }

@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { setCurrentUser, mockUsers, getCurrentUser } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function GET() {
-  const currentUser = getCurrentUser();
+  const currentUser = await dataAdapter.getCurrentUser();
+  const allUsers = await dataAdapter.getUsers();
 
   return NextResponse.json({
     currentUser: currentUser
       ? { id: currentUser.id, name: currentUser.name, email: currentUser.email, role: currentUser.role }
       : null,
-    users: mockUsers.map((u) => ({
+    users: allUsers.map((u) => ({
       id: u.id,
       name: u.name,
       email: u.email,
@@ -21,7 +22,8 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { userId } = body as { userId: string };
 
-  const user = mockUsers.find((u) => u.id === userId);
+  const allUsers = await dataAdapter.getUsers();
+  const user = allUsers.find((u) => u.id === userId);
 
   if (!user) {
     return NextResponse.json(
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
     );
   }
 
-  setCurrentUser(userId);
+  await dataAdapter.setCurrentUser(userId);
 
   return NextResponse.json({
     success: true,

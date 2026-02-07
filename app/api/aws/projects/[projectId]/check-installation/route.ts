@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { checkInstallation, initializeInstallation } from '@/lib/mock-installation';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 
 type RouteParams = { params: Promise<{ projectId: string }> };
 
@@ -16,8 +15,7 @@ export const POST = async (
     const { projectId } = await params;
 
     // 프로젝트 존재 확인
-    const store = getStore();
-    const project = store.projects.find(p => p.id === projectId);
+    const project = await dataAdapter.getProjectById(projectId);
 
     if (!project) {
       return NextResponse.json(
@@ -34,12 +32,12 @@ export const POST = async (
     }
 
     // 설치 상태가 없으면 초기화
-    let result = checkInstallation(projectId);
+    let result = await dataAdapter.checkInstallation(projectId);
 
     if (!result) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      initializeInstallation(projectId, hasTfPermission);
-      result = checkInstallation(projectId);
+      await dataAdapter.initializeInstallation(projectId, hasTfPermission);
+      result = await dataAdapter.checkInstallation(projectId);
     }
 
     return NextResponse.json(result);

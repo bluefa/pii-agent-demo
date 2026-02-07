@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { validateScanRequest, createScanJob } from '@/lib/mock-scan';
+import { dataAdapter } from '@/lib/adapters';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
 
 export async function POST(
@@ -8,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -19,7 +18,7 @@ export async function POST(
   const { projectId } = await params;
 
   // 2. 프로젝트 존재 확인
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -45,7 +44,7 @@ export async function POST(
   }
 
   // 5. 스캔 유효성 검증
-  const validation = validateScanRequest(project, force);
+  const validation = await dataAdapter.validateScanRequest(project, force);
   if (!validation.valid) {
     const response: Record<string, unknown> = {
       error: validation.errorCode,
@@ -58,7 +57,7 @@ export async function POST(
   }
 
   // 6. 스캔 작업 생성
-  const scanJob = createScanJob(project);
+  const scanJob = await dataAdapter.createScanJob(project);
 
   // 7. 응답 (202 Accepted)
   const estimatedDuration = Math.ceil(

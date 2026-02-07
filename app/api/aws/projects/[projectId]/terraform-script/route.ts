@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTerraformScript, getInstallationStatus, initializeInstallation } from '@/lib/mock-installation';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 
 type RouteParams = { params: Promise<{ projectId: string }> };
 
@@ -16,8 +15,7 @@ export const GET = async (
     const { projectId } = await params;
 
     // 프로젝트 존재 확인
-    const store = getStore();
-    const project = store.projects.find(p => p.id === projectId);
+    const project = await dataAdapter.getProjectById(projectId);
 
     if (!project) {
       return NextResponse.json(
@@ -34,11 +32,11 @@ export const GET = async (
     }
 
     // 설치 상태 확인 (없으면 초기화)
-    let status = getInstallationStatus(projectId);
+    let status = await dataAdapter.getInstallationStatus(projectId);
 
     if (!status) {
       // TF 권한 없는 상태로 초기화 (스크립트 필요 케이스)
-      status = initializeInstallation(projectId, false);
+      status = await dataAdapter.initializeInstallation(projectId, false);
     }
 
     // TF 권한이 있으면 스크립트 불필요
@@ -49,7 +47,7 @@ export const GET = async (
       );
     }
 
-    const result = getTerraformScript(projectId);
+    const result = await dataAdapter.getTerraformScript(projectId);
 
     if (!result) {
       return NextResponse.json(

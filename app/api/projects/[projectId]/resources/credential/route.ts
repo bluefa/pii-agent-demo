@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus } from '@/lib/types';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user) {
@@ -16,7 +16,7 @@ export async function PATCH(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json(
@@ -59,7 +59,7 @@ export async function PATCH(
     };
   });
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     resources: updatedResources,
   });
 

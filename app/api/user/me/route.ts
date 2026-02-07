@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function GET() {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
 
   if (!user) {
     return NextResponse.json(

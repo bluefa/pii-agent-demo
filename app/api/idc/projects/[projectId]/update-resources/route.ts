@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject, generateId } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import { IdcResourceInput } from '@/lib/types/idc';
 import { Resource, DatabaseType } from '@/lib/types';
@@ -13,7 +13,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -23,7 +23,7 @@ export async function POST(
 
   const { projectId } = await params;
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.NOT_FOUND.code, message: IDC_ERROR_CODES.NOT_FOUND.message },
@@ -55,21 +55,23 @@ export async function POST(
   const remainingResources = project.resources.filter((r) => keepResourceIdSet.has(r.id));
 
   // 새 리소스 변환
-  const convertedNewResources: Resource[] = newResources.map((input) => {
-    const hostInfo = input.inputFormat === 'IP'
-      ? (input.ips?.join(', ') || '')
-      : (input.host || '');
+  const convertedNewResources: Resource[] = await Promise.all(
+    newResources.map(async (input) => {
+      const hostInfo = input.inputFormat === 'IP'
+        ? (input.ips?.join(', ') || '')
+        : (input.host || '');
 
-    return {
-      id: generateId('idc-res'),
-      type: 'IDC',
-      resourceId: `${input.name} (${hostInfo}:${input.port})`,
-      connectionStatus: 'PENDING' as const,
-      isSelected: true,
-      databaseType: input.databaseType as DatabaseType,
-      lifecycleStatus: 'TARGET' as const,
-    };
-  });
+      return {
+        id: await dataAdapter.generateId('idc-res'),
+        type: 'IDC',
+        resourceId: `${input.name} (${hostInfo}:${input.port})`,
+        connectionStatus: 'PENDING' as const,
+        isSelected: true,
+        databaseType: input.databaseType as DatabaseType,
+        lifecycleStatus: 'TARGET' as const,
+      };
+    })
+  );
 
   // 리소스 업데이트
   const allResources = [...remainingResources, ...convertedNewResources];
@@ -81,7 +83,7 @@ export async function POST(
     );
   }
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     resources: allResources,
   });
 
