@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectsByServiceCode } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus } from '@/lib/types';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ serviceCode: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { serviceCode } = await params;
 
   if (!user) {
@@ -24,7 +24,7 @@ export async function GET(
   }
 
   // core.md 스펙에 맞게 필드 선별 반환
-  const projects = getProjectsByServiceCode(serviceCode).map((p) => {
+  const projects = (await dataAdapter.getProjectsByServiceCode(serviceCode)).map((p) => {
     const isIntegrated = p.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
     return {

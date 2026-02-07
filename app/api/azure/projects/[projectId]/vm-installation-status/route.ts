@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { getAzureVmInstallationStatus } from '@/lib/mock-azure';
+import { dataAdapter } from '@/lib/adapters';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 
 export async function GET(
@@ -8,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: AZURE_ERROR_CODES.UNAUTHORIZED.code, message: AZURE_ERROR_CODES.UNAUTHORIZED.message },
@@ -19,7 +18,7 @@ export async function GET(
   const { projectId } = await params;
 
   // 2. 프로젝트 존재 확인
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: AZURE_ERROR_CODES.NOT_FOUND.code, message: AZURE_ERROR_CODES.NOT_FOUND.message },
@@ -36,7 +35,7 @@ export async function GET(
   }
 
   // 4. VM 설치 상태 조회
-  const result = getAzureVmInstallationStatus(projectId);
+  const result = await dataAdapter.getAzureVmInstallationStatus(projectId);
 
   if (result.error) {
     return NextResponse.json(

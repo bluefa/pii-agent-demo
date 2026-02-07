@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/mock-data';
-import { getSourceIpRecommendation } from '@/lib/mock-idc';
+import { dataAdapter } from '@/lib/adapters';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import { IpType } from '@/lib/types/idc';
 
 export async function GET(request: Request) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
   }
 
   // 3. Source IP 추천 조회
-  const result = getSourceIpRecommendation(ipType);
+  const result = await dataAdapter.getSourceIpRecommendation(ipType);
 
   if (result.error) {
     return NextResponse.json(

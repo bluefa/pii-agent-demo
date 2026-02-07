@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById } from '@/lib/mock-data';
-import { getScanHistory } from '@/lib/mock-scan';
+import { dataAdapter } from '@/lib/adapters';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
 
 export async function GET(
@@ -8,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -19,7 +18,7 @@ export async function GET(
   const { projectId } = await params;
 
   // 2. 프로젝트 존재 확인
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -41,7 +40,7 @@ export async function GET(
   const offset = parseInt(searchParams.get('offset') || '0', 10);
 
   // 5. 스캔 이력 조회
-  const { history, total } = getScanHistory(projectId, limit, offset);
+  const { history, total } = await dataAdapter.getScanHistory(projectId, limit, offset);
 
   return NextResponse.json({
     history: history.map((h) => ({
