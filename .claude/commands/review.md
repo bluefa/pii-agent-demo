@@ -1,5 +1,7 @@
 # Parallel Code Review
 
+> **팀 개발 모드**를 사용 중이라면 `/team-dev`의 code-reviewer 에이전트가 아래 4개 검사를 통합하여 더 깊은 리뷰를 수행합니다.
+
 $ARGUMENTS 경로에 대해 4개의 전문 리뷰어를 **병렬로** 실행합니다.
 
 ## 실행 방법
