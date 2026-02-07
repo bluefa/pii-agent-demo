@@ -13,6 +13,7 @@ import {
   ProcessStatus,
   ProjectStatus,
 } from '@/lib/types';
+import type { SduProjectStatus, SduProcessStatus } from '@/lib/types/sdu';
 
 /**
  * 현재 프로세스 단계를 계산합니다.
@@ -25,8 +26,8 @@ export const getCurrentStep = (
   cloudProvider: CloudProvider,
   status: ProjectStatus
 ): ProcessStatus => {
-  // IDC, SDU는 승인 단계가 없음
-  if (cloudProvider === 'IDC' || cloudProvider === 'SDU') {
+  // IDC는 승인 단계가 없음
+  if (cloudProvider === 'IDC') {
     return getCurrentStepWithoutApproval(status);
   }
 
@@ -67,7 +68,7 @@ const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
 };
 
 /**
- * 승인 단계가 없는 Provider용 (IDC, SDU)
+ * 승인 단계가 없는 Provider용 (IDC)
  */
 const getCurrentStepWithoutApproval = (status: ProjectStatus): ProcessStatus => {
   // 1. 연동 대상 확정 대기
@@ -86,6 +87,19 @@ const getCurrentStepWithoutApproval = (status: ProjectStatus): ProcessStatus => 
   }
 
   return ProcessStatus.INSTALLATION_COMPLETE;
+};
+
+/**
+ * SDU 전용 현재 단계 계산
+ *
+ * @param sduStatus - SDU 프로젝트 상태
+ * @returns 계산된 SduProcessStatus
+ */
+export const getSduCurrentStep = (sduStatus: SduProjectStatus): SduProcessStatus => {
+  if (sduStatus.s3Upload.status !== 'CONFIRMED') return 'S3_UPLOAD_PENDING';
+  if (sduStatus.installation.athenaSetup.status !== 'COMPLETED') return 'INSTALLING';
+  if (sduStatus.connectionTest.status !== 'PASSED') return 'WAITING_CONNECTION_TEST';
+  return 'INSTALLATION_COMPLETE';
 };
 
 /**

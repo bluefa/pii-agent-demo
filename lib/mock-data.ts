@@ -147,6 +147,24 @@ export const mockServiceCodes: ServiceCode[] = [
 
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
+  // ===== SDU 프로젝트 =====
+  {
+    id: 'proj-sdu-001',
+    projectCode: 'SDU-2026-001',
+    name: 'SDU 연동 테스트 프로젝트',
+    description: 'SDU Athena 데이터베이스 연동을 위한 PII Agent 설치',
+    serviceCode: 'SERVICE-A',
+    cloudProvider: 'SDU',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-01-15T09:00:00Z',
+    updatedAt: '2026-01-15T09:00:00Z',
+    isRejected: false,
+  },
   // ===== Azure 프로젝트 =====
   {
     id: 'azure-proj-1',

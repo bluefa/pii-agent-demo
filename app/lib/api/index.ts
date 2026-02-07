@@ -261,5 +261,8 @@ export * from './azure';
 // ===== AWS API =====
 export * from './aws';
 
+// ===== SDU API =====
+export * from './sdu';
+
 // ===== Scan API =====
 export * from './scan';
