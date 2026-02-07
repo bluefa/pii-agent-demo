@@ -326,6 +326,11 @@ export const mockProjects: Project[] = [
         awsType: 'EC2',
         region: 'ap-northeast-2',
         lifecycleStatus: 'DISCOVERED',
+        vmDatabaseConfig: {
+          host: 'ip-10-0-1-100.ap-northeast-2.compute.internal',
+          databaseType: 'MYSQL',
+          port: 3306,
+        },
       },
       {
         id: 'res-ec2-2',
@@ -337,6 +342,11 @@ export const mockProjects: Project[] = [
         awsType: 'EC2',
         region: 'us-east-1',
         lifecycleStatus: 'DISCOVERED',
+        vmDatabaseConfig: {
+          host: 'ip-10-2-3-45.us-east-1.compute.internal',
+          databaseType: 'POSTGRESQL',
+          port: 5432,
+        },
       },
     ],
     terraformState: {
