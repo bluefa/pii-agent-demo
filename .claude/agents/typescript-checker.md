@@ -1,5 +1,7 @@
 # TypeScript Checker
 
+> 팀 개발 모드(`/team-dev`)에서는 `code-reviewer` 에이전트가 이 검사를 포함합니다.
+
 PII Agent 프로젝트의 TypeScript 규칙을 검사하는 리뷰어입니다.
 
 ## 검사 항목
