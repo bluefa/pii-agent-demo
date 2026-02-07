@@ -66,7 +66,7 @@ SDU는 승인/확정 대기 상태가 존재하지 않으므로 전용 상태를
 ```
 S3_UPLOAD_PENDING          S3 업로드 대기
     │
-    ▼  (API로 S3 업로드 확인)
+    ▼  (BDC 제공 API로 S3 업로드 확인)
 S3_UPLOAD_CONFIRMED        S3 업로드 확인 완료
     │
     ▼  (Crawler + Athena 확정 + BDC Athena 설정)
@@ -138,6 +138,20 @@ function getSduCurrentStep(status: SduProjectStatus): SduProcessStatus {
 ---
 
 ## UX 구조
+
+### 사용자 역할
+
+기존 Provider와 동일하게 **관리자**와 **서비스 담당자**가 동일한 ProjectDetail 화면을 사용한다.
+
+| 액션 | 관리자 | 서비스 담당자 |
+|------|--------|-------------|
+| IAM USER 정보 조회 | O | O |
+| AK/SK 재발급 | O | X (조회만) |
+| SourceIP 등록 | X | O |
+| SourceIP 확인 (BDC) | O | X |
+| S3 업로드 상태 조회 | O | O |
+| 환경 구성 진행 상황 조회 | O | O |
+| Test Connection | O | O |
 
 ### 화면 레이아웃
 
@@ -368,7 +382,7 @@ IAM USER와 SourceIP는 프로세스 단계가 아니지만, 둘 다 완료되�
 
 | API | 설명 | 우선순위 |
 |-----|------|---------|
-| S3 업로드 확인 | S3에 데이터 업로드 여부 조회 | 필수 |
+| S3 업로드 확인 | BDC 제공 API를 호출하여 S3 업로드 여부 조회 | 필수 |
 | IAM USER 조회/관리 | IAM USER 정보 + AK/SK 발급 이력 | 필수 |
 | SourceIP 등록/확인 | 서비스측 등록 + BDC 확인 플로우 | 필수 |
 | Crawler 설정/상태 | 기존 API 유지 | 기존 |
