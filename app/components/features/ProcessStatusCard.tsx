@@ -16,6 +16,7 @@ import {
 } from './process-status';
 import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
+import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
 import { cn } from '@/lib/theme';
 
@@ -185,6 +186,11 @@ export const ProcessStatusCard = ({
                     <AzureInstallationInline projectId={project.id} resources={project.resources} />
                   ) : project.cloudProvider === 'AWS' ? (
                     <AwsInstallationInline
+                      projectId={project.id}
+                      onInstallComplete={handleInstallComplete}
+                    />
+                  ) : project.cloudProvider === 'GCP' ? (
+                    <GcpInstallationInline
                       projectId={project.id}
                       onInstallComplete={handleInstallComplete}
                     />
