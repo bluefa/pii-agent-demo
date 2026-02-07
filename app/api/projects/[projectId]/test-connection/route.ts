@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject, simulateConnectionTest, getCredentialById, generateId } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus, ResourceLifecycleStatus, ConnectionStatus, ConnectionTestResult, ConnectionTestHistory, needsCredential, ProjectStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 
@@ -12,7 +12,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user) {
@@ -22,7 +22,7 @@ export async function POST(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json(
@@ -67,17 +67,17 @@ export async function POST(
   });
 
   // 각 리소스에 대해 시뮬레이션
-  const results: ConnectionTestResult[] = selectedResources.map((r) => {
+  const results: ConnectionTestResult[] = await Promise.all(selectedResources.map(async (r) => {
     const credentialId = credentialMap.get(r.id);
-    const credential = credentialId ? getCredentialById(credentialId) : undefined;
-    return simulateConnectionTest(
+    const credential = credentialId ? await dataAdapter.getCredentialById(credentialId) : undefined;
+    return dataAdapter.simulateConnectionTest(
       r.resourceId,
       r.type,
       r.databaseType,
       credentialId,
       credential?.name
     );
-  });
+  }));
 
   // 성공/실패 카운트
   const successCount = results.filter((r) => r.success).length;
@@ -86,7 +86,7 @@ export async function POST(
 
   // History 생성
   const historyEntry: ConnectionTestHistory = {
-    id: generateId('history'),
+    id: await dataAdapter.generateId('history'),
     executedAt: new Date().toISOString(),
     status: allSuccess ? 'SUCCESS' : 'FAIL',
     successCount,
@@ -160,7 +160,7 @@ export async function POST(
   // 계산된 processStatus
   const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     resources: updatedResources,
     connectionTestHistory: updatedHistory,
     status: updatedStatus,

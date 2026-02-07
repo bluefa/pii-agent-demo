@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, mockServiceCodes } from '@/lib/mock-data';
-import { getAzureServiceSettings } from '@/lib/mock-azure';
+import { dataAdapter } from '@/lib/adapters';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 
 export async function GET(
@@ -8,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ serviceCode: string }> }
 ) {
   // 1. 인증 확인
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   if (!user) {
     return NextResponse.json(
       { error: AZURE_ERROR_CODES.UNAUTHORIZED.code, message: AZURE_ERROR_CODES.UNAUTHORIZED.message },
@@ -19,7 +18,7 @@ export async function GET(
   const { serviceCode } = await params;
 
   // 2. 서비스 존재 확인
-  const service = mockServiceCodes.find((s) => s.code === serviceCode);
+  const service = await dataAdapter.getServiceCodeByCode(serviceCode);
   if (!service) {
     return NextResponse.json(
       { error: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.code, message: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -36,7 +35,7 @@ export async function GET(
   }
 
   // 4. Azure 서비스 설정 조회
-  const result = getAzureServiceSettings(serviceCode);
+  const result = await dataAdapter.getAzureServiceSettings(serviceCode);
 
   if (result.error) {
     return NextResponse.json(

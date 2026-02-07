@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById, updateProject } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus, ProjectStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 
@@ -7,7 +7,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user) {
@@ -25,7 +25,7 @@ export async function POST(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
   if (!project) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -58,7 +58,7 @@ export async function POST(
   // 계산된 processStatus (INSTALLATION_COMPLETE)
   const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = await dataAdapter.updateProject(projectId, {
     processStatus: calculatedProcessStatus,
     status: updatedStatus,
     completionConfirmedAt: now,

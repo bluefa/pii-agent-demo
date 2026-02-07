@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, addProject, generateId, mockServiceCodes } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 import { ProcessStatus, Project, CloudProvider } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process';
 
 export async function POST(request: Request) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!mockServiceCodes.find((s) => s.code === serviceCode)) {
+  if (!(await dataAdapter.getServiceCodeByCode(serviceCode))) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
       { status: 400 }
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const initialStatus = createInitialProjectStatus();
   const newProject: Project = {
-    id: generateId('proj'),
+    id: await dataAdapter.generateId('proj'),
     projectCode,
     serviceCode,
     cloudProvider,
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     isRejected: false,
   };
 
-  addProject(newProject);
+  await dataAdapter.addProject(newProject);
 
   return NextResponse.json({ project: newProject }, { status: 201 });
 }

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, getProjectById } from '@/lib/mock-data';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { projectId } = await params;
 
   if (!user) {
@@ -15,7 +15,7 @@ export async function GET(
     );
   }
 
-  const project = getProjectById(projectId);
+  const project = await dataAdapter.getProjectById(projectId);
 
   if (!project) {
     return NextResponse.json(

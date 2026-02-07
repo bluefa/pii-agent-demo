@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyTfRole } from '@/lib/mock-installation';
+import { dataAdapter } from '@/lib/adapters';
 import type { VerifyTfRoleRequest } from '@/lib/types';
 
 /**
@@ -17,7 +17,7 @@ export const POST = async (request: NextRequest) => {
       );
     }
 
-    const result = verifyTfRole(body);
+    const result = await dataAdapter.verifyTfRole(body);
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(

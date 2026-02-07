@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/mock-data';
-import { getStore } from '@/lib/mock-store';
+import { dataAdapter } from '@/lib/adapters';
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ serviceCode: string; userId: string }> }
 ) {
-  const user = getCurrentUser();
+  const user = await dataAdapter.getCurrentUser();
   const { serviceCode, userId } = await params;
-  const store = getStore();
 
   if (!user || user.role !== 'ADMIN') {
     return NextResponse.json(
@@ -17,7 +15,8 @@ export async function DELETE(
     );
   }
 
-  const targetUser = store.users.find((u) => u.id === userId);
+  const allUsers = await dataAdapter.getUsers();
+  const targetUser = allUsers.find((u) => u.id === userId);
 
   if (!targetUser) {
     return NextResponse.json(
