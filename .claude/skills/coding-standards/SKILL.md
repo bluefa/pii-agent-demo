@@ -105,6 +105,18 @@ return (
 
 - BFF 명세(`docs/api/`) 준수
 - "mock" 용어 금지 (`lib/mock-*.ts` 예외)
+- **`app/api/`에서 `@/lib/mock-*` 직접 import 금지** → `@/lib/adapters`의 `dataAdapter` 사용 (ADR-005)
+- 새 데이터 접근 필요 시: `DataAdapter` 인터페이스 → mock-adapter → bff-adapter 순서로 추가
+
+```typescript
+// ❌ Bad — mock 직접 import
+import { getProjectById } from '@/lib/mock-data';
+const project = getProjectById(id);
+
+// ✅ Good — dataAdapter 사용
+import { dataAdapter } from '@/lib/adapters';
+const project = await dataAdapter.getProjectById(id);
+```
 
 ## 9. 금지 패턴
 
