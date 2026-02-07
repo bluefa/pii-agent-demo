@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Project } from '@/lib/types';
 import type { SduProcessStatus, SduInstallationStatus } from '@/lib/types/sdu';
 import { SDU_STEP_LABELS } from '@/lib/constants/sdu';
+import { cn, getButtonClass, statusColors } from '@/lib/theme';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { SduInstallationProgress } from '@/app/components/features/sdu';
 
@@ -102,31 +103,31 @@ const SduStepGuide = ({ currentStep }: { currentStep: SduProcessStatus }) => {
 
   return (
     <div className="flex items-start gap-3 mb-4">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+      <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
         currentStep === 'INSTALLATION_COMPLETE'
-          ? 'bg-green-100'
+          ? statusColors.success.bg
           : currentStep === 'INSTALLING' || currentStep === 'S3_UPLOAD_CONFIRMED'
-          ? 'bg-orange-100'
-          : 'bg-blue-100'
-      }`}>
+          ? statusColors.warning.bg
+          : statusColors.info.bg
+      )}>
         {currentStep === 'INSTALLATION_COMPLETE' ? (
-          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={cn('w-4 h-4', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         ) : currentStep === 'INSTALLING' || currentStep === 'S3_UPLOAD_CONFIRMED' ? (
-          <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className={cn('w-4 h-4 border-2 border-t-transparent rounded-full animate-spin', statusColors.warning.border)} />
         ) : (
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={cn('w-4 h-4', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
         )}
       </div>
       <div>
-        <p className={`font-medium ${
+        <p className={cn('font-medium',
           currentStep === 'INSTALLATION_COMPLETE'
-            ? 'text-green-700'
+            ? statusColors.success.textDark
             : 'text-gray-900'
-        }`}>
+        )}>
           {guideText}
         </p>
       </div>
@@ -173,7 +174,7 @@ export const SduProcessStatusCard = ({
             <button
               onClick={onConfirmS3Upload}
               disabled={s3UploadLoading}
-              className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              className={cn(getButtonClass('primary', 'md'), 'w-full flex items-center justify-center gap-2')}
             >
               {s3UploadLoading && <LoadingSpinner />}
               S3 업로드 확인
@@ -185,7 +186,7 @@ export const SduProcessStatusCard = ({
               <SduInstallationProgress installationStatus={sduInstallationStatus} />
               <button
                 onClick={onCheckInstallation}
-                className="w-full px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                className={cn(getButtonClass('secondary', 'md'), 'w-full')}
               >
                 설치 상태 확인
               </button>
@@ -198,7 +199,7 @@ export const SduProcessStatusCard = ({
             <button
               onClick={onExecuteConnectionTest}
               disabled={connectionTestLoading}
-              className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              className={cn(getButtonClass('success', 'md'), 'w-full flex items-center justify-center gap-2')}
             >
               {connectionTestLoading && <LoadingSpinner />}
               연결 테스트 실행

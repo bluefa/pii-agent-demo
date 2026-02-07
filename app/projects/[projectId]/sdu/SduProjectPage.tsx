@@ -25,9 +25,9 @@ import {
   executeSduConnectionTest,
 } from '@/app/lib/api/sdu';
 import { getProject } from '@/app/lib/api';
-import { ProjectHeader, RejectionAlert } from '../common';
-import { SduProjectInfoCard } from './SduProjectInfoCard';
-import { SduProcessStatusCard } from './SduProcessStatusCard';
+import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { SduProjectInfoCard } from '@/app/projects/[projectId]/sdu/SduProjectInfoCard';
+import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
 import {
   IamUserManageModal,
   SourceIpManageModal,
