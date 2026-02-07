@@ -58,10 +58,10 @@ export const SDU_ERROR_CODES = {
 // ===== SDU 단계 라벨 =====
 
 export const SDU_STEP_LABELS = {
-  S3_CONFIRM: 'S3 확인',
-  INSTALLATION: '설치',
-  CONNECTION_TEST: '테스트',
-  COMPLETE: '완료',
+  s3Upload: 'S3 업로드',
+  installation: '설치',
+  connectionTest: '테스트',
+  complete: '완료',
 } as const;
 
 // ===== SDU Process Status 라벨 =====
@@ -94,7 +94,7 @@ export const ATHENA_SETUP_STATUS_LABELS: Record<AthenaSetupStatus, string> = {
 // ===== Source IP Status 라벨 =====
 
 export const SOURCE_IP_STATUS_LABELS: Record<SourceIpStatus, string> = {
-  REGISTERED: '등록 대기',
+  PENDING: '등록 대기',
   CONFIRMED: '확인 완료',
 };
 

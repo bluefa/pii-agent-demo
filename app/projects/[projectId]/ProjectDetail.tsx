@@ -7,6 +7,7 @@ import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
 import { IdcProjectPage } from './idc';
+import { SduProjectPage } from './sdu';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -70,6 +71,14 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
           project={project}
           isAdmin={isAdmin}
           credentials={credentials}
+          onProjectUpdate={setProject}
+        />
+      );
+    case 'SDU':
+      return (
+        <SduProjectPage
+          project={project}
+          isAdmin={isAdmin}
           onProjectUpdate={setProject}
         />
       );

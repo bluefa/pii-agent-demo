@@ -41,7 +41,7 @@ export interface AthenaTableInfo {
 
 export type AthenaSetupStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 
-export interface AthenaSetupInfo {
+export interface AthenaSetup {
   status: AthenaSetupStatus;
 }
 
@@ -52,7 +52,8 @@ export interface SduInstallationStatus {
   crawler: CrawlerStatus;
   athenaTable: AthenaTableInfo;
   targetConfirmed: boolean;
-  athenaSetup: AthenaSetupInfo;
+  athenaSetup: AthenaSetup;
+  lastCheckedAt?: string;
 }
 
 // ===== Connection Test Status =====
@@ -88,12 +89,14 @@ export interface IssueAkSkResponse {
 
 // ===== Source IP Management =====
 
-export type SourceIpStatus = 'REGISTERED' | 'CONFIRMED';
+export type SourceIpStatus = 'PENDING' | 'CONFIRMED';
 
 export interface SourceIpEntry {
   cidr: string;
   status: SourceIpStatus;
+  registeredBy?: string;
   registeredAt: string;
+  confirmedBy?: string;
   confirmedAt?: string;
 }
 
