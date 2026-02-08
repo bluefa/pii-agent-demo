@@ -5,7 +5,7 @@ import { CloudProvider } from '@/lib/types';
 import { useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { startScan } from '@/app/lib/api/scan';
-import { cn, statusColors, cardStyles, getButtonClass, bgColors, textColors } from '@/lib/theme';
+import { cn, statusColors, bgColors, textColors, borderColors } from '@/lib/theme';
 import { formatDate } from '@/lib/utils/date';
 import { ScanStatusBadge } from './ScanStatusBadge';
 import { ScanProgressBar } from './ScanProgressBar';
@@ -82,11 +82,13 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
   const summaryBg = isInProgress ? statusColors.warning.bg : bgColors.muted;
 
   return (
-    <div className={cn(cardStyles.base, 'overflow-hidden')}>
+    <div className={cn('mx-4 mt-4 border rounded-lg overflow-hidden', borderColors.default)}>
       {/* Collapsed Summary Bar */}
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded(!expanded)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(!expanded); }}
         className={cn(
           'w-full px-4 py-3 flex items-center justify-between cursor-pointer transition-colors',
           summaryBg
@@ -102,6 +104,13 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
             <span className={cn('text-xs', textColors.tertiary)}>
               {lastResult.totalFound}개 발견 · 신규 {lastResult.newFound}
               {lastCompletedAt && ` | 마지막: ${formatDate(lastCompletedAt, 'short')}`}
+            </span>
+          )}
+
+          {/* No scan history */}
+          {!loading && !isInProgress && !lastResult && (
+            <span className={cn('text-xs', textColors.quaternary)}>
+              스캔을 시작하여 리소스를 검색하세요
             </span>
           )}
 
@@ -144,7 +153,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
             )}
           </div>
         )}
-      </button>
+      </div>
 
       {/* In-progress inline progress bar (always visible in collapsed/expanded) */}
       {!loading && isInProgress && status?.currentScan && (
@@ -158,7 +167,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
 
       {/* Expanded Detail */}
       {expanded && !loading && (
-        <div className="px-4 py-4 space-y-4">
+        <div className={cn('px-4 py-4 space-y-4 border-t', borderColors.default)}>
           {/* FAILED: Error Message */}
           {uiState === 'FAILED' && (
             <div className={cn('flex items-center gap-2 py-4 px-3 rounded-lg', statusColors.error.bg)}>

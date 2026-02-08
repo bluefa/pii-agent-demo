@@ -7,6 +7,7 @@ import type { Resource, DatabaseType, DBCredential, AwsResourceType, VmDatabaseC
 
 interface NonTargetResourceSectionProps {
   resources: Resource[];
+  label?: string;
   isEditMode: boolean;
   selectedIds: Set<string>;
   showConnectionStatus: boolean;
@@ -42,6 +43,7 @@ const ChevronIcon = ({ isOpen }: { isOpen: boolean }) => (
 
 export const NonTargetResourceSection = ({
   resources,
+  label = '연동 제외 리소스',
   isEditMode,
   selectedIds,
   showConnectionStatus,
@@ -69,7 +71,7 @@ export const NonTargetResourceSection = ({
       >
         <ChevronIcon isOpen={isOpen} />
         <span className={cn('text-sm font-semibold', textColors.secondary)}>
-          비연동 리소스
+          {label}
         </span>
         <span className={cn('text-sm', textColors.tertiary)}>
           ({nonTargetResources.length})

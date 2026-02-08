@@ -12,7 +12,7 @@ import {
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
-import { cn, statusColors, cardStyles, textColors, badgeStyles, getButtonClass, bgColors } from '@/lib/theme';
+import { cn, statusColors, textColors, badgeStyles, getButtonClass, bgColors } from '@/lib/theme';
 import {
   ResourceRow,
   ResourceTypeGroup,
@@ -84,19 +84,19 @@ export const ResourceTable = ({
   const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
   const pendingCount = targetResources.filter((r) => !r.connectionStatus || r.connectionStatus === 'PENDING').length;
 
-  const groupedByType = useMemo(() => {
-    if (!isAWS) return null;
-
+  const groupByAwsType = (res: Resource[]) => {
     const groups = new Map<AwsResourceType, Resource[]>();
-    targetResources.forEach((resource) => {
+    res.forEach((resource) => {
       const type = resource.awsType || ('RDS' as AwsResourceType);
       if (!groups.has(type)) groups.set(type, []);
       groups.get(type)!.push(resource);
     });
-
     return AWS_RESOURCE_TYPE_ORDER.filter(type => groups.has(type))
       .map(type => [type, groups.get(type)!] as [AwsResourceType, Resource[]]);
-  }, [targetResources, isAWS]);
+  };
+
+  const groupedByType = useMemo(() => isAWS ? groupByAwsType(targetResources) : null, [targetResources, isAWS]);
+  const allGroupedByType = useMemo(() => isAWS ? groupByAwsType(resources) : null, [resources, isAWS]);
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -119,16 +119,82 @@ export const ResourceTable = ({
     onEditModeChange?.(next);
   };
 
+  const displayResources = isEditMode ? resources : targetResources;
+  const displayGrouped = isEditMode ? allGroupedByType : groupedByType;
+
+  const renderTable = (res: Resource[], grouped: [AwsResourceType, Resource[]][] | null) => (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
+            {isEditMode && <th className="px-6 py-3 w-12" />}
+            <th className="px-6 py-3">인스턴스 타입</th>
+            <th className="px-6 py-3">데이터베이스</th>
+            <th className="px-6 py-3">리소스 ID</th>
+            {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
+            {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
+            <th className="px-6 py-3 w-16" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {isAWS && grouped ? (
+            grouped.map(([resourceType, typeResources]) => (
+              <ResourceTypeGroup
+                key={resourceType}
+                resourceType={resourceType}
+                resources={typeResources}
+                selectedIds={selectedIdsSet}
+                isEditMode={isEditMode}
+                isCheckboxEnabled={isCheckboxEnabled}
+                showConnectionStatus={showConnectionStatus}
+                showCredentialColumn={showCredentialColumn}
+                onCheckboxChange={handleCheckboxChange}
+                colSpan={colSpan}
+                getCredentialsForType={getCredentialsForType}
+                onCredentialChange={onCredentialChange}
+                expandedVmId={expandedVmId}
+                onVmConfigToggle={onVmConfigToggle}
+                onVmConfigSave={onVmConfigSave}
+              />
+            ))
+          ) : (
+            res.map((resource) => (
+              <ResourceRow
+                key={resource.id}
+                resource={resource}
+                isAWS={false}
+                cloudProvider={cloudProvider}
+                selectedIds={selectedIdsSet}
+                isEditMode={isEditMode}
+                isCheckboxEnabled={isCheckboxEnabled}
+                showConnectionStatus={showConnectionStatus}
+                showCredentialColumn={showCredentialColumn}
+                onCheckboxChange={handleCheckboxChange}
+                getCredentialsForType={getCredentialsForType}
+                onCredentialChange={onCredentialChange}
+                expandedVmId={expandedVmId}
+                onVmConfigToggle={onVmConfigToggle}
+                onVmConfigSave={onVmConfigSave}
+              />
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
-    <div className={cardStyles.base}>
+    <div>
       {/* Header Bar */}
       <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className={cn('text-sm font-semibold', textColors.primary)}>연동 대상</span>
-          <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, statusColors.info.bg, statusColors.info.textDark)}>
-            {targetResources.length}
+          <span className={cn('text-sm font-semibold', textColors.primary)}>
+            {isEditMode ? '전체 리소스' : '연동 대상'}
           </span>
-          {showConnectionStatus && (
+          <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, statusColors.info.bg, statusColors.info.textDark)}>
+            {isEditMode ? `${selectedIdsSet.size}/${resources.length} 선택` : targetResources.length}
+          </span>
+          {!isEditMode && showConnectionStatus && (
             <>
               {connectedCount > 0 && <ConnectionBadge label="연결" count={connectedCount} variant="success" />}
               {disconnectedCount > 0 && <ConnectionBadge label="끊김" count={disconnectedCount} variant="error" />}
@@ -136,7 +202,7 @@ export const ResourceTable = ({
             </>
           )}
         </div>
-        {!externalEditMode && (
+        {!externalEditMode && targetResources.length > 0 && (
           <button
             onClick={handleToggleEditMode}
             className={getButtonClass(internalEditMode ? 'secondary' : 'ghost', 'sm')}
@@ -146,87 +212,40 @@ export const ResourceTable = ({
         )}
       </div>
 
-      {/* Table */}
-      {targetResources.length === 0 ? (
-        <EmptyState filter="selected" />
+      {/* Edit mode: single unified list */}
+      {isEditMode ? (
+        displayResources.length > 0 ? renderTable(displayResources, displayGrouped) : (
+          <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+            발견된 리소스가 없습니다
+          </div>
+        )
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
-                {isEditMode && <th className="px-6 py-3 w-12" />}
-                <th className="px-6 py-3">인스턴스 타입</th>
-                <th className="px-6 py-3">데이터베이스</th>
-                <th className="px-6 py-3">리소스 ID</th>
-                {showCredentialColumn && (
-                  <th className="px-6 py-3">Credential</th>
-                )}
-                {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
-                <th className="px-6 py-3 w-16" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isAWS && groupedByType ? (
-                groupedByType.map(([resourceType, typeResources]) => (
-                  <ResourceTypeGroup
-                    key={resourceType}
-                    resourceType={resourceType}
-                    resources={typeResources}
-                    selectedIds={selectedIdsSet}
-                    isEditMode={isEditMode}
-                    isCheckboxEnabled={isCheckboxEnabled}
-                    showConnectionStatus={showConnectionStatus}
-                    showCredentialColumn={showCredentialColumn}
-                    onCheckboxChange={handleCheckboxChange}
-                    colSpan={colSpan}
-                    getCredentialsForType={getCredentialsForType}
-                    onCredentialChange={onCredentialChange}
-                    expandedVmId={expandedVmId}
-                    onVmConfigToggle={onVmConfigToggle}
-                    onVmConfigSave={onVmConfigSave}
-                  />
-                ))
-              ) : (
-                targetResources.map((resource) => (
-                  <ResourceRow
-                    key={resource.id}
-                    resource={resource}
-                    isAWS={false}
-                    cloudProvider={cloudProvider}
-                    selectedIds={selectedIdsSet}
-                    isEditMode={isEditMode}
-                    isCheckboxEnabled={isCheckboxEnabled}
-                    showConnectionStatus={showConnectionStatus}
-                    showCredentialColumn={showCredentialColumn}
-                    onCheckboxChange={handleCheckboxChange}
-                    getCredentialsForType={getCredentialsForType}
-                    onCredentialChange={onCredentialChange}
-                    expandedVmId={expandedVmId}
-                    onVmConfigToggle={onVmConfigToggle}
-                    onVmConfigSave={onVmConfigSave}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <>
+          {/* Monitor mode: target resources */}
+          {targetResources.length === 0 ? (
+            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+              아직 연동 대상이 선택되지 않았습니다
+            </div>
+          ) : renderTable(targetResources, groupedByType)}
 
-      {/* Non-Target Resources */}
-      <NonTargetResourceSection
-        resources={resources}
-        isEditMode={isEditMode}
-        selectedIds={selectedIdsSet}
-        showConnectionStatus={showConnectionStatus}
-        showCredentialColumn={showCredentialColumn}
-        onCheckboxChange={handleCheckboxChange}
-        colSpan={colSpan}
-        getCredentialsForType={getCredentialsForType}
-        onCredentialChange={onCredentialChange}
-        expandedVmId={expandedVmId}
-        onVmConfigToggle={onVmConfigToggle}
-        onVmConfigSave={onVmConfigSave}
-      />
+          {/* Monitor mode: non-target resources */}
+          <NonTargetResourceSection
+            resources={resources}
+            label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
+            isEditMode={false}
+            selectedIds={selectedIdsSet}
+            showConnectionStatus={showConnectionStatus}
+            showCredentialColumn={showCredentialColumn}
+            onCheckboxChange={handleCheckboxChange}
+            colSpan={colSpan}
+            getCredentialsForType={getCredentialsForType}
+            onCredentialChange={onCredentialChange}
+            expandedVmId={expandedVmId}
+            onVmConfigToggle={onVmConfigToggle}
+            onVmConfigSave={onVmConfigSave}
+          />
+        </>
+      )}
     </div>
   );
 };
