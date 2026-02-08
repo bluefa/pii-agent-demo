@@ -4,7 +4,7 @@
  * UI에서 사용되는 라벨, 에러 메시지, 상태 텍스트 등을 중앙에서 관리합니다.
  */
 
-import { ProcessStatus, ConnectionStatus } from '@/lib/types';
+import { ProcessStatus, ConnectionStatus, AwsResourceType } from '@/lib/types';
 
 /**
  * 연결 에러 타입 라벨
@@ -84,3 +84,27 @@ export const getErrorTypeLabel = (errorType: string): string => {
 export const getProcessStatusLabel = (status: ProcessStatus): string => {
   return PROCESS_STATUS_LABELS[status] || '알 수 없는 상태';
 };
+
+/**
+ * AWS 리소스 타입 라벨
+ */
+export const AWS_RESOURCE_TYPE_LABELS: Record<AwsResourceType, string> = {
+  RDS: 'RDS',
+  RDS_CLUSTER: 'RDS Cluster',
+  DYNAMODB: 'DynamoDB',
+  ATHENA: 'Athena',
+  REDSHIFT: 'Redshift',
+  EC2: 'EC2',
+};
+
+/**
+ * AWS 리소스 타입 정렬 순서 (EC2는 항상 마지막)
+ */
+export const AWS_RESOURCE_TYPE_ORDER: AwsResourceType[] = [
+  'RDS',
+  'RDS_CLUSTER',
+  'REDSHIFT',
+  'DYNAMODB',
+  'ATHENA',
+  'EC2',
+];

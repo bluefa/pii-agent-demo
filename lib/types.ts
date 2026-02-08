@@ -28,6 +28,7 @@ export type VmDatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'MONGODB' | 'ORA
 
 // VM 데이터베이스 설정
 export interface VmDatabaseConfig {
+  host?: string;               // EC2 전용: Private DNS Name
   databaseType: VmDatabaseType;
   port: number;
   oracleServiceId?: string;  // Oracle인 경우만

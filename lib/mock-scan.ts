@@ -12,6 +12,7 @@ import {
   AwsResourceType,
   AzureResourceType,
   GcpResourceType,
+  VmDatabaseType,
 } from '@/lib/types';
 import {
   MAX_RESOURCES,
@@ -66,6 +67,16 @@ const generateResourceName = (type: 'db' | 'table' | 'dataset' | 'app'): string 
     case 'app':
       return `${pickRandom(DB_PREFIXES)}-${pickRandom(APP_NAMES)}-${pickRandom(DB_SUFFIXES)}`;
   }
+};
+
+const generatePrivateIp = (): string => {
+  const octets = [10, Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(1 + Math.random() * 254)];
+  return octets.join('.');
+};
+
+const generateEc2PrivateDns = (region: string): string => {
+  const ip = generatePrivateIp().replace(/\./g, '-');
+  return `ip-${ip}.${region}.compute.internal`;
 };
 
 // ===== Validation =====
@@ -376,6 +387,14 @@ const generateRandomResource = (provider: CloudProvider): Resource => {
   }
 };
 
+const DEFAULT_PORTS: Record<string, number> = {
+  MYSQL: 3306,
+  POSTGRESQL: 5432,
+  MSSQL: 1433,
+  MONGODB: 27017,
+  ORACLE: 1521,
+};
+
 export const generateAwsResource = (): Resource => {
   const awsTypes: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
   const awsType = pickRandom(awsTypes);
@@ -427,6 +446,13 @@ export const generateAwsResource = (): Resource => {
     lifecycleStatus: 'DISCOVERED',
     isNew: true,
     note: 'NEW',
+    ...(awsType === 'EC2' ? {
+      vmDatabaseConfig: {
+        host: generateEc2PrivateDns(region),
+        databaseType: databaseType as VmDatabaseType,
+        port: DEFAULT_PORTS[databaseType] || 3306,
+      },
+    } : {}),
   };
 };
 
