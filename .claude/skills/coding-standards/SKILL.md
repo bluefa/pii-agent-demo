@@ -16,6 +16,16 @@ description: 코드 작성 시 따르는 코딩 규칙과 패턴. 컴포넌트, 
 - `@/` 절대 경로만 (상대 경로 금지)
 - 순서: React/Next → 외부 → 내부(`@/`) → Types(`import type`)
 
+### 프로젝트 경로 매핑 (⛔ 반드시 준수)
+```
+@/app/components/ui/          → UI 컴포넌트 (Button, Badge, Modal, Card, Table, LoadingSpinner)
+@/app/components/features/    → 도메인 컴포넌트 (process-status/, resource-table/, admin/)
+@/hooks/                      → 커스텀 훅 (useModal, useApiMutation, useAsync)
+@/lib/                        → theme.ts, api.ts, types/, constants/, adapters/
+@/utils/                      → 유틸리티 (date.ts, credentials.ts)
+```
+> `@/components/ui/` ❌ → `@/app/components/ui/` ✅ (app 디렉토리 내 위치)
+
 ## 3. 타입 안전성
 
 - `any` 금지 — 구체적 타입 또는 `unknown` + 타입 가드
