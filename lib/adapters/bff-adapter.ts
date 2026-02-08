@@ -136,4 +136,12 @@ export const bffAdapter: DataAdapter = {
   getIdcResources: async () => notImplemented('getIdcResources'),
   updateIdcResources: async () => notImplemented('updateIdcResources'),
   confirmIdcTargets: async () => notImplemented('confirmIdcTargets'),
+
+  // --- GCP ---
+  getGcpInstallationStatus: async () => notImplemented('getGcpInstallationStatus'),
+  checkGcpInstallation: async () => notImplemented('checkGcpInstallation'),
+  getGcpRegionalManagedProxy: async () => notImplemented('getGcpRegionalManagedProxy'),
+  createGcpProxySubnet: async () => notImplemented('createGcpProxySubnet'),
+  getGcpServiceTfResources: async () => notImplemented('getGcpServiceTfResources'),
+  getGcpServiceSettings: async () => notImplemented('getGcpServiceSettings'),
 };
