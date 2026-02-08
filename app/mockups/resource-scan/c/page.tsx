@@ -1,487 +1,474 @@
 'use client';
 
-/**
- * Mockup C — Split Workflow
- *
- * Split-panel workflow design for Resource List + Scan UI.
- * Left: Scan control center (35%) — timeline, visualization, controls
- * Right: Resource data view (65%) — table, filters, search
- * Teal accent, organic feel, cross-highlighting between panels.
- */
-
 import { useState } from 'react';
 import {
-  MOCK_RESOURCES, MockResource,
-  MOCK_SCAN_RESULT, ScanResult,
-  MOCK_SCAN_HISTORY, ScanHistoryEntry,
+  F,
+  MOCK_PROJECT,
+  MOCK_RESOURCES,
+  MOCK_SCAN_RESULT,
+  MOCK_SCAN_HISTORY,
   MOCK_CREDENTIALS,
+  PROCESS_STEPS,
   REGION_MAP,
-  AWS_TYPE_INFO,
-  CONNECTION_LABEL,
-  ScanUIState,
+  AWS_TYPE_META,
+  CONN_STATUS,
+  NEEDS_CREDENTIAL,
 } from '@/app/mockups/resource-scan/_data';
+import type { MockResource, ScanUIState } from '@/app/mockups/resource-scan/_data';
 
-const colors = {
-  bg: '#F9FAFB',
-  leftBg: '#F0FDF9',
-  surface: '#FFFFFF',
-  text: '#1F2937',
-  sub: '#6B7280',
-  muted: '#9CA3AF',
-  border: '#E5E7EB',
-  primary: '#059669',
-  primaryLight: '#D1FAE5',
-  primaryDark: '#047857',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  error: '#EF4444',
-  errorLight: '#FEF2F2',
-  warning: '#F59E0B',
-  warningLight: '#FFFBEB',
-  info: '#3B82F6',
-  infoLight: '#EFF6FF',
-  divider: '#D1D5DB',
-};
-
-type FilterType = 'all' | 'connected' | 'disconnected' | 'pending' | 'new';
-
-export default function MockupC() {
-  const [viewState, setViewState] = useState<ScanUIState>('COMPLETED');
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+export default function MockupCPage() {
+  const [scanState, setScanState] = useState<ScanUIState>('COMPLETED');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [highlightNew, setHighlightNew] = useState(false);
+  const [showScanBanner, setShowScanBanner] = useState(true);
 
-  const filterResources = () => {
-    return MOCK_RESOURCES.filter((r) => {
-      if (searchQuery && !r.resourceId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      if (typeFilter && r.awsType !== typeFilter) return false;
-      if (filter === 'connected' && r.connectionStatus !== 'CONNECTED') return false;
-      if (filter === 'disconnected' && r.connectionStatus !== 'DISCONNECTED') return false;
-      if (filter === 'pending' && r.connectionStatus !== 'PENDING') return false;
-      if (filter === 'new' && !r.isNew) return false;
-      return true;
-    });
-  };
+  const filteredResources = MOCK_RESOURCES.filter((r) => {
+    if (statusFilter === 'selected' && !r.isSelected) return false;
+    if (statusFilter === 'connected' && r.connectionStatus !== 'CONNECTED') return false;
+    if (statusFilter === 'disconnected' && r.connectionStatus !== 'DISCONNECTED') return false;
+    if (statusFilter === 'pending' && r.connectionStatus !== 'PENDING') return false;
+    if (statusFilter === 'new' && !r.isNew) return false;
+    if (typeFilter !== 'all' && r.awsType !== typeFilter) return false;
+    if (searchQuery && !r.resourceId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
 
-  const groupedResources = () => {
-    const filtered = filterResources();
-    const grouped = filtered.reduce((acc, r) => {
-      if (!acc[r.awsType]) acc[r.awsType] = [];
-      acc[r.awsType].push(r);
-      return acc;
-    }, {} as Record<string, MockResource[]>);
-    return Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
-  };
+  const groupedResources = filteredResources.reduce((acc, r) => {
+    if (!acc[r.awsType]) acc[r.awsType] = [];
+    acc[r.awsType].push(r);
+    return acc;
+  }, {} as Record<string, MockResource[]>);
 
-  const scanProgress = 65;
-  const scanElapsed = 45;
+  const typeKeys = Object.keys(groupedResources);
 
-  const onClickNewBadge = () => {
-    setFilter('new');
-    setHighlightNew(true);
-    setTimeout(() => setHighlightNew(false), 2000);
-  };
-
-  const onClickUpdatedBadge = () => {
-    setFilter('connected');
-  };
+  const typeCounts = MOCK_RESOURCES.reduce((acc, r) => {
+    acc[r.awsType] = (acc[r.awsType] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="min-h-screen" style={{ background: colors.bg, fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
-      {/* State Preview Bar */}
-      <div className="px-6 py-3" style={{ background: colors.surface, borderBottom: `1px solid ${colors.border}` }}>
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold" style={{ color: colors.sub }}>상태 프리뷰:</span>
-          {(['IDLE', 'IN_PROGRESS', 'COMPLETED', 'COOLDOWN', 'FAILED'] as ScanUIState[]).map((state) => (
-            <button
-              key={state}
-              onClick={() => setViewState(state)}
-              className="px-3 py-1 text-xs font-medium rounded-lg transition-all"
-              style={{
-                background: viewState === state ? colors.primaryLight : colors.bg,
-                color: viewState === state ? colors.primaryDark : colors.sub,
-                border: `1px solid ${viewState === state ? colors.primary : colors.border}`,
-              }}
-            >
-              {state}
-            </button>
-          ))}
+    <div style={{ minHeight: '100vh', backgroundColor: F.bg2, padding: F.spaceXxl, fontFamily: F.fontBase }}>
+      {/* 1. State Preview Bar */}
+      <div style={{ backgroundColor: F.bg4, padding: F.spaceSm, fontSize: '11px', color: F.fg3, marginBottom: F.spaceLg, borderRadius: F.radiusMd }}>
+        [Mockup C — Inline Enriched] Scan: {scanState} | Status: {statusFilter} | Type: {typeFilter} | Search: "{searchQuery}" | Results: {filteredResources.length}
+      </div>
+
+      {/* 2. Project Header */}
+      <div style={{ marginBottom: F.spaceXxl }}>
+        <div style={{ fontSize: '11px', color: F.fg3, marginBottom: F.spaceXs }}>{MOCK_PROJECT.projectCode}</div>
+        <h1 style={{ fontSize: '28px', fontWeight: 600, color: F.fg1, marginBottom: F.spaceSm }}>{MOCK_PROJECT.name}</h1>
+        <p style={{ color: F.fg2 }}>{MOCK_PROJECT.description}</p>
+      </div>
+
+      {/* 3. Process Steps Bar */}
+      <div style={{ display: 'flex', gap: F.spaceXs, marginBottom: F.spaceXxl }}>
+        {PROCESS_STEPS.map((s) => (
+          <div
+            key={s.step}
+            style={{
+              flex: 1,
+              height: '48px',
+              backgroundColor: s.status === 'done' ? F.successBg : s.status === 'current' ? F.brandBg : F.bg3,
+              borderLeft: `3px solid ${s.status === 'done' ? F.success : s.status === 'current' ? F.brand : F.stroke1}`,
+              padding: F.spaceMd,
+              borderRadius: F.radiusMd,
+              fontSize: '13px',
+              fontWeight: 500,
+              color: s.status === 'pending' ? F.fg3 : F.fg1,
+            }}
+          >
+            {s.step}. {s.label}
+          </div>
+        ))}
+      </div>
+
+      {/* 4. Info + Status Row */}
+      <div style={{ display: 'flex', gap: F.spaceLg, marginBottom: F.spaceXxl }}>
+        <div style={{ flex: 1, backgroundColor: F.bg1, padding: F.spaceLg, borderRadius: F.radiusLg, border: `1px solid ${F.stroke2}` }}>
+          <div style={{ fontSize: '12px', color: F.fg3, marginBottom: F.spaceXs }}>Cloud Provider</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: F.fg1 }}>Amazon Web Services</div>
+        </div>
+        <div style={{ flex: 1, backgroundColor: F.bg1, padding: F.spaceLg, borderRadius: F.radiusLg, border: `1px solid ${F.stroke2}` }}>
+          <div style={{ fontSize: '12px', color: F.fg3, marginBottom: F.spaceXs }}>연결 대상</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: F.fg1 }}>12개 리소스</div>
+        </div>
+        <div style={{ flex: 1, backgroundColor: F.bg1, padding: F.spaceLg, borderRadius: F.radiusLg, border: `1px solid ${F.stroke2}` }}>
+          <div style={{ fontSize: '12px', color: F.fg3, marginBottom: F.spaceXs }}>연결 상태</div>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: F.success }}>8개 연결됨</div>
         </div>
       </div>
 
-      {/* Split Layout */}
-      <div className="grid grid-cols-[35%_65%] h-[calc(100vh-57px)]">
-        {/* LEFT PANEL — Scan Control Center */}
-        <div className="flex flex-col overflow-y-auto" style={{ background: colors.leftBg, borderRight: `2px solid ${colors.divider}` }}>
-          <div className="p-6 flex-1 flex flex-col">
-            {/* Scan Control */}
-            <div className="mb-6">
-              <h2 className="text-lg font-bold mb-1" style={{ color: colors.text }}>리소스 스캔</h2>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="px-2.5 py-1 rounded text-xs font-semibold" style={{ background: colors.warning, color: '#FFFFFF' }}>
-                  AWS
-                </div>
-              </div>
-
-              {viewState === 'IDLE' && (
-                <button
-                  onClick={() => setViewState('IN_PROGRESS')}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: colors.primary, color: '#FFFFFF', boxShadow: '0 4px 12px rgba(5,150,105,0.3)' }}
-                >
-                  스캔 시작
-                </button>
-              )}
-
-              {viewState === 'IN_PROGRESS' && (
-                <div>
-                  <button
-                    disabled
-                    className="w-full py-3.5 rounded-xl text-sm font-bold opacity-60 cursor-not-allowed"
-                    style={{ background: colors.primary, color: '#FFFFFF' }}
-                  >
-                    스캔 중...
-                  </button>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs mb-1.5" style={{ color: colors.sub }}>
-                      <span>진행률 {scanProgress}%</span>
-                      <span>{scanElapsed}초 경과</span>
-                    </div>
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: colors.border }}>
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ background: colors.primary, width: `${scanProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {viewState === 'COMPLETED' && (
-                <button
-                  onClick={() => setViewState('COOLDOWN')}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: colors.primary, color: '#FFFFFF', boxShadow: '0 4px 12px rgba(5,150,105,0.3)' }}
-                >
-                  다시 스캔
-                </button>
-              )}
-
-              {viewState === 'COOLDOWN' && (
-                <div>
-                  <button
-                    disabled
-                    className="w-full py-3.5 rounded-xl text-sm font-bold opacity-60 cursor-not-allowed"
-                    style={{ background: colors.muted, color: '#FFFFFF' }}
-                  >
-                    대기 중...
-                  </button>
-                  <div className="mt-2 text-center text-xs" style={{ color: colors.sub }}>
-                    쿨다운 5분 남음
-                  </div>
-                </div>
-              )}
-
-              {viewState === 'FAILED' && (
-                <button
-                  onClick={() => setViewState('IDLE')}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: colors.error, color: '#FFFFFF' }}
-                >
-                  재시도
-                </button>
-              )}
-            </div>
-
-            {/* Scan Result Visualization */}
-            {viewState === 'COMPLETED' && (
-              <div className="mb-6 p-4 rounded-xl" style={{ background: colors.surface, border: `1px solid ${colors.border}` }}>
-                <h3 className="text-xs font-bold mb-3 uppercase tracking-wider" style={{ color: colors.sub }}>스캔 결과</h3>
-
-                {/* Stacked Bar */}
-                <div className="h-8 rounded-lg overflow-hidden flex mb-3">
-                  {MOCK_SCAN_RESULT.byResourceType.map((rt) => {
-                    const typeInfo = AWS_TYPE_INFO[rt.resourceType];
-                    const percentage = (rt.count / MOCK_SCAN_RESULT.totalFound) * 100;
-                    return (
-                      <div
-                        key={rt.resourceType}
-                        className="flex items-center justify-center text-xs font-bold"
-                        style={{
-                          width: `${percentage}%`,
-                          background: typeInfo?.color || colors.muted,
-                          color: '#FFFFFF',
-                        }}
-                        title={`${typeInfo?.label || rt.resourceType}: ${rt.count}개`}
-                      >
-                        {rt.count}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Legend */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {MOCK_SCAN_RESULT.byResourceType.map((rt) => {
-                    const typeInfo = AWS_TYPE_INFO[rt.resourceType];
-                    return (
-                      <div key={rt.resourceType} className="flex items-center gap-2 text-xs">
-                        <div className="w-3 h-3 rounded-sm" style={{ background: typeInfo?.color || colors.muted }} />
-                        <span style={{ color: colors.text }}>{typeInfo?.icon} {typeInfo?.label}</span>
-                        <span className="ml-auto font-semibold" style={{ color: colors.sub }}>{rt.count}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Summary */}
-                <div className="pt-3 text-sm font-medium" style={{ borderTop: `1px solid ${colors.border}`, color: colors.text }}>
-                  {MOCK_SCAN_RESULT.totalFound}개 발견
-                  <span className="mx-2" style={{ color: colors.muted }}>·</span>
-                  <button
-                    onClick={onClickNewBadge}
-                    className="px-2 py-0.5 rounded-md text-xs font-bold transition-all hover:scale-105"
-                    style={{ background: colors.infoLight, color: colors.info }}
-                  >
-                    신규 {MOCK_SCAN_RESULT.newFound}
-                  </button>
-                  <span className="mx-2" style={{ color: colors.muted }}>·</span>
-                  <button
-                    onClick={onClickUpdatedBadge}
-                    className="px-2 py-0.5 rounded-md text-xs font-bold transition-all hover:scale-105"
-                    style={{ background: colors.successLight, color: colors.success }}
-                  >
-                    업데이트 {MOCK_SCAN_RESULT.updated}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {viewState === 'FAILED' && (
-              <div className="mb-6 p-4 rounded-xl" style={{ background: colors.errorLight, border: `1px solid ${colors.error}` }}>
-                <div className="text-xs font-bold mb-1" style={{ color: colors.error }}>스캔 실패</div>
-                <div className="text-xs" style={{ color: colors.sub }}>API 연결 오류. 잠시 후 다시 시도하세요.</div>
-              </div>
-            )}
-
-            {/* Scan Timeline */}
-            <div className="flex-1">
-              <h3 className="text-xs font-bold mb-4 uppercase tracking-wider" style={{ color: colors.sub }}>스캔 이력</h3>
-              <div className="space-y-4">
-                {MOCK_SCAN_HISTORY.slice(0, 4).map((entry, idx) => (
-                  <div key={entry.id} className="flex gap-3">
-                    {/* Timeline Dot */}
-                    <div className="flex flex-col items-center">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ background: entry.status === 'COMPLETED' ? colors.success : colors.error }}
-                      />
-                      {idx < 3 && <div className="w-0.5 flex-1 mt-1" style={{ background: colors.divider }} />}
-                    </div>
-                    {/* Content */}
-                    <div className="flex-1 pb-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold" style={{ color: colors.text }}>
-                          {new Date(entry.startedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                        </span>
-                        <span
-                          className="px-2 py-0.5 rounded text-[10px] font-bold"
-                          style={{
-                            background: entry.status === 'COMPLETED' ? colors.successLight : colors.errorLight,
-                            color: entry.status === 'COMPLETED' ? colors.success : colors.error,
-                          }}
-                        >
-                          {entry.status === 'COMPLETED' ? '완료' : '실패'}
-                        </span>
-                      </div>
-                      {entry.result && (
-                        <div className="text-xs" style={{ color: colors.sub }}>
-                          발견 {entry.result.totalFound}개 · 신규 {entry.result.newFound}
-                        </div>
-                      )}
-                      {!entry.result && (
-                        <div className="text-xs" style={{ color: colors.sub }}>오류 발생</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* 5. ScanPanel — enriched */}
+      <div style={{ backgroundColor: F.bg1, padding: F.spaceXxl, borderRadius: F.radiusLg, border: `1px solid ${F.stroke2}`, marginBottom: F.spaceXxl }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: F.spaceLg }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: F.spaceMd }}>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: `${F.spaceXs} ${F.spaceSm}`,
+                borderRadius: F.radiusSm,
+                backgroundColor: scanState === 'COMPLETED' ? F.successBg : scanState === 'IN_PROGRESS' ? F.warningBg : F.bg3,
+                color: scanState === 'COMPLETED' ? F.success : scanState === 'IN_PROGRESS' ? F.warning : F.fg3,
+              }}
+            >
+              {scanState === 'COMPLETED' ? '완료' : scanState === 'IN_PROGRESS' ? '진행중' : '대기'}
+            </span>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: F.fg1 }}>리소스 스캔 (AWS)</h2>
           </div>
+          <button
+            onClick={() => setScanState('IN_PROGRESS')}
+            style={{
+              padding: `${F.spaceSm} ${F.spaceLg}`,
+              backgroundColor: F.brand,
+              color: '#fff',
+              border: 'none',
+              borderRadius: F.radiusMd,
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            스캔 시작
+          </button>
         </div>
 
-        {/* RIGHT PANEL — Resource Data View */}
-        <div className="flex flex-col overflow-hidden" style={{ background: colors.surface }}>
-          <div className="p-6 pb-0">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold" style={{ color: colors.text }}>리소스 목록</h2>
-                <div
-                  className="px-2.5 py-1 rounded-full text-xs font-bold"
-                  style={{ background: colors.primaryLight, color: colors.primaryDark }}
-                >
-                  {filterResources().length}개
-                </div>
-                {filter !== 'all' && (
-                  <button
-                    onClick={() => setFilter('all')}
-                    className="text-xs underline"
-                    style={{ color: colors.primary }}
-                  >
-                    필터 해제
-                  </button>
-                )}
+        {scanState === 'COMPLETED' && (
+          <>
+            {/* Result tiles */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: F.spaceMd, marginBottom: F.spaceLg }}>
+              <div style={{ backgroundColor: F.bg2, borderLeft: `4px solid ${F.brand}`, padding: F.spaceMd, borderRadius: F.radiusMd }}>
+                <div style={{ fontSize: '11px', color: F.fg3, marginBottom: F.spaceXs }}>전체 발견</div>
+                <div style={{ fontSize: '24px', fontWeight: 600, color: F.brand }}>{MOCK_SCAN_RESULT.totalFound}</div>
               </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="flex items-center gap-3 mb-5">
-              {/* Search */}
-              <input
-                type="text"
-                placeholder="리소스 ID 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 px-4 py-2 rounded-lg text-sm border transition-all focus:outline-none focus:ring-2"
+              <button
+                onClick={() => setStatusFilter('new')}
                 style={{
-                  borderColor: colors.border,
-                  color: colors.text,
-                  background: colors.bg,
-                }}
-              />
-
-              {/* Status Pills */}
-              <div className="flex gap-2">
-                {(['all', 'connected', 'disconnected', 'pending', 'new'] as FilterType[]).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
-                    style={{
-                      background: filter === f ? colors.primary : colors.bg,
-                      color: filter === f ? '#FFFFFF' : colors.sub,
-                      border: `1px solid ${filter === f ? colors.primary : colors.border}`,
-                    }}
-                  >
-                    {f === 'all' ? '전체' : f === 'connected' ? '연결됨' : f === 'disconnected' ? '끊김' : f === 'pending' ? '대기' : '신규'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Type Filter */}
-              <select
-                value={typeFilter || ''}
-                onChange={(e) => setTypeFilter(e.target.value || null)}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all focus:outline-none focus:ring-2"
-                style={{
-                  borderColor: colors.border,
-                  color: colors.sub,
-                  background: colors.bg,
+                  backgroundColor: F.bg2,
+                  borderLeft: `4px solid ${F.info}`,
+                  padding: F.spaceMd,
+                  borderRadius: F.radiusMd,
+                  border: 'none',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  position: 'relative',
                 }}
               >
-                <option value="">모든 타입</option>
-                {Object.keys(AWS_TYPE_INFO).map((type) => (
-                  <option key={type} value={type}>{AWS_TYPE_INFO[type].label}</option>
-                ))}
-              </select>
+                <div style={{ fontSize: '11px', color: F.fg3, marginBottom: F.spaceXs }}>
+                  신규 <span style={{ fontSize: '10px' }}>🔗</span>
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 600, color: F.info }}>{MOCK_SCAN_RESULT.newFound}</div>
+              </button>
+              <div style={{ backgroundColor: F.bg2, borderLeft: `4px solid ${F.warning}`, padding: F.spaceMd, borderRadius: F.radiusMd }}>
+                <div style={{ fontSize: '11px', color: F.fg3, marginBottom: F.spaceXs }}>업데이트</div>
+                <div style={{ fontSize: '24px', fontWeight: 600, color: F.warning }}>{MOCK_SCAN_RESULT.updated}</div>
+              </div>
+              <div style={{ backgroundColor: F.bg2, borderLeft: `4px solid ${F.error}`, padding: F.spaceMd, borderRadius: F.radiusMd }}>
+                <div style={{ fontSize: '11px', color: F.fg3, marginBottom: F.spaceXs }}>제거</div>
+                <div style={{ fontSize: '24px', fontWeight: 600, color: F.error }}>{MOCK_SCAN_RESULT.removed}</div>
+              </div>
             </div>
+
+            {/* Type breakdown tags */}
+            <div style={{ display: 'flex', gap: F.spaceXs, marginBottom: F.spaceLg, flexWrap: 'wrap' }}>
+              {MOCK_SCAN_RESULT.byResourceType.map((t) => (
+                <span
+                  key={t.resourceType}
+                  style={{
+                    fontSize: '12px',
+                    padding: `${F.spaceXs} ${F.spaceSm}`,
+                    backgroundColor: F.bg3,
+                    color: F.fg2,
+                    borderRadius: F.radiusSm,
+                    fontWeight: 500,
+                  }}
+                >
+                  {AWS_TYPE_META[t.resourceType]?.icon} {t.resourceType} {t.count}
+                </span>
+              ))}
+            </div>
+
+            {/* Scan history mini-timeline */}
+            <div style={{ borderTop: `1px solid ${F.stroke3}`, paddingTop: F.spaceLg }}>
+              <div style={{ fontSize: '12px', color: F.fg3, marginBottom: F.spaceSm }}>최근 스캔</div>
+              <div style={{ display: 'flex', gap: F.spaceSm, alignItems: 'center' }}>
+                {MOCK_SCAN_HISTORY.slice(0, 3).map((h, idx) => (
+                  <div key={h.id} style={{ display: 'flex', alignItems: 'center', gap: F.spaceXs }}>
+                    <div
+                      title={`${new Date(h.startedAt).toLocaleString('ko-KR')} - ${h.status} (${h.duration}s)`}
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        backgroundColor: h.status === 'COMPLETED' ? F.success : F.error,
+                        cursor: 'pointer',
+                      }}
+                    />
+                    {idx < 2 && <div style={{ width: '20px', height: '2px', backgroundColor: F.stroke2 }} />}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {scanState === 'IN_PROGRESS' && (
+          <div style={{ textAlign: 'center', padding: F.spaceXxl, color: F.fg3 }}>스캔 진행 중...</div>
+        )}
+      </div>
+
+      {/* 6. ResourceTable — enriched */}
+      <div style={{ backgroundColor: F.bg1, padding: F.spaceXxl, borderRadius: F.radiusLg, border: `1px solid ${F.stroke2}` }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 600, color: F.fg1, marginBottom: F.spaceLg }}>연동 대상 리소스</h2>
+
+        {/* Multi-filter bar */}
+        <div style={{ marginBottom: F.spaceLg }}>
+          {/* Row 1: Status filters */}
+          <div style={{ display: 'flex', gap: F.spaceXs, marginBottom: F.spaceSm, flexWrap: 'wrap' }}>
+            {['all', 'selected', 'connected', 'disconnected', 'pending', 'new'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                style={{
+                  padding: `${F.spaceXs} ${F.spaceMd}`,
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  border: 'none',
+                  borderRadius: F.radiusSm,
+                  cursor: 'pointer',
+                  backgroundColor: statusFilter === f ? F.brandBg : F.bg3,
+                  color: statusFilter === f ? F.brand : F.fg3,
+                }}
+              >
+                {f === 'all' ? '전체' : f === 'selected' ? '연동 대상' : f === 'connected' ? '연결됨' : f === 'disconnected' ? '끊김' : f === 'pending' ? '대기' : '신규'}
+              </button>
+            ))}
           </div>
 
-          {/* Resource Table */}
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
-            {filterResources().length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full" style={{ color: colors.muted }}>
-                <div className="text-6xl mb-4">←</div>
-                <div className="text-sm font-medium">스캔을 시작하여 리소스를 검색하세요</div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {groupedResources().map(([awsType, resources]) => {
-                  const typeInfo = AWS_TYPE_INFO[awsType];
-                  return (
-                    <div key={awsType}>
-                      {/* Type Header */}
-                      <div
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-lg mb-2"
-                        style={{ background: colors.bg, borderLeft: `4px solid ${typeInfo?.color || colors.muted}` }}
-                      >
-                        <span className="text-base">{typeInfo?.icon}</span>
-                        <span className="text-sm font-bold" style={{ color: colors.text }}>{typeInfo?.label}</span>
-                        <span
-                          className="px-2 py-0.5 rounded-full text-xs font-bold"
-                          style={{ background: colors.primaryLight, color: colors.primaryDark }}
-                        >
-                          {resources.length}
-                        </span>
-                      </div>
-
-                      {/* Resource Rows */}
-                      <div className="space-y-1">
-                        {resources.map((r) => {
-                          const connLabel = CONNECTION_LABEL[r.connectionStatus];
-                          const cred = MOCK_CREDENTIALS.find((c) => c.id === r.selectedCredentialId);
-                          return (
-                            <div
-                              key={r.id}
-                              className="flex items-center gap-4 px-4 py-3 rounded-lg transition-all hover:shadow-sm"
-                              style={{
-                                background: colors.surface,
-                                border: `1px solid ${colors.border}`,
-                                borderLeftWidth: '4px',
-                                borderLeftColor: r.isNew ? colors.info : r.connectionStatus === 'DISCONNECTED' ? colors.error : 'transparent',
-                              }}
-                            >
-                              {/* Checkbox */}
-                              <input
-                                type="checkbox"
-                                checked={r.isSelected}
-                                readOnly
-                                className="w-4 h-4 rounded"
-                                style={{ accentColor: colors.primary }}
-                              />
-
-                              {/* Resource ID */}
-                              <div className="flex-1 flex items-center gap-2">
-                                <code className="text-xs font-mono" style={{ color: colors.text }}>{r.resourceId}</code>
-                                {r.isNew && (
-                                  <span
-                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold"
-                                    style={{ background: colors.infoLight, color: colors.info }}
-                                  >
-                                    NEW
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* DB Type */}
-                              <div className="w-32 text-xs" style={{ color: colors.sub }}>{r.databaseType}</div>
-
-                              {/* Region */}
-                              <div className="w-24 text-xs" style={{ color: colors.sub }}>{REGION_MAP[r.region] || r.region}</div>
-
-                              {/* Status */}
-                              <div className="flex items-center gap-2 w-24">
-                                <div className="w-2 h-2 rounded-full" style={{ background: connLabel.color }} />
-                                <span className="text-xs font-medium" style={{ color: connLabel.color }}>{connLabel.text}</span>
-                              </div>
-
-                              {/* Credential */}
-                              <div className="w-40 text-xs truncate" style={{ color: colors.sub }}>
-                                {cred ? cred.name : '—'}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          {/* Row 2: Type filters + Search */}
+          <div style={{ display: 'flex', gap: F.spaceXs, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setTypeFilter('all')}
+              style={{
+                padding: `${F.spaceXs} ${F.spaceMd}`,
+                fontSize: '12px',
+                fontWeight: 500,
+                border: 'none',
+                borderRadius: F.radiusSm,
+                cursor: 'pointer',
+                backgroundColor: typeFilter === 'all' ? F.brandBg : F.bg3,
+                color: typeFilter === 'all' ? F.brand : F.fg3,
+              }}
+            >
+              전체 타입
+            </button>
+            {Object.entries(typeCounts).map(([type, count]) => (
+              <button
+                key={type}
+                onClick={() => setTypeFilter(type)}
+                style={{
+                  padding: `${F.spaceXs} ${F.spaceMd}`,
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  border: 'none',
+                  borderRadius: F.radiusSm,
+                  cursor: 'pointer',
+                  backgroundColor: typeFilter === type ? F.brandBg : F.bg3,
+                  color: typeFilter === type ? F.brand : F.fg3,
+                }}
+              >
+                {type} ({count})
+              </button>
+            ))}
+            <div style={{ flex: 1 }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="리소스 ID 검색"
+              style={{
+                padding: `${F.spaceXs} ${F.spaceMd}`,
+                fontSize: '13px',
+                border: `1px solid ${F.stroke2}`,
+                borderRadius: F.radiusMd,
+                width: '240px',
+              }}
+            />
           </div>
         </div>
+
+        {/* Table with type groups */}
+        {typeKeys.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: F.spaceXxl, color: F.fg3 }}>
+            해당 조건의 리소스가 없습니다.{' '}
+            <button
+              onClick={() => setScanState('IN_PROGRESS')}
+              style={{ color: F.brand, textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              스캔 시작
+            </button>
+          </div>
+        ) : (
+          typeKeys.map((typeKey) => {
+            const resources = groupedResources[typeKey];
+            const meta = AWS_TYPE_META[typeKey];
+            const connectedCount = resources.filter((r) => r.connectionStatus === 'CONNECTED').length;
+            const disconnectedCount = resources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
+            const pendingCount = resources.filter((r) => r.connectionStatus === 'PENDING').length;
+            const total = resources.length;
+
+            return (
+              <div key={typeKey} style={{ marginBottom: F.spaceXxl }}>
+                {/* Type group header */}
+                <div style={{ marginBottom: F.spaceMd, borderLeft: `4px solid ${meta.color}`, paddingLeft: F.spaceMd }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: F.spaceSm, marginBottom: F.spaceXs }}>
+                    <span style={{ fontSize: '16px' }}>{meta.icon}</span>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: F.fg1 }}>{meta.label}</span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: `${F.spaceXs} ${F.spaceSm}`,
+                        backgroundColor: F.bg3,
+                        color: F.fg2,
+                        borderRadius: F.radiusSm,
+                      }}
+                    >
+                      {total}
+                    </span>
+                  </div>
+                  {/* Mini status bar */}
+                  <div style={{ display: 'flex', height: '4px', borderRadius: '2px', overflow: 'hidden' }}>
+                    {connectedCount > 0 && <div style={{ flex: connectedCount, backgroundColor: F.success }} />}
+                    {disconnectedCount > 0 && <div style={{ flex: disconnectedCount, backgroundColor: F.error }} />}
+                    {pendingCount > 0 && <div style={{ flex: pendingCount, backgroundColor: F.fg4 }} />}
+                  </div>
+                </div>
+
+                {/* Table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: F.bg2, borderBottom: `1px solid ${F.stroke2}` }}>
+                      <th style={{ padding: F.spaceSm, textAlign: 'center', fontSize: '12px', color: F.fg3, fontWeight: 600, width: '40px' }}>✓</th>
+                      <th style={{ padding: F.spaceSm, textAlign: 'left', fontSize: '12px', color: F.fg3, fontWeight: 600 }}>Resource ID</th>
+                      <th style={{ padding: F.spaceSm, textAlign: 'left', fontSize: '12px', color: F.fg3, fontWeight: 600 }}>DB Type</th>
+                      <th style={{ padding: F.spaceSm, textAlign: 'left', fontSize: '12px', color: F.fg3, fontWeight: 600 }}>Region</th>
+                      <th style={{ padding: F.spaceSm, textAlign: 'left', fontSize: '12px', color: F.fg3, fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: F.spaceSm, textAlign: 'left', fontSize: '12px', color: F.fg3, fontWeight: 600 }}>Credential</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resources.map((r) => {
+                      const connStatus = CONN_STATUS[r.connectionStatus];
+                      const needsCred = NEEDS_CREDENTIAL[r.databaseType];
+                      const hasCred = !!r.selectedCredentialId;
+
+                      return (
+                        <tr
+                          key={r.id}
+                          style={{
+                            borderBottom: `1px solid ${F.stroke3}`,
+                            borderLeft: r.isNew ? `4px solid ${F.info}` : r.connectionStatus === 'DISCONNECTED' ? `4px solid ${F.error}` : 'none',
+                            backgroundColor: r.isNew ? F.infoBg : r.connectionStatus === 'DISCONNECTED' ? F.errorBg : 'transparent',
+                          }}
+                        >
+                          <td style={{ padding: F.spaceSm, textAlign: 'center' }}>
+                            <input type="checkbox" checked={r.isSelected} readOnly />
+                          </td>
+                          <td style={{ padding: F.spaceSm, fontFamily: F.fontMono, fontSize: '13px', color: F.fg1 }}>
+                            {r.resourceId}
+                            {r.isNew && (
+                              <span
+                                style={{
+                                  marginLeft: F.spaceXs,
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: `2px ${F.spaceXs}`,
+                                  backgroundColor: F.info,
+                                  color: '#fff',
+                                  borderRadius: F.radiusSm,
+                                }}
+                              >
+                                NEW
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: F.spaceSm, fontSize: '13px', color: F.fg2 }}>{r.databaseType}</td>
+                          <td style={{ padding: F.spaceSm, fontSize: '13px', color: F.fg2 }}>{REGION_MAP[r.region] || r.region}</td>
+                          <td style={{ padding: F.spaceSm, fontSize: '13px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: F.spaceXs }}>
+                              <span
+                                style={{
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  backgroundColor: connStatus.color,
+                                }}
+                              />
+                              <span style={{ color: connStatus.color }}>{connStatus.text}</span>
+                            </span>
+                          </td>
+                          <td style={{ padding: F.spaceSm, fontSize: '13px', color: F.fg2 }}>
+                            {needsCred ? (
+                              hasCred ? (
+                                <select style={{ padding: F.spaceXs, fontSize: '12px', border: `1px solid ${F.stroke2}`, borderRadius: F.radiusSm }}>
+                                  {MOCK_CREDENTIALS.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                      {c.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span style={{ padding: `${F.spaceXs} ${F.spaceSm}`, backgroundColor: F.warningBg, color: F.warning, borderRadius: F.radiusSm, fontSize: '11px', fontWeight: 600 }}>
+                                  미선택
+                                </span>
+                              )
+                            ) : (
+                              <span style={{ color: F.fg4, fontSize: '12px' }}>불필요</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 7. Action Bar */}
+      <div style={{ marginTop: F.spaceXxl, display: 'flex', justifyContent: 'flex-end', gap: F.spaceMd }}>
+        <button
+          style={{
+            padding: `${F.spaceSm} ${F.spaceXl}`,
+            fontSize: '14px',
+            fontWeight: 600,
+            border: `1px solid ${F.stroke2}`,
+            borderRadius: F.radiusMd,
+            backgroundColor: F.bg1,
+            color: F.fg2,
+            cursor: 'pointer',
+          }}
+        >
+          취소
+        </button>
+        <button
+          style={{
+            padding: `${F.spaceSm} ${F.spaceXl}`,
+            fontSize: '14px',
+            fontWeight: 600,
+            border: 'none',
+            borderRadius: F.radiusMd,
+            backgroundColor: F.brand,
+            color: '#fff',
+            cursor: 'pointer',
+          }}
+        >
+          다음 단계로
+        </button>
       </div>
     </div>
   );
