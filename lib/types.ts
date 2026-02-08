@@ -153,6 +153,18 @@ export interface Project {
 
   // AWS 전용: 설치 모드 (자동/수동)
   awsInstallationMode?: AwsInstallationMode;
+
+  // AWS 전용: Account ID (12자리)
+  awsAccountId?: string;
+  // AWS 전용: 리전 타입
+  awsRegionType?: 'global' | 'china';
+
+  // Azure 전용
+  tenantId?: string;
+  subscriptionId?: string;
+
+  // GCP 전용
+  gcpProjectId?: string;
 }
 
 // ===== API Response Types =====
