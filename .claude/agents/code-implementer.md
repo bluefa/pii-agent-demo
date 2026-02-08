@@ -2,7 +2,7 @@
 name: code-implementer
 description: "기능 구현, 버그 수정, 리팩토링 등 코드 작성 작업을 수행합니다. 구현, 개발, 수정 요청 시 사용."
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__ide__getDiagnostics
-model: sonnet
+model: opus
 permissionMode: default
 maxTurns: 15
 skills: feature-development, coding-standards

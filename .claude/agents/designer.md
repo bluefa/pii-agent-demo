@@ -2,7 +2,7 @@
 name: designer
 description: "UI 컴포넌트 및 페이지 디자인을 구현합니다. 디자인, UI, 화면 구성, 목업, 시각적 개선 요청 시 사용."
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__ide__getDiagnostics
-model: sonnet
+model: opus
 permissionMode: default
 maxTurns: 15
 skills: frontend-design, coding-standards
