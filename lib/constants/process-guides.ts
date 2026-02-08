@@ -12,23 +12,26 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
     {
       stepNumber: 1,
       label: '연동 대상 확정',
-      description: '스캔된 리소스 중 연동할 대상을 선택하고 확정합니다.',
+      description: 'AWS 계정에 등록된 RDS, S3 등의 리소스를 스캔하고, PII Agent를 연동할 대상을 선택하여 확정합니다.',
       prerequisites: [
-        '스캔 Role 등록',
-        'TerraformExecutionRole 등록 (자동 설치 필수)',
-        'DB Credential 등록',
+        'AWS Console > IAM > Roles에서 스캔 Role 생성 및 등록 완료',
+        'TerraformExecutionRole 등록 완료 (자동 설치 모드에서 필수)',
+        '연동 대상 DB의 Credential(접속 정보) 등록 완료',
       ],
       procedures: [
-        '리소스 스캔 실행',
-        '리소스 목록에서 연동 대상 선택',
-        'VM(EC2) 포함 여부 선택 (선택사항)',
-        '[연동 대상 확정] 버튼 클릭',
+        '[리소스 스캔] 버튼을 클릭하여 AWS 계정의 리소스(RDS, S3 등)를 조회',
+        '스캔 결과 목록에서 PII Agent를 연동할 리소스를 선택',
+        'EC2(VM) 인스턴스를 포함하려면 상단 필터에서 VM 포함 옵션을 선택',
+        '선택 완료 후 [연동 대상 확정] 버튼 클릭',
       ],
       warnings: [
-        '리소스 목록이 조회되지 않으면 스캔 권한을 확인하세요',
-        '최소 1개 이상 리소스 선택 필수',
+        '리소스가 조회되지 않으면 AWS Console > IAM에서 스캔 Role의 권한(rds:Describe*, s3:List* 등)을 확인하세요',
+        '최소 1개 이상의 리소스를 선택해야 확정이 가능합니다',
       ],
-      notes: ['전체 리소스 선택 시 자동 승인됩니다'],
+      notes: [
+        '전체 리소스를 선택하고 제외된 리소스가 없으면 관리자 승인 없이 자동 확정됩니다',
+        '확정 후에는 선택한 리소스를 변경할 수 없으므로 신중하게 선택해주세요',
+      ],
     },
     {
       stepNumber: 2,
@@ -100,19 +103,25 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
     {
       stepNumber: 1,
       label: '연동 대상 확정',
-      description: '스캔된 리소스 중 연동할 대상을 선택하고 확정합니다.',
-      prerequisites: ['스캔 Role 등록', 'DB Credential 등록'],
+      description: 'AWS 계정에 등록된 RDS, S3 등의 리소스를 스캔하고, PII Agent를 연동할 대상을 선택하여 확정합니다.',
+      prerequisites: [
+        'AWS Console > IAM > Roles에서 스캔 Role 생성 및 등록 완료',
+        '연동 대상 DB의 Credential(접속 정보) 등록 완료',
+      ],
       procedures: [
-        '리소스 스캔 실행',
-        '리소스 목록에서 연동 대상 선택',
-        'VM(EC2) 포함 여부 선택 (선택사항)',
-        '[연동 대상 확정] 버튼 클릭',
+        '[리소스 스캔] 버튼을 클릭하여 AWS 계정의 리소스(RDS, S3 등)를 조회',
+        '스캔 결과 목록에서 PII Agent를 연동할 리소스를 선택',
+        'EC2(VM) 인스턴스를 포함하려면 상단 필터에서 VM 포함 옵션을 선택',
+        '선택 완료 후 [연동 대상 확정] 버튼 클릭',
       ],
       warnings: [
-        '리소스 목록이 조회되지 않으면 스캔 권한을 확인하세요',
-        '최소 1개 이상 리소스 선택 필수',
+        '리소스가 조회되지 않으면 AWS Console > IAM에서 스캔 Role의 권한(rds:Describe*, s3:List* 등)을 확인하세요',
+        '최소 1개 이상의 리소스를 선택해야 확정이 가능합니다',
       ],
-      notes: ['전체 리소스 선택 시 자동 승인됩니다'],
+      notes: [
+        '전체 리소스를 선택하고 제외된 리소스가 없으면 관리자 승인 없이 자동 확정됩니다',
+        '확정 후에는 선택한 리소스를 변경할 수 없으므로 신중하게 선택해주세요',
+      ],
     },
     {
       stepNumber: 2,
