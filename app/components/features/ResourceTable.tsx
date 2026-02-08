@@ -12,12 +12,12 @@ import {
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
+import { cn, statusColors, cardStyles, textColors, badgeStyles, getButtonClass, bgColors } from '@/lib/theme';
 import {
   ResourceRow,
   ResourceTypeGroup,
-  FilterTab,
   EmptyState,
-  FilterType,
+  NonTargetResourceSection,
 } from './resource-table';
 
 interface ResourceTableProps {
@@ -29,17 +29,27 @@ interface ResourceTableProps {
   onSelectionChange?: (selectedIds: string[]) => void;
   credentials?: DBCredential[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
-  // VM 설정 관련
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  onEditModeChange?: (isEdit: boolean) => void;
 }
+
+const ConnectionBadge = ({ label, count, variant }: { label: string; count: number; variant: 'success' | 'error' | 'pending' }) => {
+  const colors = statusColors[variant];
+  return (
+    <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, colors.bg, colors.textDark)}>
+      <span className={cn('w-1.5 h-1.5 rounded-full', colors.dot)} />
+      {label} {count}
+    </span>
+  );
+};
 
 export const ResourceTable = ({
   resources,
   cloudProvider,
   processStatus,
-  isEditMode = false,
+  isEditMode: externalEditMode = false,
   selectedIds: externalSelectedIds,
   onSelectionChange,
   credentials = [],
@@ -47,14 +57,16 @@ export const ResourceTable = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  onEditModeChange,
 }: ResourceTableProps) => {
-  const [filter, setFilter] = useState<FilterType>('selected');
+  const [internalEditMode, setInternalEditMode] = useState(false);
 
   const selectedIdsSet = new Set(
     externalSelectedIds ?? resources.filter((r) => r.isSelected).map((r) => r.id)
   );
 
   const isAWS = cloudProvider === 'AWS';
+  const isEditMode = externalEditMode || internalEditMode;
   const isCheckboxEnabled =
     processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
   const showConnectionStatus =
@@ -66,20 +78,17 @@ export const ResourceTable = ({
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
-  const filteredResources = resources.filter((resource) => {
-    switch (filter) {
-      case 'selected':
-        return resource.isSelected || selectedIdsSet.has(resource.id);
-      default:
-        return true;
-    }
-  });
+  const targetResources = resources.filter((r) => r.isSelected || selectedIdsSet.has(r.id));
+
+  const connectedCount = targetResources.filter((r) => r.connectionStatus === 'CONNECTED').length;
+  const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
+  const pendingCount = targetResources.filter((r) => !r.connectionStatus || r.connectionStatus === 'PENDING').length;
 
   const groupedByType = useMemo(() => {
     if (!isAWS) return null;
 
     const groups = new Map<AwsResourceType, Resource[]>();
-    filteredResources.forEach((resource) => {
+    targetResources.forEach((resource) => {
       const type = resource.awsType || ('RDS' as AwsResourceType);
       if (!groups.has(type)) groups.set(type, []);
       groups.get(type)!.push(resource);
@@ -87,7 +96,7 @@ export const ResourceTable = ({
 
     return AWS_RESOURCE_TYPE_ORDER.filter(type => groups.has(type))
       .map(type => [type, groups.get(type)!] as [AwsResourceType, Resource[]]);
-  }, [filteredResources, isAWS]);
+  }, [targetResources, isAWS]);
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -99,101 +108,61 @@ export const ResourceTable = ({
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
-  // 제외된 리소스는 선택 불가
-  const selectableResources = filteredResources.filter((r) => !r.exclusion);
+  const colSpan = 4 + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
-  const handleSelectAll = (checked: boolean) => {
-    const newSelectedIds = checked
-      ? new Set(selectableResources.map((r) => r.id))
-      : new Set<string>();
-    onSelectionChange?.(Array.from(newSelectedIds));
-  };
+  const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
+    filterCredentialsByType(credentials, databaseType);
 
-  const isAllSelected =
-    selectableResources.length > 0 && selectableResources.every((r) => selectedIdsSet.has(r.id));
-  const isSomeSelected =
-    selectableResources.some((r) => selectedIdsSet.has(r.id)) && !isAllSelected;
-
-  const colSpan = 5 + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
-
-  const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] => {
-    return filterCredentialsByType(credentials, databaseType);
+  const handleToggleEditMode = () => {
+    const next = !internalEditMode;
+    setInternalEditMode(next);
+    onEditModeChange?.(next);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-100">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-            리소스 목록
-          </h3>
-          <span className="text-sm text-gray-500">총 {resources.length}개</span>
+    <div className={cardStyles.base}>
+      {/* Header Bar */}
+      <div className="px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className={cn('text-sm font-semibold', textColors.primary)}>연동 대상</span>
+          <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, statusColors.info.bg, statusColors.info.textDark)}>
+            {targetResources.length}
+          </span>
+          {showConnectionStatus && (
+            <>
+              {connectedCount > 0 && <ConnectionBadge label="연결" count={connectedCount} variant="success" />}
+              {disconnectedCount > 0 && <ConnectionBadge label="끊김" count={disconnectedCount} variant="error" />}
+              {pendingCount > 0 && <ConnectionBadge label="대기" count={pendingCount} variant="pending" />}
+            </>
+          )}
         </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="px-6 pt-4 pb-2 border-b border-gray-100">
-        <div className="flex gap-2">
-          <FilterTab
-            label="연동 대상"
-            count={resources.filter((r) => r.isSelected).length}
-            active={filter === 'selected'}
-            onClick={() => setFilter('selected')}
-          />
-          <FilterTab
-            label="전체"
-            count={resources.length}
-            active={filter === 'all'}
-            onClick={() => setFilter('all')}
-          />
-        </div>
+        {!externalEditMode && (
+          <button
+            onClick={handleToggleEditMode}
+            className={getButtonClass(internalEditMode ? 'secondary' : 'ghost', 'sm')}
+          >
+            {internalEditMode ? '수정 완료' : '대상 수정'}
+          </button>
+        )}
       </div>
 
       {/* Table */}
-      {filteredResources.length === 0 ? (
-        <EmptyState filter={filter} />
+      {targetResources.length === 0 ? (
+        <EmptyState filter="selected" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <th className="px-6 py-3 w-12">
-                  {isCheckboxEnabled && (
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isSomeSelected;
-                      }}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  )}
-                </th>
+              <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
+                {isEditMode && <th className="px-6 py-3 w-12" />}
                 <th className="px-6 py-3">인스턴스 타입</th>
                 <th className="px-6 py-3">데이터베이스</th>
                 <th className="px-6 py-3">리소스 ID</th>
                 {showCredentialColumn && (
-                  <th className="px-6 py-3">
-                    <div className="flex items-center gap-1">
-                      <span>Credential</span>
-                      <div className="group relative">
-                        <svg className="w-4 h-4 text-gray-400 cursor-help" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                        </svg>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-xs">
-                          <p>RDS, PostgreSQL, Redshift는</p>
-                          <p>DB 접속 정보가 필요합니다.</p>
-                          <p className="mt-1 text-gray-300">DynamoDB, Athena는 불필요</p>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                        </div>
-                      </div>
-                    </div>
-                  </th>
+                  <th className="px-6 py-3">Credential</th>
                 )}
                 {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
-                <th className="px-6 py-3 w-16"></th>
+                <th className="px-6 py-3 w-16" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -204,6 +173,7 @@ export const ResourceTable = ({
                     resourceType={resourceType}
                     resources={typeResources}
                     selectedIds={selectedIdsSet}
+                    isEditMode={isEditMode}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
                     showCredentialColumn={showCredentialColumn}
@@ -217,13 +187,14 @@ export const ResourceTable = ({
                   />
                 ))
               ) : (
-                filteredResources.map((resource) => (
+                targetResources.map((resource) => (
                   <ResourceRow
                     key={resource.id}
                     resource={resource}
                     isAWS={false}
                     cloudProvider={cloudProvider}
                     selectedIds={selectedIdsSet}
+                    isEditMode={isEditMode}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
                     showCredentialColumn={showCredentialColumn}
@@ -240,6 +211,22 @@ export const ResourceTable = ({
           </table>
         </div>
       )}
+
+      {/* Non-Target Resources */}
+      <NonTargetResourceSection
+        resources={resources}
+        isEditMode={isEditMode}
+        selectedIds={selectedIdsSet}
+        showConnectionStatus={showConnectionStatus}
+        showCredentialColumn={showCredentialColumn}
+        onCheckboxChange={handleCheckboxChange}
+        colSpan={colSpan}
+        getCredentialsForType={getCredentialsForType}
+        onCredentialChange={onCredentialChange}
+        expandedVmId={expandedVmId}
+        onVmConfigToggle={onVmConfigToggle}
+        onVmConfigSave={onVmConfigSave}
+      />
     </div>
   );
 };
