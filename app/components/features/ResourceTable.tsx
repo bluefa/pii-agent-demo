@@ -6,13 +6,15 @@ import {
   CloudProvider,
   ProcessStatus,
   DatabaseType,
+  AwsResourceType,
   DBCredential,
   VmDatabaseConfig,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
+import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import {
   ResourceRow,
-  RegionGroup,
+  ResourceTypeGroup,
   FilterTab,
   EmptyState,
   FilterType,
@@ -73,21 +75,18 @@ export const ResourceTable = ({
     }
   });
 
-  const groupedByRegion = useMemo(() => {
+  const groupedByType = useMemo(() => {
     if (!isAWS) return null;
 
-    const groups: Record<string, Resource[]> = {};
+    const groups = new Map<AwsResourceType, Resource[]>();
     filteredResources.forEach((resource) => {
-      const region = resource.region || 'unknown';
-      if (!groups[region]) groups[region] = [];
-      groups[region].push(resource);
+      const type = resource.awsType || ('RDS' as AwsResourceType);
+      if (!groups.has(type)) groups.set(type, []);
+      groups.get(type)!.push(resource);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => {
-      if (a === 'ap-northeast-2') return -1;
-      if (b === 'ap-northeast-2') return 1;
-      return a.localeCompare(b);
-    });
+    return AWS_RESOURCE_TYPE_ORDER.filter(type => groups.has(type))
+      .map(type => [type, groups.get(type)!] as [AwsResourceType, Resource[]]);
   }, [filteredResources, isAWS]);
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
@@ -198,19 +197,18 @@ export const ResourceTable = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isAWS && groupedByRegion ? (
-                groupedByRegion.map(([region, regionResources]) => (
-                  <RegionGroup
-                    key={region}
-                    region={region}
-                    resources={regionResources}
+              {isAWS && groupedByType ? (
+                groupedByType.map(([resourceType, typeResources]) => (
+                  <ResourceTypeGroup
+                    key={resourceType}
+                    resourceType={resourceType}
+                    resources={typeResources}
                     selectedIds={selectedIdsSet}
                     isCheckboxEnabled={isCheckboxEnabled}
                     showConnectionStatus={showConnectionStatus}
                     showCredentialColumn={showCredentialColumn}
                     onCheckboxChange={handleCheckboxChange}
                     colSpan={colSpan}
-                    credentials={credentials}
                     getCredentialsForType={getCredentialsForType}
                     onCredentialChange={onCredentialChange}
                     expandedVmId={expandedVmId}

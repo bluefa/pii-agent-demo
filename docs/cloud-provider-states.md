@@ -215,21 +215,62 @@
 
 ## SDU
 
+> 상세 설계: [`docs/sdu-process-design.md`](./sdu-process-design.md)
+
+### 기존 Provider와의 차이
+
+- **상시 관리 영역**: IAM USER, SourceIP는 프로세스 단계가 아닌 프로젝트 속성 (기본 정보 영역)
+- **리소스 선택 없음**: Crawler 결과 전체 자동 연동
+- **전용 상태머신**: 기존 6단계 상태를 재활용하지 않음
+
+### 역할별 흐름
+
+```
+서비스측                              BDC측
+──────                               ──────
+                                 0. IAM USER 생성
+AK/SK 다운로드 ←──────────────────
+SourceIP 등록 ────────────────────→  SourceIP 확인
+S3 데이터 업로드
+   │
+   ▼ [S3 확인 완료]
+   │                             1. Crawler 설정 + 실행
+   │                             2. Athena Table 생성 확인
+   │                             3. 연동 확정 (전체)
+   │                             4. BDC측 Athena 설정
+   ▼
+[Test Connection] ←── AWS와 동일
+```
+
+### SDU 전용 프로세스 상태
+
+```
+S3_UPLOAD_PENDING → S3_UPLOAD_CONFIRMED → INSTALLING → WAITING_CONNECTION_TEST → ...
+```
+
+INSTALLING 서브스텝:
+```
+├─ crawler:         PENDING → IN_PROGRESS → COMPLETED
+├─ athenaTable:     PENDING → CREATED (n개)
+├─ targetConfirmed: false → true
+└─ athenaSetup:     PENDING → IN_PROGRESS → COMPLETED   ← BDC측 Athena 설정
+```
+
 ### Case 1: 기본
 
 ```
-[사전 조치]
-├─ 방화벽 결제 (S3 업로드용)
-└─ 데이터 업로드 (BDC에서 확인)
+[상시 관리 (기본 정보)]
+├─ IAM USER (BDC 생성, AK/SK 발급 관리)
+└─ SourceIP (서비스측 등록 → BDC 확인, CIDR 형태)
 
 [프로세스]
-1. Crawler 설정 (BDC측에서 동작)
-2. Athena Table 목록 확인
+1. S3 데이터 업로드 확인 (API 조회)
+2. 환경 구성 (BDC: Crawler + Athena Table + 확정 + BDC Athena 설정)
 3. Test Connection
 4. 연결 완료
 ```
 
-> 승인 단계 없음, 스캔 없음 (Crawler가 Athena Table 목록화)
+> 승인 단계 없음, 스캔 없음, 리소스 선택 없음
 
 ---
 
@@ -248,7 +289,7 @@
 | **Azure+VM** | App, Cred, Subnet | 스캔 | O | DB자동 + VM수동 | Subnet 필수 |
 | **GCP** | 프로젝트권한, Cred | 스캔 | O | TF (+Subnet 옵션) | 미지원 |
 | **IDC** | Cred, 방화벽 | 직접입력 | X | BDC TF + 방화벽 | - |
-| **SDU** | 방화벽결제, 업로드 | Crawler | X | Crawler 설정 | - |
+| **SDU** | IAM, SourceIP | Crawler | X | Crawler+BDC Athena설정 | - |
 
 ---
 
@@ -263,7 +304,7 @@
 | **GCP** | 기본 | 스캔 → 리소스 확정 → 승인 대기 → 설치(TF) → Test Connection → 완료 |
 | **GCP** | Subnet 필요 | 스캔 → 리소스 확정 → 승인 대기 → Subnet생성 → 설치(TF) → Test Connection → 완료 |
 | **IDC** | 기본 | 리소스 직접입력 → 방화벽+BDC TF → Test Connection → 완료 |
-| **SDU** | 기본 | Crawler 설정 → Athena 확인 → Test Connection → 완료 |
+| **SDU** | 기본 | S3 업로드 확인 → 환경구성(Crawler+Athena설정) → Test Connection → 완료 |
 | **수동조사** | - | 🚧 미구현 |
 
 ---
