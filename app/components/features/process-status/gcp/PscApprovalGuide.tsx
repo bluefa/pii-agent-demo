@@ -26,7 +26,7 @@ export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
   return (
     <div className="mt-2">
       <div className="flex items-center justify-between py-1">
-        <span className="text-xs text-gray-600">PSC Connection</span>
+        <span className="text-xs text-gray-600">연결 상태</span>
         <div className="flex items-center gap-2">
           <span className={cn('text-xs font-medium', color.textDark)}>
             {GCP_PSC_STATUS_LABELS[pscConnection.status]}
@@ -40,7 +40,7 @@ export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
                 'hover:opacity-80'
               )}
             >
-              {expanded ? '닫기' : '승인 가이드'}
+              {expanded ? '닫기' : '승인 방법 보기'}
             </button>
           )}
         </div>
@@ -49,12 +49,12 @@ export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
       {expanded && showGuide && (
         <div className={cn('mt-1 p-2 rounded border', statusColors.info.bg, 'border-blue-200')}>
           <p className={cn('text-xs font-medium mb-1.5', statusColors.info.textDark)}>
-            PSC Connection 승인 방법
+            연결 승인 방법
           </p>
 
           {pscConnection.connectionId && (
             <div className="mb-1.5">
-              <span className="text-xs text-gray-500">Connection ID</span>
+              <span className="text-xs text-gray-500">연결 ID</span>
               <div className="mt-0.5 px-2 py-1 bg-white rounded border border-gray-200 text-xs font-mono text-gray-700 break-all">
                 {pscConnection.connectionId}
               </div>

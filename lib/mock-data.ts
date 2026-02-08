@@ -147,6 +147,24 @@ export const mockServiceCodes: ServiceCode[] = [
 
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
+  // ===== GCP 프로젝트 =====
+  {
+    id: 'gcp-proj-1',
+    projectCode: 'GCP-001',
+    name: 'GCP PII Agent - Cloud SQL / BigQuery',
+    description: 'GCP Cloud SQL, BigQuery 리소스에 PII Agent 설치',
+    serviceCode: 'SERVICE-A',
+    cloudProvider: 'GCP',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-02-01T09:00:00Z',
+    updatedAt: '2026-02-01T09:00:00Z',
+    isRejected: false,
+  },
   // ===== Azure 프로젝트 =====
   {
     id: 'azure-proj-1',
