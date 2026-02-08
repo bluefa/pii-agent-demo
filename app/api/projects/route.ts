@@ -14,16 +14,38 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { projectCode, serviceCode, cloudProvider, description } = body as {
+  const {
+    projectCode, serviceCode, cloudProvider, description,
+    awsAccountId, awsRegionType, tenantId, subscriptionId, gcpProjectId,
+  } = body as {
     projectCode: string;
     serviceCode: string;
     cloudProvider: CloudProvider;
     description?: string;
+    awsAccountId?: string;
+    awsRegionType?: 'global' | 'china';
+    tenantId?: string;
+    subscriptionId?: string;
+    gcpProjectId?: string;
   };
 
   if (!projectCode || !serviceCode || !cloudProvider) {
     return NextResponse.json(
       { error: 'VALIDATION_ERROR', message: '필수 필드가 누락되었습니다.' },
+      { status: 400 }
+    );
+  }
+
+  if (awsAccountId && !/^\d{12}$/.test(awsAccountId)) {
+    return NextResponse.json(
+      { error: 'VALIDATION_ERROR', message: 'AWS Account ID는 12자리 숫자여야 합니다.' },
+      { status: 400 }
+    );
+  }
+
+  if (awsRegionType && !['global', 'china'].includes(awsRegionType)) {
+    return NextResponse.json(
+      { error: 'VALIDATION_ERROR', message: 'AWS 리전 타입은 global 또는 china만 허용됩니다.' },
       { status: 400 }
     );
   }
@@ -53,6 +75,11 @@ export async function POST(request: Request) {
     name: projectCode,
     description: description || '',
     isRejected: false,
+    ...(awsAccountId && { awsAccountId }),
+    ...(awsRegionType && { awsRegionType }),
+    ...(tenantId && { tenantId }),
+    ...(subscriptionId && { subscriptionId }),
+    ...(gcpProjectId && { gcpProjectId }),
   };
 
   await dataAdapter.addProject(newProject);
