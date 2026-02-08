@@ -261,5 +261,8 @@ export * from './azure';
 // ===== AWS API =====
 export * from './aws';
 
+// ===== GCP API =====
+export * from './gcp';
+
 // ===== Scan API =====
 export * from './scan';
