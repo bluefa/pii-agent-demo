@@ -72,8 +72,8 @@ export const ResourceTypeGroup = ({
         </td>
       </tr>
 
-      {/* EC2 안내 배너 */}
-      {resourceType === 'EC2' && (
+      {/* EC2 안내 배너 — 선택 모드(전체 탭)에서만 표시 */}
+      {resourceType === 'EC2' && isCheckboxEnabled && (
         <tr>
           <td colSpan={colSpan} className="px-6 py-2">
             <div className={cn(
