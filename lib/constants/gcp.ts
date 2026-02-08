@@ -1,3 +1,5 @@
+import type { GcpInstallResource } from '@/lib/types/gcp';
+
 // ===== GCP 연결 유형 라벨 =====
 
 export const GCP_CONNECTION_TYPE_LABELS = {
@@ -9,19 +11,19 @@ export const GCP_CONNECTION_TYPE_LABELS = {
 // ===== GCP TF 상태 라벨 =====
 
 export const GCP_TF_STATUS_LABELS = {
-  PENDING: 'TF 설치 대기',
-  IN_PROGRESS: 'TF 설치 중',
-  COMPLETED: 'TF 설치 완료',
-  FAILED: 'TF 설치 실패',
+  PENDING: '설치 준비 중',
+  IN_PROGRESS: '설치 진행 중',
+  COMPLETED: '설치 완료',
+  FAILED: '설치 실패',
 } as const;
 
 // ===== GCP PSC 상태 라벨 =====
 
 export const GCP_PSC_STATUS_LABELS = {
-  NOT_REQUESTED: 'BDC측 확인 필요',
-  PENDING_APPROVAL: 'PSC 승인 대기',
+  NOT_REQUESTED: '확인 대기',
+  PENDING_APPROVAL: '승인 대기 중',
   APPROVED: '승인 완료',
-  REJECTED: 'BDC측 재신청 필요',
+  REJECTED: '승인 거부 — 재신청 필요',
 } as const;
 
 // ===== GCP 에러 코드 =====
@@ -102,3 +104,71 @@ export const GCP_SERVICE_TF_RESOURCES = {
     totalCount: 3,
   },
 } as const;
+
+// ===== GCP 통합 상태 =====
+
+export type GcpUnifiedStatus = 'COMPLETED' | 'FAILED' | 'IN_PROGRESS' | 'PENDING' | 'ACTION_REQUIRED';
+
+export const GCP_UNIFIED_STATUS_LABELS: Record<GcpUnifiedStatus, string> = {
+  COMPLETED: '설치 완료',
+  FAILED: '설치 실패',
+  IN_PROGRESS: '설치 진행 중',
+  PENDING: '설치 준비 중',
+  ACTION_REQUIRED: '조치 필요',
+} as const;
+
+export const getGcpUnifiedStatus = (resource: GcpInstallResource): GcpUnifiedStatus => {
+  const { serviceTfStatus, bdcTfStatus, regionalManagedProxy, pscConnection } = resource;
+
+  if (serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'COMPLETED') {
+    return 'COMPLETED';
+  }
+
+  if (serviceTfStatus === 'FAILED' || bdcTfStatus === 'FAILED') {
+    return 'FAILED';
+  }
+
+  if (regionalManagedProxy?.exists === false) {
+    return 'ACTION_REQUIRED';
+  }
+
+  if (pscConnection?.status === 'PENDING_APPROVAL' || pscConnection?.status === 'REJECTED') {
+    return 'ACTION_REQUIRED';
+  }
+
+  if (
+    serviceTfStatus === 'IN_PROGRESS' ||
+    bdcTfStatus === 'IN_PROGRESS' ||
+    (serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'PENDING') ||
+    (serviceTfStatus === 'PENDING' && bdcTfStatus === 'COMPLETED')
+  ) {
+    return 'IN_PROGRESS';
+  }
+
+  return 'PENDING';
+};
+
+// ===== GCP 그룹 상태 =====
+
+export type GcpGroupStatus = 'COMPLETED' | 'FAILED' | 'IN_PROGRESS' | 'PENDING';
+
+export const GCP_GROUP_STATUS_LABELS: Record<GcpGroupStatus, string> = {
+  COMPLETED: '완료',
+  FAILED: '실패',
+  IN_PROGRESS: '진행 중',
+  PENDING: '대기 중',
+} as const;
+
+export const getGcpGroupStatus = (
+  resources: GcpInstallResource[],
+  field: 'serviceTfStatus' | 'bdcTfStatus'
+): GcpGroupStatus => {
+  if (resources.length === 0) return 'PENDING';
+  if (resources.every(r => r[field] === 'COMPLETED')) return 'COMPLETED';
+  if (resources.some(r => r[field] === 'FAILED')) return 'FAILED';
+  if (
+    resources.some(r => r[field] === 'IN_PROGRESS') ||
+    (resources.some(r => r[field] === 'COMPLETED') && resources.some(r => r[field] === 'PENDING'))
+  ) return 'IN_PROGRESS';
+  return 'PENDING';
+};

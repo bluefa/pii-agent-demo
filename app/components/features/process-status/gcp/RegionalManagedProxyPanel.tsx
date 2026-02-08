@@ -29,7 +29,7 @@ export const RegionalManagedProxyPanel = ({
       await createGcpProxySubnet(projectId, resourceId);
       onSubnetCreated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Subnet 생성에 실패했습니다.');
+      setError(err instanceof Error ? err.message : '네트워크 설정에 실패했습니다.');
     } finally {
       setCreating(false);
     }
@@ -42,16 +42,16 @@ export const RegionalManagedProxyPanel = ({
           <svg className={cn('w-3.5 h-3.5', statusColors.success.text)} fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
-          <span className={cn('text-xs font-medium', statusColors.success.textDark)}>Regional Managed Proxy Subnet 확인됨</span>
+          <span className={cn('text-xs font-medium', statusColors.success.textDark)}>네트워크 설정 완료</span>
         </div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
           <span className="text-gray-500">VPC</span>
           <span className="text-gray-700 font-mono">{proxy.vpcName}</span>
-          <span className="text-gray-500">Region</span>
+          <span className="text-gray-500">리전</span>
           <span className="text-gray-700 font-mono">{proxy.cloudSqlRegion}</span>
           {proxy.subnetName && (
             <>
-              <span className="text-gray-500">Subnet</span>
+              <span className="text-gray-500">서브넷</span>
               <span className="text-gray-700 font-mono">{proxy.subnetName}</span>
             </>
           )}
@@ -66,14 +66,14 @@ export const RegionalManagedProxyPanel = ({
         <svg className={cn('w-3.5 h-3.5', statusColors.warning.text)} fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
         </svg>
-        <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>Regional Managed Proxy Subnet 필요</span>
+        <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>네트워크 설정이 필요합니다</span>
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs mb-2">
-        <span className="text-gray-500">Network Project</span>
+        <span className="text-gray-500">네트워크 프로젝트</span>
         <span className="text-gray-700 font-mono">{proxy.networkProjectId}</span>
         <span className="text-gray-500">VPC</span>
         <span className="text-gray-700 font-mono">{proxy.vpcName}</span>
-        <span className="text-gray-500">Region</span>
+        <span className="text-gray-500">리전</span>
         <span className="text-gray-700 font-mono">{proxy.cloudSqlRegion}</span>
       </div>
       {error && (
@@ -90,7 +90,7 @@ export const RegionalManagedProxyPanel = ({
             'disabled:opacity-50 disabled:cursor-not-allowed'
           )}
         >
-          {creating ? '생성 중...' : 'Subnet 자동 생성'}
+          {creating ? '설정 중...' : '네트워크 자동 설정'}
         </button>
         <a
           href={GCP_GUIDE_URLS.SUBNET_CREATION}
