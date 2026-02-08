@@ -74,6 +74,52 @@ export const statusColors = {
   },
 } as const;
 
+/**
+ * Cloud Provider 브랜드 색상
+ */
+export const providerColors = {
+  AWS: { border: 'border-[#FF9900]', bg: 'bg-[#FF9900]/5', text: 'text-[#FF9900]' },
+  Azure: { border: 'border-[#0078D4]', bg: 'bg-[#0078D4]/5', text: 'text-[#0078D4]' },
+  GCP: { border: 'border-[#4285F4]', bg: 'bg-[#4285F4]/5', text: 'text-[#4285F4]' },
+  IDC: { border: 'border-gray-700', bg: 'bg-gray-50', text: 'text-gray-700' },
+  SDU: { border: 'border-purple-600', bg: 'bg-purple-50', text: 'text-purple-600' },
+} as const;
+
+/**
+ * 텍스트 색상
+ */
+export const textColors = {
+  primary: 'text-gray-900',
+  secondary: 'text-gray-700',
+  tertiary: 'text-gray-500',
+  quaternary: 'text-gray-400',
+  inverse: 'text-white',
+} as const;
+
+/**
+ * 배경 색상
+ */
+export const bgColors = {
+  muted: 'bg-gray-50',
+  primary: 'bg-blue-500',
+} as const;
+
+/**
+ * 보더 색상
+ */
+export const borderColors = {
+  default: 'border-gray-200',
+} as const;
+
+/**
+ * 인터랙티브 요소 색상
+ */
+export const interactiveColors = {
+  closeButton: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+  unselectedBorder: 'border-gray-200 hover:border-gray-300',
+  unselectedText: 'text-gray-600 hover:border-gray-300',
+} as const;
+
 // =============================================================================
 // 컴포넌트 스타일 (Component Styles)
 // =============================================================================

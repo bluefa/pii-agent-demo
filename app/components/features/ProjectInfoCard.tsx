@@ -6,6 +6,8 @@ import { formatDateOnly } from '@/lib/utils/date';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws';
 import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
+import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
+import { badgeStyles, cardStyles, statusColors, cn } from '@/lib/theme';
 
 interface ProjectInfoCardProps {
   project: Project;
@@ -15,11 +17,11 @@ interface ProjectInfoCardProps {
 const InstallationModeBadge = ({ isAutoInstall }: { isAutoInstall: boolean }) => {
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium ${
+      <span className={cn(badgeStyles.base, badgeStyles.sizes.md,
         isAutoInstall
-          ? 'bg-blue-100 text-blue-700'
-          : 'bg-gray-100 text-gray-700'
-      }`}>
+          ? `${statusColors.info.bg} ${statusColors.info.textDark}`
+          : `${statusColors.pending.bg} ${statusColors.pending.textDark}`
+      )}>
         {isAutoInstall ? (
           <>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +38,7 @@ const InstallationModeBadge = ({ isAutoInstall }: { isAutoInstall: boolean }) =>
           </>
         )}
       </span>
-      <span className="text-gray-400" title="설치 모드는 프로젝트 생성 시 결정되며 변경할 수 없습니다">
+      <span className={statusColors.pending.text} title="설치 모드는 프로젝트 생성 시 결정되며 변경할 수 없습니다">
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
         </svg>
@@ -59,8 +61,8 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
   }, [project.id, project.cloudProvider]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">기본 정보</h3>
+    <div className={`${cardStyles.base} p-6`}>
+      <h3 className={`${cardStyles.title} mb-4`}>기본 정보</h3>
       <div className="space-y-4">
         {/* 과제 코드 */}
         <div className="flex items-center justify-between">
@@ -80,6 +82,46 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
           <CloudProviderIcon provider={project.cloudProvider} />
         </div>
 
+        {/* AWS 전용: Account ID */}
+        {project.cloudProvider === 'AWS' && project.awsAccountId && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">{PROVIDER_FIELD_LABELS.AWS.accountId}</span>
+            <span className="font-mono text-sm text-gray-900">{project.awsAccountId}</span>
+          </div>
+        )}
+
+        {/* AWS 전용: 리전 타입 */}
+        {project.cloudProvider === 'AWS' && project.awsRegionType && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">{PROVIDER_FIELD_LABELS.AWS.regionType}</span>
+            <span className="text-sm text-gray-900">{project.awsRegionType === 'global' ? 'Global' : 'China'}</span>
+          </div>
+        )}
+
+        {/* Azure 전용: Tenant ID */}
+        {project.cloudProvider === 'Azure' && project.tenantId && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">{PROVIDER_FIELD_LABELS.Azure.tenantId}</span>
+            <span className="font-mono text-sm text-gray-900">{project.tenantId}</span>
+          </div>
+        )}
+
+        {/* Azure 전용: Subscription ID */}
+        {project.cloudProvider === 'Azure' && project.subscriptionId && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">{PROVIDER_FIELD_LABELS.Azure.subscriptionId}</span>
+            <span className="font-mono text-sm text-gray-900">{project.subscriptionId}</span>
+          </div>
+        )}
+
+        {/* GCP 전용: Project ID */}
+        {project.cloudProvider === 'GCP' && project.gcpProjectId && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">{PROVIDER_FIELD_LABELS.GCP.projectId}</span>
+            <span className="font-mono text-sm text-gray-900">{project.gcpProjectId}</span>
+          </div>
+        )}
+
         {/* 설치 모드 (AWS만) */}
         {project.cloudProvider === 'AWS' && awsStatus && (
           <div className="flex items-center justify-between">
@@ -94,7 +136,7 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
             <span className="text-sm text-gray-500">TF Role</span>
             <button
               onClick={() => setShowTfRoleGuide(true)}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 hover:text-green-700"
+              className={cn('inline-flex items-center gap-1.5 text-sm font-medium', statusColors.success.text)}
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
