@@ -19,6 +19,7 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { ProjectHeader, RejectionAlert } from '../common';
 import { isVmResource } from '@/app/components/features/resource-table';
+import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -179,32 +180,39 @@ export const AwsProjectPage = ({
           />
         </div>
 
-        {/* Scan Panel */}
-        <ScanPanel
-          projectId={project.id}
-          cloudProvider={project.cloudProvider}
-          onScanComplete={async () => {
-            const updatedProject = await getProject(project.id);
-            onProjectUpdate(updatedProject);
-          }}
-        />
+        {/* Cloud 리소스 통합 컨테이너 */}
+        <div className={cn(cardStyles.base, 'overflow-hidden')}>
+          <div className="px-6 pt-6">
+            <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+          </div>
 
-        <ResourceTable
-          resources={project.resources.map((r) => ({
-            ...r,
-            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-          }))}
-          cloudProvider={project.cloudProvider}
-          processStatus={currentStep}
-          isEditMode={effectiveEditMode}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          credentials={credentials}
-          onCredentialChange={handleCredentialChange}
-          expandedVmId={expandedVmId}
-          onVmConfigToggle={setExpandedVmId}
-          onVmConfigSave={handleVmConfigSave}
-        />
+          <ScanPanel
+            projectId={project.id}
+            cloudProvider={project.cloudProvider}
+            onScanComplete={async () => {
+              const updatedProject = await getProject(project.id);
+              onProjectUpdate(updatedProject);
+            }}
+          />
+
+          <ResourceTable
+            resources={project.resources.map((r) => ({
+              ...r,
+              vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+            }))}
+            cloudProvider={project.cloudProvider}
+            processStatus={currentStep}
+            isEditMode={effectiveEditMode}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            credentials={credentials}
+            onCredentialChange={handleCredentialChange}
+            expandedVmId={expandedVmId}
+            onVmConfigToggle={setExpandedVmId}
+            onVmConfigSave={handleVmConfigSave}
+            onEditModeChange={setIsEditMode}
+          />
+        </div>
 
         <RejectionAlert project={project} />
 
@@ -214,7 +222,7 @@ export const AwsProjectPage = ({
               {!isStep1 && (
                 <button
                   onClick={handleCancelEdit}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className={getButtonClass('secondary')}
                 >
                   취소
                 </button>
@@ -222,7 +230,7 @@ export const AwsProjectPage = ({
               <button
                 onClick={handleConfirmTargets}
                 disabled={submitting || selectedIds.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
               >
                 {submitting && <LoadingSpinner />}
                 연동 대상 확정 승인 요청
@@ -231,7 +239,7 @@ export const AwsProjectPage = ({
           ) : (
             <button
               onClick={handleStartEdit}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className={getButtonClass('secondary')}
             >
               확정 대상 수정
             </button>

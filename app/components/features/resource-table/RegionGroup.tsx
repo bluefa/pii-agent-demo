@@ -8,6 +8,7 @@ interface RegionGroupProps {
   region: string;
   resources: Resource[];
   selectedIds: Set<string>;
+  isEditMode?: boolean;
   isCheckboxEnabled: boolean;
   showConnectionStatus: boolean;
   showCredentialColumn: boolean;
@@ -32,6 +33,7 @@ export const RegionGroup = ({
   region,
   resources,
   selectedIds,
+  isEditMode = false,
   isCheckboxEnabled,
   showConnectionStatus,
   showCredentialColumn,
@@ -64,6 +66,7 @@ export const RegionGroup = ({
         isAWS={true}
         cloudProvider="AWS"
         selectedIds={selectedIds}
+        isEditMode={isEditMode}
         isCheckboxEnabled={isCheckboxEnabled}
         showConnectionStatus={showConnectionStatus}
         showCredentialColumn={showCredentialColumn}
