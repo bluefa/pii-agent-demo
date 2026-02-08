@@ -179,32 +179,35 @@ export const AwsProjectPage = ({
           />
         </div>
 
-        {/* Scan Panel */}
-        <ScanPanel
-          projectId={project.id}
-          cloudProvider={project.cloudProvider}
-          onScanComplete={async () => {
-            const updatedProject = await getProject(project.id);
-            onProjectUpdate(updatedProject);
-          }}
-        />
+        {/* Cloud 리소스 통합 컨테이너 */}
+        <div className="space-y-4">
+          <ScanPanel
+            projectId={project.id}
+            cloudProvider={project.cloudProvider}
+            onScanComplete={async () => {
+              const updatedProject = await getProject(project.id);
+              onProjectUpdate(updatedProject);
+            }}
+          />
 
-        <ResourceTable
-          resources={project.resources.map((r) => ({
-            ...r,
-            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-          }))}
-          cloudProvider={project.cloudProvider}
-          processStatus={currentStep}
-          isEditMode={effectiveEditMode}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          credentials={credentials}
-          onCredentialChange={handleCredentialChange}
-          expandedVmId={expandedVmId}
-          onVmConfigToggle={setExpandedVmId}
-          onVmConfigSave={handleVmConfigSave}
-        />
+          <ResourceTable
+            resources={project.resources.map((r) => ({
+              ...r,
+              vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+            }))}
+            cloudProvider={project.cloudProvider}
+            processStatus={currentStep}
+            isEditMode={effectiveEditMode}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            credentials={credentials}
+            onCredentialChange={handleCredentialChange}
+            expandedVmId={expandedVmId}
+            onVmConfigToggle={setExpandedVmId}
+            onVmConfigSave={handleVmConfigSave}
+            onEditModeChange={setIsEditMode}
+          />
+        </div>
 
         <RejectionAlert project={project} />
 

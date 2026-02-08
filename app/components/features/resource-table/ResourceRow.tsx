@@ -7,6 +7,7 @@ import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/Azure
 import { ConnectionIndicator } from './ConnectionIndicator';
 import { StatusIcon } from './StatusIcon';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
+import { cn, textColors, statusColors, bgColors, borderColors, colors } from '@/lib/theme';
 
 // VM 리소스 타입 체크 헬퍼
 export const isVmResource = (resource: Resource): boolean => {
@@ -18,6 +19,7 @@ interface ResourceRowProps {
   isAWS: boolean;
   cloudProvider: CloudProvider;
   selectedIds: Set<string>;
+  isEditMode: boolean;
   isCheckboxEnabled: boolean;
   showConnectionStatus: boolean;
   showCredentialColumn: boolean;
@@ -30,11 +32,30 @@ interface ResourceRowProps {
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
 }
 
+interface CredentialDisplayProps {
+  needsCred: boolean;
+  selectedCredentialId: string | undefined;
+  availableCredentials: DBCredential[];
+}
+
+const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentials }: CredentialDisplayProps) => {
+  if (!needsCred) return <span className={cn('text-xs', textColors.quaternary)}>불필요</span>;
+
+  const selectedCred = selectedCredentialId
+    ? availableCredentials.find((c) => c.id === selectedCredentialId)
+    : null;
+
+  if (selectedCred) return <span className={cn('text-sm', textColors.primary)}>{selectedCred.name}</span>;
+
+  return <span className={cn('text-sm font-medium', statusColors.error.text)}>미선택</span>;
+};
+
 export const ResourceRow = ({
   resource,
   isAWS,
   cloudProvider,
   selectedIds,
+  isEditMode,
   isCheckboxEnabled,
   showConnectionStatus,
   showCredentialColumn,
@@ -68,21 +89,28 @@ export const ResourceRow = ({
   return (
     <>
       <tr
-        className={`hover:bg-gray-50 transition-colors ${isVm && isCheckboxEnabled && isSelected ? 'cursor-pointer' : ''} ${isExpanded ? 'bg-blue-50' : ''}`}
+        className={cn(
+          'transition-colors',
+          `hover:${bgColors.muted}`,
+          isVm && isCheckboxEnabled && isSelected && 'cursor-pointer',
+          isExpanded && statusColors.info.bg
+        )}
         onClick={handleRowClick}
       >
-        {/* Checkbox */}
-        <td className="px-6 py-4 w-12" onClick={(e) => e.stopPropagation()}>
-          {isCheckboxEnabled && (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              disabled={!!resource.exclusion}
-              onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          )}
-        </td>
+        {/* Checkbox — 편집 모드에서만 표시 */}
+        {isEditMode && (
+          <td className="px-6 py-4 w-12" onClick={(e) => e.stopPropagation()}>
+            {isCheckboxEnabled && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                disabled={!!resource.exclusion}
+                onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
+                className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, `text-${colors.primary.base}`, `focus:ring-${colors.primary.base}`)}
+              />
+            )}
+          </td>
+        )}
 
         {/* Instance Type */}
         <td className="px-6 py-4">
@@ -91,9 +119,9 @@ export const ResourceRow = ({
             {cloudProvider === 'Azure' && isAzureResourceType(resource.type) && (
               <AzureServiceIcon type={resource.type} size="lg" />
             )}
-            <span className="font-medium text-gray-900">{resource.awsType || resource.type}</span>
-            {isVm && isCheckboxEnabled && isSelected && (
-              <span className="text-xs text-blue-600 ml-1">(클릭하여 설정)</span>
+            <span className={cn('font-medium', textColors.primary)}>{resource.awsType || resource.type}</span>
+            {isVm && isEditMode && isCheckboxEnabled && isSelected && (
+              <span className={cn('text-xs ml-1', statusColors.info.textDark)}>(클릭하여 설정)</span>
             )}
           </div>
         </td>
@@ -104,14 +132,14 @@ export const ResourceRow = ({
             {isVm && hasVmConfig ? (
               <>
                 <DatabaseIcon type={resource.vmDatabaseConfig!.databaseType} size="sm" />
-                <span className="text-sm text-gray-900">
+                <span className={cn('text-sm', textColors.primary)}>
                   {getDatabaseLabel(resource.vmDatabaseConfig!.databaseType)}
                 </span>
               </>
             ) : (
               <>
                 <DatabaseIcon type={resource.databaseType} size="sm" />
-                <span className="text-sm text-gray-700">{getDatabaseLabel(resource.databaseType)}</span>
+                <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
               </>
             )}
           </div>
@@ -119,33 +147,42 @@ export const ResourceRow = ({
 
         {/* Resource ID */}
         <td className="px-6 py-4">
-          <span className="text-gray-600 font-mono text-sm">{resource.resourceId}</span>
+          <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
         </td>
 
         {/* Credential */}
         {showCredentialColumn && (
           <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-            {needsCred ? (
-              <select
-                value={resource.selectedCredentialId || ''}
-                onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
-                className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  hasCredentialError
-                    ? 'border-red-300 bg-red-50 text-red-700'
-                    : resource.selectedCredentialId
-                    ? 'border-green-300 bg-green-50 text-gray-900'
-                    : 'border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
-                {availableCredentials.map((cred) => (
-                  <option key={cred.id} value={cred.id}>
-                    {cred.name}
-                  </option>
-                ))}
-              </select>
+            {isEditMode ? (
+              needsCred ? (
+                <select
+                  value={resource.selectedCredentialId || ''}
+                  onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
+                  className={cn(
+                    `w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-${colors.primary.base}`,
+                    hasCredentialError
+                      ? cn(statusColors.error.border, statusColors.error.bg, statusColors.error.textDark)
+                      : resource.selectedCredentialId
+                      ? cn(statusColors.success.border, statusColors.success.bg, textColors.primary)
+                      : cn(statusColors.pending.border, textColors.primary)
+                  )}
+                >
+                  <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
+                  {availableCredentials.map((cred) => (
+                    <option key={cred.id} value={cred.id}>
+                      {cred.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className={cn('text-xs', textColors.quaternary)}>불필요</span>
+              )
             ) : (
-              <span className="text-sm text-gray-400">불필요</span>
+              <CredentialDisplay
+                needsCred={needsCred}
+                selectedCredentialId={resource.selectedCredentialId}
+                availableCredentials={availableCredentials}
+              />
             )}
           </td>
         )}
