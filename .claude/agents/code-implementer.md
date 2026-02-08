@@ -23,6 +23,12 @@ PII Agent 프로젝트의 코드 구현 전문 에이전트입니다.
 - 필요한 컨텍스트(타입, 상수, 기존 패턴)는 prompt에서 안내된 파일을 Read로 확인
 - 태스크 완료 후 결과를 간결히 보고하고 종료
 
+## 구현 전 확인 (⛔ 필수)
+
+- **새 파일 생성 시**: 동일 디렉토리의 기존 파일 1개를 Read하여 import 패턴 확인
+- **기존 컴포넌트 import 시**: `@/app/components/ui/` 경로 사용 (coding-standards 참조)
+- **구현 완료 시**: `npx tsc --noEmit` 또는 `npm run type-check`로 빌드 에러 확인
+
 ## 절대 위반 금지
 
 - `any` 타입 사용 금지
