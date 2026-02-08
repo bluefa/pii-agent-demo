@@ -2,7 +2,7 @@
 name: ux-expert
 description: "UX 관점에서 사용자 경험을 분석하고 개선안을 제시합니다. 사용성, 흐름, 인터랙션, 접근성 검토 요청 시 사용."
 tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(wc:*), WebSearch
-model: sonnet
+model: opus
 permissionMode: default
 maxTurns: 12
 skills: coding-standards
