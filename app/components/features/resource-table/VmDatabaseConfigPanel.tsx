@@ -92,7 +92,7 @@ export const VmDatabaseConfigPanel = ({
 
   const isOracleSelected = databaseType === 'ORACLE';
   const isNotConfigured = !databaseType;
-  const isValid = databaseType && !portError && port !== '' && (!isOracleSelected || oracleServiceId !== '');
+  const isValid = databaseType && !portError && port !== '' && host.trim() !== '' && (!isOracleSelected || oracleServiceId !== '');
 
   return (
     <tr>
@@ -163,14 +163,18 @@ export const VmDatabaseConfigPanel = ({
                   {/* Host (EC2 전용: Private DNS Name) */}
                   <div className="w-52">
                     <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
-                      Host
+                      Host <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={host}
                       onChange={(e) => setHost(e.target.value)}
                       disabled={!databaseType}
-                      className="w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 border-slate-200 bg-white text-slate-900 focus:border-blue-500"
+                      className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 ${
+                        databaseType && !host.trim()
+                          ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
+                          : 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
+                      }`}
                       placeholder="ip-10-0-1-100.ec2.internal"
                     />
                     <p className="mt-1 text-xs text-slate-400">Private DNS Name 또는 IP</p>
