@@ -18,7 +18,9 @@ import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
-import { cn } from '@/lib/theme';
+import { ProcessGuideModal } from './process-status/ProcessGuideModal';
+import { getProcessGuide } from '@/lib/constants/process-guides';
+import { cn, statusColors } from '@/lib/theme';
 
 type ProcessTabType = 'status' | 'history';
 
@@ -61,6 +63,7 @@ export const ProcessStatusCard = ({
   const terraformModal = useModal();
   const approveModal = useModal();
   const rejectModal = useModal();
+  const guideModal = useModal();
 
   // Form states
   const [approveComment, setApproveComment] = useState('');
@@ -97,6 +100,12 @@ export const ProcessStatusCard = ({
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
 
+  // Process Guide
+  const guideVariant = project.cloudProvider === 'AWS'
+    ? project.awsInstallationMode === 'AUTO' ? 'auto' : 'manual'
+    : undefined;
+  const guide = getProcessGuide(project.cloudProvider, guideVariant);
+
   // 설치 완료 핸들러
   const handleInstallComplete = async () => {
     try {
@@ -121,7 +130,7 @@ export const ProcessStatusCard = ({
               className={cn(
                 'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >
@@ -135,24 +144,40 @@ export const ProcessStatusCard = ({
       <div className="p-6 flex-1 flex flex-col">
         {activeTab === 'status' && (
           <>
-            <StepProgressBar currentStep={currentStep} />
+            <StepProgressBar
+              currentStep={currentStep}
+              onGuideClick={guide ? guideModal.open : undefined}
+            />
 
             <div className="border-t border-gray-100 my-4" />
 
             <div className="flex-1 flex flex-col">
-              <StepGuide currentStep={currentStep} />
+              <StepGuide currentStep={currentStep} cloudProvider={project.cloudProvider} />
 
               {/* Action Buttons */}
               <div className="mt-auto pt-4">
                 {currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
-                  <div className="w-full p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      리소스 스캔을 진행하시고 리소스 목록에서 연동 대상을 확인해주세요.
-                      <br />
-                      <span className="text-blue-600">
-                        리소스 목록이 조회되지 않는다면 관리자에게 문의해주세요.
-                      </span>
+                  <div className={cn('w-full p-4 rounded-lg space-y-2', statusColors.info.bg, statusColors.info.border, 'border')}>
+                    <p className={cn('text-sm font-medium', statusColors.info.textDark)}>
+                      {project.cloudProvider === 'AWS' ? '수행 절차' : '안내'}
                     </p>
+                    <ol className={cn('text-sm list-decimal list-inside space-y-1', statusColors.info.textDark)}>
+                      {project.cloudProvider === 'AWS' ? (
+                        <>
+                          <li>[리소스 스캔] 버튼을 클릭하여 AWS 계정의 RDS, S3 등 리소스를 조회하세요</li>
+                          <li>스캔 결과에서 PII Agent를 연동할 리소스를 선택하세요</li>
+                          <li>EC2(VM) 포함이 필요한 경우 필터에서 VM 포함을 선택하세요</li>
+                          <li>선택 완료 후 [연동 대상 확정] 버튼을 클릭하세요</li>
+                        </>
+                      ) : (
+                        <li>리소스를 스캔하고 연동할 대상을 선택한 뒤 확정해주세요</li>
+                      )}
+                    </ol>
+                    {project.cloudProvider === 'AWS' && (
+                      <p className={cn('text-xs mt-2', statusColors.info.text)}>
+                        리소스가 조회되지 않으면 AWS Console &gt; IAM에서 스캔 Role이 등록되어 있는지 확인해주세요
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -162,13 +187,13 @@ export const ProcessStatusCard = ({
                       <>
                         <button
                           onClick={() => approveModal.open()}
-                          className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                          className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-sm hover:shadow"
                         >
                           승인
                         </button>
                         <button
                           onClick={() => rejectModal.open()}
-                          className="flex-1 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition-colors"
+                          className={cn('flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors border', statusColors.error.bg, statusColors.error.text, statusColors.error.border, 'hover:bg-red-100')}
                         >
                           반려
                         </button>
@@ -197,13 +222,13 @@ export const ProcessStatusCard = ({
                   ) : (
                     <button
                       onClick={() => terraformModal.open()}
-                      className="w-full flex items-center justify-between px-4 py-2.5 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors"
+                      className={cn('w-full flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors border', statusColors.warning.bg, statusColors.warning.border, 'hover:bg-orange-100')}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="font-medium text-orange-600">설치 상태 확인</span>
+                        <span className={cn('font-medium', statusColors.warning.text)}>설치 상태 확인</span>
                       </div>
-                      <span className="px-2 py-0.5 bg-orange-100 text-orange-500 text-sm font-medium rounded-full">
+                      <span className={cn('px-2 py-0.5 text-sm font-medium rounded-full', statusColors.warning.bg, statusColors.warning.text)}>
                         {progress.completed}/{progress.total}
                       </span>
                     </button>
@@ -266,6 +291,16 @@ export const ProcessStatusCard = ({
         value={rejectReason}
         onChange={setRejectReason}
       />
+
+      {/* Process Guide Modal */}
+      {guide && (
+        <ProcessGuideModal
+          isOpen={guideModal.isOpen}
+          onClose={guideModal.close}
+          guide={guide}
+          currentStepNumber={currentStep}
+        />
+      )}
     </div>
   );
 };
