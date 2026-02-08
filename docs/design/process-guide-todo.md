@@ -6,25 +6,24 @@
 
 ### 공통 기반
 
-- [ ] **#5 타입 정의 + 가이드 데이터 구조**
-  - `lib/types/process-guide.ts` — ProcessGuideStep, ProviderProcessGuide 등
-  - `lib/constants/process-guides.ts` — 기본 구조, 헬퍼 함수
+- [x] **#5 타입 정의 + 가이드 데이터 구조** ✅
+  - `lib/types/process-guide.ts` — ProcessGuideStep, ProviderProcessGuide
+  - `lib/constants/process-guides.ts` — 가이드 데이터, getProcessGuide(), getProcessGuideVariants()
 
-- [ ] **#6 ProcessGuideModal + Timeline + StepCard 컴포넌트** (← #5 완료 후)
-  - `ProcessGuideModal.tsx` — 메인 모달 (2-column 레이아웃)
-  - `ProcessGuideTimeline.tsx` — 좌측 세로 타임라인
-  - `ProcessGuideStepCard.tsx` — 우측 단계 카드 (아코디언)
+- [x] **#6 ProcessGuideModal + Timeline + StepCard 컴포넌트** ✅
+  - `ProcessGuideModal.tsx` — 2-column 레이아웃 (좌측 타임라인 w-52 + 우측 카드)
+  - `ProcessGuideTimeline.tsx` — 세로 타임라인, 상태별 컬러, 클릭 스크롤
+  - `ProcessGuideStepCard.tsx` — 아코디언 카드 (설명/사전조치/절차/주의/참고)
 
-- [ ] **#7 StepProgressBar 트리거 + ProcessStatusCard 연동** (← #6 완료 후)
-  - `StepProgressBar.tsx` 수정 — "전체 가이드" ghost 버튼 추가
-  - `ProcessStatusCard.tsx` 수정 — useModal 연동
-  - raw 색상 → theme.ts 토큰 교체
+- [x] **#7 StepProgressBar 트리거 + ProcessStatusCard 연동** ✅
+  - `StepProgressBar.tsx` — "전체 가이드" ghost 버튼 추가
+  - `ProcessStatusCard.tsx` — useModal 연동 + raw 색상 theme.ts 토큰 교체
 
 ### AWS
 
-- [ ] **#8 AWS 프로세스 가이드 데이터** (← #5 완료 후, #6과 병렬 가능)
-  - AWS 자동 설치 (5단계): 연동 대상 확정 → 승인 → 설치(자동 TF) → 연결 테스트 → 완료
-  - AWS 수동 설치 (5단계): 연동 대상 확정 → 승인 → TF Script 실행 → 연결 테스트 → 완료
+- [x] **#8 AWS 프로세스 가이드 데이터** ✅
+  - AWS 자동 설치 (6단계): 연동 대상 확정 → 승인 → 설치(자동 TF) → 연결 확인 → 연결 테스트 → 완료
+  - AWS 수동 설치 (6단계): 연동 대상 확정 → 승인 → TF Script 실행 → 연결 확인 → 연결 테스트 → 완료
   - 각 단계별: 사전조치, 수행절차, 주의사항, 참고사항
 
 ## 다음 세션
@@ -50,10 +49,10 @@
 ## 의존성
 
 ```
-#5 타입/데이터 구조
- ├── #6 모달 컴포넌트 셸
- │    └── #7 트리거 연동
- ├── #8 AWS 데이터      ← 이번 세션
+#5 타입/데이터 구조    ✅
+ ├── #6 모달 컴포넌트 셸  ✅
+ │    └── #7 트리거 연동  ✅
+ ├── #8 AWS 데이터      ✅ 완료
  ├── #9 Azure 데이터    ← 다음 세션
  ├── #10 GCP 데이터     ← 다음 세션
  ├── #11 IDC 데이터     ← 다음 세션
