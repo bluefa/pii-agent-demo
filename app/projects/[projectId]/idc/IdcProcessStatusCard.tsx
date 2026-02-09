@@ -357,7 +357,7 @@ export const IdcProcessStatusCard = ({
   onTestConnection,
 }: IdcProcessStatusCardProps) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col h-full">
+    <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
         프로세스 진행 상태
       </h3>
