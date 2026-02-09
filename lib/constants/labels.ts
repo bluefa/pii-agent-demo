@@ -127,6 +127,7 @@ export const PROVIDER_DESCRIPTIONS: Record<CloudProvider, string> = {
 export const AWS_RESOURCE_TYPE_LABELS: Record<AwsResourceType, string> = {
   RDS: 'RDS',
   RDS_CLUSTER: 'RDS Cluster',
+  DOCUMENTDB: 'DocumentDB',
   DYNAMODB: 'DynamoDB',
   ATHENA: 'Athena',
   REDSHIFT: 'Redshift',
@@ -139,6 +140,7 @@ export const AWS_RESOURCE_TYPE_LABELS: Record<AwsResourceType, string> = {
 export const AWS_RESOURCE_TYPE_ORDER: AwsResourceType[] = [
   'RDS',
   'RDS_CLUSTER',
+  'DOCUMENTDB',
   'REDSHIFT',
   'DYNAMODB',
   'ATHENA',

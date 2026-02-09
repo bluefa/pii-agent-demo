@@ -14,7 +14,6 @@ export const POST = async (
   try {
     const { projectId } = await params;
 
-    // 프로젝트 존재 확인
     const project = await dataAdapter.getProjectById(projectId);
 
     if (!project) {
@@ -31,7 +30,6 @@ export const POST = async (
       );
     }
 
-    // 설치 상태가 없으면 초기화
     let result = await dataAdapter.checkInstallation(projectId);
 
     if (!result) {

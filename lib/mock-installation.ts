@@ -1,6 +1,7 @@
 /**
  * AWS 설치 상태 관리 로직
  * - TF Role 검증
+ * - N개 Service TF Script + 1 BDC TF 기반 설치 시뮬레이션
  * - 설치 상태 조회/확인
  * - TF Script 다운로드
  */
@@ -8,12 +9,24 @@
 import { getStore } from '@/lib/mock-store';
 import type {
   AwsInstallationStatus,
+  AwsResourceType,
   VerifyTfRoleRequest,
   VerifyTfRoleResponse,
   CheckInstallationResponse,
   TerraformScriptResponse,
+  ServiceTfScript,
+  ServiceTfScriptResource,
+  TfScriptStatus,
   ApiGuide,
+  Resource,
 } from '@/lib/types';
+
+// ===== Internal type =====
+
+type InstallationInternal = AwsInstallationStatus & {
+  _scriptTimings?: Record<string, number>;
+  _bdcStartedAt?: number;
+};
 
 // ===== 상수 =====
 
@@ -70,17 +83,19 @@ const CHECK_INSTALLATION_GUIDES: Record<string, ApiGuide> = {
 
 // ===== 시뮬레이션 설정 =====
 
-// 자동 설치 시뮬레이션: Service TF 완료까지 걸리는 시간 (ms)
-const SERVICE_TF_DURATION = 10000; // 10초
-// BDC TF 완료까지 걸리는 시간 (ms)
-const BDC_TF_DURATION = 5000; // 5초
+const SCRIPT_DURATIONS: Record<string, number> = {
+  VPC_ENDPOINT: 8000,
+  DYNAMODB_ROLE: 6000,
+  ATHENA_GLUE: 7000,
+};
+const VPC_STAGGER_MS = 2000;
+const BDC_TF_DURATION = 5000;
 
 // ===== TF Role 검증 =====
 
 export const verifyTfRole = (request: VerifyTfRoleRequest): VerifyTfRoleResponse => {
   const { accountId, roleArn } = request;
 
-  // 시뮬레이션: accountId가 '000'으로 끝나면 ROLE_NOT_FOUND
   if (accountId.endsWith('000')) {
     return {
       valid: false,
@@ -90,7 +105,6 @@ export const verifyTfRole = (request: VerifyTfRoleRequest): VerifyTfRoleResponse
     };
   }
 
-  // 시뮬레이션: accountId가 '111'으로 끝나면 INSUFFICIENT_PERMISSIONS
   if (accountId.endsWith('111')) {
     return {
       valid: false,
@@ -100,7 +114,6 @@ export const verifyTfRole = (request: VerifyTfRoleRequest): VerifyTfRoleResponse
     };
   }
 
-  // 시뮬레이션: accountId가 '222'로 끝나면 ACCESS_DENIED
   if (accountId.endsWith('222')) {
     return {
       valid: false,
@@ -110,7 +123,6 @@ export const verifyTfRole = (request: VerifyTfRoleRequest): VerifyTfRoleResponse
     };
   }
 
-  // 성공
   const resolvedRoleArn = roleArn || `arn:aws:iam::${accountId}:role/TerraformExecutionRole`;
   return {
     valid: true,
@@ -123,140 +135,264 @@ export const verifyTfRole = (request: VerifyTfRoleRequest): VerifyTfRoleResponse
   };
 };
 
+// ===== Script Generation Helpers =====
+
+const VPC_RESOURCE_TYPES: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DOCUMENTDB', 'REDSHIFT', 'EC2'];
+
+const toScriptResource = (r: Resource): ServiceTfScriptResource => ({
+  resourceId: r.resourceId,
+  type: r.awsType!,
+  name: r.resourceId,
+});
+
+const generateServiceTfScripts = (resources: Resource[]): ServiceTfScript[] => {
+  const selected = resources.filter(r => r.isSelected && r.awsType);
+  const scripts: ServiceTfScript[] = [];
+
+  // VPC_ENDPOINT scripts: group by (vpcId, region)
+  const vpcResources = selected.filter(r => VPC_RESOURCE_TYPES.includes(r.awsType!));
+  const vpcGroups = new Map<string, Resource[]>();
+  vpcResources.forEach(r => {
+    const key = `${r.vpcId ?? 'unknown'}|${r.region ?? 'unknown'}`;
+    const group = vpcGroups.get(key) ?? [];
+    group.push(r);
+    vpcGroups.set(key, group);
+  });
+
+  let vpcIndex = 0;
+  vpcGroups.forEach((group, key) => {
+    const [vpcId, region] = key.split('|');
+    scripts.push({
+      id: `vpc-endpoint-${vpcIndex}`,
+      type: 'VPC_ENDPOINT',
+      status: 'PENDING',
+      label: `VPC Endpoint (${vpcId})`,
+      vpcId: vpcId === 'unknown' ? undefined : vpcId,
+      region: region === 'unknown' ? undefined : region,
+      resources: group.map(toScriptResource),
+    });
+    vpcIndex++;
+  });
+
+  // DYNAMODB_ROLE script: single script for all DynamoDB resources
+  const dynamoResources = selected.filter(r => r.awsType === 'DYNAMODB');
+  if (dynamoResources.length > 0) {
+    scripts.push({
+      id: 'dynamodb-role-0',
+      type: 'DYNAMODB_ROLE',
+      status: 'PENDING',
+      label: 'DynamoDB Role',
+      resources: dynamoResources.map(toScriptResource),
+    });
+  }
+
+  // ATHENA_GLUE script: single script for all Athena resources
+  const athenaResources = selected.filter(r => r.awsType === 'ATHENA');
+  if (athenaResources.length > 0) {
+    scripts.push({
+      id: 'athena-glue-0',
+      type: 'ATHENA_GLUE',
+      status: 'PENDING',
+      label: 'Athena & Glue',
+      resources: athenaResources.map(toScriptResource),
+    });
+  }
+
+  return scripts;
+};
+
+// ===== Computed Helper =====
+
+const computeStatus = (
+  scripts: ServiceTfScript[],
+  bdcTf: { status: TfScriptStatus },
+): { serviceTfCompleted: boolean; bdcTfCompleted: boolean } => ({
+  serviceTfCompleted: scripts.length > 0 && scripts.every(s => s.status === 'COMPLETED'),
+  bdcTfCompleted: bdcTf.status === 'COMPLETED',
+});
+
+const getScriptDuration = (script: ServiceTfScript, index: number): number => {
+  const base = SCRIPT_DURATIONS[script.type] ?? 8000;
+  return script.type === 'VPC_ENDPOINT' ? base + index * VPC_STAGGER_MS : base;
+};
+
 // ===== 설치 상태 관리 =====
 
 export const initializeInstallation = (
   projectId: string,
-  hasTfPermission: boolean
+  hasTfPermission: boolean,
 ): AwsInstallationStatus => {
   const store = getStore();
-  const project = store.projects.find((p) => p.id === projectId);
+  const project = store.projects.find(p => p.id === projectId);
   const accountId = project?.awsAccountId ?? '000000000000';
+  const resources = project?.resources ?? [];
 
-  const status: AwsInstallationStatus = {
+  const serviceTfScripts = generateServiceTfScripts(resources);
+  const bdcTf: AwsInstallationStatus['bdcTf'] = { status: 'PENDING' };
+
+  const status: InstallationInternal = {
     provider: 'AWS',
     hasTfPermission,
-    serviceTfCompleted: false,
-    bdcTfCompleted: false,
     tfExecutionRoleArn: hasTfPermission
       ? `arn:aws:iam::${accountId}:role/TerraformExecutionRole`
       : undefined,
+    serviceTfScripts,
+    bdcTf,
+    ...computeStatus(serviceTfScripts, bdcTf),
   };
 
-  // hasTfPermission이 true면 자동 설치 시작 시뮬레이션
   if (hasTfPermission) {
-    // 시작 시간 기록 (시뮬레이션용)
-    (status as AwsInstallationStatus & { _startedAt?: number })._startedAt = Date.now();
+    const now = Date.now();
+    const timings: Record<string, number> = {};
+    serviceTfScripts.forEach(s => { timings[s.id] = now; });
+    status._scriptTimings = timings;
   }
 
   store.awsInstallations.set(projectId, status);
-  return status;
+
+  return {
+    ...status,
+    ...computeStatus(status.serviceTfScripts, status.bdcTf),
+  };
 };
 
 export const getInstallationStatus = (projectId: string): AwsInstallationStatus | null => {
   const store = getStore();
-  const status = store.awsInstallations.get(projectId);
+  const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
+  if (!status) return null;
 
-  if (!status) {
-    return null;
-  }
+  // Auto mode time-based progression
+  if (status.hasTfPermission && !status.completedAt && status._scriptTimings) {
+    const now = Date.now();
 
-  // 자동 설치 시뮬레이션: 시간 기반 상태 업데이트
-  if (status.hasTfPermission && !status.completedAt) {
-    const startedAt = (status as AwsInstallationStatus & { _startedAt?: number })._startedAt;
-    if (startedAt) {
-      const elapsed = Date.now() - startedAt;
-
-      // Service TF 완료 체크
-      if (!status.serviceTfCompleted && elapsed >= SERVICE_TF_DURATION) {
-        status.serviceTfCompleted = true;
+    // Update each service TF script independently
+    let vpcIndex = 0;
+    status.serviceTfScripts.forEach(script => {
+      const startedAt = status._scriptTimings?.[script.id];
+      if (!startedAt || script.status === 'COMPLETED') {
+        if (script.type === 'VPC_ENDPOINT') vpcIndex++;
+        return;
       }
 
-      // BDC TF 완료 체크 (Service TF 완료 후)
-      if (status.serviceTfCompleted && !status.bdcTfCompleted) {
-        if (elapsed >= SERVICE_TF_DURATION + BDC_TF_DURATION) {
-          status.bdcTfCompleted = true;
-          status.completedAt = new Date().toISOString();
-        }
+      const duration = getScriptDuration(script, script.type === 'VPC_ENDPOINT' ? vpcIndex : 0);
+      const elapsed = now - startedAt;
+
+      if (elapsed >= duration) {
+        script.status = 'COMPLETED';
+        script.completedAt = new Date().toISOString();
+      } else {
+        script.status = 'IN_PROGRESS';
       }
-    }
-  }
 
-  return { ...status };
-};
+      if (script.type === 'VPC_ENDPOINT') vpcIndex++;
+    });
 
-export const checkInstallation = (projectId: string): CheckInstallationResponse | null => {
-  const store = getStore();
-  const status = store.awsInstallations.get(projectId);
+    // When ALL service scripts are COMPLETED → start BDC TF
+    const allServiceDone = status.serviceTfScripts.length > 0 &&
+      status.serviceTfScripts.every(s => s.status === 'COMPLETED');
 
-  if (!status) {
-    return null;
-  }
-
-  const now = new Date().toISOString();
-
-  // 수동 설치 케이스: 검증 시뮬레이션
-  if (!status.hasTfPermission) {
-    // 시뮬레이션: projectId가 'fail'을 포함하면 검증 실패
-    if (projectId.includes('fail')) {
-      return {
-        ...status,
-        lastCheckedAt: now,
-        error: {
-          code: 'VALIDATION_FAILED',
-          message: 'Terraform 리소스를 찾을 수 없습니다.',
-          guide: CHECK_INSTALLATION_GUIDES.VALIDATION_FAILED,
-        },
-      };
+    if (allServiceDone && status.bdcTf.status === 'PENDING') {
+      status.bdcTf.status = 'IN_PROGRESS';
+      status._bdcStartedAt = now;
     }
 
-    // 검증 성공: Service TF 완료 처리
-    if (!status.serviceTfCompleted) {
-      status.serviceTfCompleted = true;
-
-      // BDC TF 자동 시작 시뮬레이션
-      (status as AwsInstallationStatus & { _bdcStartedAt?: number })._bdcStartedAt = Date.now();
-    }
-
-    // BDC TF 완료 체크
-    const bdcStartedAt = (status as AwsInstallationStatus & { _bdcStartedAt?: number })._bdcStartedAt;
-    if (status.serviceTfCompleted && bdcStartedAt && !status.bdcTfCompleted) {
-      const bdcElapsed = Date.now() - bdcStartedAt;
-      if (bdcElapsed >= BDC_TF_DURATION) {
-        status.bdcTfCompleted = true;
+    // BDC TF progression
+    if (status._bdcStartedAt && status.bdcTf.status === 'IN_PROGRESS') {
+      if (now - status._bdcStartedAt >= BDC_TF_DURATION) {
+        status.bdcTf.status = 'COMPLETED';
+        status.bdcTf.completedAt = new Date().toISOString();
         status.completedAt = new Date().toISOString();
       }
     }
   }
 
-  // 자동 설치 케이스: 상태 업데이트
-  if (status.hasTfPermission) {
-    getInstallationStatus(projectId); // 시간 기반 업데이트
-  }
-
-  status.lastCheckedAt = now;
-
-  return {
-    ...status,
-    lastCheckedAt: now,
-  };
+  const computed = computeStatus(status.serviceTfScripts, status.bdcTf);
+  return { ...status, ...computed };
 };
 
-// ===== TF Script =====
+export const checkInstallation = (
+  projectId: string,
+): CheckInstallationResponse | null => {
+  const store = getStore();
+  const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
+  if (!status) return null;
+
+  const now = new Date().toISOString();
+
+  // Manual mode: 프로젝트 단위로 전체 스크립트 검증
+  if (!status.hasTfPermission) {
+    const pendingScripts = status.serviceTfScripts.filter(s => s.status !== 'COMPLETED');
+
+    if (pendingScripts.length > 0) {
+      if (projectId.includes('fail')) {
+        for (const script of pendingScripts) {
+          script.status = 'FAILED';
+          script.error = {
+            code: 'VALIDATION_FAILED',
+            message: 'Terraform 리소스를 찾을 수 없습니다.',
+            guide: CHECK_INSTALLATION_GUIDES.VALIDATION_FAILED,
+          };
+        }
+
+        const computed = computeStatus(status.serviceTfScripts, status.bdcTf);
+        return {
+          ...status,
+          ...computed,
+          lastCheckedAt: now,
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'Terraform 리소스를 찾을 수 없습니다.',
+            guide: CHECK_INSTALLATION_GUIDES.VALIDATION_FAILED,
+          },
+        };
+      }
+
+      for (const script of pendingScripts) {
+        script.status = 'COMPLETED';
+        script.completedAt = new Date().toISOString();
+      }
+    }
+
+    // 모든 Service TF COMPLETED → BDC TF 시작
+    const allServiceDone = status.serviceTfScripts.length > 0 &&
+      status.serviceTfScripts.every(s => s.status === 'COMPLETED');
+
+    if (allServiceDone && status.bdcTf.status === 'PENDING') {
+      status.bdcTf.status = 'IN_PROGRESS';
+      status._bdcStartedAt = Date.now();
+    }
+
+    // BDC TF progression
+    if (status._bdcStartedAt && status.bdcTf.status === 'IN_PROGRESS') {
+      if (Date.now() - status._bdcStartedAt >= BDC_TF_DURATION) {
+        status.bdcTf.status = 'COMPLETED';
+        status.bdcTf.completedAt = new Date().toISOString();
+        status.completedAt = new Date().toISOString();
+      }
+    }
+
+    status.lastCheckedAt = now;
+    const computed = computeStatus(status.serviceTfScripts, status.bdcTf);
+    return { ...status, ...computed, lastCheckedAt: now };
+  }
+
+  // Auto mode: delegate to time-based update
+  getInstallationStatus(projectId);
+  status.lastCheckedAt = now;
+
+  const computed = computeStatus(status.serviceTfScripts, status.bdcTf);
+  return { ...status, ...computed, lastCheckedAt: now };
+};
+
+// ===== TF Script Download =====
 
 export const getTerraformScript = (projectId: string): TerraformScriptResponse | null => {
   const status = getInstallationStatus(projectId);
-
-  if (!status || status.hasTfPermission) {
-    // TF 권한이 있는 경우 스크립트 불필요
-    return null;
-  }
-
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24시간 후
+  if (!status || status.hasTfPermission) return null;
 
   return {
     downloadUrl: `https://storage.example.com/tf-scripts/${projectId}/service-tf.zip?token=mock-token`,
     fileName: `service-tf-${projectId}.zip`,
-    expiresAt,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
 };
