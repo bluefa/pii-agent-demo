@@ -386,34 +386,13 @@ export const checkInstallation = (
 
 // ===== TF Script Download =====
 
-/** @deprecated Use getTerraformScriptDownload instead */
 export const getTerraformScript = (projectId: string): TerraformScriptResponse | null => {
   const status = getInstallationStatus(projectId);
   if (!status || status.hasTfPermission) return null;
 
-  const firstScript = status.serviceTfScripts[0];
-  if (!firstScript) return null;
-
   return {
-    downloadUrl: `https://storage.example.com/tf-scripts/${projectId}/${firstScript.id}.zip?token=mock-token`,
-    fileName: `${firstScript.id}-${projectId}.zip`,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-  };
-};
-
-export const getTerraformScriptDownload = (
-  projectId: string,
-  scriptId: string,
-): TerraformScriptResponse | null => {
-  const status = getInstallationStatus(projectId);
-  if (!status || status.hasTfPermission) return null;
-
-  const script = status.serviceTfScripts.find(s => s.id === scriptId);
-  if (!script) return null;
-
-  return {
-    downloadUrl: `https://storage.example.com/tf-scripts/${projectId}/${scriptId}.zip?token=mock-token`,
-    fileName: `${scriptId}-${projectId}.zip`,
+    downloadUrl: `https://storage.example.com/tf-scripts/${projectId}/service-tf.zip?token=mock-token`,
+    fileName: `service-tf-${projectId}.zip`,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
 };
