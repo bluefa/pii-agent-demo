@@ -210,6 +210,7 @@ export const ResourceRow = ({
           initialConfig={resource.vmDatabaseConfig}
           onSave={handleVmConfigSave}
           onCancel={() => onVmConfigToggle?.(null)}
+          nics={resource.type === 'AZURE_VM' ? resource.nics : undefined}
         />
       )}
     </>

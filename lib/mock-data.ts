@@ -261,6 +261,9 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        nics: [
+          { nicId: 'nic-vm-agent-001-0', name: 'nic-vm-agent-001-0', privateIp: '10.0.1.10' },
+        ],
       },
       {
         id: 'azure-res-6',
@@ -270,6 +273,11 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        nics: [
+          { nicId: 'nic-vm-agent-002-0', name: 'nic-vm-agent-002-0', privateIp: '10.0.2.20' },
+          { nicId: 'nic-vm-agent-002-1', name: 'nic-vm-agent-002-1', privateIp: '10.0.2.21' },
+          { nicId: 'nic-vm-agent-002-2', name: 'nic-vm-agent-002-2', privateIp: '10.0.2.22' },
+        ],
       },
     ],
     terraformState: {
@@ -299,6 +307,10 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        nics: [
+          { nicId: 'nic-vm-scan-001-0', name: 'nic-vm-scan-001-0', privateIp: '10.0.3.30' },
+          { nicId: 'nic-vm-scan-001-1', name: 'nic-vm-scan-001-1', privateIp: '10.0.3.31' },
+        ],
       },
       {
         id: 'azure-res-8',
