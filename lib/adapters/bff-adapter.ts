@@ -137,6 +137,21 @@ export const bffAdapter: DataAdapter = {
   updateIdcResources: async () => notImplemented('updateIdcResources'),
   confirmIdcTargets: async () => notImplemented('confirmIdcTargets'),
 
+  // --- SDU ---
+  getSduInstallationStatus: async () => notImplemented('getSduInstallationStatus'),
+  checkSduInstallation: async () => notImplemented('checkSduInstallation'),
+  getS3UploadStatus: async () => notImplemented('getS3UploadStatus'),
+  checkS3Upload: async () => notImplemented('checkS3Upload'),
+  getIamUser: async () => notImplemented('getIamUser'),
+  issueAkSk: async () => notImplemented('issueAkSk'),
+  getSourceIpList: async () => notImplemented('getSourceIpList'),
+  registerSourceIp: async () => notImplemented('registerSourceIp'),
+  confirmSourceIp: async () => notImplemented('confirmSourceIp'),
+  getAthenaTables: async () => notImplemented('getAthenaTables'),
+  getSduServiceSettings: async () => notImplemented('getSduServiceSettings'),
+  getSduConnectionTest: async () => notImplemented('getSduConnectionTest'),
+  executeSduConnectionTest: async () => notImplemented('executeSduConnectionTest'),
+
   // --- GCP ---
   getGcpInstallationStatus: async () => notImplemented('getGcpInstallationStatus'),
   checkGcpInstallation: async () => notImplemented('checkGcpInstallation'),

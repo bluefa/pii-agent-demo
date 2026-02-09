@@ -11,6 +11,7 @@ import * as mockScan from '@/lib/mock-scan';
 import * as mockHistory from '@/lib/mock-history';
 import * as mockAzure from '@/lib/mock-azure';
 import * as mockIdc from '@/lib/mock-idc';
+import * as mockSdu from '@/lib/mock-sdu';
 import * as mockGcp from '@/lib/mock-gcp';
 
 export const mockAdapter: DataAdapter = {
@@ -111,6 +112,23 @@ export const mockAdapter: DataAdapter = {
     mockIdc.updateIdcResources(projectId, resources),
   confirmIdcTargets: async (projectId, resources) =>
     mockIdc.confirmIdcTargets(projectId, resources),
+
+  // --- SDU ---
+  getSduInstallationStatus: async (projectId) => mockSdu.getSduInstallationStatus(projectId),
+  checkSduInstallation: async (projectId) => mockSdu.checkSduInstallation(projectId),
+  getS3UploadStatus: async (projectId) => mockSdu.getS3UploadStatus(projectId),
+  checkS3Upload: async (projectId) => mockSdu.checkS3Upload(projectId),
+  getIamUser: async (projectId) => mockSdu.getIamUser(projectId),
+  issueAkSk: async (projectId, issuedBy) => mockSdu.issueAkSk(projectId, issuedBy),
+  getSourceIpList: async (projectId) => mockSdu.getSourceIpList(projectId),
+  registerSourceIp: async (projectId, cidr, registeredBy) =>
+    mockSdu.registerSourceIp(projectId, cidr, registeredBy),
+  confirmSourceIp: async (projectId, cidr, confirmedBy) =>
+    mockSdu.confirmSourceIp(projectId, cidr, confirmedBy),
+  getAthenaTables: async (projectId) => mockSdu.getAthenaTables(projectId),
+  getSduServiceSettings: async (serviceCode) => mockSdu.getSduServiceSettings(serviceCode),
+  getSduConnectionTest: async (projectId) => mockSdu.getSduConnectionTest(projectId),
+  executeSduConnectionTest: async (projectId) => mockSdu.executeSduConnectionTest(projectId),
 
   // --- GCP ---
   getGcpInstallationStatus: async (projectId) => mockGcp.getGcpInstallationStatus(projectId),
