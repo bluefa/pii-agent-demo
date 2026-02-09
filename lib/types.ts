@@ -51,6 +51,9 @@ export interface ClusterInstance {
 
 export type AzureResourceType = 'AZURE_MSSQL' | 'AZURE_POSTGRESQL' | 'AZURE_MYSQL' | 'AZURE_MARIADB' | 'AZURE_COSMOS_NOSQL' | 'AZURE_SYNAPSE' | 'AZURE_VM';
 
+// Azure DB 네트워킹 모드 (MySQL, PostgreSQL Flexible Server)
+export type AzureNetworkingMode = 'PUBLIC_ACCESS' | 'VNET_INTEGRATION';
+
 export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
 
 export type ResourceType = AwsResourceType | AzureResourceType | GcpResourceType | 'IDC';
@@ -115,6 +118,9 @@ export interface Resource {
 
   // --- 연동 제외 정보 ---
   exclusion?: ResourceExclusion;          // 제외된 리소스만
+
+  // --- Azure 전용: 네트워킹 모드 ---
+  azureNetworkingMode?: AzureNetworkingMode;  // AZURE_MYSQL, AZURE_POSTGRESQL만
 
   // --- VM 전용 설정 ---
   vmDatabaseConfig?: VmDatabaseConfig;    // VM 리소스(EC2, AZURE_VM)만
@@ -264,6 +270,10 @@ export interface ConnectionTestHistory {
 export const needsCredential = (databaseType: DatabaseType): boolean => {
   return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
 };
+
+/** VNet Integration으로 PE 연결이 불가능한 리소스 판별 */
+export const isPeIneligible = (resource: Resource): boolean =>
+  resource.azureNetworkingMode === 'VNET_INTEGRATION';
 
 // ===== Project Status Types (ADR-004) =====
 // processStatus를 계산하기 위한 상태 데이터 구조

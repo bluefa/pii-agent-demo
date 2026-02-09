@@ -1,11 +1,14 @@
 'use client';
 
-import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
+import { createPortal } from 'react-dom';
+import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig, isPeIneligible } from '@/lib/types';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
 import { StatusIcon } from './StatusIcon';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
+import { VnetIntegrationGuideModal } from './VnetIntegrationGuideModal';
+import { useModal } from '@/app/hooks/useModal';
 import { cn, textColors, statusColors, bgColors, colors } from '@/lib/theme';
 
 // VM 리소스 타입 체크 헬퍼
@@ -65,11 +68,13 @@ export const ResourceRow = ({
   onVmConfigToggle,
   onVmConfigSave,
 }: ResourceRowProps) => {
+  const vnetModal = useModal();
   const needsCred = needsCredential(resource.databaseType);
   const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
   const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
 
   const isVm = isVmResource(resource);
+  const isVnetIneligible = isPeIneligible(resource);
   const isExpanded = expandedVmId === resource.id;
   const isSelected = selectedIds.has(resource.id);
   const hasVmConfig = !!resource.vmDatabaseConfig;
@@ -93,7 +98,8 @@ export const ResourceRow = ({
           `hover:${bgColors.muted}`,
           isVm && isCheckboxEnabled && isSelected && 'cursor-pointer',
           isExpanded && statusColors.info.bg,
-          isVm && isSelected && !hasVmConfig && !isExpanded && statusColors.warning.bg
+          isVm && isSelected && !hasVmConfig && !isExpanded && statusColors.warning.bg,
+          isVnetIneligible && 'opacity-60'
         )}
         onClick={handleRowClick}
       >
@@ -104,7 +110,7 @@ export const ResourceRow = ({
               <input
                 type="checkbox"
                 checked={isSelected}
-                disabled={!!resource.exclusion}
+                disabled={!!resource.exclusion || isVnetIneligible}
                 onChange={(e) => {
                   onCheckboxChange(resource.id, e.target.checked);
                   if (isVm && e.target.checked) onVmConfigToggle?.(resource.id);
@@ -126,6 +132,18 @@ export const ResourceRow = ({
               <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
               {isVm && isSelected && !hasVmConfig && (
                 <span className={cn('text-xs ml-1', statusColors.warning.textDark)}>(DB 설정 필요)</span>
+              )}
+              {isVnetIneligible && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); vnetModal.open(); }}
+                  className={cn('ml-1 flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
+                  aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
+                </button>
               )}
             </div>
           </td>
@@ -212,6 +230,11 @@ export const ResourceRow = ({
           onCancel={() => onVmConfigToggle?.(null)}
           nics={resource.type === 'AZURE_VM' ? resource.nics : undefined}
         />
+      )}
+
+      {isVnetIneligible && typeof document !== 'undefined' && createPortal(
+        <VnetIntegrationGuideModal isOpen={vnetModal.isOpen} onClose={vnetModal.close} resourceId={resource.resourceId} />,
+        document.body
       )}
     </>
   );

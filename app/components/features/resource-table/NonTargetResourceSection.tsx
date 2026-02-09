@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ResourceTypeGroup } from './ResourceTypeGroup';
-import { cn, textColors } from '@/lib/theme';
+import { cn, textColors, statusColors, bgColors } from '@/lib/theme';
+import { isPeIneligible } from '@/lib/types';
 import type { Resource, DatabaseType, DBCredential, AwsResourceType, VmDatabaseConfig } from '@/lib/types';
 
 interface NonTargetResourceSectionProps {
@@ -41,6 +42,100 @@ const ChevronIcon = ({ isOpen }: { isOpen: boolean }) => (
   </svg>
 );
 
+const WarningIcon = () => (
+  <svg className={cn('w-4 h-4', statusColors.warning.text)} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+  </svg>
+);
+
+interface CollapsibleResourceGroupProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  label: string;
+  count: number;
+  icon?: React.ReactNode;
+  labelClassName?: string;
+  contentClassName?: string;
+  typeGroups: Map<AwsResourceType, Resource[]>;
+  isEditMode: boolean;
+  selectedIds: Set<string>;
+  showConnectionStatus: boolean;
+  showCredentialColumn: boolean;
+  onCheckboxChange: (id: string, checked: boolean) => void;
+  colSpan: number;
+  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
+  expandedVmId?: string | null;
+  onVmConfigToggle?: (resourceId: string | null) => void;
+  onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+}
+
+const CollapsibleResourceGroup = ({
+  isOpen,
+  onToggle,
+  label,
+  count,
+  icon,
+  labelClassName,
+  contentClassName,
+  typeGroups,
+  isEditMode,
+  selectedIds,
+  showConnectionStatus,
+  showCredentialColumn,
+  onCheckboxChange,
+  colSpan,
+  getCredentialsForType,
+  onCredentialChange,
+  expandedVmId,
+  onVmConfigToggle,
+  onVmConfigSave,
+}: CollapsibleResourceGroupProps) => (
+  <div className="mt-4">
+    <button
+      onClick={onToggle}
+      className={cn('flex items-center gap-2 px-6 py-3 w-full text-left transition-colors rounded-lg', `hover:${bgColors.muted}`)}
+    >
+      <ChevronIcon isOpen={isOpen} />
+      {icon}
+      <span className={cn('text-sm font-semibold', labelClassName || textColors.secondary)}>
+        {label}
+      </span>
+      <span className={cn('text-sm', textColors.tertiary)}>
+        ({count})
+      </span>
+    </button>
+
+    {isOpen && (
+      <div className={contentClassName}>
+        <table className="w-full">
+          <tbody>
+            {Array.from(typeGroups.entries()).map(([type, typeResources]) => (
+              <ResourceTypeGroup
+                key={type}
+                resourceType={type}
+                resources={typeResources}
+                selectedIds={selectedIds}
+                isEditMode={isEditMode}
+                isCheckboxEnabled={isEditMode}
+                showConnectionStatus={showConnectionStatus}
+                showCredentialColumn={showCredentialColumn}
+                onCheckboxChange={onCheckboxChange}
+                colSpan={colSpan}
+                getCredentialsForType={getCredentialsForType}
+                onCredentialChange={onCredentialChange}
+                expandedVmId={expandedVmId}
+                onVmConfigToggle={onVmConfigToggle}
+                onVmConfigSave={onVmConfigSave}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+);
+
 export const NonTargetResourceSection = ({
   resources,
   label = '연동 제외 리소스',
@@ -57,54 +152,55 @@ export const NonTargetResourceSection = ({
   onVmConfigSave,
 }: NonTargetResourceSectionProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isVnetOpen, setIsVnetOpen] = useState(true);
   const nonTargetResources = resources.filter(r => !r.isSelected);
 
   if (nonTargetResources.length === 0) return null;
 
-  const typeGroups = groupByResourceType(nonTargetResources);
+  const vnetResources = nonTargetResources.filter(r => isPeIneligible(r));
+  const normalNonTargetResources = nonTargetResources.filter(r => !isPeIneligible(r));
+
+  const sharedProps = {
+    isEditMode,
+    selectedIds,
+    showConnectionStatus,
+    showCredentialColumn,
+    onCheckboxChange,
+    colSpan,
+    getCredentialsForType,
+    onCredentialChange,
+    expandedVmId,
+    onVmConfigToggle,
+    onVmConfigSave,
+  };
 
   return (
-    <div className="mt-4">
-      <button
-        onClick={() => setIsOpen(prev => !prev)}
-        className="flex items-center gap-2 px-6 py-3 w-full text-left hover:bg-gray-50 transition-colors rounded-lg"
-      >
-        <ChevronIcon isOpen={isOpen} />
-        <span className={cn('text-sm font-semibold', textColors.secondary)}>
-          {label}
-        </span>
-        <span className={cn('text-sm', textColors.tertiary)}>
-          ({nonTargetResources.length})
-        </span>
-      </button>
-
-      {isOpen && (
-        <div className="opacity-60">
-          <table className="w-full">
-            <tbody>
-              {Array.from(typeGroups.entries()).map(([type, typeResources]) => (
-                <ResourceTypeGroup
-                  key={type}
-                  resourceType={type}
-                  resources={typeResources}
-                  selectedIds={selectedIds}
-                  isEditMode={isEditMode}
-                  isCheckboxEnabled={isEditMode}
-                  showConnectionStatus={showConnectionStatus}
-                  showCredentialColumn={showCredentialColumn}
-                  onCheckboxChange={onCheckboxChange}
-                  colSpan={colSpan}
-                  getCredentialsForType={getCredentialsForType}
-                  onCredentialChange={onCredentialChange}
-                  expandedVmId={expandedVmId}
-                  onVmConfigToggle={onVmConfigToggle}
-                  onVmConfigSave={onVmConfigSave}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <>
+      {vnetResources.length > 0 && (
+        <CollapsibleResourceGroup
+          isOpen={isVnetOpen}
+          onToggle={() => setIsVnetOpen(prev => !prev)}
+          label="설치 불가 (VNet Integration)"
+          count={vnetResources.length}
+          icon={<WarningIcon />}
+          labelClassName={statusColors.warning.textDark}
+          contentClassName={cn('rounded-lg', statusColors.warning.bg)}
+          typeGroups={groupByResourceType(vnetResources)}
+          {...sharedProps}
+        />
       )}
-    </div>
+
+      {normalNonTargetResources.length > 0 && (
+        <CollapsibleResourceGroup
+          isOpen={isOpen}
+          onToggle={() => setIsOpen(prev => !prev)}
+          label={label}
+          count={normalNonTargetResources.length}
+          contentClassName="opacity-60"
+          typeGroups={groupByResourceType(normalNonTargetResources)}
+          {...sharedProps}
+        />
+      )}
+    </>
   );
 };
