@@ -1,5 +1,77 @@
 import type { CloudProvider } from '@/lib/types';
-import type { ProviderProcessGuide } from '@/lib/types/process-guide';
+import type { PrerequisiteGuide, ProviderProcessGuide } from '@/lib/types/process-guide';
+
+/** 공통 사전 조치 가이드 */
+const SCAN_ROLE_GUIDE: PrerequisiteGuide = {
+  label: '스캔 Role 등록',
+  summary: 'AWS IAM Role을 생성하고, PII Agent가 리소스를 스캔할 수 있도록 권한을 부여합니다',
+  steps: [
+    'AWS Console > IAM > Roles > [Create role] 클릭',
+    'Trusted entity type: "AWS account" 선택',
+    'Account ID에 PII Agent 서비스 계정 ID 입력 (관리자 문의)',
+    'Policy 연결: AmazonRDSReadOnlyAccess, AmazonS3ReadOnlyAccess, AmazonEC2ReadOnlyAccess (VM 스캔 시)',
+    'Role name 입력 (예: PIIAgentScanRole)',
+    'Role 생성 완료 후 Role ARN 복사',
+    'PII Agent > 프로젝트 설정 > 스캔 Role ARN 입력란에 붙여넣기',
+    '[Role 검증] 버튼 클릭하여 연결 확인',
+  ],
+  warnings: [
+    'ReadOnlyAccess 이상의 권한은 부여하지 마세요. 스캔에는 읽기 권한만 필요합니다',
+    'Cross-account 신뢰 설정 시 External ID 조건을 추가하면 보안이 강화됩니다',
+  ],
+  notes: [
+    'VM(EC2) 스캔이 불필요하면 AmazonEC2ReadOnlyAccess는 생략 가능합니다',
+    'Role 검증에 실패하면 Trust Policy의 Account ID를 확인하세요',
+  ],
+};
+
+const DB_CREDENTIAL_GUIDE: PrerequisiteGuide = {
+  label: 'DB Credential 등록',
+  summary: '연동 대상 데이터베이스의 접속 정보를 등록합니다',
+  steps: [
+    'PII Agent > 좌측 메뉴 > [DB Credential 관리] 클릭',
+    '[Credential 추가] 버튼 클릭',
+    'DB 유형 선택 (RDS MySQL / RDS PostgreSQL / Aurora 등)',
+    'Host 입력 (예: mydb.abc123.ap-northeast-2.rds.amazonaws.com)',
+    'Port 입력 (MySQL: 3306, PostgreSQL: 5432)',
+    'Database, Username, Password 입력',
+    '[연결 테스트] 버튼으로 접속 확인',
+    '테스트 성공 시 [저장] 클릭',
+  ],
+  warnings: [
+    'DB 계정에는 읽기(SELECT) 권한만 부여하세요. 쓰기 권한은 불필요합니다',
+    '보안 그룹(Security Group)에서 PII Agent 서비스 IP 대역이 허용되어 있어야 합니다',
+    'Credential은 암호화되어 저장되며, 비밀번호는 등록 후 조회할 수 없습니다',
+  ],
+  notes: [
+    '연동 대상 DB가 여러 개인 경우, 각각 별도로 등록해야 합니다',
+    'RDS Proxy를 사용하는 경우, Proxy 엔드포인트를 Host에 입력하세요',
+  ],
+};
+
+const TF_EXECUTION_ROLE_GUIDE: PrerequisiteGuide = {
+  label: 'TerraformExecutionRole 등록',
+  summary: '자동 설치에 필요한 Terraform 실행 Role을 AWS 계정에 생성합니다',
+  steps: [
+    'AWS Console > IAM > Roles > [Create role] 클릭',
+    'Trusted entity type: "AWS account" 선택',
+    'Account ID에 PII Agent 서비스 계정 ID 입력',
+    'Policy 연결: AmazonEC2FullAccess, AmazonRDSFullAccess, AmazonS3FullAccess, IAMFullAccess, AmazonVPCFullAccess',
+    'Role name: "TerraformExecutionRole" (정확히 이 이름 사용)',
+    'Role 생성 완료 후 Role ARN 복사',
+    'PII Agent > 프로젝트 설정 > TerraformExecutionRole ARN 입력란에 붙여넣기',
+    '[Role 검증] 버튼 클릭하여 연결 확인',
+  ],
+  warnings: [
+    'Role 이름이 정확히 "TerraformExecutionRole"이어야 합니다. 다른 이름은 인식되지 않습니다',
+    '이 Role은 FullAccess 권한을 포함하므로, 사용 후 비활성화 또는 삭제를 권장합니다',
+    'Role 미등록 시 설치(Step 3)에서 자동 실행이 차단됩니다',
+  ],
+  notes: [
+    '조직 보안 정책상 FullAccess가 불가한 경우, 관리자에게 최소 권한 목록을 문의하세요',
+    '수동 설치 모드에서는 이 Role이 필요하지 않습니다',
+  ],
+};
 
 /**
  * AWS 자동 설치 프로세스 가이드
@@ -13,76 +85,7 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
       stepNumber: 1,
       label: '연동 대상 확정',
       description: 'AWS 계정에 등록된 RDS, S3 등의 리소스를 스캔하고, PII Agent를 연동할 대상을 선택하여 확정합니다.',
-      prerequisiteGuides: [
-        {
-          label: '스캔 Role 등록',
-          summary: 'AWS IAM Role을 생성하고, PII Agent가 리소스를 스캔할 수 있도록 권한을 부여합니다',
-          steps: [
-            'AWS Console > IAM > Roles > [Create role] 클릭',
-            'Trusted entity type: "AWS account" 선택',
-            'Account ID에 PII Agent 서비스 계정 ID 입력 (관리자 문의)',
-            'Policy 연결: AmazonRDSReadOnlyAccess, AmazonS3ReadOnlyAccess, AmazonEC2ReadOnlyAccess (VM 스캔 시)',
-            'Role name 입력 (예: PIIAgentScanRole)',
-            'Role 생성 완료 후 Role ARN 복사',
-            'PII Agent > 프로젝트 설정 > 스캔 Role ARN 입력란에 붙여넣기',
-            '[Role 검증] 버튼 클릭하여 연결 확인',
-          ],
-          warnings: [
-            'ReadOnlyAccess 이상의 권한은 부여하지 마세요. 스캔에는 읽기 권한만 필요합니다',
-            'Cross-account 신뢰 설정 시 External ID 조건을 추가하면 보안이 강화됩니다',
-          ],
-          notes: [
-            'VM(EC2) 스캔이 불필요하면 AmazonEC2ReadOnlyAccess는 생략 가능합니다',
-            'Role 검증에 실패하면 Trust Policy의 Account ID를 확인하세요',
-          ],
-        },
-        {
-          label: 'TerraformExecutionRole 등록',
-          summary: '자동 설치에 필요한 Terraform 실행 Role을 AWS 계정에 생성합니다',
-          steps: [
-            'AWS Console > IAM > Roles > [Create role] 클릭',
-            'Trusted entity type: "AWS account" 선택',
-            'Account ID에 PII Agent 서비스 계정 ID 입력',
-            'Policy 연결: AmazonEC2FullAccess, AmazonRDSFullAccess, AmazonS3FullAccess, IAMFullAccess, AmazonVPCFullAccess',
-            'Role name: "TerraformExecutionRole" (정확히 이 이름 사용)',
-            'Role 생성 완료 후 Role ARN 복사',
-            'PII Agent > 프로젝트 설정 > TerraformExecutionRole ARN 입력란에 붙여넣기',
-            '[Role 검증] 버튼 클릭하여 연결 확인',
-          ],
-          warnings: [
-            'Role 이름이 정확히 "TerraformExecutionRole"이어야 합니다. 다른 이름은 인식되지 않습니다',
-            '이 Role은 FullAccess 권한을 포함하므로, 사용 후 비활성화 또는 삭제를 권장합니다',
-            'Role 미등록 시 설치(Step 3)에서 자동 실행이 차단됩니다',
-          ],
-          notes: [
-            '조직 보안 정책상 FullAccess가 불가한 경우, 관리자에게 최소 권한 목록을 문의하세요',
-            '수동 설치 모드에서는 이 Role이 필요하지 않습니다',
-          ],
-        },
-        {
-          label: 'DB Credential 등록',
-          summary: '연동 대상 데이터베이스의 접속 정보를 등록합니다',
-          steps: [
-            'PII Agent > 좌측 메뉴 > [DB Credential 관리] 클릭',
-            '[Credential 추가] 버튼 클릭',
-            'DB 유형 선택 (RDS MySQL / RDS PostgreSQL / Aurora 등)',
-            'Host 입력 (예: mydb.abc123.ap-northeast-2.rds.amazonaws.com)',
-            'Port 입력 (MySQL: 3306, PostgreSQL: 5432)',
-            'Database, Username, Password 입력',
-            '[연결 테스트] 버튼으로 접속 확인',
-            '테스트 성공 시 [저장] 클릭',
-          ],
-          warnings: [
-            'DB 계정에는 읽기(SELECT) 권한만 부여하세요. 쓰기 권한은 불필요합니다',
-            '보안 그룹(Security Group)에서 PII Agent 서비스 IP 대역이 허용되어 있어야 합니다',
-            'Credential은 암호화되어 저장되며, 비밀번호는 등록 후 조회할 수 없습니다',
-          ],
-          notes: [
-            '연동 대상 DB가 여러 개인 경우, 각각 별도로 등록해야 합니다',
-            'RDS Proxy를 사용하는 경우, Proxy 엔드포인트를 Host에 입력하세요',
-          ],
-        },
-      ],
+      prerequisiteGuides: [SCAN_ROLE_GUIDE, TF_EXECUTION_ROLE_GUIDE, DB_CREDENTIAL_GUIDE],
       procedures: [
         '[리소스 스캔] 버튼을 클릭하여 AWS 계정의 리소스(RDS, S3 등)를 조회',
         '스캔 결과 목록에서 PII Agent를 연동할 리소스를 선택',
@@ -169,53 +172,7 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
       stepNumber: 1,
       label: '연동 대상 확정',
       description: 'AWS 계정에 등록된 RDS, S3 등의 리소스를 스캔하고, PII Agent를 연동할 대상을 선택하여 확정합니다.',
-      prerequisiteGuides: [
-        {
-          label: '스캔 Role 등록',
-          summary: 'AWS IAM Role을 생성하고, PII Agent가 리소스를 스캔할 수 있도록 권한을 부여합니다',
-          steps: [
-            'AWS Console > IAM > Roles > [Create role] 클릭',
-            'Trusted entity type: "AWS account" 선택',
-            'Account ID에 PII Agent 서비스 계정 ID 입력 (관리자 문의)',
-            'Policy 연결: AmazonRDSReadOnlyAccess, AmazonS3ReadOnlyAccess, AmazonEC2ReadOnlyAccess (VM 스캔 시)',
-            'Role name 입력 (예: PIIAgentScanRole)',
-            'Role 생성 완료 후 Role ARN 복사',
-            'PII Agent > 프로젝트 설정 > 스캔 Role ARN 입력란에 붙여넣기',
-            '[Role 검증] 버튼 클릭하여 연결 확인',
-          ],
-          warnings: [
-            'ReadOnlyAccess 이상의 권한은 부여하지 마세요. 스캔에는 읽기 권한만 필요합니다',
-            'Cross-account 신뢰 설정 시 External ID 조건을 추가하면 보안이 강화됩니다',
-          ],
-          notes: [
-            'VM(EC2) 스캔이 불필요하면 AmazonEC2ReadOnlyAccess는 생략 가능합니다',
-            'Role 검증에 실패하면 Trust Policy의 Account ID를 확인하세요',
-          ],
-        },
-        {
-          label: 'DB Credential 등록',
-          summary: '연동 대상 데이터베이스의 접속 정보를 등록합니다',
-          steps: [
-            'PII Agent > 좌측 메뉴 > [DB Credential 관리] 클릭',
-            '[Credential 추가] 버튼 클릭',
-            'DB 유형 선택 (RDS MySQL / RDS PostgreSQL / Aurora 등)',
-            'Host 입력 (예: mydb.abc123.ap-northeast-2.rds.amazonaws.com)',
-            'Port 입력 (MySQL: 3306, PostgreSQL: 5432)',
-            'Database, Username, Password 입력',
-            '[연결 테스트] 버튼으로 접속 확인',
-            '테스트 성공 시 [저장] 클릭',
-          ],
-          warnings: [
-            'DB 계정에는 읽기(SELECT) 권한만 부여하세요. 쓰기 권한은 불필요합니다',
-            '보안 그룹(Security Group)에서 PII Agent 서비스 IP 대역이 허용되어 있어야 합니다',
-            'Credential은 암호화되어 저장되며, 비밀번호는 등록 후 조회할 수 없습니다',
-          ],
-          notes: [
-            '연동 대상 DB가 여러 개인 경우, 각각 별도로 등록해야 합니다',
-            'RDS Proxy를 사용하는 경우, Proxy 엔드포인트를 Host에 입력하세요',
-          ],
-        },
-      ],
+      prerequisiteGuides: [SCAN_ROLE_GUIDE, DB_CREDENTIAL_GUIDE],
       procedures: [
         '[리소스 스캔] 버튼을 클릭하여 AWS 계정의 리소스(RDS, S3 등)를 조회',
         '스캔 결과 목록에서 PII Agent를 연동할 리소스를 선택',
