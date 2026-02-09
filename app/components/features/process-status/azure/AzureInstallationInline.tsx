@@ -49,11 +49,11 @@ const STEP_LABELS: Record<InstallStep, string> = {
 
 const getVmInstallStep = (
   subnetExists: boolean,
-  terraformInstalled: boolean,
+  lbInstalled: boolean,
   peStatus?: PrivateEndpointStatus
 ): InstallStep => {
   if (!subnetExists) return 'SUBNET_REQUIRED';
-  if (!terraformInstalled) return 'VM_TF_REQUIRED';
+  if (!lbInstalled) return 'VM_TF_REQUIRED';
   if (!peStatus || peStatus === 'NOT_REQUESTED') return 'PE_NOT_REQUESTED';
   if (peStatus === 'PENDING_APPROVAL') return 'PE_PENDING';
   if (peStatus === 'REJECTED') return 'PE_REJECTED';
@@ -132,7 +132,7 @@ export const AzureInstallationInline = ({
       const isVm = resource.type === 'AZURE_VM';
       if (isVm) {
         const vm = vmStatusMap.get(resource.resourceId);
-        const step = getVmInstallStep(vm?.subnetExists ?? false, vm?.terraformInstalled ?? false, vm?.privateEndpoint?.status);
+        const step = getVmInstallStep(vm?.subnetExists ?? false, vm?.loadBalancer?.installed ?? false, vm?.privateEndpoint?.status);
         return { id: resource.id, name: resource.resourceId, resourceType: resource.type, isVm: true, step, peId: vm?.privateEndpoint?.id, isCompleted: step === 'COMPLETED' };
       }
       const db = dbStatusMap.get(resource.resourceId);
