@@ -294,7 +294,7 @@ export const IdcProjectPage = ({
 
       <main className="p-6 space-y-6">
         {/* Info & Process Status Cards - Side by Side */}
-        <div className="grid grid-cols-[350px_1fr] gap-6">
+        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
           <ProjectInfoCard project={project} />
 
           <IdcProcessStatusCard

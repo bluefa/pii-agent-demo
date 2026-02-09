@@ -160,9 +160,8 @@ export const AzureProjectPage = ({
 
       <main className="p-6 space-y-6">
         {/* Info & Process Status Cards */}
-        <div className="grid grid-cols-[350px_1fr] gap-6">
+        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
           <div className="space-y-6">
-            <ProjectInfoCard project={project} />
             <AzureInfoCard
               project={project}
               serviceSettings={serviceSettings}
@@ -170,6 +169,7 @@ export const AzureProjectPage = ({
               onOpenGuide={handleOpenGuide}
               onManageCredentials={handleManageCredentials}
             />
+            <ProjectInfoCard project={project} />
           </div>
           <ProcessStatusCard
             project={project}
