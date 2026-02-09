@@ -43,6 +43,17 @@ import type {
   IdcResourceInput,
 } from '@/lib/types/idc';
 import type {
+  SduInstallationStatus,
+  S3UploadInfo,
+  IamUser,
+  IssueAkSkResponse,
+  SourceIpManagement,
+  SourceIpEntry,
+  SduAthenaTable,
+  SduServiceSettings,
+  SduConnectionTestInfo,
+} from '@/lib/types/sdu';
+import type {
   GcpInstallationStatus,
   GcpRegionalManagedProxyStatus,
   GcpConnectionType,
@@ -146,6 +157,21 @@ export interface DataAdapter {
   getIdcResources: (projectId: string) => Promise<ProviderResult<IdcResourceInput[]>>;
   updateIdcResources: (projectId: string, resources: IdcResourceInput[]) => Promise<ProviderResult<IdcResourceInput[]>>;
   confirmIdcTargets: (projectId: string, resources: IdcResourceInput[]) => Promise<ProviderResult<{ confirmed: boolean; confirmedAt: string; project: Project }>>;
+
+  // --- SDU ---
+  getSduInstallationStatus: (projectId: string) => Promise<ProviderResult<SduInstallationStatus>>;
+  checkSduInstallation: (projectId: string) => Promise<ProviderResult<SduInstallationStatus>>;
+  getS3UploadStatus: (projectId: string) => Promise<ProviderResult<S3UploadInfo>>;
+  checkS3Upload: (projectId: string) => Promise<ProviderResult<S3UploadInfo>>;
+  getIamUser: (projectId: string) => Promise<ProviderResult<IamUser>>;
+  issueAkSk: (projectId: string, issuedBy: string) => Promise<ProviderResult<IssueAkSkResponse>>;
+  getSourceIpList: (projectId: string) => Promise<ProviderResult<SourceIpManagement>>;
+  registerSourceIp: (projectId: string, cidr: string, registeredBy: string) => Promise<ProviderResult<SourceIpEntry>>;
+  confirmSourceIp: (projectId: string, cidr: string, confirmedBy: string) => Promise<ProviderResult<SourceIpEntry>>;
+  getAthenaTables: (projectId: string) => Promise<ProviderResult<SduAthenaTable[]>>;
+  getSduServiceSettings: (serviceCode: string) => Promise<ProviderResult<SduServiceSettings>>;
+  getSduConnectionTest: (projectId: string) => Promise<ProviderResult<SduConnectionTestInfo>>;
+  executeSduConnectionTest: (projectId: string) => Promise<ProviderResult<SduConnectionTestInfo>>;
 
   // --- GCP ---
   getGcpInstallationStatus: (projectId: string) => Promise<ProviderResult<GcpInstallationStatus>>;

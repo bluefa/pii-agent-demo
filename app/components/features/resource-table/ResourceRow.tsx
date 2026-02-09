@@ -92,7 +92,8 @@ export const ResourceRow = ({
           'transition-colors',
           `hover:${bgColors.muted}`,
           isVm && isCheckboxEnabled && isSelected && 'cursor-pointer',
-          isExpanded && statusColors.info.bg
+          isExpanded && statusColors.info.bg,
+          isVm && isSelected && !hasVmConfig && !isExpanded && statusColors.warning.bg
         )}
         onClick={handleRowClick}
       >
@@ -104,7 +105,11 @@ export const ResourceRow = ({
                 type="checkbox"
                 checked={isSelected}
                 disabled={!!resource.exclusion}
-                onChange={(e) => onCheckboxChange(resource.id, e.target.checked)}
+                onChange={(e) => {
+                  onCheckboxChange(resource.id, e.target.checked);
+                  if (isVm && e.target.checked) onVmConfigToggle?.(resource.id);
+                  if (isVm && !e.target.checked) onVmConfigToggle?.(null);
+                }}
                 className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, `text-${colors.primary.base}`, `focus:ring-${colors.primary.base}`)}
               />
             )}
@@ -119,8 +124,8 @@ export const ResourceRow = ({
                 <AzureServiceIcon type={resource.type} size="lg" />
               )}
               <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
-              {isVm && isEditMode && isCheckboxEnabled && isSelected && (
-                <span className={cn('text-xs ml-1', statusColors.info.textDark)}>(클릭하여 설정)</span>
+              {isVm && isSelected && !hasVmConfig && (
+                <span className={cn('text-xs ml-1', statusColors.warning.textDark)}>(DB 설정 필요)</span>
               )}
             </div>
           </td>

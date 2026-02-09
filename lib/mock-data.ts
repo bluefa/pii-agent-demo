@@ -147,6 +147,24 @@ export const mockServiceCodes: ServiceCode[] = [
 
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
+  // ===== SDU 프로젝트 =====
+  {
+    id: 'proj-sdu-001',
+    projectCode: 'SDU-2026-001',
+    name: 'SDU 연동 테스트 프로젝트',
+    description: 'SDU Athena 데이터베이스 연동을 위한 PII Agent 설치',
+    serviceCode: 'SERVICE-A',
+    cloudProvider: 'SDU',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-01-15T09:00:00Z',
+    updatedAt: '2026-01-15T09:00:00Z',
+    isRejected: false,
+  },
   // ===== GCP 프로젝트 =====
   {
     id: 'gcp-proj-1',
@@ -340,6 +358,46 @@ export const mockProjects: Project[] = [
           excludedBy: { id: 'admin-1', name: '관리자' },
         },
       },
+      // RDS Cluster 리소스 — Regional (3 Instances)
+      {
+        id: 'res-cluster-1',
+        type: 'RDS_CLUSTER',
+        resourceId: 'aurora-prod-01',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        awsType: 'RDS_CLUSTER',
+        region: 'ap-northeast-2',
+        lifecycleStatus: 'DISCOVERED',
+        clusterType: 'REGIONAL',
+        clusterInstances: [
+          { instanceId: 'aurora-prod-01-reader-1', role: 'READER', availabilityZone: 'ap-northeast-2a', isSelected: false },
+          { instanceId: 'aurora-prod-01-reader-2', role: 'READER', availabilityZone: 'ap-northeast-2c', isSelected: false },
+          { instanceId: 'aurora-prod-01-writer', role: 'WRITER', availabilityZone: 'ap-northeast-2b', isSelected: false },
+        ],
+      },
+      // RDS Cluster 리소스 — Global (7 Instances)
+      {
+        id: 'res-cluster-2',
+        type: 'RDS_CLUSTER',
+        resourceId: 'aurora-global-01',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        awsType: 'RDS_CLUSTER',
+        region: 'ap-northeast-2',
+        lifecycleStatus: 'DISCOVERED',
+        clusterType: 'GLOBAL',
+        clusterInstances: [
+          { instanceId: 'aurora-global-01-reader-1', role: 'READER', availabilityZone: 'ap-northeast-2a', isSelected: false },
+          { instanceId: 'aurora-global-01-reader-2', role: 'READER', availabilityZone: 'ap-northeast-2c', isSelected: false },
+          { instanceId: 'aurora-global-01-writer', role: 'WRITER', availabilityZone: 'ap-northeast-2b', isSelected: false },
+          { instanceId: 'aurora-global-01-reader-3', role: 'READER', availabilityZone: 'us-east-1a', isSelected: false },
+          { instanceId: 'aurora-global-01-reader-4', role: 'READER', availabilityZone: 'us-east-1b', isSelected: false },
+          { instanceId: 'aurora-global-01-reader-5', role: 'READER', availabilityZone: 'eu-west-1a', isSelected: false },
+          { instanceId: 'aurora-global-01-reader-6', role: 'READER', availabilityZone: 'eu-west-1b', isSelected: false },
+        ],
+      },
       // EC2 리소스 (선택적 연동 대상)
       {
         id: 'res-ec2-1',
@@ -406,6 +464,11 @@ export const mockProjects: Project[] = [
         lifecycleStatus: 'PENDING_APPROVAL',
         isNew: true,
         note: 'NEW',
+        clusterType: 'REGIONAL',
+        clusterInstances: [
+          { instanceId: 'rdscl-001-reader-1', role: 'READER', availabilityZone: 'ap-northeast-2a', isSelected: true },
+          { instanceId: 'rdscl-001-writer', role: 'WRITER', availabilityZone: 'ap-northeast-2b', isSelected: false },
+        ],
       },
       {
         id: 'res-5',
