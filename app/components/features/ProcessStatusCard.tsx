@@ -119,7 +119,7 @@ export const ProcessStatusCard = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
       {/* 탭 헤더 */}
       <div className="border-b border-gray-200">
         <nav className="flex">
