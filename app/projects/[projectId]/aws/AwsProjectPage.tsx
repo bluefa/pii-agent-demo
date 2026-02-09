@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import type { AwsInstallationStatus, AwsServiceSettings } from '@/lib/types';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -10,10 +11,15 @@ import {
   ResourceCredentialInput,
   VmConfigInput,
 } from '@/app/lib/api';
+import { getAwsInstallationStatus, getAwsServiceSettings } from '@/app/lib/api/aws';
 import { getProjectCurrentStep } from '@/lib/process';
+import { getProcessGuide } from '@/lib/constants/process-guides';
+import { useModal } from '@/app/hooks/useModal';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
+import { AwsInfoCard } from '@/app/components/features/AwsInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
+import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
@@ -41,6 +47,12 @@ export const AwsProjectPage = ({
   const [submitting, setSubmitting] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
 
+  // Prerequisite data
+  const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
+  const [serviceSettings, setServiceSettings] = useState<AwsServiceSettings | null>(null);
+  const guideModal = useModal();
+  const resourceSectionRef = useRef<HTMLDivElement>(null);
+
   // VM 설정 상태
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
   const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
@@ -52,6 +64,22 @@ export const AwsProjectPage = ({
     });
     return initial;
   });
+
+  useEffect(() => {
+    getAwsInstallationStatus(project.id).then(setAwsStatus).catch(() => {});
+    getAwsServiceSettings(project.serviceCode).then(setServiceSettings).catch(() => {});
+  }, [project.id, project.serviceCode]);
+
+  const guideVariant = project.awsInstallationMode === 'AUTO' ? 'auto' : 'manual';
+  const guide = getProcessGuide('AWS', guideVariant);
+
+  const handleOpenGuide = () => {
+    guideModal.open();
+  };
+
+  const handleManageCredentials = () => {
+    resourceSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
@@ -168,7 +196,17 @@ export const AwsProjectPage = ({
 
       <main className="p-6 space-y-6">
         <div className="grid grid-cols-[350px_1fr] gap-6">
-          <ProjectInfoCard project={project} />
+          <div className="space-y-6">
+            <ProjectInfoCard project={project} />
+            <AwsInfoCard
+              project={project}
+              awsStatus={awsStatus}
+              scanRoleInfo={serviceSettings?.scanRole ?? null}
+              credentials={credentials}
+              onOpenGuide={handleOpenGuide}
+              onManageCredentials={handleManageCredentials}
+            />
+          </div>
           <ProcessStatusCard
             project={project}
             isAdmin={isAdmin}
@@ -181,7 +219,7 @@ export const AwsProjectPage = ({
         </div>
 
         {/* Cloud 리소스 통합 컨테이너 */}
-        <div className={cn(cardStyles.base, 'overflow-hidden')}>
+        <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
           <div className="px-6 pt-6">
             <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
           </div>
@@ -246,6 +284,15 @@ export const AwsProjectPage = ({
           )}
         </div>
       </main>
+
+      {guide && (
+        <ProcessGuideModal
+          isOpen={guideModal.isOpen}
+          onClose={guideModal.close}
+          guide={guide}
+          currentStepNumber={currentStep}
+        />
+      )}
     </div>
   );
 };
