@@ -3,7 +3,102 @@
 import { useState } from 'react';
 import { Badge } from '@/app/components/ui/Badge';
 import { statusColors, cn } from '@/lib/theme';
-import type { ProcessGuideStep } from '@/lib/types/process-guide';
+import type { ProcessGuideStep, PrerequisiteGuide } from '@/lib/types/process-guide';
+
+interface PrerequisiteGuideItemProps {
+  guide: PrerequisiteGuide;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+const PrerequisiteGuideItem = ({ guide, isOpen, onToggle }: PrerequisiteGuideItemProps) => {
+
+  return (
+    <div className={cn(
+      'rounded-lg overflow-hidden transition-colors',
+      isOpen ? cn('border-l-2', statusColors.info.border, statusColors.info.bg) : cn('border', statusColors.pending.border, 'bg-white'),
+    )}>
+      <button
+        onClick={onToggle}
+        className={cn(
+          'w-full flex items-start gap-3 p-3 text-left transition-colors',
+          isOpen ? 'pb-2' : 'hover:bg-gray-50',
+        )}
+      >
+        <svg
+          className={cn(
+            'w-4 h-4 mt-0.5 shrink-0 transition-transform',
+            isOpen ? cn(statusColors.info.text, 'rotate-90') : 'text-gray-400',
+          )}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <div className="min-w-0">
+          <span className={cn('text-sm font-medium', isOpen ? statusColors.info.textDark : 'text-gray-900')}>
+            {guide.label}
+          </span>
+          {!isOpen && <p className="text-xs text-gray-500 mt-0.5">{guide.summary}</p>}
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="px-3 pb-3 ml-7 space-y-3">
+          {/* 절차 */}
+          <div>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">절차</span>
+            <ol className="mt-1.5 space-y-1.5">
+              {guide.steps.map((step, idx) => (
+                <li key={idx} className="flex gap-2.5 text-sm text-gray-800">
+                  <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium', statusColors.info.bg, statusColors.info.textDark)}>
+                    {idx + 1}
+                  </span>
+                  <span className="pt-0.5">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          {/* 주의사항 */}
+          {guide.warnings && guide.warnings.length > 0 && (
+            <div className={cn('rounded-md p-2.5 border', statusColors.warning.bg, statusColors.warning.border)}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <svg className={cn('w-3.5 h-3.5', statusColors.warning.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className={cn('text-xs font-semibold', statusColors.warning.textDark)}>주의</span>
+              </div>
+              <ul className={cn('list-disc list-inside space-y-1 text-sm', statusColors.warning.textDark)}>
+                {guide.warnings.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 참고사항 */}
+          {guide.notes && guide.notes.length > 0 && (
+            <div className={cn('rounded-md p-2.5 border', statusColors.info.bg, statusColors.info.border)}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <svg className={cn('w-3.5 h-3.5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className={cn('text-xs font-semibold', statusColors.info.textDark)}>참고</span>
+              </div>
+              <ul className={cn('list-disc list-inside space-y-1 text-sm', statusColors.info.textDark)}>
+                {guide.notes.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export interface ProcessGuideStepCardProps {
   step: ProcessGuideStep;
@@ -13,12 +108,16 @@ export interface ProcessGuideStepCardProps {
 
 export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: ProcessGuideStepCardProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [openGuideIndex, setOpenGuideIndex] = useState<number | null>(null);
 
   const badgeVariant = status === 'completed' ? 'success' : status === 'current' ? 'info' : 'pending';
   const badgeLabel = status === 'completed' ? '완료' : status === 'current' ? '진행중' : '대기';
 
   const borderClass = status === 'current' ? cn('border-l-4', statusColors.info.border) : 'border-l-4 border-transparent';
   const shadowClass = status === 'current' ? 'shadow-md' : 'shadow-sm';
+
+  const hasPrerequisiteGuides = step.prerequisiteGuides && step.prerequisiteGuides.length > 0;
+  const hasPrerequisites = step.prerequisites && step.prerequisites.length > 0;
 
   return (
     <div className={cn('bg-white rounded-lg p-5 transition-all', borderClass, shadowClass)}>
@@ -58,8 +157,30 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
           {/* 설명 */}
           <p className="text-sm text-gray-700">{step.description}</p>
 
-          {/* 사전 조치 */}
-          {step.prerequisites && step.prerequisites.length > 0 && (
+          {/* 사전 조치 상세 가이드 (아코디언) */}
+          {hasPrerequisiteGuides && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span className="text-sm font-semibold text-gray-900">사전 조치</span>
+              </div>
+              <div className="space-y-2 ml-6">
+                {step.prerequisiteGuides!.map((guide, idx) => (
+                  <PrerequisiteGuideItem
+                    key={idx}
+                    guide={guide}
+                    isOpen={openGuideIndex === idx}
+                    onToggle={() => setOpenGuideIndex(openGuideIndex === idx ? null : idx)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 사전 조치 (단순 텍스트 — 하위 호환) */}
+          {!hasPrerequisiteGuides && hasPrerequisites && (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -68,7 +189,7 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className="text-sm font-semibold text-gray-900">사전 조치</span>
               </div>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 ml-6">
-                {step.prerequisites.map((item, idx) => (
+                {step.prerequisites!.map((item, idx) => (
                   <li key={idx}>{item}</li>
                 ))}
               </ul>
