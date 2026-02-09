@@ -180,7 +180,7 @@ export const NonTargetResourceSection = ({
         <CollapsibleResourceGroup
           isOpen={isVnetOpen}
           onToggle={() => setIsVnetOpen(prev => !prev)}
-          label="PE 연결 불가 (VNet Integration)"
+          label="설치 불가 (VNet Integration)"
           count={vnetResources.length}
           icon={<WarningIcon />}
           labelClassName={statusColors.warning.textDark}

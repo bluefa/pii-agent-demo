@@ -29,7 +29,7 @@ export const VnetIntegrationGuideModal = ({ isOpen, onClose, resourceId }: VnetI
       {/* 경고 아이콘 + 리소스 ID */}
       <div className={cn('flex items-center gap-3 px-3 py-2.5 rounded-lg', statusColors.warning.bg)}>
         <WarningIcon />
-        <span className={cn('text-sm font-mono', textColors.tertiary)}>{resourceId}</span>
+        <span className={cn('text-sm font-mono break-all', textColors.tertiary)}>{resourceId}</span>
       </div>
 
       {/* 원인 설명 */}
