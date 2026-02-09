@@ -64,14 +64,16 @@ export const AzureInfoCard = ({
       {/* Section 1: Basic Info */}
       <div className="space-y-3">
         {project.tenantId && (
-          <InfoRow label={PROVIDER_FIELD_LABELS.Azure.tenantId}>
-            <span className={cn('font-mono text-sm', textColors.primary)}>{project.tenantId}</span>
-          </InfoRow>
+          <div>
+            <span className={cn('text-sm block mb-1', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.Azure.tenantId}</span>
+            <span className={cn('font-mono text-sm block truncate', textColors.primary)} title={project.tenantId}>{project.tenantId}</span>
+          </div>
         )}
         {project.subscriptionId && (
-          <InfoRow label={PROVIDER_FIELD_LABELS.Azure.subscriptionId}>
-            <span className={cn('font-mono text-sm', textColors.primary)}>{project.subscriptionId}</span>
-          </InfoRow>
+          <div>
+            <span className={cn('text-sm block mb-1', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.Azure.subscriptionId}</span>
+            <span className={cn('font-mono text-sm block truncate', textColors.primary)} title={project.subscriptionId}>{project.subscriptionId}</span>
+          </div>
         )}
       </div>
 
@@ -100,16 +102,19 @@ export const AzureInfoCard = ({
         {credentials.length === 0 ? (
           <p className={cn('text-sm py-2', textColors.quaternary)}>등록된 Credential이 없습니다</p>
         ) : (
-          <div className={cn('rounded-lg p-2', statusColors.pending.bg)}>
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
             {visibleCredentials.map((c) => (
-              <div key={c.id} className={cn('py-1 px-2 text-sm', textColors.secondary)}>
-                {c.name}
+              <div key={c.id} className="flex items-center gap-2 px-3 py-2">
+                <svg className={cn('w-4 h-4 shrink-0', textColors.tertiary)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                </svg>
+                <span className={cn('text-sm truncate', textColors.secondary)}>{c.name}</span>
               </div>
             ))}
             {hiddenCount > 0 && (
               <button
                 onClick={() => setShowAllCredentials(!showAllCredentials)}
-                className={cn('py-1 px-2 text-sm', statusColors.info.text, 'hover:underline')}
+                className={cn('w-full px-3 py-1.5 text-sm text-center', statusColors.info.text, 'hover:bg-gray-50')}
               >
                 {showAllCredentials ? '접기' : `+${hiddenCount}개 더보기`}
               </button>
