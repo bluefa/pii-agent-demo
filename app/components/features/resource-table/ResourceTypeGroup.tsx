@@ -5,6 +5,7 @@ import { Resource, DatabaseType, DBCredential, VmDatabaseConfig, AwsResourceType
 import { AWS_RESOURCE_TYPE_LABELS, REGION_LABELS } from '@/lib/constants/labels';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { ResourceRow } from './ResourceRow';
+import { ClusterRow } from './ClusterRow';
 import { statusColors, cn, providerColors, textColors, bgColors } from '@/lib/theme';
 
 const COLLAPSE_THRESHOLD = 5;
@@ -24,6 +25,7 @@ interface ResourceTypeGroupProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  onInstanceToggle?: (resourceId: string, instanceId: string, checked: boolean) => void;
 }
 
 const groupByRegion = (resources: Resource[]): Map<string, Resource[]> => {
@@ -57,6 +59,7 @@ export const ResourceTypeGroup = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  onInstanceToggle,
 }: ResourceTypeGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const regionGroups = groupByRegion(resources);
@@ -137,23 +140,36 @@ export const ResourceTypeGroup = ({
             </tr>
           )}
           {regionResources.map((resource) => (
-            <ResourceRow
-              key={resource.id}
-              resource={resource}
-              isAWS={true}
-              cloudProvider="AWS"
-              selectedIds={selectedIds}
-              isEditMode={isEditMode}
-              isCheckboxEnabled={isCheckboxEnabled}
-              showConnectionStatus={showConnectionStatus}
-              showCredentialColumn={showCredentialColumn}
-              onCheckboxChange={onCheckboxChange}
-              getCredentialsForType={getCredentialsForType}
-              onCredentialChange={onCredentialChange}
-              expandedVmId={expandedVmId}
-              onVmConfigToggle={onVmConfigToggle}
-              onVmConfigSave={onVmConfigSave}
-            />
+            resource.awsType === 'RDS_CLUSTER' ? (
+              <ClusterRow
+                key={resource.id}
+                resource={resource}
+                selectedIds={selectedIds}
+                isEditMode={isEditMode}
+                isCheckboxEnabled={isCheckboxEnabled}
+                showConnectionStatus={showConnectionStatus}
+                onCheckboxChange={onCheckboxChange}
+                onInstanceToggle={onInstanceToggle}
+              />
+            ) : (
+              <ResourceRow
+                key={resource.id}
+                resource={resource}
+                isAWS={true}
+                cloudProvider="AWS"
+                selectedIds={selectedIds}
+                isEditMode={isEditMode}
+                isCheckboxEnabled={isCheckboxEnabled}
+                showConnectionStatus={showConnectionStatus}
+                showCredentialColumn={showCredentialColumn}
+                onCheckboxChange={onCheckboxChange}
+                getCredentialsForType={getCredentialsForType}
+                onCredentialChange={onCredentialChange}
+                expandedVmId={expandedVmId}
+                onVmConfigToggle={onVmConfigToggle}
+                onVmConfigSave={onVmConfigSave}
+              />
+            )
           ))}
         </React.Fragment>
       ))}
