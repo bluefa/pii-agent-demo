@@ -8,13 +8,12 @@ type RouteParams = { params: Promise<{ projectId: string }> };
  * AWS 설치 상태 확인 (Refresh)
  */
 export const POST = async (
-  _request: NextRequest,
+  request: NextRequest,
   { params }: RouteParams
 ) => {
   try {
     const { projectId } = await params;
 
-    // 프로젝트 존재 확인
     const project = await dataAdapter.getProjectById(projectId);
 
     if (!project) {
@@ -31,13 +30,14 @@ export const POST = async (
       );
     }
 
-    // 설치 상태가 없으면 초기화
-    let result = await dataAdapter.checkInstallation(projectId);
+    const body = await request.json().catch(() => ({})) as { scriptId?: string };
+
+    let result = await dataAdapter.checkInstallation(projectId, body.scriptId);
 
     if (!result) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
       await dataAdapter.initializeInstallation(projectId, hasTfPermission);
-      result = await dataAdapter.checkInstallation(projectId);
+      result = await dataAdapter.checkInstallation(projectId, body.scriptId);
     }
 
     return NextResponse.json(result);
