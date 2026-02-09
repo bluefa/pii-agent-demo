@@ -184,24 +184,6 @@ GET /api/aws/projects/{projectId}/terraform-script
 }
 ```
 
-### TF Script 다운로드 (개별 스크립트)
-
-```
-GET /api/aws/projects/{projectId}/terraform-scripts/{scriptId}
-```
-
-> Manual mode에서만 사용 가능합니다.
-> `scriptId`는 `installation-status` 응답의 `serviceTfScripts[].id` 값입니다.
-
-**응답**:
-```typescript
-{
-  downloadUrl: string,
-  fileName: string,
-  expiresAt: string
-}
-```
-
 ### 설치 상태 확인 (Refresh)
 
 ```
@@ -212,17 +194,9 @@ POST /api/aws/projects/{projectId}/check-installation
 > Frontend는 "새로고침" 버튼으로 이 API를 호출하여 최신 상태를 확인합니다.
 >
 > **동작 방식**:
-> - Backend가 AWS API로 Service TF 리소스 존재 여부 검증
+> - Backend가 AWS API로 전체 Service TF 스크립트의 리소스 존재 여부 일괄 검증
 > - 검증 성공 시 해당 스크립트의 `status`를 `COMPLETED`로 업데이트
 > - 모든 Service TF 스크립트 완료 확인 시 BDC TF 자동 실행
-> - `scriptId` 지정 시 해당 스크립트만 개별 확인
-
-**요청** (optional body):
-```typescript
-{
-  scriptId?: string  // 특정 스크립트만 확인 (생략 시 전체 확인)
-}
-```
 
 **응답** (installation-status와 동일 + error):
 ```typescript
@@ -385,8 +359,7 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 
 | 날짜 | 내용 |
 |------|------|
-| 2026-02-09 | N-script 아키텍처: ServiceTfScript 스키마, 개별 다운로드 API, 리소스→TF Script 매핑 추가 |
-| 2026-02-09 | check-installation에 optional scriptId 파라미터 추가 |
+| 2026-02-09 | N-script 아키텍처: ServiceTfScript 스키마, 리소스→TF Script 매핑 추가 |
 | 2026-01-31 | check-installation 응답을 installation-status와 통일 |
 | 2026-01-31 | API 경로에 /aws/ prefix 추가 (Provider 명시) |
 | 2026-01-31 | confirm-installation → check-installation 변경 (자동 탐지 방식) |

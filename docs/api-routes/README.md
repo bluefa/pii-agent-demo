@@ -77,9 +77,8 @@ Next.js App Router의 API Route Handlers 문서.
 | POST | `/api/aws/verify-tf-role` | TF Role 검증 |
 | POST | `/api/aws/projects/[projectId]/installation-mode` | 설치 모드 선택 (AUTO/MANUAL) |
 | GET | `/api/aws/projects/[projectId]/installation-status` | 설치 상태 조회 |
-| POST | `/api/aws/projects/[projectId]/check-installation` | 설치 상태 확인 (Refresh, optional `{ scriptId }` body) |
-| GET | `/api/aws/projects/[projectId]/terraform-script` | TF Script 다운로드 URL |
-| GET | `/api/aws/projects/[projectId]/terraform-scripts/[scriptId]` | 특정 TF 스크립트 다운로드 (Manual mode) |
+| POST | `/api/aws/projects/[projectId]/check-installation` | 설치 상태 확인 (프로젝트 단위 전체 검증) |
+| GET | `/api/aws/projects/[projectId]/terraform-script` | TF Script 묶음 다운로드 URL |
 | GET | `/api/services/[serviceCode]/settings/aws` | 서비스 AWS 설정 조회 |
 | PUT | `/api/services/[serviceCode]/settings/aws` | 서비스 AWS 설정 수정 |
 | POST | `/api/services/[serviceCode]/settings/aws/verify-scan-role` | Scan Role 재검증 |
