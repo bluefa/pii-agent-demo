@@ -108,7 +108,7 @@ export const ResourceTable = ({
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
-  const colSpan = 4 + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
+  const colSpan = (isAWS ? 3 : 4) + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
   const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
     filterCredentialsByType(credentials, databaseType);
@@ -128,9 +128,9 @@ export const ResourceTable = ({
         <thead>
           <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
             {isEditMode && <th className="px-6 py-3 w-12" />}
-            <th className="px-6 py-3">인스턴스 타입</th>
-            <th className="px-6 py-3">데이터베이스</th>
+            {!isAWS && <th className="px-6 py-3">인스턴스 타입</th>}
             <th className="px-6 py-3">리소스 ID</th>
+            <th className="px-6 py-3">데이터베이스</th>
             {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
             {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
             <th className="px-6 py-3 w-16" />
