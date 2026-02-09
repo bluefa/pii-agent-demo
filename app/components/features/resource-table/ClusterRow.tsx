@@ -16,7 +16,6 @@ interface ClusterRowProps {
   isCheckboxEnabled: boolean;
   showConnectionStatus: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
-  onInstanceToggle?: (resourceId: string, instanceId: string, checked: boolean) => void;
 }
 
 const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
@@ -57,7 +56,6 @@ export const ClusterRow = ({
   isCheckboxEnabled,
   showConnectionStatus,
   onCheckboxChange,
-  onInstanceToggle: externalInstanceToggle,
 }: ClusterRowProps) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [instanceSelections, setInstanceSelections] = useState<Record<string, boolean>>(() => {
@@ -96,8 +94,7 @@ export const ClusterRow = ({
 
   const handleInstanceToggle = useCallback((instanceId: string, checked: boolean) => {
     setInstanceSelections((prev) => ({ ...prev, [instanceId]: checked }));
-    externalInstanceToggle?.(resource.id, instanceId, checked);
-  }, [externalInstanceToggle, resource.id]);
+  }, []);
 
   return (
     <>
