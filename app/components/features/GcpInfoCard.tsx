@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
+import { Modal } from '@/app/components/ui/Modal';
+import { useModal } from '@/app/hooks/useModal';
 import type { Project, DBCredential } from '@/lib/types';
 
 interface GcpInfoCardProps {
@@ -16,12 +18,6 @@ const CREDENTIAL_PREVIEW_COUNT = 3;
 
 const ArrowIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
-
-const ChevronIcon = ({ open }: { open: boolean }) => (
-  <svg className={cn('w-4 h-4 transition-transform', open && 'rotate-90')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
   </svg>
 );
@@ -48,7 +44,7 @@ export const GcpInfoCard = ({
   onManageCredentials,
 }: GcpInfoCardProps) => {
   const [showAllCredentials, setShowAllCredentials] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
+  const guideModal = useModal();
 
   const visibleCredentials = showAllCredentials
     ? credentials
@@ -93,16 +89,19 @@ export const GcpInfoCard = ({
         {credentials.length === 0 ? (
           <p className={cn('text-sm py-2', textColors.quaternary)}>등록된 Credential이 없습니다</p>
         ) : (
-          <div className={cn('rounded-lg p-2', statusColors.pending.bg)}>
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
             {visibleCredentials.map((c) => (
-              <div key={c.id} className={cn('py-1 px-2 text-sm', textColors.secondary)}>
-                {c.name}
+              <div key={c.id} className="flex items-center gap-2 px-3 py-2">
+                <svg className={cn('w-4 h-4 shrink-0', textColors.tertiary)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                </svg>
+                <span className={cn('text-sm truncate', textColors.secondary)}>{c.name}</span>
               </div>
             ))}
             {hiddenCount > 0 && (
               <button
                 onClick={() => setShowAllCredentials(!showAllCredentials)}
-                className={cn('py-1 px-2 text-sm', statusColors.info.text, 'hover:underline')}
+                className={cn('w-full px-3 py-1.5 text-sm text-center', statusColors.info.text, 'hover:bg-gray-50')}
               >
                 {showAllCredentials ? '접기' : `+${hiddenCount}개 더보기`}
               </button>
@@ -111,32 +110,30 @@ export const GcpInfoCard = ({
         )}
       </div>
 
-      {/* Section 3: Scan Service Account Guide */}
+      {/* Section 3: Scan Service Account */}
       <div className="mt-4 pt-4 border-t border-gray-100">
-        <button
-          onClick={() => setShowGuide(!showGuide)}
-          className="flex items-center justify-between w-full"
-        >
+        <div className="flex items-center justify-between">
           <span className={cn('text-sm font-medium', textColors.secondary)}>Scan Service Account</span>
-          <span className={cn('inline-flex items-center gap-1 text-sm', statusColors.info.text)}>
-            가이드 보기
-            <ChevronIcon open={showGuide} />
-          </span>
-        </button>
-
-        {showGuide && (
-          <div className={cn('mt-2 rounded-lg p-3', statusColors.pending.bg)}>
-            <ol className="space-y-2">
-              {GUIDE_STEPS.map((step, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className={cn('text-sm font-medium shrink-0', textColors.tertiary)}>{i + 1}.</span>
-                  <span className={cn('text-sm whitespace-pre-line', textColors.secondary)}>{step}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
+          <button
+            onClick={() => guideModal.open()}
+            className={cn('inline-flex items-center gap-0.5 text-sm', statusColors.info.text, 'hover:underline')}
+          >
+            등록 가이드
+            <ArrowIcon />
+          </button>
+        </div>
       </div>
+
+      <Modal isOpen={guideModal.isOpen} onClose={guideModal.close} title="Scan Service Account 등록 가이드" size="md">
+        <ol className="space-y-3">
+          {GUIDE_STEPS.map((step, i) => (
+            <li key={i} className="flex gap-3">
+              <span className={cn('text-sm font-semibold shrink-0 w-5 h-5 rounded-full flex items-center justify-center', statusColors.info.bg, statusColors.info.textDark)}>{i + 1}</span>
+              <span className={cn('text-sm whitespace-pre-line leading-relaxed', textColors.secondary)}>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </Modal>
     </div>
   );
 };
