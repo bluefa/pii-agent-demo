@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { Project, AwsInstallationStatus } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
-import { TfRoleGuideModal } from '@/app/components/features/process-status/aws';
 import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import { badgeStyles, cardStyles, statusColors, cn } from '@/lib/theme';
 
 interface ProjectInfoCardProps {
   project: Project;
+  awsStatus?: AwsInstallationStatus | null;
 }
 
 // 설치 모드 뱃지 (AWS 전용)
@@ -47,18 +47,19 @@ const InstallationModeBadge = ({ isAutoInstall }: { isAutoInstall: boolean }) =>
   );
 };
 
-export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
-  const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
-  const [showTfRoleGuide, setShowTfRoleGuide] = useState(false);
+export const ProjectInfoCard = ({ project, awsStatus: externalAwsStatus }: ProjectInfoCardProps) => {
+  const [internalAwsStatus, setInternalAwsStatus] = useState<AwsInstallationStatus | null>(null);
 
-  // AWS 프로젝트인 경우 설치 모드 조회
+  // 외부에서 제공되지 않은 경우에만 자체 fetch
   useEffect(() => {
-    if (project.cloudProvider === 'AWS') {
+    if (project.cloudProvider === 'AWS' && externalAwsStatus === undefined) {
       getAwsInstallationStatus(project.id)
-        .then(setAwsStatus)
-        .catch(() => {}); // 에러 시 무시 (뱃지 미표시)
+        .then(setInternalAwsStatus)
+        .catch(() => {});
     }
-  }, [project.id, project.cloudProvider]);
+  }, [project.id, project.cloudProvider, externalAwsStatus]);
+
+  const awsStatus = externalAwsStatus ?? internalAwsStatus;
 
   return (
     <div className={`${cardStyles.base} p-6`}>
@@ -130,22 +131,6 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
           </div>
         )}
 
-        {/* TF Role 상태 (자동 설치만) */}
-        {project.cloudProvider === 'AWS' && awsStatus?.hasTfPermission && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">TF Role</span>
-            <button
-              onClick={() => setShowTfRoleGuide(true)}
-              className={cn('inline-flex items-center gap-1.5 text-sm font-medium', statusColors.success.text)}
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              등록됨
-            </button>
-          </div>
-        )}
-
         {/* 생성일 */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">생성일</span>
@@ -167,9 +152,6 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
         )}
       </div>
 
-      {showTfRoleGuide && (
-        <TfRoleGuideModal onClose={() => setShowTfRoleGuide(false)} />
-      )}
     </div>
   );
 };
