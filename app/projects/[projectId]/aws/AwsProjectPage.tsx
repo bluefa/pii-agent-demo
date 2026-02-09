@@ -17,7 +17,7 @@ import { getProcessGuide } from '@/lib/constants/process-guides';
 import { useModal } from '@/app/hooks/useModal';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
-import { PrerequisiteStatusCard } from '@/app/components/features/PrerequisiteStatusCard';
+import { AwsInfoCard } from '@/app/components/features/AwsInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
@@ -197,11 +197,12 @@ export const AwsProjectPage = ({
       <main className="p-6 space-y-6">
         <div className="grid grid-cols-[350px_1fr] gap-6">
           <div className="space-y-6">
-            <ProjectInfoCard project={project} awsStatus={awsStatus} />
-            <PrerequisiteStatusCard
+            <ProjectInfoCard project={project} />
+            <AwsInfoCard
               project={project}
               awsStatus={awsStatus}
               scanRoleInfo={serviceSettings?.scanRole ?? null}
+              credentials={credentials}
               onOpenGuide={handleOpenGuide}
               onManageCredentials={handleManageCredentials}
             />
