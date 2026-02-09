@@ -36,6 +36,16 @@ export interface VmDatabaseConfig {
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
+// RDS Cluster 전용 타입
+export type RdsClusterType = 'REGIONAL' | 'GLOBAL';
+
+export interface ClusterInstance {
+  instanceId: string;
+  role: 'READER' | 'WRITER';
+  availabilityZone: string;
+  isSelected: boolean;
+}
+
 export type AzureResourceType = 'AZURE_MSSQL' | 'AZURE_POSTGRESQL' | 'AZURE_MYSQL' | 'AZURE_MARIADB' | 'AZURE_COSMOS_NOSQL' | 'AZURE_SYNAPSE' | 'AZURE_VM';
 
 export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
@@ -104,6 +114,10 @@ export interface Resource {
 
   // --- VM 전용 설정 ---
   vmDatabaseConfig?: VmDatabaseConfig;    // VM 리소스(EC2, AZURE_VM)만
+
+  // --- RDS_CLUSTER 전용 ---
+  clusterType?: RdsClusterType;
+  clusterInstances?: ClusterInstance[];
 }
 
 export interface TerraformState {
