@@ -152,19 +152,10 @@ export const AzureInfoCard = ({
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className={cn('inline-flex items-center gap-1 text-sm font-medium', statusColors.warning.text)}>
-              <WarningIcon />
-              미등록
-            </span>
-            <button
-              onClick={onOpenGuide}
-              className={cn('inline-flex items-center gap-0.5 text-sm', statusColors.info.text, 'hover:underline')}
-            >
-              등록 가이드
-              <ArrowIcon />
-            </button>
-          </div>
+          <span className={cn('inline-flex items-center gap-1 text-sm font-medium', statusColors.warning.text)}>
+            <WarningIcon />
+            미등록
+          </span>
         )}
       </div>
     </div>
