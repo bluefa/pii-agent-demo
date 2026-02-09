@@ -13,6 +13,7 @@ import {
   AzureResourceType,
   GcpResourceType,
   VmDatabaseType,
+  AzureNetworkingMode,
 } from '@/lib/types';
 import {
   MAX_RESOURCES,
@@ -501,6 +502,11 @@ export const generateAzureResource = (): Resource => {
       databaseType = 'MSSQL';
   }
 
+  const networkingMode: AzureNetworkingMode | undefined =
+    (azureType === 'AZURE_MYSQL' || azureType === 'AZURE_POSTGRESQL')
+      ? (Math.random() < 0.3 ? 'VNET_INTEGRATION' : 'PUBLIC_ACCESS')
+      : undefined;
+
   return {
     id: generateId('res'),
     type: azureType,
@@ -511,6 +517,7 @@ export const generateAzureResource = (): Resource => {
     lifecycleStatus: 'DISCOVERED',
     isNew: true,
     note: 'NEW',
+    ...(networkingMode ? { azureNetworkingMode: networkingMode } : {}),
   };
 };
 

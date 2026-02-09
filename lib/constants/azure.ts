@@ -65,10 +65,20 @@ export const PRIVATE_ENDPOINT_REQUIRED_TYPES = [
   'AZURE_SYNAPSE',
 ] as const;
 
+// ===== VNet Integration 관련 =====
+
+export const VNET_INTEGRATION_AFFECTED_TYPES = ['AZURE_MYSQL', 'AZURE_POSTGRESQL'] as const;
+
+export const AZURE_NETWORKING_MODE_LABELS = {
+  PUBLIC_ACCESS: 'Public Access',
+  VNET_INTEGRATION: 'VNet Integration (Private Access)',
+} as const;
+
 // ===== 가이드 문서 URL =====
 
 export const AZURE_GUIDE_URLS = {
   SCAN_APP_REGISTRATION: 'https://docs.example.com/azure/scan-app-registration',
   SUBNET_CONFIGURATION: 'https://docs.example.com/azure/subnet-configuration',
   PRIVATE_ENDPOINT_APPROVAL: 'https://docs.example.com/azure/private-endpoint-approval',
+  VNET_NETWORKING: 'https://learn.microsoft.com/azure/mysql/flexible-server/concepts-networking-vnet',
 } as const;

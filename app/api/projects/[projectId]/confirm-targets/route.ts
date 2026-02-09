@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { dataAdapter } from '@/lib/adapters';
-import { ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus } from '@/lib/types';
+import { ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus, isPeIneligible } from '@/lib/types';
 import type { VmDatabaseConfig } from '@/lib/types';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { getCurrentStep } from '@/lib/process';
@@ -71,7 +71,8 @@ export async function POST(
     r.lifecycleStatus !== 'ACTIVE' &&
     !exclusionMap.has(r.id) &&
     !r.exclusion &&
-    r.awsType !== 'EC2'
+    r.awsType !== 'EC2' &&
+    !isPeIneligible(r)
   );
 
   if (unselectedWithoutReason.length > 0) {
