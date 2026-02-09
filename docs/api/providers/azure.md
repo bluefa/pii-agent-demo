@@ -146,7 +146,7 @@ POST /api/azure/projects/{projectId}/check-installation
 
 > VM 설치는 3단계로 진행됩니다:
 > 1. **Subnet 설정** - 서비스 담당자가 PLS용 Subnet 생성 (수동)
-> 2. **VM TF 설치** - 서비스 담당자가 TF Script 실행 (수동)
+> 2. **Load Balancer + PLS 설치** - 서비스 담당자가 TF Script 실행 (수동)
 > 3. **Private Endpoint 승인** - 서비스 담당자가 Azure Portal에서 승인 (수동)
 
 ### VM 설치 상태 조회
@@ -162,11 +162,14 @@ GET /api/azure/projects/{projectId}/vm-installation-status
     vmId: string,
     vmName: string,
 
-    // 설치 단계: 1. Subnet → 2. Terraform → 3. Private Endpoint
+    // 설치 단계: 1. Subnet → 2. Load Balancer(+PLS) → 3. Private Endpoint
     subnetExists: boolean,        // PLS용 Subnet 존재 여부
-    terraformInstalled: boolean,  // VM TF 설치 완료 여부
+    loadBalancer: {
+      installed: boolean,         // LB + PLS 설치 완료 여부
+      name: string,               // naming rule 기반 LB 이름 (vmName + randomString)
+    },
 
-    // Subnet + TF 완료 후에만 PE 상태 존재
+    // Subnet + LB 완료 후에만 PE 상태 존재
     privateEndpoint?: {
       id: string,
       name: string,
@@ -186,8 +189,8 @@ GET /api/azure/projects/{projectId}/vm-installation-status
 function getVmInstallStep(vm: VmStatus): InstallStep {
   // 1. Subnet 확인
   if (!vm.subnetExists) return 'SUBNET_REQUIRED';
-  // 2. TF 설치 확인
-  if (!vm.terraformInstalled) return 'VM_TF_REQUIRED';
+  // 2. LB + PLS 설치 확인
+  if (!vm.loadBalancer.installed) return 'VM_TF_REQUIRED';
   // 3. PE 상태 확인
   const peStatus = vm.privateEndpoint?.status;
   if (!peStatus || peStatus === 'NOT_REQUESTED') return 'PE_NOT_REQUESTED';
@@ -212,7 +215,10 @@ POST /api/azure/projects/{projectId}/vm-check-installation
     vmId: string,
     vmName: string,
     subnetExists: boolean,
-    terraformInstalled: boolean,
+    loadBalancer: {
+      installed: boolean,
+      name: string,
+    },
     privateEndpoint?: {
       id: string,
       name: string,
@@ -349,6 +355,7 @@ GET /api/services/{serviceCode}/settings/azure
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-09 | VM 설치 상태: terraformInstalled → loadBalancer 객체로 구조화 (LB+PLS 명시) |
 | 2026-02-02 | VM 설치 상태에 Private Endpoint 정보 추가 (Subnet → TF → PE 3단계) |
 | 2026-02-01 | API 경로에 /azure/ prefix 추가 (AWS와 통일) |
 | 2026-02-02 | installed 필드 추가 (모든 리소스 APPROVED일 때 true) |

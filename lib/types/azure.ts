@@ -41,12 +41,17 @@ export interface AzureInstallationStatus {
 
 // ===== Azure VM 설치 상태 =====
 
+export interface LoadBalancerInfo {
+  installed: boolean;
+  name: string;
+}
+
 export interface AzureVmStatus {
   vmId: string;
   vmName: string;
-  // 설치 단계: 1. Subnet → 2. Terraform → 3. Private Endpoint
+  // 설치 단계: 1. Subnet → 2. LoadBalancer(+PLS) → 3. Private Endpoint
   subnetExists: boolean;
-  terraformInstalled: boolean;
+  loadBalancer: LoadBalancerInfo;
   privateEndpoint?: AzurePrivateEndpoint;
 }
 
