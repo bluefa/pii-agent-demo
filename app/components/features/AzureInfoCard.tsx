@@ -34,12 +34,39 @@ const ArrowIcon = () => (
   </svg>
 );
 
-const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="flex items-center justify-between">
-    <span className={cn('text-sm', textColors.tertiary)}>{label}</span>
-    {children}
-  </div>
+const CopyIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  </svg>
 );
+
+const CheckSmallIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const IdField = ({ label, value }: { label: string; value: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200 px-3 py-2">
+      <span className={cn('text-xs block mb-0.5', textColors.tertiary)}>{label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn('font-mono text-sm truncate', textColors.primary)} title={value}>{value}</span>
+        <button onClick={handleCopy} className={cn('shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors', copied ? statusColors.success.text : textColors.tertiary)} title="복사">
+          {copied ? <CheckSmallIcon /> : <CopyIcon />}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export const AzureInfoCard = ({
   project,
@@ -62,18 +89,12 @@ export const AzureInfoCard = ({
       <h3 className={cn(cardStyles.title, 'mb-4')}>Azure 연동 정보</h3>
 
       {/* Section 1: Basic Info */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {project.tenantId && (
-          <div>
-            <span className={cn('text-sm block mb-1', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.Azure.tenantId}</span>
-            <span className={cn('font-mono text-sm block truncate', textColors.primary)} title={project.tenantId}>{project.tenantId}</span>
-          </div>
+          <IdField label={PROVIDER_FIELD_LABELS.Azure.tenantId} value={project.tenantId} />
         )}
         {project.subscriptionId && (
-          <div>
-            <span className={cn('text-sm block mb-1', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.Azure.subscriptionId}</span>
-            <span className={cn('font-mono text-sm block truncate', textColors.primary)} title={project.subscriptionId}>{project.subscriptionId}</span>
-          </div>
+          <IdField label={PROVIDER_FIELD_LABELS.Azure.subscriptionId} value={project.subscriptionId} />
         )}
       </div>
 
