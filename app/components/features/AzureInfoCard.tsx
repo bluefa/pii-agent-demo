@@ -59,7 +59,7 @@ const IdField = ({ label, value }: { label: string; value: string }) => {
     <div className="rounded-lg border border-gray-200 px-3 py-2">
       <span className={cn('text-xs block mb-0.5', textColors.tertiary)}>{label}</span>
       <div className="flex items-center justify-between gap-2">
-        <span className={cn('font-mono text-sm truncate', textColors.primary)} title={value}>{value}</span>
+        <span className={cn('font-mono text-xs break-all leading-relaxed', textColors.primary)}>{value}</span>
         <button onClick={handleCopy} className={cn('shrink-0 p-0.5 rounded hover:bg-gray-100 transition-colors', copied ? statusColors.success.text : textColors.tertiary)} title="복사">
           {copied ? <CheckSmallIcon /> : <CopyIcon />}
         </button>
