@@ -8,4 +8,5 @@ export {
   getCurrentStep,
   getProjectCurrentStep,
   createInitialProjectStatus,
+  getSduCurrentStep,
 } from './calculator';
