@@ -1,13 +1,12 @@
 'use client';
 
 import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
-import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
-import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
+import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
 import { StatusIcon } from './StatusIcon';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
-import { cn, textColors, statusColors, bgColors, borderColors, colors } from '@/lib/theme';
+import { cn, textColors, statusColors, bgColors, colors } from '@/lib/theme';
 
 // VM 리소스 타입 체크 헬퍼
 export const isVmResource = (resource: Resource): boolean => {
@@ -112,42 +111,35 @@ export const ResourceRow = ({
           </td>
         )}
 
-        {/* Instance Type */}
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            {isAWS && resource.awsType && <AwsServiceIcon type={resource.awsType} size="lg" />}
-            {cloudProvider === 'Azure' && isAzureResourceType(resource.type) && (
-              <AzureServiceIcon type={resource.type} size="lg" />
-            )}
-            <span className={cn('font-medium', textColors.primary)}>{resource.awsType || resource.type}</span>
-            {isVm && isEditMode && isCheckboxEnabled && isSelected && (
-              <span className={cn('text-xs ml-1', statusColors.info.textDark)}>(클릭하여 설정)</span>
-            )}
-          </div>
-        </td>
-
-        {/* Database Type */}
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            {isVm && hasVmConfig ? (
-              <>
-                <DatabaseIcon type={resource.vmDatabaseConfig!.databaseType} size="sm" />
-                <span className={cn('text-sm', textColors.primary)}>
-                  {getDatabaseLabel(resource.vmDatabaseConfig!.databaseType)}
-                </span>
-              </>
-            ) : (
-              <>
-                <DatabaseIcon type={resource.databaseType} size="sm" />
-                <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
-              </>
-            )}
-          </div>
-        </td>
+        {/* Instance Type — AWS는 그룹 헤더에 표시되므로 행에서 생략 */}
+        {!isAWS && (
+          <td className="px-6 py-4">
+            <div className="flex items-center gap-2">
+              {cloudProvider === 'Azure' && isAzureResourceType(resource.type) && (
+                <AzureServiceIcon type={resource.type} size="lg" />
+              )}
+              <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
+              {isVm && isEditMode && isCheckboxEnabled && isSelected && (
+                <span className={cn('text-xs ml-1', statusColors.info.textDark)}>(클릭하여 설정)</span>
+              )}
+            </div>
+          </td>
+        )}
 
         {/* Resource ID */}
         <td className="px-6 py-4">
           <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
+        </td>
+
+        {/* Database Type */}
+        <td className="px-6 py-4">
+          {isVm && hasVmConfig ? (
+            <span className={cn('text-sm', textColors.primary)}>
+              {getDatabaseLabel(resource.vmDatabaseConfig!.databaseType)}
+            </span>
+          ) : (
+            <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
+          )}
         </td>
 
         {/* Credential */}
