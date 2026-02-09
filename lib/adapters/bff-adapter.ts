@@ -151,4 +151,12 @@ export const bffAdapter: DataAdapter = {
   getSduServiceSettings: async () => notImplemented('getSduServiceSettings'),
   getSduConnectionTest: async () => notImplemented('getSduConnectionTest'),
   executeSduConnectionTest: async () => notImplemented('executeSduConnectionTest'),
+
+  // --- GCP ---
+  getGcpInstallationStatus: async () => notImplemented('getGcpInstallationStatus'),
+  checkGcpInstallation: async () => notImplemented('checkGcpInstallation'),
+  getGcpRegionalManagedProxy: async () => notImplemented('getGcpRegionalManagedProxy'),
+  createGcpProxySubnet: async () => notImplemented('createGcpProxySubnet'),
+  getGcpServiceTfResources: async () => notImplemented('getGcpServiceTfResources'),
+  getGcpServiceSettings: async () => notImplemented('getGcpServiceSettings'),
 };

@@ -4,7 +4,7 @@
  * UI에서 사용되는 라벨, 에러 메시지, 상태 텍스트 등을 중앙에서 관리합니다.
  */
 
-import { ProcessStatus, ConnectionStatus } from '@/lib/types';
+import { ProcessStatus, ConnectionStatus, AwsResourceType, CloudProvider } from '@/lib/types';
 
 /**
  * 연결 에러 타입 라벨
@@ -84,3 +84,63 @@ export const getErrorTypeLabel = (errorType: string): string => {
 export const getProcessStatusLabel = (status: ProcessStatus): string => {
   return PROCESS_STATUS_LABELS[status] || '알 수 없는 상태';
 };
+
+/**
+ * AWS 리전 타입 라벨
+ */
+export const AWS_REGION_TYPE_LABELS: Record<'global' | 'china', string> = {
+  global: 'Global',
+  china: 'China',
+};
+
+/**
+ * 프로바이더별 필드 라벨
+ */
+export const PROVIDER_FIELD_LABELS: Record<string, Record<string, string>> = {
+  AWS: {
+    accountId: 'AWS Account ID',
+    regionType: '리전 타입',
+  },
+  Azure: {
+    tenantId: 'Tenant ID',
+    subscriptionId: 'Subscription ID',
+  },
+  GCP: {
+    projectId: 'GCP Project ID',
+  },
+};
+
+/**
+ * 프로바이더 설명 (프로바이더 선택 카드용)
+ */
+export const PROVIDER_DESCRIPTIONS: Record<CloudProvider, string> = {
+  AWS: 'Amazon Web Services 환경의 RDS, DynamoDB 등 데이터 리소스를 자동 스캔합니다.',
+  Azure: 'Microsoft Azure 클라우드 환경의 데이터베이스 리소스를 스캔하고 PII Agent를 연동합니다.',
+  GCP: 'Google Cloud Platform의 Cloud SQL, BigQuery 등 데이터 리소스를 관리합니다.',
+  IDC: '온프레미스 데이터센터의 데이터베이스 리소스를 수동 등록하여 관리합니다.',
+  SDU: '삼성 SDS 데이터 유니버스 환경의 데이터 리소스를 연동합니다.',
+};
+
+/**
+ * AWS 리소스 타입 라벨
+ */
+export const AWS_RESOURCE_TYPE_LABELS: Record<AwsResourceType, string> = {
+  RDS: 'RDS',
+  RDS_CLUSTER: 'RDS Cluster',
+  DYNAMODB: 'DynamoDB',
+  ATHENA: 'Athena',
+  REDSHIFT: 'Redshift',
+  EC2: 'EC2',
+};
+
+/**
+ * AWS 리소스 타입 정렬 순서 (EC2는 항상 마지막)
+ */
+export const AWS_RESOURCE_TYPE_ORDER: AwsResourceType[] = [
+  'RDS',
+  'RDS_CLUSTER',
+  'REDSHIFT',
+  'DYNAMODB',
+  'ATHENA',
+  'EC2',
+];

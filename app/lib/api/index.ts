@@ -36,6 +36,11 @@ export const createProject = async (payload: {
   serviceCode: string;
   cloudProvider: CloudProvider;
   description?: string;
+  awsAccountId?: string;
+  awsRegionType?: 'global' | 'china';
+  tenantId?: string;
+  subscriptionId?: string;
+  gcpProjectId?: string;
 }): Promise<void> => {
   const res = await fetch(`${BASE_URL}/projects`, {
     method: 'POST',
@@ -263,6 +268,9 @@ export * from './aws';
 
 // ===== SDU API =====
 export * from './sdu';
+
+// ===== GCP API =====
+export * from './gcp';
 
 // ===== Scan API =====
 export * from './scan';
