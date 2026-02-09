@@ -162,7 +162,7 @@ export interface DataAdapter {
   getSduInstallationStatus: (projectId: string) => Promise<ProviderResult<SduInstallationStatus>>;
   checkSduInstallation: (projectId: string) => Promise<ProviderResult<SduInstallationStatus>>;
   getS3UploadStatus: (projectId: string) => Promise<ProviderResult<S3UploadInfo>>;
-  confirmS3Upload: (projectId: string) => Promise<ProviderResult<{ confirmed: boolean; confirmedAt: string }>>;
+  checkS3Upload: (projectId: string) => Promise<ProviderResult<S3UploadInfo>>;
   getIamUser: (projectId: string) => Promise<ProviderResult<IamUser>>;
   issueAkSk: (projectId: string, issuedBy: string) => Promise<ProviderResult<IssueAkSkResponse>>;
   getSourceIpList: (projectId: string) => Promise<ProviderResult<SourceIpManagement>>;

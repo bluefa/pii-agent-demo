@@ -50,15 +50,15 @@ export const getS3UploadStatus = async (projectId: string): Promise<S3UploadInfo
 };
 
 /**
- * S3 업로드 확정
+ * S3 업로드 상태 진단 (시스템이 S3를 확인)
  */
-export const confirmS3Upload = async (projectId: string): Promise<{ confirmed: boolean; confirmedAt: string }> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/s3-upload/confirm`, {
+export const checkS3Upload = async (projectId: string): Promise<S3UploadInfo> => {
+  const res = await fetch(`${BASE_URL}/projects/${projectId}/s3-upload/check`, {
     method: 'POST',
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'S3 업로드 확정에 실패했습니다.');
+    throw new Error(data.message || 'S3 업로드 상태 확인에 실패했습니다.');
   }
   return await res.json();
 };
