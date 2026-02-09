@@ -52,7 +52,7 @@ export const mockAdapter: DataAdapter = {
   initializeInstallation: async (projectId, hasTfPermission) =>
     mockInstallation.initializeInstallation(projectId, hasTfPermission),
   getInstallationStatus: async (projectId) => mockInstallation.getInstallationStatus(projectId),
-  checkInstallation: async (projectId, scriptId?) => mockInstallation.checkInstallation(projectId, scriptId),
+  checkInstallation: async (projectId) => mockInstallation.checkInstallation(projectId),
   getTerraformScript: async (projectId) => mockInstallation.getTerraformScript(projectId),
   getTerraformScriptDownload: async (projectId, scriptId) => mockInstallation.getTerraformScriptDownload(projectId, scriptId),
 

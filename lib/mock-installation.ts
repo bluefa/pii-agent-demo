@@ -312,7 +312,6 @@ export const getInstallationStatus = (projectId: string): AwsInstallationStatus 
 
 export const checkInstallation = (
   projectId: string,
-  scriptId?: string,
 ): CheckInstallationResponse | null => {
   const store = getStore();
   const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
@@ -320,21 +319,20 @@ export const checkInstallation = (
 
   const now = new Date().toISOString();
 
-  // Manual mode
+  // Manual mode: 프로젝트 단위로 전체 스크립트 검증
   if (!status.hasTfPermission) {
-    // Find target script
-    const targetScript = scriptId
-      ? status.serviceTfScripts.find(s => s.id === scriptId)
-      : status.serviceTfScripts.find(s => s.status === 'PENDING');
+    const pendingScripts = status.serviceTfScripts.filter(s => s.status !== 'COMPLETED');
 
-    if (targetScript && targetScript.status !== 'COMPLETED') {
+    if (pendingScripts.length > 0) {
       if (projectId.includes('fail')) {
-        targetScript.status = 'FAILED';
-        targetScript.error = {
-          code: 'VALIDATION_FAILED',
-          message: 'Terraform 리소스를 찾을 수 없습니다.',
-          guide: CHECK_INSTALLATION_GUIDES.VALIDATION_FAILED,
-        };
+        for (const script of pendingScripts) {
+          script.status = 'FAILED';
+          script.error = {
+            code: 'VALIDATION_FAILED',
+            message: 'Terraform 리소스를 찾을 수 없습니다.',
+            guide: CHECK_INSTALLATION_GUIDES.VALIDATION_FAILED,
+          };
+        }
 
         const computed = computeStatus(status.serviceTfScripts, status.bdcTf);
         return {
@@ -349,11 +347,13 @@ export const checkInstallation = (
         };
       }
 
-      targetScript.status = 'COMPLETED';
-      targetScript.completedAt = new Date().toISOString();
+      for (const script of pendingScripts) {
+        script.status = 'COMPLETED';
+        script.completedAt = new Date().toISOString();
+      }
     }
 
-    // Check if all service scripts are now COMPLETED → start BDC TF
+    // 모든 Service TF COMPLETED → BDC TF 시작
     const allServiceDone = status.serviceTfScripts.length > 0 &&
       status.serviceTfScripts.every(s => s.status === 'COMPLETED');
 
