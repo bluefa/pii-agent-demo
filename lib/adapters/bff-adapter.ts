@@ -92,7 +92,6 @@ export const bffAdapter: DataAdapter = {
   getInstallationStatus: async () => notImplemented('getInstallationStatus'),
   checkInstallation: async () => notImplemented('checkInstallation'),
   getTerraformScript: async () => notImplemented('getTerraformScript'),
-  getTerraformScriptDownload: async () => notImplemented('getTerraformScriptDownload'),
 
   // --- AWS Service Settings ---
   getAwsServiceSettings: async () => notImplemented('getAwsServiceSettings'),
