@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig, isPeIneligible } from '@/lib/types';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
@@ -136,12 +137,12 @@ export const ResourceRow = ({
                 <button
                   onClick={(e) => { e.stopPropagation(); vnetModal.open(); }}
                   className={cn('ml-1 flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
-                  aria-label="VNet Integration으로 인해 PE 연결 불가 - 클릭하여 상세 안내 보기"
+                  aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
-                  <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>PE 불가</span>
+                  <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
                 </button>
               )}
             </div>
@@ -231,8 +232,9 @@ export const ResourceRow = ({
         />
       )}
 
-      {isVnetIneligible && (
-        <VnetIntegrationGuideModal isOpen={vnetModal.isOpen} onClose={vnetModal.close} resourceId={resource.resourceId} />
+      {isVnetIneligible && typeof document !== 'undefined' && createPortal(
+        <VnetIntegrationGuideModal isOpen={vnetModal.isOpen} onClose={vnetModal.close} resourceId={resource.resourceId} />,
+        document.body
       )}
     </>
   );
