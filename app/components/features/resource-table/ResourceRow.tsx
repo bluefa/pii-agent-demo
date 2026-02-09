@@ -92,7 +92,8 @@ export const ResourceRow = ({
           'transition-colors',
           `hover:${bgColors.muted}`,
           isVm && isCheckboxEnabled && isSelected && 'cursor-pointer',
-          isExpanded && statusColors.info.bg
+          isExpanded && statusColors.info.bg,
+          isVm && isSelected && !hasVmConfig && !isExpanded && statusColors.warning.bg
         )}
         onClick={handleRowClick}
       >
@@ -119,8 +120,25 @@ export const ResourceRow = ({
                 <AzureServiceIcon type={resource.type} size="lg" />
               )}
               <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
-              {isVm && isEditMode && isCheckboxEnabled && isSelected && (
-                <span className={cn('text-xs ml-1', statusColors.info.textDark)}>(클릭하여 설정)</span>
+              {isVm && isCheckboxEnabled && isSelected && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onVmConfigToggle?.(isExpanded ? null : resource.id);
+                  }}
+                  className={cn(
+                    'ml-2 inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded transition-colors',
+                    hasVmConfig
+                      ? cn(statusColors.pending.bg, textColors.tertiary, `hover:${bgColors.muted}`)
+                      : cn(statusColors.warning.bg, statusColors.warning.textDark, `hover:${statusColors.warning.border}`, 'border', statusColors.warning.border)
+                  )}
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                  </svg>
+                  {hasVmConfig ? '설정 변경' : 'DB 설정'}
+                </button>
               )}
             </div>
           </td>
