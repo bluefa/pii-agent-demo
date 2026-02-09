@@ -1,51 +1,66 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AwsInstallationStatus } from '@/lib/types';
+import { statusColors, cn } from '@/lib/theme';
 import { getAwsInstallationStatus, checkAwsInstallation } from '@/app/lib/api/aws';
+import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
+import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
+import { ActionCard } from '@/app/components/features/process-status/shared/ActionCard';
+import { AwsInstallModeCard } from '@/app/components/features/process-status/aws/AwsInstallModeCard';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
+import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
   projectId: string;
   onInstallComplete?: () => void;
 }
 
-// TF 상태 행 컴포넌트
-const TfStatusRow = ({
-  label,
-  completed,
-  inProgress,
-}: {
-  label: string;
-  completed: boolean;
-  inProgress?: boolean;
-}) => {
-  return (
-    <div className={`flex items-center justify-between p-3 rounded-lg border ${
-      completed ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'
-    }`}>
-      <div className="flex items-center gap-3">
-        {completed ? (
-          <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        ) : inProgress ? (
-          <div className="w-5 h-5 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <div className="w-5 h-5 border-2 border-gray-300 rounded-full" />
-        )}
-        <span className={`text-sm font-medium ${completed ? 'text-green-700' : 'text-gray-700'}`}>
-          {label}
-        </span>
-      </div>
-      <span className={`text-xs font-medium ${
-        completed ? 'text-green-600' : inProgress ? 'text-orange-600' : 'text-gray-400'
-      }`}>
-        {completed ? '완료' : inProgress ? '진행 중' : '대기 중'}
-      </span>
-    </div>
-  );
+type InstallState = 'completed' | 'in_progress' | 'pending' | 'preparing';
+
+const getInstallState = (status: AwsInstallationStatus): InstallState => {
+  if (status.serviceTfCompleted && status.bdcTfCompleted) return 'completed';
+  if (status.serviceTfCompleted || (status.hasTfPermission && !status.serviceTfCompleted)) return 'in_progress';
+  if (!status.hasTfPermission && !status.serviceTfCompleted) return 'pending';
+  return 'preparing';
+};
+
+const getProgressPercent = (status: AwsInstallationStatus): number => {
+  if (status.serviceTfCompleted && status.bdcTfCompleted) return 100;
+  if (status.serviceTfCompleted) return 50;
+  return 0;
+};
+
+const STATE_CONFIG = {
+  completed: {
+    colors: statusColors.success,
+    label: 'AWS 에이전트 설치 완료',
+    icon: '●',
+  },
+  in_progress: {
+    colors: statusColors.warning,
+    label: 'AWS 에이전트 설치 진행 중',
+    icon: '◐',
+  },
+  pending: {
+    colors: statusColors.pending,
+    label: 'AWS 에이전트 설치 대기 중',
+    icon: '○',
+  },
+  preparing: {
+    colors: statusColors.warning,
+    label: 'AWS 에이전트 설치 준비 중',
+    icon: '◐',
+  },
+} as const;
+
+const getReassuranceText = (status: AwsInstallationStatus, state: InstallState): string | null => {
+  if (state === 'completed' || state === 'pending') return null;
+  if (state === 'preparing') return '자동으로 설치가 진행될 예정입니다.';
+  if (status.hasTfPermission) {
+    return '자동으로 설치가 진행되고 있습니다.\nAWS 계정에 보안 연결 환경을 구성하고\n에이전트가 DB에 접근할 수 있도록 설정합니다.';
+  }
+  return '설치 스크립트가 실행되었습니다. 자동으로 완료됩니다.';
 };
 
 export const AwsInstallationInline = ({
@@ -59,18 +74,13 @@ export const AwsInstallationInline = ({
   const [showRoleGuide, setShowRoleGuide] = useState(false);
   const [showScriptGuide, setShowScriptGuide] = useState(false);
 
-  // 상태 조회
   const fetchStatus = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getAwsInstallationStatus(projectId);
       setStatus(data);
-
-      // 설치 완료 시 콜백
-      if (data.serviceTfCompleted && data.bdcTfCompleted) {
-        onInstallComplete?.();
-      }
+      if (data.serviceTfCompleted && data.bdcTfCompleted) onInstallComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
     } finally {
@@ -78,17 +88,13 @@ export const AwsInstallationInline = ({
     }
   };
 
-  // 새로고침
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
       setError(null);
       const data = await checkAwsInstallation(projectId);
       setStatus(data);
-
-      if (data.serviceTfCompleted && data.bdcTfCompleted) {
-        onInstallComplete?.();
-      }
+      if (data.serviceTfCompleted && data.bdcTfCompleted) onInstallComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 새로고침에 실패했습니다.');
     } finally {
@@ -96,7 +102,6 @@ export const AwsInstallationInline = ({
     }
   };
 
-  // TF Script 다운로드
   const handleDownloadScript = () => {
     window.open(`/api/aws/projects/${projectId}/terraform-script`, '_blank');
   };
@@ -105,164 +110,101 @@ export const AwsInstallationInline = ({
     fetchStatus();
   }, [projectId]);
 
-  // 진행률 계산
-  const completedCount = status ?
-    (status.serviceTfCompleted ? 1 : 0) + (status.bdcTfCompleted ? 1 : 0) : 0;
-  const totalCount = 2;
+  if (loading) return <InstallationLoadingView provider="AWS" />;
+  if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
+  if (!status) return null;
 
-  // 로딩 상태
-  if (loading) {
-    return (
-      <div className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-gray-600">AWS 설치 상태 확인 중...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // 에러 상태
-  if (error) {
-    return (
-      <div className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-lg">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-red-600">{error}</span>
-          <button onClick={fetchStatus} className="text-sm text-red-700 hover:underline">
-            다시 시도
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const state = getInstallState(status);
+  const config = STATE_CONFIG[state];
+  const percent = getProgressPercent(status);
+  const reassurance = getReassuranceText(status, state);
+  const isCompleted = state === 'completed';
 
   return (
-    <div className="w-full border border-gray-200 rounded-lg overflow-hidden">
-      {/* 헤더 */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+    <div className="w-full space-y-3">
+      {/* Main progress card */}
+      <div className={cn('px-4 py-3 rounded-lg border', config.colors.bg, config.colors.border)}>
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">AWS 설치 상태</span>
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-              completedCount === totalCount
-                ? 'bg-green-100 text-green-700'
-                : 'bg-orange-100 text-orange-700'
-            }`}>
-              {completedCount}/{totalCount} 완료
-            </span>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {state === 'in_progress' || state === 'preparing' ? (
+              <div className={cn('w-4 h-4 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0', config.colors.border)} />
+            ) : (
+              <span className={cn('text-sm flex-shrink-0', config.colors.text)}>{config.icon}</span>
+            )}
+            <span className={cn('text-sm font-medium', config.colors.textDark)}>{config.label}</span>
+          </div>
+          {!isCompleted && (
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              className={cn('p-1 rounded transition-colors disabled:opacity-50 flex-shrink-0 ml-2', config.colors.textDark, 'hover:bg-white/50')}
               title="새로고침"
             >
               {refreshing ? (
-                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : (
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               )}
             </button>
-          </div>
+          )}
         </div>
-      </div>
 
-      {/* TF 상태 목록 */}
-      <div className="p-4 space-y-3 bg-white">
-        {/* 설치 모드 안내 */}
-        {status && (
-          <div className={`flex items-center gap-2 p-3 rounded-lg ${
-            status.hasTfPermission ? 'bg-blue-50' : 'bg-gray-50'
-          }`}>
-            {status.hasTfPermission ? (
-              <>
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-blue-700">자동 설치 모드</span>
-                    <button
-                      onClick={() => setShowRoleGuide(true)}
-                      className="text-xs text-blue-600 hover:text-blue-700 underline"
-                    >
-                      Role 등록 가이드
-                    </button>
-                  </div>
-                  <p className="text-xs text-blue-600">시스템이 자동으로 Terraform을 실행합니다.</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">수동 설치 모드</span>
-                    <button
-                      onClick={() => setShowScriptGuide(true)}
-                      className="text-xs text-gray-600 hover:text-gray-700 underline"
-                    >
-                      설치 가이드
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-600">TF Script를 다운로드하여 직접 실행해주세요.</p>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        <div className="mt-2 h-1.5 rounded-full bg-white/50 overflow-hidden">
+          <div
+            className={cn('h-full rounded-full transition-all duration-500', config.colors.dot)}
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <span className={cn('text-xs mt-1 block', config.colors.textDark)}>{percent}%</span>
 
-        {/* Service TF */}
-        <TfStatusRow
-          label="Service TF"
-          completed={status?.serviceTfCompleted ?? false}
-          inProgress={!status?.serviceTfCompleted && status?.hasTfPermission}
-        />
-
-        {/* BDC TF */}
-        <TfStatusRow
-          label="BDC TF"
-          completed={status?.bdcTfCompleted ?? false}
-          inProgress={status?.serviceTfCompleted && !status?.bdcTfCompleted}
-        />
-
-        {/* 수동 설치 안내 (hasTfPermission = false) */}
-        {status && !status.hasTfPermission && !status.serviceTfCompleted && (
-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-sm text-amber-700 mb-3">
-              TF Script를 다운로드 받아서 담당자와 함께 설치 일정을 조율하세요.
-            </p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleDownloadScript}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                TF Script 다운로드
-              </button>
-              <button
-                onClick={() => setShowScriptGuide(true)}
-                className="text-sm text-amber-600 hover:text-amber-700 underline"
-              >
-                설치 가이드 보기
-              </button>
-            </div>
-          </div>
+        {reassurance && (
+          <p className="mt-1.5 text-xs text-gray-500 whitespace-pre-line">{reassurance}</p>
         )}
       </div>
 
-      {/* 가이드 모달 */}
-      {showRoleGuide && (
-        <TfRoleGuideModal onClose={() => setShowRoleGuide(false)} />
+      {/* Install mode card (hidden when completed) */}
+      {!isCompleted && (
+        <AwsInstallModeCard
+          isAutoMode={status.hasTfPermission}
+          serviceTfCompleted={status.serviceTfCompleted}
+          onShowRoleGuide={() => setShowRoleGuide(true)}
+          onShowScriptGuide={() => setShowScriptGuide(true)}
+          onDownloadScript={handleDownloadScript}
+        />
       )}
-      {showScriptGuide && (
-        <TfScriptGuideModal onClose={() => setShowScriptGuide(false)} />
+
+      {/* Action card for manual mode before script execution */}
+      {!status.hasTfPermission && !status.serviceTfCompleted && (
+        <ActionCard title="조치 필요">
+          <p className="text-sm text-gray-700 mb-3">
+            설치 스크립트를 담당자와 함께 실행해주세요.
+            스크립트는 AWS 계정에 보안 연결 환경을 구성하고
+            에이전트 접근 설정을 수행합니다.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadScript}
+              className={cn('inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors', statusColors.warning.dot, 'text-white hover:opacity-90')}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              설치 스크립트 다운로드
+            </button>
+            <button
+              onClick={() => setShowScriptGuide(true)}
+              className={cn('text-sm hover:underline', statusColors.warning.textDark)}
+            >
+              설치 가이드 보기
+            </button>
+          </div>
+        </ActionCard>
       )}
+
+      {showRoleGuide && <TfRoleGuideModal onClose={() => setShowRoleGuide(false)} />}
+      {showScriptGuide && <TfScriptGuideModal onClose={() => setShowScriptGuide(false)} />}
     </div>
   );
 };
