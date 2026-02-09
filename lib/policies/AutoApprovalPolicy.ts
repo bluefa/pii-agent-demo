@@ -42,8 +42,9 @@ export const evaluateAutoApproval = (context: AutoApprovalContext): AutoApproval
   const selectedSet = new Set(selectedResourceIds);
 
   // 선택하지 않은 리소스 중 제외 확정되지 않은 리소스 찾기
+  // EC2 리소스는 자동 승인 판정에서 제외 (선택 안 해도 자동 승인 가능)
   const unselectedNonExcluded = resources.filter(
-    (r) => !selectedSet.has(r.id) && !r.exclusion
+    (r) => !selectedSet.has(r.id) && !r.exclusion && r.awsType !== 'EC2'
   );
 
   // 미선택 리소스 중 제외 확정되지 않은 리소스가 있으면 수동 승인 필요

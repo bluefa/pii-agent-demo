@@ -6,6 +6,7 @@ import { getProject, getCurrentUser, CurrentUser, getCredentials } from '@/app/l
 import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
+import { GcpProjectPage } from './gcp';
 import { IdcProjectPage } from './idc';
 import { SduProjectPage } from './sdu';
 
@@ -54,43 +55,26 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     return <ErrorState error={error} />;
   }
 
+  const pageProps = {
+    project,
+    isAdmin,
+    credentials,
+    onProjectUpdate: setProject,
+  };
+
   // Provider별 페이지 라우팅
   switch (project.cloudProvider) {
-    case 'Azure':
-      return (
-        <AzureProjectPage
-          project={project}
-          isAdmin={isAdmin}
-          credentials={credentials}
-          onProjectUpdate={setProject}
-        />
-      );
-    case 'IDC':
-      return (
-        <IdcProjectPage
-          project={project}
-          isAdmin={isAdmin}
-          credentials={credentials}
-          onProjectUpdate={setProject}
-        />
-      );
-    case 'SDU':
-      return (
-        <SduProjectPage
-          project={project}
-          isAdmin={isAdmin}
-          onProjectUpdate={setProject}
-        />
-      );
     case 'AWS':
+      return <AwsProjectPage {...pageProps} />;
+    case 'Azure':
+      return <AzureProjectPage {...pageProps} />;
+    case 'GCP':
+      return <GcpProjectPage {...pageProps} />;
+    case 'IDC':
+      return <IdcProjectPage {...pageProps} />;
+    case 'SDU':
+      return <SduProjectPage {...pageProps} />;
     default:
-      return (
-        <AwsProjectPage
-          project={project}
-          isAdmin={isAdmin}
-          credentials={credentials}
-          onProjectUpdate={setProject}
-        />
-      );
+      return <ErrorState error={`지원하지 않는 클라우드 프로바이더입니다: ${project.cloudProvider}`} />;
   }
 };

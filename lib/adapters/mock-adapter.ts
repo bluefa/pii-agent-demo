@@ -12,6 +12,7 @@ import * as mockHistory from '@/lib/mock-history';
 import * as mockAzure from '@/lib/mock-azure';
 import * as mockIdc from '@/lib/mock-idc';
 import * as mockSdu from '@/lib/mock-sdu';
+import * as mockGcp from '@/lib/mock-gcp';
 
 export const mockAdapter: DataAdapter = {
   // --- User ---
@@ -128,4 +129,15 @@ export const mockAdapter: DataAdapter = {
   getSduServiceSettings: async (serviceCode) => mockSdu.getSduServiceSettings(serviceCode),
   getSduConnectionTest: async (projectId) => mockSdu.getSduConnectionTest(projectId),
   executeSduConnectionTest: async (projectId) => mockSdu.executeSduConnectionTest(projectId),
+
+  // --- GCP ---
+  getGcpInstallationStatus: async (projectId) => mockGcp.getGcpInstallationStatus(projectId),
+  checkGcpInstallation: async (projectId) => mockGcp.checkGcpInstallation(projectId),
+  getGcpRegionalManagedProxy: async (projectId, resourceId) =>
+    mockGcp.getGcpRegionalManagedProxy(projectId, resourceId),
+  createGcpProxySubnet: async (projectId, resourceId) =>
+    mockGcp.createGcpProxySubnet(projectId, resourceId),
+  getGcpServiceTfResources: async (_projectId, connectionType) =>
+    mockGcp.getGcpServiceTfResources(_projectId, connectionType),
+  getGcpServiceSettings: async (serviceCode) => mockGcp.getGcpServiceSettings(serviceCode),
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Project } from '@/lib/types';
+import { Project, DBCredential } from '@/lib/types';
 import type {
   SduProjectStatus,
   SduProcessStatus,
@@ -39,6 +39,7 @@ import { useModal } from '@/app/hooks/useModal';
 interface SduProjectPageProps {
   project: Project;
   isAdmin: boolean;
+  credentials: DBCredential[];
   onProjectUpdate: (project: Project) => void;
 }
 

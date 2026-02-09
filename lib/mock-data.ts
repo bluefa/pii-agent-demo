@@ -165,6 +165,25 @@ export const mockProjects: Project[] = [
     updatedAt: '2026-01-15T09:00:00Z',
     isRejected: false,
   },
+  // ===== GCP 프로젝트 =====
+  {
+    id: 'gcp-proj-1',
+    projectCode: 'GCP-001',
+    name: 'GCP PII Agent - Cloud SQL / BigQuery',
+    description: 'GCP Cloud SQL, BigQuery 리소스에 PII Agent 설치',
+    serviceCode: 'SERVICE-A',
+    cloudProvider: 'GCP',
+    gcpProjectId: 'pii-agent-prod-12345',
+    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+    resources: [],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-02-01T09:00:00Z',
+    updatedAt: '2026-02-01T09:00:00Z',
+    isRejected: false,
+  },
   // ===== Azure 프로젝트 =====
   {
     id: 'azure-proj-1',
@@ -173,6 +192,8 @@ export const mockProjects: Project[] = [
     description: 'Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치',
     serviceCode: 'SERVICE-A',
     cloudProvider: 'Azure',
+    tenantId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',
     processStatus: ProcessStatus.INSTALLING,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
     resources: [
@@ -218,6 +239,8 @@ export const mockProjects: Project[] = [
     description: 'Azure DB + VM 리소스에 PII Agent 설치 (Case 2)',
     serviceCode: 'SERVICE-B',
     cloudProvider: 'Azure',
+    tenantId: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
+    subscriptionId: '23456789-bcde-f012-3456-789abcdef012',
     processStatus: ProcessStatus.INSTALLING,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
     resources: [
@@ -264,6 +287,8 @@ export const mockProjects: Project[] = [
     description: '자동 승인 테스트: res-excluded를 제외하고 나머지를 모두 선택하면 자동 승인됩니다.',
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
+    awsAccountId: '123456789012',
+    awsRegionType: 'global',
     awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
@@ -333,6 +358,39 @@ export const mockProjects: Project[] = [
           excludedBy: { id: 'admin-1', name: '관리자' },
         },
       },
+      // EC2 리소스 (선택적 연동 대상)
+      {
+        id: 'res-ec2-1',
+        type: 'EC2',
+        resourceId: 'i-0a1b2c3d4e5f67890',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        awsType: 'EC2',
+        region: 'ap-northeast-2',
+        lifecycleStatus: 'DISCOVERED',
+        vmDatabaseConfig: {
+          host: 'ip-10-0-1-100.ap-northeast-2.compute.internal',
+          databaseType: 'MYSQL',
+          port: 3306,
+        },
+      },
+      {
+        id: 'res-ec2-2',
+        type: 'EC2',
+        resourceId: 'i-0f5e6d7c8b9a01234',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        awsType: 'EC2',
+        region: 'us-east-1',
+        lifecycleStatus: 'DISCOVERED',
+        vmDatabaseConfig: {
+          host: 'ip-10-2-3-45.us-east-1.compute.internal',
+          databaseType: 'POSTGRESQL',
+          port: 5432,
+        },
+      },
     ],
     terraformState: {
       serviceTf: 'PENDING',
@@ -349,6 +407,8 @@ export const mockProjects: Project[] = [
     description: '스캔된 신규 리소스를 연동 대상으로 확정하고 관리자 승인을 대기합니다.',
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
+    awsAccountId: '123456789012',
+    awsRegionType: 'global',
     processStatus: ProcessStatus.WAITING_APPROVAL,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { isRejected: true, selectedCount: 2, excludedCount: 1 }),
     resources: [
@@ -410,6 +470,8 @@ export const mockProjects: Project[] = [
     description: '승인 완료 후 설치가 진행 중입니다. (데모: 설치중 상태 표시)',
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
+    awsAccountId: '123456789012',
+    awsRegionType: 'global',
     processStatus: ProcessStatus.INSTALLING,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 1, excludedCount: 1 }),
     resources: [
@@ -511,6 +573,8 @@ export const mockProjects: Project[] = [
     description: '설치가 완료되어 연결 테스트가 필요합니다. 끊김/신규 리소스도 함께 표시합니다.',
     serviceCode: 'SERVICE-A',
     cloudProvider: 'AWS',
+    awsAccountId: '123456789012',
+    awsRegionType: 'global',
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
     resources: [
@@ -560,6 +624,43 @@ export const mockProjects: Project[] = [
     },
     createdAt: '2024-01-21T11:00:00Z',
     updatedAt: '2024-01-21T15:00:00Z',
+    isRejected: false,
+  },
+  // ===== SDU 프로젝트 =====
+  {
+    id: 'sdu-proj-1',
+    projectCode: 'SDU-001',
+    name: 'SDU PII Agent - 온프레미스 DB 연동',
+    description: 'SDU 환경 데이터베이스에 PII Agent 설치',
+    serviceCode: 'SERVICE-C',
+    cloudProvider: 'SDU',
+    processStatus: ProcessStatus.WAITING_APPROVAL,
+    status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { selectedCount: 2, excludedCount: 0 }),
+    resources: [
+      {
+        id: 'sdu-res-1',
+        type: 'IDC',
+        resourceId: 'sdu-mysql-001',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'PENDING_APPROVAL',
+      },
+      {
+        id: 'sdu-res-2',
+        type: 'IDC',
+        resourceId: 'sdu-oracle-001',
+        databaseType: 'ORACLE',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        lifecycleStatus: 'PENDING_APPROVAL',
+      },
+    ],
+    terraformState: {
+      bdcTf: 'PENDING',
+    },
+    createdAt: '2026-01-28T10:00:00Z',
+    updatedAt: '2026-01-28T11:00:00Z',
     isRejected: false,
   },
 ];

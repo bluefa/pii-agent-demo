@@ -53,6 +53,13 @@ import type {
   SduServiceSettings,
   SduConnectionTestInfo,
 } from '@/lib/types/sdu';
+import type {
+  GcpInstallationStatus,
+  GcpRegionalManagedProxyStatus,
+  GcpConnectionType,
+  GcpServiceTfResources,
+  GcpServiceSettings,
+} from '@/lib/types/gcp';
 import type { ScanValidationResult } from '@/lib/mock-scan';
 import type {
   HistoryFilterType,
@@ -165,4 +172,12 @@ export interface DataAdapter {
   getSduServiceSettings: (serviceCode: string) => Promise<ProviderResult<SduServiceSettings>>;
   getSduConnectionTest: (projectId: string) => Promise<ProviderResult<SduConnectionTestInfo>>;
   executeSduConnectionTest: (projectId: string) => Promise<ProviderResult<SduConnectionTestInfo>>;
+
+  // --- GCP ---
+  getGcpInstallationStatus: (projectId: string) => Promise<ProviderResult<GcpInstallationStatus>>;
+  checkGcpInstallation: (projectId: string) => Promise<ProviderResult<GcpInstallationStatus>>;
+  getGcpRegionalManagedProxy: (projectId: string, resourceId: string) => Promise<ProviderResult<GcpRegionalManagedProxyStatus>>;
+  createGcpProxySubnet: (projectId: string, resourceId: string) => Promise<ProviderResult<{ created: boolean }>>;
+  getGcpServiceTfResources: (projectId: string, connectionType: GcpConnectionType) => Promise<ProviderResult<GcpServiceTfResources>>;
+  getGcpServiceSettings: (serviceCode: string) => Promise<ProviderResult<GcpServiceSettings>>;
 }
