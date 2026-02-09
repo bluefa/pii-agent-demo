@@ -2,34 +2,25 @@
 
 import { useState } from 'react';
 import type { SourceIpEntry } from '@/lib/types/sdu';
-import { SOURCE_IP_STATUS_LABELS, SDU_VALIDATION } from '@/lib/constants/sdu';
+import { SDU_VALIDATION } from '@/lib/constants/sdu';
 import { Modal } from '@/app/components/ui/Modal';
-import { Badge } from '@/app/components/ui/Badge';
 import { getButtonClass, getInputClass, cn, statusColors } from '@/lib/theme';
 
 interface SourceIpManageModalProps {
   isOpen: boolean;
   onClose: () => void;
   sourceIps: SourceIpEntry[];
-  isAdmin: boolean;
   onRegister?: (cidr: string) => void;
-  onConfirm?: (cidr: string) => void;
 }
 
 export const SourceIpManageModal = ({
   isOpen,
   onClose,
   sourceIps,
-  isAdmin,
   onRegister,
-  onConfirm,
 }: SourceIpManageModalProps) => {
   const [newCidr, setNewCidr] = useState('');
   const [error, setError] = useState('');
-
-  const validateCidr = (cidr: string): boolean => {
-    return SDU_VALIDATION.CIDR_REGEX.test(cidr);
-  };
 
   const handleRegister = () => {
     const trimmed = newCidr.trim();
@@ -37,7 +28,7 @@ export const SourceIpManageModal = ({
       setError('CIDR을 입력하세요.');
       return;
     }
-    if (!validateCidr(trimmed)) {
+    if (!SDU_VALIDATION.CIDR_REGEX.test(trimmed)) {
       setError('유효하지 않은 CIDR 형식입니다. (예: 10.0.0.0/24)');
       return;
     }
@@ -51,13 +42,8 @@ export const SourceIpManageModal = ({
     setError('');
   };
 
-  const handleConfirm = (cidr: string) => {
-    onConfirm?.(cidr);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('ko-KR');
-  };
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleString('ko-KR');
 
   return (
     <Modal
@@ -72,38 +58,33 @@ export const SourceIpManageModal = ({
       }
     >
       <div className="space-y-6">
-        {/* 등록 폼 (서비스 담당자) */}
-        {!isAdmin && (
-          <div className={cn('p-4 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
-            <h3 className={cn('text-sm font-semibold mb-3', statusColors.info.textDark)}>새 SourceIP 등록</h3>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  value={newCidr}
-                  onChange={(e) => {
-                    setNewCidr(e.target.value);
-                    setError('');
-                  }}
-                  placeholder="예: 10.0.0.0/24"
-                  className={getInputClass(error ? 'error' : undefined)}
-                />
-                {error && (
-                  <p className={cn('text-xs mt-1', statusColors.error.textDark)}>{error}</p>
-                )}
-              </div>
-              <button
-                onClick={handleRegister}
-                className={getButtonClass('primary', 'md')}
-              >
-                등록
-              </button>
+        {/* 등록 폼 */}
+        <div className={cn('p-4 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
+          <h3 className={cn('text-sm font-semibold mb-3', statusColors.info.textDark)}>새 SourceIP 등록</h3>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={newCidr}
+                onChange={(e) => {
+                  setNewCidr(e.target.value);
+                  setError('');
+                }}
+                placeholder="예: 10.0.0.0/24"
+                className={getInputClass(error ? 'error' : undefined)}
+              />
+              {error && (
+                <p className={cn('text-xs mt-1', statusColors.error.textDark)}>{error}</p>
+              )}
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              관리자가 확인 후 접근이 허용됩니다.
-            </p>
+            <button
+              onClick={handleRegister}
+              className={getButtonClass('primary', 'md')}
+            >
+              등록
+            </button>
           </div>
-        )}
+        </div>
 
         {/* SourceIP 목록 */}
         <div>
@@ -121,73 +102,29 @@ export const SourceIpManageModal = ({
               {sourceIps.map((entry) => (
                 <div
                   key={entry.cidr}
-                  className="p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                  className="p-4 bg-white border border-gray-200 rounded-lg"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <code className="text-sm font-mono font-semibold text-gray-900">
-                          {entry.cidr}
-                        </code>
-                        <Badge
-                          variant={entry.status === 'CONFIRMED' ? 'success' : 'warning'}
-                          size="sm"
-                        >
-                          {SOURCE_IP_STATUS_LABELS[entry.status]}
-                        </Badge>
-                      </div>
-
-                      <dl className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <dt className="text-gray-500">등록일</dt>
-                          <dd className="text-gray-900 font-medium">{formatDate(entry.registeredAt)}</dd>
-                        </div>
-                        {entry.registeredBy && (
-                          <div>
-                            <dt className="text-gray-500">등록자</dt>
-                            <dd className="text-gray-900 font-medium">{entry.registeredBy}</dd>
-                          </div>
-                        )}
-                        {entry.confirmedAt && (
-                          <>
-                            <div>
-                              <dt className="text-gray-500">확인일</dt>
-                              <dd className="text-gray-900 font-medium">{formatDate(entry.confirmedAt)}</dd>
-                            </div>
-                            {entry.confirmedBy && (
-                              <div>
-                                <dt className="text-gray-500">확인자</dt>
-                                <dd className="text-gray-900 font-medium">{entry.confirmedBy}</dd>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </dl>
-                    </div>
-
-                    {/* 관리자 확인 버튼 */}
-                    {isAdmin && entry.status === 'PENDING' && (
-                      <button
-                        onClick={() => handleConfirm(entry.cidr)}
-                        className={getButtonClass('success', 'sm')}
-                      >
-                        확인
-                      </button>
-                    )}
+                  <div className="flex items-center gap-3 mb-2">
+                    <code className="text-sm font-mono font-semibold text-gray-900">
+                      {entry.cidr}
+                    </code>
                   </div>
+                  <dl className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <dt className="text-gray-500">등록일</dt>
+                      <dd className="text-gray-900 font-medium">{formatDate(entry.registeredAt)}</dd>
+                    </div>
+                    {entry.registeredBy && (
+                      <div>
+                        <dt className="text-gray-500">등록자</dt>
+                        <dd className="text-gray-900 font-medium">{entry.registeredBy}</dd>
+                      </div>
+                    )}
+                  </dl>
                 </div>
               ))}
             </div>
           )}
-        </div>
-
-        {/* 안내 메시지 */}
-        <div className={cn('p-3 rounded-lg text-xs', statusColors.info.bg)}>
-          <p className={statusColors.info.textDark}>
-            {isAdmin
-              ? 'PENDING 상태의 SourceIP를 확인하여 접근을 허용할 수 있습니다.'
-              : 'SourceIP 등록 후 관리자 확인이 완료되면 해당 IP에서 접근할 수 있습니다.'}
-          </p>
         </div>
       </div>
     </Modal>

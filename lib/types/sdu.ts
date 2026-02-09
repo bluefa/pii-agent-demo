@@ -83,8 +83,16 @@ export interface IamUser {
 
 export interface IssueAkSkResponse {
   success: boolean;
+  accessKey: string;
+  secretKey: string;
   issuedAt: string;
   expiresAt: string;
+}
+
+export interface SduS3BucketInfo {
+  bucketName: string;
+  uploadPath: string;
+  region: string;
 }
 
 // ===== Source IP Management =====

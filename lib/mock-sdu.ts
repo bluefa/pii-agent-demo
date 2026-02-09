@@ -221,11 +221,11 @@ export const getS3UploadStatus = (
 };
 
 /**
- * S3 업로드 확인 → CONFIRMED로 변경
+ * S3 업로드 상태 진단 (시스템이 S3 버킷을 확인하여 업로드 여부를 판별)
  */
-export const confirmS3Upload = (
+export const checkS3Upload = (
   projectId: string
-): { data?: { confirmed: boolean; confirmedAt: string }; error?: { code: string; message: string; status: number } } => {
+): { data?: S3UploadInfo; error?: { code: string; message: string; status: number } } => {
   const project = getProjectById(projectId);
 
   if (!project) {
@@ -236,26 +236,27 @@ export const confirmS3Upload = (
     return { error: SDU_ERROR_CODES.NOT_SDU_PROJECT };
   }
 
-  // 현재 상태 가져오기
   const currentResult = getS3UploadStatus(projectId);
   if (currentResult.error || !currentResult.data) {
     return { error: currentResult.error || SDU_ERROR_CODES.VALIDATION_FAILED };
   }
 
-  const now = new Date().toISOString();
+  // 이미 CONFIRMED면 그대로 반환
+  if (currentResult.data.status === 'CONFIRMED') {
+    return { data: currentResult.data };
+  }
 
-  // 상태 업데이트
-  sduStore.s3Upload[projectId] = {
-    status: 'CONFIRMED',
-    confirmedAt: now,
-  };
-
-  return {
-    data: {
-      confirmed: true,
+  // 시뮬레이션: 40% 확률로 S3 업로드 감지
+  if (Math.random() < 0.4) {
+    const now = new Date().toISOString();
+    sduStore.s3Upload[projectId] = {
+      status: 'CONFIRMED',
       confirmedAt: now,
-    },
-  };
+    };
+    return { data: sduStore.s3Upload[projectId] };
+  }
+
+  return { data: currentResult.data };
 };
 
 /**
@@ -324,6 +325,8 @@ export const issueAkSk = (
   return {
     data: {
       success: true,
+      accessKey: `AKIA${Math.random().toString(36).substring(2, 18).toUpperCase()}`,
+      secretKey: `${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`.substring(0, 40),
       issuedAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
     },

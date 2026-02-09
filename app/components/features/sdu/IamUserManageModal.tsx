@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import type { IamUser } from '@/lib/types/sdu';
+import { useState, useCallback } from 'react';
+import type { IamUser, IssueAkSkResponse } from '@/lib/types/sdu';
 import { Modal } from '@/app/components/ui/Modal';
 import { getButtonClass, cn, statusColors } from '@/lib/theme';
 
@@ -10,9 +10,28 @@ interface IamUserManageModalProps {
   onClose: () => void;
   iamUser: IamUser | null;
   isAdmin: boolean;
-  onReissue?: () => void;
+  onReissue?: () => Promise<IssueAkSkResponse | null>;
   reissuing?: boolean;
 }
+
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [text]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={cn(getButtonClass('ghost', 'sm'), 'text-xs')}
+    >
+      {copied ? '복사됨' : '복사'}
+    </button>
+  );
+};
 
 export const IamUserManageModal = ({
   isOpen,
@@ -23,10 +42,19 @@ export const IamUserManageModal = ({
   reissuing = false,
 }: IamUserManageModalProps) => {
   const [showReissueConfirm, setShowReissueConfirm] = useState(false);
+  const [issuedCredentials, setIssuedCredentials] = useState<{ accessKey: string; secretKey: string } | null>(null);
 
-  const handleReissue = () => {
-    onReissue?.();
+  const handleReissue = async () => {
+    const result = await onReissue?.();
     setShowReissueConfirm(false);
+    if (result?.success) {
+      setIssuedCredentials({ accessKey: result.accessKey, secretKey: result.secretKey });
+    }
+  };
+
+  const handleClose = () => {
+    setIssuedCredentials(null);
+    onClose();
   };
 
   const formatDate = (dateString?: string) => {
@@ -44,7 +72,7 @@ export const IamUserManageModal = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="IAM USER 관리"
       size="lg"
       icon={
@@ -63,6 +91,39 @@ export const IamUserManageModal = ({
         </div>
       ) : (
         <>
+          {/* 발급된 AK/SK 1회성 표시 */}
+          {issuedCredentials && (
+            <div className={cn('mb-6 p-4 rounded-lg border', statusColors.success.bg, statusColors.success.border)}>
+              <div className="flex items-start gap-3 mb-3">
+                <svg className={cn('w-5 h-5 flex-shrink-0', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  <h4 className={cn('text-sm font-bold mb-1', statusColors.success.textDark)}>AK/SK가 발급되었습니다</h4>
+                  <p className={cn('text-xs', statusColors.warning.textDark)}>
+                    이 정보는 다시 확인할 수 없습니다. 반드시 안전한 곳에 저장하세요.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500 w-20 flex-shrink-0">Access Key</span>
+                  <code className="flex-1 font-mono text-xs text-gray-900 bg-white px-3 py-1.5 rounded border border-gray-200 select-all">
+                    {issuedCredentials.accessKey}
+                  </code>
+                  <CopyButton text={issuedCredentials.accessKey} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500 w-20 flex-shrink-0">Secret Key</span>
+                  <code className="flex-1 font-mono text-xs text-gray-900 bg-white px-3 py-1.5 rounded border border-gray-200 select-all break-all">
+                    {issuedCredentials.secretKey}
+                  </code>
+                  <CopyButton text={issuedCredentials.secretKey} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 재발급 확인 Dialog */}
           {showReissueConfirm && (
             <div className={cn('mb-6 p-4 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
