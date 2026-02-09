@@ -2,8 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { cn, statusColors, textColors, bgColors } from '@/lib/theme';
-import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
-import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { Badge } from '@/app/components/ui/Badge';
 import { StatusIcon } from './StatusIcon';
 import { InstancePanel } from './InstancePanel';
@@ -122,31 +121,17 @@ export const ClusterRow = ({
           </td>
         )}
 
-        {/* Instance Type + Cluster Type Badge */}
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            <AwsServiceIcon type="RDS_CLUSTER" size="lg" />
-            <span className={cn('font-medium', textColors.primary)}>RDS_CLUSTER</span>
-            {resource.clusterType && (
-              <Badge variant={resource.clusterType === 'GLOBAL' ? 'info' : 'pending'} size="sm">
-                {resource.clusterType === 'GLOBAL' ? 'Global' : 'Regional'}
-              </Badge>
-            )}
-          </div>
-        </td>
-
-        {/* Database Type */}
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            <DatabaseIcon type={resource.databaseType} size="sm" />
-            <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
-          </div>
-        </td>
-
-        {/* Resource ID + Instance summary */}
+        {/* Resource ID + Cluster Type Badge + Instance summary */}
         <td className="px-6 py-4">
           <div>
-            <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
+            <div className="flex items-center gap-2">
+              <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
+              {resource.clusterType && (
+                <Badge variant={resource.clusterType === 'GLOBAL' ? 'info' : 'pending'} size="sm">
+                  {resource.clusterType === 'GLOBAL' ? 'Global' : 'Regional'}
+                </Badge>
+              )}
+            </div>
             <div className={cn('text-xs mt-0.5', textColors.quaternary)}>
               {instances.length} Instances
               {isSelected && selectedCount > 0 && (
@@ -158,6 +143,11 @@ export const ClusterRow = ({
             {isSelected && !isPanelOpen && <SelectedInstancesSummary instances={instances} />}
             {isReadOnly && <SelectedInstancesSummary instances={instances} />}
           </div>
+        </td>
+
+        {/* Database Type */}
+        <td className="px-6 py-4">
+          <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
         </td>
 
         {/* Connection Status placeholder */}
