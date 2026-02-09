@@ -13,6 +13,7 @@ import {
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
+import { GcpInfoCard } from '@/app/components/features/GcpInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -133,6 +134,9 @@ export const GcpProjectPage = ({
     setIsEditMode(true);
   };
 
+  const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
+  const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
+
   const handleCancelEdit = () => {
     setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(false);
@@ -144,7 +148,15 @@ export const GcpProjectPage = ({
 
       <main className="p-6 space-y-6">
         <div className="grid grid-cols-[350px_1fr] gap-6">
-          <ProjectInfoCard project={project} />
+          <div className="space-y-6">
+            <ProjectInfoCard project={project} />
+            <GcpInfoCard
+              project={project}
+              credentials={credentials}
+              onOpenGuide={handleOpenGuide}
+              onManageCredentials={handleManageCredentials}
+            />
+          </div>
           <ProcessStatusCard
             project={project}
             isAdmin={isAdmin}
