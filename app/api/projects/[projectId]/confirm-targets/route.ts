@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { dataAdapter } from '@/lib/adapters';
-import { ProcessStatus, ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus } from '@/lib/types';
+import { ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus } from '@/lib/types';
+import type { VmDatabaseConfig } from '@/lib/types';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { getCurrentStep } from '@/lib/process';
 
 interface ConfirmTargetsRequest {
   resourceIds: string[];
+  vmConfigs?: Array<{
+    resourceId: string;
+    config: VmDatabaseConfig;
+  }>;
   exclusions?: Array<{
     resourceId: string;
     reason: string;
@@ -43,7 +48,7 @@ export async function POST(
   }
 
   const body = await request.json() as ConfirmTargetsRequest;
-  const { resourceIds, exclusions = [] } = body;
+  const { resourceIds, vmConfigs = [], exclusions = [] } = body;
 
   // 선택한 리소스가 1개 이상이어야 함
   if (!resourceIds || resourceIds.length === 0) {
@@ -83,6 +88,9 @@ export async function POST(
   const now = new Date().toISOString();
   const excludedBy = { id: user.id, name: user.name };
 
+  // VM 설정 맵 생성 (resourceId → VmDatabaseConfig)
+  const vmConfigMap = new Map(vmConfigs.map(vc => [vc.resourceId, vc.config]));
+
   const updatedResources: Resource[] = project.resources.map((r) => {
     const isSelected = selectedSet.has(r.id);
 
@@ -104,11 +112,15 @@ export async function POST(
       };
     }
 
+    // VM 설정 적용 (selectedNicId 포함)
+    const vmDatabaseConfig = vmConfigMap.get(r.id) ?? r.vmDatabaseConfig;
+
     return {
       ...r,
       isSelected,
       lifecycleStatus,
       exclusion,
+      vmDatabaseConfig,
     };
   });
 

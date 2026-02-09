@@ -39,6 +39,14 @@ export interface AzureInstallationStatus {
   };
 }
 
+// ===== Azure VM NIC =====
+
+export interface AzureVmNic {
+  nicId: string;
+  name: string;
+  privateIp: string;
+}
+
 // ===== Azure VM 설치 상태 =====
 
 export interface LoadBalancerInfo {

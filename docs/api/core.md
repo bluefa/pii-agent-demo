@@ -152,7 +152,14 @@ interface Resource {
     reason: string,
     excludedAt: string,
     excludedBy: { id: string, name: string }
-  }
+  },
+
+  // Azure VM 전용: NIC 목록
+  nics?: Array<{
+    nicId: string,
+    name: string,
+    privateIp: string
+  }>
 }
 ```
 
@@ -508,7 +515,9 @@ POST /api/projects/{projectId}/confirm-targets
     resourceId: string,
     databaseType: 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'MONGODB' | 'ORACLE',
     port: number,              // 1-65535 범위
-    oracleServiceId?: string   // Oracle인 경우 필수
+    host?: string,             // Private DNS Name 또는 IP
+    oracleServiceId?: string,  // Oracle인 경우 필수
+    selectedNicId?: string     // Azure VM 전용: 선택된 NIC ID (필수)
   }>,
 
   // 연동 제외 리소스 (선택되지 않은 리소스)
