@@ -217,7 +217,7 @@ export const getAzureVmInstallationStatus = (
       subnetExists,
       loadBalancer: {
         installed: lbInstalled,
-        name: lbInstalled ? `lb-${resource.resourceId}` : undefined,
+        name: `lb-${resource.resourceId}-${hash.toString(16)}`,
       },
       privateEndpoint: hasPe ? {
         id: `pe-${resource.resourceId}`,
@@ -268,7 +268,7 @@ export const checkAzureVmInstallation = (
     // 상태 변경 시뮬레이션: 일부 미설치 -> 설치됨
     result.data.vms = result.data.vms.map((vm) => {
       if (!vm.loadBalancer.installed && vm.subnetExists && Math.random() < 0.3) {
-        return { ...vm, loadBalancer: { installed: true, name: `lb-${vm.vmId}` } };
+        return { ...vm, loadBalancer: { ...vm.loadBalancer, installed: true } };
       }
       if (!vm.subnetExists && Math.random() < 0.2) {
         return { ...vm, subnetExists: true };

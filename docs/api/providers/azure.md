@@ -166,7 +166,7 @@ GET /api/azure/projects/{projectId}/vm-installation-status
     subnetExists: boolean,        // PLS용 Subnet 존재 여부
     loadBalancer: {
       installed: boolean,         // LB + PLS 설치 완료 여부
-      name?: string,              // installed=true일 때 LB 이름
+      name: string,               // naming rule 기반 LB 이름 (vmName + randomString)
     },
 
     // Subnet + LB 완료 후에만 PE 상태 존재
@@ -217,7 +217,7 @@ POST /api/azure/projects/{projectId}/vm-check-installation
     subnetExists: boolean,
     loadBalancer: {
       installed: boolean,
-      name?: string,
+      name: string,
     },
     privateEndpoint?: {
       id: string,
