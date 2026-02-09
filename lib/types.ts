@@ -34,7 +34,7 @@ export interface VmDatabaseConfig {
   oracleServiceId?: string;  // Oracle인 경우만
 }
 
-export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
+export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DOCUMENTDB' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
 // RDS Cluster 전용 타입
 export type RdsClusterType = 'REGIONAL' | 'GLOBAL';
@@ -100,6 +100,7 @@ export interface Resource {
   // --- AWS 전용 ---
   awsType?: AwsResourceType;              // AWS일 때만
   region?: AwsRegion;                     // AWS일 때만
+  vpcId?: string;                         // AWS VPC 리소스 전용
 
   // --- 상태/표시 ---
   lifecycleStatus: ResourceLifecycleStatus; // UI 상태(필수)
@@ -398,15 +399,49 @@ export interface VerifyTfRoleFailureResponse {
 
 export type VerifyTfRoleResponse = VerifyTfRoleSuccessResponse | VerifyTfRoleFailureResponse;
 
+// Service TF Script 타입
+export type ServiceTfScriptType = 'VPC_ENDPOINT' | 'DYNAMODB_ROLE' | 'ATHENA_GLUE';
+export type TfScriptStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+
+export interface TfScriptError {
+  code: string;
+  message: string;
+  guide?: ApiGuide;
+}
+
+export interface ServiceTfScriptResource {
+  resourceId: string;
+  type: AwsResourceType;
+  name: string;
+}
+
+export interface ServiceTfScript {
+  id: string;
+  type: ServiceTfScriptType;
+  status: TfScriptStatus;
+  label: string;
+  vpcId?: string;
+  region?: string;
+  resources: ServiceTfScriptResource[];
+  completedAt?: string;
+  error?: TfScriptError;
+}
+
 // 설치 상태
 export interface AwsInstallationStatus {
   provider: 'AWS';
   hasTfPermission: boolean;
+  tfExecutionRoleArn?: string;
+  serviceTfScripts: ServiceTfScript[];
+  bdcTf: {
+    status: TfScriptStatus;
+    completedAt?: string;
+    error?: TfScriptError;
+  };
   serviceTfCompleted: boolean;
   bdcTfCompleted: boolean;
   completedAt?: string;
   lastCheckedAt?: string;
-  tfExecutionRoleArn?: string;
 }
 
 export type CheckInstallationErrorCode = 'VALIDATION_FAILED' | 'ACCESS_DENIED';

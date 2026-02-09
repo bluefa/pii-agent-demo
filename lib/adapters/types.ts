@@ -111,8 +111,9 @@ export interface DataAdapter {
   verifyTfRole: (request: VerifyTfRoleRequest) => Promise<VerifyTfRoleResponse>;
   initializeInstallation: (projectId: string, hasTfPermission: boolean) => Promise<AwsInstallationStatus>;
   getInstallationStatus: (projectId: string) => Promise<AwsInstallationStatus | null>;
-  checkInstallation: (projectId: string) => Promise<CheckInstallationResponse | null>;
+  checkInstallation: (projectId: string, scriptId?: string) => Promise<CheckInstallationResponse | null>;
   getTerraformScript: (projectId: string) => Promise<TerraformScriptResponse | null>;
+  getTerraformScriptDownload: (projectId: string, scriptId: string) => Promise<TerraformScriptResponse | null>;
 
   // --- AWS Service Settings ---
   getAwsServiceSettings: (serviceCode: string) => Promise<AwsServiceSettings>;
