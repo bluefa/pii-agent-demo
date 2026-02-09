@@ -126,6 +126,11 @@ export const ResourceRow = ({
           </td>
         )}
 
+        {/* Resource ID */}
+        <td className="px-6 py-4">
+          <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
+        </td>
+
         {/* Database Type */}
         <td className="px-6 py-4">
           {isVm && hasVmConfig ? (
@@ -135,11 +140,6 @@ export const ResourceRow = ({
           ) : (
             <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
           )}
-        </td>
-
-        {/* Resource ID */}
-        <td className="px-6 py-4">
-          <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
         </td>
 
         {/* Credential */}
