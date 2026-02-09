@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import type { AzureServiceSettings } from '@/lib/types/azure';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -10,9 +11,11 @@ import {
   ResourceCredentialInput,
   VmConfigInput,
 } from '@/app/lib/api';
+import { getAzureServiceSettings } from '@/app/lib/api/azure';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
+import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -38,6 +41,16 @@ export const AzureProjectPage = ({
   );
   const [submitting, setSubmitting] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+
+  // Prerequisite data
+  const [serviceSettings, setServiceSettings] = useState<AzureServiceSettings | null>(null);
+
+  useEffect(() => {
+    getAzureServiceSettings(project.serviceCode).then(setServiceSettings).catch(() => {});
+  }, [project.serviceCode]);
+
+  const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
+  const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
   // VM 설정 상태
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
@@ -148,7 +161,16 @@ export const AzureProjectPage = ({
       <main className="p-6 space-y-6">
         {/* Info & Process Status Cards */}
         <div className="grid grid-cols-[350px_1fr] gap-6">
-          <ProjectInfoCard project={project} />
+          <div className="space-y-6">
+            <ProjectInfoCard project={project} />
+            <AzureInfoCard
+              project={project}
+              serviceSettings={serviceSettings}
+              credentials={credentials}
+              onOpenGuide={handleOpenGuide}
+              onManageCredentials={handleManageCredentials}
+            />
+          </div>
           <ProcessStatusCard
             project={project}
             isAdmin={isAdmin}

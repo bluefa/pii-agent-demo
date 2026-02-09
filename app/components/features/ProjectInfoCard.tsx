@@ -3,7 +3,6 @@
 import type { Project } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
 import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
-import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import { cardStyles, cn, textColors } from '@/lib/theme';
 
 interface ProjectInfoCardProps {
@@ -28,27 +27,6 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => (
         <span className={cn('text-sm', textColors.tertiary)}>Cloud Provider</span>
         <CloudProviderIcon provider={project.cloudProvider} />
       </div>
-
-      {project.cloudProvider === 'Azure' && project.tenantId && (
-        <div className="flex items-center justify-between">
-          <span className={cn('text-sm', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.Azure.tenantId}</span>
-          <span className={cn('font-mono text-sm', textColors.primary)}>{project.tenantId}</span>
-        </div>
-      )}
-
-      {project.cloudProvider === 'Azure' && project.subscriptionId && (
-        <div className="flex items-center justify-between">
-          <span className={cn('text-sm', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.Azure.subscriptionId}</span>
-          <span className={cn('font-mono text-sm', textColors.primary)}>{project.subscriptionId}</span>
-        </div>
-      )}
-
-      {project.cloudProvider === 'GCP' && project.gcpProjectId && (
-        <div className="flex items-center justify-between">
-          <span className={cn('text-sm', textColors.tertiary)}>{PROVIDER_FIELD_LABELS.GCP.projectId}</span>
-          <span className={cn('font-mono text-sm', textColors.primary)}>{project.gcpProjectId}</span>
-        </div>
-      )}
 
       <div className="flex items-center justify-between">
         <span className={cn('text-sm', textColors.tertiary)}>생성일</span>
