@@ -75,10 +75,30 @@ vmConfigs: [{
 
 ---
 
+## VNet Integration 제약
+
+> Azure MySQL/PostgreSQL Flexible Server는 생성 시 네트워킹 모드(Public Access / VNet Integration)를 선택하며 변경 불가.
+> **VNet Integration (Private Access)** 모드 리소스는 Private Endpoint를 지원하지 않으므로 연동 대상에서 제외됩니다.
+
+**대상 리소스 타입**: `AZURE_MYSQL`, `AZURE_POSTGRESQL`만 해당 (MSSQL, CosmosDB, Synapse 등은 영향 없음)
+
+**스캔 시 동작**:
+- 리소스의 `azureNetworkingMode` 필드로 네트워킹 모드를 전달합니다.
+- `PUBLIC_ACCESS`: PE 연결 가능 (기존 동작)
+- `VNET_INTEGRATION`: PE 연결 불가 → 체크박스 비활성화, 설치 상태에서 제외
+
+**비즈니스 로직 영향**:
+- `installation-status`: VNet Integration 리소스는 응답에서 제외됩니다.
+- `confirm-targets`: VNet Integration 리소스 미선택 시 제외 사유를 요구하지 않습니다.
+- **자동 승인**: VNet Integration 리소스는 EC2와 동일하게 면제됩니다.
+
+---
+
 ## 설치 상태
 
 > TF 설치는 Backend에서 자동 처리되며, Frontend는 완료 여부만 확인합니다.
 > PE 상태는 리소스별로 관리됩니다.
+> **VNet Integration 리소스는 설치 상태 응답에서 제외됩니다.**
 
 ### 설치 상태 조회
 
@@ -407,6 +427,7 @@ GET /api/services/{serviceCode}/settings/azure
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-09 | VNet Integration 제약 추가: AZURE_MYSQL/POSTGRESQL PE 불가 리소스 식별 및 제외 |
 | 2026-02-09 | Azure VM NIC 선택 기능 추가 — 리소스에 nics 필드, confirm-targets에 selectedNicId |
 | 2026-02-09 | VM 설치 상태: terraformInstalled → loadBalancer 객체로 구조화 (LB+PLS 명시) |
 | 2026-02-02 | VM 설치 상태에 Private Endpoint 정보 추가 (Subnet → TF → PE 3단계) |

@@ -1,5 +1,5 @@
 import { getProjectById } from '@/lib/mock-data';
-import { Project, Resource } from '@/lib/types';
+import { Project, Resource, isPeIneligible } from '@/lib/types';
 import {
   AzureInstallationStatus,
   AzureResourceStatus,
@@ -79,7 +79,7 @@ export const getAzureInstallationStatus = (
   }
 
   // DB 리소스만 필터링
-  const dbResources = project.resources.filter(isDbResource);
+  const dbResources = project.resources.filter(r => isDbResource(r) && !isPeIneligible(r));
 
   const resources: AzureResourceStatus[] = dbResources.map((resource) => {
     const peStatus = generatePrivateEndpointStatus(resource.resourceId);
