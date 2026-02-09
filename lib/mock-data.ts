@@ -302,6 +302,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'RDS',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
       },
       {
@@ -336,6 +337,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'REDSHIFT',
         region: 'us-east-1',
+        vpcId: 'vpc-useast-001',
         lifecycleStatus: 'DISCOVERED',
         isNew: true,
         note: 'NEW',
@@ -350,6 +352,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'RDS',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
         note: '제외됨',
         exclusion: {
@@ -368,6 +371,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'RDS_CLUSTER',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
         clusterType: 'REGIONAL',
         clusterInstances: [
@@ -386,6 +390,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'RDS_CLUSTER',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
         clusterType: 'GLOBAL',
         clusterInstances: [
@@ -398,6 +403,19 @@ export const mockProjects: Project[] = [
           { instanceId: 'aurora-global-01-reader-6', role: 'READER', availabilityZone: 'eu-west-1b', isSelected: false },
         ],
       },
+      // DocumentDB 리소스
+      {
+        id: 'res-docdb-1',
+        type: 'DOCUMENTDB',
+        resourceId: 'docdb-prod-01',
+        databaseType: 'MONGODB',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        awsType: 'DOCUMENTDB',
+        region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
+        lifecycleStatus: 'DISCOVERED',
+      },
       // EC2 리소스 (선택적 연동 대상)
       {
         id: 'res-ec2-1',
@@ -408,6 +426,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'EC2',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
         vmDatabaseConfig: {
           host: 'ip-10-0-1-100.ap-northeast-2.compute.internal',
@@ -424,6 +443,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'EC2',
         region: 'us-east-1',
+        vpcId: 'vpc-useast-001',
         lifecycleStatus: 'DISCOVERED',
         vmDatabaseConfig: {
           host: 'ip-10-2-3-45.us-east-1.compute.internal',
@@ -461,6 +481,7 @@ export const mockProjects: Project[] = [
         isSelected: true,
         awsType: 'RDS_CLUSTER',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'PENDING_APPROVAL',
         isNew: true,
         note: 'NEW',
@@ -529,6 +550,7 @@ export const mockProjects: Project[] = [
         isSelected: true,
         awsType: 'RDS',
         region: 'us-west-2',
+        vpcId: 'vpc-uswest-001',
         lifecycleStatus: 'INSTALLING',
         isNew: true,
         note: 'NEW',
@@ -542,6 +564,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'REDSHIFT',
         region: 'us-west-2',
+        vpcId: 'vpc-uswest-001',
         lifecycleStatus: 'DISCOVERED',
         isNew: true,
         note: 'NEW',
@@ -632,6 +655,7 @@ export const mockProjects: Project[] = [
         isSelected: true,
         awsType: 'RDS',
         region: 'ap-northeast-2',
+        vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'READY_TO_TEST',
         note: '끊김',
       },
@@ -867,6 +891,10 @@ export const mockAwsInstallations: Map<string, AwsInstallationStatus> = new Map(
     {
       provider: 'AWS',
       hasTfPermission: true,
+      serviceTfScripts: [
+        { id: 'svc-vpc-seoul-001-ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'VPC Endpoint (vpc-seoul-001, ap-northeast-2)', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-003', type: 'RDS', name: 'rds-003' }], completedAt: '2024-01-19T08:30:00Z' },
+      ],
+      bdcTf: { status: 'IN_PROGRESS' },
       serviceTfCompleted: true,
       bdcTfCompleted: false,
       lastCheckedAt: '2024-01-19T09:00:00Z',
@@ -878,6 +906,11 @@ export const mockAwsInstallations: Map<string, AwsInstallationStatus> = new Map(
     {
       provider: 'AWS',
       hasTfPermission: true,
+      serviceTfScripts: [
+        { id: 'svc-vpc-seoul-001-ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'VPC Endpoint (vpc-seoul-001, ap-northeast-2)', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-005', type: 'RDS', name: 'rds-005' }], completedAt: '2024-01-21T13:30:00Z' },
+        { id: 'svc-dynamodb-role', type: 'DYNAMODB_ROLE', status: 'COMPLETED', label: 'DynamoDB Role', resources: [{ resourceId: 'ddb-005', type: 'DYNAMODB', name: 'ddb-005' }], completedAt: '2024-01-21T13:35:00Z' },
+      ],
+      bdcTf: { status: 'COMPLETED', completedAt: '2024-01-21T14:00:00Z' },
       serviceTfCompleted: true,
       bdcTfCompleted: true,
       completedAt: '2024-01-21T14:00:00Z',

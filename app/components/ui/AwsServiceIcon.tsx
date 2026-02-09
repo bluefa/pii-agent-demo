@@ -15,6 +15,7 @@ const sizeMap = {
 const colorMap: Record<AwsResourceType, string> = {
   RDS: '#527FFF',
   RDS_CLUSTER: '#527FFF',
+  DOCUMENTDB: '#4053D6',
   DYNAMODB: '#4053D6',
   ATHENA: '#8C4FFF',
   REDSHIFT: '#8C4FFF',
@@ -63,6 +64,7 @@ export const AwsServiceIcon = ({ type, size = 'md' }: AwsServiceIconProps) => {
   const icons: Record<AwsResourceType, React.ReactNode> = {
     RDS: <RdsIcon className={sizeClass} color={color} />,
     RDS_CLUSTER: <RdsIcon className={sizeClass} color={color} />,
+    DOCUMENTDB: <DynamoDbIcon className={sizeClass} color={color} />,
     DYNAMODB: <DynamoDbIcon className={sizeClass} color={color} />,
     ATHENA: <AthenaIcon className={sizeClass} color={color} />,
     REDSHIFT: <RedshiftIcon className={sizeClass} color={color} />,

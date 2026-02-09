@@ -86,6 +86,7 @@ POST /api/aws/verify-tf-role
 ## 설치 상태
 
 > TF 설치는 Backend에서 자동 처리되며, Frontend는 완료 여부만 확인합니다.
+> Service TF는 리소스 유형에 따라 **N개의 스크립트**로 분리됩니다.
 
 ### 설치 상태 조회
 
@@ -99,9 +100,23 @@ GET /api/aws/projects/{projectId}/installation-status
   provider: 'AWS',
   hasTfPermission: boolean,
 
-  // TF 설치 완료 여부 (자동/수동 무관하게 동일)
-  serviceTfCompleted: boolean,
-  bdcTfCompleted: boolean,
+  // N개의 Service TF 스크립트 목록
+  serviceTfScripts: ServiceTfScript[],
+
+  // BDC TF 상태 (시스템 자동 처리)
+  bdcTf: {
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+    completedAt?: string,
+    error?: {
+      code: string,
+      message: string,
+      guide?: string
+    }
+  },
+
+  // 하위 호환 필드 (deprecated — serviceTfScripts/bdcTf 사용 권장)
+  serviceTfCompleted: boolean,   // 모든 serviceTfScripts가 COMPLETED이면 true
+  bdcTfCompleted: boolean,       // bdcTf.status === 'COMPLETED'이면 true
   completedAt?: string,
 
   // 마지막 확인 시간 (자동 탐지 또는 수동 refresh)
@@ -109,9 +124,42 @@ GET /api/aws/projects/{projectId}/installation-status
 }
 ```
 
+### ServiceTfScript
+
+```typescript
+{
+  id: string,                    // 스크립트 고유 ID
+  type: 'VPC_ENDPOINT' | 'DYNAMODB_ROLE' | 'ATHENA_GLUE',
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+  label: string,                 // UI 표시용 (e.g. "VPC Endpoint (vpc-abc / ap-northeast-2)")
+  vpcId?: string,                // VPC_ENDPOINT 타입에서만 사용
+  region?: string,               // VPC_ENDPOINT 타입에서만 사용
+  resources: {                   // 이 스크립트에 포함된 리소스 목록
+    resourceId: string,
+    type: string,
+    name: string
+  }[],
+  completedAt?: string,
+  error?: {
+    code: string,
+    message: string,
+    guide?: string
+  }
+}
+```
+
+### 리소스 → TF Script 매핑
+
+| AwsResourceType | TF Script Type | 그룹핑 |
+|-----------------|----------------|--------|
+| RDS, RDS_CLUSTER, DOCUMENTDB, REDSHIFT, EC2 | VPC_ENDPOINT | vpcId + region 단위로 1개 |
+| DYNAMODB | DYNAMODB_ROLE | 프로젝트당 max 1개 |
+| ATHENA | ATHENA_GLUE | 프로젝트당 max 1개 |
+
 **설치 완료 판단** (자동/수동 동일):
 ```typescript
-const installationCompleted = serviceTfCompleted && bdcTfCompleted;
+const allServiceTfCompleted = serviceTfScripts.every(s => s.status === 'COMPLETED');
+const installationCompleted = allServiceTfCompleted && bdcTf.status === 'COMPLETED';
 ```
 
 ---
@@ -119,8 +167,9 @@ const installationCompleted = serviceTfCompleted && bdcTfCompleted;
 ## TF Script (TF 권한 없는 경우)
 
 > Service TF만 다운로드 가능 (BDC는 시스템이 자동 처리)
+> N-script 아키텍처에서는 스크립트별 개별 다운로드를 지원합니다.
 
-### TF Script 다운로드
+### TF Script 다운로드 (전체 — 레거시)
 
 ```
 GET /api/aws/projects/{projectId}/terraform-script
@@ -145,9 +194,9 @@ POST /api/aws/projects/{projectId}/check-installation
 > Frontend는 "새로고침" 버튼으로 이 API를 호출하여 최신 상태를 확인합니다.
 >
 > **동작 방식**:
-> - Backend가 AWS API로 Service TF 리소스 존재 여부 검증
-> - 검증 성공 시 `serviceTfCompleted = true`로 업데이트
-> - Service TF 완료 확인 시 BDC TF 자동 실행
+> - Backend가 AWS API로 전체 Service TF 스크립트의 리소스 존재 여부 일괄 검증
+> - 검증 성공 시 해당 스크립트의 `status`를 `COMPLETED`로 업데이트
+> - 모든 Service TF 스크립트 완료 확인 시 BDC TF 자동 실행
 
 **응답** (installation-status와 동일 + error):
 ```typescript
@@ -155,6 +204,14 @@ POST /api/aws/projects/{projectId}/check-installation
   provider: 'AWS',
   hasTfPermission: boolean,
 
+  serviceTfScripts: ServiceTfScript[],
+  bdcTf: {
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+    completedAt?: string,
+    error?: { code: string, message: string, guide?: string }
+  },
+
+  // 하위 호환 필드
   serviceTfCompleted: boolean,
   bdcTfCompleted: boolean,
   completedAt?: string,
@@ -172,7 +229,7 @@ POST /api/aws/projects/{projectId}/check-installation
 }
 ```
 
-**프로세스 전이**: Service TF 완료 확인 → BDC TF 자동 실행 → 연결 테스트 대기
+**프로세스 전이**: 모든 Service TF 완료 확인 → BDC TF 자동 실행 → 연결 테스트 대기
 
 ---
 
@@ -291,6 +348,8 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 - [x] TF 설치 상태 단순화 (완료/미완료 boolean)
 - [x] check-installation API 상세 정의 (자동 탐지 방식)
 - [x] 서비스 설정 API 상세 정의
+- [x] N-script 아키텍처: ServiceTfScript 스키마 및 개별 다운로드 API 정의
+- [x] 리소스 → TF Script 매핑 테이블 정의
 
 > 예외 처리는 [common.md](../common.md)의 "예외 처리 규칙" 참조
 
@@ -300,6 +359,7 @@ POST /api/services/{serviceCode}/settings/aws/verify-scan-role
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-09 | N-script 아키텍처: ServiceTfScript 스키마, 리소스→TF Script 매핑 추가 |
 | 2026-01-31 | check-installation 응답을 installation-status와 통일 |
 | 2026-01-31 | API 경로에 /aws/ prefix 추가 (Provider 명시) |
 | 2026-01-31 | confirm-installation → check-installation 변경 (자동 탐지 방식) |
