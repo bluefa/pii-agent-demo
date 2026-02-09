@@ -147,7 +147,7 @@ export const GcpProjectPage = ({
       <ProjectHeader project={project} />
 
       <main className="p-6 space-y-6">
-        <div className="grid grid-cols-[350px_1fr] gap-6">
+        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
           <div className="space-y-6">
             <ProjectInfoCard project={project} />
             <GcpInfoCard
