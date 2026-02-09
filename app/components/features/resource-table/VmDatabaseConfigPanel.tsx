@@ -126,37 +126,27 @@ export const VmDatabaseConfigPanel = ({
 
             {/* 본문 */}
             <div className="p-5">
-              <div className="flex items-start gap-5">
-                {/* Database Type - 카드 선택 방식 */}
-                <div className="flex-1">
+              <div className="flex items-start gap-4">
+                {/* Database Type - Dropdown */}
+                <div className="w-44">
                   <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
-                    데이터베이스 타입
+                    데이터베이스 타입 <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-5 gap-2">
+                  <select
+                    value={databaseType ?? ''}
+                    onChange={(e) => e.target.value && handleDatabaseTypeChange(e.target.value as VmDatabaseType)}
+                    className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 ${
+                      databaseType
+                        ? 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
+                        : 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
+                    }`}
+                  >
+                    <option value="">선택하세요</option>
                     {VM_DATABASE_TYPES.map((type) => (
-                      <button
-                        key={type.value}
-                        type="button"
-                        onClick={() => handleDatabaseTypeChange(type.value)}
-                        className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
-                          databaseType === type.value
-                            ? 'border-blue-500 bg-blue-50 shadow-sm'
-                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-xl">{type.icon}</span>
-                        <span className={`text-xs font-medium ${
-                          databaseType === type.value ? 'text-blue-700' : 'text-slate-700'
-                        }`}>
-                          {type.label}
-                        </span>
-                      </button>
+                      <option key={type.value} value={type.value}>{type.label}</option>
                     ))}
-                  </div>
+                  </select>
                 </div>
-
-                {/* 구분선 */}
-                <div className="w-px h-24 bg-slate-200 self-center" />
 
                 {/* Host, Port & Oracle SID */}
                 <div className="flex gap-4">
