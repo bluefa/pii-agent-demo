@@ -258,9 +258,7 @@ describe('mock-azure', () => {
         expect(vm.vmName).toBeDefined();
         expect(typeof vm.subnetExists).toBe('boolean');
         expect(typeof vm.loadBalancer.installed).toBe('boolean');
-        if (vm.loadBalancer.installed) {
-          expect(vm.loadBalancer.name).toBeDefined();
-        }
+        expect(vm.loadBalancer.name).toBeDefined();
       });
     });
 

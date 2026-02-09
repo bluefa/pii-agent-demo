@@ -43,7 +43,7 @@ export interface AzureInstallationStatus {
 
 export interface LoadBalancerInfo {
   installed: boolean;
-  name?: string;
+  name: string;
 }
 
 export interface AzureVmStatus {
