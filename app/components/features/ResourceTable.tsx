@@ -33,7 +33,6 @@ interface ResourceTableProps {
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
   onEditModeChange?: (isEdit: boolean) => void;
-  onInstanceToggle?: (resourceId: string, instanceId: string, checked: boolean) => void;
 }
 
 const ConnectionBadge = ({ label, count, variant }: { label: string; count: number; variant: 'success' | 'error' | 'pending' }) => {
@@ -59,7 +58,6 @@ export const ResourceTable = ({
   onVmConfigToggle,
   onVmConfigSave,
   onEditModeChange,
-  onInstanceToggle,
 }: ResourceTableProps) => {
   const [internalEditMode, setInternalEditMode] = useState(false);
 
@@ -157,7 +155,6 @@ export const ResourceTable = ({
                 expandedVmId={expandedVmId}
                 onVmConfigToggle={onVmConfigToggle}
                 onVmConfigSave={onVmConfigSave}
-                onInstanceToggle={onInstanceToggle}
               />
             ))
           ) : (
@@ -246,7 +243,6 @@ export const ResourceTable = ({
             expandedVmId={expandedVmId}
             onVmConfigToggle={onVmConfigToggle}
             onVmConfigSave={onVmConfigSave}
-            onInstanceToggle={onInstanceToggle}
           />
         </>
       )}

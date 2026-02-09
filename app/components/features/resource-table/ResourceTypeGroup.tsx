@@ -25,7 +25,6 @@ interface ResourceTypeGroupProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
-  onInstanceToggle?: (resourceId: string, instanceId: string, checked: boolean) => void;
 }
 
 const groupByRegion = (resources: Resource[]): Map<string, Resource[]> => {
@@ -59,7 +58,6 @@ export const ResourceTypeGroup = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
-  onInstanceToggle,
 }: ResourceTypeGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const regionGroups = groupByRegion(resources);
@@ -149,7 +147,6 @@ export const ResourceTypeGroup = ({
                 isCheckboxEnabled={isCheckboxEnabled}
                 showConnectionStatus={showConnectionStatus}
                 onCheckboxChange={onCheckboxChange}
-                onInstanceToggle={onInstanceToggle}
               />
             ) : (
               <ResourceRow

@@ -19,7 +19,6 @@ interface NonTargetResourceSectionProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
-  onInstanceToggle?: (resourceId: string, instanceId: string, checked: boolean) => void;
 }
 
 const groupByResourceType = (resources: Resource[]): Map<AwsResourceType, Resource[]> => {
@@ -56,7 +55,6 @@ export const NonTargetResourceSection = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
-  onInstanceToggle,
 }: NonTargetResourceSectionProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const nonTargetResources = resources.filter(r => !r.isSelected);
@@ -101,7 +99,6 @@ export const NonTargetResourceSection = ({
                   expandedVmId={expandedVmId}
                   onVmConfigToggle={onVmConfigToggle}
                   onVmConfigSave={onVmConfigSave}
-                  onInstanceToggle={onInstanceToggle}
                 />
               ))}
             </tbody>
