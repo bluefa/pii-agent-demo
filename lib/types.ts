@@ -1,3 +1,5 @@
+import type { AzureVmNic } from '@/lib/types/azure';
+
 // ===== Enums & Constants =====
 
 export enum ProcessStatus {
@@ -32,6 +34,7 @@ export interface VmDatabaseConfig {
   databaseType: VmDatabaseType;
   port: number;
   oracleServiceId?: string;  // Oracle인 경우만
+  selectedNicId?: string;    // Azure VM 전용: 선택된 NIC ID
 }
 
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DOCUMENTDB' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
@@ -115,6 +118,7 @@ export interface Resource {
 
   // --- VM 전용 설정 ---
   vmDatabaseConfig?: VmDatabaseConfig;    // VM 리소스(EC2, AZURE_VM)만
+  nics?: AzureVmNic[];  // Azure VM 전용: NIC 목록
 
   // --- RDS_CLUSTER 전용 ---
   clusterType?: RdsClusterType;

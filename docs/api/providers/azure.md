@@ -17,6 +17,58 @@
 
 ---
 
+## Azure VM NIC (Network Interface)
+
+> Azure VM 리소스는 NIC 단위로 연동됩니다. VM 선택 시 NIC을 반드시 선택해야 합니다.
+
+### NIC 데이터 구조
+
+```typescript
+interface AzureVmNic {
+  nicId: string;      // NIC 고유 ID
+  name: string;       // NIC 이름 (예: nic-vm-001-0)
+  privateIp: string;  // NIC의 Private IP (예: 10.0.1.15)
+}
+```
+
+### 리소스 조회 시 NIC 포함
+
+`GET /api/projects/{projectId}/resources` 응답에서 AZURE_VM 타입 리소스는 `nics` 필드를 포함합니다:
+
+```typescript
+{
+  id: 'azure-res-5',
+  resourceType: 'AZURE_VM',
+  resourceId: 'vm-agent-001',
+  // ...기존 필드
+  nics: [
+    { nicId: 'nic-vm-001-0', name: 'nic-vm-001-0', privateIp: '10.0.1.15' },
+    { nicId: 'nic-vm-001-1', name: 'nic-vm-001-1', privateIp: '10.0.2.30' }
+  ]
+}
+```
+
+### 연동 대상 확정 시 NIC 선택
+
+`POST /api/projects/{projectId}/confirm-targets`의 `vmConfigs`에서 Azure VM은 `selectedNicId` 필수:
+
+```typescript
+vmConfigs: [{
+  resourceId: 'azure-res-5',
+  databaseType: 'MSSQL',
+  port: 1433,
+  host: '10.0.1.15',        // 선택된 NIC의 privateIp
+  selectedNicId: 'nic-vm-001-0'  // 선택된 NIC ID (Azure VM 필수)
+}]
+```
+
+**검증 규칙**:
+- Azure VM이 선택된 경우 `selectedNicId` 필수
+- `selectedNicId`는 해당 VM의 `nics[].nicId` 중 하나여야 함
+- 첫번째 NIC이 기본 추천 (Frontend에서 자동 선택)
+
+---
+
 ## 스캔
 
 > 스캔 API는 [scan.md](../scan.md) 참조
@@ -355,6 +407,7 @@ GET /api/services/{serviceCode}/settings/azure
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-09 | Azure VM NIC 선택 기능 추가 — 리소스에 nics 필드, confirm-targets에 selectedNicId |
 | 2026-02-09 | VM 설치 상태: terraformInstalled → loadBalancer 객체로 구조화 (LB+PLS 명시) |
 | 2026-02-02 | VM 설치 상태에 Private Endpoint 정보 추가 (Subnet → TF → PE 3단계) |
 | 2026-02-01 | API 경로에 /azure/ prefix 추가 (AWS와 통일) |

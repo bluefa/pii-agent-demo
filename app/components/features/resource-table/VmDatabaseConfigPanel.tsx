@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { VmDatabaseType, VmDatabaseConfig } from '@/lib/types';
+import { cn, statusColors, textColors, bgColors, borderColors } from '@/lib/theme';
+import { Badge } from '@/app/components/ui/Badge';
+import type { VmDatabaseType, VmDatabaseConfig } from '@/lib/types';
+import type { AzureVmNic } from '@/lib/types/azure';
 
 interface VmDatabaseConfigPanelProps {
   resourceId: string;
   initialConfig?: VmDatabaseConfig;
+  nics?: AzureVmNic[];
   onSave: (resourceId: string, config: VmDatabaseConfig) => void;
   onCancel: () => void;
 }
@@ -29,9 +33,31 @@ const DEFAULT_PORTS: Record<VmDatabaseType, number> = {
 export const VmDatabaseConfigPanel = ({
   resourceId,
   initialConfig,
+  nics,
   onSave,
   onCancel,
 }: VmDatabaseConfigPanelProps) => {
+  const nicList = nics ?? [];
+  const hasNics = nicList.length > 0;
+
+  const getInitialNicId = (): string | undefined => {
+    if (!hasNics) return undefined;
+    if (initialConfig?.selectedNicId && nicList.some(n => n.nicId === initialConfig.selectedNicId)) {
+      return initialConfig.selectedNicId;
+    }
+    return nicList[0].nicId;
+  };
+
+  const getInitialHost = (): string => {
+    if (initialConfig?.host) return initialConfig.host;
+    if (hasNics) {
+      const initialNicId = getInitialNicId();
+      const nic = nicList.find(n => n.nicId === initialNicId);
+      return nic?.privateIp ?? '';
+    }
+    return '';
+  };
+
   // initialConfig가 있으면 그 값 유지, 없으면 null (미설정 상태)
   const [databaseType, setDatabaseType] = useState<VmDatabaseType | null>(
     initialConfig?.databaseType ?? null
@@ -39,12 +65,11 @@ export const VmDatabaseConfigPanel = ({
   const [port, setPort] = useState<string>(
     initialConfig?.port?.toString() ?? ''
   );
-  const [host, setHost] = useState<string>(
-    initialConfig?.host ?? ''
-  );
+  const [host, setHost] = useState<string>(getInitialHost);
   const [oracleServiceId, setOracleServiceId] = useState<string>(
     initialConfig?.oracleServiceId ?? ''
   );
+  const [selectedNicId, setSelectedNicId] = useState<string | undefined>(getInitialNicId);
   const [portError, setPortError] = useState<string | null>(null);
 
   const handleDatabaseTypeChange = (newType: VmDatabaseType) => {
@@ -77,6 +102,12 @@ export const VmDatabaseConfigPanel = ({
     if (value) validatePort(value);
   };
 
+  const handleNicChange = (nicId: string) => {
+    setSelectedNicId(nicId);
+    const nic = nics?.find(n => n.nicId === nicId);
+    if (nic) setHost(nic.privateIp);
+  };
+
   const handleSave = () => {
     if (!databaseType || !validatePort(port)) return;
 
@@ -85,6 +116,7 @@ export const VmDatabaseConfigPanel = ({
       port: parseInt(port, 10),
       ...(host ? { host } : {}),
       ...(databaseType === 'ORACLE' && oracleServiceId ? { oracleServiceId } : {}),
+      ...(selectedNicId ? { selectedNicId } : {}),
     };
 
     onSave(resourceId, config);
@@ -120,12 +152,48 @@ export const VmDatabaseConfigPanel = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                   </svg>
                 </div>
-                <span className="text-sm font-semibold text-slate-800">데이터베이스 연결 설정</span>
+                <span className={cn('text-sm font-semibold', textColors.primary)}>
+                  {hasNics ? '네트워크 및 데이터베이스 설정' : '데이터베이스 연결 설정'}
+                </span>
               </div>
             </div>
 
             {/* 본문 */}
             <div className="p-5">
+              {/* NIC 선택 영역 */}
+              {hasNics && (
+                <div className="mb-4">
+                  <label className={cn('block text-xs font-semibold uppercase tracking-wide mb-2', textColors.tertiary)}>
+                    Network Interface 선택
+                  </label>
+                  <div className={cn('border rounded-lg overflow-hidden divide-y', statusColors.pending.border, borderColors.default.replace('border-', 'divide-'))}>
+                    {nicList.map((nic, idx) => (
+                      <label
+                        key={nic.nicId}
+                        className={cn(
+                          'flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors',
+                          selectedNicId === nic.nicId ? statusColors.info.bg : `hover:${bgColors.muted}`
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name={`nic-${resourceId}`}
+                          value={nic.nicId}
+                          checked={selectedNicId === nic.nicId}
+                          onChange={() => handleNicChange(nic.nicId)}
+                          className="w-4 h-4"
+                        />
+                        <span className={cn('font-mono text-sm', textColors.primary)}>{nic.name}</span>
+                        <span className={cn('text-sm', textColors.tertiary)}>{nic.privateIp}</span>
+                        {nicList.length > 1 && idx === 0 && (
+                          <Badge variant="info" size="sm">추천</Badge>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-4">
                 {/* Database Type - Dropdown */}
                 <div className="w-44">
@@ -165,9 +233,9 @@ export const VmDatabaseConfigPanel = ({
                           ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
                           : 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
                       }`}
-                      placeholder="ip-10-0-1-100.ec2.internal"
+                      placeholder={hasNics ? 'NIC에서 자동 설정됨' : 'ip-10-0-1-100.ec2.internal'}
                     />
-                    <p className="mt-1 text-xs text-slate-400">Private DNS Name 또는 IP</p>
+                    <p className="mt-1 text-xs text-slate-400">{hasNics ? '선택한 NIC의 Private IP' : 'Private DNS Name 또는 IP'}</p>
                   </div>
 
                   {/* Port */}
