@@ -406,6 +406,7 @@ export interface AwsInstallationStatus {
   bdcTfCompleted: boolean;
   completedAt?: string;
   lastCheckedAt?: string;
+  tfExecutionRoleArn?: string;
 }
 
 export type CheckInstallationErrorCode = 'VALIDATION_FAILED' | 'ACCESS_DENIED';

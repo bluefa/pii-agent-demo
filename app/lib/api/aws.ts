@@ -1,10 +1,25 @@
 import {
   AwsInstallationStatus,
+  AwsServiceSettings,
   CheckInstallationResponse,
   TerraformScriptResponse,
 } from '@/lib/types';
 
 const BASE_URL = '/api/aws';
+
+/**
+ * AWS 서비스 설정 조회 (스캔 Role 포함)
+ */
+export const getAwsServiceSettings = async (
+  serviceCode: string
+): Promise<AwsServiceSettings> => {
+  const res = await fetch(`/api/services/${serviceCode}/settings/aws`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || 'AWS 서비스 설정 조회에 실패했습니다.');
+  }
+  return await res.json();
+};
 
 /**
  * AWS 설치 상태 조회

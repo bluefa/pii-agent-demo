@@ -130,12 +130,17 @@ export const initializeInstallation = (
   hasTfPermission: boolean
 ): AwsInstallationStatus => {
   const store = getStore();
+  const project = store.projects.find((p) => p.id === projectId);
+  const accountId = project?.awsAccountId ?? '000000000000';
 
   const status: AwsInstallationStatus = {
     provider: 'AWS',
     hasTfPermission,
     serviceTfCompleted: false,
     bdcTfCompleted: false,
+    tfExecutionRoleArn: hasTfPermission
+      ? `arn:aws:iam::${accountId}:role/TerraformExecutionRole`
+      : undefined,
   };
 
   // hasTfPermission이 true면 자동 설치 시작 시뮬레이션
