@@ -248,7 +248,7 @@ describe('mock-azure', () => {
       expect(result.data?.vms).toHaveLength(0);
     });
 
-    it('VM 상태는 subnetExists와 terraformInstalled 포함', () => {
+    it('VM 상태는 subnetExists와 loadBalancer 포함', () => {
       const store = getStore();
       store.projects.push(createAzureProjectWithVm());
 
@@ -257,7 +257,10 @@ describe('mock-azure', () => {
         expect(vm.vmId).toBeDefined();
         expect(vm.vmName).toBeDefined();
         expect(typeof vm.subnetExists).toBe('boolean');
-        expect(typeof vm.terraformInstalled).toBe('boolean');
+        expect(typeof vm.loadBalancer.installed).toBe('boolean');
+        if (vm.loadBalancer.installed) {
+          expect(vm.loadBalancer.name).toBeDefined();
+        }
       });
     });
 
