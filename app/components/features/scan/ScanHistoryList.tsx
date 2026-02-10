@@ -7,9 +7,10 @@ import { cn } from '@/lib/theme';
 interface ScanHistoryListProps {
   projectId: string;
   limit?: number;
+  lastCompletedAt?: string;
 }
 
-export const ScanHistoryList = ({ projectId, limit = 5 }: ScanHistoryListProps) => {
+export const ScanHistoryList = ({ projectId, limit = 5, lastCompletedAt }: ScanHistoryListProps) => {
   const [data, setData] = useState<ScanHistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -29,7 +30,7 @@ export const ScanHistoryList = ({ projectId, limit = 5 }: ScanHistoryListProps) 
 
   useEffect(() => {
     fetchHistory();
-  }, [fetchHistory]);
+  }, [fetchHistory, lastCompletedAt]);
 
   const formatDate = (dateStr: string) => {
     try {
