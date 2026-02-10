@@ -127,9 +127,6 @@ GET /api/projects/{projectId}/scan/{scanId}
   completedAt?: string,
   result?: {
     totalFound: number,
-    newFound: number,
-    updated: number,
-    removed: number,
     byResourceType: Array<{
       resourceType: ResourceType,
       count: number
@@ -186,9 +183,6 @@ GET /api/projects/{projectId}/scan/history
     duration: number,  // seconds
     result: {
       totalFound: number,
-      newFound: number,
-      updated: number,
-      removed: number,
       byResourceType: Array<{
         resourceType: ResourceType,
         count: number

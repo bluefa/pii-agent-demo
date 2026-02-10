@@ -339,22 +339,20 @@ const generateResourceChanges = (
   // 기존 리소스는 항상 유지
   const newResources = [...existingResources];
   const addedIds: string[] = [];
-  let newFound = 0;
 
   // 여유 슬롯이 있으면 반드시 1개 추가
   if (availableSlots > 0) {
     const resource = generateRandomResource(provider);
     newResources.push(resource);
     addedIds.push(resource.id);
-    newFound++;
   }
 
-  const result = buildScanResult(newResources, newFound);
+  const result = buildScanResult(newResources);
 
   return { newResources, result, addedIds };
 };
 
-const buildScanResult = (resources: Resource[], newFound: number): ScanResult => {
+const buildScanResult = (resources: Resource[]): ScanResult => {
   const typeCount = new Map<string, number>();
   resources.forEach((r) => {
     const type = r.awsType || r.type;
@@ -363,9 +361,6 @@ const buildScanResult = (resources: Resource[], newFound: number): ScanResult =>
 
   return {
     totalFound: resources.length,
-    newFound,
-    updated: 0,
-    removed: 0,
     byResourceType: Array.from(typeCount.entries()).map(([resourceType, count]) => ({
       resourceType: resourceType as ResourceType,
       count,
