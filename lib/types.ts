@@ -332,9 +332,6 @@ export type ScanStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
 
 export interface ScanResult {
   totalFound: number;
-  newFound: number;
-  updated: number;
-  removed: number;
   byResourceType: Array<{
     resourceType: ResourceType;
     count: number;

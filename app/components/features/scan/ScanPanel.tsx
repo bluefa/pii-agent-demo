@@ -102,7 +102,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
           {/* Normal mode: key numbers + last scan time */}
           {!loading && !isInProgress && lastResult && (
             <span className={cn('text-xs', textColors.tertiary)}>
-              {lastResult.totalFound}개 발견 · 신규 {lastResult.newFound}
+              {lastResult.totalFound}개 발견
               {lastCompletedAt && ` | 마지막: ${formatDate(lastCompletedAt, 'short')}`}
             </span>
           )}
