@@ -200,7 +200,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
             <div className={cn('text-xs font-medium uppercase tracking-wide mb-2', textColors.tertiary)}>
               스캔 이력
             </div>
-            <ScanHistoryList projectId={projectId} limit={5} />
+            <ScanHistoryList projectId={projectId} limit={5} lastCompletedAt={lastCompletedAt} />
           </div>
         </div>
       )}
