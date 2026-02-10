@@ -9,15 +9,16 @@ import {
   AwsResourceType,
   DBCredential,
   VmDatabaseConfig,
+  isPeIneligible,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import { cn, statusColors, textColors, badgeStyles, getButtonClass, bgColors } from '@/lib/theme';
+import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
 import {
   ResourceRow,
   ResourceTypeGroup,
   EmptyState,
-  NonTargetResourceSection,
 } from './resource-table';
 
 interface ResourceTableProps {
@@ -34,6 +35,12 @@ interface ResourceTableProps {
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
   onEditModeChange?: (isEdit: boolean) => void;
 }
+
+const WarningIcon = () => (
+  <svg className={cn('w-4 h-4', statusColors.warning.text)} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+  </svg>
+);
 
 const ConnectionBadge = ({ label, count, variant }: { label: string; count: number; variant: 'success' | 'error' | 'pending' }) => {
   const colors = statusColors[variant];
@@ -79,6 +86,9 @@ export const ResourceTable = ({
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
   const targetResources = resources.filter((r) => r.isSelected || selectedIdsSet.has(r.id));
+  const nonTargetResources = resources.filter(r => !r.isSelected && !selectedIdsSet.has(r.id));
+  const vnetResources = nonTargetResources.filter(isPeIneligible);
+  const normalNonTargetResources = nonTargetResources.filter(r => !isPeIneligible(r));
 
   const connectedCount = targetResources.filter((r) => r.connectionStatus === 'CONNECTED').length;
   const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
@@ -112,6 +122,21 @@ export const ResourceTable = ({
 
   const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
     filterCredentialsByType(credentials, databaseType);
+
+  const rowProps = {
+    cloudProvider,
+    selectedIds: selectedIdsSet,
+    isEditMode: false as const,
+    isCheckboxEnabled: false,
+    showConnectionStatus,
+    showCredentialColumn,
+    onCheckboxChange: handleCheckboxChange,
+    getCredentialsForType,
+    onCredentialChange,
+    expandedVmId,
+    onVmConfigToggle,
+    onVmConfigSave,
+  };
 
   const handleToggleEditMode = () => {
     const next = !internalEditMode;
@@ -228,22 +253,62 @@ export const ResourceTable = ({
           ) : renderTable(targetResources, groupedByType)}
 
           {/* Monitor mode: non-target resources */}
-          <NonTargetResourceSection
-            resources={resources}
-            cloudProvider={cloudProvider}
-            label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
-            isEditMode={false}
-            selectedIds={selectedIdsSet}
-            showConnectionStatus={showConnectionStatus}
-            showCredentialColumn={showCredentialColumn}
-            onCheckboxChange={handleCheckboxChange}
-            colSpan={colSpan}
-            getCredentialsForType={getCredentialsForType}
-            onCredentialChange={onCredentialChange}
-            expandedVmId={expandedVmId}
-            onVmConfigToggle={onVmConfigToggle}
-            onVmConfigSave={onVmConfigSave}
-          />
+          {vnetResources.length > 0 && (
+            <CollapsibleSection
+              label="설치 불가 (VNet Integration)"
+              count={vnetResources.length}
+              icon={<WarningIcon />}
+              labelClassName={statusColors.warning.textDark}
+              contentClassName={cn('rounded-lg', statusColors.warning.bg)}
+              defaultOpen
+            >
+              <table className="w-full">
+                <tbody>
+                  {vnetResources.map(r => (
+                    <ResourceRow key={r.id} resource={r} {...rowProps} />
+                  ))}
+                </tbody>
+              </table>
+            </CollapsibleSection>
+          )}
+
+          {normalNonTargetResources.length > 0 && (
+            <CollapsibleSection
+              label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
+              count={normalNonTargetResources.length}
+              contentClassName="opacity-60"
+            >
+              <table className="w-full">
+                <tbody>
+                  {isAWS ? (
+                    groupByAwsType(normalNonTargetResources).map(([type, res]) => (
+                      <ResourceTypeGroup
+                        key={type}
+                        resourceType={type}
+                        resources={res}
+                        selectedIds={selectedIdsSet}
+                        isEditMode={false}
+                        isCheckboxEnabled={false}
+                        showConnectionStatus={showConnectionStatus}
+                        showCredentialColumn={showCredentialColumn}
+                        onCheckboxChange={handleCheckboxChange}
+                        colSpan={colSpan}
+                        getCredentialsForType={getCredentialsForType}
+                        onCredentialChange={onCredentialChange}
+                        expandedVmId={expandedVmId}
+                        onVmConfigToggle={onVmConfigToggle}
+                        onVmConfigSave={onVmConfigSave}
+                      />
+                    ))
+                  ) : (
+                    normalNonTargetResources.map(r => (
+                      <ResourceRow key={r.id} resource={r} {...rowProps} />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </CollapsibleSection>
+          )}
         </>
       )}
     </div>

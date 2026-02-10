@@ -6,6 +6,6 @@ export { StatusIcon } from './StatusIcon';
 export { FilterTab } from './FilterTab';
 export { EmptyState, type FilterType } from './EmptyState';
 export { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
-export { NonTargetResourceSection } from './NonTargetResourceSection';
+
 export { ClusterRow } from './ClusterRow';
 export { InstancePanel } from './InstancePanel';
