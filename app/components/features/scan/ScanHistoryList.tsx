@@ -102,7 +102,7 @@ export const ScanHistoryList = ({ projectId, limit = 5, lastCompletedAt }: ScanH
     } finally {
       setLoading(false);
     }
-  }, [projectId, limit]);
+  }, [projectId, limit, lastCompletedAt]);
 
   useEffect(() => {
     fetchHistory();
