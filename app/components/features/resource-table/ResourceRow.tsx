@@ -18,7 +18,6 @@ export const isVmResource = (resource: Resource): boolean => {
 
 interface ResourceRowProps {
   resource: Resource;
-  isAWS: boolean;
   cloudProvider: CloudProvider;
   selectedIds: Set<string>;
   isEditMode: boolean;
@@ -54,7 +53,6 @@ const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentia
 
 export const ResourceRow = ({
   resource,
-  isAWS,
   cloudProvider,
   selectedIds,
   isEditMode,
@@ -68,6 +66,7 @@ export const ResourceRow = ({
   onVmConfigToggle,
   onVmConfigSave,
 }: ResourceRowProps) => {
+  const isAWS = cloudProvider === 'AWS';
   const vnetModal = useModal();
   const needsCred = needsCredential(resource.databaseType);
   const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];

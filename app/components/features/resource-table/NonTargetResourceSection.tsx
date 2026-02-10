@@ -2,12 +2,14 @@
 
 import React, { useState } from 'react';
 import { ResourceTypeGroup } from './ResourceTypeGroup';
+import { ResourceRow } from './ResourceRow';
 import { cn, textColors, statusColors, bgColors } from '@/lib/theme';
 import { isPeIneligible } from '@/lib/types';
-import type { Resource, DatabaseType, DBCredential, AwsResourceType, VmDatabaseConfig } from '@/lib/types';
+import type { Resource, CloudProvider, DatabaseType, DBCredential, AwsResourceType, VmDatabaseConfig } from '@/lib/types';
 
 interface NonTargetResourceSectionProps {
   resources: Resource[];
+  cloudProvider: CloudProvider;
   label?: string;
   isEditMode: boolean;
   selectedIds: Set<string>;
@@ -56,7 +58,8 @@ interface CollapsibleResourceGroupProps {
   icon?: React.ReactNode;
   labelClassName?: string;
   contentClassName?: string;
-  typeGroups: Map<AwsResourceType, Resource[]>;
+  resources: Resource[];
+  cloudProvider: CloudProvider;
   isEditMode: boolean;
   selectedIds: Set<string>;
   showConnectionStatus: boolean;
@@ -78,7 +81,8 @@ const CollapsibleResourceGroup = ({
   icon,
   labelClassName,
   contentClassName,
-  typeGroups,
+  resources,
+  cloudProvider,
   isEditMode,
   selectedIds,
   showConnectionStatus,
@@ -90,54 +94,80 @@ const CollapsibleResourceGroup = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
-}: CollapsibleResourceGroupProps) => (
-  <div className="mt-4">
-    <button
-      onClick={onToggle}
-      className={cn('flex items-center gap-2 px-6 py-3 w-full text-left transition-colors rounded-lg', `hover:${bgColors.muted}`)}
-    >
-      <ChevronIcon isOpen={isOpen} />
-      {icon}
-      <span className={cn('text-sm font-semibold', labelClassName || textColors.secondary)}>
-        {label}
-      </span>
-      <span className={cn('text-sm', textColors.tertiary)}>
-        ({count})
-      </span>
-    </button>
+}: CollapsibleResourceGroupProps) => {
+  const isAWS = cloudProvider === 'AWS';
 
-    {isOpen && (
-      <div className={contentClassName}>
-        <table className="w-full">
-          <tbody>
-            {Array.from(typeGroups.entries()).map(([type, typeResources]) => (
-              <ResourceTypeGroup
-                key={type}
-                resourceType={type}
-                resources={typeResources}
-                selectedIds={selectedIds}
-                isEditMode={isEditMode}
-                isCheckboxEnabled={isEditMode}
-                showConnectionStatus={showConnectionStatus}
-                showCredentialColumn={showCredentialColumn}
-                onCheckboxChange={onCheckboxChange}
-                colSpan={colSpan}
-                getCredentialsForType={getCredentialsForType}
-                onCredentialChange={onCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={onVmConfigToggle}
-                onVmConfigSave={onVmConfigSave}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-);
+  return (
+    <div className="mt-4">
+      <button
+        onClick={onToggle}
+        className={cn('flex items-center gap-2 px-6 py-3 w-full text-left transition-colors rounded-lg', `hover:${bgColors.muted}`)}
+      >
+        <ChevronIcon isOpen={isOpen} />
+        {icon}
+        <span className={cn('text-sm font-semibold', labelClassName || textColors.secondary)}>
+          {label}
+        </span>
+        <span className={cn('text-sm', textColors.tertiary)}>
+          ({count})
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className={contentClassName}>
+          <table className="w-full">
+            <tbody>
+              {isAWS ? (
+                Array.from(groupByResourceType(resources).entries()).map(([type, typeResources]) => (
+                  <ResourceTypeGroup
+                    key={type}
+                    resourceType={type}
+                    resources={typeResources}
+                    selectedIds={selectedIds}
+                    isEditMode={isEditMode}
+                    isCheckboxEnabled={isEditMode}
+                    showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
+                    onCheckboxChange={onCheckboxChange}
+                    colSpan={colSpan}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
+                  />
+                ))
+              ) : (
+                resources.map((resource) => (
+                  <ResourceRow
+                    key={resource.id}
+                    resource={resource}
+                    cloudProvider={cloudProvider}
+                    selectedIds={selectedIds}
+                    isEditMode={isEditMode}
+                    isCheckboxEnabled={isEditMode}
+                    showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
+                    onCheckboxChange={onCheckboxChange}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const NonTargetResourceSection = ({
   resources,
+  cloudProvider,
   label = '연동 제외 리소스',
   isEditMode,
   selectedIds,
@@ -161,6 +191,7 @@ export const NonTargetResourceSection = ({
   const normalNonTargetResources = nonTargetResources.filter(r => !isPeIneligible(r));
 
   const sharedProps = {
+    cloudProvider,
     isEditMode,
     selectedIds,
     showConnectionStatus,
@@ -185,7 +216,7 @@ export const NonTargetResourceSection = ({
           icon={<WarningIcon />}
           labelClassName={statusColors.warning.textDark}
           contentClassName={cn('rounded-lg', statusColors.warning.bg)}
-          typeGroups={groupByResourceType(vnetResources)}
+          resources={vnetResources}
           {...sharedProps}
         />
       )}
@@ -197,7 +228,7 @@ export const NonTargetResourceSection = ({
           label={label}
           count={normalNonTargetResources.length}
           contentClassName="opacity-60"
-          typeGroups={groupByResourceType(normalNonTargetResources)}
+          resources={normalNonTargetResources}
           {...sharedProps}
         />
       )}

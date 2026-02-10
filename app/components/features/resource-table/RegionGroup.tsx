@@ -63,7 +63,6 @@ export const RegionGroup = ({
       <ResourceRow
         key={resource.id}
         resource={resource}
-        isAWS={true}
         cloudProvider="AWS"
         selectedIds={selectedIds}
         isEditMode={isEditMode}

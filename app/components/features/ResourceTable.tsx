@@ -162,7 +162,6 @@ export const ResourceTable = ({
               <ResourceRow
                 key={resource.id}
                 resource={resource}
-                isAWS={false}
                 cloudProvider={cloudProvider}
                 selectedIds={selectedIdsSet}
                 isEditMode={isEditMode}
@@ -231,6 +230,7 @@ export const ResourceTable = ({
           {/* Monitor mode: non-target resources */}
           <NonTargetResourceSection
             resources={resources}
+            cloudProvider={cloudProvider}
             label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
             isEditMode={false}
             selectedIds={selectedIdsSet}
