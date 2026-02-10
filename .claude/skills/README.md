@@ -10,6 +10,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [coding-standards](./coding-standards/SKILL.md) | `/coding-standards` | 코딩 규칙 및 패턴 | O | 전체 |
 | [code-review](./code-review/SKILL.md) | `/code-review` | 코드 리뷰 가이드 | O | code-reviewer |
 | [frontend-design](./frontend-design/SKILL.md) | `/frontend-design` | 프론트엔드 디자인 | O | designer |
+| [dev-server](./dev-server/SKILL.md) | `/dev-server` | Worktree dev 서버 실행 | - | team-lead |
 
 ## 에이전트 (Agents)
 
@@ -51,7 +52,9 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   │   └── SKILL.md
 │   ├── code-review/
 │   │   └── SKILL.md
-│   └── frontend-design/
+│   ├── frontend-design/
+│   │   └── SKILL.md
+│   └── dev-server/
 │       └── SKILL.md
 ├── agents/
 │   ├── code-reviewer.md         # 팀: 종합 코드 리뷰
