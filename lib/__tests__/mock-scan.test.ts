@@ -156,7 +156,7 @@ describe('mock-scan', () => {
           startedAt: new Date(Date.now() - 60000).toISOString(),
           completedAt: new Date(Date.now() - 30000).toISOString(), // 30초 전 완료
           duration: 30,
-          result: { totalFound: 1, newFound: 0, updated: 0, removed: 0, byResourceType: [] },
+          result: { totalFound: 1, byResourceType: [] },
           resourceCountBefore: 0,
           resourceCountAfter: 1,
           addedResourceIds: [],
@@ -182,7 +182,7 @@ describe('mock-scan', () => {
           startedAt: new Date(Date.now() - 60000).toISOString(),
           completedAt: new Date(Date.now() - 30000).toISOString(),
           duration: 30,
-          result: { totalFound: 1, newFound: 0, updated: 0, removed: 0, byResourceType: [] },
+          result: { totalFound: 1, byResourceType: [] },
           resourceCountBefore: 0,
           resourceCountAfter: 1,
           addedResourceIds: [],
@@ -206,7 +206,7 @@ describe('mock-scan', () => {
           startedAt: new Date(Date.now() - 400000).toISOString(),
           completedAt: new Date(Date.now() - SCAN_COOLDOWN_MS - 1000).toISOString(),
           duration: 30,
-          result: { totalFound: 1, newFound: 0, updated: 0, removed: 0, byResourceType: [] },
+          result: { totalFound: 1, byResourceType: [] },
           resourceCountBefore: 0,
           resourceCountAfter: 1,
           addedResourceIds: [],
@@ -311,7 +311,7 @@ describe('mock-scan', () => {
         estimatedEndAt: new Date(Date.now() - 1000).toISOString(),
         completedAt: new Date(Date.now() - 1000).toISOString(),
         progress: 100,
-        result: { totalFound: 1, newFound: 0, updated: 0, removed: 0, byResourceType: [] },
+        result: { totalFound: 1, byResourceType: [] },
       };
 
       const result = calculateScanStatus(scan);
@@ -373,7 +373,7 @@ describe('mock-scan', () => {
           startedAt: new Date(Date.now() - (i + 1) * 60000).toISOString(),
           completedAt: new Date(Date.now() - i * 60000).toISOString(),
           duration: 60,
-          result: { totalFound: i, newFound: 0, updated: 0, removed: 0, byResourceType: [] },
+          result: { totalFound: i, byResourceType: [] },
           resourceCountBefore: 0,
           resourceCountAfter: i,
           addedResourceIds: [],
