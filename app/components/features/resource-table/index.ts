@@ -9,3 +9,7 @@ export { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
 
 export { ClusterRow } from './ClusterRow';
 export { InstancePanel } from './InstancePanel';
+
+export { AwsResourceTableBody } from './AwsResourceTableBody';
+export { GroupedResourceTableBody } from './GroupedResourceTableBody';
+export { FlatResourceTableBody } from './FlatResourceTableBody';
