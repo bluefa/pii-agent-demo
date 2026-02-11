@@ -81,15 +81,41 @@ Self Installation Tool에서 사용자가 언제든 연동 대상 변경을 요�
 
 **상태: 결정됨**
 
-### D-009: 승인 요청/완료 단일 존재 제약 및 데이터 스키마
+### D-009: 데이터 스키마 및 단일 존재 제약
 
-승인 요청 정보(`ApprovalRequest`)와 승인 완료 정보(`ApprovedIntegration`) 중 **최대 하나만 존재 가능**하다. 객체의 존재 자체가 상태를 의미하며 별도 status 필드가 불필요하다.
+승인 관련 데이터를 request(요청 기록) / result(처리 결과) / ApprovedIntegration(반영 추적) 으로 분리한다.
+
+**request와 result**: audit 로그로 적재. request는 리소스 ID만 참조하고 상세 설정은 포함하지 않는다.
+
+```typescript
+// 승인 요청 기록 (audit)
+interface ApprovalRequest {
+  id: string;
+  requested_at: string;
+  requested_by: string;
+  target_resource_ids: string[];
+  excluded_resource_ids?: string[];
+  exclusion_reason?: string;
+}
+
+// 승인 처리 결과 (audit)
+interface ApprovalResult {
+  id: string;
+  request_id: string;
+  result: 'APPROVED' | 'REJECTED' | 'SYSTEM_ERROR';
+  processed_at: string;
+  processed_by?: string;   // null = 자동 승인
+  reason?: string;
+}
+```
+
+**ApprovedIntegration**: 승인 시점의 리소스 설정 스냅샷 + 반영 진행 상태. result가 APPROVED일 때 생성되고, 확정 정보 반영 완료 시 소멸한다.
 
 ```typescript
 interface ResourceInfo {
   resource_id: string;
   resource_type: ResourceType;
-  vm_config?: {                // VM인 경우
+  vm_config?: {
     db_type: string;
     port: number;
     host: string;
@@ -97,28 +123,15 @@ interface ResourceInfo {
   credential?: string;
 }
 
-// 존재 = "승인 요청 중"
-interface ApprovalRequest {
-  id: string;
-  requested_at: string;
-  requested_by: { id: string; name: string };
-  resource_infos: ResourceInfo[];
-  exclusions?: {
-    resource_ids: string[];
-    reason: string;
-  };
-}
-
 // 존재 = "반영 중"
 interface ApprovedIntegration {
   id: string;
+  request_id: string;
   approved_at: string;
-  approved_by: { id: string; name: string } | null; // null = 자동 승인
+  approved_by?: string;    // null = 자동 승인
   resource_infos: ResourceInfo[];
-  exclusions?: {
-    resource_ids: string[];
-    reason: string;
-  };
+  excluded_resource_ids?: string[];
+  exclusion_reason?: string;
   reflection: {
     input_reflected: boolean;       // Black Box 지표 1
     service_tf_installed: boolean;  // Black Box 지표 2
@@ -127,14 +140,16 @@ interface ApprovedIntegration {
 }
 ```
 
+**단일 존재 제약**: PENDING 상태의 ApprovalRequest와 ApprovedIntegration 중 **최대 하나만 활성 상태로 존재 가능**.
+
 **calculator 판단 로직**:
 ```
-ApprovalRequest 존재?     → 승인 대기
-ApprovedIntegration 존재? → 반영 중 (Black Box)
-둘 다 없음?              → targets.confirmed 확인
+마지막 request가 PENDING?  → 승인 대기
+ApprovedIntegration 존재?  → 반영 중 (Black Box)
+둘 다 아님?               → targets.confirmed 확인
 ```
 
-**근거**: D-002(승인 요청 중 추가 요청 불가)와 D-008(반영 중 새 요청 차단)을 하나의 제약으로 통합. 객체 존재 여부만으로 상태를 판단하므로 플래그 기반 관리보다 버그에 강하다.
+**근거**: D-002(승인 요청 중 추가 요청 불가)와 D-008(반영 중 새 요청 차단)을 하나의 제약으로 통합. request/result는 audit 로그로 이력 보존, ApprovedIntegration은 승인 시점 스냅샷으로 Terraform 반영의 정확한 입력을 보장한다.
 
 **상태: 결정됨**
 
