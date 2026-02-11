@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { dataAdapter } from '@/lib/adapters';
-import { ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus, isPeIneligible } from '@/lib/types';
+import { ResourceLifecycleStatus, Resource, ResourceExclusion, ProjectStatus } from '@/lib/types';
 import type { VmDatabaseConfig } from '@/lib/types';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { getCurrentStep } from '@/lib/process';
@@ -63,16 +63,13 @@ export async function POST(
   // 제외 사유 맵 생성
   const exclusionMap = new Map(exclusions.map(e => [e.resourceId, e.reason]));
 
-  // 선택되지 않은 리소스 중 제외 사유가 없는 것 검증
-  // (이미 exclusion이 있는 리소스는 제외 - 기존 제외 유지)
-  // EC2 리소스는 제외 사유 없이 미선택 가능
+  // TARGET 리소스 중 미선택 + 제외 사유 없는 것 검증
   const unselectedWithoutReason = project.resources.filter(r =>
+    r.integrationCategory === 'TARGET' &&
     !selectedSet.has(r.id) &&
     r.lifecycleStatus !== 'ACTIVE' &&
     !exclusionMap.has(r.id) &&
-    !r.exclusion &&
-    r.awsType !== 'EC2' &&
-    !isPeIneligible(r)
+    !r.exclusion
   );
 
   if (unselectedWithoutReason.length > 0) {

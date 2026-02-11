@@ -69,6 +69,7 @@ export async function POST(
         isSelected: true,
         databaseType: input.databaseType as DatabaseType,
         lifecycleStatus: 'TARGET' as const,
+        integrationCategory: 'TARGET' as const,
       };
     })
   );
