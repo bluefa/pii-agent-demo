@@ -112,7 +112,7 @@ interface ApprovalRequest {
 interface ApprovalResult {
   id: string;
   request_id: string;
-  result: 'APPROVED' | 'REJECTED' | 'SYSTEM_ERROR';
+  result: 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR';
   processed_at: string;
   processed_by?: string;   // null = 자동 승인
   reason?: string;
@@ -157,6 +157,66 @@ ApprovedIntegration 존재?  → 반영 중 (Black Box)
 ```
 
 **근거**: D-002(승인 요청 중 추가 요청 불가)와 D-008(반영 중 새 요청 차단)을 하나의 제약으로 통합. request/result는 audit 로그로 이력 보존, ApprovedIntegration은 승인 시점 스냅샷으로 Terraform 반영의 정확한 입력을 보장한다.
+
+**상태: 결정됨**
+
+### D-011: API 엔드포인트 설계
+
+Frontend는 승인 프로세스 내부 흐름(자동 승인 등)을 알 필요가 없다. 요청을 제출하고, 이후 상태를 조회하는 구조.
+
+**기존 API 확장**:
+
+```
+POST /projects/{projectId}/confirm-targets
+```
+- 역할: ApprovalRequest 생성. 자동 승인 여부는 백엔드 내부 처리.
+- Request: `{ target_resource_ids, excluded_resource_ids?, exclusion_reason?, vm_configs? }`
+- Response: `{ success, approval_request }`
+- vm_configs는 리소스에 직접 저장. ApprovalRequest audit에는 미포함.
+
+```
+POST /projects/{projectId}/approve
+```
+- 역할: ApprovalResult(APPROVED) + ApprovedIntegration(resource_infos 스냅샷) 생성
+- Request: `{ comment? }`
+- Response: `{ success, approval_result, approved_integration }`
+
+```
+POST /projects/{projectId}/reject
+```
+- 역할: ApprovalResult(REJECTED) 생성
+- Request: `{ reason }`
+- Response: `{ success, approval_result }`
+
+**신규 API**:
+
+```
+POST /projects/{projectId}/cancel-approval-request
+```
+- 역할: PENDING 상태의 승인 요청 취소. ApprovalResult(CANCELLED) 생성.
+- Request: `{}`
+- Response: `{ success, approval_result }`
+
+```
+GET /projects/{projectId}/approved-integration
+```
+- 역할: 현재 활성 ApprovedIntegration 조회. Frontend의 연동 확정 정보 유일한 소스.
+- Response: `{ approved_integration: ApprovedIntegration | null }`
+
+```
+GET /projects/{projectId}/approval-history
+```
+- 역할: request/result audit 이력 조회.
+- Response: `{ history: Array<{ request, result? }> }`
+
+**Frontend 상태 판단 흐름**:
+```
+GET /approved-integration → 존재?     → "반영 중" (resource_infos 표시)
+GET /approval-history     → 마지막 request가 PENDING? → "승인 대기 중"
+                          → 마지막 result가 REJECTED?  → 반려 사유 표시
+                          → 마지막 result가 CANCELLED? → 취소됨
+                          → 그 외                     → targets.confirmed 확인
+```
 
 **상태: 결정됨**
 
