@@ -66,7 +66,6 @@ export const ResourceRow = ({
   onVmConfigToggle,
   onVmConfigSave,
 }: ResourceRowProps) => {
-  const isAWS = cloudProvider === 'AWS';
   const vnetModal = useModal();
   const needsCred = needsCredential(resource.databaseType);
   const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
@@ -121,13 +120,11 @@ export const ResourceRow = ({
           </td>
         )}
 
-        {/* Instance Type — AWS는 그룹 헤더에 표시되므로 행에서 생략 */}
-        {!isAWS && (
+        {/* Instance Type — Provider별 렌더링 (AWS는 ResourceTypeGroup 헤더에 표시) */}
+        {cloudProvider === 'Azure' && (
           <td className="px-6 py-4">
             <div className="flex items-center gap-2">
-              {cloudProvider === 'Azure' && isAzureResourceType(resource.type) && (
-                <AzureServiceIcon type={resource.type} size="lg" />
-              )}
+              {isAzureResourceType(resource.type) && <AzureServiceIcon type={resource.type} size="lg" />}
               <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
               {isVm && isSelected && !hasVmConfig && (
                 <span className={cn('text-xs ml-1', statusColors.warning.textDark)}>(DB 설정 필요)</span>
@@ -145,6 +142,11 @@ export const ResourceRow = ({
                 </button>
               )}
             </div>
+          </td>
+        )}
+        {(cloudProvider === 'GCP' || cloudProvider === 'IDC' || cloudProvider === 'SDU') && (
+          <td className="px-6 py-4">
+            <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
           </td>
         )}
 

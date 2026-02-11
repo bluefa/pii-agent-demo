@@ -72,7 +72,6 @@ export const ResourceTable = ({
     externalSelectedIds ?? resources.filter((r) => r.isSelected).map((r) => r.id)
   );
 
-  const isAWS = cloudProvider === 'AWS';
   const isEditMode = externalEditMode || internalEditMode;
   const isCheckboxEnabled =
     processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
@@ -105,8 +104,14 @@ export const ResourceTable = ({
       .map(type => [type, groups.get(type)!] as [AwsResourceType, Resource[]]);
   };
 
-  const groupedByType = useMemo(() => isAWS ? groupByAwsType(targetResources) : null, [targetResources, isAWS]);
-  const allGroupedByType = useMemo(() => isAWS ? groupByAwsType(resources) : null, [resources, isAWS]);
+  const groupedByType = useMemo(() =>
+    cloudProvider === 'AWS' ? groupByAwsType(targetResources) : null,
+    [targetResources, cloudProvider]
+  );
+  const allGroupedByType = useMemo(() =>
+    cloudProvider === 'AWS' ? groupByAwsType(resources) : null,
+    [resources, cloudProvider]
+  );
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -118,7 +123,16 @@ export const ResourceTable = ({
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
-  const colSpan = (isAWS ? 3 : 4) + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
+  const baseColumnCount = (() => {
+    switch (cloudProvider) {
+      case 'AWS': return 3;
+      case 'Azure':
+      case 'GCP':
+      case 'IDC':
+      case 'SDU': return 4;
+    }
+  })();
+  const colSpan = baseColumnCount + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
   const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
     filterCredentialsByType(credentials, databaseType);
@@ -153,7 +167,15 @@ export const ResourceTable = ({
         <thead>
           <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
             {isEditMode && <th className="px-6 py-3 w-12" />}
-            {!isAWS && <th className="px-6 py-3">인스턴스 타입</th>}
+            {(() => {
+              switch (cloudProvider) {
+                case 'AWS': return null;
+                case 'Azure':
+                case 'GCP':
+                case 'IDC':
+                case 'SDU': return <th className="px-6 py-3">인스턴스 타입</th>;
+              }
+            })()}
             <th className="px-6 py-3">리소스 ID</th>
             <th className="px-6 py-3">데이터베이스</th>
             {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
@@ -162,46 +184,52 @@ export const ResourceTable = ({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {isAWS && grouped ? (
-            grouped.map(([resourceType, typeResources]) => (
-              <ResourceTypeGroup
-                key={resourceType}
-                resourceType={resourceType}
-                resources={typeResources}
-                selectedIds={selectedIdsSet}
-                isEditMode={isEditMode}
-                isCheckboxEnabled={isCheckboxEnabled}
-                showConnectionStatus={showConnectionStatus}
-                showCredentialColumn={showCredentialColumn}
-                onCheckboxChange={handleCheckboxChange}
-                colSpan={colSpan}
-                getCredentialsForType={getCredentialsForType}
-                onCredentialChange={onCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={onVmConfigToggle}
-                onVmConfigSave={onVmConfigSave}
-              />
-            ))
-          ) : (
-            res.map((resource) => (
-              <ResourceRow
-                key={resource.id}
-                resource={resource}
-                cloudProvider={cloudProvider}
-                selectedIds={selectedIdsSet}
-                isEditMode={isEditMode}
-                isCheckboxEnabled={isCheckboxEnabled}
-                showConnectionStatus={showConnectionStatus}
-                showCredentialColumn={showCredentialColumn}
-                onCheckboxChange={handleCheckboxChange}
-                getCredentialsForType={getCredentialsForType}
-                onCredentialChange={onCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={onVmConfigToggle}
-                onVmConfigSave={onVmConfigSave}
-              />
-            ))
-          )}
+          {(() => {
+            switch (cloudProvider) {
+              case 'AWS':
+                return grouped?.map(([resourceType, typeResources]) => (
+                  <ResourceTypeGroup
+                    key={resourceType}
+                    resourceType={resourceType}
+                    resources={typeResources}
+                    selectedIds={selectedIdsSet}
+                    isEditMode={isEditMode}
+                    isCheckboxEnabled={isCheckboxEnabled}
+                    showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
+                    onCheckboxChange={handleCheckboxChange}
+                    colSpan={colSpan}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
+                  />
+                ));
+              case 'Azure':
+              case 'GCP':
+              case 'IDC':
+              case 'SDU':
+                return res.map((resource) => (
+                  <ResourceRow
+                    key={resource.id}
+                    resource={resource}
+                    cloudProvider={cloudProvider}
+                    selectedIds={selectedIdsSet}
+                    isEditMode={isEditMode}
+                    isCheckboxEnabled={isCheckboxEnabled}
+                    showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
+                    onCheckboxChange={handleCheckboxChange}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
+                  />
+                ));
+            }
+          })()}
         </tbody>
       </table>
     </div>
@@ -280,31 +308,37 @@ export const ResourceTable = ({
             >
               <table className="w-full">
                 <tbody>
-                  {isAWS ? (
-                    groupByAwsType(normalNonTargetResources).map(([type, res]) => (
-                      <ResourceTypeGroup
-                        key={type}
-                        resourceType={type}
-                        resources={res}
-                        selectedIds={selectedIdsSet}
-                        isEditMode={false}
-                        isCheckboxEnabled={false}
-                        showConnectionStatus={showConnectionStatus}
-                        showCredentialColumn={showCredentialColumn}
-                        onCheckboxChange={handleCheckboxChange}
-                        colSpan={colSpan}
-                        getCredentialsForType={getCredentialsForType}
-                        onCredentialChange={onCredentialChange}
-                        expandedVmId={expandedVmId}
-                        onVmConfigToggle={onVmConfigToggle}
-                        onVmConfigSave={onVmConfigSave}
-                      />
-                    ))
-                  ) : (
-                    normalNonTargetResources.map(r => (
-                      <ResourceRow key={r.id} resource={r} {...rowProps} />
-                    ))
-                  )}
+                  {(() => {
+                    switch (cloudProvider) {
+                      case 'AWS':
+                        return groupByAwsType(normalNonTargetResources).map(([type, res]) => (
+                          <ResourceTypeGroup
+                            key={type}
+                            resourceType={type}
+                            resources={res}
+                            selectedIds={selectedIdsSet}
+                            isEditMode={false}
+                            isCheckboxEnabled={false}
+                            showConnectionStatus={showConnectionStatus}
+                            showCredentialColumn={showCredentialColumn}
+                            onCheckboxChange={handleCheckboxChange}
+                            colSpan={colSpan}
+                            getCredentialsForType={getCredentialsForType}
+                            onCredentialChange={onCredentialChange}
+                            expandedVmId={expandedVmId}
+                            onVmConfigToggle={onVmConfigToggle}
+                            onVmConfigSave={onVmConfigSave}
+                          />
+                        ));
+                      case 'Azure':
+                      case 'GCP':
+                      case 'IDC':
+                      case 'SDU':
+                        return normalNonTargetResources.map(r => (
+                          <ResourceRow key={r.id} resource={r} {...rowProps} />
+                        ));
+                    }
+                  })()}
                 </tbody>
               </table>
             </CollapsibleSection>
