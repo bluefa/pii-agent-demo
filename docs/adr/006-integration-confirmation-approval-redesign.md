@@ -123,7 +123,7 @@ interface ResourceInfo {
   credential?: string;
 }
 
-// 존재 = "반영 중"
+// 승인 시점 스냅샷 (존재 = "반영 중")
 interface ApprovedIntegration {
   id: string;
   request_id: string;
@@ -132,12 +132,9 @@ interface ApprovedIntegration {
   resource_infos: ResourceInfo[];
   excluded_resource_ids?: string[];
   exclusion_reason?: string;
-  reflection: {
-    input_reflected: boolean;       // Black Box 지표 1
-    service_tf_installed: boolean;  // Black Box 지표 2
-    bdc_tf_installed: boolean;      // Black Box 지표 3
-  };
 }
+// Black Box 반영 지표(input_reflected, service_tf_installed, bdc_tf_installed)는
+// Infra Manager 설치 상태 API에서 별도 조회한다.
 ```
 
 **단일 존재 제약**: PENDING 상태의 ApprovalRequest와 ApprovedIntegration 중 **최대 하나만 활성 상태로 존재 가능**.
@@ -188,6 +185,8 @@ ApprovedIntegration 존재?  → 반영 중 (Black Box)
 3. BDC Terraform 설치 상태
 
 표시 방식: 통합 프로그레스 바(기본 뷰) + 상세 지표(확장 뷰)
+
+3개 지표는 Infra Manager 설치 상태 API에서 조회하며, ApprovedIntegration에 포함하지 않는다. 승인 스냅샷(무엇이 승인되었는가)과 설치 진행 상태(얼마나 진행되었는가)는 별개의 관심사이다.
 
 **상태: 결정됨**
 
