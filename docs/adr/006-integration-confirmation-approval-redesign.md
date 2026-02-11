@@ -94,10 +94,7 @@ interface ResourceInfo {
     port: number;
     host: string;
   };
-  credential?: {
-    credential_id: string;
-    credential_name: string;
-  };
+  credential?: string;
 }
 
 // 존재 = "승인 요청 중"
