@@ -1,24 +1,23 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Resource,
   CloudProvider,
   ProcessStatus,
   DatabaseType,
-  AwsResourceType,
   DBCredential,
   VmDatabaseConfig,
   isPeIneligible,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
-import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
-import { cn, statusColors, textColors, badgeStyles, getButtonClass, bgColors } from '@/lib/theme';
+import { cn, statusColors, textColors, badgeStyles, getButtonClass } from '@/lib/theme';
 import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
 import {
   ResourceRow,
-  ResourceTypeGroup,
-  EmptyState,
+  AwsResourceTableBody,
+  GroupedResourceTableBody,
+  FlatResourceTableBody,
 } from './resource-table';
 
 interface ResourceTableProps {
@@ -93,26 +92,6 @@ export const ResourceTable = ({
   const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
   const pendingCount = targetResources.filter((r) => !r.connectionStatus || r.connectionStatus === 'PENDING').length;
 
-  const groupByAwsType = (res: Resource[]) => {
-    const groups = new Map<AwsResourceType, Resource[]>();
-    res.forEach((resource) => {
-      const type = resource.awsType || ('RDS' as AwsResourceType);
-      if (!groups.has(type)) groups.set(type, []);
-      groups.get(type)!.push(resource);
-    });
-    return AWS_RESOURCE_TYPE_ORDER.filter(type => groups.has(type))
-      .map(type => [type, groups.get(type)!] as [AwsResourceType, Resource[]]);
-  };
-
-  const groupedByType = useMemo(() =>
-    cloudProvider === 'AWS' ? groupByAwsType(targetResources) : null,
-    [targetResources, cloudProvider]
-  );
-  const allGroupedByType = useMemo(() =>
-    cloudProvider === 'AWS' ? groupByAwsType(resources) : null,
-    [resources, cloudProvider]
-  );
-
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
     if (checked) {
@@ -123,15 +102,15 @@ export const ResourceTable = ({
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
-  const baseColumnCount = (() => {
-    switch (cloudProvider) {
-      case 'AWS': return 3;
-      case 'Azure':
-      case 'GCP':
-      case 'IDC':
-      case 'SDU': return 4;
-    }
-  })();
+  const BodyComponent = {
+    AWS: AwsResourceTableBody,
+    Azure: GroupedResourceTableBody,
+    GCP: GroupedResourceTableBody,
+    IDC: FlatResourceTableBody,
+    SDU: FlatResourceTableBody,
+  }[cloudProvider];
+
+  const baseColumnCount = (cloudProvider === 'IDC' || cloudProvider === 'SDU') ? 4 : 3;
   const colSpan = baseColumnCount + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
   const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
@@ -158,79 +137,25 @@ export const ResourceTable = ({
     onEditModeChange?.(next);
   };
 
-  const displayResources = isEditMode ? resources : targetResources;
-  const displayGrouped = isEditMode ? allGroupedByType : groupedByType;
+  const bodyProps = {
+    cloudProvider,
+    selectedIds: selectedIdsSet,
+    isCheckboxEnabled,
+    showConnectionStatus,
+    showCredentialColumn,
+    onCheckboxChange: handleCheckboxChange,
+    colSpan,
+    getCredentialsForType,
+    onCredentialChange,
+    expandedVmId,
+    onVmConfigToggle,
+    onVmConfigSave,
+  };
 
-  const renderTable = (res: Resource[], grouped: [AwsResourceType, Resource[]][] | null) => (
+  const renderTable = (res: Resource[]) => (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <thead>
-          <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
-            {isEditMode && <th className="px-6 py-3 w-12" />}
-            {(() => {
-              switch (cloudProvider) {
-                case 'AWS': return null;
-                case 'Azure':
-                case 'GCP':
-                case 'IDC':
-                case 'SDU': return <th className="px-6 py-3">인스턴스 타입</th>;
-              }
-            })()}
-            <th className="px-6 py-3">리소스 ID</th>
-            <th className="px-6 py-3">데이터베이스</th>
-            {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
-            {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
-            <th className="px-6 py-3 w-16" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {(() => {
-            switch (cloudProvider) {
-              case 'AWS':
-                return grouped?.map(([resourceType, typeResources]) => (
-                  <ResourceTypeGroup
-                    key={resourceType}
-                    resourceType={resourceType}
-                    resources={typeResources}
-                    selectedIds={selectedIdsSet}
-                    isEditMode={isEditMode}
-                    isCheckboxEnabled={isCheckboxEnabled}
-                    showConnectionStatus={showConnectionStatus}
-                    showCredentialColumn={showCredentialColumn}
-                    onCheckboxChange={handleCheckboxChange}
-                    colSpan={colSpan}
-                    getCredentialsForType={getCredentialsForType}
-                    onCredentialChange={onCredentialChange}
-                    expandedVmId={expandedVmId}
-                    onVmConfigToggle={onVmConfigToggle}
-                    onVmConfigSave={onVmConfigSave}
-                  />
-                ));
-              case 'Azure':
-              case 'GCP':
-              case 'IDC':
-              case 'SDU':
-                return res.map((resource) => (
-                  <ResourceRow
-                    key={resource.id}
-                    resource={resource}
-                    cloudProvider={cloudProvider}
-                    selectedIds={selectedIdsSet}
-                    isEditMode={isEditMode}
-                    isCheckboxEnabled={isCheckboxEnabled}
-                    showConnectionStatus={showConnectionStatus}
-                    showCredentialColumn={showCredentialColumn}
-                    onCheckboxChange={handleCheckboxChange}
-                    getCredentialsForType={getCredentialsForType}
-                    onCredentialChange={onCredentialChange}
-                    expandedVmId={expandedVmId}
-                    onVmConfigToggle={onVmConfigToggle}
-                    onVmConfigSave={onVmConfigSave}
-                  />
-                ));
-            }
-          })()}
-        </tbody>
+        <BodyComponent resources={res} isEditMode={isEditMode} {...bodyProps} />
       </table>
     </div>
   );
@@ -266,7 +191,7 @@ export const ResourceTable = ({
 
       {/* Edit mode: single unified list */}
       {isEditMode ? (
-        displayResources.length > 0 ? renderTable(displayResources, displayGrouped) : (
+        resources.length > 0 ? renderTable(resources) : (
           <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
             발견된 리소스가 없습니다
           </div>
@@ -278,7 +203,7 @@ export const ResourceTable = ({
             <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
               아직 연동 대상이 선택되지 않았습니다
             </div>
-          ) : renderTable(targetResources, groupedByType)}
+          ) : renderTable(targetResources)}
 
           {/* Monitor mode: non-target resources */}
           {vnetResources.length > 0 && (
@@ -307,39 +232,12 @@ export const ResourceTable = ({
               contentClassName="opacity-60"
             >
               <table className="w-full">
-                <tbody>
-                  {(() => {
-                    switch (cloudProvider) {
-                      case 'AWS':
-                        return groupByAwsType(normalNonTargetResources).map(([type, res]) => (
-                          <ResourceTypeGroup
-                            key={type}
-                            resourceType={type}
-                            resources={res}
-                            selectedIds={selectedIdsSet}
-                            isEditMode={false}
-                            isCheckboxEnabled={false}
-                            showConnectionStatus={showConnectionStatus}
-                            showCredentialColumn={showCredentialColumn}
-                            onCheckboxChange={handleCheckboxChange}
-                            colSpan={colSpan}
-                            getCredentialsForType={getCredentialsForType}
-                            onCredentialChange={onCredentialChange}
-                            expandedVmId={expandedVmId}
-                            onVmConfigToggle={onVmConfigToggle}
-                            onVmConfigSave={onVmConfigSave}
-                          />
-                        ));
-                      case 'Azure':
-                      case 'GCP':
-                      case 'IDC':
-                      case 'SDU':
-                        return normalNonTargetResources.map(r => (
-                          <ResourceRow key={r.id} resource={r} {...rowProps} />
-                        ));
-                    }
-                  })()}
-                </tbody>
+                <BodyComponent
+                  resources={normalNonTargetResources}
+                  isEditMode={false}
+                  {...bodyProps}
+                  isCheckboxEnabled={false}
+                />
               </table>
             </CollapsibleSection>
           )}

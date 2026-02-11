@@ -4,7 +4,7 @@
  * UI에서 사용되는 라벨, 에러 메시지, 상태 텍스트 등을 중앙에서 관리합니다.
  */
 
-import { ProcessStatus, ConnectionStatus, AwsResourceType, CloudProvider } from '@/lib/types';
+import { ProcessStatus, ConnectionStatus, AwsResourceType, AzureResourceType, GcpResourceType, ResourceType, CloudProvider } from '@/lib/types';
 
 /**
  * 연결 에러 타입 라벨
@@ -146,3 +146,38 @@ export const AWS_RESOURCE_TYPE_ORDER: AwsResourceType[] = [
   'ATHENA',
   'EC2',
 ];
+
+export const AZURE_RESOURCE_TYPE_LABELS: Record<AzureResourceType, string> = {
+  AZURE_MSSQL: 'Azure SQL Database',
+  AZURE_POSTGRESQL: 'Azure Database for PostgreSQL',
+  AZURE_MYSQL: 'Azure Database for MySQL',
+  AZURE_MARIADB: 'Azure Database for MariaDB',
+  AZURE_COSMOS_NOSQL: 'Azure Cosmos DB',
+  AZURE_SYNAPSE: 'Azure Synapse Analytics',
+  AZURE_VM: 'Azure Virtual Machine',
+};
+
+export const AZURE_RESOURCE_TYPE_ORDER: AzureResourceType[] = [
+  'AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL',
+  'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM',
+];
+
+export const GCP_RESOURCE_TYPE_LABELS: Record<GcpResourceType, string> = {
+  CLOUD_SQL: 'Cloud SQL',
+  BIGQUERY: 'BigQuery',
+};
+
+export const GCP_RESOURCE_TYPE_ORDER: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
+
+export const getResourceTypeLabel = (type: ResourceType): string => {
+  if (type in AWS_RESOURCE_TYPE_LABELS) return AWS_RESOURCE_TYPE_LABELS[type as AwsResourceType];
+  if (type in AZURE_RESOURCE_TYPE_LABELS) return AZURE_RESOURCE_TYPE_LABELS[type as AzureResourceType];
+  if (type in GCP_RESOURCE_TYPE_LABELS) return GCP_RESOURCE_TYPE_LABELS[type as GcpResourceType];
+  return type;
+};
+
+export const RESOURCE_TYPE_ORDER_BY_PROVIDER: Partial<Record<CloudProvider, ResourceType[]>> = {
+  AWS: AWS_RESOURCE_TYPE_ORDER,
+  Azure: AZURE_RESOURCE_TYPE_ORDER,
+  GCP: GCP_RESOURCE_TYPE_ORDER,
+};
