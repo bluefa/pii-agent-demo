@@ -152,7 +152,6 @@ export const ResourceTypeGroup = ({
               <ResourceRow
                 key={resource.id}
                 resource={resource}
-                isAWS={true}
                 cloudProvider="AWS"
                 selectedIds={selectedIds}
                 isEditMode={isEditMode}

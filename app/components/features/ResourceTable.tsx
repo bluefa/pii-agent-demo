@@ -9,15 +9,16 @@ import {
   AwsResourceType,
   DBCredential,
   VmDatabaseConfig,
+  isPeIneligible,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import { cn, statusColors, textColors, badgeStyles, getButtonClass, bgColors } from '@/lib/theme';
+import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
 import {
   ResourceRow,
   ResourceTypeGroup,
   EmptyState,
-  NonTargetResourceSection,
 } from './resource-table';
 
 interface ResourceTableProps {
@@ -34,6 +35,12 @@ interface ResourceTableProps {
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
   onEditModeChange?: (isEdit: boolean) => void;
 }
+
+const WarningIcon = () => (
+  <svg className={cn('w-4 h-4', statusColors.warning.text)} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+  </svg>
+);
 
 const ConnectionBadge = ({ label, count, variant }: { label: string; count: number; variant: 'success' | 'error' | 'pending' }) => {
   const colors = statusColors[variant];
@@ -65,7 +72,6 @@ export const ResourceTable = ({
     externalSelectedIds ?? resources.filter((r) => r.isSelected).map((r) => r.id)
   );
 
-  const isAWS = cloudProvider === 'AWS';
   const isEditMode = externalEditMode || internalEditMode;
   const isCheckboxEnabled =
     processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
@@ -79,6 +85,9 @@ export const ResourceTable = ({
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
   const targetResources = resources.filter((r) => r.isSelected || selectedIdsSet.has(r.id));
+  const nonTargetResources = resources.filter(r => !r.isSelected && !selectedIdsSet.has(r.id));
+  const vnetResources = nonTargetResources.filter(isPeIneligible);
+  const normalNonTargetResources = nonTargetResources.filter(r => !isPeIneligible(r));
 
   const connectedCount = targetResources.filter((r) => r.connectionStatus === 'CONNECTED').length;
   const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
@@ -95,8 +104,14 @@ export const ResourceTable = ({
       .map(type => [type, groups.get(type)!] as [AwsResourceType, Resource[]]);
   };
 
-  const groupedByType = useMemo(() => isAWS ? groupByAwsType(targetResources) : null, [targetResources, isAWS]);
-  const allGroupedByType = useMemo(() => isAWS ? groupByAwsType(resources) : null, [resources, isAWS]);
+  const groupedByType = useMemo(() =>
+    cloudProvider === 'AWS' ? groupByAwsType(targetResources) : null,
+    [targetResources, cloudProvider]
+  );
+  const allGroupedByType = useMemo(() =>
+    cloudProvider === 'AWS' ? groupByAwsType(resources) : null,
+    [resources, cloudProvider]
+  );
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -108,10 +123,34 @@ export const ResourceTable = ({
     onSelectionChange?.(Array.from(newSelectedIds));
   };
 
-  const colSpan = (isAWS ? 3 : 4) + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
+  const baseColumnCount = (() => {
+    switch (cloudProvider) {
+      case 'AWS': return 3;
+      case 'Azure':
+      case 'GCP':
+      case 'IDC':
+      case 'SDU': return 4;
+    }
+  })();
+  const colSpan = baseColumnCount + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
   const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
     filterCredentialsByType(credentials, databaseType);
+
+  const rowProps = {
+    cloudProvider,
+    selectedIds: selectedIdsSet,
+    isEditMode: false as const,
+    isCheckboxEnabled: false,
+    showConnectionStatus,
+    showCredentialColumn,
+    onCheckboxChange: handleCheckboxChange,
+    getCredentialsForType,
+    onCredentialChange,
+    expandedVmId,
+    onVmConfigToggle,
+    onVmConfigSave,
+  };
 
   const handleToggleEditMode = () => {
     const next = !internalEditMode;
@@ -128,7 +167,15 @@ export const ResourceTable = ({
         <thead>
           <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
             {isEditMode && <th className="px-6 py-3 w-12" />}
-            {!isAWS && <th className="px-6 py-3">인스턴스 타입</th>}
+            {(() => {
+              switch (cloudProvider) {
+                case 'AWS': return null;
+                case 'Azure':
+                case 'GCP':
+                case 'IDC':
+                case 'SDU': return <th className="px-6 py-3">인스턴스 타입</th>;
+              }
+            })()}
             <th className="px-6 py-3">리소스 ID</th>
             <th className="px-6 py-3">데이터베이스</th>
             {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
@@ -137,47 +184,52 @@ export const ResourceTable = ({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {isAWS && grouped ? (
-            grouped.map(([resourceType, typeResources]) => (
-              <ResourceTypeGroup
-                key={resourceType}
-                resourceType={resourceType}
-                resources={typeResources}
-                selectedIds={selectedIdsSet}
-                isEditMode={isEditMode}
-                isCheckboxEnabled={isCheckboxEnabled}
-                showConnectionStatus={showConnectionStatus}
-                showCredentialColumn={showCredentialColumn}
-                onCheckboxChange={handleCheckboxChange}
-                colSpan={colSpan}
-                getCredentialsForType={getCredentialsForType}
-                onCredentialChange={onCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={onVmConfigToggle}
-                onVmConfigSave={onVmConfigSave}
-              />
-            ))
-          ) : (
-            res.map((resource) => (
-              <ResourceRow
-                key={resource.id}
-                resource={resource}
-                isAWS={false}
-                cloudProvider={cloudProvider}
-                selectedIds={selectedIdsSet}
-                isEditMode={isEditMode}
-                isCheckboxEnabled={isCheckboxEnabled}
-                showConnectionStatus={showConnectionStatus}
-                showCredentialColumn={showCredentialColumn}
-                onCheckboxChange={handleCheckboxChange}
-                getCredentialsForType={getCredentialsForType}
-                onCredentialChange={onCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={onVmConfigToggle}
-                onVmConfigSave={onVmConfigSave}
-              />
-            ))
-          )}
+          {(() => {
+            switch (cloudProvider) {
+              case 'AWS':
+                return grouped?.map(([resourceType, typeResources]) => (
+                  <ResourceTypeGroup
+                    key={resourceType}
+                    resourceType={resourceType}
+                    resources={typeResources}
+                    selectedIds={selectedIdsSet}
+                    isEditMode={isEditMode}
+                    isCheckboxEnabled={isCheckboxEnabled}
+                    showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
+                    onCheckboxChange={handleCheckboxChange}
+                    colSpan={colSpan}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
+                  />
+                ));
+              case 'Azure':
+              case 'GCP':
+              case 'IDC':
+              case 'SDU':
+                return res.map((resource) => (
+                  <ResourceRow
+                    key={resource.id}
+                    resource={resource}
+                    cloudProvider={cloudProvider}
+                    selectedIds={selectedIdsSet}
+                    isEditMode={isEditMode}
+                    isCheckboxEnabled={isCheckboxEnabled}
+                    showConnectionStatus={showConnectionStatus}
+                    showCredentialColumn={showCredentialColumn}
+                    onCheckboxChange={handleCheckboxChange}
+                    getCredentialsForType={getCredentialsForType}
+                    onCredentialChange={onCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={onVmConfigToggle}
+                    onVmConfigSave={onVmConfigSave}
+                  />
+                ));
+            }
+          })()}
         </tbody>
       </table>
     </div>
@@ -229,21 +281,68 @@ export const ResourceTable = ({
           ) : renderTable(targetResources, groupedByType)}
 
           {/* Monitor mode: non-target resources */}
-          <NonTargetResourceSection
-            resources={resources}
-            label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
-            isEditMode={false}
-            selectedIds={selectedIdsSet}
-            showConnectionStatus={showConnectionStatus}
-            showCredentialColumn={showCredentialColumn}
-            onCheckboxChange={handleCheckboxChange}
-            colSpan={colSpan}
-            getCredentialsForType={getCredentialsForType}
-            onCredentialChange={onCredentialChange}
-            expandedVmId={expandedVmId}
-            onVmConfigToggle={onVmConfigToggle}
-            onVmConfigSave={onVmConfigSave}
-          />
+          {vnetResources.length > 0 && (
+            <CollapsibleSection
+              label="설치 불가 (VNet Integration)"
+              count={vnetResources.length}
+              icon={<WarningIcon />}
+              labelClassName={statusColors.warning.textDark}
+              contentClassName={cn('rounded-lg', statusColors.warning.bg)}
+              defaultOpen
+            >
+              <table className="w-full">
+                <tbody>
+                  {vnetResources.map(r => (
+                    <ResourceRow key={r.id} resource={r} {...rowProps} />
+                  ))}
+                </tbody>
+              </table>
+            </CollapsibleSection>
+          )}
+
+          {normalNonTargetResources.length > 0 && (
+            <CollapsibleSection
+              label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
+              count={normalNonTargetResources.length}
+              contentClassName="opacity-60"
+            >
+              <table className="w-full">
+                <tbody>
+                  {(() => {
+                    switch (cloudProvider) {
+                      case 'AWS':
+                        return groupByAwsType(normalNonTargetResources).map(([type, res]) => (
+                          <ResourceTypeGroup
+                            key={type}
+                            resourceType={type}
+                            resources={res}
+                            selectedIds={selectedIdsSet}
+                            isEditMode={false}
+                            isCheckboxEnabled={false}
+                            showConnectionStatus={showConnectionStatus}
+                            showCredentialColumn={showCredentialColumn}
+                            onCheckboxChange={handleCheckboxChange}
+                            colSpan={colSpan}
+                            getCredentialsForType={getCredentialsForType}
+                            onCredentialChange={onCredentialChange}
+                            expandedVmId={expandedVmId}
+                            onVmConfigToggle={onVmConfigToggle}
+                            onVmConfigSave={onVmConfigSave}
+                          />
+                        ));
+                      case 'Azure':
+                      case 'GCP':
+                      case 'IDC':
+                      case 'SDU':
+                        return normalNonTargetResources.map(r => (
+                          <ResourceRow key={r.id} resource={r} {...rowProps} />
+                        ));
+                    }
+                  })()}
+                </tbody>
+              </table>
+            </CollapsibleSection>
+          )}
         </>
       )}
     </div>
