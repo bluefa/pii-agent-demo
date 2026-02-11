@@ -85,7 +85,7 @@ Self Installation Tool에서 사용자가 언제든 연동 대상 변경을 요�
 
 승인 관련 데이터를 request(요청 기록) / result(처리 결과) / ApprovedIntegration(반영 추적) 으로 분리한다.
 
-**리소스 분류**: 각 리소스는 백엔드에서 `integrationCategory` 필드로 분류를 제공한다 (#108).
+**리소스 분류**: 각 리소스는 백엔드에서 `integrationCategory` 필드로 분류를 제공한다 (#108). 기존 `exclusion?: ResourceExclusion` 필드는 Resource에서 제거한다. 제외 정보는 ApprovalRequest 수준에서 일괄 관리하고, 반려 사유는 ApprovalResult에서 별도 관리한다.
 
 ```typescript
 type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
