@@ -1,0 +1,311 @@
+# ADR-006: 연동 확정 승인 프로세스 재설계
+
+## 상태
+제안됨
+
+## 날짜
+2026-02-11
+
+## 맥락
+
+기존 연동 확정 정보는 Terraform 라이프사이클과 직접 결합되어 있어 수정이 어렵다.
+
+- Infra manager가 확정 정보 수정을 제공하지 않음
+- 확정 정보를 삭제하면 Terraform 관리 리소스가 고아 상태가 됨
+- Terraform 삭제를 기다리면 반영 시간이 과도하게 길어짐
+
+Self Installation Tool에서 사용자가 언제든 연동 대상 변경을 요청할 수 있는 UX를 제공해야 하므로, 기존 구조를 변경할 필요가 있다.
+
+관련 이슈: #101, #104
+
+## 결정
+
+### D-001: 3개 객체 분리
+
+연동 관련 데이터를 3개 객체로 분리한다.
+
+| 객체 | 의미 | 수명 |
+|------|------|------|
+| 연동 확정 정보 | Terraform이 관리 중인 실제 상태 | TF 삭제 전까지 유지 |
+| 승인 요청 정보 | 사용자가 원하는 미래 상태 | 승인/반려 시 소멸 |
+| 승인 완료 정보 | 승인되었으나 확정 정보에 미반영 | 확정 정보에 반영 완료 시 소멸 |
+
+**근거**: 확정 정보가 Terraform 라이프사이클과 엮여있어 직접 수정이 불가능. 객체를 분리하지 않으면 "현재 상태 / 요청 중 / 반영 중"을 플래그로 구분해야 하며 이는 버그에 취약하다.
+
+**상태: 결정됨**
+
+### D-002: 승인 요청 중 스캔 및 재요청 정책
+
+- 스캔은 언제든 수행 가능 (승인 요청 상태와 무관)
+- 승인 요청이 진행 중인 동안 **추가 승인 요청은 불가**
+- 승인 요청을 취소한 후 새로운 승인 요청을 할 수 있음
+
+**근거**: 동시에 여러 승인 요청이 존재하면 어떤 요청이 반영되는지 모호해지고, 관리자 승인 workflow가 복잡해진다. 스캔은 정보 수집이므로 제한할 이유가 없다.
+
+**상태: 결정됨**
+
+### D-003: 과도기 상태의 UI 표시 우선순위
+
+확정 정보와 승인 완료 정보가 동시에 존재하는 과도기:
+
+- **승인 완료 정보를 우선 표시**
+- "승인 완료된 내용이 반영되고 있는 중입니다" + Black Box 진행 지표
+- 확정 정보(이전 상태)는 "이전 연동 정보 보기" 접힌 영역으로 제공
+
+**근거**: 사용자의 관심사는 "내가 요청한 것이 처리되고 있는가"이지 "이전에 뭐가 적용되어 있었는가"가 아니다.
+
+**상태: 결정됨**
+
+### D-008: 반영 중 새 승인 요청 차단
+
+승인 완료 정보가 확정 정보에 반영되는 동안 **새로운 승인 요청을 차단**한다.
+
+이 정책으로 3개 객체(확정/요청/완료)가 동시에 존재하는 상태를 원천 차단하며, 가능한 상태 조합이 6가지로 고정된다:
+
+| 확정 | 요청 | 완료 | 상태 | 다음 전이 |
+|:---:|:---:|:---:|------|----------|
+| X | X | X | 최초 진입 | → 요청 생성 |
+| X | O | X | 최초 승인 요청 중 | → 승인/반려 |
+| X | X | O | 최초 반영 중 | → 반영 완료 시 확정 생성 |
+| O | X | X | 연동 완료 | → 요청 생성 |
+| O | O | X | 변경 요청 중 | → 승인/반려 |
+| O | X | O | 기존 유지 + 반영 중 | → 반영 완료 시 확정 교체 |
+
+**근거**: 반영 중에 새 요청을 허용하면 3개 객체가 동시에 존재하게 되고, 이때 반영 완료로 확정이 교체되면 요청이 이전 확정 기준으로 작성된 것이라 정합성이 깨진다. 차단하면 모든 상태에서 다음 전이가 단일 경로로 명확해진다.
+
+**calculator 변경 필요**: 현재 `targets.confirmed` boolean만으로 판단하는 로직에 승인 완료 정보 존재 여부를 추가해야 한다. 승인 완료 정보가 존재하면 `WAITING_TARGET_CONFIRMATION`이 아닌 "반영 중" 상태를 반환해야 확정 정보 삭제 시 UI가 1단계로 튕기는 문제를 방지할 수 있다.
+
+**별도 관리 영역** (상태 전이와 무관):
+- 반영 실패 시 복구 → #104
+- 반려 이력 보존 → History 저장으로 해결 (객체 소멸과 별개)
+
+**상태: 결정됨**
+
+### D-009: 데이터 스키마 및 단일 존재 제약
+
+승인 관련 데이터를 request(요청 기록) / result(처리 결과) / ApprovedIntegration(반영 추적) 으로 분리한다.
+
+**리소스 분류**: 각 리소스는 백엔드에서 `integrationCategory` 필드로 분류를 제공한다 (#108). 기존 `exclusion?: ResourceExclusion` 필드는 Resource에서 제거한다. 제외 정보는 ApprovalRequest 수준에서 일괄 관리하고, 반려 사유는 ApprovalResult에서 별도 관리한다.
+
+```typescript
+type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
+```
+
+- `TARGET`: 설치 대상 (RDS, S3 등). 미선택 시 제외 사유 필요, 자동 승인 판정 대상
+- `NO_INSTALL_NEEDED`: 설치 불필요 (EC2, VM 등). 자동 승인 무관
+- `INSTALL_INELIGIBLE`: 설치 불가 (PE 불가 등). 자동 승인 무관
+
+**request와 result**: audit 로그로 적재. request는 리소스 ID만 참조하고 상세 설정은 포함하지 않는다.
+
+```typescript
+// 승인 요청 기록 (audit)
+interface ApprovalRequest {
+  id: string;
+  requested_at: string;
+  requested_by: string;
+  target_resource_ids: string[];
+  excluded_resource_ids?: string[];
+  exclusion_reason?: string;
+}
+
+// 승인 처리 결과 (audit)
+interface ApprovalResult {
+  id: string;
+  request_id: string;
+  result: 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR';
+  processed_at: string;
+  processed_by?: string;   // null = 자동 승인
+  reason?: string;
+}
+```
+
+**ApprovedIntegration**: 승인 시점의 리소스 설정 스냅샷 + 반영 진행 상태. result가 APPROVED일 때 생성되고, 확정 정보 반영 완료 시 소멸한다.
+
+```typescript
+interface ResourceInfo {
+  resource_id: string;
+  resource_type: ResourceType;
+  vm_config?: {
+    db_type: string;
+    port: number;
+    host: string;
+  };
+  credential?: string;
+}
+
+// 승인 시점 스냅샷 (존재 = "반영 중")
+interface ApprovedIntegration {
+  id: string;
+  request_id: string;
+  approved_at: string;
+  approved_by?: string;    // null = 자동 승인
+  resource_infos: ResourceInfo[];
+  excluded_resource_ids?: string[];
+  exclusion_reason?: string;
+}
+// Black Box 반영 지표(input_reflected, service_tf_installed, bdc_tf_installed)는
+// Infra Manager 설치 상태 API에서 별도 조회한다.
+```
+
+**단일 존재 제약**: PENDING 상태의 ApprovalRequest와 ApprovedIntegration 중 **최대 하나만 활성 상태로 존재 가능**.
+
+**calculator 판단 로직**:
+```
+마지막 request가 PENDING?  → 승인 대기
+ApprovedIntegration 존재?  → 반영 중 (Black Box)
+둘 다 아님?               → targets.confirmed 확인
+```
+
+**근거**: D-002(승인 요청 중 추가 요청 불가)와 D-008(반영 중 새 요청 차단)을 하나의 제약으로 통합. request/result는 audit 로그로 이력 보존, ApprovedIntegration은 승인 시점 스냅샷으로 Terraform 반영의 정확한 입력을 보장한다.
+
+**상태: 결정됨**
+
+### D-011: API 엔드포인트 설계
+
+Frontend는 승인 프로세스 내부 흐름(자동 승인 등)을 알 필요가 없다. 요청을 제출하고, 이후 상태를 조회하는 구조.
+
+**기존 API 확장**:
+
+```
+POST /projects/{projectId}/confirm-targets
+```
+- 역할: ApprovalRequest 생성. 자동 승인 여부는 백엔드 내부 처리.
+- Request: `{ target_resource_ids, excluded_resource_ids?, exclusion_reason?, vm_configs? }`
+- Response: `{ success, approval_request }`
+- vm_configs는 리소스에 직접 저장. ApprovalRequest audit에는 미포함.
+
+```
+POST /projects/{projectId}/approve
+```
+- 역할: ApprovalResult(APPROVED) + ApprovedIntegration(resource_infos 스냅샷) 생성
+- Request: `{ comment? }`
+- Response: `{ success, approval_result, approved_integration }`
+
+```
+POST /projects/{projectId}/reject
+```
+- 역할: ApprovalResult(REJECTED) 생성
+- Request: `{ reason }`
+- Response: `{ success, approval_result }`
+
+**신규 API**:
+
+```
+POST /projects/{projectId}/cancel-approval-request
+```
+- 역할: PENDING 상태의 승인 요청 취소. ApprovalResult(CANCELLED) 생성.
+- Request: `{}`
+- Response: `{ success, approval_result }`
+
+```
+GET /projects/{projectId}/approved-integration
+```
+- 역할: 현재 활성 ApprovedIntegration 조회. Frontend의 연동 확정 정보 유일한 소스.
+- Response: `{ approved_integration: ApprovedIntegration | null }`
+
+```
+GET /projects/{projectId}/approval-history
+```
+- 역할: request/result audit 이력 조회.
+- Response: `{ history: Array<{ request, result? }> }`
+
+**Frontend 상태 판단 흐름**:
+```
+GET /approved-integration → 존재?     → "반영 중" (resource_infos 표시)
+GET /approval-history     → 마지막 request가 PENDING? → "승인 대기 중"
+                          → 마지막 result가 REJECTED?  → 반려 사유 표시
+                          → 마지막 result가 CANCELLED? → 취소됨
+                          → 그 외                     → targets.confirmed 확인
+```
+
+**상태: 결정됨**
+
+### D-010: 상태별 리소스 영역 UX
+
+각 상태에서 리소스 정보를 어떻게 보여줄지 정의한다.
+
+**기본 상태**:
+
+| 상태 | 메인 표시 | 액션 |
+|------|----------|------|
+| X/X/X (최초 진입) | 스캔된 후보 목록 + 체크박스 | 리소스 선택 → "승인 요청" |
+| O/X/X (연동 완료) | 확정 정보 (연동된 리소스 목록) | "연동 대상 변경" |
+
+**요청/반영 중 상태** — "메인 정보 + 배너 + 접힌 보조 정보" 공통 패턴:
+
+| 상태 | 메인 표시 | 배너 | 접힌 보조 | 액션 |
+|------|----------|------|----------|------|
+| X/O/X (최초 요청 중) | Request 리소스 목록 | "승인 요청 정보입니다" | 없음 | "승인 요청 취소" |
+| O/O/X (변경 요청 중) | Request 리소스 목록 | "승인 요청 정보입니다" | "현재 연동 정보 보기" (전환 가능) | "승인 요청 취소" |
+| X/X/O (최초 반영 중) | ApprovedIntegration resource_infos | "반영 중입니다" + Black Box | 없음 | 없음 |
+| O/X/O (반영 중) | ApprovedIntegration resource_infos | "반영 중입니다" + Black Box | "이전 연동 정보 보기" (전환 가능) | 없음 |
+
+**O/O/X, O/X/O에서 보조 영역은 단순 토글이 아니라 메인 뷰와 전환 가능**하다. 사용자가 현재 연동 정보를 메인으로 볼 수 있고, 다시 요청/반영 정보로 돌아올 수 있다.
+
+**반려/에러 상태**: 기존 상태(O/X/X 또는 X/X/X) 화면에 반려 사유 또는 에러 안내 배너가 추가되는 형태. 별도 레이아웃 없음.
+
+**상태: 결정됨**
+
+### D-004: Black Box 모델
+
+설치 진행 상태를 3개 지표로 추상화하여 내부 인프라 복잡성을 숨긴다:
+
+1. 입력 반영 상태
+2. 서비스 측 Terraform 설치 상태
+3. BDC Terraform 설치 상태
+
+표시 방식: 통합 프로그레스 바(기본 뷰) + 상세 지표(확장 뷰)
+
+3개 지표는 Infra Manager 설치 상태 API에서 조회하며, ApprovedIntegration에 포함하지 않는다. 승인 스냅샷(무엇이 승인되었는가)과 설치 진행 상태(얼마나 진행되었는가)는 별개의 관심사이다.
+
+**상태: 결정됨**
+
+### D-005: 반려 후 처리
+
+반려 시 승인 요청 정보가 소멸되며, 사용자에게 **반려 사유만 표시**한다.
+
+- 확정 정보가 있는 경우: 기존 연동 유지 상태(O/X/X)로 복귀 + 반려 안내
+- 확정 정보가 없는 경우: 최초 진입 상태(X/X/X)로 복귀 + 반려 안내
+
+리소스 수정 여부는 사용자가 판단하며, UI에서 경로를 분기하지 않는다. 반려 이력은 History에 별도 저장하여 요청 객체 소멸 후에도 조회 가능하게 한다.
+
+**상태: 결정됨**
+
+### D-006: Empty State 맥락 분류
+
+"확정 정보 없음"(X/X/X) 상태에서는 "연동 정보 입력" 안내를 표시한다. 반려/시스템 에러 이력이 있는 경우 해당 사유를 함께 표시한다.
+
+별도 UI 분기 없이 D-005(반려 사유 표시), D-007(시스템 에러 안내)의 이력 표시로 충분하다.
+
+**상태: 결정됨**
+
+### D-007: 승인 완료 → 확정 정보 반영 실패 시 처리
+
+승인은 완료되었으나 Infra Manager에서 연동 확정이 불가능한 경우 (일시적 서버 에러가 아닌 비즈니스 실패):
+
+- 승인 시점 이후 리소스가 삭제된 경우
+- 연동이 불가능한 구성인 경우
+
+**처리 방식**: 시스템 에러로 분류하고 **승인 완료 정보를 삭제**한다.
+
+- 확정 정보가 있는 경우: O/X/X (연동 완료)로 복귀 + 시스템 에러 안내
+- 확정 정보가 없는 경우 (반영 도중 기존 TF 정리 후 실패): X/X/X (최초 진입)로 복귀 + 시스템 에러 안내
+
+상태 전이 패턴은 반려(D-005)와 동일하다. 사용자에게 에러 사유를 안내하면 충분하며, 별도 복구 로직은 불필요하다.
+
+상세 정의: #104
+
+**상태: 결정됨**
+
+## 결과
+
+- Terraform 라이프사이클과 UX 레이어가 분리되어 사용자 경험이 개선됨
+- 3개 객체 간 전이 규칙이 명확해져 프론트엔드 렌더링 로직이 단순해짐
+- 관리자 승인 workflow와 사용자 변경 요청이 독립적으로 관리 가능
+
+## 관련
+
+- #101: 연동 확정 승인에 대한 내역 정리
+- #104: 승인 완료 → 확정 정보 반영 실패 시 UX 및 롤백 정책
+- [ADR-001](./001-process-state-architecture.md): Process 상태 관리 아키텍처
+- [ADR-004](./004-process-status-refactoring.md): processStatus 저장 필드 리팩토링

@@ -11,6 +11,7 @@
 | [ADR-003](./003-documentation-strategy.md) | 문서 관리 전략 | 승인됨 | 2026-02-02 |
 | [ADR-004](./004-process-status-refactoring.md) | processStatus 저장 필드 리팩토링 | 제안됨 | 2026-02-04 |
 | [ADR-005](./005-data-adapter-pattern.md) | 데이터 어댑터 패턴 도입 | 제안됨 | 2026-02-06 |
+| [ADR-006](./006-integration-confirmation-approval-redesign.md) | 연동 확정 승인 프로세스 재설계 | 제안됨 | 2026-02-11 |
 
 ## ADR 작성 규칙
 
