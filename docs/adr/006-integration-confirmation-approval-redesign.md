@@ -85,6 +85,16 @@ Self Installation Tool에서 사용자가 언제든 연동 대상 변경을 요�
 
 승인 관련 데이터를 request(요청 기록) / result(처리 결과) / ApprovedIntegration(반영 추적) 으로 분리한다.
 
+**리소스 분류**: 각 리소스는 백엔드에서 `integrationCategory` 필드로 분류를 제공한다 (#108).
+
+```typescript
+type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
+```
+
+- `TARGET`: 설치 대상 (RDS, S3 등). 미선택 시 제외 사유 필요, 자동 승인 판정 대상
+- `NO_INSTALL_NEEDED`: 설치 불필요 (EC2, VM 등). 자동 승인 무관
+- `INSTALL_INELIGIBLE`: 설치 불가 (PE 불가 등). 자동 승인 무관
+
 **request와 result**: audit 로그로 적재. request는 리소스 ID만 참조하고 상세 설정은 포함하지 않는다.
 
 ```typescript
