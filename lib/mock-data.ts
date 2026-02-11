@@ -205,6 +205,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-2',
@@ -214,6 +215,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-3',
@@ -223,6 +225,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'TARGET',
       },
     ],
     terraformState: {
@@ -252,6 +255,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-5',
@@ -261,6 +265,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'NO_INSTALL_NEEDED',
         nics: [
           { nicId: 'nic-vm-agent-001-0', name: 'nic-vm-agent-001-0', privateIp: '10.0.1.10' },
         ],
@@ -273,6 +278,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'NO_INSTALL_NEEDED',
         nics: [
           { nicId: 'nic-vm-agent-002-0', name: 'nic-vm-agent-002-0', privateIp: '10.0.2.20' },
           { nicId: 'nic-vm-agent-002-1', name: 'nic-vm-agent-002-1', privateIp: '10.0.2.21' },
@@ -307,6 +313,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'NO_INSTALL_NEEDED',
         nics: [
           { nicId: 'nic-vm-scan-001-0', name: 'nic-vm-scan-001-0', privateIp: '10.0.3.30' },
           { nicId: 'nic-vm-scan-001-1', name: 'nic-vm-scan-001-1', privateIp: '10.0.3.31' },
@@ -320,6 +327,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         azureNetworkingMode: 'PUBLIC_ACCESS',
       },
       {
@@ -330,6 +338,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
       },
       {
@@ -340,6 +349,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
       },
     ],
@@ -375,6 +385,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'res-2',
@@ -386,6 +397,7 @@ export const mockProjects: Project[] = [
         awsType: 'ATHENA',
         region: 'ap-northeast-2',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'res-3',
@@ -397,6 +409,7 @@ export const mockProjects: Project[] = [
         awsType: 'DYNAMODB',
         region: 'ap-northeast-2',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
       },
       // 신규 스캔된 리소스
       {
@@ -410,6 +423,7 @@ export const mockProjects: Project[] = [
         region: 'us-east-1',
         vpcId: 'vpc-useast-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -425,6 +439,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         note: '제외됨',
         exclusion: {
           reason: '개발 환경 DB - 연동 불필요',
@@ -444,6 +459,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         clusterType: 'REGIONAL',
         clusterInstances: [
           { instanceId: 'aurora-prod-01-reader-1', role: 'READER', availabilityZone: 'ap-northeast-2a', isSelected: false },
@@ -463,6 +479,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         clusterType: 'GLOBAL',
         clusterInstances: [
           { instanceId: 'aurora-global-01-reader-1', role: 'READER', availabilityZone: 'ap-northeast-2a', isSelected: false },
@@ -486,6 +503,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
       },
       // EC2 리소스 (선택적 연동 대상)
       {
@@ -499,6 +517,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'NO_INSTALL_NEEDED',
         vmDatabaseConfig: {
           host: 'ip-10-0-1-100.ap-northeast-2.compute.internal',
           databaseType: 'MYSQL',
@@ -516,6 +535,7 @@ export const mockProjects: Project[] = [
         region: 'us-east-1',
         vpcId: 'vpc-useast-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'NO_INSTALL_NEEDED',
         vmDatabaseConfig: {
           host: 'ip-10-2-3-45.us-east-1.compute.internal',
           databaseType: 'POSTGRESQL',
@@ -555,6 +575,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'PENDING_APPROVAL',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
         clusterType: 'REGIONAL',
@@ -573,6 +594,7 @@ export const mockProjects: Project[] = [
         awsType: 'ATHENA',
         region: 'ap-northeast-2',
         lifecycleStatus: 'PENDING_APPROVAL',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -587,6 +609,7 @@ export const mockProjects: Project[] = [
         awsType: 'DYNAMODB',
         region: 'ap-northeast-1',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -625,6 +648,7 @@ export const mockProjects: Project[] = [
         region: 'us-west-2',
         vpcId: 'vpc-uswest-001',
         lifecycleStatus: 'INSTALLING',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -639,6 +663,7 @@ export const mockProjects: Project[] = [
         region: 'us-west-2',
         vpcId: 'vpc-uswest-001',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -669,6 +694,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -680,6 +706,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -691,6 +718,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: false,
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         note: '제외됨',
         exclusion: {
           reason: '레거시 시스템 - 현재 지원되지 않음',
@@ -731,6 +759,7 @@ export const mockProjects: Project[] = [
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
         lifecycleStatus: 'READY_TO_TEST',
+        integrationCategory: 'TARGET',
         note: '끊김',
       },
       {
@@ -743,6 +772,7 @@ export const mockProjects: Project[] = [
         awsType: 'DYNAMODB',
         region: 'ap-northeast-2',
         lifecycleStatus: 'READY_TO_TEST',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -757,6 +787,7 @@ export const mockProjects: Project[] = [
         awsType: 'ATHENA',
         region: 'ap-northeast-1',
         lifecycleStatus: 'DISCOVERED',
+        integrationCategory: 'TARGET',
         isNew: true,
         note: 'NEW',
       },
@@ -788,6 +819,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'PENDING_APPROVAL',
+        integrationCategory: 'TARGET',
       },
       {
         id: 'sdu-res-2',
@@ -797,6 +829,7 @@ export const mockProjects: Project[] = [
         connectionStatus: 'PENDING',
         isSelected: true,
         lifecycleStatus: 'PENDING_APPROVAL',
+        integrationCategory: 'TARGET',
       },
     ],
     terraformState: {

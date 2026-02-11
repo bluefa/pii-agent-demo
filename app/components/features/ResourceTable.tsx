@@ -8,7 +8,6 @@ import {
   DatabaseType,
   DBCredential,
   VmDatabaseConfig,
-  isPeIneligible,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
 import { cn, statusColors, textColors, badgeStyles, getButtonClass } from '@/lib/theme';
@@ -85,8 +84,8 @@ export const ResourceTable = ({
 
   const targetResources = resources.filter((r) => r.isSelected || selectedIdsSet.has(r.id));
   const nonTargetResources = resources.filter(r => !r.isSelected && !selectedIdsSet.has(r.id));
-  const vnetResources = nonTargetResources.filter(isPeIneligible);
-  const normalNonTargetResources = nonTargetResources.filter(r => !isPeIneligible(r));
+  const vnetResources = nonTargetResources.filter(r => r.integrationCategory === 'INSTALL_INELIGIBLE');
+  const normalNonTargetResources = nonTargetResources.filter(r => r.integrationCategory !== 'INSTALL_INELIGIBLE');
 
   const connectedCount = targetResources.filter((r) => r.connectionStatus === 'CONNECTED').length;
   const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;

@@ -7,7 +7,7 @@
  * @see docs/cloud-provider-states.md - "자동 승인 조건" 섹션
  */
 
-import { Resource, isPeIneligible } from '@/lib/types';
+import { Resource } from '@/lib/types';
 
 export interface AutoApprovalContext {
   /** 프로젝트의 전체 리소스 목록 */
@@ -41,10 +41,9 @@ export const evaluateAutoApproval = (context: AutoApprovalContext): AutoApproval
   const { resources, selectedResourceIds } = context;
   const selectedSet = new Set(selectedResourceIds);
 
-  // 선택하지 않은 리소스 중 제외 확정되지 않은 리소스 찾기
-  // EC2 리소스는 자동 승인 판정에서 제외 (선택 안 해도 자동 승인 가능)
+  // 선택하지 않은 TARGET 리소스 중 제외 확정되지 않은 리소스 찾기
   const unselectedNonExcluded = resources.filter(
-    (r) => !selectedSet.has(r.id) && !r.exclusion && r.awsType !== 'EC2' && !isPeIneligible(r)
+    (r) => r.integrationCategory === 'TARGET' && !selectedSet.has(r.id) && !r.exclusion
   );
 
   // 미선택 리소스 중 제외 확정되지 않은 리소스가 있으면 수동 승인 필요
