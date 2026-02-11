@@ -540,6 +540,7 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
+    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_APPROVAL,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { isRejected: true, selectedCount: 2, excludedCount: 1 }),
     resources: [
@@ -609,6 +610,7 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
+    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.INSTALLING,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 1, excludedCount: 1 }),
     resources: [
@@ -714,6 +716,7 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
+    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
     resources: [
