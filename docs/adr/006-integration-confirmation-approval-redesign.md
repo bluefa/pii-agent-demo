@@ -103,10 +103,10 @@ interface ApprovalRequest {
   requested_at: string;
   requested_by: { id: string; name: string };
   resource_infos: ResourceInfo[];
-  exclusions?: Array<{
-    resource_id: string;
+  exclusions?: {
+    resource_ids: string[];
     reason: string;
-  }>;
+  };
 }
 
 // 존재 = "반영 중"
@@ -115,10 +115,10 @@ interface ApprovedIntegration {
   approved_at: string;
   approved_by: { id: string; name: string } | null; // null = 자동 승인
   resource_infos: ResourceInfo[];
-  exclusions?: Array<{
-    resource_id: string;
+  exclusions?: {
+    resource_ids: string[];
     reason: string;
-  }>;
+  };
   reflection: {
     input_reflected: boolean;       // Black Box 지표 1
     service_tf_installed: boolean;  // Black Box 지표 2
