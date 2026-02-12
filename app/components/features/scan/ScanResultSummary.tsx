@@ -1,6 +1,7 @@
 'use client';
 
 import { statusColors, textColors, bgColors, cn } from '@/lib/theme';
+import { formatDate as formatDateUtil } from '@/lib/utils/date';
 import type { ScanResult } from '@/lib/types';
 
 interface ScanResultSummaryProps {
@@ -8,21 +9,6 @@ interface ScanResultSummaryProps {
   completedAt?: string;
   onClose?: () => void;
 }
-
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return null;
-  try {
-    return new Date(dateStr).toLocaleString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return null;
-  }
-};
 
 export const ScanResultSummary = ({ result, completedAt, onClose }: ScanResultSummaryProps) => (
   <div className="space-y-4">
@@ -32,7 +18,7 @@ export const ScanResultSummary = ({ result, completedAt, onClose }: ScanResultSu
         <div className={cn('w-2 h-2 rounded-full', statusColors.success.dot)} />
         <span className={cn('text-sm font-medium', textColors.secondary)}>스캔 결과</span>
         {completedAt && (
-          <span className={cn('text-xs', textColors.tertiary)}>({formatDate(completedAt)})</span>
+          <span className={cn('text-xs', textColors.tertiary)}>({formatDateUtil(completedAt, 'datetime')})</span>
         )}
       </div>
       {onClose && (
