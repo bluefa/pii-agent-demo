@@ -14,6 +14,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [worktree](./worktree/SKILL.md) | `/worktree` | worktree + 브랜치 초기 세팅 강제 | O | code-implementer |
 | [pr](./pr/SKILL.md) | `/pr` | 검증 후 PR 생성 워크플로우 | O | code-implementer |
 | [pr-merge](./pr-merge/SKILL.md) | `/pr-merge` | PR 머지 워크플로우 (squid 지원) | O | code-implementer |
+| [pr-flow](./pr-flow/SKILL.md) | `/pr-flow` | PR 생성+머지+브랜치정리 자동화 | O | code-implementer |
 
 ## 에이전트 (Agents)
 
@@ -62,8 +63,10 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   ├── dev-server/
 │   │   └── SKILL.md
 │   ├── pr/
-│       └── SKILL.md
-│   └── pr-merge/
+│   │   └── SKILL.md
+│   ├── pr-merge/
+│   │   └── SKILL.md
+│   └── pr-flow/
 │       └── SKILL.md
 ├── agents/
 │   ├── code-reviewer.md         # 팀: 종합 코드 리뷰

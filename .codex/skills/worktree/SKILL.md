@@ -19,14 +19,20 @@ user_invocable: true
 ## 실행 절차
 
 1. canonical repo 루트(`/Users/study/pii-agent-demo`)에서 시작합니다.
-2. 아래 명령으로 worktree + 브랜치를 생성합니다.
+2. 최신 main 기준점을 가져옵니다.
 
 ```bash
-git worktree add ../pii-agent-demo-{topic} -b {prefix}/{topic}
+git fetch origin main
 ```
 
-3. 새 worktree 경로로 이동합니다.
-4. 프로젝트 검증을 실행합니다.
+3. 아래 명령으로 `origin/main` 기준 worktree + 브랜치를 생성합니다.
+
+```bash
+git worktree add ../pii-agent-demo-{topic} -b {prefix}/{topic} origin/main
+```
+
+4. 새 worktree 경로로 이동합니다.
+5. 프로젝트 검증을 실행합니다.
 
 ```bash
 bash scripts/guard-worktree.sh
@@ -35,13 +41,13 @@ git rev-parse --abbrev-ref HEAD
 git worktree list
 ```
 
-5. `node_modules`가 없으면 설치합니다.
+6. `node_modules`가 없으면 설치합니다.
 
 ```bash
 npm install
 ```
 
-6. 필요 시 dev 서버를 시작합니다.
+7. 필요 시 dev 서버를 시작합니다.
 
 ```bash
 bash scripts/dev.sh "$(pwd)"
@@ -51,4 +57,5 @@ bash scripts/dev.sh "$(pwd)"
 
 - `main`/`master`에서 구현 작업을 시작하지 않습니다.
 - worktree 준비 전에는 코드 변경을 시작하지 않습니다.
+- 항상 최신 `origin/main`에서 신규 브랜치를 생성합니다.
 - 모든 후속 작업은 방금 생성한 worktree에서만 수행합니다.
