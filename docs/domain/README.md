@@ -43,7 +43,7 @@ AWS, Azure, GCP, IDC, SDU (+ 수동조사 예정)
 ### API Routes (Next.js)
 - 위치: `app/api/`
 - 역할: 개발 환경에서 BFF API 시뮬레이션
-- 문서: `docs/api-routes/README.md`
+- 문서: 소스 코드(`app/api/**`) 기준
 
 ### 호출 흐름
 - **Dev**: Frontend → API Routes (`app/api/`)
