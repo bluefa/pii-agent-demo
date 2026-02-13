@@ -34,6 +34,7 @@ bash scripts/pr-flow.sh --base main --strategy squid --title "<title>" --body "<
 ## 규칙
 
 - `scripts/guard-worktree.sh`를 항상 통과해야 합니다.
+- 브랜치 시작 시점은 `scripts/create-worktree.sh`를 통해 최신화된 `main` 기준이어야 합니다.
 - 더러운 워킹트리(미커밋 변경)에서는 중단합니다.
 - 머지 가능 상태(`MERGEABLE`)가 아니면 중단합니다.
 - 자동화 흐름에서 사용자 추가 확인을 요구하지 않습니다.
