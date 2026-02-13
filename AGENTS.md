@@ -9,10 +9,11 @@ Apply these rules in both Codex and Claude Code sessions.
 - Never implement code changes from the canonical repo path:
   - `/Users/study/pii-agent-demo`
 - Run `scripts/guard-worktree.sh` before code edits.
-- If blocked, create and move to a worktree first:
+- If blocked, fetch latest `origin/main`, then create and move to a worktree first:
 
 ```bash
-git worktree add ../pii-agent-demo-{topic} -b feat/{topic}
+git fetch origin main
+git worktree add ../pii-agent-demo-{topic} -b feat/{topic} origin/main
 ```
 
 Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`, `codex/`.
@@ -95,6 +96,8 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - `.codex/skills/pr/SKILL.md`
 - PR 머지 요청:
   - `.codex/skills/pr-merge/SKILL.md`
+- PR 생성+머지 자동화 요청:
+  - `.codex/skills/pr-flow/SKILL.md`
 - 구현/기능 추가 요청:
   - `.codex/skills/feature-development/SKILL.md`
 - 코딩 규칙/스타일 검토 요청:
@@ -106,3 +109,12 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 
 - Higher-priority runtime/system rules take precedence over this file.
 - If this file conflicts with explicit user direction for a task, confirm intent and proceed with the user-approved path.
+
+## 11) Automation Policy
+
+- Routine PR operations should run without interactive confirmation:
+  - push branch
+  - create PR
+  - merge PR (default strategy: `squid`=`squash`)
+  - delete merged remote branch
+- Use `.codex/skills/pr-flow/SKILL.md` for one-shot execution.
