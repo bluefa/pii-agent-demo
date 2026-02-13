@@ -11,11 +11,13 @@ description: 새 기능 개발 시 따르는 워크플로우. 기능 구현, API
 ```bash
 bash scripts/guard-worktree.sh
 # 차단되면 아래 명령으로 worktree 생성 후 해당 경로에서 작업
-git worktree add ../pii-agent-demo-{name} -b {prefix}/{name}
+git fetch origin main
+git worktree add ../pii-agent-demo-{name} -b {prefix}/{name} origin/main
 # 이후 해당 디렉토리에서 작업 수행
 ```
 - main 브랜치에서 직접 수정 절대 금지
 - Prefix: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`, `codex/`
+- 신규 브랜치는 항상 최신 `origin/main` 기준으로 생성
 
 ## 1. 요구사항 확인
 
