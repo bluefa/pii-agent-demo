@@ -9,12 +9,13 @@ Apply these rules in both Codex and Claude Code sessions.
 - Never implement code changes from the canonical repo path:
   - `/Users/study/pii-agent-demo`
 - Run `scripts/guard-worktree.sh` before code edits.
-- If blocked, fetch latest `origin/main`, then create and move to a worktree first:
+- If blocked, always sync local `main` to latest `origin/main` and then create a worktree branch from that updated `main`:
 
 ```bash
-git fetch origin main
-git worktree add ../pii-agent-demo-{topic} -b feat/{topic} origin/main
+bash scripts/create-worktree.sh --topic {topic} --prefix feat
 ```
+
+- Do not create new feature branches directly from stale local refs or detached HEAD.
 
 Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`, `codex/`.
 
