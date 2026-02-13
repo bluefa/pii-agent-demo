@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${PII_SKIP_VERIFY:-0}" == "1" ]]; then
-  echo "[pre-commit] Skipped by PII_SKIP_VERIFY=1"
-  exit 0
-fi
-
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
 echo "[pre-commit] Validating worktree guard..."
 bash scripts/guard-worktree.sh
+
+if [[ "${PII_SKIP_QUALITY:-0}" == "1" ]]; then
+  echo "[pre-commit] Quality checks skipped by PII_SKIP_QUALITY=1"
+  exit 0
+fi
 
 echo "[pre-commit] Running lint..."
 npm run lint
