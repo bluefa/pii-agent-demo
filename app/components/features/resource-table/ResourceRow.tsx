@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig, isPeIneligible } from '@/lib/types';
+import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
@@ -74,7 +74,7 @@ export const ResourceRow = ({
   const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
 
   const isVm = isVmResource(resource);
-  const isVnetIneligible = isPeIneligible(resource);
+  const isVnetIneligible = resource.integrationCategory === 'INSTALL_INELIGIBLE';
   const isExpanded = expandedVmId === resource.id;
   const isSelected = selectedIds.has(resource.id);
   const hasVmConfig = !!resource.vmDatabaseConfig;

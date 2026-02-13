@@ -271,6 +271,18 @@ type ResourceType =
 type VmResourceType = 'EC2' | 'AZURE_VM';
 ```
 
+### IntegrationCategory
+
+```typescript
+type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
+```
+
+| 분류 | 의미 | 예시 | UI 동작 |
+|------|------|------|---------|
+| `TARGET` | 설치 대상 | RDS, S3 등 | 체크박스 활성, 미선택 시 제외 사유 필요 |
+| `NO_INSTALL_NEEDED` | 설치 불필요 | EC2, VM | 체크박스 비활성, 제외 사유 불필요 |
+| `INSTALL_INELIGIBLE` | 설치 불가 | PE 불가 리소스 | 체크박스 비활성, 제외 사유 불필요 |
+
 ### ConnectionStatus
 
 ```typescript
@@ -346,6 +358,7 @@ type Role = 'ADMIN' | 'SERVICE_MANAGER';
 
 | 날짜 | 내용 |
 |------|------|
+| 2026-02-12 | IntegrationCategory 타입 추가 (Resource.integrationCategory 필드) |
 | 2026-01-31 | TfStatus 타입 deprecated (boolean으로 단순화) |
 | 2026-01-30 | Azure ResourceType 세분화, VmResourceType 타입 추가 |
 | 2026-01-30 | 에러 컴포넌트 설계 추가 (InlineError, PageError, Toast, ModalError) |

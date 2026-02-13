@@ -10,6 +10,7 @@ const createResource = (id: string, hasExclusion: boolean = false): Resource => 
   connectionStatus: 'PENDING',
   isSelected: false,
   lifecycleStatus: 'DISCOVERED',
+  integrationCategory: 'TARGET',
   exclusion: hasExclusion
     ? {
         reason: '제외 사유',

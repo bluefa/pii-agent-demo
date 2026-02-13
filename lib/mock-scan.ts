@@ -440,6 +440,7 @@ export const generateAwsResource = (): Resource => {
     awsType,
     region,
     lifecycleStatus: 'DISCOVERED',
+    integrationCategory: awsType === 'EC2' ? 'NO_INSTALL_NEEDED' : 'TARGET',
     isNew: true,
     note: 'NEW',
     ...(awsType === 'EC2' ? {
@@ -502,6 +503,12 @@ export const generateAzureResource = (): Resource => {
       ? (Math.random() < 0.3 ? 'VNET_INTEGRATION' : 'PUBLIC_ACCESS')
       : undefined;
 
+  const integrationCategory = azureType === 'AZURE_VM'
+    ? 'NO_INSTALL_NEEDED' as const
+    : networkingMode === 'VNET_INTEGRATION'
+      ? 'INSTALL_INELIGIBLE' as const
+      : 'TARGET' as const;
+
   return {
     id: generateId('res'),
     type: azureType,
@@ -510,6 +517,7 @@ export const generateAzureResource = (): Resource => {
     connectionStatus: 'PENDING',
     isSelected: false,
     lifecycleStatus: 'DISCOVERED',
+    integrationCategory,
     isNew: true,
     note: 'NEW',
     ...(networkingMode ? { azureNetworkingMode: networkingMode } : {}),
@@ -547,6 +555,7 @@ export const generateGcpResource = (): Resource => {
     connectionStatus: 'PENDING',
     isSelected: false,
     lifecycleStatus: 'DISCOVERED',
+    integrationCategory: 'TARGET',
     isNew: true,
     note: 'NEW',
   };
