@@ -11,6 +11,8 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [code-review](./code-review/SKILL.md) | `/code-review` | 코드 리뷰 가이드 | O | code-reviewer |
 | [frontend-design](./frontend-design/SKILL.md) | `/frontend-design` | 프론트엔드 디자인 | O | designer |
 | [dev-server](./dev-server/SKILL.md) | `/dev-server` | Worktree dev 서버 실행 | - | team-lead |
+| [worktree](./worktree/SKILL.md) | `/worktree` | worktree + 브랜치 초기 세팅 강제 | O | code-implementer |
+| [pr](./pr/SKILL.md) | `/pr` | 검증 후 PR 생성 워크플로우 | O | code-implementer |
 
 ## 에이전트 (Agents)
 
@@ -54,7 +56,11 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   │   └── SKILL.md
 │   ├── frontend-design/
 │   │   └── SKILL.md
-│   └── dev-server/
+│   ├── worktree/
+│   │   └── SKILL.md
+│   ├── dev-server/
+│   │   └── SKILL.md
+│   └── pr/
 │       └── SKILL.md
 ├── agents/
 │   ├── code-reviewer.md         # 팀: 종합 코드 리뷰
@@ -76,3 +82,11 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 - [CLAUDE.md](../../CLAUDE.md) - 프로젝트 전체 지침
 - [docs/adr/](../../docs/adr/) - 설계 결정 기록
 - [docs/api/](../../docs/api/) - BFF API 명세
+
+## Codex 미러링
+
+- Claude Skills는 `scripts/sync-claude-skills-to-codex.sh`로 repo 내부 `.codex/skills`에 동기화됩니다.
+- Git hooks 경로(`.githooks`)가 활성화된 경우 아래 시점에 자동 동기화됩니다:
+  - `post-checkout`
+  - `post-merge`
+  - `post-commit`

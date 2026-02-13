@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${PII_SKIP_VERIFY:-0}" == "1" ]]; then
+  echo "[pre-commit] Skipped by PII_SKIP_VERIFY=1"
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "${repo_root}"
+
+echo "[pre-commit] Validating worktree guard..."
+bash scripts/guard-worktree.sh
+
+echo "[pre-commit] Running lint..."
+npm run lint
+
+echo "[pre-commit] Running type-check..."
+npx tsc --noEmit --pretty false
+
+echo "[pre-commit] Running build..."
+npm run build
+
+echo "[pre-commit] OK"

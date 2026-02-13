@@ -1,5 +1,12 @@
 # PII Agent — Claude Code Rules
 
+## Shared Rules (Codex + Claude)
+
+- This repository also maintains shared agent rules at `AGENTS.md`.
+- In Claude Code sessions, apply `AGENTS.md` together with this file.
+- Before code edits, run `scripts/guard-worktree.sh`.
+- If the guard blocks, create a worktree and continue work there.
+
 ## ⛔ CRITICAL (위반 시 즉시 중단)
 
 1. **main 브랜치 수정 금지** — 개발 시작 전 worktree 생성 필수
