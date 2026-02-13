@@ -34,6 +34,7 @@ gh pr view <pr> --json number,title,state,mergeable,headRefName,baseRefName
 3. `mergeable` 상태가 머지 가능인지 확인합니다.
 4. 지정 전략(`strategy`)에 맞는 명령으로 머지합니다.
 5. 머지 후 결과를 확인합니다.
+6. 로컬 worktree 정리가 필요하면 `/worktree-cleanup` 스킬을 실행합니다.
 
 ```bash
 gh pr view <pr> --json number,state,mergedAt,mergeCommit
