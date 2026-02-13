@@ -65,6 +65,7 @@ gh pr create --base main --head "$(git rev-parse --abbrev-ref HEAD)" --title "<t
 ## 규칙
 
 - `main`에 직접 push하지 않습니다.
+- 브랜치는 최신 `origin/main`으로 동기화된 로컬 `main`에서 시작해야 합니다.
 - 변경사항을 여러 브랜치로 분산하지 않습니다.
 - 검증 실패 상태로 PR을 만들지 않습니다.
 - PR description은 생략하거나 한 줄 요약으로 제출하지 않습니다.
