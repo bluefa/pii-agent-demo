@@ -95,6 +95,8 @@ export interface ResourceExclusion {
   excludedBy: { id: string; name: string };
 }
 
+export type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
+
 export interface Resource {
   id: string;
   type: string;
@@ -102,6 +104,7 @@ export interface Resource {
   connectionStatus: ConnectionStatus;
   isSelected: boolean;
   databaseType: DatabaseType;             // DB 종류 (필수)
+  integrationCategory: IntegrationCategory; // 연동 분류
 
   // --- AWS 전용 ---
   awsType?: AwsResourceType;              // AWS일 때만
@@ -271,9 +274,9 @@ export const needsCredential = (databaseType: DatabaseType): boolean => {
   return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
 };
 
-/** VNet Integration으로 PE 연결이 불가능한 리소스 판별 */
-export const isPeIneligible = (resource: Resource): boolean =>
-  resource.azureNetworkingMode === 'VNET_INTEGRATION';
+/** 설치 불가 리소스 판별 (integrationCategory 기반) */
+export const isInstallIneligible = (resource: Resource): boolean =>
+  resource.integrationCategory === 'INSTALL_INELIGIBLE';
 
 // ===== Project Status Types (ADR-004) =====
 // processStatus를 계산하기 위한 상태 데이터 구조
