@@ -16,6 +16,7 @@ bash scripts/pr-flow.sh --strategy squid
 
 - 기본 base: `main`
 - 기본 전략: `squid` (=`squash`)
+- PR 본문은 `scripts/build-pr-body.sh`로 상세 생성
 
 ## 옵션
 
@@ -25,9 +26,15 @@ bash scripts/pr-flow.sh --base main --strategy squid --title "<title>" --body "<
 
 - `--strategy`: `merge` | `squash` | `squid`
 
+## PR Description
+
+- `--body` 미지정 시 `scripts/build-pr-body.sh`로 상세 본문을 자동 생성합니다.
+- 생성 본문은 `Summary / What Changed / Validation / Risks / Notes For Reviewer` 섹션을 포함합니다.
+
 ## 규칙
 
 - `scripts/guard-worktree.sh`를 항상 통과해야 합니다.
 - 더러운 워킹트리(미커밋 변경)에서는 중단합니다.
 - 머지 가능 상태(`MERGEABLE`)가 아니면 중단합니다.
 - 자동화 흐름에서 사용자 추가 확인을 요구하지 않습니다.
+- merge 이후 로컬 worktree 정리는 `/worktree-cleanup` 스킬을 사용합니다.
