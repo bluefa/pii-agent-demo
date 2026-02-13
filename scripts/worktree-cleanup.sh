@@ -71,8 +71,31 @@ fi
 git -C "${CANONICAL_REPO}" fetch origin main >/dev/null 2>&1 || true
 
 if git -C "${CANONICAL_REPO}" show-ref --verify --quiet "refs/heads/${branch}"; then
-  if ! git -C "${CANONICAL_REPO}" merge-base --is-ancestor "${branch}" origin/main; then
-    echo "[worktree-cleanup] Branch ${branch} is not merged into origin/main." >&2
+  merged_by_history="0"
+  merged_by_pr="0"
+
+  if git -C "${CANONICAL_REPO}" merge-base --is-ancestor "${branch}" origin/main; then
+    merged_by_history="1"
+  fi
+
+  # squash/squid merge does not preserve branch commit ancestry, so verify merged PR by head branch.
+  if [[ "${merged_by_history}" != "1" ]] && command -v gh >/dev/null 2>&1; then
+    merged_pr_count="$(
+      cd "${CANONICAL_REPO}" &&
+      gh pr list \
+        --state merged \
+        --head "${branch}" \
+        --base main \
+        --json number \
+        --jq 'length' 2>/dev/null || echo "0"
+    )"
+    if [[ "${merged_pr_count}" != "0" ]]; then
+      merged_by_pr="1"
+    fi
+  fi
+
+  if [[ "${merged_by_history}" != "1" && "${merged_by_pr}" != "1" ]]; then
+    echo "[worktree-cleanup] Branch ${branch} is not merged into origin/main (history or merged PR check failed)." >&2
     exit 1
   fi
 fi
