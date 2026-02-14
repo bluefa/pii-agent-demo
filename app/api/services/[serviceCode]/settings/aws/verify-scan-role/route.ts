@@ -1,35 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import { client } from '@/lib/api-client';
 
-type RouteParams = { params: Promise<{ serviceCode: string }> };
-
-/**
- * POST /api/services/{serviceCode}/settings/aws/verify-scan-role
- * 등록된 Scan Role 재검증
- */
 export const POST = async (
-  _request: NextRequest,
-  { params }: RouteParams
+  _request: Request,
+  { params }: { params: Promise<{ serviceCode: string }> }
 ) => {
-  try {
-    const { serviceCode } = await params;
-
-    // 서비스 코드 존재 확인
-    const service = await dataAdapter.getServiceCodeByCode(serviceCode);
-
-    if (!service) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: '서비스를 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    const result = await dataAdapter.verifyScanRole(serviceCode);
-    return NextResponse.json(result);
-  } catch {
-    return NextResponse.json(
-      { error: 'INTERNAL_ERROR', message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
-  }
+  const { serviceCode } = await params;
+  return client.services.settings.aws.verifyScanRole(serviceCode);
 };

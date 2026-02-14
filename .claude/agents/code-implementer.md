@@ -35,7 +35,7 @@ PII Agent 프로젝트의 코드 구현 전문 에이전트입니다.
 - 상대 경로 import 금지 — `@/` 절대 경로만
 - Raw 색상 클래스 직접 사용 금지 — `@/lib/theme.ts` 토큰 경유
 - CSS 파일 생성 금지 (Tailwind only)
-- `app/api/`에서 `@/lib/mock-*` 직접 import 금지 — `dataAdapter` 경유 (ADR-005)
+- `app/api/route.ts`는 `client.method()` 디스패치만 수행 (ADR-007)
 - main 브랜치에서 직접 작업 금지
 
 ## 구현 순서 (feature-development)
@@ -44,13 +44,11 @@ PII Agent 프로젝트의 코드 구현 전문 에이전트입니다.
 1. lib/types/*.ts             → 타입 정의
 2. lib/constants/*.ts         → 상수 정의
 3. lib/mock-*.ts              → Mock 헬퍼
-4. lib/adapters/types.ts      → DataAdapter 인터페이스 확장
-5. lib/adapters/mock-adapter  → Mock 어댑터 메서드 추가
-6. lib/adapters/bff-adapter   → BFF 어댑터 메서드 추가
-7. app/api/**                 → API Routes (dataAdapter 사용)
-8. lib/__tests__/*.ts         → 유닛 테스트
-9. app/components/**          → UI 컴포넌트 (theme.ts 토큰 사용)
-10. app/**                    → 페이지 통합
+4. lib/api-client/mock/*.ts   → Mock 클라이언트 (비즈니스 로직)
+5. app/api/**                 → API Routes (client.method() 디스패치)
+6. lib/__tests__/*.ts         → 유닛 테스트
+7. app/components/**          → UI 컴포넌트 (theme.ts 토큰 사용)
+8. app/**                    → 페이지 통합
 ```
 
 ## 코딩 스타일
@@ -73,8 +71,8 @@ PII Agent 프로젝트의 코드 구현 전문 에이전트입니다.
 
 - BFF 명세(`docs/api/`) 준수
 - "mock" 용어 금지 (`lib/mock-*.ts` 예외)
-- `dataAdapter`를 통한 데이터 접근
-- 새 데이터 접근: `DataAdapter` 인터페이스 → mock-adapter → bff-adapter 순서
+- `app/api/route.ts` → `client.method()` 디스패치 (ADR-007)
+- Mock 비즈니스 로직은 `lib/api-client/mock/*.ts`에 위치
 
 ## 검증 (구현 완료 후)
 
@@ -86,7 +84,7 @@ npm run test          # 테스트 통과
 
 ## 문서화
 
-- 새 API → `docs/api-routes/README.md`
+- 새 API → `docs/api/*.md` 명세 갱신 (개발용 라우트는 `app/api/**`로 검증)
 - 설계 결정 → `docs/adr/*.md`
 - BFF 명세 변경 → `docs/api/providers/*.md`
 

@@ -18,6 +18,7 @@ import { createInitialProjectStatus } from '@/lib/process';
 // 테스트용 Azure 프로젝트 생성 헬퍼
 const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
   id: 'azure-test-project',
+  targetSourceId: 9001,
   projectCode: 'AZURE-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'Azure',
@@ -38,6 +39,7 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-2',
@@ -47,6 +49,7 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
   ],
   terraformState: { bdcTf: 'PENDING' },
@@ -70,6 +73,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-vm-2',
@@ -79,6 +83,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-db-1',
@@ -88,6 +93,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
   ],
   ...overrides,
@@ -95,6 +101,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
 
 const createAwsProject = (): Project => ({
   id: 'aws-test-project',
+  targetSourceId: 9002,
   projectCode: 'AWS-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',

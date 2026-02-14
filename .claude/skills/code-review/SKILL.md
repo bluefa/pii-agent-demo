@@ -130,10 +130,9 @@ API Routes 코드의 경우 추가 확인:
 
 - [ ] BFF API 명세(`docs/api/`)와 일치하는가?
 - [ ] 응답 형식이 명세와 동일한가?
-- [ ] `docs/api-routes/README.md` 업데이트했는가?
+- [ ] `docs/api/*.md` 명세를 업데이트했는가?
 - [ ] 테스트 작성했는가?
 
-### 데이터 어댑터 패턴 (ADR-005)
-- [ ] `app/api/`에서 `@/lib/mock-*` 직접 import하지 않는가?
-- [ ] `dataAdapter`를 통해 데이터에 접근하는가?
-- [ ] 새 메서드 추가 시 `DataAdapter` 인터페이스·mock-adapter·bff-adapter 모두 반영했는가?
+### API Client 패턴 (ADR-007)
+- [ ] `app/api/route.ts`가 `client.method()` 디스패치만 수행하는가?
+- [ ] Mock 비즈니스 로직이 `lib/api-client/mock/*.ts`에 위치하는가?
