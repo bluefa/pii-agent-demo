@@ -13,6 +13,7 @@ bash scripts/guard-worktree.sh
 # 차단되면 아래 명령으로 worktree 생성 후 해당 경로에서 작업
 bash scripts/create-worktree.sh --topic {name} --prefix {prefix}
 # 이후 해당 디렉토리에서 작업 수행
+bash scripts/bootstrap-worktree.sh "$(pwd)"
 ```
 - main 브랜치에서 직접 수정 절대 금지
 - Prefix: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`, `codex/`
