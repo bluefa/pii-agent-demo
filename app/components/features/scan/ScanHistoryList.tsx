@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { getScanHistory, ScanHistoryResponse } from '@/app/lib/api/scan';
 import { cn, statusColors, textColors, bgColors, borderColors } from '@/lib/theme';
+import { formatDate, formatDuration } from '@/lib/utils/date';
 
 interface ScanHistoryListProps {
   projectId: string;
@@ -11,26 +12,6 @@ interface ScanHistoryListProps {
 }
 
 type HistoryItem = ScanHistoryResponse['history'][number];
-
-const formatDate = (dateStr: string) => {
-  try {
-    return new Date(dateStr).toLocaleString('ko-KR', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '-';
-  }
-};
-
-const formatDuration = (ms: number) => {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}초`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}분 ${seconds % 60}초`;
-};
 
 const ChevronDownIcon = ({ expanded }: { expanded: boolean }) => (
   <svg
@@ -178,7 +159,7 @@ export const ScanHistoryList = ({ projectId, limit = 5, lastCompletedAt }: ScanH
                   aria-expanded={expandable ? isExpanded : undefined}
                 >
                   <td className={cn('px-3 py-2', textColors.secondary)}>
-                    {formatDate(item.completedAt)}
+                    {formatDate(item.completedAt, 'short')}
                   </td>
                   <td className={cn('px-3 py-2', textColors.tertiary)}>
                     {formatDuration(item.duration)}

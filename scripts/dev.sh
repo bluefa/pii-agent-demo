@@ -5,6 +5,9 @@ set -e
 DIR="${1:-$(pwd)}"
 START_PORT="${2:-3000}"
 
+# worktree 의존성 부트스트랩 (node_modules 누락 방지)
+bash "$(dirname "$0")/bootstrap-worktree.sh" "$DIR"
+
 # 빈 포트 찾기 (3000부터)
 find_free_port() {
   local port=$START_PORT
