@@ -13,6 +13,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [dev-server](./dev-server/SKILL.md) | `/dev-server` | Worktree dev 서버 실행 | - | team-lead |
 | [worktree](./worktree/SKILL.md) | `/worktree` | worktree + 브랜치 초기 세팅 강제 | O | code-implementer |
 | [pr](./pr/SKILL.md) | `/pr` | 검증 후 PR 생성 워크플로우 | O | code-implementer |
+| [pr-description](./pr-description/SKILL.md) | `/pr-description` | PR Description 직접 작성 가이드 | O | code-implementer |
 | [pr-merge](./pr-merge/SKILL.md) | `/pr-merge` | PR 머지 워크플로우 (squid 지원) | O | code-implementer |
 | [pr-flow](./pr-flow/SKILL.md) | `/pr-flow` | PR 생성+머지+브랜치정리 자동화 | O | code-implementer |
 | [worktree-cleanup](./worktree-cleanup/SKILL.md) | `/worktree-cleanup` | merge 후 worktree/로컬 브랜치 정리 | O | code-implementer |
@@ -64,6 +65,8 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   ├── dev-server/
 │   │   └── SKILL.md
 │   ├── pr/
+│   │   └── SKILL.md
+│   ├── pr-description/
 │   │   └── SKILL.md
 │   ├── pr-merge/
 │   │   └── SKILL.md
