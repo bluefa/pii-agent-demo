@@ -150,6 +150,7 @@ export const mockProjects: Project[] = [
   // ===== SDU 프로젝트 =====
   {
     id: 'proj-sdu-001',
+    targetSourceId: 1001,
     projectCode: 'SDU-2026-001',
     name: 'SDU 연동 테스트 프로젝트',
     description: 'SDU Athena 데이터베이스 연동을 위한 PII Agent 설치',
@@ -168,6 +169,7 @@ export const mockProjects: Project[] = [
   // ===== GCP 프로젝트 =====
   {
     id: 'gcp-proj-1',
+    targetSourceId: 1002,
     projectCode: 'GCP-001',
     name: 'GCP PII Agent - Cloud SQL / BigQuery',
     description: 'GCP Cloud SQL, BigQuery 리소스에 PII Agent 설치',
@@ -187,6 +189,7 @@ export const mockProjects: Project[] = [
   // ===== Azure 프로젝트 =====
   {
     id: 'azure-proj-1',
+    targetSourceId: 1003,
     projectCode: 'AZURE-001',
     name: 'Azure PII Agent - DB 연동',
     description: 'Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치',
@@ -237,6 +240,7 @@ export const mockProjects: Project[] = [
   },
   {
     id: 'azure-proj-2',
+    targetSourceId: 1004,
     projectCode: 'AZURE-002',
     name: 'Azure PII Agent - VM 포함',
     description: 'Azure DB + VM 리소스에 PII Agent 설치 (Case 2)',
@@ -295,6 +299,7 @@ export const mockProjects: Project[] = [
   },
   {
     id: 'azure-proj-3',
+    targetSourceId: 1005,
     projectCode: 'AZURE-003',
     name: 'Azure PII Agent - VM+MySQL 스캔 완료',
     description: 'VM 1대 + MySQL 1대, 스캔 완료 후 연동 대상 확정 전',
@@ -363,6 +368,7 @@ export const mockProjects: Project[] = [
   // ===== AWS 프로젝트 =====
   {
     id: 'proj-1',
+    targetSourceId: 1006,
     projectCode: 'N-IRP-001',
     name: 'PII Agent 설치 - 고객 DB',
     description: '자동 승인 테스트: res-excluded를 제외하고 나머지를 모두 선택하면 자동 승인됩니다.',
@@ -553,6 +559,7 @@ export const mockProjects: Project[] = [
   },
   {
     id: 'proj-2',
+    targetSourceId: 1007,
     projectCode: 'N-IRP-002',
     name: 'PII Agent 설치 - 로그 분석 계정',
     description: '스캔된 신규 리소스를 연동 대상으로 확정하고 관리자 승인을 대기합니다.',
@@ -626,6 +633,7 @@ export const mockProjects: Project[] = [
   },
   {
     id: 'proj-3',
+    targetSourceId: 1008,
     projectCode: 'OTHER-003',
     name: 'PII Agent 설치 - 이벤트 적재 파이프라인',
     description: '승인 완료 후 설치가 진행 중입니다. (데모: 설치중 상태 표시)',
@@ -678,6 +686,7 @@ export const mockProjects: Project[] = [
   },
   {
     id: 'proj-4',
+    targetSourceId: 1009,
     projectCode: 'N-IRP-004',
     name: 'PII Agent 설치 - IDC 운영 DB',
     description: 'IDC 환경: 스캔 기능 없이 연동 대상 확정부터 진행합니다.',
@@ -737,6 +746,7 @@ export const mockProjects: Project[] = [
   },
   {
     id: 'proj-5',
+    targetSourceId: 1010,
     projectCode: 'DATA-005',
     name: 'PII Agent 설치 - 데이터 마트',
     description: '설치가 완료되어 연결 테스트가 필요합니다. 끊김/신규 리소스도 함께 표시합니다.',
@@ -803,6 +813,7 @@ export const mockProjects: Project[] = [
   // ===== SDU 프로젝트 =====
   {
     id: 'sdu-proj-1',
+    targetSourceId: 1011,
     projectCode: 'SDU-001',
     name: 'SDU PII Agent - 온프레미스 DB 연동',
     description: 'SDU 환경 데이터베이스에 PII Agent 설치',
@@ -883,6 +894,21 @@ export const deleteProject = (id: string): boolean => {
 export const generateId = (prefix: string): string => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
+
+export const generateTargetSourceId = (): number => {
+  const projects = getStore().projects;
+  if (projects.length === 0) return 1001;
+  return Math.max(...projects.map(p => p.targetSourceId)) + 1;
+};
+
+export const getProjectByTargetSourceId = (targetSourceId: number): Project | undefined =>
+  getStore().projects.find(p => p.targetSourceId === targetSourceId);
+
+export const getTargetSourceIdByProjectId = (projectId: string): number | undefined =>
+  getStore().projects.find(p => p.id === projectId)?.targetSourceId;
+
+export const getProjectIdByTargetSourceId = (targetSourceId: number): string | undefined =>
+  getStore().projects.find(p => p.targetSourceId === targetSourceId)?.id;
 
 // ===== Mock DB Credentials =====
 export const mockCredentials: DBCredential[] = [
