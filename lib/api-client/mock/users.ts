@@ -28,4 +28,36 @@ export const mockUsers = {
       })),
     });
   },
+
+  getMe: async () => {
+    const user = await dataAdapter.getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json({ user });
+  },
+
+  getServices: async () => {
+    const user = await dataAdapter.getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    const allServiceCodes = await dataAdapter.getServiceCodes();
+    const services =
+      user.role === 'ADMIN'
+        ? allServiceCodes
+        : allServiceCodes.filter((s) => user.serviceCodePermissions.includes(s.code));
+
+    return NextResponse.json({ services });
+  },
 };
