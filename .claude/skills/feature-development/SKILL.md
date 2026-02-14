@@ -44,16 +44,14 @@ bash scripts/bootstrap-worktree.sh "$(pwd)"
 1. lib/types/*.ts             → 타입 정의
 2. lib/constants/*.ts         → 상수 정의
 3. lib/mock-*.ts              → Mock 헬퍼 (개발용)
-4. lib/adapters/types.ts      → DataAdapter 인터페이스 확장
-5. lib/adapters/mock-adapter  → Mock 어댑터에 메서드 추가
-6. lib/adapters/bff-adapter   → BFF 어댑터에 메서드 추가
-7. app/api/**                 → API Routes (dataAdapter 사용)
-8. lib/__tests__/*.ts         → 유닛 테스트
-9. app/components/**          → UI 컴포넌트 (theme.ts 토큰 사용)
-10. app/**                    → 페이지 통합
+4. lib/api-client/mock/*.ts   → Mock 클라이언트 (비즈니스 로직)
+5. app/api/**                 → API Routes (client.method() 디스패치)
+6. lib/__tests__/*.ts         → 유닛 테스트
+7. app/components/**          → UI 컴포넌트 (theme.ts 토큰 사용)
+8. app/**                    → 페이지 통합
 ```
 
-> ⛔ API Routes에서 `@/lib/mock-*` 직접 import 금지 — 반드시 `dataAdapter` 경유 (ADR-005)
+> `app/api/route.ts`는 `client.method()` 디스패치만 수행 (ADR-007)
 
 ## 3. 구현 후 검증
 
