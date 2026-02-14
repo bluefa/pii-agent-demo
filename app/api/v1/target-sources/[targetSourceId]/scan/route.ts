@@ -10,6 +10,6 @@ export const POST = withV1(async (request, { requestId, params }) => {
   const resolved = resolveProjectId(parsed.value, requestId);
   if (!resolved.ok) return problemResponse(resolved.problem);
 
-  const body: unknown = await request.json();
+  const body: unknown = await request.json().catch(() => ({}));
   return client.scan.create(resolved.projectId, body);
 }, { expectedDuration: '30000ms' });
