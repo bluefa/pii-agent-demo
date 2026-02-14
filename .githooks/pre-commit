@@ -12,13 +12,21 @@ if [[ "${PII_SKIP_QUALITY:-0}" == "1" ]]; then
   exit 0
 fi
 
+# 코드 파일(.ts/.tsx/.js/.jsx/.mjs) 변경 여부 확인
+code_changed=$(git diff --cached --name-only --diff-filter=ACMR | grep -cE '\.(ts|tsx|js|jsx|mjs)$' || true)
+
+if [[ "$code_changed" -eq 0 ]]; then
+  echo "[pre-commit] No code files changed — skipping lint/tsc/build"
+  exit 0
+fi
+
 echo "[pre-commit] Running lint..."
-npm run lint
+npm run lint --quiet 2>&1 | tail -3
 
 echo "[pre-commit] Running type-check..."
-npx tsc --noEmit --pretty false
+npx tsc --noEmit --pretty false 2>&1 | tail -3
 
 echo "[pre-commit] Running build..."
-npm run build
+npm run build 2>&1 | tail -3
 
 echo "[pre-commit] OK"
