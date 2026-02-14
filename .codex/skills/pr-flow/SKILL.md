@@ -36,6 +36,8 @@ bash scripts/pr-flow.sh --base main --strategy squid --title "<title>" --body "<
 ## 규칙
 
 - `scripts/guard-worktree.sh`를 항상 통과해야 합니다.
+- **⛔ PR 생성 전 반드시 `git fetch origin main && git rebase origin/main` 실행** (작업 중 main 진행 대비).
+- rebase 후 `npm run test:run` 재실행하여 통과 확인.
 - 브랜치 시작 시점은 `scripts/create-worktree.sh`를 통해 최신화된 `main` 기준이어야 합니다.
 - 더러운 워킹트리(미커밋 변경)에서는 중단합니다.
 - 기본 실행에서는 PR 생성 후 종료합니다.

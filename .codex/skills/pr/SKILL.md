@@ -12,23 +12,31 @@ user_invocable: true
 
 1. 현재 브랜치가 feature 브랜치인지 확인합니다.
 2. 변경사항이 모두 같은 브랜치에 있는지 확인합니다.
-3. 검증 명령을 실행합니다.
+3. **⛔ 최신 main으로 rebase합니다 (스킵 불가).**
+
+```bash
+git fetch origin main && git rebase origin/main
+```
+  - 충돌 시 해결 후 `git rebase --continue`
+
+4. 검증 명령을 실행합니다.
 
 ```bash
 bash scripts/guard-worktree.sh
 npm run lint
 npx tsc --noEmit
+npm run test:run
 npm run build
 ```
 
-4. 커밋이 없다면 중단하고 사용자에게 알립니다.
-5. 브랜치를 origin으로 push합니다.
-6. PR을 생성합니다.
+5. 커밋이 없다면 중단하고 사용자에게 알립니다.
+6. 브랜치를 origin으로 push합니다 (rebase 후이므로 `--force-with-lease` 허용).
+7. PR을 생성합니다.
   - 제목: 브랜치명 기반 요약
   - 본문: 사람이 검토 가능한 상세 설명(아래 템플릿 필수)
-7. 생성된 PR URL을 사용자에게 보고합니다.
-8. PR 머지는 `/pr-merge` 스킬로 진행합니다.
-9. 생성+머지를 한 번에 자동화하려면 `/pr-flow` 스킬을 사용합니다.
+8. 생성된 PR URL을 사용자에게 보고합니다.
+9. PR 머지는 `/pr-merge` 스킬로 진행합니다.
+10. 생성+머지를 한 번에 자동화하려면 `/pr-flow` 스킬을 사용합니다.
 
 ## PR Description 템플릿 (필수)
 
