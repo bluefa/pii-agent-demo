@@ -10,11 +10,13 @@ description: 새 기능 개발 시 따르는 워크플로우. 기능 구현, API
 코드 수정 전 반드시 실행:
 ```bash
 bash scripts/guard-worktree.sh
-# 차단되면 아래 명령으로 worktree 생성 후 해당 경로에서 작업
+# 차단되면 아래 순서로 worktree 생성
+git fetch origin main && git merge origin/main   # ⛔ 최신 main 필수
 git worktree add ../pii-agent-demo-{name} -b {prefix}/{name}
 # 이후 해당 디렉토리에서 작업 수행
 ```
 - main 브랜치에서 직접 수정 절대 금지
+- **worktree 생성 전 반드시 `git fetch origin main && git merge origin/main` 실행**
 - Prefix: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`, `codex/`
 
 ## 1. 요구사항 확인
@@ -64,4 +66,10 @@ npm run build         # (선택) 빌드 확인
 
 - 기능 개발 또는 문서 업데이트 완료 시 반드시 commit & push 수행
 - 커밋: `<type>: <description>` (feat, fix, refactor, docs, test, chore)
+- **⛔ push 전 반드시 main rebase** (충돌 방지):
+  ```bash
+  git fetch origin main && git rebase origin/main
+  ```
+  - rebase 충돌 시 해결 후 `git rebase --continue`
+  - 테스트 재실행하여 rebase 후에도 통과 확인
 - push 후 필요 시 PR 생성
