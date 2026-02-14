@@ -18,7 +18,7 @@ paths:
         required: true
         description: "연동 대상 소스 고유 ID"
         schema:
-          type: string
+          type: integer
     get:
       summary: Azure 통합 설치 상태 조회
       operationId: getAzureInstallationStatus
@@ -44,7 +44,7 @@ paths:
         required: true
         description: "연동 대상 소스 고유 ID"
         schema:
-          type: string
+          type: integer
     post:
       summary: Azure 통합 설치 상태 새로고침
       operationId: refreshAzureInstallationStatus
@@ -70,7 +70,7 @@ paths:
         required: true
         description: "연동 대상 소스 고유 ID"
         schema:
-          type: string
+          type: integer
     get:
       summary: VM TF Script 다운로드 (Binary)
       operationId: downloadVmTerraformScript
@@ -103,7 +103,7 @@ paths:
         required: true
         description: "연동 대상 소스 고유 ID"
         schema:
-          type: string
+          type: integer
     get:
       summary: 대상 소스별 Azure 설정 조회
       operationId: getAzureTargetSourceSettings

@@ -35,7 +35,7 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const totalPages = Math.ceil(totalElements / size);
 
   // Transform legacy history items → Swagger ScanJob schema
-  const content = data.history.map((item) => {
+  const content = data.history.map((item, idx) => {
     const resourceCountByResourceType: Record<string, number> = {};
     if (item.result?.byResourceType) {
       for (const { resourceType, count } of item.result.byResourceType) {
@@ -44,11 +44,12 @@ export const GET = withV1(async (request, { requestId, params }) => {
     }
 
     return {
-      id: item.scanId,
+      id: Number(item.scanId.replace(/\D/g, '')) || (offset + idx + 1),
       scanStatus: item.status,
       targetSourceId: parsed.value,
       createdAt: item.startedAt,
       updatedAt: item.completedAt,
+      scanVersion: 1,
       durationSeconds: item.duration,
       scanProgress: null,
       resourceCountByResourceType,
