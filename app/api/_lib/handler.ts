@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getRequestId } from '@/app/api/_lib/request-id';
 import { handleUnexpectedError, transformLegacyError } from '@/app/api/_lib/problem';
+import type { SwaggerErrorFormat } from '@/app/api/_lib/problem';
 
 const PROBLEM_JSON = 'application/problem+json';
 
@@ -11,6 +12,7 @@ export interface V1HandlerContext {
 
 interface V1Options {
   expectedDuration?: string;
+  errorFormat?: SwaggerErrorFormat;
 }
 
 type V1Handler = (
@@ -53,20 +55,27 @@ export function withV1(
       const params = await paramsPromise;
       const response = await handler(request, { requestId, params });
 
-      // Already a problem+json response (from problemResponse()) — just add headers
+      // Already a problem+json response (from problemResponse())
       if (isProblemResponse(response)) {
+        // Convert to Swagger error format if requested
+        if (options?.errorFormat) {
+          const { swaggerErrorResponse } = await import('@/app/api/_lib/problem');
+          const problem = await response.json();
+          const converted = swaggerErrorResponse(problem, options.errorFormat);
+          return addV1Headers(converted, requestId, options?.expectedDuration);
+        }
         return addV1Headers(response, requestId, options?.expectedDuration);
       }
 
-      // Non-2xx from legacy client — transform to problem+json
+      // Non-2xx from legacy client — transform to error response
       if (!response.ok) {
-        const problem = await transformLegacyError(response, requestId);
+        const problem = await transformLegacyError(response, requestId, options?.errorFormat);
         return addV1Headers(problem, requestId, options?.expectedDuration);
       }
 
       return addV1Headers(response, requestId, options?.expectedDuration);
     } catch (error) {
-      return handleUnexpectedError(error, requestId);
+      return handleUnexpectedError(error, requestId, options?.errorFormat);
     }
   };
 }

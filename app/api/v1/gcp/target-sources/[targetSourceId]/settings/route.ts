@@ -23,4 +23,4 @@ export const GET = withV1(async (_request, { requestId, params }) => {
     scanServiceAccount: `pii-scan-sa@${gcpProjectId}.iam.gserviceaccount.com`,
     terraformExecutionServiceAccount: `pii-tf-sa@${gcpProjectId}.iam.gserviceaccount.com`,
   });
-});
+}, { errorFormat: 'nested' });
