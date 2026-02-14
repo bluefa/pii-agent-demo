@@ -38,6 +38,7 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-2',
@@ -47,6 +48,7 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
   ],
   terraformState: { bdcTf: 'PENDING' },
@@ -70,6 +72,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-vm-2',
@@ -79,6 +82,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-db-1',
@@ -88,6 +92,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
   ],
   ...overrides,
