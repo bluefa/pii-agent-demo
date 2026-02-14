@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as mockInstallation from '@/lib/mock-installation';
 import type { AwsInstallationMode, VerifyTfRoleRequest } from '@/lib/types';
 
 interface SetInstallationModeBody {
@@ -8,7 +9,7 @@ interface SetInstallationModeBody {
 
 export const mockAws = {
   checkInstallation: async (projectId: string) => {
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -23,12 +24,12 @@ export const mockAws = {
       );
     }
 
-    let result = await dataAdapter.checkInstallation(projectId);
+    let result = await mockInstallation.checkInstallation(projectId);
 
     if (!result) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      await dataAdapter.initializeInstallation(projectId, hasTfPermission);
-      result = await dataAdapter.checkInstallation(projectId);
+      await mockInstallation.initializeInstallation(projectId, hasTfPermission);
+      result = await mockInstallation.checkInstallation(projectId);
     }
 
     return NextResponse.json(result);
@@ -42,7 +43,7 @@ export const mockAws = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -66,11 +67,11 @@ export const mockAws = {
 
     const hasTfPermission = body.mode === 'AUTO';
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       awsInstallationMode: body.mode,
     });
 
-    await dataAdapter.initializeInstallation(projectId, hasTfPermission);
+    await mockInstallation.initializeInstallation(projectId, hasTfPermission);
 
     return NextResponse.json({
       success: true,
@@ -79,7 +80,7 @@ export const mockAws = {
   },
 
   getInstallationStatus: async (projectId: string) => {
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -94,18 +95,18 @@ export const mockAws = {
       );
     }
 
-    let status = await dataAdapter.getInstallationStatus(projectId);
+    let status = await mockInstallation.getInstallationStatus(projectId);
 
     if (!status) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      status = await dataAdapter.initializeInstallation(projectId, hasTfPermission);
+      status = await mockInstallation.initializeInstallation(projectId, hasTfPermission);
     }
 
     return NextResponse.json(status);
   },
 
   getTerraformScript: async (projectId: string) => {
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -120,10 +121,10 @@ export const mockAws = {
       );
     }
 
-    let status = await dataAdapter.getInstallationStatus(projectId);
+    let status = await mockInstallation.getInstallationStatus(projectId);
 
     if (!status) {
-      status = await dataAdapter.initializeInstallation(projectId, false);
+      status = await mockInstallation.initializeInstallation(projectId, false);
     }
 
     if (status.hasTfPermission) {
@@ -133,7 +134,7 @@ export const mockAws = {
       );
     }
 
-    const result = await dataAdapter.getTerraformScript(projectId);
+    const result = await mockInstallation.getTerraformScript(projectId);
 
     if (!result) {
       return NextResponse.json(
@@ -153,7 +154,7 @@ export const mockAws = {
       );
     }
 
-    const result = await dataAdapter.verifyTfRole(body);
+    const result = await mockInstallation.verifyTfRole(body);
     return NextResponse.json(result);
   },
 };

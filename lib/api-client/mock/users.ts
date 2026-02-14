@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
 
 export const mockUsers = {
   search: async (query: string, excludeIds: string[]) => {
-    const allUsers = await dataAdapter.getUsers();
+    const allUsers = mockData.mockUsers;
     let users = allUsers.filter((u) => u.role !== 'ADMIN');
 
     if (excludeIds.length > 0) {
@@ -30,7 +30,7 @@ export const mockUsers = {
   },
 
   getMe: async () => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
 
     if (!user) {
       return NextResponse.json(
@@ -43,7 +43,7 @@ export const mockUsers = {
   },
 
   getServices: async () => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
 
     if (!user) {
       return NextResponse.json(
@@ -52,7 +52,7 @@ export const mockUsers = {
       );
     }
 
-    const allServiceCodes = await dataAdapter.getServiceCodes();
+    const allServiceCodes = mockData.mockServiceCodes;
     const services =
       user.role === 'ADMIN'
         ? allServiceCodes

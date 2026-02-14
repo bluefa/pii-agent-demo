@@ -66,9 +66,9 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 ## 8) API + ADR Guardrails
 
 - `app/api/**` routes must follow `docs/api/**` specs.
-- ADR-005 required:
-  - Do not import `@/lib/mock-*` directly inside API Routes.
-  - Use `@/lib/adapters` (`dataAdapter`) instead.
+- ADR-007 required:
+  - `app/api/route.ts` must only dispatch to `client.method()`.
+  - Mock business logic lives in `lib/api-client/mock/*.ts`.
 - ADR-006 required when touching approval/install/confirmation flows:
   - `docs/adr/006-integration-confirmation-approval-redesign.md`
   - `docs/cloud-provider-states.md`

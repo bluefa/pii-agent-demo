@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as scanFns from '@/lib/mock-scan';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
 
 export const mockScan = {
   get: async (projectId: string, scanId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -12,7 +13,7 @@ export const mockScan = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -27,7 +28,7 @@ export const mockScan = {
       );
     }
 
-    const scan = await dataAdapter.getScanJob(scanId);
+    const scan = await scanFns.getScanJob(scanId);
     if (!scan || scan.projectId !== projectId) {
       return NextResponse.json(
         { error: 'SCAN_NOT_FOUND', message: SCAN_ERROR_CODES.SCAN_NOT_FOUND.message },
@@ -49,7 +50,7 @@ export const mockScan = {
   },
 
   getHistory: async (projectId: string, query: { limit: number; offset: number }) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -57,7 +58,7 @@ export const mockScan = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -72,7 +73,7 @@ export const mockScan = {
       );
     }
 
-    const { history, total } = await dataAdapter.getScanHistory(projectId, query.limit, query.offset);
+    const { history, total } = await scanFns.getScanHistory(projectId, query.limit, query.offset);
 
     return NextResponse.json({
       history: history.map((h) => ({
@@ -89,7 +90,7 @@ export const mockScan = {
   },
 
   create: async (projectId: string, body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -97,7 +98,7 @@ export const mockScan = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -115,7 +116,7 @@ export const mockScan = {
     const typedBody = (body ?? {}) as { force?: boolean };
     const force = typedBody.force === true;
 
-    const validation = await dataAdapter.validateScanRequest(project, force);
+    const validation = await scanFns.validateScanRequest(project, force);
     if (!validation.valid) {
       const response: Record<string, unknown> = {
         error: validation.errorCode,
@@ -127,7 +128,7 @@ export const mockScan = {
       return NextResponse.json(response, { status: validation.httpStatus });
     }
 
-    const scanJob = await dataAdapter.createScanJob(project);
+    const scanJob = await scanFns.createScanJob(project);
 
     const estimatedDuration = Math.ceil(
       (new Date(scanJob.estimatedEndAt).getTime() - new Date(scanJob.startedAt).getTime()) / 1000
@@ -145,7 +146,7 @@ export const mockScan = {
   },
 
   getStatus: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
@@ -153,7 +154,7 @@ export const mockScan = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -168,13 +169,13 @@ export const mockScan = {
       );
     }
 
-    const activeScan = await dataAdapter.getLatestScanForProject(projectId);
+    const activeScan = await scanFns.getLatestScanForProject(projectId);
 
     let currentScan = null;
     let isScanning = false;
 
     if (activeScan) {
-      const updated = await dataAdapter.calculateScanStatus(activeScan);
+      const updated = await scanFns.calculateScanStatus(activeScan);
       if (updated.status === 'PENDING' || updated.status === 'IN_PROGRESS') {
         isScanning = true;
         currentScan = {
@@ -186,14 +187,14 @@ export const mockScan = {
       }
     }
 
-    const { history } = await dataAdapter.getScanHistory(projectId, 1, 0);
+    const { history } = await scanFns.getScanHistory(projectId, 1, 0);
     const lastCompletedScan = history.length > 0 ? {
       scanId: history[0].scanId,
       completedAt: history[0].completedAt,
       result: history[0].result,
     } : null;
 
-    const scanability = await dataAdapter.canScan(project);
+    const scanability = await scanFns.canScan(project);
 
     return NextResponse.json({
       isScanning,

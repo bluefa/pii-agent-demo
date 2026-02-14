@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as mockServiceSettings from '@/lib/mock-service-settings';
+import * as azureFns from '@/lib/mock-azure';
+import * as gcpFns from '@/lib/mock-gcp';
+import * as idcFns from '@/lib/mock-idc';
 import { ProcessStatus } from '@/lib/types';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 import { GCP_ERROR_CODES } from '@/lib/constants/gcp';
@@ -10,7 +14,7 @@ import type { UpdateIdcSettingsRequest } from '@/lib/types/idc';
 export const mockServices = {
   permissions: {
     list: async (serviceCode: string) => {
-      const user = await dataAdapter.getCurrentUser();
+      const user = await mockData.getCurrentUser();
 
       if (!user || user.role !== 'ADMIN') {
         return NextResponse.json(
@@ -19,7 +23,7 @@ export const mockServices = {
         );
       }
 
-      const allUsers = await dataAdapter.getUsers();
+      const allUsers = mockData.mockUsers;
       const usersWithPermission = allUsers
         .filter((u) => u.serviceCodePermissions.includes(serviceCode))
         .map((u) => ({
@@ -32,7 +36,7 @@ export const mockServices = {
     },
 
     add: async (serviceCode: string, body: unknown) => {
-      const user = await dataAdapter.getCurrentUser();
+      const user = await mockData.getCurrentUser();
 
       if (!user || user.role !== 'ADMIN') {
         return NextResponse.json(
@@ -41,7 +45,7 @@ export const mockServices = {
         );
       }
 
-      if (!(await dataAdapter.getServiceCodeByCode(serviceCode))) {
+      if (!(mockData.mockServiceCodes.find((s) => s.code === serviceCode))) {
         return NextResponse.json(
           { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
           { status: 404 }
@@ -50,7 +54,7 @@ export const mockServices = {
 
       const { userId } = (body ?? {}) as { userId: string };
 
-      const allUsers = await dataAdapter.getUsers();
+      const allUsers = mockData.mockUsers;
       const targetUser = allUsers.find((u) => u.id === userId);
 
       if (!targetUser) {
@@ -76,7 +80,7 @@ export const mockServices = {
     },
 
     remove: async (serviceCode: string, userId: string) => {
-      const user = await dataAdapter.getCurrentUser();
+      const user = await mockData.getCurrentUser();
 
       if (!user || user.role !== 'ADMIN') {
         return NextResponse.json(
@@ -85,7 +89,7 @@ export const mockServices = {
         );
       }
 
-      const allUsers = await dataAdapter.getUsers();
+      const allUsers = mockData.mockUsers;
       const targetUser = allUsers.find((u) => u.id === userId);
 
       if (!targetUser) {
@@ -112,7 +116,7 @@ export const mockServices = {
 
   projects: {
     list: async (serviceCode: string) => {
-      const user = await dataAdapter.getCurrentUser();
+      const user = await mockData.getCurrentUser();
 
       if (!user) {
         return NextResponse.json(
@@ -128,7 +132,7 @@ export const mockServices = {
         );
       }
 
-      const projects = (await dataAdapter.getProjectsByServiceCode(serviceCode)).map((p) => {
+      const projects = (await mockData.getProjectsByServiceCode(serviceCode)).map((p) => {
         const isIntegrated = p.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
         return {
@@ -149,7 +153,7 @@ export const mockServices = {
     aws: {
       get: async (serviceCode: string) => {
         try {
-          const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+          const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
 
           if (!service) {
             return NextResponse.json(
@@ -158,7 +162,7 @@ export const mockServices = {
             );
           }
 
-          const settings = await dataAdapter.getAwsServiceSettings(serviceCode);
+          const settings = await mockServiceSettings.getAwsServiceSettings(serviceCode);
           return NextResponse.json(settings);
         } catch {
           return NextResponse.json(
@@ -170,7 +174,7 @@ export const mockServices = {
 
       update: async (serviceCode: string, body: unknown) => {
         try {
-          const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+          const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
 
           if (!service) {
             return NextResponse.json(
@@ -188,7 +192,7 @@ export const mockServices = {
             );
           }
 
-          const result = await dataAdapter.updateAwsServiceSettings(serviceCode, typedBody);
+          const result = await mockServiceSettings.updateAwsServiceSettings(serviceCode, typedBody);
           return NextResponse.json(result);
         } catch {
           return NextResponse.json(
@@ -200,7 +204,7 @@ export const mockServices = {
 
       verifyScanRole: async (serviceCode: string) => {
         try {
-          const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+          const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
 
           if (!service) {
             return NextResponse.json(
@@ -209,7 +213,7 @@ export const mockServices = {
             );
           }
 
-          const result = await dataAdapter.verifyScanRole(serviceCode);
+          const result = await mockServiceSettings.verifyScanRole(serviceCode);
           return NextResponse.json(result);
         } catch {
           return NextResponse.json(
@@ -222,7 +226,7 @@ export const mockServices = {
 
     azure: {
       get: async (serviceCode: string) => {
-        const user = await dataAdapter.getCurrentUser();
+        const user = await mockData.getCurrentUser();
         if (!user) {
           return NextResponse.json(
             { error: AZURE_ERROR_CODES.UNAUTHORIZED.code, message: AZURE_ERROR_CODES.UNAUTHORIZED.message },
@@ -230,7 +234,7 @@ export const mockServices = {
           );
         }
 
-        const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+        const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
         if (!service) {
           return NextResponse.json(
             { error: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.code, message: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -245,7 +249,7 @@ export const mockServices = {
           );
         }
 
-        const result = await dataAdapter.getAzureServiceSettings(serviceCode);
+        const result = await azureFns.getAzureServiceSettings(serviceCode);
 
         if (result.error) {
           return NextResponse.json(
@@ -260,7 +264,7 @@ export const mockServices = {
 
     gcp: {
       get: async (serviceCode: string) => {
-        const user = await dataAdapter.getCurrentUser();
+        const user = await mockData.getCurrentUser();
         if (!user) {
           return NextResponse.json(
             { error: GCP_ERROR_CODES.UNAUTHORIZED.code, message: GCP_ERROR_CODES.UNAUTHORIZED.message },
@@ -268,7 +272,7 @@ export const mockServices = {
           );
         }
 
-        const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+        const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
         if (!service) {
           return NextResponse.json(
             { error: GCP_ERROR_CODES.SERVICE_NOT_FOUND.code, message: GCP_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -283,7 +287,7 @@ export const mockServices = {
           );
         }
 
-        const result = await dataAdapter.getGcpServiceSettings(serviceCode);
+        const result = await gcpFns.getGcpServiceSettings(serviceCode);
 
         if (result.error) {
           return NextResponse.json(
@@ -298,7 +302,7 @@ export const mockServices = {
 
     idc: {
       get: async (serviceCode: string) => {
-        const user = await dataAdapter.getCurrentUser();
+        const user = await mockData.getCurrentUser();
         if (!user) {
           return NextResponse.json(
             { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -306,7 +310,7 @@ export const mockServices = {
           );
         }
 
-        const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+        const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
         if (!service) {
           return NextResponse.json(
             { error: IDC_ERROR_CODES.SERVICE_NOT_FOUND.code, message: IDC_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -321,7 +325,7 @@ export const mockServices = {
           );
         }
 
-        const result = await dataAdapter.getIdcServiceSettings(serviceCode);
+        const result = await idcFns.getIdcServiceSettings(serviceCode);
 
         if (result.error) {
           return NextResponse.json(
@@ -334,7 +338,7 @@ export const mockServices = {
       },
 
       update: async (serviceCode: string, body: unknown) => {
-        const user = await dataAdapter.getCurrentUser();
+        const user = await mockData.getCurrentUser();
         if (!user) {
           return NextResponse.json(
             { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -342,7 +346,7 @@ export const mockServices = {
           );
         }
 
-        const service = await dataAdapter.getServiceCodeByCode(serviceCode);
+        const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
         if (!service) {
           return NextResponse.json(
             { error: IDC_ERROR_CODES.SERVICE_NOT_FOUND.code, message: IDC_ERROR_CODES.SERVICE_NOT_FOUND.message },
@@ -366,7 +370,7 @@ export const mockServices = {
           );
         }
 
-        const result = await dataAdapter.updateIdcServiceSettings(serviceCode, typedBody.firewallPrepared);
+        const result = await idcFns.updateIdcServiceSettings(serviceCode, typedBody.firewallPrepared);
 
         if (result.error) {
           return NextResponse.json(

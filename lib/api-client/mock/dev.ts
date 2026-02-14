@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
 
 export const mockDev = {
   getUsers: async () => {
-    const currentUser = await dataAdapter.getCurrentUser();
-    const allUsers = await dataAdapter.getUsers();
+    const currentUser = await mockData.getCurrentUser();
+    const allUsers = mockData.mockUsers;
 
     return NextResponse.json({
       currentUser: currentUser
@@ -22,7 +22,7 @@ export const mockDev = {
   switchUser: async (body: unknown) => {
     const { userId } = (body ?? {}) as { userId: string };
 
-    const allUsers = await dataAdapter.getUsers();
+    const allUsers = mockData.mockUsers;
     const user = allUsers.find((u) => u.id === userId);
 
     if (!user) {
@@ -32,7 +32,7 @@ export const mockDev = {
       );
     }
 
-    await dataAdapter.setCurrentUser(userId);
+    await mockData.setCurrentUser(userId);
 
     return NextResponse.json({
       success: true,

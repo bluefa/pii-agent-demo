@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as mockHistory from '@/lib/mock-history';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep, createInitialProjectStatus } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
@@ -60,7 +61,7 @@ const awsTypeToDatabaseType = (awsType: AwsResourceType): DatabaseType => {
 
 export const mockProjects = {
   get: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -68,7 +69,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -87,7 +88,7 @@ export const mockProjects = {
   },
 
   delete: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: '관리자만 과제를 삭제할 수 있습니다.' },
@@ -95,7 +96,7 @@ export const mockProjects = {
       );
     }
 
-    const success = await dataAdapter.deleteProject(projectId);
+    const success = mockData.deleteProject(projectId);
     if (!success) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -107,7 +108,7 @@ export const mockProjects = {
   },
 
   approve: async (projectId: string, body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: '관리자만 승인할 수 있습니다.' },
@@ -115,7 +116,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -155,7 +156,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(projectId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -167,13 +168,13 @@ export const mockProjects = {
       approvedAt: now,
     });
 
-    await dataAdapter.addApprovalHistory(projectId, { id: user.id, name: user.name });
+    mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
 
     return NextResponse.json({ success: true, project: updatedProject });
   },
 
   create: async (body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: '관리자만 과제를 등록할 수 있습니다.' },
@@ -217,7 +218,7 @@ export const mockProjects = {
       );
     }
 
-    if (!(await dataAdapter.getServiceCodeByCode(serviceCode))) {
+    if (!mockData.mockServiceCodes.find((s) => s.code === serviceCode)) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
         { status: 400 }
@@ -227,7 +228,7 @@ export const mockProjects = {
     const now = new Date().toISOString();
     const initialStatus = createInitialProjectStatus();
     const newProject: Project = {
-      id: await dataAdapter.generateId('proj'),
+      id: mockData.generateId('proj'),
       projectCode,
       serviceCode,
       cloudProvider,
@@ -249,13 +250,13 @@ export const mockProjects = {
       ...(gcpProjectId && { gcpProjectId }),
     };
 
-    await dataAdapter.addProject(newProject);
+    mockData.addProject(newProject);
 
     return NextResponse.json({ project: newProject }, { status: 201 });
   },
 
   completeInstallation: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -263,7 +264,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -304,7 +305,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(projectId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -315,7 +316,7 @@ export const mockProjects = {
   },
 
   confirmCompletion: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -330,7 +331,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -358,7 +359,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(projectId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       completionConfirmedAt: now,
@@ -370,7 +371,7 @@ export const mockProjects = {
   },
 
   confirmPiiAgent: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: '관리자만 설치 확정할 수 있습니다.' },
@@ -378,7 +379,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -415,7 +416,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(projectId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -426,7 +427,7 @@ export const mockProjects = {
   },
 
   confirmTargets: async (projectId: string, body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -434,7 +435,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -542,16 +543,16 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       resources: updatedResources,
       status: updatedStatus,
       processStatus: calculatedProcessStatus,
     });
 
-    await dataAdapter.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
+    await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
 
     if (autoApprovalResult.shouldAutoApprove) {
-      await dataAdapter.addAutoApprovedHistory(projectId);
+      await mockHistory.addAutoApprovedHistory(projectId);
     }
 
     return NextResponse.json({
@@ -562,7 +563,7 @@ export const mockProjects = {
   },
 
   credentials: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -570,7 +571,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -585,13 +586,13 @@ export const mockProjects = {
       );
     }
 
-    const credentials = await dataAdapter.getCredentials();
+    const credentials = await mockData.getCredentials();
 
     return NextResponse.json({ credentials });
   },
 
   history: async (projectId: string, query: { type: string; limit: string; offset: string }) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: HISTORY_ERROR_CODES.UNAUTHORIZED.message },
@@ -599,7 +600,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: HISTORY_ERROR_CODES.NOT_FOUND.message },
@@ -628,7 +629,7 @@ export const mockProjects = {
     const limit = Math.min(Math.max(1, limitParam), MAX_HISTORY_LIMIT);
     const offset = Math.max(0, offsetParam);
 
-    const { history, total } = await dataAdapter.getProjectHistory({
+    const { history, total } = await mockHistory.getProjectHistory({
       projectId,
       type: typeParam as HistoryFilterType,
       limit,
@@ -648,7 +649,7 @@ export const mockProjects = {
   },
 
   reject: async (projectId: string, body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: '관리자만 반려할 수 있습니다.' },
@@ -656,7 +657,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -701,7 +702,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -710,13 +711,13 @@ export const mockProjects = {
       rejectedAt: now,
     });
 
-    await dataAdapter.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+    await mockHistory.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
 
     return NextResponse.json({ success: true, project: updatedProject, reason });
   },
 
   resourceCredential: async (projectId: string, body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -724,7 +725,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -765,7 +766,7 @@ export const mockProjects = {
       };
     });
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       resources: updatedResources,
     });
 
@@ -776,7 +777,7 @@ export const mockProjects = {
   },
 
   resourceExclusions: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -784,7 +785,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -817,7 +818,7 @@ export const mockProjects = {
   },
 
   resources: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -825,7 +826,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -844,7 +845,7 @@ export const mockProjects = {
   },
 
   scan: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -852,7 +853,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -906,7 +907,7 @@ export const mockProjects = {
       };
 
       const newResource = {
-        id: await dataAdapter.generateId('res'),
+        id: await mockData.generateId('res'),
         type: awsType,
         resourceId: makeArn(),
         databaseType: awsTypeToDatabaseType(awsType),
@@ -924,7 +925,7 @@ export const mockProjects = {
       newResourcesFound = 1;
     }
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       resources: updatedResources,
     });
 
@@ -936,7 +937,7 @@ export const mockProjects = {
   },
 
   terraformStatus: async (projectId: string) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -944,7 +945,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -963,7 +964,7 @@ export const mockProjects = {
   },
 
   testConnection: async (projectId: string, body: unknown) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -971,7 +972,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await dataAdapter.getProjectById(projectId);
+    const project = await mockData.getProjectById(projectId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1006,8 +1007,8 @@ export const mockProjects = {
 
     const results: ConnectionTestResult[] = await Promise.all(selectedResources.map(async (r) => {
       const credentialId = credentialMap.get(r.id);
-      const credential = credentialId ? await dataAdapter.getCredentialById(credentialId) : undefined;
-      return dataAdapter.simulateConnectionTest(
+      const credential = credentialId ? await mockData.getCredentialById(credentialId) : undefined;
+      return mockData.simulateConnectionTest(
         r.resourceId,
         r.type,
         r.databaseType,
@@ -1021,7 +1022,7 @@ export const mockProjects = {
     const allSuccess = failCount === 0;
 
     const historyEntry: ConnectionTestHistory = {
-      id: await dataAdapter.generateId('history'),
+      id: await mockData.generateId('history'),
       executedAt: new Date().toISOString(),
       status: allSuccess ? 'SUCCESS' : 'FAIL',
       successCount,
@@ -1087,7 +1088,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       resources: updatedResources,
       connectionTestHistory: updatedHistory,
       status: updatedStatus,
