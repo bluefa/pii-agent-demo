@@ -28,11 +28,14 @@ export const useCooldownTimer = (cooldownUntil: string | undefined, onCooldownEn
   });
 
   const onCooldownEndRef = useRef(onCooldownEnd);
-  onCooldownEndRef.current = onCooldownEnd;
+
+  useEffect(() => {
+    onCooldownEndRef.current = onCooldownEnd;
+  }, [onCooldownEnd]);
 
   useEffect(() => {
     if (!cooldownUntil) {
-      setRemainingMs(0);
+      queueMicrotask(() => setRemainingMs(0));
       return;
     }
 
