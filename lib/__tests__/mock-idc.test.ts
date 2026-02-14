@@ -10,14 +10,23 @@ import {
 } from '@/lib/mock-idc';
 import { getStore } from '@/lib/mock-store';
 import { Project, ProcessStatus } from '@/lib/types';
+import { createInitialProjectStatus } from '@/lib/process';
 
 // 테스트용 IDC 프로젝트 생성 헬퍼
 const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
   id: 'idc-test-project',
+  targetSourceId: 9001,
   projectCode: 'IDC-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'IDC',
   processStatus: ProcessStatus.INSTALLING,
+  status: {
+    ...createInitialProjectStatus(),
+    scan: { status: 'COMPLETED' },
+    targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+    approval: { status: 'APPROVED' },
+    installation: { status: 'IN_PROGRESS' },
+  },
   resources: [
     {
       id: 'res-1',
@@ -27,6 +36,7 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
     {
       id: 'res-2',
@@ -36,6 +46,7 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
+      integrationCategory: 'TARGET',
     },
   ],
   terraformState: { bdcTf: 'PENDING' },
@@ -49,10 +60,18 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
 
 const createAwsProject = (): Project => ({
   id: 'aws-test-project',
+  targetSourceId: 9002,
   projectCode: 'AWS-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',
   processStatus: ProcessStatus.INSTALLING,
+  status: {
+    ...createInitialProjectStatus(),
+    scan: { status: 'COMPLETED' },
+    targets: { confirmed: true, selectedCount: 0, excludedCount: 0 },
+    approval: { status: 'APPROVED' },
+    installation: { status: 'IN_PROGRESS' },
+  },
   resources: [],
   terraformState: { bdcTf: 'PENDING' },
   createdAt: new Date().toISOString(),

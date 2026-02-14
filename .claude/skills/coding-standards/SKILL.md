@@ -129,19 +129,24 @@ return (
 
 ## 8. API Routes
 
-- BFF 명세(`docs/api/`) 준수
+- API Spec 단일 소스: Swagger(`docs/swagger/*.yaml`) 준수
 - "mock" 용어 금지 (`lib/mock-*.ts` 예외)
-- **`app/api/`에서 `@/lib/mock-*` 직접 import 금지** → `@/lib/adapters`의 `dataAdapter` 사용 (ADR-005)
-- 새 데이터 접근 필요 시: `DataAdapter` 인터페이스 → mock-adapter → bff-adapter 순서로 추가
+- `app/api/route.ts`는 `client.method()` 디스패치만 수행 (ADR-007)
+- Mock 비즈니스 로직은 `lib/api-client/mock/*.ts`에 위치
+- `lib/adapters/`는 삭제됨 (ADR-005 → Superseded by ADR-007)
+- Swagger 신규/수정 시 사용자 확인 전 확정 반영 금지
+- 각 endpoint는 Error 코드/에러 응답 스키마를 반드시 선언
+- 각 endpoint는 실행시간 메타데이터(`x-expected-duration`)를 반드시 선언
+- Error 코드 또는 `x-expected-duration` 누락 발견 시 즉시 경고 후 보완
 
 ```typescript
 // ❌ Bad — mock 직접 import
 import { getProjectById } from '@/lib/mock-data';
 const project = getProjectById(id);
 
-// ✅ Good — dataAdapter 사용
-import { dataAdapter } from '@/lib/adapters';
-const project = await dataAdapter.getProjectById(id);
+// ✅ Good — client 디스패치
+import { client } from '@/lib/api-client';
+const project = await client.projects.get(id);
 ```
 
 ## 9. 금지 패턴

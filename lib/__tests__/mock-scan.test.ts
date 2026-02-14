@@ -17,6 +17,7 @@ import { createInitialProjectStatus } from '@/lib/process';
 // 테스트용 프로젝트 생성 헬퍼
 const createTestProject = (overrides: Partial<Project> = {}): Project => ({
   id: 'test-project-1',
+  targetSourceId: 9001,
   projectCode: 'TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',
@@ -92,6 +93,7 @@ describe('mock-scan', () => {
             connectionStatus: 'PENDING' as const,
             isSelected: false,
             lifecycleStatus: 'DISCOVERED' as const,
+            integrationCategory: 'TARGET' as const,
           })),
         });
         const result = validateScanRequest(project);
@@ -108,6 +110,7 @@ describe('mock-scan', () => {
             connectionStatus: 'PENDING' as const,
             isSelected: false,
             lifecycleStatus: 'DISCOVERED' as const,
+            integrationCategory: 'TARGET' as const,
           })),
         });
         const result = validateScanRequest(project);
@@ -344,6 +347,7 @@ describe('mock-scan', () => {
           connectionStatus: 'PENDING' as const,
           isSelected: false,
           lifecycleStatus: 'DISCOVERED' as const,
+          integrationCategory: 'TARGET' as const,
         })),
       });
       const result = canScan(project);
