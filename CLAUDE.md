@@ -30,10 +30,11 @@ Next.js 14 (App Router) · TypeScript · TailwindCSS · Desktop only · 한국�
 
 ## Git Workflow
 
+- main 직접 push 금지
+- `bash scripts/create-worktree.sh --topic {name} --prefix {prefix}`
 - Prefix: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`
-- **⛔ worktree 생성 전**: `git fetch origin main && git merge origin/main` 필수
 - **⛔ push/PR 전**: `git fetch origin main && git rebase origin/main` 필수
-- 기능 완료 시 commit & rebase & push → PR 생성
+- **개발 완료 즉시 commit & rebase & push** — 사용자 확인 대기 없이 바로 수행
 - PR Merge 이전 문서화 필수
 
 ## Reference Docs
