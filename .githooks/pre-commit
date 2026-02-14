@@ -26,6 +26,9 @@ npm run lint --quiet 2>&1 | tail -3
 echo "[pre-commit] Running type-check..."
 npx tsc --noEmit --pretty false 2>&1 | tail -3
 
+echo "[pre-commit] Running tests..."
+npm run test:run
+
 echo "[pre-commit] Running build..."
 npm run build 2>&1 | tail -3
 

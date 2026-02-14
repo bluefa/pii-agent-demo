@@ -45,7 +45,7 @@ export const ConnectionTestPanel = ({
   // 미설정 리소스가 없어지면 History 탭으로 전환
   useEffect(() => {
     if (missingCredentialResources.length === 0 && connectionTab === 'missing') {
-      setConnectionTab('history');
+      queueMicrotask(() => setConnectionTab('history'));
     }
   }, [missingCredentialResources.length, connectionTab]);
 

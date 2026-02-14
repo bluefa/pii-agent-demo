@@ -37,30 +37,32 @@ export const Tooltip = ({
       const container = containerRef.current.getBoundingClientRect();
       const padding = 16; // 화면 가장자리 여백
 
-      // 상하 위치 조정
-      if (position === 'top' && container.top - tooltip.height < padding) {
-        setActualPosition('bottom');
-      } else if (position === 'bottom' && container.bottom + tooltip.height > window.innerHeight - padding) {
-        setActualPosition('top');
-      } else {
-        setActualPosition(position);
-      }
-
-      // 좌우 잘림 방지 (top/bottom 포지션일 때)
-      if (position === 'top' || position === 'bottom') {
-        const tooltipLeft = container.left + container.width / 2 - tooltip.width / 2;
-        const tooltipRight = tooltipLeft + tooltip.width;
-
-        if (tooltipLeft < padding) {
-          // 왼쪽으로 잘림 → 오른쪽으로 이동
-          setHorizontalOffset(padding - tooltipLeft);
-        } else if (tooltipRight > window.innerWidth - padding) {
-          // 오른쪽으로 잘림 → 왼쪽으로 이동
-          setHorizontalOffset(window.innerWidth - padding - tooltipRight);
+      queueMicrotask(() => {
+        // 상하 위치 조정
+        if (position === 'top' && container.top - tooltip.height < padding) {
+          setActualPosition('bottom');
+        } else if (position === 'bottom' && container.bottom + tooltip.height > window.innerHeight - padding) {
+          setActualPosition('top');
         } else {
-          setHorizontalOffset(0);
+          setActualPosition(position);
         }
-      }
+
+        // 좌우 잘림 방지 (top/bottom 포지션일 때)
+        if (position === 'top' || position === 'bottom') {
+          const tooltipLeft = container.left + container.width / 2 - tooltip.width / 2;
+          const tooltipRight = tooltipLeft + tooltip.width;
+
+          if (tooltipLeft < padding) {
+            // 왼쪽으로 잘림 → 오른쪽으로 이동
+            setHorizontalOffset(padding - tooltipLeft);
+          } else if (tooltipRight > window.innerWidth - padding) {
+            // 오른쪽으로 잘림 → 왼쪽으로 이동
+            setHorizontalOffset(window.innerWidth - padding - tooltipRight);
+          } else {
+            setHorizontalOffset(0);
+          }
+        }
+      });
     }
   }, [isVisible, position]);
 

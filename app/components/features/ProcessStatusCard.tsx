@@ -208,7 +208,11 @@ export const ProcessStatusCard = ({
 
                 {currentStep === ProcessStatus.INSTALLING && (
                   project.cloudProvider === 'Azure' ? (
-                    <AzureInstallationInline projectId={project.id} resources={project.resources} />
+                    <AzureInstallationInline
+                      projectId={project.id}
+                      resources={project.resources}
+                      onInstallComplete={handleInstallComplete}
+                    />
                   ) : project.cloudProvider === 'AWS' ? (
                     <AwsInstallationInline
                       projectId={project.id}
