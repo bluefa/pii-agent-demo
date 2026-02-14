@@ -86,9 +86,9 @@ lib/api-client/
 
 ### ADR-005와의 관계
 
-- ADR-005의 `dataAdapter`는 mockClient 내부에서 계속 사용된다.
-- `bff-adapter.ts`의 스텁 메서드들은 `bffClient`의 프록시로 대체된다 (Phase 3).
-- ADR-005는 데이터 레벨, ADR-007은 API 핸들러 레벨의 추상화이다.
+- ADR-005 (`lib/adapters/`)는 ADR-007 도입 후 완전 제거됨 (Superseded).
+- mockClient가 `lib/mock-*.ts`를 직접 import하여 이중 추상화 해소.
+- `bff-adapter.ts`의 스텁 메서드들은 `bffClient`의 HTTP 프록시로 대체.
 
 ## 결과
 
