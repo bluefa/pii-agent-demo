@@ -115,9 +115,9 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 
 ## 11) Automation Policy
 
-- Routine PR operations should run without interactive confirmation:
+- Routine PR operations should run without interactive confirmation for creation only:
   - push branch
   - create PR
-  - merge PR (default strategy: `squid`=`squash`)
-  - delete merged remote branch
-- Use `.codex/skills/pr-flow/SKILL.md` for one-shot execution.
+- Never merge unless the user explicitly requests merge in the current thread.
+- For merge, require explicit user command and run merge as a separate step (`/pr-merge` or `/pr-flow --merge-approved`).
+- Use `.codex/skills/pr-flow/SKILL.md` for PR creation-first execution.
