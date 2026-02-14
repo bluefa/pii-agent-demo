@@ -29,8 +29,8 @@ export default async function ApiDocsHubPage({ searchParams }: PageProps) {
 
         <section className="overflow-hidden rounded border bg-white">
           <iframe
-            title={`redoc-${selectedSpec}`}
-            src={`/api-docs/${selectedSpec}`}
+            title={`swagger-${selectedSpec}`}
+            src={`/${selectedSpec}`}
             className="h-[calc(100vh-2rem)] w-full border-0"
           />
         </section>

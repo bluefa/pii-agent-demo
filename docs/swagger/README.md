@@ -24,9 +24,9 @@
 
 `npm run dev` 실행 후 아래 경로에서 확인할 수 있습니다.
 
-- 통합 문서 허브(ReDoc, one-page): `/api-docs`  
+- 통합 문서 허브(Swagger UI, one-page): `/api-docs`  
   예: `http://localhost:3001/api-docs`
-- 개별 문서(ReDoc): `/api-docs/{spec}`  
+- 개별 문서(Swagger UI): `/api-docs/{spec}`  
   예: `http://localhost:3001/api-docs/aws`
 - 기존 Swagger UI(개별): `/{spec}`  
   예: `http://localhost:3001/aws`

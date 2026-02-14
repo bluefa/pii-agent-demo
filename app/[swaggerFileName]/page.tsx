@@ -7,13 +7,44 @@ interface PageProps {
   params: Promise<{ swaggerFileName: string }>;
 }
 
-const createSwaggerInitScript = (specUrl: string) => `(() => {
+const SWAGGER_CUSTOM_CSS = `
+.swagger-ui {
+  background: #ffffff;
+  color: #111827;
+}
+
+.swagger-ui .scheme-container {
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.swagger-ui .opblock-tag {
+  color: #111827;
+}
+
+.swagger-ui .model-box,
+.swagger-ui .highlight-code,
+.swagger-ui .microlight,
+.swagger-ui .highlight-code pre,
+.swagger-ui pre.microlight,
+.swagger-ui .highlight-code .hljs {
+  background: #000000 !important;
+  color: #f8fafc !important;
+}
+`;
+
+const createSwaggerInitScript = (specUrl: string, customCss: string) => `(() => {
   const mount = () => {
     if (!window.SwaggerUIBundle || !window.SwaggerUIStandalonePreset) return;
     window.SwaggerUIBundle({
       url: '${specUrl}',
       dom_id: '#swagger-ui',
       deepLinking: true,
+      docExpansion: 'full',
+      showExtensions: true,
+      showCommonExtensions: true,
+      displayRequestDuration: true,
+      customCss: ${JSON.stringify(customCss)},
       presets: [
         window.SwaggerUIBundle.presets.apis,
         window.SwaggerUIStandalonePreset
@@ -70,7 +101,7 @@ export default async function SwaggerPreviewPage({ params }: PageProps) {
       <Script
         id={`swagger-ui-init-${specName}`}
         strategy="afterInteractive"
-        dangerouslySetInnerHTML={{ __html: createSwaggerInitScript(specUrl) }}
+        dangerouslySetInnerHTML={{ __html: createSwaggerInitScript(specUrl, SWAGGER_CUSTOM_CSS) }}
       />
 
       <div id="swagger-ui" className="min-h-screen" />
