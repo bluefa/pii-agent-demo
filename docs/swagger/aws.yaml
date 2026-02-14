@@ -167,7 +167,7 @@ components:
       required: true
       description: "타겟 소스 고유 식별자"
       schema:
-        type: string
+        type: integer
 
   schemas:
     AwsInstallationStatus:

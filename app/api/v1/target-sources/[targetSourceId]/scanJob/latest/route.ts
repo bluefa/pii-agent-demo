@@ -3,7 +3,18 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { client } from '@/lib/api-client';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { createProblem, problemResponse } from '@/app/api/_lib/problem';
-import type { ScanStatus } from '@/lib/types';
+import type { ScanStatus, ScanResult, ResourceType } from '@/lib/types';
+
+function extractResourceCounts(result: unknown): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const r = result as ScanResult | null;
+  if (r?.byResourceType) {
+    for (const { resourceType, count } of r.byResourceType) {
+      counts[resourceType as ResourceType] = count;
+    }
+  }
+  return counts;
+}
 
 export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
@@ -23,23 +34,31 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   if (status.currentScan) {
     return NextResponse.json({
-      id: status.currentScan.scanId,
+      id: Number(status.currentScan.scanId.replace(/\D/g, '')) || 1,
       scanStatus: status.currentScan.status,
       targetSourceId: parsed.value,
       createdAt: status.currentScan.startedAt,
       updatedAt: status.currentScan.startedAt,
+      scanVersion: 1,
       scanProgress: status.currentScan.progress,
+      durationSeconds: 0,
+      resourceCountByResourceType: {},
+      scanError: null,
     });
   }
 
   if (status.lastCompletedScan) {
     return NextResponse.json({
-      id: status.lastCompletedScan.scanId,
+      id: Number(status.lastCompletedScan.scanId.replace(/\D/g, '')) || 1,
       scanStatus: status.lastCompletedScan.status,
       targetSourceId: parsed.value,
       createdAt: status.lastCompletedScan.completedAt,
       updatedAt: status.lastCompletedScan.completedAt,
+      scanVersion: 1,
       scanProgress: null,
+      durationSeconds: 0,
+      resourceCountByResourceType: extractResourceCounts(status.lastCompletedScan.result),
+      scanError: null,
     });
   }
 

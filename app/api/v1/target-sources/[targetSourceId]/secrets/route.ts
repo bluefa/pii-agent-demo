@@ -14,6 +14,15 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const response = await client.projects.credentials(resolved.projectId);
   if (!response.ok) return response;
 
-  const data = (await response.json()) as { credentials: unknown[] };
-  return NextResponse.json(data.credentials);
+  const data = (await response.json()) as {
+    credentials: Array<{ name: string; databaseType?: string; createdAt: string }>;
+  };
+
+  const secretKeys = data.credentials.map((c) => ({
+    name: c.name,
+    createTimeStr: c.createdAt,
+    ...(c.databaseType && { labels: { databaseType: c.databaseType } }),
+  }));
+
+  return NextResponse.json(secretKeys);
 });
