@@ -15,6 +15,7 @@ import { createInitialProjectStatus } from '@/lib/process';
 // 테스트용 IDC 프로젝트 생성 헬퍼
 const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
   id: 'idc-test-project',
+  targetSourceId: 9001,
   projectCode: 'IDC-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'IDC',
@@ -59,6 +60,7 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
 
 const createAwsProject = (): Project => ({
   id: 'aws-test-project',
+  targetSourceId: 9002,
   projectCode: 'AWS-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',
