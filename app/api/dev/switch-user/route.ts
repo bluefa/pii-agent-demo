@@ -1,41 +1,10 @@
-import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import { client } from '@/lib/api-client';
 
-export async function GET() {
-  const currentUser = await dataAdapter.getCurrentUser();
-  const allUsers = await dataAdapter.getUsers();
+export const GET = async () => {
+  return client.dev.getUsers();
+};
 
-  return NextResponse.json({
-    currentUser: currentUser
-      ? { id: currentUser.id, name: currentUser.name, email: currentUser.email, role: currentUser.role }
-      : null,
-    users: allUsers.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-    })),
-  });
-}
-
-export async function POST(request: Request) {
-  const body = await request.json();
-  const { userId } = body as { userId: string };
-
-  const allUsers = await dataAdapter.getUsers();
-  const user = allUsers.find((u) => u.id === userId);
-
-  if (!user) {
-    return NextResponse.json(
-      { error: 'NOT_FOUND', message: '사용자를 찾을 수 없습니다.' },
-      { status: 404 }
-    );
-  }
-
-  await dataAdapter.setCurrentUser(userId);
-
-  return NextResponse.json({
-    success: true,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
-  });
-}
+export const POST = async (request: Request) => {
+  const body = await request.json().catch(() => ({}));
+  return client.dev.switchUser(body);
+};
