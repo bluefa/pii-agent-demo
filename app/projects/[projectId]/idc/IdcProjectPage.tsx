@@ -350,7 +350,7 @@ export const IdcProjectPage = ({
                   </svg>
                 </div>
                 <p className="text-gray-500">등록된 리소스가 없습니다</p>
-                <p className="text-sm text-gray-400 mt-1">위의 "리소스 추가" 버튼을 클릭하여 데이터베이스를 등록하세요</p>
+                <p className="text-sm text-gray-400 mt-1">위의 &quot;리소스 추가&quot; 버튼을 클릭하여 데이터베이스를 등록하세요</p>
               </div>
             )}
           </div>
