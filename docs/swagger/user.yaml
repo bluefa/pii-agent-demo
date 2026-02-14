@@ -1,0 +1,153 @@
+openapi: 3.0.3
+info:
+  title: User and Auth API
+  description: |-
+    사용자 정보 조회 및 권한이 부여된 서비스 목록을 조회하기 위한 API입니다.
+    
+    ### Error Handling
+    - 모든 에러 응답은 `ErrorResponse` 스키마를 따릅니다.
+    - **401 Unauthorized**: SSO 인증 토큰이 유효하지 않거나, 인증은 되었으나 시스템 권한이 없는 경우(사용자 미등록 포함) 발생합니다.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: v1 API 소스 경로
+
+paths:
+  /user/me:
+    get:
+      tags:
+        - User
+      summary: 현재 사용자 정보 조회
+      operationId: getUserMe
+      description: |-
+        현재 로그인한 사용자의 프로필 정보를 반환합니다. 
+        인증된 세션 혹은 토큰을 기반으로 사용자 정보를 식별합니다.
+      responses:
+        '200':
+          description: 사용자 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMeResponse'
+        '401':
+          description: 인증되지 않았거나 유효하지 않은 사용자
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user/services:
+    get:
+      tags:
+        - User
+      summary: 접근 가능 서비스 목록 조회
+      operationId: getUserServices
+      description: 현재 사용자가 접근 권한을 가진 서비스 목록을 반환합니다.
+      responses:
+        '200':
+          description: 서비스 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserServicesResponse'
+        '401':
+          description: 인증되지 않았거나 유효하지 않은 사용자
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    UserMeResponse:
+      type: object
+      description: "사용자 본인 정보 (Forward Compatibility: 향후 필드가 추가될 수 있음)"
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          example: "user_01H8X..."
+          description: 사용자 고유 식별자
+        name:
+          type: string
+          example: "홍길동"
+          description: 사용자 성명
+        email:
+          type: string
+          format: email
+          example: "gildong.hong@example.com"
+          description: 사용자 이메일 주소
+
+    UserServicesResponse:
+      type: object
+      description: "접근 가능 서비스 목록 응답"
+      required:
+        - services
+      properties:
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceItem'
+
+    ServiceItem:
+      type: object
+      required:
+        - serviceCode
+        - serviceName
+      properties:
+        serviceCode:
+          type: string
+          example: "abc"
+          description: 서비스 구분 코드
+        serviceName:
+          type: string
+          example: "데모 서비스"
+          description: 서비스의 표시 명칭
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: 에러 식별 코드
+          example: "ERR_AUTH_001"
+        message:
+          type: string
+          description: 에러 상세 메시지 (사용자 노출용)
+          example: "인증 정보가 유효하지 않거나 권한이 없습니다."
+        details:
+          type: string
+          description: 디버깅을 위한 상세 정보 (선택 사항)
+          example: "User record not found in backend database after SSO login."
+
+    PageInfo:
+      type: object
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        page:
+          type: integer
+          description: 현재 페이지 번호 (0-based)
+          example: 0
+        size:
+          type: integer
+          description: 페이지당 항목 수
+          example: 10
+        totalElements:
+          type: integer
+          format: int64
+          description: 전체 항목 수
+          example: 100
+        totalPages:
+          type: integer
+          description: 전체 페이지 수
+          example: 10

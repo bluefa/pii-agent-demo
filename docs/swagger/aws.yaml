@@ -1,0 +1,314 @@
+openapi: 3.0.3
+info:
+  title: Cloud Resource Scan API (AWS Provider)
+  description: |-
+    AWS Provider 전용 리소스 스캔 및 인프라 설치 상태 관리를 위한 통합 API입니다.
+    Terraform 스크립트 기반의 설치 단위(ServiceScript)와 IAM Role 실시간 검증 기능을 제공합니다.
+
+    ### [주의 사항: Forward Compatibility]
+    본 API의 모든 응답 모델은 향후 확장될 수 있습니다. 클라이언트(또는 AI Agent)는 정의되지 않은 필드가 응답에 포함되더라도 에러를 발생시키지 않고 무시해야 합니다.
+  version: 1.15.0
+servers:
+  - url: /api/v1
+    description: API Gateway Base Path
+
+paths:
+  '/aws/target-sources/{targetSourceId}/installation-status':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    get:
+      tags:
+        - AWS Installation
+      summary: AWS 설치 상태 조회
+      operationId: getAwsInstallationStatus
+      x-expected-duration: "200ms ~ 5s"
+      description: |-
+        **동기 작업(Synchronous)**
+        배치 작업 또는 실시간 동기화로 갱신된 최신 설치 상태(Terraform 스크립트 단위)를 조회합니다.
+        마지막 확인 시점으로부터 5분이 경과한 경우, 내부적으로 실시간 조회를 수행하여 캐시를 갱신합니다.
+      responses:
+        '200':
+          description: 조회 성공 (스캔 실패 시에도 200 응답 내 FAILED 상태 반환)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AwsInstallationStatus'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  '/aws/target-sources/{targetSourceId}/check-installation':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    post:
+      tags:
+        - AWS Installation
+      summary: AWS 설치 상태 실시간 동기화
+      operationId: refreshAwsInstallationStatus
+      x-expected-duration: "30s ~ 5m"
+      description: |-
+        **동기 작업(Synchronous)**
+        현재 AWS 인프라 리소스를 직접 탐색하여 각 ServiceScript의 설치 상태를 강제로 갱신합니다.
+      responses:
+        '200':
+          description: 동기화 시도 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AwsInstallationStatus'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  '/aws/target-sources/{targetSourceId}/verify-execution-role':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    post:
+      tags:
+        - AWS Verification
+      summary: 실행 권한(Execution Role) 검증
+      operationId: verifyAwsExecutionRole
+      x-expected-duration: "1s ~ 30s"
+      description: |-
+        **동기 작업(Synchronous)**
+        타겟 소스에 할당된 Execution Role의 유효성을 실시간으로 검증합니다.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                roleArn:
+                  type: string
+                  description: 검증할 특정 Role ARN (미입력 시 기존 등록값 사용)
+      responses:
+        '200':
+          description: 검증 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AwsRoleInfo'
+        '403':
+          description: "Role 정보가 설정되지 않았거나 AWS 실질 권한 부족 (AccessDenied)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "AccessDenied"
+                  message: "권한 정보가 설정되지 않았거나 접근 권한이 부족합니다."
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  '/aws/target-sources/{targetSourceId}/verify-scan-role':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    post:
+      tags:
+        - AWS Verification
+      summary: 스캔 권한(Scan Role) 검증
+      operationId: verifyAwsScanRole
+      x-expected-duration: "1s ~ 30s"
+      description: |-
+        **동기 작업(Synchronous)**
+        리소스 조회를 위한 Scan Role의 권한 유효성을 실시간으로 검증합니다.
+      responses:
+        '200':
+          description: 검증 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AwsRoleInfo'
+        '403':
+          description: "Role 정보가 설정되지 않았거나 AWS 실질 권한 부족 (AccessDenied)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "AccessDenied"
+                  message: "권한 정보가 설정되지 않았거나 접근 권한이 부족합니다."
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  '/aws/target-sources/{targetSourceId}/settings':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    get:
+      tags:
+        - Settings
+      summary: 대상 소스별 AWS 설정 조회
+      operationId: getAwsTargetSourceSettings
+      x-expected-duration: "150ms"
+      description: |-
+        **동기 작업(Synchronous)**
+        타겟 소스에 등록된 AWS IAM Role 정보 및 마지막 검증 상태를 조회합니다.
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AwsSettings'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+components:
+  parameters:
+    targetSourceId:
+      name: targetSourceId
+      in: path
+      required: true
+      description: "타겟 소스 고유 식별자"
+      schema:
+        type: string
+
+  schemas:
+    AwsInstallationStatus:
+      type: object
+      description: "AWS 설치 상태 응답 (Forward Compatibility: 정의되지 않은 필드가 포함되더라도 무시해야 함)"
+      required: [serviceScripts, lastCheck]
+      properties:
+        lastCheck:
+          $ref: '#/components/schemas/LastCheckInfo'
+        hasExecutionPermission:
+          type: boolean
+          description: "실행 권한 보유 여부"
+        serviceScripts:
+          type: array
+          description: "Terraform 스크립트 단위 설치 상태 목록"
+          items:
+            $ref: '#/components/schemas/ServiceScript'
+        bdcStatus:
+          type: object
+          description: "BDC 관련 상태"
+          properties:
+            status:
+              $ref: '#/components/schemas/ScriptStatus'
+
+    LastCheckInfo:
+      type: object
+      description: "마지막 스캔 작업에 대한 메타 정보"
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [SUCCESS, IN_PROGRESS, FAILED]
+          description: "작업 상태"
+        checkedAt:
+          type: string
+          format: date-time
+          description: "마지막으로 스캔을 완료하거나 시도한 시각"
+        failReason:
+          type: string
+          description: "FAILED 상태일 경우의 에러 원인"
+
+    ServiceScript:
+      type: object
+      description: "Terraform 스크립트 단위 리소스 그룹"
+      required: [scriptName, status]
+      properties:
+        scriptName:
+          type: string
+          example: "VPC Endpoint (vpc-0123abcd / ap-northeast-2)"
+        status:
+          $ref: '#/components/schemas/ScriptStatus'
+        region:
+          type: string
+          description: "AWS 리전"
+        resources:
+          type: array
+          description: "스크립트에 포함된 개별 리소스 리스트"
+          items:
+            $ref: '#/components/schemas/ResourceItem'
+
+    ResourceItem:
+      type: object
+      description: "개별 AWS 리소스 정보"
+      properties:
+        resourceId:
+          type: string
+          description: "AWS Resource ID"
+        type:
+          type: string
+          description: "AWS Resource Type"
+        name:
+          type: string
+          description: "Resource 명칭"
+
+    ScriptStatus:
+      type: string
+      enum: [PENDING, COMPLETED, FAILED]
+      description: "설치 진행 상태"
+
+    AwsSettings:
+      type: object
+      description: "AWS 설정 정보"
+      required: [executionRole, scanRole]
+      properties:
+        executionRole:
+          $ref: '#/components/schemas/AwsRoleInfo'
+        scanRole:
+          $ref: '#/components/schemas/AwsRoleInfo'
+
+    AwsRoleInfo:
+      type: object
+      description: "IAM Role 정보 및 상태"
+      required: [roleArn, status]
+      properties:
+        roleArn:
+          type: string
+          description: "AWS IAM Role ARN"
+        status:
+          type: string
+          enum: [VALID, INVALID, UNVERIFIED]
+          description: "Role 유효성 검증 상태"
+        lastVerifiedAt:
+          type: string
+          format: date-time
+          description: "마지막 검증 시각"
+
+    ErrorResponse:
+      type: object
+      description: "에러 응답 공통 모델"
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: "에러 코드 (예: AccessDenied, PermissionDenied)"
+            message:
+              type: string
+              description: "에러 상세 메시지"
+
+  responses:
+    PermissionDenied:
+      description: "인가 실패 (SSO 권한 부족 등)"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "PermissionDenied"
+              message: "해당 리소스에 접근할 권한이 없습니다."
+
+    TargetSourceNotFound:
+      description: "대상 소스를 찾을 수 없음"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "TargetSourceNotFound"
+              message: "요청하신 Target Source를 찾을 수 없습니다."

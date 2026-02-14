@@ -21,9 +21,10 @@ bash scripts/dev.sh <worktree-path>
 
 ## 스크립트 동작
 
-1. `.next/dev/lock` 파일이 있으면 자동 제거
-2. 3000번 포트부터 빈 포트를 자동 탐색 (최대 3100)
-3. `npx next dev -p <빈포트>` 실행
+1. `scripts/bootstrap-worktree.sh`로 의존성 설치/검증 수행
+2. `.next/dev/lock` 파일이 있으면 자동 제거
+3. 3000번 포트부터 빈 포트를 자동 탐색 (최대 3100)
+4. `npx next dev -p <빈포트>` 실행
 
 ## 규칙
 
@@ -31,3 +32,4 @@ bash scripts/dev.sh <worktree-path>
 - 실행 후 5초 대기 → TaskOutput으로 출력에서 `Ready` 확인
 - 포트 번호를 사용자에게 알려줄 것
 - **재시도 금지** — 한 번 실행 후 실패하면 사용자에게 보고
+- `next: command not found` 발생 시 `bash scripts/bootstrap-worktree.sh <worktree-path>` 실행 후 다시 시작
