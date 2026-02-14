@@ -77,4 +77,12 @@ npm run build         # (선택) 빌드 확인
 
 - 기능 개발 또는 문서 업데이트 완료 시 반드시 commit & push 수행
 - 커밋: `<type>: <description>` (feat, fix, refactor, docs, test, chore)
-- push 후 필요 시 PR 생성
+- **⛔ push 전 반드시 main rebase** (충돌 방지):
+  ```bash
+  git fetch origin main && git rebase origin/main
+  ```
+  - rebase 충돌 시 해결 후 `git rebase --continue`
+  - 테스트 재실행하여 rebase 후에도 통과 확인
+- **⛔ push 후 자동으로 `/pr` 스킬을 실행하여 PR 생성** (스킵 불가)
+  - PR description 템플릿은 `/pr` 스킬 참조
+  - 머지가 필요하면 사용자에게 `/pr-merge` 안내
