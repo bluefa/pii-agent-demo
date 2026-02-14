@@ -44,7 +44,7 @@ Issue #122 Swagger를 아래 파일로 분리 반영 완료:
 - 확정된 Swagger YAML
 - 변경 이력(왜 변경했는지)
 
-### Phase 1: Backward-Compatible API Bridge (Non-Confirm)
+### Phase 1: Backward-Compatible API Bridge (Non-Confirm) ✅ 완료
 
 목표: 기존 프론트 동작 유지 + 신규 경로 병행
 
@@ -52,10 +52,57 @@ Issue #122 Swagger를 아래 파일로 분리 반영 완료:
 - 기존 `/api/**` 또는 `/api/v2/**` 경로는 deprecated로 유지
 - 내부적으로 동일 handler/service를 공유해 응답 정합성 확보
 
+**구현 완료 (PR #140):**
+
+공통 인프라 (`app/api/_lib/`):
+
+| 파일 | 역할 |
+|------|------|
+| `problem.ts` | `application/problem+json` (RFC 9457) 에러 응답 — 10개 에러 코드 카탈로그 |
+| `request-id.ts` | `x-request-id` 헤더 추출/생성 |
+| `target-source.ts` | `targetSourceId`(number) 파싱, projectId/project 조회 |
+| `handler.ts` | `withV1` 래퍼 — 에러 변환, 헤더 주입, uncaught catch |
+| `v1-types.ts` | Swagger 기반 request/response TypeScript 타입 |
+
+v1 라우트 (19개):
+
+| 카테고리 | 엔드포인트 | Method |
+|----------|-----------|--------|
+| User | `/api/v1/user/me` | GET |
+| User | `/api/v1/user/services` | GET |
+| User | `/api/v1/users/search` | GET |
+| Scan | `/api/v1/target-sources/{targetSourceId}/scan` | POST |
+| Scan | `/api/v1/target-sources/{targetSourceId}/scanJob/latest` | GET |
+| Scan | `/api/v1/target-sources/{targetSourceId}/scan/history` | GET |
+| AWS | `/api/v1/aws/target-sources/{targetSourceId}/installation-status` | GET |
+| AWS | `/api/v1/aws/target-sources/{targetSourceId}/check-installation` | POST |
+| AWS | `/api/v1/aws/target-sources/{targetSourceId}/verify-execution-role` | POST |
+| AWS | `/api/v1/aws/target-sources/{targetSourceId}/verify-scan-role` | POST |
+| AWS | `/api/v1/aws/target-sources/{targetSourceId}/settings` | GET |
+| Azure | `/api/v1/azure/target-sources/{targetSourceId}/installation-status` | GET |
+| Azure | `/api/v1/azure/target-sources/{targetSourceId}/check-installation` | POST |
+| Azure | `/api/v1/azure/target-sources/{targetSourceId}/vm-terraform-script` | GET |
+| Azure | `/api/v1/azure/target-sources/{targetSourceId}/settings` | GET |
+| GCP | `/api/v1/gcp/target-sources/{targetSourceId}/installation-status` | GET |
+| GCP | `/api/v1/gcp/target-sources/{targetSourceId}/check-installation` | POST |
+| GCP | `/api/v1/gcp/target-sources/{targetSourceId}/settings` | GET |
+| Credential | `/api/v1/target-sources/{serviceCode}/secrets` | GET |
+
+Exception 처리 정책:
+
+| 분류 | 처리 |
+|------|------|
+| Expected (파라미터/리소스/권한) | throw 없이 `problemResponse()` 직접 반환 |
+| Uncaught | `withV1` try/catch → `INTERNAL_ERROR` + `console.error` |
+
+에러 코드 카탈로그:
+
+`UNAUTHORIZED`(401), `FORBIDDEN`(403), `TARGET_SOURCE_NOT_FOUND`(404), `SERVICE_NOT_FOUND`(404), `VALIDATION_FAILED`(400), `INVALID_PARAMETER`(400), `INVALID_PROVIDER`(400), `CONFLICT_IN_PROGRESS`(409), `RATE_LIMITED`(429), `INTERNAL_ERROR`(500)
+
 산출물:
 
-- 신규/구 API 매핑표
-- 호환성 테스트 케이스
+- ✅ 신규/구 API 매핑표 (위 테이블)
+- ✅ 호환성 테스트 케이스 (14 tests — problem, target-source, handler)
 
 ### Phase 2: Frontend Callsite 전환 (Non-Confirm)
 
