@@ -84,7 +84,7 @@ npm run test          # 테스트 통과
 
 ## 문서화
 
-- 새 API → `docs/api-routes/README.md`
+- 새 API → `docs/api/*.md` 명세 갱신 (개발용 라우트는 `app/api/**`로 검증)
 - 설계 결정 → `docs/adr/*.md`
 - BFF 명세 변경 → `docs/api/providers/*.md`
 

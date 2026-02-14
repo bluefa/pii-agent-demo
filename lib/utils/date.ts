@@ -77,3 +77,17 @@ export const formatDateTime = (dateString: string): string => {
 export const formatDateTimeSeconds = (dateString: string): string => {
   return formatDate(dateString, 'datetime-seconds');
 };
+
+/**
+ * 밀리초를 사람이 읽을 수 있는 한국어 소요시간으로 변환합니다.
+ *
+ * @example
+ * formatDuration(45000)   // "45초"
+ * formatDuration(125000)  // "2분 5초"
+ */
+export const formatDuration = (ms: number): string => {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}초`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}분 ${seconds % 60}초`;
+};
