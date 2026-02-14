@@ -95,8 +95,6 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - `.codex/skills/worktree/SKILL.md`
 - PR 생성/검증 요청:
   - `.codex/skills/pr/SKILL.md`
-- PR description 작성 요청:
-  - `.codex/skills/pr-description/SKILL.md`
 - PR 머지 요청:
   - `.codex/skills/pr-merge/SKILL.md`
 - PR 생성+머지 자동화 요청:
