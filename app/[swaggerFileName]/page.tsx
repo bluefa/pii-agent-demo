@@ -55,6 +55,10 @@ export default async function SwaggerPreviewPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-white">
+      <link
+        rel="stylesheet"
+        href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"
+      />
       <Script
         src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"
         strategy="beforeInteractive"
@@ -68,15 +72,6 @@ export default async function SwaggerPreviewPage({ params }: PageProps) {
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{ __html: createSwaggerInitScript(specUrl) }}
       />
-
-      <style jsx global>{`
-        @import url('https://unpkg.com/swagger-ui-dist@5/swagger-ui.css');
-        html,
-        body {
-          margin: 0;
-          padding: 0;
-        }
-      `}</style>
 
       <div id="swagger-ui" className="min-h-screen" />
     </main>
