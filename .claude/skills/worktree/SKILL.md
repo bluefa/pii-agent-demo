@@ -35,10 +35,10 @@ git rev-parse --abbrev-ref HEAD
 git worktree list
 ```
 
-5. `node_modules`가 없으면 설치합니다.
+5. 의존성 부트스트랩을 실행합니다.
 
 ```bash
-npm install
+bash scripts/bootstrap-worktree.sh "$(pwd)"
 ```
 
 6. 필요 시 dev 서버를 시작합니다.
@@ -54,3 +54,4 @@ bash scripts/dev.sh "$(pwd)"
 - 신규 브랜치 생성 전 로컬 `main`을 최신 `origin/main`으로 반드시 동기화합니다.
 - 신규 브랜치는 동기화된 로컬 `main`에서만 생성합니다.
 - 모든 후속 작업은 방금 생성한 worktree에서만 수행합니다.
+- `next: command not found`, `eslint: command not found`가 발생하면 `bash scripts/bootstrap-worktree.sh "$(pwd)"`를 먼저 실행합니다.

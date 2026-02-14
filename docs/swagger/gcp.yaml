@@ -1,0 +1,237 @@
+openapi: 3.0.3
+info:
+  title: GCP Provider Management API (Unified)
+  description: |
+    GCP 리소스 연동 및 설치 상태 관리를 위한 통합 API입니다.
+    사용자의 조치가 필요한 경우 `pendingAction` 필드를 통해 단일 액션 가이드를 제공합니다.
+  version: 1.4.1
+
+servers:
+  - url: /api/v1
+    description: API Gateway Base Path
+
+tags:
+  - name: GCP Installation
+    description: GCP 리소스 설치 현황 및 실시간 상태 갱신
+  - name: Settings
+    description: 서비스 계정 정보 및 글로벌 인프라 설정 조회
+
+paths:
+  /gcp/target-sources/{targetSourceId}/installation-status:
+    parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        description: "연동 대상 소스 고유 ID"
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags:
+        - GCP Installation
+      summary: GCP 통합 설치 상태 조회
+      operationId: getGcpInstallationStatus
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GcpInstallationStatus'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /gcp/target-sources/{targetSourceId}/check-installation:
+    parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        description: "연동 대상 소스 고유 ID"
+        schema:
+          type: integer
+          format: int64
+    post:
+      tags:
+        - GCP Installation
+      summary: GCP 통합 설치 상태 새로고침
+      operationId: refreshGcpInstallationStatus
+      x-expected-duration: 5000ms
+      responses:
+        '200':
+          description: 새로고침 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GcpInstallationStatus'
+
+  /gcp/target-sources/{targetSourceId}/settings:
+    parameters:
+      - name: targetSourceId
+        in: path
+        required: true
+        description: "연동 대상 소스 고유 ID"
+        schema:
+          type: integer
+          format: int64
+    get:
+      tags:
+        - Settings
+      summary: 대상 소스별 GCP 설정 정보 조회
+      operationId: getGcpTargetSourceSettings
+      description: |-
+        GCP 대상 소스의 설정 메타데이터를 조회합니다.
+        GCP는 AWS/Azure와 달리 Scan/Terraform 권한을 별도 검증하는 전용 API를 제공하지 않으며,
+        본 API는 설정값 노출 중심의 조회 API입니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GcpSettings'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+components:
+  schemas:
+    GcpInstallationStatus:
+      type: object
+      required: [provider, resources]
+      properties:
+        provider:
+          type: string
+          example: "GCP"
+        lastCheck:
+          $ref: '#/components/schemas/LastCheckInfo'
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/GcpResourceStatus'
+
+    GcpResourceStatus:
+      type: object
+      required: [id, name, resourceType, serviceTfStatus, bdcTfStatus, isInstallCompleted]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        resourceType:
+          type: string
+          enum: [CLOUD_SQL, BIGQUERY]
+        serviceTfStatus:
+          $ref: '#/components/schemas/GcpTfStatus'
+        bdcTfStatus:
+          $ref: '#/components/schemas/GcpTfStatus'
+        isInstallCompleted:
+          type: boolean
+          description: "모든 절차가 완료되어 즉시 사용 가능한지 여부"
+        pendingAction:
+          $ref: '#/components/schemas/GcpActionType'
+        regionalManagedProxy:
+          $ref: '#/components/schemas/GcpRegionalManagedProxy'
+        pscConnection:
+          $ref: '#/components/schemas/GcpPscConnection'
+
+    GcpActionType:
+      type: string
+      enum:
+        - CREATE_PROXY_SUBNET      # Regional Managed Proxy Subnet 생성 필요
+        - APPROVE_PSC_CONNECTION   # PSC Connection 승인 요청 필요
+      nullable: true
+      description: "사용자가 수행해야 할 액션 (필요 없는 경우 null)"
+
+    GcpRegionalManagedProxy:
+      type: object
+      nullable: true
+      properties:
+        exists:
+          type: boolean
+        networkProjectId:
+          type: string
+        vpcName:
+          type: string
+        cloudSqlRegion:
+          type: string
+
+    GcpPscConnection:
+      type: object
+      nullable: true
+      properties:
+        status:
+          type: string
+          enum: [NOT_REQUESTED, PENDING_APPROVAL, APPROVED, REJECTED]
+        connectionId:
+          type: string
+        serviceAttachmentUri:
+          type: string
+
+    GcpSettings:
+      type: object
+      description: "GCP 대상 소스 설정 정보 (권한 검증 결과가 아닌 설정값 노출)"
+      required: [gcpProjectId, scanServiceAccount, terraformExecutionServiceAccount]
+      properties:
+        gcpProjectId:
+          type: string
+          description: "스캔 대상 GCP 프로젝트 ID"
+          example: "my-gcp-project-123"
+        scanServiceAccount:
+          type: string
+          description: "리소스 스캔에 사용하는 Service Account 이메일"
+          example: "pii-scan-sa@my-gcp-project-123.iam.gserviceaccount.com"
+        terraformExecutionServiceAccount:
+          type: string
+          description: "Terraform 실행에 사용하는 Service Account 이메일"
+          example: "pii-tf-sa@my-gcp-project-123.iam.gserviceaccount.com"
+
+    LastCheckInfo:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [SUCCESS, IN_PROGRESS, FAILED]
+        checkedAt:
+          type: string
+          format: date-time
+        failReason:
+          type: string
+
+    GcpTfStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+  responses:
+    PermissionDenied:
+      description: "인가 실패"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TargetSourceNotFound:
+      description: "대상 없음"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "TARGET_SOURCE_NOT_FOUND"
+              message: "요청하신 Target Source를 찾을 수 없습니다."
