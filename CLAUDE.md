@@ -105,7 +105,7 @@ return <Success />;
 - main 직접 push 금지
 - `git worktree add ../pii-agent-demo-{name} -b {prefix}/{name}`
 - Prefix: `feat/`, `fix/`, `docs/`, `refactor/`
-- 기능 완료 시 commit & push → PR 생성
+- **개발 완료 즉시 commit & push** — 사용자 확인 대기 없이 바로 수행
 - PR Merge 이전 문서화 필수
 
 ### Token Saving

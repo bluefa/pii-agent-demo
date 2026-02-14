@@ -58,8 +58,8 @@ npm run build         # (선택) 빌드 확인
 - BFF 명세 변경 → `docs/api/providers/*.md`
 - 주요 기능 완료 → `docs/domain/README.md` TODO
 
-## 5. Git (필수 — 작업 완료 시 자동 수행)
+## 5. Git (필수 — 개발 완료 즉시 자동 수행)
 
-- 기능 개발 또는 문서 업데이트 완료 시 반드시 commit & push 수행
+- **개발 완료 즉시 commit & push** — 사용자 확인 대기 없이 바로 수행
 - 커밋: `<type>: <description>` (feat, fix, refactor, docs, test, chore)
 - push 후 필요 시 PR 생성
