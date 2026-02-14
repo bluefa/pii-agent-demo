@@ -1,7 +1,9 @@
 # ADR-005: 데이터 어댑터 패턴 도입
 
 ## 상태
-채택됨 (Phase 1-2 완료)
+Superseded by ADR-007 (API Client 패턴)
+
+> `lib/adapters/` 디렉토리 전체 삭제됨. Mock 클라이언트(`lib/api-client/mock/`)가 `lib/mock-*.ts`를 직접 import.
 
 ## 맥락
 

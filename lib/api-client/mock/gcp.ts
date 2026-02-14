@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as gcpFns from '@/lib/mock-gcp';
 import { GCP_ERROR_CODES } from '@/lib/constants/gcp';
 import type { GcpConnectionType } from '@/lib/types/gcp';
 
 const authorize = async (projectId: string) => {
-  const user = await dataAdapter.getCurrentUser();
+  const user = await mockData.getCurrentUser();
   if (!user) {
     return { error: NextResponse.json(
       { error: GCP_ERROR_CODES.UNAUTHORIZED.code, message: GCP_ERROR_CODES.UNAUTHORIZED.message },
@@ -12,7 +13,7 @@ const authorize = async (projectId: string) => {
     ) };
   }
 
-  const project = await dataAdapter.getProjectById(projectId);
+  const project = await mockData.getProjectById(projectId);
   if (!project) {
     return { error: NextResponse.json(
       { error: GCP_ERROR_CODES.NOT_FOUND.code, message: GCP_ERROR_CODES.NOT_FOUND.message },
@@ -45,14 +46,14 @@ export const mockGcp = {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await dataAdapter.checkGcpInstallation(projectId));
+    return handleResult(await gcpFns.checkGcpInstallation(projectId));
   },
 
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await dataAdapter.getGcpInstallationStatus(projectId));
+    return handleResult(await gcpFns.getGcpInstallationStatus(projectId));
   },
 
   getRegionalManagedProxy: async (projectId: string, resourceId: string) => {
@@ -66,7 +67,7 @@ export const mockGcp = {
       );
     }
 
-    return handleResult(await dataAdapter.getGcpRegionalManagedProxy(projectId, resourceId));
+    return handleResult(await gcpFns.getGcpRegionalManagedProxy(projectId, resourceId));
   },
 
   createProxySubnet: async (projectId: string, resourceId: string) => {
@@ -80,7 +81,7 @@ export const mockGcp = {
       );
     }
 
-    return handleResult(await dataAdapter.createGcpProxySubnet(projectId, resourceId));
+    return handleResult(await gcpFns.createGcpProxySubnet(projectId, resourceId));
   },
 
   getServiceTfResources: async (projectId: string, connectionType: string | null) => {
@@ -94,6 +95,6 @@ export const mockGcp = {
       );
     }
 
-    return handleResult(await dataAdapter.getGcpServiceTfResources(projectId, connectionType as GcpConnectionType));
+    return handleResult(await gcpFns.getGcpServiceTfResources(projectId, connectionType as GcpConnectionType));
   },
 };

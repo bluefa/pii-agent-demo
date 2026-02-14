@@ -120,10 +120,10 @@ return <Success />;
 - 새 API: BFF 명세 먼저 → API Routes 구현
 - API Routes에 "mock" 용어 금지 (`lib/mock-*.ts` 예외)
 
-### 데이터 어댑터 패턴 (ADR-005)
-- **API Routes에서 `@/lib/mock-*` 직접 import 금지** → `@/lib/adapters`의 `dataAdapter` 사용
-- 새 데이터 접근 필요 시: `DataAdapter` 인터페이스 → mock-adapter → bff-adapter 순서로 추가
-- BFF 구현 시 `lib/adapters/bff-adapter.ts`에 실제 API 호출 구현
+### API Client 패턴 (ADR-007)
+- `app/api/route.ts` → `client.method()` 디스패치 (thin layer)
+- Mock 비즈니스 로직은 `lib/api-client/mock/*.ts`에 위치
+- BFF 구현은 `lib/api-client/bff-client.ts`에 HTTP 프록시
 
 ## Reference Docs
 

@@ -325,10 +325,10 @@ export const confirmIdcTargets = (
       type: 'IDC',
       resourceId: `${input.name} (${hostInfo}:${input.port})`,
       connectionStatus: 'PENDING' as const,
-      isSelected: true, // 확정된 리소스는 선택된 상태
+      isSelected: true,
       databaseType: input.databaseType as DatabaseType,
       lifecycleStatus: 'TARGET' as const,
-      // IDC는 스캔이 없으므로 isNew 플래그 사용하지 않음
+      integrationCategory: 'TARGET' as const,
     };
   });
 

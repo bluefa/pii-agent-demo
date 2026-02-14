@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as azureFns from '@/lib/mock-azure';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 
 const authorize = async (projectId: string) => {
-  const user = await dataAdapter.getCurrentUser();
+  const user = await mockData.getCurrentUser();
   if (!user) {
     return { error: NextResponse.json(
       { error: AZURE_ERROR_CODES.UNAUTHORIZED.code, message: AZURE_ERROR_CODES.UNAUTHORIZED.message },
@@ -11,7 +12,7 @@ const authorize = async (projectId: string) => {
     ) };
   }
 
-  const project = await dataAdapter.getProjectById(projectId);
+  const project = await mockData.getProjectById(projectId);
   if (!project) {
     return { error: NextResponse.json(
       { error: AZURE_ERROR_CODES.NOT_FOUND.code, message: AZURE_ERROR_CODES.NOT_FOUND.message },
@@ -44,41 +45,41 @@ export const mockAzure = {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await dataAdapter.checkAzureInstallation(projectId));
+    return handleResult(await azureFns.checkAzureInstallation(projectId));
   },
 
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await dataAdapter.getAzureInstallationStatus(projectId));
+    return handleResult(await azureFns.getAzureInstallationStatus(projectId));
   },
 
   getSubnetGuide: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await dataAdapter.getAzureSubnetGuide(projectId));
+    return handleResult(await azureFns.getAzureSubnetGuide(projectId));
   },
 
   vmCheckInstallation: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await dataAdapter.checkAzureVmInstallation(projectId));
+    return handleResult(await azureFns.checkAzureVmInstallation(projectId));
   },
 
   vmGetInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await dataAdapter.getAzureVmInstallationStatus(projectId));
+    return handleResult(await azureFns.getAzureVmInstallationStatus(projectId));
   },
 
   vmGetTerraformScript: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await dataAdapter.getAzureVmTerraformScript(projectId));
+    return handleResult(await azureFns.getAzureVmTerraformScript(projectId));
   },
 };

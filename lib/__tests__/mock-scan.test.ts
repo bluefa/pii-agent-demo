@@ -92,6 +92,7 @@ describe('mock-scan', () => {
             connectionStatus: 'PENDING' as const,
             isSelected: false,
             lifecycleStatus: 'DISCOVERED' as const,
+            integrationCategory: 'TARGET' as const,
           })),
         });
         const result = validateScanRequest(project);
@@ -108,6 +109,7 @@ describe('mock-scan', () => {
             connectionStatus: 'PENDING' as const,
             isSelected: false,
             lifecycleStatus: 'DISCOVERED' as const,
+            integrationCategory: 'TARGET' as const,
           })),
         });
         const result = validateScanRequest(project);
@@ -344,6 +346,7 @@ describe('mock-scan', () => {
           connectionStatus: 'PENDING' as const,
           isSelected: false,
           lifecycleStatus: 'DISCOVERED' as const,
+          integrationCategory: 'TARGET' as const,
         })),
       });
       const result = canScan(project);

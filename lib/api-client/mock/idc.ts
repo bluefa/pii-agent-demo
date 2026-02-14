@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as idcFns from '@/lib/mock-idc';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import type { IdcResourceInput, IpType } from '@/lib/types/idc';
 import type { Resource, DatabaseType } from '@/lib/types';
 
 const authorize = async (projectId: string) => {
-  const user = await dataAdapter.getCurrentUser();
+  const user = await mockData.getCurrentUser();
   if (!user) {
     return { error: NextResponse.json(
       { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -13,7 +14,7 @@ const authorize = async (projectId: string) => {
     ) };
   }
 
-  const project = await dataAdapter.getProjectById(projectId);
+  const project = await mockData.getProjectById(projectId);
   if (!project) {
     return { error: NextResponse.json(
       { error: IDC_ERROR_CODES.NOT_FOUND.code, message: IDC_ERROR_CODES.NOT_FOUND.message },
@@ -43,7 +44,7 @@ const handleResult = (result: { error?: { code: string; message: string; status:
 
 export const mockIdc = {
   getSourceIpRecommendation: async (ipType: string | null) => {
-    const user = await dataAdapter.getCurrentUser();
+    const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
         { error: IDC_ERROR_CODES.UNAUTHORIZED.code, message: IDC_ERROR_CODES.UNAUTHORIZED.message },
@@ -58,21 +59,21 @@ export const mockIdc = {
       );
     }
 
-    return handleResult(await dataAdapter.getSourceIpRecommendation(ipType as IpType));
+    return handleResult(await idcFns.getSourceIpRecommendation(ipType as IpType));
   },
 
   checkInstallation: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await dataAdapter.checkIdcInstallation(projectId));
+    return handleResult(await idcFns.checkIdcInstallation(projectId));
   },
 
   confirmFirewall: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await dataAdapter.confirmFirewall(projectId));
+    return handleResult(await idcFns.confirmFirewall(projectId));
   },
 
   confirmTargets: async (projectId: string, body: unknown) => {
@@ -88,21 +89,21 @@ export const mockIdc = {
       );
     }
 
-    return handleResult(await dataAdapter.confirmIdcTargets(projectId, parsed.resources));
+    return handleResult(await idcFns.confirmIdcTargets(projectId, parsed.resources));
   },
 
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await dataAdapter.getIdcInstallationStatus(projectId));
+    return handleResult(await idcFns.getIdcInstallationStatus(projectId));
   },
 
   getResources: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    const result = await dataAdapter.getIdcResources(projectId);
+    const result = await idcFns.getIdcResources(projectId);
     if (result.error) {
       return NextResponse.json(
         { error: result.error.code, message: result.error.message },
@@ -125,7 +126,7 @@ export const mockIdc = {
       );
     }
 
-    const result = await dataAdapter.updateIdcResources(projectId, parsed.resources);
+    const result = await idcFns.updateIdcResources(projectId, parsed.resources);
     if (result.error) {
       return NextResponse.json(
         { error: result.error.code, message: result.error.message },
@@ -152,7 +153,7 @@ export const mockIdc = {
           : (input.host || '');
 
         return {
-          id: await dataAdapter.generateId('idc-res'),
+          id: await mockData.generateId('idc-res'),
           type: 'IDC',
           resourceId: `${input.name} (${hostInfo}:${input.port})`,
           connectionStatus: 'PENDING' as const,
@@ -173,7 +174,7 @@ export const mockIdc = {
       );
     }
 
-    const updatedProject = await dataAdapter.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(projectId, {
       resources: allResources,
     });
 

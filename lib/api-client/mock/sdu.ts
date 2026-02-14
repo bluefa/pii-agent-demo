@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { dataAdapter } from '@/lib/adapters';
+import * as mockData from '@/lib/mock-data';
+import * as sduFns from '@/lib/mock-sdu';
 import { SDU_ERROR_CODES, SDU_VALIDATION } from '@/lib/constants/sdu';
 
 const authCheck = async () => {
-  const user = await dataAdapter.getCurrentUser();
+  const user = await mockData.getCurrentUser();
   if (!user) {
     return { error: NextResponse.json(
       { error: SDU_ERROR_CODES.UNAUTHORIZED.code, message: SDU_ERROR_CODES.UNAUTHORIZED.message },
@@ -14,7 +15,7 @@ const authCheck = async () => {
 };
 
 const projectCheck = async (projectId: string) => {
-  const project = await dataAdapter.getProjectById(projectId);
+  const project = await mockData.getProjectById(projectId);
   if (!project) {
     return { error: NextResponse.json(
       { error: SDU_ERROR_CODES.NOT_FOUND.code, message: SDU_ERROR_CODES.NOT_FOUND.message },
@@ -94,7 +95,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.checkSduInstallation(projectId));
+    return handleResult(await sduFns.checkSduInstallation(projectId));
   },
 
   getAthenaTables: async (projectId: string) => {
@@ -110,7 +111,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.getAthenaTables(projectId));
+    return handleResult(await sduFns.getAthenaTables(projectId));
   },
 
   executeConnectionTest: async (projectId: string) => {
@@ -126,7 +127,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.executeSduConnectionTest(projectId));
+    return handleResult(await sduFns.executeSduConnectionTest(projectId));
   },
 
   getConnectionTest: async (projectId: string) => {
@@ -142,7 +143,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.getSduConnectionTest(projectId));
+    return handleResult(await sduFns.getSduConnectionTest(projectId));
   },
 
   issueAkSk: async (projectId: string, body: { issuedBy: string }) => {
@@ -165,7 +166,7 @@ export const mockSdu = {
       );
     }
 
-    return handleResult(await dataAdapter.issueAkSk(projectId, body.issuedBy));
+    return handleResult(await sduFns.issueAkSk(projectId, body.issuedBy));
   },
 
   getIamUser: async (projectId: string) => {
@@ -181,7 +182,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.getIamUser(projectId));
+    return handleResult(await sduFns.getIamUser(projectId));
   },
 
   getInstallationStatus: async (projectId: string) => {
@@ -197,7 +198,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.getSduInstallationStatus(projectId));
+    return handleResult(await sduFns.getSduInstallationStatus(projectId));
   },
 
   checkS3Upload: async (projectId: string) => {
@@ -210,7 +211,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.checkS3Upload(projectId));
+    return handleResult(await sduFns.checkS3Upload(projectId));
   },
 
   getS3Upload: async (projectId: string) => {
@@ -226,7 +227,7 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.getS3UploadStatus(projectId));
+    return handleResult(await sduFns.getS3UploadStatus(projectId));
   },
 
   confirmSourceIp: async (projectId: string, body: { cidr: string }) => {
@@ -245,7 +246,7 @@ export const mockSdu = {
     const cidrError = validateCidr(body.cidr);
     if (cidrError) return cidrError;
 
-    return handleResult(await dataAdapter.confirmSourceIp(projectId, body.cidr, auth.user!.name));
+    return handleResult(await sduFns.confirmSourceIp(projectId, body.cidr, auth.user!.name));
   },
 
   registerSourceIp: async (projectId: string, body: { cidr: string }) => {
@@ -264,7 +265,7 @@ export const mockSdu = {
     const cidrError = validateCidr(body.cidr);
     if (cidrError) return cidrError;
 
-    return handleResult(await dataAdapter.registerSourceIp(projectId, body.cidr, auth.user!.name));
+    return handleResult(await sduFns.registerSourceIp(projectId, body.cidr, auth.user!.name));
   },
 
   getSourceIpList: async (projectId: string) => {
@@ -280,6 +281,6 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await dataAdapter.getSourceIpList(projectId));
+    return handleResult(await sduFns.getSourceIpList(projectId));
   },
 };
