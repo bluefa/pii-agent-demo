@@ -73,7 +73,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
-      integrationCategory: 'TARGET',
+      integrationCategory: 'NO_INSTALL_NEEDED',
     },
     {
       id: 'res-vm-2',
@@ -83,7 +83,7 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       connectionStatus: 'PENDING',
       isSelected: true,
       lifecycleStatus: 'INSTALLING',
-      integrationCategory: 'TARGET',
+      integrationCategory: 'NO_INSTALL_NEEDED',
     },
     {
       id: 'res-db-1',

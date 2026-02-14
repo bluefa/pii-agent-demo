@@ -18,6 +18,9 @@ npm run lint
 echo "[pre-commit] Running type-check..."
 npx tsc --noEmit --pretty false
 
+echo "[pre-commit] Running tests..."
+npm run test:run
+
 echo "[pre-commit] Running build..."
 npm run build
 

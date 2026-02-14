@@ -67,7 +67,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
 
   // Auto-expand when scan starts
   useEffect(() => {
-    if (isInProgress) setExpanded(true);
+    if (isInProgress) queueMicrotask(() => setExpanded(true));
   }, [isInProgress]);
 
   const handleStartScan = () => {

@@ -7,11 +7,38 @@ import {
   getTerraformScript,
 } from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
+import type { Project } from '@/lib/types';
+import { ProcessStatus } from '@/lib/types';
+import { createInitialProjectStatus } from '@/lib/process';
+
+const createAwsProject = (id: string, resources?: Project['resources']): Project => ({
+  id,
+  projectCode: `AWS-${id}`,
+  serviceCode: 'SERVICE-A',
+  cloudProvider: 'AWS',
+  processStatus: ProcessStatus.INSTALLING,
+  status: createInitialProjectStatus(),
+  resources: resources ?? [
+    {
+      id: 'res-1', type: 'RDS', resourceId: 'arn:aws:rds:ap-northeast-2:123:db:test-1',
+      databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
+      lifecycleStatus: 'INSTALLING', awsType: 'RDS', integrationCategory: 'TARGET',
+    },
+  ],
+  terraformState: { bdcTf: 'PENDING' },
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  name: 'Test',
+  description: '',
+  isRejected: false,
+  awsAccountId: id.includes('fail') ? '123456789012' : '123456789012',
+});
 
 // Store 초기화
 const resetStore = () => {
   const store = getStore();
   store.awsInstallations = new Map();
+  store.projects = [];
 };
 
 describe('mock-installation', () => {
@@ -83,6 +110,8 @@ describe('mock-installation', () => {
 
   describe('initializeInstallation', () => {
     it('TF 권한 있음 → 자동 설치 시작', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       const status = initializeInstallation('project-1', true);
 
       expect(status.provider).toBe('AWS');
@@ -92,6 +121,8 @@ describe('mock-installation', () => {
     });
 
     it('TF 권한 없음 → 수동 설치 대기', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-2'));
       const status = initializeInstallation('project-2', false);
 
       expect(status.provider).toBe('AWS');
@@ -108,6 +139,8 @@ describe('mock-installation', () => {
     });
 
     it('초기 상태 조회', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
       const status = getInstallationStatus('project-1');
 
@@ -117,6 +150,8 @@ describe('mock-installation', () => {
     });
 
     it('자동 설치: Service TF 완료 (10초 후)', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
 
       // 10초 경과
@@ -127,11 +162,18 @@ describe('mock-installation', () => {
       expect(status?.bdcTfCompleted).toBe(false);
     });
 
-    it('자동 설치: 모든 TF 완료 (15초 후)', () => {
+    it('자동 설치: 모든 TF 완료 (Service TF 후 BDC TF)', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
 
-      // 15초 경과 (Service TF 10초 + BDC TF 5초)
-      vi.advanceTimersByTime(15000);
+      // Service TF 완료 대기
+      vi.advanceTimersByTime(10000);
+      // 첫 번째 조회로 BDC TF 시작 트리거
+      getInstallationStatus('project-1');
+
+      // BDC TF 완료 대기
+      vi.advanceTimersByTime(5000);
 
       const status = getInstallationStatus('project-1');
       expect(status?.serviceTfCompleted).toBe(true);
@@ -147,6 +189,8 @@ describe('mock-installation', () => {
     });
 
     it('수동 설치: 검증 성공 → serviceTfCompleted = true', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', false);
       const result = checkInstallation('project-1');
 
@@ -156,6 +200,8 @@ describe('mock-installation', () => {
     });
 
     it('수동 설치: 검증 실패 → error 응답', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-fail'));
       initializeInstallation('project-fail', false);
       const result = checkInstallation('project-fail');
 
@@ -166,6 +212,8 @@ describe('mock-installation', () => {
     });
 
     it('수동 설치: Service TF 완료 후 BDC TF 자동 시작', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', false);
 
       // 첫 번째 확인: Service TF 완료
@@ -180,6 +228,8 @@ describe('mock-installation', () => {
     });
 
     it('lastCheckedAt 업데이트', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
 
       const result1 = checkInstallation('project-1');
@@ -194,6 +244,8 @@ describe('mock-installation', () => {
 
   describe('getTerraformScript', () => {
     it('TF 권한 있음 → null (스크립트 불필요)', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
       const result = getTerraformScript('project-1');
 
@@ -201,6 +253,8 @@ describe('mock-installation', () => {
     });
 
     it('TF 권한 없음 → 다운로드 정보 반환', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', false);
       const result = getTerraformScript('project-1');
 
