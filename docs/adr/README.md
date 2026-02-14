@@ -12,6 +12,7 @@
 | [ADR-004](./004-process-status-refactoring.md) | processStatus 저장 필드 리팩토링 | 제안됨 | 2026-02-04 |
 | [ADR-005](./005-data-adapter-pattern.md) | 데이터 어댑터 패턴 도입 | 제안됨 | 2026-02-06 |
 | [ADR-006](./006-integration-confirmation-approval-redesign.md) | 연동 확정 승인 프로세스 재설계 | 제안됨 | 2026-02-11 |
+| [ADR-007](./007-api-client-pattern.md) | API Client 패턴 도입 | 제안됨 | 2026-02-14 |
 
 ## ADR 작성 규칙
 
