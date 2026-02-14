@@ -32,6 +32,7 @@ const createAwsProject = (id: string, resources?: Project['resources']): Project
   description: '',
   isRejected: false,
   awsAccountId: id.includes('fail') ? '123456789012' : '123456789012',
+  targetSourceId: 9999,
 });
 
 // Store 초기화
