@@ -1,0 +1,397 @@
+openapi: 3.0.3
+info:
+  title: Target Source Management API
+  version: 2.4.0
+  description: |
+    ADR-006 기반의 연동 대상 소스(Target Source) 통합 관리 API입니다.
+    
+    **아키텍처 설계 요약:**
+    1. **객체 분리**: Confirmed(현재 확정), Approved(승인 후 반영 중), Request(승인 요청) 정보를 물리적으로 분리하여 관리합니다.
+    2. **쓰기 권한 단일화**: 사용자는 `POST /approval-requests`를 통해서만 인프라 변경 의사를 표현할 수 있습니다.
+    3. **이력 관리**: `COMPLETED`(확정 완료) 및 `SYSTEM_ERROR`(반영 실패) 상태를 통해 인프라 반영의 최종 생명주기를 추적합니다.
+    4. **보안**: `integrationCategory`와 같은 시스템 가이드는 Response에만 포함하며, Request 검증은 백엔드에서 수행합니다.
+
+servers:
+  - url: /api/v1
+    description: v1 Base Path
+
+tags:
+  - name: Resources
+    description: 리소스 목록 및 메타데이터 조회
+  - name: Approval Process
+    description: 연동 요청 생성, 승인 정보 조회 및 히스토리 관리
+
+paths:
+  /target-sources/{targetSourceId}/resources:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Resources]
+      summary: 연동 가능 리소스 목록 조회
+      operationId: getResources
+      description: "사용 가능한 모든 클라우드 리소스를 조회합니다. UI에서 제외 사유 필수 여부를 결정하기 위한 `integrationCategory`를 포함합니다."
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resources:
+                    type: array
+                    items: { $ref: '#/components/schemas/Resource' }
+                  totalCount: { type: integer }
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/approval-requests:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Approval Process]
+      summary: 연동 대상 요청 생성
+      operationId: createApprovalRequest
+      description: |
+        사용자가 선택한 리소스와 설정(VM 등)을 바탕으로 승인을 요청합니다. 
+        이 요청이 승인되면 `ApprovedIntegration`이 생성되고, 인프라 반영이 성공하면 `ConfirmedIntegration`으로 전환됩니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_resource_ids]
+              properties:
+                target_resource_ids:
+                  type: array
+                  items: { type: string }
+                  description: "연동 대상 리소스 ID 배열"
+                excluded_resource_ids:
+                  type: array
+                  items: { type: string }
+                  description: "연동 제외 리소스 ID 배열"
+                exclusion_reason:
+                  type: string
+                  description: "일괄 제외 사유"
+                vm_configs:
+                  type: array
+                  items: { $ref: '#/components/schemas/VmConfig' }
+      responses:
+        '201':
+          description: 요청 생성 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  approval_request: { $ref: '#/components/schemas/ApprovalRequest' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /target-sources/{targetSourceId}/confirmed-integration:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Approval Process]
+      summary: 연동 확정 정보 조회 (현재 실제 상태)
+      operationId: getConfirmedIntegration
+      description: "현재 Terraform이 관리 중이며 실제 인프라에 반영 완료되어 구동 중인 정보입니다."
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  confirmed_integration:
+                    $ref: '#/components/schemas/ConfirmedIntegration'
+                    nullable: true
+
+  /target-sources/{targetSourceId}/approved-integration:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Approval Process]
+      summary: 승인 완료 정보 조회 (반영 중 상태)
+      operationId: getApprovedIntegration
+      description: "관리자 승인이 완료되어 인프라에 반영 중인 과도기적 스냅샷 정보입니다."
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approved_integration:
+                    $ref: '#/components/schemas/ApprovedIntegration'
+                    nullable: true
+
+  /target-sources/{targetSourceId}/approval-history:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+      - name: page
+        in: query
+        required: false
+        schema: { type: integer, default: 0 }
+        description: "페이지 번호 (0부터 시작)"
+      - name: size
+        in: query
+        required: false
+        schema: { type: integer, default: 10 }
+        description: "페이지 당 항목 수"
+    get:
+      tags: [Approval Process]
+      summary: 승인/반려/확정 이력 전체 조회 (Pagination)
+      operationId: getApprovalHistory
+      description: "과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다."
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items: { $ref: '#/components/schemas/ApprovalHistoryItem' }
+                  page: { $ref: '#/components/schemas/PageInfo' }
+
+components:
+  parameters:
+    TargetSourceId:
+      name: targetSourceId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  schemas:
+    # --- Resource Models ---
+    Resource:
+      type: object
+      required: [id, resourceId, name, resourceType, metadata, integrationCategory]
+      properties:
+        id: { type: string }
+        resourceId: { type: string }
+        name: { type: string }
+        resourceType: { type: string }
+        integrationCategory: { $ref: '#/components/schemas/IntegrationCategory' }
+        selectedCredentialId: { type: string, nullable: true }
+        metadata: { $ref: '#/components/schemas/ResourceMetadata' }
+
+    IntegrationCategory:
+      type: string
+      enum: [TARGET, NO_INSTALL_NEEDED, INSTALL_INELIGIBLE]
+      description: "TARGET: 제외 시 사유 필수, NO_INSTALL_NEEDED: 사유 선택, INSTALL_INELIGIBLE: 연동 불가"
+
+    # --- Metadata Union ---
+    ResourceMetadata:
+      oneOf:
+        - $ref: '#/components/schemas/AwsMetadata'
+        - $ref: '#/components/schemas/AzureMetadata'
+        - $ref: '#/components/schemas/GcpMetadata'
+        - $ref: '#/components/schemas/OtherMetadata'
+      discriminator:
+        propertyName: provider
+
+    AwsMetadata:
+      type: object
+      required: [provider, resourceType, region]
+      properties:
+        provider: { type: string, enum: [AWS] }
+        resourceType: { type: string, enum: [DYNAMODB, RDS, RDS_CLUSTER, ATHENA, REDSHIFT, EC2] }
+        region: { type: string }
+        arn: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        databaseName: { type: string }
+        vpcId: { type: string }
+        instanceId: { type: string }
+        hostName: { type: string }
+        privateIp: { type: string }
+        catalog: { type: string }
+
+    AzureMetadata:
+      type: object
+      required: [provider, resourceType, region]
+      properties:
+        provider: { type: string, enum: [Azure] }
+        resourceType: { type: string, enum: [AZURE_MSSQL, AZURE_POSTGRESQL, AZURE_MYSQL, AZURE_MARIADB, AZURE_COSMOS_NOSQL, AZURE_SYNAPSE, AZURE_VM] }
+        region: { type: string }
+        subscriptionId: { type: string }
+        resourceGroup: { type: string }
+        serverName: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        accountName: { type: string }
+        endpoint: { type: string }
+        workspaceName: { type: string }
+        vmName: { type: string }
+        hostName: { type: string }
+        privateIp: { type: string }
+
+    GcpMetadata:
+      type: object
+      required: [provider, resourceType, region, projectId]
+      properties:
+        provider: { type: string, enum: [GCP] }
+        resourceType: { type: string, enum: [CLOUD_SQL, BIGQUERY, SPANNER] }
+        region: { type: string }
+        projectId: { type: string }
+        instanceName: { type: string }
+        ip: { type: string }
+        serviceAttachment: { type: string }
+        instanceId: { type: string }
+
+    OtherMetadata:
+      type: object
+      required: [provider, resourceType]
+      properties:
+        provider: { type: string, enum: [IDC, SDU] }
+        resourceType: { type: string, enum: [IDC, ATHENA_TABLE] }
+        s3Bucket: { type: string }
+        athenaDatabase: { type: string }
+        tableName: { type: string }
+
+    # --- Approval & History Models ---
+    ApprovalHistoryItem:
+      type: object
+      required: [request]
+      properties:
+        request: { $ref: '#/components/schemas/ApprovalRequest' }
+        result: { $ref: '#/components/schemas/ApprovalResult' }
+
+    ApprovalRequest:
+      type: object
+      properties:
+        id: { type: string }
+        requested_at: { type: string, format: date-time }
+        requested_by: { type: string }
+        target_resource_ids: { type: array, items: { type: string } }
+        excluded_resource_ids: { type: array, items: { type: string } }
+        exclusion_reason: { type: string }
+
+    ApprovalResult:
+      type: object
+      properties:
+        id: { type: string }
+        request_id: { type: string }
+        result:
+          type: string
+          enum: [APPROVED, AUTO_APPROVED, REJECTED, CANCELLED, SYSTEM_ERROR, COMPLETED]
+        processed_at: { type: string, format: date-time }
+        process_info:
+          type: object
+          properties:
+            user_id: { type: string, nullable: true }
+            reason: { type: string, nullable: true }
+
+    # --- Integration Snapshots ---
+    ConfirmedIntegration:
+      type: object
+      properties:
+        id: { type: string }
+        confirmed_at: { type: string, format: date-time }
+        resource_infos:
+          type: array
+          items: { $ref: '#/components/schemas/ResourceSnapshot' }
+
+    ApprovedIntegration:
+      type: object
+      properties:
+        id: { type: string }
+        request_id: { type: string }
+        approved_at: { type: string, format: date-time }
+        resource_infos:
+          type: array
+          items: { $ref: '#/components/schemas/ResourceSnapshot' }
+        excluded_resource_ids: { type: array, items: { type: string } }
+        exclusion_reason: { type: string }
+
+    ResourceSnapshot:
+      type: object
+      properties:
+        resource_id: { type: string }
+        resource_type: { type: string }
+        vm_config:
+          nullable: true
+          description: "VM 리소스인 경우 제공되는 설정 스냅샷입니다. Oracle DB 선택 시 oracleServiceId를 포함해야 합니다."
+          allOf:
+            - $ref: '#/components/schemas/VmConfig'
+        selectedCredentialId: { type: string, nullable: true }
+
+    VmConfig:
+      description: "VM 리소스 연결 설정. AWS EC2/Azure VM/IDC 모두 Oracle 선택 시 oracleServiceId가 필수입니다."
+      oneOf:
+        - $ref: '#/components/schemas/OracleVmConfig'
+        - $ref: '#/components/schemas/NonOracleVmConfig'
+
+    OracleVmConfig:
+      type: object
+      required: [resource_id, db_type, port, host, oracleServiceId]
+      properties:
+        resource_id: { type: string }
+        db_type:
+          type: string
+          enum: [ORACLE]
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        host: { type: string }
+        oracleServiceId:
+          type: string
+          description: "Oracle DB 연결에 필요한 Service ID"
+        selectedNicId: { type: string }
+
+    NonOracleVmConfig:
+      type: object
+      required: [resource_id, db_type, port, host]
+      properties:
+        resource_id: { type: string }
+        db_type:
+          type: string
+          enum: [MYSQL, POSTGRESQL, MSSQL, MONGODB]
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        host: { type: string }
+        selectedNicId: { type: string }
+
+    PageInfo:
+      type: object
+      required: [totalElements, totalPages, number, size]
+      properties:
+        totalElements: { type: integer, example: 15 }
+        totalPages: { type: integer, example: 2 }
+        number: { type: integer, description: "현재 페이지 번호 (0-based)" }
+        size: { type: integer, description: "요청한 페이지 당 항목 수" }
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+
+  responses:
+    TargetSourceNotFound:
+      description: "대상 소스를 찾을 수 없음"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }
+    PermissionDenied:
+      description: "권한 없음"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    BadRequest:
+      description: "잘못된 요청 파라미터"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
