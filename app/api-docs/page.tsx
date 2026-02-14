@@ -10,16 +10,16 @@ export default async function ApiDocsHubPage({ searchParams }: PageProps) {
   const selectedSpec = resolveSwaggerSpecName(spec ?? '') ?? SWAGGER_SPEC_NAMES[0];
 
   return (
-    <main className="min-h-screen p-4">
+    <main className="min-h-screen bg-white p-4 text-slate-900">
       <section className="grid min-h-[calc(100vh-2rem)] grid-cols-[220px_1fr] gap-4">
-        <aside className="rounded border p-3">
+        <aside className="rounded border bg-white p-3">
           <p className="text-sm font-semibold">OpenAPI Specs</p>
           <div className="mt-3 flex flex-col gap-2">
             {SWAGGER_SPEC_NAMES.map((name) => (
               <Link
                 key={name}
                 href={`/api-docs?spec=${name}`}
-                className={`rounded border px-3 py-2 text-sm ${selectedSpec === name ? 'font-semibold' : ''}`}
+                className={`rounded border bg-white px-3 py-2 text-sm text-slate-900 ${selectedSpec === name ? 'font-semibold' : ''}`}
               >
                 {name}.yaml
               </Link>
@@ -27,7 +27,7 @@ export default async function ApiDocsHubPage({ searchParams }: PageProps) {
           </div>
         </aside>
 
-        <section className="overflow-hidden rounded border">
+        <section className="overflow-hidden rounded border bg-white">
           <iframe
             title={`redoc-${selectedSpec}`}
             src={`/api-docs/${selectedSpec}`}
