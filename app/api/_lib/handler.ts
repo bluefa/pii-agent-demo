@@ -60,7 +60,8 @@ export function withV1(
 
       // Non-2xx from legacy client — transform to problem+json
       if (!response.ok) {
-        return transformLegacyError(response, requestId);
+        const problem = await transformLegacyError(response, requestId);
+        return addV1Headers(problem, requestId, options?.expectedDuration);
       }
 
       return addV1Headers(response, requestId, options?.expectedDuration);

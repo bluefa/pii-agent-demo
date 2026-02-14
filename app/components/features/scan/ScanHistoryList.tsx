@@ -25,7 +25,7 @@ const ChevronDownIcon = ({ expanded }: { expanded: boolean }) => (
 );
 
 const ExpandedDetail = ({ item }: { item: HistoryItem }) => {
-  if (item.status === 'FAILED') {
+  if (item.status === 'FAIL') {
     return (
       <tr>
         <td colSpan={5} className="px-0 py-0">
@@ -118,7 +118,7 @@ export const ScanHistoryList = ({ projectId, limit = 5, lastCompletedAt }: ScanH
   }
 
   const hasExpandableContent = (item: HistoryItem) =>
-    item.status === 'FAILED' || (item.result?.byResourceType && item.result.byResourceType.length > 0);
+    item.status === 'FAIL' || (item.result?.byResourceType && item.result.byResourceType.length > 0);
 
   const toggleExpand = (scanId: string) => {
     setExpandedId((prev) => (prev === scanId ? null : scanId));
@@ -140,7 +140,7 @@ export const ScanHistoryList = ({ projectId, limit = 5, lastCompletedAt }: ScanH
           {data.history.map((item) => {
             const isExpanded = expandedId === item.scanId;
             const expandable = hasExpandableContent(item);
-            const statusConfig = item.status === 'COMPLETED'
+            const statusConfig = item.status === 'SUCCESS'
               ? { bg: statusColors.success.bg, text: statusColors.success.textDark, dot: statusColors.success.dot, label: '완료' }
               : { bg: statusColors.error.bg, text: statusColors.error.textDark, dot: statusColors.error.dot, label: '실패' };
 
