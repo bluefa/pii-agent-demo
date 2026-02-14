@@ -53,6 +53,16 @@ bash scripts/bootstrap-worktree.sh "$(pwd)"
 
 > `app/api/route.ts`는 `client.method()` 디스패치만 수행 (ADR-007)
 
+### ⛔ API 라우트 구현 시 Swagger 검증 (필수)
+
+기존 client 메서드를 호출하는 v1 라우트를 작성할 때, **반드시 legacy 응답 shape와 Swagger 계약을 비교**한다.
+
+1. **구현 전**: Swagger YAML에서 해당 endpoint의 request/response 스키마를 읽는다
+2. **구현 전**: 호출할 `client.*` 메서드의 실제 mock 구현(`lib/api-client/mock/*.ts`)을 읽고 반환 shape를 확인한다
+3. **shape가 다르면**: 라우트에서 응답 변환 코드를 작성한다 (passthrough 금지)
+4. **에러 응답**: 핸들러가 직접 생성한 에러 응답이 다시 변환되지 않는지 확인한다
+5. **서브에이전트 위임 시**: 프롬프트에 Swagger 스키마 원문과 legacy 응답 shape를 모두 포함한다
+
 ## 3. 구현 후 검증
 
 ```bash
@@ -60,6 +70,19 @@ npm run test          # 유닛 테스트
 npm run type-check    # 타입 체크
 npm run build         # (선택) 빌드 확인
 ```
+
+### ⛔ API 라우트 런타임 검증 (필수)
+
+API 라우트를 구현했으면 dev 서버를 기동하여 실제 응답을 확인한다:
+
+```bash
+bash scripts/dev.sh "$(pwd)"   # 백그라운드 실행
+curl -s http://localhost:<port>/api/v1/<endpoint> | python3 -m json.tool
+```
+
+- 성공 응답 shape가 Swagger 스키마와 일치하는지 확인
+- 에러 응답이 `application/problem+json` 형식인지 확인
+- 잘못된 파라미터로 호출하여 에러 경로도 검증
 
 ## 4. 문서화 (PR 전 필수)
 
