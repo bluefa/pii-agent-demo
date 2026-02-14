@@ -229,6 +229,7 @@ export const mockProjects = {
     const initialStatus = createInitialProjectStatus();
     const newProject: Project = {
       id: mockData.generateId('proj'),
+      targetSourceId: mockData.generateTargetSourceId(),
       projectCode,
       serviceCode,
       cloudProvider,

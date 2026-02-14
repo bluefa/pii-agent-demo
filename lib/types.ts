@@ -145,6 +145,7 @@ export interface TerraformState {
 
 export interface Project {
   id: string;
+  targetSourceId: number;
   projectCode: string;
   serviceCode: string;
   cloudProvider: CloudProvider;
