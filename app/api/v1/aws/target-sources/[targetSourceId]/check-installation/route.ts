@@ -1,7 +1,48 @@
+import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { problemResponse } from '@/app/api/_lib/problem';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
+import type { CheckInstallationResponse, ServiceTfScript } from '@/lib/types';
+
+interface V1ServiceScript {
+  scriptName: string;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  region?: string;
+  resources: { resourceId: string; type: string; name: string }[];
+}
+
+interface V1LastCheck {
+  status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
+  checkedAt?: string;
+  failReason?: string;
+}
+
+interface V1AwsInstallationStatus {
+  hasExecutionPermission: boolean;
+  serviceScripts: V1ServiceScript[];
+  bdcStatus: { status: 'PENDING' | 'COMPLETED' | 'FAILED' };
+  lastCheck: V1LastCheck;
+}
+
+const toScriptStatus = (status: string): 'PENDING' | 'COMPLETED' | 'FAILED' =>
+  status === 'IN_PROGRESS' ? 'PENDING' : (status as 'PENDING' | 'COMPLETED' | 'FAILED');
+
+const transformServiceScript = (script: ServiceTfScript): V1ServiceScript => ({
+  scriptName: script.label,
+  status: toScriptStatus(script.status),
+  ...(script.region && { region: script.region }),
+  resources: script.resources.map(r => ({ resourceId: r.resourceId, type: r.type, name: r.name })),
+});
+
+const transformCheckInstallation = (legacy: CheckInstallationResponse): V1AwsInstallationStatus => ({
+  hasExecutionPermission: legacy.hasTfPermission,
+  serviceScripts: legacy.serviceTfScripts.map(transformServiceScript),
+  bdcStatus: { status: toScriptStatus(legacy.bdcTf.status) },
+  lastCheck: legacy.error
+    ? { status: 'FAILED', checkedAt: legacy.lastCheckedAt, failReason: legacy.error.message }
+    : { status: 'SUCCESS', checkedAt: legacy.lastCheckedAt },
+});
 
 export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
@@ -10,5 +51,9 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   const resolved = resolveProjectId(parsed.value, requestId);
   if (!resolved.ok) return problemResponse(resolved.problem);
 
-  return client.aws.checkInstallation(resolved.projectId);
-}, { expectedDuration: '300000ms' });
+  const response = await client.aws.checkInstallation(resolved.projectId);
+  if (!response.ok) return response;
+
+  const legacy = await response.json() as CheckInstallationResponse;
+  return NextResponse.json(transformCheckInstallation(legacy));
+}, { expectedDuration: '300000ms', errorFormat: 'nested' });

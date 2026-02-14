@@ -44,4 +44,4 @@ export const GET = withV1(async (_request, { requestId, params }) => {
     executionRole: { roleArn: '', status: 'UNVERIFIED' },
     scanRole: toAwsRoleInfo(legacy.scanRole),
   });
-}, { expectedDuration: '150ms' });
+}, { expectedDuration: '150ms', errorFormat: 'nested' });

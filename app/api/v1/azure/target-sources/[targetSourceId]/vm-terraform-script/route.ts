@@ -113,4 +113,4 @@ export const GET = withV1(async (_request, { requestId, params }) => {
       'content-disposition': `attachment; filename="${zipFileName}"`,
     },
   });
-});
+}, { errorFormat: 'nested' });

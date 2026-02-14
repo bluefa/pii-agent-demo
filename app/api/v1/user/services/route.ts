@@ -13,4 +13,4 @@ export const GET = withV1(async () => {
       serviceName: s.name,
     })),
   });
-});
+}, { errorFormat: 'flat' });
