@@ -63,7 +63,6 @@ npm run build         # (선택) 빌드 확인
 ## 4. 문서화 (PR 전 필수)
 
 - 새 API/변경 API → `docs/swagger/*.yaml` 우선 반영 (Swagger-First)
-- 새 API → `docs/api-routes/README.md`
 - 설계 결정 → `docs/adr/*.md`
 - BFF 명세 변경 → `docs/api/providers/*.md`
 - 주요 기능 완료 → `docs/domain/README.md` TODO
