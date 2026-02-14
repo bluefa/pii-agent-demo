@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { cn, statusColors, textColors, bgColors, borderColors } from '@/lib/theme';
 import { Badge } from '@/app/components/ui/Badge';
+import { VM_DATABASE_TYPES, DEFAULT_PORTS, validatePort as validatePortValue } from '@/lib/constants/vm-database';
 import type { VmDatabaseType, VmDatabaseConfig } from '@/lib/types';
 import type { AzureVmNic } from '@/lib/types/azure';
 
@@ -13,22 +14,6 @@ interface VmDatabaseConfigPanelProps {
   onSave: (resourceId: string, config: VmDatabaseConfig) => void;
   onCancel: () => void;
 }
-
-const VM_DATABASE_TYPES: { value: VmDatabaseType; label: string; icon: string }[] = [
-  { value: 'MYSQL', label: 'MySQL', icon: '🐬' },
-  { value: 'POSTGRESQL', label: 'PostgreSQL', icon: '🐘' },
-  { value: 'MSSQL', label: 'SQL Server', icon: '🔷' },
-  { value: 'MONGODB', label: 'MongoDB', icon: '🍃' },
-  { value: 'ORACLE', label: 'Oracle', icon: '🔴' },
-];
-
-const DEFAULT_PORTS: Record<VmDatabaseType, number> = {
-  MYSQL: 3306,
-  POSTGRESQL: 5432,
-  MSSQL: 1433,
-  MONGODB: 27017,
-  ORACLE: 1521,
-};
 
 export const VmDatabaseConfigPanel = ({
   resourceId,
@@ -84,17 +69,9 @@ export const VmDatabaseConfigPanel = ({
   };
 
   const validatePort = (value: string): boolean => {
-    if (!value) {
-      setPortError('포트를 입력해주세요');
-      return false;
-    }
-    const portNum = parseInt(value, 10);
-    if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-      setPortError('1-65535 범위');
-      return false;
-    }
-    setPortError(null);
-    return true;
+    const error = validatePortValue(value);
+    setPortError(error);
+    return error === null;
   };
 
   const handlePortChange = (value: string) => {

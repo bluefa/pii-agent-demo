@@ -19,13 +19,13 @@ user_invocable: true
 ## 실행 절차
 
 1. canonical repo 루트(`/Users/study/pii-agent-demo`)에서 시작합니다.
-2. 아래 명령으로 worktree + 브랜치를 생성합니다.
+2. 아래 명령으로 worktree 생성 스크립트를 실행합니다.
 
 ```bash
-git worktree add ../pii-agent-demo-{topic} -b {prefix}/{topic}
+bash scripts/create-worktree.sh --topic {topic} --prefix {prefix}
 ```
 
-3. 새 worktree 경로로 이동합니다.
+3. 출력된 새 worktree 경로로 이동합니다.
 4. 프로젝트 검증을 실행합니다.
 
 ```bash
@@ -51,4 +51,6 @@ bash scripts/dev.sh "$(pwd)"
 
 - `main`/`master`에서 구현 작업을 시작하지 않습니다.
 - worktree 준비 전에는 코드 변경을 시작하지 않습니다.
+- 신규 브랜치 생성 전 로컬 `main`을 최신 `origin/main`으로 반드시 동기화합니다.
+- 신규 브랜치는 동기화된 로컬 `main`에서만 생성합니다.
 - 모든 후속 작업은 방금 생성한 worktree에서만 수행합니다.

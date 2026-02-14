@@ -9,11 +9,13 @@ Apply these rules in both Codex and Claude Code sessions.
 - Never implement code changes from the canonical repo path:
   - `/Users/study/pii-agent-demo`
 - Run `scripts/guard-worktree.sh` before code edits.
-- If blocked, create and move to a worktree first:
+- If blocked, always sync local `main` to latest `origin/main` and then create a worktree branch from that updated `main`:
 
 ```bash
-git worktree add ../pii-agent-demo-{topic} -b feat/{topic}
+bash scripts/create-worktree.sh --topic {topic} --prefix feat
 ```
+
+- Do not create new feature branches directly from stale local refs or detached HEAD.
 
 Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/`, `codex/`.
 
@@ -95,6 +97,10 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - `.codex/skills/pr/SKILL.md`
 - PR 머지 요청:
   - `.codex/skills/pr-merge/SKILL.md`
+- PR 생성+머지 자동화 요청:
+  - `.codex/skills/pr-flow/SKILL.md`
+- 머지 후 worktree 정리 요청:
+  - `.codex/skills/worktree-cleanup/SKILL.md`
 - 구현/기능 추가 요청:
   - `.codex/skills/feature-development/SKILL.md`
 - 코딩 규칙/스타일 검토 요청:
@@ -106,3 +112,12 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 
 - Higher-priority runtime/system rules take precedence over this file.
 - If this file conflicts with explicit user direction for a task, confirm intent and proceed with the user-approved path.
+
+## 11) Automation Policy
+
+- Routine PR operations should run without interactive confirmation for creation only:
+  - push branch
+  - create PR
+- Never merge unless the user explicitly requests merge in the current thread.
+- For merge, require explicit user command and run merge as a separate step (`/pr-merge` or `/pr-flow --merge-approved`).
+- Use `.codex/skills/pr-flow/SKILL.md` for PR creation-first execution.
