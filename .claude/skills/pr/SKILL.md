@@ -25,7 +25,7 @@ npm run build
 5. 브랜치를 origin으로 push합니다.
 6. PR을 생성합니다.
   - 제목: 브랜치명 기반 요약
-  - 본문: `/pr-description` 스킬로 직접 작성한 상세 설명(아래 템플릿 필수)
+  - 본문: 사람이 검토 가능한 상세 설명(아래 템플릿 필수)
 7. 생성된 PR URL을 사용자에게 보고합니다.
 8. PR 머지는 `/pr-merge` 스킬로 진행합니다.
 9. 생성+머지를 한 번에 자동화하려면 `/pr-flow` 스킬을 사용합니다.
@@ -55,29 +55,10 @@ npm run build
 
 ## 권장 생성 방법
 
-`/pr-description` 스킬로 본문을 직접 작성한 뒤 생성합니다.
+아래 명령으로 기본 본문을 생성한 후 필요 내용을 보강합니다.
 
 ```bash
-PR_BODY="$(cat <<'EOF'
-## Summary
-- ...
-
-## Description
-...
-
-## What Changed
-- ...
-
-## Validation
-- ...
-
-## Risks
-- ...
-
-## Notes For Reviewer
-- ...
-EOF
-)"
+PR_BODY="$(bash scripts/build-pr-body.sh --base main)"
 gh pr create --base main --head "$(git rev-parse --abbrev-ref HEAD)" --title "<title>" --body "${PR_BODY}"
 ```
 
@@ -88,4 +69,3 @@ gh pr create --base main --head "$(git rev-parse --abbrev-ref HEAD)" --title "<t
 - 변경사항을 여러 브랜치로 분산하지 않습니다.
 - 검증 실패 상태로 PR을 만들지 않습니다.
 - PR description은 생략하거나 한 줄 요약으로 제출하지 않습니다.
-- PR description은 `/pr-description` 스킬 기준으로 직접 작성합니다.
