@@ -44,6 +44,24 @@ interface LegacyErrorBody {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/** 서버 KnownErrorCode allowlist — 미정의 코드는 fallback 처리 */
+const KNOWN_CODES: ReadonlySet<string> = new Set<string>([
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'TARGET_SOURCE_NOT_FOUND',
+  'SERVICE_NOT_FOUND',
+  'VALIDATION_FAILED',
+  'INVALID_PARAMETER',
+  'INVALID_PROVIDER',
+  'CONFLICT_IN_PROGRESS',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
+]);
+
+function isKnownCode(s: string): s is AppErrorCode {
+  return KNOWN_CODES.has(s);
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -75,17 +93,29 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
     });
   }
 
-  // ProblemDetails 형태 (code 필드가 직접 있음)
-  const code = (body.code ?? body.error?.code ?? undefined) as AppErrorCode | undefined;
+  // 서버 code 검증 — 미정의 코드는 경고 후 fallback
+  const rawCode = body.code ?? body.error?.code;
+  if (rawCode && !isKnownCode(rawCode)) {
+    console.warn(`[fetchJson] Unknown error code: "${rawCode}" (status: ${res.status})`);
+  }
+  const code = rawCode && isKnownCode(rawCode) ? rawCode : undefined;
+
   const message = body.detail ?? body.error?.message ?? body.message ?? `HTTP ${res.status}`;
-  const retriable = body.retriable ?? false;
+
+  // retriable: 서버 값 우선, 없으면 status 기반 fallback
+  const retriable = body.retriable ?? (res.status === 429 || res.status >= 500);
+
+  // Retry-After 헤더 파싱 (서버 retryAfterMs 우선)
+  const retryAfterHeader = res.headers.get('Retry-After');
+  const retryAfterMs = body.retryAfterMs
+    ?? (retryAfterHeader ? parseInt(retryAfterHeader, 10) * 1000 : undefined);
 
   return new AppError({
     status: res.status,
     code: code ?? statusToCode(res.status),
     message,
     retriable,
-    retryAfterMs: body.retryAfterMs,
+    retryAfterMs: Number.isFinite(retryAfterMs) ? retryAfterMs : undefined,
     requestId: body.requestId ?? requestId,
   });
 }
@@ -125,10 +155,11 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
     init.signal.addEventListener('abort', () => controller.abort('ABORTED'), { once: true });
   }
 
-  const headers: Record<string, string> = {
-    ...(body !== undefined && { 'Content-Type': 'application/json' }),
-    ...(init.headers as Record<string, string>),
-  };
+  // Headers 병합: Headers 인스턴스/튜플 배열도 안전하게 처리
+  const headers = new Headers(init.headers);
+  if (body !== undefined) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   try {
     const res = await fetch(url, {
