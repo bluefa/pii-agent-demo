@@ -38,7 +38,7 @@ gh pr view <pr> --json number,title,state,mergeable,headRefName,baseRefName
 # headRefName과 일치하는 worktree 확인
 git worktree list
 # 있으면 제거
-bash scripts/worktree-cleanup.sh --path <worktree-path>
+bash scripts/worktree-cleanup.sh --path <worktree-path> --force
 ```
 
 > **주의**: `--delete-branch` 플래그는 머지 후 로컬 브랜치를 삭제하므로, worktree가 해당 브랜치를 checkout하고 있으면 실패합니다. 반드시 worktree를 먼저 제거하세요.
