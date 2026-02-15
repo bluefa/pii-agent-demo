@@ -8,7 +8,7 @@
  * @see docs/swagger/ERROR_HANDLING_DESIGN.md — 설계 문서
  */
 
-import { AppError } from '@/lib/errors';
+import { AppError, isKnownErrorCode } from '@/lib/errors';
 import type { AppErrorCode } from '@/lib/errors';
 
 // ---------------------------------------------------------------------------
@@ -44,24 +44,6 @@ interface LegacyErrorBody {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-/** 서버 KnownErrorCode allowlist — 미정의 코드는 fallback 처리 */
-const KNOWN_CODES: ReadonlySet<string> = new Set<string>([
-  'UNAUTHORIZED',
-  'FORBIDDEN',
-  'TARGET_SOURCE_NOT_FOUND',
-  'SERVICE_NOT_FOUND',
-  'VALIDATION_FAILED',
-  'INVALID_PARAMETER',
-  'INVALID_PROVIDER',
-  'CONFLICT_IN_PROGRESS',
-  'RATE_LIMITED',
-  'INTERNAL_ERROR',
-]);
-
-function isKnownCode(s: string): s is AppErrorCode {
-  return KNOWN_CODES.has(s);
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -95,10 +77,10 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
 
   // 서버 code 검증 — 미정의 코드는 경고 후 fallback
   const rawCode = body.code ?? body.error?.code;
-  if (rawCode && !isKnownCode(rawCode)) {
+  if (rawCode && !isKnownErrorCode(rawCode)) {
     console.warn(`[fetchJson] Unknown error code: "${rawCode}" (status: ${res.status})`);
   }
-  const code = rawCode && isKnownCode(rawCode) ? rawCode : undefined;
+  const code = rawCode && isKnownErrorCode(rawCode) ? rawCode : undefined;
 
   const message = body.detail ?? body.error?.message ?? body.message ?? `HTTP ${res.status}`;
 

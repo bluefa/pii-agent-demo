@@ -29,6 +29,24 @@ export type AppErrorCode =
   | 'PARSE_ERROR'
   | 'UNKNOWN';
 
+/** 서버 KnownErrorCode allowlist — fetchJson에서 코드 검증에 사용 */
+export const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set<string>([
+  'UNAUTHORIZED',
+  'FORBIDDEN',
+  'TARGET_SOURCE_NOT_FOUND',
+  'SERVICE_NOT_FOUND',
+  'VALIDATION_FAILED',
+  'INVALID_PARAMETER',
+  'INVALID_PROVIDER',
+  'CONFLICT_IN_PROGRESS',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
+]);
+
+export function isKnownErrorCode(s: string): s is AppErrorCode {
+  return KNOWN_ERROR_CODES.has(s);
+}
+
 export interface AppErrorInit {
   status: number;
   code: AppErrorCode;
