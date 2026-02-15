@@ -1,5 +1,6 @@
 import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory, VmDatabaseConfig } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
+import { fetchJson } from '@/lib/fetch-json';
 
 const BASE_URL = '/api';
 
@@ -191,14 +192,8 @@ export const confirmPiiAgent = async (
 
 // ===== Connection Test API =====
 
-export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> => {
-  const res = await fetch(`/api/v1/target-sources/${targetSourceId}/secrets`);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to fetch secrets');
-  }
-  return await res.json();
-};
+export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
+  fetchJson<SecretKey[]>(`/api/v1/target-sources/${targetSourceId}/secrets`);
 
 export interface ResourceCredentialInput {
   resourceId: string;
