@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, DBCredential, ConnectionTestResult, needsCredential, Resource, DatabaseType } from '@/lib/types';
-import { getCredentials, runConnectionTest, ResourceCredentialInput } from '@/app/lib/api';
+import { Project, ConnectionTestResult, needsCredential, Resource, SecretKey } from '@/lib/types';
+import { getSecrets, runConnectionTest, ResourceCredentialInput } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ERROR_TYPE_LABELS } from '@/lib/constants/labels';
-import { filterCredentialsByType } from '@/lib/utils/credentials';
 
 interface TestConnectionTabProps {
   project: Project;
@@ -13,7 +12,7 @@ interface TestConnectionTabProps {
 }
 
 export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTabProps) => {
-  const [credentials, setCredentials] = useState<DBCredential[]>([]);
+  const [credentials, setCredentials] = useState<SecretKey[]>([]);
   const [resourceCredentialMap, setResourceCredentialMap] = useState<Record<string, string>>({});
   const [testResults, setTestResults] = useState<ConnectionTestResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +25,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
     const fetchCredentials = async () => {
       try {
         setLoadingCredentials(true);
-        const creds = await getCredentials(project.id);
+        const creds = await getSecrets(project.targetSourceId);
         setCredentials(creds || []);
       } catch (err) {
         console.error('Failed to fetch credentials:', err);
@@ -36,7 +35,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
       }
     };
     fetchCredentials();
-  }, [project.id]);
+  }, [project.targetSourceId]);
 
   const handleCredentialChange = (resourceId: string, credentialId: string) => {
     setResourceCredentialMap((prev) => ({
@@ -79,9 +78,6 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
     return testResults.find((r) => r.resourceId === resourceId);
   };
 
-  const getCredentialsForType = (databaseType: string): DBCredential[] => {
-    return filterCredentialsByType(credentials, databaseType as DatabaseType);
-  };
 
   const renderStatus = (resource: Resource) => {
     const result = getResultForResource(resource.id);
@@ -199,7 +195,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
           <tbody>
             {selectedResources.map((resource) => {
               const needsCred = needsCredential(resource.databaseType);
-              const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
+              const availableCredentials = needsCred ? credentials : [];
 
               return (
                 <tr key={resource.id} className="border-b border-gray-100 last:border-b-0">
@@ -219,7 +215,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
                       >
                         <option value="">선택하세요</option>
                         {availableCredentials.map((cred) => (
-                          <option key={cred.id} value={cred.id}>
+                          <option key={cred.name} value={cred.name}>
                             {cred.name}
                           </option>
                         ))}

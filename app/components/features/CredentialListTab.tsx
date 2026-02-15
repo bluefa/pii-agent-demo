@@ -1,10 +1,10 @@
 'use client';
 
-import { DBCredential } from '@/lib/types';
+import { SecretKey } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
 
 interface CredentialListTabProps {
-  credentials: DBCredential[];
+  credentials: SecretKey[];
 }
 
 export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
@@ -71,12 +71,12 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {credentials.map((cred) => (
-              <tr key={cred.id} className="hover:bg-gray-50">
+              <tr key={cred.name} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   <span className="text-sm font-medium text-gray-900">{cred.name}</span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">
-                  {formatDateOnly(cred.createdAt)}
+                  {formatDateOnly(cred.createTimeStr)}
                 </td>
               </tr>
             ))}

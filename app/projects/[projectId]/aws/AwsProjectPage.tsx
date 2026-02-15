@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import type { AwsInstallationStatus, AwsServiceSettings } from '@/lib/types';
 import {
   confirmTargets,
@@ -30,7 +30,7 @@ import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
 interface AwsProjectPageProps {
   project: Project;
   isAdmin: boolean;
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
@@ -225,7 +225,7 @@ export const AwsProjectPage = ({
           </div>
 
           <ScanPanel
-            projectId={project.id}
+            targetSourceId={project.targetSourceId}
             cloudProvider={project.cloudProvider}
             onScanComplete={async () => {
               const updatedProject = await getProject(project.id);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, needsCredential } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
   updateResourceCredential,
@@ -19,7 +19,7 @@ import { IdcProcessStatusCard } from './IdcProcessStatusCard';
 interface IdcProjectPageProps {
   project: Project;
   isAdmin: boolean;
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 

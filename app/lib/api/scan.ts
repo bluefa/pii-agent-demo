@@ -1,87 +1,24 @@
-import { CloudProvider, ScanStatus, ScanResult } from '@/lib/types';
+import type { V1ScanJob } from '@/lib/types';
 
-const BASE_URL = '/api/v2/projects';
+const BASE_URL = '/api/v1/target-sources';
 
-// ===== Response Types =====
-
-export interface ScanStatusResponse {
-  isScanning: boolean;
-  canScan: boolean;
-  canScanReason?: string;
-  /** 쿨다운 종료 시간 (ISO 8601) */
-  cooldownUntil?: string;
-  currentScan: {
-    scanId: string;
-    status: ScanStatus;
-    startedAt: string;
-    progress: number;
-  } | null;
-  lastCompletedScan: {
-    scanId: string;
-    completedAt: string;
-    result: ScanResult | null;
-  } | null;
+// v1 Scan History Response
+export interface V1ScanHistoryResponse {
+  content: V1ScanJob[];
+  page: {
+    totalElements: number;
+    totalPages: number;
+    number: number;
+    size: number;
+  };
 }
 
-export interface StartScanResponse {
-  scanId: string;
-  status: 'STARTED';
-  startedAt: string;
-  estimatedDuration: number;
-}
-
-export interface ScanDetailResponse {
-  scanId: string;
-  projectId: string;
-  provider: CloudProvider;
-  status: ScanStatus;
-  startedAt: string;
-  completedAt?: string;
-  progress: number;
-  result?: ScanResult;
-  error?: string;
-}
-
-export interface ScanHistoryResponse {
-  history: Array<{
-    scanId: string;
-    status: 'SUCCESS' | 'FAIL';
-    startedAt: string;
-    completedAt: string;
-    duration: number;
-    result: ScanResult | null;
-    error?: string;
-  }>;
-  total: number;
-}
-
-// ===== API Functions =====
-
-/**
- * 스캔 상태 조회
- */
-export const getScanStatus = async (
-  projectId: string
-): Promise<ScanStatusResponse> => {
-  const res = await fetch(`${BASE_URL}/${projectId}/scan/status`);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || '스캔 상태 조회에 실패했습니다.');
-  }
-  return await res.json();
-};
-
-/**
- * 스캔 시작
- */
-export const startScan = async (
-  projectId: string,
-  force?: boolean
-): Promise<StartScanResponse> => {
-  const res = await fetch(`${BASE_URL}/${projectId}/scan`, {
+/** 스캔 시작 */
+export const startScan = async (targetSourceId: number): Promise<V1ScanJob> => {
+  const res = await fetch(`${BASE_URL}/${targetSourceId}/scan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force }),
+    body: JSON.stringify({}),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -90,37 +27,31 @@ export const startScan = async (
   return await res.json();
 };
 
-/**
- * 스캔 상세 조회
- */
-export const getScanDetail = async (
-  projectId: string,
-  scanId: string
-): Promise<ScanDetailResponse> => {
-  const res = await fetch(`${BASE_URL}/${projectId}/scan/${scanId}`);
+/** 최신 스캔 작업 조회 (polling용) */
+export const getLatestScanJob = async (targetSourceId: number): Promise<V1ScanJob | null> => {
+  const res = await fetch(`${BASE_URL}/${targetSourceId}/scanJob/latest`);
+  if (res.status === 404) return null;
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || '스캔 상세 조회에 실패했습니다.');
+    throw new Error(data.message || '스캔 상태 조회에 실패했습니다.');
   }
   return await res.json();
 };
 
-/**
- * 스캔 이력 조회
- */
+/** 스캔 이력 조회 (페이지네이션) */
 export const getScanHistory = async (
-  projectId: string,
-  limit?: number,
-  offset?: number
-): Promise<ScanHistoryResponse> => {
+  targetSourceId: number,
+  page?: number,
+  size?: number
+): Promise<V1ScanHistoryResponse> => {
   const params = new URLSearchParams();
-  if (limit !== undefined) params.set('limit', String(limit));
-  if (offset !== undefined) params.set('offset', String(offset));
+  if (page !== undefined) params.set('page', String(page));
+  if (size !== undefined) params.set('size', String(size));
 
   const queryString = params.toString();
   const url = queryString
-    ? `${BASE_URL}/${projectId}/scan/history?${queryString}`
-    : `${BASE_URL}/${projectId}/scan/history`;
+    ? `${BASE_URL}/${targetSourceId}/scan/history?${queryString}`
+    : `${BASE_URL}/${targetSourceId}/scan/history`;
 
   const res = await fetch(url);
   if (!res.ok) {

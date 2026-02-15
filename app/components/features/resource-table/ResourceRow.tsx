@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { Resource, DatabaseType, DBCredential, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
+import { Resource, DatabaseType, SecretKey, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
@@ -26,7 +26,7 @@ interface ResourceRowProps {
   showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
-  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   // VM 설정 관련
   expandedVmId?: string | null;
@@ -37,14 +37,14 @@ interface ResourceRowProps {
 interface CredentialDisplayProps {
   needsCred: boolean;
   selectedCredentialId: string | undefined;
-  availableCredentials: DBCredential[];
+  availableCredentials: SecretKey[];
 }
 
 const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentials }: CredentialDisplayProps) => {
   if (!needsCred) return <span className={cn('text-xs', textColors.quaternary)}>불필요</span>;
 
   const selectedCred = selectedCredentialId
-    ? availableCredentials.find((c) => c.id === selectedCredentialId)
+    ? availableCredentials.find((c) => c.name === selectedCredentialId)
     : null;
 
   if (selectedCred) return <span className={cn('text-sm', textColors.primary)}>{selectedCred.name}</span>;
@@ -62,7 +62,7 @@ export const ResourceRow = ({
   showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
-  getCredentialsForType,
+  credentials,
   onCredentialChange,
   expandedVmId,
   onVmConfigToggle,
@@ -70,7 +70,7 @@ export const ResourceRow = ({
 }: ResourceRowProps) => {
   const vnetModal = useModal();
   const needsCred = needsCredential(resource.databaseType);
-  const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
+  const availableCredentials = needsCred ? credentials : [];
   const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
 
   const isVm = isVmResource(resource);
@@ -201,7 +201,7 @@ export const ResourceRow = ({
                 >
                   <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
                   {availableCredentials.map((cred) => (
-                    <option key={cred.id} value={cred.id}>
+                    <option key={cred.name} value={cred.name}>
                       {cred.name}
                     </option>
                   ))}

@@ -1,4 +1,5 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, DBCredential, ConnectionTestResult, ConnectionTestHistory, VmDatabaseConfig } from '@/lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory, VmDatabaseConfig } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
 
 const BASE_URL = '/api';
 
@@ -190,14 +191,13 @@ export const confirmPiiAgent = async (
 
 // ===== Connection Test API =====
 
-export const getCredentials = async (projectId: string): Promise<DBCredential[]> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/credentials`);
+export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> => {
+  const res = await fetch(`/api/v1/target-sources/${targetSourceId}/secrets`);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to fetch credentials');
+    throw new Error(data.message || 'Failed to fetch secrets');
   }
-  const data = await res.json();
-  return data.credentials;
+  return await res.json();
 };
 
 export interface ResourceCredentialInput {

@@ -1,20 +1,16 @@
 'use client';
 
-import { Resource, DBCredential } from '@/lib/types';
+import { Resource, SecretKey } from '@/lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 
 interface MissingCredentialsTabProps {
   resources: Resource[];
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
 }
 
 export const MissingCredentialsTab = ({ resources, credentials, onCredentialChange }: MissingCredentialsTabProps) => {
-  const getCredentialsForType = (databaseType: string) => {
-    return credentials.filter((c) => c.databaseType === databaseType);
-  };
-
   return (
     <div>
       {/* 안내 메시지 */}
@@ -41,7 +37,7 @@ export const MissingCredentialsTab = ({ resources, credentials, onCredentialChan
         </thead>
         <tbody className="divide-y divide-gray-100">
           {resources.map((resource) => {
-            const availableCredentials = getCredentialsForType(resource.databaseType);
+            const availableCredentials = credentials;
             return (
               <tr key={resource.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
@@ -73,7 +69,7 @@ export const MissingCredentialsTab = ({ resources, credentials, onCredentialChan
                   >
                     <option value="">선택하세요</option>
                     {availableCredentials.map((cred) => (
-                      <option key={cred.id} value={cred.id}>
+                      <option key={cred.name} value={cred.name}>
                         {cred.name}
                       </option>
                     ))}

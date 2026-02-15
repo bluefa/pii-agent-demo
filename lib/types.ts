@@ -235,6 +235,12 @@ export interface DBCredential {
   createdBy: string;
 }
 
+// v1 API Secret Key (credential의 v1 표현)
+export interface SecretKey {
+  name: string;
+  createTimeStr: string;
+}
+
 // 연결 에러 타입
 export type ConnectionErrorType =
   | 'AUTH_FAILED'
@@ -376,6 +382,20 @@ export interface ScanHistory {
   resourceCountBefore: number;
   resourceCountAfter: number;
   addedResourceIds: string[];
+}
+
+// v1 API ScanJob 응답
+export interface V1ScanJob {
+  id: number;
+  scanStatus: ScanStatus;
+  targetSourceId: number;
+  createdAt: string;
+  updatedAt: string;
+  scanVersion: number;
+  scanProgress: number | null;
+  durationSeconds: number;
+  resourceCountByResourceType: Record<string, number>;
+  scanError: string | null;
 }
 
 // ===== AWS API Types =====
