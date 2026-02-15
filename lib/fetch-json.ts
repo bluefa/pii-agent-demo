@@ -50,10 +50,11 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 
 /** status code → fallback AppErrorCode (응답 body에 code가 없을 때만 사용) */
 function statusToCode(status: number): AppErrorCode {
+  if (status === 400) return 'BAD_REQUEST';
   if (status === 401) return 'UNAUTHORIZED';
   if (status === 403) return 'FORBIDDEN';
   if (status === 404) return 'NOT_FOUND';
-  if (status === 409) return 'CONFLICT_IN_PROGRESS';
+  if (status === 409) return 'CONFLICT';
   if (status === 429) return 'RATE_LIMITED';
   return 'INTERNAL_ERROR';
 }

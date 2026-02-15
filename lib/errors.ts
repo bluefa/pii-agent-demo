@@ -8,37 +8,30 @@
  * @see docs/swagger/ERROR_HANDLING_DESIGN.md  — 설계 문서
  */
 
-/** 서버 KnownErrorCode + 클라이언트 전용 코드 */
+/** HTTP 표준 에러 코드 + 클라이언트 전용 코드 */
 export type AppErrorCode =
-  // 서버 ProblemDetails codes (app/api/_lib/problem.ts 와 동일)
+  // HTTP 표준 에러 (status code 기반)
+  | 'BAD_REQUEST'
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
-  | 'TARGET_SOURCE_NOT_FOUND'
-  | 'SERVICE_NOT_FOUND'
-  | 'VALIDATION_FAILED'
-  | 'INVALID_PARAMETER'
-  | 'INVALID_PROVIDER'
-  | 'CONFLICT_IN_PROGRESS'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   // 클라이언트 전용 codes
-  | 'NOT_FOUND'
   | 'NETWORK'
   | 'TIMEOUT'
   | 'ABORTED'
   | 'PARSE_ERROR'
   | 'UNKNOWN';
 
-/** 서버 KnownErrorCode allowlist — fetchJson에서 코드 검증에 사용 */
+/** fetchJson이 인식하는 에러 코드 allowlist */
 export const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set<string>([
+  'BAD_REQUEST',
   'UNAUTHORIZED',
   'FORBIDDEN',
-  'TARGET_SOURCE_NOT_FOUND',
-  'SERVICE_NOT_FOUND',
-  'VALIDATION_FAILED',
-  'INVALID_PARAMETER',
-  'INVALID_PROVIDER',
-  'CONFLICT_IN_PROGRESS',
+  'NOT_FOUND',
+  'CONFLICT',
   'RATE_LIMITED',
   'INTERNAL_ERROR',
 ]);
