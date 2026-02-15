@@ -130,7 +130,7 @@ describe('mock-scan', () => {
           id: 'scan-1',
           projectId: project.id,
           provider: 'AWS',
-          status: 'IN_PROGRESS',
+          status: 'SCANNING',
           startedAt: new Date().toISOString(),
           estimatedEndAt: new Date(Date.now() + 10000).toISOString(),
           progress: 50,
@@ -155,7 +155,7 @@ describe('mock-scan', () => {
           projectId: project.id,
           scanId: 'scan-old',
           provider: 'AWS',
-          status: 'COMPLETED',
+          status: 'SUCCESS',
           startedAt: new Date(Date.now() - 60000).toISOString(),
           completedAt: new Date(Date.now() - 30000).toISOString(), // 30초 전 완료
           duration: 30,
@@ -181,7 +181,7 @@ describe('mock-scan', () => {
           projectId: project.id,
           scanId: 'scan-old',
           provider: 'AWS',
-          status: 'COMPLETED',
+          status: 'SUCCESS',
           startedAt: new Date(Date.now() - 60000).toISOString(),
           completedAt: new Date(Date.now() - 30000).toISOString(),
           duration: 30,
@@ -205,7 +205,7 @@ describe('mock-scan', () => {
           projectId: project.id,
           scanId: 'scan-old',
           provider: 'AWS',
-          status: 'COMPLETED',
+          status: 'SUCCESS',
           startedAt: new Date(Date.now() - 400000).toISOString(),
           completedAt: new Date(Date.now() - SCAN_COOLDOWN_MS - 1000).toISOString(),
           duration: 30,
@@ -236,7 +236,7 @@ describe('mock-scan', () => {
       expect(scanJob.id).toMatch(/^scan-/);
       expect(scanJob.projectId).toBe(project.id);
       expect(scanJob.provider).toBe('AWS');
-      expect(scanJob.status).toBe('PENDING');
+      expect(scanJob.status).toBe('SCANNING');
       expect(scanJob.progress).toBe(0);
       expect(scanJob.startedAt).toBeDefined();
       expect(scanJob.estimatedEndAt).toBeDefined();
@@ -260,13 +260,13 @@ describe('mock-scan', () => {
   });
 
   describe('calculateScanStatus', () => {
-    it('완료 시간 전이면 IN_PROGRESS로 업데이트', () => {
+    it('완료 시간 전이면 SCANNING으로 업데이트', () => {
       const now = Date.now();
       const scan: ScanJob = {
         id: 'scan-1',
         projectId: 'test-project-1',
         provider: 'AWS',
-        status: 'PENDING',
+        status: 'SCANNING',
         startedAt: new Date(now - 2000).toISOString(),
         estimatedEndAt: new Date(now + 3000).toISOString(),
         progress: 0,
@@ -276,18 +276,18 @@ describe('mock-scan', () => {
       store.scans.push(scan);
 
       const result = calculateScanStatus(scan);
-      expect(result.status).toBe('IN_PROGRESS');
+      expect(result.status).toBe('SCANNING');
       expect(result.progress).toBeGreaterThan(0);
       expect(result.progress).toBeLessThan(100);
     });
 
-    it('완료 시간 이후면 COMPLETED로 업데이트', () => {
+    it('완료 시간 이후면 SUCCESS로 업데이트', () => {
       const now = Date.now();
       const scan: ScanJob = {
         id: 'scan-1',
         projectId: 'test-project-1',
         provider: 'AWS',
-        status: 'PENDING',
+        status: 'SCANNING',
         startedAt: new Date(now - 5000).toISOString(),
         estimatedEndAt: new Date(now - 1000).toISOString(),
         progress: 0,
@@ -299,17 +299,17 @@ describe('mock-scan', () => {
       store.scans.push(scan);
 
       const result = calculateScanStatus(scan);
-      expect(result.status).toBe('COMPLETED');
+      expect(result.status).toBe('SUCCESS');
       expect(result.progress).toBe(100);
       expect(result.completedAt).toBeDefined();
     });
 
-    it('이미 COMPLETED인 스캔은 변경 없음', () => {
+    it('이미 SUCCESS인 스캔은 변경 없음', () => {
       const scan: ScanJob = {
         id: 'scan-1',
         projectId: 'test-project-1',
         provider: 'AWS',
-        status: 'COMPLETED',
+        status: 'SUCCESS',
         startedAt: new Date(Date.now() - 5000).toISOString(),
         estimatedEndAt: new Date(Date.now() - 1000).toISOString(),
         completedAt: new Date(Date.now() - 1000).toISOString(),
@@ -373,7 +373,7 @@ describe('mock-scan', () => {
           projectId: 'test-project-1',
           scanId: `scan-${i}`,
           provider: 'AWS',
-          status: 'COMPLETED',
+          status: 'SUCCESS',
           startedAt: new Date(Date.now() - (i + 1) * 60000).toISOString(),
           completedAt: new Date(Date.now() - i * 60000).toISOString(),
           duration: 60,

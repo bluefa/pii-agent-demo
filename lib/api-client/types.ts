@@ -49,7 +49,7 @@ export interface ApiClient {
     setInstallationMode: (projectId: string, body: SetInstallationModeBody) => Promise<NextResponse>;
     getInstallationStatus: (projectId: string) => Promise<NextResponse>;
     getTerraformScript: (projectId: string) => Promise<NextResponse>;
-    verifyTfRole: (body: VerifyTfRoleRequest) => Promise<NextResponse>;
+    verifyTfRole: (projectId: string, body?: { roleArn?: string }) => Promise<NextResponse>;
   };
   azure: {
     checkInstallation: (projectId: string) => Promise<NextResponse>;

@@ -86,7 +86,7 @@ v1 라우트 (19개):
 | GCP | `/api/v1/gcp/target-sources/{targetSourceId}/installation-status` | GET |
 | GCP | `/api/v1/gcp/target-sources/{targetSourceId}/check-installation` | POST |
 | GCP | `/api/v1/gcp/target-sources/{targetSourceId}/settings` | GET |
-| Credential | `/api/v1/target-sources/{serviceCode}/secrets` | GET |
+| Credential | `/api/v1/target-sources/{targetSourceId}/secrets` | GET |
 
 Exception 처리 정책:
 
