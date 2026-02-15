@@ -65,24 +65,11 @@ export function createProblem(
   };
 }
 
-export type SwaggerErrorFormat = 'nested' | 'flat';
-
 export function problemResponse(problem: ProblemDetails): NextResponse {
   return NextResponse.json(problem, {
     status: problem.status,
     headers: { 'content-type': 'application/problem+json' },
   });
-}
-
-/** Swagger ErrorResponse — nested: {error:{code,message}}, flat: {code,message} */
-export function swaggerErrorResponse(
-  problem: ProblemDetails,
-  format: SwaggerErrorFormat = 'nested',
-): NextResponse {
-  const body = format === 'nested'
-    ? { error: { code: problem.code, message: problem.detail } }
-    : { code: problem.code, message: problem.detail };
-  return NextResponse.json(body, { status: problem.status });
 }
 
 // --- Legacy Error Conversion ---
@@ -147,25 +134,18 @@ function mapLegacyCode(legacyCode: string, status: number): KnownErrorCode {
 export async function transformLegacyError(
   response: NextResponse,
   requestId: string,
-  errorFormat?: SwaggerErrorFormat,
 ): Promise<NextResponse> {
   try {
     const raw = await response.json();
     const { code: errorCode, message } = extractBffError(raw as BffErrorBody);
     const code = mapLegacyCode(errorCode, response.status);
-    const problem = createProblem(code, message, requestId);
-    return errorFormat
-      ? swaggerErrorResponse(problem, errorFormat)
-      : problemResponse(problem);
+    return problemResponse(createProblem(code, message, requestId));
   } catch {
-    const problem = createProblem(
+    return problemResponse(createProblem(
       'INTERNAL_ERROR',
       '서버에서 오류가 발생했습니다.',
       requestId,
-    );
-    return errorFormat
-      ? swaggerErrorResponse(problem, errorFormat)
-      : problemResponse(problem);
+    ));
   }
 }
 
@@ -174,15 +154,11 @@ export async function transformLegacyError(
 export function handleUnexpectedError(
   error: unknown,
   requestId: string,
-  errorFormat?: SwaggerErrorFormat,
 ): NextResponse {
   console.error('[v1] Unexpected error:', error);
-  const problem = createProblem(
+  return problemResponse(createProblem(
     'INTERNAL_ERROR',
     '서버에서 예기치 않은 오류가 발생했습니다.',
     requestId,
-  );
-  return errorFormat
-    ? swaggerErrorResponse(problem, errorFormat)
-    : problemResponse(problem);
+  ));
 }

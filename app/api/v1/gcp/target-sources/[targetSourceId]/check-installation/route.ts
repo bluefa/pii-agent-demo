@@ -102,4 +102,4 @@ export const POST = withV1(async (_request, { requestId, params }) => {
 
   const legacy = await response.json() as LegacyGcpInstallationStatus;
   return NextResponse.json(transformInstallationStatus(legacy));
-}, { expectedDuration: '5000ms', errorFormat: 'nested' });
+}, { expectedDuration: '5000ms' });

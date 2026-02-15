@@ -21,20 +21,11 @@ export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
   timeout?: number;
 }
 
-/**
- * v1 Route 에러 응답 형태.
- *
- * ProblemDetails 원본 + swaggerErrorResponse 변환 결과(flat/nested) 모두 대응.
- * - ProblemDetails: { code, detail, title, retriable, retryAfterMs, requestId }
- * - flat:           { code, message }
- * - nested:         { error: { code, message } }
- */
+/** ProblemDetails (RFC 9457) 에러 응답 형태 */
 interface ErrorBody {
   code?: string;
   title?: string;
   detail?: string;
-  message?: string;
-  error?: { code?: string; message?: string };
   retriable?: boolean;
   retryAfterMs?: number;
   requestId?: string;
@@ -78,15 +69,14 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
     });
   }
 
-  // code 추출: ProblemDetails(body.code) → flat(body.code) → nested(body.error.code)
-  const rawCode = body.code ?? body.error?.code;
+  // code 검증: 미정의 코드는 경고 후 status fallback
+  const rawCode = body.code;
   if (rawCode && !isKnownErrorCode(rawCode)) {
     console.warn(`[fetchJson] Unknown error code: "${rawCode}" (status: ${res.status})`);
   }
   const code = rawCode && isKnownErrorCode(rawCode) ? rawCode : undefined;
 
-  // message 추출: ProblemDetails(detail) → flat(message) → nested(error.message) → title
-  const message = body.detail ?? body.message ?? body.error?.message ?? body.title ?? `HTTP ${res.status}`;
+  const message = body.detail ?? body.title ?? `HTTP ${res.status}`;
 
   // retriable: 서버 값 우선, 없으면 status 기반 fallback
   const retriable = body.retriable ?? (res.status === 429 || res.status >= 500);

@@ -34,4 +34,4 @@ export const POST = withV1(async (request, { requestId, params }) => {
     resourceCountByResourceType: {},
     scanError: null,
   }, { status: 202 });
-}, { expectedDuration: '30000ms', errorFormat: 'flat' });
+}, { expectedDuration: '30000ms' });
