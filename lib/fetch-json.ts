@@ -70,7 +70,6 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
   }
 
   // 서버 code 검증 — 미정의 코드는 경고 후 fallback
-  // 서버 code 검증 — 미정의 코드는 경고 후 fallback
   if (body.code && !isKnownErrorCode(body.code)) {
     console.warn(`[fetchJson] Unknown error code: "${body.code}" (status: ${res.status})`);
   }
