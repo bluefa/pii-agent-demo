@@ -41,16 +41,28 @@ ErrorView (UI 렌더링)
 ```
 브라우저 → GET /api/v1/target-sources/123/scanJob/latest
                     ↓
-         app/api/v1/.../route.ts
+         app/api/v1/.../route.ts (withV1 래퍼)
                     ↓
          client.method() → mockClient (현재) / bffClient (향후)
-                    ↓
+                    ↓                              ↓
+         에러 시 ProblemDetails 생성     BFF 에러 응답 (Swagger 형태)
+                    ↓                              ↓
+                    │              transformLegacyError → ProblemDetails 변환
+                    ↓                              ↓
          ProblemDetails 응답: { status, code, detail, retriable, retryAfterMs, requestId }
                     ↓
          fetchJson이 파싱 → AppError { status, code, message, retriable, ... }
                     ↓
          컴포넌트에서 err.code로 분기 → 적절한 UI 표시
 ```
+
+### Swagger와 Runtime 에러 형태의 관계
+
+Swagger(`docs/swagger/*.yaml`)는 **BFF API 명세**로, BFF가 반환하는 에러 형태(`{ error: { code, message } }`)를 정의한다. `app/api/v1/`의 `withV1` 래퍼가 BFF 응답을 RFC 9457 ProblemDetails로 변환하여 클라이언트에 전달한다.
+
+- **Swagger**: BFF 계약 (내부팀 → BFF 구현 기준)
+- **Runtime**: `withV1` + `transformLegacyError`가 ProblemDetails로 정규화 (프론트엔드가 받는 형태)
+- **fetchJson**: ProblemDetails만 파싱 — BFF 에러 형태를 직접 다루지 않음
 
 ### AppErrorCode — HTTP 표준 코드만 사용
 
