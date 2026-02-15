@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as mockInstallation from '@/lib/mock-installation';
-import type { AwsInstallationMode, VerifyTfRoleRequest } from '@/lib/types';
+import type { AwsInstallationMode } from '@/lib/types';
 
 interface SetInstallationModeBody {
   mode: AwsInstallationMode;
@@ -146,15 +146,29 @@ export const mockAws = {
     return NextResponse.json(result);
   },
 
-  verifyTfRole: async (body: VerifyTfRoleRequest) => {
-    if (!body.accountId) {
+  verifyTfRole: async (projectId: string, body?: { roleArn?: string; accountId?: string }) => {
+    // v1: projectId로 accountId 유도, v2(legacy): body.accountId 직접 사용
+    let accountId = body?.accountId;
+
+    if (!accountId && projectId) {
+      const project = await mockData.getProjectById(projectId);
+      if (!project) {
+        return NextResponse.json(
+          { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+      accountId = project.id.replace(/\D/g, '').padStart(12, '1').slice(0, 12);
+    }
+
+    if (!accountId) {
       return NextResponse.json(
-        { error: 'INVALID_REQUEST', message: 'accountId는 필수입니다.' },
+        { error: 'INVALID_REQUEST', message: 'accountId 또는 projectId가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    const result = await mockInstallation.verifyTfRole(body);
+    const result = await mockInstallation.verifyTfRole({ accountId, roleArn: body?.roleArn });
     return NextResponse.json(result);
   },
 };

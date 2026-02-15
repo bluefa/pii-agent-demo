@@ -123,12 +123,12 @@ export const validateScanRequest = (
 
   // 진행 중인 스캔 확인
   const inProgressScan = store.scans.find(
-    (s) => s.projectId === project.id && (s.status === 'PENDING' || s.status === 'IN_PROGRESS')
+    (s) => s.projectId === project.id && (s.status === 'SCANNING')
   );
   if (inProgressScan) {
     // 시간 기반으로 실제 상태 확인
     const updated = calculateScanStatus(inProgressScan);
-    if (updated.status === 'PENDING' || updated.status === 'IN_PROGRESS') {
+    if (updated.status === 'SCANNING') {
       return {
         valid: false,
         errorCode: 'SCAN_IN_PROGRESS',
@@ -142,7 +142,7 @@ export const validateScanRequest = (
   // 쿨다운 확인 (force가 아닐 때만)
   if (!force) {
     const lastCompletedScan = store.scanHistory
-      .filter((h) => h.projectId === project.id && h.status === 'COMPLETED')
+      .filter((h) => h.projectId === project.id && h.status === 'SUCCESS')
       .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
     if (lastCompletedScan) {
@@ -172,7 +172,7 @@ export const createScanJob = (project: Project): ScanJob => {
     id: generateId('scan'),
     projectId: project.id,
     provider: project.cloudProvider,
-    status: 'PENDING',
+    status: 'SCANNING',
     startedAt: now.toISOString(),
     estimatedEndAt: estimatedEnd.toISOString(),
     progress: 0,
@@ -206,7 +206,7 @@ export const getLatestScanForProject = (projectId: string): ScanJob | undefined 
 
 export const calculateScanStatus = (scan: ScanJob): ScanJob => {
   // 이미 완료된 스캔
-  if (scan.status === 'COMPLETED' || scan.status === 'FAILED') {
+  if (scan.status === 'SUCCESS' || scan.status === 'FAIL') {
     return scan;
   }
 
@@ -226,7 +226,7 @@ export const calculateScanStatus = (scan: ScanJob): ScanJob => {
 
   const updatedScan: ScanJob = {
     ...scan,
-    status: 'IN_PROGRESS',
+    status: 'SCANNING',
     progress,
   };
 
@@ -249,7 +249,7 @@ const completeScan = (scan: ScanJob): ScanJob => {
   if (!project) {
     const failedScan: ScanJob = {
       ...scan,
-      status: 'FAILED',
+      status: 'FAIL',
       completedAt: new Date().toISOString(),
       progress: 100,
       error: '프로젝트를 찾을 수 없습니다.',
@@ -274,7 +274,7 @@ const completeScan = (scan: ScanJob): ScanJob => {
 
   const completedScan: ScanJob = {
     ...scan,
-    status: 'COMPLETED',
+    status: 'SUCCESS',
     completedAt: new Date().toISOString(),
     progress: 100,
     result,
@@ -306,7 +306,7 @@ const addScanHistory = (
     projectId: scan.projectId,
     scanId: scan.id,
     provider: scan.provider,
-    status: scan.status === 'COMPLETED' ? 'COMPLETED' : 'FAILED',
+    status: scan.status === 'SUCCESS' ? 'SUCCESS' : 'FAIL',
     startedAt: scan.startedAt,
     completedAt: scan.completedAt || new Date().toISOString(),
     duration: Math.floor(
@@ -595,18 +595,18 @@ export const canScan = (project: Project): { canScan: boolean; reason?: string; 
 
   // 진행 중인 스캔 확인
   const inProgressScan = store.scans.find(
-    (s) => s.projectId === project.id && (s.status === 'PENDING' || s.status === 'IN_PROGRESS')
+    (s) => s.projectId === project.id && (s.status === 'SCANNING')
   );
   if (inProgressScan) {
     const updated = calculateScanStatus(inProgressScan);
-    if (updated.status === 'PENDING' || updated.status === 'IN_PROGRESS') {
+    if (updated.status === 'SCANNING') {
       return { canScan: false, reason: '스캔이 진행 중입니다.' };
     }
   }
 
   // 쿨다운 확인
   const lastCompletedScan = store.scanHistory
-    .filter((h) => h.projectId === project.id && h.status === 'COMPLETED')
+    .filter((h) => h.projectId === project.id && h.status === 'SUCCESS')
     .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
   if (lastCompletedScan) {
