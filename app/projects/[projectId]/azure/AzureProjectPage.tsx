@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import type { AzureServiceSettings } from '@/lib/types/azure';
 import {
   confirmTargets,
@@ -25,7 +25,7 @@ import { isVmResource } from '@/app/components/features/resource-table';
 interface AzureProjectPageProps {
   project: Project;
   isAdmin: boolean;
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
@@ -184,7 +184,7 @@ export const AzureProjectPage = ({
 
         {/* Scan Panel */}
         <ScanPanel
-          projectId={project.id}
+          targetSourceId={project.targetSourceId}
           cloudProvider={project.cloudProvider}
           onScanComplete={async () => {
             const updatedProject = await getProject(project.id);

@@ -2,14 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import { Button } from '@/app/components/ui/Button';
-import { DBCredential } from '@/lib/types';
+import { SecretKey } from '@/lib/types';
 import { IdcResourceInput, IdcInputFormat, IdcDatabaseType } from '@/lib/types/idc';
 import { IDC_VALIDATION, IDC_DEFAULT_PORTS, IDC_DATABASE_TYPE_LABELS } from '@/lib/constants/idc';
 import { cn, inputStyles } from '@/lib/theme';
 
 interface IdcResourceInputPanelProps {
   initialData?: IdcResourceInput;
-  credentials?: DBCredential[];
+  credentials?: SecretKey[];
   onSave: (data: IdcResourceInput) => void;
   onCancel: () => void;
   /** 'modal': 헤더/푸터/외부스타일 제거 */
@@ -408,8 +408,8 @@ export const IdcResourceInputPanel = ({
           >
             <option value="">선택 안 함</option>
             {credentials.map((cred) => (
-              <option key={cred.id} value={cred.id}>
-                {cred.name} ({cred.username})
+              <option key={cred.name} value={cred.name}>
+                {cred.name}
               </option>
             ))}
           </select>

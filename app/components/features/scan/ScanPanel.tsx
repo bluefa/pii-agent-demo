@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CloudProvider } from '@/lib/types';
 import { useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { startScan } from '@/app/lib/api/scan';
@@ -11,12 +10,12 @@ import { ScanStatusBadge } from './ScanStatusBadge';
 import { ScanProgressBar } from './ScanProgressBar';
 import { ScanResultSummary } from './ScanResultSummary';
 import { ScanHistoryList } from './ScanHistoryList';
-import { useCooldownTimer } from './CooldownTimer';
 import { Button } from '@/app/components/ui/Button';
+import type { CloudProvider, V1ScanJob, ScanResult, ResourceType } from '@/lib/types';
 
 
 interface ScanPanelProps {
-  projectId: string;
+  targetSourceId: number;
   cloudProvider: CloudProvider;
   onScanComplete?: () => void;
 }
@@ -32,23 +31,35 @@ const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
   </svg>
 );
 
-export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPanelProps) => {
+const scanJobToResult = (job: V1ScanJob): ScanResult | null => {
+  const entries = Object.entries(job.resourceCountByResourceType);
+  if (entries.length === 0) return null;
+  return {
+    totalFound: entries.reduce((sum, [, count]) => sum + count, 0),
+    byResourceType: entries.map(([resourceType, count]) => ({
+      resourceType: resourceType as ResourceType,
+      count,
+    })),
+  };
+};
+
+export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: ScanPanelProps) => {
   const [expanded, setExpanded] = useState(false);
 
   const {
-    status,
+    latestJob,
     uiState,
     loading,
     refresh,
     startPolling,
-  } = useScanPolling(projectId, {
+  } = useScanPolling(targetSourceId, {
     onScanComplete: () => {
       onScanComplete?.();
     },
   });
 
   const { execute: doStartScan, loading: starting } = useApiAction(
-    () => startScan(projectId),
+    () => startScan(targetSourceId),
     {
       onSuccess: () => {
         startPolling();
@@ -58,12 +69,13 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
     }
   );
 
-  const { remainingMs, formatted: cooldownText } = useCooldownTimer(
-    status?.cooldownUntil,
-    refresh
-  );
-  const isCooldown = uiState === 'COOLDOWN' && remainingMs > 0;
   const isInProgress = uiState === 'IN_PROGRESS';
+  const canStartScan = !starting && uiState !== 'IN_PROGRESS';
+
+  const lastResult = latestJob && latestJob.scanStatus === 'SUCCESS'
+    ? scanJobToResult(latestJob)
+    : null;
+  const lastCompletedAt = latestJob?.scanStatus === 'SUCCESS' ? latestJob.updatedAt : undefined;
 
   // Auto-expand when scan starts
   useEffect(() => {
@@ -71,13 +83,8 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
   }, [isInProgress]);
 
   const handleStartScan = () => {
-    if (status?.canScan) doStartScan();
+    if (canStartScan) doStartScan();
   };
-
-  const canStartScan = status?.canScan && !starting && !isInProgress;
-
-  const lastResult = status?.lastCompletedScan?.result;
-  const lastCompletedAt = status?.lastCompletedScan?.completedAt;
 
   const summaryBg = isInProgress ? statusColors.warning.bg : bgColors.muted;
 
@@ -132,15 +139,6 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
                   시작 중...
                 </span>
               </Button>
-            ) : isCooldown ? (
-              <Button variant="secondary" disabled className="text-sm py-1.5">
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {cooldownText} 후
-                </span>
-              </Button>
             ) : (
               <Button
                 variant="primary"
@@ -156,11 +154,11 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
       </div>
 
       {/* In-progress inline progress bar (always visible in collapsed/expanded) */}
-      {!loading && isInProgress && status?.currentScan && (
+      {!loading && isInProgress && latestJob?.scanStatus === 'SCANNING' && (
         <div className={cn('px-4 pb-3', statusColors.warning.bg)}>
           <ScanProgressBar
-            progress={status.currentScan.progress}
-            startedAt={status.currentScan.startedAt}
+            progress={latestJob.scanProgress ?? 0}
+            startedAt={latestJob.createdAt}
           />
         </div>
       )}
@@ -181,7 +179,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
           )}
 
           {/* Result Summary (metrics grid + type chips) */}
-          {(uiState === 'COMPLETED' || uiState === 'COOLDOWN') && lastResult && (
+          {uiState === 'COMPLETED' && lastResult && (
             <ScanResultSummary
               result={lastResult}
               completedAt={lastCompletedAt}
@@ -200,7 +198,7 @@ export const ScanPanel = ({ projectId, cloudProvider, onScanComplete }: ScanPane
             <div className={cn('text-xs font-medium uppercase tracking-wide mb-2', textColors.tertiary)}>
               스캔 이력
             </div>
-            <ScanHistoryList projectId={projectId} limit={5} lastCompletedAt={lastCompletedAt} />
+            <ScanHistoryList targetSourceId={targetSourceId} limit={5} lastCompletedAt={lastCompletedAt} />
           </div>
         </div>
       )}

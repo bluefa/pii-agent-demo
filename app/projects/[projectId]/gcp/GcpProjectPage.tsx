@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Project, ProcessStatus, DBCredential, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -24,7 +24,7 @@ import { isVmResource } from '@/app/components/features/resource-table';
 interface GcpProjectPageProps {
   project: Project;
   isAdmin: boolean;
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
@@ -169,7 +169,7 @@ export const GcpProjectPage = ({
         </div>
 
         <ScanPanel
-          projectId={project.id}
+          targetSourceId={project.targetSourceId}
           cloudProvider={project.cloudProvider}
           onScanComplete={async () => {
             const updatedProject = await getProject(project.id);

@@ -9,7 +9,6 @@ interface ScanStatusBadgeProps {
 
 const UI_STATE_CONFIG: Record<ScanUIState, { variant: BadgeVariant; label: string }> = {
   IDLE: { variant: 'neutral', label: '미실행' },
-  COOLDOWN: { variant: 'pending', label: '쿨다운' },
   IN_PROGRESS: { variant: 'warning', label: '스캔 중' },
   COMPLETED: { variant: 'success', label: '완료' },
   FAILED: { variant: 'error', label: '실패' },

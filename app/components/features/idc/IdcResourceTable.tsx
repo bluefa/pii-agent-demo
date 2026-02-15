@@ -1,15 +1,14 @@
 'use client';
 
-import { Resource, ProcessStatus, DBCredential, DatabaseType, needsCredential } from '@/lib/types';
+import { Resource, ProcessStatus, SecretKey, needsCredential } from '@/lib/types';
 import { IdcResourceInput } from '@/lib/types/idc';
 import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
-import { filterCredentialsByType } from '@/lib/utils/credentials';
 import { ConnectionIndicator } from '@/app/components/features/resource-table';
 
 interface IdcResourceTableProps {
   resources: Resource[];
   processStatus: ProcessStatus;
-  credentials?: DBCredential[];
+  credentials?: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   // 편집 모드
   isEditMode?: boolean;
@@ -48,10 +47,6 @@ export const IdcResourceTable = ({
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
-
-  const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] => {
-    return filterCredentialsByType(credentials, databaseType);
-  };
 
   const totalCount = resources.length + pendingInputs.length;
 
@@ -101,7 +96,7 @@ export const IdcResourceTable = ({
           <tbody className="divide-y divide-gray-100">
             {resources.map((resource) => {
               const needsCred = needsCredential(resource.databaseType);
-              const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
+              const availableCredentials = needsCred ? credentials : [];
               const hasCredentialError = showCredentialColumn && needsCred && !resource.selectedCredentialId;
 
               return (
@@ -133,7 +128,7 @@ export const IdcResourceTable = ({
                         >
                           <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
                           {availableCredentials.map((cred) => (
-                            <option key={cred.id} value={cred.id}>
+                            <option key={cred.name} value={cred.name}>
                               {cred.name}
                             </option>
                           ))}
