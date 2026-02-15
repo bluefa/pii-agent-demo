@@ -1,7 +1,10 @@
 # ADR-004: processStatus 저장 필드 리팩토링
 
 ## 상태
-제안됨
+폐기됨
+
+## 대체 ADR
+[ADR-008: Target Source processStatus를 BFF에서 계산/반환](./008-target-source-process-status-bff.md)
 
 ## 날짜
 2026-02-04

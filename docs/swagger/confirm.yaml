@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Target Source Management API
-  version: 2.4.0
+  version: 2.5.0
   description: |
     ADR-006 기반의 연동 대상 소스(Target Source) 통합 관리 API입니다.
     
@@ -160,6 +160,54 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/ApprovalHistoryItem' }
                   page: { $ref: '#/components/schemas/PageInfo' }
+
+  /target-sources/{targetSourceId}/process-status:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Approval Process]
+      summary: 대상 소스 processStatus 조회 (캐시 허용)
+      operationId: getTargetSourceProcessStatus
+      x-expected-duration: "200ms ~ 2s"
+      description: |
+        Target Source의 상태 스냅샷(confirmed/request/approved + 최근 승인 결과 + 설치 지표)만으로 계산된
+        processStatus를 반환합니다. 최신 재계산이 필요하면 `check-process-status`를 호출합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStatusResponse'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/check-process-status:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Approval Process]
+      summary: 대상 소스 processStatus 강제 재계산
+      operationId: checkTargetSourceProcessStatus
+      x-expected-duration: "10s ~ 30s"
+      description: |
+        Infra Manager 상태와 승인 객체를 즉시 조회해 processStatus를 동기 재계산합니다.
+        `GET /target-sources/{targetSourceId}/process-status`와 동일한 응답 스키마를 반환합니다.
+      responses:
+        '200':
+          description: 재계산 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStatusResponse'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          $ref: '#/components/responses/StatusCalculationInProgress'
 
 components:
   parameters:
@@ -366,6 +414,96 @@ components:
         number: { type: integer, description: "현재 페이지 번호 (0-based)" }
         size: { type: integer, description: "요청한 페이지 당 항목 수" }
 
+    # --- Process Status Models ---
+    ProcessStatusResponse:
+      type: object
+      required:
+        - target_source_id
+        - process_status
+        - context
+        - status_inputs
+        - blackbox_progress
+        - evaluated_at
+        - is_fresh
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
+          $ref: '#/components/schemas/TargetSourceProcessStatus'
+        context:
+          type: string
+          enum: [INITIAL, CHANGE]
+          description: "최초 연동 흐름인지, 기존 연동 변경 흐름인지 구분"
+        status_inputs:
+          type: object
+          required:
+            - has_confirmed_integration
+            - has_pending_approval_request
+            - has_approved_integration
+            - last_approval_result
+          properties:
+            has_confirmed_integration: { type: boolean }
+            has_pending_approval_request: { type: boolean }
+            has_approved_integration: { type: boolean }
+            last_approval_result:
+              $ref: '#/components/schemas/LastApprovalResult'
+            last_failure_reason:
+              type: string
+              nullable: true
+              description: "최근 REJECTED 또는 SYSTEM_ERROR 사유"
+        blackbox_progress:
+          $ref: '#/components/schemas/BlackboxProgress'
+        evaluated_at:
+          type: string
+          format: date-time
+        is_fresh:
+          type: boolean
+          description: "true면 즉시 계산 결과, false면 캐시 값"
+        recommended_poll_interval_seconds:
+          type: integer
+          minimum: 3
+          maximum: 60
+          example: 10
+
+    TargetSourceProcessStatus:
+      type: string
+      description: |
+        target source 단일 상태만으로 계산되는 process status.
+        WAITING_TARGET_CONFIRMATION은 승인 완료 후 확정 반영 대기(반영 중) 상태를 의미합니다.
+      enum:
+        - REQUEST_REQUIRED
+        - WAITING_APPROVAL
+        - WAITING_TARGET_CONFIRMATION
+        - TARGET_CONFIRMED
+
+    LastApprovalResult:
+      type: string
+      enum:
+        - NONE
+        - APPROVED
+        - REJECTED
+        - CANCELLED
+        - SYSTEM_ERROR
+        - COMPLETED
+
+    BlackboxProgress:
+      type: object
+      required: [input_reflected, service_tf_installed, bdc_tf_installed]
+      properties:
+        input_reflected:
+          type: boolean
+          nullable: true
+          description: "승인된 입력이 Infra Manager에 반영되었는지 여부"
+        service_tf_installed:
+          type: boolean
+          nullable: true
+          description: "서비스 측 Terraform 반영 완료 여부"
+        bdc_tf_installed:
+          type: boolean
+          nullable: true
+          description: "BDC 측 Terraform 반영 완료 여부"
+
     ErrorResponse:
       type: object
       required: [error]
@@ -395,3 +533,10 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
+    StatusCalculationInProgress:
+      description: "동일 대상 소스의 processStatus 재계산이 이미 진행 중"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "PROCESS_STATUS_CALCULATION_IN_PROGRESS", message: "잠시 후 다시 시도해주세요." }
