@@ -66,4 +66,4 @@ export const GET = withV1(async (request, { requestId, params }) => {
       size,
     },
   });
-}, { errorFormat: 'flat' });
+});

@@ -68,4 +68,4 @@ export const POST = withV1(async (_request, { requestId, params }) => {
     lastCheck: buildLastCheck(legacy.lastCheckedAt, legacy.error),
     resources,
   });
-}, { errorFormat: 'nested' });
+});

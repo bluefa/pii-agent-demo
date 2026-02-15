@@ -36,4 +36,4 @@ export const GET = withV1(async (_request, { requestId, params }) => {
       ...(scanApp.lastVerifiedAt && { lastVerifiedAt: scanApp.lastVerifiedAt }),
     },
   });
-}, { errorFormat: 'nested' });
+});

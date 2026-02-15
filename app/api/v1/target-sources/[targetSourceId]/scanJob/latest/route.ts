@@ -65,4 +65,4 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   return problemResponse(
     createProblem('TARGET_SOURCE_NOT_FOUND', '스캔 작업 이력이 없습니다.', requestId),
   );
-}, { expectedDuration: '50ms', errorFormat: 'flat' });
+}, { expectedDuration: '50ms' });

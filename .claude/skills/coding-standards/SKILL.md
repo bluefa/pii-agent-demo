@@ -149,7 +149,14 @@ import { client } from '@/lib/api-client';
 const project = await client.projects.get(id);
 ```
 
-## 9. 금지 패턴
+## 9. CSR 에러 처리 (ADR-008)
+
+- CSR API 호출은 반드시 `fetchJson` 사용 (`lib/fetch-json.ts`)
+- 에러는 `AppError`로 정규화됨 — `err.code`로 분기 (`lib/errors.ts`)
+- `if (!res.ok) throw new Error(...)` 패턴 금지 — `fetchJson`이 대체
+- 에러 UI는 `app/components/errors/` 경로에서 관리
+
+## 10. 금지 패턴
 
 - CSS 파일 생성, 반응형 스타일, 불필요한 추상화
 - try-catch 직접 작성, 상대 경로 import, any 타입

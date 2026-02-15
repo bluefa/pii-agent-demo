@@ -12,4 +12,4 @@ export const POST = withV1(async (request, { requestId, params }) => {
 
   const body = await request.json().catch(() => ({})) as { roleArn?: string };
   return client.aws.verifyTfRole(resolved.projectId, body);
-}, { expectedDuration: '30000ms', errorFormat: 'nested' });
+}, { expectedDuration: '30000ms' });

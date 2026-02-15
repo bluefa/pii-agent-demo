@@ -6,4 +6,4 @@ export const GET = withV1(async (request) => {
   const q = searchParams.get('q') ?? '';
   const excludeIds = searchParams.getAll('excludeIds');
   return client.users.search(q, excludeIds);
-}, { errorFormat: 'flat' });
+});

@@ -259,15 +259,27 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "FORBIDDEN"
+              message: "해당 리소스에 접근할 권한이 없습니다."
     TargetSourceNotFound:
       description: "대상을 찾을 수 없을 때의 응답"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "TARGET_SOURCE_NOT_FOUND"
+              message: "요청하신 Target Source를 찾을 수 없습니다."
     BadRequest:
       description: "잘못된 요청 응답"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "VALIDATION_FAILED"
+              message: "요청 파라미터가 올바르지 않습니다."

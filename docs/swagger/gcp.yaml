@@ -225,6 +225,10 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "FORBIDDEN"
+              message: "해당 리소스에 접근할 권한이 없습니다."
     TargetSourceNotFound:
       description: "대상 없음"
       content:

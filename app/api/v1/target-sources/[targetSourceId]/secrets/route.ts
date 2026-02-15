@@ -25,4 +25,4 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   }));
 
   return NextResponse.json(secretKeys);
-}, { errorFormat: 'flat' });
+});

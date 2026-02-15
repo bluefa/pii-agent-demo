@@ -94,7 +94,8 @@ Next.js 14 (App Router) · TypeScript · TailwindCSS · Desktop only · 한국�
 | Shared Agent Rules | `AGENTS.md` |
 | 비즈니스 도메인 | `docs/domain/README.md` |
 | Cloud Provider 프로세스 | `docs/cloud-provider-states.md` |
-| BFF API 명세 | `docs/api/{common,core,scan}.md`, `docs/api/providers/*.md` |
+| BFF API 명세 (Swagger) | `docs/swagger/*.yaml` |
 | API Routes | `docs/api-routes/README.md` |
 | ADR | `docs/adr/README.md` |
+| CSR 에러 처리 전략 | `docs/adr/008-error-handling-strategy.md` |
 | Skills | `.claude/skills/README.md` |
