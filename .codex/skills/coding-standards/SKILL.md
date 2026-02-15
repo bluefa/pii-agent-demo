@@ -5,22 +5,6 @@ description: 코드 작성 시 따르는 코딩 규칙과 패턴. 컴포넌트, 
 
 # PII Agent 코딩 규칙
 
-## 0. 프로젝트 구조
-
-```
-app/              Pages (App Router), API Routes
-components/
-  ui/             Button, Badge, Modal, Card, Table, LoadingSpinner
-  features/       Domain components (process-status/, resource-table/, admin/)
-hooks/            useModal, useApiMutation, useAsync
-lib/
-  theme.ts        Design tokens (colors, component styles, helpers)
-  api.ts          API call functions
-  types/          Shared types
-constants/        labels.ts
-utils/            date.ts, credentials.ts
-```
-
 ## 1. 파일 및 명명
 
 - 컴포넌트: **PascalCase** (`StepIndicator.tsx`)
