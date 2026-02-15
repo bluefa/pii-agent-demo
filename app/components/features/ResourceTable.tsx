@@ -5,11 +5,10 @@ import {
   Resource,
   CloudProvider,
   ProcessStatus,
-  DatabaseType,
   SecretKey,
   VmDatabaseConfig,
 } from '@/lib/types';
-import { filterCredentialsByType } from '@/lib/utils/credentials';
+
 import { cn, statusColors, textColors, badgeStyles, getButtonClass } from '@/lib/theme';
 import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
 import {
@@ -112,9 +111,6 @@ export const ResourceTable = ({
   const baseColumnCount = (cloudProvider === 'IDC' || cloudProvider === 'SDU') ? 4 : 3;
   const colSpan = baseColumnCount + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
-  const getCredentialsForType = (databaseType: DatabaseType): SecretKey[] =>
-    filterCredentialsByType(credentials, databaseType);
-
   const rowProps = {
     cloudProvider,
     selectedIds: selectedIdsSet,
@@ -123,7 +119,7 @@ export const ResourceTable = ({
     showConnectionStatus,
     showCredentialColumn,
     onCheckboxChange: handleCheckboxChange,
-    getCredentialsForType,
+    credentials: credentials || [],
     onCredentialChange,
     expandedVmId,
     onVmConfigToggle,
@@ -144,7 +140,7 @@ export const ResourceTable = ({
     showCredentialColumn,
     onCheckboxChange: handleCheckboxChange,
     colSpan,
-    getCredentialsForType,
+    credentials: credentials || [],
     onCredentialChange,
     expandedVmId,
     onVmConfigToggle,

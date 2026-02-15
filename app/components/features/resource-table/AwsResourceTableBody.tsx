@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Resource, CloudProvider, DatabaseType, AwsResourceType, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, CloudProvider, AwsResourceType, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceTypeGroup } from './ResourceTypeGroup';
@@ -16,7 +16,7 @@ interface ResourceTableBodyProps {
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
-  getCredentialsForType: (databaseType: DatabaseType) => SecretKey[];
+  credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
@@ -43,7 +43,7 @@ export const AwsResourceTableBody = ({
   showCredentialColumn,
   onCheckboxChange,
   colSpan,
-  getCredentialsForType,
+  credentials,
   onCredentialChange,
   expandedVmId,
   onVmConfigToggle,
@@ -76,7 +76,7 @@ export const AwsResourceTableBody = ({
             showCredentialColumn={showCredentialColumn}
             onCheckboxChange={onCheckboxChange}
             colSpan={colSpan}
-            getCredentialsForType={getCredentialsForType}
+            credentials={credentials}
             onCredentialChange={onCredentialChange}
             expandedVmId={expandedVmId}
             onVmConfigToggle={onVmConfigToggle}

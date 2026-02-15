@@ -239,7 +239,6 @@ export interface DBCredential {
 export interface SecretKey {
   name: string;
   createTimeStr: string;
-  labels?: Record<string, string>;
 }
 
 // 연결 에러 타입

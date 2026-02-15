@@ -26,7 +26,7 @@ interface ResourceRowProps {
   showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
-  getCredentialsForType: (databaseType: DatabaseType) => SecretKey[];
+  credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   // VM 설정 관련
   expandedVmId?: string | null;
@@ -62,7 +62,7 @@ export const ResourceRow = ({
   showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
-  getCredentialsForType,
+  credentials,
   onCredentialChange,
   expandedVmId,
   onVmConfigToggle,
@@ -70,7 +70,7 @@ export const ResourceRow = ({
 }: ResourceRowProps) => {
   const vnetModal = useModal();
   const needsCred = needsCredential(resource.databaseType);
-  const availableCredentials = needsCred ? getCredentialsForType(resource.databaseType) : [];
+  const availableCredentials = needsCred ? credentials : [];
   const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
 
   const isVm = isVmResource(resource);

@@ -1,6 +1,6 @@
 'use client';
 
-import { Resource, CloudProvider, DatabaseType, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, CloudProvider, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceRow } from './ResourceRow';
 
@@ -14,7 +14,7 @@ interface ResourceTableBodyProps {
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
-  getCredentialsForType: (databaseType: DatabaseType) => SecretKey[];
+  credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
@@ -31,7 +31,7 @@ export const FlatResourceTableBody = ({
   showCredentialColumn,
   onCheckboxChange,
   colSpan,
-  getCredentialsForType,
+  credentials,
   onCredentialChange,
   expandedVmId,
   onVmConfigToggle,
@@ -61,7 +61,7 @@ export const FlatResourceTableBody = ({
           showConnectionStatus={showConnectionStatus}
           showCredentialColumn={showCredentialColumn}
           onCheckboxChange={onCheckboxChange}
-          getCredentialsForType={getCredentialsForType}
+          credentials={credentials}
           onCredentialChange={onCredentialChange}
           expandedVmId={expandedVmId}
           onVmConfigToggle={onVmConfigToggle}

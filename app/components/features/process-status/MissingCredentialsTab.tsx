@@ -11,10 +11,6 @@ interface MissingCredentialsTabProps {
 }
 
 export const MissingCredentialsTab = ({ resources, credentials, onCredentialChange }: MissingCredentialsTabProps) => {
-  const getCredentialsForType = (databaseType: string) => {
-    return credentials.filter((c) => c.labels?.databaseType === databaseType);
-  };
-
   return (
     <div>
       {/* 안내 메시지 */}
@@ -41,7 +37,7 @@ export const MissingCredentialsTab = ({ resources, credentials, onCredentialChan
         </thead>
         <tbody className="divide-y divide-gray-100">
           {resources.map((resource) => {
-            const availableCredentials = getCredentialsForType(resource.databaseType);
+            const availableCredentials = credentials;
             return (
               <tr key={resource.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
