@@ -87,9 +87,27 @@ export function swaggerErrorResponse(
 
 // --- Legacy Error Conversion ---
 
-export interface LegacyErrorBody {
-  error: string;
-  message: string;
+/** BFF 에러 응답: nested { error: { code, message } } 또는 flat { error: string, message: string } */
+interface BffErrorBody {
+  error?: string | { code?: string; message?: string };
+  code?: string;
+  message?: string;
+}
+
+function extractBffError(body: BffErrorBody): { code: string; message: string } {
+  // nested: { error: { code, message } }
+  if (body.error && typeof body.error === 'object') {
+    return {
+      code: body.error.code ?? '',
+      message: body.error.message ?? '',
+    };
+  }
+  // flat legacy: { error: "CODE", message: "..." }
+  if (typeof body.error === 'string') {
+    return { code: body.error, message: body.message ?? '' };
+  }
+  // flat: { code: "...", message: "..." }
+  return { code: body.code ?? '', message: body.message ?? '' };
 }
 
 const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
@@ -132,9 +150,10 @@ export async function transformLegacyError(
   errorFormat?: SwaggerErrorFormat,
 ): Promise<NextResponse> {
   try {
-    const body = (await response.json()) as LegacyErrorBody;
-    const code = mapLegacyCode(body.error, response.status);
-    const problem = createProblem(code, body.message, requestId);
+    const raw = await response.json();
+    const { code: errorCode, message } = extractBffError(raw as BffErrorBody);
+    const code = mapLegacyCode(errorCode, response.status);
+    const problem = createProblem(code, message, requestId);
     return errorFormat
       ? swaggerErrorResponse(problem, errorFormat)
       : problemResponse(problem);

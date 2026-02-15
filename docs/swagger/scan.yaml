@@ -49,8 +49,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
-                code: "TARGET_SOURCE_NOT_FOUND"
-                message: "요청하신 Target Source를 찾을 수 없습니다."
+                error:
+                  code: "TARGET_SOURCE_NOT_FOUND"
+                  message: "요청하신 Target Source를 찾을 수 없습니다."
         '409':
           description: 이미 해당 소스에 대해 진행 중인 스캔 작업이 존재함
           content:
@@ -58,8 +59,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
-                code: "CONFLICT_IN_PROGRESS"
-                message: "현재 스캔이 진행 중입니다."
+                error:
+                  code: "CONFLICT_IN_PROGRESS"
+                  message: "현재 스캔이 진행 중입니다."
 
   /target-sources/{targetSourceId}/scanJob/latest:
     get:
@@ -211,10 +213,15 @@ components:
           example: 10
     ErrorResponse:
       type: object
+      required: [error]
       properties:
-        code:
-          type: string
-          example: "CONFLICT_IN_PROGRESS"
-        message:
-          type: string
-          example: "현재 스캔이 진행 중입니다."
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: "CONFLICT_IN_PROGRESS"
+            message:
+              type: string
+              example: "현재 스캔이 진행 중입니다."

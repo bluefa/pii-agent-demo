@@ -109,22 +109,20 @@ components:
 
     ErrorResponse:
       type: object
-      required:
-        - code
-        - message
+      required: [error]
       properties:
-        code:
-          type: string
-          description: 에러 식별 코드
-          example: "UNAUTHORIZED"
-        message:
-          type: string
-          description: 에러 상세 메시지 (사용자 노출용)
-          example: "인증 정보가 유효하지 않거나 권한이 없습니다."
-        details:
-          type: string
-          description: 디버깅을 위한 상세 정보 (선택 사항)
-          example: "User record not found in backend database after SSO login."
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: 에러 식별 코드
+              example: "UNAUTHORIZED"
+            message:
+              type: string
+              description: 에러 상세 메시지 (사용자 노출용)
+              example: "인증 정보가 유효하지 않거나 권한이 없습니다."
 
     PageInfo:
       type: object
