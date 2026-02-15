@@ -21,7 +21,7 @@ export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
   timeout?: number;
 }
 
-/** 서버 ProblemDetails 응답 형태 */
+/** 서버 ProblemDetails 응답 형태 (v1 Route 전용) */
 interface ProblemBody {
   code?: string;
   title?: string;
@@ -29,13 +29,6 @@ interface ProblemBody {
   retriable?: boolean;
   retryAfterMs?: number;
   requestId?: string;
-}
-
-/** 레거시 에러 응답 형태 */
-interface LegacyErrorBody {
-  error?: { code?: string; message?: string };
-  message?: string;
-  code?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +56,7 @@ function statusToCode(status: number): AppErrorCode {
 async function parseErrorResponse(res: Response): Promise<AppError> {
   const requestId = res.headers.get('x-request-id') ?? undefined;
 
-  let body: ProblemBody & LegacyErrorBody = {};
+  let body: ProblemBody = {};
   try {
     body = await res.json();
   } catch {
@@ -71,19 +64,19 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
       status: res.status,
       code: statusToCode(res.status),
       message: `HTTP ${res.status}`,
-      retriable: false,
+      retriable: res.status === 429 || res.status >= 500,
       requestId,
     });
   }
 
   // 서버 code 검증 — 미정의 코드는 경고 후 fallback
-  const rawCode = body.code ?? body.error?.code;
-  if (rawCode && !isKnownErrorCode(rawCode)) {
-    console.warn(`[fetchJson] Unknown error code: "${rawCode}" (status: ${res.status})`);
+  // 서버 code 검증 — 미정의 코드는 경고 후 fallback
+  if (body.code && !isKnownErrorCode(body.code)) {
+    console.warn(`[fetchJson] Unknown error code: "${body.code}" (status: ${res.status})`);
   }
-  const code = rawCode && isKnownErrorCode(rawCode) ? rawCode : undefined;
+  const code = body.code && isKnownErrorCode(body.code) ? body.code : undefined;
 
-  const message = body.detail ?? body.error?.message ?? body.message ?? `HTTP ${res.status}`;
+  const message = body.detail ?? body.title ?? `HTTP ${res.status}`;
 
   // retriable: 서버 값 우선, 없으면 status 기반 fallback
   const retriable = body.retriable ?? (res.status === 429 || res.status >= 500);
