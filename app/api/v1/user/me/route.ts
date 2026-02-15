@@ -9,4 +9,4 @@ export const GET = withV1(async () => {
   // Swagger: flat { id, name, email }, legacy returns { user: { ... } }
   const data = await response.json() as { user: { id: string; name: string; email: string } };
   return NextResponse.json(data.user);
-});
+}, { errorFormat: 'flat' });

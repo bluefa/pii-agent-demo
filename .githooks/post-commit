@@ -4,6 +4,6 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
-bash scripts/sync-claude-skills-to-codex.sh || {
-  echo "[post-commit] skill mirror failed (non-blocking)" >&2
-}
+# bash scripts/sync-claude-skills-to-codex.sh || {
+#   echo "[post-commit] skill mirror failed (non-blocking)" >&2
+# }

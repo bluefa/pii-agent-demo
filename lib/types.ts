@@ -283,7 +283,8 @@ export const isInstallIneligible = (resource: Resource): boolean =>
 // processStatus를 계산하기 위한 상태 데이터 구조
 
 export interface ProjectScanStatus {
-  status: ScanStatus;
+  /** 프로젝트 프로세스 단계용 스캔 상태 (ScanJob의 실시간 상태와 별개) */
+  status: 'PENDING' | 'COMPLETED';
   lastCompletedAt?: string;
 }
 
@@ -332,7 +333,7 @@ export interface ProjectStatus {
 
 // ===== Scan Types =====
 
-export type ScanStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+export type ScanStatus = 'SCANNING' | 'SUCCESS' | 'FAIL' | 'CANCELED' | 'TIMEOUT';
 
 export interface ScanResult {
   totalFound: number;
@@ -364,7 +365,7 @@ export interface ScanHistory {
   projectId: string;
   scanId: string;
   provider: CloudProvider;
-  status: 'COMPLETED' | 'FAILED';
+  status: 'SUCCESS' | 'FAIL';
   startedAt: string;
   completedAt: string;
   duration: number;
