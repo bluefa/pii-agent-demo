@@ -6,7 +6,7 @@ import {
   CloudProvider,
   ProcessStatus,
   DatabaseType,
-  DBCredential,
+  SecretKey,
   VmDatabaseConfig,
 } from '@/lib/types';
 import { filterCredentialsByType } from '@/lib/utils/credentials';
@@ -26,7 +26,7 @@ interface ResourceTableProps {
   isEditMode?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (selectedIds: string[]) => void;
-  credentials?: DBCredential[];
+  credentials?: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
@@ -112,7 +112,7 @@ export const ResourceTable = ({
   const baseColumnCount = (cloudProvider === 'IDC' || cloudProvider === 'SDU') ? 4 : 3;
   const colSpan = baseColumnCount + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
 
-  const getCredentialsForType = (databaseType: DatabaseType): DBCredential[] =>
+  const getCredentialsForType = (databaseType: DatabaseType): SecretKey[] =>
     filterCredentialsByType(credentials, databaseType);
 
   const rowProps = {

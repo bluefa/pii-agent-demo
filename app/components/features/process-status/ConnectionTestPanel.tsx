@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ConnectionTestHistory, DBCredential, Resource, needsCredential } from '@/lib/types';
+import { ConnectionTestHistory, SecretKey, Resource, needsCredential } from '@/lib/types';
 import { ConnectionHistoryTab } from '@/app/components/features/ConnectionHistoryTab';
 import { CredentialListTab } from '@/app/components/features/CredentialListTab';
 import { ConnectionDetailModal } from '@/app/components/features/ConnectionDetailModal';
@@ -13,7 +13,7 @@ type ConnectionTabType = 'history' | 'credentials' | 'missing';
 
 interface ConnectionTestPanelProps {
   connectionTestHistory: ConnectionTestHistory[];
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   selectedResources: Resource[];
   onTestConnection?: () => void;
   testLoading?: boolean;

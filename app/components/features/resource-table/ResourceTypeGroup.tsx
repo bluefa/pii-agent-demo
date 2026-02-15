@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Resource, DatabaseType, DBCredential, VmDatabaseConfig, AwsResourceType } from '@/lib/types';
+import { Resource, DatabaseType, SecretKey, VmDatabaseConfig, AwsResourceType } from '@/lib/types';
 import { AWS_RESOURCE_TYPE_LABELS, REGION_LABELS } from '@/lib/constants/labels';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { ResourceRow } from './ResourceRow';
@@ -20,7 +20,7 @@ interface ResourceTypeGroupProps {
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
-  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  getCredentialsForType: (databaseType: DatabaseType) => SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;

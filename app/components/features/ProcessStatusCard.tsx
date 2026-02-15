@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ProcessStatus, Project, TerraformStatus, DBCredential } from '@/lib/types';
+import { ProcessStatus, Project, TerraformStatus, SecretKey } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
 import { approveProject, rejectProject, completeInstallation } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
@@ -30,7 +30,7 @@ interface ProcessStatusCardProps {
   onProjectUpdate?: (project: Project) => void;
   onTestConnection?: () => void;
   testLoading?: boolean;
-  credentials?: DBCredential[];
+  credentials?: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
 }
 

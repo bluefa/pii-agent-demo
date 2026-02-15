@@ -1,6 +1,6 @@
 'use client';
 
-import { Resource, DatabaseType, DBCredential, VmDatabaseConfig } from '@/lib/types';
+import { Resource, DatabaseType, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { REGION_LABELS } from '@/lib/constants/labels';
 import { ResourceRow } from './ResourceRow';
 
@@ -14,8 +14,8 @@ interface RegionGroupProps {
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
-  credentials: DBCredential[];
-  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  credentials: SecretKey[];
+  getCredentialsForType: (databaseType: DatabaseType) => SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   // VM 설정 관련
   expandedVmId?: string | null;

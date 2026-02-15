@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Resource, CloudProvider, DatabaseType, DBCredential, VmDatabaseConfig } from '@/lib/types';
+import { Resource, CloudProvider, DatabaseType, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ResourceType } from '@/lib/types';
 import { getResourceTypeLabel, RESOURCE_TYPE_ORDER_BY_PROVIDER } from '@/lib/constants/labels';
 import { ServiceIcon } from '@/app/components/ui/ServiceIcon';
@@ -20,7 +20,7 @@ interface ResourceTableBodyProps {
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
-  getCredentialsForType: (databaseType: DatabaseType) => DBCredential[];
+  getCredentialsForType: (databaseType: DatabaseType) => SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;

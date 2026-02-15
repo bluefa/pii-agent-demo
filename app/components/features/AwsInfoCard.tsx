@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { badgeStyles, cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
-import type { Project, AwsInstallationStatus, ScanRoleInfo, DBCredential } from '@/lib/types';
+import type { Project, AwsInstallationStatus, ScanRoleInfo, SecretKey } from '@/lib/types';
 
 interface AwsInfoCardProps {
   project: Project;
   awsStatus: AwsInstallationStatus | null;
   scanRoleInfo: ScanRoleInfo | null;
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onOpenGuide: () => void;
   onManageCredentials: () => void;
 }
@@ -191,7 +191,7 @@ export const AwsInfoCard = ({
         ) : (
           <div className={cn('rounded-lg p-2', statusColors.pending.bg)}>
             {visibleCredentials.map((c) => (
-              <div key={c.id} className={cn('py-1 px-2 text-sm', textColors.secondary)}>
+              <div key={c.name} className={cn('py-1 px-2 text-sm', textColors.secondary)}>
                 {c.name}
               </div>
             ))}

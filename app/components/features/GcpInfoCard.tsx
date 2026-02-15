@@ -5,11 +5,11 @@ import { cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import { Modal } from '@/app/components/ui/Modal';
 import { useModal } from '@/app/hooks/useModal';
-import type { Project, DBCredential } from '@/lib/types';
+import type { Project, SecretKey } from '@/lib/types';
 
 interface GcpInfoCardProps {
   project: Project;
-  credentials: DBCredential[];
+  credentials: SecretKey[];
   onOpenGuide: () => void;
   onManageCredentials: () => void;
 }
@@ -91,7 +91,7 @@ export const GcpInfoCard = ({
         ) : (
           <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
             {visibleCredentials.map((c) => (
-              <div key={c.id} className="flex items-center gap-2 px-3 py-2">
+              <div key={c.name} className="flex items-center gap-2 px-3 py-2">
                 <svg className={cn('w-4 h-4 shrink-0', textColors.tertiary)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                 </svg>

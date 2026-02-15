@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Project, DBCredential } from '@/lib/types';
-import { getProject, getCurrentUser, CurrentUser, getCredentials } from '@/app/lib/api';
+import { Project } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
+import { getProject, getCurrentUser, CurrentUser, getSecrets } from '@/app/lib/api';
 import { LoadingState, ErrorState } from './common';
 import { AwsProjectPage } from './aws';
 import { AzureProjectPage } from './azure';
@@ -19,7 +20,7 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [credentials, setCredentials] = useState<DBCredential[]>([]);
+  const [credentials, setCredentials] = useState<SecretKey[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,7 +35,7 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
         setError(null);
 
         // Credential 목록 가져오기
-        const creds = await getCredentials(projectId);
+        const creds = await getSecrets(projectData.targetSourceId);
         setCredentials(creds || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : '과제를 불러오는데 실패했습니다.');
