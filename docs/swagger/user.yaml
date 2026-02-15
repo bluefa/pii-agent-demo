@@ -116,7 +116,7 @@ components:
         code:
           type: string
           description: 에러 식별 코드
-          example: "ERR_AUTH_001"
+          example: "UNAUTHORIZED"
         message:
           type: string
           description: 에러 상세 메시지 (사용자 노출용)

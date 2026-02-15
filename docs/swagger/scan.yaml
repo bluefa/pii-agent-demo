@@ -44,8 +44,22 @@ paths:
                 $ref: '#/components/schemas/ScanJob'
         '404':
           description: Target Source를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "TARGET_SOURCE_NOT_FOUND"
+                message: "요청하신 Target Source를 찾을 수 없습니다."
         '409':
           description: 이미 해당 소스에 대해 진행 중인 스캔 작업이 존재함
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "CONFLICT_IN_PROGRESS"
+                message: "현재 스캔이 진행 중입니다."
 
   /target-sources/{targetSourceId}/scanJob/latest:
     get:
@@ -200,7 +214,7 @@ components:
       properties:
         code:
           type: string
-          example: "ALREADY_EXISTS"
+          example: "CONFLICT_IN_PROGRESS"
         message:
           type: string
           example: "현재 스캔이 진행 중입니다."

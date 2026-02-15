@@ -299,7 +299,7 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error:
-              code: "PermissionDenied"
+              code: "FORBIDDEN"
               message: "해당 리소스에 접근할 권한이 없습니다."
 
     TargetSourceNotFound:
@@ -310,5 +310,5 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error:
-              code: "TargetSourceNotFound"
+              code: "TARGET_SOURCE_NOT_FOUND"
               message: "요청하신 Target Source를 찾을 수 없습니다."
