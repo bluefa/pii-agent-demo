@@ -149,26 +149,78 @@ const startScan = async () => {
 
 ---
 
-## 4. 미결 사항 (Open Questions)
+## 4. 결정 사항
 
-### Q1: ErrorView 컴포넌트 구조
-- 옵션 A: 단일 `<ErrorView variant="inline|section|page" error={appError} />`
-- 옵션 B: 별도 `<InlineError>`, `<SectionError>`, `<PageError>`
-- → 논의 필요
+### Q1: ErrorView 컴포넌트 구조 — ✅ 결정: 개별 컴포넌트
 
-### Q2: 기본 CTA 매핑 테이블 (ErrorCatalog)
-- Layer 2에서 매번 switch/case를 쓰면 반복 코드가 많아짐
-- 기본 매핑 테이블을 제공하되, 오버라이드 가능하게?
-- → 논의 필요
+**패턴별 개별 컴포넌트**로 관리한다. 나중에 공통화가 필요하면 그때 리팩토링.
 
-### Q3: React Error Boundary 도입 여부
-- API 에러: try/catch로 처리 (Error Boundary 대상 아님)
-- 렌더링 에러: Error Boundary가 잡아야 함
-- → v1 or v2?
+- `app/components/errors/InlineError.tsx`
+- `app/components/errors/SectionError.tsx`
+- `app/components/errors/PageError.tsx`
 
-### Q4: 기존 47개 API 함수 마이그레이션 전략
-- 한 번에? 점진적으로?
-- → 논의 필요
+규칙:
+- 모든 ErrorView 컴포넌트는 `app/components/errors/` 경로에서 관리
+- 네이밍은 `{패턴}Error.tsx` 형식
+- 각 컴포넌트는 `AppError`를 prop으로 받되, 필수는 아님 (문자열 message도 허용)
+
+### Q2: ErrorCatalog (기본 CTA 매핑 테이블) — ⏳ 보류
+
+ErrorCatalog는 에러 코드별 기본 메시지/버튼을 중앙에서 관리하는 테이블이다.
+
+```typescript
+// 예시 (아직 구현하지 않음)
+const ERROR_CATALOG = {
+  UNAUTHORIZED:            { message: '로그인이 필요합니다.',        cta: '로그인' },
+  FORBIDDEN:               { message: '접근 권한이 없습니다.',        cta: '권한 요청' },
+  TARGET_SOURCE_NOT_FOUND: { message: '대상을 찾을 수 없습니다.',     cta: '목록으로' },
+  NETWORK:                 { message: '네트워크 연결을 확인해주세요.', cta: '다시 시도' },
+  INTERNAL_ERROR:          { message: '서버 오류가 발생했습니다.',     cta: '다시 시도' },
+};
+```
+
+- ErrorView 패턴이 안정화된 뒤 도입 여부를 결정
+- 당장은 컴포넌트/훅에서 `switch(err.code)` 로 직접 처리
+
+### Q3: React Error Boundary — ⏳ v2에서 도입
+
+Error Boundary는 **렌더링 중 예상 못한 에러**(예: null.map)를 잡는 안전망이다.
+API 에러와는 별개이며, `fetchJson + AppError`로 처리하는 영역이 아니다.
+
+- v1에서는 API 에러 처리 체계 확립에 집중
+- v2에서 레이아웃 수준 Error Boundary 도입 예정
+
+### Q4: 기존 API 함수 마이그레이션 — ✅ 결정: 점진적
+
+`app/lib/api/*.ts`의 47개 함수를 한 번에 바꾸지 않고, 기능 작업 시 점진적으로 전환한다.
+
+**마이그레이션 우선순위:**
+
+| 순위 | 대상 | 이유 |
+|:----:|------|------|
+| 1 | `scan.ts` | SCAN_ERROR_UX.md 요구사항 직접 관련 |
+| 2 | `credential.ts` (V1) | V1 엔드포인트 사용, ProblemDetails 이미 지원 |
+| 3 | `aws.ts`, `azure.ts`, `gcp.ts` | provider별 에러 처리 필요 시 |
+| 4 | `index.ts` (나머지) | 레거시 엔드포인트, 가장 나중에 |
+
+**규칙:**
+- 새 API 함수는 반드시 `fetchJson` 사용
+- 기존 함수는 해당 기능 작업 시에만 전환
+- 전환 시 `if (!res.ok) throw new Error(...)` 패턴을 제거하고 `fetchJson` 호출로 대체
+
+---
+
+## 5. 구현 현황
+
+| 파일 | 상태 | 설명 |
+|------|:----:|------|
+| `lib/errors.ts` | ✅ | AppError 클래스, AppErrorCode 타입 |
+| `lib/fetch-json.ts` | ✅ | fetchJson<T>() 래퍼 |
+| `app/components/errors/InlineError.tsx` | 📋 | 예정 |
+| `app/components/errors/SectionError.tsx` | 📋 | 예정 |
+| `app/components/errors/PageError.tsx` | 📋 | 예정 |
+| `app/lib/api/scan.ts` 마이그레이션 | 📋 | 이번 세션 예정 |
+| `app/lib/api/credential.ts` 마이그레이션 | 📋 | 이번 세션 예정 |
 
 ---
 
@@ -177,3 +229,4 @@ const startScan = async () => {
 | 날짜 | 내용 |
 |------|------|
 | 2026-02-15 | 초안 작성. 에러 분류 체계 + 2-Layer 설계 제안 |
+| 2026-02-15 | Q1~Q4 결정. ErrorView 개별 관리, 마이그레이션 점진적 수행 |
