@@ -12,8 +12,6 @@ export type KnownErrorCode =
   | 'INVALID_PROVIDER'
   | 'CONFLICT_IN_PROGRESS'
   | 'RATE_LIMITED'
-  | 'ROLE_NOT_CONFIGURED'
-  | 'ROLE_INSUFFICIENT_PERMISSIONS'
   | 'INTERNAL_ERROR';
 
 interface ErrorMeta {
@@ -32,8 +30,6 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   INVALID_PROVIDER: { status: 400, title: 'Invalid Provider', retriable: false },
   CONFLICT_IN_PROGRESS: { status: 409, title: 'Conflict', retriable: true },
   RATE_LIMITED: { status: 429, title: 'Rate Limited', retriable: true },
-  ROLE_NOT_CONFIGURED: { status: 403, title: 'Role Not Configured', retriable: false },
-  ROLE_INSUFFICIENT_PERMISSIONS: { status: 403, title: 'Role Insufficient Permissions', retriable: false },
   INTERNAL_ERROR: { status: 500, title: 'Internal Server Error', retriable: false },
 };
 
@@ -129,7 +125,7 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   ALREADY_SET: 'CONFLICT_IN_PROGRESS',
   ALREADY_EXISTS: 'CONFLICT_IN_PROGRESS',
   PermissionDenied: 'FORBIDDEN',
-  AccessDenied: 'ROLE_INSUFFICIENT_PERMISSIONS',
+  AccessDenied: 'FORBIDDEN',
   TargetSourceNotFound: 'TARGET_SOURCE_NOT_FOUND',
   BadRequest: 'VALIDATION_FAILED',
   ERR_AUTH_001: 'UNAUTHORIZED',

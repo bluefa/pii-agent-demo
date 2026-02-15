@@ -20,8 +20,6 @@ export type AppErrorCode =
   | 'INVALID_PROVIDER'
   | 'CONFLICT_IN_PROGRESS'
   | 'RATE_LIMITED'
-  | 'ROLE_NOT_CONFIGURED'
-  | 'ROLE_INSUFFICIENT_PERMISSIONS'
   | 'INTERNAL_ERROR'
   // 클라이언트 전용 codes (HTTP 응답 없는 경우)
   | 'NETWORK'
