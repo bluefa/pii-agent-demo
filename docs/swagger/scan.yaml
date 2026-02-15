@@ -44,31 +44,8 @@ paths:
                 $ref: '#/components/schemas/ScanJob'
         '404':
           description: Target Source를 찾을 수 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "TARGET_SOURCE_NOT_FOUND"
-                message: "Target Source를 찾을 수 없습니다."
         '409':
           description: 이미 해당 소스에 대해 진행 중인 스캔 작업이 존재함
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "ALREADY_EXISTS"
-                message: "현재 스캔이 진행 중입니다."
-        '500':
-          description: 서버 내부 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: "INTERNAL_ERROR"
-                message: "예기치 않은 오류가 발생했습니다."
 
   /target-sources/{targetSourceId}/scanJob/latest:
     get:
@@ -94,16 +71,6 @@ paths:
                 $ref: '#/components/schemas/ScanJob'
         '404':
           description: Target Source를 찾을 수 없거나, Scan작업이 한번도 동작한 적 없음.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: 서버 내부 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /target-sources/{targetSourceId}/scan/history:
     get:
@@ -139,16 +106,6 @@ paths:
                 $ref: '#/components/schemas/ScanHistoryResponse'
         '404':
           description: Target Source를 찾을 수 없음.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: 서버 내부 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -240,33 +197,10 @@ components:
           example: 10
     ErrorResponse:
       type: object
-      description: |-
-        API 에러 응답. 클라이언트는 `code` 필드로 에러 유형을 구분해야 합니다.
-
-        ### 클라이언트 에러 처리 요구사항
-        * `alert()` 사용 금지 — 반드시 inline UI로 에러를 표시할 것
-        * HTTP status + code 조합으로 에러를 분류하고 적절한 사용자 액션을 안내할 것
-        * 네트워크 오류(fetch 실패)도 별도 처리할 것
-
-        ### Scan API 에러 코드 목록
-        | HTTP | code | 의미 | 권장 UX |
-        |------|------|------|---------|
-        | 404 | TARGET_SOURCE_NOT_FOUND | 스캔 대상 없음 | 설정 확인 안내 |
-        | 409 | ALREADY_EXISTS | 스캔 이미 진행 중 | 진행 상태로 전환 |
-        | 500 | INTERNAL_ERROR | 서버 오류 | 재시도 버튼 |
-
-        ### ScanJob.scanError 코드 (비즈니스 실패)
-        scanStatus가 FAIL/TIMEOUT일 때 scanError 필드에 포함됩니다.
-        예: AUTH_PERMISSION_ERROR, NETWORK_UNREACHABLE 등
-      required:
-        - code
-        - message
       properties:
         code:
           type: string
-          description: 에러 코드 (클라이언트 분기 처리용)
           example: "ALREADY_EXISTS"
         message:
           type: string
-          description: 사람이 읽을 수 있는 에러 메시지
           example: "현재 스캔이 진행 중입니다."
