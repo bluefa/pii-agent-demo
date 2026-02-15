@@ -21,7 +21,8 @@ export type AppErrorCode =
   | 'CONFLICT_IN_PROGRESS'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
-  // 클라이언트 전용 codes (HTTP 응답 없는 경우)
+  // 클라이언트 전용 codes
+  | 'NOT_FOUND'
   | 'NETWORK'
   | 'TIMEOUT'
   | 'ABORTED'
