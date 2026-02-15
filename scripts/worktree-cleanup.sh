@@ -3,14 +3,16 @@ set -euo pipefail
 
 CANONICAL_REPO="/Users/study/pii-agent-demo"
 TARGET_WORKTREE=""
+FORCE=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  bash scripts/worktree-cleanup.sh --path <worktree-path> [--repo /Users/study/pii-agent-demo]
+  bash scripts/worktree-cleanup.sh --path <worktree-path> [--force] [--repo /Users/study/pii-agent-demo]
 
 Options:
   --path   Worktree path to remove
+  --force  Skip merge check (for pre-merge cleanup)
   --repo   Canonical repo path (default: /Users/study/pii-agent-demo)
 EOF
 }
@@ -20,6 +22,10 @@ while [[ $# -gt 0 ]]; do
     --path)
       TARGET_WORKTREE="${2:-}"
       shift 2
+      ;;
+    --force)
+      FORCE=1
+      shift
       ;;
     --repo)
       CANONICAL_REPO="${2:-}"
@@ -68,35 +74,39 @@ if [[ "${branch}" == "main" || "${branch}" == "master" || "${branch}" == "HEAD" 
   exit 1
 fi
 
-git -C "${CANONICAL_REPO}" fetch origin main >/dev/null 2>&1 || true
+if [[ "${FORCE}" == "1" ]]; then
+  echo "[worktree-cleanup] --force: skipping merge check"
+else
+  git -C "${CANONICAL_REPO}" fetch origin main >/dev/null 2>&1 || true
 
-if git -C "${CANONICAL_REPO}" show-ref --verify --quiet "refs/heads/${branch}"; then
-  merged_by_history="0"
-  merged_by_pr="0"
+  if git -C "${CANONICAL_REPO}" show-ref --verify --quiet "refs/heads/${branch}"; then
+    merged_by_history="0"
+    merged_by_pr="0"
 
-  if git -C "${CANONICAL_REPO}" merge-base --is-ancestor "${branch}" origin/main; then
-    merged_by_history="1"
-  fi
-
-  # squash/squid merge does not preserve branch commit ancestry, so verify merged PR by head branch.
-  if [[ "${merged_by_history}" != "1" ]] && command -v gh >/dev/null 2>&1; then
-    merged_pr_count="$(
-      cd "${CANONICAL_REPO}" &&
-      gh pr list \
-        --state merged \
-        --head "${branch}" \
-        --base main \
-        --json number \
-        --jq 'length' 2>/dev/null || echo "0"
-    )"
-    if [[ "${merged_pr_count}" != "0" ]]; then
-      merged_by_pr="1"
+    if git -C "${CANONICAL_REPO}" merge-base --is-ancestor "${branch}" origin/main; then
+      merged_by_history="1"
     fi
-  fi
 
-  if [[ "${merged_by_history}" != "1" && "${merged_by_pr}" != "1" ]]; then
-    echo "[worktree-cleanup] Branch ${branch} is not merged into origin/main (history or merged PR check failed)." >&2
-    exit 1
+    # squash/squid merge does not preserve branch commit ancestry, so verify merged PR by head branch.
+    if [[ "${merged_by_history}" != "1" ]] && command -v gh >/dev/null 2>&1; then
+      merged_pr_count="$(
+        cd "${CANONICAL_REPO}" &&
+        gh pr list \
+          --state merged \
+          --head "${branch}" \
+          --base main \
+          --json number \
+          --jq 'length' 2>/dev/null || echo "0"
+      )"
+      if [[ "${merged_pr_count}" != "0" ]]; then
+        merged_by_pr="1"
+      fi
+    fi
+
+    if [[ "${merged_by_history}" != "1" && "${merged_by_pr}" != "1" ]]; then
+      echo "[worktree-cleanup] Branch ${branch} is not merged into origin/main (history or merged PR check failed)." >&2
+      exit 1
+    fi
   fi
 fi
 
@@ -104,8 +114,13 @@ echo "[worktree-cleanup] Removing worktree: ${TARGET_WORKTREE}"
 git -C "${CANONICAL_REPO}" worktree remove "${TARGET_WORKTREE}"
 
 if git -C "${CANONICAL_REPO}" show-ref --verify --quiet "refs/heads/${branch}"; then
-  echo "[worktree-cleanup] Deleting local branch: ${branch}"
-  git -C "${CANONICAL_REPO}" branch -d "${branch}" || git -C "${CANONICAL_REPO}" branch -D "${branch}"
+  if [[ "${FORCE}" == "1" ]]; then
+    echo "[worktree-cleanup] Deleting local branch (force): ${branch}"
+    git -C "${CANONICAL_REPO}" branch -D "${branch}"
+  else
+    echo "[worktree-cleanup] Deleting local branch: ${branch}"
+    git -C "${CANONICAL_REPO}" branch -d "${branch}" || git -C "${CANONICAL_REPO}" branch -D "${branch}"
+  fi
 fi
 
 git -C "${CANONICAL_REPO}" worktree prune
