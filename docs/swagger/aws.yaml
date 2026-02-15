@@ -85,21 +85,43 @@ paths:
                   description: 검증할 특정 Role ARN (미입력 시 기존 등록값 사용)
       responses:
         '200':
-          description: 검증 성공
+          description: |-
+            검증 결과 (성공/실패 모두 200으로 응답).
+            실패 시 `status: INVALID` + `failReason`으로 원인 구분.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AwsRoleInfo'
+              examples:
+                valid:
+                  summary: 검증 성공
+                  value:
+                    roleArn: "arn:aws:iam::123456789012:role/PiiExecutionRole"
+                    status: "VALID"
+                    lastVerifiedAt: "2026-02-15T10:30:00Z"
+                notConfigured:
+                  summary: Role ARN 미설정
+                  value:
+                    roleArn: null
+                    status: "INVALID"
+                    failReason: "ROLE_NOT_CONFIGURED"
+                    failMessage: "Execution Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요."
+                insufficientPermissions:
+                  summary: Role 권한 부족
+                  value:
+                    roleArn: "arn:aws:iam::123456789012:role/PiiExecutionRole"
+                    status: "INVALID"
+                    failReason: "ROLE_INSUFFICIENT_PERMISSIONS"
+                    failMessage: "등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요."
+                scanRoleUnavailable:
+                  summary: 검증에 필요한 Scan Role 사용 불가
+                  value:
+                    roleArn: "arn:aws:iam::123456789012:role/PiiExecutionRole"
+                    status: "INVALID"
+                    failReason: "SCAN_ROLE_UNAVAILABLE"
+                    failMessage: "Execution Role 검증을 위해 Scan Role이 필요합니다. Scan Role을 먼저 설정하고 검증해주세요."
         '403':
-          description: "Role 정보가 설정되지 않았거나 AWS 실질 권한 부족 (AccessDenied)"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error:
-                  code: "AccessDenied"
-                  message: "권한 정보가 설정되지 않았거나 접근 권한이 부족합니다."
+          $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
@@ -117,21 +139,36 @@ paths:
         리소스 조회를 위한 Scan Role의 권한 유효성을 실시간으로 검증합니다.
       responses:
         '200':
-          description: 검증 성공
+          description: |-
+            검증 결과 (성공/실패 모두 200으로 응답).
+            실패 시 `status: INVALID` + `failReason`으로 원인 구분.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AwsRoleInfo'
+              examples:
+                valid:
+                  summary: 검증 성공
+                  value:
+                    roleArn: "arn:aws:iam::123456789012:role/PiiScanRole"
+                    status: "VALID"
+                    lastVerifiedAt: "2026-02-15T10:30:00Z"
+                notConfigured:
+                  summary: Role ARN 미설정
+                  value:
+                    roleArn: null
+                    status: "INVALID"
+                    failReason: "ROLE_NOT_CONFIGURED"
+                    failMessage: "Scan Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요."
+                insufficientPermissions:
+                  summary: Role 권한 부족
+                  value:
+                    roleArn: "arn:aws:iam::123456789012:role/PiiScanRole"
+                    status: "INVALID"
+                    failReason: "ROLE_INSUFFICIENT_PERMISSIONS"
+                    failMessage: "등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요."
         '403':
-          description: "Role 정보가 설정되지 않았거나 AWS 실질 권한 부족 (AccessDenied)"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error:
-                  code: "AccessDenied"
-                  message: "권한 정보가 설정되지 않았거나 접근 권한이 부족합니다."
+          $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
@@ -259,16 +296,26 @@ components:
 
     AwsRoleInfo:
       type: object
-      description: "IAM Role 정보 및 상태"
-      required: [roleArn, status]
+      description: "IAM Role 정보 및 검증 상태"
+      required: [status]
       properties:
         roleArn:
           type: string
-          description: "AWS IAM Role ARN"
+          nullable: true
+          description: "AWS IAM Role ARN (미설정 시 null)"
         status:
           type: string
           enum: [VALID, INVALID, UNVERIFIED]
           description: "Role 유효성 검증 상태"
+        failReason:
+          type: string
+          nullable: true
+          enum: [ROLE_NOT_CONFIGURED, ROLE_INSUFFICIENT_PERMISSIONS, SCAN_ROLE_UNAVAILABLE]
+          description: "INVALID 상태일 때 실패 사유 (VALID/UNVERIFIED 시 null)"
+        failMessage:
+          type: string
+          nullable: true
+          description: "INVALID 상태일 때 사용자 노출 메시지 (VALID/UNVERIFIED 시 null)"
         lastVerifiedAt:
           type: string
           format: date-time
@@ -292,14 +339,14 @@ components:
 
   responses:
     PermissionDenied:
-      description: "인가 실패 (SSO 권한 부족 등)"
+      description: "인가 실패 (API 호출 권한 없음)"
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error:
-              code: "PermissionDenied"
+              code: "FORBIDDEN"
               message: "해당 리소스에 접근할 권한이 없습니다."
 
     TargetSourceNotFound:
@@ -310,5 +357,5 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error:
-              code: "TargetSourceNotFound"
+              code: "TARGET_SOURCE_NOT_FOUND"
               message: "요청하신 Target Source를 찾을 수 없습니다."

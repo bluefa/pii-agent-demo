@@ -56,4 +56,4 @@ export const POST = withV1(async (_request, { requestId, params }) => {
 
   const legacy = await response.json() as CheckInstallationResponse;
   return NextResponse.json(transformCheckInstallation(legacy));
-}, { expectedDuration: '300000ms', errorFormat: 'nested' });
+}, { expectedDuration: '300000ms' });

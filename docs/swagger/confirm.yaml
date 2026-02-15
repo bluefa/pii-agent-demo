@@ -42,6 +42,10 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Resource' }
                   totalCount: { type: integer }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
@@ -89,6 +93,12 @@ paths:
                   approval_request: { $ref: '#/components/schemas/ApprovalRequest' }
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
 
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
@@ -109,6 +119,12 @@ paths:
                   confirmed_integration:
                     $ref: '#/components/schemas/ConfirmedIntegration'
                     nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
 
   /target-sources/{targetSourceId}/approved-integration:
     parameters:
@@ -129,6 +145,12 @@ paths:
                   approved_integration:
                     $ref: '#/components/schemas/ApprovedIntegration'
                     nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
 
   /target-sources/{targetSourceId}/approval-history:
     parameters:
@@ -160,6 +182,12 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/ApprovalHistoryItem' }
                   page: { $ref: '#/components/schemas/PageInfo' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
 
 components:
   parameters:
@@ -378,6 +406,20 @@ components:
             message: { type: string }
 
   responses:
+    Unauthorized:
+      description: "인증 실패 (SSO 토큰 만료 또는 미인증)"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "UNAUTHORIZED", message: "인증이 필요합니다." }
+    PermissionDenied:
+      description: "인가 실패 (API 호출 권한 없음)"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "FORBIDDEN", message: "해당 리소스에 접근할 권한이 없습니다." }
     TargetSourceNotFound:
       description: "대상 소스를 찾을 수 없음"
       content:
@@ -385,13 +427,10 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
           example:
             error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }
-    PermissionDenied:
-      description: "권한 없음"
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
     BadRequest:
       description: "잘못된 요청 파라미터"
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "VALIDATION_FAILED", message: "요청 파라미터가 올바르지 않습니다." }
