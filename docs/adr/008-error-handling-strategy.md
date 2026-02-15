@@ -73,7 +73,7 @@ type AppErrorCode =
 | 401 | 인증 실패 | **항상** SSO 토큰 만료/미인증 |
 | 403 | 인가 실패 | **항상** BFF API 호출 권한 없음 |
 | 4xx | 비즈니스 에러 | status + code로 구분 |
-| 5xx | 서버 에러 | retriable: true (기본) |
+| 5xx | 서버 에러 | 서버 `retriable` 값 우선. 미제공 시 fetchJson이 `true` 처리. 단, 500 INTERNAL_ERROR는 서버가 `false` 지정 (코드 버그 → 재시도 무의미) |
 
 비즈니스 로직 결과(예: AWS Role 검증 실패)는 200 + 데이터로 반환. HTTP 에러 코드를 비즈니스 결과에 사용하지 않는다.
 
@@ -83,7 +83,7 @@ type AppErrorCode =
 |------|------|
 | 미정의 서버 code | `console.warn` + status fallback |
 | JSON 파싱 실패 | status 기반 code + retriable fallback |
-| 429/5xx retriable | 서버 값 우선, 없으면 `true` |
+| retriable 판단 | 서버 `retriable` 값 우선. 미제공 시 429/5xx → `true`, 그 외 4xx → `false` |
 | Retry-After 헤더 | delta-seconds 파싱 (서버 retryAfterMs 우선) |
 | Headers | `new Headers()` 안전 병합 |
 | 타임아웃 | 30s 기본, AbortController |
