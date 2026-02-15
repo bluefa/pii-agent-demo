@@ -95,6 +95,22 @@ describe('fetchJson — ProblemDetails 에러', () => {
     expect(err.status).toBe(404);
   });
 
+  it('flat 에러 형태 (code + message)를 파싱한다', async () => {
+    mockFetch(404, { code: 'NOT_FOUND', message: 'Target Source를 찾을 수 없습니다.' });
+
+    const err = await expectAppError('/api/v1/test');
+    expect(err.code).toBe('NOT_FOUND');
+    expect(err.message).toBe('Target Source를 찾을 수 없습니다.');
+  });
+
+  it('nested 에러 형태 (error.code + error.message)를 파싱한다', async () => {
+    mockFetch(403, { error: { code: 'FORBIDDEN', message: '접근 권한이 없습니다.' } });
+
+    const err = await expectAppError('/api/v1/test');
+    expect(err.code).toBe('FORBIDDEN');
+    expect(err.message).toBe('접근 권한이 없습니다.');
+  });
+
   it('서버 code가 없으면 status 기반 fallback을 사용한다', async () => {
     mockFetch(403, { detail: '권한 없음' });
 
