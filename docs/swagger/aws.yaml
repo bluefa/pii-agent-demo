@@ -91,15 +91,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/AwsRoleInfo'
         '403':
-          description: "Role 정보가 설정되지 않았거나 AWS 실질 권한 부족 (AccessDenied)"
+          description: |-
+            Role 검증 실패. 원인에 따라 에러 코드가 구분됩니다:
+            - `ROLE_NOT_CONFIGURED`: Role ARN이 미설정
+            - `ROLE_INSUFFICIENT_PERMISSIONS`: Role은 있지만 AWS IAM 권한 부족
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error:
-                  code: "AccessDenied"
-                  message: "권한 정보가 설정되지 않았거나 접근 권한이 부족합니다."
+              examples:
+                roleNotConfigured:
+                  summary: Role ARN 미설정
+                  value:
+                    error:
+                      code: "ROLE_NOT_CONFIGURED"
+                      message: "Execution Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요."
+                roleInsufficientPermissions:
+                  summary: Role 권한 부족
+                  value:
+                    error:
+                      code: "ROLE_INSUFFICIENT_PERMISSIONS"
+                      message: "등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요."
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
@@ -123,15 +135,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/AwsRoleInfo'
         '403':
-          description: "Role 정보가 설정되지 않았거나 AWS 실질 권한 부족 (AccessDenied)"
+          description: |-
+            Role 검증 실패. 원인에 따라 에러 코드가 구분됩니다:
+            - `ROLE_NOT_CONFIGURED`: Role ARN이 미설정
+            - `ROLE_INSUFFICIENT_PERMISSIONS`: Role은 있지만 AWS IAM 권한 부족
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error:
-                  code: "AccessDenied"
-                  message: "권한 정보가 설정되지 않았거나 접근 권한이 부족합니다."
+              examples:
+                roleNotConfigured:
+                  summary: Role ARN 미설정
+                  value:
+                    error:
+                      code: "ROLE_NOT_CONFIGURED"
+                      message: "Scan Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요."
+                roleInsufficientPermissions:
+                  summary: Role 권한 부족
+                  value:
+                    error:
+                      code: "ROLE_INSUFFICIENT_PERMISSIONS"
+                      message: "등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요."
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
