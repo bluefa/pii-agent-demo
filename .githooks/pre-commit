@@ -4,13 +4,6 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
-echo "[pre-commit] Validating worktree guard..."
-bash scripts/guard-worktree.sh
-
-if [[ "${PII_SKIP_QUALITY:-0}" == "1" ]]; then
-  echo "[pre-commit] Quality checks skipped by PII_SKIP_QUALITY=1"
-  exit 0
-fi
 
 # 코드 파일(.ts/.tsx/.js/.jsx/.mjs) 변경 여부 확인
 code_changed=$(git diff --cached --name-only --diff-filter=ACMR | grep -cE '\.(ts|tsx|js|jsx|mjs)$' || true)

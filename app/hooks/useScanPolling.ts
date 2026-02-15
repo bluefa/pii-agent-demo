@@ -59,7 +59,7 @@ const computeUIState = (status: ScanStatusResponse | null): ScanUIState => {
   }
 
   // 마지막 스캔이 실패한 경우
-  if (status.currentScan?.status === 'FAILED') {
+  if (status.currentScan?.status === 'FAIL') {
     return 'FAILED';
   }
 

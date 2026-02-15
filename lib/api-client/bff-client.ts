@@ -112,7 +112,7 @@ export const bffClient: ApiClient = {
     setInstallationMode: (projectId, body) => proxyPost(`/aws/projects/${projectId}/installation-mode`, body),
     getInstallationStatus: (projectId) => proxyGet(`/aws/projects/${projectId}/installation-status`),
     getTerraformScript: (projectId) => proxyGet(`/aws/projects/${projectId}/terraform-script`),
-    verifyTfRole: (body) => proxyPost('/aws/verify-tf-role', body),
+    verifyTfRole: (_projectId, body) => proxyPost('/aws/verify-tf-role', body ?? {}),
   },
   azure: {
     checkInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/check-installation`, {}),

@@ -45,7 +45,7 @@ export interface ScanDetailResponse {
 export interface ScanHistoryResponse {
   history: Array<{
     scanId: string;
-    status: 'COMPLETED' | 'FAILED';
+    status: 'SUCCESS' | 'FAIL';
     startedAt: string;
     completedAt: string;
     duration: number;

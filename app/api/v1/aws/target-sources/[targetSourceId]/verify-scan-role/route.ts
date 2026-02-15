@@ -11,4 +11,4 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   if (!resolved.ok) return problemResponse(resolved.problem);
 
   return client.services.settings.aws.verifyScanRole(resolved.project.serviceCode);
-}, { expectedDuration: '30000ms' });
+}, { expectedDuration: '30000ms', errorFormat: 'nested' });

@@ -176,7 +176,7 @@ export const mockScan = {
 
     if (activeScan) {
       const updated = await scanFns.calculateScanStatus(activeScan);
-      if (updated.status === 'PENDING' || updated.status === 'IN_PROGRESS') {
+      if (updated.status === 'SCANNING') {
         isScanning = true;
         currentScan = {
           scanId: updated.id,
@@ -190,6 +190,7 @@ export const mockScan = {
     const { history } = await scanFns.getScanHistory(projectId, 1, 0);
     const lastCompletedScan = history.length > 0 ? {
       scanId: history[0].scanId,
+      status: history[0].status,
       completedAt: history[0].completedAt,
       result: history[0].result,
     } : null;
