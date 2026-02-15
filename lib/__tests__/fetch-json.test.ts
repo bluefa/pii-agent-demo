@@ -218,6 +218,20 @@ describe('fetchJson — 네트워크/타임아웃', () => {
     expect(err.code).toBe('ABORTED');
     expect(err.retriable).toBe(false);
   });
+
+  it('이미 aborted된 signal → 즉시 ABORTED 에러', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((_, reject) => {
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      }),
+    );
+
+    const err = await expectAppError('/api/v1/test', { signal: controller.signal });
+    expect(err.code).toBe('ABORTED');
+  });
 });
 
 describe('fetchJson — status 매핑', () => {

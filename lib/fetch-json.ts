@@ -125,9 +125,13 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort('TIMEOUT'), timeout);
 
-  // 외부 signal이 있으면 연결
+  // 외부 signal이 있으면 연결 (이미 aborted 상태면 즉시 반영)
   if (init.signal) {
-    init.signal.addEventListener('abort', () => controller.abort('ABORTED'), { once: true });
+    if (init.signal.aborted) {
+      controller.abort('ABORTED');
+    } else {
+      init.signal.addEventListener('abort', () => controller.abort('ABORTED'), { once: true });
+    }
   }
 
   // Headers 병합: Headers 인스턴스/튜플 배열도 안전하게 처리
