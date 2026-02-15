@@ -1,3 +1,5 @@
+> **DEPRECATED**: 이 문서는 더 이상 유지보수되지 않습니다. `docs/swagger/gcp.yaml`을 참조하세요.
+
 # GCP API
 
 > GCP Provider 전용 API를 정의합니다.
