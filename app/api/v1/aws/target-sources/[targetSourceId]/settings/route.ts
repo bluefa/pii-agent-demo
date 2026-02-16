@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { problemResponse } from '@/app/api/_lib/problem';
-import { parseTargetSourceId, resolveProject } from '@/app/api/_lib/target-source';
+import { problemResponse, createProblem } from '@/app/api/_lib/problem';
+import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
-
-const IS_MOCK = process.env.USE_MOCK_DATA !== 'false';
+import type { LegacyAwsInstallationStatus } from '@/lib/types';
 
 interface LegacyRoleInfo {
   registered: boolean;
@@ -34,25 +33,42 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  // Mock 모드: project에서 serviceCode 조회 → legacy settings API
-  if (IS_MOCK) {
-    const resolved = resolveProject(parsed.value, requestId);
-    if (!resolved.ok) return problemResponse(resolved.problem);
+  const resolved = resolveProjectId(parsed.value, requestId);
+  if (!resolved.ok) return problemResponse(resolved.problem);
 
-    const response = await client.services.settings.aws.get(resolved.project.serviceCode);
-    if (!response.ok) return response;
+  const projectResponse = await client.projects.get(resolved.projectId);
+  if (!projectResponse.ok) return projectResponse;
 
-    const legacy = await response.json() as LegacyAwsSettings;
-    return NextResponse.json({
-      executionRole: { roleArn: null, status: 'UNVERIFIED' },
-      scanRole: toAwsRoleInfo(legacy.scanRole),
-    });
+  const project = await projectResponse.json() as { serviceCode?: string };
+  if (!project.serviceCode) {
+    return problemResponse(createProblem(
+      'INTERNAL_ERROR',
+      '프로젝트 serviceCode를 확인할 수 없습니다.',
+      requestId,
+    ));
   }
 
-  // BFF 모드: BFF가 targetSourceId로 직접 처리
-  // TODO: BFF settings API 연동 시 구현
+  const settingsResponse = await client.services.settings.aws.get(project.serviceCode);
+  if (!settingsResponse.ok) return settingsResponse;
+
+  const legacy = await settingsResponse.json() as LegacyAwsSettings;
+
+  let executionRole: { roleArn: string | null; status: 'VALID' | 'UNVERIFIED' } = {
+    roleArn: null,
+    status: 'UNVERIFIED',
+  };
+
+  // 설치 상태에서 executionRoleArn을 읽어 settings 응답에 보강한다.
+  const installationResponse = await client.aws.getInstallationStatus(resolved.projectId);
+  if (installationResponse.ok) {
+    const installation = await installationResponse.json() as LegacyAwsInstallationStatus;
+    if (installation.tfExecutionRoleArn) {
+      executionRole = { roleArn: installation.tfExecutionRoleArn, status: 'VALID' };
+    }
+  }
+
   return NextResponse.json({
-    executionRole: { roleArn: null, status: 'UNVERIFIED' },
-    scanRole: { roleArn: null, status: 'UNVERIFIED' },
+    executionRole,
+    scanRole: toAwsRoleInfo(legacy.scanRole),
   });
 }, { expectedDuration: '150ms' });
