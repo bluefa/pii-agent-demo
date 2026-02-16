@@ -384,6 +384,7 @@ components:
     SelectedResourceInput:
       type: object
       required: [resource_id, selected, resource_input]
+      additionalProperties: false
       properties:
         resource_id:
           type: string
@@ -398,6 +399,7 @@ components:
     ExcludedResourceInput:
       type: object
       required: [resource_id, selected]
+      additionalProperties: false
       properties:
         resource_id:
           type: string
@@ -427,9 +429,43 @@ components:
     VmResourceInput:
       type: object
       required: [vm_config]
+      additionalProperties: false
       properties:
         vm_config:
-          $ref: '#/components/schemas/VmConfig'
+          $ref: '#/components/schemas/VmConfigInput'
+
+    VmConfigInput:
+      description: "승인 요청 입력용 VM 설정. resource_id는 상위 resource_inputs[].resource_id를 사용합니다."
+      oneOf:
+        - $ref: '#/components/schemas/OracleVmConfigInput'
+        - $ref: '#/components/schemas/NonOracleVmConfigInput'
+
+    OracleVmConfigInput:
+      type: object
+      required: [db_type, port, host, oracleServiceId]
+      additionalProperties: false
+      properties:
+        db_type:
+          type: string
+          enum: [ORACLE]
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        host: { type: string }
+        oracleServiceId:
+          type: string
+          description: "Oracle DB 연결에 필요한 Service ID"
+        selectedNicId: { type: string }
+
+    NonOracleVmConfigInput:
+      type: object
+      required: [db_type, port, host]
+      additionalProperties: false
+      properties:
+        db_type:
+          type: string
+          enum: [MYSQL, POSTGRESQL, MSSQL, MONGODB]
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        host: { type: string }
+        selectedNicId: { type: string }
 
     ApprovalRequest:
       type: object
@@ -487,7 +523,7 @@ components:
           description: "VM 리소스인 경우 제공되는 설정 스냅샷입니다. Oracle DB 선택 시 oracleServiceId를 포함해야 합니다."
           allOf:
             - $ref: '#/components/schemas/VmConfig'
-        selectedCredentialId: { type: string, nullable: true }
+        credential_id: { type: string, nullable: true }
 
     VmConfig:
       description: "VM 리소스 연결 설정. AWS EC2/Azure VM/IDC 모두 Oracle 선택 시 oracleServiceId가 필수입니다."
