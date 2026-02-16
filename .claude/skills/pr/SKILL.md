@@ -38,10 +38,13 @@ Task({
        - npx tsc --noEmit
        - npm run test:run
        - npm run build
-    4. Check for commits: git log origin/main..HEAD --oneline
+    4. Run contract validation:
+       - bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD
+       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
+    5. Check for commits: git log origin/main..HEAD --oneline
        - If empty: report and stop
-    5. Push branch: git push origin HEAD --force-with-lease
-    6. Report: branch name, commit count, validation results
+    6. Push branch: git push origin HEAD --force-with-lease
+    7. Report: branch name, commit count, validation results
 
     CRITICAL: Stop immediately on any failure
   `
@@ -81,6 +84,11 @@ gh pr create --base main --head <branch> --title "<title>" --body "<description>
 ## Validation
 - 실행한 검증 명령과 결과
 
+## Contract Validation (API 변경 시 필수)
+- 실행 명령
+- PASS/FAIL 결과
+- 실패/예외 시 TODO 및 제거 계획
+
 ## Risks
 - 잠재 영향 범위
 - 롤백 방법
@@ -94,4 +102,5 @@ gh pr create --base main --head <branch> --title "<title>" --body "<description>
 - NEVER push to `main` directly
 - NEVER skip rebase before PR
 - NEVER create PR with validation failures
+- NEVER create PR when contract validation fails
 - NEVER submit PR with empty or single-line description

@@ -1,0 +1,6 @@
+# Domain-specific deny regex rules for scripts/contract-check.sh
+# Format: <regex>|<message>
+#
+# Example:
+# \blegacyFlag\b|Legacy flag is deprecated. Use canonical source field instead.
+# \bdeprecated_field\b|Deprecated payload field must not be used.

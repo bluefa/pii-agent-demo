@@ -46,7 +46,10 @@ Task({
     3. Run type-check: npx tsc --noEmit
     4. Run tests: npm run test:run
     5. Run build: npm run build
-    6. Report results:
+    6. Run contract check (API/Swagger 작업은 필수):
+       - bash scripts/contract-check.sh --mode staged
+       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
+    7. Report results:
        - All passed: "✅ Ready to commit"
        - Any failed: "❌ Fix issues before commit" + error summary
 
@@ -55,6 +58,7 @@ Task({
     ✓ Type-check: passed
     ✓ Tests: passed (X passed)
     ✓ Build: passed
+✓ Contract-check: passed (or skipped when out of scope)
 
     IMPORTANT: Run all checks even if one fails (don't stop early)
   `
@@ -71,6 +75,7 @@ Task({
 ✓ Type-check: no errors
 ✓ Tests: 42 passed
 ✓ Build: completed in 8.2s
+✓ Contract-check: passed
 
 Ready to commit!
 ```
@@ -85,6 +90,7 @@ Ready to commit!
   - src/lib/bar.ts:45 - Property 'baz' missing
 ✓ Tests: 42 passed
 ✓ Build: completed (with warnings)
+✗ Contract-check: API/runtime changed without Swagger update
 
 Fix type errors before commit.
 ```
@@ -94,6 +100,7 @@ Fix type errors before commit.
 - Run all checks regardless of individual failures (for complete report)
 - Report concise error summary (not full output)
 - If no staged changes, notify user
+- API 계약 불일치는 lint/test/build가 통과해도 실패로 처리
 - DO NOT auto-commit on success (user decides when to commit)
 
 ## Benefits vs. Git Hook
