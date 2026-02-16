@@ -519,7 +519,7 @@ export const mockConfirm = {
 
     if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
       return NextResponse.json(
-        { error: 'INVALID_STATE', message: '승인 대기 상태가 아닙니다.' },
+        { error: { code: 'VALIDATION_FAILED', message: '승인 대기 상태가 아닙니다.' } },
         { status: 400 },
       );
     }
@@ -584,7 +584,7 @@ export const mockConfirm = {
 
     if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
       return NextResponse.json(
-        { error: 'INVALID_STATE', message: '승인 대기 상태가 아닙니다.' },
+        { error: { code: 'VALIDATION_FAILED', message: '승인 대기 상태가 아닙니다.' } },
         { status: 400 },
       );
     }

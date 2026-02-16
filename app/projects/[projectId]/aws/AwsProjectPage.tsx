@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type { AwsInstallationStatus, AwsSettings } from '@/lib/types';
@@ -84,6 +84,12 @@ export const AwsProjectPage = ({
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
   };
+
+  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
+  const approvalResources = useMemo(
+    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [project.resources, selectedIds],
+  );
 
   // 설치 모드 미선택 시 선택 UI 표시
   if (!project.awsInstallationMode) {
@@ -250,6 +256,7 @@ export const AwsProjectPage = ({
             onApprovalSubmit={handleApprovalSubmit}
             approvalLoading={submitting}
             approvalError={approvalError}
+            approvalResources={approvalResources}
           />
         </div>
 

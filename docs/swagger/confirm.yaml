@@ -139,7 +139,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
               example:
-                error: { code: "INVALID_STATE", message: "승인 대기 상태가 아닙니다." }
+                error: { code: "VALIDATION_FAILED", message: "승인 대기 상태가 아닙니다." }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -180,7 +180,7 @@ paths:
                 invalid_state:
                   summary: 승인 대기 상태가 아님
                   value:
-                    error: { code: "INVALID_STATE", message: "승인 대기 상태가 아닙니다." }
+                    error: { code: "VALIDATION_FAILED", message: "승인 대기 상태가 아닙니다." }
                 missing_reason:
                   summary: 반려 사유 누락
                   value:

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ProcessStatus, Project, TerraformStatus, SecretKey } from '@/lib/types';
+import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
 import { completeInstallation, getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
@@ -35,6 +35,7 @@ interface ProcessStatusCardProps {
   onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
   approvalLoading?: boolean;
   approvalError?: string | null;
+  approvalResources?: Resource[];
 }
 
 const getProgress = (project: Project) => {
@@ -58,6 +59,7 @@ export const ProcessStatusCard = ({
   onApprovalSubmit,
   approvalLoading = false,
   approvalError,
+  approvalResources,
 }: ProcessStatusCardProps) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
@@ -287,7 +289,7 @@ export const ProcessStatusCard = ({
           isOpen={approvalModalOpen}
           onClose={onApprovalModalClose}
           onSubmit={onApprovalSubmit}
-          resources={project.resources}
+          resources={approvalResources ?? project.resources}
           loading={approvalLoading}
           error={approvalError}
         />

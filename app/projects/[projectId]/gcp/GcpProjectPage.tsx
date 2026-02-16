@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
@@ -90,6 +90,12 @@ export const GcpProjectPage = ({
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
+
+  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
+  const approvalResources = useMemo(
+    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [project.resources, selectedIds],
+  );
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
@@ -200,6 +206,7 @@ export const GcpProjectPage = ({
             onApprovalSubmit={handleApprovalSubmit}
             approvalLoading={submitting}
             approvalError={approvalError}
+            approvalResources={approvalResources}
           />
         </div>
 
