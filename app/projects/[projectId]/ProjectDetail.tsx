@@ -27,7 +27,7 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
       try {
         setLoading(true);
         const [projectData, userData] = await Promise.all([
-          getProject(projectId),
+          getProject(Number(projectId)),
           getCurrentUser(),
         ]);
         setProject(projectData);

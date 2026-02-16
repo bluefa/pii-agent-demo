@@ -97,7 +97,7 @@ export const ProjectsTable = ({
           return (
             <tr
               key={project.id}
-              onClick={() => router.push(`/projects/${project.id}`)}
+              onClick={() => router.push(`/projects/${project.targetSourceId}`)}
               className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
             >
               <td className="px-6 py-4">

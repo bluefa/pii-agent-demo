@@ -166,7 +166,7 @@ export const IdcProjectPage = ({
       if (data.project) {
         onProjectUpdate(data.project);
       } else {
-        const updatedProject = await getProject(project.id);
+        const updatedProject = await getProject(project.targetSourceId);
         onProjectUpdate(updatedProject);
       }
 
@@ -210,7 +210,7 @@ export const IdcProjectPage = ({
         setIdcInstallationStatus(statusData);
       }
 
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : '방화벽 확인에 실패했습니다.');
@@ -263,7 +263,7 @@ export const IdcProjectPage = ({
       if (data.project) {
         onProjectUpdate(data.project);
       } else {
-        const updatedProject = await getProject(project.id);
+        const updatedProject = await getProject(project.targetSourceId);
         onProjectUpdate(updatedProject);
       }
 
