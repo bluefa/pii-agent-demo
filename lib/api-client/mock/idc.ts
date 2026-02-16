@@ -159,7 +159,6 @@ export const mockIdc = {
           connectionStatus: 'PENDING' as const,
           isSelected: true,
           databaseType: input.databaseType as DatabaseType,
-          lifecycleStatus: 'TARGET' as const,
           integrationCategory: 'TARGET' as const,
         };
       })

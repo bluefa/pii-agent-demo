@@ -11,7 +11,6 @@ import {
   MAX_HISTORY_LIMIT,
 } from '@/lib/constants/history';
 import type {
-  ResourceLifecycleStatus,
   ProjectStatus,
   CloudProvider,
   Project,
@@ -277,12 +276,10 @@ export const mockProjects = {
       );
     }
 
+    // selected 기반: 선택된 리소스 중 아직 연결되지 않은 것이 설치 대상
     const updatedResources = project.resources.map((r) => {
-      if (r.lifecycleStatus !== 'INSTALLING') return r;
-      return {
-        ...r,
-        lifecycleStatus: 'READY_TO_TEST' as ResourceLifecycleStatus,
-      };
+      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
+      return { ...r };
     });
 
     const terraformState = {
@@ -392,11 +389,11 @@ export const mockProjects = {
       );
     }
 
+    // selected 기반: 선택된 리소스 중 아직 연결되지 않은 것을 CONNECTED로 전환
     const updatedResources = project.resources.map((r) => {
-      if (r.lifecycleStatus !== 'READY_TO_TEST') return r;
+      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
       return {
         ...r,
-        lifecycleStatus: 'ACTIVE' as ResourceLifecycleStatus,
         connectionStatus: 'CONNECTED' as const,
       };
     });
@@ -906,8 +903,6 @@ export const mockProjects = {
         isSelected: false,
         awsType,
         region,
-        lifecycleStatus: 'DISCOVERED' as const,
-        isNew: true,
         note: 'NEW',
         integrationCategory: 'TARGET' as const,
       };
@@ -1038,8 +1033,6 @@ export const mockProjects = {
         return {
           ...r,
           connectionStatus: 'CONNECTED' as ConnectionStatus,
-          lifecycleStatus: 'ACTIVE' as ResourceLifecycleStatus,
-          isNew: false,
           note: r.note === 'NEW' ? undefined : r.note,
           selectedCredentialId: credentialId,
         };

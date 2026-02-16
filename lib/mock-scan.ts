@@ -439,9 +439,7 @@ export const generateAwsResource = (): Resource => {
     isSelected: false,
     awsType,
     region,
-    lifecycleStatus: 'DISCOVERED',
     integrationCategory: awsType === 'EC2' ? 'NO_INSTALL_NEEDED' : 'TARGET',
-    isNew: true,
     note: 'NEW',
     ...(awsType === 'EC2' ? {
       vmDatabaseConfig: {
@@ -516,9 +514,7 @@ export const generateAzureResource = (): Resource => {
     databaseType,
     connectionStatus: 'PENDING',
     isSelected: false,
-    lifecycleStatus: 'DISCOVERED',
     integrationCategory,
-    isNew: true,
     note: 'NEW',
     ...(networkingMode ? { azureNetworkingMode: networkingMode } : {}),
   };
@@ -554,9 +550,7 @@ export const generateGcpResource = (): Resource => {
     databaseType,
     connectionStatus: 'PENDING',
     isSelected: false,
-    lifecycleStatus: 'DISCOVERED',
     integrationCategory: 'TARGET',
-    isNew: true,
     note: 'NEW',
   };
 };
