@@ -418,8 +418,7 @@ components:
       type: object
       required:
         - targetSourceId
-        - targetSourceCode
-        - name
+        - projectCode
         - cloudProvider
         - processStatus
         - createdAt
@@ -428,12 +427,12 @@ components:
           type: integer
           format: int64
           example: 1001
-        targetSourceCode:
+        projectCode:
           type: string
           example: "N-IRP-001"
-        name:
+        description:
           type: string
-          example: "N-IRP-001"
+          example: "과제 설명"
         cloudProvider:
           $ref: '#/components/schemas/CloudProvider'
         processStatus:
@@ -495,10 +494,10 @@ components:
     CreateTargetSourceRequest:
       type: object
       required:
-        - targetSourceCode
+        - projectCode
         - cloudProvider
       properties:
-        targetSourceCode:
+        projectCode:
           type: string
           example: "N-IRP-001"
         description:
