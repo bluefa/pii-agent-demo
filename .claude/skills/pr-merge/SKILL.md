@@ -20,11 +20,27 @@ PR 머지 전 검증과 머지 전략을 일관되게 수행합니다.
 - `pr`: PR 번호 또는 URL
 - `strategy`: `merge` | `squash` | `squid` (기본값: `squid`)
 
-## Implementation
+## How This Skill Works
 
-Use Task tool to spawn a Haiku subagent:
+**Manual workflow** (This skill is NOT auto-invoked):
 
-```
+1. Read this guide
+2. **You call Task tool** with Haiku subagent to merge PR
+3. Haiku validates and merges the PR
+4. Haiku reports result
+
+**Why manual:** PR merge is an explicit action that requires user authorization.
+
+## When to Use This Skill
+
+- After code review approval
+- Ready to merge PR into main
+
+## Usage Example
+
+When you want to merge a PR, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -37,8 +53,8 @@ Task({
     3. Check for worktree: git worktree list | grep {headRefName}
     4. If worktree exists: bash scripts/worktree-cleanup.sh --path <worktree-path> --force
     5. Merge with strategy {strategy}:
-       - merge: gh pr merge {pr} --merge --delete-branch
-       - squash/squid: gh pr merge {pr} --squash --delete-branch
+       - gh pr merge {pr} --squash --delete-branch (if strategy is squid/squash)
+       - gh pr merge {pr} --merge --delete-branch (if strategy is merge)
     6. Verify merge: gh pr view {pr} --json state,mergedAt,mergeCommit
     7. Report: PR number, merge commit SHA
 

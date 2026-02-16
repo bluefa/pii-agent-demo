@@ -20,13 +20,28 @@ PR 생성을 자동 처리하고, merge는 명시적 승인 옵션이 있을 때
 - `strategy`: `merge` | `squash` | `squid` (기본값: `squid`)
 - `merge_approved`: 사용자 명시 요청 시에만 `true`
 
-## Implementation
+## How This Skill Works
 
-### Option 1: Script-Based (Recommended)
+**Automated workflow** (Scripts + Haiku):
 
-Use Task tool to spawn a Haiku subagent:
+1. **You call Task tool** with Haiku subagent
+2. Haiku validates, creates PR, and optionally merges
+3. Haiku reports PR URL
 
-```
+**Why automated:** PR flow script handles validation, PR creation, and merge as a single pipeline.
+
+## When to Use This Skill
+
+- Complete feature implementation
+- Ready for code review and automatic merge approval
+
+## Usage Example
+
+**Script-Based (Recommended)** — **You call Task tool**:
+
+When you're ready to create PR (with optional merge), **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -40,8 +55,8 @@ Task({
     4. Run contract validation:
        - bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD
        - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
-    5. Execute flow: bash scripts/pr-flow.sh --strategy {strategy} {merge_flag}
-       - merge_flag: --merge-approved (only if user explicitly requested merge)
+    5. Execute flow: bash scripts/pr-flow.sh --strategy squid
+       - Only add --merge-approved if user explicitly requested merge
     6. Report: PR URL and status
 
     The script handles:
@@ -56,9 +71,7 @@ Task({
 })
 ```
 
-### Option 2: Manual Steps
-
-If script unavailable, follow `/pr` skill workflow with Haiku delegation for bash operations.
+**Manual Steps** — If script unavailable, follow `/pr` skill workflow with Task tool for Haiku delegation.
 
 ## PR Description
 
