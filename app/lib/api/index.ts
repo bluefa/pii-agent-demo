@@ -13,7 +13,7 @@ export interface CurrentUser {
 }
 
 export const getCurrentUser = async (): Promise<CurrentUser> => {
-  const res = await fetch(`${BASE_URL}/user/me`);
+  const res = await fetch('/api/v1/user/me');
   if (!res.ok) throw new Error('Failed to fetch current user');
   const data = await res.json();
   return data.user;
