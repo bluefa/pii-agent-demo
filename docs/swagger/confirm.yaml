@@ -548,7 +548,6 @@ components:
       required:
         - target_source_id
         - process_status
-        - context
         - status_inputs
         - evaluated_at
       properties:
@@ -557,10 +556,6 @@ components:
           format: int64
         process_status:
           $ref: '#/components/schemas/TargetSourceProcessStatus'
-        context:
-          type: string
-          enum: [INITIAL, CHANGE]
-          description: "최초 연동 흐름인지, 기존 연동 변경 흐름인지 구분. has_confirmed_integration으로 판별."
         status_inputs:
           type: object
           required:
@@ -574,7 +569,7 @@ components:
             has_approved_integration: { type: boolean }
             last_approval_result:
               $ref: '#/components/schemas/LastApprovalResult'
-            last_failure_reason:
+            last_rejection_reason:
               type: string
               nullable: true
               description: "최근 REJECTED 또는 SYSTEM_ERROR 사유"
