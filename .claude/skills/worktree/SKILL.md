@@ -20,11 +20,26 @@ user_invocable: true
 - `topic`: 기능 이름 (예: `adr006-approval-flow`)
 - `prefix`: 브랜치 prefix (기본값: `feat`)
 
-## Implementation
+## How This Skill Works
 
-Use Task tool to spawn a Haiku subagent:
+**Manual workflow** (This skill is NOT auto-invoked):
 
-```
+1. Read this guide
+2. **You call Task tool** with Haiku subagent to setup worktree
+3. Haiku runs git/bash commands and reports final path + branch
+
+**Why manual:** Worktree creation is a setup operation that must be explicit. Once created, you continue work in that worktree.
+
+## When to Use This Skill
+
+- Starting a new feature branch
+- Before any code changes
+
+## Usage Example
+
+When you want to setup a worktree, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -32,7 +47,7 @@ Task({
   prompt: `
     Set up a new feature worktree:
 
-    1. Navigate to canonical repo: /Users/study/pii-agent-demo
+    1. Navigate to canonical repo: <canonical-repo-path>
     2. Sync local main: git fetch origin main && git checkout main && git merge origin/main --ff-only
     3. Create worktree: bash scripts/create-worktree.sh --topic {topic} --prefix {prefix}
     4. Navigate to new worktree path (from script output)
@@ -40,7 +55,7 @@ Task({
        - bash scripts/guard-worktree.sh
        - git rev-parse --show-toplevel
        - git rev-parse --abbrev-ref HEAD
-    6. Bootstrap dependencies: bash scripts/bootstrap-worktree.sh "$(pwd)"
+    6. Bootstrap dependencies: bash scripts/bootstrap-worktree.sh <worktree-path>
     7. Report: worktree path and branch name
 
     If "next: command not found" occurs, bootstrap first then retry.

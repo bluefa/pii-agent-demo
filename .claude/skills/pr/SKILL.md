@@ -15,13 +15,33 @@ user_invocable: true
 - **Haiku subagent**: Bash operations (rebase, lint, build, test, push)
 - **Main session (Sonnet/Opus)**: PR description generation (requires context understanding)
 
-## Implementation
+## How This Skill Works
 
-### Phase 1: Validation & Push (Haiku)
+**Two-phase hybrid workflow** (Skills+Task collaboration):
 
-Use Task tool to spawn a Haiku subagent for mechanical operations:
+**Phase 1: Haiku validation & push** — **You call Task tool**:
+- Haiku rebases, validates, pushes branch
+- Returns success/failure
 
-```
+**Phase 2: Main session PR creation** — **You read commit context and create PR**:
+- You analyze changes
+- You write PR description
+- You create PR via `gh pr create`
+
+**Why hybrid:** Bash operations (rebase, lint, build) are mechanical → Haiku. PR description needs human insight → Main session.
+
+## When to Use This Skill
+
+- After code implementation complete
+- Ready to create PR for code review
+
+## Usage Example
+
+**Phase 1: Call Task tool for validation**
+
+When you're ready to validate and push, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",

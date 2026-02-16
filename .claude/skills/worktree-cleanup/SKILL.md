@@ -15,11 +15,26 @@ PR merge가 끝난 worktree를 안전하게 정리합니다.
 - Main session (Sonnet/Opus): User interaction only
 - Haiku subagent: Bash cleanup operations
 
-## Implementation
+## How This Skill Works
 
-Use Task tool to spawn a Haiku subagent:
+**Manual workflow** (This skill is NOT auto-invoked):
 
-```
+1. Read this guide
+2. **You call Task tool** with Haiku subagent to cleanup worktree
+3. Haiku runs cleanup script and reports result
+
+**Why manual:** Worktree cleanup is destructive and must be explicitly requested.
+
+## When to Use This Skill
+
+- After PR is merged
+- To clean up completed feature branches
+
+## Usage Example
+
+When you want to cleanup a merged worktree, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -38,19 +53,13 @@ Task({
     - Remove local branch
     - Run git worktree prune
 
-    SAFETY: Never remove canonical repo or main/master/HEAD branches
+    SAFETY: Never remove canonical repo (<canonical-repo-path>) or main/master/HEAD branches
   `
 })
 ```
 
-## Example
-
-```bash
-bash scripts/worktree-cleanup.sh --path /Users/study/pii-agent-demo-auto-pr-flow
-```
-
 ## Rules
 
-- Canonical repo (`/Users/study/pii-agent-demo`) is never removed
+- Canonical repo (never removed)
 - `main`/`master`/`HEAD` branches are protected
 - Always run from outside the target worktree

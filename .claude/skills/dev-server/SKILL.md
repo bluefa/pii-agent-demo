@@ -15,11 +15,27 @@ Worktree 경로에서 Next.js dev 서버를 실행합니다.
 - Main session (Sonnet/Opus): High-level orchestration only
 - Haiku subagent: Bash execution (bootstrap, dev server startup)
 
-## Implementation
+## How This Skill Works
 
-Use Task tool to spawn a Haiku subagent:
+**Manual workflow** (This skill is NOT auto-invoked):
 
-```
+1. Read this guide
+2. **You call Task tool** with Haiku subagent to start dev server
+3. Haiku runs Bash commands and reports result
+
+**Why manual:** Dev server is a long-running process that stays active in background. It cannot be automatically triggered by Skill tool alone.
+
+## When to Use This Skill
+
+- Dev server setup
+- Testing changes locally
+- Running next dev with auto port-finding
+
+## Usage Example
+
+When you want to start dev server, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -27,11 +43,11 @@ Task({
   prompt: `
     Execute dev server startup script:
 
-    1. Navigate to <worktree-path> (or /Users/study/pii-agent-demo if not provided)
+    1. Navigate to <worktree-path>
     2. Check if port 3000-3100 is available
     3. Execute: bash scripts/dev.sh <worktree-path>
        - IMPORTANT: Use Bash tool with run_in_background: true
-    4. Wait 3-5 seconds and verify server started
+    4. Wait 3-5 seconds and verify server started (look for "Ready" message)
     5. Report: port number and confirmation
 
     If "next: command not found" occurs:
@@ -43,7 +59,7 @@ Task({
 
 ## Script Behavior
 
-The `scripts/dev.sh` script:
+The `scripts/dev.sh` script (invoked by Haiku):
 1. Runs `scripts/bootstrap-worktree.sh` for dependency verification
 2. Removes `.next/dev/lock` file if exists
 3. Auto-finds available port from 3000-3100

@@ -28,11 +28,28 @@ Commit 전에 코드 품질 검증을 수행합니다.
 - Git hook: Commit 시점에 동기 실행 (1-2초, 이미 최적화됨)
 - This skill: 개발 중 언제든 비동기 검증 (Haiku로 비용 절감)
 
-## Implementation
+## How This Skill Works
 
-Use Task tool to spawn a Haiku subagent:
+**Manual workflow** (This skill is NOT auto-invoked):
 
-```
+1. Read this guide
+2. **You call Task tool** with Haiku subagent to run pre-commit checks
+3. Haiku runs lint, tsc, test, build and contract validations
+4. Haiku reports pass/fail results
+
+**Why manual:** Pre-commit checks are optional validations you can run anytime before committing. Git hook handles automatic checks at commit time.
+
+## When to Use This Skill
+
+- Before committing code
+- To validate changes without committing
+- To check contract alignment (API changes)
+
+## Usage Example
+
+When you want to check code quality before committing, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -58,7 +75,7 @@ Task({
     ✓ Type-check: passed
     ✓ Tests: passed (X passed)
     ✓ Build: passed
-✓ Contract-check: passed (or skipped when out of scope)
+    ✓ Contract-check: passed (or skipped when out of scope)
 
     IMPORTANT: Run all checks even if one fails (don't stop early)
   `
