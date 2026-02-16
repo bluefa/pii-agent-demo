@@ -74,6 +74,13 @@ BFF가 반환하는 `process_status` 필드의 값은 아래 4개로 고정한�
 
 두 API는 동일한 응답 스키마(`ProcessStatusResponse`)를 사용한다.
 
+승인 요청 입력 모델은 `input_data.resource_inputs[]`로 통합한다:
+
+- `vm_configs`는 top-level에서 제거한다.
+- VM 입력은 `resource_input.vm_config`로 전달한다.
+- RDS credential 선택은 `resource_input.credential_id`로 전달한다.
+- 리소스별 선택/제외는 `selected` + `exclusion_reason`으로 관리한다.
+
 ### D-006: "반영 중 신규 요청 차단" 정책의 API 계약
 
 `POST /approval-requests` 호출 시 아래 조건에서 409를 반환한다:
@@ -88,6 +95,7 @@ BFF가 반환하는 `process_status` 필드의 값은 아래 4개로 고정한�
 - `WAITING_TARGET_CONFIRMATION`의 semantic collision이 해소됨.
 - "반영 중" 상태가 `APPLYING_APPROVED`로 명확히 구분되어 FE/BE 간 혼동이 제거됨.
 - 409 에러 코드로 "반영 중 신규 요청 차단" 정책이 API 계약에 명시됨.
+- 승인 요청 입력이 리소스 단위 `resource_input`으로 통합되어 VM/credential 입력 경로가 일관화됨.
 - 후속 구현(T2: BFF API, T7: FE 전환)이 이 용어 체계를 기반으로 진행 가능.
 
 ## 관련

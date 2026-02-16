@@ -63,6 +63,10 @@ paths:
         사용자가 선택한 리소스와 설정(VM 등)을 바탕으로 승인을 요청합니다.
         이 요청이 승인되면 `ApprovedIntegration`이 생성되고, 인프라 반영이 성공하면 `ConfirmedIntegration`으로 전환됩니다.
 
+        요청 입력은 `input_data.resource_inputs[]`로 통합됩니다.
+        - VM 설정은 `resource_input.vm_config`로 전달
+        - RDS credential 선택은 `resource_input.credential_id`로 전달
+
         **차단 정책 (ADR-006 D-002, D-008 / ADR-009 D-006):**
         - 이미 PENDING 상태의 승인 요청이 존재하면 409 `CONFLICT_REQUEST_PENDING` 반환
         - ApprovedIntegration이 존재(반영 중)하면 409 `CONFLICT_APPLYING_IN_PROGRESS` 반환
@@ -71,23 +75,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [target_resource_ids]
-              properties:
-                target_resource_ids:
-                  type: array
-                  items: { type: string }
-                  description: "연동 대상 리소스 ID 배열"
-                excluded_resource_ids:
-                  type: array
-                  items: { type: string }
-                  description: "연동 제외 리소스 ID 배열"
-                exclusion_reason:
-                  type: string
-                  description: "일괄 제외 사유"
-                vm_configs:
-                  type: array
-                  items: { $ref: '#/components/schemas/VmConfig' }
+              $ref: '#/components/schemas/ApprovalRequestCreateRequest'
       responses:
         '201':
           description: 요청 생성 성공
@@ -366,15 +354,91 @@ components:
         request: { $ref: '#/components/schemas/ApprovalRequest' }
         result: { $ref: '#/components/schemas/ApprovalResult' }
 
+    ApprovalRequestCreateRequest:
+      type: object
+      required: [input_data]
+      properties:
+        input_data:
+          $ref: '#/components/schemas/ApprovalRequestInputData'
+
+    ApprovalRequestInputData:
+      type: object
+      required: [resource_inputs]
+      properties:
+        resource_inputs:
+          type: array
+          minItems: 1
+          description: "리소스별 선택 여부와 입력값(credential/vm_config) 통합 모델"
+          items:
+            $ref: '#/components/schemas/ApprovalRequestResourceInput'
+        exclusion_reason_default:
+          type: string
+          nullable: true
+          description: "개별 exclusion_reason 미입력 시 사용할 기본 제외 사유"
+
+    ApprovalRequestResourceInput:
+      oneOf:
+        - $ref: '#/components/schemas/SelectedResourceInput'
+        - $ref: '#/components/schemas/ExcludedResourceInput'
+
+    SelectedResourceInput:
+      type: object
+      required: [resource_id, selected, resource_input]
+      properties:
+        resource_id:
+          type: string
+          description: "리소스 식별자"
+        selected:
+          type: boolean
+          enum: [true]
+          description: "true면 승인 대상으로 포함"
+        resource_input:
+          $ref: '#/components/schemas/ResourceInputData'
+
+    ExcludedResourceInput:
+      type: object
+      required: [resource_id, selected]
+      properties:
+        resource_id:
+          type: string
+          description: "리소스 식별자"
+        selected:
+          type: boolean
+          enum: [false]
+          description: "false면 승인 대상에서 제외"
+        exclusion_reason:
+          type: string
+          nullable: true
+          description: "리소스별 제외 사유"
+
+    ResourceInputData:
+      oneOf:
+        - $ref: '#/components/schemas/CredentialResourceInput'
+        - $ref: '#/components/schemas/VmResourceInput'
+
+    CredentialResourceInput:
+      type: object
+      required: [credential_id]
+      properties:
+        credential_id:
+          type: string
+          description: "RDS 등 credential 기반 리소스에 사용할 credential ID"
+
+    VmResourceInput:
+      type: object
+      required: [vm_config]
+      properties:
+        vm_config:
+          $ref: '#/components/schemas/VmConfig'
+
     ApprovalRequest:
       type: object
       properties:
         id: { type: string }
         requested_at: { type: string, format: date-time }
         requested_by: { type: string }
-        target_resource_ids: { type: array, items: { type: string } }
-        excluded_resource_ids: { type: array, items: { type: string } }
-        exclusion_reason: { type: string }
+        input_data:
+          $ref: '#/components/schemas/ApprovalRequestInputData'
 
     ApprovalResult:
       type: object
