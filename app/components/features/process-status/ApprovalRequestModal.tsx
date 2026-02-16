@@ -17,7 +17,6 @@ export interface ApprovalRequestFormData {
 interface ResourceInput {
   resource_id: string;
   selected: boolean;
-  exclusion_reason?: string;
 }
 
 interface ApprovalRequestModalProps {
@@ -50,11 +49,6 @@ const getCategoryBadgeClass = (category: IntegrationCategory): string => {
 const isReasonRequired = (category: IntegrationCategory): boolean =>
   category === 'TARGET';
 
-const isReasonOptional = (category: IntegrationCategory): boolean =>
-  category === 'NO_INSTALL_NEEDED';
-
-const isAutoExcluded = (category: IntegrationCategory): boolean =>
-  category === 'INSTALL_INELIGIBLE';
 
 const getEndpointSummary = (resource: Resource): string => {
   if (resource.vmDatabaseConfig) {
@@ -74,7 +68,6 @@ export const ApprovalRequestModal = ({
   loading,
   error,
 }: ApprovalRequestModalProps) => {
-  const [exclusionReasons, setExclusionReasons] = useState<Record<string, string>>({});
   const [defaultReason, setDefaultReason] = useState('');
 
   const includedResources = useMemo(
@@ -94,33 +87,17 @@ export const ApprovalRequestModal = ({
     if (includedResources.length === 0) return false;
     if (loading) return false;
 
-    const targetExcluded = excludedResources.filter((r) => isReasonRequired(r.integrationCategory));
-    if (targetExcluded.length === 0) return true;
-
-    // Every TARGET excluded must have individual reason OR default reason must be filled
-    const allHaveReason = targetExcluded.every(
-      (r) => (exclusionReasons[r.id] ?? '').trim().length > 0,
-    );
-    if (allHaveReason) return true;
+    const hasTargetExcluded = excludedResources.some((r) => isReasonRequired(r.integrationCategory));
+    if (!hasTargetExcluded) return true;
 
     return defaultReason.trim().length > 0;
-  }, [includedResources, excludedResources, exclusionReasons, defaultReason, loading]);
-
-  const handleReasonChange = (resourceId: string, reason: string) => {
-    setExclusionReasons((prev) => ({ ...prev, [resourceId]: reason }));
-  };
+  }, [includedResources, excludedResources, defaultReason, loading]);
 
   const handleSubmit = () => {
-    const resourceInputs: ResourceInput[] = resources.map((r) => {
-      if (r.isSelected) {
-        return { resource_id: r.id, selected: true };
-      }
-      return {
-        resource_id: r.id,
-        selected: false,
-        exclusion_reason: (exclusionReasons[r.id] ?? '').trim() || undefined,
-      };
-    });
+    const resourceInputs: ResourceInput[] = resources.map((r) => ({
+      resource_id: r.id,
+      selected: r.isSelected,
+    }));
 
     onSubmit({
       resource_inputs: resourceInputs,
@@ -214,62 +191,24 @@ export const ApprovalRequestModal = ({
                     <th className={tableStyles.headerCell}>리소스 ID</th>
                     <th className={tableStyles.headerCell}>타입</th>
                     <th className={tableStyles.headerCell}>분류</th>
-                    <th className={cn(tableStyles.headerCell, 'w-1/3')}>제외 사유</th>
                   </tr>
                 </thead>
                 <tbody className={tableStyles.body}>
-                  {excludedResources.map((r) => {
-                    const required = isReasonRequired(r.integrationCategory);
-                    const optional = isReasonOptional(r.integrationCategory);
-                    const autoEx = isAutoExcluded(r.integrationCategory);
-                    const individualReason = (exclusionReasons[r.id] ?? '').trim();
-                    const showDefaultPlaceholder = required && !individualReason && defaultReason.trim();
-
-                    return (
-                      <tr key={r.id} className={tableStyles.row}>
-                        <td className={cn(tableStyles.cell, textColors.primary, 'font-mono text-xs')}>
-                          {r.resourceId}
-                        </td>
-                        <td className={cn(tableStyles.cell, textColors.secondary)}>
-                          {r.type}
-                        </td>
-                        <td className={tableStyles.cell}>
-                          <span className={getCategoryBadgeClass(r.integrationCategory)}>
-                            {getCategoryLabel(r.integrationCategory)}
-                          </span>
-                        </td>
-                        <td className={tableStyles.cell}>
-                          {autoEx ? (
-                            <span className={textColors.quaternary}>자동 제외</span>
-                          ) : (
-                            <textarea
-                              value={exclusionReasons[r.id] ?? ''}
-                              onChange={(e) => handleReasonChange(r.id, e.target.value)}
-                              aria-required={required}
-                              placeholder={
-                                showDefaultPlaceholder
-                                  ? '(기본 사유 적용)'
-                                  : required
-                                    ? '제외 사유 입력 (필수)'
-                                    : '제외 사유 입력 (선택)'
-                              }
-                              rows={2}
-                              className={cn(
-                                'w-full px-2 py-1.5 text-xs border rounded-md resize-none',
-                                'border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                textColors.primary,
-                              )}
-                            />
-                          )}
-                          {required && !optional && !autoEx && (
-                            <span className={cn('text-xs mt-0.5 block', statusColors.error.text)}>
-                              * 필수
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {excludedResources.map((r) => (
+                    <tr key={r.id} className={tableStyles.row}>
+                      <td className={cn(tableStyles.cell, textColors.primary, 'font-mono text-xs')}>
+                        {r.resourceId}
+                      </td>
+                      <td className={cn(tableStyles.cell, textColors.secondary)}>
+                        {r.type}
+                      </td>
+                      <td className={tableStyles.cell}>
+                        <span className={getCategoryBadgeClass(r.integrationCategory)}>
+                          {getCategoryLabel(r.integrationCategory)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -277,15 +216,12 @@ export const ApprovalRequestModal = ({
             {/* Default exclusion reason */}
             <div className="mt-4">
               <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
-                기본 제외 사유
+                제외 사유
               </label>
-              <p className={cn('text-xs mb-2', textColors.tertiary)}>
-                개별 사유 미입력 시 적용됩니다
-              </p>
               <textarea
                 value={defaultReason}
                 onChange={(e) => setDefaultReason(e.target.value)}
-                placeholder="기본 제외 사유를 입력하세요"
+                placeholder="제외 사유를 입력하세요"
                 rows={2}
                 className={cn(
                   'w-full px-3 py-2 text-sm border rounded-lg resize-none',
