@@ -81,7 +81,7 @@ export const deletePermission = async (serviceCode: string, userId: string): Pro
 };
 
 export const getProject = async (id: string): Promise<Project> => {
-  const res = await fetch(`/api/v1/target-sources/${id}`);
+  const res = await fetch(`${BASE_URL}/projects/${id}`);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.message || 'Failed to fetch project');
