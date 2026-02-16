@@ -56,7 +56,7 @@ const buildLastCheck = (lastCheckedAt?: string, error?: { code: string; message:
 
 const derivePendingAction = (r: LegacyGcpResource): GcpActionType | null => {
   if (r.regionalManagedProxy?.exists === false) return 'CREATE_PROXY_SUBNET';
-  if (r.pscConnection?.status === 'PENDING_APPROVAL') return 'APPROVE_PSC_CONNECTION';
+  if (r.pscConnection?.status === 'PENDING_APPROVAL' || r.pscConnection?.status === 'REJECTED') return 'APPROVE_PSC_CONNECTION';
   return null;
 };
 

@@ -220,7 +220,7 @@ export const ProcessStatusCard = ({
                     />
                   ) : project.cloudProvider === 'GCP' ? (
                     <GcpInstallationInline
-                      projectId={project.id}
+                      targetSourceId={project.targetSourceId}
                       onInstallComplete={handleInstallComplete}
                     />
                   ) : (

@@ -6,11 +6,11 @@ import { getGcpUnifiedStatus, getGcpGroupStatus, GCP_GROUP_STATUS_LABELS } from 
 import { statusColors, cn } from '@/lib/theme';
 import { RegionalManagedProxyPanel } from './RegionalManagedProxyPanel';
 import { PscApprovalGuide } from './PscApprovalGuide';
-import type { GcpInstallationStatus } from '@/lib/types/gcp';
+import type { GcpInstallationStatusResponse, GcpResourceStatus } from '@/app/api/_lib/v1-types';
 import type { GcpGroupStatus } from '@/lib/constants/gcp';
 
 interface GcpInstallationInlineProps {
-  projectId: string;
+  targetSourceId: number;
   onInstallComplete?: () => void;
 }
 
@@ -20,10 +20,10 @@ const getResourceDisplayName = (name: string): string => {
 };
 
 export const GcpInstallationInline = ({
-  projectId,
+  targetSourceId,
   onInstallComplete,
 }: GcpInstallationInlineProps) => {
-  const [status, setStatus] = useState<GcpInstallationStatus | null>(null);
+  const [status, setStatus] = useState<GcpInstallationStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,9 +32,9 @@ export const GcpInstallationInline = ({
     try {
       setLoading(true);
       setError(null);
-      const data = await getGcpInstallationStatus(projectId);
+      const data = await getGcpInstallationStatus(targetSourceId);
       setStatus(data);
-      if (data.resources.every((r) => r.isCompleted)) {
+      if (data.resources.every((r) => r.isInstallCompleted)) {
         onInstallComplete?.();
       }
     } catch (err) {
@@ -48,9 +48,9 @@ export const GcpInstallationInline = ({
     try {
       setRefreshing(true);
       setError(null);
-      const data = await checkGcpInstallation(projectId);
+      const data = await checkGcpInstallation(targetSourceId);
       setStatus(data);
-      if (data.resources.every((r) => r.isCompleted)) {
+      if (data.resources.every((r) => r.isInstallCompleted)) {
         onInstallComplete?.();
       }
     } catch (err) {
@@ -62,10 +62,10 @@ export const GcpInstallationInline = ({
 
   useEffect(() => {
     fetchStatus();
-  }, [projectId]);
+  }, [targetSourceId]);
 
   const resources = status?.resources || [];
-  const completedCount = resources.filter((r) => r.isCompleted).length;
+  const completedCount = resources.filter((r) => r.isInstallCompleted).length;
   const totalCount = resources.length;
   const failedResources = resources.filter((r) => getGcpUnifiedStatus(r) === 'FAILED');
   const actionNeeded = resources.filter((r) => getGcpUnifiedStatus(r) === 'ACTION_REQUIRED');
@@ -75,10 +75,10 @@ export const GcpInstallationInline = ({
   const serviceStatus = getGcpGroupStatus(resources, 'serviceTfStatus');
   const bdcStatus = getGcpGroupStatus(resources, 'bdcTfStatus');
 
-  const getGroupStatusColor = (status: GcpGroupStatus) => {
-    if (status === 'COMPLETED') return statusColors.success;
-    if (status === 'FAILED') return statusColors.error;
-    if (status === 'IN_PROGRESS') return statusColors.warning;
+  const getGroupStatusColor = (groupStatus: GcpGroupStatus) => {
+    if (groupStatus === 'COMPLETED') return statusColors.success;
+    if (groupStatus === 'FAILED') return statusColors.error;
+    if (groupStatus === 'IN_PROGRESS') return statusColors.warning;
     return statusColors.pending;
   };
 
@@ -112,6 +112,31 @@ export const GcpInstallationInline = ({
     : failedResources.length > 0
     ? 'GCP 에이전트 설치 중 오류 발생'
     : 'GCP 에이전트 설치 중...';
+
+  const renderActionResource = (resource: GcpResourceStatus) => {
+    const displayName = getResourceDisplayName(resource.name);
+
+    return (
+      <div key={resource.id} className={cn('px-4 py-3 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
+        <div className="flex items-start gap-2">
+          <svg className={cn('w-5 h-5 flex-shrink-0 mt-0.5', statusColors.warning.text)} fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-gray-900">{displayName}</span>
+
+            {resource.pendingAction === 'CREATE_PROXY_SUBNET' && resource.regionalManagedProxy && (
+              <RegionalManagedProxyPanel proxy={resource.regionalManagedProxy} />
+            )}
+
+            {resource.pendingAction === 'APPROVE_PSC_CONNECTION' && resource.pscConnection && (
+              <PscApprovalGuide pscConnection={resource.pscConnection} />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full space-y-3">
@@ -184,40 +209,7 @@ export const GcpInstallationInline = ({
         </div>
       ))}
 
-      {actionNeeded.length > 0 && actionNeeded.map((resource) => {
-        const displayName = getResourceDisplayName(resource.name);
-        const needsProxy = resource.regionalManagedProxy && !resource.regionalManagedProxy.exists;
-        const needsPscApproval = resource.pscConnection && (
-          resource.pscConnection.status === 'PENDING_APPROVAL' ||
-          resource.pscConnection.status === 'REJECTED'
-        );
-
-        return (
-          <div key={resource.id} className={cn('px-4 py-3 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
-            <div className="flex items-start gap-2">
-              <svg className={cn('w-5 h-5 flex-shrink-0 mt-0.5', statusColors.warning.text)} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium text-gray-900">{displayName}</span>
-
-                {needsProxy && resource.regionalManagedProxy && (
-                  <RegionalManagedProxyPanel
-                    projectId={projectId}
-                    resourceId={resource.id}
-                    proxy={resource.regionalManagedProxy}
-                    onSubnetCreated={handleRefresh}
-                  />
-                )}
-
-                {needsPscApproval && resource.pscConnection && (
-                  <PscApprovalGuide pscConnection={resource.pscConnection} />
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      {actionNeeded.length > 0 && actionNeeded.map(renderActionResource)}
     </div>
   );
 };

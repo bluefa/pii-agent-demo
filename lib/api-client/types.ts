@@ -63,9 +63,6 @@ export interface ApiClient {
   gcp: {
     checkInstallation: (projectId: string) => Promise<NextResponse>;
     getInstallationStatus: (projectId: string) => Promise<NextResponse>;
-    getRegionalManagedProxy: (projectId: string, resourceId: string) => Promise<NextResponse>;
-    createProxySubnet: (projectId: string, resourceId: string) => Promise<NextResponse>;
-    getServiceTfResources: (projectId: string, connectionType: string | null) => Promise<NextResponse>;
   };
   idc: {
     getSourceIpRecommendation: (ipType: string | null) => Promise<NextResponse>;
@@ -93,9 +90,6 @@ export interface ApiClient {
         verifyScanRole: (serviceCode: string) => Promise<NextResponse>;
       };
       azure: {
-        get: (serviceCode: string) => Promise<NextResponse>;
-      };
-      gcp: {
         get: (serviceCode: string) => Promise<NextResponse>;
       };
       idc: {

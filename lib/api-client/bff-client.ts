@@ -126,12 +126,6 @@ export const bffClient: ApiClient = {
   gcp: {
     checkInstallation: (projectId) => proxyPost(`/gcp/projects/${projectId}/check-installation`, {}),
     getInstallationStatus: (projectId) => proxyGet(`/gcp/projects/${projectId}/installation-status`),
-    getRegionalManagedProxy: (projectId, resourceId) =>
-      proxyGet(`/gcp/projects/${projectId}/regional-managed-proxy?resourceId=${encodeURIComponent(resourceId)}`),
-    createProxySubnet: (projectId, resourceId) =>
-      proxyPost(`/gcp/projects/${projectId}/regional-managed-proxy`, { resourceId }),
-    getServiceTfResources: (projectId, connectionType) =>
-      proxyGet(`/gcp/projects/${projectId}/service-tf-resources${connectionType ? `?connectionType=${connectionType}` : ''}`),
   },
   idc: {
     getSourceIpRecommendation: (ipType) =>
@@ -161,9 +155,6 @@ export const bffClient: ApiClient = {
       },
       azure: {
         get: (serviceCode) => proxyGet(`/services/${serviceCode}/settings/azure`),
-      },
-      gcp: {
-        get: (serviceCode) => proxyGet(`/services/${serviceCode}/settings/gcp`),
       },
       idc: {
         get: (serviceCode) => proxyGet(`/services/${serviceCode}/settings/idc`),
