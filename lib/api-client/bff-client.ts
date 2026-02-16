@@ -65,7 +65,6 @@ export const bffClient: ApiClient = {
     confirmTargets: (projectId, body) => proxyPost(`/projects/${projectId}/confirm-targets`, body),
     completeInstallation: (projectId) => proxyPost(`/projects/${projectId}/complete-installation`, {}),
     confirmCompletion: (projectId) => proxyPost(`/projects/${projectId}/confirm-completion`, {}),
-    confirmPiiAgent: (projectId) => proxyPost(`/projects/${projectId}/confirm-pii-agent`, {}),
     credentials: (projectId) => proxyGet(`/projects/${projectId}/credentials`),
     history: (projectId, query) => {
       const params = new URLSearchParams();
@@ -183,5 +182,8 @@ export const bffClient: ApiClient = {
     getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
     approveApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
     rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),
+    confirmInstallation: (projectId) => proxyPost(`/target-sources/${projectId}/pii-agent-installation/confirm`, {}),
+    updateResourceCredential: (projectId, body) => proxyPatch(`/target-sources/${projectId}/resources/credential`, body),
+    testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
   },
 };

@@ -108,7 +108,8 @@ export const AwsProjectPage = ({
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
-      const updatedProject = await updateResourceCredential(project.id, resourceId, credentialId);
+      await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
+      const updatedProject = await getProject(project.id);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
@@ -132,8 +133,12 @@ export const AwsProjectPage = ({
         resourceId: r.id,
         credentialId: r.selectedCredentialId,
       }));
-      const response = await runConnectionTest(project.id, resourceCredentials);
-      onProjectUpdate(response.project);
+      const response = await runConnectionTest(project.targetSourceId, resourceCredentials);
+      const updatedProject = await getProject(project.id);
+      onProjectUpdate(updatedProject);
+      if (!response.success) {
+        // 부분 실패 시에도 프로젝트는 업데이트됨
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
     } finally {

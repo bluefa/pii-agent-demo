@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Project, ConnectionTestResult, needsCredential, Resource, SecretKey } from '@/lib/types';
-import { getSecrets, runConnectionTest, ResourceCredentialInput } from '@/app/lib/api';
+import { getSecrets, getProject, runConnectionTest, ResourceCredentialInput } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ERROR_TYPE_LABELS } from '@/lib/constants/labels';
 
@@ -64,9 +64,11 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
         credentialId: resourceCredentialMap[r.id],
       }));
 
-      const response = await runConnectionTest(project.id, resourceCredentials);
-      setTestResults(response.history.results);
-      onProjectUpdate(response.project);
+      const response = await runConnectionTest(project.targetSourceId, resourceCredentials);
+      setTestResults(response.results);
+      // v1 응답에는 project가 없으므로 별도 갱신
+      const updatedProject = await getProject(project.id);
+      onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
     } finally {

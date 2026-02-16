@@ -15,7 +15,6 @@ export interface ApiClient {
     confirmTargets: (projectId: string, body: unknown) => Promise<NextResponse>;
     completeInstallation: (projectId: string) => Promise<NextResponse>;
     confirmCompletion: (projectId: string) => Promise<NextResponse>;
-    confirmPiiAgent: (projectId: string) => Promise<NextResponse>;
     credentials: (projectId: string) => Promise<NextResponse>;
     history: (projectId: string, query: { type: string; limit: string; offset: string }) => Promise<NextResponse>;
     resourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
@@ -117,5 +116,8 @@ export interface ApiClient {
     getProcessStatus: (projectId: string) => Promise<NextResponse>;
     approveApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
     rejectApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
+    confirmInstallation: (projectId: string) => Promise<NextResponse>;
+    updateResourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
+    testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;
   };
 }

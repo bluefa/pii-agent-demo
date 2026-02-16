@@ -175,35 +175,7 @@ export const rejectProject = async (
   return data.project;
 };
 
-// TODO: Confirm v1 migration — replace with v1 endpoint when available
-export const completeInstallation = async (
-  projectId: string
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/complete-installation`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to complete installation');
-  }
-  const data = await res.json();
-  return data.project;
-};
 
-// TODO: Confirm v1 migration — replace with v1 endpoint when available
-export const confirmPiiAgent = async (
-  projectId: string
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-pii-agent`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to confirm PII Agent');
-  }
-  const data = await res.json();
-  return data.project;
-};
 
 // ===== Confirm v1 API =====
 
@@ -392,59 +364,50 @@ export interface ResourceCredentialInput {
 
 export interface ConnectionTestResponse {
   success: boolean;
-  project: Project;
+  results: ConnectionTestResult[];
   history: ConnectionTestHistory;
 }
 
-// TODO: Confirm v1 migration — replace with v1 endpoint when available
+// 연결 테스트 — v1
 export const runConnectionTest = async (
-  projectId: string,
+  targetSourceId: number,
   resourceCredentials: ResourceCredentialInput[]
-): Promise<ConnectionTestResponse> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/test-connection`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resourceCredentials }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to run connection test');
-  }
-  return await res.json();
-};
+): Promise<ConnectionTestResponse> =>
+  fetchJson<ConnectionTestResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection`,
+    {
+      method: 'POST',
+      body: { resource_credentials: resourceCredentials },
+    },
+  );
 
+// Credential 갱신 — v1
 export const updateResourceCredential = async (
-  projectId: string,
+  targetSourceId: number,
   resourceId: string,
   credentialId: string | null
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/resources/credential`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resourceId, credentialId }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to update resource credential');
-  }
-  const data = await res.json();
-  return data.project;
-};
+): Promise<{ success: boolean }> =>
+  fetchJson<{ success: boolean }>(
+    `${CONFIRM_BASE}/${targetSourceId}/resources/credential`,
+    {
+      method: 'PATCH',
+      body: { resource_id: resourceId, credential_id: credentialId },
+    },
+  );
 
-// 설치 완료 확정 (관리자)
-export const confirmCompletion = async (
-  projectId: string
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-completion`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to confirm completion');
-  }
-  const data = await res.json();
-  return data.project;
-};
+// 설치 완료 확정 (관리자) — v1
+export interface InstallationConfirmResult {
+  success: boolean;
+  confirmed_at: string;
+}
+
+export const confirmInstallation = async (
+  targetSourceId: number
+): Promise<InstallationConfirmResult> =>
+  fetchJson<InstallationConfirmResult>(
+    `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
+    { method: 'POST' },
+  );
 
 // ===== Azure API =====
 export * from './azure';
