@@ -157,7 +157,7 @@ export const ClusterRow = ({
         <td className="px-6 py-4">
           <div className="flex items-center gap-1">
             {resource.isSelected && <StatusIcon type="selected" />}
-            {resource.isNew && <StatusIcon type="new" />}
+
             {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
             {isSelected && <ChevronIcon expanded={isPanelOpen} />}
           </div>

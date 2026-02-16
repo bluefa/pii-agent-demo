@@ -35,7 +35,6 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
       databaseType: 'MYSQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'TARGET',
     },
     {
@@ -45,7 +44,6 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
       databaseType: 'POSTGRESQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'TARGET',
     },
   ],

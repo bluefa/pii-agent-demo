@@ -92,7 +92,6 @@ describe('mock-scan', () => {
             databaseType: 'MYSQL' as const,
             connectionStatus: 'PENDING' as const,
             isSelected: false,
-            lifecycleStatus: 'DISCOVERED' as const,
             integrationCategory: 'TARGET' as const,
           })),
         });
@@ -109,7 +108,6 @@ describe('mock-scan', () => {
             databaseType: 'MYSQL' as const,
             connectionStatus: 'PENDING' as const,
             isSelected: false,
-            lifecycleStatus: 'DISCOVERED' as const,
             integrationCategory: 'TARGET' as const,
           })),
         });
@@ -346,7 +344,6 @@ describe('mock-scan', () => {
           databaseType: 'MYSQL' as const,
           connectionStatus: 'PENDING' as const,
           isSelected: false,
-          lifecycleStatus: 'DISCOVERED' as const,
           integrationCategory: 'TARGET' as const,
         })),
       });
@@ -427,8 +424,6 @@ describe('mock-scan', () => {
         expect(resource.id).toMatch(/^res-/);
         expect(resource.connectionStatus).toBe('PENDING');
         expect(resource.isSelected).toBe(false);
-        expect(resource.lifecycleStatus).toBe('DISCOVERED');
-        expect(resource.isNew).toBe(true);
       });
 
       it('RDS 타입은 MYSQL 또는 POSTGRESQL', () => {

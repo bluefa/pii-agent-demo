@@ -9,7 +9,6 @@ const createResource = (id: string, hasExclusion: boolean = false): Resource => 
   databaseType: 'MYSQL',
   connectionStatus: 'PENDING',
   isSelected: false,
-  lifecycleStatus: 'DISCOVERED',
   integrationCategory: 'TARGET',
   exclusion: hasExclusion
     ? {
@@ -86,12 +85,12 @@ describe('AutoApprovalPolicy', () => {
 
     it('문서 예시 1: 신규 리소스 추가 시 자동 승인', () => {
       // [기존 상태]
-      // - 리소스 A: 연동됨 (lifecycleStatus: ACTIVE)
+      // - 리소스 A: 연동됨 (connected)
       // - 리소스 B: 연동 제외
       // - 리소스 C: 신규 발견
       const context: AutoApprovalContext = {
         resources: [
-          { ...createResource('res-A'), lifecycleStatus: 'ACTIVE', isSelected: true },
+          { ...createResource('res-A'), isSelected: true },
           createResource('res-B', true), // 제외됨
           createResource('res-C'), // 신규
         ],

@@ -38,7 +38,6 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
       databaseType: 'MSSQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'TARGET',
     },
     {
@@ -48,7 +47,6 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
       databaseType: 'POSTGRESQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'TARGET',
     },
   ],
@@ -72,7 +70,6 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       databaseType: 'MSSQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'NO_INSTALL_NEEDED',
     },
     {
@@ -82,7 +79,6 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       databaseType: 'POSTGRESQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'NO_INSTALL_NEEDED',
     },
     {
@@ -92,7 +88,6 @@ const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => 
       databaseType: 'MSSQL',
       connectionStatus: 'PENDING',
       isSelected: true,
-      lifecycleStatus: 'INSTALLING',
       integrationCategory: 'TARGET',
     },
   ],

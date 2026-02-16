@@ -11,7 +11,6 @@ import {
   MAX_HISTORY_LIMIT,
 } from '@/lib/constants/history';
 import type {
-  ResourceLifecycleStatus,
   ProjectStatus,
   CloudProvider,
   Project,
@@ -133,13 +132,10 @@ export const mockProjects = {
 
     const { comment } = (body ?? {}) as { comment?: string };
 
+    // selected 기반: 선택된 리소스 중 아직 연결되지 않은 것만 승인 대상
     const updatedResources = project.resources.map((r) => {
-      if (r.lifecycleStatus !== 'PENDING_APPROVAL') return r;
-      return {
-        ...r,
-        lifecycleStatus: 'INSTALLING' as ResourceLifecycleStatus,
-        isNew: false,
-      };
+      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
+      return { ...r };
     });
 
     const terraformState = project.cloudProvider === 'AWS'
@@ -280,12 +276,10 @@ export const mockProjects = {
       );
     }
 
+    // selected 기반: 선택된 리소스 중 아직 연결되지 않은 것이 설치 대상
     const updatedResources = project.resources.map((r) => {
-      if (r.lifecycleStatus !== 'INSTALLING') return r;
-      return {
-        ...r,
-        lifecycleStatus: 'READY_TO_TEST' as ResourceLifecycleStatus,
-      };
+      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
+      return { ...r };
     });
 
     const terraformState = {
@@ -395,11 +389,11 @@ export const mockProjects = {
       );
     }
 
+    // selected 기반: 선택된 리소스 중 아직 연결되지 않은 것을 CONNECTED로 전환
     const updatedResources = project.resources.map((r) => {
-      if (r.lifecycleStatus !== 'READY_TO_TEST') return r;
+      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
       return {
         ...r,
-        lifecycleStatus: 'ACTIVE' as ResourceLifecycleStatus,
         connectionStatus: 'CONNECTED' as const,
       };
     });
@@ -466,7 +460,7 @@ export const mockProjects = {
     const unselectedWithoutReason = project.resources.filter(r =>
       r.integrationCategory === 'TARGET' &&
       !selectedSet.has(r.id) &&
-      r.lifecycleStatus !== 'ACTIVE' &&
+      r.connectionStatus !== 'CONNECTED' &&
       !exclusionMap.has(r.id) &&
       !r.exclusion
     );
@@ -490,13 +484,6 @@ export const mockProjects = {
     const updatedResources: Resource[] = project.resources.map((r) => {
       const isSelected = selectedSet.has(r.id);
 
-      let lifecycleStatus: ResourceLifecycleStatus;
-      if (r.lifecycleStatus === 'ACTIVE') {
-        lifecycleStatus = 'ACTIVE';
-      } else {
-        lifecycleStatus = isSelected ? 'PENDING_APPROVAL' : 'DISCOVERED';
-      }
-
       let exclusion: ResourceExclusion | undefined = r.exclusion;
       if (!isSelected && exclusionMap.has(r.id)) {
         exclusion = {
@@ -511,7 +498,6 @@ export const mockProjects = {
       return {
         ...r,
         isSelected,
-        lifecycleStatus,
         exclusion,
         vmDatabaseConfig,
       };
@@ -675,12 +661,13 @@ export const mockProjects = {
 
     const { reason } = (body ?? {}) as { reason?: string };
 
+    // selected 기반: 선택된 리소스만 반려 처리
     const updatedResources = project.resources.map((r) => {
-      const lifecycleStatus: ResourceLifecycleStatus = 'DISCOVERED';
+      if (!r.isSelected) return r;
       return {
         ...r,
         isSelected: false,
-        lifecycleStatus,
+        exclusion: undefined,
         note: reason ? `반려: ${reason}` : r.note,
       };
     });
@@ -916,8 +903,6 @@ export const mockProjects = {
         isSelected: false,
         awsType,
         region,
-        lifecycleStatus: 'DISCOVERED' as const,
-        isNew: true,
         note: 'NEW',
         integrationCategory: 'TARGET' as const,
       };
@@ -1048,8 +1033,6 @@ export const mockProjects = {
         return {
           ...r,
           connectionStatus: 'CONNECTED' as ConnectionStatus,
-          lifecycleStatus: 'ACTIVE' as ResourceLifecycleStatus,
-          isNew: false,
           note: r.note === 'NEW' ? undefined : r.note,
           selectedCredentialId: credentialId,
         };

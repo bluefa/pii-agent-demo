@@ -22,7 +22,7 @@ const createAwsProject = (id: string, resources?: Project['resources']): Project
     {
       id: 'res-1', type: 'RDS', resourceId: 'arn:aws:rds:ap-northeast-2:123:db:test-1',
       databaseType: 'MYSQL', connectionStatus: 'PENDING', isSelected: true,
-      lifecycleStatus: 'INSTALLING', awsType: 'RDS', integrationCategory: 'TARGET',
+      awsType: 'RDS', integrationCategory: 'TARGET',
     },
   ],
   terraformState: { bdcTf: 'PENDING' },

@@ -65,13 +65,6 @@ export type AwsRegion =
   | 'us-west-2'
   | string;
 
-export type ResourceLifecycleStatus =
-  | 'DISCOVERED'        // 스캔됨(기본)
-  | 'TARGET'            // 연동 대상으로 선택됨
-  | 'PENDING_APPROVAL'  // 승인 요청 진행중
-  | 'INSTALLING'        // 설치 진행중
-  | 'READY_TO_TEST'     // 연결 테스트 필요 단계 대응
-  | 'ACTIVE';           // 설치/연결 완료
 
 // ===== Core Entities =====
 
@@ -112,8 +105,6 @@ export interface Resource {
   vpcId?: string;                         // AWS VPC 리소스 전용
 
   // --- 상태/표시 ---
-  lifecycleStatus: ResourceLifecycleStatus; // UI 상태(필수)
-  isNew?: boolean;                        // NEW 라벨 고정용(선택)
   note?: string;                          // 비고(선택)
 
   // --- Credential ---
