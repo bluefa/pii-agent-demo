@@ -4,12 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import type { AwsInstallationStatus, AwsSettings } from '@/lib/types';
 import {
-  confirmTargets,
+  createApprovalRequest,
   updateResourceCredential,
   runConnectionTest,
   getProject,
   ResourceCredentialInput,
-  VmConfigInput,
 } from '@/app/lib/api';
 import { getAwsInstallationStatus, getAwsSettings } from '@/app/lib/api/aws';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -158,18 +157,42 @@ export const AwsProjectPage = ({
       return;
     }
 
-    // vmConfigs를 API 형식으로 변환
-    const vmConfigInputs: VmConfigInput[] = Object.entries(vmConfigs)
-      .filter(([resourceId]) => selectedIds.includes(resourceId))
-      .map(([resourceId, config]) => ({ resourceId, config }));
-
     try {
       setSubmitting(true);
-      const updatedProject = await confirmTargets(
-        project.id,
-        selectedIds,
-        vmConfigInputs.length > 0 ? vmConfigInputs : undefined
-      );
+      // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
+      const resourceInputs = project.resources.map(r => {
+        if (selectedIds.includes(r.id)) {
+          const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
+          let resourceInput: Record<string, unknown>;
+          if (vmConfig) {
+            resourceInput = {
+              endpoint_config: {
+                db_type: vmConfig.databaseType,
+                port: vmConfig.port,
+                host: vmConfig.host ?? '',
+                ...(vmConfig.oracleServiceId && { oracleServiceId: vmConfig.oracleServiceId }),
+                ...(vmConfig.selectedNicId && { selectedNicId: vmConfig.selectedNicId }),
+              },
+            };
+          } else {
+            resourceInput = { credential_id: r.selectedCredentialId ?? '' };
+          }
+          return {
+            resource_id: r.id,
+            selected: true as const,
+            resource_input: resourceInput,
+          };
+        }
+        return {
+          resource_id: r.id,
+          selected: false as const,
+        };
+      });
+
+      await createApprovalRequest(project.targetSourceId, {
+        input_data: { resource_inputs: resourceInputs },
+      });
+      const updatedProject = await getProject(project.id);
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
       setExpandedVmId(null);

@@ -11,6 +11,8 @@ export type KnownErrorCode =
   | 'INVALID_PARAMETER'
   | 'INVALID_PROVIDER'
   | 'CONFLICT_IN_PROGRESS'
+  | 'CONFLICT_APPLYING_IN_PROGRESS'
+  | 'CONFLICT_REQUEST_PENDING'
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR';
 
@@ -29,6 +31,8 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   INVALID_PARAMETER: { status: 400, title: 'Invalid Parameter', retriable: false },
   INVALID_PROVIDER: { status: 400, title: 'Invalid Provider', retriable: false },
   CONFLICT_IN_PROGRESS: { status: 409, title: 'Conflict', retriable: true },
+  CONFLICT_APPLYING_IN_PROGRESS: { status: 409, title: 'Applying In Progress', retriable: true },
+  CONFLICT_REQUEST_PENDING: { status: 409, title: 'Request Pending', retriable: false },
   RATE_LIMITED: { status: 429, title: 'Rate Limited', retriable: true },
   INTERNAL_ERROR: { status: 500, title: 'Internal Server Error', retriable: false },
 };
@@ -104,6 +108,8 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   TARGET_SOURCE_NOT_FOUND: 'TARGET_SOURCE_NOT_FOUND',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   CONFLICT_IN_PROGRESS: 'CONFLICT_IN_PROGRESS',
+  CONFLICT_APPLYING_IN_PROGRESS: 'CONFLICT_APPLYING_IN_PROGRESS',
+  CONFLICT_REQUEST_PENDING: 'CONFLICT_REQUEST_PENDING',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   // 레거시 코드 (BFF 마이그레이션 전 호환)
   NOT_FOUND: 'TARGET_SOURCE_NOT_FOUND',
