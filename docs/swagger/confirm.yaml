@@ -393,6 +393,7 @@ components:
     CredentialResourceInput:
       type: object
       required: [credential_id]
+      additionalProperties: false
       properties:
         credential_id:
           type: string

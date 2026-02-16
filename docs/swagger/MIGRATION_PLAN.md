@@ -283,7 +283,7 @@ Exception 처리 정책:
 
 - 승인 요청 취소 API가 Swagger에 없음
 - 승인/반려 admin 처리 API의 최종 노출 전략이 불명확
-- ~~Black Box 반영 지표가 명시적으로 드러나지 않음~~ → ✅ `BlackboxProgress` 스키마로 반영 (ADR-009, confirm.yaml v2.5.0)
+- ~~Black Box 반영 지표가 명시적으로 드러나지 않음~~ → ✅ `process-status`에서 제거하고 Provider별 `installation-status`로 분리 (ADR-009)
 - ~~"반영 중 신규 요청 차단" 정책이 API 계약/에러 코드로 명확히 표현되지 않음~~ → ✅ 409 `CONFLICT_APPLYING_IN_PROGRESS` / `CONFLICT_REQUEST_PENDING` 반영 (ADR-009)
 
 ## 9. Issue #122 Swagger 보완 필요사항
