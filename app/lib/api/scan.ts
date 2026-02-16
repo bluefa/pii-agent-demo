@@ -1,5 +1,4 @@
 import { fetchJson } from '@/lib/fetch-json';
-import { AppError } from '@/lib/errors';
 import type { V1ScanJob } from '@/lib/types';
 
 const BASE_URL = '/api/v1/target-sources';
@@ -22,15 +21,9 @@ export const startScan = async (targetSourceId: number): Promise<V1ScanJob> =>
     body: {},
   });
 
-/** 최신 스캔 작업 조회 (polling용) — 404는 null 반환 */
-export const getLatestScanJob = async (targetSourceId: number): Promise<V1ScanJob | null> => {
-  try {
-    return await fetchJson<V1ScanJob>(`${BASE_URL}/${targetSourceId}/scanJob/latest`);
-  } catch (err) {
-    if (err instanceof AppError && err.code === 'NOT_FOUND') return null;
-    throw err;
-  }
-};
+/** 최신 스캔 작업 조회 (polling용) — 404는 컴포넌트(Layer 2)에서 처리 */
+export const getLatestScanJob = async (targetSourceId: number): Promise<V1ScanJob> =>
+  fetchJson<V1ScanJob>(`${BASE_URL}/${targetSourceId}/scanJob/latest`);
 
 /** 스캔 이력 조회 (페이지네이션) */
 export const getScanHistory = async (
