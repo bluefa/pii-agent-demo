@@ -854,28 +854,28 @@ components:
     # --- Installation & Connection Test Models ---
     InstallationConfirmResponse:
       type: object
-      required: [success, confirmed_at]
+      required: [success, confirmedAt]
       properties:
         success: { type: boolean }
-        confirmed_at: { type: string, format: date-time }
+        confirmedAt: { type: string, format: date-time }
 
     UpdateResourceCredentialRequest:
       type: object
-      required: [resource_id]
+      required: [resourceId]
       properties:
-        resource_id:
+        resourceId:
           type: string
           description: "대상 리소스 식별자"
-        credential_id:
+        credentialId:
           type: string
           nullable: true
           description: "연결할 Credential ID. null이면 연결 해제"
 
     TestConnectionRequest:
       type: object
-      required: [resource_credentials]
+      required: [resourceCredentials]
       properties:
-        resource_credentials:
+        resourceCredentials:
           type: array
           minItems: 1
           items:
@@ -883,12 +883,12 @@ components:
 
     ResourceCredentialInput:
       type: object
-      required: [resource_id]
+      required: [resourceId]
       properties:
-        resource_id:
+        resourceId:
           type: string
           description: "테스트 대상 리소스 식별자"
-        credential_id:
+        credentialId:
           type: string
           nullable: true
           description: "사용할 Credential ID (선택)"
@@ -909,28 +909,28 @@ components:
 
     ConnectionTestResultItem:
       type: object
-      required: [resource_id, success]
+      required: [resourceId, success]
       properties:
-        resource_id: { type: string }
-        resource_name: { type: string }
-        resource_type: { type: string }
+        resourceId: { type: string }
+        resourceName: { type: string }
+        resourceType: { type: string }
         success: { type: boolean }
         message: { type: string, nullable: true }
-        tested_at: { type: string, format: date-time }
-        credential_id: { type: string, nullable: true }
-        credential_name: { type: string, nullable: true }
+        testedAt: { type: string, format: date-time }
+        credentialId: { type: string, nullable: true }
+        credentialName: { type: string, nullable: true }
 
     ConnectionTestHistoryEntry:
       type: object
-      required: [id, executed_at, status, success_count, fail_count]
+      required: [id, executedAt, status, successCount, failCount]
       properties:
         id: { type: string }
-        executed_at: { type: string, format: date-time }
+        executedAt: { type: string, format: date-time }
         status:
           type: string
           enum: [SUCCESS, FAIL]
-        success_count: { type: integer }
-        fail_count: { type: integer }
+        successCount: { type: integer }
+        failCount: { type: integer }
 
     ErrorResponse:
       type: object

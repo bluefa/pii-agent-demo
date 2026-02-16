@@ -726,20 +726,20 @@ export const mockConfirm = {
       );
     }
 
-    const { resource_id, credential_id } = body as { resource_id?: string; credential_id?: string };
+    const { resourceId, credentialId } = body as { resourceId?: string; credentialId?: string };
 
-    if (!resource_id) {
+    if (!resourceId) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION_FAILED', message: 'resource_id가 필요합니다.' } },
+        { error: { code: 'VALIDATION_FAILED', message: 'resourceId가 필요합니다.' } },
         { status: 400 },
       );
     }
 
     const updatedResources = project.resources.map((r) => {
-      if (r.id !== resource_id) return r;
+      if (r.id !== resourceId) return r;
       return {
         ...r,
-        selectedCredentialId: credential_id || undefined,
+        selectedCredentialId: credentialId || undefined,
       };
     });
 
@@ -781,12 +781,12 @@ export const mockConfirm = {
       );
     }
 
-    const { resource_credentials = [] } = (body ?? {}) as { resource_credentials?: ResourceCredentialInput[] };
+    const { resourceCredentials = [] } = (body ?? {}) as { resourceCredentials?: ResourceCredentialInput[] };
 
     const selectedResources = project.resources.filter((r) => r.isSelected);
 
     const credentialMap = new Map<string, string | undefined>();
-    resource_credentials.forEach((rc) => {
+    resourceCredentials.forEach((rc) => {
       credentialMap.set(rc.resourceId, rc.credentialId);
     });
 

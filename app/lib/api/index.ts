@@ -377,7 +377,7 @@ export const runConnectionTest = async (
     `${CONFIRM_BASE}/${targetSourceId}/test-connection`,
     {
       method: 'POST',
-      body: { resource_credentials: resourceCredentials },
+      body: { resourceCredentials },
     },
   );
 
@@ -391,7 +391,7 @@ export const updateResourceCredential = async (
     `${CONFIRM_BASE}/${targetSourceId}/resources/credential`,
     {
       method: 'PATCH',
-      body: { resource_id: resourceId, credential_id: credentialId },
+      body: { resourceId, credentialId },
     },
   );
 
