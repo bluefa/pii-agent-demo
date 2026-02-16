@@ -185,8 +185,6 @@ Exception 처리 정책:
 | O | O | X | `WAITING_APPROVAL` | 승인 대기 + 이전 정보 |
 | O | X | O | `APPLYING_APPROVED` | 반영 중 + Provider별 installation-status + 이전 정보 |
 
-> #167 반영으로 `ProcessStatusResponse`의 `context` 필드가 제거됨.
-
 **FE ProcessStatus(기존) ↔ BFF TargetSourceProcessStatus 대응**:
 
 | FE ProcessStatus (기존) | 값 | BFF 대응 | 비고 |

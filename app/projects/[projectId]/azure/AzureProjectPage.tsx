@@ -9,7 +9,6 @@ import {
   runConnectionTest,
   getProject,
   ResourceCredentialInput,
-  VmConfigInput,
 } from '@/app/lib/api';
 import { getAzureSettings } from '@/app/lib/api/azure';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -122,28 +121,43 @@ export const AzureProjectPage = ({
       return;
     }
 
-    // vmConfigs를 API 형식으로 변환
-    const vmConfigInputs: VmConfigInput[] = Object.entries(vmConfigs)
-      .filter(([resourceId]) => selectedIds.includes(resourceId))
-      .map(([resourceId, config]) => ({ resourceId, config }));
-
     try {
       setSubmitting(true);
-      const vmConfigPayload = vmConfigInputs?.map(vc => ({
-        resource_id: vc.resourceId,
-        db_type: vc.config.databaseType,
-        port: vc.config.port,
-        host: vc.config.host ?? '',
-        ...(vc.config.oracleServiceId && { oracleServiceId: vc.config.oracleServiceId }),
-        ...(vc.config.selectedNicId && { selectedNicId: vc.config.selectedNicId }),
-      }));
-      const excludedIds = project.resources
-        .filter(r => !selectedIds.includes(r.id) && r.integrationCategory === 'TARGET' && r.lifecycleStatus !== 'ACTIVE')
-        .map(r => r.id);
+      // Build resource_inputs from selectedIds + vmConfigs + excludedIds
+      const resourceInputs = project.resources
+        .filter(r => r.lifecycleStatus !== 'ACTIVE')
+        .map(r => {
+          if (selectedIds.includes(r.id)) {
+            const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
+            const resourceInput: Record<string, unknown> = {};
+            if (vmConfig) {
+              resourceInput.endpoint_config = {
+                db_type: vmConfig.databaseType,
+                port: vmConfig.port,
+                host: vmConfig.host ?? '',
+                ...(vmConfig.oracleServiceId && { oracleServiceId: vmConfig.oracleServiceId }),
+                ...(vmConfig.selectedNicId && { selectedNicId: vmConfig.selectedNicId }),
+              };
+            } else if (r.selectedCredentialId) {
+              resourceInput.credential_id = r.selectedCredentialId;
+            }
+            return {
+              resource_id: r.id,
+              selected: true as const,
+              ...(Object.keys(resourceInput).length > 0 && { resource_input: resourceInput }),
+            };
+          } else if (r.integrationCategory === 'TARGET') {
+            return {
+              resource_id: r.id,
+              selected: false as const,
+            };
+          }
+          return null;
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null);
+
       await createApprovalRequest(project.targetSourceId, {
-        target_resource_ids: selectedIds,
-        excluded_resource_ids: excludedIds,
-        vm_configs: vmConfigPayload,
+        input_data: { resource_inputs: resourceInputs },
       });
       const updatedProject = await getProject(project.id);
       onProjectUpdate(updatedProject);

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ProcessStatus, Project, TerraformStatus, SecretKey } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
-import { approveProject, rejectProject, completeInstallation } from '@/app/lib/api';
+import { approveProject, rejectProject, completeInstallation, getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -99,6 +99,52 @@ export const ProcessStatusCard = ({
   const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
+
+  // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stableOnProjectUpdate = useCallback(
+    (p: Project) => onProjectUpdate?.(p),
+    [onProjectUpdate],
+  );
+
+  useEffect(() => {
+    const shouldPoll =
+      currentStep === ProcessStatus.WAITING_APPROVAL ||
+      currentStep === ProcessStatus.INSTALLING;
+
+    if (!shouldPoll || !project.targetSourceId) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+
+    const expectedBff =
+      currentStep === ProcessStatus.WAITING_APPROVAL
+        ? 'WAITING_APPROVAL'
+        : 'APPLYING_APPROVED';
+
+    const poll = async () => {
+      try {
+        const status = await getProcessStatus(project.targetSourceId);
+        if (status.process_status !== expectedBff) {
+          const updated = await getProject(project.id);
+          stableOnProjectUpdate(updated);
+        }
+      } catch {
+        // polling failure ignored
+      }
+    };
+
+    pollRef.current = setInterval(poll, 10_000);
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [currentStep, project.targetSourceId, project.id, stableOnProjectUpdate]);
 
   // Process Guide
   const guideVariant = project.cloudProvider === 'AWS'

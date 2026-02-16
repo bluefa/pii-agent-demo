@@ -229,18 +229,27 @@ export const getConfirmResources = async (
 ): Promise<ConfirmResourcesResponse> =>
   fetchJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
 
-export interface ApprovalRequestInput {
-  target_resource_ids: string[];
-  excluded_resource_ids?: string[];
+export interface ApprovalResourceInput {
+  resource_id: string;
+  selected: boolean;
+  resource_input?: {
+    credential_id?: string;
+    endpoint_config?: {
+      db_type: string;
+      port: number;
+      host: string;
+      oracleServiceId?: string;
+      selectedNicId?: string;
+    };
+  };
   exclusion_reason?: string;
-  vm_configs?: Array<{
-    resource_id: string;
-    db_type: string;
-    port: number;
-    host: string;
-    oracleServiceId?: string;
-    selectedNicId?: string;
-  }>;
+}
+
+export interface ApprovalRequestInput {
+  input_data: {
+    resource_inputs: ApprovalResourceInput[];
+    exclusion_reason_default?: string;
+  };
 }
 
 export interface ApprovalRequestResult {
@@ -249,9 +258,10 @@ export interface ApprovalRequestResult {
     id: string;
     requested_at: string;
     requested_by: string;
-    target_resource_ids: string[];
-    excluded_resource_ids: string[];
-    exclusion_reason?: string;
+    input_data: {
+      resource_inputs: ApprovalResourceInput[];
+      exclusion_reason_default?: string;
+    };
   };
 }
 
@@ -264,16 +274,18 @@ export const createApprovalRequest = async (
     body: input,
   });
 
+export interface ResourceSnapshotItem {
+  resource_id: string;
+  resource_type: string;
+  endpoint_config: Record<string, unknown> | null;
+  credential_id: string | null;
+}
+
 export interface ConfirmedIntegrationResponse {
   confirmed_integration: {
     id: string;
     confirmed_at: string;
-    resource_infos: Array<{
-      resource_id: string;
-      resource_type: string;
-      vm_config: Record<string, unknown> | null;
-      selectedCredentialId: string | null;
-    }>;
+    resource_infos: ResourceSnapshotItem[];
   } | null;
 }
 
@@ -287,12 +299,7 @@ export interface ApprovedIntegrationResponse {
     id: string;
     request_id: string;
     approved_at: string;
-    resource_infos: Array<{
-      resource_id: string;
-      resource_type: string;
-      vm_config: Record<string, unknown> | null;
-      selectedCredentialId: string | null;
-    }>;
+    resource_infos: ResourceSnapshotItem[];
     excluded_resource_ids: string[];
     exclusion_reason?: string;
   } | null;
@@ -309,9 +316,10 @@ export interface ApprovalHistoryResponse {
       id: string;
       requested_at: string;
       requested_by: string;
-      target_resource_ids: string[];
-      excluded_resource_ids: string[];
-      exclusion_reason?: string;
+      input_data: {
+        resource_inputs: ApprovalResourceInput[];
+        exclusion_reason_default?: string;
+      };
     };
     result?: {
       id: string;
@@ -333,11 +341,20 @@ export const getApprovalHistory = async (
     `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`
   );
 
+export type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
+export type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
+
 export interface ProcessStatusResponse {
-  process_status: string;
+  target_source_id: number;
+  process_status: BffProcessStatus;
   status_inputs: {
+    has_confirmed_integration: boolean;
+    has_pending_approval_request: boolean;
+    has_approved_integration: boolean;
+    last_approval_result: LastApprovalResult;
     last_rejection_reason: string | null;
   };
+  evaluated_at: string;
 }
 
 export const getProcessStatus = async (

@@ -15,13 +15,24 @@ import type {
 
 // --- Helpers ---
 
-const PROCESS_STATUS_NAMES: Record<number, string> = {
-  [ProcessStatus.WAITING_TARGET_CONFIRMATION]: 'WAITING_TARGET_CONFIRMATION',
-  [ProcessStatus.WAITING_APPROVAL]: 'WAITING_APPROVAL',
-  [ProcessStatus.INSTALLING]: 'INSTALLING',
-  [ProcessStatus.WAITING_CONNECTION_TEST]: 'WAITING_CONNECTION_TEST',
-  [ProcessStatus.CONNECTION_VERIFIED]: 'CONNECTION_VERIFIED',
-  [ProcessStatus.INSTALLATION_COMPLETE]: 'INSTALLATION_COMPLETE',
+type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
+
+const computeProcessStatus = (project: Project): BffProcessStatus => {
+  if (project.processStatus === ProcessStatus.WAITING_APPROVAL) return 'WAITING_APPROVAL';
+  if (project.processStatus === ProcessStatus.INSTALLING ||
+      project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+      project.processStatus === ProcessStatus.CONNECTION_VERIFIED) return 'APPLYING_APPROVED';
+  if (project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE) return 'TARGET_CONFIRMED';
+  return 'REQUEST_REQUIRED';
+};
+
+type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
+
+const computeLastApprovalResult = (project: Project): LastApprovalResult => {
+  const approvalStatus = project.status.approval.status;
+  if (approvalStatus === 'AUTO_APPROVED' || approvalStatus === 'APPROVED') return 'APPROVED';
+  if (approvalStatus === 'REJECTED') return 'REJECTED';
+  return 'NONE';
 };
 
 function buildMetadata(resource: Resource, project: Project): Record<string, unknown> {
@@ -50,9 +61,9 @@ function buildMetadata(resource: Resource, project: Project): Record<string, unk
 }
 
 function toResourceSnapshot(r: Resource) {
-  let vm_config = null;
+  let endpoint_config = null;
   if (r.vmDatabaseConfig) {
-    vm_config = {
+    endpoint_config = {
       resource_id: r.id,
       db_type: r.vmDatabaseConfig.databaseType,
       port: r.vmDatabaseConfig.port,
@@ -68,23 +79,19 @@ function toResourceSnapshot(r: Resource) {
   return {
     resource_id: r.id,
     resource_type: r.type,
-    vm_config,
-    selectedCredentialId: r.selectedCredentialId ?? null,
+    endpoint_config,
+    credential_id: r.selectedCredentialId ?? null,
   };
 }
 
-interface ApprovalRequestBody {
-  target_resource_ids: string[];
-  excluded_resource_ids?: string[];
-  exclusion_reason?: string;
-  vm_configs?: Array<{
-    resource_id: string;
-    db_type: string;
-    port: number;
-    host: string;
-    oracleServiceId?: string;
-    selectedNicId?: string;
-  }>;
+interface ApprovalRequestCreateBody {
+  input_data: {
+    resource_inputs: Array<
+      | { resource_id: string; selected: true; resource_input?: { credential_id?: string; endpoint_config?: Record<string, unknown> } }
+      | { resource_id: string; selected: false; exclusion_reason?: string }
+    >;
+    exclusion_reason_default?: string;
+  };
 }
 
 // --- Mock Confirm Module ---
@@ -151,35 +158,51 @@ export const mockConfirm = {
       );
     }
 
-    const {
-      target_resource_ids = [],
-      excluded_resource_ids = [],
-      exclusion_reason,
-      vm_configs = [],
-    } = body as ApprovalRequestBody;
+    const { input_data } = body as ApprovalRequestCreateBody;
+    const { resource_inputs, exclusion_reason_default } = input_data;
 
-    if (target_resource_ids.length === 0) {
+    const selectedInputs = resource_inputs.filter(
+      (ri): ri is Extract<typeof ri, { selected: true }> => ri.selected === true,
+    );
+    const excludedInputs = resource_inputs.filter(
+      (ri): ri is Extract<typeof ri, { selected: false }> => ri.selected === false,
+    );
+
+    if (selectedInputs.length === 0) {
       return NextResponse.json(
         { error: 'VALIDATION_FAILED', message: '연동 대상이 1개 이상이어야 합니다.' },
         { status: 400 },
       );
     }
 
-    const vmConfigMap = new Map(
-      vm_configs.map((vc) => [
-        vc.resource_id,
-        {
-          host: vc.host,
-          databaseType: vc.db_type as VmDatabaseConfig['databaseType'],
-          port: vc.port,
-          ...(vc.oracleServiceId && { oracleServiceId: vc.oracleServiceId }),
-          ...(vc.selectedNicId && { selectedNicId: vc.selectedNicId }),
-        } as VmDatabaseConfig,
-      ]),
-    );
+    // Build endpoint config map from selected resources
+    const endpointConfigMap = new Map<string, VmDatabaseConfig>();
+    const credentialMap = new Map<string, string>();
 
-    const selectedSet = new Set(target_resource_ids);
-    const excludedSet = new Set(excluded_resource_ids);
+    for (const si of selectedInputs) {
+      if (si.resource_input?.endpoint_config) {
+        const ec = si.resource_input.endpoint_config;
+        const vmConfig: VmDatabaseConfig = {
+          host: (ec.host as string) ?? '',
+          databaseType: ec.db_type as VmDatabaseConfig['databaseType'],
+          port: ec.port as number,
+        };
+        if (ec.oracleServiceId) vmConfig.oracleServiceId = ec.oracleServiceId as string;
+        if (ec.selectedNicId) vmConfig.selectedNicId = ec.selectedNicId as string;
+        endpointConfigMap.set(si.resource_id, vmConfig);
+      }
+      if (si.resource_input?.credential_id) {
+        credentialMap.set(si.resource_id, si.resource_input.credential_id);
+      }
+    }
+
+    // Build exclusion map
+    const excludedMap = new Map<string, string | undefined>();
+    for (const ei of excludedInputs) {
+      excludedMap.set(ei.resource_id, ei.exclusion_reason ?? exclusion_reason_default);
+    }
+
+    const selectedSet = new Set(selectedInputs.map((si) => si.resource_id));
     const now = new Date().toISOString();
     const excludedBy = { id: user.id, name: user.name };
 
@@ -194,21 +217,23 @@ export const mockConfirm = {
       }
 
       let exclusion: ResourceExclusion | undefined = r.exclusion;
-      if (excludedSet.has(r.id) && exclusion_reason) {
-        exclusion = { reason: exclusion_reason, excludedAt: now, excludedBy };
+      const exclusionReason = excludedMap.get(r.id);
+      if (excludedMap.has(r.id) && exclusionReason) {
+        exclusion = { reason: exclusionReason, excludedAt: now, excludedBy };
       }
 
-      const vmDatabaseConfig = vmConfigMap.get(r.id) ?? r.vmDatabaseConfig;
+      const vmDatabaseConfig = endpointConfigMap.get(r.id) ?? r.vmDatabaseConfig;
+      const selectedCredentialId = credentialMap.get(r.id) ?? r.selectedCredentialId;
 
-      return { ...r, isSelected, lifecycleStatus, exclusion, vmDatabaseConfig };
+      return { ...r, isSelected, lifecycleStatus, exclusion, vmDatabaseConfig, selectedCredentialId };
     });
 
-    const selectedCount = target_resource_ids.length;
-    const excludedCount = excluded_resource_ids.length;
+    const selectedCount = selectedInputs.length;
+    const excludedCount = excludedInputs.length;
 
     const autoApprovalResult = evaluateAutoApproval({
       resources: project.resources,
-      selectedResourceIds: target_resource_ids,
+      selectedResourceIds: selectedInputs.map((si) => si.resource_id),
     });
 
     const updatedStatus: ProjectStatus = {
@@ -245,9 +270,7 @@ export const mockConfirm = {
           id: requestId,
           requested_at: now,
           requested_by: user.name,
-          target_resource_ids,
-          excluded_resource_ids,
-          exclusion_reason,
+          input_data: (body as ApprovalRequestCreateBody).input_data,
         },
       },
       { status: 201 },
@@ -357,8 +380,7 @@ export const mockConfirm = {
         id: h.id,
         requested_at: h.timestamp,
         requested_by: h.actor.name,
-        target_resource_ids: [] as string[],
-        excluded_resource_ids: [] as string[],
+        input_data: { resource_inputs: [] as Array<{ resource_id: string; selected: boolean }> },
       };
 
       let result;
@@ -420,10 +442,18 @@ export const mockConfirm = {
     }
 
     return NextResponse.json({
-      process_status: PROCESS_STATUS_NAMES[project.processStatus] ?? 'UNKNOWN',
+      target_source_id: project.targetSourceId,
+      process_status: computeProcessStatus(project),
       status_inputs: {
+        has_confirmed_integration: project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE,
+        has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
+        has_approved_integration: project.processStatus === ProcessStatus.INSTALLING ||
+          project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+          project.processStatus === ProcessStatus.CONNECTION_VERIFIED,
+        last_approval_result: computeLastApprovalResult(project),
         last_rejection_reason: project.status.approval.rejectionReason ?? null,
       },
+      evaluated_at: new Date().toISOString(),
     });
   },
 };
