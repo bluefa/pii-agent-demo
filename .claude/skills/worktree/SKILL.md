@@ -20,11 +20,26 @@ user_invocable: true
 - `topic`: 기능 이름 (예: `adr006-approval-flow`)
 - `prefix`: 브랜치 prefix (기본값: `feat`)
 
-## Implementation
+## How This Skill Works
 
-Use Task tool to spawn a Haiku subagent:
+**Manual workflow** (This skill is NOT auto-invoked):
 
-```
+1. Read this guide
+2. **You call Task tool** with Haiku subagent to setup worktree
+3. Haiku runs git/bash commands and reports final path + branch
+
+**Why manual:** Worktree creation is a setup operation that must be explicit. Once created, you continue work in that worktree.
+
+## When to Use This Skill
+
+- Starting a new feature branch
+- Before any code changes
+
+## Usage Example
+
+When you want to setup a worktree, **you** should call Task tool:
+
+```typescript
 Task({
   subagent_type: "Bash",
   model: "haiku",
@@ -34,7 +49,7 @@ Task({
 
     1. Navigate to canonical repo: /Users/study/pii-agent-demo
     2. Sync local main: git fetch origin main && git checkout main && git merge origin/main --ff-only
-    3. Create worktree: bash scripts/create-worktree.sh --topic {topic} --prefix {prefix}
+    3. Create worktree: bash scripts/create-worktree.sh --topic fix-haiku-skills --prefix fix
     4. Navigate to new worktree path (from script output)
     5. Verify setup:
        - bash scripts/guard-worktree.sh
