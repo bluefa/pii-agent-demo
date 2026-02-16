@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getLatestScanJob } from '@/app/lib/api/scan';
+import type { AppError } from '@/lib/errors';
 import type { V1ScanJob } from '@/lib/types';
 
 // ===== Types =====
@@ -12,7 +13,7 @@ export interface UseScanPollingOptions {
   /** 스캔 완료 시 콜백 */
   onScanComplete?: () => void;
   /** 에러 발생 시 콜백 */
-  onError?: (error: Error) => void;
+  onError?: (error: AppError) => void;
   /** 마운트 시 자동 시작. 기본값 true */
   autoStart?: boolean;
 }
@@ -22,7 +23,7 @@ export interface UseScanPollingReturn {
   uiState: ScanUIState;
   isPolling: boolean;
   loading: boolean;
-  error: Error | null;
+  error: AppError | null;
   refresh: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
@@ -63,7 +64,7 @@ export const useScanPolling = (
 
   const [latestJob, setLatestJob] = useState<V1ScanJob | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   const [isPolling, setIsPolling] = useState(false);
 
   // Refs for cleanup and state tracking
@@ -100,9 +101,14 @@ export const useScanPolling = (
     } catch (err) {
       if (!mountedRef.current) return null;
 
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      onErrorRef.current?.(error);
+      const appErr = err as AppError;
+      if (appErr.code === 'NOT_FOUND') {
+        setLatestJob(null);
+        setError(null);
+        return null;
+      }
+      setError(appErr);
+      onErrorRef.current?.(appErr);
       return null;
     }
   }, [targetSourceId]);
@@ -194,9 +200,14 @@ export const useScanPolling = (
         }
       } catch (err) {
         if (!isCancelled && mountedRef.current) {
-          const error = err instanceof Error ? err : new Error(String(err));
-          setError(error);
-          onErrorRef.current?.(error);
+          const appErr = err as AppError;
+          if (appErr.code === 'NOT_FOUND') {
+            setLatestJob(null);
+            setError(null);
+          } else {
+            setError(appErr);
+            onErrorRef.current?.(appErr);
+          }
         }
       } finally {
         if (!isCancelled && mountedRef.current) {
