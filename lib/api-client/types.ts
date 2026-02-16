@@ -115,5 +115,7 @@ export interface ApiClient {
     getApprovedIntegration: (projectId: string) => Promise<NextResponse>;
     getApprovalHistory: (projectId: string, page: number, size: number) => Promise<NextResponse>;
     getProcessStatus: (projectId: string) => Promise<NextResponse>;
+    approveApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
+    rejectApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
   };
 }

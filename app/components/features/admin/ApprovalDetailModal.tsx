@@ -1,32 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { tableStyles, textColors, cn, getInputClass } from '@/lib/theme';
-import type { ProjectSummary, Resource } from '@/lib/types';
+import { tableStyles, textColors, statusColors, cn, getInputClass } from '@/lib/theme';
+import type { ProjectSummary } from '@/lib/types';
+import type { ApprovalResourceInput } from '@/app/lib/api';
 import { ProcessStatus } from '@/lib/types';
+
+interface ApprovalRequest {
+  id: string;
+  requested_at: string;
+  requested_by: string;
+  input_data: {
+    resource_inputs: ApprovalResourceInput[];
+    exclusion_reason_default?: string;
+  };
+}
 
 interface ApprovalDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: ProjectSummary;
-  resources: Resource[];
-  requestedBy?: string;
-  requestedAt?: string;
-  requestId?: string;
+  approvalRequest: ApprovalRequest;
   onApprove: () => void;
   onReject: (reason: string) => void;
   loading: boolean;
 }
 
-const formatEndpoint = (r: Resource): string => {
-  if (!r.vmDatabaseConfig) return '-';
-  const { host, port, databaseType } = r.vmDatabaseConfig;
-  const endpoint = host ? `${host}:${port}` : `${port}`;
-  return databaseType ? `${databaseType} ${endpoint}` : endpoint;
+const formatEndpointConfig = (ri: ApprovalResourceInput): string => {
+  if (!ri.selected || !ri.resource_input?.endpoint_config) return '-';
+  const ec = ri.resource_input.endpoint_config;
+  const endpoint = ec.host ? `${ec.host}:${ec.port}` : `${ec.port}`;
+  return ec.db_type ? `${ec.db_type} ${endpoint}` : endpoint;
 };
 
 const formatDateTime = (iso?: string): string => {
@@ -44,10 +52,7 @@ export const ApprovalDetailModal = ({
   isOpen,
   onClose,
   project,
-  resources,
-  requestedBy,
-  requestedAt,
-  requestId,
+  approvalRequest,
   onApprove,
   onReject,
   loading,
@@ -56,8 +61,16 @@ export const ApprovalDetailModal = ({
   const [rejectReason, setRejectReason] = useState('');
 
   const isWaitingApproval = project.processStatus === ProcessStatus.WAITING_APPROVAL;
-  const includedResources = resources.filter((r) => r.isSelected);
-  const excludedResources = resources.filter((r) => !r.isSelected);
+
+  const includedInputs = useMemo(
+    () => approvalRequest.input_data.resource_inputs.filter((ri) => ri.selected),
+    [approvalRequest],
+  );
+
+  const excludedInputs = useMemo(
+    () => approvalRequest.input_data.resource_inputs.filter((ri) => !ri.selected),
+    [approvalRequest],
+  );
 
   const handleRejectSubmit = () => {
     if (!rejectReason.trim()) return;
@@ -127,15 +140,15 @@ export const ApprovalDetailModal = ({
         <div className="grid grid-cols-3 gap-4">
           <div>
             <p className={cn('text-xs font-medium mb-1', textColors.tertiary)}>요청자</p>
-            <p className={cn('text-sm font-medium', textColors.primary)}>{requestedBy ?? '-'}</p>
+            <p className={cn('text-sm font-medium', textColors.primary)}>{approvalRequest.requested_by}</p>
           </div>
           <div>
             <p className={cn('text-xs font-medium mb-1', textColors.tertiary)}>요청 시각</p>
-            <p className={cn('text-sm font-medium', textColors.primary)}>{formatDateTime(requestedAt)}</p>
+            <p className={cn('text-sm font-medium', textColors.primary)}>{formatDateTime(approvalRequest.requested_at)}</p>
           </div>
           <div>
             <p className={cn('text-xs font-medium mb-1', textColors.tertiary)}>요청 ID</p>
-            <p className={cn('text-sm font-mono', textColors.tertiary)}>{requestId ?? '-'}</p>
+            <p className={cn('text-sm font-mono', textColors.tertiary)}>{approvalRequest.id}</p>
           </div>
         </div>
 
@@ -156,9 +169,9 @@ export const ApprovalDetailModal = ({
         {/* 포함 리소스 */}
         <div>
           <h4 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
-            포함 리소스 ({includedResources.length})
+            포함 리소스 ({includedInputs.length})
           </h4>
-          {includedResources.length === 0 ? (
+          {includedInputs.length === 0 ? (
             <p className={cn('text-sm py-4 text-center', textColors.quaternary)}>
               포함된 리소스가 없습니다
             </p>
@@ -168,25 +181,21 @@ export const ApprovalDetailModal = ({
                 <thead>
                   <tr className={tableStyles.header}>
                     <th className={tableStyles.headerCell}>리소스 ID</th>
-                    <th className={tableStyles.headerCell}>유형</th>
                     <th className={tableStyles.headerCell}>Endpoint</th>
                     <th className={tableStyles.headerCell}>Credential</th>
                   </tr>
                 </thead>
                 <tbody className={tableStyles.body}>
-                  {includedResources.map((r) => (
-                    <tr key={r.id} className={tableStyles.row}>
+                  {includedInputs.map((ri) => (
+                    <tr key={ri.resource_id} className={tableStyles.row}>
                       <td className={cn(tableStyles.cell, 'text-sm font-mono', textColors.primary)}>
-                        {r.resourceId}
-                      </td>
-                      <td className={cn(tableStyles.cell, 'text-sm', textColors.secondary)}>
-                        {r.type}
+                        {ri.resource_id}
                       </td>
                       <td className={cn(tableStyles.cell, 'text-sm font-mono', textColors.tertiary)}>
-                        {formatEndpoint(r)}
+                        {formatEndpointConfig(ri)}
                       </td>
                       <td className={cn(tableStyles.cell, 'text-sm font-mono', textColors.tertiary)}>
-                        {r.selectedCredentialId ?? '-'}
+                        {ri.resource_input?.credential_id ?? '-'}
                       </td>
                     </tr>
                   ))}
@@ -199,9 +208,9 @@ export const ApprovalDetailModal = ({
         {/* 제외 리소스 */}
         <div>
           <h4 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
-            제외 리소스 ({excludedResources.length})
+            제외 리소스 ({excludedInputs.length})
           </h4>
-          {excludedResources.length === 0 ? (
+          {excludedInputs.length === 0 ? (
             <p className={cn('text-sm py-4 text-center', textColors.quaternary)}>
               제외된 리소스가 없습니다
             </p>
@@ -211,21 +220,17 @@ export const ApprovalDetailModal = ({
                 <thead>
                   <tr className={tableStyles.header}>
                     <th className={tableStyles.headerCell}>리소스 ID</th>
-                    <th className={tableStyles.headerCell}>유형</th>
                     <th className={tableStyles.headerCell}>제외 사유</th>
                   </tr>
                 </thead>
                 <tbody className={tableStyles.body}>
-                  {excludedResources.map((r) => (
-                    <tr key={r.id} className={tableStyles.row}>
+                  {excludedInputs.map((ri) => (
+                    <tr key={ri.resource_id} className={tableStyles.row}>
                       <td className={cn(tableStyles.cell, 'text-sm font-mono', textColors.primary)}>
-                        {r.resourceId}
-                      </td>
-                      <td className={cn(tableStyles.cell, 'text-sm', textColors.secondary)}>
-                        {r.type}
+                        {ri.resource_id}
                       </td>
                       <td className={cn(tableStyles.cell, 'text-sm', textColors.tertiary)}>
-                        {r.exclusion?.reason ?? '자동 제외'}
+                        {ri.exclusion_reason ?? approvalRequest.input_data.exclusion_reason_default ?? '-'}
                       </td>
                     </tr>
                   ))}
@@ -239,7 +244,7 @@ export const ApprovalDetailModal = ({
         {showRejectForm && (
           <div>
             <label className={cn('block text-sm font-medium mb-2', textColors.secondary)}>
-              반려 사유 <span className="text-red-500">*</span>
+              반려 사유 <span className={statusColors.error.text}>*</span>
             </label>
             <textarea
               value={rejectReason}

@@ -191,6 +191,7 @@ export interface Project {
 
 export interface ProjectSummary {
   id: string;
+  targetSourceId: number;
   projectCode: string;
   processStatus: ProcessStatus;
   cloudProvider: CloudProvider;

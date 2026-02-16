@@ -181,5 +181,7 @@ export const bffClient: ApiClient = {
     getApprovalHistory: (projectId, page, size) =>
       proxyGet(`/target-sources/${projectId}/approval-history?page=${page}&size=${size}`),
     getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
+    approveApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
+    rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),
   },
 };
