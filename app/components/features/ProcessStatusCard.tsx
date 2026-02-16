@@ -3,15 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ProcessStatus, Project, TerraformStatus, SecretKey } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
-import { approveProject, rejectProject, completeInstallation, getProcessStatus, getProject } from '@/app/lib/api';
+import { completeInstallation, getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
-import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { getProjectCurrentStep } from '@/lib/process';
 import {
   StepProgressBar,
   StepGuide,
-  ApproveModal,
-  RejectModal,
   ConnectionTestPanel,
 } from './process-status';
 import { AzureInstallationInline } from './process-status/azure';
@@ -21,17 +18,23 @@ import { ProjectHistoryPanel } from './history';
 import { ProcessGuideModal } from './process-status/ProcessGuideModal';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { cn, statusColors } from '@/lib/theme';
+import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
+import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
 
 type ProcessTabType = 'status' | 'history';
 
 interface ProcessStatusCardProps {
   project: Project;
-  isAdmin?: boolean;
   onProjectUpdate?: (project: Project) => void;
   onTestConnection?: () => void;
   testLoading?: boolean;
   credentials?: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
+  approvalModalOpen?: boolean;
+  onApprovalModalClose?: () => void;
+  onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
+  approvalLoading?: boolean;
+  approvalError?: string | null;
 }
 
 const getProgress = (project: Project) => {
@@ -45,12 +48,16 @@ const getProgress = (project: Project) => {
 
 export const ProcessStatusCard = ({
   project,
-  isAdmin,
   onProjectUpdate,
   onTestConnection,
   testLoading,
   credentials = [],
   onCredentialChange,
+  approvalModalOpen = false,
+  onApprovalModalClose,
+  onApprovalSubmit,
+  approvalLoading = false,
+  approvalError,
 }: ProcessStatusCardProps) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
@@ -61,40 +68,7 @@ export const ProcessStatusCard = ({
 
   // Modal states
   const terraformModal = useModal();
-  const approveModal = useModal();
-  const rejectModal = useModal();
   const guideModal = useModal();
-
-  // Form states
-  const [approveComment, setApproveComment] = useState('');
-  const [rejectReason, setRejectReason] = useState('');
-
-  // API mutations
-  const { mutate: doApprove, loading: approving } = useApiMutation(
-    (comment: string) => approveProject(project.id, comment),
-    {
-      onSuccess: (updated) => {
-        onProjectUpdate?.(updated);
-        approveModal.close();
-        setApproveComment('');
-      },
-      errorMessage: '승인에 실패했습니다.',
-    }
-  );
-
-  const { mutate: doReject, loading: rejecting } = useApiMutation(
-    (reason: string) => rejectProject(project.id, reason),
-    {
-      onSuccess: (updated) => {
-        onProjectUpdate?.(updated);
-        rejectModal.close();
-        setRejectReason('');
-      },
-      errorMessage: '반려에 실패했습니다.',
-    }
-  );
-
-  const submitting = approving || rejecting;
   // ADR-004: status 필드에서 현재 단계 계산
   const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
@@ -228,27 +202,8 @@ export const ProcessStatusCard = ({
                 )}
 
                 {currentStep === ProcessStatus.WAITING_APPROVAL && (
-                  <div className="flex gap-2">
-                    {isAdmin ? (
-                      <>
-                        <button
-                          onClick={() => approveModal.open()}
-                          className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-sm hover:shadow"
-                        >
-                          승인
-                        </button>
-                        <button
-                          onClick={() => rejectModal.open()}
-                          className={cn('flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors border', statusColors.error.bg, statusColors.error.text, statusColors.error.border, 'hover:bg-red-100')}
-                        >
-                          반려
-                        </button>
-                      </>
-                    ) : (
-                      <div className="w-full text-center py-2.5 text-gray-500 text-sm">
-                        관리자 승인을 기다리는 중입니다
-                      </div>
-                    )}
+                  <div className="w-full text-center py-2.5 text-gray-500 text-sm">
+                    관리자 승인을 기다리는 중입니다
                   </div>
                 )}
 
@@ -316,32 +271,6 @@ export const ProcessStatusCard = ({
         />
       )}
 
-      {/* Approve Modal */}
-      <ApproveModal
-        isOpen={approveModal.isOpen}
-        onClose={() => {
-          approveModal.close();
-          setApproveComment('');
-        }}
-        onSubmit={() => doApprove(approveComment)}
-        loading={submitting}
-        value={approveComment}
-        onChange={setApproveComment}
-      />
-
-      {/* Reject Modal */}
-      <RejectModal
-        isOpen={rejectModal.isOpen}
-        onClose={() => {
-          rejectModal.close();
-          setRejectReason('');
-        }}
-        onSubmit={() => doReject(rejectReason)}
-        loading={submitting}
-        value={rejectReason}
-        onChange={setRejectReason}
-      />
-
       {/* Process Guide Modal */}
       {guide && (
         <ProcessGuideModal
@@ -349,6 +278,18 @@ export const ProcessStatusCard = ({
           onClose={guideModal.close}
           guide={guide}
           currentStepNumber={currentStep}
+        />
+      )}
+
+      {/* Approval Request Modal */}
+      {onApprovalSubmit && onApprovalModalClose && (
+        <ApprovalRequestModal
+          isOpen={approvalModalOpen}
+          onClose={onApprovalModalClose}
+          onSubmit={onApprovalSubmit}
+          resources={project.resources}
+          loading={approvalLoading}
+          error={approvalError}
         />
       )}
     </div>

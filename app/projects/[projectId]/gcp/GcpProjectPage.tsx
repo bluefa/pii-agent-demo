@@ -22,14 +22,12 @@ import { isVmResource } from '@/app/components/features/resource-table';
 
 interface GcpProjectPageProps {
   project: Project;
-  isAdmin: boolean;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
 export const GcpProjectPage = ({
   project,
-  isAdmin,
   credentials,
   onProjectUpdate,
 }: GcpProjectPageProps) => {
@@ -183,7 +181,6 @@ export const GcpProjectPage = ({
           </div>
           <ProcessStatusCard
             project={project}
-            isAdmin={isAdmin}
             onProjectUpdate={onProjectUpdate}
             onTestConnection={handleTestConnection}
             testLoading={testLoading}

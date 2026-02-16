@@ -28,14 +28,12 @@ import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
 
 interface AwsProjectPageProps {
   project: Project;
-  isAdmin: boolean;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
 export const AwsProjectPage = ({
   project,
-  isAdmin,
   credentials,
   onProjectUpdate,
 }: AwsProjectPageProps) => {
@@ -232,7 +230,6 @@ export const AwsProjectPage = ({
           </div>
           <ProcessStatusCard
             project={project}
-            isAdmin={isAdmin}
             onProjectUpdate={onProjectUpdate}
             onTestConnection={handleTestConnection}
             testLoading={testLoading}

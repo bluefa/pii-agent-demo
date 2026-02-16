@@ -23,14 +23,12 @@ import { isVmResource } from '@/app/components/features/resource-table';
 
 interface AzureProjectPageProps {
   project: Project;
-  isAdmin: boolean;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
 export const AzureProjectPage = ({
   project,
-  isAdmin,
   credentials,
   onProjectUpdate,
 }: AzureProjectPageProps) => {
@@ -196,7 +194,6 @@ export const AzureProjectPage = ({
           </div>
           <ProcessStatusCard
             project={project}
-            isAdmin={isAdmin}
             onProjectUpdate={onProjectUpdate}
             onTestConnection={handleTestConnection}
             testLoading={testLoading}
