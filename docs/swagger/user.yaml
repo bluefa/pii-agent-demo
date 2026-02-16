@@ -417,17 +417,12 @@ components:
     TargetSourceSummary:
       type: object
       required:
-        - id
         - targetSourceId
         - projectCode
         - cloudProvider
         - processStatus
         - createdAt
       properties:
-        id:
-          type: string
-          description: 내부 프로젝트 식별자
-          example: "proj-001"
         targetSourceId:
           type: integer
           format: int64
