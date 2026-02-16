@@ -308,7 +308,7 @@ export const mockConfirm = {
     return NextResponse.json({
       confirmed_integration: {
         id: `ci-${project.id}`,
-        confirmedAt: project.completionConfirmedAt ?? project.updatedAt,
+        confirmed_at: project.completionConfirmedAt ?? project.updatedAt,
         resource_infos: activeResources.map(toResourceSnapshot),
       },
     });
