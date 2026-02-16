@@ -7,6 +7,14 @@ info:
     ### Error Handling
     - 모든 에러 응답은 `ErrorResponse` 스키마를 따릅니다.
     - **401 Unauthorized**: SSO 인증 토큰이 유효하지 않거나, 인증은 되었으나 시스템 권한이 없는 경우(사용자 미등록 포함) 발생합니다.
+
+    ### Legacy API Replacement Map
+    - `GET /api/services/{serviceCode}/projects` -> `GET /api/v1/services/{serviceCode}/target-sources`
+    - `POST /api/projects` -> `POST /api/v1/services/{serviceCode}/target-sources`
+    - `GET /api/projects/{projectId}` -> `GET /api/v1/target-sources/{targetSourceId}`
+    - `GET /api/services/{serviceCode}/permissions` -> `GET /api/v1/services/{serviceCode}/authorized-users`
+    - `POST /api/services/{serviceCode}/permissions` -> `POST /api/v1/services/{serviceCode}/authorized-users`
+    - `DELETE /api/services/{serviceCode}/permissions/{userId}` -> `DELETE /api/v1/services/{serviceCode}/authorized-users/{userId}`
   version: 1.1.0
 servers:
   - url: /api/v1
@@ -19,6 +27,26 @@ tags:
     description: 서비스 접근 가능한 사용자 관리
   - name: Target Source
     description: 서비스 소속 타겟소스 조회/생성/상세
+
+x-legacy-api-replacements:
+  - legacy: GET /api/services/{serviceCode}/projects
+    replacement: GET /api/v1/services/{serviceCode}/target-sources
+    status: planned
+  - legacy: POST /api/projects
+    replacement: POST /api/v1/services/{serviceCode}/target-sources
+    status: planned
+  - legacy: GET /api/projects/{projectId}
+    replacement: GET /api/v1/target-sources/{targetSourceId}
+    status: planned
+  - legacy: GET /api/services/{serviceCode}/permissions
+    replacement: GET /api/v1/services/{serviceCode}/authorized-users
+    status: planned
+  - legacy: POST /api/services/{serviceCode}/permissions
+    replacement: POST /api/v1/services/{serviceCode}/authorized-users
+    status: planned
+  - legacy: DELETE /api/services/{serviceCode}/permissions/{userId}
+    replacement: DELETE /api/v1/services/{serviceCode}/authorized-users/{userId}
+    status: planned
 
 paths:
   /user/me:
@@ -102,6 +130,8 @@ paths:
         - Target Source
       summary: 서비스별 타겟소스 목록 조회
       operationId: getServiceTargetSources
+      x-replaces-legacy:
+        - GET /api/services/{serviceCode}/projects
       x-expected-duration: "100ms ~ 500ms"
       description: |-
         특정 서비스에 소속된 타겟소스 목록을 조회합니다.
@@ -125,6 +155,8 @@ paths:
         - Target Source
       summary: 서비스에 타겟소스 생성
       operationId: createServiceTargetSource
+      x-replaces-legacy:
+        - POST /api/projects
       x-expected-duration: "300ms ~ 1s"
       description: |-
         특정 서비스에 새 타겟소스를 생성합니다.
@@ -161,6 +193,8 @@ paths:
         - Target Source
       summary: 타겟소스 상세 조회
       operationId: getTargetSource
+      x-replaces-legacy:
+        - GET /api/projects/{projectId}
       x-expected-duration: "80ms ~ 300ms"
       description: |-
         타겟소스 상세 정보를 조회합니다.
@@ -187,6 +221,8 @@ paths:
         - Service Access
       summary: 서비스 접근 사용자 목록 조회
       operationId: getServiceAuthorizedUsers
+      x-replaces-legacy:
+        - GET /api/services/{serviceCode}/permissions
       x-expected-duration: "80ms ~ 300ms"
       description: |-
         해당 서비스 접근 권한을 가진 사용자 목록을 조회합니다.
@@ -210,6 +246,8 @@ paths:
         - Service Access
       summary: 서비스 접근 사용자 추가
       operationId: addServiceAuthorizedUser
+      x-replaces-legacy:
+        - POST /api/services/{serviceCode}/permissions
       x-expected-duration: "100ms ~ 500ms"
       description: 서비스 접근 권한 사용자 목록에 사용자를 추가합니다.
       requestBody:
@@ -245,6 +283,8 @@ paths:
         - Service Access
       summary: 서비스 접근 사용자 제거
       operationId: removeServiceAuthorizedUser
+      x-replaces-legacy:
+        - DELETE /api/services/{serviceCode}/permissions/{userId}
       x-expected-duration: "100ms ~ 400ms"
       description: 서비스 접근 권한 사용자 목록에서 사용자를 제거합니다.
       responses:
