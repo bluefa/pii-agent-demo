@@ -1,15 +1,16 @@
 openapi: 3.0.3
 info:
   title: Target Source Management API
-  version: 2.4.0
+  version: 2.5.0
   description: |
     ADR-006 기반의 연동 대상 소스(Target Source) 통합 관리 API입니다.
-    
+
     **아키텍처 설계 요약:**
     1. **객체 분리**: Confirmed(현재 확정), Approved(승인 후 반영 중), Request(승인 요청) 정보를 물리적으로 분리하여 관리합니다.
     2. **쓰기 권한 단일화**: 사용자는 `POST /approval-requests`를 통해서만 인프라 변경 의사를 표현할 수 있습니다.
     3. **이력 관리**: `COMPLETED`(확정 완료) 및 `SYSTEM_ERROR`(반영 실패) 상태를 통해 인프라 반영의 최종 생명주기를 추적합니다.
     4. **보안**: `integrationCategory`와 같은 시스템 가이드는 Response에만 포함하며, Request 검증은 백엔드에서 수행합니다.
+    5. **용어 체계**: processStatus 상태명은 ADR-009 기준을 따릅니다. `APPLYING_APPROVED`는 "승인 반영 중" 전용입니다.
 
 servers:
   - url: /api/v1
@@ -20,6 +21,8 @@ tags:
     description: 리소스 목록 및 메타데이터 조회
   - name: Approval Process
     description: 연동 요청 생성, 승인 정보 조회 및 히스토리 관리
+  - name: Process Status
+    description: 대상 소스의 프로세스 상태 조회/재계산
 
 paths:
   /target-sources/{targetSourceId}/resources:
@@ -57,8 +60,12 @@ paths:
       summary: 연동 대상 요청 생성
       operationId: createApprovalRequest
       description: |
-        사용자가 선택한 리소스와 설정(VM 등)을 바탕으로 승인을 요청합니다. 
+        사용자가 선택한 리소스와 설정(VM 등)을 바탕으로 승인을 요청합니다.
         이 요청이 승인되면 `ApprovedIntegration`이 생성되고, 인프라 반영이 성공하면 `ConfirmedIntegration`으로 전환됩니다.
+
+        **차단 정책 (ADR-006 D-002, D-008 / ADR-009 D-006):**
+        - 이미 PENDING 상태의 승인 요청이 존재하면 409 `CONFLICT_REQUEST_PENDING` 반환
+        - ApprovedIntegration이 존재(반영 중)하면 409 `CONFLICT_APPLYING_IN_PROGRESS` 반환
       requestBody:
         required: true
         content:
@@ -99,6 +106,20 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          description: "승인 요청 충돌 (반영 중이거나 이미 요청 진행 중)"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                applying_in_progress:
+                  summary: 반영 중 신규 요청 차단
+                  value:
+                    error: { code: "CONFLICT_APPLYING_IN_PROGRESS", message: "승인된 내용이 반영 중입니다. 완료 후 다시 요청해주세요." }
+                request_pending:
+                  summary: 이미 승인 요청 진행 중
+                  value:
+                    error: { code: "CONFLICT_REQUEST_PENDING", message: "이미 승인 요청이 진행 중입니다." }
 
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
@@ -188,6 +209,58 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/process-status:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Process Status]
+      summary: 대상 소스 processStatus 조회 (캐시 허용)
+      operationId: getTargetSourceProcessStatus
+      x-expected-duration: "200ms ~ 2s"
+      description: |
+        Target Source의 상태 스냅샷(confirmed/request/approved + 최근 승인 결과 + 설치 지표)만으로 계산된
+        processStatus를 반환합니다. 최신 재계산이 필요하면 `check-process-status`를 호출합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/check-process-status:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Process Status]
+      summary: 대상 소스 processStatus 강제 재계산
+      operationId: checkTargetSourceProcessStatus
+      x-expected-duration: "10s ~ 30s"
+      description: |
+        Infra Manager 상태와 승인 객체를 즉시 조회해 processStatus를 동기 재계산합니다.
+        `GET /process-status`와 동일한 응답 스키마를 반환합니다.
+      responses:
+        '200':
+          description: 재계산 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          $ref: '#/components/responses/StatusCalculationInProgress'
 
 components:
   parameters:
@@ -394,6 +467,99 @@ components:
         number: { type: integer, description: "현재 페이지 번호 (0-based)" }
         size: { type: integer, description: "요청한 페이지 당 항목 수" }
 
+    # --- Process Status Models (ADR-009) ---
+    ProcessStatusResponse:
+      type: object
+      required:
+        - target_source_id
+        - process_status
+        - context
+        - status_inputs
+        - blackbox_progress
+        - evaluated_at
+        - is_fresh
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
+          $ref: '#/components/schemas/TargetSourceProcessStatus'
+        context:
+          type: string
+          enum: [INITIAL, CHANGE]
+          description: "최초 연동 흐름인지, 기존 연동 변경 흐름인지 구분. has_confirmed_integration으로 판별."
+        status_inputs:
+          type: object
+          required:
+            - has_confirmed_integration
+            - has_pending_approval_request
+            - has_approved_integration
+            - last_approval_result
+          properties:
+            has_confirmed_integration: { type: boolean }
+            has_pending_approval_request: { type: boolean }
+            has_approved_integration: { type: boolean }
+            last_approval_result:
+              $ref: '#/components/schemas/LastApprovalResult'
+            last_failure_reason:
+              type: string
+              nullable: true
+              description: "최근 REJECTED 또는 SYSTEM_ERROR 사유"
+        blackbox_progress:
+          $ref: '#/components/schemas/BlackboxProgress'
+        evaluated_at:
+          type: string
+          format: date-time
+        is_fresh:
+          type: boolean
+          description: "true면 즉시 계산 결과, false면 캐시 값"
+        recommended_poll_interval_seconds:
+          type: integer
+          minimum: 3
+          maximum: 60
+          example: 10
+
+    TargetSourceProcessStatus:
+      type: string
+      description: |
+        BFF가 계산하여 반환하는 프로세스 상태 (ADR-009).
+        - REQUEST_REQUIRED: 요청 필요 (리소스 미선택 또는 연동 완료 후 변경 전)
+        - WAITING_APPROVAL: 승인 대기 (PENDING 상태의 ApprovalRequest 존재)
+        - APPLYING_APPROVED: 승인 반영 중 (ApprovedIntegration 존재, Black Box 진행 중)
+        - TARGET_CONFIRMED: 연동 확정 완료 (ConfirmedIntegration 존재, 활성 요청/반영 없음)
+      enum:
+        - REQUEST_REQUIRED
+        - WAITING_APPROVAL
+        - APPLYING_APPROVED
+        - TARGET_CONFIRMED
+
+    LastApprovalResult:
+      type: string
+      enum:
+        - NONE
+        - APPROVED
+        - REJECTED
+        - CANCELLED
+        - SYSTEM_ERROR
+        - COMPLETED
+
+    BlackboxProgress:
+      type: object
+      required: [input_reflected, service_tf_installed, bdc_tf_installed]
+      properties:
+        input_reflected:
+          type: boolean
+          nullable: true
+          description: "승인된 입력이 Infra Manager에 반영되었는지 여부"
+        service_tf_installed:
+          type: boolean
+          nullable: true
+          description: "서비스 측 Terraform 반영 완료 여부"
+        bdc_tf_installed:
+          type: boolean
+          nullable: true
+          description: "BDC 측 Terraform 반영 완료 여부"
+
     ErrorResponse:
       type: object
       required: [error]
@@ -434,3 +600,10 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
           example:
             error: { code: "VALIDATION_FAILED", message: "요청 파라미터가 올바르지 않습니다." }
+    StatusCalculationInProgress:
+      description: "동일 대상 소스의 processStatus 재계산이 이미 진행 중"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "PROCESS_STATUS_CALCULATION_IN_PROGRESS", message: "잠시 후 다시 시도해주세요." }

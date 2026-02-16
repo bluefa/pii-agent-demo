@@ -1,7 +1,10 @@
 # ADR-004: processStatus 저장 필드 리팩토링
 
 ## 상태
-제안됨
+폐기됨
+
+## 대체 ADR
+[ADR-009: processStatus 용어 체계 확정 및 BFF 계산 모델](./009-process-status-terminology.md)
 
 ## 날짜
 2026-02-04
