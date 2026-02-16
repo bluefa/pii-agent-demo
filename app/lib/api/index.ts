@@ -120,6 +120,7 @@ export interface VmConfigInput {
   config: VmDatabaseConfig;
 }
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const confirmTargets = async (
   projectId: string,
   resourceIds: string[],
@@ -138,6 +139,7 @@ export const confirmTargets = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const approveProject = async (
   projectId: string,
   comment?: string
@@ -155,6 +157,7 @@ export const approveProject = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const rejectProject = async (
   projectId: string,
   reason?: string
@@ -172,6 +175,7 @@ export const rejectProject = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const completeInstallation = async (
   projectId: string
 ): Promise<Project> => {
@@ -186,6 +190,7 @@ export const completeInstallation = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const confirmPiiAgent = async (
   projectId: string
 ): Promise<Project> => {
@@ -199,6 +204,146 @@ export const confirmPiiAgent = async (
   const data = await res.json();
   return data.project;
 };
+
+// ===== Confirm v1 API =====
+
+const CONFIRM_BASE = '/api/v1/target-sources';
+
+export interface ConfirmResourceItem {
+  id: string;
+  resourceId: string;
+  name: string;
+  resourceType: string;
+  integrationCategory: 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
+  selectedCredentialId: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ConfirmResourcesResponse {
+  resources: ConfirmResourceItem[];
+  totalCount: number;
+}
+
+export const getConfirmResources = async (
+  targetSourceId: number
+): Promise<ConfirmResourcesResponse> =>
+  fetchJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
+
+export interface ApprovalRequestInput {
+  target_resource_ids: string[];
+  excluded_resource_ids?: string[];
+  exclusion_reason?: string;
+  vm_configs?: Array<{
+    resource_id: string;
+    db_type: string;
+    port: number;
+    host: string;
+    oracleServiceId?: string;
+    selectedNicId?: string;
+  }>;
+}
+
+export interface ApprovalRequestResult {
+  success: boolean;
+  approval_request: {
+    id: string;
+    requested_at: string;
+    requested_by: string;
+    target_resource_ids: string[];
+    excluded_resource_ids: string[];
+    exclusion_reason?: string;
+  };
+}
+
+export const createApprovalRequest = async (
+  targetSourceId: number,
+  input: ApprovalRequestInput
+): Promise<ApprovalRequestResult> =>
+  fetchJson<ApprovalRequestResult>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
+    method: 'POST',
+    body: input,
+  });
+
+export interface ConfirmedIntegrationResponse {
+  confirmed_integration: {
+    id: string;
+    confirmed_at: string;
+    resource_infos: Array<{
+      resource_id: string;
+      resource_type: string;
+      vm_config: Record<string, unknown> | null;
+      selectedCredentialId: string | null;
+    }>;
+  } | null;
+}
+
+export const getConfirmedIntegration = async (
+  targetSourceId: number
+): Promise<ConfirmedIntegrationResponse> =>
+  fetchJson<ConfirmedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`);
+
+export interface ApprovedIntegrationResponse {
+  approved_integration: {
+    id: string;
+    request_id: string;
+    approved_at: string;
+    resource_infos: Array<{
+      resource_id: string;
+      resource_type: string;
+      vm_config: Record<string, unknown> | null;
+      selectedCredentialId: string | null;
+    }>;
+    excluded_resource_ids: string[];
+    exclusion_reason?: string;
+  } | null;
+}
+
+export const getApprovedIntegration = async (
+  targetSourceId: number
+): Promise<ApprovedIntegrationResponse> =>
+  fetchJson<ApprovedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`);
+
+export interface ApprovalHistoryResponse {
+  content: Array<{
+    request: {
+      id: string;
+      requested_at: string;
+      requested_by: string;
+      target_resource_ids: string[];
+      excluded_resource_ids: string[];
+      exclusion_reason?: string;
+    };
+    result?: {
+      id: string;
+      request_id: string;
+      result: string;
+      processed_at: string;
+      process_info: { user_id: string | null; reason: string | null };
+    };
+  }>;
+  page: { totalElements: number; totalPages: number; number: number; size: number };
+}
+
+export const getApprovalHistory = async (
+  targetSourceId: number,
+  page = 0,
+  size = 10
+): Promise<ApprovalHistoryResponse> =>
+  fetchJson<ApprovalHistoryResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`
+  );
+
+export interface ProcessStatusResponse {
+  process_status: string;
+  status_inputs: {
+    last_rejection_reason: string | null;
+  };
+}
+
+export const getProcessStatus = async (
+  targetSourceId: number
+): Promise<ProcessStatusResponse> =>
+  fetchJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
 // ===== Connection Test API =====
 
@@ -216,6 +361,7 @@ export interface ConnectionTestResponse {
   history: ConnectionTestHistory;
 }
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const runConnectionTest = async (
   projectId: string,
   resourceCredentials: ResourceCredentialInput[]

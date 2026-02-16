@@ -9,6 +9,7 @@ import { mockIdc } from '@/lib/api-client/mock/idc';
 import { mockServices } from '@/lib/api-client/mock/services';
 import { mockDev } from '@/lib/api-client/mock/dev';
 import { mockScan } from '@/lib/api-client/mock/scan';
+import { mockConfirm } from '@/lib/api-client/mock/confirm';
 
 export const mockClient: ApiClient = {
   projects: mockProjects,
@@ -21,4 +22,5 @@ export const mockClient: ApiClient = {
   services: mockServices,
   dev: mockDev,
   scan: mockScan,
+  confirm: mockConfirm,
 };

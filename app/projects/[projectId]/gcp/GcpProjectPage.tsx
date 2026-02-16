@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
 import {
-  confirmTargets,
+  createApprovalRequest,
   updateResourceCredential,
   runConnectionTest,
   getProject,
@@ -114,11 +114,23 @@ export const GcpProjectPage = ({
 
     try {
       setSubmitting(true);
-      const updatedProject = await confirmTargets(
-        project.id,
-        selectedIds,
-        vmConfigInputs.length > 0 ? vmConfigInputs : undefined
-      );
+      const vmConfigPayload = vmConfigInputs?.map(vc => ({
+        resource_id: vc.resourceId,
+        db_type: vc.config.databaseType,
+        port: vc.config.port,
+        host: vc.config.host ?? '',
+        ...(vc.config.oracleServiceId && { oracleServiceId: vc.config.oracleServiceId }),
+        ...(vc.config.selectedNicId && { selectedNicId: vc.config.selectedNicId }),
+      }));
+      const excludedIds = project.resources
+        .filter(r => !selectedIds.includes(r.id) && r.integrationCategory === 'TARGET' && r.lifecycleStatus !== 'ACTIVE')
+        .map(r => r.id);
+      await createApprovalRequest(project.targetSourceId, {
+        target_resource_ids: selectedIds,
+        excluded_resource_ids: excludedIds,
+        vm_configs: vmConfigPayload,
+      });
+      const updatedProject = await getProject(project.id);
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
       setExpandedVmId(null);
