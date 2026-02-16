@@ -136,7 +136,7 @@ Exception 처리 정책:
 
 - `confirm.yaml` 기준 endpoint를 실제 라우트로 이관
 - `approval-requests`, `confirmed-integration`, `approved-integration`, `approval-history` 순으로 전환
-- `process-status`, `check-process-status` API 구현
+- `process-status` API 구현 (승인 객체 기반, 설치 진행은 Provider별 installation-status 유지)
 - VM 설정에서 `db_type=ORACLE`인 경우 `oracleServiceId` 필수 규칙을 요청/확정 응답 모두에 적용
 - 완료/확정 관련 endpoint 용어를 `completion/installation` 기준으로 정리
 
@@ -150,7 +150,7 @@ Exception 처리 정책:
 |----------|------|-------------|
 | `REQUEST_REQUIRED` | 요청 필요 (확정 정보 없음, 최초 진입) | 4 (fallback) |
 | `WAITING_APPROVAL` | 승인 대기 | 1 (최우선) |
-| `APPLYING_APPROVED` | 승인 반영 중 (Black Box) | 2 |
+| `APPLYING_APPROVED` | 승인 반영 중 | 2 |
 | `TARGET_CONFIRMED` | 연동 확정 완료 | 3 |
 
 **ADR-006 상태 조합 ↔ BFF processStatus 매핑**:
@@ -159,10 +159,10 @@ Exception 처리 정책:
 |:---------:|:-------:|:--------:|-------------------|---------|-------------|
 | X | X | X | `REQUEST_REQUIRED` | INITIAL | 리소스 선택 화면 |
 | X | O | X | `WAITING_APPROVAL` | INITIAL | 승인 대기 배너 |
-| X | X | O | `APPLYING_APPROVED` | INITIAL | 반영 중 + Black Box |
+| X | X | O | `APPLYING_APPROVED` | INITIAL | 반영 중 + Provider별 installation-status |
 | O | X | X | `TARGET_CONFIRMED` | — | 확정 정보 표시 |
 | O | O | X | `WAITING_APPROVAL` | CHANGE | 승인 대기 + 이전 정보 |
-| O | X | O | `APPLYING_APPROVED` | CHANGE | 반영 중 + Black Box + 이전 정보 |
+| O | X | O | `APPLYING_APPROVED` | CHANGE | 반영 중 + Provider별 installation-status + 이전 정보 |
 
 **FE ProcessStatus(기존) ↔ BFF TargetSourceProcessStatus 대응**:
 
@@ -170,7 +170,7 @@ Exception 처리 정책:
 |------------------------|---|---------|------|
 | `WAITING_TARGET_CONFIRMATION` | 1 | `REQUEST_REQUIRED` | 의미 동일: 리소스 미선택 |
 | `WAITING_APPROVAL` | 2 | `WAITING_APPROVAL` | 동일 |
-| `INSTALLING` | 3 | `APPLYING_APPROVED` | BFF가 Black Box로 추상화 |
+| `INSTALLING` | 3 | `APPLYING_APPROVED` | 설치 진행은 Provider별 installation-status |
 | `WAITING_CONNECTION_TEST` | 4 | (Phase 4 이후 확장) | 현재 BFF 범위 밖 |
 | `CONNECTION_VERIFIED` | 5 | (Phase 4 이후 확장) | 현재 BFF 범위 밖 |
 | `INSTALLATION_COMPLETE` | 6 | `TARGET_CONFIRMED` | 설치 완료 → 확정 |
@@ -179,12 +179,16 @@ Exception 처리 정책:
 
 **폴링 규칙**:
 
-| BFF 상태 | 폴링 필요 | recommended_poll_interval | 감지 대상 |
-|----------|----------|--------------------------|----------|
-| `REQUEST_REQUIRED` | X | — | — |
-| `WAITING_APPROVAL` | O | 10s | 승인/반려 전이 |
-| `APPLYING_APPROVED` | O | 10s | Black Box 완료 |
-| `TARGET_CONFIRMED` | X | — | — |
+| BFF 상태 | process-status 폴링 | installation-status 폴링 | 감지 대상 |
+|----------|:-------------------:|:------------------------:|----------|
+| `REQUEST_REQUIRED` | X | X | — |
+| `WAITING_APPROVAL` | O (10s) | X | 승인/반려 전이 |
+| `APPLYING_APPROVED` | O (10s) | O (Provider별) | 승인 완료 전이 + 설치 진행 |
+| `TARGET_CONFIRMED` | X | X | — |
+
+> `APPLYING_APPROVED` 상태에서 FE는 2개 API를 병행 폴링한다:
+> - `process-status`: 승인 상태 변화 감지 (APPLYING_APPROVED → TARGET_CONFIRMED)
+> - Provider별 `installation-status`: 설치 진행 표시 (기존 UI 그대로 유지)
 
 **409 에러 정책 (approval-requests 차단)**:
 

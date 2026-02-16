@@ -22,7 +22,7 @@ tags:
   - name: Approval Process
     description: 연동 요청 생성, 승인 정보 조회 및 히스토리 관리
   - name: Process Status
-    description: 대상 소스의 프로세스 상태 조회/재계산
+    description: 승인 객체 기반 프로세스 상태 조회 (설치 진행은 Provider별 installation-status 참조)
 
 paths:
   /target-sources/{targetSourceId}/resources:
@@ -203,12 +203,11 @@ paths:
       - $ref: '#/components/parameters/TargetSourceId'
     get:
       tags: [Process Status]
-      summary: 대상 소스 processStatus 조회 (캐시 허용)
+      summary: 대상 소스 processStatus 조회
       operationId: getTargetSourceProcessStatus
-      x-expected-duration: "200ms ~ 2s"
       description: |
-        Target Source의 상태 스냅샷(confirmed/request/approved + 최근 승인 결과 + 설치 지표)만으로 계산된
-        processStatus를 반환합니다. 최신 재계산이 필요하면 `check-process-status`를 호출합니다.
+        승인 객체(Confirmed/Approved/Request) 존재 여부만으로 계산된 processStatus를 반환합니다.
+        설치 진행 상황은 Provider별 `installation-status` API에서 별도 조회합니다.
       responses:
         '200':
           description: 조회 성공
@@ -222,33 +221,6 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
-  /target-sources/{targetSourceId}/check-process-status:
-    parameters:
-      - $ref: '#/components/parameters/TargetSourceId'
-    post:
-      tags: [Process Status]
-      summary: 대상 소스 processStatus 강제 재계산
-      operationId: checkTargetSourceProcessStatus
-      x-expected-duration: "10s ~ 30s"
-      description: |
-        Infra Manager 상태와 승인 객체를 즉시 조회해 processStatus를 동기 재계산합니다.
-        `GET /process-status`와 동일한 응답 스키마를 반환합니다.
-      responses:
-        '200':
-          description: 재계산 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProcessStatusResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
-        '409':
-          $ref: '#/components/responses/StatusCalculationInProgress'
 
 components:
   parameters:
@@ -575,9 +547,7 @@ components:
         - process_status
         - context
         - status_inputs
-        - blackbox_progress
         - evaluated_at
-        - is_fresh
       properties:
         target_source_id:
           type: integer
@@ -605,27 +575,18 @@ components:
               type: string
               nullable: true
               description: "최근 REJECTED 또는 SYSTEM_ERROR 사유"
-        blackbox_progress:
-          $ref: '#/components/schemas/BlackboxProgress'
         evaluated_at:
           type: string
           format: date-time
-        is_fresh:
-          type: boolean
-          description: "true면 즉시 계산 결과, false면 캐시 값"
-        recommended_poll_interval_seconds:
-          type: integer
-          minimum: 3
-          maximum: 60
-          example: 10
 
     TargetSourceProcessStatus:
       type: string
       description: |
-        BFF가 계산하여 반환하는 프로세스 상태 (ADR-009).
+        BFF가 승인 객체 존재 여부만으로 계산하는 프로세스 상태 (ADR-009).
+        설치 진행 상황은 Provider별 installation-status API에서 별도 조회합니다.
         - REQUEST_REQUIRED: 요청 필요 (확정 정보 없음, 최초 진입 상태)
         - WAITING_APPROVAL: 승인 대기 (PENDING 상태의 ApprovalRequest 존재)
-        - APPLYING_APPROVED: 승인 반영 중 (ApprovedIntegration 존재, Black Box 진행 중)
+        - APPLYING_APPROVED: 승인 반영 중 (ApprovedIntegration 존재)
         - TARGET_CONFIRMED: 연동 확정 완료 (ConfirmedIntegration 존재, 활성 요청/반영 없음)
       enum:
         - REQUEST_REQUIRED
@@ -642,23 +603,6 @@ components:
         - CANCELLED
         - SYSTEM_ERROR
         - COMPLETED
-
-    BlackboxProgress:
-      type: object
-      required: [input_reflected, service_tf_installed, bdc_tf_installed]
-      properties:
-        input_reflected:
-          type: boolean
-          nullable: true
-          description: "승인된 입력이 Infra Manager에 반영되었는지 여부"
-        service_tf_installed:
-          type: boolean
-          nullable: true
-          description: "서비스 측 Terraform 반영 완료 여부"
-        bdc_tf_installed:
-          type: boolean
-          nullable: true
-          description: "BDC 측 Terraform 반영 완료 여부"
 
     ErrorResponse:
       type: object
@@ -700,10 +644,3 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
           example:
             error: { code: "VALIDATION_FAILED", message: "요청 파라미터가 올바르지 않습니다." }
-    StatusCalculationInProgress:
-      description: "동일 대상 소스의 processStatus 재계산이 이미 진행 중"
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
-          example:
-            error: { code: "PROCESS_STATUS_CALCULATION_IN_PROGRESS", message: "잠시 후 다시 시도해주세요." }

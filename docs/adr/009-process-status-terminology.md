@@ -64,12 +64,22 @@ BFF가 반환하는 `process_status` 필드의 값은 아래 4개로 고정한�
 
 ### D-005: API 계약
 
-신규 API 2개:
+신규 API 1개:
 
-- `GET /target-sources/{targetSourceId}/process-status` — 캐시 허용 조회 (200ms~2s)
-- `POST /target-sources/{targetSourceId}/check-process-status` — 강제 재계산 (10s~30s)
+- `GET /target-sources/{targetSourceId}/process-status` — 승인 객체 기반 상태 조회
 
-두 API는 동일한 응답 스키마(`ProcessStatusResponse`)를 사용한다.
+`ProcessStatusResponse`는 승인 객체(Confirmed/Approved/Request) 존재 여부만으로 계산한다. 설치 진행 상황은 Provider별 `installation-status` API가 담당한다.
+
+> **`check-process-status` (강제 재계산) 제거 근거**: 승인 객체 조회는 경량 연산이므로 별도 재계산 API가 불필요하다. 기존 설계에서 10~30s가 소요된 이유는 Infra Manager 조회(BlackBox 지표)였으나, 설치 진행은 Provider별 API로 분리되었으므로 이 API의 존재 이유가 소멸했다.
+
+> **`blackbox_progress` 제거 근거**: `input_reflected`/`service_tf_installed`/`bdc_tf_installed` 3개 지표는 AWS/GCP의 "Service TF → BDC TF" 파이프라인을 전제로 설계되었으나, Provider별 설치 모델이 상이하여 일관 적용이 불가능하다:
+> - AWS: Service Scripts(다수) + BDC TF — 맵핑 가능
+> - GCP: 리소스별 serviceTf/bdcTf — 맵핑 가능
+> - Azure: PE 승인 플로우 — TF 이분법 불일치
+> - IDC: Service TF 없음, BDC TF + 방화벽
+> - SDU: S3→Crawler→Athena 워크플로우 — TF 개념 자체 없음
+>
+> `input_reflected`는 어떤 Provider의 API에도 존재하지 않는 필드이다. 설치 진행 표시는 기존 Provider별 `installation-status` API가 이미 담당하고 있으므로, process-status에 중복 포함하지 않는다.
 
 승인 요청 입력 모델은 `input_data.resource_inputs[]`로 통합한다:
 
