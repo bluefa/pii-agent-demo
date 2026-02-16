@@ -2,6 +2,7 @@
 name: worktree
 description: Git worktree/브랜치 초기 세팅을 강제하는 워크플로우. 구현 시작 전 worktree 생성, 디렉터리 이동, 검증이 필요할 때 사용.
 user_invocable: true
+model: haiku
 ---
 
 # /worktree - Set Up Feature Worktree

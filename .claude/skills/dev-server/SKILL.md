@@ -2,6 +2,7 @@
 name: dev-server
 description: Worktree dev 서버 실행. lock 정리 + 빈 포트 자동 탐색.
 user_invocable: true
+model: haiku
 ---
 
 # Dev Server
