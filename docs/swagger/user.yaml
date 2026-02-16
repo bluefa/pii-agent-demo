@@ -464,10 +464,6 @@ components:
               type: string
               format: date-time
               example: "2026-02-16T10:10:00Z"
-            legacyProjectId:
-              type: string
-              description: 레거시 project 식별자 (마이그레이션 브리지)
-              example: "proj-abc123"
             metadata:
               type: object
               additionalProperties: true
