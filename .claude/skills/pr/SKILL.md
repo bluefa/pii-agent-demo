@@ -38,10 +38,16 @@ Task({
        - npx tsc --noEmit
        - npm run test:run
        - npm run build
-    4. Check for commits: git log origin/main..HEAD --oneline
+    4. If API/Swagger/Confirm files changed, run contract validation:
+       - Check request/response required fields and enum values against Swagger
+       - Confirm no legacy aliases are reintroduced
+       - For Confirm changes, verify:
+         - no lifecycleStatus/isNew branching in request/processing paths
+         - selection source is input_data.resource_inputs[].selected
+    5. Check for commits: git log origin/main..HEAD --oneline
        - If empty: report and stop
-    5. Push branch: git push origin HEAD --force-with-lease
-    6. Report: branch name, commit count, validation results
+    6. Push branch: git push origin HEAD --force-with-lease
+    7. Report: branch name, commit count, validation results
 
     CRITICAL: Stop immediately on any failure
   `
@@ -81,6 +87,13 @@ gh pr create --base main --head <branch> --title "<title>" --body "<description>
 ## Validation
 - 실행한 검증 명령과 결과
 
+## Contract Validation (API 변경 시 필수)
+- 기준 Swagger 파일
+- request/response required 필드 대조 결과
+- enum 대조 결과
+- legacy alias 사용 여부
+- Confirm 변경 시 lifecycleStatus/isNew 제거 확인, selected 단일화 확인
+
 ## Risks
 - 잠재 영향 범위
 - 롤백 방법
@@ -94,4 +107,5 @@ gh pr create --base main --head <branch> --title "<title>" --body "<description>
 - NEVER push to `main` directly
 - NEVER skip rebase before PR
 - NEVER create PR with validation failures
+- NEVER create PR when contract validation fails
 - NEVER submit PR with empty or single-line description

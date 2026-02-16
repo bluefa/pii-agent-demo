@@ -46,7 +46,14 @@ Task({
     3. Run type-check: npx tsc --noEmit
     4. Run tests: npm run test:run
     5. Run build: npm run build
-    6. Report results:
+    6. If staged files touch API/Swagger/Confirm paths, run contract checks:
+       - Compare changed request/response types with Swagger required fields and enum values
+       - Verify no legacy field aliases are reintroduced
+       - For Confirm-related files, run:
+         rg -n "lifecycleStatus|isNew|target_resource_ids|excluded_resource_ids|vm_configs" app/projects/[projectId] app/lib/api/index.ts lib/api-client/mock/confirm.ts
+       - If matches are used in Confirm request/processing logic, mark as failure
+       - If matches remain only as TODO comments, mark as warning and include removal plan summary
+    7. Report results:
        - All passed: "✅ Ready to commit"
        - Any failed: "❌ Fix issues before commit" + error summary
 
@@ -55,6 +62,7 @@ Task({
     ✓ Type-check: passed
     ✓ Tests: passed (X passed)
     ✓ Build: passed
+    ✓ Contract-check: passed (when applicable)
 
     IMPORTANT: Run all checks even if one fails (don't stop early)
   `
@@ -71,6 +79,7 @@ Task({
 ✓ Type-check: no errors
 ✓ Tests: 42 passed
 ✓ Build: completed in 8.2s
+✓ Contract-check: passed
 
 Ready to commit!
 ```
@@ -85,6 +94,7 @@ Ready to commit!
   - src/lib/bar.ts:45 - Property 'baz' missing
 ✓ Tests: 42 passed
 ✓ Build: completed (with warnings)
+✗ Contract-check: confirm.yaml enum mismatch (PROCESS_STATUS)
 
 Fix type errors before commit.
 ```
@@ -94,6 +104,7 @@ Fix type errors before commit.
 - Run all checks regardless of individual failures (for complete report)
 - Report concise error summary (not full output)
 - If no staged changes, notify user
+- API 계약 불일치는 lint/test/build가 통과해도 실패로 처리
 - DO NOT auto-commit on success (user decides when to commit)
 
 ## Benefits vs. Git Hook

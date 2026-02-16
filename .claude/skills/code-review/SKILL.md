@@ -52,6 +52,18 @@ import { Button } from '@/app/components/ui/Button';
 - [ ] 반응형 스타일
 - [ ] mock 변수명 (lib/mock-*.ts 제외)
 
+### 1.5 계약 불일치 (P1 우선)
+- [ ] Swagger required 필드와 실제 request/response 타입이 일치하는가?
+- [ ] Swagger enum과 코드 enum/상수 값이 정확히 일치하는가?
+- [ ] 구형 필드명(alias)이 재도입되지 않았는가?
+- [ ] "빌드 통과"만 근거로 계약 준수로 결론내리지 않았는가?
+
+#### Confirm 흐름 추가 점검
+- [ ] Confirm request/processing에서 `lifecycleStatus`로 분기하지 않는가?
+- [ ] Confirm request/processing에서 `isNew`로 분기하지 않는가?
+- [ ] 선택/제외 단일 소스가 `input_data.resource_inputs[].selected`인가?
+- [ ] `target_resource_ids` / `excluded_resource_ids` / `vm_configs` 같은 구형 구조를 사용하지 않는가?
+
 ---
 
 ## 2. Major: 패턴 일관성
@@ -132,6 +144,7 @@ API Routes 코드의 경우 추가 확인:
 - [ ] 응답 형식이 명세와 동일한가?
 - [ ] `docs/api/*.md` 명세를 업데이트했는가?
 - [ ] 테스트 작성했는가?
+- [ ] 계약 불일치 항목은 severity를 P1으로 명시했는가?
 
 ### API Client 패턴 (ADR-007)
 - [ ] `app/api/route.ts`가 `client.method()` 디스패치만 수행하는가?

@@ -37,9 +37,14 @@ Task({
     1. Verify worktree: bash scripts/guard-worktree.sh
     2. Rebase: git fetch origin main && git rebase origin/main
     3. Re-run tests: npm run test:run
-    4. Execute flow: bash scripts/pr-flow.sh --strategy {strategy} {merge_flag}
+    4. If API/Swagger/Confirm files changed, run contract validation:
+       - request/response required fields vs Swagger
+       - enum values vs Swagger
+       - legacy alias reintroduction check
+       - Confirm changes: no lifecycleStatus/isNew branching, selected source unified to input_data.resource_inputs[].selected
+    5. Execute flow: bash scripts/pr-flow.sh --strategy {strategy} {merge_flag}
        - merge_flag: --merge-approved (only if user explicitly requested merge)
-    5. Report: PR URL and status
+    6. Report: PR URL and status
 
     The script handles:
     - PR description generation (scripts/build-pr-body.sh)
@@ -48,7 +53,7 @@ Task({
 
     CRITICAL:
     - NEVER use --merge-approved without explicit user request
-    - Stop on dirty working tree or test failures
+    - Stop on dirty working tree, test failures, or contract validation failures
   `
 })
 ```
@@ -61,11 +66,13 @@ If script unavailable, follow `/pr` skill workflow with Haiku delegation for bas
 
 - Auto-generated via `scripts/build-pr-body.sh`
 - Includes: Summary / What Changed / Validation / Risks / Notes For Reviewer
+- API 변경 PR은 Contract Validation 섹션을 추가한다.
 
 ## Rules
 
 - NEVER skip rebase before PR creation
 - NEVER use `--merge-approved` without explicit user request
+- NEVER proceed when contract validation fails
 - Default behavior: PR creation only (NO merge)
 - Merge only if: user requested AND mergeable state
 - After merge: use `/worktree-cleanup` to clean up
