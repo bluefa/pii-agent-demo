@@ -105,3 +105,48 @@ export interface AzureSubnetGuide {
   description: string;
   documentUrl?: string;
 }
+
+// ===== Azure v1 API 응답 타입 =====
+
+export interface AzureV1LastCheck {
+  status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
+  checkedAt?: string;
+  failReason?: string;
+}
+
+export interface AzureV1PrivateEndpoint {
+  id: string;
+  name: string;
+  status: PrivateEndpointStatus;
+}
+
+export interface AzureV1VmInstallation {
+  subnetExists?: boolean;
+  loadBalancer?: {
+    installed: boolean;
+    name?: string;
+  };
+}
+
+export interface AzureV1Resource {
+  resourceId: string;
+  resourceName: string;
+  resourceType: string;
+  isVm: boolean;
+  privateEndpoint?: AzureV1PrivateEndpoint;
+  vmInstallation?: AzureV1VmInstallation;
+}
+
+export interface AzureV1InstallationStatus {
+  hasVm: boolean;
+  lastCheck: AzureV1LastCheck;
+  resources?: AzureV1Resource[];
+}
+
+export interface AzureV1Settings {
+  scanApp: {
+    appId: string;
+    status: 'VALID' | 'INVALID' | 'UNVERIFIED';
+    lastVerifiedAt?: string;
+  };
+}

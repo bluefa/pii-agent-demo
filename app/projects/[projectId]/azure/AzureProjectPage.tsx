@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
-import type { AzureServiceSettings } from '@/lib/types/azure';
+import type { AzureV1Settings } from '@/lib/types/azure';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -11,7 +11,7 @@ import {
   ResourceCredentialInput,
   VmConfigInput,
 } from '@/app/lib/api';
-import { getAzureServiceSettings } from '@/app/lib/api/azure';
+import { getAzureSettings } from '@/app/lib/api/azure';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
@@ -43,11 +43,11 @@ export const AzureProjectPage = ({
   const [testLoading, setTestLoading] = useState(false);
 
   // Prerequisite data
-  const [serviceSettings, setServiceSettings] = useState<AzureServiceSettings | null>(null);
+  const [serviceSettings, setServiceSettings] = useState<AzureV1Settings | null>(null);
 
   useEffect(() => {
-    getAzureServiceSettings(project.serviceCode).then(setServiceSettings).catch(() => {});
-  }, [project.serviceCode]);
+    getAzureSettings(project.targetSourceId).then(setServiceSettings).catch(() => {});
+  }, [project.targetSourceId]);
 
   const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
