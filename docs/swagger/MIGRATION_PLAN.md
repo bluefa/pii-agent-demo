@@ -196,8 +196,8 @@ Exception 처리 정책:
 **approval-requests 입력 모델 통합**:
 
 - 요청 본문은 `input_data.resource_inputs[]`를 사용한다.
-- `vm_configs` top-level 필드는 제거한다.
-- VM 입력: `resource_input.vm_config`
+- top-level 분리 설정 필드는 제거하고 리소스별 입력으로 통합한다.
+- Endpoint 입력: `resource_input.endpoint_config`
 - Credential 입력: `resource_input.credential_id`
 - 제외 리소스: `selected=false` + `exclusion_reason`
 
@@ -227,12 +227,12 @@ Exception 처리 정책:
 - 용어를 `completion/installation`으로 통합할지, 상태 전이별 endpoint를 유지할지 결정 필요.
 - 본 영역은 Confirm API migration과 결합되어 있으므로 `Phase 4`에서 최종 반영.
 
-### Confirm / Oracle VM 입력 규칙
+### Confirm / Oracle Endpoint 입력 규칙
 
 - Oracle 입력 필수 규칙은 IDC 전용이 아니라 AWS EC2 / Azure VM / IDC 공통입니다.
 - `db_type=ORACLE`일 때 `oracleServiceId` 필수 규칙을 아래 두 영역에 동일 적용해야 합니다.
-  - 승인 요청 생성(`approval-requests`)의 `input_data.resource_inputs[].resource_input.vm_config`
-  - 확정/승인 조회(`confirmed-integration`, `approved-integration`)의 `resource_infos.vm_config`
+  - 승인 요청 생성(`approval-requests`)의 `input_data.resource_inputs[].resource_input.endpoint_config`
+  - 확정/승인 조회(`confirmed-integration`, `approved-integration`)의 `resource_infos.endpoint_config`
 - Credential 선택이 필요한 리소스는 `input_data.resource_inputs[].resource_input.credential_id`를 사용합니다.
 - Confirm API가 최종 단계로 밀린 만큼, 해당 규칙은 `Phase 0`에서 Swagger 계약 먼저 고정하고 `Phase 4`에서 구현 반영합니다.
 

@@ -60,11 +60,11 @@ paths:
       summary: 연동 대상 요청 생성
       operationId: createApprovalRequest
       description: |
-        사용자가 선택한 리소스와 설정(VM 등)을 바탕으로 승인을 요청합니다.
+        사용자가 선택한 리소스와 엔드포인트 설정(DB 등)을 바탕으로 승인을 요청합니다.
         이 요청이 승인되면 `ApprovedIntegration`이 생성되고, 인프라 반영이 성공하면 `ConfirmedIntegration`으로 전환됩니다.
 
         요청 입력은 `input_data.resource_inputs[]`로 통합됩니다.
-        - VM 설정은 `resource_input.vm_config`로 전달
+        - 엔드포인트 설정은 `resource_input.endpoint_config`로 전달
         - RDS credential 선택은 `resource_input.credential_id`로 전달
 
         **차단 정책 (ADR-006 D-002, D-008 / ADR-009 D-006):**
@@ -368,7 +368,7 @@ components:
         resource_inputs:
           type: array
           minItems: 1
-          description: "리소스별 선택 여부와 입력값(credential/vm_config) 통합 모델"
+          description: "리소스별 선택 여부와 입력값(credential/endpoint_config) 통합 모델"
           items:
             $ref: '#/components/schemas/ApprovalRequestResourceInput'
         exclusion_reason_default:
@@ -416,7 +416,7 @@ components:
     ResourceInputData:
       oneOf:
         - $ref: '#/components/schemas/CredentialResourceInput'
-        - $ref: '#/components/schemas/VmResourceInput'
+        - $ref: '#/components/schemas/EndpointConfigResourceInput'
 
     CredentialResourceInput:
       type: object
@@ -426,21 +426,21 @@ components:
           type: string
           description: "RDS 등 credential 기반 리소스에 사용할 credential ID"
 
-    VmResourceInput:
+    EndpointConfigResourceInput:
       type: object
-      required: [vm_config]
+      required: [endpoint_config]
       additionalProperties: false
       properties:
-        vm_config:
-          $ref: '#/components/schemas/VmConfigInput'
+        endpoint_config:
+          $ref: '#/components/schemas/EndpointConfigInput'
 
-    VmConfigInput:
-      description: "승인 요청 입력용 VM 설정. resource_id는 상위 resource_inputs[].resource_id를 사용합니다."
+    EndpointConfigInput:
+      description: "승인 요청 입력용 엔드포인트 설정. resource_id는 상위 resource_inputs[].resource_id를 사용합니다."
       oneOf:
-        - $ref: '#/components/schemas/OracleVmConfigInput'
-        - $ref: '#/components/schemas/NonOracleVmConfigInput'
+        - $ref: '#/components/schemas/OracleEndpointConfigInput'
+        - $ref: '#/components/schemas/NonOracleEndpointConfigInput'
 
-    OracleVmConfigInput:
+    OracleEndpointConfigInput:
       type: object
       required: [db_type, port, host, oracleServiceId]
       additionalProperties: false
@@ -455,7 +455,7 @@ components:
           description: "Oracle DB 연결에 필요한 Service ID"
         selectedNicId: { type: string }
 
-    NonOracleVmConfigInput:
+    NonOracleEndpointConfigInput:
       type: object
       required: [db_type, port, host]
       additionalProperties: false
@@ -518,20 +518,20 @@ components:
       properties:
         resource_id: { type: string }
         resource_type: { type: string }
-        vm_config:
+        endpoint_config:
           nullable: true
-          description: "VM 리소스인 경우 제공되는 설정 스냅샷입니다. Oracle DB 선택 시 oracleServiceId를 포함해야 합니다."
+          description: "엔드포인트 설정 스냅샷입니다. Oracle DB 선택 시 oracleServiceId를 포함해야 합니다."
           allOf:
-            - $ref: '#/components/schemas/VmConfig'
+            - $ref: '#/components/schemas/EndpointConfig'
         credential_id: { type: string, nullable: true }
 
-    VmConfig:
-      description: "VM 리소스 연결 설정. AWS EC2/Azure VM/IDC 모두 Oracle 선택 시 oracleServiceId가 필수입니다."
+    EndpointConfig:
+      description: "엔드포인트 연결 설정. AWS EC2/Azure VM/IDC 모두 Oracle 선택 시 oracleServiceId가 필수입니다."
       oneOf:
-        - $ref: '#/components/schemas/OracleVmConfig'
-        - $ref: '#/components/schemas/NonOracleVmConfig'
+        - $ref: '#/components/schemas/OracleEndpointConfig'
+        - $ref: '#/components/schemas/NonOracleEndpointConfig'
 
-    OracleVmConfig:
+    OracleEndpointConfig:
       type: object
       required: [resource_id, db_type, port, host, oracleServiceId]
       properties:
@@ -546,7 +546,7 @@ components:
           description: "Oracle DB 연결에 필요한 Service ID"
         selectedNicId: { type: string }
 
-    NonOracleVmConfig:
+    NonOracleEndpointConfig:
       type: object
       required: [resource_id, db_type, port, host]
       properties:

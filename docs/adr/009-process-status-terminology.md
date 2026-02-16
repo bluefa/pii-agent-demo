@@ -73,8 +73,8 @@ BFF가 반환하는 `process_status` 필드의 값은 아래 4개로 고정한�
 
 승인 요청 입력 모델은 `input_data.resource_inputs[]`로 통합한다:
 
-- `vm_configs`는 top-level에서 제거한다.
-- VM 입력은 `resource_input.vm_config`로 전달한다.
+- top-level 분리 설정 필드는 제거한다.
+- Endpoint 입력은 `resource_input.endpoint_config`로 전달한다.
 - RDS credential 선택은 `resource_input.credential_id`로 전달한다.
 - 리소스별 선택/제외는 `selected` + `exclusion_reason`으로 관리한다.
 
