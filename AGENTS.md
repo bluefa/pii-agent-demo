@@ -84,6 +84,7 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - `.claude/skills/coding-standards/SKILL.md`
 - Code review tasks:
   - `.codex/skills/code-review/SKILL.md` (mirror)
+  - `.codex/skills/pr-context-review/SKILL.md` (Codex-only, PR 링크 심층 리뷰)
   - `.claude/skills/code-review/SKILL.md`
 - UI/UX tasks:
   - `.codex/skills/frontend-design/SKILL.md` (mirror)
@@ -107,6 +108,8 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - `.codex/skills/coding-standards/SKILL.md`
 - 코드 리뷰 요청:
   - `.codex/skills/code-review/SKILL.md`
+- PR 링크 기반 심층 리뷰 요청:
+  - `.codex/skills/pr-context-review/SKILL.md`
 
 ## 10) Precedence
 
