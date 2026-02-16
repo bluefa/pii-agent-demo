@@ -18,14 +18,12 @@ import { IdcProcessStatusCard } from './IdcProcessStatusCard';
 
 interface IdcProjectPageProps {
   project: Project;
-  isAdmin: boolean;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
 export const IdcProjectPage = ({
   project,
-  isAdmin,
   credentials,
   onProjectUpdate,
 }: IdcProjectPageProps) => {

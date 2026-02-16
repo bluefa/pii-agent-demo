@@ -58,7 +58,6 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
 
   const pageProps = {
     project,
-    isAdmin,
     credentials,
     onProjectUpdate: setProject,
   };
@@ -74,7 +73,7 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     case 'IDC':
       return <IdcProjectPage {...pageProps} />;
     case 'SDU':
-      return <SduProjectPage {...pageProps} />;
+      return <SduProjectPage {...pageProps} isAdmin={isAdmin} />;
     default:
       return <ErrorState error={`지원하지 않는 클라우드 프로바이더입니다: ${project.cloudProvider}`} />;
   }

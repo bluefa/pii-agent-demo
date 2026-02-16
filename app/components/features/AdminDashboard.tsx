@@ -14,12 +14,15 @@ import {
   UserSearchResult,
 } from '@/app/lib/api';
 import { ServiceCode, ProjectSummary, User } from '@/lib/types';
+import type { Resource } from '@/lib/types';
 import {
   AdminHeader,
   ServiceSidebar,
   PermissionsPanel,
   ProjectsTable,
+  ApprovalDetailModal,
 } from './admin';
+import { getProject, approveProject, rejectProject } from '@/app/lib/api';
 
 export const AdminDashboard = () => {
   const [services, setServices] = useState<ServiceCode[]>([]);
@@ -29,6 +32,11 @@ export const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [approvalDetail, setApprovalDetail] = useState<{
+    project: ProjectSummary;
+    resources: Resource[];
+  } | null>(null);
+  const [approvalLoading, setApprovalLoading] = useState(false);
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -99,6 +107,44 @@ export const AdminDashboard = () => {
       alert(err instanceof Error ? err.message : '설치 완료 처리 실패');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const projectDetail = await getProject(project.id);
+      setApprovalDetail({ project, resources: projectDetail.resources });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '과제 상세 조회 실패');
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!approvalDetail) return;
+    try {
+      setApprovalLoading(true);
+      await approveProject(approvalDetail.project.id);
+      setApprovalDetail(null);
+      await refreshProjects();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '승인 처리 실패');
+    } finally {
+      setApprovalLoading(false);
+    }
+  };
+
+  const handleReject = async (reason: string) => {
+    if (!approvalDetail) return;
+    try {
+      setApprovalLoading(true);
+      await rejectProject(approvalDetail.project.id, reason);
+      setApprovalDetail(null);
+      await refreshProjects();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '반려 처리 실패');
+    } finally {
+      setApprovalLoading(false);
     }
   };
 
@@ -176,6 +222,7 @@ export const AdminDashboard = () => {
                     actionLoading={actionLoading}
                     onCompleteInstallation={handleCompleteInstallation}
                     onConfirmCompletion={handleConfirmCompletion}
+                    onViewApproval={handleViewApproval}
                   />
                 </div>
               </div>
@@ -183,6 +230,18 @@ export const AdminDashboard = () => {
           )}
         </main>
       </div>
+
+      {approvalDetail && (
+        <ApprovalDetailModal
+          isOpen={!!approvalDetail}
+          onClose={() => setApprovalDetail(null)}
+          project={approvalDetail.project}
+          resources={approvalDetail.resources}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          loading={approvalLoading}
+        />
+      )}
 
       {showCreateModal && selectedService && (
         <ProjectCreateModal
