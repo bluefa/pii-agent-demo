@@ -234,7 +234,7 @@ export const AwsInfoCard = ({
             <RoleStatusRow
               label="TF Execution Role"
               completed={isExecutionRoleComplete}
-              arn={awsSettings?.executionRole?.roleArn || null}
+              arn={awsStatus?.executionRoleArn}
               onGuide={onOpenGuide}
             />
           )}

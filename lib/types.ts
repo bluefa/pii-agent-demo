@@ -480,6 +480,7 @@ export interface V1ServiceScript {
 
 export interface AwsInstallationStatus {
   hasExecutionPermission: boolean;
+  executionRoleArn?: string;
   serviceScripts: V1ServiceScript[];
   bdcStatus: { status: 'PENDING' | 'COMPLETED' | 'FAILED' };
   lastCheck: V1LastCheck;

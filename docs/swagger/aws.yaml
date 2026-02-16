@@ -299,6 +299,9 @@ components:
         hasExecutionPermission:
           type: boolean
           description: "실행 권한 보유 여부"
+        executionRoleArn:
+          type: string
+          description: "TF Execution Role ARN (자동 설치 모드에서만 존재)"
         serviceScripts:
           type: array
           description: "Terraform 스크립트 단위 설치 상태 목록"

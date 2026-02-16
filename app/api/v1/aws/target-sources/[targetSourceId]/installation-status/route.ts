@@ -20,6 +20,7 @@ interface V1LastCheck {
 
 interface V1AwsInstallationStatus {
   hasExecutionPermission: boolean;
+  executionRoleArn?: string;
   serviceScripts: V1ServiceScript[];
   bdcStatus: { status: 'PENDING' | 'COMPLETED' | 'FAILED' };
   lastCheck: V1LastCheck;
@@ -37,6 +38,7 @@ const transformServiceScript = (script: ServiceTfScript): V1ServiceScript => ({
 
 const transformInstallationStatus = (legacy: LegacyAwsInstallationStatus): V1AwsInstallationStatus => ({
   hasExecutionPermission: legacy.hasTfPermission,
+  ...(legacy.tfExecutionRoleArn && { executionRoleArn: legacy.tfExecutionRoleArn }),
   serviceScripts: legacy.serviceTfScripts.map(transformServiceScript),
   bdcStatus: { status: toScriptStatus(legacy.bdcTf.status) },
   lastCheck: legacy.lastCheckedAt
