@@ -4,19 +4,13 @@ import { useState, useMemo } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { cn, statusColors, tableStyles, textColors } from '@/lib/theme';
+import { cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
 import type { Resource, IntegrationCategory } from '@/lib/types';
 
 // ===== Types =====
 
 export interface ApprovalRequestFormData {
-  resource_inputs: ResourceInput[];
   exclusion_reason_default?: string;
-}
-
-interface ResourceInput {
-  resource_id: string;
-  selected: boolean;
 }
 
 interface ApprovalRequestModalProps {
@@ -94,13 +88,7 @@ export const ApprovalRequestModal = ({
   }, [includedResources, excludedResources, defaultReason, loading]);
 
   const handleSubmit = () => {
-    const resourceInputs: ResourceInput[] = resources.map((r) => ({
-      resource_id: r.id,
-      selected: r.isSelected,
-    }));
-
     onSubmit({
-      resource_inputs: resourceInputs,
       exclusion_reason_default: defaultReason.trim() || undefined,
     });
   };
@@ -223,11 +211,7 @@ export const ApprovalRequestModal = ({
                 onChange={(e) => setDefaultReason(e.target.value)}
                 placeholder="제외 사유를 입력하세요"
                 rows={2}
-                className={cn(
-                  'w-full px-3 py-2 text-sm border rounded-lg resize-none',
-                  'border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                  textColors.primary,
-                )}
+                className={cn(getInputClass(), 'resize-none')}
               />
             </div>
           </div>

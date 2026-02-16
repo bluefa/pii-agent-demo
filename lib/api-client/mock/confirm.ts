@@ -371,12 +371,55 @@ export const mockConfirm = {
       offset: page * size,
     });
 
+    // Build resource_inputs snapshot from project's current resources
+    const resourceInputs = project.resources.map((r) => {
+      if (r.isSelected) {
+        const input: Record<string, unknown> = {};
+        if (r.vmDatabaseConfig) {
+          input.endpoint_config = {
+            db_type: r.vmDatabaseConfig.databaseType,
+            port: r.vmDatabaseConfig.port,
+            host: r.vmDatabaseConfig.host ?? '',
+            ...(r.vmDatabaseConfig.oracleServiceId && { oracleServiceId: r.vmDatabaseConfig.oracleServiceId }),
+            ...(r.vmDatabaseConfig.selectedNicId && { selectedNicId: r.vmDatabaseConfig.selectedNicId }),
+          };
+        }
+        if (r.selectedCredentialId) {
+          input.credential_id = r.selectedCredentialId;
+        }
+        return {
+          resource_id: r.id,
+          selected: true as const,
+          ...(Object.keys(input).length > 0 && { resource_input: input }),
+        };
+      }
+      return {
+        resource_id: r.id,
+        selected: false as const,
+        ...(r.exclusion?.reason && { exclusion_reason: r.exclusion.reason }),
+      };
+    });
+
+    // If WAITING_APPROVAL but no approval history yet, synthesize a PENDING request entry
+    if (history.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
+      const pendingRequest = {
+        id: `req-pending-${project.id}`,
+        requested_at: project.updatedAt,
+        requested_by: user.name,
+        input_data: { resource_inputs: resourceInputs },
+      };
+      return NextResponse.json({
+        content: [{ request: pendingRequest }],
+        page: { totalElements: 1, totalPages: 1, number: page, size },
+      });
+    }
+
     const content = history.map((h) => {
       const request = {
         id: h.id,
         requested_at: h.timestamp,
         requested_by: h.actor.name,
-        input_data: { resource_inputs: [] as Array<{ resource_id: string; selected: boolean }> },
+        input_data: { resource_inputs: resourceInputs },
       };
 
       let result;
@@ -450,6 +493,135 @@ export const mockConfirm = {
         last_rejection_reason: project.status.approval.rejectionReason ?? null,
       },
       evaluated_at: new Date().toISOString(),
+    });
+  },
+
+  approveApprovalRequest: async (projectId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '관리자만 승인할 수 있습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+      return NextResponse.json(
+        { error: 'INVALID_STATE', message: '승인 대기 상태가 아닙니다.' },
+        { status: 400 },
+      );
+    }
+
+    const { comment } = (body ?? {}) as { comment?: string };
+    const now = new Date().toISOString();
+
+    const updatedResources = project.resources.map((r) => {
+      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
+      return { ...r };
+    });
+
+    const terraformState = project.cloudProvider === 'AWS'
+      ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
+      : { bdcTf: 'PENDING' as const };
+
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      approval: { status: 'APPROVED', approvedAt: now },
+      installation: { status: 'IN_PROGRESS' },
+    };
+
+    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
+    mockData.updateProject(projectId, {
+      processStatus: calculatedProcessStatus,
+      status: updatedStatus,
+      resources: updatedResources,
+      terraformState,
+      isRejected: false,
+      rejectionReason: undefined,
+      rejectedAt: undefined,
+      approvalComment: comment,
+      approvedAt: now,
+    });
+
+    mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
+
+    return NextResponse.json({
+      success: true,
+      result: 'APPROVED',
+      processed_at: now,
+    });
+  },
+
+  rejectApprovalRequest: async (projectId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '관리자만 반려할 수 있습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+      return NextResponse.json(
+        { error: 'INVALID_STATE', message: '승인 대기 상태가 아닙니다.' },
+        { status: 400 },
+      );
+    }
+
+    const { reason } = (body ?? {}) as { reason?: string };
+    const now = new Date().toISOString();
+
+    const updatedResources = project.resources.map((r) => {
+      if (!r.isSelected) return r;
+      return {
+        ...r,
+        isSelected: false,
+        exclusion: undefined,
+        note: reason ? `반려: ${reason}` : r.note,
+      };
+    });
+
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+      approval: { status: 'REJECTED', rejectedAt: now, rejectionReason: reason },
+    };
+
+    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
+    mockData.updateProject(projectId, {
+      processStatus: calculatedProcessStatus,
+      status: updatedStatus,
+      resources: updatedResources,
+      isRejected: true,
+      rejectionReason: reason,
+      rejectedAt: now,
+    });
+
+    mockHistory.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+
+    return NextResponse.json({
+      success: true,
+      result: 'REJECTED',
+      processed_at: now,
+      reason,
     });
   },
 };

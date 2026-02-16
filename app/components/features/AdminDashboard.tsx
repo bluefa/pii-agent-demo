@@ -11,10 +11,13 @@ import {
   deletePermission,
   completeInstallation,
   confirmCompletion,
+  getApprovalHistory,
+  approveApprovalRequestV1,
+  rejectApprovalRequestV1,
   UserSearchResult,
 } from '@/app/lib/api';
+import type { ApprovalResourceInput } from '@/app/lib/api';
 import { ServiceCode, ProjectSummary, User } from '@/lib/types';
-import type { Resource } from '@/lib/types';
 import {
   AdminHeader,
   ServiceSidebar,
@@ -22,7 +25,6 @@ import {
   ProjectsTable,
   ApprovalDetailModal,
 } from './admin';
-import { getProject, approveProject, rejectProject } from '@/app/lib/api';
 
 export const AdminDashboard = () => {
   const [services, setServices] = useState<ServiceCode[]>([]);
@@ -34,7 +36,15 @@ export const AdminDashboard = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [approvalDetail, setApprovalDetail] = useState<{
     project: ProjectSummary;
-    resources: Resource[];
+    approvalRequest: {
+      id: string;
+      requested_at: string;
+      requested_by: string;
+      input_data: {
+        resource_inputs: ApprovalResourceInput[];
+        exclusion_reason_default?: string;
+      };
+    };
   } | null>(null);
   const [approvalLoading, setApprovalLoading] = useState(false);
 
@@ -113,10 +123,15 @@ export const AdminDashboard = () => {
   const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const projectDetail = await getProject(project.id);
-      setApprovalDetail({ project, resources: projectDetail.resources });
+      const historyResponse = await getApprovalHistory(project.targetSourceId, 0, 1);
+      const latest = historyResponse.content[0];
+      if (!latest) {
+        alert('승인 요청 이력이 없습니다.');
+        return;
+      }
+      setApprovalDetail({ project, approvalRequest: latest.request });
     } catch (err) {
-      alert(err instanceof Error ? err.message : '과제 상세 조회 실패');
+      alert(err instanceof Error ? err.message : '승인 요청 조회 실패');
     }
   };
 
@@ -124,7 +139,7 @@ export const AdminDashboard = () => {
     if (!approvalDetail) return;
     try {
       setApprovalLoading(true);
-      await approveProject(approvalDetail.project.id);
+      await approveApprovalRequestV1(approvalDetail.project.targetSourceId);
       setApprovalDetail(null);
       await refreshProjects();
     } catch (err) {
@@ -138,7 +153,7 @@ export const AdminDashboard = () => {
     if (!approvalDetail) return;
     try {
       setApprovalLoading(true);
-      await rejectProject(approvalDetail.project.id, reason);
+      await rejectApprovalRequestV1(approvalDetail.project.targetSourceId, reason);
       setApprovalDetail(null);
       await refreshProjects();
     } catch (err) {
@@ -236,7 +251,7 @@ export const AdminDashboard = () => {
           isOpen={!!approvalDetail}
           onClose={() => setApprovalDetail(null)}
           project={approvalDetail.project}
-          resources={approvalDetail.resources}
+          approvalRequest={approvalDetail.approvalRequest}
           onApprove={handleApprove}
           onReject={handleReject}
           loading={approvalLoading}
