@@ -144,10 +144,14 @@ export const mockConfirm = {
       );
     }
 
-    // 409 conflict checks
-    if (project.processStatus === ProcessStatus.INSTALLING) {
+    // 409 conflict checks — APPLYING_APPROVED covers INSTALLING, WAITING_CONNECTION_TEST, CONNECTION_VERIFIED
+    if (
+      project.processStatus === ProcessStatus.INSTALLING ||
+      project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+      project.processStatus === ProcessStatus.CONNECTION_VERIFIED
+    ) {
       return NextResponse.json(
-        { error: 'CONFLICT_APPLYING_IN_PROGRESS', message: '인프라 반영이 진행 중입니다.' },
+        { error: 'CONFLICT_APPLYING_IN_PROGRESS', message: '승인된 내용이 반영 중입니다. 완료 후 다시 요청해주세요.' },
         { status: 409 },
       );
     }

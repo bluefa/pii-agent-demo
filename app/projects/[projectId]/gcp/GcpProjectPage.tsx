@@ -109,38 +109,35 @@ export const GcpProjectPage = ({
 
     try {
       setSubmitting(true);
-      // Build resource_inputs from selectedIds + vmConfigs + excludedIds
-      const resourceInputs = project.resources
-        .filter(r => r.lifecycleStatus !== 'ACTIVE')
-        .map(r => {
-          if (selectedIds.includes(r.id)) {
-            const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
-            const resourceInput: Record<string, unknown> = {};
-            if (vmConfig) {
-              resourceInput.endpoint_config = {
+      // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
+      const resourceInputs = project.resources.map(r => {
+        if (selectedIds.includes(r.id)) {
+          const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
+          let resourceInput: Record<string, unknown>;
+          if (vmConfig) {
+            resourceInput = {
+              endpoint_config: {
                 db_type: vmConfig.databaseType,
                 port: vmConfig.port,
                 host: vmConfig.host ?? '',
                 ...(vmConfig.oracleServiceId && { oracleServiceId: vmConfig.oracleServiceId }),
                 ...(vmConfig.selectedNicId && { selectedNicId: vmConfig.selectedNicId }),
-              };
-            } else if (r.selectedCredentialId) {
-              resourceInput.credential_id = r.selectedCredentialId;
-            }
-            return {
-              resource_id: r.id,
-              selected: true as const,
-              ...(Object.keys(resourceInput).length > 0 && { resource_input: resourceInput }),
+              },
             };
-          } else if (r.integrationCategory === 'TARGET') {
-            return {
-              resource_id: r.id,
-              selected: false as const,
-            };
+          } else {
+            resourceInput = { credential_id: r.selectedCredentialId ?? '' };
           }
-          return null;
-        })
-        .filter((x): x is NonNullable<typeof x> => x !== null);
+          return {
+            resource_id: r.id,
+            selected: true as const,
+            resource_input: resourceInput,
+          };
+        }
+        return {
+          resource_id: r.id,
+          selected: false as const,
+        };
+      });
 
       await createApprovalRequest(project.targetSourceId, {
         input_data: { resource_inputs: resourceInputs },
