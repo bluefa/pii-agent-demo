@@ -160,7 +160,7 @@ Exception 처리 정책:
 | X | X | X | `REQUEST_REQUIRED` | INITIAL | 리소스 선택 화면 |
 | X | O | X | `WAITING_APPROVAL` | INITIAL | 승인 대기 배너 |
 | X | X | O | `APPLYING_APPROVED` | INITIAL | 반영 중 + Provider별 installation-status |
-| O | X | X | `TARGET_CONFIRMED` | — | 확정 정보 표시 |
+| O | X | X | `TARGET_CONFIRMED` | CHANGE | 확정 정보 표시 |
 | O | O | X | `WAITING_APPROVAL` | CHANGE | 승인 대기 + 이전 정보 |
 | O | X | O | `APPLYING_APPROVED` | CHANGE | 반영 중 + Provider별 installation-status + 이전 정보 |
 
