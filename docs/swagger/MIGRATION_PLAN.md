@@ -161,6 +161,24 @@ Exception 처리 정책:
 - Admin 액션 (approve, reject, completeInstallation 등) v1 계약 정의 필요
 - runConnectionTest, updateResourceCredential v1 전환 필요
 
+### Phase 5: Confirm Admin/UI-UX 정합화 (Planned)
+
+목표: Confirm 요청/승인 UX를 운영 정책에 맞게 정리하고, 관리자 액션을 Dashboard 중심으로 일원화
+
+- **정책 고정**: 관리자 승인/반려/확정 액션은 `Admin Dashboard`에서만 수행
+- **ProjectDetail 정리**: 관리자 전용 액션 UI/호출 경로 제거, 상태 안내 전용으로 유지
+- **승인 요청 모달 도입**:
+  - 승인 요청 시 `input_data.resource_inputs[]` 미리보기/확인 모달 제공
+  - 제외 리소스(`selected=false`)가 하나라도 있으면 제외 사유 입력 필수
+  - 제외 사유를 payload(`exclusion_reason` 또는 `exclusion_reason_default`)로 반영
+- **Admin 상세 조회 UX**:
+  - 승인 요청 단위 상세내역(포함/제외 리소스, endpoint/credential 입력, 제외 사유) 조회 가능
+  - 요청 상세에서 승인/반려 액션 수행
+
+상세 Task/Dependency/AgentTeam 운영안은 다음 문서에서 관리:
+
+- `docs/swagger/ADMIN_CONFIRM_UX_AGENTTEAM_PLAN.md`
+
 #### 4-1. processStatus 용어 체계 (ADR-009 확정)
 
 **해소된 충돌**: 기존 FE `ProcessStatus.WAITING_TARGET_CONFIRMATION`(1단계: 리소스 미선택)과 PR #146의 "반영 중" 의미가 충돌. → "반영 중"은 `APPLYING_APPROVED`로 별도 명명.
