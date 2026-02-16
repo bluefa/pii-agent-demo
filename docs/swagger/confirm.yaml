@@ -719,8 +719,6 @@ components:
     ConfirmedIntegration:
       type: object
       properties:
-        id: { type: string }
-        confirmed_at: { type: string, format: date-time }
         resource_infos:
           type: array
           items: { $ref: '#/components/schemas/ResourceSnapshot' }

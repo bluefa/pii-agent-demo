@@ -255,8 +255,6 @@ export interface ResourceSnapshotItem {
 
 export interface ConfirmedIntegrationResponse {
   confirmed_integration: {
-    id: string;
-    confirmed_at: string;
     resource_infos: ResourceSnapshotItem[];
   } | null;
 }
