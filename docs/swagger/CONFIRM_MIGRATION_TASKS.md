@@ -25,7 +25,11 @@
 | CM-11 | 화면 시나리오/상태 전이 문서화 | 6가지 상태 조합과 화면 전환 시나리오를 단계별로 정리한다. | CM-10 | 시나리오 문서 + 전이 다이어그램 | M | 1h | Claude | 화면 시나리오 표현과 문서 가독화는 Claude가 효율적임 |
 | CM-12 | 병행 구현 지시서 작성 | Claude/Codex 병렬 작업에 필요한 구현 지시서(입출력/검증/보고 포맷)를 작성한다. | CM-11 | 병행 구현 브리프 문서 | S | 45m | Claude | 병행 작업 지시서 생산은 Claude의 문서화 강점과 직접 연결됨 |
 | CM-13 | 레거시 제거/컷오버 계획 | `/api/projects/**`, `/api/v2/**` 잔존 사용처 제거 순서와 롤백 계획을 작성한다. | CM-02, CM-09 | 제거 체크리스트 + 컷오버 계획 | M | 45m | Codex | 레거시 제거 계획은 의존성 추적/영향 분석이 핵심이라 Codex 우선임 |
-| CM-14 | 통합 게이트 점검/릴리즈 준비 | 계약/카피/시나리오/테스트 계획을 합쳐 최종 실행 승인 기준을 만든다. | CM-09, CM-12, CM-13 | 릴리즈 게이트 체크리스트 | S | 30m | Pair | 기술 계약과 UX 산출물을 함께 검토해야 하므로 Pair가 가장 안전함 |
+| CM-15 | 상태별 UI 렌더링 구현 | `ProcessStatusCard`, provider 페이지에서 4개 process_status(`REQUEST_REQUIRED`, `WAITING_APPROVAL`, `APPLYING_APPROVED`, `TARGET_CONFIRMED`) 기반 실제 화면 분기 로직을 구현한다. | CM-07, CM-10 | UI 구현 PR(상태별 뷰/배너/버튼 반영) | M | 2h | Codex | 상태 enum/계약 반영과 화면 분기 구현은 API-UI 정합성을 함께 다뤄야 하므로 Codex가 적합함 |
+| CM-16 | D-010 전환형 보조 영역 구현 | O/O/X, O/X/O 상태에서 "현재 연동 정보 보기"와 요청/반영 정보 간 메인-보조 전환 UX(토글/전환 상태 유지)를 실제 UI에 구현한다. | CM-11, CM-15 | UI 구현 PR(전환 가능한 보조 영역) | M | 1.5h | Pair | ADR-006 D-010 UX 의도와 실제 컴포넌트 동작 검증이 동시에 필요해 Pair가 안전함 |
+| CM-17 | 호출 전환/입력 매핑/409 처리 구현 | provider 화면에서 Confirm 호출을 `app/api/v1/target-sources/**` 기준으로 전환하고 `input_data.resource_inputs[]`, `resource_input.endpoint_config`, `resource_input.credential_id`, 409 코드 2종 UI 처리를 구현한다. | CM-06, CM-15 | API 호출 전환 PR(요청 payload + 에러 처리) | L | 2h | Codex | API 계약 정합성과 프런트 호출 매핑 구현은 Codex 우선 영역에 해당함 |
+| CM-18 | UI 회귀 테스트 구현 | 상태 분기, D-010 전환 UX, 409 에러 노출, `last_rejection_reason` 노출에 대한 단위/통합 테스트를 추가한다. | CM-16, CM-17 | 테스트 코드 + 검증 리포트 | M | 1.5h | Codex | 회귀 테스트 설계/구현은 계약 검증 중심이라 Codex가 효율적임 |
+| CM-14 | 통합 게이트 점검/릴리즈 준비 | 계약/카피/시나리오/구현/테스트 결과를 합쳐 최종 실행 승인 기준을 만든다. | CM-12, CM-13, CM-18 | 릴리즈 게이트 체크리스트 | S | 30m | Pair | 기술 계약과 UX 산출물을 함께 검토해야 하므로 Pair가 가장 안전함 |
 
 ## 3. Dependency
 
@@ -40,15 +44,25 @@ graph TD
   CM06 --> CM08["CM-08 에러 카탈로그 확장"]
   CM07 --> CM09["CM-09 테스트 설계"]
   CM08 --> CM09
-  CM09 --> CM13["CM-13 레거시 제거/컷오버"]
   CM03 --> CM10["CM-10 UX 카피 매트릭스"]
   CM10 --> CM11["CM-11 화면 시나리오"]
   CM11 --> CM12["CM-12 병행 구현 지시서"]
+  CM07 --> CM15["CM-15 상태별 UI 렌더링 구현"]
+  CM10 --> CM15
+  CM11 --> CM16["CM-16 D-010 전환형 보조 영역 구현"]
+  CM15 --> CM16
+  CM06 --> CM17["CM-17 호출 전환/입력 매핑/409 처리 구현"]
+  CM15 --> CM17
+  CM16 --> CM18["CM-18 UI 회귀 테스트 구현"]
+  CM17 --> CM18
+  CM09 --> CM13["CM-13 레거시 제거/컷오버"]
   CM12 --> CM14["CM-14 통합 게이트"]
   CM13 --> CM14
+  CM18 --> CM14
 ```
 
-Critical Path: `CM-01 → CM-02 → CM-03 → CM-04 → CM-05 → CM-06 → CM-07 → CM-09 → CM-13 → CM-14`  
+Critical Path: `CM-01 → CM-02 → CM-03 → CM-04 → CM-05 → CM-06 → CM-07 → CM-15 → CM-16 → CM-18 → CM-14`  
+보조 Critical 조건: `CM-17`이 완료되지 않으면 `CM-18` 착수가 불가합니다.  
 이 경로가 지연되면 Confirm migration 구현 착수 자체가 밀립니다.
 
 ## 4. 2시간 내 실행 플랜
@@ -58,7 +72,7 @@ Critical Path: `CM-01 → CM-02 → CM-03 → CM-04 → CM-05 → CM-06 → CM-0
 | 00:00-00:30 | CM-01 + CM-02 수행 (충돌 우선순위/의존성 인벤토리 확정) | Codex | 충돌 매트릭스와 레거시 차단 리스트가 문서화됨 |
 | 00:30-01:00 | CM-03 수행, Claude는 CM-10 초안 시작 | Codex + Claude | Confirm 타입 필드 목록과 상태/입력 제약이 잠김 |
 | 01:00-01:30 | CM-04/CM-05 설계안 작성, Claude는 CM-11 전이 시나리오 작성 | Codex + Claude | 라우트 구조와 API client 분리 방향이 합의됨 |
-| 01:30-02:00 | CM-06/CM-07 핵심 정책 고정, Claude는 CM-12 병행 지시서 완성 | Codex + Claude | 409 정책/`APPLYING_APPROVED`/`last_rejection_reason`/검증 규칙이 실행 가능 상태로 고정됨 |
+| 01:30-02:00 | CM-06/CM-07 핵심 정책 고정 후 CM-15/CM-17 구현 착수(파일 단위 작업분할), Claude는 CM-12 병행 지시서 완성 | Codex + Claude | 정책 고정 + UI 구현 첫 작업 단위(`ProcessStatusCard` 분기, payload mapper, 409 UI 핸들링)가 실행 가능한 상태로 분해됨 |
 
 ## 5. Claude Code에 전달할 프롬프트
 
@@ -146,10 +160,11 @@ ADR-006 상태 조합(X/X/X 등)과 ADR-009 process_status를 연결한 화면 �
 2) process-status에 context 필드 언급이 없음
 3) APPLYING_APPROVED 상태에서 폴링 규칙이 분리 기재됨
 4) 409 코드 2종의 화면 반응이 포함됨
-5) 문서가 FE/QA가 그대로 테스트 케이스로 옮길 수 있는 수준임
+5) O/O/X, O/X/O 상태에서 "현재 연동 정보 보기"로 메인/보조를 전환 가능한 UX 규칙이 명시됨 (ADR-006 D-010)
+6) 문서가 FE/QA가 그대로 테스트 케이스로 옮길 수 있는 수준임
 
 [검증 명령]
-rg -n "X/X/X|X/O/X|X/X/O|O/X/X|O/O/X|O/X/O|APPLYING_APPROVED|CONFLICT_APPLYING_IN_PROGRESS|CONFLICT_REQUEST_PENDING|last_rejection_reason" /Users/study/pii-agent-demo/docs/swagger/CONFIRM_SCREEN_SCENARIOS.md
+rg -n "X/X/X|X/O/X|X/X/O|O/X/X|O/O/X|O/X/O|APPLYING_APPROVED|CONFLICT_APPLYING_IN_PROGRESS|CONFLICT_REQUEST_PENDING|last_rejection_reason|현재 연동 정보 보기|전환 가능한 보조 영역" /Users/study/pii-agent-demo/docs/swagger/CONFIRM_SCREEN_SCENARIOS.md
 rg -n "context" /Users/study/pii-agent-demo/docs/swagger/CONFIRM_SCREEN_SCENARIOS.md
 
 [결과 보고 포맷]
@@ -229,6 +244,14 @@ Open Issues:
 완료조건: unit/contract 테스트 케이스와 실행 명령(`npm run test:run`, `npm run lint`)이 문서화됨.
 10. CM-13: 레거시 제거/컷오버 계획 작성  
 완료조건: 제거 순서, 롤백 경로, 배포 게이트가 체크리스트로 확정됨.
+11. CM-15: 상태별 UI 렌더링 구현  
+완료조건: `ProcessStatusCard`/provider 페이지에서 4개 process_status 분기와 상태별 배너/버튼이 동작함.
+12. CM-16: D-010 전환형 보조 영역 구현  
+완료조건: O/O/X, O/X/O에서 "현재 연동 정보 보기" 전환이 실제 UI에서 왕복 동작함.
+13. CM-17: 호출 전환/입력 매핑/409 처리 구현  
+완료조건: `input_data.resource_inputs[]`, `resource_input.endpoint_config`, `resource_input.credential_id` payload 전송 및 409 코드 2종 UI 처리 완료.
+14. CM-18: UI 회귀 테스트 구현  
+완료조건: 상태 분기/전환 UX/409/`last_rejection_reason` 테스트가 추가되고 `npm run test:run` 통과.
 
 ## 7. Handoff Plan
 
@@ -247,7 +270,11 @@ Open Issues:
 | CM-11 | 상태 전이 시나리오와 화면 반응 규칙 | CM-12 구현 지시서가 시나리오를 작업 지시로 변환함 |
 | CM-12 | 병행 구현 지시서(Owner, In/Out, 검증) | CM-14에서 실행 게이트로 직접 사용 가능함 |
 | CM-13 | 레거시 제거 순서와 컷오버/롤백 체크리스트 | CM-14 릴리즈 승인 기준에 제거 완료 조건이 포함됨 |
-| CM-14 | 통합 게이트 체크리스트 초안 | 최종 구현 착수 승인 여부를 단일 문서로 판정 가능함 |
+| CM-15 | 상태별 뷰 명세(카피/시나리오) + 대상 컴포넌트 파일 목록 | 4개 process_status가 실제 화면 분기로 반영되고 스크린샷/동작 체크가 기록됨 |
+| CM-16 | ADR-006 D-010 전환 규칙(메인/보조 전환 조건 + 버튼 라벨) | O/O/X, O/X/O에서 전환 가능한 보조 영역 동작이 확인됨 |
+| CM-17 | Confirm API payload 매핑표 + 409 코드 UX 처리 규칙 | `app/api/v1/target-sources/**` 호출과 409 에러별 사용자 피드백이 구현됨 |
+| CM-18 | UI 테스트 케이스 목록(상태/전환/409/반려사유) | 회귀 테스트가 통과하고 실패 시 원인 분류가 남음 |
+| CM-14 | 통합 게이트 체크리스트 초안 | 최종 구현 착수/배포 승인 여부를 단일 문서로 판정 가능함 |
 
 ## 8. Decision Needed
 
