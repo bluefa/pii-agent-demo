@@ -207,7 +207,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MSSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'TARGET',
       },
       {
@@ -217,7 +216,6 @@ export const mockProjects: Project[] = [
         databaseType: 'POSTGRESQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'TARGET',
       },
       {
@@ -227,7 +225,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'TARGET',
       },
     ],
@@ -258,7 +255,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MSSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'TARGET',
       },
       {
@@ -268,7 +264,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MSSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'NO_INSTALL_NEEDED',
         nics: [
           { nicId: 'nic-vm-agent-001-0', name: 'nic-vm-agent-001-0', privateIp: '10.0.1.10' },
@@ -281,7 +276,6 @@ export const mockProjects: Project[] = [
         databaseType: 'POSTGRESQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'NO_INSTALL_NEEDED',
         nics: [
           { nicId: 'nic-vm-agent-002-0', name: 'nic-vm-agent-002-0', privateIp: '10.0.2.20' },
@@ -317,7 +311,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'NO_INSTALL_NEEDED',
         nics: [
           { nicId: 'nic-vm-scan-001-0', name: 'nic-vm-scan-001-0', privateIp: '10.0.3.30' },
@@ -331,7 +324,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
         azureNetworkingMode: 'PUBLIC_ACCESS',
       },
@@ -342,7 +334,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
       },
@@ -353,7 +344,6 @@ export const mockProjects: Project[] = [
         databaseType: 'POSTGRESQL',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'INSTALL_INELIGIBLE',
         azureNetworkingMode: 'VNET_INTEGRATION',
       },
@@ -390,7 +380,6 @@ export const mockProjects: Project[] = [
         awsType: 'RDS',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
       },
       {
@@ -402,7 +391,6 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'ATHENA',
         region: 'ap-northeast-2',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
       },
       {
@@ -414,7 +402,6 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'DYNAMODB',
         region: 'ap-northeast-2',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
       },
       // 신규 스캔된 리소스
@@ -428,9 +415,7 @@ export const mockProjects: Project[] = [
         awsType: 'REDSHIFT',
         region: 'us-east-1',
         vpcId: 'vpc-useast-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
       // 이전에 제외된 리소스 (자동 승인 테스트용)
@@ -444,7 +429,6 @@ export const mockProjects: Project[] = [
         awsType: 'RDS',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
         note: '제외됨',
         exclusion: {
@@ -464,7 +448,6 @@ export const mockProjects: Project[] = [
         awsType: 'RDS_CLUSTER',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
         clusterType: 'REGIONAL',
         clusterInstances: [
@@ -484,7 +467,6 @@ export const mockProjects: Project[] = [
         awsType: 'RDS_CLUSTER',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
         clusterType: 'GLOBAL',
         clusterInstances: [
@@ -508,7 +490,6 @@ export const mockProjects: Project[] = [
         awsType: 'DOCUMENTDB',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
       },
       // EC2 리소스 (선택적 연동 대상)
@@ -522,7 +503,6 @@ export const mockProjects: Project[] = [
         awsType: 'EC2',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'NO_INSTALL_NEEDED',
         vmDatabaseConfig: {
           host: 'ip-10-0-1-100.ap-northeast-2.compute.internal',
@@ -540,7 +520,6 @@ export const mockProjects: Project[] = [
         awsType: 'EC2',
         region: 'us-east-1',
         vpcId: 'vpc-useast-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'NO_INSTALL_NEEDED',
         vmDatabaseConfig: {
           host: 'ip-10-2-3-45.us-east-1.compute.internal',
@@ -581,9 +560,7 @@ export const mockProjects: Project[] = [
         awsType: 'RDS_CLUSTER',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'PENDING_APPROVAL',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
         clusterType: 'REGIONAL',
         clusterInstances: [
@@ -600,9 +577,7 @@ export const mockProjects: Project[] = [
         isSelected: true,
         awsType: 'ATHENA',
         region: 'ap-northeast-2',
-        lifecycleStatus: 'PENDING_APPROVAL',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
       // 스캔만 된 리소스(연동 대상 아님)
@@ -615,9 +590,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'DYNAMODB',
         region: 'ap-northeast-1',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
     ],
@@ -655,9 +628,7 @@ export const mockProjects: Project[] = [
         awsType: 'RDS',
         region: 'us-west-2',
         vpcId: 'vpc-uswest-001',
-        lifecycleStatus: 'INSTALLING',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
       {
@@ -670,9 +641,7 @@ export const mockProjects: Project[] = [
         awsType: 'REDSHIFT',
         region: 'us-west-2',
         vpcId: 'vpc-uswest-001',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
     ],
@@ -702,9 +671,7 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
       {
@@ -714,9 +681,7 @@ export const mockProjects: Project[] = [
         databaseType: 'POSTGRESQL',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
       {
@@ -726,7 +691,6 @@ export const mockProjects: Project[] = [
         databaseType: 'ORACLE',
         connectionStatus: 'PENDING',
         isSelected: false,
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
         note: '제외됨',
         exclusion: {
@@ -768,7 +732,6 @@ export const mockProjects: Project[] = [
         awsType: 'RDS',
         region: 'ap-northeast-2',
         vpcId: 'vpc-seoul-001',
-        lifecycleStatus: 'READY_TO_TEST',
         integrationCategory: 'TARGET',
         note: '끊김',
       },
@@ -781,9 +744,7 @@ export const mockProjects: Project[] = [
         isSelected: true,
         awsType: 'DYNAMODB',
         region: 'ap-northeast-2',
-        lifecycleStatus: 'READY_TO_TEST',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
       // 스캔만 된 신규 리소스(연동 대상 아님)
@@ -796,9 +757,7 @@ export const mockProjects: Project[] = [
         isSelected: false,
         awsType: 'ATHENA',
         region: 'ap-northeast-1',
-        lifecycleStatus: 'DISCOVERED',
         integrationCategory: 'TARGET',
-        isNew: true,
         note: 'NEW',
       },
     ],
@@ -829,7 +788,6 @@ export const mockProjects: Project[] = [
         databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'PENDING_APPROVAL',
         integrationCategory: 'TARGET',
       },
       {
@@ -839,7 +797,6 @@ export const mockProjects: Project[] = [
         databaseType: 'ORACLE',
         connectionStatus: 'PENDING',
         isSelected: true,
-        lifecycleStatus: 'PENDING_APPROVAL',
         integrationCategory: 'TARGET',
       },
     ],

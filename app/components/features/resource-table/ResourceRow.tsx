@@ -232,7 +232,7 @@ export const ResourceRow = ({
             {resource.isSelected && <StatusIcon type="selected" />}
             {isVm && hasVmConfig && <StatusIcon type="configured" />}
             {isVm && isSelected && !hasVmConfig && <StatusIcon type="needsConfig" />}
-            {resource.isNew && <StatusIcon type="new" />}
+
             {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
           </div>
         </td>

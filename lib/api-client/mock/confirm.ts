@@ -6,7 +6,6 @@ import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
 import type {
   Resource,
-  ResourceLifecycleStatus,
   ProjectStatus,
   VmDatabaseConfig,
   ResourceExclusion,
@@ -213,13 +212,6 @@ export const mockConfirm = {
     const updatedResources: Resource[] = project.resources.map((r) => {
       const isSelected = selectedSet.has(r.id);
 
-      let lifecycleStatus: ResourceLifecycleStatus;
-      if (r.lifecycleStatus === 'ACTIVE') {
-        lifecycleStatus = 'ACTIVE';
-      } else {
-        lifecycleStatus = isSelected ? 'PENDING_APPROVAL' : 'DISCOVERED';
-      }
-
       let exclusion: ResourceExclusion | undefined = r.exclusion;
       const exclusionReason = excludedMap.get(r.id);
       if (excludedMap.has(r.id) && exclusionReason) {
@@ -229,7 +221,7 @@ export const mockConfirm = {
       const vmDatabaseConfig = endpointConfigMap.get(r.id) ?? r.vmDatabaseConfig;
       const selectedCredentialId = credentialMap.get(r.id) ?? r.selectedCredentialId;
 
-      return { ...r, isSelected, lifecycleStatus, exclusion, vmDatabaseConfig, selectedCredentialId };
+      return { ...r, isSelected, exclusion, vmDatabaseConfig, selectedCredentialId };
     });
 
     const selectedCount = selectedInputs.length;
@@ -298,7 +290,7 @@ export const mockConfirm = {
       );
     }
 
-    const activeResources = project.resources.filter((r) => r.lifecycleStatus === 'ACTIVE');
+    const activeResources = project.resources.filter((r) => r.isSelected && r.connectionStatus === 'CONNECTED');
     if (activeResources.length === 0 || project.processStatus < ProcessStatus.INSTALLATION_COMPLETE) {
       return NextResponse.json({ confirmed_integration: null });
     }
@@ -330,7 +322,7 @@ export const mockConfirm = {
     }
 
     const inFlightResources = project.resources.filter(
-      (r) => r.lifecycleStatus === 'INSTALLING' || r.lifecycleStatus === 'READY_TO_TEST',
+      (r) => r.isSelected && r.connectionStatus !== 'CONNECTED',
     );
 
     if (
