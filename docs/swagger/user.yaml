@@ -472,9 +472,9 @@ components:
     TargetSourceListResponse:
       type: object
       required:
-        - targetSources
+        - projects
       properties:
-        targetSources:
+        projects:
           type: array
           items:
             $ref: '#/components/schemas/TargetSourceSummary'
@@ -482,9 +482,9 @@ components:
     TargetSourceDetailEnvelope:
       type: object
       required:
-        - targetSource
+        - project
       properties:
-        targetSource:
+        project:
           $ref: '#/components/schemas/TargetSourceDetail'
 
     CreateTargetSourceRequest:

@@ -32,8 +32,8 @@ export const getServices = async (): Promise<ServiceCode[]> => {
 };
 
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
-  const data = await fetchJson<{ targetSources: ProjectSummary[] }>(`/api/v1/services/${serviceCode}/target-sources`);
-  return data.targetSources;
+  const data = await fetchJson<{ projects: ProjectSummary[] }>(`/api/v1/services/${serviceCode}/target-sources`);
+  return data.projects;
 };
 
 export const createProject = async (payload: {
@@ -72,8 +72,8 @@ export const deletePermission = async (serviceCode: string, userId: string): Pro
 };
 
 export const getProject = async (targetSourceId: number): Promise<Project> => {
-  const data = await fetchJson<{ targetSource: Project }>(`/api/v1/target-sources/${targetSourceId}`);
-  return data.targetSource;
+  const data = await fetchJson<{ project: Project }>(`/api/v1/target-sources/${targetSourceId}`);
+  return data.project;
 };
 
 export interface UserSearchResult {

@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { client } from '@/lib/api-client';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
@@ -11,8 +10,5 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const resolved = resolveProjectId(parsed.value, requestId);
   if (!resolved.ok) return problemResponse(resolved.problem);
 
-  const response = await client.projects.get(resolved.projectId);
-  if (!response.ok) return response;
-  const { project } = await response.json();
-  return NextResponse.json({ targetSource: project });
+  return client.projects.get(resolved.projectId);
 }, { expectedDuration: '80ms ~ 300ms' });
