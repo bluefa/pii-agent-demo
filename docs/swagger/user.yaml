@@ -57,6 +57,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /users/search:
+    get:
+      tags:
+        - User
+      summary: 사용자 검색
+      operationId: searchUsers
+      description: 이름 또는 이메일 기준으로 사용자를 검색합니다.
+      x-expected-duration: "100ms ~ 300ms"
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: 검색어 (이름/이메일)
+          schema:
+            type: string
+        - name: excludeIds
+          in: query
+          required: false
+          description: 검색 결과에서 제외할 사용자 ID 목록 (반복 쿼리)
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: 사용자 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSearchResponse'
+        '401':
+          description: 인증되지 않았거나 유효하지 않은 사용자
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     UserMeResponse:
@@ -91,6 +130,35 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ServiceItem'
+
+    UserSearchResponse:
+      type: object
+      description: "사용자 검색 응답"
+      required:
+        - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSearchUser'
+
+    UserSearchUser:
+      type: object
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          example: "user_01H8X..."
+        name:
+          type: string
+          example: "홍길동"
+        email:
+          type: string
+          format: email
+          example: "gildong.hong@example.com"
 
     ServiceItem:
       type: object
