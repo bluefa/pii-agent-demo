@@ -6,6 +6,8 @@
 
 ## 파일 목록
 
+- `MIGRATION_PLAN.md`
+- `MIGRATION_TASK_BOARD.md`
 - `scan.yaml`
 - `user.yaml`
 - `confirm.yaml`
