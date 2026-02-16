@@ -124,6 +124,30 @@ try { await fetch(...) } catch { ... } finally { ... }
 
 ---
 
+## GitHub PR 리뷰 등록
+
+PR URL/번호가 주어졌다면 로컬 분석 결과만 전달하지 말고, 반드시 PR에 리뷰를 등록합니다.
+
+- [ ] 기본 상태는 `COMMENT`로 등록했는가?
+- [ ] 머지 차단 수준 이슈가 있으면 `REQUEST_CHANGES`로 등록했는가?
+- [ ] 리뷰 본문에 심각도 + `file:line` 근거를 포함했는가?
+- [ ] 등록 후 최신 리뷰가 실제 반영됐는지 확인했는가?
+
+```bash
+# 코멘트 리뷰
+gh pr review <pr-number-or-url> --repo <owner/repo> --comment --body-file /tmp/review.md
+
+# 변경 요청 리뷰(차단 이슈 존재 시)
+gh pr review <pr-number-or-url> --repo <owner/repo> --request-changes --body-file /tmp/review.md
+
+# 등록 확인
+gh pr view <pr-number-or-url> --repo <owner/repo> --json url,reviews
+```
+
+사용자가 "로컬 리뷰만"을 명시한 경우에만 PR 등록을 생략합니다.
+
+---
+
 ## API 코드 추가 체크
 
 API Routes 코드의 경우 추가 확인:
