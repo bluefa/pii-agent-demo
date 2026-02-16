@@ -144,7 +144,7 @@ gh pr review <pr-number-or-url> --repo <owner/repo> --request-changes --body-fil
 gh pr view <pr-number-or-url> --repo <owner/repo> --json url,reviews
 ```
 
-사용자가 "로컬 리뷰만"을 명시한 경우에만 PR 등록을 생략합니다.
+사용자가 "로컬 리뷰만"을 명시한 경우에만 PR 커멘트 등록을 생략합니다.
 
 ---
 
