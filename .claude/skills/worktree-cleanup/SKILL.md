@@ -42,8 +42,8 @@ Task({
   prompt: `
     Clean up merged worktree using the cleanup script:
 
-    1. Verify worktree path: /Users/study/pii-agent-demo-fix-haiku-skills
-    2. Execute: bash scripts/worktree-cleanup.sh --path /Users/study/pii-agent-demo-fix-haiku-skills
+    1. Verify worktree path: <worktree-path>
+    2. Execute: bash scripts/worktree-cleanup.sh --path <worktree-path>
     3. Report: removed worktree path and branch name
 
     The script will:
@@ -53,13 +53,13 @@ Task({
     - Remove local branch
     - Run git worktree prune
 
-    SAFETY: Never remove canonical repo or main/master/HEAD branches
+    SAFETY: Never remove canonical repo (<canonical-repo-path>) or main/master/HEAD branches
   `
 })
 ```
 
 ## Rules
 
-- Canonical repo (`/Users/study/pii-agent-demo`) is never removed
+- Canonical repo (never removed)
 - `main`/`master`/`HEAD` branches are protected
 - Always run from outside the target worktree

@@ -48,13 +48,14 @@ Task({
   prompt: `
     Merge pull request with validation:
 
-    1. View PR info: gh pr view 175 --json number,title,state,mergeable,headRefName,baseRefName
+    1. View PR info: gh pr view {pr} --json number,title,state,mergeable,headRefName,baseRefName
     2. Verify: state=OPEN and mergeable=MERGEABLE
-    3. Check for worktree: git worktree list | grep feat/confirm-admin-ux
-    4. If worktree exists: bash scripts/worktree-cleanup.sh --path /Users/study/pii-agent-demo-confirm-admin-ux --force
-    5. Merge with strategy squid:
-       - gh pr merge 175 --squash --delete-branch
-    6. Verify merge: gh pr view 175 --json state,mergedAt,mergeCommit
+    3. Check for worktree: git worktree list | grep {headRefName}
+    4. If worktree exists: bash scripts/worktree-cleanup.sh --path <worktree-path> --force
+    5. Merge with strategy {strategy}:
+       - gh pr merge {pr} --squash --delete-branch (if strategy is squid/squash)
+       - gh pr merge {pr} --merge --delete-branch (if strategy is merge)
+    6. Verify merge: gh pr view {pr} --json state,mergedAt,mergeCommit
     7. Report: PR number, merge commit SHA
 
     CRITICAL: Remove worktree BEFORE merge (--delete-branch fails if worktree exists)
