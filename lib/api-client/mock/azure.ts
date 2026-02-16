@@ -76,6 +76,13 @@ export const mockAzure = {
     return handleResult(await azureFns.getAzureVmInstallationStatus(projectId));
   },
 
+  getSettings: async (projectId: string) => {
+    const auth = await authorize(projectId);
+    if (auth.error) return auth.error;
+
+    return handleResult(await azureFns.getAzureServiceSettings(auth.project!.serviceCode));
+  },
+
   vmGetTerraformScript: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;

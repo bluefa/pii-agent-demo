@@ -8,10 +8,11 @@ import { ActionCard } from '@/app/components/features/process-status/shared/Acti
 import { AzureResourceList } from '@/app/components/features/process-status/azure/AzureResourceList';
 import { AzurePeApprovalGuide } from '@/app/components/features/process-status/azure/AzurePeApprovalGuide';
 import { AzureSubnetGuide } from '@/app/projects/[projectId]/azure/AzureSubnetGuide';
-import { getAzureInstallationStatus, checkAzureInstallation, getAzureVmInstallationStatus } from '@/app/lib/api/azure';
+import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
+import { AppError } from '@/lib/errors';
 import { statusColors, cn } from '@/lib/theme';
 import type { Resource } from '@/lib/types';
-import type { AzureInstallationStatus, AzureVmInstallationStatus, PrivateEndpointStatus } from '@/lib/types/azure';
+import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 
 export type InstallStep =
@@ -33,19 +34,10 @@ export interface UnifiedInstallResource {
 }
 
 interface AzureInstallationInlineProps {
-  projectId: string;
+  targetSourceId: number;
   resources: Resource[];
   onInstallComplete?: () => void;
 }
-
-const STEP_LABELS: Record<InstallStep, string> = {
-  SUBNET_REQUIRED: '네트워크 설정 필요',
-  VM_TF_REQUIRED: 'VM 환경 설정 필요',
-  PE_NOT_REQUESTED: '연결 요청 준비 중',
-  PE_PENDING: '연결 승인 대기',
-  PE_REJECTED: '연결 거부됨',
-  COMPLETED: '완료',
-};
 
 const getVmInstallStep = (
   subnetExists: boolean,
@@ -67,17 +59,33 @@ const getDbInstallStep = (peStatus?: PrivateEndpointStatus): InstallStep => {
   return 'COMPLETED';
 };
 
-const downloadTfScript = (projectId: string) => {
-  window.open(`/api/azure/projects/${projectId}/vm-terraform-script`, '_blank');
+const downloadTfScript = (targetSourceId: number) => {
+  window.open(`/api/v1/azure/target-sources/${targetSourceId}/vm-terraform-script`, '_blank');
+};
+
+const toInstallStep = (v1Resource: AzureV1Resource): InstallStep => {
+  if (v1Resource.isVm && v1Resource.vmInstallation) {
+    return getVmInstallStep(
+      v1Resource.vmInstallation.subnetExists ?? false,
+      v1Resource.vmInstallation.loadBalancer?.installed ?? false,
+      v1Resource.privateEndpoint?.status as PrivateEndpointStatus | undefined,
+    );
+  }
+  return getDbInstallStep(v1Resource.privateEndpoint?.status as PrivateEndpointStatus | undefined);
+};
+
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof AppError) return err.message;
+  if (err instanceof Error) return err.message;
+  return '상태 조회에 실패했습니다.';
 };
 
 export const AzureInstallationInline = ({
-  projectId,
+  targetSourceId,
   resources,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
-  const [dbStatus, setDbStatus] = useState<AzureInstallationStatus | null>(null);
-  const [vmStatus, setVmStatus] = useState<AzureVmInstallationStatus | null>(null);
+  const [status, setStatus] = useState<AzureV1InstallationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,15 +98,10 @@ export const AzureInstallationInline = ({
     try {
       setLoading(true);
       setError(null);
-      const [dbData, vmData] = await Promise.all([
-        getAzureInstallationStatus(projectId),
-        getAzureVmInstallationStatus(projectId).catch(() => null),
-      ]);
-      setDbStatus(dbData);
-      setVmStatus(vmData);
-      if (dbData.installed) onInstallComplete?.();
+      const data = await getAzureInstallationStatus(targetSourceId);
+      setStatus(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -108,44 +111,60 @@ export const AzureInstallationInline = ({
     try {
       setRefreshing(true);
       setError(null);
-      const [dbData, vmData] = await Promise.all([
-        checkAzureInstallation(projectId),
-        getAzureVmInstallationStatus(projectId).catch(() => null),
-      ]);
-      setDbStatus(dbData);
-      setVmStatus(vmData);
-      if (dbData.installed) onInstallComplete?.();
+      const data = await checkAzureInstallation(targetSourceId);
+      setStatus(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '상태 새로고침에 실패했습니다.');
+      setError(getErrorMessage(err));
     } finally {
       setRefreshing(false);
     }
   };
 
-  useEffect(() => { fetchStatus(); }, [projectId]);
+  useEffect(() => { fetchStatus(); }, [targetSourceId]);
 
   const unifiedResources: UnifiedInstallResource[] = useMemo(() => {
-    const dbStatusMap = new Map((dbStatus?.resources || []).map(r => [r.resourceId, r]));
-    const vmStatusMap = new Map((vmStatus?.vms || []).map(v => [v.vmId, v]));
+    const v1ResourceMap = new Map(
+      (status?.resources ?? []).map(r => [r.resourceId, r]),
+    );
 
     return selectedResources.map(resource => {
+      const v1 = v1ResourceMap.get(resource.resourceId);
       const isVm = resource.type === 'AZURE_VM';
-      if (isVm) {
-        const vm = vmStatusMap.get(resource.resourceId);
-        const step = getVmInstallStep(vm?.subnetExists ?? false, vm?.loadBalancer?.installed ?? false, vm?.privateEndpoint?.status);
-        return { id: resource.id, name: resource.resourceId, resourceType: resource.type, isVm: true, step, peId: vm?.privateEndpoint?.id, isCompleted: step === 'COMPLETED' };
+
+      if (!v1) {
+        return {
+          id: resource.id,
+          name: resource.resourceId,
+          resourceType: resource.type,
+          isVm,
+          step: 'PE_NOT_REQUESTED' as InstallStep,
+          isCompleted: false,
+        };
       }
-      const db = dbStatusMap.get(resource.resourceId);
-      const step = getDbInstallStep(db?.privateEndpoint?.status);
-      return { id: resource.id, name: resource.resourceId, resourceType: resource.type, isVm: false, step, peId: db?.privateEndpoint?.id, isCompleted: step === 'COMPLETED' };
+
+      const step = toInstallStep(v1);
+      return {
+        id: resource.id,
+        name: resource.resourceId,
+        resourceType: resource.type,
+        isVm: v1.isVm,
+        step,
+        peId: v1.privateEndpoint?.id,
+        isCompleted: step === 'COMPLETED',
+      };
     });
-  }, [selectedResources, dbStatus, vmStatus]);
+  }, [selectedResources, status]);
 
   const completedCount = unifiedResources.filter(r => r.isCompleted).length;
   const totalCount = unifiedResources.length;
   const allCompleted = completedCount === totalCount && totalCount > 0;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const hasError = unifiedResources.some(r => r.step === 'PE_REJECTED');
+
+  // allCompleted 시 부모에 알림
+  useEffect(() => {
+    if (allCompleted) onInstallComplete?.();
+  }, [allCompleted]);
 
   const subnetNeeded = unifiedResources.filter(r => r.step === 'SUBNET_REQUIRED');
   const vmTfNeeded = unifiedResources.filter(r => r.step === 'VM_TF_REQUIRED');
@@ -232,7 +251,7 @@ export const AzureInstallationInline = ({
               VM 환경 설정이 필요합니다. 설치 스크립트를 다운로드하여 VM에서 실행해주세요.
             </p>
             <button
-              onClick={() => downloadTfScript(projectId)}
+              onClick={() => downloadTfScript(targetSourceId)}
               className={cn('text-sm font-medium hover:underline', statusColors.warning.textDark)}
             >
               설치 스크립트 다운로드

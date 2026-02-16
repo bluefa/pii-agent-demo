@@ -117,6 +117,7 @@ export const bffClient: ApiClient = {
   azure: {
     checkInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/check-installation`, {}),
     getInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/installation-status`),
+    getSettings: (projectId) => proxyGet(`/azure/projects/${projectId}/settings`),
     getSubnetGuide: (projectId) => proxyGet(`/azure/projects/${projectId}/subnet-guide`),
     vmCheckInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/vm/check-installation`, {}),
     vmGetInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/vm/installation-status`),
