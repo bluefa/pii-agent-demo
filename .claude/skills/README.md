@@ -69,6 +69,9 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   │   └── SKILL.md
 │   ├── pr-flow/
 │   │   └── SKILL.md
+│   ├── shared/
+│   │   ├── CONTRACT_VALIDATION.md
+│   │   └── contract-check.rules
 │   └── worktree-cleanup/
 │       └── SKILL.md
 ├── agents/
@@ -91,6 +94,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 - [CLAUDE.md](../../CLAUDE.md) - 프로젝트 전체 지침
 - [docs/adr/](../../docs/adr/) - 설계 결정 기록
 - [docs/api/](../../docs/api/) - BFF API 명세
+- [shared/CONTRACT_VALIDATION.md](./shared/CONTRACT_VALIDATION.md) - 계약 검증 공통 플레이북
 
 ## Codex 미러링
 
