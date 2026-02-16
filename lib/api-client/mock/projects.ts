@@ -365,62 +365,6 @@ export const mockProjects = {
     return NextResponse.json({ project: updatedProject });
   },
 
-  confirmPiiAgent: async (projectId: string) => {
-    const user = mockData.getCurrentUser();
-    if (!user || user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'FORBIDDEN', message: '관리자만 설치 확정할 수 있습니다.' },
-        { status: 403 }
-      );
-    }
-
-    const project = mockData.getProjectById(projectId);
-    if (!project) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST) {
-      return NextResponse.json(
-        { error: 'INVALID_STATE', message: '연결 테스트 대기 상태가 아닙니다.' },
-        { status: 400 }
-      );
-    }
-
-    // selected 기반: 선택된 리소스 중 아직 연결되지 않은 것을 CONNECTED로 전환
-    const updatedResources = project.resources.map((r) => {
-      if (!r.isSelected || r.connectionStatus === 'CONNECTED') return r;
-      return {
-        ...r,
-        connectionStatus: 'CONNECTED' as const,
-      };
-    });
-
-    const now = new Date().toISOString();
-
-    const updatedStatus: ProjectStatus = {
-      ...project.status,
-      connectionTest: {
-        status: 'PASSED',
-        lastTestedAt: now,
-        passedAt: now,
-      },
-    };
-
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
-
-    const updatedProject = mockData.updateProject(projectId, {
-      processStatus: calculatedProcessStatus,
-      status: updatedStatus,
-      resources: updatedResources,
-      piiAgentInstalled: true,
-    });
-
-    return NextResponse.json({ success: true, project: updatedProject });
-  },
-
   confirmTargets: async (projectId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user) {

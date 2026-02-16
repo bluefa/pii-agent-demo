@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
-import { completeInstallation, getProcessStatus, getProject } from '@/app/lib/api';
+import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
 import {
@@ -128,15 +128,15 @@ export const ProcessStatusCard = ({
     : undefined;
   const guide = getProcessGuide(project.cloudProvider, guideVariant);
 
-  // 설치 완료 핸들러
+  // 설치 완료 핸들러 — 설치 인라인이 완료를 감지하면 프로젝트 상태를 갱신
   const handleInstallComplete = async () => {
     try {
-      const updatedProject = await completeInstallation(project.id);
+      const updatedProject = await getProject(project.id);
       if (updatedProject) {
         onProjectUpdate?.(updatedProject);
       }
     } catch (err) {
-      console.error('설치 완료 처리 실패:', err);
+      console.error('설치 완료 상태 갱신 실패:', err);
     }
   };
 

@@ -9,8 +9,7 @@ import {
   getPermissions,
   addPermission,
   deletePermission,
-  completeInstallation,
-  confirmCompletion,
+  confirmInstallation,
   getApprovalHistory,
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
@@ -107,19 +106,6 @@ export const AdminDashboard = () => {
     }
   };
 
-  const handleCompleteInstallation = async (projectId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      setActionLoading(projectId);
-      await completeInstallation(projectId);
-      await refreshProjects();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '설치 완료 처리 실패');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
@@ -163,11 +149,11 @@ export const AdminDashboard = () => {
     }
   };
 
-  const handleConfirmCompletion = async (projectId: string, e: React.MouseEvent) => {
+  const handleConfirmCompletion = async (targetSourceId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      setActionLoading(projectId);
-      await confirmCompletion(projectId);
+      setActionLoading(String(targetSourceId));
+      await confirmInstallation(targetSourceId);
       await refreshProjects();
     } catch (err) {
       alert(err instanceof Error ? err.message : '설치 완료 확정 실패');
@@ -235,7 +221,6 @@ export const AdminDashboard = () => {
                     projects={projects}
                     loading={loading}
                     actionLoading={actionLoading}
-                    onCompleteInstallation={handleCompleteInstallation}
                     onConfirmCompletion={handleConfirmCompletion}
                     onViewApproval={handleViewApproval}
                   />
