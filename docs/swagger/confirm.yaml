@@ -364,7 +364,7 @@ paths:
       description: |
         특정 리소스에 연결할 Credential을 변경합니다.
         연결 테스트 단계(WAITING_CONNECTION_TEST, CONNECTION_VERIFIED, INSTALLATION_COMPLETE)에서만 변경 가능합니다.
-        `credential_id`를 null로 전달하면 Credential 연결을 해제합니다.
+        `credentialId`를 null로 전달하면 Credential 연결을 해제합니다.
       requestBody:
         required: true
         content:
@@ -388,9 +388,9 @@ paths:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
               examples:
                 missing_resource_id:
-                  summary: resource_id 누락
+                  summary: resourceId 누락
                   value:
-                    error: { code: "VALIDATION_FAILED", message: "resource_id가 필요합니다." }
+                    error: { code: "VALIDATION_FAILED", message: "resourceId가 필요합니다." }
                 invalid_state:
                   summary: 변경 불가 상태
                   value:
