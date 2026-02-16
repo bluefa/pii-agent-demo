@@ -155,14 +155,16 @@ Exception 처리 정책:
 
 **ADR-006 상태 조합 ↔ BFF processStatus 매핑**:
 
-| Confirmed | Request | Approved | BFF processStatus | context | FE 메인 표시 |
-|:---------:|:-------:|:--------:|-------------------|---------|-------------|
-| X | X | X | `REQUEST_REQUIRED` | INITIAL | 리소스 선택 화면 |
-| X | O | X | `WAITING_APPROVAL` | INITIAL | 승인 대기 배너 |
-| X | X | O | `APPLYING_APPROVED` | INITIAL | 반영 중 + Provider별 installation-status |
-| O | X | X | `TARGET_CONFIRMED` | CHANGE | 확정 정보 표시 |
-| O | O | X | `WAITING_APPROVAL` | CHANGE | 승인 대기 + 이전 정보 |
-| O | X | O | `APPLYING_APPROVED` | CHANGE | 반영 중 + Provider별 installation-status + 이전 정보 |
+| Confirmed | Request | Approved | BFF processStatus | FE 메인 표시 |
+|:---------:|:-------:|:--------:|-------------------|-------------|
+| X | X | X | `REQUEST_REQUIRED` | 리소스 선택 화면 |
+| X | O | X | `WAITING_APPROVAL` | 승인 대기 배너 |
+| X | X | O | `APPLYING_APPROVED` | 반영 중 + Provider별 installation-status |
+| O | X | X | `TARGET_CONFIRMED` | 확정 정보 표시 |
+| O | O | X | `WAITING_APPROVAL` | 승인 대기 + 이전 정보 |
+| O | X | O | `APPLYING_APPROVED` | 반영 중 + Provider별 installation-status + 이전 정보 |
+
+> #167 반영으로 `ProcessStatusResponse`의 `context` 필드가 제거됨.
 
 **FE ProcessStatus(기존) ↔ BFF TargetSourceProcessStatus 대응**:
 
@@ -258,7 +260,7 @@ Exception 처리 정책:
 
 ## 6. 추가가 필요한 API (Spec Add Required)
 
-- `GET /api/v1/users/search` (현재 구현 존재, Swagger 누락)
+- `GET /api/v1/users/search`: users/search swagger 반영 완료됨
 - completion/installation 관련 신규 명세 (용어 통합 후 endpoint 확정 필요)
 - GCP settings endpoint를 target source 기준으로 운영할 경우, route 신규 추가 필요
 - ADR-006 기준으로는 아래도 추가 검토 필요:
