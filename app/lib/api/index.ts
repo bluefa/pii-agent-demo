@@ -32,7 +32,7 @@ export const getServices = async (): Promise<ServiceCode[]> => {
 };
 
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
-  const res = await fetch(`${BASE_URL}/services/${serviceCode}/projects`);
+  const res = await fetch(`/api/v1/services/${serviceCode}/target-sources`);
   if (!res.ok) throw new Error('Failed to fetch projects');
   const data = await res.json();
   return data.projects;
@@ -49,7 +49,7 @@ export const createProject = async (payload: {
   subscriptionId?: string;
   gcpProjectId?: string;
 }): Promise<void> => {
-  const res = await fetch(`${BASE_URL}/projects`, {
+  const res = await fetch(`/api/v1/services/${payload.serviceCode}/target-sources`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -58,14 +58,14 @@ export const createProject = async (payload: {
 };
 
 export const getPermissions = async (serviceCode: string): Promise<User[]> => {
-  const res = await fetch(`${BASE_URL}/services/${serviceCode}/permissions`);
+  const res = await fetch(`/api/v1/services/${serviceCode}/authorized-users`);
   if (!res.ok) throw new Error('Failed to fetch permissions');
   const data = await res.json();
   return data.users;
 };
 
 export const addPermission = async (serviceCode: string, userId: string): Promise<void> => {
-  const res = await fetch(`${BASE_URL}/services/${serviceCode}/permissions`, {
+  const res = await fetch(`/api/v1/services/${serviceCode}/authorized-users`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId }),
@@ -74,14 +74,14 @@ export const addPermission = async (serviceCode: string, userId: string): Promis
 };
 
 export const deletePermission = async (serviceCode: string, userId: string): Promise<void> => {
-  const res = await fetch(`${BASE_URL}/services/${serviceCode}/permissions/${userId}`, {
+  const res = await fetch(`/api/v1/services/${serviceCode}/authorized-users/${userId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete permission');
 };
 
 export const getProject = async (id: string): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${id}`);
+  const res = await fetch(`/api/v1/target-sources/${id}`);
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.message || 'Failed to fetch project');
