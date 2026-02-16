@@ -124,10 +124,10 @@ export const AwsInfoCard = ({
   const [showAllCredentials, setShowAllCredentials] = useState(false);
 
   const scanRole = awsSettings?.scanRole;
-  const executionRole = awsSettings?.executionRole;
   const isScanRoleComplete = scanRole?.status === 'VALID';
   const isManualInstall = project.awsInstallationMode === 'MANUAL';
-  const isExecutionRoleComplete = executionRole?.status === 'VALID';
+  // executionRole 상태는 installation status에서 가져옴 (settings의 executionRole은 고정값)
+  const isExecutionRoleComplete = awsStatus?.hasExecutionPermission ?? false;
 
   const applicableItems = [
     { completed: isScanRoleComplete },
@@ -234,7 +234,7 @@ export const AwsInfoCard = ({
             <RoleStatusRow
               label="TF Execution Role"
               completed={isExecutionRoleComplete}
-              arn={executionRole?.roleArn}
+              arn={awsSettings?.executionRole?.roleArn || null}
               onGuide={onOpenGuide}
             />
           )}

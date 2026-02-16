@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { problemResponse } from '@/app/api/_lib/problem';
-import { parseTargetSourceId, resolveProject } from '@/app/api/_lib/target-source';
+import { problemResponse, createProblem } from '@/app/api/_lib/problem';
+import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
+import { getProjectById } from '@/lib/mock-data';
 
 interface LegacyRoleInfo {
   registered: boolean;
@@ -32,10 +33,19 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const resolved = resolveProject(parsed.value, requestId);
+  const resolved = resolveProjectId(parsed.value, requestId);
   if (!resolved.ok) return problemResponse(resolved.problem);
 
-  const response = await client.services.settings.aws.get(resolved.project.serviceCode);
+  const project = getProjectById(resolved.projectId);
+  if (!project) {
+    return problemResponse(createProblem(
+      'TARGET_SOURCE_NOT_FOUND',
+      `targetSourceId ${parsed.value}에 해당하는 프로젝트를 찾을 수 없습니다.`,
+      requestId,
+    ));
+  }
+
+  const response = await client.services.settings.aws.get(project.serviceCode);
   if (!response.ok) return response;
 
   const legacy = await response.json() as LegacyAwsSettings;
