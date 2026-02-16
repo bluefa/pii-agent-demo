@@ -20,10 +20,15 @@ export const getCurrentUser = async (): Promise<CurrentUser> => {
 };
 
 export const getServices = async (): Promise<ServiceCode[]> => {
-  const res = await fetch(`${BASE_URL}/user/services`);
+  const res = await fetch('/api/v1/user/services');
   if (!res.ok) throw new Error('Failed to fetch services');
-  const data = await res.json();
-  return data.services;
+  const data = await res.json() as {
+    services: Array<{ serviceCode: string; serviceName: string }>;
+  };
+  return data.services.map((service) => ({
+    code: service.serviceCode,
+    name: service.serviceName,
+  }));
 };
 
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
@@ -97,9 +102,14 @@ export const searchUsers = async (
 ): Promise<UserSearchResult[]> => {
   const params = new URLSearchParams();
   if (query) params.set('q', query);
-  if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
+  excludeIds.forEach((excludeId) => params.append('excludeIds', excludeId));
 
-  const res = await fetch(`${BASE_URL}/users/search?${params.toString()}`);
+  const queryString = params.toString();
+  const endpoint = queryString
+    ? `/api/v1/users/search?${queryString}`
+    : '/api/v1/users/search';
+
+  const res = await fetch(endpoint);
   if (!res.ok) throw new Error('Failed to search users');
   const data = await res.json();
   return data.users;
