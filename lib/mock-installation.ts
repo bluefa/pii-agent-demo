@@ -8,11 +8,11 @@
 
 import { getStore } from '@/lib/mock-store';
 import type {
-  AwsInstallationStatus,
+  LegacyAwsInstallationStatus,
   AwsResourceType,
   VerifyTfRoleRequest,
   VerifyTfRoleResponse,
-  CheckInstallationResponse,
+  LegacyCheckInstallationResponse,
   TerraformScriptResponse,
   ServiceTfScript,
   ServiceTfScriptResource,
@@ -23,7 +23,7 @@ import type {
 
 // ===== Internal type =====
 
-type InstallationInternal = AwsInstallationStatus & {
+type InstallationInternal = LegacyAwsInstallationStatus & {
   _scriptTimings?: Record<string, number>;
   _bdcStartedAt?: number;
 };
@@ -221,14 +221,14 @@ const getScriptDuration = (script: ServiceTfScript, index: number): number => {
 export const initializeInstallation = (
   projectId: string,
   hasTfPermission: boolean,
-): AwsInstallationStatus => {
+): LegacyAwsInstallationStatus => {
   const store = getStore();
   const project = store.projects.find(p => p.id === projectId);
   const accountId = project?.awsAccountId ?? '000000000000';
   const resources = project?.resources ?? [];
 
   const serviceTfScripts = generateServiceTfScripts(resources);
-  const bdcTf: AwsInstallationStatus['bdcTf'] = { status: 'PENDING' };
+  const bdcTf: LegacyAwsInstallationStatus['bdcTf'] = { status: 'PENDING' };
 
   const status: InstallationInternal = {
     provider: 'AWS',
@@ -256,7 +256,7 @@ export const initializeInstallation = (
   };
 };
 
-export const getInstallationStatus = (projectId: string): AwsInstallationStatus | null => {
+export const getInstallationStatus = (projectId: string): LegacyAwsInstallationStatus | null => {
   const store = getStore();
   const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
   if (!status) return null;
@@ -312,7 +312,7 @@ export const getInstallationStatus = (projectId: string): AwsInstallationStatus 
 
 export const checkInstallation = (
   projectId: string,
-): CheckInstallationResponse | null => {
+): LegacyCheckInstallationResponse | null => {
   const store = getStore();
   const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
   if (!status) return null;

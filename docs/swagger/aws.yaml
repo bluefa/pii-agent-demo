@@ -172,6 +172,88 @@ paths:
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
+  '/aws/target-sources/{targetSourceId}/installation-mode':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    post:
+      tags:
+        - AWS Installation
+      summary: AWS 설치 모드 설정
+      operationId: setAwsInstallationMode
+      x-expected-duration: "500ms"
+      description: |-
+        **동기 작업(Synchronous)**
+        AWS PII Agent 설치 방식(AUTO/MANUAL)을 설정합니다.
+        설치 모드는 프로젝트 생성 후 1회만 설정 가능하며, 이후 변경할 수 없습니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [AUTO, MANUAL]
+                  description: "설치 모드 (AUTO: TF Role 등록 후 자동 실행, MANUAL: TF Script 직접 실행)"
+      responses:
+        '200':
+          description: 설정 완료
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  project:
+                    type: object
+                    description: "업데이트된 프로젝트 정보 (Forward Compatibility)"
+        '400':
+          description: "유효하지 않은 설치 모드"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          description: "설치 모드가 이미 설정됨 (변경 불가)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  '/aws/target-sources/{targetSourceId}/terraform-script':
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    get:
+      tags:
+        - AWS Installation
+      summary: AWS TF Script 다운로드 정보 조회
+      operationId: getAwsTerraformScript
+      x-expected-duration: "500ms"
+      description: |-
+        **동기 작업(Synchronous)**
+        수동 설치(MANUAL) 모드에서 Terraform 스크립트 다운로드 정보를 조회합니다.
+        자동 설치(AUTO) 모드에서는 스크립트가 필요 없으므로 400 에러를 반환합니다.
+      responses:
+        '200':
+          description: TF Script 정보
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerraformScriptResponse'
+        '400':
+          description: "AUTO 모드에서는 스크립트 불필요"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
   '/aws/target-sources/{targetSourceId}/settings':
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
@@ -217,6 +299,9 @@ components:
         hasExecutionPermission:
           type: boolean
           description: "실행 권한 보유 여부"
+        executionRoleArn:
+          type: string
+          description: "TF Execution Role ARN (자동 설치 모드에서만 존재)"
         serviceScripts:
           type: array
           description: "Terraform 스크립트 단위 설치 상태 목록"
@@ -320,6 +405,22 @@ components:
           type: string
           format: date-time
           description: "마지막 검증 시각"
+
+    TerraformScriptResponse:
+      type: object
+      description: "Terraform 스크립트 다운로드 정보"
+      required: [downloadUrl, fileName]
+      properties:
+        downloadUrl:
+          type: string
+          description: "스크립트 다운로드 URL"
+        fileName:
+          type: string
+          description: "스크립트 파일명"
+        expiresAt:
+          type: string
+          format: date-time
+          description: "다운로드 URL 만료 시각"
 
     ErrorResponse:
       type: object

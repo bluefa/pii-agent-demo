@@ -8,8 +8,8 @@ import {
   ConnectionErrorType,
   DatabaseType,
   needsCredential,
-  AwsInstallationStatus,
-  AwsServiceSettings,
+  LegacyAwsInstallationStatus,
+  LegacyAwsServiceSettings,
   ProjectStatus,
 } from './types';
 import { getStore } from '@/lib/mock-store';
@@ -1017,7 +1017,7 @@ export const getCredentialById = (id: string): DBCredential | undefined => {
 
 // ===== Mock AWS Installation Status =====
 // 기존 AWS 프로젝트들의 설치 상태 초기 데이터
-export const mockAwsInstallations: Map<string, AwsInstallationStatus> = new Map([
+export const mockAwsInstallations: Map<string, LegacyAwsInstallationStatus> = new Map([
   // proj-3: 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
   [
     'proj-3',
@@ -1054,7 +1054,7 @@ export const mockAwsInstallations: Map<string, AwsInstallationStatus> = new Map(
 
 // ===== Mock AWS Service Settings =====
 // 서비스별 AWS 연동 설정 초기 데이터
-export const mockAwsServiceSettings: Map<string, AwsServiceSettings> = new Map([
+export const mockAwsServiceSettings: Map<string, LegacyAwsServiceSettings> = new Map([
   // SERVICE-A: AWS 설정 완료
   [
     'SERVICE-A',

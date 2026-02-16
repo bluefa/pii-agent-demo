@@ -215,7 +215,7 @@ export const ProcessStatusCard = ({
                     />
                   ) : project.cloudProvider === 'AWS' ? (
                     <AwsInstallationInline
-                      projectId={project.id}
+                      targetSourceId={project.targetSourceId}
                       onInstallComplete={handleInstallComplete}
                     />
                   ) : project.cloudProvider === 'GCP' ? (

@@ -2,17 +2,18 @@
 
 import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
+import { setAwsInstallationMode } from '@/app/lib/api/aws';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import type { AwsInstallationMode, Project } from '@/lib/types';
 
 interface AwsInstallationModeSelectorProps {
-  projectId: string;
+  targetSourceId: number;
   onModeSelected: (project: Project) => void;
 }
 
 export const AwsInstallationModeSelector = ({
-  projectId,
+  targetSourceId,
   onModeSelected,
 }: AwsInstallationModeSelectorProps) => {
   const [selecting, setSelecting] = useState<AwsInstallationMode | null>(null);
@@ -22,18 +23,8 @@ export const AwsInstallationModeSelector = ({
   const handleSelectMode = async (mode: AwsInstallationMode) => {
     setSelecting(mode);
     try {
-      const response = await fetch(`/api/aws/projects/${projectId}/installation-mode`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode }),
-      });
-
-      if (!response.ok) {
-        throw new Error('설치 모드 선택에 실패했습니다.');
-      }
-
-      const data = await response.json();
-      onModeSelected(data.project);
+      const data = await setAwsInstallationMode(targetSourceId, mode);
+      onModeSelected(data.project as Project);
     } catch (error) {
       console.error('Failed to select installation mode:', error);
       alert('설치 모드 선택에 실패했습니다. 다시 시도해주세요.');

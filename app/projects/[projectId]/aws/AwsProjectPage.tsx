@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
-import type { AwsInstallationStatus, AwsServiceSettings } from '@/lib/types';
+import type { AwsInstallationStatus, AwsSettings } from '@/lib/types';
 import {
   confirmTargets,
   updateResourceCredential,
@@ -11,7 +11,7 @@ import {
   ResourceCredentialInput,
   VmConfigInput,
 } from '@/app/lib/api';
-import { getAwsInstallationStatus, getAwsServiceSettings } from '@/app/lib/api/aws';
+import { getAwsInstallationStatus, getAwsSettings } from '@/app/lib/api/aws';
 import { getProjectCurrentStep } from '@/lib/process';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { useModal } from '@/app/hooks/useModal';
@@ -49,7 +49,7 @@ export const AwsProjectPage = ({
 
   // Prerequisite data
   const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
-  const [serviceSettings, setServiceSettings] = useState<AwsServiceSettings | null>(null);
+  const [awsSettings, setAwsSettings] = useState<AwsSettings | null>(null);
   const guideModal = useModal();
   const resourceSectionRef = useRef<HTMLDivElement>(null);
 
@@ -66,9 +66,9 @@ export const AwsProjectPage = ({
   });
 
   useEffect(() => {
-    getAwsInstallationStatus(project.id).then(setAwsStatus).catch(() => {});
-    getAwsServiceSettings(project.serviceCode).then(setServiceSettings).catch(() => {});
-  }, [project.id, project.serviceCode]);
+    getAwsInstallationStatus(project.targetSourceId).then(setAwsStatus).catch(() => {});
+    getAwsSettings(project.targetSourceId).then(setAwsSettings).catch(() => {});
+  }, [project.targetSourceId]);
 
   const guideVariant = project.awsInstallationMode === 'AUTO' ? 'auto' : 'manual';
   const guide = getProcessGuide('AWS', guideVariant);
@@ -92,7 +92,7 @@ export const AwsProjectPage = ({
         <ProjectHeader project={project} />
         <main className="p-6">
           <AwsInstallationModeSelector
-            projectId={project.id}
+            targetSourceId={project.targetSourceId}
             onModeSelected={handleModeSelected}
           />
         </main>
@@ -200,7 +200,7 @@ export const AwsProjectPage = ({
             <AwsInfoCard
               project={project}
               awsStatus={awsStatus}
-              scanRoleInfo={serviceSettings?.scanRole ?? null}
+              awsSettings={awsSettings}
               credentials={credentials}
               onOpenGuide={handleOpenGuide}
               onManageCredentials={handleManageCredentials}

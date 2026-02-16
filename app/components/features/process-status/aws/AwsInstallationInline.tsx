@@ -12,22 +12,34 @@ import { TfScriptGuideModal } from '@/app/components/features/process-status/aws
 import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
-  projectId: string;
+  targetSourceId: number;
   onInstallComplete?: () => void;
 }
 
 type InstallState = 'completed' | 'in_progress' | 'pending' | 'preparing';
 
+const isServiceScriptsCompleted = (status: AwsInstallationStatus): boolean =>
+  status.serviceScripts.length > 0 && status.serviceScripts.every(s => s.status === 'COMPLETED');
+
+const isBdcCompleted = (status: AwsInstallationStatus): boolean =>
+  status.bdcStatus.status === 'COMPLETED';
+
+const isFullyCompleted = (status: AwsInstallationStatus): boolean =>
+  isServiceScriptsCompleted(status) && isBdcCompleted(status);
+
 const getInstallState = (status: AwsInstallationStatus): InstallState => {
-  if (status.serviceTfCompleted && status.bdcTfCompleted) return 'completed';
-  if (status.serviceTfCompleted || (status.hasTfPermission && !status.serviceTfCompleted)) return 'in_progress';
-  if (!status.hasTfPermission && !status.serviceTfCompleted) return 'pending';
+  const scriptsCompleted = isServiceScriptsCompleted(status);
+  const bdcDone = isBdcCompleted(status);
+  if (scriptsCompleted && bdcDone) return 'completed';
+  if (scriptsCompleted || (status.hasExecutionPermission && !scriptsCompleted)) return 'in_progress';
+  if (!status.hasExecutionPermission && !scriptsCompleted) return 'pending';
   return 'preparing';
 };
 
 const getProgressPercent = (status: AwsInstallationStatus): number => {
-  if (status.serviceTfCompleted && status.bdcTfCompleted) return 100;
-  if (status.serviceTfCompleted) return 50;
+  const scriptsCompleted = isServiceScriptsCompleted(status);
+  if (scriptsCompleted && isBdcCompleted(status)) return 100;
+  if (scriptsCompleted) return 50;
   return 0;
 };
 
@@ -57,14 +69,14 @@ const STATE_CONFIG = {
 const getReassuranceText = (status: AwsInstallationStatus, state: InstallState): string | null => {
   if (state === 'completed' || state === 'pending') return null;
   if (state === 'preparing') return '자동으로 설치가 진행될 예정입니다.';
-  if (status.hasTfPermission) {
+  if (status.hasExecutionPermission) {
     return '자동으로 설치가 진행되고 있습니다.\nAWS 계정에 보안 연결 환경을 구성하고\n에이전트가 DB에 접근할 수 있도록 설정합니다.';
   }
   return '설치 스크립트가 실행되었습니다. 자동으로 완료됩니다.';
 };
 
 export const AwsInstallationInline = ({
-  projectId,
+  targetSourceId,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
   const [status, setStatus] = useState<AwsInstallationStatus | null>(null);
@@ -78,9 +90,9 @@ export const AwsInstallationInline = ({
     try {
       setLoading(true);
       setError(null);
-      const data = await getAwsInstallationStatus(projectId);
+      const data = await getAwsInstallationStatus(targetSourceId);
       setStatus(data);
-      if (data.serviceTfCompleted && data.bdcTfCompleted) onInstallComplete?.();
+      if (isFullyCompleted(data)) onInstallComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
     } finally {
@@ -92,9 +104,9 @@ export const AwsInstallationInline = ({
     try {
       setRefreshing(true);
       setError(null);
-      const data = await checkAwsInstallation(projectId);
+      const data = await checkAwsInstallation(targetSourceId);
       setStatus(data);
-      if (data.serviceTfCompleted && data.bdcTfCompleted) onInstallComplete?.();
+      if (isFullyCompleted(data)) onInstallComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 새로고침에 실패했습니다.');
     } finally {
@@ -103,12 +115,12 @@ export const AwsInstallationInline = ({
   };
 
   const handleDownloadScript = () => {
-    window.open(`/api/aws/projects/${projectId}/terraform-script`, '_blank');
+    window.open(`/api/v1/aws/target-sources/${targetSourceId}/terraform-script`, '_blank');
   };
 
   useEffect(() => {
     fetchStatus();
-  }, [projectId]);
+  }, [targetSourceId]);
 
   if (loading) return <InstallationLoadingView provider="AWS" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
@@ -119,6 +131,7 @@ export const AwsInstallationInline = ({
   const percent = getProgressPercent(status);
   const reassurance = getReassuranceText(status, state);
   const isCompleted = state === 'completed';
+  const scriptsCompleted = isServiceScriptsCompleted(status);
 
   return (
     <div className="w-full space-y-3">
@@ -167,8 +180,8 @@ export const AwsInstallationInline = ({
       {/* Install mode card (hidden when completed) */}
       {!isCompleted && (
         <AwsInstallModeCard
-          isAutoMode={status.hasTfPermission}
-          serviceTfCompleted={status.serviceTfCompleted}
+          isAutoMode={status.hasExecutionPermission}
+          serviceTfCompleted={scriptsCompleted}
           onShowRoleGuide={() => setShowRoleGuide(true)}
           onShowScriptGuide={() => setShowScriptGuide(true)}
           onDownloadScript={handleDownloadScript}
@@ -176,7 +189,7 @@ export const AwsInstallationInline = ({
       )}
 
       {/* Action card for manual mode before script execution */}
-      {!status.hasTfPermission && !status.serviceTfCompleted && (
+      {!status.hasExecutionPermission && !scriptsCompleted && (
         <ActionCard title="조치 필요">
           <p className="text-sm text-gray-700 mb-3">
             설치 스크립트를 담당자와 함께 실행해주세요.

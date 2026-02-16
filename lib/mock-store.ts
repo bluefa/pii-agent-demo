@@ -1,4 +1,4 @@
-import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory, AwsInstallationStatus, AwsServiceSettings } from '@/lib/types';
+import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory, LegacyAwsInstallationStatus, LegacyAwsServiceSettings } from '@/lib/types';
 import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings } from '@/lib/mock-data';
 
 type Store = {
@@ -13,9 +13,9 @@ type Store = {
     // Project History (승인/반려/리소스 변경 이력)
     projectHistory: ProjectHistory[];
     // AWS 설치 상태 (projectId → status)
-    awsInstallations: Map<string, AwsInstallationStatus>;
+    awsInstallations: Map<string, LegacyAwsInstallationStatus>;
     // AWS 서비스 설정 (serviceCode → settings)
-    awsServiceSettings: Map<string, AwsServiceSettings>;
+    awsServiceSettings: Map<string, LegacyAwsServiceSettings>;
 };
 
 declare global {
