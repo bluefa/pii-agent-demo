@@ -81,6 +81,39 @@ npm run test:run -- <관련 테스트 파일>
    - `Blocking findings 없음`
    - 남은 리스크(있으면)
 
+## 결과 공유 (필수)
+
+리뷰 완료 후 결과를 **두 채널**에 모두 남깁니다.
+
+1. 사용자에게 요약 공유 (채팅 응답)
+   - 핵심 finding 요약
+   - blocking/non-blocking 구분
+   - 재검증 여부(최신 head SHA 기준) 명시
+
+2. PR 코멘트 업로드
+   - PR에 리뷰 결과를 코멘트로 남깁니다.
+   - 동일 리뷰를 반복 실행할 수 있으므로 마커 기반 업서트를 사용합니다.
+   - 권장 마커: `<!-- codex-pr-context-review -->`
+
+예시 절차:
+
+```bash
+# 1) 기존 코멘트 검색
+gh pr view <pr> --comments
+
+# 2) 없으면 신규 코멘트
+gh pr comment <pr> --body "<!-- codex-pr-context-review -->\n...리뷰 본문..."
+
+# 3) 있으면 gh api로 PATCH 업서트
+# repos/{owner}/{repo}/issues/comments/{comment_id}
+```
+
+PR 코멘트에는 최소한 아래를 포함합니다.
+- Reviewed head SHA
+- Findings 요약
+- 각 finding의 `severity`, `file:line`, 영향
+- 검증 명령 실행 여부
+
 ## 금지 사항
 
 - PR Description을 읽지 않고 코드만 보고 결론 내리지 않습니다.
