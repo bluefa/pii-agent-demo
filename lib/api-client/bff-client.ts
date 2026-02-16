@@ -56,6 +56,10 @@ const proxyDelete = async (path: string): Promise<NextResponse> => {
 };
 
 export const bffClient: ApiClient = {
+  targetSources: {
+    list: (serviceCode) => proxyGet(`/v1/services/${serviceCode}/target-sources`),
+    get: (projectId) => proxyGet(`/v1/target-sources/${projectId}`),
+  },
   projects: {
     get: (projectId) => proxyGet(`/projects/${projectId}`),
     delete: (projectId) => proxyDelete(`/projects/${projectId}`),

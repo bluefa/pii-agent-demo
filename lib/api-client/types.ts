@@ -6,6 +6,10 @@ interface SetInstallationModeBody {
 }
 
 export interface ApiClient {
+  targetSources: {
+    list: (serviceCode: string) => Promise<NextResponse>;
+    get: (projectId: string) => Promise<NextResponse>;
+  };
   projects: {
     get: (projectId: string) => Promise<NextResponse>;
     delete: (projectId: string) => Promise<NextResponse>;
