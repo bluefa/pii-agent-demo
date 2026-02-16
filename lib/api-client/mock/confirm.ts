@@ -253,7 +253,9 @@ export const mockConfirm = {
       processStatus: calculatedProcessStatus,
     });
 
-    await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
+    // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
+    const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;
+    await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount, inputDataSnapshot);
     if (autoApprovalResult.shouldAutoApprove) {
       await mockHistory.addAutoApprovedHistory(projectId);
     }
@@ -266,7 +268,7 @@ export const mockConfirm = {
           id: requestId,
           requested_at: now,
           requested_by: user.name,
-          input_data: (body as ApprovalRequestCreateBody).input_data,
+          input_data: inputDataSnapshot,
         },
       },
       { status: 201 },
@@ -371,8 +373,8 @@ export const mockConfirm = {
       offset: page * size,
     });
 
-    // Build resource_inputs snapshot from project's current resources
-    const resourceInputs = project.resources.map((r) => {
+    // Helper: build resource_inputs from current project state (fallback for entries without stored snapshot)
+    const buildCurrentResourceInputs = () => project.resources.map((r) => {
       if (r.isSelected) {
         const input: Record<string, unknown> = {};
         if (r.vmDatabaseConfig) {
@@ -406,7 +408,7 @@ export const mockConfirm = {
         id: `req-pending-${project.id}`,
         requested_at: project.updatedAt,
         requested_by: user.name,
-        input_data: { resource_inputs: resourceInputs },
+        input_data: { resource_inputs: buildCurrentResourceInputs() },
       };
       return NextResponse.json({
         content: [{ request: pendingRequest }],
@@ -415,11 +417,13 @@ export const mockConfirm = {
     }
 
     const content = history.map((h) => {
+      // Use stored snapshot if available, otherwise fall back to current state
+      const inputData = h.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
       const request = {
         id: h.id,
         requested_at: h.timestamp,
         requested_by: h.actor.name,
-        input_data: { resource_inputs: resourceInputs },
+        input_data: inputData,
       };
 
       let result;
@@ -586,6 +590,14 @@ export const mockConfirm = {
     }
 
     const { reason } = (body ?? {}) as { reason?: string };
+
+    if (!reason || !reason.trim()) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '반려 사유를 입력해주세요.' } },
+        { status: 400 },
+      );
+    }
+
     const now = new Date().toISOString();
 
     const updatedResources = project.resources.map((r) => {
@@ -594,7 +606,7 @@ export const mockConfirm = {
         ...r,
         isSelected: false,
         exclusion: undefined,
-        note: reason ? `반려: ${reason}` : r.note,
+        note: `반려: ${reason}`,
       };
     });
 
