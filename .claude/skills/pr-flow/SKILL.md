@@ -37,12 +37,9 @@ Task({
     1. Verify worktree: bash scripts/guard-worktree.sh
     2. Rebase: git fetch origin main && git rebase origin/main
     3. Re-run tests: npm run test:run
-    4. If API/Swagger files changed, run contract validation:
-       - request/response required fields vs Swagger
-       - enum values vs Swagger
-       - legacy alias reintroduction check
-       - domain-specific banned dependency checks for changed paths
-       - canonical source fields are consistently used in request construction
+    4. Run contract validation:
+       - bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD
+       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
     5. Execute flow: bash scripts/pr-flow.sh --strategy {strategy} {merge_flag}
        - merge_flag: --merge-approved (only if user explicitly requested merge)
     6. Report: PR URL and status

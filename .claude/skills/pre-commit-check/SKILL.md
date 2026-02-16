@@ -46,13 +46,9 @@ Task({
     3. Run type-check: npx tsc --noEmit
     4. Run tests: npm run test:run
     5. Run build: npm run build
-    6. If staged files touch API/Swagger paths, run contract checks:
-       - Compare changed request/response types with Swagger required fields and enum values
-       - Verify no legacy field aliases are reintroduced
-       - Run domain-specific banned dependency search:
-         rg -n "{legacy_flag_or_field_1}|{legacy_flag_or_field_2}" <changed_paths>
-       - If matches are used in request/processing logic, mark as failure
-       - If matches remain only as TODO comments, mark as warning and include removal plan summary
+    6. Run contract check (API/Swagger 작업은 필수):
+       - bash scripts/contract-check.sh --mode staged
+       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
     7. Report results:
        - All passed: "✅ Ready to commit"
        - Any failed: "❌ Fix issues before commit" + error summary
@@ -62,7 +58,7 @@ Task({
     ✓ Type-check: passed
     ✓ Tests: passed (X passed)
     ✓ Build: passed
-    ✓ Contract-check: passed (when applicable)
+✓ Contract-check: passed (or skipped when out of scope)
 
     IMPORTANT: Run all checks even if one fails (don't stop early)
   `
@@ -94,7 +90,7 @@ Ready to commit!
   - src/lib/bar.ts:45 - Property 'baz' missing
 ✓ Tests: 42 passed
 ✓ Build: completed (with warnings)
-✗ Contract-check: swagger enum mismatch (PROCESS_STATUS)
+✗ Contract-check: API/runtime changed without Swagger update
 
 Fix type errors before commit.
 ```

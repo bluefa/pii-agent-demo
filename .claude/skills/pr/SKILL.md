@@ -38,11 +38,9 @@ Task({
        - npx tsc --noEmit
        - npm run test:run
        - npm run build
-    4. If API/Swagger files changed, run contract validation:
-       - Check request/response required fields and enum values against Swagger
-       - Verify no legacy aliases are reintroduced
-       - Run domain-specific banned dependency checks for changed paths
-       - Verify canonical source fields are used consistently for request construction
+    4. Run contract validation:
+       - bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD
+       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
     5. Check for commits: git log origin/main..HEAD --oneline
        - If empty: report and stop
     6. Push branch: git push origin HEAD --force-with-lease
@@ -87,11 +85,9 @@ gh pr create --base main --head <branch> --title "<title>" --body "<description>
 - 실행한 검증 명령과 결과
 
 ## Contract Validation (API 변경 시 필수)
-- 기준 Swagger 파일
-- request/response required 필드 대조 결과
-- enum 대조 결과
-- legacy alias 사용 여부
-- 도메인별 legacy 의존 제거 확인, canonical field 단일화 확인
+- 실행 명령
+- PASS/FAIL 결과
+- 실패/예외 시 TODO 및 제거 계획
 
 ## Risks
 - 잠재 영향 범위

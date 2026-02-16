@@ -36,6 +36,7 @@ bash scripts/bootstrap-worktree.sh "$(pwd)"
   - 필드명 변경점(신규/삭제/구형 alias)
 - 매핑표 작성 전 코드 수정을 시작하지 않는다.
 - 기존 코드 패턴과 충돌하면 계약을 따르고, 남은 legacy 의존은 TODO + 제거 계획을 코드/PR에 남긴다.
+- 계약 정합성 세부 규칙은 `.claude/skills/shared/CONTRACT_VALIDATION.md`를 따른다.
 
 ### 탐색 범위/서브에이전트 규칙 (필수)
 - 변경 대상 파일 중심으로만 탐색한다 (대량 Read/Grep 금지).
@@ -78,14 +79,11 @@ npm run build         # (선택) 빌드 확인
 ```
 
 ### 계약 정합성 검증 (API 작업 필수)
-- 요청/응답 타입이 Swagger required 필드를 모두 포함하는지 확인
-- enum 값이 Swagger와 1:1로 일치하는지 확인
-- 구형 필드명(alias)을 재도입하지 않았는지 확인
-- 도메인별 금지 의존 검색:
+- 플레이북: `.claude/skills/shared/CONTRACT_VALIDATION.md`
+- 실행 명령:
   ```bash
-  rg -n "{legacy_flag_or_field_1}|{legacy_flag_or_field_2}" <changed_paths>
+  bash scripts/contract-check.sh --mode staged
   ```
-  - 요청 생성/처리 경로에서 발견되면 수정하거나 TODO + 제거 계획을 남긴다.
 
 ## 4. 문서화 (PR 전 필수)
 
