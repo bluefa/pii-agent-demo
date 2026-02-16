@@ -156,8 +156,8 @@ export type GcpPendingAction =
 
 export interface PscConnection {
   status: PrivateEndpointStatus;
-  connectionId: string;
-  serviceAttachmentUri: string;
+  connectionId?: string;
+  serviceAttachmentUri?: string;
 }
 
 export interface GcpResourceStatus {

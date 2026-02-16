@@ -1,12 +1,4 @@
-import type { GcpInstallResource } from '@/lib/types/gcp';
-
-// ===== GCP 연결 유형 라벨 =====
-
-export const GCP_CONNECTION_TYPE_LABELS = {
-  PRIVATE_IP: 'Private IP',
-  PSC: 'PSC (Private Service Connect)',
-  BIGQUERY: 'BigQuery',
-} as const;
+import type { GcpResourceStatus } from '@/app/api/_lib/v1-types';
 
 // ===== GCP TF 상태 라벨 =====
 
@@ -76,35 +68,6 @@ export const GCP_GUIDE_URLS = {
   PSC_APPROVAL: 'https://docs.example.com/gcp/psc-approval',
 } as const;
 
-// ===== Service TF 리소스 목록 (케이스별) =====
-
-export const GCP_SERVICE_TF_RESOURCES = {
-  PRIVATE_IP: {
-    connectionType: 'PRIVATE_IP' as const,
-    resources: [
-      { name: 'google_compute_network_endpoint_group', type: 'psc_neg', description: 'PSC Network Endpoint Group (NEG)' },
-      { name: 'google_compute_region_backend_service', type: 'backend_service', description: 'Regional Backend Service' },
-      { name: 'google_compute_region_target_tcp_proxy', type: 'target_tcp_proxy', description: 'Target TCP Proxy' },
-      { name: 'google_compute_forwarding_rule', type: 'forwarding_rule', description: 'Internal Proxy NLB Forwarding Rule' },
-    ],
-    totalCount: 4,
-  },
-  PSC: {
-    connectionType: 'PSC' as const,
-    resources: [],
-    totalCount: 0,
-  },
-  BIGQUERY: {
-    connectionType: 'BIGQUERY' as const,
-    resources: [
-      { name: 'google_project_iam_member', type: 'iam_binding', description: 'BigQuery User (roles/bigquery.user)' },
-      { name: 'google_project_iam_member', type: 'iam_binding', description: 'BigQuery Data Viewer (roles/bigquery.dataViewer)' },
-      { name: 'google_project_iam_member', type: 'iam_binding', description: 'BigQuery Job User (roles/bigquery.jobUser)' },
-    ],
-    totalCount: 3,
-  },
-} as const;
-
 // ===== GCP 통합 상태 =====
 
 export type GcpUnifiedStatus = 'COMPLETED' | 'FAILED' | 'IN_PROGRESS' | 'PENDING' | 'ACTION_REQUIRED';
@@ -117,8 +80,8 @@ export const GCP_UNIFIED_STATUS_LABELS: Record<GcpUnifiedStatus, string> = {
   ACTION_REQUIRED: '조치 필요',
 } as const;
 
-export const getGcpUnifiedStatus = (resource: GcpInstallResource): GcpUnifiedStatus => {
-  const { serviceTfStatus, bdcTfStatus, regionalManagedProxy, pscConnection } = resource;
+export const getGcpUnifiedStatus = (resource: GcpResourceStatus): GcpUnifiedStatus => {
+  const { serviceTfStatus, bdcTfStatus, pendingAction } = resource;
 
   if (serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'COMPLETED') {
     return 'COMPLETED';
@@ -128,11 +91,7 @@ export const getGcpUnifiedStatus = (resource: GcpInstallResource): GcpUnifiedSta
     return 'FAILED';
   }
 
-  if (regionalManagedProxy?.exists === false) {
-    return 'ACTION_REQUIRED';
-  }
-
-  if (pscConnection?.status === 'PENDING_APPROVAL' || pscConnection?.status === 'REJECTED') {
+  if (pendingAction === 'CREATE_PROXY_SUBNET' || pendingAction === 'APPROVE_PSC_CONNECTION') {
     return 'ACTION_REQUIRED';
   }
 
@@ -160,7 +119,7 @@ export const GCP_GROUP_STATUS_LABELS: Record<GcpGroupStatus, string> = {
 } as const;
 
 export const getGcpGroupStatus = (
-  resources: GcpInstallResource[],
+  resources: GcpResourceStatus[],
   field: 'serviceTfStatus' | 'bdcTfStatus'
 ): GcpGroupStatus => {
   if (resources.length === 0) return 'PENDING';

@@ -2,11 +2,9 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as mockServiceSettings from '@/lib/mock-service-settings';
 import * as azureFns from '@/lib/mock-azure';
-import * as gcpFns from '@/lib/mock-gcp';
 import * as idcFns from '@/lib/mock-idc';
 import { ProcessStatus } from '@/lib/types';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
-import { GCP_ERROR_CODES } from '@/lib/constants/gcp';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import type { UpdateAwsSettingsRequest } from '@/lib/types';
 import type { UpdateIdcSettingsRequest } from '@/lib/types/idc';
@@ -250,44 +248,6 @@ export const mockServices = {
         }
 
         const result = await azureFns.getAzureServiceSettings(serviceCode);
-
-        if (result.error) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: result.error.status }
-          );
-        }
-
-        return NextResponse.json(result.data);
-      },
-    },
-
-    gcp: {
-      get: async (serviceCode: string) => {
-        const user = await mockData.getCurrentUser();
-        if (!user) {
-          return NextResponse.json(
-            { error: GCP_ERROR_CODES.UNAUTHORIZED.code, message: GCP_ERROR_CODES.UNAUTHORIZED.message },
-            { status: GCP_ERROR_CODES.UNAUTHORIZED.status }
-          );
-        }
-
-        const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
-        if (!service) {
-          return NextResponse.json(
-            { error: GCP_ERROR_CODES.SERVICE_NOT_FOUND.code, message: GCP_ERROR_CODES.SERVICE_NOT_FOUND.message },
-            { status: GCP_ERROR_CODES.SERVICE_NOT_FOUND.status }
-          );
-        }
-
-        if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(serviceCode)) {
-          return NextResponse.json(
-            { error: GCP_ERROR_CODES.FORBIDDEN.code, message: GCP_ERROR_CODES.FORBIDDEN.message },
-            { status: GCP_ERROR_CODES.FORBIDDEN.status }
-          );
-        }
-
-        const result = await gcpFns.getGcpServiceSettings(serviceCode);
 
         if (result.error) {
           return NextResponse.json(

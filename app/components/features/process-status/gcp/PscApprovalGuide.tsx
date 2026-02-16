@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { GCP_GUIDE_URLS, GCP_PSC_STATUS_LABELS } from '@/lib/constants/gcp';
 import { statusColors, cn } from '@/lib/theme';
-import type { GcpPscConnectionStatus, GcpPscStatus } from '@/lib/types/gcp';
+import type { PscConnection } from '@/app/api/_lib/v1-types';
+import type { GcpPscStatus } from '@/lib/types/gcp';
 
 interface PscApprovalGuideProps {
-  pscConnection: GcpPscConnectionStatus;
+  pscConnection: PscConnection;
 }
 
 const getPscStatusColor = (status: GcpPscStatus) => {
@@ -20,8 +21,9 @@ const getPscStatusColor = (status: GcpPscStatus) => {
 
 export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
   const [expanded, setExpanded] = useState(false);
-  const color = getPscStatusColor(pscConnection.status);
-  const showGuide = pscConnection.status === 'PENDING_APPROVAL' || pscConnection.status === 'REJECTED';
+  const status = pscConnection.status as GcpPscStatus;
+  const color = getPscStatusColor(status);
+  const showGuide = status === 'PENDING_APPROVAL' || status === 'REJECTED';
 
   return (
     <div className="mt-2">
@@ -29,7 +31,7 @@ export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
         <span className="text-xs text-gray-600">연결 상태</span>
         <div className="flex items-center gap-2">
           <span className={cn('text-xs font-medium', color.textDark)}>
-            {GCP_PSC_STATUS_LABELS[pscConnection.status]}
+            {GCP_PSC_STATUS_LABELS[status]}
           </span>
           {showGuide && (
             <button
