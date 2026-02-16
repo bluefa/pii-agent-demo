@@ -134,6 +134,8 @@ Exception 처리 정책:
 
 목표: UI/UX Flow 확정 이후 Confirm/Approval 계약을 최종 반영
 
+- 실행용 상세 작업 분해: `docs/swagger/CONFIRM_MIGRATION_TASKS.md`
+
 - `confirm.yaml` 기준 endpoint를 실제 라우트로 이관
 - `approval-requests`, `confirmed-integration`, `approved-integration`, `approval-history` 순으로 전환
 - `process-status` API 구현 (승인 객체 기반, 설치 진행은 Provider별 installation-status 유지)
