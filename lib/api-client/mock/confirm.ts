@@ -7,10 +7,18 @@ import { evaluateAutoApproval } from '@/lib/policies';
 import type {
   Resource,
   ProjectStatus,
+  ConnectionStatus,
+  ConnectionTestResult,
+  ConnectionTestHistory,
   VmDatabaseConfig,
   ResourceExclusion,
   Project,
 } from '@/lib/types';
+
+interface ResourceCredentialInput {
+  resourceId: string;
+  credentialId?: string;
+}
 
 // --- Helpers ---
 
@@ -299,8 +307,6 @@ export const mockConfirm = {
 
     return NextResponse.json({
       confirmed_integration: {
-        id: `ci-${project.id}`,
-        confirmed_at: project.completionConfirmedAt ?? project.updatedAt,
         resource_infos: activeResources.map(toResourceSnapshot),
       },
     });
@@ -634,6 +640,244 @@ export const mockConfirm = {
       result: 'REJECTED',
       processed_at: now,
       reason,
+    });
+  },
+
+  confirmInstallation: async (projectId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '관리자만 설치 완료를 확정할 수 있습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (project.processStatus !== ProcessStatus.CONNECTION_VERIFIED) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '설치 확정 가능한 상태가 아닙니다.' } },
+        { status: 400 },
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      connectionTest: {
+        ...project.status.connectionTest,
+        status: 'PASSED',
+        passedAt: project.status.connectionTest.passedAt || now,
+      },
+    };
+
+    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
+    mockData.updateProject(projectId, {
+      processStatus: calculatedProcessStatus,
+      status: updatedStatus,
+      completionConfirmedAt: now,
+      piiAgentInstalled: true,
+      piiAgentConnectedAt: project.piiAgentConnectedAt || now,
+    });
+
+    return NextResponse.json({ success: true, confirmedAt: now });
+  },
+
+  updateResourceCredential: async (projectId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
+    if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST &&
+        project.processStatus !== ProcessStatus.CONNECTION_VERIFIED &&
+        project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: 'Credential 변경 가능한 상태가 아닙니다.' } },
+        { status: 400 },
+      );
+    }
+
+    const { resourceId, credentialId } = body as { resourceId?: string; credentialId?: string };
+
+    if (!resourceId) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: 'resourceId가 필요합니다.' } },
+        { status: 400 },
+      );
+    }
+
+    const updatedResources = project.resources.map((r) => {
+      if (r.id !== resourceId) return r;
+      return {
+        ...r,
+        selectedCredentialId: credentialId || undefined,
+      };
+    });
+
+    mockData.updateProject(projectId, { resources: updatedResources });
+
+    return NextResponse.json({ success: true });
+  },
+
+  testConnection: async (projectId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
+    if (project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST &&
+        project.processStatus !== ProcessStatus.CONNECTION_VERIFIED &&
+        project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '연결 테스트가 필요한 상태가 아닙니다.' } },
+        { status: 400 },
+      );
+    }
+
+    const { resourceCredentials = [] } = (body ?? {}) as { resourceCredentials?: ResourceCredentialInput[] };
+
+    const selectedResources = project.resources.filter((r) => r.isSelected);
+
+    const credentialMap = new Map<string, string | undefined>();
+    resourceCredentials.forEach((rc) => {
+      credentialMap.set(rc.resourceId, rc.credentialId);
+    });
+
+    const results: ConnectionTestResult[] = await Promise.all(selectedResources.map(async (r) => {
+      const credentialId = credentialMap.get(r.id);
+      const credential = credentialId ? await mockData.getCredentialById(credentialId) : undefined;
+      return mockData.simulateConnectionTest(
+        r.resourceId,
+        r.type,
+        r.databaseType,
+        credentialId,
+        credential?.name,
+      );
+    }));
+
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
+    const allSuccess = failCount === 0;
+
+    const historyEntry: ConnectionTestHistory = {
+      id: await mockData.generateId('history'),
+      executedAt: new Date().toISOString(),
+      status: allSuccess ? 'SUCCESS' : 'FAIL',
+      successCount,
+      failCount,
+      results,
+    };
+
+    const updatedResources = project.resources.map((r) => {
+      if (!r.isSelected) return r;
+
+      const credentialId = credentialMap.get(r.id);
+      const result = results.find((res) => res.resourceId === r.resourceId);
+
+      if (!result) {
+        return { ...r, selectedCredentialId: credentialId };
+      }
+
+      if (result.success) {
+        return {
+          ...r,
+          connectionStatus: 'CONNECTED' as ConnectionStatus,
+          note: r.note === 'NEW' ? undefined : r.note,
+          selectedCredentialId: credentialId,
+        };
+      } else {
+        return {
+          ...r,
+          connectionStatus: 'DISCONNECTED' as ConnectionStatus,
+          selectedCredentialId: credentialId,
+        };
+      }
+    });
+
+    const existingHistory = project.connectionTestHistory || [];
+    const updatedHistory = [historyEntry, ...existingHistory];
+
+    const shouldUpdateConnectionTest = allSuccess && project.status.connectionTest.status !== 'PASSED';
+    const isFirstSuccess = allSuccess && !project.piiAgentConnectedAt;
+    const now = new Date().toISOString();
+
+    const updatedStatus: ProjectStatus = shouldUpdateConnectionTest
+      ? {
+          ...project.status,
+          connectionTest: {
+            status: 'PASSED',
+            lastTestedAt: now,
+            passedAt: now,
+          },
+        }
+      : {
+          ...project.status,
+          connectionTest: {
+            ...project.status.connectionTest,
+            status: allSuccess ? 'PASSED' : 'FAILED',
+            lastTestedAt: now,
+          },
+        };
+
+    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
+    mockData.updateProject(projectId, {
+      resources: updatedResources,
+      connectionTestHistory: updatedHistory,
+      status: updatedStatus,
+      processStatus: calculatedProcessStatus,
+      ...(isFirstSuccess ? { piiAgentConnectedAt: now } : {}),
+    });
+
+    return NextResponse.json({
+      success: allSuccess,
+      results,
+      history: historyEntry,
     });
   },
 };

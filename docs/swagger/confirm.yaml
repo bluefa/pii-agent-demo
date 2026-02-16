@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Target Source Management API
-  version: 2.5.0
+  version: 3.0.0
   description: |
     ADR-006 기반의 연동 대상 소스(Target Source) 통합 관리 API입니다.
 
@@ -12,17 +12,31 @@ info:
     4. **보안**: `integrationCategory`와 같은 시스템 가이드는 Response에만 포함하며, Request 검증은 백엔드에서 수행합니다.
     5. **용어 체계**: processStatus 상태명은 ADR-009 기준을 따릅니다. `APPLYING_APPROVED`는 "승인 반영 중" 전용입니다.
 
+    ---
+
+    **Legacy API 대체 매핑표 (v3.0.0):**
+
+    | Legacy Path | v1 Path | 비고 |
+    |---|---|---|
+    | `POST /projects/{id}/confirm-pii-agent` | _(삭제)_ | route 삭제 |
+    | `POST /projects/{id}/confirm-completion` | `POST /target-sources/{id}/pii-agent-installation/confirm` | 관리자 최종 확정 |
+    | `PATCH /projects/{id}/resources/credential` | `PATCH /target-sources/{id}/resources/credential` | credential 갱신 |
+    | `POST /projects/{id}/test-connection` | `POST /target-sources/{id}/test-connection` | 연결 테스트 |
+    | `POST /projects/{id}/complete-installation` | _(삭제)_ | 신규 의존 금지 |
+
 servers:
   - url: /api/v1
     description: v1 Base Path
 
 tags:
   - name: Resources
-    description: 리소스 목록 및 메타데이터 조회
+    description: 리소스 목록, 메타데이터 조회 및 Credential 관리
   - name: Approval Process
     description: 연동 요청 생성, 승인 정보 조회 및 히스토리 관리
   - name: Process Status
     description: 승인 객체 기반 프로세스 상태 조회 (설치 진행은 Provider별 installation-status 참조)
+  - name: Installation
+    description: PII Agent 설치 확정 및 연결 테스트
 
 paths:
   /target-sources/{targetSourceId}/resources:
@@ -299,6 +313,127 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProcessStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/pii-agent-installation/confirm:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Installation]
+      summary: PII Agent 설치 확정 (관리자)
+      operationId: confirmPiiAgentInstallation
+      x-expected-duration: "500ms 이내"
+      description: |
+        관리자가 PII Agent 설치를 최종 확정합니다.
+        연결 테스트가 완료된(CONNECTION_VERIFIED) 상태에서만 호출 가능합니다.
+        확정 시 processStatus가 INSTALLATION_COMPLETE로 전환됩니다.
+      responses:
+        '200':
+          description: 설치 확정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallationConfirmResponse'
+        '400':
+          description: "설치 확정 가능한 상태가 아님"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "VALIDATION_FAILED", message: "설치 확정 가능한 상태가 아닙니다." }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/resources/credential:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    patch:
+      tags: [Resources]
+      summary: 리소스 Credential 갱신
+      operationId: updateResourceCredential
+      x-expected-duration: "300ms 이내"
+      description: |
+        특정 리소스에 연결할 Credential을 변경합니다.
+        연결 테스트 단계(WAITING_CONNECTION_TEST, CONNECTION_VERIFIED, INSTALLATION_COMPLETE)에서만 변경 가능합니다.
+        `credentialId`를 null로 전달하면 Credential 연결을 해제합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResourceCredentialRequest'
+      responses:
+        '200':
+          description: Credential 갱신 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+        '400':
+          description: "요청 파라미터 오류 또는 변경 불가 상태"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                missing_resource_id:
+                  summary: resourceId 누락
+                  value:
+                    error: { code: "VALIDATION_FAILED", message: "resourceId가 필요합니다." }
+                invalid_state:
+                  summary: 변경 불가 상태
+                  value:
+                    error: { code: "VALIDATION_FAILED", message: "Credential 변경 가능한 상태가 아닙니다." }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/test-connection:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Installation]
+      summary: 연결 테스트 실행
+      operationId: runTestConnection
+      x-expected-duration: "5s ~ 30s"
+      description: |
+        선택된 리소스에 대해 연결 테스트를 실행합니다.
+        연결 테스트 단계(WAITING_CONNECTION_TEST, CONNECTION_VERIFIED, INSTALLATION_COMPLETE)에서만 실행 가능합니다.
+        각 리소스별로 credential을 지정할 수 있습니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestConnectionRequest'
+      responses:
+        '200':
+          description: 연결 테스트 완료
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionResponse'
+        '400':
+          description: "연결 테스트 가능한 상태가 아님"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "VALIDATION_FAILED", message: "연결 테스트가 필요한 상태가 아닙니다." }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -584,8 +719,6 @@ components:
     ConfirmedIntegration:
       type: object
       properties:
-        id: { type: string }
-        confirmed_at: { type: string, format: date-time }
         resource_infos:
           type: array
           items: { $ref: '#/components/schemas/ResourceSnapshot' }
@@ -715,6 +848,87 @@ components:
         - CANCELLED
         - SYSTEM_ERROR
         - COMPLETED
+
+    # --- Installation & Connection Test Models ---
+    InstallationConfirmResponse:
+      type: object
+      required: [success, confirmedAt]
+      properties:
+        success: { type: boolean }
+        confirmedAt: { type: string, format: date-time }
+
+    UpdateResourceCredentialRequest:
+      type: object
+      required: [resourceId]
+      properties:
+        resourceId:
+          type: string
+          description: "대상 리소스 식별자"
+        credentialId:
+          type: string
+          nullable: true
+          description: "연결할 Credential ID. null이면 연결 해제"
+
+    TestConnectionRequest:
+      type: object
+      required: [resourceCredentials]
+      properties:
+        resourceCredentials:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ResourceCredentialInput'
+
+    ResourceCredentialInput:
+      type: object
+      required: [resourceId]
+      properties:
+        resourceId:
+          type: string
+          description: "테스트 대상 리소스 식별자"
+        credentialId:
+          type: string
+          nullable: true
+          description: "사용할 Credential ID (선택)"
+
+    TestConnectionResponse:
+      type: object
+      required: [success, results, history]
+      properties:
+        success:
+          type: boolean
+          description: "전체 테스트 성공 여부"
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConnectionTestResultItem'
+        history:
+          $ref: '#/components/schemas/ConnectionTestHistoryEntry'
+
+    ConnectionTestResultItem:
+      type: object
+      required: [resourceId, success]
+      properties:
+        resourceId: { type: string }
+        resourceName: { type: string }
+        resourceType: { type: string }
+        success: { type: boolean }
+        message: { type: string, nullable: true }
+        testedAt: { type: string, format: date-time }
+        credentialId: { type: string, nullable: true }
+        credentialName: { type: string, nullable: true }
+
+    ConnectionTestHistoryEntry:
+      type: object
+      required: [id, executedAt, status, successCount, failCount]
+      properties:
+        id: { type: string }
+        executedAt: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [SUCCESS, FAIL]
+        successCount: { type: integer }
+        failCount: { type: integer }
 
     ErrorResponse:
       type: object

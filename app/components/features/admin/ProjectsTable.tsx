@@ -8,8 +8,7 @@ interface ProjectsTableProps {
   projects: ProjectSummary[];
   loading: boolean;
   actionLoading: string | null;
-  onCompleteInstallation: (projectId: string, e: React.MouseEvent) => void;
-  onConfirmCompletion: (projectId: string, e: React.MouseEvent) => void;
+  onConfirmCompletion: (targetSourceId: number, e: React.MouseEvent) => void;
   onViewApproval?: (project: ProjectSummary, e: React.MouseEvent) => void;
 }
 
@@ -50,7 +49,6 @@ export const ProjectsTable = ({
   projects,
   loading,
   actionLoading,
-  onCompleteInstallation,
   onConfirmCompletion,
   onViewApproval,
 }: ProjectsTableProps) => {
@@ -130,20 +128,9 @@ export const ProjectsTable = ({
                   </button>
                 )}
                 {project.processStatus === ProcessStatus.INSTALLING && (
-                  <button
-                    onClick={(e) => onCompleteInstallation(project.id, e)}
-                    disabled={actionLoading === project.id}
-                    className="px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                  >
-                    {actionLoading === project.id ? (
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                    설치 완료
-                  </button>
+                  <span className="px-3 py-1.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-lg">
+                    설치 진행 중
+                  </span>
                 )}
                 {project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST && (
                   <span className="px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-lg">
@@ -152,11 +139,11 @@ export const ProjectsTable = ({
                 )}
                 {project.processStatus === ProcessStatus.CONNECTION_VERIFIED && (
                   <button
-                    onClick={(e) => onConfirmCompletion(project.id, e)}
-                    disabled={actionLoading === project.id}
+                    onClick={(e) => onConfirmCompletion(project.targetSourceId, e)}
+                    disabled={actionLoading === String(project.targetSourceId)}
                     className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                   >
-                    {actionLoading === project.id ? (
+                    {actionLoading === String(project.targetSourceId) ? (
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
