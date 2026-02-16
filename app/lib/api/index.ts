@@ -398,7 +398,7 @@ export const updateResourceCredential = async (
 // 설치 완료 확정 (관리자) — v1
 export interface InstallationConfirmResult {
   success: boolean;
-  confirmed_at: string;
+  confirmedAt: string;
 }
 
 export const confirmInstallation = async (

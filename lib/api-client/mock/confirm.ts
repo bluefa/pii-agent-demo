@@ -308,7 +308,7 @@ export const mockConfirm = {
     return NextResponse.json({
       confirmed_integration: {
         id: `ci-${project.id}`,
-        confirmed_at: project.completionConfirmedAt ?? project.updatedAt,
+        confirmedAt: project.completionConfirmedAt ?? project.updatedAt,
         resource_infos: activeResources.map(toResourceSnapshot),
       },
     });
@@ -690,7 +690,7 @@ export const mockConfirm = {
       piiAgentConnectedAt: project.piiAgentConnectedAt || now,
     });
 
-    return NextResponse.json({ success: true, confirmed_at: now });
+    return NextResponse.json({ success: true, confirmedAt: now });
   },
 
   updateResourceCredential: async (projectId: string, body: unknown) => {
