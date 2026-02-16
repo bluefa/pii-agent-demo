@@ -12,6 +12,25 @@ info:
     4. **보안**: `integrationCategory`와 같은 시스템 가이드는 Response에만 포함하며, Request 검증은 백엔드에서 수행합니다.
     5. **용어 체계**: processStatus 상태명은 ADR-009 기준을 따릅니다. `APPLYING_APPROVED`는 "승인 반영 중" 전용입니다.
 
+x-review-summary:
+  purpose: "이번 PR 변경을 confirm.yaml 한 파일에서 빠르게 검토하기 위한 요약"
+  new_or_updated_v1_endpoints:
+    - "POST /api/v1/target-sources/{targetSourceId}/approval-requests"
+    - "POST /api/v1/target-sources/{targetSourceId}/approval-requests/approve"
+    - "POST /api/v1/target-sources/{targetSourceId}/approval-requests/reject"
+    - "GET /api/v1/target-sources/{targetSourceId}/approval-history"
+    - "GET /api/v1/target-sources/{targetSourceId}/process-status"
+  legacy_api_replacements:
+    - legacy: "POST /api/projects/{projectId}/confirm-targets"
+      replacement: "POST /api/v1/target-sources/{targetSourceId}/approval-requests"
+      note: "요청 입력은 input_data.resource_inputs[] + resource_input.endpoint_config|credential_id로 통합"
+    - legacy: "POST /api/projects/{projectId}/approve"
+      replacement: "POST /api/v1/target-sources/{targetSourceId}/approval-requests/approve"
+      note: "관리자 승인 액션을 approval-requests 하위 리소스로 명확화"
+    - legacy: "POST /api/projects/{projectId}/reject"
+      replacement: "POST /api/v1/target-sources/{targetSourceId}/approval-requests/reject"
+      note: "반려 사유(reason) 필수 및 VALIDATION_FAILED 에러 계약 사용"
+
 servers:
   - url: /api/v1
     description: v1 Base Path
