@@ -136,8 +136,74 @@ Exception 처리 정책:
 
 - `confirm.yaml` 기준 endpoint를 실제 라우트로 이관
 - `approval-requests`, `confirmed-integration`, `approved-integration`, `approval-history` 순으로 전환
+- `process-status` API 구현 (승인 객체 기반, 설치 진행은 Provider별 installation-status 유지)
 - VM 설정에서 `db_type=ORACLE`인 경우 `oracleServiceId` 필수 규칙을 요청/확정 응답 모두에 적용
 - 완료/확정 관련 endpoint 용어를 `completion/installation` 기준으로 정리
+
+#### 4-1. processStatus 용어 체계 (ADR-009 확정)
+
+**해소된 충돌**: 기존 FE `ProcessStatus.WAITING_TARGET_CONFIRMATION`(1단계: 리소스 미선택)과 PR #146의 "반영 중" 의미가 충돌. → "반영 중"은 `APPLYING_APPROVED`로 별도 명명.
+
+**BFF TargetSourceProcessStatus enum (4개)**:
+
+| BFF 상태 | 의미 | 계산 우선순위 |
+|----------|------|-------------|
+| `REQUEST_REQUIRED` | 요청 필요 (확정 정보 없음, 최초 진입) | 4 (fallback) |
+| `WAITING_APPROVAL` | 승인 대기 | 1 (최우선) |
+| `APPLYING_APPROVED` | 승인 반영 중 | 2 |
+| `TARGET_CONFIRMED` | 연동 확정 완료 | 3 |
+
+**ADR-006 상태 조합 ↔ BFF processStatus 매핑**:
+
+| Confirmed | Request | Approved | BFF processStatus | context | FE 메인 표시 |
+|:---------:|:-------:|:--------:|-------------------|---------|-------------|
+| X | X | X | `REQUEST_REQUIRED` | INITIAL | 리소스 선택 화면 |
+| X | O | X | `WAITING_APPROVAL` | INITIAL | 승인 대기 배너 |
+| X | X | O | `APPLYING_APPROVED` | INITIAL | 반영 중 + Provider별 installation-status |
+| O | X | X | `TARGET_CONFIRMED` | CHANGE | 확정 정보 표시 |
+| O | O | X | `WAITING_APPROVAL` | CHANGE | 승인 대기 + 이전 정보 |
+| O | X | O | `APPLYING_APPROVED` | CHANGE | 반영 중 + Provider별 installation-status + 이전 정보 |
+
+**FE ProcessStatus(기존) ↔ BFF TargetSourceProcessStatus 대응**:
+
+| FE ProcessStatus (기존) | 값 | BFF 대응 | 비고 |
+|------------------------|---|---------|------|
+| `WAITING_TARGET_CONFIRMATION` | 1 | `REQUEST_REQUIRED` | 의미 동일: 리소스 미선택 |
+| `WAITING_APPROVAL` | 2 | `WAITING_APPROVAL` | 동일 |
+| `INSTALLING` | 3 | `APPLYING_APPROVED` | 설치 진행은 Provider별 installation-status |
+| `WAITING_CONNECTION_TEST` | 4 | (Phase 4 이후 확장) | 현재 BFF 범위 밖 |
+| `CONNECTION_VERIFIED` | 5 | (Phase 4 이후 확장) | 현재 BFF 범위 밖 |
+| `INSTALLATION_COMPLETE` | 6 | `TARGET_CONFIRMED` | 설치 완료 → 확정 |
+
+> FE의 4/5/6단계는 Phase 4 Confirm API 범위에서 세부 분기를 추가할 수 있으나, 현 스펙에서는 BFF가 4개 상태만 반환.
+
+**폴링 규칙**:
+
+| BFF 상태 | process-status 폴링 | installation-status 폴링 | 감지 대상 |
+|----------|:-------------------:|:------------------------:|----------|
+| `REQUEST_REQUIRED` | X | X | — |
+| `WAITING_APPROVAL` | O (10s) | X | 승인/반려 전이 |
+| `APPLYING_APPROVED` | O (10s) | O (Provider별) | 승인 완료 전이 + 설치 진행 |
+| `TARGET_CONFIRMED` | X | X | — |
+
+> `APPLYING_APPROVED` 상태에서 FE는 2개 API를 병행 폴링한다:
+> - `process-status`: 승인 상태 변화 감지 (APPLYING_APPROVED → TARGET_CONFIRMED)
+> - Provider별 `installation-status`: 설치 진행 표시 (기존 UI 그대로 유지)
+
+**409 에러 정책 (approval-requests 차단)**:
+
+| 조건 | HTTP | 에러 코드 | 메시지 |
+|------|------|----------|--------|
+| ApprovedIntegration 존재 | 409 | `CONFLICT_APPLYING_IN_PROGRESS` | 승인된 내용이 반영 중입니다. 완료 후 다시 요청해주세요. |
+| PENDING ApprovalRequest 존재 | 409 | `CONFLICT_REQUEST_PENDING` | 이미 승인 요청이 진행 중입니다. |
+
+**approval-requests 입력 모델 통합**:
+
+- 요청 본문은 `input_data.resource_inputs[]`를 사용한다.
+- top-level 분리 설정 필드는 제거하고 리소스별 입력으로 통합한다.
+- Endpoint 입력: `resource_input.endpoint_config`
+- Credential 입력: `resource_input.credential_id`
+- 제외 리소스: `selected=false` + `exclusion_reason`
 
 산출물:
 
@@ -165,12 +231,13 @@ Exception 처리 정책:
 - 용어를 `completion/installation`으로 통합할지, 상태 전이별 endpoint를 유지할지 결정 필요.
 - 본 영역은 Confirm API migration과 결합되어 있으므로 `Phase 4`에서 최종 반영.
 
-### Confirm / Oracle VM 입력 규칙
+### Confirm / Oracle Endpoint 입력 규칙
 
 - Oracle 입력 필수 규칙은 IDC 전용이 아니라 AWS EC2 / Azure VM / IDC 공통입니다.
 - `db_type=ORACLE`일 때 `oracleServiceId` 필수 규칙을 아래 두 영역에 동일 적용해야 합니다.
-  - 승인 요청 생성(`approval-requests`)의 `vm_configs`
-  - 확정/승인 조회(`confirmed-integration`, `approved-integration`)의 `resource_infos.vm_config`
+  - 승인 요청 생성(`approval-requests`)의 `input_data.resource_inputs[].resource_input.endpoint_config`
+  - 확정/승인 조회(`confirmed-integration`, `approved-integration`)의 `resource_infos.endpoint_config`
+- Credential 선택이 필요한 리소스는 `input_data.resource_inputs[].resource_input.credential_id`를 사용합니다.
 - Confirm API가 최종 단계로 밀린 만큼, 해당 규칙은 `Phase 0`에서 Swagger 계약 먼저 고정하고 `Phase 4`에서 구현 반영합니다.
 
 ### GCP Settings
@@ -216,8 +283,8 @@ Exception 처리 정책:
 
 - 승인 요청 취소 API가 Swagger에 없음
 - 승인/반려 admin 처리 API의 최종 노출 전략이 불명확
-- Black Box 반영 지표(`input_reflected`, `service_tf_installed`, `bdc_tf_installed`)가 명시적으로 드러나지 않음
-- "반영 중 신규 요청 차단" 정책이 API 계약/에러 코드로 명확히 표현되지 않음
+- ~~Black Box 반영 지표가 명시적으로 드러나지 않음~~ → ✅ `process-status`에서 제거하고 Provider별 `installation-status`로 분리 (ADR-009)
+- ~~"반영 중 신규 요청 차단" 정책이 API 계약/에러 코드로 명확히 표현되지 않음~~ → ✅ 409 `CONFLICT_APPLYING_IN_PROGRESS` / `CONFLICT_REQUEST_PENDING` 반영 (ADR-009)
 
 ## 9. Issue #122 Swagger 보완 필요사항
 
