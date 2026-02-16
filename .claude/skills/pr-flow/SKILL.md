@@ -2,6 +2,7 @@
 name: pr-flow
 description: Pull Request 생성 자동화 워크플로우. 기본은 PR 생성까지만 수행하고, 사용자의 명시적 merge 요청이 있을 때만 머지를 수행해야 할 때 사용.
 user_invocable: true
+model: haiku
 ---
 
 # /pr-flow - Create PR (Merge Gated)
