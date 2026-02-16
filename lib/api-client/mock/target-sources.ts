@@ -16,4 +16,14 @@ export const mockTargetSources = {
     const { project } = await response.json();
     return NextResponse.json({ targetSource: project });
   },
+
+  create: async (body: unknown) => {
+    const response = await mockProjects.create(body);
+    if (!response.ok) return response;
+    const { project } = await response.json();
+    return new NextResponse(JSON.stringify({ targetSource: project }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
 };

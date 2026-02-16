@@ -9,5 +9,5 @@ export const GET = withV1(async (_request, { params }) => {
 export const POST = withV1(async (request, { params }) => {
   const { serviceCode } = params;
   const body = await request.json().catch(() => ({}));
-  return client.projects.create({ ...body, serviceCode });
+  return client.targetSources.create({ ...body, serviceCode });
 }, { expectedDuration: '300ms ~ 1s' });
