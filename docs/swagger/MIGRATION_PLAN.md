@@ -104,7 +104,7 @@ Exception 처리 정책:
 - ✅ 신규/구 API 매핑표 (위 테이블)
 - ✅ 호환성 테스트 케이스 (14 tests — problem, target-source, handler)
 
-### Phase 2: Frontend Callsite 전환 (Non-Confirm)
+### Phase 2: Frontend Callsite 전환 (Non-Confirm) ✅ 완료 (PR #157, #159, #160, #164, #165)
 
 목표: 프론트 호출 경로 및 응답 모델을 신규 Contract로 전환
 
@@ -117,7 +117,7 @@ Exception 처리 정책:
 - 호출 경로 전환 PR
 - 회귀 테스트 결과
 
-### Phase 3: Legacy 제거 (Non-Confirm)
+### Phase 3: Legacy 제거 (Non-Confirm) — 부분 완료
 
 목표: 구 경로/구 응답 제거
 
@@ -130,15 +130,36 @@ Exception 처리 정책:
 - 삭제 목록
 - 최종 API 인벤토리
 
-### Phase 4: Confirm API Migration (Final)
+### Phase 4: Confirm API Migration ✅ 완료
 
-목표: UI/UX Flow 확정 이후 Confirm/Approval 계약을 최종 반영
+목표: `confirm.yaml` 기준 Confirm/Approval 계약을 v1 라우트로 이관
 
-- `confirm.yaml` 기준 endpoint를 실제 라우트로 이관
-- `approval-requests`, `confirmed-integration`, `approved-integration`, `approval-history` 순으로 전환
-- `process-status` API 구현 (승인 객체 기반, 설치 진행은 Provider별 installation-status 유지)
-- VM 설정에서 `db_type=ORACLE`인 경우 `oracleServiceId` 필수 규칙을 요청/확정 응답 모두에 적용
-- 완료/확정 관련 endpoint 용어를 `completion/installation` 기준으로 정리
+**v1 라우트 (6개):**
+
+| 엔드포인트 | Method | 설명 |
+|-----------|--------|------|
+| `/api/v1/target-sources/{id}/resources` | GET | 연동 가능 리소스 목록 |
+| `/api/v1/target-sources/{id}/approval-requests` | POST | 승인 요청 생성 |
+| `/api/v1/target-sources/{id}/confirmed-integration` | GET | 확정 연동 정보 |
+| `/api/v1/target-sources/{id}/approved-integration` | GET | 승인 연동 정보 |
+| `/api/v1/target-sources/{id}/approval-history` | GET | 승인 이력 (페이지네이션) |
+| `/api/v1/target-sources/{id}/process-status` | GET | 프로세스 상태 |
+
+**409 충돌 코드:**
+- `CONFLICT_APPLYING_IN_PROGRESS`: 인프라 반영 진행 중
+- `CONFLICT_REQUEST_PENDING`: 승인 대기 중인 요청 존재
+
+**FE 전환:**
+- `confirmTargets` → `createApprovalRequest` (v1 endpoint)
+- Admin 액션(approve, reject, complete 등)은 v1 미정의 → TODO 유지
+
+**삭제 legacy:**
+- `app/api/projects/[projectId]/confirm-targets/` → v1 approval-requests로 대체
+- `app/api/v2/projects/` → v1 scan으로 대체 완료
+
+**남은 TODO:**
+- Admin 액션 (approve, reject, completeInstallation 등) v1 계약 정의 필요
+- runConnectionTest, updateResourceCredential v1 전환 필요
 
 #### 4-1. processStatus 용어 체계 (ADR-009 확정)
 
@@ -163,8 +184,6 @@ Exception 처리 정책:
 | O | X | X | `TARGET_CONFIRMED` | 확정 정보 표시 |
 | O | O | X | `WAITING_APPROVAL` | 승인 대기 + 이전 정보 |
 | O | X | O | `APPLYING_APPROVED` | 반영 중 + Provider별 installation-status + 이전 정보 |
-
-> #167 반영으로 `ProcessStatusResponse`의 `context` 필드가 제거됨.
 
 **FE ProcessStatus(기존) ↔ BFF TargetSourceProcessStatus 대응**:
 

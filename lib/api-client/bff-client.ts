@@ -173,4 +173,13 @@ export const bffClient: ApiClient = {
     create: (projectId, body) => proxyPost(`/scan/projects/${projectId}/scans`, body),
     getStatus: (projectId) => proxyGet(`/scan/projects/${projectId}/status`),
   },
+  confirm: {
+    getResources: (projectId) => proxyGet(`/target-sources/${projectId}/resources`),
+    createApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests`, body),
+    getConfirmedIntegration: (projectId) => proxyGet(`/target-sources/${projectId}/confirmed-integration`),
+    getApprovedIntegration: (projectId) => proxyGet(`/target-sources/${projectId}/approved-integration`),
+    getApprovalHistory: (projectId, page, size) =>
+      proxyGet(`/target-sources/${projectId}/approval-history?page=${page}&size=${size}`),
+    getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
+  },
 };

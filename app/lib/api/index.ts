@@ -120,6 +120,7 @@ export interface VmConfigInput {
   config: VmDatabaseConfig;
 }
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const confirmTargets = async (
   projectId: string,
   resourceIds: string[],
@@ -138,6 +139,7 @@ export const confirmTargets = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const approveProject = async (
   projectId: string,
   comment?: string
@@ -155,6 +157,7 @@ export const approveProject = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const rejectProject = async (
   projectId: string,
   reason?: string
@@ -172,6 +175,7 @@ export const rejectProject = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const completeInstallation = async (
   projectId: string
 ): Promise<Project> => {
@@ -186,6 +190,7 @@ export const completeInstallation = async (
   return data.project;
 };
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const confirmPiiAgent = async (
   projectId: string
 ): Promise<Project> => {
@@ -199,6 +204,163 @@ export const confirmPiiAgent = async (
   const data = await res.json();
   return data.project;
 };
+
+// ===== Confirm v1 API =====
+
+const CONFIRM_BASE = '/api/v1/target-sources';
+
+export interface ConfirmResourceItem {
+  id: string;
+  resourceId: string;
+  name: string;
+  resourceType: string;
+  integrationCategory: 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
+  selectedCredentialId: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ConfirmResourcesResponse {
+  resources: ConfirmResourceItem[];
+  totalCount: number;
+}
+
+export const getConfirmResources = async (
+  targetSourceId: number
+): Promise<ConfirmResourcesResponse> =>
+  fetchJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
+
+export interface ApprovalResourceInput {
+  resource_id: string;
+  selected: boolean;
+  resource_input?: {
+    credential_id?: string;
+    endpoint_config?: {
+      db_type: string;
+      port: number;
+      host: string;
+      oracleServiceId?: string;
+      selectedNicId?: string;
+    };
+  };
+  exclusion_reason?: string;
+}
+
+export interface ApprovalRequestInput {
+  input_data: {
+    resource_inputs: ApprovalResourceInput[];
+    exclusion_reason_default?: string;
+  };
+}
+
+export interface ApprovalRequestResult {
+  success: boolean;
+  approval_request: {
+    id: string;
+    requested_at: string;
+    requested_by: string;
+    input_data: {
+      resource_inputs: ApprovalResourceInput[];
+      exclusion_reason_default?: string;
+    };
+  };
+}
+
+export const createApprovalRequest = async (
+  targetSourceId: number,
+  input: ApprovalRequestInput
+): Promise<ApprovalRequestResult> =>
+  fetchJson<ApprovalRequestResult>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
+    method: 'POST',
+    body: input,
+  });
+
+export interface ResourceSnapshotItem {
+  resource_id: string;
+  resource_type: string;
+  endpoint_config: Record<string, unknown> | null;
+  credential_id: string | null;
+}
+
+export interface ConfirmedIntegrationResponse {
+  confirmed_integration: {
+    id: string;
+    confirmed_at: string;
+    resource_infos: ResourceSnapshotItem[];
+  } | null;
+}
+
+export const getConfirmedIntegration = async (
+  targetSourceId: number
+): Promise<ConfirmedIntegrationResponse> =>
+  fetchJson<ConfirmedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`);
+
+export interface ApprovedIntegrationResponse {
+  approved_integration: {
+    id: string;
+    request_id: string;
+    approved_at: string;
+    resource_infos: ResourceSnapshotItem[];
+    excluded_resource_ids: string[];
+    exclusion_reason?: string;
+  } | null;
+}
+
+export const getApprovedIntegration = async (
+  targetSourceId: number
+): Promise<ApprovedIntegrationResponse> =>
+  fetchJson<ApprovedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`);
+
+export interface ApprovalHistoryResponse {
+  content: Array<{
+    request: {
+      id: string;
+      requested_at: string;
+      requested_by: string;
+      input_data: {
+        resource_inputs: ApprovalResourceInput[];
+        exclusion_reason_default?: string;
+      };
+    };
+    result?: {
+      id: string;
+      request_id: string;
+      result: string;
+      processed_at: string;
+      process_info: { user_id: string | null; reason: string | null };
+    };
+  }>;
+  page: { totalElements: number; totalPages: number; number: number; size: number };
+}
+
+export const getApprovalHistory = async (
+  targetSourceId: number,
+  page = 0,
+  size = 10
+): Promise<ApprovalHistoryResponse> =>
+  fetchJson<ApprovalHistoryResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`
+  );
+
+export type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
+export type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
+
+export interface ProcessStatusResponse {
+  target_source_id: number;
+  process_status: BffProcessStatus;
+  status_inputs: {
+    has_confirmed_integration: boolean;
+    has_pending_approval_request: boolean;
+    has_approved_integration: boolean;
+    last_approval_result: LastApprovalResult;
+    last_rejection_reason: string | null;
+  };
+  evaluated_at: string;
+}
+
+export const getProcessStatus = async (
+  targetSourceId: number
+): Promise<ProcessStatusResponse> =>
+  fetchJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
 // ===== Connection Test API =====
 
@@ -216,6 +378,7 @@ export interface ConnectionTestResponse {
   history: ConnectionTestHistory;
 }
 
+// TODO: Confirm v1 migration — replace with v1 endpoint when available
 export const runConnectionTest = async (
   projectId: string,
   resourceCredentials: ResourceCredentialInput[]
