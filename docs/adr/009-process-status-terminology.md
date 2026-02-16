@@ -36,16 +36,13 @@ BFF가 반환하는 `process_status` 필드의 값은 아래 4개로 고정한�
 
 | 값 | 의미 | ADR-006 상태 조합 |
 |----|------|-------------------|
-| `REQUEST_REQUIRED` | 요청 필요 (리소스 미선택 또는 연동 완료 후 변경 전) | X/X/X, O/X/X |
+| `REQUEST_REQUIRED` | 요청 필요 (확정 정보 없음, 최초 진입) | X/X/X |
 | `WAITING_APPROVAL` | 승인 대기 | X/O/X, O/O/X |
 | `APPLYING_APPROVED` | 승인 반영 중 (Black Box) | X/X/O, O/X/O |
-| `TARGET_CONFIRMED` | 연동 확정 완료 | O/X/X |
+| `TARGET_CONFIRMED` | 연동 확정 완료 (활성 요청/반영 없음) | O/X/X |
 
-> `REQUEST_REQUIRED`는 확정 정보 존재 여부와 무관하게 "현재 활성 요청/반영이 없는 상태"를 의미한다.
-> `TARGET_CONFIRMED`는 확정 정보가 존재하면서 활성 요청/반영이 없는 경우에만 해당한다.
-> 구분은 `status_inputs.has_confirmed_integration`으로 가능하다.
-
-**참고**: `REQUEST_REQUIRED`와 `TARGET_CONFIRMED`의 분리 근거 — 확정 정보가 있을 때(`TARGET_CONFIRMED`)는 "현재 연동 정보 보기"가 메인 뷰이고, 없을 때(`REQUEST_REQUIRED`)는 "리소스 선택 → 승인 요청" 플로우가 메인 뷰이다. UI 렌더링 분기가 근본적으로 다르므로 별도 상태로 유지한다.
+> D-004 계산 우선순위와 1:1 대응: 우선순위 3에서 `has_confirmed_integration=true`이면 `TARGET_CONFIRMED`, 그 외 fallback이 `REQUEST_REQUIRED`.
+> 즉, `O/X/X`는 항상 `TARGET_CONFIRMED`이며 `REQUEST_REQUIRED`에 해당하지 않는다.
 
 ### D-003: 계산 책임을 BFF로 단일화 (ADR-004 폐기)
 

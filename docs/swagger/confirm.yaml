@@ -587,7 +587,7 @@ components:
       type: string
       description: |
         BFF가 계산하여 반환하는 프로세스 상태 (ADR-009).
-        - REQUEST_REQUIRED: 요청 필요 (리소스 미선택 또는 연동 완료 후 변경 전)
+        - REQUEST_REQUIRED: 요청 필요 (확정 정보 없음, 최초 진입 상태)
         - WAITING_APPROVAL: 승인 대기 (PENDING 상태의 ApprovalRequest 존재)
         - APPLYING_APPROVED: 승인 반영 중 (ApprovedIntegration 존재, Black Box 진행 중)
         - TARGET_CONFIRMED: 연동 확정 완료 (ConfirmedIntegration 존재, 활성 요청/반영 없음)

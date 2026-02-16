@@ -148,7 +148,7 @@ Exception 처리 정책:
 
 | BFF 상태 | 의미 | 계산 우선순위 |
 |----------|------|-------------|
-| `REQUEST_REQUIRED` | 요청 필요 (리소스 미선택 또는 변경 전) | 4 (fallback) |
+| `REQUEST_REQUIRED` | 요청 필요 (확정 정보 없음, 최초 진입) | 4 (fallback) |
 | `WAITING_APPROVAL` | 승인 대기 | 1 (최우선) |
 | `APPLYING_APPROVED` | 승인 반영 중 (Black Box) | 2 |
 | `TARGET_CONFIRMED` | 연동 확정 완료 | 3 |
