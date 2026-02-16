@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type { AwsInstallationStatus, AwsSettings } from '@/lib/types';
 import {
   createApprovalRequest,
@@ -28,14 +29,12 @@ import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
 
 interface AwsProjectPageProps {
   project: Project;
-  isAdmin: boolean;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
 export const AwsProjectPage = ({
   project,
-  isAdmin,
   credentials,
   onProjectUpdate,
 }: AwsProjectPageProps) => {
@@ -45,6 +44,8 @@ export const AwsProjectPage = ({
   );
   const [submitting, setSubmitting] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
 
   // Prerequisite data
   const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
@@ -83,6 +84,12 @@ export const AwsProjectPage = ({
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
   };
+
+  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
+  const approvalResources = useMemo(
+    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [project.resources, selectedIds],
+  );
 
   // 설치 모드 미선택 시 선택 UI 표시
   if (!project.awsInstallationMode) {
@@ -143,7 +150,7 @@ export const AwsProjectPage = ({
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
   };
 
-  const handleConfirmTargets = async () => {
+  const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
     // VM 리소스 중 설정되지 않은 것 체크
@@ -157,8 +164,13 @@ export const AwsProjectPage = ({
       return;
     }
 
+    setApprovalModalOpen(true);
+  };
+
+  const handleApprovalSubmit = async (formData: ApprovalRequestFormData) => {
     try {
       setSubmitting(true);
+      setApprovalError(null);
       // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
       const resourceInputs = project.resources.map(r => {
         if (selectedIds.includes(r.id)) {
@@ -186,6 +198,7 @@ export const AwsProjectPage = ({
         return {
           resource_id: r.id,
           selected: false as const,
+          ...(formData.exclusion_reason_default && { exclusion_reason: formData.exclusion_reason_default }),
         };
       });
 
@@ -196,8 +209,9 @@ export const AwsProjectPage = ({
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
       setExpandedVmId(null);
+      setApprovalModalOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
+      setApprovalError(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -232,12 +246,17 @@ export const AwsProjectPage = ({
           </div>
           <ProcessStatusCard
             project={project}
-            isAdmin={isAdmin}
             onProjectUpdate={onProjectUpdate}
             onTestConnection={handleTestConnection}
             testLoading={testLoading}
             credentials={credentials}
             onCredentialChange={handleCredentialChange}
+            approvalModalOpen={approvalModalOpen}
+            onApprovalModalClose={() => setApprovalModalOpen(false)}
+            onApprovalSubmit={handleApprovalSubmit}
+            approvalLoading={submitting}
+            approvalError={approvalError}
+            approvalResources={approvalResources}
           />
         </div>
 

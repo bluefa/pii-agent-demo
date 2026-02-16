@@ -110,6 +110,88 @@ paths:
                   value:
                     error: { code: "CONFLICT_REQUEST_PENDING", message: "이미 승인 요청이 진행 중입니다." }
 
+  /target-sources/{targetSourceId}/approval-requests/approve:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Approval Process]
+      summary: 승인 요청 승인 (관리자)
+      operationId: approveApprovalRequest
+      description: |
+        현재 PENDING 상태인 승인 요청을 승인합니다.
+        관리자 권한이 필요하며, 승인 시 ApprovedIntegration이 생성되고 인프라 반영이 시작됩니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalApproveRequest'
+      responses:
+        '200':
+          description: 승인 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponse'
+        '400':
+          description: "승인 대기 상태가 아님"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "VALIDATION_FAILED", message: "승인 대기 상태가 아닙니다." }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/approval-requests/reject:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Approval Process]
+      summary: 승인 요청 반려 (관리자)
+      operationId: rejectApprovalRequest
+      description: |
+        현재 PENDING 상태인 승인 요청을 반려합니다.
+        관리자 권한이 필요하며, 반려 사유(`reason`)는 필수입니다.
+        반려 시 요청이 REJECTED로 전환되고 사용자는 재요청할 수 있습니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRejectRequest'
+      responses:
+        '200':
+          description: 반려 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponse'
+        '400':
+          description: "승인 대기 상태가 아니거나 반려 사유 누락"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                invalid_state:
+                  summary: 승인 대기 상태가 아님
+                  value:
+                    error: { code: "VALIDATION_FAILED", message: "승인 대기 상태가 아닙니다." }
+                missing_reason:
+                  summary: 반려 사유 누락
+                  value:
+                    error: { code: "VALIDATION_FAILED", message: "반려 사유를 입력해주세요." }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -441,6 +523,38 @@ components:
         port: { type: integer, minimum: 1, maximum: 65535 }
         host: { type: string }
         selectedNicId: { type: string }
+
+    # --- Approval Action Models ---
+    ApprovalApproveRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          nullable: true
+          description: "승인 코멘트 (선택)"
+
+    ApprovalRejectRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          description: "반려 사유 (필수)"
+
+    ApprovalActionResponse:
+      type: object
+      required: [success, result, processed_at]
+      properties:
+        success: { type: boolean }
+        result:
+          type: string
+          enum: [APPROVED, REJECTED]
+        processed_at: { type: string, format: date-time }
+        reason:
+          type: string
+          nullable: true
+          description: "반려 시 사유"
 
     ApprovalRequest:
       type: object

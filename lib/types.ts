@@ -191,6 +191,7 @@ export interface Project {
 
 export interface ProjectSummary {
   id: string;
+  targetSourceId: number;
   projectCode: string;
   processStatus: ProcessStatus;
   cloudProvider: CloudProvider;
@@ -606,6 +607,16 @@ export interface ProjectHistoryDetails {
   reason?: string;                    // 반려/폐기 사유
   resourceCount?: number;             // 연동 확정 시 리소스 개수
   excludedResourceCount?: number;     // 연동 제외된 리소스 개수
+  inputData?: ApprovalRequestInputSnapshot; // 요청 시점 스냅샷 (approval-history용)
+}
+
+/** approval-history에서 사용하는 요청 시점 input_data 스냅샷 */
+export interface ApprovalRequestInputSnapshot {
+  resource_inputs: Array<
+    | { resource_id: string; selected: true; resource_input?: Record<string, unknown> }
+    | { resource_id: string; selected: false; exclusion_reason?: string }
+  >;
+  exclusion_reason_default?: string;
 }
 
 export interface ProjectHistory {
