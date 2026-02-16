@@ -47,15 +47,15 @@ Task({
   prompt: `
     Set up a new feature worktree:
 
-    1. Navigate to canonical repo: /Users/study/pii-agent-demo
+    1. Navigate to canonical repo: <canonical-repo-path>
     2. Sync local main: git fetch origin main && git checkout main && git merge origin/main --ff-only
-    3. Create worktree: bash scripts/create-worktree.sh --topic fix-haiku-skills --prefix fix
+    3. Create worktree: bash scripts/create-worktree.sh --topic {topic} --prefix {prefix}
     4. Navigate to new worktree path (from script output)
     5. Verify setup:
        - bash scripts/guard-worktree.sh
        - git rev-parse --show-toplevel
        - git rev-parse --abbrev-ref HEAD
-    6. Bootstrap dependencies: bash scripts/bootstrap-worktree.sh "$(pwd)"
+    6. Bootstrap dependencies: bash scripts/bootstrap-worktree.sh <worktree-path>
     7. Report: worktree path and branch name
 
     If "next: command not found" occurs, bootstrap first then retry.
