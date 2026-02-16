@@ -463,8 +463,71 @@ export interface ServiceTfScript {
   error?: TfScriptError;
 }
 
-// 설치 상태
+// ---- v1 AWS 설치 상태 ----
+
+export interface V1LastCheck {
+  status: 'SUCCESS' | 'IN_PROGRESS' | 'FAILED';
+  checkedAt?: string;
+  failReason?: string;
+}
+
+export interface V1ServiceScript {
+  scriptName: string;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  region?: string;
+  resources: { resourceId: string; type: string; name: string }[];
+}
+
 export interface AwsInstallationStatus {
+  hasExecutionPermission: boolean;
+  serviceScripts: V1ServiceScript[];
+  bdcStatus: { status: 'PENDING' | 'COMPLETED' | 'FAILED' };
+  lastCheck: V1LastCheck;
+}
+
+// TF Script
+export interface TerraformScriptResponse {
+  downloadUrl: string;
+  fileName: string;
+  expiresAt: string;
+}
+
+// ---- v1 AWS 설정 (Role 정보) ----
+
+export type AwsRoleStatus = 'VALID' | 'INVALID' | 'UNVERIFIED';
+export type AwsRoleFailReason = 'ROLE_NOT_CONFIGURED' | 'ROLE_INSUFFICIENT_PERMISSIONS' | 'SCAN_ROLE_UNAVAILABLE';
+
+export interface AwsRoleInfo {
+  roleArn: string | null;
+  status: AwsRoleStatus;
+  failReason?: AwsRoleFailReason | null;
+  failMessage?: string | null;
+  lastVerifiedAt?: string;
+}
+
+export interface AwsSettings {
+  executionRole: AwsRoleInfo;
+  scanRole: AwsRoleInfo;
+}
+
+// ---- 레거시 타입 (서버 사이드 v1 변환용, mock/BFF 응답) ----
+
+export type LegacyScanRoleStatus = 'VALID' | 'INVALID' | 'NOT_VERIFIED';
+
+export interface LegacyScanRoleInfo {
+  registered: boolean;
+  roleArn?: string;
+  lastVerifiedAt?: string;
+  status?: LegacyScanRoleStatus;
+}
+
+export interface LegacyAwsServiceSettings {
+  accountId?: string;
+  scanRole: LegacyScanRoleInfo;
+  guide?: ApiGuide;
+}
+
+export interface LegacyAwsInstallationStatus {
   provider: 'AWS';
   hasTfPermission: boolean;
   tfExecutionRoleArn?: string;
@@ -480,40 +543,9 @@ export interface AwsInstallationStatus {
   lastCheckedAt?: string;
 }
 
-export type CheckInstallationErrorCode = 'VALIDATION_FAILED' | 'ACCESS_DENIED';
-
-export interface CheckInstallationError {
-  code: CheckInstallationErrorCode;
-  message: string;
-  guide?: ApiGuide;
-}
-
-export interface CheckInstallationResponse extends AwsInstallationStatus {
+export interface LegacyCheckInstallationResponse extends LegacyAwsInstallationStatus {
   lastCheckedAt: string;
-  error?: CheckInstallationError;
-}
-
-// TF Script
-export interface TerraformScriptResponse {
-  downloadUrl: string;
-  fileName: string;
-  expiresAt: string;
-}
-
-// 서비스 AWS 설정
-export type ScanRoleStatus = 'VALID' | 'INVALID' | 'NOT_VERIFIED';
-
-export interface ScanRoleInfo {
-  registered: boolean;
-  roleArn?: string;
-  lastVerifiedAt?: string;
-  status?: ScanRoleStatus;
-}
-
-export interface AwsServiceSettings {
-  accountId?: string;
-  scanRole: ScanRoleInfo;
-  guide?: ApiGuide;
+  error?: TfScriptError;
 }
 
 export interface UpdateAwsSettingsRequest {
@@ -524,7 +556,7 @@ export interface UpdateAwsSettingsRequest {
 export interface UpdateAwsSettingsSuccessResponse {
   updated: true;
   accountId: string;
-  scanRole: ScanRoleInfo;
+  scanRole: LegacyScanRoleInfo;
 }
 
 export type AwsSettingsErrorCode = 'ROLE_NOT_FOUND' | 'INSUFFICIENT_PERMISSIONS' | 'ACCESS_DENIED' | 'INVALID_ACCOUNT_ID';

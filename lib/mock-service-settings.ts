@@ -6,7 +6,7 @@
 
 import { getStore } from '@/lib/mock-store';
 import type {
-  AwsServiceSettings,
+  LegacyAwsServiceSettings,
   UpdateAwsSettingsRequest,
   UpdateAwsSettingsResponse,
   VerifyScanRoleResponse,
@@ -65,7 +65,7 @@ const SCAN_ROLE_GUIDES: Record<string, ApiGuide> = {
 
 // ===== 서비스 설정 조회 =====
 
-export const getAwsServiceSettings = (serviceCode: string): AwsServiceSettings => {
+export const getAwsServiceSettings = (serviceCode: string): LegacyAwsServiceSettings => {
   const store = getStore();
   const settings = store.awsServiceSettings.get(serviceCode);
 
@@ -143,7 +143,7 @@ export const updateAwsServiceSettings = (
 
   // 성공: 설정 저장
   const now = new Date().toISOString();
-  const settings: AwsServiceSettings = {
+  const settings: LegacyAwsServiceSettings = {
     accountId,
     scanRole: {
       registered: true,

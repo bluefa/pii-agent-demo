@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { badgeStyles, cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
-import type { Project, AwsInstallationStatus, ScanRoleInfo, SecretKey } from '@/lib/types';
+import type { Project, AwsInstallationStatus, AwsSettings, SecretKey } from '@/lib/types';
 
 interface AwsInfoCardProps {
   project: Project;
   awsStatus: AwsInstallationStatus | null;
-  scanRoleInfo: ScanRoleInfo | null;
+  awsSettings: AwsSettings | null;
   credentials: SecretKey[];
   onOpenGuide: () => void;
   onManageCredentials: () => void;
@@ -80,7 +80,7 @@ const RoleStatusRow = ({
 }: {
   label: string;
   completed: boolean;
-  arn?: string;
+  arn?: string | null;
   onGuide: () => void;
 }) => (
   <div className="py-2">
@@ -116,20 +116,22 @@ const RoleStatusRow = ({
 export const AwsInfoCard = ({
   project,
   awsStatus,
-  scanRoleInfo,
+  awsSettings,
   credentials,
   onOpenGuide,
   onManageCredentials,
 }: AwsInfoCardProps) => {
   const [showAllCredentials, setShowAllCredentials] = useState(false);
 
-  const isScanRoleComplete = !!(scanRoleInfo?.registered && scanRoleInfo?.status === 'VALID');
+  const scanRole = awsSettings?.scanRole;
+  const executionRole = awsSettings?.executionRole;
+  const isScanRoleComplete = scanRole?.status === 'VALID';
   const isManualInstall = project.awsInstallationMode === 'MANUAL';
-  const isTfRoleComplete = !!(awsStatus?.tfExecutionRoleArn);
+  const isExecutionRoleComplete = executionRole?.status === 'VALID';
 
   const applicableItems = [
     { completed: isScanRoleComplete },
-    ...(isManualInstall ? [{ completed: isTfRoleComplete }] : []),
+    ...(isManualInstall ? [{ completed: isExecutionRoleComplete }] : []),
   ];
   const completedCount = applicableItems.filter((i) => i.completed).length;
   const totalCount = applicableItems.length;
@@ -159,7 +161,7 @@ export const AwsInfoCard = ({
         )}
         {awsStatus && (
           <InfoRow label="설치 모드">
-            <InstallationModeBadge isAutoInstall={awsStatus.hasTfPermission} />
+            <InstallationModeBadge isAutoInstall={awsStatus.hasExecutionPermission} />
           </InfoRow>
         )}
       </div>
@@ -225,14 +227,14 @@ export const AwsInfoCard = ({
           <RoleStatusRow
             label="스캔 Role"
             completed={isScanRoleComplete}
-            arn={scanRoleInfo?.roleArn}
+            arn={scanRole?.roleArn}
             onGuide={onOpenGuide}
           />
           {isManualInstall && (
             <RoleStatusRow
               label="TF Execution Role"
-              completed={isTfRoleComplete}
-              arn={awsStatus?.tfExecutionRoleArn}
+              completed={isExecutionRoleComplete}
+              arn={executionRole?.roleArn}
               onGuide={onOpenGuide}
             />
           )}

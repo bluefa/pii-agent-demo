@@ -3,7 +3,7 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { problemResponse } from '@/app/api/_lib/problem';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
-import type { AwsInstallationStatus, ServiceTfScript } from '@/lib/types';
+import type { LegacyAwsInstallationStatus, ServiceTfScript } from '@/lib/types';
 
 interface V1ServiceScript {
   scriptName: string;
@@ -35,7 +35,7 @@ const transformServiceScript = (script: ServiceTfScript): V1ServiceScript => ({
   resources: script.resources.map(r => ({ resourceId: r.resourceId, type: r.type, name: r.name })),
 });
 
-const transformInstallationStatus = (legacy: AwsInstallationStatus): V1AwsInstallationStatus => ({
+const transformInstallationStatus = (legacy: LegacyAwsInstallationStatus): V1AwsInstallationStatus => ({
   hasExecutionPermission: legacy.hasTfPermission,
   serviceScripts: legacy.serviceTfScripts.map(transformServiceScript),
   bdcStatus: { status: toScriptStatus(legacy.bdcTf.status) },
@@ -54,6 +54,6 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const response = await client.aws.getInstallationStatus(resolved.projectId);
   if (!response.ok) return response;
 
-  const legacy = await response.json() as AwsInstallationStatus;
+  const legacy = await response.json() as LegacyAwsInstallationStatus;
   return NextResponse.json(transformInstallationStatus(legacy));
 }, { expectedDuration: '5000ms' });
