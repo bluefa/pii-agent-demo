@@ -2,46 +2,73 @@
 name: pr
 description: 기능 완료 후 Pull Request 생성 워크플로우. 동일 브랜치 검증, 빌드/타입 체크, 사람 리뷰어가 이해 가능한 상세 PR description 작성, URL 보고가 필요할 때 사용.
 user_invocable: true
-model: haiku
 ---
 
 # /pr - Create Pull Request
 
 기능 완료 후 PR을 생성합니다.
 
-## 실행 절차
+## Cost Optimization Strategy
 
-1. 현재 브랜치가 feature 브랜치인지 확인합니다.
-2. 변경사항이 모두 같은 브랜치에 있는지 확인합니다.
-3. **⛔ 최신 main으로 rebase합니다 (스킵 불가).**
+**Hybrid delegation (~50% cost reduction):**
 
-```bash
-git fetch origin main && git rebase origin/main
+- **Haiku subagent**: Bash operations (rebase, lint, build, test, push)
+- **Main session (Sonnet/Opus)**: PR description generation (requires context understanding)
+
+## Implementation
+
+### Phase 1: Validation & Push (Haiku)
+
+Use Task tool to spawn a Haiku subagent for mechanical operations:
+
 ```
-  - 충돌 시 해결 후 `git rebase --continue`
+Task({
+  subagent_type: "Bash",
+  model: "haiku",
+  description: "Validate and push PR (Haiku)",
+  prompt: `
+    Prepare PR by validating and pushing:
 
-4. 검증 명령을 실행합니다.
+    1. Verify feature branch: git rev-parse --abbrev-ref HEAD
+    2. Rebase on latest main: git fetch origin main && git rebase origin/main
+       - If conflicts: report to user and stop
+    3. Run validation:
+       - bash scripts/guard-worktree.sh
+       - npm run lint
+       - npx tsc --noEmit
+       - npm run test:run
+       - npm run build
+    4. Check for commits: git log origin/main..HEAD --oneline
+       - If empty: report and stop
+    5. Push branch: git push origin HEAD --force-with-lease
+    6. Report: branch name, commit count, validation results
 
-```bash
-bash scripts/guard-worktree.sh
-npm run lint
-npx tsc --noEmit
-npm run test:run
-npm run build
+    CRITICAL: Stop immediately on any failure
+  `
+})
 ```
 
-5. 커밋이 없다면 중단하고 사용자에게 알립니다.
-6. 브랜치를 origin으로 push합니다 (rebase 후이므로 `--force-with-lease` 허용).
-7. PR을 생성합니다.
-  - 제목: 브랜치명 기반 요약
-  - 본문: 사람이 검토 가능한 상세 설명(아래 템플릿 필수)
-8. 생성된 PR URL을 사용자에게 보고합니다.
-9. PR 머지는 `/pr-merge` 스킬로 진행합니다.
-10. 생성+머지를 한 번에 자동화하려면 `/pr-flow` 스킬을 사용합니다.
+### Phase 2: PR Creation (Main Session)
 
-## PR Description 템플릿 (필수)
+After Haiku validation succeeds:
 
-본문은 아래 섹션을 모두 포함합니다.
+1. **Read commit history** for context:
+```bash
+git log origin/main..HEAD --format="%h %s"
+git diff origin/main..HEAD --stat
+```
+
+2. **Generate PR description** using main session (requires high-level understanding):
+   - Analyze changes and commits
+   - Draft comprehensive description with template sections
+   - Or use: `bash scripts/build-pr-body.sh --base main`
+
+3. **Create PR**:
+```bash
+gh pr create --base main --head <branch> --title "<title>" --body "<description>"
+```
+
+## PR Description Template (Required)
 
 ```md
 ## Summary
@@ -62,19 +89,9 @@ npm run build
 - 리뷰어가 집중해서 볼 체크포인트
 ```
 
-## 권장 생성 방법
+## Rules
 
-아래 명령으로 기본 본문을 생성한 후 필요 내용을 보강합니다.
-
-```bash
-PR_BODY="$(bash scripts/build-pr-body.sh --base main)"
-gh pr create --base main --head "$(git rev-parse --abbrev-ref HEAD)" --title "<title>" --body "${PR_BODY}"
-```
-
-## 규칙
-
-- `main`에 직접 push하지 않습니다.
-- 브랜치는 최신 `origin/main`으로 동기화된 로컬 `main`에서 시작해야 합니다.
-- 변경사항을 여러 브랜치로 분산하지 않습니다.
-- 검증 실패 상태로 PR을 만들지 않습니다.
-- PR description은 생략하거나 한 줄 요약으로 제출하지 않습니다.
+- NEVER push to `main` directly
+- NEVER skip rebase before PR
+- NEVER create PR with validation failures
+- NEVER submit PR with empty or single-line description

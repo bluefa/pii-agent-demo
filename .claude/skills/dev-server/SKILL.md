@@ -2,35 +2,56 @@
 name: dev-server
 description: Worktree dev 서버 실행. lock 정리 + 빈 포트 자동 탐색.
 user_invocable: true
-model: haiku
 ---
 
 # Dev Server
 
 Worktree 경로에서 Next.js dev 서버를 실행합니다.
 
-## 실행 방법
+## Cost Optimization Strategy
 
-아래 스크립트를 **백그라운드**로 실행합니다:
+**This skill uses Haiku subagent for all operations (~65% cost reduction).**
 
-```bash
-bash scripts/dev.sh <worktree-path>
+- Main session (Sonnet/Opus): High-level orchestration only
+- Haiku subagent: Bash execution (bootstrap, dev server startup)
+
+## Implementation
+
+Use Task tool to spawn a Haiku subagent:
+
+```
+Task({
+  subagent_type: "Bash",
+  model: "haiku",
+  description: "Start dev server (Haiku)",
+  prompt: `
+    Execute dev server startup script:
+
+    1. Navigate to <worktree-path> (or /Users/study/pii-agent-demo if not provided)
+    2. Check if port 3000-3100 is available
+    3. Execute: bash scripts/dev.sh <worktree-path>
+       - IMPORTANT: Use Bash tool with run_in_background: true
+    4. Wait 3-5 seconds and verify server started
+    5. Report: port number and confirmation
+
+    If "next: command not found" occurs:
+    - Run: bash scripts/bootstrap-worktree.sh <worktree-path>
+    - Then retry dev server startup
+  `
+})
 ```
 
-- `<worktree-path>`: 현재 작업 중인 worktree 경로 (예: `/Users/study/pii-agent-demo-scan-feedback`)
-- worktree가 없으면 프로젝트 루트 `/Users/study/pii-agent-demo` 사용
+## Script Behavior
 
-## 스크립트 동작
+The `scripts/dev.sh` script:
+1. Runs `scripts/bootstrap-worktree.sh` for dependency verification
+2. Removes `.next/dev/lock` file if exists
+3. Auto-finds available port from 3000-3100
+4. Starts `npx next dev -p <port>`
 
-1. `scripts/bootstrap-worktree.sh`로 의존성 설치/검증 수행
-2. `.next/dev/lock` 파일이 있으면 자동 제거
-3. 3000번 포트부터 빈 포트를 자동 탐색 (최대 3100)
-4. `npx next dev -p <빈포트>` 실행
+## Rules
 
-## 규칙
-
-- **반드시 `run_in_background: true`로 실행** — dev 서버는 종료되지 않는 프로세스
-- 실행 후 5초 대기 → TaskOutput으로 출력에서 `Ready` 확인
-- 포트 번호를 사용자에게 알려줄 것
-- **재시도 금지** — 한 번 실행 후 실패하면 사용자에게 보고
-- `next: command not found` 발생 시 `bash scripts/bootstrap-worktree.sh <worktree-path>` 실행 후 다시 시작
+- **NEVER retry** — If failed once, report to user
+- **Background execution required** — dev server is a long-running process
+- Verify "Ready" message appears in output
+- Report the final port number to user
