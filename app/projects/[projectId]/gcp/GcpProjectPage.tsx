@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
   updateResourceCredential,
@@ -37,6 +38,8 @@ export const GcpProjectPage = ({
   );
   const [submitting, setSubmitting] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
+  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
 
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
   const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
@@ -92,7 +95,7 @@ export const GcpProjectPage = ({
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
   };
 
-  const handleConfirmTargets = async () => {
+  const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
     const selectedVmResources = project.resources.filter(
@@ -105,9 +108,13 @@ export const GcpProjectPage = ({
       return;
     }
 
+    setApprovalModalOpen(true);
+  };
+
+  const handleApprovalSubmit = async (formData: ApprovalRequestFormData) => {
     try {
       setSubmitting(true);
-      // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
+      setApprovalError(null);
       const resourceInputs = project.resources.map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
@@ -134,6 +141,7 @@ export const GcpProjectPage = ({
         return {
           resource_id: r.id,
           selected: false as const,
+          ...(formData.exclusion_reason_default && { exclusion_reason: formData.exclusion_reason_default }),
         };
       });
 
@@ -144,8 +152,9 @@ export const GcpProjectPage = ({
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
       setExpandedVmId(null);
+      setApprovalModalOpen(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
+      setApprovalError(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
@@ -186,6 +195,11 @@ export const GcpProjectPage = ({
             testLoading={testLoading}
             credentials={credentials}
             onCredentialChange={handleCredentialChange}
+            approvalModalOpen={approvalModalOpen}
+            onApprovalModalClose={() => setApprovalModalOpen(false)}
+            onApprovalSubmit={handleApprovalSubmit}
+            approvalLoading={submitting}
+            approvalError={approvalError}
           />
         </div>
 

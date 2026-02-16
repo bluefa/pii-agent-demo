@@ -120,7 +120,7 @@ export const ProjectsTable = ({
               <td className="px-6 py-4">
                 {project.processStatus === ProcessStatus.WAITING_APPROVAL && onViewApproval && (
                   <button
-                    onClick={(e) => onViewApproval(project, e)}
+                    onClick={(e) => { e.stopPropagation(); onViewApproval(project, e); }}
                     className="px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1.5"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
