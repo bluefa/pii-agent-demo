@@ -1,0 +1,229 @@
+'use client';
+
+import { useState, useMemo } from 'react';
+import { Modal } from '@/app/components/ui/Modal';
+import { Button } from '@/app/components/ui/Button';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
+import type { Resource, IntegrationCategory } from '@/lib/types';
+
+// ===== Types =====
+
+export interface ApprovalRequestFormData {
+  exclusion_reason_default?: string;
+}
+
+interface ApprovalRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: ApprovalRequestFormData) => void;
+  resources: Resource[];
+  loading: boolean;
+  error?: string | null;
+}
+
+// ===== Helpers =====
+
+const getCategoryLabel = (category: IntegrationCategory): string => {
+  switch (category) {
+    case 'TARGET': return '연동 대상';
+    case 'NO_INSTALL_NEEDED': return '설치 불필요';
+    case 'INSTALL_INELIGIBLE': return '연동 불가';
+  }
+};
+
+const getCategoryBadgeClass = (category: IntegrationCategory): string => {
+  switch (category) {
+    case 'TARGET': return cn('text-xs px-2 py-0.5 rounded-full', statusColors.info.bg, statusColors.info.textDark);
+    case 'NO_INSTALL_NEEDED': return cn('text-xs px-2 py-0.5 rounded-full', statusColors.pending.bg, statusColors.pending.textDark);
+    case 'INSTALL_INELIGIBLE': return cn('text-xs px-2 py-0.5 rounded-full', statusColors.error.bg, statusColors.error.textDark);
+  }
+};
+
+const isReasonRequired = (category: IntegrationCategory): boolean =>
+  category === 'TARGET';
+
+
+const getEndpointSummary = (resource: Resource): string => {
+  if (resource.vmDatabaseConfig) {
+    const { host, port, databaseType } = resource.vmDatabaseConfig;
+    return `${databaseType} ${host ?? ''}:${port}`;
+  }
+  return '-';
+};
+
+// ===== Component =====
+
+export const ApprovalRequestModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  resources,
+  loading,
+  error,
+}: ApprovalRequestModalProps) => {
+  const [defaultReason, setDefaultReason] = useState('');
+
+  const includedResources = useMemo(
+    () => resources.filter((r) => r.isSelected),
+    [resources],
+  );
+
+  const excludedResources = useMemo(
+    () => resources.filter((r) => !r.isSelected),
+    [resources],
+  );
+
+  const hasExcluded = excludedResources.length > 0;
+
+  // Validation: TARGET excluded resources must have individual or default reason
+  const canSubmit = useMemo(() => {
+    if (includedResources.length === 0) return false;
+    if (loading) return false;
+
+    const hasTargetExcluded = excludedResources.some((r) => isReasonRequired(r.integrationCategory));
+    if (!hasTargetExcluded) return true;
+
+    return defaultReason.trim().length > 0;
+  }, [includedResources, excludedResources, defaultReason, loading]);
+
+  const handleSubmit = () => {
+    onSubmit({
+      exclusion_reason_default: defaultReason.trim() || undefined,
+    });
+  };
+
+  const handleClose = () => {
+    if (loading) return;
+    onClose();
+  };
+
+  const subtitle = `포함 ${includedResources.length}건${hasExcluded ? `, 제외 ${excludedResources.length}건` : ''}`;
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="승인 요청"
+      subtitle={subtitle}
+      size="2xl"
+      closeOnBackdropClick={!loading}
+      closeOnEscape={!loading}
+      footer={
+        <>
+          <Button variant="secondary" onClick={handleClose} disabled={loading}>
+            취소
+          </Button>
+          <Button onClick={handleSubmit} disabled={!canSubmit}>
+            {loading && <LoadingSpinner size="sm" />}
+            승인 요청
+          </Button>
+        </>
+      }
+    >
+      <div className="max-h-[60vh] overflow-y-auto space-y-6">
+        {/* No included resources warning */}
+        {includedResources.length === 0 && (
+          <div className={cn('p-3 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
+            <p className={cn('text-sm', statusColors.warning.textDark)}>
+              포함할 리소스를 1개 이상 선택하세요
+            </p>
+          </div>
+        )}
+
+        {/* Included Resources Section */}
+        {includedResources.length > 0 && (
+          <div>
+            <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
+              포함 리소스 ({includedResources.length}건)
+            </h3>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={tableStyles.header}>
+                    <th className={tableStyles.headerCell}>리소스 ID</th>
+                    <th className={tableStyles.headerCell}>타입</th>
+                    <th className={tableStyles.headerCell}>엔드포인트</th>
+                  </tr>
+                </thead>
+                <tbody className={tableStyles.body}>
+                  {includedResources.map((r) => (
+                    <tr key={r.id} className={tableStyles.row}>
+                      <td className={cn(tableStyles.cell, textColors.primary, 'font-mono text-xs')}>
+                        {r.resourceId}
+                      </td>
+                      <td className={cn(tableStyles.cell, textColors.secondary)}>
+                        {r.type}
+                      </td>
+                      <td className={cn(tableStyles.cell, textColors.tertiary)}>
+                        {getEndpointSummary(r)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Excluded Resources Section */}
+        {hasExcluded && (
+          <div>
+            <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
+              제외 리소스 ({excludedResources.length}건)
+            </h3>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={tableStyles.header}>
+                    <th className={tableStyles.headerCell}>리소스 ID</th>
+                    <th className={tableStyles.headerCell}>타입</th>
+                    <th className={tableStyles.headerCell}>분류</th>
+                  </tr>
+                </thead>
+                <tbody className={tableStyles.body}>
+                  {excludedResources.map((r) => (
+                    <tr key={r.id} className={tableStyles.row}>
+                      <td className={cn(tableStyles.cell, textColors.primary, 'font-mono text-xs')}>
+                        {r.resourceId}
+                      </td>
+                      <td className={cn(tableStyles.cell, textColors.secondary)}>
+                        {r.type}
+                      </td>
+                      <td className={tableStyles.cell}>
+                        <span className={getCategoryBadgeClass(r.integrationCategory)}>
+                          {getCategoryLabel(r.integrationCategory)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Default exclusion reason */}
+            <div className="mt-4">
+              <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
+                제외 사유
+              </label>
+              <textarea
+                value={defaultReason}
+                onChange={(e) => setDefaultReason(e.target.value)}
+                placeholder="제외 사유를 입력하세요"
+                rows={2}
+                className={cn(getInputClass(), 'resize-none')}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Error alert */}
+        {error && (
+          <div className={cn('p-3 rounded-lg border', statusColors.error.bg, statusColors.error.border)}>
+            <p className={cn('text-sm', statusColors.error.textDark)}>{error}</p>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+};

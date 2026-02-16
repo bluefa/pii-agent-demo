@@ -341,6 +341,24 @@ export const getApprovalHistory = async (
     `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`
   );
 
+export const approveApprovalRequestV1 = async (
+  targetSourceId: number,
+  comment?: string
+): Promise<{ success: boolean; result: string; processed_at: string }> =>
+  fetchJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
+    method: 'POST',
+    body: { comment },
+  });
+
+export const rejectApprovalRequestV1 = async (
+  targetSourceId: number,
+  reason: string
+): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> =>
+  fetchJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
+    method: 'POST',
+    body: { reason },
+  });
+
 export type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
 export type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
 

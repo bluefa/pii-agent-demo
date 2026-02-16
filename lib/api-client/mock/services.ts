@@ -3,7 +3,6 @@ import * as mockData from '@/lib/mock-data';
 import * as mockServiceSettings from '@/lib/mock-service-settings';
 import * as azureFns from '@/lib/mock-azure';
 import * as idcFns from '@/lib/mock-idc';
-import { ProcessStatus } from '@/lib/types';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import type { UpdateAwsSettingsRequest } from '@/lib/types';
@@ -131,14 +130,24 @@ export const mockServices = {
       }
 
       const projects = (await mockData.getProjectsByServiceCode(serviceCode)).map((p) => {
-        const isIntegrated = p.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+        const selectedResources = p.resources.filter((r) => r.isSelected);
+        const hasDisconnected = selectedResources.some((r) => r.connectionStatus === 'DISCONNECTED');
+        const connectionTestComplete = selectedResources.length > 0 &&
+          selectedResources.every((r) => r.connectionStatus === 'CONNECTED');
 
         return {
           id: p.id,
+          targetSourceId: p.targetSourceId,
           projectCode: p.projectCode,
-          name: p.name,
+          processStatus: p.processStatus,
           cloudProvider: p.cloudProvider,
-          isIntegrated,
+          resourceCount: p.resources.length,
+          hasDisconnected,
+          hasNew: false,
+          description: p.description,
+          isRejected: p.isRejected,
+          rejectionReason: p.rejectionReason,
+          connectionTestComplete,
           createdAt: p.createdAt,
         };
       });
