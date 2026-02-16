@@ -245,6 +245,7 @@ export const ApprovalRequestModal = ({
                             <textarea
                               value={exclusionReasons[r.id] ?? ''}
                               onChange={(e) => handleReasonChange(r.id, e.target.value)}
+                              aria-required={required}
                               placeholder={
                                 showDefaultPlaceholder
                                   ? '(기본 사유 적용)'

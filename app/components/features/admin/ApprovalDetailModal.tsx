@@ -24,8 +24,9 @@ interface ApprovalDetailModalProps {
 
 const formatEndpoint = (r: Resource): string => {
   if (!r.vmDatabaseConfig) return '-';
-  const { host, port } = r.vmDatabaseConfig;
-  return host ? `${host}:${port}` : `${port}`;
+  const { host, port, databaseType } = r.vmDatabaseConfig;
+  const endpoint = host ? `${host}:${port}` : `${port}`;
+  return databaseType ? `${databaseType} ${endpoint}` : endpoint;
 };
 
 const formatDateTime = (iso?: string): string => {
@@ -56,7 +57,7 @@ export const ApprovalDetailModal = ({
 
   const isWaitingApproval = project.processStatus === ProcessStatus.WAITING_APPROVAL;
   const includedResources = resources.filter((r) => r.isSelected);
-  const excludedResources = resources.filter((r) => !r.isSelected && r.exclusion);
+  const excludedResources = resources.filter((r) => !r.isSelected);
 
   const handleRejectSubmit = () => {
     if (!rejectReason.trim()) return;
@@ -224,7 +225,7 @@ export const ApprovalDetailModal = ({
                         {r.type}
                       </td>
                       <td className={cn(tableStyles.cell, 'text-sm', textColors.tertiary)}>
-                        {r.exclusion?.reason ?? '-'}
+                        {r.exclusion?.reason ?? '자동 제외'}
                       </td>
                     </tr>
                   ))}
@@ -247,9 +248,6 @@ export const ApprovalDetailModal = ({
               className={cn(getInputClass(), 'resize-none')}
               rows={3}
             />
-            {rejectReason.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">반려 사유는 필수입니다</p>
-            )}
           </div>
         )}
       </div>
