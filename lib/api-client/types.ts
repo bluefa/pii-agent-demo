@@ -54,6 +54,7 @@ export interface ApiClient {
   azure: {
     checkInstallation: (projectId: string) => Promise<NextResponse>;
     getInstallationStatus: (projectId: string) => Promise<NextResponse>;
+    getSettings: (projectId: string) => Promise<NextResponse>;
     getSubnetGuide: (projectId: string) => Promise<NextResponse>;
     vmCheckInstallation: (projectId: string) => Promise<NextResponse>;
     vmGetInstallationStatus: (projectId: string) => Promise<NextResponse>;

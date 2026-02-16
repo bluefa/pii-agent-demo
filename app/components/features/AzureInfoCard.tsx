@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import type { Project, SecretKey } from '@/lib/types';
-import type { AzureServiceSettings } from '@/lib/types/azure';
+import type { AzureV1Settings } from '@/lib/types/azure';
 
 interface AzureInfoCardProps {
   project: Project;
-  serviceSettings: AzureServiceSettings | null;
+  serviceSettings: AzureV1Settings | null;
   credentials: SecretKey[];
   onOpenGuide: () => void;
   onManageCredentials: () => void;
@@ -157,7 +157,7 @@ export const AzureInfoCard = ({
           </button>
         </div>
 
-        {scanApp?.registered ? (
+        {scanApp?.appId ? (
           <div>
             <div className="flex items-center gap-2">
               <span className={cn('inline-flex items-center gap-1 text-sm font-medium', statusColors.success.text)}>
@@ -166,11 +166,9 @@ export const AzureInfoCard = ({
               </span>
               <span className={cn('text-sm', textColors.secondary)}>PII Agent Scanner</span>
             </div>
-            {scanApp.appId && (
-              <p className={cn('mt-1 font-mono text-xs truncate', textColors.tertiary)} title={scanApp.appId}>
-                App ID: {scanApp.appId}
-              </p>
-            )}
+            <p className={cn('mt-1 font-mono text-xs truncate', textColors.tertiary)} title={scanApp.appId}>
+              App ID: {scanApp.appId}
+            </p>
           </div>
         ) : (
           <span className={cn('inline-flex items-center gap-1 text-sm font-medium', statusColors.warning.text)}>
