@@ -1,66 +1,44 @@
-import {
+import { fetchJson } from '@/lib/fetch-json';
+import type {
   AwsInstallationStatus,
-  AwsServiceSettings,
-  CheckInstallationResponse,
+  AwsSettings,
   TerraformScriptResponse,
 } from '@/lib/types';
 
-const BASE_URL = '/api/aws';
+const BASE = '/api/v1/aws/target-sources';
 
 /**
- * AWS 서비스 설정 조회 (스캔 Role 포함)
+ * AWS 설정 조회 (Execution Role + Scan Role)
  */
-export const getAwsServiceSettings = async (
-  serviceCode: string
-): Promise<AwsServiceSettings> => {
-  const res = await fetch(`/api/services/${serviceCode}/settings/aws`);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'AWS 서비스 설정 조회에 실패했습니다.');
-  }
-  return await res.json();
-};
+export const getAwsSettings = (targetSourceId: number): Promise<AwsSettings> =>
+  fetchJson<AwsSettings>(`${BASE}/${targetSourceId}/settings`);
 
 /**
  * AWS 설치 상태 조회
  */
-export const getAwsInstallationStatus = async (
-  projectId: string
-): Promise<AwsInstallationStatus> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/installation-status`);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || '설치 상태 조회에 실패했습니다.');
-  }
-  return await res.json();
-};
+export const getAwsInstallationStatus = (targetSourceId: number): Promise<AwsInstallationStatus> =>
+  fetchJson<AwsInstallationStatus>(`${BASE}/${targetSourceId}/installation-status`);
 
 /**
- * AWS 설치 상태 확인 (새로고침)
+ * AWS 설치 상태 실시간 동기화 (새로고침)
  */
-export const checkAwsInstallation = async (
-  projectId: string
-): Promise<CheckInstallationResponse> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/check-installation`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || '설치 상태 확인에 실패했습니다.');
-  }
-  return await res.json();
-};
+export const checkAwsInstallation = (targetSourceId: number): Promise<AwsInstallationStatus> =>
+  fetchJson<AwsInstallationStatus>(`${BASE}/${targetSourceId}/check-installation`, { method: 'POST' });
 
 /**
  * TF Script 다운로드 URL 조회 (수동 설치용)
  */
-export const getAwsTerraformScript = async (
-  projectId: string
-): Promise<TerraformScriptResponse> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/terraform-script`);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'TF Script 조회에 실패했습니다.');
-  }
-  return await res.json();
-};
+export const getAwsTerraformScript = (targetSourceId: number): Promise<TerraformScriptResponse> =>
+  fetchJson<TerraformScriptResponse>(`${BASE}/${targetSourceId}/terraform-script`);
+
+/**
+ * AWS 설치 모드 설정 (AUTO/MANUAL)
+ */
+export const setAwsInstallationMode = (
+  targetSourceId: number,
+  mode: 'AUTO' | 'MANUAL'
+): Promise<{ success: boolean; project: unknown }> =>
+  fetchJson(`${BASE}/${targetSourceId}/installation-mode`, {
+    method: 'POST',
+    body: { mode },
+  });
