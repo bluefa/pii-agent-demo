@@ -58,11 +58,10 @@ import { Button } from '@/app/components/ui/Button';
 - [ ] 구형 필드명(alias)이 재도입되지 않았는가?
 - [ ] "빌드 통과"만 근거로 계약 준수로 결론내리지 않았는가?
 
-#### Confirm 흐름 추가 점검
-- [ ] Confirm request/processing에서 `lifecycleStatus`로 분기하지 않는가?
-- [ ] Confirm request/processing에서 `isNew`로 분기하지 않는가?
-- [ ] 선택/제외 단일 소스가 `input_data.resource_inputs[].selected`인가?
-- [ ] `target_resource_ids` / `excluded_resource_ids` / `vm_configs` 같은 구형 구조를 사용하지 않는가?
+#### 도메인별 legacy 의존 추가 점검
+- [ ] 요청 생성/처리 경로에서 legacy 상태/플래그 분기가 남아있지 않은가?
+- [ ] 선택/제외/옵션 표현의 단일 소스가 정의되어 있고 일관되게 사용되는가?
+- [ ] deprecated payload 구조(구형 필드 묶음)를 재사용하지 않는가?
 
 ---
 

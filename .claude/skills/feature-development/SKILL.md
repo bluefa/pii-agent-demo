@@ -77,15 +77,15 @@ npm run type-check    # 타입 체크
 npm run build         # (선택) 빌드 확인
 ```
 
-### 계약 정합성 검증 (API/Confirm 작업 필수)
+### 계약 정합성 검증 (API 작업 필수)
 - 요청/응답 타입이 Swagger required 필드를 모두 포함하는지 확인
 - enum 값이 Swagger와 1:1로 일치하는지 확인
 - 구형 필드명(alias)을 재도입하지 않았는지 확인
-- Confirm 흐름 변경 시 금지 의존 검색:
+- 도메인별 금지 의존 검색:
   ```bash
-  rg -n "lifecycleStatus|isNew" app/projects/[projectId] app/lib/api/index.ts lib/api-client/mock/confirm.ts
+  rg -n "{legacy_flag_or_field_1}|{legacy_flag_or_field_2}" <changed_paths>
   ```
-  - Confirm request/processing 경로에서 발견되면 수정하거나 TODO + 제거 계획을 남긴다.
+  - 요청 생성/처리 경로에서 발견되면 수정하거나 TODO + 제거 계획을 남긴다.
 
 ## 4. 문서화 (PR 전 필수)
 

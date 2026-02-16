@@ -38,12 +38,11 @@ Task({
        - npx tsc --noEmit
        - npm run test:run
        - npm run build
-    4. If API/Swagger/Confirm files changed, run contract validation:
+    4. If API/Swagger files changed, run contract validation:
        - Check request/response required fields and enum values against Swagger
-       - Confirm no legacy aliases are reintroduced
-       - For Confirm changes, verify:
-         - no lifecycleStatus/isNew branching in request/processing paths
-         - selection source is input_data.resource_inputs[].selected
+       - Verify no legacy aliases are reintroduced
+       - Run domain-specific banned dependency checks for changed paths
+       - Verify canonical source fields are used consistently for request construction
     5. Check for commits: git log origin/main..HEAD --oneline
        - If empty: report and stop
     6. Push branch: git push origin HEAD --force-with-lease
@@ -92,7 +91,7 @@ gh pr create --base main --head <branch> --title "<title>" --body "<description>
 - request/response required 필드 대조 결과
 - enum 대조 결과
 - legacy alias 사용 여부
-- Confirm 변경 시 lifecycleStatus/isNew 제거 확인, selected 단일화 확인
+- 도메인별 legacy 의존 제거 확인, canonical field 단일화 확인
 
 ## Risks
 - 잠재 영향 범위

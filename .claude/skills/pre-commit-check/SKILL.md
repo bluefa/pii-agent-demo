@@ -46,12 +46,12 @@ Task({
     3. Run type-check: npx tsc --noEmit
     4. Run tests: npm run test:run
     5. Run build: npm run build
-    6. If staged files touch API/Swagger/Confirm paths, run contract checks:
+    6. If staged files touch API/Swagger paths, run contract checks:
        - Compare changed request/response types with Swagger required fields and enum values
        - Verify no legacy field aliases are reintroduced
-       - For Confirm-related files, run:
-         rg -n "lifecycleStatus|isNew|target_resource_ids|excluded_resource_ids|vm_configs" app/projects/[projectId] app/lib/api/index.ts lib/api-client/mock/confirm.ts
-       - If matches are used in Confirm request/processing logic, mark as failure
+       - Run domain-specific banned dependency search:
+         rg -n "{legacy_flag_or_field_1}|{legacy_flag_or_field_2}" <changed_paths>
+       - If matches are used in request/processing logic, mark as failure
        - If matches remain only as TODO comments, mark as warning and include removal plan summary
     7. Report results:
        - All passed: "✅ Ready to commit"
@@ -94,7 +94,7 @@ Ready to commit!
   - src/lib/bar.ts:45 - Property 'baz' missing
 ✓ Tests: 42 passed
 ✓ Build: completed (with warnings)
-✗ Contract-check: confirm.yaml enum mismatch (PROCESS_STATUS)
+✗ Contract-check: swagger enum mismatch (PROCESS_STATUS)
 
 Fix type errors before commit.
 ```
