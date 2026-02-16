@@ -8,10 +8,11 @@
 |----|------|------|------|
 | [ADR-001](./001-process-state-architecture.md) | Data-Driven 프로세스 상태 아키텍처 | 승인됨 | 2026-02-02 |
 | [ADR-003](./003-documentation-strategy.md) | 문서 관리 전략 | 승인됨 | 2026-02-02 |
-| [ADR-004](./004-process-status-refactoring.md) | processStatus 저장 필드 리팩토링 | 제안됨 | 2026-02-04 |
+| [ADR-004](./004-process-status-refactoring.md) | processStatus 저장 필드 리팩토링 | 폐기됨 | 2026-02-04 |
 | [ADR-006](./006-integration-confirmation-approval-redesign.md) | 연동 확정 승인 프로세스 재설계 | 승인됨 | 2026-02-11 |
 | [ADR-007](./007-api-client-pattern.md) | API Client 패턴 도입 | 승인됨 | 2026-02-14 |
 | [ADR-008](./008-error-handling-strategy.md) | CSR 에러 처리 전략 | 승인됨 | 2026-02-15 |
+| [ADR-009](./009-process-status-terminology.md) | processStatus 용어 체계 확정 및 BFF 계산 모델 | 승인됨 | 2026-02-16 |
 
 ## ADR 작성 규칙
 
