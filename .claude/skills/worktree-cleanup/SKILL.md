@@ -2,6 +2,7 @@
 name: worktree-cleanup
 description: PR merge 후 완료된 작업 worktree를 정리하는 워크플로우. merged 브랜치의 worktree 제거와 로컬 브랜치 삭제가 필요할 때 사용.
 user_invocable: true
+model: haiku
 ---
 
 # /worktree-cleanup - Cleanup Merged Worktree

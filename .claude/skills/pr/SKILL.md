@@ -2,6 +2,7 @@
 name: pr
 description: 기능 완료 후 Pull Request 생성 워크플로우. 동일 브랜치 검증, 빌드/타입 체크, 사람 리뷰어가 이해 가능한 상세 PR description 작성, URL 보고가 필요할 때 사용.
 user_invocable: true
+model: haiku
 ---
 
 # /pr - Create Pull Request

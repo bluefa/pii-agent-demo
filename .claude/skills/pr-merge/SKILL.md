@@ -2,6 +2,7 @@
 name: pr-merge
 description: Pull Request 머지 워크플로우. PR 상태 확인 후 merge/squash/squid 전략으로 머지하고 브랜치 정리가 필요할 때 사용.
 user_invocable: true
+model: haiku
 ---
 
 # /pr-merge - Merge Pull Request
