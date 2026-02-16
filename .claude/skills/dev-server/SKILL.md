@@ -43,7 +43,7 @@ Task({
   prompt: `
     Execute dev server startup script:
 
-    1. Navigate to /Users/study/pii-agent-demo-fix-haiku-skills (or specify worktree-path)
+    1. Navigate to <worktree-path>
     2. Check if port 3000-3100 is available
     3. Execute: bash scripts/dev.sh <worktree-path>
        - IMPORTANT: Use Bash tool with run_in_background: true
