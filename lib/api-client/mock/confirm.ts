@@ -13,7 +13,28 @@ import type {
   VmDatabaseConfig,
   ResourceExclusion,
   Project,
+  BffApprovedIntegration,
 } from '@/lib/types';
+
+// Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
+const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
+
+// Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
+// 실제 환경: 빠르면 1분, 최대 하루 이상 소요
+// Mock: MOCK_INSTALLATION_DELAY_MS(기본 10초) 경과 후 설치 완료 처리
+const MOCK_INSTALLATION_DELAY_MS = 10_000;
+const approvalTimestampStore = new Map<string, number>();
+
+/** @internal 테스트 전용: store 초기화 */
+export const _resetApprovedIntegrationStore = () => {
+  approvedIntegrationStore.clear();
+  approvalTimestampStore.clear();
+};
+
+/** @internal 테스트 전용: 지연 시간 우회 (승인 시각을 과거로 설정) */
+export const _fastForwardApproval = (projectId: string) => {
+  approvalTimestampStore.set(projectId, Date.now() - MOCK_INSTALLATION_DELAY_MS - 1);
+};
 
 interface ResourceCredentialInput {
   resourceId: string;
@@ -25,11 +46,19 @@ interface ResourceCredentialInput {
 type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
 
 const computeProcessStatus = (project: Project): BffProcessStatus => {
-  if (project.processStatus === ProcessStatus.WAITING_APPROVAL) return 'WAITING_APPROVAL';
-  if (project.processStatus === ProcessStatus.INSTALLING ||
-      project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-      project.processStatus === ProcessStatus.CONNECTION_VERIFIED) return 'APPLYING_APPROVED';
-  if (project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE) return 'TARGET_CONFIRMED';
+  // ADR-009 D-004: 3객체 존재 여부 기반 우선순위 계산
+  // 1. PENDING 승인 요청 존재?
+  if (project.status.approval.status === 'PENDING' && project.status.targets.confirmed) {
+    return 'WAITING_APPROVAL';
+  }
+  // 2. ApprovedIntegration 존재? (반영 중)
+  if (approvedIntegrationStore.has(project.id)) {
+    return 'APPLYING_APPROVED';
+  }
+  // 3. ConfirmedIntegration 존재? (설치 완료)
+  if (project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE) {
+    return 'TARGET_CONFIRMED';
+  }
   return 'REQUEST_REQUIRED';
 };
 
@@ -264,11 +293,24 @@ export const mockConfirm = {
     // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
     const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;
     await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount, inputDataSnapshot);
+    const requestId = `req-${Date.now()}`;
+
+    // ADR-006: 자동 승인 시에도 ApprovedIntegration 스냅샷 생성
     if (autoApprovalResult.shouldAutoApprove) {
+      const selectedResources = updatedResources.filter((r) => r.isSelected);
+      const excludedResources = updatedResources.filter((r) => r.exclusion);
+      approvedIntegrationStore.set(projectId, {
+        id: `ai-${projectId}-${Date.now()}`,
+        request_id: requestId,
+        approved_at: now,
+        resource_infos: selectedResources.map(toResourceSnapshot),
+        excluded_resource_ids: excludedResources.map((r) => r.id),
+        exclusion_reason: excludedResources[0]?.exclusion?.reason,
+      });
+      // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
+      approvalTimestampStore.set(projectId, Date.now());
       await mockHistory.addAutoApprovedHistory(projectId);
     }
-
-    const requestId = `req-${Date.now()}`;
     return NextResponse.json(
       {
         success: true,
@@ -329,30 +371,16 @@ export const mockConfirm = {
       );
     }
 
-    const inFlightResources = project.resources.filter(
-      (r) => r.isSelected && r.connectionStatus !== 'CONNECTED',
-    );
-
-    if (
-      inFlightResources.length === 0 ||
-      (project.processStatus !== ProcessStatus.INSTALLING &&
-        project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST)
-    ) {
-      return NextResponse.json({ approved_integration: null });
+    // ADR-006: store에서 ApprovedIntegration 조회
+    const approved = approvedIntegrationStore.get(project.id);
+    if (!approved) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
     }
 
-    const excludedResources = project.resources.filter((r) => r.exclusion);
-
-    return NextResponse.json({
-      approved_integration: {
-        id: `ai-${project.id}`,
-        request_id: `req-${project.id}`,
-        approved_at: project.approvedAt ?? project.updatedAt,
-        resource_infos: inFlightResources.map(toResourceSnapshot),
-        excluded_resource_ids: excludedResources.map((r) => r.id),
-        exclusion_reason: excludedResources[0]?.exclusion?.reason,
-      },
-    });
+    return NextResponse.json({ approved_integration: approved });
   },
 
   getApprovalHistory: async (projectId: string, page: number, size: number) => {
@@ -494,11 +522,9 @@ export const mockConfirm = {
       target_source_id: project.targetSourceId,
       process_status: computeProcessStatus(project),
       status_inputs: {
-        has_confirmed_integration: project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE,
+        has_confirmed_integration: project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE && !approvedIntegrationStore.has(project.id),
         has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
-        has_approved_integration: project.processStatus === ProcessStatus.INSTALLING ||
-          project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-          project.processStatus === ProcessStatus.CONNECTION_VERIFIED,
+        has_approved_integration: approvedIntegrationStore.has(project.id),
         last_approval_result: computeLastApprovalResult(project),
         last_rejection_reason: project.status.approval.rejectionReason ?? null,
       },
@@ -561,6 +587,22 @@ export const mockConfirm = {
       approvalComment: comment,
       approvedAt: now,
     });
+
+    // ADR-006 D-008: ApprovedIntegration 스냅샷 생성
+    const selectedResources = updatedResources.filter((r) => r.isSelected);
+    const excludedResources = updatedResources.filter((r) => r.exclusion);
+    const requestId = `req-${project.id}-${Date.now()}`;
+    approvedIntegrationStore.set(project.id, {
+      id: `ai-${project.id}-${Date.now()}`,
+      request_id: requestId,
+      approved_at: now,
+      resource_infos: selectedResources.map(toResourceSnapshot),
+      excluded_resource_ids: excludedResources.map((r) => r.id),
+      exclusion_reason: excludedResources[0]?.exclusion?.reason,
+    });
+
+    // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
+    approvalTimestampStore.set(project.id, Date.now());
 
     mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
 
@@ -667,6 +709,19 @@ export const mockConfirm = {
       );
     }
 
+    // 설치 반영 소요시간 시뮬레이션: 승인 후 MOCK_INSTALLATION_DELAY_MS 경과 전 확정 불가
+    const approvedAt = approvalTimestampStore.get(project.id);
+    if (approvedAt && Date.now() - approvedAt < MOCK_INSTALLATION_DELAY_MS) {
+      const remainingSec = Math.ceil((MOCK_INSTALLATION_DELAY_MS - (Date.now() - approvedAt)) / 1000);
+      return NextResponse.json(
+        {
+          error: { code: 'INSTALLATION_IN_PROGRESS', message: `설치 반영 중입니다. 약 ${remainingSec}초 후 다시 시도해주세요.` },
+          estimated_remaining_seconds: remainingSec,
+        },
+        { status: 409 },
+      );
+    }
+
     const now = new Date().toISOString();
 
     const updatedStatus: ProjectStatus = {
@@ -687,6 +742,10 @@ export const mockConfirm = {
       piiAgentInstalled: true,
       piiAgentConnectedAt: project.piiAgentConnectedAt || now,
     });
+
+    // 설치 확정 시 store 정리 (반영 완료)
+    approvedIntegrationStore.delete(project.id);
+    approvalTimestampStore.delete(project.id);
 
     return NextResponse.json({ success: true, confirmedAt: now });
   },
