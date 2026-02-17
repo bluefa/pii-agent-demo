@@ -68,6 +68,7 @@ const computeLastApprovalResult = (project: Project): LastApprovalResult => {
   const approvalStatus = project.status.approval.status;
   if (approvalStatus === 'AUTO_APPROVED' || approvalStatus === 'APPROVED') return 'APPROVED';
   if (approvalStatus === 'REJECTED') return 'REJECTED';
+  if (approvalStatus === 'CANCELLED') return 'CANCELLED';
   return 'NONE';
 };
 
@@ -485,6 +486,14 @@ export const mockConfirm = {
           processed_at: h.timestamp,
           process_info: { user_id: h.actor.id, reason: h.details.reason ?? null },
         };
+      } else if (h.type === 'APPROVAL_CANCELLED') {
+        result = {
+          id: `result-${h.id}`,
+          request_id: h.id,
+          result: 'CANCELLED' as const,
+          processed_at: h.timestamp,
+          process_info: { user_id: h.actor.id, reason: null },
+        };
       }
 
       return { request, ...(result && { result }) };
@@ -682,6 +691,71 @@ export const mockConfirm = {
       result: 'REJECTED',
       processed_at: now,
       reason,
+    });
+  },
+
+  cancelApprovalRequest: async (projectId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    // ADR-006 D-010: APPLYING_APPROVED(반영 중)에서는 취소 불가
+    if (approvedIntegrationStore.has(project.id)) {
+      return NextResponse.json(
+        { error: { code: 'CONFLICT_APPLYING_IN_PROGRESS', message: '승인된 내용이 반영 중입니다. 반영 완료 후까지 취소할 수 없습니다.' } },
+        { status: 409 },
+      );
+    }
+
+    // PENDING 상태가 아니면 취소할 요청 없음
+    if (project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '취소할 수 있는 승인 요청이 없습니다.' } },
+        { status: 400 },
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    // 리소스 선택 해제 + 이번 요청에서 설정된 exclusion 초기화
+    const updatedResources = project.resources.map((r) => ({
+      ...r,
+      isSelected: false,
+      exclusion: undefined,
+    }));
+
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+      approval: { status: 'CANCELLED' },
+    };
+
+    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+
+    mockData.updateProject(projectId, {
+      processStatus: calculatedProcessStatus,
+      status: updatedStatus,
+      resources: updatedResources,
+    });
+
+    mockHistory.addApprovalCancelledHistory(projectId, { id: user.id, name: user.name });
+
+    return NextResponse.json({
+      success: true,
+      result: 'CANCELLED',
+      processed_at: now,
     });
   },
 

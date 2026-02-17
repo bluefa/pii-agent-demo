@@ -31,6 +31,11 @@ const historyTypeConfig: Record<ProjectHistoryType, HistoryTypeConfig> = {
     variant: 'error',
     tooltip: '관리자가 연동 대상을 반려했습니다. 반려 사유를 확인하고 연동 대상을 다시 확정해주세요.',
   },
+  APPROVAL_CANCELLED: {
+    label: '승인취소',
+    variant: 'warning',
+    tooltip: '서비스 담당자가 승인 요청을 취소했습니다. 다시 연동 대상을 선택하여 요청할 수 있습니다.',
+  },
   DECOMMISSION_REQUEST: {
     label: '폐기 요청',
     variant: 'warning',

@@ -121,6 +121,7 @@ export interface ApiClient {
     getProcessStatus: (projectId: string) => Promise<NextResponse>;
     approveApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
     rejectApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
+    cancelApprovalRequest: (projectId: string) => Promise<NextResponse>;
     confirmInstallation: (projectId: string) => Promise<NextResponse>;
     updateResourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
     testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;

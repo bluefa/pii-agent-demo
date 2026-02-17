@@ -781,4 +781,201 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(data.confirmed_integration).toBeNull();
     });
   });
+
+  describe('시나리오 12: 승인 요청 취소 (cancelApprovalRequest)', () => {
+    it('WAITING_APPROVAL → 취소 → REQUEST_REQUIRED (last_approval_result=CANCELLED)', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      // 수동 승인 대기 상태로 만들기
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      let status = await getProcessStatus();
+      expect(status.process_status).toBe('WAITING_APPROVAL');
+
+      // 취소
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(200);
+      const cancelData = await parseResponse(cancelRes);
+      expect(cancelData.result).toBe('CANCELLED');
+
+      // 상태 확인
+      status = await getProcessStatus();
+      expect(status.process_status).toBe('REQUEST_REQUIRED');
+      expect(status.status_inputs.last_approval_result).toBe('CANCELLED');
+      expect(status.status_inputs.has_pending_approval_request).toBe(false);
+    });
+
+    it('취소 후 재요청 가능 (자동 승인 경로)', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+        ],
+      });
+
+      // 전체 선택 → 자동 승인 → APPLYING_APPROVED
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      let status = await getProcessStatus();
+      expect(status.process_status).toBe('APPLYING_APPROVED');
+
+      // 자동 승인이라 취소 불가 — 이 경우는 별도 테스트에서 검증
+      // 수동 승인 경로로 재요청 테스트
+      resetTestState();
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      const reqBody2 = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody2);
+      status = await getProcessStatus();
+      expect(status.process_status).toBe('WAITING_APPROVAL');
+
+      // 취소
+      await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      status = await getProcessStatus();
+      expect(status.process_status).toBe('REQUEST_REQUIRED');
+
+      // 재요청 성공 확인
+      const reqRes2 = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody2);
+      expect(reqRes2.status).toBe(201);
+
+      status = await getProcessStatus();
+      expect(status.process_status).toBe('WAITING_APPROVAL');
+    });
+
+    it('REQUEST_REQUIRED 상태에서 취소 시도 → 400 (승인 요청 내역 없음)', async () => {
+      addTestProject();
+
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(400);
+      const data = await parseResponse(cancelRes);
+      expect(data.error.code).toBe('VALIDATION_FAILED');
+    });
+
+    it('APPLYING_APPROVED(반영 중) 상태에서 취소 시도 → 409 CONFLICT', async () => {
+      // 자동 승인되어 APPLYING_APPROVED 상태로 진입
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+        ],
+      });
+
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+
+      // 자동 승인됨 확인
+      const status = await getProcessStatus();
+      expect(status.process_status).toBe('APPLYING_APPROVED');
+
+      // 취소 시도 → 409
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(409);
+      const data = await parseResponse(cancelRes);
+      expect(data.error.code).toBe('CONFLICT_APPLYING_IN_PROGRESS');
+    });
+
+    it('APPLYING_APPROVED(10초 대기 중) 취소 불가 + 대기 후 확정 가능', async () => {
+      // 수동 승인 → APPLYING_APPROVED → 10초 대기 중 취소 시도 → 409 → 대기 후 확정 성공
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      // 수동 승인 대기 상태로
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+
+      // 승인
+      await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      let status = await getProcessStatus();
+      expect(status.process_status).toBe('APPLYING_APPROVED');
+
+      // 취소 시도 → 409 (반영 중이므로 불가)
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(409);
+
+      // 10초 우회 + CONNECTION_VERIFIED로 전환
+      _fastForwardApproval(TEST_PROJECT_ID);
+      const store = getStore();
+      const projIdx = store.projects.findIndex((p) => p.id === TEST_PROJECT_ID);
+      store.projects[projIdx] = {
+        ...store.projects[projIdx],
+        processStatus: ProcessStatus.CONNECTION_VERIFIED,
+        status: {
+          ...store.projects[projIdx].status,
+          installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
+          connectionTest: { status: 'PASSED', passedAt: new Date().toISOString() },
+        },
+        resources: store.projects[projIdx].resources.map((r) =>
+          r.isSelected ? { ...r, connectionStatus: 'CONNECTED' as const } : r,
+        ),
+      };
+
+      // 확정 성공
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      expect(confirmRes.status).toBe(200);
+
+      status = await getProcessStatus();
+      expect(status.process_status).toBe('TARGET_CONFIRMED');
+    });
+
+    it('TARGET_CONFIRMED 상태에서 취소 시도 → 400 (취소할 요청 없음)', async () => {
+      const status: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: { status: 'APPROVED', approvedAt: '2026-01-10T00:00:00Z' },
+        installation: { status: 'COMPLETED', completedAt: '2026-01-12T00:00:00Z' },
+        connectionTest: { status: 'PASSED', passedAt: '2026-01-13T00:00:00Z' },
+      };
+      addTestProject({
+        processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+        status,
+      });
+
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(400);
+    });
+
+    it('취소 이력이 approval-history에 기록됨', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      // 요청 → 취소
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+
+      // approval-history 조회
+      const historyRes = await mockConfirm.getApprovalHistory(TEST_PROJECT_ID, 0, 10);
+      const historyData = await parseResponse(historyRes);
+
+      // APPROVAL_CANCELLED 이력 존재 확인
+      const cancelledEntry = historyData.content.find(
+        (item: { result?: { result: string } }) => item.result?.result === 'CANCELLED',
+      );
+      expect(cancelledEntry).toBeDefined();
+      expect(cancelledEntry.result.result).toBe('CANCELLED');
+    });
+  });
 });

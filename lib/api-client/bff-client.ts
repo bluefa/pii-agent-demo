@@ -187,6 +187,7 @@ export const bffClient: ApiClient = {
     getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
     approveApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
     rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),
+    cancelApprovalRequest: (projectId) => proxyPost(`/target-sources/${projectId}/approval-requests/cancel`, {}),
     confirmInstallation: (projectId) => proxyPost(`/target-sources/${projectId}/pii-agent-installation/confirm`, {}),
     updateResourceCredential: (projectId, body) => proxyPatch(`/target-sources/${projectId}/resources/credential`, body),
     testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
