@@ -85,6 +85,17 @@ npm run build         # (선택) 빌드 확인
   bash scripts/contract-check.sh --mode staged
   ```
 
+### ⛔ Swagger 필드명 대조 (API 작업 필수 — 스킵 불가)
+
+구현 완료 후, **commit 전에** 변경된 각 API endpoint에 대해 아래를 수행한다:
+
+1. **Swagger 스키마 재읽기**: 해당 endpoint의 request/response 스키마를 `docs/swagger/*.yaml`에서 Read로 다시 읽는다.
+2. **3자 대조**: Swagger 필드명 ↔ mock 응답/파싱 필드명 ↔ FE 타입/API 함수 필드명이 **문자열 완전 일치**하는지 확인한다.
+3. **description/examples 포함**: 스키마 `properties` 뿐 아니라 `description` 텍스트, `examples` 값의 필드명도 대조 대상이다.
+4. **다른 API 회귀 확인**: 필드명 일괄 변경(grep/replace) 시, 변경 대상이 아닌 기존 API의 응답이 영향받지 않았는지 확인한다.
+
+위반 시 commit하지 않고, 불일치를 먼저 해소한다.
+
 ## 4. 문서화 (PR 전 필수)
 
 - 새 API/변경 API → `docs/swagger/*.yaml` 우선 반영 (Swagger-First)
