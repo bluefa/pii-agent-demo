@@ -1,5 +1,6 @@
 import type { ApiClient } from '@/lib/api-client/types';
 import { mockProjects } from '@/lib/api-client/mock/projects';
+import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockUsers } from '@/lib/api-client/mock/users';
 import { mockSdu } from '@/lib/api-client/mock/sdu';
 import { mockAws } from '@/lib/api-client/mock/aws';
@@ -12,6 +13,7 @@ import { mockScan } from '@/lib/api-client/mock/scan';
 import { mockConfirm } from '@/lib/api-client/mock/confirm';
 
 export const mockClient: ApiClient = {
+  targetSources: mockTargetSources,
   projects: mockProjects,
   users: mockUsers,
   sdu: mockSdu,

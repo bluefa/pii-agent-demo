@@ -105,7 +105,7 @@ export const ProcessStatusCard = ({
       try {
         const status = await getProcessStatus(project.targetSourceId);
         if (status.process_status !== expectedBff) {
-          const updated = await getProject(project.id);
+          const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
         }
       } catch {

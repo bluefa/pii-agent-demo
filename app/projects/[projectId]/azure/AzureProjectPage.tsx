@@ -171,7 +171,7 @@ export const AzureProjectPage = ({
       await createApprovalRequest(project.targetSourceId, {
         input_data: { resource_inputs: resourceInputs },
       });
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
       setExpandedVmId(null);
@@ -231,7 +231,7 @@ export const AzureProjectPage = ({
           targetSourceId={project.targetSourceId}
           cloudProvider={project.cloudProvider}
           onScanComplete={async () => {
-            const updatedProject = await getProject(project.id);
+            const updatedProject = await getProject(project.targetSourceId);
             onProjectUpdate(updatedProject);
           }}
         />
