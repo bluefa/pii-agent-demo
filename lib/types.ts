@@ -292,7 +292,7 @@ export interface ProjectTargetsStatus {
   excludedCount: number;
 }
 
-export type ApprovalStatusType = 'PENDING' | 'APPROVED' | 'REJECTED' | 'AUTO_APPROVED';
+export type ApprovalStatusType = 'PENDING' | 'APPROVED' | 'REJECTED' | 'AUTO_APPROVED' | 'CANCELLED';
 
 export interface ProjectApprovalStatus {
   status: ApprovalStatusType;
@@ -587,6 +587,7 @@ export type VerifyScanRoleResponse = VerifyScanRoleSuccessResponse | VerifyScanR
  * - AUTO_APPROVED: 자동 승인 (기존 연동 제외 리소스 외 모든 리소스가 연동 대상인 경우)
  * - APPROVAL: 승인 (관리자 수동 승인)
  * - REJECTION: 반려 (관리자 반려, 사유 필수)
+ * - APPROVAL_CANCELLED: 승인 요청 취소 (요청자가 PENDING 상태에서 취소)
  * - DECOMMISSION_*: 폐기 관련
  */
 export type ProjectHistoryType =
@@ -594,6 +595,7 @@ export type ProjectHistoryType =
   | 'AUTO_APPROVED'
   | 'APPROVAL'
   | 'REJECTION'
+  | 'APPROVAL_CANCELLED'
   | 'DECOMMISSION_REQUEST'
   | 'DECOMMISSION_APPROVED'
   | 'DECOMMISSION_REJECTED';
