@@ -337,13 +337,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [tables]
-                properties:
-                  tables:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/SduAthenaTable'
+                type: array
+                items:
+                  $ref: '#/components/schemas/SduAthenaTable'
         '400':
           description: "SDU 프로젝트가 아님"
           content:
