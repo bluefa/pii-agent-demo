@@ -627,3 +627,44 @@ export interface ProjectHistory {
   timestamp: string;
   details: ProjectHistoryDetails;
 }
+
+// ===== BFF Confirm API Types (ADR-006/009) =====
+
+/** BFF 프로세스 상태 (ADR-009) — 3객체 존재 여부로 계산 */
+export type TargetSourceProcessStatus =
+  | 'REQUEST_REQUIRED'
+  | 'WAITING_APPROVAL'
+  | 'APPLYING_APPROVED'
+  | 'TARGET_CONFIRMED';
+
+/** 최근 승인 처리 결과 */
+export type LastApprovalResultType =
+  | 'NONE'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'SYSTEM_ERROR'
+  | 'COMPLETED';
+
+/** 리소스 스냅샷 (Swagger ResourceSnapshot) */
+export interface ResourceSnapshot {
+  resource_id: string;
+  resource_type: string;
+  endpoint_config: Record<string, unknown> | null;
+  credential_id: string | null;
+}
+
+/** 승인 완료 정보 — 반영 중 스냅샷 (Swagger ApprovedIntegration) */
+export interface BffApprovedIntegration {
+  id: string;
+  request_id: string;
+  approved_at: string;
+  resource_infos: ResourceSnapshot[];
+  excluded_resource_ids: string[];
+  exclusion_reason?: string;
+}
+
+/** 연동 확정 정보 — 현재 실제 상태 (Swagger ConfirmedIntegration) */
+export interface BffConfirmedIntegration {
+  resource_infos: ResourceSnapshot[];
+}
