@@ -5,7 +5,7 @@
  * 테스트 대상: lib/api-client/mock/confirm.ts
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mockConfirm, _resetApprovedIntegrationStore } from '@/lib/api-client/mock/confirm';
+import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval } from '@/lib/api-client/mock/confirm';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import type { Project, ProjectStatus, Resource } from '@/lib/types';
@@ -71,6 +71,20 @@ const addTestProject = (overrides?: Partial<Project>) => {
 const getProcessStatus = async () => {
   const res = await mockConfirm.getProcessStatus(TEST_PROJECT_ID);
   return parseResponse(res);
+};
+
+/** mock store에서 프로젝트의 approval.status를 직접 읽기 */
+const getProjectApprovalStatus = () => {
+  const store = getStore();
+  const project = store.projects.find((p) => p.id === TEST_PROJECT_ID);
+  return project?.status.approval.status;
+};
+
+/** mock store에서 프로젝트의 installation.status를 직접 읽기 */
+const getProjectInstallationStatus = () => {
+  const store = getStore();
+  const project = store.projects.find((p) => p.id === TEST_PROJECT_ID);
+  return project?.status.installation.status;
 };
 
 const createApprovalRequestBody = (selectedIds: string[], excludedIds: string[] = []) => ({
@@ -205,8 +219,8 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     });
   });
 
-  describe('시나리오 2: 자동 승인 (리뷰 P1 버그 수정)', () => {
-    it('모든 리소스 선택 시 자동 승인 → APPLYING_APPROVED', async () => {
+  describe('시나리오 2: 자동 승인 vs 수동 승인 분기', () => {
+    it('모든 TARGET 리소스 선택 → 자동 승인 (approval.status=AUTO_APPROVED)', async () => {
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -214,16 +228,84 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
-      // 모든 리소스 선택 → 자동 승인
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
       const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
       expect(reqRes.status).toBe(201);
 
-      // 자동 승인 시에도 APPLYING_APPROVED여야 함 (P1 버그 수정)
+      // approval.status가 AUTO_APPROVED로 설정됨
+      expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
+      // installation이 즉시 IN_PROGRESS로 전환됨
+      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+
+      // BFF process_status = APPLYING_APPROVED (P1 버그 수정)
       const status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
       expect(status.status_inputs.has_approved_integration).toBe(true);
       expect(status.status_inputs.last_approval_result).toBe('APPROVED');
+    });
+
+    it('일부 TARGET 리소스 미선택 (제외 아님) → 수동 승인 필요 (approval.status=PENDING)', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }), // 미선택 + 제외 안 됨
+        ],
+      });
+
+      // res-1, res-2만 선택, res-3은 제외로 지정
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+
+      // approval.status가 PENDING (수동 승인 대기)
+      expect(getProjectApprovalStatus()).toBe('PENDING');
+      // installation은 아직 PENDING
+      expect(getProjectInstallationStatus()).toBe('PENDING');
+
+      // BFF process_status = WAITING_APPROVAL
+      const status = await getProcessStatus();
+      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.status_inputs.has_pending_approval_request).toBe(true);
+    });
+
+    it('제외 확정된 리소스만 미선택 → 자동 승인', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2', {
+            integrationCategory: 'TARGET',
+            exclusion: { reason: '기존 제외', excludedAt: '2026-01-01T00:00:00Z', excludedBy: { id: 'u1', name: 'Admin' } },
+          }),
+        ],
+      });
+
+      // res-1만 선택 (res-2는 이미 제외 확정 → 미선택해도 자동 승인)
+      const reqBody = createApprovalRequestBody(['res-1']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+
+      expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
+      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+
+      const status = await getProcessStatus();
+      expect(status.process_status).toBe('APPLYING_APPROVED');
+    });
+
+    it('NO_INSTALL_NEEDED 리소스 미선택 → 자동 승인 (TARGET만 판정 대상)', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2', { integrationCategory: 'NO_INSTALL_NEEDED' }), // TARGET이 아님
+        ],
+      });
+
+      // res-1만 선택 (res-2는 NO_INSTALL_NEEDED → 자동 승인 판정 대상 아님)
+      const reqBody = createApprovalRequestBody(['res-1']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+
+      expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
     });
 
     it('자동 승인 시 ApprovedIntegration 스냅샷 생성 확인', async () => {
@@ -428,7 +510,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
   });
 
   describe('시나리오 6: 설치 확정 (confirmInstallation)', () => {
-    it('CONNECTION_VERIFIED → 확정 → TARGET_CONFIRMED + 스냅샷 삭제', async () => {
+    const setupConnectionVerifiedProject = () => {
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
@@ -445,6 +527,12 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
           createTestResource('res-2', { isSelected: true, connectionStatus: 'CONNECTED' }),
         ],
       });
+    };
+
+    it('CONNECTION_VERIFIED → 확정 → TARGET_CONFIRMED + 스냅샷 삭제', async () => {
+      setupConnectionVerifiedProject();
+      // 지연 우회 (테스트 속도를 위해)
+      _fastForwardApproval(TEST_PROJECT_ID);
 
       // 확정
       const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
@@ -460,6 +548,69 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const approvedRes = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
       const approvedData = await parseResponse(approvedRes);
       expect(approvedData.approved_integration).toBeNull();
+    });
+
+    it('승인 직후 확정 시도 → 409 INSTALLATION_IN_PROGRESS (10초 지연)', async () => {
+      setupConnectionVerifiedProject();
+      // 승인 시각을 "방금"으로 설정 (지연 미경과)
+      const store = getStore();
+      const project = store.projects.find((p) => p.id === TEST_PROJECT_ID)!;
+      // approvalTimestampStore에 현재 시각 설정 (confirm.ts 내부 store 접근 불가하므로 _fastForwardApproval의 반대)
+      // _fastForwardApproval을 호출하지 않으면 기본적으로 timestamp가 없어 지연 체크 안 됨
+      // 수동으로 mock의 approve를 거쳐야 timestamp가 설정됨
+
+      // 방법: WAITING_APPROVAL 상태 프로젝트를 만들고 approve → CONNECTION_VERIFIED로 전환 → 즉시 confirm
+      resetTestState();
+      const waitingStatus: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: { status: 'PENDING' },
+      };
+      addTestProject({
+        processStatus: ProcessStatus.WAITING_APPROVAL,
+        status: waitingStatus,
+        resources: [
+          createTestResource('res-1', { isSelected: true }),
+          createTestResource('res-2', { isSelected: true }),
+        ],
+      });
+
+      // 승인 → approvalTimestampStore에 현재 시각 기록됨
+      await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+
+      // 프로젝트를 CONNECTION_VERIFIED 상태로 강제 전환 (설치 완료 시뮬레이션)
+      const verifiedStatus: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
+        installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
+        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString() },
+      };
+      const storeForUpdate = getStore();
+      const projIdx = storeForUpdate.projects.findIndex((p) => p.id === TEST_PROJECT_ID);
+      storeForUpdate.projects[projIdx] = {
+        ...storeForUpdate.projects[projIdx],
+        processStatus: ProcessStatus.CONNECTION_VERIFIED,
+        status: verifiedStatus,
+      };
+
+      // 승인 직후(10초 미경과) 확정 시도 → 409
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      expect(confirmRes.status).toBe(409);
+      const data = await parseResponse(confirmRes);
+      expect(data.error.code).toBe('INSTALLATION_IN_PROGRESS');
+      expect(data.estimated_remaining_seconds).toBeGreaterThan(0);
+    });
+
+    it('10초 경과 후 확정 시도 → 200 성공 (_fastForwardApproval)', async () => {
+      setupConnectionVerifiedProject();
+      // 지연 우회
+      _fastForwardApproval(TEST_PROJECT_ID);
+
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      expect(confirmRes.status).toBe(200);
     });
 
     it('CONNECTION_VERIFIED가 아닌 상태에서 확정 시도 → 400', async () => {

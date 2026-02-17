@@ -19,8 +19,22 @@ import type {
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
 const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
 
+// Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
+// 실제 환경: 빠르면 1분, 최대 하루 이상 소요
+// Mock: MOCK_INSTALLATION_DELAY_MS(기본 10초) 경과 후 설치 완료 처리
+const MOCK_INSTALLATION_DELAY_MS = 10_000;
+const approvalTimestampStore = new Map<string, number>();
+
 /** @internal 테스트 전용: store 초기화 */
-export const _resetApprovedIntegrationStore = () => approvedIntegrationStore.clear();
+export const _resetApprovedIntegrationStore = () => {
+  approvedIntegrationStore.clear();
+  approvalTimestampStore.clear();
+};
+
+/** @internal 테스트 전용: 지연 시간 우회 (승인 시각을 과거로 설정) */
+export const _fastForwardApproval = (projectId: string) => {
+  approvalTimestampStore.set(projectId, Date.now() - MOCK_INSTALLATION_DELAY_MS - 1);
+};
 
 interface ResourceCredentialInput {
   resourceId: string;
@@ -293,6 +307,8 @@ export const mockConfirm = {
         excluded_resource_ids: excludedResources.map((r) => r.id),
         exclusion_reason: excludedResources[0]?.exclusion?.reason,
       });
+      // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
+      approvalTimestampStore.set(projectId, Date.now());
       await mockHistory.addAutoApprovedHistory(projectId);
     }
     return NextResponse.json(
@@ -582,6 +598,9 @@ export const mockConfirm = {
       exclusion_reason: excludedResources[0]?.exclusion?.reason,
     });
 
+    // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
+    approvalTimestampStore.set(project.id, Date.now());
+
     mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
 
     return NextResponse.json({
@@ -687,6 +706,19 @@ export const mockConfirm = {
       );
     }
 
+    // 설치 반영 소요시간 시뮬레이션: 승인 후 MOCK_INSTALLATION_DELAY_MS 경과 전 확정 불가
+    const approvedAt = approvalTimestampStore.get(project.id);
+    if (approvedAt && Date.now() - approvedAt < MOCK_INSTALLATION_DELAY_MS) {
+      const remainingSec = Math.ceil((MOCK_INSTALLATION_DELAY_MS - (Date.now() - approvedAt)) / 1000);
+      return NextResponse.json(
+        {
+          error: { code: 'INSTALLATION_IN_PROGRESS', message: `설치 반영 중입니다. 약 ${remainingSec}초 후 다시 시도해주세요.` },
+          estimated_remaining_seconds: remainingSec,
+        },
+        { status: 409 },
+      );
+    }
+
     const now = new Date().toISOString();
 
     const updatedStatus: ProjectStatus = {
@@ -708,8 +740,9 @@ export const mockConfirm = {
       piiAgentConnectedAt: project.piiAgentConnectedAt || now,
     });
 
-    // 설치 확정 시 ApprovedIntegration 제거 (반영 완료)
+    // 설치 확정 시 store 정리 (반영 완료)
     approvedIntegrationStore.delete(project.id);
+    approvalTimestampStore.delete(project.id);
 
     return NextResponse.json({ success: true, confirmedAt: now });
   },
