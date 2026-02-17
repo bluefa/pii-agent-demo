@@ -19,6 +19,9 @@ import type {
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
 const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
 
+/** @internal 테스트 전용: store 초기화 */
+export const _resetApprovedIntegrationStore = () => approvedIntegrationStore.clear();
+
 interface ResourceCredentialInput {
   resourceId: string;
   credentialId?: string;
@@ -276,11 +279,22 @@ export const mockConfirm = {
     // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
     const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;
     await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount, inputDataSnapshot);
+    const requestId = `req-${Date.now()}`;
+
+    // ADR-006: 자동 승인 시에도 ApprovedIntegration 스냅샷 생성
     if (autoApprovalResult.shouldAutoApprove) {
+      const selectedResources = updatedResources.filter((r) => r.isSelected);
+      const excludedResources = updatedResources.filter((r) => r.exclusion);
+      approvedIntegrationStore.set(projectId, {
+        id: `ai-${projectId}-${Date.now()}`,
+        request_id: requestId,
+        approved_at: now,
+        resource_infos: selectedResources.map(toResourceSnapshot),
+        excluded_resource_ids: excludedResources.map((r) => r.id),
+        exclusion_reason: excludedResources[0]?.exclusion?.reason,
+      });
       await mockHistory.addAutoApprovedHistory(projectId);
     }
-
-    const requestId = `req-${Date.now()}`;
     return NextResponse.json(
       {
         success: true,
