@@ -84,13 +84,14 @@ try { await fetch(...) } catch { ... } finally { ... }
 - [ ] 300줄 초과 시 분리 검토했는가?
 - [ ] Props interface 정의 위치가 적절한가?
 
-### 2.3 스타일링
-- [ ] Tailwind 클래스 직접 사용하는가?
-- [ ] 상태별 색상이 theme.ts와 일치하는가?
-  - 완료: `green-500`
-  - 에러: `red-500`
-  - 진행중: `orange-500`
-  - Primary: `blue-600`
+### 2.3 스타일링 (⛔ Raw 색상 클래스 금지)
+- [ ] Raw 색상 클래스(`bg-blue-*`, `text-red-*`, `border-green-*` 등) 직접 사용했는가? → **Critical 위반**
+- [ ] `lib/theme.ts` 토큰을 사용하는가?
+  - 버튼: `getButtonClass('primary')`, `buttonStyles.variants.*`
+  - 상태: `statusColors.{success|error|warning|pending|info}`
+  - 텍스트: `textColors.{primary|secondary|tertiary}`
+  - 입력: `getInputClass()`
+- [ ] 레이아웃 클래스만 직접 사용하는가? (`flex`, `grid`, `gap-*`, `p-*`, `rounded-*` — 허용)
 
 ---
 
