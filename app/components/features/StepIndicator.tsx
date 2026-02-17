@@ -1,6 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
+import { statusColors, primaryColors } from '@/lib/theme';
 
 interface StepIndicatorProps {
   currentStep: ProcessStatus;
@@ -32,7 +33,7 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
                     isCompleted
                       ? 'bg-green-500 text-white'
                       : isCurrent
-                      ? 'bg-blue-500 text-white ring-4 ring-blue-100'
+                      ? `${statusColors.info.dot} text-white ring-4 ${statusColors.info.bg}`
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
@@ -49,7 +50,7 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
                     isCompleted
                       ? 'text-green-600'
                       : isCurrent
-                      ? 'text-blue-600'
+                      ? primaryColors.text
                       : 'text-gray-400'
                   }`}
                 >

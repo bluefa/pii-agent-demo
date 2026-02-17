@@ -1,5 +1,7 @@
 'use client';
 
+import { statusColors, primaryColors, cn } from '@/lib/theme';
+
 interface AzureSubnetGuideProps {
   onClose: () => void;
 }
@@ -23,9 +25,9 @@ export const AzureSubnetGuide = ({ onClose }: AzureSubnetGuideProps) => {
 
         {/* Content */}
         <div className="p-6 space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-medium text-blue-800 mb-2">Subnet이 필요한 이유</h3>
-            <p className="text-sm text-blue-700">
+          <div className={cn(statusColors.info.bgLight, 'border', statusColors.info.borderLight, 'rounded-lg p-4')}>
+            <h3 className={cn('font-medium mb-2', statusColors.info.textDark)}>Subnet이 필요한 이유</h3>
+            <p className={cn('text-sm', statusColors.info.text)}>
               PII Agent를 VM에 설치하기 위해서는 VM이 위치한 VNet에 전용 Subnet이 필요합니다.
               이 Subnet을 통해 Agent와 BDC 서버 간의 보안 통신이 이루어집니다.
             </p>
@@ -65,7 +67,7 @@ export const AzureSubnetGuide = ({ onClose }: AzureSubnetGuideProps) => {
             href="https://docs.microsoft.com/azure/virtual-network/virtual-network-manage-subnet"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+            className={cn(primaryColors.text, 'hover:underline text-sm flex items-center gap-1')}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />

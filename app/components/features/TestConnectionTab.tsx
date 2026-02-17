@@ -5,6 +5,7 @@ import { Project, ConnectionTestResult, needsCredential, Resource, SecretKey } f
 import { getSecrets, getProject, runConnectionTest, ResourceCredentialInput } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ERROR_TYPE_LABELS } from '@/lib/constants/labels';
+import { statusColors, primaryColors, cn, getButtonClass } from '@/lib/theme';
 
 interface TestConnectionTabProps {
   project: Project;
@@ -127,7 +128,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
   if (loadingCredentials) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className={cn('w-8 h-8 border-2 border-t-transparent rounded-full animate-spin', statusColors.info.border)}></div>
       </div>
     );
   }
@@ -137,23 +138,23 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
   return (
     <div className="space-y-6">
       {/* Credential 안내 섹션 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className={cn(statusColors.info.bgLight, 'border', statusColors.info.borderLight, 'rounded-lg p-4')}>
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
+            <svg className={cn('w-5 h-5', primaryColors.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div>
-            <h4 className="text-blue-800 font-medium">DB Credential 등록</h4>
-            <p className="text-blue-600 text-sm mt-1">
+            <h4 className={cn(statusColors.info.textDark, 'font-medium')}>DB Credential 등록</h4>
+            <p className={cn(primaryColors.text, 'text-sm mt-1')}>
               RDS, PostgreSQL, Redshift 리소스 연결을 위해 DB Credential이 필요합니다.
               <br />
               DynamoDB, Athena는 AWS IAM 권한으로 연결되므로 별도 Credential이 필요하지 않습니다.
             </p>
             <a
               href="#"
-              className="text-blue-700 text-sm font-medium mt-2 inline-flex items-center gap-1 hover:underline"
+              className={cn(statusColors.info.textDark, 'text-sm font-medium mt-2 inline-flex items-center gap-1 hover:underline')}
               onClick={(e) => {
                 e.preventDefault();
                 alert('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
@@ -178,7 +179,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
           <button
             onClick={handleRunTest}
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className={cn(getButtonClass('primary', 'md'), 'text-sm flex items-center gap-2')}
           >
             {loading && <LoadingSpinner />}
             Test Connection
@@ -213,7 +214,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
                         value={resourceCredentialMap[resource.id] || ''}
                         onChange={(e) => handleCredentialChange(resource.id, e.target.value)}
                         disabled={loading}
-                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                        className={cn('w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 disabled:bg-gray-100', primaryColors.focusRing)}
                       >
                         <option value="">선택하세요</option>
                         {availableCredentials.map((cred) => (

@@ -5,7 +5,7 @@ import { ProjectHistory } from '@/lib/types';
 import { ProjectHistoryFilter, HistoryFilterType } from './ProjectHistoryFilter';
 import { ProjectHistoryTable } from './ProjectHistoryTable';
 import { ProjectHistoryDetailModal } from './ProjectHistoryDetailModal';
-import { cardStyles, cn } from '@/lib/theme';
+import { cardStyles, cn, primaryColors } from '@/lib/theme';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -95,7 +95,7 @@ export const ProjectHistoryPanel = ({
             <p className="text-red-500">{error}</p>
             <button
               onClick={fetchHistory}
-              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+              className={`mt-2 text-sm ${primaryColors.text} ${primaryColors.textHover}`}
             >
               다시 시도
             </button>

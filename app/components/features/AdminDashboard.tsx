@@ -24,6 +24,7 @@ import {
   ProjectsTable,
   ApprovalDetailModal,
 } from './admin';
+import { statusColors, cn } from '@/lib/theme';
 
 export const AdminDashboard = () => {
   const [services, setServices] = useState<ServiceCode[]>([]);
@@ -193,7 +194,7 @@ export const AdminDashboard = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-gray-900">{selectedService}</h2>
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">서비스</span>
+                    <span className={cn('px-2 py-0.5 text-xs font-medium rounded', statusColors.info.bg, statusColors.info.textDark)}>서비스</span>
                   </div>
                   <p className="text-gray-500 mt-1">{services.find((s) => s.code === selectedService)?.name}</p>
                 </div>

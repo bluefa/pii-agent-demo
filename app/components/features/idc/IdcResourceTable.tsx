@@ -4,6 +4,7 @@ import { Resource, ProcessStatus, SecretKey, needsCredential } from '@/lib/types
 import { IdcResourceInput } from '@/lib/types/idc';
 import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { ConnectionIndicator } from '@/app/components/features/resource-table';
+import { cn, statusColors, primaryColors } from '@/lib/theme';
 
 interface IdcResourceTableProps {
   resources: Resource[];
@@ -118,13 +119,14 @@ export const IdcResourceTable = ({
                         <select
                           value={resource.selectedCredentialId || ''}
                           onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
-                          className={`w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          className={cn(
+                            `w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${primaryColors.focusRing}`,
                             hasCredentialError
                               ? 'border-red-300 bg-red-50 text-red-700'
                               : resource.selectedCredentialId
                               ? 'border-green-300 bg-green-50 text-gray-900'
                               : 'border-gray-300 text-gray-900'
-                          }`}
+                          )}
                         >
                           <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
                           {availableCredentials.map((cred) => (
@@ -160,6 +162,7 @@ export const IdcResourceTable = ({
               );
             })}
             {/* 편집 모드에서 추가된 임시 리소스 (미저장) */}
+            {/* TODO: bg-blue-50/30 opacity variant — statusColors.info.bgLight does not include /30 */}
             {pendingInputs.map((input, index) => (
               <tr key={`pending-${index}`} className="hover:bg-gray-50 transition-colors bg-blue-50/30">
                 <td className="px-6 py-4">
@@ -168,7 +171,7 @@ export const IdcResourceTable = ({
                     <span className="text-sm text-gray-700">
                       {getDatabaseLabel(input.databaseType)}
                     </span>
-                    <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">미저장</span>
+                    <span className={cn('text-xs px-1.5 py-0.5 rounded', statusColors.info.bg, statusColors.info.textDark)}>미저장</span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -200,6 +203,7 @@ export const IdcResourceTable = ({
               </tr>
             ))}
             {/* Inline Add Row - Notion/Airtable 스타일 */}
+            {/* TODO: hover:bg-blue-50 — no hover variant token in statusColors.info */}
             {isEditMode && onAdd && (
               <tr
                 onClick={onAdd}
@@ -209,7 +213,7 @@ export const IdcResourceTable = ({
                   colSpan={2 + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0) + 1}
                   className="px-6 py-3"
                 >
-                  <div className="flex items-center gap-2 text-gray-400 group-hover:text-blue-600">
+                  <div className="flex items-center gap-2 text-gray-400 group-hover:text-[#0064FF]">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>

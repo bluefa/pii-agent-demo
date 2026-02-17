@@ -22,6 +22,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { ProjectHeader, RejectionAlert } from '../common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { IdcProcessStatusCard } from './IdcProcessStatusCard';
+import { cn, getButtonClass } from '@/lib/theme';
 
 interface IdcProjectPageProps {
   project: Project;
@@ -290,7 +291,7 @@ export const IdcProjectPage = ({
               {!showIdcResourceInput && (
                 <button
                   onClick={() => setShowIdcResourceInput(true)}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className={cn(getButtonClass('primary'), 'text-sm flex items-center gap-2')}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -359,7 +360,7 @@ export const IdcProjectPage = ({
             <button
               onClick={handleIdcConfirmTargets}
               disabled={submitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
             >
               {submitting && <LoadingSpinner />}
               연동 대상 확정
@@ -377,7 +378,7 @@ export const IdcProjectPage = ({
               <button
                 onClick={handleEditConfirm}
                 disabled={submitting || selectedIds.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
               >
                 {submitting && <LoadingSpinner />}
                 확정 수정 완료

@@ -10,22 +10,17 @@
 // =============================================================================
 
 /**
- * 기본 색상
- * - primary: 주요 액션, 링크, 강조
- * - secondary: 보조 액션
+ * Primary 색상 — 주요 액션, 링크, 강조에 사용
+ * 모든 값이 완성된 Tailwind 클래스 (동적 조합 금지)
  */
-export const colors = {
-  primary: {
-    base: '[#0064FF]',
-    hover: '[#0050D6]',
-    light: '[#E8F1FF]',
-    text: '[#0064FF]',
-  },
-  secondary: {
-    base: 'gray-100',
-    hover: 'gray-200',
-    text: 'gray-700',
-  },
+export const primaryColors = {
+  bg: 'bg-[#0064FF]',
+  bgHover: 'hover:bg-[#0050D6]',
+  bgLight: 'bg-[#E8F1FF]',
+  text: 'text-[#0064FF]',
+  textHover: 'hover:text-[#0050D6]',
+  border: 'border-[#0064FF]',
+  focusRing: 'focus:ring-[#0064FF]',
 } as const;
 
 /**
@@ -67,10 +62,13 @@ export const statusColors = {
   },
   info: {
     bg: 'bg-blue-100',
+    bgLight: 'bg-blue-50',
     text: 'text-blue-500',
     textDark: 'text-blue-800',
     border: 'border-blue-300',
+    borderLight: 'border-blue-200',
     dot: 'bg-blue-500',
+    ring: 'ring-blue-200',
   },
 } as const;
 

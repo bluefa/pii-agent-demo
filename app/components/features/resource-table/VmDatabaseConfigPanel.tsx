@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { cn, statusColors, textColors, bgColors, borderColors } from '@/lib/theme';
+import { cn, statusColors, primaryColors, textColors, bgColors, borderColors, buttonStyles } from '@/lib/theme';
 import { Badge } from '@/app/components/ui/Badge';
 import { VM_DATABASE_TYPES, DEFAULT_PORTS, validatePort as validatePortValue } from '@/lib/constants/vm-database';
 import type { VmDatabaseType, VmDatabaseConfig } from '@/lib/types';
@@ -120,12 +120,13 @@ export const VmDatabaseConfigPanel = ({
           )}
 
           {/* 설정 카드 */}
+          {/* TODO: to-blue-50 gradient -- no gradient token in theme.ts */}
           <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             {/* 헤더 */}
             <div className="px-5 py-3 bg-white/60 border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', statusColors.info.bg)}>
+                  <svg className={cn('w-4 h-4', primaryColors.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                   </svg>
                 </div>
@@ -180,9 +181,10 @@ export const VmDatabaseConfigPanel = ({
                   <select
                     value={databaseType ?? ''}
                     onChange={(e) => e.target.value && handleDatabaseTypeChange(e.target.value as VmDatabaseType)}
+                    // TODO: focus:border-[#0064FF] — no focus:border token in theme.ts
                     className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 ${
                       databaseType
-                        ? 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
+                        ? 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
                         : 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
                     }`}
                   >
@@ -205,10 +207,11 @@ export const VmDatabaseConfigPanel = ({
                       value={host}
                       onChange={(e) => setHost(e.target.value)}
                       disabled={!databaseType}
+                      // TODO: focus:border-[#0064FF] — no focus:border token in theme.ts
                       className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 ${
                         databaseType && !host.trim()
                           ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                          : 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
+                          : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
                       }`}
                       placeholder={hasNics ? 'NIC에서 자동 설정됨' : 'ip-10-0-1-100.ec2.internal'}
                     />
@@ -228,10 +231,11 @@ export const VmDatabaseConfigPanel = ({
                         value={port}
                         onChange={(e) => handlePortChange(e.target.value)}
                         disabled={!databaseType}
+                        // TODO: focus:border-[#0064FF] — no focus:border token in theme.ts
                         className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 ${
                           portError
                             ? 'border-red-300 bg-red-50 text-red-900 focus:border-red-500'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
+                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
                         }`}
                         placeholder="포트"
                       />
@@ -254,7 +258,7 @@ export const VmDatabaseConfigPanel = ({
                         className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 ${
                           !oracleServiceId
                             ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-blue-500'
+                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
                         }`}
                         placeholder="예: ORCL"
                       />
@@ -278,7 +282,7 @@ export const VmDatabaseConfigPanel = ({
               <button
                 onClick={handleSave}
                 disabled={!isValid}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors shadow-sm"
+                className={cn(buttonStyles.base, buttonStyles.variants.primary, 'text-sm disabled:bg-slate-300')}
               >
                 설정 저장
               </button>

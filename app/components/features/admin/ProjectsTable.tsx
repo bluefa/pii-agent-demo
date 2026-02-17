@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { ProjectSummary, ProcessStatus, CloudProvider } from '@/lib/types';
 import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
+import { statusColors, primaryColors, cn } from '@/lib/theme';
 
 interface ProjectsTableProps {
   projects: ProjectSummary[];
@@ -14,7 +15,7 @@ interface ProjectsTableProps {
 
 const getStatusBadge = (status: ProcessStatus, hasDisconnected: boolean, hasNew: boolean) => {
   if (hasDisconnected) return { text: '끊김', color: 'bg-red-500' };
-  if (hasNew) return { text: '신규', color: 'bg-blue-500' };
+  if (hasNew) return { text: '신규', color: statusColors.info.dot };
 
   switch (status) {
     case ProcessStatus.INSTALLATION_COMPLETE:
@@ -57,7 +58,7 @@ export const ProjectsTable = ({
   if (loading) {
     return (
       <div className="p-12 text-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+        <div className={cn('w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-3', statusColors.info.border)}></div>
         <p className="text-gray-500 text-sm">로딩 중...</p>
       </div>
     );
@@ -96,13 +97,14 @@ export const ProjectsTable = ({
             <tr
               key={project.id}
               onClick={() => router.push(`/projects/${project.targetSourceId}`)}
+              // TODO: hover:bg-blue-50/50 needs a dedicated hover token (dynamic Tailwind classes don't work)
               className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
             >
               <td className="px-6 py-4">
                 <CloudProviderIcon provider={project.cloudProvider as CloudProvider} size="sm" />
               </td>
               <td className="px-6 py-4">
-                <span className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                <span className="font-medium text-gray-900 group-hover:text-[#0064FF] transition-colors">
                   {project.projectCode}
                 </span>
               </td>
@@ -119,7 +121,7 @@ export const ProjectsTable = ({
                 {project.processStatus === ProcessStatus.WAITING_APPROVAL && onViewApproval && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onViewApproval(project, e); }}
-                    className="px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-1.5"
+                    className={cn('px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5', statusColors.info.dot, 'hover:bg-[#0064FF]')}
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
