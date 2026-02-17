@@ -182,7 +182,7 @@ export const SduProjectPage = ({
       setConnectionTestLoading(true);
       await executeSduConnectionTest(project.id);
 
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
 
       alert('연결 테스트가 성공했습니다.');

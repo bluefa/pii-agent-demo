@@ -1,16 +1,52 @@
 openapi: 3.0.3
 info:
-  title: User and Auth API
+  title: User and Service Access API
   description: |-
-    사용자 정보 조회 및 권한이 부여된 서비스 목록을 조회하기 위한 API입니다.
-    
+    사용자 정보 조회 및 서비스 접근/타겟소스 관리 API입니다.
+
     ### Error Handling
     - 모든 에러 응답은 `ErrorResponse` 스키마를 따릅니다.
     - **401 Unauthorized**: SSO 인증 토큰이 유효하지 않거나, 인증은 되었으나 시스템 권한이 없는 경우(사용자 미등록 포함) 발생합니다.
-  version: 1.0.0
+
+    ### Legacy API Replacement Map
+    - `GET /api/services/{serviceCode}/projects` -> `GET /api/v1/services/{serviceCode}/target-sources`
+    - `POST /api/projects` -> `POST /api/v1/services/{serviceCode}/target-sources`
+    - `GET /api/projects/{projectId}` -> `GET /api/v1/target-sources/{targetSourceId}`
+    - `GET /api/services/{serviceCode}/permissions` -> `GET /api/v1/services/{serviceCode}/authorized-users`
+    - `POST /api/services/{serviceCode}/permissions` -> `POST /api/v1/services/{serviceCode}/authorized-users`
+    - `DELETE /api/services/{serviceCode}/permissions/{userId}` -> `DELETE /api/v1/services/{serviceCode}/authorized-users/{userId}`
+  version: 1.1.0
 servers:
   - url: /api/v1
     description: v1 API 소스 경로
+
+tags:
+  - name: User
+    description: 사용자 식별 및 사용자 검색
+  - name: Service Access
+    description: 서비스 접근 가능한 사용자 관리
+  - name: Target Source
+    description: 서비스 소속 타겟소스 조회/생성/상세
+
+x-legacy-api-replacements:
+  - legacy: GET /api/services/{serviceCode}/projects
+    replacement: GET /api/v1/services/{serviceCode}/target-sources
+    status: migrated
+  - legacy: POST /api/projects
+    replacement: POST /api/v1/services/{serviceCode}/target-sources
+    status: migrated
+  - legacy: GET /api/projects/{projectId}
+    replacement: GET /api/v1/target-sources/{targetSourceId}
+    status: migrated
+  - legacy: GET /api/services/{serviceCode}/permissions
+    replacement: GET /api/v1/services/{serviceCode}/authorized-users
+    status: migrated
+  - legacy: POST /api/services/{serviceCode}/permissions
+    replacement: POST /api/v1/services/{serviceCode}/authorized-users
+    status: migrated
+  - legacy: DELETE /api/services/{serviceCode}/permissions/{userId}
+    replacement: DELETE /api/v1/services/{serviceCode}/authorized-users/{userId}
+    status: migrated
 
 paths:
   /user/me:
@@ -19,8 +55,9 @@ paths:
         - User
       summary: 현재 사용자 정보 조회
       operationId: getUserMe
+      x-expected-duration: "50ms ~ 200ms"
       description: |-
-        현재 로그인한 사용자의 프로필 정보를 반환합니다. 
+        현재 로그인한 사용자의 프로필 정보를 반환합니다.
         인증된 세션 혹은 토큰을 기반으로 사용자 정보를 식별합니다.
       responses:
         '200':
@@ -30,11 +67,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserMeResponse'
         '401':
-          description: 인증되지 않았거나 유효하지 않은 사용자
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
 
   /user/services:
     get:
@@ -42,6 +75,7 @@ paths:
         - User
       summary: 접근 가능 서비스 목록 조회
       operationId: getUserServices
+      x-expected-duration: "50ms ~ 200ms"
       description: 현재 사용자가 접근 권한을 가진 서비스 목록을 반환합니다.
       responses:
         '200':
@@ -51,11 +85,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserServicesResponse'
         '401':
-          description: 인증되지 않았거나 유효하지 않은 사용자
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
 
   /users/search:
     get:
@@ -90,13 +120,214 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserSearchResponse'
         '401':
-          description: 인증되지 않았거나 유효하지 않은 사용자
+          $ref: '#/components/responses/Unauthorized'
+
+  /services/{serviceCode}/target-sources:
+    parameters:
+      - $ref: '#/components/parameters/ServiceCode'
+    get:
+      tags:
+        - Target Source
+      summary: 서비스별 타겟소스 목록 조회
+      operationId: getServiceTargetSources
+      x-replaces-legacy:
+        - GET /api/services/{serviceCode}/projects
+      x-expected-duration: "100ms ~ 500ms"
+      description: |-
+        특정 서비스에 소속된 타겟소스 목록을 조회합니다.
+        기존 `projects` 개념을 v1 계약에서 `target-sources`로 정규화한 엔드포인트입니다.
+      responses:
+        '200':
+          description: 타겟소스 목록 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/TargetSourceListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ServiceNotFound'
+
+    post:
+      tags:
+        - Target Source
+      summary: 서비스에 타겟소스 생성
+      operationId: createServiceTargetSource
+      x-replaces-legacy:
+        - POST /api/projects
+      x-expected-duration: "300ms ~ 1s"
+      description: |-
+        특정 서비스에 새 타겟소스를 생성합니다.
+        기존 `POST /projects`를 서비스 스코프 하위 생성으로 재정의합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTargetSourceRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetSourceDetailEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ServiceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /target-sources/{targetSourceId}:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags:
+        - Target Source
+      summary: 타겟소스 상세 조회
+      operationId: getTargetSource
+      x-replaces-legacy:
+        - GET /api/projects/{projectId}
+      x-expected-duration: "80ms ~ 300ms"
+      description: |-
+        타겟소스 상세 정보를 조회합니다.
+        기존 `GET /projects/{projectId}`를 `targetSourceId` 기준 조회로 재정의합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetSourceDetailEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /services/{serviceCode}/authorized-users:
+    parameters:
+      - $ref: '#/components/parameters/ServiceCode'
+    get:
+      tags:
+        - Service Access
+      summary: 서비스 접근 사용자 목록 조회
+      operationId: getServiceAuthorizedUsers
+      x-replaces-legacy:
+        - GET /api/services/{serviceCode}/permissions
+      x-expected-duration: "80ms ~ 300ms"
+      description: |-
+        해당 서비스 접근 권한을 가진 사용자 목록을 조회합니다.
+        기존 `permissions` 엔드포인트를 리소스 의미가 드러나는 이름으로 재정의합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizedUsersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ServiceNotFound'
+
+    post:
+      tags:
+        - Service Access
+      summary: 서비스 접근 사용자 추가
+      operationId: addServiceAuthorizedUser
+      x-replaces-legacy:
+        - POST /api/services/{serviceCode}/permissions
+      x-expected-duration: "100ms ~ 500ms"
+      description: 서비스 접근 권한 사용자 목록에 사용자를 추가합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddAuthorizedUserRequest'
+      responses:
+        '200':
+          description: 추가 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddAuthorizedUserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ServiceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /services/{serviceCode}/authorized-users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceCode'
+      - $ref: '#/components/parameters/UserId'
+    delete:
+      tags:
+        - Service Access
+      summary: 서비스 접근 사용자 제거
+      operationId: removeServiceAuthorizedUser
+      x-replaces-legacy:
+        - DELETE /api/services/{serviceCode}/permissions/{userId}
+      x-expected-duration: "100ms ~ 400ms"
+      description: 서비스 접근 권한 사용자 목록에서 사용자를 제거합니다.
+      responses:
+        '200':
+          description: 제거 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
+  parameters:
+    ServiceCode:
+      name: serviceCode
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 서비스 식별 코드
+
+    TargetSourceId:
+      name: targetSourceId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: 타겟소스 고유 식별자
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 사용자 고유 식별자
+
   schemas:
     UserMeResponse:
       type: object
@@ -175,6 +406,176 @@ components:
           example: "데모 서비스"
           description: 서비스의 표시 명칭
 
+    CloudProvider:
+      type: string
+      enum: [AWS, Azure, GCP, IDC, SDU]
+
+    TargetSourceProcessStatus:
+      type: string
+      enum: [REQUEST_REQUIRED, WAITING_APPROVAL, APPLYING_APPROVED, TARGET_CONFIRMED]
+
+    TargetSourceSummary:
+      type: object
+      required:
+        - targetSourceId
+        - projectCode
+        - cloudProvider
+        - processStatus
+        - createdAt
+      properties:
+        targetSourceId:
+          type: integer
+          format: int64
+          example: 1001
+        projectCode:
+          type: string
+          example: "N-IRP-001"
+        description:
+          type: string
+          example: "과제 설명"
+        cloudProvider:
+          $ref: '#/components/schemas/CloudProvider'
+        processStatus:
+          $ref: '#/components/schemas/TargetSourceProcessStatus'
+        isIntegrated:
+          type: boolean
+          description: 레거시 UI 호환을 위한 완료 여부
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-02-16T10:00:00Z"
+
+    TargetSourceDetail:
+      allOf:
+        - $ref: '#/components/schemas/TargetSourceSummary'
+        - type: object
+          required:
+            - serviceCode
+            - updatedAt
+          properties:
+            serviceCode:
+              type: string
+              example: "SERVICE-A"
+            description:
+              type: string
+              example: "PII Agent 설치 대상"
+            updatedAt:
+              type: string
+              format: date-time
+              example: "2026-02-16T10:10:00Z"
+            metadata:
+              type: object
+              additionalProperties: true
+              description: Provider별 확장 필드 (Forward Compatibility)
+
+    TargetSourceListResponse:
+      type: object
+      required:
+        - targetSources
+      properties:
+        targetSources:
+          type: array
+          items:
+            $ref: '#/components/schemas/TargetSourceSummary'
+
+    TargetSourceDetailEnvelope:
+      type: object
+      required:
+        - targetSource
+      properties:
+        targetSource:
+          $ref: '#/components/schemas/TargetSourceDetail'
+
+    CreateTargetSourceRequest:
+      type: object
+      required:
+        - projectCode
+        - cloudProvider
+      properties:
+        projectCode:
+          type: string
+          example: "N-IRP-001"
+        description:
+          type: string
+          example: "과제 설명"
+        cloudProvider:
+          $ref: '#/components/schemas/CloudProvider'
+        awsAccountId:
+          type: string
+          description: AWS 전용 12자리 계정 ID
+          example: "123456789012"
+        awsRegionType:
+          type: string
+          enum: [global, china]
+        tenantId:
+          type: string
+          description: Azure 전용 tenant id (GUID)
+        subscriptionId:
+          type: string
+          description: Azure 전용 subscription id (GUID)
+        gcpProjectId:
+          type: string
+          description: GCP 전용 project id
+
+    PermissionUser:
+      type: object
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          example: "user_01H8X..."
+        name:
+          type: string
+          example: "홍길동"
+        email:
+          type: string
+          format: email
+          example: "gildong.hong@example.com"
+
+    AuthorizedUsersResponse:
+      type: object
+      required:
+        - users
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionUser'
+
+    AddAuthorizedUserRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          example: "user_01H8X..."
+
+    AddAuthorizedUserResponse:
+      type: object
+      required:
+        - success
+        - user
+      properties:
+        success:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/PermissionUser'
+
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          example: true
+
     ErrorResponse:
       type: object
       required: [error]
@@ -217,3 +618,53 @@ components:
           type: integer
           description: 전체 페이지 수
           example: 10
+
+  responses:
+    Unauthorized:
+      description: 인증되지 않았거나 유효하지 않은 사용자
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: 요청 대상에 대한 권한이 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    BadRequest:
+      description: 유효하지 않은 요청 파라미터/본문
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ServiceNotFound:
+      description: serviceCode에 해당하는 서비스 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    TargetSourceNotFound:
+      description: targetSourceId에 해당하는 타겟소스 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: 요청한 리소스를 찾을 수 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: 중복 생성 또는 현재 상태에서 처리 불가
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

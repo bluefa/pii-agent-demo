@@ -26,8 +26,12 @@ export const ProjectDetail = ({ projectId }: ProjectDetailProps) => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const targetSourceId = Number(projectId);
+        if (!Number.isInteger(targetSourceId) || targetSourceId <= 0) {
+          throw new Error('유효하지 않은 과제 식별자입니다.');
+        }
         const [projectData, userData] = await Promise.all([
-          getProject(projectId),
+          getProject(targetSourceId),
           getCurrentUser(),
         ]);
         setProject(projectData);
