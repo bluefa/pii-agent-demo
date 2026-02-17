@@ -16,7 +16,6 @@ interface InstancePanelProps {
 
 const sortInstances = (instances: ClusterInstance[]): ClusterInstance[] => {
   return [...instances].sort((a, b) => {
-    if (a.isSelected !== b.isSelected) return a.isSelected ? -1 : 1;
     if (a.role !== b.role) return a.role === 'WRITER' ? 1 : -1;
     return a.instanceId.localeCompare(b.instanceId);
   });
