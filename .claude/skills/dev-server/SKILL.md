@@ -44,11 +44,13 @@ Task({
     Execute dev server startup script:
 
     1. Navigate to <worktree-path>
-    2. Check if port 3000-3100 is available
-    3. Execute: bash scripts/dev.sh <worktree-path>
+    2. Execute: bash scripts/dev.sh <worktree-path>
        - IMPORTANT: Use Bash tool with run_in_background: true
-    4. Wait 3-5 seconds and verify server started (look for "Ready" message)
-    5. Report: port number and confirmation
+    3. Wait 3-5 seconds and check output for:
+       - "✅ 이미 이 워크트리의 서버가" → already running, report port
+       - "Dev server: http://localhost:<port>" → new server started
+       - "ERROR" or "⚠️" → report error to user
+    4. Report: port number and worktree path confirmation
 
     If "next: command not found" occurs:
     - Run: bash scripts/bootstrap-worktree.sh <worktree-path>
@@ -62,8 +64,10 @@ Task({
 The `scripts/dev.sh` script (invoked by Haiku):
 1. Runs `scripts/bootstrap-worktree.sh` for dependency verification
 2. Removes `.next/dev/lock` file if exists
-3. Auto-finds available port from 3000-3100
-4. Starts `npx next dev -p <port>`
+3. Checks existing servers: if same worktree already running, reports and exits
+4. Warns if port is occupied by a different worktree server
+5. Auto-finds available port from 3000-3100
+6. Starts `npx next dev -p <port>`
 
 ## Rules
 
