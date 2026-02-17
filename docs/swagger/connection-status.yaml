@@ -1,0 +1,124 @@
+openapi: 3.0.3
+info:
+  title: Logical Database Connection Status API
+  version: 1.0.0
+  description: |
+    리소스별 논리 데이터베이스(MySQL Schema 등)의 연결 상태를 조회합니다.
+    processStatus와 독립적으로 동작하며, 설치 완료 이후에도 지속 조회 가능합니다.
+
+    **핵심 원칙:**
+    - connectionStatus와 processStatus는 독립적입니다.
+    - 논리 DB FAILED가 프로세스 자동 실패를 유발하지 않습니다.
+    - restartRequired=true인 경우 PII Agent 재시작이 필요합니다.
+
+servers:
+  - url: /api/v1
+    description: v1 Base Path
+
+tags:
+  - name: Connection Status
+    description: 리소스별 논리 DB 연결 상태 조회
+
+paths:
+  /target-sources/{targetSourceId}/connection-status:
+    parameters:
+      - $ref: 'confirm.yaml#/components/parameters/TargetSourceId'
+    get:
+      tags: [Connection Status]
+      summary: 리소스별 논리 DB 연결 상태 조회
+      operationId: getConnectionStatus
+      x-expected-duration: "2s ~ 10s"
+      description: |
+        설치 완료 이후 리소스별 논리 데이터베이스(MySQL Schema 등)의 연결 상태를 반환합니다.
+        - connectionStatus와 processStatus는 독립적입니다.
+        - 논리 DB FAILED가 프로세스 자동 실패를 유발하지 않습니다.
+        - restartRequired=true인 경우 재시작 안내를 표시합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionStatusResponse'
+        '401':
+          $ref: 'confirm.yaml#/components/responses/Unauthorized'
+        '404':
+          $ref: 'confirm.yaml#/components/responses/TargetSourceNotFound'
+
+components:
+  schemas:
+    ConnectionStatusResponse:
+      type: object
+      required: [targetSourceId, resources, summary, checkedAt]
+      properties:
+        targetSourceId:
+          type: integer
+          format: int64
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceConnectionStatus'
+        summary:
+          $ref: '#/components/schemas/ConnectionStatusSummary'
+        checkedAt:
+          type: string
+          format: date-time
+
+    ConnectionStatusSummary:
+      type: object
+      required: [totalResources, connectedResources, failedResources, totalLogicalDbs, connectedLogicalDbs, failedLogicalDbs]
+      properties:
+        totalResources: { type: integer }
+        connectedResources: { type: integer }
+        failedResources: { type: integer }
+        totalLogicalDbs: { type: integer }
+        connectedLogicalDbs: { type: integer }
+        failedLogicalDbs: { type: integer }
+
+    ResourceConnectionStatus:
+      type: object
+      required: [resourceId, resourceName, resourceType, databaseType, logicalDatabases]
+      properties:
+        resourceId: { type: string }
+        resourceName: { type: string }
+        resourceType: { type: string }
+        databaseType: { type: string }
+        logicalDatabases:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogicalDatabaseStatus'
+
+    LogicalDatabaseStatus:
+      type: object
+      required: [name, connectionStatus, restartRequired]
+      properties:
+        name:
+          type: string
+          description: "논리 데이터베이스(스키마) 이름"
+        connectionStatus:
+          $ref: '#/components/schemas/LogicalDbConnectionStatus'
+        errorDetail:
+          $ref: '#/components/schemas/LogicalDbErrorDetail'
+        statusMessage:
+          type: string
+          nullable: true
+        restartRequired:
+          type: boolean
+          description: "true이면 PII Agent 재시작 필요"
+        lastCheckedAt:
+          type: string
+          format: date-time
+
+    LogicalDbConnectionStatus:
+      type: string
+      enum: [SUCCESS, FAILED, CONNECTION_NOT_FOUND]
+
+    LogicalDbErrorDetail:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          enum: [AUTH_FAILED, PERMISSION_DENIED, NETWORK_ERROR, TIMEOUT, UNKNOWN_ERROR]
+        message:
+          type: string

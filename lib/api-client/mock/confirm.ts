@@ -1043,4 +1043,155 @@ export const mockConfirm = {
       history: historyEntry,
     });
   },
+
+  getConnectionStatus: async (projectId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const emptySummary = {
+      totalResources: 0,
+      connectedResources: 0,
+      failedResources: 0,
+      totalLogicalDbs: 0,
+      connectedLogicalDbs: 0,
+      failedLogicalDbs: 0,
+    };
+
+    // 연결 테스트 이전 단계에서는 빈 응답
+    if (project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
+      return NextResponse.json({
+        targetSourceId: project.targetSourceId,
+        resources: [],
+        summary: emptySummary,
+        checkedAt: new Date().toISOString(),
+      });
+    }
+
+    const selectedResources = project.resources.filter((r) => r.isSelected);
+    const now = new Date().toISOString();
+
+    const resources = selectedResources.map((r) => {
+      const logicalDbs = generateLogicalDatabases(r.resourceId, r.databaseType);
+      return {
+        resourceId: r.resourceId,
+        resourceName: r.resourceId,
+        resourceType: r.type,
+        databaseType: r.databaseType,
+        logicalDatabases: logicalDbs,
+      };
+    });
+
+    // 요약 계산
+    let totalLogicalDbs = 0;
+    let connectedLogicalDbs = 0;
+    let failedLogicalDbs = 0;
+    let connectedResources = 0;
+    let failedResources = 0;
+
+    for (const res of resources) {
+      const successes = res.logicalDatabases.filter(
+        (d: { connectionStatus: string }) => d.connectionStatus === 'SUCCESS',
+      ).length;
+      const failures = res.logicalDatabases.filter(
+        (d: { connectionStatus: string }) => d.connectionStatus === 'FAILED',
+      ).length;
+      totalLogicalDbs += res.logicalDatabases.length;
+      connectedLogicalDbs += successes;
+      failedLogicalDbs += failures;
+
+      if (failures > 0) failedResources++;
+      else connectedResources++;
+    }
+
+    return NextResponse.json({
+      targetSourceId: project.targetSourceId,
+      resources,
+      summary: {
+        totalResources: resources.length,
+        connectedResources,
+        failedResources,
+        totalLogicalDbs,
+        connectedLogicalDbs,
+        failedLogicalDbs,
+      },
+      checkedAt: now,
+    });
+  },
 };
+
+// --- Mock Logical Database Generator ---
+
+/** databaseType별 논리 DB 스키마 이름 */
+const SCHEMA_NAMES: Record<string, string[]> = {
+  MYSQL: ['information_schema', 'mysql', 'app_main', 'app_analytics', 'app_auth'],
+  POSTGRESQL: ['public', 'app_data', 'analytics', 'auth_service'],
+  MSSQL: ['dbo', 'app_schema', 'reporting'],
+  ORACLE: ['HR', 'SALES', 'APP_DATA'],
+  MONGODB: ['admin', 'app_db', 'analytics_db'],
+  DYNAMODB: ['default_table'],
+  ATHENA: ['default_catalog'],
+  REDSHIFT: ['public', 'analytics', 'staging'],
+  COSMOSDB: ['app_container', 'analytics_container'],
+  BIGQUERY: ['dataset_main', 'dataset_analytics'],
+};
+
+const ERROR_STATUSES: Array<'AUTH_FAILED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'TIMEOUT'> = [
+  'AUTH_FAILED', 'PERMISSION_DENIED', 'NETWORK_ERROR', 'TIMEOUT',
+];
+
+/** 결정론적 해시: resourceId 기반으로 일관된 mock 데이터 생성 */
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // 32bit 정수 변환
+  }
+  return Math.abs(hash);
+}
+
+function generateLogicalDatabases(resourceId: string, databaseType: string) {
+  const names = SCHEMA_NAMES[databaseType] ?? ['default_schema', 'app_data'];
+  const now = new Date().toISOString();
+  const baseHash = simpleHash(resourceId);
+
+  return names.map((name, i) => {
+    const itemHash = (baseHash + i * 31) % 100;
+
+    // 약 75% SUCCESS, 15% FAILED, 10% CONNECTION_NOT_FOUND
+    let connectionStatus: 'SUCCESS' | 'FAILED' | 'CONNECTION_NOT_FOUND' = 'SUCCESS';
+    let errorDetail: { status: 'AUTH_FAILED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'TIMEOUT' | 'UNKNOWN_ERROR'; message: string } | undefined;
+    let restartRequired = false;
+
+    if (itemHash >= 90) {
+      connectionStatus = 'CONNECTION_NOT_FOUND';
+    } else if (itemHash >= 75) {
+      connectionStatus = 'FAILED';
+      const errorStatus = ERROR_STATUSES[itemHash % ERROR_STATUSES.length];
+      errorDetail = { status: errorStatus, message: `${name}: 접근 오류 (${errorStatus})` };
+      restartRequired = errorStatus === 'AUTH_FAILED' || errorStatus === 'NETWORK_ERROR';
+    }
+
+    return {
+      name,
+      connectionStatus,
+      errorDetail,
+      statusMessage: connectionStatus === 'FAILED' ? `${name}: 연결 실패` : undefined,
+      restartRequired,
+      lastCheckedAt: now,
+    };
+  });
+}

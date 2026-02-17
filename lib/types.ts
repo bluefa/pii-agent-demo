@@ -277,6 +277,55 @@ export const needsCredential = (databaseType: DatabaseType): boolean => {
 export const isInstallIneligible = (resource: Resource): boolean =>
   resource.integrationCategory === 'INSTALL_INELIGIBLE';
 
+// ===== Logical Database Connection Status Types =====
+
+export type LogicalDbConnectionStatus = 'SUCCESS' | 'FAILED' | 'CONNECTION_NOT_FOUND';
+
+export type LogicalDbErrorStatus =
+  | 'AUTH_FAILED'
+  | 'PERMISSION_DENIED'
+  | 'NETWORK_ERROR'
+  | 'TIMEOUT'
+  | 'UNKNOWN_ERROR';
+
+export interface LogicalDbErrorDetail {
+  status: LogicalDbErrorStatus;
+  message: string;
+}
+
+export interface LogicalDatabaseStatus {
+  name: string;
+  connectionStatus: LogicalDbConnectionStatus;
+  errorDetail?: LogicalDbErrorDetail;
+  statusMessage?: string;
+  restartRequired: boolean;
+  lastCheckedAt: string;
+}
+
+export interface ResourceConnectionStatus {
+  resourceId: string;
+  resourceName: string;
+  resourceType: string;
+  databaseType: string;
+  logicalDatabases: LogicalDatabaseStatus[];
+}
+
+export interface ConnectionStatusSummary {
+  totalResources: number;
+  connectedResources: number;
+  failedResources: number;
+  totalLogicalDbs: number;
+  connectedLogicalDbs: number;
+  failedLogicalDbs: number;
+}
+
+export interface ConnectionStatusResponse {
+  targetSourceId: number;
+  resources: ResourceConnectionStatus[];
+  summary: ConnectionStatusSummary;
+  checkedAt: string;
+}
+
 // ===== Project Status Types (ADR-004) =====
 // processStatus를 계산하기 위한 상태 데이터 구조
 

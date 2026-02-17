@@ -4,7 +4,7 @@
  * UI에서 사용되는 라벨, 에러 메시지, 상태 텍스트 등을 중앙에서 관리합니다.
  */
 
-import { ProcessStatus, ConnectionStatus, AwsResourceType, AzureResourceType, GcpResourceType, ResourceType, CloudProvider } from '@/lib/types';
+import { ProcessStatus, ConnectionStatus, AwsResourceType, AzureResourceType, GcpResourceType, ResourceType, CloudProvider, LogicalDbConnectionStatus } from '@/lib/types';
 
 /**
  * 연결 에러 타입 라벨
@@ -180,4 +180,13 @@ export const RESOURCE_TYPE_ORDER_BY_PROVIDER: Partial<Record<CloudProvider, Reso
   AWS: AWS_RESOURCE_TYPE_ORDER,
   Azure: AZURE_RESOURCE_TYPE_ORDER,
   GCP: GCP_RESOURCE_TYPE_ORDER,
+};
+
+/**
+ * 논리 DB 연결 상태 라벨
+ */
+export const LOGICAL_DB_STATUS_LABELS: Record<LogicalDbConnectionStatus, string> = {
+  SUCCESS: '연결 성공',
+  FAILED: '연결 실패',
+  CONNECTION_NOT_FOUND: '연결 정보 없음',
 };

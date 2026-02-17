@@ -125,5 +125,6 @@ export interface ApiClient {
     confirmInstallation: (projectId: string) => Promise<NextResponse>;
     updateResourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
     testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;
+    getConnectionStatus: (projectId: string) => Promise<NextResponse>;
   };
 }

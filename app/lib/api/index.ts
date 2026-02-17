@@ -1,4 +1,4 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory } from '@/lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory, ConnectionStatusResponse } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchJson } from '@/lib/fetch-json';
 
@@ -329,6 +329,15 @@ export const confirmInstallation = async (
   fetchJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST' },
+  );
+
+// ===== Connection Status API =====
+
+export const getConnectionStatus = async (
+  targetSourceId: number
+): Promise<ConnectionStatusResponse> =>
+  fetchJson<ConnectionStatusResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/connection-status`
   );
 
 // ===== Azure API =====
