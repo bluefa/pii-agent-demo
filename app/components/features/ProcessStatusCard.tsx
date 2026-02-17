@@ -17,7 +17,7 @@ import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
 import { ProcessGuideModal } from './process-status/ProcessGuideModal';
 import { getProcessGuide } from '@/lib/constants/process-guides';
-import { cn, statusColors } from '@/lib/theme';
+import { cn, statusColors, primaryColors } from '@/lib/theme';
 import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
 
@@ -152,7 +152,7 @@ export const ProcessStatusCard = ({
               className={cn(
                 'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
+                  ? `${primaryColors.border} ${primaryColors.text}`
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >

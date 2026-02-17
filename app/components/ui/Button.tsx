@@ -1,5 +1,7 @@
 'use client';
 
+import { buttonStyles } from '@/lib/theme';
+
 interface ButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
@@ -10,9 +12,9 @@ interface ButtonProps {
 }
 
 const variantStyles = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow',
+  primary: buttonStyles.variants.primary,
   secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400',
-  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow',
+  danger: buttonStyles.variants.danger,
 };
 
 export const Button = ({

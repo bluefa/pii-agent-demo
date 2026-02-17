@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Project, ProcessStatus, Resource } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType } from '@/lib/types/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { statusColors, primaryColors, cn } from '@/lib/theme';
 
 // IDC Step Progress Bar - 승인 단계 없음 (4단계)
 const idcSteps = [
@@ -39,7 +40,7 @@ const IdcStepProgressBar = ({ currentStep }: { currentStep: ProcessStatus }) => 
                   isCompleted
                     ? 'bg-green-500 text-white'
                     : isCurrent
-                    ? 'bg-blue-500 text-white ring-2 ring-blue-200'
+                    ? `${statusColors.info.dot} text-white ring-2 ${statusColors.info.ring}`
                     : 'bg-gray-100 text-gray-400'
                 }`}
               >
@@ -56,7 +57,7 @@ const IdcStepProgressBar = ({ currentStep }: { currentStep: ProcessStatus }) => 
                   isCompleted
                     ? 'text-green-600 font-medium'
                     : isCurrent
-                    ? 'text-blue-600 font-medium'
+                    ? `${primaryColors.text} font-medium`
                     : 'text-gray-400'
                 }`}
               >
@@ -105,7 +106,7 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
           ? 'bg-green-100'
           : currentStep === ProcessStatus.INSTALLING
           ? 'bg-orange-100'
-          : 'bg-blue-100'
+          : statusColors.info.bg
       }`}>
         {currentStep === ProcessStatus.INSTALLATION_COMPLETE ? (
           <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,7 +115,7 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
         ) : currentStep === ProcessStatus.INSTALLING ? (
           <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
         ) : (
-          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className={cn('w-4 h-4', primaryColors.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
           </svg>
         )}
@@ -281,10 +282,10 @@ const IdcInstallationStatusDisplay = ({
     <div className="space-y-3">
       {/* BDC TF 상태 */}
       <div className={`flex items-center gap-2 p-3 rounded-lg ${
-        isBdcCompleted ? 'bg-green-50' : isBdcFailed ? 'bg-red-50' : 'bg-blue-50'
+        isBdcCompleted ? 'bg-green-50' : isBdcFailed ? 'bg-red-50' : statusColors.info.bgLight
       }`}>
         <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-          isBdcCompleted ? 'bg-green-500' : isBdcFailed ? 'bg-red-500' : 'bg-blue-500'
+          isBdcCompleted ? 'bg-green-500' : isBdcFailed ? 'bg-red-500' : statusColors.info.dot
         }`}>
           {isBdcCompleted ? (
             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,7 +300,7 @@ const IdcInstallationStatusDisplay = ({
           )}
         </div>
         <span className={`text-sm font-medium ${
-          isBdcCompleted ? 'text-green-700' : isBdcFailed ? 'text-red-700' : 'text-blue-700'
+          isBdcCompleted ? 'text-green-700' : isBdcFailed ? 'text-red-700' : statusColors.info.textDark
         }`}>
           BDC 환경 구성 {isBdcCompleted ? '완료' : isBdcFailed ? '실패' : isBdcInProgress ? '진행 중' : '대기 중'}
         </span>

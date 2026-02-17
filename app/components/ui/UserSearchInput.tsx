@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { searchUsers, UserSearchResult } from '@/app/lib/api';
+import { primaryColors, statusColors, cn } from '@/lib/theme';
 
 interface UserSearchInputProps {
   excludeIds: string[];
@@ -105,7 +106,7 @@ export const UserSearchInput = ({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-3 py-2 pl-9 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className={cn('w-full px-3 py-2 pl-9 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent', primaryColors.focusRing)}
         />
         <svg
           className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -122,7 +123,7 @@ export const UserSearchInput = ({
         </svg>
         {loading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className={cn('w-4 h-4 border-2 border-t-transparent rounded-full animate-spin', primaryColors.border)} />
           </div>
         )}
       </div>
@@ -139,15 +140,14 @@ export const UserSearchInput = ({
                 <li
                   key={user.id}
                   onClick={() => handleSelect(user)}
-                  className={`px-4 py-2.5 cursor-pointer flex items-center gap-3 transition-colors ${
-                    index === selectedIndex
-                      ? 'bg-blue-50'
-                      : 'hover:bg-gray-50'
-                  }`}
+                  className={cn(
+                    'px-4 py-2.5 cursor-pointer flex items-center gap-3 transition-colors',
+                    index === selectedIndex ? statusColors.info.bgLight : 'hover:bg-gray-50'
+                  )}
                 >
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
                     <svg
-                      className="w-4 h-4 text-blue-600"
+                      className={cn('w-4 h-4', primaryColors.text)}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"

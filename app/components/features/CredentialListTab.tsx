@@ -2,6 +2,7 @@
 
 import { SecretKey } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
+import { cn, statusColors, primaryColors } from '@/lib/theme';
 
 interface CredentialListTabProps {
   credentials: SecretKey[];
@@ -13,7 +14,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
     return (
       <div>
         {/* 상단 안내 */}
-        <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+        <div className={cn('px-4 py-3 border-b', statusColors.info.bgLight, statusColors.info.borderLight)}>
           <p className="text-sm text-gray-700 mb-2">
             RDS, PostgreSQL, Redshift 연결에 필요한 DB 접속 정보입니다.
           </p>
@@ -23,7 +24,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
               e.preventDefault();
               alert('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
             }}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center gap-1"
+            className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium inline-flex items-center gap-1`}
           >
             Credential 등록 페이지로 이동
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +42,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
   return (
     <div>
       {/* 상단 안내 */}
-      <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+      <div className={cn('px-4 py-3 border-b', statusColors.info.bgLight, statusColors.info.borderLight)}>
         <p className="text-sm text-gray-700 mb-2">
           RDS, PostgreSQL, Redshift 연결에 필요한 DB 접속 정보입니다.
         </p>
@@ -51,7 +52,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
             e.preventDefault();
             alert('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
           }}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center gap-1"
+          className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium inline-flex items-center gap-1`}
         >
           Credential 등록 페이지로 이동
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

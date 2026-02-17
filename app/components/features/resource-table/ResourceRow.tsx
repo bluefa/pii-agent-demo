@@ -9,7 +9,7 @@ import { StatusIcon } from './StatusIcon';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from './VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
-import { cn, textColors, statusColors, bgColors, colors } from '@/lib/theme';
+import { cn, textColors, statusColors, bgColors, primaryColors } from '@/lib/theme';
 
 // VM 리소스 타입 체크 헬퍼
 export const isVmResource = (resource: Resource): boolean => {
@@ -116,7 +116,7 @@ export const ResourceRow = ({
                   if (isVm && e.target.checked) onVmConfigToggle?.(resource.id);
                   if (isVm && !e.target.checked) onVmConfigToggle?.(null);
                 }}
-                className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, `text-${colors.primary.base}`, `focus:ring-${colors.primary.base}`)}
+                className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
               />
             )}
           </td>
@@ -191,7 +191,7 @@ export const ResourceRow = ({
                   value={resource.selectedCredentialId || ''}
                   onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
                   className={cn(
-                    `w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-${colors.primary.base}`,
+                    `w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${primaryColors.focusRing}`,
                     hasCredentialError
                       ? cn(statusColors.error.border, statusColors.error.bg, statusColors.error.textDark)
                       : resource.selectedCredentialId

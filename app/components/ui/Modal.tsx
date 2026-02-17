@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, ReactNode } from 'react';
+import { statusColors } from '@/lib/theme';
 
 export interface ModalProps {
   /** 모달 표시 여부 */
@@ -115,7 +116,7 @@ export const Modal = ({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             {icon && (
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className={`w-10 h-10 ${statusColors.info.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
                 {icon}
               </div>
             )}

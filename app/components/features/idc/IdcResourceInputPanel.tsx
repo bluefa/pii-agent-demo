@@ -5,7 +5,7 @@ import { Button } from '@/app/components/ui/Button';
 import { SecretKey } from '@/lib/types';
 import { IdcResourceInput, IdcInputFormat, IdcDatabaseType } from '@/lib/types/idc';
 import { IDC_VALIDATION, IDC_DEFAULT_PORTS, IDC_DATABASE_TYPE_LABELS } from '@/lib/constants/idc';
-import { cn, inputStyles } from '@/lib/theme';
+import { cn, inputStyles, primaryColors, statusColors } from '@/lib/theme';
 
 interface IdcResourceInputPanelProps {
   initialData?: IdcResourceInput;
@@ -210,7 +210,7 @@ export const IdcResourceInputPanel = ({
               className={cn(
                 'flex-1 py-2.5 px-4 rounded-lg border-2 font-medium transition-all',
                 inputFormat === 'IP'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  ? `${primaryColors.border} ${statusColors.info.bgLight} ${statusColors.info.textDark}`
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
               )}
             >
@@ -222,7 +222,7 @@ export const IdcResourceInputPanel = ({
               className={cn(
                 'flex-1 py-2.5 px-4 rounded-lg border-2 font-medium transition-all',
                 inputFormat === 'HOST'
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  ? `${primaryColors.border} ${statusColors.info.bgLight} ${statusColors.info.textDark}`
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
               )}
             >
@@ -269,7 +269,7 @@ export const IdcResourceInputPanel = ({
               <button
                 type="button"
                 onClick={handleAddIp}
-                className="mt-2 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className={cn('mt-2 flex items-center gap-1 text-sm font-medium', primaryColors.text, primaryColors.textHover)}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -332,7 +332,7 @@ export const IdcResourceInputPanel = ({
                 className={cn(
                   'py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all',
                   databaseType === type
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    ? `${primaryColors.border} ${statusColors.info.bgLight} ${statusColors.info.textDark}`
                     : 'border-gray-200 text-gray-600 hover:border-gray-300'
                 )}
               >
