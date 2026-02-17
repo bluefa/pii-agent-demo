@@ -206,6 +206,49 @@ paths:
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
+  /target-sources/{targetSourceId}/approval-requests/cancel:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Approval Process]
+      summary: 승인 요청 취소 (요청자)
+      operationId: cancelApprovalRequest
+      x-expected-duration: "500ms 이내"
+      description: |
+        현재 PENDING 상태인 승인 요청을 취소합니다.
+        취소 시 ApprovalResult(CANCELLED)가 생성되고, 프로젝트는 이전 상태(REQUEST_REQUIRED 또는 TARGET_CONFIRMED)로 복원됩니다.
+
+        **차단 정책 (ADR-006 D-010):**
+        - PENDING 상태의 승인 요청이 없으면 400 `VALIDATION_FAILED` 반환
+        - ApprovedIntegration이 존재(반영 중)하면 409 `CONFLICT_APPLYING_IN_PROGRESS` 반환 — 승인 반영 중에는 취소 불가
+      responses:
+        '200':
+          description: 취소 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalCancelResponse'
+        '400':
+          description: "취소 가능한 승인 요청이 없음"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "VALIDATION_FAILED", message: "취소할 수 있는 승인 요청이 없습니다." }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          description: "승인 반영 중 — 취소 불가"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "CONFLICT_APPLYING_IN_PROGRESS", message: "승인된 내용이 반영 중입니다. 반영 완료 후까지 취소할 수 없습니다." }
+
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -690,6 +733,16 @@ components:
           type: string
           nullable: true
           description: "반려 시 사유"
+
+    ApprovalCancelResponse:
+      type: object
+      required: [success, result, processed_at]
+      properties:
+        success: { type: boolean }
+        result:
+          type: string
+          enum: [CANCELLED]
+        processed_at: { type: string, format: date-time }
 
     ApprovalRequest:
       type: object

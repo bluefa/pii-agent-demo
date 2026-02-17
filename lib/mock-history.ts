@@ -16,6 +16,7 @@ const APPROVAL_TYPES: ProjectHistoryType[] = [
   'AUTO_APPROVED',
   'APPROVAL',
   'REJECTION',
+  'APPROVAL_CANCELLED',
   'DECOMMISSION_REQUEST',
   'DECOMMISSION_APPROVED',
   'DECOMMISSION_REJECTED',
@@ -131,6 +132,18 @@ export const addRejectionHistory = (
     type: 'REJECTION',
     actor,
     details: { reason },
+  });
+};
+
+/** 승인 요청 취소 */
+export const addApprovalCancelledHistory = (
+  projectId: string,
+  actor: ProjectHistoryActor
+): ProjectHistory => {
+  return addProjectHistory({
+    projectId,
+    type: 'APPROVAL_CANCELLED',
+    actor,
   });
 };
 
