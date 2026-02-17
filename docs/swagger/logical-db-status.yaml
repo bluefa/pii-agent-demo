@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: Connection Status API
+  version: 1.0.0
+  description: |
+    리소스별 논리 데이터베이스 연결 상태를 조회합니다.
+    Confirmed Integration이 없는 경우 404를 반환합니다.
+
+servers:
+  - url: /api/v1
+    description: v1 Base Path
+
+tags:
+  - name: Connection Status
+    description: 리소스별 논리 DB 연결 상태 조회
+
+paths:
+  /target-sources/{targetSourceId}/logical-db-status:
+    parameters:
+      - $ref: 'confirm.yaml#/components/parameters/TargetSourceId'
+    get:
+      tags: [Connection Status]
+      summary: 리소스별 논리 DB 연결 상태 조회
+      operationId: getConnectionStatus
+      x-expected-duration: "2s ~ 10s"
+      description: |
+        설치 완료 이후 리소스별 논리 데이터베이스의 연결 상태를 반환합니다.
+        Confirmed Integration이 존재하지 않으면 404를 반환합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionStatusResponse'
+        '401':
+          $ref: 'confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: 'confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          description: Confirmed Integration이 존재하지 않음
+          content:
+            application/json:
+              schema:
+                $ref: 'confirm.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: { code: "CONFIRMED_INTEGRATION_NOT_FOUND", message: "확정된 연동 정보가 없습니다." }
+
+components:
+  schemas:
+    ConnectionStatusResponse:
+      type: object
+      required: [resources, checked_at, query_period_days, agent_running]
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceConnectionStatus'
+        checked_at:
+          type: string
+          format: date-time
+          description: 조회 시점
+        query_period_days:
+          type: integer
+          description: 조회 기간 (N일)
+          example: 7
+        agent_running:
+          type: boolean
+          description: PII Agent 정상 동작 여부
+
+    ResourceConnectionStatus:
+      type: object
+      required: [resource_id, total_database_count, success_database_count, fail_count, pending_count]
+      properties:
+        resource_id:
+          type: string
+        total_database_count:
+          type: integer
+          description: 전체 논리 DB 수
+        success_database_count:
+          type: integer
+          description: 연결 성공 수
+        fail_count:
+          type: integer
+          description: 연결 실패 수
+        pending_count:
+          type: integer
+          description: 미연결(대기) 수

@@ -191,5 +191,6 @@ export const bffClient: ApiClient = {
     confirmInstallation: (projectId) => proxyPost(`/target-sources/${projectId}/pii-agent-installation/confirm`, {}),
     updateResourceCredential: (projectId, body) => proxyPatch(`/target-sources/${projectId}/resources/credential`, body),
     testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
+    getConnectionStatus: (projectId) => proxyGet(`/target-sources/${projectId}/logical-db-status`),
   },
 };

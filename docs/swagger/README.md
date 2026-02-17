@@ -15,6 +15,7 @@
 - `gcp.yaml`
 - `idc.yaml`
 - `sdu.yaml`
+- `logical-db-status.yaml`
 
 ## 반영 원칙
 

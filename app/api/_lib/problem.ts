@@ -7,6 +7,7 @@ export type KnownErrorCode =
   | 'FORBIDDEN'
   | 'TARGET_SOURCE_NOT_FOUND'
   | 'SERVICE_NOT_FOUND'
+  | 'CONFIRMED_INTEGRATION_NOT_FOUND'
   | 'VALIDATION_FAILED'
   | 'INVALID_PARAMETER'
   | 'INVALID_PROVIDER'
@@ -27,6 +28,7 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   FORBIDDEN: { status: 403, title: 'Forbidden', retriable: false },
   TARGET_SOURCE_NOT_FOUND: { status: 404, title: 'Target Source Not Found', retriable: false },
   SERVICE_NOT_FOUND: { status: 404, title: 'Service Not Found', retriable: false },
+  CONFIRMED_INTEGRATION_NOT_FOUND: { status: 404, title: 'Confirmed Integration Not Found', retriable: false },
   VALIDATION_FAILED: { status: 400, title: 'Validation Failed', retriable: false },
   INVALID_PARAMETER: { status: 400, title: 'Invalid Parameter', retriable: false },
   INVALID_PROVIDER: { status: 400, title: 'Invalid Provider', retriable: false },
@@ -113,6 +115,7 @@ const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   // 레거시 코드 (BFF 마이그레이션 전 호환)
   NOT_FOUND: 'TARGET_SOURCE_NOT_FOUND',
+  CONFIRMED_INTEGRATION_NOT_FOUND: 'CONFIRMED_INTEGRATION_NOT_FOUND',
   INVALID_PROVIDER: 'INVALID_PROVIDER',
   INVALID_REQUEST: 'VALIDATION_FAILED',
   ALREADY_SET: 'CONFLICT_IN_PROGRESS',

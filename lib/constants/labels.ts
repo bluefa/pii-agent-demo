@@ -181,3 +181,4 @@ export const RESOURCE_TYPE_ORDER_BY_PROVIDER: Partial<Record<CloudProvider, Reso
   Azure: AZURE_RESOURCE_TYPE_ORDER,
   GCP: GCP_RESOURCE_TYPE_ORDER,
 };
+
