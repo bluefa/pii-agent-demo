@@ -1061,96 +1061,41 @@ export const mockConfirm = {
       );
     }
 
-    const emptySummary = {
-      totalResources: 0,
-      connectedResources: 0,
-      failedResources: 0,
-      totalLogicalDbs: 0,
-      connectedLogicalDbs: 0,
-      failedLogicalDbs: 0,
-    };
-
-    // 연결 테스트 이전 단계에서는 빈 응답
-    if (project.processStatus < ProcessStatus.WAITING_CONNECTION_TEST) {
-      return NextResponse.json({
-        targetSourceId: project.targetSourceId,
-        resources: [],
-        summary: emptySummary,
-        checkedAt: new Date().toISOString(),
-      });
+    // Confirmed Integration이 없으면 404
+    if (project.processStatus < ProcessStatus.INSTALLATION_COMPLETE) {
+      return NextResponse.json(
+        { error: 'CONFIRMED_INTEGRATION_NOT_FOUND', message: '확정된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
     }
 
     const selectedResources = project.resources.filter((r) => r.isSelected);
-    const now = new Date().toISOString();
 
     const resources = selectedResources.map((r) => {
-      const logicalDbs = generateLogicalDatabases(r.resourceId, r.databaseType);
+      const counts = generateDbCounts(r.resourceId, r.databaseType);
       return {
-        resourceId: r.resourceId,
-        resourceName: r.resourceId,
-        resourceType: r.type,
-        databaseType: r.databaseType,
-        logicalDatabases: logicalDbs,
+        resource_id: r.resourceId,
+        ...counts,
       };
     });
 
-    // 요약 계산
-    let totalLogicalDbs = 0;
-    let connectedLogicalDbs = 0;
-    let failedLogicalDbs = 0;
-    let connectedResources = 0;
-    let failedResources = 0;
-
-    for (const res of resources) {
-      const successes = res.logicalDatabases.filter(
-        (d: { connectionStatus: string }) => d.connectionStatus === 'SUCCESS',
-      ).length;
-      const failures = res.logicalDatabases.filter(
-        (d: { connectionStatus: string }) => d.connectionStatus === 'FAILED',
-      ).length;
-      totalLogicalDbs += res.logicalDatabases.length;
-      connectedLogicalDbs += successes;
-      failedLogicalDbs += failures;
-
-      if (failures > 0) failedResources++;
-      else connectedResources++;
-    }
-
     return NextResponse.json({
-      targetSourceId: project.targetSourceId,
       resources,
-      summary: {
-        totalResources: resources.length,
-        connectedResources,
-        failedResources,
-        totalLogicalDbs,
-        connectedLogicalDbs,
-        failedLogicalDbs,
-      },
-      checkedAt: now,
+      checked_at: new Date().toISOString(),
+      query_period_days: 7,
+      agent_running: true,
     });
   },
 };
 
-// --- Mock Logical Database Generator ---
+// --- Mock DB Count Generator ---
 
-/** databaseType별 논리 DB 스키마 이름 */
-const SCHEMA_NAMES: Record<string, string[]> = {
-  MYSQL: ['information_schema', 'mysql', 'app_main', 'app_analytics', 'app_auth'],
-  POSTGRESQL: ['public', 'app_data', 'analytics', 'auth_service'],
-  MSSQL: ['dbo', 'app_schema', 'reporting'],
-  ORACLE: ['HR', 'SALES', 'APP_DATA'],
-  MONGODB: ['admin', 'app_db', 'analytics_db'],
-  DYNAMODB: ['default_table'],
-  ATHENA: ['default_catalog'],
-  REDSHIFT: ['public', 'analytics', 'staging'],
-  COSMOSDB: ['app_container', 'analytics_container'],
-  BIGQUERY: ['dataset_main', 'dataset_analytics'],
+/** databaseType별 논리 DB 개수 */
+const DB_COUNT_MAP: Record<string, number> = {
+  MYSQL: 5, POSTGRESQL: 4, MSSQL: 3, ORACLE: 3,
+  MONGODB: 3, DYNAMODB: 1, ATHENA: 1, REDSHIFT: 3,
+  COSMOSDB: 2, BIGQUERY: 2,
 };
-
-const ERROR_STATUSES: Array<'AUTH_FAILED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'TIMEOUT'> = [
-  'AUTH_FAILED', 'PERMISSION_DENIED', 'NETWORK_ERROR', 'TIMEOUT',
-];
 
 /** 결정론적 해시: resourceId 기반으로 일관된 mock 데이터 생성 */
 function simpleHash(str: string): number {
@@ -1158,40 +1103,38 @@ function simpleHash(str: string): number {
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // 32bit 정수 변환
+    hash = hash & hash;
   }
   return Math.abs(hash);
 }
 
-function generateLogicalDatabases(resourceId: string, databaseType: string) {
-  const names = SCHEMA_NAMES[databaseType] ?? ['default_schema', 'app_data'];
-  const now = new Date().toISOString();
-  const baseHash = simpleHash(resourceId);
+function generateDbCounts(resourceId: string, databaseType: string) {
+  const total = DB_COUNT_MAP[databaseType] ?? 2;
+  const h = simpleHash(resourceId) % 100;
 
-  return names.map((name, i) => {
-    const itemHash = (baseHash + i * 31) % 100;
+  // 약 70% 전부 성공, 20% 일부 실패, 10% pending 포함
+  let success: number;
+  let fail: number;
+  let pending: number;
 
-    // 약 75% SUCCESS, 15% FAILED, 10% CONNECTION_NOT_FOUND
-    let connectionStatus: 'SUCCESS' | 'FAILED' | 'CONNECTION_NOT_FOUND' = 'SUCCESS';
-    let errorDetail: { status: 'AUTH_FAILED' | 'PERMISSION_DENIED' | 'NETWORK_ERROR' | 'TIMEOUT' | 'UNKNOWN_ERROR'; message: string } | undefined;
-    let restartRequired = false;
+  if (h >= 90) {
+    success = Math.max(total - 2, 0);
+    fail = 1;
+    pending = total - success - fail;
+  } else if (h >= 70) {
+    fail = Math.min(Math.max(1, (h % 3) + 1), total);
+    success = total - fail;
+    pending = 0;
+  } else {
+    success = total;
+    fail = 0;
+    pending = 0;
+  }
 
-    if (itemHash >= 90) {
-      connectionStatus = 'CONNECTION_NOT_FOUND';
-    } else if (itemHash >= 75) {
-      connectionStatus = 'FAILED';
-      const errorStatus = ERROR_STATUSES[itemHash % ERROR_STATUSES.length];
-      errorDetail = { status: errorStatus, message: `${name}: 접근 오류 (${errorStatus})` };
-      restartRequired = errorStatus === 'AUTH_FAILED' || errorStatus === 'NETWORK_ERROR';
-    }
-
-    return {
-      name,
-      connectionStatus,
-      errorDetail,
-      statusMessage: connectionStatus === 'FAILED' ? `${name}: 연결 실패` : undefined,
-      restartRequired,
-      lastCheckedAt: now,
-    };
-  });
+  return {
+    total_database_count: total,
+    success_database_count: success,
+    fail_count: fail,
+    pending_count: pending,
+  };
 }

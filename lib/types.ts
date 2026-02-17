@@ -277,53 +277,21 @@ export const needsCredential = (databaseType: DatabaseType): boolean => {
 export const isInstallIneligible = (resource: Resource): boolean =>
   resource.integrationCategory === 'INSTALL_INELIGIBLE';
 
-// ===== Logical Database Connection Status Types =====
-
-export type LogicalDbConnectionStatus = 'SUCCESS' | 'FAILED' | 'CONNECTION_NOT_FOUND';
-
-export type LogicalDbErrorStatus =
-  | 'AUTH_FAILED'
-  | 'PERMISSION_DENIED'
-  | 'NETWORK_ERROR'
-  | 'TIMEOUT'
-  | 'UNKNOWN_ERROR';
-
-export interface LogicalDbErrorDetail {
-  status: LogicalDbErrorStatus;
-  message: string;
-}
-
-export interface LogicalDatabaseStatus {
-  name: string;
-  connectionStatus: LogicalDbConnectionStatus;
-  errorDetail?: LogicalDbErrorDetail;
-  statusMessage?: string;
-  restartRequired: boolean;
-  lastCheckedAt: string;
-}
+// ===== Connection Status Types =====
 
 export interface ResourceConnectionStatus {
-  resourceId: string;
-  resourceName: string;
-  resourceType: string;
-  databaseType: string;
-  logicalDatabases: LogicalDatabaseStatus[];
-}
-
-export interface ConnectionStatusSummary {
-  totalResources: number;
-  connectedResources: number;
-  failedResources: number;
-  totalLogicalDbs: number;
-  connectedLogicalDbs: number;
-  failedLogicalDbs: number;
+  resource_id: string;
+  total_database_count: number;
+  success_database_count: number;
+  fail_count: number;
+  pending_count: number;
 }
 
 export interface ConnectionStatusResponse {
-  targetSourceId: number;
   resources: ResourceConnectionStatus[];
-  summary: ConnectionStatusSummary;
-  checkedAt: string;
+  checked_at: string;
+  query_period_days: number;
+  agent_running: boolean;
 }
 
 // ===== Project Status Types (ADR-004) =====
