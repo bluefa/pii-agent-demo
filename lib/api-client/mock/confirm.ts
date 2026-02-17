@@ -13,7 +13,11 @@ import type {
   VmDatabaseConfig,
   ResourceExclusion,
   Project,
+  BffApprovedIntegration,
 } from '@/lib/types';
+
+// Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
+const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
 
 interface ResourceCredentialInput {
   resourceId: string;
@@ -25,11 +29,19 @@ interface ResourceCredentialInput {
 type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
 
 const computeProcessStatus = (project: Project): BffProcessStatus => {
-  if (project.processStatus === ProcessStatus.WAITING_APPROVAL) return 'WAITING_APPROVAL';
-  if (project.processStatus === ProcessStatus.INSTALLING ||
-      project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-      project.processStatus === ProcessStatus.CONNECTION_VERIFIED) return 'APPLYING_APPROVED';
-  if (project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE) return 'TARGET_CONFIRMED';
+  // ADR-009 D-004: 3객체 존재 여부 기반 우선순위 계산
+  // 1. PENDING 승인 요청 존재?
+  if (project.status.approval.status === 'PENDING' && project.status.targets.confirmed) {
+    return 'WAITING_APPROVAL';
+  }
+  // 2. ApprovedIntegration 존재? (반영 중)
+  if (approvedIntegrationStore.has(project.id)) {
+    return 'APPLYING_APPROVED';
+  }
+  // 3. ConfirmedIntegration 존재? (설치 완료)
+  if (project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE) {
+    return 'TARGET_CONFIRMED';
+  }
   return 'REQUEST_REQUIRED';
 };
 
@@ -329,30 +341,13 @@ export const mockConfirm = {
       );
     }
 
-    const inFlightResources = project.resources.filter(
-      (r) => r.isSelected && r.connectionStatus !== 'CONNECTED',
-    );
-
-    if (
-      inFlightResources.length === 0 ||
-      (project.processStatus !== ProcessStatus.INSTALLING &&
-        project.processStatus !== ProcessStatus.WAITING_CONNECTION_TEST)
-    ) {
+    // ADR-006: store에서 ApprovedIntegration 조회
+    const approved = approvedIntegrationStore.get(project.id);
+    if (!approved) {
       return NextResponse.json({ approved_integration: null });
     }
 
-    const excludedResources = project.resources.filter((r) => r.exclusion);
-
-    return NextResponse.json({
-      approved_integration: {
-        id: `ai-${project.id}`,
-        request_id: `req-${project.id}`,
-        approved_at: project.approvedAt ?? project.updatedAt,
-        resource_infos: inFlightResources.map(toResourceSnapshot),
-        excluded_resource_ids: excludedResources.map((r) => r.id),
-        exclusion_reason: excludedResources[0]?.exclusion?.reason,
-      },
-    });
+    return NextResponse.json({ approved_integration: approved });
   },
 
   getApprovalHistory: async (projectId: string, page: number, size: number) => {
@@ -494,11 +489,9 @@ export const mockConfirm = {
       target_source_id: project.targetSourceId,
       process_status: computeProcessStatus(project),
       status_inputs: {
-        has_confirmed_integration: project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE,
+        has_confirmed_integration: project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE && !approvedIntegrationStore.has(project.id),
         has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
-        has_approved_integration: project.processStatus === ProcessStatus.INSTALLING ||
-          project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-          project.processStatus === ProcessStatus.CONNECTION_VERIFIED,
+        has_approved_integration: approvedIntegrationStore.has(project.id),
         last_approval_result: computeLastApprovalResult(project),
         last_rejection_reason: project.status.approval.rejectionReason ?? null,
       },
@@ -560,6 +553,19 @@ export const mockConfirm = {
       rejectedAt: undefined,
       approvalComment: comment,
       approvedAt: now,
+    });
+
+    // ADR-006 D-008: ApprovedIntegration 스냅샷 생성
+    const selectedResources = updatedResources.filter((r) => r.isSelected);
+    const excludedResources = updatedResources.filter((r) => r.exclusion);
+    const requestId = `req-${project.id}-${Date.now()}`;
+    approvedIntegrationStore.set(project.id, {
+      id: `ai-${project.id}-${Date.now()}`,
+      request_id: requestId,
+      approved_at: now,
+      resource_infos: selectedResources.map(toResourceSnapshot),
+      excluded_resource_ids: excludedResources.map((r) => r.id),
+      exclusion_reason: excludedResources[0]?.exclusion?.reason,
     });
 
     mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
@@ -687,6 +693,9 @@ export const mockConfirm = {
       piiAgentInstalled: true,
       piiAgentConnectedAt: project.piiAgentConnectedAt || now,
     });
+
+    // 설치 확정 시 ApprovedIntegration 제거 (반영 완료)
+    approvedIntegrationStore.delete(project.id);
 
     return NextResponse.json({ success: true, confirmedAt: now });
   },
