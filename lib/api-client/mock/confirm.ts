@@ -1061,6 +1061,13 @@ export const mockConfirm = {
       );
     }
 
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
     // Confirmed Integration이 없으면 404
     if (project.processStatus < ProcessStatus.INSTALLATION_COMPLETE) {
       return NextResponse.json(
