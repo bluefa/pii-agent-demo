@@ -337,7 +337,7 @@ export const getConnectionStatus = async (
   targetSourceId: number
 ): Promise<ConnectionStatusResponse> =>
   fetchJson<ConnectionStatusResponse>(
-    `${CONFIRM_BASE}/${targetSourceId}/connection-status`
+    `${CONFIRM_BASE}/${targetSourceId}/logical-db-status`
   );
 
 // ===== Azure API =====

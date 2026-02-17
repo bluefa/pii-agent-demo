@@ -15,7 +15,7 @@ tags:
     description: 리소스별 논리 DB 연결 상태 조회
 
 paths:
-  /target-sources/{targetSourceId}/connection-status:
+  /target-sources/{targetSourceId}/logical-db-status:
     parameters:
       - $ref: 'confirm.yaml#/components/parameters/TargetSourceId'
     get:
