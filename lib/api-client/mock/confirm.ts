@@ -1043,4 +1043,105 @@ export const mockConfirm = {
       history: historyEntry,
     });
   },
+
+  getConnectionStatus: async (projectId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
+    // Confirmed Integration이 없으면 404
+    if (project.processStatus < ProcessStatus.INSTALLATION_COMPLETE) {
+      return NextResponse.json(
+        { error: 'CONFIRMED_INTEGRATION_NOT_FOUND', message: '확정된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const selectedResources = project.resources.filter((r) => r.isSelected);
+
+    const resources = selectedResources.map((r) => {
+      const counts = generateDbCounts(r.resourceId, r.databaseType);
+      return {
+        resource_id: r.resourceId,
+        ...counts,
+      };
+    });
+
+    return NextResponse.json({
+      resources,
+      checked_at: new Date().toISOString(),
+      query_period_days: 7,
+      agent_running: true,
+    });
+  },
 };
+
+// --- Mock DB Count Generator ---
+
+/** databaseType별 논리 DB 개수 */
+const DB_COUNT_MAP: Record<string, number> = {
+  MYSQL: 5, POSTGRESQL: 4, MSSQL: 3, ORACLE: 3,
+  MONGODB: 3, DYNAMODB: 1, ATHENA: 1, REDSHIFT: 3,
+  COSMOSDB: 2, BIGQUERY: 2,
+};
+
+/** 결정론적 해시: resourceId 기반으로 일관된 mock 데이터 생성 */
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function generateDbCounts(resourceId: string, databaseType: string) {
+  const total = DB_COUNT_MAP[databaseType] ?? 2;
+  const h = simpleHash(resourceId) % 100;
+
+  // 약 70% 전부 성공, 20% 일부 실패, 10% pending 포함
+  let success: number;
+  let fail: number;
+  let pending: number;
+
+  if (h >= 90) {
+    success = Math.max(total - 2, 0);
+    fail = 1;
+    pending = total - success - fail;
+  } else if (h >= 70) {
+    fail = Math.min(Math.max(1, (h % 3) + 1), total);
+    success = total - fail;
+    pending = 0;
+  } else {
+    success = total;
+    fail = 0;
+    pending = 0;
+  }
+
+  return {
+    total_database_count: total,
+    success_database_count: success,
+    fail_count: fail,
+    pending_count: pending,
+  };
+}

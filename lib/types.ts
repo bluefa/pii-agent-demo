@@ -277,6 +277,23 @@ export const needsCredential = (databaseType: DatabaseType): boolean => {
 export const isInstallIneligible = (resource: Resource): boolean =>
   resource.integrationCategory === 'INSTALL_INELIGIBLE';
 
+// ===== Connection Status Types =====
+
+export interface ResourceConnectionStatus {
+  resource_id: string;
+  total_database_count: number;
+  success_database_count: number;
+  fail_count: number;
+  pending_count: number;
+}
+
+export interface ConnectionStatusResponse {
+  resources: ResourceConnectionStatus[];
+  checked_at: string;
+  query_period_days: number;
+  agent_running: boolean;
+}
+
 // ===== Project Status Types (ADR-004) =====
 // processStatus를 계산하기 위한 상태 데이터 구조
 
