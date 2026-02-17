@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval } from '@/lib/api-client/mock/confirm';
 import { getStore } from '@/lib/mock-store';
+import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type { Project, ProjectStatus, Resource } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
@@ -58,6 +59,7 @@ const resetTestState = () => {
   store.projectHistory = [];
   // 현재 사용자를 admin으로 설정
   store.currentUserId = 'admin-1';
+  setCurrentUser('admin-1');
   _resetApprovedIntegrationStore();
 };
 
@@ -976,6 +978,71 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       );
       expect(cancelledEntry).toBeDefined();
       expect(cancelledEntry.result.result).toBe('CANCELLED');
+    });
+
+    it('O/O/X(기존 연동 + 변경 요청) → 취소 → O/X/X(TARGET_CONFIRMED) 복원', async () => {
+      // 기존 연동 완료 상태로 셋업
+      const status: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: { status: 'APPROVED', approvedAt: '2026-01-10T00:00:00Z' },
+        installation: { status: 'COMPLETED', completedAt: '2026-01-12T00:00:00Z' },
+        connectionTest: { status: 'PASSED', passedAt: '2026-01-13T00:00:00Z' },
+      };
+      addTestProject({
+        processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+        status,
+        piiAgentInstalled: true,
+        completionConfirmedAt: '2026-01-14T00:00:00Z',
+        resources: [
+          createTestResource('res-1', { isSelected: true, connectionStatus: 'CONNECTED' }),
+          createTestResource('res-2', { isSelected: true, connectionStatus: 'CONNECTED' }),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      // TARGET_CONFIRMED 확인
+      let processStatus = await getProcessStatus();
+      expect(processStatus.process_status).toBe('TARGET_CONFIRMED');
+
+      // 변경 요청 (res-1, res-3 선택, res-2 제외)
+      const reqBody = createApprovalRequestBody(['res-1', 'res-3'], ['res-2']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+
+      processStatus = await getProcessStatus();
+      expect(processStatus.process_status).toBe('WAITING_APPROVAL');
+
+      // 취소 → TARGET_CONFIRMED로 복원되어야 함
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(200);
+
+      processStatus = await getProcessStatus();
+      expect(processStatus.process_status).toBe('TARGET_CONFIRMED');
+      expect(processStatus.status_inputs.has_confirmed_integration).toBe(true);
+      expect(processStatus.status_inputs.last_approval_result).toBe('CANCELLED');
+    });
+
+    it('권한 없는 사용자의 취소 시도 → 403', async () => {
+      addTestProject({
+        serviceCode: 'SERVICE-RESTRICTED',
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      // 먼저 admin으로 요청 생성
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+
+      // 일반 사용자로 전환 (SERVICE-RESTRICTED 권한 없음)
+      setCurrentUser('user-1');
+
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      expect(cancelRes.status).toBe(403);
     });
   });
 });

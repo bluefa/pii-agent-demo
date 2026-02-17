@@ -711,6 +711,14 @@ export const mockConfirm = {
       );
     }
 
+    // P2: 권한 검사 — 서비스 코드 권한이 있는 사용자만 취소 가능
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
     // ADR-006 D-010: APPLYING_APPROVED(반영 중)에서는 취소 불가
     if (approvedIntegrationStore.has(project.id)) {
       return NextResponse.json(
@@ -729,18 +737,40 @@ export const mockConfirm = {
 
     const now = new Date().toISOString();
 
-    // 리소스 선택 해제 + 이번 요청에서 설정된 exclusion 초기화
-    const updatedResources = project.resources.map((r) => ({
-      ...r,
-      isSelected: false,
-      exclusion: undefined,
-    }));
+    // P1: 기존 연동 완료(O/O/X) 여부 판단 — ConfirmedIntegration이 존재하면 복원
+    const hasExistingConfirmed = project.piiAgentInstalled === true ||
+      project.completionConfirmedAt !== undefined;
 
-    const updatedStatus: ProjectStatus = {
-      ...project.status,
-      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
-      approval: { status: 'CANCELLED' },
-    };
+    // 리소스 선택 해제 + 이번 요청에서 설정된 exclusion 초기화
+    const updatedResources = hasExistingConfirmed
+      ? project.resources.map((r) => ({
+          ...r,
+          // 기존 연동 상태에서는 이전 선택/연결 상태를 유지하되 PENDING 요청 관련만 초기화
+          isSelected: r.connectionStatus === 'CONNECTED',
+          exclusion: undefined,
+        }))
+      : project.resources.map((r) => ({
+          ...r,
+          isSelected: false,
+          exclusion: undefined,
+        }));
+
+    const restoredSelectedCount = updatedResources.filter((r) => r.isSelected).length;
+
+    const updatedStatus: ProjectStatus = hasExistingConfirmed
+      ? {
+          ...project.status,
+          targets: { confirmed: true, selectedCount: restoredSelectedCount, excludedCount: 0 },
+          approval: { status: 'CANCELLED' },
+          // 기존 설치 완료 상태 복원
+          installation: { status: 'COMPLETED', completedAt: project.completionConfirmedAt },
+          connectionTest: { status: 'PASSED', passedAt: project.status.connectionTest.passedAt },
+        }
+      : {
+          ...project.status,
+          targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+          approval: { status: 'CANCELLED' },
+        };
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
