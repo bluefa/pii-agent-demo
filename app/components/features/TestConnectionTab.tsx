@@ -67,7 +67,7 @@ export const TestConnectionTab = ({ project, onProjectUpdate }: TestConnectionTa
       const response = await runConnectionTest(project.targetSourceId, resourceCredentials);
       setTestResults(response.results);
       // v1 응답에는 project가 없으므로 별도 갱신
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');

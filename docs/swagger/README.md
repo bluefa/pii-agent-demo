@@ -13,6 +13,8 @@
 - `aws.yaml`
 - `azure.yaml`
 - `gcp.yaml`
+- `idc.yaml`
+- `sdu.yaml`
 
 ## 반영 원칙
 
