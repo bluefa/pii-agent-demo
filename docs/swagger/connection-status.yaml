@@ -35,6 +35,8 @@ paths:
                 $ref: '#/components/schemas/ConnectionStatusResponse'
         '401':
           $ref: 'confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: 'confirm.yaml#/components/responses/PermissionDenied'
         '404':
           description: Confirmed Integration이 존재하지 않음
           content:
