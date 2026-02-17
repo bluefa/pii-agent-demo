@@ -131,7 +131,7 @@ export const ProcessStatusCard = ({
   // 설치 완료 핸들러 — 설치 인라인이 완료를 감지하면 프로젝트 상태를 갱신
   const handleInstallComplete = async () => {
     try {
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       if (updatedProject) {
         onProjectUpdate?.(updatedProject);
       }
