@@ -10,7 +10,7 @@ import { cardStyles, cn } from '@/lib/theme';
 const ITEMS_PER_PAGE = 5;
 
 interface ProjectHistoryPanelProps {
-  projectId: string;
+  targetSourceId: number;
   initialHistory?: ProjectHistory[];
   title?: string;
   embedded?: boolean;
@@ -22,7 +22,7 @@ interface HistoryResponse {
 }
 
 export const ProjectHistoryPanel = ({
-  projectId,
+  targetSourceId,
   initialHistory,
   title = '프로젝트 이력',
   embedded = false,
@@ -49,7 +49,7 @@ export const ProjectHistoryPanel = ({
         offset: String(offset),
       });
 
-      const response = await fetch(`/api/projects/${projectId}/history?${params}`);
+      const response = await fetch(`/api/v1/target-sources/${targetSourceId}/history?${params}`);
 
       if (!response.ok) {
         throw new Error('이력을 불러오는데 실패했습니다.');
@@ -63,7 +63,7 @@ export const ProjectHistoryPanel = ({
     } finally {
       setLoading(false);
     }
-  }, [projectId, filter, currentPage]);
+  }, [targetSourceId, filter, currentPage]);
 
   useEffect(() => {
     fetchHistory();

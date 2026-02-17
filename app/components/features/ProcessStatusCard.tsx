@@ -260,7 +260,7 @@ export const ProcessStatusCard = ({
         )}
 
         {activeTab === 'history' && (
-          <ProjectHistoryPanel projectId={project.id} embedded />
+          <ProjectHistoryPanel targetSourceId={project.targetSourceId} embedded />
         )}
       </div>
 
