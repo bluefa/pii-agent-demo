@@ -1,8 +1,7 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory, VmDatabaseConfig } from '@/lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchJson } from '@/lib/fetch-json';
 
-const BASE_URL = '/api';
 
 export interface CurrentUser {
   id: string;
@@ -100,67 +99,6 @@ export const searchUsers = async (
   const data = await res.json();
   return data.users;
 };
-
-export interface VmConfigInput {
-  resourceId: string;
-  config: VmDatabaseConfig;
-}
-
-// TODO: Confirm v1 migration — replace with v1 endpoint when available
-export const confirmTargets = async (
-  projectId: string,
-  resourceIds: string[],
-  vmConfigs?: VmConfigInput[]
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/confirm-targets`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resourceIds, vmConfigs }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to confirm targets');
-  }
-  const data = await res.json();
-  return data.project;
-};
-
-// TODO: Confirm v1 migration — replace with v1 endpoint when available
-export const approveProject = async (
-  projectId: string,
-  comment?: string
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/approve`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comment }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to approve project');
-  }
-  const data = await res.json();
-  return data.project;
-};
-
-// TODO: Confirm v1 migration — replace with v1 endpoint when available
-export const rejectProject = async (
-  projectId: string,
-  reason?: string
-): Promise<Project> => {
-  const res = await fetch(`${BASE_URL}/projects/${projectId}/reject`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ reason }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.message || 'Failed to reject project');
-  }
-  const data = await res.json();
-  return data.project;
-};
-
 
 
 // ===== Confirm v1 API =====

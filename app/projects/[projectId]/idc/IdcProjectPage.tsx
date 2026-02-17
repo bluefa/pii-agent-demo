@@ -9,6 +9,13 @@ import {
   getProject,
   ResourceCredentialInput,
 } from '@/app/lib/api';
+import {
+  getIdcInstallationStatus as fetchIdcInstallationStatus,
+  checkIdcInstallation,
+  confirmIdcFirewall,
+  updateIdcResourcesList,
+  confirmIdcTargets,
+} from '@/app/lib/api/idc';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
@@ -50,14 +57,11 @@ export const IdcProjectPage = ({
   // 설치 단계일 때 설치 상태 가져오기
   useEffect(() => {
     if (isInstalling) {
-      fetch(`/api/idc/projects/${project.id}/installation-status`)
-        .then((res) => res.ok ? res.json() : null)
-        .then((data) => {
-          if (data) setIdcInstallationStatus(data);
-        })
+      fetchIdcInstallationStatus(project.targetSourceId)
+        .then((data) => setIdcInstallationStatus(data))
         .catch(() => {});
     }
-  }, [isInstalling, project.id]);
+  }, [isInstalling, project.targetSourceId]);
 
   // 확정 후 표시할 리소스 목록 계산 (Step 1 이후에만 사용)
   const displayResources = useMemo(() => {
@@ -73,7 +77,7 @@ export const IdcProjectPage = ({
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
@@ -98,7 +102,7 @@ export const IdcProjectPage = ({
         credentialId: r.selectedCredentialId,
       }));
       await runConnectionTest(project.targetSourceId, resourceCredentials);
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
@@ -150,23 +154,14 @@ export const IdcProjectPage = ({
 
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/idc/projects/${project.id}/update-resources`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keepResourceIds,
-          newResources: editPendingResources,
-        }),
-      });
+      const data = await updateIdcResourcesList(
+        project.targetSourceId,
+        keepResourceIds,
+        editPendingResources,
+      );
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || '리소스 업데이트에 실패했습니다.');
-      }
-
-      const data = await res.json();
       if (data.project) {
-        onProjectUpdate(data.project);
+        onProjectUpdate(data.project as Project);
       } else {
         const updatedProject = await getProject(project.targetSourceId);
         onProjectUpdate(updatedProject);
@@ -181,7 +176,7 @@ export const IdcProjectPage = ({
     } finally {
       setSubmitting(false);
     }
-  }, [project.id, project.resources, editDeletedIds, editPendingResources, onProjectUpdate]);
+  }, [project.targetSourceId, project.resources, editDeletedIds, editPendingResources, onProjectUpdate]);
 
   // IDC: 리소스 추가 (로컬 상태에만 - API 호출 안 함)
   const handleIdcResourceSave = useCallback((data: IdcResourceInput) => {
@@ -197,49 +192,29 @@ export const IdcProjectPage = ({
   // IDC: 방화벽 확인 완료 핸들러
   const handleIdcConfirmFirewall = useCallback(async () => {
     try {
-      const res = await fetch(`/api/idc/projects/${project.id}/confirm-firewall`, {
-        method: 'POST',
-      });
+      await confirmIdcFirewall(project.targetSourceId);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || '방화벽 확인에 실패했습니다.');
-      }
-
-      const statusRes = await fetch(`/api/idc/projects/${project.id}/installation-status`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setIdcInstallationStatus(statusData);
-      }
+      const statusData = await fetchIdcInstallationStatus(project.targetSourceId);
+      setIdcInstallationStatus(statusData);
 
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : '방화벽 확인에 실패했습니다.');
     }
-  }, [project.id, onProjectUpdate]);
+  }, [project.targetSourceId, onProjectUpdate]);
 
   // IDC: 설치 재시도 핸들러
   const handleIdcRetry = useCallback(async () => {
     try {
-      const res = await fetch(`/api/idc/projects/${project.id}/check-installation`, {
-        method: 'POST',
-      });
+      await checkIdcInstallation(project.targetSourceId);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || '재시도에 실패했습니다.');
-      }
-
-      const statusRes = await fetch(`/api/idc/projects/${project.id}/installation-status`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setIdcInstallationStatus(statusData);
-      }
+      const statusData = await fetchIdcInstallationStatus(project.targetSourceId);
+      setIdcInstallationStatus(statusData);
     } catch (err) {
       alert(err instanceof Error ? err.message : '재시도에 실패했습니다.');
     }
-  }, [project.id]);
+  }, [project.targetSourceId]);
 
   // IDC: 연동 대상 확정 (모든 입력된 리소스를 API로 전송)
   const handleIdcConfirmTargets = useCallback(async () => {
@@ -250,20 +225,10 @@ export const IdcProjectPage = ({
 
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/idc/projects/${project.id}/confirm-targets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resources: pendingResources }),
-      });
+      const data = await confirmIdcTargets(project.targetSourceId, pendingResources);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || '연동 대상 확정에 실패했습니다.');
-      }
-
-      const data = await res.json();
       if (data.project) {
-        onProjectUpdate(data.project);
+        onProjectUpdate(data.project as Project);
       } else {
         const updatedProject = await getProject(project.targetSourceId);
         onProjectUpdate(updatedProject);
@@ -274,17 +239,14 @@ export const IdcProjectPage = ({
       setIsEditMode(false);
 
       // 설치 상태 가져오기
-      const statusRes = await fetch(`/api/idc/projects/${project.id}/installation-status`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setIdcInstallationStatus(statusData);
-      }
+      const statusData = await fetchIdcInstallationStatus(project.targetSourceId);
+      setIdcInstallationStatus(statusData);
     } catch (err) {
       alert(err instanceof Error ? err.message : '연동 대상 확정에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
-  }, [project.id, pendingResources, onProjectUpdate]);
+  }, [project.targetSourceId, pendingResources, onProjectUpdate]);
 
   const hasPendingResources = pendingResources.length > 0 && isStep1;
 

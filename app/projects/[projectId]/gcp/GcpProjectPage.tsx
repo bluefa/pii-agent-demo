@@ -55,7 +55,7 @@ export const GcpProjectPage = ({
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
@@ -80,7 +80,7 @@ export const GcpProjectPage = ({
         credentialId: r.selectedCredentialId,
       }));
       await runConnectionTest(project.targetSourceId, resourceCredentials);
-      const updatedProject = await getProject(project.id);
+      const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');

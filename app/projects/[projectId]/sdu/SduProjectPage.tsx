@@ -74,8 +74,8 @@ export const SduProjectPage = ({
     if (installPollRef.current) return;
     installPollRef.current = setInterval(async () => {
       try {
-        const installStatus = await checkSduInstallation(project.id);
-        const s3Status = await getS3UploadStatus(project.id);
+        const installStatus = await checkSduInstallation(project.targetSourceId);
+        const s3Status = await getS3UploadStatus(project.targetSourceId);
         setSduInstallationStatus(installStatus);
 
         if (installStatus.athenaSetup.status === 'COMPLETED') {
@@ -89,7 +89,7 @@ export const SduProjectPage = ({
           setCurrentStep(step);
 
           if (step === 'WAITING_CONNECTION_TEST' || step === 'CONNECTION_VERIFIED' || step === 'INSTALLATION_COMPLETE') {
-            const tables = await getAthenaTables(project.id).catch(() => []);
+            const tables = await getAthenaTables(project.targetSourceId).catch(() => []);
             setAthenaTables(tables);
           }
         }
@@ -97,10 +97,10 @@ export const SduProjectPage = ({
         // polling failure ignored, retry next interval
       }
     }, 10000);
-  }, [project.id, stopInstallPolling]);
+  }, [project.targetSourceId, stopInstallPolling]);
 
   const refreshSduStatus = useCallback(async (s3Status: Awaited<ReturnType<typeof getS3UploadStatus>>) => {
-    const installStatus = await getSduInstallationStatus(project.id);
+    const installStatus = await getSduInstallationStatus(project.targetSourceId);
     const sduStatus: SduProjectStatus = {
       s3Upload: s3Status,
       installation: installStatus,
@@ -112,14 +112,14 @@ export const SduProjectPage = ({
     setSduInstallationStatus(installStatus);
 
     const [iam, sourceIp] = await Promise.all([
-      getIamUser(project.id).catch(() => null),
-      getSourceIpList(project.id).catch(() => null),
+      getIamUser(project.targetSourceId).catch(() => null),
+      getSourceIpList(project.targetSourceId).catch(() => null),
     ]);
     setIamUser(iam);
     setSourceIpList(sourceIp);
 
     if (step === 'INSTALLING' || step === 'WAITING_CONNECTION_TEST' || step === 'CONNECTION_VERIFIED' || step === 'INSTALLATION_COMPLETE') {
-      const tables = await getAthenaTables(project.id).catch(() => []);
+      const tables = await getAthenaTables(project.targetSourceId).catch(() => []);
       setAthenaTables(tables);
     }
 
@@ -130,13 +130,13 @@ export const SduProjectPage = ({
     }
 
     return step;
-  }, [project.id, startInstallPolling, stopInstallPolling]);
+  }, [project.targetSourceId, startInstallPolling, stopInstallPolling]);
 
   // Initial load + S3 upload polling
   useEffect(() => {
     const fetchInitial = async () => {
       try {
-        const s3Status = await getS3UploadStatus(project.id);
+        const s3Status = await getS3UploadStatus(project.targetSourceId);
         const step = await refreshSduStatus(s3Status);
 
         if (step === 'S3_UPLOAD_PENDING') {
@@ -151,7 +151,7 @@ export const SduProjectPage = ({
       if (s3PollRef.current) return;
       s3PollRef.current = setInterval(async () => {
         try {
-          const s3Status = await checkS3Upload(project.id);
+          const s3Status = await checkS3Upload(project.targetSourceId);
           if (s3Status.status === 'CONFIRMED') {
             if (s3PollRef.current) clearInterval(s3PollRef.current);
             s3PollRef.current = null;
@@ -175,12 +175,12 @@ export const SduProjectPage = ({
         installPollRef.current = null;
       }
     };
-  }, [project.id, refreshSduStatus]);
+  }, [project.targetSourceId, refreshSduStatus]);
 
   const handleExecuteConnectionTest = useCallback(async () => {
     try {
       setConnectionTestLoading(true);
-      await executeSduConnectionTest(project.id);
+      await executeSduConnectionTest(project.targetSourceId);
 
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
@@ -191,13 +191,13 @@ export const SduProjectPage = ({
     } finally {
       setConnectionTestLoading(false);
     }
-  }, [project.id, onProjectUpdate]);
+  }, [project.targetSourceId, onProjectUpdate]);
 
   const handleReissueAkSk = useCallback(async (): Promise<IssueAkSkResponse | null> => {
     try {
       setReissuing(true);
-      const result = await issueAkSk(project.id, 'current-user');
-      const iam = await getIamUser(project.id);
+      const result = await issueAkSk(project.targetSourceId, 'current-user');
+      const iam = await getIamUser(project.targetSourceId);
       setIamUser(iam);
       return result;
     } catch (err) {
@@ -206,17 +206,17 @@ export const SduProjectPage = ({
     } finally {
       setReissuing(false);
     }
-  }, [project.id]);
+  }, [project.targetSourceId]);
 
   const handleRegisterSourceIp = useCallback(async (cidr: string) => {
     try {
-      await registerSourceIp(project.id, cidr);
-      const sourceIp = await getSourceIpList(project.id);
+      await registerSourceIp(project.targetSourceId, cidr);
+      const sourceIp = await getSourceIpList(project.targetSourceId);
       setSourceIpList(sourceIp);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Source IP 등록에 실패했습니다.');
     }
-  }, [project.id]);
+  }, [project.targetSourceId]);
 
   const showAthenaTables = currentStep === 'INSTALLING' ||
                            currentStep === 'WAITING_CONNECTION_TEST' ||
