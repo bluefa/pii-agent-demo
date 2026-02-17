@@ -42,15 +42,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [error, message]
-                properties:
-                  error:
-                    type: string
-                    example: CONFIRMED_INTEGRATION_NOT_FOUND
-                  message:
-                    type: string
-                    example: 확정된 연동 정보가 없습니다.
+                $ref: 'confirm.yaml#/components/schemas/ErrorResponse'
+              example:
+                error: { code: "CONFIRMED_INTEGRATION_NOT_FOUND", message: "확정된 연동 정보가 없습니다." }
 
 components:
   schemas:
