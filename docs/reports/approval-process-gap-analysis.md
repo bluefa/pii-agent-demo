@@ -64,7 +64,7 @@
 | 1 | **3객체 분리** (ADR-006 D-001): Confirmed/Approved/Request 분리 | `ProjectStatus` 단일 객체 기반 계산 | 계산 로직이 3객체 존재 여부를 확인하지 않음 | **P0** | calculator.ts 3객체 우선순위 로직으로 전환 |
 | 2 | **BFF 4상태 enum** (ADR-009 D-004): REQUEST_REQUIRED / WAITING_APPROVAL / APPLYING_APPROVED / TARGET_CONFIRMED | FE `ProcessStatus` 6단계 enum (1~6) + `computeProcessStatus()` 변환 | 변환 함수가 3객체가 아닌 FE enum 매핑만 수행 | **P0** | computeProcessStatus()를 3객체 존재 기반으로 재작성 |
 | 3 | **누락 타입** (ADR-006 D-009): ApprovalRequest, ApprovalResult, ApprovedIntegration, ConfirmedIntegration | types.ts에 미정의 | Swagger 스키마와 FE 타입 불일치 | **P0** | types.ts에 4개 타입 추가 |
-| 4 | **approve 시 스냅샷** (ADR-006 D-008): 승인 → ApprovedIntegration 생성 | confirm.ts `approveApprovalRequest()`에서 Project.status만 수정 | 스냅샷(resource_infos, excluded_resource_ids) 미생성 | **P1** | approve 함수에 ApprovedIntegration 생성 로직 추가 |
+| 4 | **approve 시 스냅샷** (ADR-006 D-008): 승인 → ApprovedIntegration 생성 | confirm.ts `approveApprovalRequest()`에서 Project.status만 수정 | 스냅샷(resource_infos, excluded_resource_ids) 미생성 | **P0** | approve 함수에 ApprovedIntegration 생성 로직 추가 |
 | 5 | **Admin UX 정보밀도** (ADR-006 D-010): 변경 전/후 비교, 영향 범위 | 리소스 ID + endpoint + credential_id만 표시 | 리소스 타입, connection status, integrationCategory 미표시 | **P1** | ApprovalDetailModal에 컬럼 추가 |
 | 6 | **승인 이력 전체 조회**: approval-history 페이징 | Admin에서 size=1 최신 1건만 조회 | 과거 반려 사유, 재요청 횟수 확인 불가 | **P1** | 승인 이력 뷰 추가 또는 링크 제공 |
 | 7 | **IDC v1 마이그레이션**: `/api/idc/projects/*` → v1 | 5개 IDC endpoint가 legacy 경로 유지 | 2개 ID 체계 병존 (string vs number) | **P2** | IDC API v1 마이그레이션 계획 수립 |

@@ -374,7 +374,10 @@ export const mockConfirm = {
     // ADR-006: store에서 ApprovedIntegration 조회
     const approved = approvedIntegrationStore.get(project.id);
     if (!approved) {
-      return NextResponse.json({ approved_integration: null });
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({ approved_integration: approved });

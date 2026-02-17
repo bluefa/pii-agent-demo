@@ -544,10 +544,9 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(processStatus.status_inputs.has_confirmed_integration).toBe(true);
       expect(processStatus.status_inputs.has_approved_integration).toBe(false);
 
-      // ApprovedIntegration 삭제 확인
+      // ApprovedIntegration 삭제 확인 (404)
       const approvedRes = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
-      const approvedData = await parseResponse(approvedRes);
-      expect(approvedData.approved_integration).toBeNull();
+      expect(approvedRes.status).toBe(404);
     });
 
     it('승인 직후 확정 시도 → 409 INSTALLATION_IN_PROGRESS (10초 지연)', async () => {
@@ -709,9 +708,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       addTestProject();
 
       const res = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
-      const data = await parseResponse(res);
-      expect(res.status).toBe(200);
-      expect(data.approved_integration).toBeNull();
+      expect(res.status).toBe(404);
     });
 
     it('수동 승인 후 → approved_integration 존재', async () => {
