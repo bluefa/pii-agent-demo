@@ -139,6 +139,21 @@ return (
 - 각 endpoint는 실행시간 메타데이터(`x-expected-duration`)를 반드시 선언
 - Error 코드 또는 `x-expected-duration` 누락 발견 시 즉시 경고 후 보완
 
+### Contract-First 검증 (⛔ v1 API 작업 시 필수)
+
+**매 엔드포인트마다** 구현 후 아래 6항목을 교차 검증:
+
+```
+□ swagger response envelope 키 == client 반환 키 == FE fetchJson 타입
+□ swagger request schema 필드명 == FE 전송 필드명
+□ swagger response schema 필드명 == mock 데이터 필드명
+□ route handler가 client.method() 디스패치만 수행 (response.json() 파싱 금지)
+□ envelope 변환이 필요하면 client 계층(mock/*.ts)에서 수행
+□ 모든 endpoint를 개별 검증 (일괄 구현 후 일괄 검증 금지)
+```
+
+**swagger ≠ 코드일 때**: 코드를 swagger에 맞춤 (swagger를 코드에 맞추지 않음)
+
 ```typescript
 // ❌ Bad — mock 직접 import
 import { getProjectById } from '@/lib/mock-data';
