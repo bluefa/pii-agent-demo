@@ -20,7 +20,6 @@ import { getProcessGuide } from '@/lib/constants/process-guides';
 import { cn, statusColors } from '@/lib/theme';
 import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
-import { LogicalDbConnectionPanel } from './connection-status';
 
 type ProcessTabType = 'status' | 'history';
 
@@ -246,20 +245,14 @@ export const ProcessStatusCard = ({
                 {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||
                   currentStep === ProcessStatus.CONNECTION_VERIFIED ||
                   currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
-                  <>
-                    <ConnectionTestPanel
-                      connectionTestHistory={project.connectionTestHistory || []}
-                      credentials={credentials}
-                      selectedResources={selectedResources}
-                      onTestConnection={onTestConnection}
-                      testLoading={testLoading}
-                      onCredentialChange={onCredentialChange}
-                    />
-                    <LogicalDbConnectionPanel
-                      targetSourceId={project.targetSourceId}
-                      processStatus={currentStep}
-                    />
-                  </>
+                  <ConnectionTestPanel
+                    connectionTestHistory={project.connectionTestHistory || []}
+                    credentials={credentials}
+                    selectedResources={selectedResources}
+                    onTestConnection={onTestConnection}
+                    testLoading={testLoading}
+                    onCredentialChange={onCredentialChange}
+                  />
                 )}
               </div>
             </div>
