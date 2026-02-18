@@ -238,6 +238,10 @@ export const IdcProjectPage = ({
             onShowResourceInput={() => setShowIdcResourceInput(true)}
             onConfirmFirewall={handleIdcConfirmFirewall}
             onRetry={handleIdcRetry}
+            onResourceUpdate={async () => {
+              const updated = await getProject(project.targetSourceId);
+              onProjectUpdate(updated);
+            }}
           />
         </div>
 

@@ -120,8 +120,8 @@ export const ProcessStatusCard = ({
     : undefined;
   const guide = getProcessGuide(project.cloudProvider, guideVariant);
 
-  // 설치 완료 핸들러 — 설치 인라인이 완료를 감지하면 프로젝트 상태를 갱신
-  const handleInstallComplete = async () => {
+  // 프로젝트 상태 갱신 — 설치 완료, credential 변경 등 서버 데이터 변경 후 호출
+  const refreshProject = async () => {
     try {
       const updatedProject = await getProject(project.targetSourceId);
       if (updatedProject) {
@@ -206,17 +206,17 @@ export const ProcessStatusCard = ({
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={project.resources}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'AWS' ? (
                     <AwsInstallationInline
                       targetSourceId={project.targetSourceId}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'GCP' ? (
                     <GcpInstallationInline
                       targetSourceId={project.targetSourceId}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : (
                     <button
@@ -240,6 +240,7 @@ export const ProcessStatusCard = ({
                   <ConnectionTestPanel
                     targetSourceId={project.targetSourceId}
                     selectedResources={selectedResources}
+                    onResourceUpdate={refreshProject}
                   />
                 )}
               </div>

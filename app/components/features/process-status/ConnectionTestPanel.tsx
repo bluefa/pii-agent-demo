@@ -33,6 +33,8 @@ const TEXT_LINK_CLASS = 'text-sm text-gray-700 hover:text-gray-900 underline und
 interface ConnectionTestPanelProps {
   targetSourceId: number;
   selectedResources: Resource[];
+  /** Credential 변경 후 부모가 프로젝트를 재조회하도록 알림 */
+  onResourceUpdate?: () => void;
 }
 
 // ===== Credential Setup Modal =====
@@ -520,6 +522,7 @@ const ResultSummary = ({
 export const ConnectionTestPanel = ({
   targetSourceId,
   selectedResources,
+  onResourceUpdate,
 }: ConnectionTestPanelProps) => {
   const {
     latestJob,
@@ -577,8 +580,9 @@ export const ConnectionTestPanel = ({
 
   const handleCredentialComplete = useCallback(() => {
     setCredModalOpen(false);
+    onResourceUpdate?.();
     trigger();
-  }, [trigger]);
+  }, [trigger, onResourceUpdate]);
 
   if (loading) {
     return (

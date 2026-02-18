@@ -268,11 +268,13 @@ const IdcInstallationStatusDisplay = ({
   resources,
   targetSourceId,
   onRetry,
+  onResourceUpdate,
 }: {
   status: IdcInstallationStatusType;
   resources: Resource[];
   targetSourceId: number;
   onRetry: () => void;
+  onResourceUpdate?: () => void;
 }) => {
   const isBdcCompleted = status.bdcTf === 'COMPLETED';
   const isBdcFailed = status.bdcTf === 'FAILED';
@@ -324,6 +326,7 @@ const IdcInstallationStatusDisplay = ({
         <ConnectionTestPanel
           targetSourceId={targetSourceId}
           selectedResources={resources.filter((r) => r.isSelected)}
+          onResourceUpdate={onResourceUpdate}
         />
       )}
     </div>
@@ -339,6 +342,7 @@ interface IdcProcessStatusCardProps {
   onShowResourceInput: () => void;
   onConfirmFirewall: () => void;
   onRetry: () => void;
+  onResourceUpdate?: () => void;
 }
 
 export const IdcProcessStatusCard = ({
@@ -350,6 +354,7 @@ export const IdcProcessStatusCard = ({
   onShowResourceInput,
   onConfirmFirewall,
   onRetry,
+  onResourceUpdate,
 }: IdcProcessStatusCardProps) => {
   const selectedResources = project.resources.filter((r) => r.isSelected);
   return (
@@ -380,6 +385,7 @@ export const IdcProcessStatusCard = ({
               resources={project.resources}
               targetSourceId={project.targetSourceId}
               onRetry={onRetry}
+              onResourceUpdate={onResourceUpdate}
             />
           )}
 
@@ -389,6 +395,7 @@ export const IdcProcessStatusCard = ({
             <ConnectionTestPanel
               targetSourceId={project.targetSourceId}
               selectedResources={selectedResources}
+              onResourceUpdate={onResourceUpdate}
             />
           )}
         </div>
