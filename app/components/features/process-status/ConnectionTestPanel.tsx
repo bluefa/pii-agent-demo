@@ -583,24 +583,34 @@ export const ConnectionTestPanel = ({
   const isCompleted = uiState === 'SUCCESS' || uiState === 'FAIL';
 
   return (
-    <div className="space-y-4">
-      {/* 연결 테스트 — 가이드 + 액션 통합 카드 */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className={cn('text-sm font-semibold', textColors.primary)}>연결 테스트</h3>
-          {hasHistory && !isPending && (
-            <button onClick={() => setHistoryModalOpen(true)} className={TEXT_LINK_CLASS}>
-              전체 내역 →
-            </button>
-          )}
-        </div>
-        <div className="px-4 py-3 space-y-3">
-        {/* 안내 문구 (compact) */}
-        <p className={cn('text-xs', textColors.tertiary)}>
-          DB 연결을 테스트하세요. Credential 미설정 리소스는 테스트 시 설정을 안내합니다.
-        </p>
+    <div className="max-w-md space-y-3">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <h4 className={cn('text-sm font-semibold', textColors.primary)}>연결 테스트</h4>
+        {hasHistory && !isPending && (
+          <button onClick={() => setHistoryModalOpen(true)} className={TEXT_LINK_CLASS}>
+            전체 내역 →
+          </button>
+        )}
+      </div>
 
-        {/* Primary CTA */}
+      {/* 가이드 (info box) */}
+      <div className={cn('p-3 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
+        <p className={cn('text-sm font-medium mb-2', statusColors.info.textDark)}>
+          설치가 완료되었습니다. DB 연결을 테스트하세요.
+        </p>
+        <ol className={cn('text-sm list-decimal list-inside space-y-0.5', statusColors.info.textDark)}>
+          <li>[연결 테스트 수행] 버튼 클릭</li>
+          <li>연결 결과 확인 (성공/실패)</li>
+          <li>실패 시 Credential 확인 또는 네트워크 점검</li>
+        </ol>
+        <p className={cn('text-xs mt-2', statusColors.warning.text)}>
+          ⚠ DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다
+        </p>
+      </div>
+
+      {/* CTA + 결과 */}
+      <div className="space-y-2">
         <button
           onClick={handleTriggerClick}
           disabled={isPending}
@@ -610,17 +620,14 @@ export const ConnectionTestPanel = ({
           {isPending ? '테스트 진행 중...' : '연결 테스트 수행'}
         </button>
 
-        {/* 트리거 에러 */}
         {triggerError && (
           <p className={cn('text-xs', statusColors.error.text)}>{triggerError}</p>
         )}
 
-        {/* PENDING 진행률 */}
         {isPending && latestJob && (
           <ProgressBar job={latestJob} totalResources={selectedResources.length} />
         )}
 
-        {/* 완료 결과 요약 */}
         {isCompleted && latestJob && (
           <ResultSummary
             job={latestJob}
@@ -628,7 +635,6 @@ export const ConnectionTestPanel = ({
             onShowDetail={() => setDetailModalOpen(true)}
           />
         )}
-        </div>
       </div>
 
       {/* Modals */}
