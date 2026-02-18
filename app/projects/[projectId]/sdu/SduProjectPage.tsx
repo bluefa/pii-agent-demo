@@ -28,12 +28,18 @@ import { getProject } from '@/app/lib/api';
 import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { SduProjectInfoCard } from '@/app/projects/[projectId]/sdu/SduProjectInfoCard';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
-import {
-  IamUserManageModal,
-  SourceIpManageModal,
-  SduSetupGuideModal,
-  SduAthenaTableList,
-} from '@/app/components/features/sdu';
+import dynamic from 'next/dynamic';
+import { SduAthenaTableList } from '@/app/components/features/sdu';
+
+const IamUserManageModal = dynamic(() =>
+  import('@/app/components/features/sdu/IamUserManageModal').then(m => ({ default: m.IamUserManageModal }))
+);
+const SourceIpManageModal = dynamic(() =>
+  import('@/app/components/features/sdu/SourceIpManageModal').then(m => ({ default: m.SourceIpManageModal }))
+);
+const SduSetupGuideModal = dynamic(() =>
+  import('@/app/components/features/sdu/SduSetupGuideModal').then(m => ({ default: m.SduSetupGuideModal }))
+);
 import { useModal } from '@/app/hooks/useModal';
 
 interface SduProjectPageProps {
