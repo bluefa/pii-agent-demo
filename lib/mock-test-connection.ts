@@ -28,9 +28,12 @@ export interface TestConnectionJob {
   requested_at: string;
   completed_at: string | null;
   requested_by: string;
-  estimated_end_at: string;
   resource_results: TestConnectionResourceResult[];
-  /** 내부용: 리소스별 완료 스케줄 (response에 미포함) */
+}
+
+/** 내부용: Mock 시뮬레이션에서만 사용하는 확장 타입 */
+interface InternalTestConnectionJob extends TestConnectionJob {
+  estimated_end_at: string;
   resource_schedule: ResourceScheduleItem[];
 }
 
@@ -76,7 +79,7 @@ export const createTestConnectionJob = (
   const totalDuration = RESOURCE_INTERVAL_MS * Math.max(selectedResources.length, 1);
   const estimatedEnd = new Date(now.getTime() + totalDuration);
 
-  const job: TestConnectionJob = {
+  const job: InternalTestConnectionJob = {
     id: generateId(),
     projectId: project.id,
     target_source_id: targetSourceId,
@@ -140,6 +143,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
     return job;
   }
 
+  const internal = job as InternalTestConnectionJob;
   const now = Date.now();
   const store = getStore();
   const project = store.projects.find((p) => p.id === job.projectId);
@@ -159,7 +163,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   const completedResults: TestConnectionResourceResult[] = [];
   let allDone = true;
 
-  for (const scheduleItem of job.resource_schedule) {
+  for (const scheduleItem of internal.resource_schedule) {
     const completeAt = new Date(scheduleItem.complete_at).getTime();
     if (now >= completeAt) {
       // 이미 결과가 있으면 재사용, 없으면 생성

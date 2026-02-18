@@ -258,11 +258,6 @@ const TestConnectionHistoryModal = ({
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleString('ko-KR', {
-      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-    });
-
   return (
     <Modal
       isOpen={isOpen}
@@ -306,41 +301,23 @@ const TestConnectionHistoryModal = ({
         <div className="text-center py-8 text-sm text-gray-400">연결 테스트 내역이 없습니다.</div>
       ) : (
         <div className="space-y-3">
-          {jobs.map((job) => {
-            const isSuccess = job.status === 'SUCCESS';
-            const isFail = job.status === 'FAIL';
-            const failCount = job.resource_results.filter((r) => r.status === 'FAIL').length;
-            return (
-              <HistoryJobCard
-                key={job.id}
-                job={job}
-                isSuccess={isSuccess}
-                isFail={isFail}
-                failCount={failCount}
-                formatDate={formatDate}
-              />
-            );
-          })}
+          {jobs.map((job) => (
+            <HistoryJobCard key={job.id} job={job} />
+          ))}
         </div>
       )}
     </Modal>
   );
 };
 
-const HistoryJobCard = ({
-  job,
-  isSuccess,
-  isFail,
-  failCount,
-  formatDate,
-}: {
-  job: TestConnectionJob;
-  isSuccess: boolean;
-  isFail: boolean;
-  failCount: number;
-  formatDate: (d: string) => string;
-}) => {
+const HistoryJobCard = ({ job }: { job: TestConnectionJob }) => {
   const [expanded, setExpanded] = useState(false);
+  const isSuccess = job.status === 'SUCCESS';
+  const isFail = job.status === 'FAIL';
+  const failCount = isFail ? job.resource_results.filter((r) => r.status === 'FAIL').length : 0;
+  const dateStr = new Date(job.requested_at ?? job.completed_at ?? '').toLocaleString('ko-KR', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
 
   return (
     <div className={cn('border rounded-lg overflow-hidden', isSuccess ? statusColors.success.border : isFail ? statusColors.error.border : statusColors.pending.border)}>
@@ -356,9 +333,7 @@ const HistoryJobCard = ({
             'w-2 h-2 rounded-full',
             isSuccess ? statusColors.success.dot : isFail ? statusColors.error.dot : statusColors.pending.dot,
           )} />
-          <span className="text-sm font-medium text-gray-700">
-            {formatDate(job.requested_at ?? job.completed_at ?? '')}
-          </span>
+          <span className="text-sm font-medium text-gray-700">{dateStr}</span>
           <span className={cn(
             'text-xs font-medium px-2 py-0.5 rounded-full',
             isSuccess ? cn(statusColors.success.bg, statusColors.success.text) : isFail ? cn(statusColors.error.bg, statusColors.error.text) : cn(statusColors.pending.bg, statusColors.pending.text),
