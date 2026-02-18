@@ -6,7 +6,7 @@ import { AppError } from '@/lib/errors';
 import { getConnectionStatus } from '@/app/lib/api';
 import { getResourceTypeLabel } from '@/lib/constants/labels';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { statusColors, getButtonClass, cn } from '@/lib/theme';
+import { statusColors, textColors, bgColors, borderColors, tableStyles, getButtonClass, cn } from '@/lib/theme';
 
 interface LogicalDbStatusPanelProps {
   targetSourceId: number;
@@ -39,15 +39,15 @@ const ProgressBar = ({ totals }: { totals: Totals }) => {
   if (totals.total === 0) return null;
   const pct = (n: number) => `${(n / totals.total) * 100}%`;
   return (
-    <div className="bg-gray-100 rounded-full h-2 overflow-hidden flex">
+    <div className={cn(statusColors.pending.bg, 'rounded-full h-2 overflow-hidden flex')}>
       {totals.success > 0 && (
-        <div className="bg-green-500" style={{ width: pct(totals.success) }} />
+        <div className={statusColors.success.dot} style={{ width: pct(totals.success) }} />
       )}
       {totals.fail > 0 && (
-        <div className="bg-red-500" style={{ width: pct(totals.fail) }} />
+        <div className={statusColors.error.dot} style={{ width: pct(totals.fail) }} />
       )}
       {totals.pending > 0 && (
-        <div className="bg-gray-300" style={{ width: pct(totals.pending) }} />
+        <div className={statusColors.pending.dot} style={{ width: pct(totals.pending) }} />
       )}
     </div>
   );
@@ -55,7 +55,7 @@ const ProgressBar = ({ totals }: { totals: Totals }) => {
 
 const SummaryBar = ({ totals }: { totals: Totals }) => (
   <div className="flex items-center gap-3 text-sm">
-    <span className="text-gray-700 font-medium">전체 {totals.total}</span>
+    <span className={cn(textColors.secondary, 'font-medium')}>전체 {totals.total}</span>
     <span className="flex items-center gap-1">
       <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.success.dot)} />
       <span className={statusColors.success.text}>성공 {totals.success}</span>
@@ -65,8 +65,8 @@ const SummaryBar = ({ totals }: { totals: Totals }) => (
       <span className={statusColors.error.text}>실패 {totals.fail}</span>
     </span>
     <span className="flex items-center gap-1">
-      <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-      <span className="text-gray-400">대기 {totals.pending}</span>
+      <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.pending.dot)} />
+      <span className={statusColors.pending.text}>대기 {totals.pending}</span>
     </span>
   </div>
 );
@@ -82,9 +82,9 @@ const ResourceTable = ({
     projectResources.find((r) => r.resourceId === resourceId);
 
   return (
-    <div className={cn('border border-gray-200 rounded-lg overflow-hidden', items.length >= 5 && 'max-h-[160px] overflow-auto')}>
+    <div className={cn('border', borderColors.default, 'rounded-lg overflow-hidden', items.length >= 5 && 'max-h-[160px] overflow-auto')}>
       <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-xs text-gray-500 font-medium sticky top-0">
+        <thead className={cn(bgColors.muted, 'text-xs', textColors.tertiary, 'font-medium sticky top-0')}>
           <tr>
             <th className="px-3 py-2 text-left">리소스</th>
             <th className="px-3 py-2 text-left">타입</th>
@@ -94,23 +94,23 @@ const ResourceTable = ({
             <th className="px-3 py-2 text-right">대기</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className={tableStyles.body}>
           {items.map((item) => {
             const matched = findResource(item.resource_id);
             return (
               <tr key={item.resource_id}>
-                <td className="px-3 py-2 text-gray-900 truncate max-w-[140px]">
+                <td className={cn('px-3 py-2 truncate max-w-[140px]', textColors.primary)}>
                   {matched?.resourceId ?? item.resource_id}
                 </td>
-                <td className="px-3 py-2 text-gray-500">
+                <td className={cn('px-3 py-2', textColors.tertiary)}>
                   {matched ? getResourceTypeLabel(matched.type as ResourceType) : '-'}
                 </td>
-                <td className="px-3 py-2 text-right text-gray-700">{item.total_database_count}</td>
-                <td className="px-3 py-2 text-right text-gray-700">{item.success_database_count}</td>
-                <td className={cn('px-3 py-2 text-right', item.fail_count > 0 ? `${statusColors.error.text} font-medium` : 'text-gray-400')}>
+                <td className={cn('px-3 py-2 text-right', textColors.secondary)}>{item.total_database_count}</td>
+                <td className={cn('px-3 py-2 text-right', textColors.secondary)}>{item.success_database_count}</td>
+                <td className={cn('px-3 py-2 text-right', item.fail_count > 0 ? `${statusColors.error.text} font-medium` : textColors.quaternary)}>
                   {item.fail_count}
                 </td>
-                <td className={cn('px-3 py-2 text-right', item.pending_count > 0 ? 'text-gray-400 font-medium' : 'text-gray-400')}>
+                <td className={cn('px-3 py-2 text-right', item.pending_count > 0 ? `${statusColors.pending.text} font-medium` : textColors.quaternary)}>
                   {item.pending_count}
                 </td>
               </tr>
@@ -156,7 +156,7 @@ export const LogicalDbStatusPanel = ({
   const title = '리소스에 연결된 데이터베이스';
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className={cn('border', borderColors.default, 'rounded-lg overflow-hidden')}>
       {/* Agent 비정상 경고 */}
       {panelState === 'success' && data && !data.agent_running && (
         <div className={cn('m-3 p-3 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
@@ -167,12 +167,12 @@ export const LogicalDbStatusPanel = ({
       )}
 
       <div className="p-4 space-y-3">
-        <p className="text-sm font-semibold text-gray-900">{title}</p>
+        <p className={cn('text-sm font-semibold', textColors.primary)}>{title}</p>
 
         {/* idle */}
         {panelState === 'idle' && (
           <div className="space-y-3">
-            <p className="text-sm text-gray-500">
+            <p className={cn('text-sm', textColors.tertiary)}>
               PII Agent가 각 리소스에서 탐지한 데이터베이스의 연결 상태를 확인할 수 있습니다.
             </p>
             <button onClick={fetchData} className={cn(getButtonClass('primary', 'sm'), 'w-full')}>
@@ -183,7 +183,7 @@ export const LogicalDbStatusPanel = ({
 
         {/* loading */}
         {panelState === 'loading' && (
-          <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-500">
+          <div className={cn('flex items-center justify-center gap-2 py-6 text-sm', textColors.tertiary)}>
             <LoadingSpinner />
             연결 상태 조회 중...
           </div>
@@ -196,7 +196,7 @@ export const LogicalDbStatusPanel = ({
             <div className="space-y-3">
               <SummaryBar totals={totals} />
               <ProgressBar totals={totals} />
-              <p className="text-xs text-gray-400">
+              <p className={cn('text-xs', textColors.quaternary)}>
                 조회: {new Date(data.checked_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} (최근 {data.query_period_days}일)
               </p>
               {data.resources.length > 0 && (
