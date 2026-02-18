@@ -2,29 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Resource, SecretKey, needsCredential } from '@/lib/types';
-import type { ProcessGuideStep } from '@/lib/types/process-guide';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { getSecrets, updateResourceCredential, getTestConnectionResults } from '@/app/lib/api';
 import type { TestConnectionJob, TestConnectionResourceResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { ProcessGuideStepCard } from '@/app/components/features/process-status/ProcessGuideStepCard';
 import { statusColors, primaryColors, textColors, getButtonClass, cn } from '@/lib/theme';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 
 // ===== Constants =====
-
-const CONNECTION_TEST_GUIDE_STEP: ProcessGuideStep = {
-  stepNumber: 4,
-  label: '연결 테스트',
-  description: '설치가 완료되었습니다. DB 연결을 테스트하세요.',
-  procedures: [
-    '[Test Connection] 버튼 클릭',
-    '연결 결과 확인 (성공/실패)',
-    '실패 시 Credential 확인 또는 네트워크 점검',
-  ],
-  warnings: ['DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다'],
-};
 
 const TEXT_LINK_CLASS = 'text-sm text-gray-700 hover:text-gray-900 underline underline-offset-2 cursor-pointer';
 
@@ -598,15 +584,23 @@ export const ConnectionTestPanel = ({
 
   return (
     <div className="space-y-4">
-      {/* 1. 가이드 (ProcessGuideStepCard 재활용) */}
-      <ProcessGuideStepCard
-        step={CONNECTION_TEST_GUIDE_STEP}
-        status="current"
-        defaultExpanded
-      />
-
-      {/* 2. 액션 영역 */}
+      {/* 연결 테스트 — 가이드 + 액션 통합 카드 */}
       <div className="bg-white rounded-lg shadow-sm p-5 space-y-4">
+        {/* 가이드 안내 */}
+        <div className={cn('p-3 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
+          <p className={cn('text-sm font-medium mb-2', statusColors.info.textDark)}>
+            설치가 완료되었습니다. DB 연결을 테스트하세요.
+          </p>
+          <ol className={cn('text-sm list-decimal list-inside space-y-0.5', statusColors.info.textDark)}>
+            <li>[연결 테스트 수행] 버튼 클릭</li>
+            <li>연결 결과 확인 (성공/실패)</li>
+            <li>실패 시 Credential 확인 또는 네트워크 점검</li>
+          </ol>
+          <p className={cn('text-xs mt-2', statusColors.warning.text)}>
+            ⚠ DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다
+          </p>
+        </div>
+
         {/* Primary CTA */}
         <button
           onClick={handleTriggerClick}
