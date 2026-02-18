@@ -2,7 +2,7 @@
 
 import { Modal } from '@/app/components/ui/Modal';
 import type { ApprovalHistoryResponse } from '@/app/lib/api';
-import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors } from '@/lib/theme';
+import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors, tableStyles } from '@/lib/theme';
 
 type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
 
@@ -69,7 +69,7 @@ export const ApprovalRequestDetailModal = ({
                     <th className={cn('px-3 py-2 text-left text-xs font-medium', textColors.tertiary)}>Endpoint</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className={tableStyles.body}>
                   {selectedResources.map((r) => (
                     <tr key={r.resource_id}>
                       <td className={cn('px-3 py-2 font-mono text-xs', textColors.secondary)}>{r.resource_id}</td>
