@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
+import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
@@ -26,10 +26,6 @@ type ProcessTabType = 'status' | 'history';
 interface ProcessStatusCardProps {
   project: Project;
   onProjectUpdate?: (project: Project) => void;
-  onTestConnection?: () => void;
-  testLoading?: boolean;
-  credentials?: SecretKey[];
-  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   approvalModalOpen?: boolean;
   onApprovalModalClose?: () => void;
   onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
@@ -50,10 +46,6 @@ const getProgress = (project: Project) => {
 export const ProcessStatusCard = ({
   project,
   onProjectUpdate,
-  onTestConnection,
-  testLoading,
-  credentials = [],
-  onCredentialChange,
   approvalModalOpen = false,
   onApprovalModalClose,
   onApprovalSubmit,
@@ -246,12 +238,8 @@ export const ProcessStatusCard = ({
                   currentStep === ProcessStatus.CONNECTION_VERIFIED ||
                   currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
                   <ConnectionTestPanel
-                    connectionTestHistory={project.connectionTestHistory || []}
-                    credentials={credentials}
+                    targetSourceId={project.targetSourceId}
                     selectedResources={selectedResources}
-                    onTestConnection={onTestConnection}
-                    testLoading={testLoading}
-                    onCredentialChange={onCredentialChange}
                   />
                 )}
               </div>
