@@ -105,17 +105,6 @@ export const getLatestJob = (projectId: string): TestConnectionJob | undefined =
   return calculateJobStatus(jobs[0]);
 };
 
-export const getLastSuccessJob = (projectId: string): TestConnectionJob | undefined => {
-  const store = getStore();
-  const jobs = store.testConnectionJobs
-    .filter((j) => j.projectId === projectId)
-    .map(calculateJobStatus)
-    .filter((j) => j.status === 'SUCCESS')
-    .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
-
-  return jobs[0];
-};
-
 export const getJobHistory = (
   projectId: string,
   page: number,

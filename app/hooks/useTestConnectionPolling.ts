@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   triggerTestConnection,
   getTestConnectionLatest,
-  getTestConnectionLastSuccess,
 } from '@/app/lib/api';
 import type { TestConnectionJob } from '@/app/lib/api';
 import type { AppError } from '@/lib/errors';
@@ -11,20 +10,9 @@ import type { AppError } from '@/lib/errors';
 
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
 
-export interface UseTestConnectionPollingOptions {
-  /** 폴링 간격 (ms). 기본값 4000 */
-  interval?: number;
-  /** 완료 시 콜백 */
-  onComplete?: (job: TestConnectionJob) => void;
-  /** 에러 콜백 */
-  onError?: (error: AppError) => void;
-}
-
 export interface UseTestConnectionPollingReturn {
   latestJob: TestConnectionJob | null;
-  lastSuccessJob: TestConnectionJob | null;
   uiState: TestConnectionUIState;
-  isPolling: boolean;
   loading: boolean;
   triggerError: string | null;
   hasHistory: boolean;
@@ -35,27 +23,15 @@ export interface UseTestConnectionPollingReturn {
 
 export const useTestConnectionPolling = (
   targetSourceId: number,
-  options: UseTestConnectionPollingOptions = {},
+  interval = 4_000,
 ): UseTestConnectionPollingReturn => {
-  const { interval = 4_000, onComplete, onError } = options;
-
   const [latestJob, setLatestJob] = useState<TestConnectionJob | null>(null);
-  const [lastSuccessJob, setLastSuccessJob] = useState<TestConnectionJob | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPolling, setIsPolling] = useState(false);
   const [triggerError, setTriggerError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const prevStatusRef = useRef<TestConnectionJob['status'] | null>(null);
-
-  // 콜백 refs
-  const onCompleteRef = useRef(onComplete);
-  const onErrorRef = useRef(onError);
-  useEffect(() => {
-    onCompleteRef.current = onComplete;
-    onErrorRef.current = onError;
-  }, [onComplete, onError]);
 
   // 폴링 중지
   const stopPolling = useCallback(() => {
@@ -63,7 +39,6 @@ export const useTestConnectionPolling = (
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
-    setIsPolling(false);
   }, []);
 
   // latest 조회
@@ -73,15 +48,6 @@ export const useTestConnectionPolling = (
       if (!mountedRef.current) return null;
 
       setLatestJob(job);
-
-      // PENDING→완료 전환 감지
-      if (prevStatusRef.current === 'PENDING' && job.status !== 'PENDING') {
-        onCompleteRef.current?.(job);
-        // 성공이면 lastSuccess도 갱신
-        if (job.status === 'SUCCESS') {
-          setLastSuccessJob(job);
-        }
-      }
       prevStatusRef.current = job.status;
       return job;
     } catch (err) {
@@ -91,7 +57,6 @@ export const useTestConnectionPolling = (
         setLatestJob(null);
         return null;
       }
-      onErrorRef.current?.(appErr);
       return null;
     }
   }, [targetSourceId]);
@@ -99,7 +64,6 @@ export const useTestConnectionPolling = (
   // 폴링 시작
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
-    setIsPolling(true);
 
     pollingRef.current = setInterval(async () => {
       const job = await fetchLatest();
@@ -144,23 +108,15 @@ export const useTestConnectionPolling = (
     const init = async () => {
       setLoading(true);
 
-      // 병렬 조회
-      const [latestResult, lastSuccessResult] = await Promise.allSettled([
-        getTestConnectionLatest(targetSourceId),
-        getTestConnectionLastSuccess(targetSourceId),
-      ]);
+      try {
+        const job = await getTestConnectionLatest(targetSourceId);
+        if (cancelled || !mountedRef.current) return;
 
-      if (cancelled || !mountedRef.current) return;
-
-      // latest
-      if (latestResult.status === 'fulfilled') {
-        const job = latestResult.value;
         setLatestJob(job);
         prevStatusRef.current = job.status;
 
         // 진행 중이면 자동 polling
         if (job.status === 'PENDING' && !pollingRef.current) {
-          setIsPolling(true);
           pollingRef.current = setInterval(async () => {
             const newJob = await fetchLatest();
             if (newJob && newJob.status !== 'PENDING') {
@@ -168,19 +124,12 @@ export const useTestConnectionPolling = (
             }
           }, interval);
         }
-      } else {
+      } catch {
         // 404 등 → 이력 없음
-        setLatestJob(null);
+        if (!cancelled) setLatestJob(null);
       }
 
-      // lastSuccess
-      if (lastSuccessResult.status === 'fulfilled') {
-        setLastSuccessJob(lastSuccessResult.value);
-      } else {
-        setLastSuccessJob(null);
-      }
-
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     };
 
     init();
@@ -210,9 +159,7 @@ export const useTestConnectionPolling = (
 
   return {
     latestJob,
-    lastSuccessJob,
     uiState,
-    isPolling,
     loading,
     triggerError,
     hasHistory,
