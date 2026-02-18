@@ -78,6 +78,9 @@ export const ProcessStatusCard = ({
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
 
+  // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
+  const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
+
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableOnProjectUpdate = useCallback(
@@ -106,6 +109,7 @@ export const ProcessStatusCard = ({
     const poll = async () => {
       try {
         const status = await getProcessStatus(project.targetSourceId);
+        setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
         if (status.process_status !== expectedBff) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
@@ -114,6 +118,9 @@ export const ProcessStatusCard = ({
         // polling failure ignored
       }
     };
+
+    // 마운트 시 즉시 1회 조회
+    poll();
 
     pollRef.current = setInterval(poll, 10_000);
     return () => {
@@ -209,12 +216,16 @@ export const ProcessStatusCard = ({
                   <ApprovalWaitingCard
                     targetSourceId={project.targetSourceId}
                     onCancelSuccess={handleInstallComplete}
+                    hasConfirmedIntegration={hasConfirmedIntegration}
                   />
                 )}
 
                 {currentStep === ProcessStatus.INSTALLING && (
                   <>
-                  <ApprovalApplyingBanner />
+                  <ApprovalApplyingBanner
+                    targetSourceId={project.targetSourceId}
+                    hasConfirmedIntegration={hasConfirmedIntegration}
+                  />
                   {project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
