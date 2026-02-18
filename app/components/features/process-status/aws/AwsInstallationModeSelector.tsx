@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
 import { setAwsInstallationMode } from '@/app/lib/api/aws';
+import { cn, statusColors, primaryColors, getButtonClass } from '@/lib/theme';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import type { AwsInstallationMode, Project } from '@/lib/types';
@@ -60,7 +61,7 @@ export const AwsInstallationModeSelector = ({
           {/* 카드 그리드 */}
           <div className="grid grid-cols-2 gap-6">
             {/* 자동 설치 카드 */}
-            <div className="border-2 border-blue-200 rounded-lg p-5 hover:border-blue-400 transition-colors bg-blue-50/30 flex flex-col">
+            <div className={cn(`border-2 rounded-lg p-5 hover:border-blue-400 transition-colors bg-blue-50/30 flex flex-col`, statusColors.info.borderLight)}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">⚡</span>
                 <h3 className="text-base font-semibold text-gray-900">자동 설치</h3>
@@ -81,7 +82,7 @@ export const AwsInstallationModeSelector = ({
                 <button
                   type="button"
                   onClick={() => roleGuideModal.open()}
-                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  className={`text-sm ${primaryColors.text} ${primaryColors.textHover} hover:underline`}
                 >
                   Role 등록 가이드
                 </button>
@@ -90,7 +91,7 @@ export const AwsInstallationModeSelector = ({
                   type="button"
                   onClick={() => handleSelectMode('AUTO')}
                   disabled={selecting !== null}
-                  className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={cn(getButtonClass('primary'), 'w-full text-sm')}
                 >
                   {selecting === 'AUTO' ? '선택 중...' : '자동 설치 선택'}
                 </button>

@@ -10,22 +10,17 @@
 // =============================================================================
 
 /**
- * 기본 색상
- * - primary: 주요 액션, 링크, 강조
- * - secondary: 보조 액션
+ * Primary 색상 — 주요 액션, 링크, 강조에 사용
+ * 모든 값이 완성된 Tailwind 클래스 (동적 조합 금지)
  */
-export const colors = {
-  primary: {
-    base: 'blue-600',
-    hover: 'blue-700',
-    light: 'blue-100',
-    text: 'blue-600',
-  },
-  secondary: {
-    base: 'gray-100',
-    hover: 'gray-200',
-    text: 'gray-700',
-  },
+export const primaryColors = {
+  bg: 'bg-[#0064FF]',
+  bgHover: 'hover:bg-[#0050D6]',
+  bgLight: 'bg-[#E8F1FF]',
+  text: 'text-[#0064FF]',
+  textHover: 'hover:text-[#0050D6]',
+  border: 'border-[#0064FF]',
+  focusRing: 'focus:ring-[#0064FF]',
 } as const;
 
 /**
@@ -67,10 +62,13 @@ export const statusColors = {
   },
   info: {
     bg: 'bg-blue-100',
+    bgLight: 'bg-blue-50',
     text: 'text-blue-500',
     textDark: 'text-blue-800',
     border: 'border-blue-300',
+    borderLight: 'border-blue-200',
     dot: 'bg-blue-500',
+    ring: 'ring-blue-200',
   },
 } as const;
 
@@ -101,7 +99,7 @@ export const textColors = {
  */
 export const bgColors = {
   muted: 'bg-gray-50',
-  primary: 'bg-blue-500',
+  primary: 'bg-[#0064FF]',
 } as const;
 
 /**
@@ -130,7 +128,7 @@ export const interactiveColors = {
 export const buttonStyles = {
   base: 'px-4 py-2 rounded-lg font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed',
   variants: {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow',
+    primary: 'bg-[#0064FF] text-white hover:bg-[#0050D6] shadow-sm hover:shadow',
     secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
     danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow',
     success: 'bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow',
@@ -162,7 +160,7 @@ export const cardStyles = {
  * 입력 필드 스타일
  */
 export const inputStyles = {
-  base: 'w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow',
+  base: 'w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent transition-shadow',
   error: 'border-red-300 bg-red-50 text-red-700 focus:ring-red-500',
   success: 'border-green-300 bg-green-50',
 } as const;
