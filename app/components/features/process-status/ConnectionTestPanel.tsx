@@ -585,7 +585,11 @@ export const ConnectionTestPanel = ({
   return (
     <div className="space-y-4">
       {/* 연결 테스트 — 가이드 + 액션 통합 카드 */}
-      <div className="bg-white rounded-lg shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h3 className={cn('text-base font-semibold', textColors.primary)}>연결 테스트</h3>
+        </div>
+        <div className="p-5 space-y-4">
         {/* 가이드 안내 */}
         <div className={cn('p-3 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
           <p className={cn('text-sm font-medium mb-2', statusColors.info.textDark)}>
@@ -636,6 +640,7 @@ export const ConnectionTestPanel = ({
             모든 연결 내역 확인하러 가기 →
           </button>
         )}
+        </div>
       </div>
 
       {/* Modals */}
