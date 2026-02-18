@@ -150,6 +150,7 @@ export const SduProjectPage = ({
     };
 
     fetchInitial();
+  // s3Poller/installPoller는 usePolling 내부에서 ref로 안정화되므로 deps에서 제외
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.targetSourceId]);
 
