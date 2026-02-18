@@ -59,22 +59,17 @@ export const AdminDashboard = () => {
 
   useEffect(() => {
     if (!selectedService) return;
-    const fetchProjects = async () => {
+    const fetchServiceData = async () => {
       setLoading(true);
-      const data = await getProjects(selectedService);
-      setProjects(data);
+      const [projectsData, permissionsData] = await Promise.all([
+        getProjects(selectedService),
+        getPermissions(selectedService),
+      ]);
+      setProjects(projectsData);
+      setPermissions(permissionsData);
       setLoading(false);
     };
-    fetchProjects();
-  }, [selectedService]);
-
-  useEffect(() => {
-    if (!selectedService) return;
-    const fetchPermissions = async () => {
-      const data = await getPermissions(selectedService);
-      setPermissions(data);
-    };
-    fetchPermissions();
+    fetchServiceData();
   }, [selectedService]);
 
   const refreshProjects = async () => {

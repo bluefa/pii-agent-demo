@@ -1,0 +1,54 @@
+/**
+ * 기존 mock 핸들러(NextResponse 반환)를 BffClient 인터페이스로 래핑한다.
+ * mock 비즈니스 로직(인증, 상태 전이, 검증)을 그대로 재사용하면서
+ * NextResponse → 순수 데이터로 변환만 수행한다.
+ */
+import type { NextResponse } from 'next/server';
+import type { BffClient } from '@/lib/bff/types';
+import type { Project, SecretKey } from '@/lib/types';
+import type { CurrentUser } from '@/app/lib/api';
+import { BffError } from '@/lib/bff/errors';
+import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
+import { mockProjects } from '@/lib/api-client/mock/projects';
+import { mockUsers } from '@/lib/api-client/mock/users';
+
+async function unwrap<T>(response: NextResponse): Promise<T> {
+  const data = await response.json();
+  if (!response.ok) {
+    throw new BffError(
+      response.status,
+      (data as { error?: string }).error ?? 'UNKNOWN',
+      (data as { message?: string }).message ?? `HTTP ${response.status}`,
+    );
+  }
+  return data as T;
+}
+
+export const mockBff: BffClient = {
+  targetSources: {
+    get: async (id) => {
+      const res = await mockTargetSources.get(String(id));
+      const data = await unwrap<{ targetSource: Project }>(res);
+      return data.targetSource;
+    },
+
+    secrets: async (id) => {
+      const res = await mockProjects.credentials(String(id));
+      const data = await unwrap<{
+        credentials: Array<{ name: string; databaseType?: string; createdAt: string }>;
+      }>(res);
+      return data.credentials.map((c): SecretKey => ({
+        name: c.name,
+        createTimeStr: c.createdAt,
+      }));
+    },
+  },
+
+  users: {
+    me: async () => {
+      const res = await mockUsers.getMe();
+      const data = await unwrap<{ user: CurrentUser }>(res);
+      return data.user;
+    },
+  },
+};
