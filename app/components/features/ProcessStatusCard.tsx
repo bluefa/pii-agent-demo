@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
+import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
 import { TerraformStatusModal } from './TerraformStatusModal';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
@@ -26,10 +26,6 @@ type ProcessTabType = 'status' | 'history';
 interface ProcessStatusCardProps {
   project: Project;
   onProjectUpdate?: (project: Project) => void;
-  onTestConnection?: () => void;
-  testLoading?: boolean;
-  credentials?: SecretKey[];
-  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   approvalModalOpen?: boolean;
   onApprovalModalClose?: () => void;
   onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
@@ -50,10 +46,6 @@ const getProgress = (project: Project) => {
 export const ProcessStatusCard = ({
   project,
   onProjectUpdate,
-  onTestConnection,
-  testLoading,
-  credentials = [],
-  onCredentialChange,
   approvalModalOpen = false,
   onApprovalModalClose,
   onApprovalSubmit,
@@ -128,8 +120,8 @@ export const ProcessStatusCard = ({
     : undefined;
   const guide = getProcessGuide(project.cloudProvider, guideVariant);
 
-  // 설치 완료 핸들러 — 설치 인라인이 완료를 감지하면 프로젝트 상태를 갱신
-  const handleInstallComplete = async () => {
+  // 프로젝트 상태 갱신 — 설치 완료, credential 변경 등 서버 데이터 변경 후 호출
+  const refreshProject = async () => {
     try {
       const updatedProject = await getProject(project.targetSourceId);
       if (updatedProject) {
@@ -214,17 +206,17 @@ export const ProcessStatusCard = ({
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={project.resources}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'AWS' ? (
                     <AwsInstallationInline
                       targetSourceId={project.targetSourceId}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'GCP' ? (
                     <GcpInstallationInline
                       targetSourceId={project.targetSourceId}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : (
                     <button
@@ -246,12 +238,9 @@ export const ProcessStatusCard = ({
                   currentStep === ProcessStatus.CONNECTION_VERIFIED ||
                   currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
                   <ConnectionTestPanel
-                    connectionTestHistory={project.connectionTestHistory || []}
-                    credentials={credentials}
+                    targetSourceId={project.targetSourceId}
                     selectedResources={selectedResources}
-                    onTestConnection={onTestConnection}
-                    testLoading={testLoading}
-                    onCredentialChange={onCredentialChange}
+                    onResourceUpdate={refreshProject}
                   />
                 )}
               </div>
