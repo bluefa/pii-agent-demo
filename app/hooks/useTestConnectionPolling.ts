@@ -116,13 +116,8 @@ export const useTestConnectionPolling = (
         prevStatusRef.current = job.status;
 
         // 진행 중이면 자동 polling
-        if (job.status === 'PENDING' && !pollingRef.current) {
-          pollingRef.current = setInterval(async () => {
-            const newJob = await fetchLatest();
-            if (newJob && newJob.status !== 'PENDING') {
-              stopPolling();
-            }
-          }, interval);
+        if (job.status === 'PENDING') {
+          startPolling();
         }
       } catch {
         // 404 등 → 이력 없음
