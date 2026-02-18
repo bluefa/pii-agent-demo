@@ -191,13 +191,31 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   if (allDone) {
     // 모든 리소스 완료 → 전체 상태 결정
     const hasFailure = completedResults.some((r) => r.status === 'FAIL');
+    const finalStatus = hasFailure ? 'FAIL' : 'SUCCESS';
+    const completedAt = new Date().toISOString();
     const completed: TestConnectionJob = {
       ...job,
-      status: hasFailure ? 'FAIL' : 'SUCCESS',
-      completed_at: new Date().toISOString(),
+      status: finalStatus,
+      completed_at: completedAt,
       resource_results: completedResults,
     };
     updateJobInStore(completed);
+
+    // SUCCESS → 프로세스 상태 전환 (WAITING_CONNECTION_TEST → CONNECTION_VERIFIED)
+    if (finalStatus === 'SUCCESS') {
+      project.status.connectionTest = {
+        status: 'PASSED',
+        lastTestedAt: completedAt,
+        passedAt: completedAt,
+      };
+    } else {
+      project.status.connectionTest = {
+        ...project.status.connectionTest,
+        status: 'FAILED',
+        lastTestedAt: completedAt,
+      };
+    }
+
     return completed;
   }
 
@@ -245,6 +263,14 @@ const updateJobInStore = (job: TestConnectionJob): void => {
   if (index >= 0) {
     store.testConnectionJobs[index] = job;
   }
+};
+
+// ===== Job Cleanup =====
+
+/** 프로세스 재시작 시 기존 연결 테스트 내역 전체 삭제 */
+export const clearJobHistory = (projectId: string): void => {
+  const store = getStore();
+  store.testConnectionJobs = store.testConnectionJobs.filter((j) => j.projectId !== projectId);
 };
 
 // ===== Public Response Helpers =====

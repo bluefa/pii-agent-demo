@@ -281,7 +281,12 @@ export const mockConfirm = {
       installation: autoApprovalResult.shouldAutoApprove
         ? { status: 'IN_PROGRESS' }
         : { status: 'PENDING' },
+      // 프로세스 재시작 시 연결 테스트 상태 초기화
+      connectionTest: { status: 'NOT_TESTED' },
     };
+
+    // 기존 연결 테스트 내역 삭제
+    tcFns.clearJobHistory(projectId);
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
     const actor = { id: user.id, name: user.name };
