@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Project, ProcessStatus, SecretKey, needsCredential } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
   updateResourceCredential,
-  runConnectionTest,
   getProject,
-  ResourceCredentialInput,
 } from '@/app/lib/api';
 import {
   getIdcInstallationStatus as fetchIdcInstallationStatus,
@@ -37,8 +35,6 @@ export const IdcProjectPage = ({
 }: IdcProjectPageProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
-
   // IDC-specific states
   const [showIdcResourceInput, setShowIdcResourceInput] = useState(false);
   const [idcInstallationStatus, setIdcInstallationStatus] = useState<IdcInstallationStatusType | null>(null);
@@ -82,33 +78,6 @@ export const IdcProjectPage = ({
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
-    }
-  };
-
-  const handleTestConnection = async () => {
-    const selectedResources = project.resources.filter((r) => r.isSelected);
-    const missingCredentials = selectedResources.filter(
-      (r) => needsCredential(r.databaseType) && !r.selectedCredentialId
-    );
-
-    if (missingCredentials.length > 0) {
-      alert(`다음 리소스에 Credential을 선택해주세요:\n${missingCredentials.map((r) => r.resourceId).join('\n')}`);
-      return;
-    }
-
-    try {
-      setTestLoading(true);
-      const resourceCredentials: ResourceCredentialInput[] = selectedResources.map((r) => ({
-        resourceId: r.id,
-        credentialId: r.selectedCredentialId,
-      }));
-      await runConnectionTest(project.targetSourceId, resourceCredentials);
-      const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
-    } finally {
-      setTestLoading(false);
     }
   };
 
@@ -265,12 +234,10 @@ export const IdcProjectPage = ({
             idcInstallationStatus={idcInstallationStatus}
             showResourceInput={showIdcResourceInput}
             idcActionLoading={submitting}
-            testLoading={testLoading}
             hasPendingResources={hasPendingResources}
             onShowResourceInput={() => setShowIdcResourceInput(true)}
             onConfirmFirewall={handleIdcConfirmFirewall}
             onRetry={handleIdcRetry}
-            onTestConnection={handleTestConnection}
           />
         </div>
 
