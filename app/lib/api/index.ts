@@ -1,4 +1,4 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionTestResult, ConnectionTestHistory, ConnectionStatusResponse } from '@/lib/types';
+import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionStatusResponse } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchJson } from '@/lib/fetch-json';
 
@@ -274,33 +274,68 @@ export const getProcessStatus = async (
 ): Promise<ProcessStatusResponse> =>
   fetchJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
-// ===== Connection Test API =====
+// ===== Connection Test API (Async) =====
 
 export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
   fetchJson<SecretKey[]>(`/api/v1/target-sources/${targetSourceId}/secrets`);
 
-export interface ResourceCredentialInput {
-  resourceId: string;
-  credentialId?: string;
-}
-
-export interface ConnectionTestResponse {
+export interface TestConnectionTriggerResponse {
   success: boolean;
-  results: ConnectionTestResult[];
-  history: ConnectionTestHistory;
+  id: string;
 }
 
-// 연결 테스트 — v1
-export const runConnectionTest = async (
-  targetSourceId: number,
-  resourceCredentials: ResourceCredentialInput[]
-): Promise<ConnectionTestResponse> =>
-  fetchJson<ConnectionTestResponse>(
+export type TestConnectionStatus = 'PENDING' | 'SUCCESS' | 'FAIL';
+export type TestConnectionErrorStatus = 'AUTH_FAIL' | 'CONNECTION_FAIL' | 'PERMISSION_DENIED';
+
+export interface TestConnectionResourceResult {
+  resource_id: string;
+  resource_type: string;
+  status: TestConnectionStatus;
+  error_status: TestConnectionErrorStatus | null;
+  guide: string | null;
+  agent_id: string | null;
+}
+
+export interface TestConnectionJob {
+  id: string;
+  target_source_id: number;
+  status: TestConnectionStatus;
+  requested_at: string | null;
+  completed_at: string | null;
+  requested_by: string;
+  resource_results: TestConnectionResourceResult[];
+}
+
+export interface TestConnectionResultsResponse {
+  content: TestConnectionJob[];
+  page: { totalElements: number; totalPages: number; number: number; size: number };
+}
+
+// 비동기 연결 테스트 트리거 — 202 Accepted
+export const triggerTestConnection = async (
+  targetSourceId: number
+): Promise<TestConnectionTriggerResponse> =>
+  fetchJson<TestConnectionTriggerResponse>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection`,
-    {
-      method: 'POST',
-      body: { resourceCredentials },
-    },
+    { method: 'POST' },
+  );
+
+// 최근 연결 테스트 결과 (polling용) — 404 if none
+export const getTestConnectionLatest = async (
+  targetSourceId: number
+): Promise<TestConnectionJob> =>
+  fetchJson<TestConnectionJob>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest`,
+  );
+
+// 연결 테스트 이력 (pagination)
+export const getTestConnectionResults = async (
+  targetSourceId: number,
+  page = 0,
+  size = 10,
+): Promise<TestConnectionResultsResponse> =>
+  fetchJson<TestConnectionResultsResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/results?page=${page}&size=${size}`,
   );
 
 // Credential 갱신 — v1
