@@ -1,6 +1,6 @@
 import { bff } from '@/lib/bff/client';
-import { ProjectDetail } from './ProjectDetail';
-import { ErrorState } from './common';
+import { ProjectDetail } from '@/app/projects/[projectId]/ProjectDetail';
+import { ErrorState } from '@/app/projects/[projectId]/common';
 
 interface PageProps {
   params: Promise<{ projectId: string }>;
