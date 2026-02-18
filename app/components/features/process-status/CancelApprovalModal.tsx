@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { cancelApprovalRequest } from '@/app/lib/api';
-import { cn, statusColors, getButtonClass } from '@/lib/theme';
+import { cn, statusColors, getButtonClass, textColors } from '@/lib/theme';
 
 interface CancelApprovalModalProps {
   isOpen: boolean;
@@ -58,8 +58,8 @@ export const CancelApprovalModal = ({
       }
     >
       <div className="space-y-3">
-        <p className="text-gray-700">승인 요청을 취소하시겠습니까?</p>
-        <p className="text-sm text-gray-500">
+        <p className={textColors.secondary}>승인 요청을 취소하시겠습니까?</p>
+        <p className={cn('text-sm', textColors.tertiary)}>
           취소 후 리소스를 다시 선택하여 재요청할 수 있습니다.
         </p>
         {error && (
