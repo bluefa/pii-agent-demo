@@ -253,6 +253,13 @@ export const rejectApprovalRequestV1 = async (
     body: { reason },
   });
 
+export const cancelApprovalRequest = async (
+  targetSourceId: number
+): Promise<{ success: boolean }> =>
+  fetchJson<{ success: boolean }>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`, {
+    method: 'POST',
+  });
+
 export type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
 export type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
 

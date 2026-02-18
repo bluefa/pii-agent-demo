@@ -254,7 +254,7 @@ export const AzureProjectPage = ({
           onVmConfigSave={handleVmConfigSave}
         />
 
-        <RejectionAlert project={project} />
+        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-3">
