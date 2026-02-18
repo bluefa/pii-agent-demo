@@ -347,7 +347,7 @@ const ProgressBar = ({
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          <LoadingSpinner size="sm" className={primaryColors.text} />
           <span className="text-gray-700 font-medium">연결 테스트 진행 중...</span>
         </div>
         <span className="text-gray-500">{completed}/{total} 리소스 완료</span>
