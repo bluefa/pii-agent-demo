@@ -2,13 +2,33 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Resource, SecretKey, needsCredential } from '@/lib/types';
+import type { ProcessGuideStep } from '@/lib/types/process-guide';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { getSecrets, updateResourceCredential, getTestConnectionResults } from '@/app/lib/api';
 import type { TestConnectionJob, TestConnectionResourceResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
+import { ProcessGuideStepCard } from '@/app/components/features/process-status/ProcessGuideStepCard';
 import { statusColors, primaryColors, textColors, getButtonClass, cn } from '@/lib/theme';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+
+// ===== Constants =====
+
+const CONNECTION_TEST_GUIDE_STEP: ProcessGuideStep = {
+  stepNumber: 4,
+  label: '연결 테스트',
+  description: '설치가 완료되었습니다. DB 연결을 테스트하세요.',
+  procedures: [
+    '[Test Connection] 버튼 클릭',
+    '연결 결과 확인 (성공/실패)',
+    '실패 시 Credential 확인 또는 네트워크 점검',
+  ],
+  warnings: ['DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다'],
+};
+
+const TEXT_LINK_CLASS = 'text-sm text-gray-700 hover:text-gray-900 underline underline-offset-2 cursor-pointer';
+
+// ===== Types =====
 
 interface ConnectionTestPanelProps {
   targetSourceId: number;
@@ -159,6 +179,51 @@ const CredentialSetupModal = ({
             })}
           </tbody>
         </table>
+      </div>
+    </Modal>
+  );
+};
+
+// ===== Result Detail Modal =====
+
+const ResultDetailModal = ({
+  isOpen,
+  onClose,
+  job,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  job: TestConnectionJob;
+}) => {
+  const failCount = job.resource_results.filter((r) => r.status === 'FAIL').length;
+  const successCount = job.resource_results.filter((r) => r.status === 'SUCCESS').length;
+  const dateStr = new Date(job.completed_at ?? job.requested_at ?? '').toLocaleString('ko-KR', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="연결 테스트 결과"
+      subtitle={`${dateStr} · ${successCount}개 성공${failCount > 0 ? `, ${failCount}개 실패` : ''}`}
+      size="lg"
+      icon={
+        failCount > 0 ? (
+          <svg className={cn('w-5 h-5', statusColors.error.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ) : (
+          <svg className={cn('w-5 h-5', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        )
+      }
+    >
+      <div className="max-h-[400px] overflow-auto">
+        {job.resource_results.map((r) => (
+          <ResourceResultRow key={r.resource_id} result={r} />
+        ))}
       </div>
     </Modal>
   );
@@ -330,45 +395,6 @@ const HistoryJobCard = ({
 
 // ===== Sub-components =====
 
-const LastSuccessBar = ({
-  job,
-  onShowDetail,
-}: {
-  job: TestConnectionJob | null;
-  onShowDetail: () => void;
-}) => {
-  if (!job) {
-    return (
-      <div className={cn('px-4 py-3 rounded-lg', statusColors.info.bgLight, 'border', statusColors.info.borderLight)}>
-        <span className="text-sm text-gray-500">아직 성공한 연결 테스트가 없습니다</span>
-      </div>
-    );
-  }
-
-  const date = new Date(job.requested_at ?? job.completed_at ?? '');
-  const resourceCount = job.resource_results.length;
-
-  return (
-    <div className={cn('px-4 py-3 rounded-lg flex items-center justify-between', statusColors.success.bg, 'border', statusColors.success.border)}>
-      <div className="flex items-center gap-2">
-        <span className={cn('w-2 h-2 rounded-full', statusColors.success.dot)} />
-        <span className="text-sm font-medium text-gray-700">
-          {date.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-        </span>
-        <span className="text-sm text-gray-500">
-          성공 ({resourceCount}개 리소스)
-        </span>
-      </div>
-      <button
-        onClick={onShowDetail}
-        className={cn('text-sm font-medium', primaryColors.text, primaryColors.textHover)}
-      >
-        확인하러 가기
-      </button>
-    </div>
-  );
-};
-
 const ProgressBar = ({
   job,
   totalResources,
@@ -395,26 +421,6 @@ const ProgressBar = ({
           style={{ width: `${percent}%` }}
         />
       </div>
-      {/* 진행 중 리소스 결과 미리보기 */}
-      {completed > 0 && (
-        <div className="mt-1 space-y-1">
-          {job.resource_results.map((r) => (
-            <div key={r.resource_id} className="flex items-center gap-2 text-xs">
-              <span className={cn(
-                'w-1.5 h-1.5 rounded-full',
-                r.status === 'SUCCESS' ? statusColors.success.dot : statusColors.error.dot,
-              )} />
-              <span className="text-gray-500 font-mono truncate">{r.resource_id}</span>
-              <span className={cn(
-                'font-medium',
-                r.status === 'SUCCESS' ? statusColors.success.text : statusColors.error.text,
-              )}>
-                {r.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
@@ -458,67 +464,53 @@ const ResourceResultRow = ({ result }: { result: TestConnectionResourceResult })
   );
 };
 
-const ResultCard = ({
+// ===== Result Summary =====
+
+const ResultSummary = ({
   job,
   isShaking,
+  onShowDetail,
 }: {
   job: TestConnectionJob;
   isShaking: boolean;
+  onShowDetail: () => void;
 }) => {
-  const [expanded, setExpanded] = useState(false);
-  const isSuccess = job.status === 'SUCCESS';
+  const successCount = job.resource_results.filter((r) => r.status === 'SUCCESS').length;
   const failCount = job.resource_results.filter((r) => r.status === 'FAIL').length;
-  const totalCount = job.resource_results.length;
+  const isSuccess = job.status === 'SUCCESS';
+  const dateStr = new Date(job.completed_at ?? job.requested_at ?? '').toLocaleString('ko-KR', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 
   return (
-    <div className={cn(
-      'border rounded-lg overflow-hidden',
-      isSuccess ? statusColors.success.border : statusColors.error.border,
-      isShaking && 'animate-shake',
-    )}>
-      {/* 요약 */}
+    <div className={cn('space-y-2', isShaking && 'animate-shake')}>
+      <span className={cn('text-xs font-semibold uppercase tracking-wide', textColors.tertiary)}>최근 테스트 결과</span>
       <div className={cn(
-        'px-4 py-3 flex items-center justify-between',
-        isSuccess ? statusColors.success.bg : statusColors.error.bg,
+        'flex items-center gap-2 px-3 py-2.5 rounded-lg border',
+        isSuccess
+          ? cn(statusColors.success.bg, statusColors.success.border)
+          : cn(statusColors.error.bg, statusColors.error.border),
       )}>
-        <div className="flex items-center gap-2">
-          {isSuccess ? (
-            <svg className={cn('w-5 h-5', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          ) : (
-            <svg className={cn('w-5 h-5', statusColors.error.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          )}
-          <span className={cn('text-sm font-medium', isSuccess ? statusColors.success.text : statusColors.error.text)}>
-            {isSuccess
-              ? `연결 성공 (${totalCount}개 리소스)`
-              : `${failCount}개 리소스 연결 실패 (총 ${totalCount}개)`}
-          </span>
-        </div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className={cn('text-sm font-medium flex items-center gap-1', primaryColors.text)}
-        >
-          모든 리소스 확인하기
-          <svg
-            className={cn('w-4 h-4 transition-transform', expanded && 'rotate-180')}
-            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        {isSuccess ? (
+          <svg className={cn('w-4 h-4 flex-shrink-0', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
+        ) : (
+          <svg className={cn('w-4 h-4 flex-shrink-0', statusColors.error.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        )}
+        <span className={cn('text-sm flex-1', isSuccess ? statusColors.success.textDark : statusColors.error.textDark)}>
+          {isSuccess
+            ? `${successCount}개 성공`
+            : `${successCount}개 성공, ${failCount}개 실패`}
+          <span className="mx-1.5 opacity-50">·</span>
+          <span className="opacity-70">{dateStr}</span>
+        </span>
+        <button onClick={onShowDetail} className={TEXT_LINK_CLASS}>
+          상세 보기 →
         </button>
       </div>
-
-      {/* 리소스 목록 (아코디언) */}
-      {expanded && (
-        <div className="max-h-[300px] overflow-auto">
-          {job.resource_results.map((r) => (
-            <ResourceResultRow key={r.resource_id} result={r} />
-          ))}
-        </div>
-      )}
     </div>
   );
 };
@@ -531,7 +523,6 @@ export const ConnectionTestPanel = ({
 }: ConnectionTestPanelProps) => {
   const {
     latestJob,
-    lastSuccessJob,
     uiState,
     loading,
     triggerError,
@@ -544,7 +535,6 @@ export const ConnectionTestPanel = ({
   const prevUiStateRef = useRef(uiState);
 
   useEffect(() => {
-    // PENDING → SUCCESS/FAIL 전환 시 shake
     if (
       prevUiStateRef.current === 'PENDING' &&
       (uiState === 'SUCCESS' || uiState === 'FAIL')
@@ -556,32 +546,27 @@ export const ConnectionTestPanel = ({
     prevUiStateRef.current = uiState;
   }, [uiState]);
 
-  // 마지막 성공 리소스 상세 토글
-  const [showLastSuccessDetail, setShowLastSuccessDetail] = useState(false);
-
   // Credential 모달 상태
   const [credModalOpen, setCredModalOpen] = useState(false);
   const [credentials, setCredentials] = useState<SecretKey[]>([]);
   const [missingCredResources, setMissingCredResources] = useState<Resource[]>([]);
 
-  // 이력 모달 상태
+  // 모달 상태
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleTriggerClick = useCallback(async () => {
-    // Credential 미설정 리소스 체크
     const missing = selectedResources.filter(
       (r) => needsCredential(r.databaseType) && !r.selectedCredentialId,
     );
 
     if (missing.length > 0) {
-      // Credential 목록 fetch 후 모달 오픈
       try {
         const creds = await getSecrets(targetSourceId);
         setCredentials(creds);
         setMissingCredResources(missing);
         setCredModalOpen(true);
       } catch {
-        // credential 조회 실패 시 그냥 테스트 진행
         trigger();
       }
       return;
@@ -608,84 +593,54 @@ export const ConnectionTestPanel = ({
   const isCompleted = uiState === 'SUCCESS' || uiState === 'FAIL';
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden space-y-0">
-      {/* 1. 마지막 성공 영역 */}
-      <div className="px-4 pt-4">
-        <LastSuccessBar
-          job={lastSuccessJob}
-          onShowDetail={() => setShowLastSuccessDetail(!showLastSuccessDetail)}
-        />
-        {showLastSuccessDetail && lastSuccessJob && (
-          <div className="mt-2 max-h-[200px] overflow-auto border border-gray-200 rounded-lg">
-            {lastSuccessJob.resource_results.map((r) => (
-              <ResourceResultRow key={r.resource_id} result={r} />
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="space-y-4">
+      {/* 1. 가이드 (ProcessGuideStepCard 재활용) */}
+      <ProcessGuideStepCard
+        step={CONNECTION_TEST_GUIDE_STEP}
+        status="current"
+        defaultExpanded
+      />
 
-      {/* 2. 설명 영역 */}
-      <div className="px-4 pt-3">
-        <div className={cn('flex items-start gap-2 p-3 rounded-lg', statusColors.info.bgLight, 'border', statusColors.info.borderLight)}>
-          <svg className={cn('w-4 h-4 mt-0.5 flex-shrink-0', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="text-sm text-gray-600">
-            <p>PII Agent가 설치된 리소스에 정상 접속되는지 확인합니다.</p>
-            <p className="text-gray-500">Credential이 필요한 DB는 사전에 설정해주세요.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. 버튼 영역 */}
-      <div className="px-4 pt-3 flex items-center gap-3">
+      {/* 2. 액션 영역 */}
+      <div className="bg-white rounded-lg shadow-sm p-5 space-y-4">
+        {/* Primary CTA */}
         <button
           onClick={handleTriggerClick}
           disabled={isPending}
           className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
         >
           {isPending && <LoadingSpinner />}
-          {isPending
-            ? '테스트 진행 중...'
-            : hasHistory
-              ? '재실행'
-              : '연결 테스트 실행'}
+          {isPending ? '테스트 진행 중...' : '연결 테스트 수행'}
         </button>
+
+        {/* 트리거 에러 */}
+        {triggerError && (
+          <p className={cn('text-sm', statusColors.error.text)}>{triggerError}</p>
+        )}
+
+        {/* PENDING 진행률 */}
+        {isPending && latestJob && (
+          <ProgressBar job={latestJob} totalResources={selectedResources.length} />
+        )}
+
+        {/* 완료 결과 요약 */}
+        {isCompleted && latestJob && (
+          <ResultSummary
+            job={latestJob}
+            isShaking={isShaking}
+            onShowDetail={() => setDetailModalOpen(true)}
+          />
+        )}
+
+        {/* 이력 텍스트 링크 */}
         {hasHistory && !isPending && (
-          <button
-            onClick={() => setHistoryModalOpen(true)}
-            className={getButtonClass('secondary')}
-          >
-            모든 연결 내역 확인하러 가기
+          <button onClick={() => setHistoryModalOpen(true)} className={TEXT_LINK_CLASS}>
+            모든 연결 내역 확인하러 가기 →
           </button>
         )}
       </div>
 
-      {/* 트리거 에러 */}
-      {triggerError && (
-        <div className="px-4 pt-2">
-          <p className={cn('text-sm', statusColors.error.text)}>{triggerError}</p>
-        </div>
-      )}
-
-      {/* 4. PENDING 진행률 */}
-      {isPending && latestJob && (
-        <div className="px-4 pt-3">
-          <ProgressBar job={latestJob} totalResources={selectedResources.length} />
-        </div>
-      )}
-
-      {/* 5. 완료 결과 */}
-      {isCompleted && latestJob && (
-        <div className="px-4 pt-3">
-          <ResultCard job={latestJob} isShaking={isShaking} />
-        </div>
-      )}
-
-      {/* 하단 패딩 */}
-      <div className="h-4" />
-
-      {/* Credential 설정 모달 */}
+      {/* Modals */}
       <CredentialSetupModal
         isOpen={credModalOpen}
         onClose={() => setCredModalOpen(false)}
@@ -695,7 +650,14 @@ export const ConnectionTestPanel = ({
         onComplete={handleCredentialComplete}
       />
 
-      {/* 연결 테스트 이력 모달 */}
+      {isCompleted && latestJob && (
+        <ResultDetailModal
+          isOpen={detailModalOpen}
+          onClose={() => setDetailModalOpen(false)}
+          job={latestJob}
+        />
+      )}
+
       <TestConnectionHistoryModal
         isOpen={historyModalOpen}
         onClose={() => setHistoryModalOpen(false)}
