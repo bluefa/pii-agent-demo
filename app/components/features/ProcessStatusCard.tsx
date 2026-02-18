@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
-import { TerraformStatusModal } from './TerraformStatusModal';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -15,11 +15,19 @@ import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
-import { ProcessGuideModal } from './process-status/ProcessGuideModal';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { cn, statusColors, primaryColors } from '@/lib/theme';
-import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
-import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
+import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
+
+const TerraformStatusModal = dynamic(() =>
+  import('@/app/components/features/TerraformStatusModal').then(m => ({ default: m.TerraformStatusModal }))
+);
+const ProcessGuideModal = dynamic(() =>
+  import('@/app/components/features/process-status/ProcessGuideModal').then(m => ({ default: m.ProcessGuideModal }))
+);
+const ApprovalRequestModal = dynamic(() =>
+  import('@/app/components/features/process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal }))
+);
 
 type ProcessTabType = 'status' | 'history';
 
