@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import type { ResourceSnapshotItem } from '@/app/lib/api';
-import { cn, statusColors, textColors, bgColors } from '@/lib/theme';
+import { cn, statusColors, textColors, bgColors, tableStyles } from '@/lib/theme';
 
 interface ConfirmedIntegrationCollapseProps {
   targetSourceId: number;
@@ -70,7 +70,7 @@ export const ConfirmedIntegrationCollapse = ({
                   <th className={cn('px-3 py-2 text-left text-xs font-medium', textColors.tertiary)}>Credential</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className={tableStyles.body}>
                 {resources.map((r) => (
                   <tr key={r.resource_id}>
                     <td className={cn('px-3 py-2 font-mono text-xs', textColors.secondary)}>{r.resource_id}</td>
