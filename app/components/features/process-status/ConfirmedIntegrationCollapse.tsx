@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import type { ResourceSnapshotItem } from '@/app/lib/api';
-import { cn, statusColors } from '@/lib/theme';
+import { cn, statusColors, textColors, bgColors } from '@/lib/theme';
 
 interface ConfirmedIntegrationCollapseProps {
   targetSourceId: number;
@@ -58,24 +58,24 @@ export const ConfirmedIntegrationCollapse = ({
       {open && (
         <div className={cn('mt-2 border rounded-lg overflow-hidden', statusColors.pending.border)}>
           {loading ? (
-            <div className="px-3 py-4 text-sm text-gray-500 text-center">불러오는 중...</div>
+            <div className={cn('px-3 py-4 text-sm text-center', textColors.tertiary)}>불러오는 중...</div>
           ) : !resources || resources.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-gray-400 text-center">확정된 연동 정보가 없습니다</div>
+            <div className={cn('px-3 py-4 text-sm text-center', textColors.quaternary)}>확정된 연동 정보가 없습니다</div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className={bgColors.muted}>
                 <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">리소스 ID</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">유형</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Credential</th>
+                  <th className={cn('px-3 py-2 text-left text-xs font-medium', textColors.tertiary)}>리소스 ID</th>
+                  <th className={cn('px-3 py-2 text-left text-xs font-medium', textColors.tertiary)}>유형</th>
+                  <th className={cn('px-3 py-2 text-left text-xs font-medium', textColors.tertiary)}>Credential</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {resources.map((r) => (
                   <tr key={r.resource_id}>
-                    <td className="px-3 py-2 font-mono text-xs text-gray-700">{r.resource_id}</td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{r.resource_type}</td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{r.credential_id || '-'}</td>
+                    <td className={cn('px-3 py-2 font-mono text-xs', textColors.secondary)}>{r.resource_id}</td>
+                    <td className={cn('px-3 py-2 text-xs', textColors.tertiary)}>{r.resource_type}</td>
+                    <td className={cn('px-3 py-2 text-xs', textColors.tertiary)}>{r.credential_id || '-'}</td>
                   </tr>
                 ))}
               </tbody>
