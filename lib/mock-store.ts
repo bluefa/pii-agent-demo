@@ -1,4 +1,5 @@
 import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory, LegacyAwsInstallationStatus, LegacyAwsServiceSettings } from '@/lib/types';
+import type { TestConnectionJob } from '@/lib/mock-test-connection';
 import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings } from '@/lib/mock-data';
 
 type Store = {
@@ -12,6 +13,8 @@ type Store = {
     scanHistory: ScanHistory[];
     // Project History (승인/반려/리소스 변경 이력)
     projectHistory: ProjectHistory[];
+    // Test Connection 비동기 작업
+    testConnectionJobs: TestConnectionJob[];
     // AWS 설치 상태 (projectId → status)
     awsInstallations: Map<string, LegacyAwsInstallationStatus>;
     // AWS 서비스 설정 (serviceCode → settings)
@@ -36,6 +39,8 @@ export const getStore = (): Store => {
             scanHistory: [],
             // Project History
             projectHistory: [],
+            // Test Connection
+            testConnectionJobs: [],
             // AWS 설치 상태 (초기 데이터 로드)
             awsInstallations: new Map(mockAwsInstallations),
             // AWS 서비스 설정 (초기 데이터 로드)

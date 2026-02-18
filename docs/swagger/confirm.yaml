@@ -445,45 +445,6 @@ paths:
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
 
-  /target-sources/{targetSourceId}/test-connection:
-    parameters:
-      - $ref: '#/components/parameters/TargetSourceId'
-    post:
-      tags: [Installation]
-      summary: 연결 테스트 실행
-      operationId: runTestConnection
-      x-expected-duration: "5s ~ 30s"
-      description: |
-        선택된 리소스에 대해 연결 테스트를 실행합니다.
-        연결 테스트 단계(WAITING_CONNECTION_TEST, CONNECTION_VERIFIED, INSTALLATION_COMPLETE)에서만 실행 가능합니다.
-        각 리소스별로 credential을 지정할 수 있습니다.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TestConnectionRequest'
-      responses:
-        '200':
-          description: 연결 테스트 완료
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TestConnectionResponse'
-        '400':
-          description: "연결 테스트 가능한 상태가 아님"
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-              example:
-                error: { code: "VALIDATION_FAILED", message: "연결 테스트가 필요한 상태가 아닙니다." }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
-
 components:
   parameters:
     TargetSourceId:
@@ -921,67 +882,6 @@ components:
           type: string
           nullable: true
           description: "연결할 Credential ID. null이면 연결 해제"
-
-    TestConnectionRequest:
-      type: object
-      required: [resourceCredentials]
-      properties:
-        resourceCredentials:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/ResourceCredentialInput'
-
-    ResourceCredentialInput:
-      type: object
-      required: [resourceId]
-      properties:
-        resourceId:
-          type: string
-          description: "테스트 대상 리소스 식별자"
-        credentialId:
-          type: string
-          nullable: true
-          description: "사용할 Credential ID (선택)"
-
-    TestConnectionResponse:
-      type: object
-      required: [success, results, history]
-      properties:
-        success:
-          type: boolean
-          description: "전체 테스트 성공 여부"
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConnectionTestResultItem'
-        history:
-          $ref: '#/components/schemas/ConnectionTestHistoryEntry'
-
-    ConnectionTestResultItem:
-      type: object
-      required: [resourceId, success]
-      properties:
-        resourceId: { type: string }
-        resourceName: { type: string }
-        resourceType: { type: string }
-        success: { type: boolean }
-        message: { type: string, nullable: true }
-        testedAt: { type: string, format: date-time }
-        credentialId: { type: string, nullable: true }
-        credentialName: { type: string, nullable: true }
-
-    ConnectionTestHistoryEntry:
-      type: object
-      required: [id, executedAt, status, successCount, failCount]
-      properties:
-        id: { type: string }
-        executedAt: { type: string, format: date-time }
-        status:
-          type: string
-          enum: [SUCCESS, FAIL]
-        successCount: { type: integer }
-        failCount: { type: integer }
 
     ErrorResponse:
       type: object

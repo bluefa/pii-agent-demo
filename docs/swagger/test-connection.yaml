@@ -1,0 +1,342 @@
+openapi: 3.0.3
+info:
+  title: Test Connection API
+  version: 1.0.0
+  description: |
+    PII Agent 연결 테스트 API 명세서입니다.
+
+    ### 핵심 특징
+    * **비동기 처리**: 연결 테스트는 최대 10분까지 소요될 수 있으며, POST 요청 후 polling으로 결과를 확인합니다.
+    * **리소스별 개별 결과**: targetSource 내 각 리소스별로 독립적인 status, guide, error_status를 반환합니다.
+    * **이력 관리**: 과거 테스트 결과를 pagination으로 조회하고, 최근/최근 성공 결과를 빠르게 조회할 수 있습니다.
+
+    ### 상태 모델
+    | Status | 설명 |
+    |--------|------|
+    | PENDING | 테스트 진행 중 (= Running) |
+    | SUCCESS | 전체 리소스 연결 성공 |
+    | FAIL | 1개 이상의 리소스 연결 실패 |
+
+    ### 리소스별 에러 유형
+    | error_status | 설명 |
+    |--------------|------|
+    | AUTH_FAIL | 인증 실패 (credential 오류) |
+    | CONNECTION_FAIL | 연결 실패 (네트워크/호스트 문제) |
+    | PERMISSION_DENIED | 권한 부족 |
+
+servers:
+  - url: /api/v1
+    description: v1 Base Path
+
+tags:
+  - name: Test Connection
+    description: 연결 테스트 요청 및 결과 조회
+
+paths:
+  /target-sources/{targetSourceId}/test-connection:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags: [Test Connection]
+      summary: 연결 테스트 실행 (비동기)
+      operationId: requestTestConnection
+      x-expected-duration: "1m ~ 10m"
+      x-polling-interval: "10s"
+      description: |
+        선택된 리소스에 대해 연결 테스트를 비동기로 시작합니다.
+        요청 즉시 `202 Accepted`를 반환하며, 실제 테스트는 백그라운드에서 진행됩니다.
+
+        **polling 방식**: `GET /test-connection/latest`로 status가 `PENDING`이 아닐 때까지 조회합니다.
+
+        **중복 방지**: 이미 PENDING 상태의 테스트가 존재하면 `409 Conflict`를 반환합니다.
+      responses:
+        '202':
+          description: 연결 테스트 요청 수락됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionTriggerResponse'
+              example:
+                success: true
+                id: "tc-20260218-001"
+        '400':
+          description: "연결 테스트 가능한 상태가 아님"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "VALIDATION_FAILED", message: "연결 테스트가 필요한 상태가 아닙니다." }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          description: "이미 진행 중인 연결 테스트가 존재함"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error: { code: "CONFLICT_IN_PROGRESS", message: "현재 연결 테스트가 진행 중입니다." }
+
+  /target-sources/{targetSourceId}/test-connection/results:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+      - name: page
+        in: query
+        required: false
+        schema: { type: integer, default: 0 }
+        description: "페이지 번호 (0부터 시작)"
+      - name: size
+        in: query
+        required: false
+        schema: { type: integer, default: 10 }
+        description: "페이지 당 항목 수"
+    get:
+      tags: [Test Connection]
+      summary: 연결 테스트 결과 목록 조회 (Pagination)
+      operationId: getTestConnectionResults
+      x-expected-duration: "50ms"
+      description: |
+        해당 Target Source의 모든 연결 테스트 결과를 최신순으로 페이지네이션 조회합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionResultsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/test-connection/last-success:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Test Connection]
+      summary: 가장 마지막 성공 결과 조회
+      operationId: getLastSuccessTestConnection
+      x-expected-duration: "50ms"
+      description: |
+        해당 Target Source에서 가장 마지막으로 **성공(SUCCESS)**한 연결 테스트 결과를 조회합니다.
+        성공 이력이 없으면 `404`를 반환합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          description: "Target Source를 찾을 수 없거나, 성공한 연결 테스트 이력이 없음"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                target_source_not_found:
+                  summary: Target Source 없음
+                  value:
+                    error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }
+                no_success_record:
+                  summary: 성공 이력 없음
+                  value:
+                    error: { code: "TEST_CONNECTION_NOT_FOUND", message: "성공한 연결 테스트 이력이 없습니다." }
+
+  /target-sources/{targetSourceId}/test-connection/latest:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags: [Test Connection]
+      summary: 가장 최근 결과 조회 (성공/실패 무관)
+      operationId: getLatestTestConnection
+      x-expected-duration: "50ms"
+      description: |
+        해당 Target Source의 가장 최근 연결 테스트 결과를 조회합니다 (상태 무관).
+        **polling 용도**: POST 후 이 엔드포인트를 주기적으로 호출하여 `status`가 `PENDING`이 아닌지 확인합니다.
+        테스트 이력이 없으면 `404`를 반환합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          description: "Target Source를 찾을 수 없거나, 연결 테스트 이력이 없음"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                target_source_not_found:
+                  summary: Target Source 없음
+                  value:
+                    error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }
+                no_test_record:
+                  summary: 테스트 이력 없음
+                  value:
+                    error: { code: "TEST_CONNECTION_NOT_FOUND", message: "연결 테스트 이력이 없습니다." }
+
+components:
+  parameters:
+    TargetSourceId:
+      name: targetSourceId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  schemas:
+    # --- Trigger Response ---
+    TestConnectionTriggerResponse:
+      type: object
+      required: [success, id]
+      properties:
+        success:
+          type: boolean
+          description: "요청 수락 여부"
+        id:
+          type: string
+          description: "생성된 연결 테스트 작업 ID. polling 시 사용"
+
+    # --- Job (단건 결과) ---
+    TestConnectionJob:
+      type: object
+      description: "연결 테스트 작업의 전체 정보. PENDING 중에는 resource_results가 빈 배열이거나 부분적으로 채워질 수 있습니다."
+      required: [id, target_source_id, status, requested_at, resource_results]
+      properties:
+        id:
+          type: string
+          description: "연결 테스트 작업 고유 ID"
+          example: "tc-20260218-001"
+        target_source_id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/TestConnectionStatus'
+        requested_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "요청 시각. 아직 기록되지 않은 경우 null"
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: "테스트 완료 시각. PENDING 상태에서는 null"
+        requested_by:
+          type: string
+          description: "요청자 ID"
+        resource_results:
+          type: array
+          description: "리소스별 개별 테스트 결과"
+          items:
+            $ref: '#/components/schemas/TestConnectionResourceResult'
+
+    TestConnectionStatus:
+      type: string
+      enum: [PENDING, SUCCESS, FAIL]
+      description: |
+        연결 테스트 상태:
+        - PENDING: 테스트 진행 중 (= Running)
+        - SUCCESS: 모든 리소스 연결 성공
+        - FAIL: 1개 이상의 리소스 연결 실패
+
+    # --- 리소스별 결과 ---
+    TestConnectionResourceResult:
+      type: object
+      required: [resource_id, status]
+      properties:
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+        status:
+          $ref: '#/components/schemas/TestConnectionStatus'
+          description: "리소스 개별 상태 (PENDING, SUCCESS, FAIL)"
+        error_status:
+          $ref: '#/components/schemas/TestConnectionErrorStatus'
+          nullable: true
+          description: "실패 시 에러 유형. SUCCESS/PENDING이면 null"
+        guide:
+          type: string
+          nullable: true
+          description: "리소스별 안내 메시지 (예: credential 재확인 안내, 네트워크 설정 가이드 등)"
+        agent_id:
+          type: string
+          nullable: true
+
+    TestConnectionErrorStatus:
+      type: string
+      enum: [AUTH_FAIL, CONNECTION_FAIL, PERMISSION_DENIED]
+      description: |
+        연결 테스트 실패 유형:
+        - AUTH_FAIL: 인증 실패 (credential 오류)
+        - CONNECTION_FAIL: 연결 실패 (네트워크/호스트 접근 불가)
+        - PERMISSION_DENIED: 권한 부족 (접근 가능하나 권한 없음)
+
+    # --- Pagination Response ---
+    TestConnectionResultsResponse:
+      type: object
+      required: [content, page]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestConnectionJob'
+        page:
+          $ref: '#/components/schemas/PageInfo'
+
+    PageInfo:
+      type: object
+      required: [totalElements, totalPages, number, size]
+      properties:
+        totalElements: { type: integer, example: 5 }
+        totalPages: { type: integer, example: 1 }
+        number: { type: integer, description: "현재 페이지 번호 (0-based)" }
+        size: { type: integer, description: "요청한 페이지 당 항목 수" }
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+
+  responses:
+    Unauthorized:
+      description: "인증 실패"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "UNAUTHORIZED", message: "인증이 필요합니다." }
+    PermissionDenied:
+      description: "인가 실패"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "FORBIDDEN", message: "해당 리소스에 접근할 권한이 없습니다." }
+    TargetSourceNotFound:
+      description: "대상 소스를 찾을 수 없음"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example:
+            error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }

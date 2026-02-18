@@ -7,6 +7,7 @@ export const SWAGGER_SPEC_NAMES = [
   'credential',
   'confirm',
   'logical-db-status',
+  'test-connection',
 ] as const;
 
 export type SwaggerSpecName = (typeof SWAGGER_SPEC_NAMES)[number];
