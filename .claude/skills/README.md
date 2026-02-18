@@ -16,6 +16,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [pr-merge](./pr-merge/SKILL.md) | `/pr-merge` | PR 머지 워크플로우 (squid 지원) | O | code-implementer |
 | [pr-flow](./pr-flow/SKILL.md) | `/pr-flow` | PR 생성+머지+브랜치정리 자동화 | O | code-implementer |
 | [worktree-cleanup](./worktree-cleanup/SKILL.md) | `/worktree-cleanup` | merge 후 worktree/로컬 브랜치 정리 | O | code-implementer |
+| [ux-audit](./ux-audit/SKILL.md) | `/ux-audit` | 기존 UX를 코드에서 분석하여 현황 문서 생성 | - | team-lead |
 | [ux-requirements](./ux-requirements/SKILL.md) | `/ux-requirements` | UI/UX 요구사항 도출 및 명세서 생성 | - | team-lead |
 
 ## 에이전트 (Agents)
@@ -74,6 +75,8 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   │   ├── CONTRACT_VALIDATION.md
 │   │   └── contract-check.rules
 │   ├── worktree-cleanup/
+│   │   └── SKILL.md
+│   ├── ux-audit/
 │   │   └── SKILL.md
 │   └── ux-requirements/
 │       └── SKILL.md
