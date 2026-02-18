@@ -77,6 +77,8 @@ Next.js 14 (App Router) · TypeScript · TailwindCSS · Desktop only · 한국�
 | 코드 리뷰 | `/code-review` | 리뷰 요청 시 |
 | Worktree 설정 | `/worktree` | 수동 |
 | PR 생성·머지 | `/pr`, `/pr-merge` | 수동 |
+| UX 현황 분석 | `/ux-audit` | UX 수정 전 현황 파악 시 |
+| UX 요구사항 도출 | `/ux-requirements` | UI 기능 설계 시 |
 
 ## Git Workflow
 
