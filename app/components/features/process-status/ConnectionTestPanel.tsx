@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Resource, SecretKey, needsCredential } from '@/lib/types';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
-import { getSecrets, updateResourceCredential } from '@/app/lib/api';
+import { getSecrets, updateResourceCredential, getTestConnectionResults } from '@/app/lib/api';
 import type { TestConnectionJob, TestConnectionResourceResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
@@ -60,6 +60,11 @@ const CredentialSetupModal = ({
       title="Credential 설정 필요"
       subtitle="연결 테스트를 실행하려면 아래 리소스에 Credential을 설정해주세요."
       size="lg"
+      icon={
+        <svg className={cn('w-5 h-5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+        </svg>
+      }
       footer={
         <>
           <button onClick={onClose} className={getButtonClass('secondary')}>
@@ -80,7 +85,7 @@ const CredentialSetupModal = ({
         {missingResources.map((resource) => (
           <div
             key={resource.id}
-            className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg"
+            className={cn('flex items-center gap-4 p-3 border rounded-lg', statusColors.pending.border)}
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -119,6 +124,170 @@ const CredentialSetupModal = ({
         ))}
       </div>
     </Modal>
+  );
+};
+
+// ===== Test Connection History Modal =====
+
+const TestConnectionHistoryModal = ({
+  isOpen,
+  onClose,
+  targetSourceId,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  targetSourceId: number;
+}) => {
+  const [jobs, setJobs] = useState<TestConnectionJob[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 5;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    const fetch = async () => {
+      setLoading(true);
+      try {
+        const res = await getTestConnectionResults(targetSourceId, page, PAGE_SIZE);
+        if (cancelled) return;
+        setJobs(res.content);
+        setTotal(res.page.totalElements);
+      } catch {
+        if (!cancelled) setJobs([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetch();
+    return () => { cancelled = true; };
+  }, [isOpen, targetSourceId, page]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleString('ko-KR', {
+      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="연결 테스트 내역"
+      subtitle={total > 0 ? `총 ${total}건` : undefined}
+      size="xl"
+      icon={
+        <svg className={cn('w-5 h-5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      }
+      footer={
+        totalPages > 1 ? (
+          <div className="flex items-center gap-2 w-full justify-center">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className={getButtonClass('ghost', 'sm')}
+            >
+              이전
+            </button>
+            <span className="text-sm text-gray-500">{page + 1} / {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className={getButtonClass('ghost', 'sm')}
+            >
+              다음
+            </button>
+          </div>
+        ) : undefined
+      }
+    >
+      {loading ? (
+        <div className="flex items-center justify-center py-8">
+          <LoadingSpinner />
+          <span className="ml-2 text-sm text-gray-500">내역 로딩 중...</span>
+        </div>
+      ) : jobs.length === 0 ? (
+        <div className="text-center py-8 text-sm text-gray-400">연결 테스트 내역이 없습니다.</div>
+      ) : (
+        <div className="space-y-3">
+          {jobs.map((job) => {
+            const isSuccess = job.status === 'SUCCESS';
+            const isFail = job.status === 'FAIL';
+            const failCount = job.resource_results.filter((r) => r.status === 'FAIL').length;
+            return (
+              <HistoryJobCard
+                key={job.id}
+                job={job}
+                isSuccess={isSuccess}
+                isFail={isFail}
+                failCount={failCount}
+                formatDate={formatDate}
+              />
+            );
+          })}
+        </div>
+      )}
+    </Modal>
+  );
+};
+
+const HistoryJobCard = ({
+  job,
+  isSuccess,
+  isFail,
+  failCount,
+  formatDate,
+}: {
+  job: TestConnectionJob;
+  isSuccess: boolean;
+  isFail: boolean;
+  failCount: number;
+  formatDate: (d: string) => string;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className={cn('border rounded-lg overflow-hidden', isSuccess ? statusColors.success.border : isFail ? statusColors.error.border : statusColors.pending.border)}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={cn(
+          'w-full px-4 py-3 flex items-center justify-between text-left',
+          isSuccess ? statusColors.success.bg : isFail ? statusColors.error.bg : statusColors.pending.bg,
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'w-2 h-2 rounded-full',
+            isSuccess ? statusColors.success.dot : isFail ? statusColors.error.dot : statusColors.pending.dot,
+          )} />
+          <span className="text-sm font-medium text-gray-700">
+            {formatDate(job.requested_at ?? job.completed_at ?? '')}
+          </span>
+          <span className={cn(
+            'text-xs font-medium px-2 py-0.5 rounded-full',
+            isSuccess ? cn(statusColors.success.bg, statusColors.success.text) : isFail ? cn(statusColors.error.bg, statusColors.error.text) : cn(statusColors.pending.bg, statusColors.pending.text),
+          )}>
+            {isSuccess ? '성공' : isFail ? `실패 (${failCount}건)` : '진행 중'}
+          </span>
+        </div>
+        <svg className={cn('w-4 h-4 text-gray-400 transition-transform', expanded && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {expanded && job.resource_results.length > 0 && (
+        <div className="max-h-[200px] overflow-auto">
+          {job.resource_results.map((r) => (
+            <ResourceResultRow key={r.resource_id} result={r} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -358,6 +527,9 @@ export const ConnectionTestPanel = ({
   const [credentials, setCredentials] = useState<SecretKey[]>([]);
   const [missingCredResources, setMissingCredResources] = useState<Resource[]>([]);
 
+  // 이력 모달 상태
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
   const handleTriggerClick = useCallback(async () => {
     // Credential 미설정 리소스 체크
     const missing = selectedResources.filter(
@@ -444,7 +616,7 @@ export const ConnectionTestPanel = ({
         </button>
         {hasHistory && !isPending && (
           <button
-            onClick={() => {/* TODO: 이력 모달 */}}
+            onClick={() => setHistoryModalOpen(true)}
             className={getButtonClass('secondary')}
           >
             모든 연결 내역 확인하러 가기
@@ -484,6 +656,13 @@ export const ConnectionTestPanel = ({
         credentials={credentials}
         targetSourceId={targetSourceId}
         onComplete={handleCredentialComplete}
+      />
+
+      {/* 연결 테스트 이력 모달 */}
+      <TestConnectionHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        targetSourceId={targetSourceId}
       />
     </div>
   );
