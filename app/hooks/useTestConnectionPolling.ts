@@ -137,7 +137,7 @@ export const useTestConnectionPolling = (
         pollingRef.current = null;
       }
     };
-  }, [targetSourceId, interval, fetchLatest, stopPolling]);
+  }, [targetSourceId, interval, fetchLatest, startPolling, stopPolling]);
 
   // UI 상태 계산
   const uiState: TestConnectionUIState = (() => {
