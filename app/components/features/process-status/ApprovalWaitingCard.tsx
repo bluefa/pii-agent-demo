@@ -6,7 +6,7 @@ import { getApprovalHistory } from '@/app/lib/api';
 import type { ApprovalHistoryResponse } from '@/app/lib/api';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { CancelApprovalModal } from './CancelApprovalModal';
-import { cn, statusColors } from '@/lib/theme';
+import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
 type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
 
@@ -48,8 +48,8 @@ export const ApprovalWaitingCard = ({
       )}>
         <div className="flex items-start gap-3">
           {/* 시계 아이콘 */}
-          <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
+            <svg className={cn('w-5 h-5', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
@@ -65,17 +65,13 @@ export const ApprovalWaitingCard = ({
               <button
                 onClick={() => detailModal.open()}
                 disabled={!latestRequest}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                  'bg-white border border-blue-300 text-blue-700 hover:bg-blue-50',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                )}
+                className={getButtonClass('ghost', 'sm')}
               >
                 요청 내용 확인
               </button>
               <button
                 onClick={() => cancelModal.open()}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                className={getButtonClass('secondary', 'sm')}
               >
                 요청 취소
               </button>
