@@ -583,7 +583,7 @@ export const ConnectionTestPanel = ({
   const isCompleted = uiState === 'SUCCESS' || uiState === 'FAIL';
 
   return (
-    <div className="max-w-md space-y-3">
+    <div className="max-w-md bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h4 className={cn('text-sm font-semibold', textColors.primary)}>연결 테스트</h4>
