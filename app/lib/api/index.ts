@@ -328,14 +328,6 @@ export const getTestConnectionLatest = async (
     `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest`,
   );
 
-// 마지막 성공 연결 테스트 — 404 if none
-export const getTestConnectionLastSuccess = async (
-  targetSourceId: number
-): Promise<TestConnectionJob> =>
-  fetchJson<TestConnectionJob>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection/last-success`,
-  );
-
 // 연결 테스트 이력 (pagination)
 export const getTestConnectionResults = async (
   targetSourceId: number,

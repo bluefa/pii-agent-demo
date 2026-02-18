@@ -193,8 +193,6 @@ export const bffClient: ApiClient = {
     testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
     getTestConnectionResults: (projectId, page, size) =>
       proxyGet(`/target-sources/${projectId}/test-connection/results?page=${page}&size=${size}`),
-    getTestConnectionLastSuccess: (projectId) =>
-      proxyGet(`/target-sources/${projectId}/test-connection/last-success`),
     getTestConnectionLatest: (projectId) =>
       proxyGet(`/target-sources/${projectId}/test-connection/latest`),
     getConnectionStatus: (projectId) => proxyGet(`/target-sources/${projectId}/logical-db-status`),
