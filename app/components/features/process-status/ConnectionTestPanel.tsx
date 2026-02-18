@@ -586,38 +586,33 @@ export const ConnectionTestPanel = ({
     <div className="space-y-4">
       {/* 연결 테스트 — 가이드 + 액션 통합 카드 */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className={cn('text-base font-semibold', textColors.primary)}>연결 테스트</h3>
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h3 className={cn('text-sm font-semibold', textColors.primary)}>연결 테스트</h3>
+          {hasHistory && !isPending && (
+            <button onClick={() => setHistoryModalOpen(true)} className={TEXT_LINK_CLASS}>
+              전체 내역 →
+            </button>
+          )}
         </div>
-        <div className="p-5 space-y-4">
-        {/* 가이드 안내 */}
-        <div className={cn('p-3 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
-          <p className={cn('text-sm font-medium mb-2', statusColors.info.textDark)}>
-            설치가 완료되었습니다. DB 연결을 테스트하세요.
-          </p>
-          <ol className={cn('text-sm list-decimal list-inside space-y-0.5', statusColors.info.textDark)}>
-            <li>[연결 테스트 수행] 버튼 클릭</li>
-            <li>연결 결과 확인 (성공/실패)</li>
-            <li>실패 시 Credential 확인 또는 네트워크 점검</li>
-          </ol>
-          <p className={cn('text-xs mt-2', statusColors.warning.text)}>
-            ⚠ DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다
-          </p>
-        </div>
+        <div className="px-4 py-3 space-y-3">
+        {/* 안내 문구 (compact) */}
+        <p className={cn('text-xs', textColors.tertiary)}>
+          DB 연결을 테스트하세요. Credential 미설정 리소스는 테스트 시 설정을 안내합니다.
+        </p>
 
         {/* Primary CTA */}
         <button
           onClick={handleTriggerClick}
           disabled={isPending}
-          className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
+          className={cn(getButtonClass('primary', 'sm'), 'flex items-center gap-2')}
         >
-          {isPending && <LoadingSpinner />}
+          {isPending && <LoadingSpinner size="sm" />}
           {isPending ? '테스트 진행 중...' : '연결 테스트 수행'}
         </button>
 
         {/* 트리거 에러 */}
         {triggerError && (
-          <p className={cn('text-sm', statusColors.error.text)}>{triggerError}</p>
+          <p className={cn('text-xs', statusColors.error.text)}>{triggerError}</p>
         )}
 
         {/* PENDING 진행률 */}
@@ -632,13 +627,6 @@ export const ConnectionTestPanel = ({
             isShaking={isShaking}
             onShowDetail={() => setDetailModalOpen(true)}
           />
-        )}
-
-        {/* 이력 텍스트 링크 */}
-        {hasHistory && !isPending && (
-          <button onClick={() => setHistoryModalOpen(true)} className={TEXT_LINK_CLASS}>
-            모든 연결 내역 확인하러 가기 →
-          </button>
         )}
         </div>
       </div>
