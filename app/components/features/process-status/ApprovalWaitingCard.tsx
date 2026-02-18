@@ -47,7 +47,6 @@ export const ApprovalWaitingCard = ({
         statusColors.info.border,
       )}>
         <div className="flex items-start gap-3">
-          {/* 시계 아이콘 */}
           <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
             <svg className={cn('w-5 h-5', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -60,7 +59,6 @@ export const ApprovalWaitingCard = ({
             <p className={cn('text-sm mt-1', statusColors.info.text)}>
               승인이 완료되면 자동으로 연동이 시작됩니다.
             </p>
-            {/* 액션 버튼 */}
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
@@ -80,14 +78,12 @@ export const ApprovalWaitingCard = ({
         </div>
       </div>
 
-      {/* 요청 상세 모달 */}
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
         request={latestRequest}
       />
 
-      {/* 취소 확인 모달 */}
       <CancelApprovalModal
         isOpen={cancelModal.isOpen}
         onClose={cancelModal.close}
