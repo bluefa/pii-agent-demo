@@ -7,7 +7,8 @@ import { getSecrets, updateResourceCredential, getTestConnectionResults } from '
 import type { TestConnectionJob, TestConnectionResourceResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { statusColors, primaryColors, getButtonClass, cn } from '@/lib/theme';
+import { statusColors, primaryColors, textColors, getButtonClass, cn } from '@/lib/theme';
+import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 
 interface ConnectionTestPanelProps {
   targetSourceId: number;
@@ -81,47 +82,83 @@ const CredentialSetupModal = ({
         </>
       }
     >
-      <div className="space-y-3">
-        {missingResources.map((resource) => (
-          <div
-            key={resource.id}
-            className={cn('flex items-center gap-4 p-3 border rounded-lg', statusColors.pending.border)}
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500 uppercase">
-                  {resource.type}
-                </span>
-                <span className="text-sm text-gray-700 font-mono truncate">
-                  {resource.resourceId}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {resource.databaseType}
-              </p>
-            </div>
-            <select
-              value={selections[resource.id] || ''}
-              onChange={(e) =>
-                setSelections((prev) => ({ ...prev, [resource.id]: e.target.value }))
-              }
-              className={cn(
-                'w-48 px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2',
-                primaryColors.focusRing,
-                selections[resource.id]
-                  ? cn(statusColors.success.border, statusColors.success.bg)
-                  : cn(statusColors.pending.border),
-              )}
-            >
-              <option value="">선택하세요</option>
-              {credentials.map((cred) => (
-                <option key={cred.name} value={cred.name}>
-                  {cred.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
+      {/* 상태 요약 메시지 */}
+      <div className={cn(
+        'mb-4 px-3 py-2 rounded-lg text-sm flex items-center gap-2',
+        allSelected
+          ? cn(statusColors.success.bg, 'border', statusColors.success.border)
+          : 'bg-gray-50 border border-gray-200',
+      )}>
+        <span className={cn(
+          'w-2 h-2 rounded-full',
+          allSelected ? statusColors.success.dot : 'bg-gray-300',
+        )} />
+        <span className={allSelected ? statusColors.success.text : textColors.quaternary}>
+          {allSelected
+            ? `DB Credential 선택 완료되었습니다 (${missingResources.length}건)`
+            : `아직 DB Credential이 미선택되었습니다 (${Object.keys(selections).filter((k) => selections[k]).length}/${missingResources.length})`}
+        </span>
+      </div>
+
+      {/* 리소스 테이블 */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className={cn('px-4 py-2 text-left text-xs font-medium', textColors.tertiary)}>리소스</th>
+              <th className={cn('px-4 py-2 text-left text-xs font-medium', textColors.tertiary)}>DB 유형</th>
+              <th className={cn('px-4 py-2 text-left text-xs font-medium', textColors.tertiary)}>Credential</th>
+              <th className={cn('px-4 py-2 text-center text-xs font-medium w-20', textColors.tertiary)}>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {missingResources.map((resource) => {
+              const isSelected = !!selections[resource.id];
+              return (
+                <tr key={resource.id} className="border-b border-gray-100 last:border-b-0">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('text-xs font-medium uppercase', textColors.quaternary)}>{resource.type}</span>
+                      <span className={cn('text-sm font-mono truncate', textColors.secondary)}>{resource.resourceId}</span>
+                    </div>
+                  </td>
+                  <td className={cn('px-4 py-3 text-sm', textColors.secondary)}>
+                    {getDatabaseLabel(resource.databaseType)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={selections[resource.id] || ''}
+                      onChange={(e) =>
+                        setSelections((prev) => ({ ...prev, [resource.id]: e.target.value }))
+                      }
+                      className={cn(
+                        'w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2',
+                        primaryColors.focusRing,
+                        isSelected
+                          ? cn(statusColors.success.border, statusColors.success.bg, textColors.primary)
+                          : cn(statusColors.pending.border, textColors.primary),
+                      )}
+                    >
+                      <option value="">선택하세요</option>
+                      {credentials.map((cred) => (
+                        <option key={cred.name} value={cred.name}>
+                          {cred.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {isSelected ? (
+                      <span className={cn('text-xs font-medium', statusColors.success.text)}>선택 완료</span>
+                    ) : (
+                      <span className={cn('text-xs', textColors.quaternary)}>미선택</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </Modal>
   );
