@@ -90,7 +90,7 @@ const ResourceResultRow = ({ result }: { result: TestConnectionResourceResult })
   return (
     <div className={cn(
       'flex items-start gap-3 px-4 py-2.5 border-b border-gray-100 last:border-b-0',
-      isFail && 'bg-red-50/50',
+      isFail && statusColors.error.bg,
     )}>
       <span className={cn(
         'w-2 h-2 rounded-full mt-1.5 flex-shrink-0',
@@ -102,10 +102,10 @@ const ResourceResultRow = ({ result }: { result: TestConnectionResourceResult })
           <span className="text-sm text-gray-700 font-mono truncate">{result.resource_id}</span>
         </div>
         {isFail && (
-          <div className="mt-1 text-xs text-red-600">
+          <div className={cn('mt-1 text-xs', statusColors.error.text)}>
             <span className="font-medium">{result.error_status}</span>
             {result.guide ? (
-              <span className="ml-1 text-red-500">— {result.guide}</span>
+              <span className="ml-1 opacity-80">— {result.guide}</span>
             ) : (
               <span className="ml-1 text-gray-400">— 가이드: 미지원</span>
             )}
@@ -147,15 +147,15 @@ const ResultCard = ({
       )}>
         <div className="flex items-center gap-2">
           {isSuccess ? (
-            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={cn('w-5 h-5', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ) : (
-            <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={cn('w-5 h-5', statusColors.error.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           )}
-          <span className={cn('text-sm font-medium', isSuccess ? 'text-green-700' : 'text-red-700')}>
+          <span className={cn('text-sm font-medium', isSuccess ? statusColors.success.text : statusColors.error.text)}>
             {isSuccess
               ? `연결 성공 (${totalCount}개 리소스)`
               : `${failCount}개 리소스 연결 실패 (총 ${totalCount}개)`}
