@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/app/components/ui/Button';
-import { ProjectCreateModal } from './ProjectCreateModal';
+
+const ProjectCreateModal = dynamic(() =>
+  import('@/app/components/features/ProjectCreateModal').then(m => ({ default: m.ProjectCreateModal }))
+);
 import {
   getServices,
   getProjects,

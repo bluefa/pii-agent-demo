@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Project, SecretKey } from '@/lib/types';
 import type {
   SduProjectStatus,
@@ -28,13 +28,20 @@ import { getProject } from '@/app/lib/api';
 import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { SduProjectInfoCard } from '@/app/projects/[projectId]/sdu/SduProjectInfoCard';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
-import {
-  IamUserManageModal,
-  SourceIpManageModal,
-  SduSetupGuideModal,
-  SduAthenaTableList,
-} from '@/app/components/features/sdu';
+import dynamic from 'next/dynamic';
+import { SduAthenaTableList } from '@/app/components/features/sdu';
+
+const IamUserManageModal = dynamic(() =>
+  import('@/app/components/features/sdu/IamUserManageModal').then(m => ({ default: m.IamUserManageModal }))
+);
+const SourceIpManageModal = dynamic(() =>
+  import('@/app/components/features/sdu/SourceIpManageModal').then(m => ({ default: m.SourceIpManageModal }))
+);
+const SduSetupGuideModal = dynamic(() =>
+  import('@/app/components/features/sdu/SduSetupGuideModal').then(m => ({ default: m.SduSetupGuideModal }))
+);
 import { useModal } from '@/app/hooks/useModal';
+import { usePolling } from '@/app/hooks/usePolling';
 
 interface SduProjectPageProps {
   project: Project;
@@ -56,48 +63,10 @@ export const SduProjectPage = ({
 
   const [connectionTestLoading, setConnectionTestLoading] = useState(false);
   const [reissuing, setReissuing] = useState(false);
-  const s3PollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const iamUserModal = useModal();
   const sourceIpModal = useModal();
   const setupGuideModal = useModal();
-
-  const stopInstallPolling = useCallback(() => {
-    if (installPollRef.current) {
-      clearInterval(installPollRef.current);
-      installPollRef.current = null;
-    }
-  }, []);
-
-  const startInstallPolling = useCallback(() => {
-    if (installPollRef.current) return;
-    installPollRef.current = setInterval(async () => {
-      try {
-        const installStatus = await checkSduInstallation(project.targetSourceId);
-        const s3Status = await getS3UploadStatus(project.targetSourceId);
-        setSduInstallationStatus(installStatus);
-
-        if (installStatus.athenaSetup.status === 'COMPLETED') {
-          stopInstallPolling();
-          const sduStatus: SduProjectStatus = {
-            s3Upload: s3Status,
-            installation: installStatus,
-            connectionTest: { status: 'NOT_TESTED' },
-          };
-          const step = getSduCurrentStep(sduStatus);
-          setCurrentStep(step);
-
-          if (step === 'WAITING_CONNECTION_TEST' || step === 'CONNECTION_VERIFIED' || step === 'INSTALLATION_COMPLETE') {
-            const tables = await getAthenaTables(project.targetSourceId).catch(() => []);
-            setAthenaTables(tables);
-          }
-        }
-      } catch {
-        // polling failure ignored, retry next interval
-      }
-    }, 10000);
-  }, [project.targetSourceId, stopInstallPolling]);
 
   const refreshSduStatus = useCallback(async (s3Status: Awaited<ReturnType<typeof getS3UploadStatus>>) => {
     const installStatus = await getSduInstallationStatus(project.targetSourceId);
@@ -123,16 +92,47 @@ export const SduProjectPage = ({
       setAthenaTables(tables);
     }
 
-    if (step === 'INSTALLING' || step === 'S3_UPLOAD_CONFIRMED') {
-      startInstallPolling();
-    } else {
-      stopInstallPolling();
-    }
-
     return step;
-  }, [project.targetSourceId, startInstallPolling, stopInstallPolling]);
+  }, [project.targetSourceId]);
 
-  // Initial load + S3 upload polling
+  const installPoller = usePolling({
+    fn: async () => {
+      const installStatus = await checkSduInstallation(project.targetSourceId);
+      const s3Status = await getS3UploadStatus(project.targetSourceId);
+      setSduInstallationStatus(installStatus);
+      return { installStatus, s3Status };
+    },
+    interval: 10000,
+    shouldStop: ({ installStatus }) => installStatus.athenaSetup.status === 'COMPLETED',
+    onStop: async ({ installStatus, s3Status }) => {
+      const sduStatus: SduProjectStatus = {
+        s3Upload: s3Status,
+        installation: installStatus,
+        connectionTest: { status: 'NOT_TESTED' },
+      };
+      const step = getSduCurrentStep(sduStatus);
+      setCurrentStep(step);
+
+      if (step === 'WAITING_CONNECTION_TEST' || step === 'CONNECTION_VERIFIED' || step === 'INSTALLATION_COMPLETE') {
+        const tables = await getAthenaTables(project.targetSourceId).catch(() => []);
+        setAthenaTables(tables);
+      }
+    },
+  });
+
+  const s3Poller = usePolling({
+    fn: () => checkS3Upload(project.targetSourceId),
+    interval: 5000,
+    shouldStop: (s3Status) => s3Status.status === 'CONFIRMED',
+    onStop: async (s3Status) => {
+      const step = await refreshSduStatus(s3Status);
+      if (step === 'INSTALLING' || step === 'S3_UPLOAD_CONFIRMED') {
+        installPoller.start();
+      }
+    },
+  });
+
+  // Initial load
   useEffect(() => {
     const fetchInitial = async () => {
       try {
@@ -140,42 +140,19 @@ export const SduProjectPage = ({
         const step = await refreshSduStatus(s3Status);
 
         if (step === 'S3_UPLOAD_PENDING') {
-          startS3Polling();
+          s3Poller.start();
+        } else if (step === 'INSTALLING' || step === 'S3_UPLOAD_CONFIRMED') {
+          installPoller.start();
         }
       } catch (err) {
         console.error('Failed to fetch SDU status:', err);
       }
     };
 
-    const startS3Polling = () => {
-      if (s3PollRef.current) return;
-      s3PollRef.current = setInterval(async () => {
-        try {
-          const s3Status = await checkS3Upload(project.targetSourceId);
-          if (s3Status.status === 'CONFIRMED') {
-            if (s3PollRef.current) clearInterval(s3PollRef.current);
-            s3PollRef.current = null;
-            await refreshSduStatus(s3Status);
-          }
-        } catch {
-          // polling failure ignored, retry next interval
-        }
-      }, 5000);
-    };
-
     fetchInitial();
-
-    return () => {
-      if (s3PollRef.current) {
-        clearInterval(s3PollRef.current);
-        s3PollRef.current = null;
-      }
-      if (installPollRef.current) {
-        clearInterval(installPollRef.current);
-        installPollRef.current = null;
-      }
-    };
-  }, [project.targetSourceId, refreshSduStatus]);
+  // s3Poller/installPoller는 usePolling 내부에서 ref로 안정화되므로 deps에서 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.targetSourceId]);
 
   const handleExecuteConnectionTest = useCallback(async () => {
     try {
