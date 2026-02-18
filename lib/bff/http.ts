@@ -11,7 +11,7 @@ const BFF_URL = process.env.BFF_API_URL ?? '';
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BFF_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -32,15 +32,20 @@ export const httpBff: BffClient = {
     },
 
     secrets: async (id) => {
-      const data = await get<SecretKey[]>(`/v1/target-sources/${id}/secrets`);
-      return data;
+      const data = await get<{
+        credentials: Array<{ name: string; databaseType?: string; createdAt: string }>;
+      }>(`/v1/target-sources/${id}/secrets`);
+      return data.credentials.map((c): SecretKey => ({
+        name: c.name,
+        createTimeStr: c.createdAt,
+      }));
     },
   },
 
   users: {
     me: async () => {
-      const data = await get<CurrentUser>('/users/me');
-      return data;
+      const data = await get<{ user: CurrentUser }>('/users/me');
+      return data.user;
     },
   },
 };

@@ -1,3 +1,4 @@
+import 'server-only';
 import type { BffClient } from '@/lib/bff/types';
 import { mockBff } from '@/lib/bff/mock-adapter';
 import { httpBff } from '@/lib/bff/http';
