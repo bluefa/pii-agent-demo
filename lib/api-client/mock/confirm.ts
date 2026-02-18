@@ -1044,6 +1044,52 @@ export const mockConfirm = {
     });
   },
 
+  getTestConnectionResults: async (projectId: string, page: number, size: number) => {
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    // Mock: return empty pagination
+    return NextResponse.json({
+      content: [],
+      page: { totalElements: 0, totalPages: 0, number: page, size },
+    });
+  },
+
+  getTestConnectionLastSuccess: async (projectId: string) => {
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '성공한 연결 테스트 이력이 없습니다.' } },
+      { status: 404 },
+    );
+  },
+
+  getTestConnectionLatest: async (projectId: string) => {
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '연결 테스트 이력이 없습니다.' } },
+      { status: 404 },
+    );
+  },
+
   getConnectionStatus: async (projectId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
