@@ -1,6 +1,7 @@
 'use client';
 
 import { Project } from '@/lib/types';
+import { getButtonClass } from '@/lib/theme';
 
 interface RejectionAlertProps {
   project: Project;
@@ -29,10 +30,7 @@ export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps)
             </p>
           )}
           {onRetryRequest && (
-            <button
-              onClick={onRetryRequest}
-              className="mt-2 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
-            >
+            <button onClick={onRetryRequest} className={`mt-2 ${getButtonClass('secondary', 'sm')}`}>
               리소스 다시 선택하기
             </button>
           )}
