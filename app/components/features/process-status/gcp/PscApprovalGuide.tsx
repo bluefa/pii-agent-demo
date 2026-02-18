@@ -49,7 +49,7 @@ export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
       </div>
 
       {expanded && showGuide && (
-        <div className={cn('mt-1 p-2 rounded border', statusColors.info.bg, 'border-blue-200')}>
+        <div className={cn('mt-1 p-2 rounded border', statusColors.info.bg, statusColors.info.borderLight)}>
           <p className={cn('text-xs font-medium mb-1.5', statusColors.info.textDark)}>
             연결 승인 방법
           </p>
@@ -89,7 +89,7 @@ export const PscApprovalGuide = ({ pscConnection }: PscApprovalGuideProps) => {
             className={cn(
               'inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors',
               statusColors.info.bg, statusColors.info.textDark,
-              'border border-blue-200 hover:border-blue-300'
+              `border ${statusColors.info.borderLight} hover:border-blue-300`
             )}
           >
             GCP Console에서 확인 →

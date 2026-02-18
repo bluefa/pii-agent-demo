@@ -3,6 +3,7 @@
 import { User } from '@/lib/types';
 import { UserSearchInput } from '@/app/components/ui/UserSearchInput';
 import { UserSearchResult } from '@/app/lib/api';
+import { statusColors, primaryColors, cn } from '@/lib/theme';
 
 interface PermissionsPanelProps {
   permissions: User[];
@@ -22,8 +23,8 @@ export const PermissionsPanel = ({ permissions, onAddUser, onRemoveUser }: Permi
               key={user.id}
               className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors"
             >
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className={cn('w-8 h-8 rounded-full flex items-center justify-center', statusColors.info.bg)}>
+                <svg className={cn('w-4 h-4', primaryColors.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>

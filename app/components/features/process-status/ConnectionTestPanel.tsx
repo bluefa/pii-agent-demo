@@ -8,6 +8,7 @@ import { ConnectionDetailModal } from '@/app/components/features/ConnectionDetai
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useModal } from '@/app/hooks/useModal';
 import { MissingCredentialsTab } from './MissingCredentialsTab';
+import { primaryColors, getButtonClass, cn } from '@/lib/theme';
 
 type ConnectionTabType = 'history' | 'credentials' | 'missing';
 
@@ -97,7 +98,7 @@ export const ConnectionTestPanel = ({
           <button
             onClick={handleTestConnectionClick}
             disabled={testLoading}
-            className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className={cn(getButtonClass('primary', 'sm'), 'text-sm flex items-center gap-2')}
           >
             {testLoading && <LoadingSpinner />}
             {latestHistory ? '재실행' : 'Test Connection'}
@@ -118,7 +119,7 @@ export const ConnectionTestPanel = ({
           onClick={() => setConnectionTab('history')}
           className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
             connectionTab === 'history'
-              ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+              ? `${primaryColors.text} border-b-2 ${primaryColors.border} bg-white`
               : 'text-gray-500 hover:text-gray-700 bg-gray-50'
           }`}
         >
@@ -128,7 +129,7 @@ export const ConnectionTestPanel = ({
           onClick={() => setConnectionTab('credentials')}
           className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
             connectionTab === 'credentials'
-              ? 'text-blue-600 border-b-2 border-blue-600 bg-white'
+              ? `${primaryColors.text} border-b-2 ${primaryColors.border} bg-white`
               : 'text-gray-500 hover:text-gray-700 bg-gray-50'
           }`}
         >

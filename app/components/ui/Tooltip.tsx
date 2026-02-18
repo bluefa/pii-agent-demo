@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { cn } from '@/lib/theme';
+import { cn, primaryColors } from '@/lib/theme';
 
 type TooltipSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -149,7 +149,7 @@ export const InfoTooltip = ({ content, position = 'top', size = 'lg' }: InfoTool
     <Tooltip content={content} position={position} size={size}>
       <button
         type="button"
-        className="inline-flex items-center justify-center w-5 h-5 text-gray-400 hover:text-blue-500 transition-colors"
+        className={cn('inline-flex items-center justify-center w-5 h-5 text-gray-400 transition-colors', primaryColors.textHover)}
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
