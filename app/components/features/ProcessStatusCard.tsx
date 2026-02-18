@@ -20,6 +20,8 @@ import { getProcessGuide } from '@/lib/constants/process-guides';
 import { cn, statusColors, primaryColors } from '@/lib/theme';
 import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
+import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
+import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
 
 type ProcessTabType = 'status' | 'history';
 
@@ -195,14 +197,17 @@ export const ProcessStatusCard = ({
                   </div>
                 )}
 
-                {currentStep === ProcessStatus.WAITING_APPROVAL && (
-                  <div className="w-full text-center py-2.5 text-gray-500 text-sm">
-                    관리자 승인을 기다리는 중입니다
-                  </div>
+                {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
+                  <ApprovalWaitingCard
+                    targetSourceId={project.targetSourceId}
+                    onCancelSuccess={handleInstallComplete}
+                  />
                 )}
 
                 {currentStep === ProcessStatus.INSTALLING && (
-                  project.cloudProvider === 'Azure' ? (
+                  <>
+                  <ApprovalApplyingBanner />
+                  {project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={project.resources}
@@ -231,7 +236,8 @@ export const ProcessStatusCard = ({
                         {progress.completed}/{progress.total}
                       </span>
                     </button>
-                  )
+                  )}
+                  </>
                 )}
 
                 {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||

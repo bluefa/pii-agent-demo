@@ -4,9 +4,10 @@ import { Project } from '@/lib/types';
 
 interface RejectionAlertProps {
   project: Project;
+  onRetryRequest?: () => void;
 }
 
-export const RejectionAlert = ({ project }: RejectionAlertProps) => {
+export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps) => {
   if (!project.isRejected) return null;
 
   return (
@@ -26,6 +27,14 @@ export const RejectionAlert = ({ project }: RejectionAlertProps) => {
             <p className="text-red-500 text-xs mt-1">
               반려일시: {new Date(project.rejectedAt).toLocaleString('ko-KR')}
             </p>
+          )}
+          {onRetryRequest && (
+            <button
+              onClick={onRetryRequest}
+              className="mt-2 px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              리소스 다시 선택하기
+            </button>
           )}
         </div>
       </div>

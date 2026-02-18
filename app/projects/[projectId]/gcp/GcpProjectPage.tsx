@@ -204,7 +204,7 @@ export const GcpProjectPage = ({
           onVmConfigSave={handleVmConfigSave}
         />
 
-        <RejectionAlert project={project} />
+        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
 
         <div className="flex justify-end gap-3">
           {effectiveEditMode ? (
