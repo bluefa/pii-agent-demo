@@ -4,8 +4,11 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { SecretKey } from '@/lib/types';
 import { IdcResourceInput, IdcInputFormat, IdcDatabaseType } from '@/lib/types/idc';
-import { IDC_VALIDATION, IDC_DEFAULT_PORTS, IDC_DATABASE_TYPE_LABELS } from '@/lib/constants/idc';
-import { cn, inputStyles, primaryColors, statusColors } from '@/lib/theme';
+import { IDC_VALIDATION, IDC_DEFAULT_PORTS } from '@/lib/constants/idc';
+import { cn, inputStyles } from '@/lib/theme';
+import { IdcInputFormatToggle } from '@/app/components/features/idc/IdcInputFormatToggle';
+import { IdcDatabaseTypeSelector } from '@/app/components/features/idc/IdcDatabaseTypeSelector';
+import { IdcIpListInput } from '@/app/components/features/idc/IdcIpListInput';
 
 interface IdcResourceInputPanelProps {
   initialData?: IdcResourceInput;
@@ -15,8 +18,6 @@ interface IdcResourceInputPanelProps {
   /** 'modal': 헤더/푸터/외부스타일 제거 */
   variant?: 'card' | 'modal';
 }
-
-const DATABASE_TYPES: IdcDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'ORACLE'];
 
 const validateIp = (ip: string): boolean => {
   return IDC_VALIDATION.IP_REGEX.test(ip);
@@ -156,9 +157,6 @@ export const IdcResourceInputPanel = ({
     onSave(data);
   }, [name, inputFormat, ips, host, port, databaseType, serviceId, credentialId, validate, onSave]);
 
-  // IP 2개 이상 경고
-  const showClusterWarning = inputFormat === 'IP' && ips.filter(ip => ip.trim()).length >= 2;
-
   return (
     <div className={isModal ? '' : 'bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden'}>
       {/* Header - Modal 모드에서는 숨김 */}
@@ -203,95 +201,18 @@ export const IdcResourceInputPanel = ({
         {/* 입력 포맷 토글 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">입력 방식</label>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setInputFormat('IP')}
-              className={cn(
-                'flex-1 py-2.5 px-4 rounded-lg border-2 font-medium transition-all',
-                inputFormat === 'IP'
-                  ? `${primaryColors.border} ${statusColors.info.bgLight} ${statusColors.info.textDark}`
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              )}
-            >
-              IP (복수 입력 가능)
-            </button>
-            <button
-              type="button"
-              onClick={() => setInputFormat('HOST')}
-              className={cn(
-                'flex-1 py-2.5 px-4 rounded-lg border-2 font-medium transition-all',
-                inputFormat === 'HOST'
-                  ? `${primaryColors.border} ${statusColors.info.bgLight} ${statusColors.info.textDark}`
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              )}
-            >
-              HOST (단일)
-            </button>
-          </div>
+          <IdcInputFormatToggle value={inputFormat} onChange={setInputFormat} />
         </div>
 
         {/* IP 입력 */}
         {inputFormat === 'IP' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              IP 주소 <span className="text-gray-400 font-normal">(최대 {IDC_VALIDATION.MAX_IPS}개)</span>
-            </label>
-            <div className="space-y-2">
-              {ips.map((ip, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={ip}
-                    onChange={(e) => handleIpChange(index, e.target.value)}
-                    className={cn(inputStyles.base, errors[`ip_${index}`] && inputStyles.error)}
-                    placeholder="예: 192.168.1.100"
-                  />
-                  {ips.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveIp(index)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-              {errors.ips && <p className="text-sm text-red-600">{errors.ips}</p>}
-              {ips.map((_, index) =>
-                errors[`ip_${index}`] && <p key={`err_${index}`} className="text-sm text-red-600">{errors[`ip_${index}`]}</p>
-              )}
-            </div>
-            {ips.length < IDC_VALIDATION.MAX_IPS && (
-              <button
-                type="button"
-                onClick={handleAddIp}
-                className={cn('mt-2 flex items-center gap-1 text-sm font-medium', primaryColors.text, primaryColors.textHover)}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                IP 추가
-              </button>
-            )}
-
-            {/* Cluster IP 경고 */}
-            {showClusterWarning && (
-              <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div className="text-sm text-orange-700">
-                  <p className="font-medium">여러 IP를 입력하셨습니다.</p>
-                  <p className="mt-1">서로 다른 DB가 아닌, 동일 DB의 Cluster IP 목록이 맞는지 확인해주세요.</p>
-                  <p>서로 다른 DB는 별도의 리소스로 등록해야 합니다.</p>
-                </div>
-              </div>
-            )}
-          </div>
+          <IdcIpListInput
+            ips={ips}
+            errors={errors}
+            onChange={handleIpChange}
+            onAdd={handleAddIp}
+            onRemove={handleRemoveIp}
+          />
         )}
 
         {/* HOST 입력 */}
@@ -323,23 +244,7 @@ export const IdcResourceInputPanel = ({
         {/* Database Type */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Database Type</label>
-          <div className="grid grid-cols-4 gap-2">
-            {DATABASE_TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => handleDatabaseTypeChange(type)}
-                className={cn(
-                  'py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all',
-                  databaseType === type
-                    ? `${primaryColors.border} ${statusColors.info.bgLight} ${statusColors.info.textDark}`
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                )}
-              >
-                {IDC_DATABASE_TYPE_LABELS[type]}
-              </button>
-            ))}
-          </div>
+          <IdcDatabaseTypeSelector value={databaseType} onChange={handleDatabaseTypeChange} />
         </div>
 
         {/* Port */}
