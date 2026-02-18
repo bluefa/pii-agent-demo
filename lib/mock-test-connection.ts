@@ -15,6 +15,11 @@ export interface TestConnectionResourceResult {
   agent_id: string | null;
 }
 
+interface ResourceScheduleItem {
+  resource_id: string;
+  complete_at: string;
+}
+
 export interface TestConnectionJob {
   id: string;
   projectId: string;
@@ -25,12 +30,13 @@ export interface TestConnectionJob {
   requested_by: string;
   estimated_end_at: string;
   resource_results: TestConnectionResourceResult[];
+  /** 내부용: 리소스별 완료 스케줄 (response에 미포함) */
+  resource_schedule: ResourceScheduleItem[];
 }
 
 // ===== Constants =====
 
-const TC_MIN_DURATION_MS = 5_000;  // 최소 5초
-const TC_MAX_DURATION_MS = 15_000; // 최대 15초
+const RESOURCE_INTERVAL_MS = 5_000; // 리소스당 5초
 
 const ERROR_GUIDES: Record<TestConnectionErrorStatus, string> = {
   AUTH_FAIL: 'Credential 정보를 확인해주세요. 비밀번호가 만료되었거나 잘못 입력되었을 수 있습니다.',
@@ -59,8 +65,16 @@ export const createTestConnectionJob = (
   requestedBy: string,
 ): TestConnectionJob => {
   const now = new Date();
-  const duration = TC_MIN_DURATION_MS + Math.random() * (TC_MAX_DURATION_MS - TC_MIN_DURATION_MS);
-  const estimatedEnd = new Date(now.getTime() + duration);
+  const selectedResources = project.resources.filter((r) => r.isSelected);
+
+  // 리소스별 5초 간격 스케줄링
+  const schedule: ResourceScheduleItem[] = selectedResources.map((r, index) => ({
+    resource_id: r.resourceId,
+    complete_at: new Date(now.getTime() + RESOURCE_INTERVAL_MS * (index + 1)).toISOString(),
+  }));
+
+  const totalDuration = RESOURCE_INTERVAL_MS * Math.max(selectedResources.length, 1);
+  const estimatedEnd = new Date(now.getTime() + totalDuration);
 
   const job: TestConnectionJob = {
     id: generateId(),
@@ -72,6 +86,7 @@ export const createTestConnectionJob = (
     requested_by: requestedBy,
     estimated_end_at: estimatedEnd.toISOString(),
     resource_results: [],
+    resource_schedule: schedule,
   };
 
   const store = getStore();
@@ -129,7 +144,7 @@ export const hasPendingJob = (projectId: string): boolean => {
   });
 };
 
-// ===== Time-based Status Calculation =====
+// ===== Time-based Status Calculation (순차 리소스 처리) =====
 
 const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   if (job.status === 'SUCCESS' || job.status === 'FAIL') {
@@ -137,16 +152,6 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   }
 
   const now = Date.now();
-  const estimatedEnd = new Date(job.estimated_end_at).getTime();
-
-  if (now >= estimatedEnd) {
-    return completeJob(job);
-  }
-
-  return job;
-};
-
-const completeJob = (job: TestConnectionJob): TestConnectionJob => {
   const store = getStore();
   const project = store.projects.find((p) => p.id === job.projectId);
 
@@ -161,20 +166,48 @@ const completeJob = (job: TestConnectionJob): TestConnectionJob => {
     return failed;
   }
 
-  const selectedResources = project.resources.filter((r) => r.isSelected);
-  const resourceResults = selectedResources.map((r) => simulateResourceResult(r));
+  // 스케줄 기반으로 완료된 리소스만 결과에 포함
+  const completedResults: TestConnectionResourceResult[] = [];
+  let allDone = true;
 
-  const hasFailure = resourceResults.some((r) => r.status === 'FAIL');
+  for (const scheduleItem of job.resource_schedule) {
+    const completeAt = new Date(scheduleItem.complete_at).getTime();
+    if (now >= completeAt) {
+      // 이미 결과가 있으면 재사용, 없으면 생성
+      const existing = job.resource_results.find((r) => r.resource_id === scheduleItem.resource_id);
+      if (existing) {
+        completedResults.push(existing);
+      } else {
+        const resource = project.resources.find((r) => r.resourceId === scheduleItem.resource_id);
+        if (resource) {
+          completedResults.push(simulateResourceResult(resource));
+        }
+      }
+    } else {
+      allDone = false;
+    }
+  }
 
-  const completed: TestConnectionJob = {
+  if (allDone) {
+    // 모든 리소스 완료 → 전체 상태 결정
+    const hasFailure = completedResults.some((r) => r.status === 'FAIL');
+    const completed: TestConnectionJob = {
+      ...job,
+      status: hasFailure ? 'FAIL' : 'SUCCESS',
+      completed_at: new Date().toISOString(),
+      resource_results: completedResults,
+    };
+    updateJobInStore(completed);
+    return completed;
+  }
+
+  // 아직 진행 중 — 부분 결과 업데이트
+  const updated: TestConnectionJob = {
     ...job,
-    status: hasFailure ? 'FAIL' : 'SUCCESS',
-    completed_at: new Date().toISOString(),
-    resource_results: resourceResults,
+    resource_results: completedResults,
   };
-
-  updateJobInStore(completed);
-  return completed;
+  updateJobInStore(updated);
+  return updated;
 };
 
 const simulateResourceResult = (resource: Resource): TestConnectionResourceResult => {

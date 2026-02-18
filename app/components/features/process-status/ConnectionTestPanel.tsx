@@ -1,16 +1,126 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Resource } from '@/lib/types';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Resource, SecretKey, needsCredential } from '@/lib/types';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { getSecrets, updateResourceCredential } from '@/app/lib/api';
 import type { TestConnectionJob, TestConnectionResourceResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { Modal } from '@/app/components/ui/Modal';
 import { statusColors, primaryColors, getButtonClass, cn } from '@/lib/theme';
 
 interface ConnectionTestPanelProps {
   targetSourceId: number;
   selectedResources: Resource[];
 }
+
+// ===== Credential Setup Modal =====
+
+const CredentialSetupModal = ({
+  isOpen,
+  onClose,
+  missingResources,
+  credentials,
+  targetSourceId,
+  onComplete,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  missingResources: Resource[];
+  credentials: SecretKey[];
+  targetSourceId: number;
+  onComplete: () => void;
+}) => {
+  const [selections, setSelections] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const allSelected = missingResources.every((r) => selections[r.id]);
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      for (const resource of missingResources) {
+        const credentialId = selections[resource.id];
+        if (credentialId) {
+          await updateResourceCredential(targetSourceId, resource.id, credentialId);
+        }
+      }
+      onComplete();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Credential 설정에 실패했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Credential 설정 필요"
+      subtitle="연결 테스트를 실행하려면 아래 리소스에 Credential을 설정해주세요."
+      size="lg"
+      footer={
+        <>
+          <button onClick={onClose} className={getButtonClass('secondary')}>
+            취소
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!allSelected || saving}
+            className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
+          >
+            {saving && <LoadingSpinner />}
+            설정 완료 후 테스트 실행
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {missingResources.map((resource) => (
+          <div
+            key={resource.id}
+            className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 uppercase">
+                  {resource.type}
+                </span>
+                <span className="text-sm text-gray-700 font-mono truncate">
+                  {resource.resourceId}
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {resource.databaseType}
+              </p>
+            </div>
+            <select
+              value={selections[resource.id] || ''}
+              onChange={(e) =>
+                setSelections((prev) => ({ ...prev, [resource.id]: e.target.value }))
+              }
+              className={cn(
+                'w-48 px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2',
+                primaryColors.focusRing,
+                selections[resource.id]
+                  ? cn(statusColors.success.border, statusColors.success.bg)
+                  : cn(statusColors.pending.border),
+              )}
+            >
+              <option value="">선택하세요</option>
+              {credentials.map((cred) => (
+                <option key={cred.name} value={cred.name}>
+                  {cred.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+};
 
 // ===== Sub-components =====
 
@@ -60,7 +170,7 @@ const ProgressBar = ({
   job: TestConnectionJob;
   totalResources: number;
 }) => {
-  const completed = job.resource_results.filter((r) => r.status !== 'PENDING').length;
+  const completed = job.resource_results.length;
   const total = totalResources || completed || 1;
   const percent = Math.round((completed / total) * 100);
 
@@ -79,6 +189,26 @@ const ProgressBar = ({
           style={{ width: `${percent}%` }}
         />
       </div>
+      {/* 진행 중 리소스 결과 미리보기 */}
+      {completed > 0 && (
+        <div className="mt-1 space-y-1">
+          {job.resource_results.map((r) => (
+            <div key={r.resource_id} className="flex items-center gap-2 text-xs">
+              <span className={cn(
+                'w-1.5 h-1.5 rounded-full',
+                r.status === 'SUCCESS' ? statusColors.success.dot : statusColors.error.dot,
+              )} />
+              <span className="text-gray-500 font-mono truncate">{r.resource_id}</span>
+              <span className={cn(
+                'font-medium',
+                r.status === 'SUCCESS' ? statusColors.success.text : statusColors.error.text,
+              )}>
+                {r.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -223,6 +353,39 @@ export const ConnectionTestPanel = ({
   // 마지막 성공 리소스 상세 토글
   const [showLastSuccessDetail, setShowLastSuccessDetail] = useState(false);
 
+  // Credential 모달 상태
+  const [credModalOpen, setCredModalOpen] = useState(false);
+  const [credentials, setCredentials] = useState<SecretKey[]>([]);
+  const [missingCredResources, setMissingCredResources] = useState<Resource[]>([]);
+
+  const handleTriggerClick = useCallback(async () => {
+    // Credential 미설정 리소스 체크
+    const missing = selectedResources.filter(
+      (r) => needsCredential(r.databaseType) && !r.selectedCredentialId,
+    );
+
+    if (missing.length > 0) {
+      // Credential 목록 fetch 후 모달 오픈
+      try {
+        const creds = await getSecrets(targetSourceId);
+        setCredentials(creds);
+        setMissingCredResources(missing);
+        setCredModalOpen(true);
+      } catch {
+        // credential 조회 실패 시 그냥 테스트 진행
+        trigger();
+      }
+      return;
+    }
+
+    trigger();
+  }, [selectedResources, targetSourceId, trigger]);
+
+  const handleCredentialComplete = useCallback(() => {
+    setCredModalOpen(false);
+    trigger();
+  }, [trigger]);
+
   if (loading) {
     return (
       <div className="border border-gray-200 rounded-lg p-6 flex items-center justify-center">
@@ -268,7 +431,7 @@ export const ConnectionTestPanel = ({
       {/* 3. 버튼 영역 */}
       <div className="px-4 pt-3 flex items-center gap-3">
         <button
-          onClick={trigger}
+          onClick={handleTriggerClick}
           disabled={isPending}
           className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
         >
@@ -284,7 +447,7 @@ export const ConnectionTestPanel = ({
             onClick={() => {/* TODO: 이력 모달 */}}
             className={getButtonClass('secondary')}
           >
-            이전 결과 확인하러 가기
+            모든 연결 내역 확인하러 가기
           </button>
         )}
       </div>
@@ -312,6 +475,16 @@ export const ConnectionTestPanel = ({
 
       {/* 하단 패딩 */}
       <div className="h-4" />
+
+      {/* Credential 설정 모달 */}
+      <CredentialSetupModal
+        isOpen={credModalOpen}
+        onClose={() => setCredModalOpen(false)}
+        missingResources={missingCredResources}
+        credentials={credentials}
+        targetSourceId={targetSourceId}
+        onComplete={handleCredentialComplete}
+      />
     </div>
   );
 };

@@ -12,7 +12,7 @@ import type { AppError } from '@/lib/errors';
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
 
 export interface UseTestConnectionPollingOptions {
-  /** 폴링 간격 (ms). 기본값 10000 (Swagger x-polling-interval: 10s) */
+  /** 폴링 간격 (ms). 기본값 4000 */
   interval?: number;
   /** 완료 시 콜백 */
   onComplete?: (job: TestConnectionJob) => void;
@@ -37,7 +37,7 @@ export const useTestConnectionPolling = (
   targetSourceId: number,
   options: UseTestConnectionPollingOptions = {},
 ): UseTestConnectionPollingReturn => {
-  const { interval = 10_000, onComplete, onError } = options;
+  const { interval = 4_000, onComplete, onError } = options;
 
   const [latestJob, setLatestJob] = useState<TestConnectionJob | null>(null);
   const [lastSuccessJob, setLastSuccessJob] = useState<TestConnectionJob | null>(null);
