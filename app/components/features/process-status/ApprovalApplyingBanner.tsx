@@ -2,20 +2,15 @@
 
 import { cn, statusColors } from '@/lib/theme';
 
-interface ApprovalApplyingBannerProps {
-  className?: string;
-}
-
-export const ApprovalApplyingBanner = ({ className }: ApprovalApplyingBannerProps) => (
+export const ApprovalApplyingBanner = () => (
   <div className={cn(
     'w-full p-4 rounded-lg border mb-3',
     statusColors.info.bg,
     statusColors.info.border,
-    className,
   )}>
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
+        <svg className={cn('w-5 h-5', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
       </div>
