@@ -37,6 +37,18 @@ export const _fastForwardApproval = (projectId: string) => {
   approvalTimestampStore.set(projectId, Date.now() - MOCK_INSTALLATION_DELAY_MS - 1);
 };
 
+/** @internal 테스트 전용: ApprovedIntegration 직접 설정 (실시간 상태 계산 테스트용) */
+export const _setApprovedIntegration = (projectId: string) => {
+  approvedIntegrationStore.set(projectId, {
+    id: `ai-test-${projectId}`,
+    request_id: `req-test-${projectId}`,
+    approved_at: new Date().toISOString(),
+    resource_infos: [],
+    excluded_resource_ids: [],
+  });
+  approvalTimestampStore.set(projectId, Date.now());
+};
+
 interface ResourceCredentialInput {
   resourceId: string;
   credentialId?: string;
@@ -182,19 +194,15 @@ export const mockConfirm = {
       );
     }
 
-    // 409 conflict checks — 반영 중이거나 설치/테스트 진행 중이면 중복 요청 불가
-    if (
-      project.processStatus === ProcessStatus.APPLYING_APPROVED ||
-      project.processStatus === ProcessStatus.INSTALLING ||
-      project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-      project.processStatus === ProcessStatus.CONNECTION_VERIFIED
-    ) {
+    // 409 conflict checks — 실시간 상태 계산으로 판단
+    const currentBffStatus = computeProcessStatus(project);
+    if (currentBffStatus === 'APPLYING_APPROVED') {
       return NextResponse.json(
         { error: 'CONFLICT_APPLYING_IN_PROGRESS', message: '승인된 내용이 반영 중입니다. 완료 후 다시 요청해주세요.' },
         { status: 409 },
       );
     }
-    if (project.processStatus === ProcessStatus.WAITING_APPROVAL) {
+    if (currentBffStatus === 'WAITING_APPROVAL') {
       return NextResponse.json(
         { error: 'CONFLICT_REQUEST_PENDING', message: '승인 대기 중인 요청이 있습니다.' },
         { status: 409 },
