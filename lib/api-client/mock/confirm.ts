@@ -26,8 +26,8 @@ const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: Retu
 
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
-// Mock: MOCK_INSTALLATION_DELAY_MS(기본 10초) 경과 후 설치 완료 처리
-const MOCK_INSTALLATION_DELAY_MS = 10_000;
+// Mock: MOCK_INSTALLATION_DELAY_MS(기본 15초) 경과 후 설치 완료 처리
+const MOCK_INSTALLATION_DELAY_MS = 15_000;
 const approvalTimestampStore = new Map<string, number>();
 
 /** @internal 테스트 전용: store 초기화 */
