@@ -16,7 +16,7 @@ import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
 import { getProcessGuide } from '@/lib/constants/process-guides';
-import { cn, statusColors, primaryColors } from '@/lib/theme';
+import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
 import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
 import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
@@ -27,6 +27,12 @@ const ProcessGuideModal = dynamic(() => import('./process-status/ProcessGuideMod
 const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
 
 type ProcessTabType = 'status' | 'history';
+
+// rendering-hoist-jsx: 정적 탭 정의를 컴포넌트 밖으로 호이스팅
+const TABS: { id: ProcessTabType; label: string }[] = [
+  { id: 'status', label: '프로세스 진행 상태' },
+  { id: 'history', label: '진행 내역' },
+];
 
 interface ProcessStatusCardProps {
   project: Project;
@@ -60,10 +66,6 @@ export const ProcessStatusCard = ({
 }: ProcessStatusCardProps) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
-  const tabs = [
-    { id: 'status' as const, label: '프로세스 진행 상태' },
-    { id: 'history' as const, label: '진행 내역' },
-  ];
 
   // Modal states
   const terraformModal = useModal();
@@ -150,7 +152,7 @@ export const ProcessStatusCard = ({
       {/* 탭 헤더 */}
       <div className="border-b border-gray-200">
         <nav className="flex">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -158,7 +160,7 @@ export const ProcessStatusCard = ({
                 'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab.id
                   ? `${primaryColors.border} ${primaryColors.text}`
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : interactiveColors.inactiveTab
               )}
             >
               {tab.label}
