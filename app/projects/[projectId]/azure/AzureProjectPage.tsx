@@ -21,6 +21,7 @@ import { ProjectHeader, RejectionAlert } from '../common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { getButtonClass } from '@/lib/theme';
+import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface AzureProjectPageProps {
   project: Project;
@@ -171,19 +172,19 @@ export const AzureProjectPage = ({
     <div className="min-h-screen bg-gray-50">
       <ProjectHeader project={project} />
 
-      <main className="p-6 space-y-6">
-        {/* Info & Process Status Cards */}
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <div className="space-y-6">
-            <AzureInfoCard
-              project={project}
-              serviceSettings={serviceSettings}
-              credentials={credentials}
-              onOpenGuide={handleOpenGuide}
-              onManageCredentials={handleManageCredentials}
-            />
-            <ProjectInfoCard project={project} />
-          </div>
+      <div className="flex gap-6 p-6 items-start">
+        <ProjectSidebar cloudProvider={project.cloudProvider}>
+          <AzureInfoCard
+            project={project}
+            serviceSettings={serviceSettings}
+            credentials={credentials}
+            onOpenGuide={handleOpenGuide}
+            onManageCredentials={handleManageCredentials}
+          />
+          <ProjectInfoCard project={project} />
+        </ProjectSidebar>
+
+        <main className="flex-1 min-w-0 space-y-6">
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
@@ -194,7 +195,6 @@ export const AzureProjectPage = ({
             approvalError={approvalError}
             approvalResources={approvalResources}
           />
-        </div>
 
         {/* Cloud 리소스 */}
         {currentStep === ProcessStatus.APPLYING_APPROVED ? (
@@ -243,7 +243,7 @@ export const AzureProjectPage = ({
               {!isStep1 && (
                 <button
                   onClick={handleCancelEdit}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className={getButtonClass('secondary')}
                 >
                   취소
                 </button>
@@ -260,13 +260,14 @@ export const AzureProjectPage = ({
           ) : !isProcessing && (
             <button
               onClick={handleStartEdit}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className={getButtonClass('secondary')}
             >
               확정 대상 수정
             </button>
           )}
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

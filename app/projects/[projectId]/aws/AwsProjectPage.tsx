@@ -25,6 +25,7 @@ import { ProjectHeader, RejectionAlert } from '../common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
+import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -207,19 +208,20 @@ export const AwsProjectPage = ({
     <div className="min-h-screen bg-gray-50">
       <ProjectHeader project={project} />
 
-      <main className="p-6 space-y-6">
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <div className="space-y-6">
-            <AwsInfoCard
-              project={project}
-              awsStatus={awsStatus}
-              awsSettings={awsSettings}
-              credentials={credentials}
-              onOpenGuide={handleOpenGuide}
-              onManageCredentials={handleManageCredentials}
-            />
-            <ProjectInfoCard project={project} />
-          </div>
+      <div className="flex gap-6 p-6 items-start">
+        <ProjectSidebar cloudProvider={project.cloudProvider}>
+          <AwsInfoCard
+            project={project}
+            awsStatus={awsStatus}
+            awsSettings={awsSettings}
+            credentials={credentials}
+            onOpenGuide={handleOpenGuide}
+            onManageCredentials={handleManageCredentials}
+          />
+          <ProjectInfoCard project={project} />
+        </ProjectSidebar>
+
+        <main className="flex-1 min-w-0 space-y-6">
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
@@ -230,7 +232,6 @@ export const AwsProjectPage = ({
             approvalError={approvalError}
             approvalResources={approvalResources}
           />
-        </div>
 
         {/* Cloud 리소스 통합 컨테이너 */}
         {currentStep === ProcessStatus.APPLYING_APPROVED ? (
@@ -308,7 +309,8 @@ export const AwsProjectPage = ({
             </button>
           )}
         </div>
-      </main>
+        </main>
+      </div>
 
       {guide && (
         <ProcessGuideModal
