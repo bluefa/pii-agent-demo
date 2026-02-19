@@ -24,7 +24,7 @@ export const ProjectSidebar = ({
   const config = PROVIDER_CONFIG[cloudProvider] ?? PROVIDER_CONFIG.AWS;
 
   return (
-    <div className="sticky top-6 w-[320px] flex-shrink-0 space-y-3">
+    <div className="w-[320px] flex-shrink-0 overflow-y-auto p-6 space-y-3">
       <div
         className={cn(
           'flex items-center gap-3 px-4 py-3 rounded-xl',
