@@ -169,10 +169,10 @@ export const AzureProjectPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <ProjectHeader project={project} />
 
-      <div className="flex gap-6 p-6 items-start">
+      <div className="flex flex-1 overflow-hidden">
         <ProjectSidebar cloudProvider={project.cloudProvider}>
           <AzureInfoCard
             project={project}
@@ -184,7 +184,7 @@ export const AzureProjectPage = ({
           <ProjectInfoCard project={project} />
         </ProjectSidebar>
 
-        <main className="flex-1 min-w-0 space-y-6">
+        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
