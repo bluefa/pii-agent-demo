@@ -121,7 +121,6 @@ export const GroupedResourceTableBody = (props: ResourceTableBodyProps) => {
           <th className="px-6 py-3">데이터베이스</th>
           {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
           {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
-          <th className="px-6 py-3 w-16" />
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100">
