@@ -20,6 +20,10 @@ import type {
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
 const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
 
+// Mock store: ConfirmedIntegration 스냅샷 (변경 요청 시 이전 확정 보존)
+// 변경 요청 승인 → installation.status=PENDING 리셋 → 기존 확정 데이터 유실 방지
+const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: ReturnType<typeof toResourceSnapshot>[] }>();
+
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
 // Mock: MOCK_INSTALLATION_DELAY_MS(기본 10초) 경과 후 설치 완료 처리
@@ -29,6 +33,7 @@ const approvalTimestampStore = new Map<string, number>();
 /** @internal 테스트 전용: store 초기화 */
 export const _resetApprovedIntegrationStore = () => {
   approvedIntegrationStore.clear();
+  confirmedIntegrationSnapshotStore.clear();
   approvalTimestampStore.clear();
 };
 
@@ -209,6 +214,18 @@ export const mockConfirm = {
       );
     }
 
+    // 기존 확정 정보가 있으면 스냅샷 보존 (변경 요청 시 이전 상태 비교용)
+    if (project.status.installation.status === 'COMPLETED') {
+      const connectedResources = project.resources.filter(
+        (r) => r.isSelected && r.connectionStatus === 'CONNECTED',
+      );
+      if (connectedResources.length > 0) {
+        confirmedIntegrationSnapshotStore.set(projectId, {
+          resource_infos: connectedResources.map(toResourceSnapshot),
+        });
+      }
+    }
+
     const { input_data } = body as ApprovalRequestCreateBody;
     const { resource_inputs, exclusion_reason_default } = input_data;
 
@@ -358,6 +375,13 @@ export const mockConfirm = {
       );
     }
 
+    // 1. 변경 요청 중 보존된 이전 확정 스냅샷 확인
+    const snapshot = confirmedIntegrationSnapshotStore.get(project.id);
+    if (snapshot) {
+      return NextResponse.json({ confirmed_integration: snapshot });
+    }
+
+    // 2. 현재 프로젝트 상태에서 확정 정보 도출
     const activeResources = project.resources.filter((r) => r.isSelected && r.connectionStatus === 'CONNECTED');
     if (activeResources.length === 0 || project.status.installation.status !== 'COMPLETED') {
       return NextResponse.json({ confirmed_integration: null });
@@ -565,6 +589,7 @@ export const mockConfirm = {
         },
       });
       approvedIntegrationStore.delete(project.id);
+      confirmedIntegrationSnapshotStore.delete(project.id);
 
       const updated = mockData.getProjectById(projectId)!;
       return NextResponse.json({
@@ -903,6 +928,7 @@ export const mockConfirm = {
 
     // 설치 확정 시 store 정리 (반영 완료)
     approvedIntegrationStore.delete(project.id);
+    confirmedIntegrationSnapshotStore.delete(project.id);
     approvalTimestampStore.delete(project.id);
 
     return NextResponse.json({ success: true, confirmedAt: now });
