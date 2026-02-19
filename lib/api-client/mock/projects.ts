@@ -147,7 +147,7 @@ export const mockProjects = {
     const updatedStatus: ProjectStatus = {
       ...project.status,
       approval: { status: 'APPROVED', approvedAt: now },
-      installation: { status: 'IN_PROGRESS' },
+      installation: { status: 'PENDING' },
     };
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
@@ -269,7 +269,7 @@ export const mockProjects = {
       );
     }
 
-    if (project.processStatus !== ProcessStatus.INSTALLING) {
+    if (project.processStatus !== ProcessStatus.INSTALLING && project.processStatus !== ProcessStatus.APPLYING_APPROVED) {
       return NextResponse.json(
         { error: 'INVALID_STATE', message: '설치중 상태가 아닙니다.' },
         { status: 400 }
@@ -467,9 +467,7 @@ export const mockProjects = {
       approval: autoApprovalResult.shouldAutoApprove
         ? { status: 'AUTO_APPROVED', approvedAt: now }
         : { status: 'PENDING' },
-      installation: autoApprovalResult.shouldAutoApprove
-        ? { status: 'IN_PROGRESS' }
-        : { status: 'PENDING' },
+      installation: { status: 'PENDING' },
     };
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
