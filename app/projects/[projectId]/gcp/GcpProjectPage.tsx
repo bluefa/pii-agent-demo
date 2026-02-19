@@ -18,6 +18,7 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectHeader, RejectionAlert } from '../common';
 import { getButtonClass } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
+import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 
 interface GcpProjectPageProps {
   project: Project;
@@ -181,31 +182,43 @@ export const GcpProjectPage = ({
           />
         </div>
 
-        <ScanPanel
-          targetSourceId={project.targetSourceId}
-          cloudProvider={project.cloudProvider}
-          onScanComplete={async () => {
-            const updatedProject = await getProject(project.targetSourceId);
-            onProjectUpdate(updatedProject);
-          }}
-        />
+        {/* Cloud 리소스 */}
+        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+          <ResourceTransitionPanel
+            targetSourceId={project.targetSourceId}
+            resources={project.resources}
+            cloudProvider={project.cloudProvider}
+            processStatus={currentStep}
+          />
+        ) : (
+          <>
+            <ScanPanel
+              targetSourceId={project.targetSourceId}
+              cloudProvider={project.cloudProvider}
+              onScanComplete={async () => {
+                const updatedProject = await getProject(project.targetSourceId);
+                onProjectUpdate(updatedProject);
+              }}
+            />
 
-        <ResourceTable
-          resources={project.resources.map((r) => ({
-            ...r,
-            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-          }))}
-          cloudProvider={project.cloudProvider}
-          processStatus={currentStep}
-          isEditMode={effectiveEditMode}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          credentials={credentials}
-          onCredentialChange={handleCredentialChange}
-          expandedVmId={expandedVmId}
-          onVmConfigToggle={setExpandedVmId}
-          onVmConfigSave={handleVmConfigSave}
-        />
+            <ResourceTable
+              resources={project.resources.map((r) => ({
+                ...r,
+                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+              }))}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+              isEditMode={effectiveEditMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+              expandedVmId={expandedVmId}
+              onVmConfigToggle={setExpandedVmId}
+              onVmConfigSave={handleVmConfigSave}
+            />
+          </>
+        )}
 
         <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
 
