@@ -106,6 +106,9 @@ export const AzureProjectPage = ({
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
+    currentStep === ProcessStatus.APPLYING_APPROVED ||
+    currentStep === ProcessStatus.INSTALLING;
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
@@ -277,7 +280,7 @@ export const AzureProjectPage = ({
                 연동 대상 확정 승인 요청
               </button>
             </>
-          ) : (
+          ) : !isProcessing && (
             <button
               onClick={handleStartEdit}
               className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"

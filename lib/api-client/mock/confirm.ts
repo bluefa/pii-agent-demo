@@ -56,8 +56,8 @@ const computeProcessStatus = (project: Project): BffProcessStatus => {
   if (approvedIntegrationStore.has(project.id)) {
     return 'APPLYING_APPROVED';
   }
-  // 3. ConfirmedIntegration 존재? (설치 완료)
-  if (project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE) {
+  // 3. ConfirmedIntegration 존재? (설치 완료 = installation COMPLETED)
+  if (project.status.installation.status === 'COMPLETED') {
     return 'TARGET_CONFIRMED';
   }
   return 'REQUEST_REQUIRED';
@@ -182,8 +182,9 @@ export const mockConfirm = {
       );
     }
 
-    // 409 conflict checks — APPLYING_APPROVED covers INSTALLING, WAITING_CONNECTION_TEST, CONNECTION_VERIFIED
+    // 409 conflict checks — 반영 중이거나 설치/테스트 진행 중이면 중복 요청 불가
     if (
+      project.processStatus === ProcessStatus.APPLYING_APPROVED ||
       project.processStatus === ProcessStatus.INSTALLING ||
       project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
       project.processStatus === ProcessStatus.CONNECTION_VERIFIED
@@ -278,9 +279,7 @@ export const mockConfirm = {
       approval: autoApprovalResult.shouldAutoApprove
         ? { status: 'AUTO_APPROVED', approvedAt: now }
         : { status: 'PENDING' },
-      installation: autoApprovalResult.shouldAutoApprove
-        ? { status: 'IN_PROGRESS' }
-        : { status: 'PENDING' },
+      installation: { status: 'PENDING' },
     };
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
@@ -345,7 +344,7 @@ export const mockConfirm = {
     }
 
     const activeResources = project.resources.filter((r) => r.isSelected && r.connectionStatus === 'CONNECTED');
-    if (activeResources.length === 0 || project.processStatus < ProcessStatus.INSTALLATION_COMPLETE) {
+    if (activeResources.length === 0 || project.status.installation.status !== 'COMPLETED') {
       return NextResponse.json({ confirmed_integration: null });
     }
 
@@ -557,7 +556,7 @@ export const mockConfirm = {
         target_source_id: updated.targetSourceId,
         process_status: computeProcessStatus(updated),
         status_inputs: {
-          has_confirmed_integration: updated.processStatus >= ProcessStatus.INSTALLATION_COMPLETE && !approvedIntegrationStore.has(updated.id),
+          has_confirmed_integration: updated.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(updated.id),
           has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
           has_approved_integration: approvedIntegrationStore.has(updated.id),
           last_approval_result: computeLastApprovalResult(updated),
@@ -571,7 +570,7 @@ export const mockConfirm = {
       target_source_id: project.targetSourceId,
       process_status: computeProcessStatus(project),
       status_inputs: {
-        has_confirmed_integration: project.processStatus >= ProcessStatus.INSTALLATION_COMPLETE && !approvedIntegrationStore.has(project.id),
+        has_confirmed_integration: project.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(project.id),
         has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
         has_approved_integration: approvedIntegrationStore.has(project.id),
         last_approval_result: computeLastApprovalResult(project),
@@ -1077,8 +1076,8 @@ export const mockConfirm = {
       );
     }
 
-    // Confirmed Integration이 없으면 404
-    if (project.processStatus < ProcessStatus.INSTALLATION_COMPLETE) {
+    // Confirmed Integration이 없으면 404 (설치 완료 기준)
+    if (project.status.installation.status !== 'COMPLETED') {
       return NextResponse.json(
         { error: 'CONFIRMED_INTEGRATION_NOT_FOUND', message: '확정된 연동 정보가 없습니다.' },
         { status: 404 },
