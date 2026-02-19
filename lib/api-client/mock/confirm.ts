@@ -528,6 +528,45 @@ export const mockConfirm = {
       );
     }
 
+    // Mock 자동 전환: APPLYING_APPROVED 10초 경과 → 설치 완료 처리
+    const approvedAt = approvalTimestampStore.get(project.id);
+    if (
+      approvedIntegrationStore.has(project.id) &&
+      approvedAt &&
+      Date.now() - approvedAt >= MOCK_INSTALLATION_DELAY_MS
+    ) {
+      const now = new Date().toISOString();
+      const updatedStatus: ProjectStatus = {
+        ...project.status,
+        installation: { status: 'COMPLETED', completedAt: now },
+      };
+      const calcStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+      mockData.updateProject(project.id, {
+        processStatus: calcStatus,
+        status: updatedStatus,
+        terraformState: {
+          ...project.terraformState,
+          bdcTf: 'COMPLETED' as const,
+          ...(project.cloudProvider === 'AWS' ? { serviceTf: 'COMPLETED' as const } : {}),
+        },
+      });
+      approvedIntegrationStore.delete(project.id);
+
+      const updated = mockData.getProjectById(projectId)!;
+      return NextResponse.json({
+        target_source_id: updated.targetSourceId,
+        process_status: computeProcessStatus(updated),
+        status_inputs: {
+          has_confirmed_integration: updated.processStatus >= ProcessStatus.INSTALLATION_COMPLETE && !approvedIntegrationStore.has(updated.id),
+          has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
+          has_approved_integration: approvedIntegrationStore.has(updated.id),
+          last_approval_result: computeLastApprovalResult(updated),
+          last_rejection_reason: updated.status.approval.rejectionReason ?? null,
+        },
+        evaluated_at: now,
+      });
+    }
+
     return NextResponse.json({
       target_source_id: project.targetSourceId,
       process_status: computeProcessStatus(project),
@@ -581,7 +620,7 @@ export const mockConfirm = {
     const updatedStatus: ProjectStatus = {
       ...project.status,
       approval: { status: 'APPROVED', approvedAt: now },
-      installation: { status: 'IN_PROGRESS' },
+      installation: { status: 'PENDING' },
     };
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
