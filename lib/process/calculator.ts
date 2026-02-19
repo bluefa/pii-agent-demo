@@ -50,7 +50,12 @@ const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
     return ProcessStatus.WAITING_APPROVAL;
   }
 
-  // 3. 설치 진행 중
+  // 3. 연동대상 반영 중 (승인 완료, 설치 시작 전)
+  if (status.installation.status === 'PENDING') {
+    return ProcessStatus.APPLYING_APPROVED;
+  }
+
+  // 4. 설치 진행 중
   if (status.installation.status !== 'COMPLETED') {
     return ProcessStatus.INSTALLING;
   }
