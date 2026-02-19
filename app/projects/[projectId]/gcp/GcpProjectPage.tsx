@@ -21,6 +21,7 @@ import { ProjectHeader, RejectionAlert } from '../common';
 import { getButtonClass } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
+import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface GcpProjectPageProps {
   project: Project;
@@ -189,17 +190,18 @@ export const GcpProjectPage = ({
     <div className="min-h-screen bg-gray-50">
       <ProjectHeader project={project} />
 
-      <main className="p-6 space-y-6">
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <div className="space-y-6">
-            <GcpInfoCard
-              project={project}
-              credentials={credentials}
-              onOpenGuide={handleOpenGuide}
-              onManageCredentials={handleManageCredentials}
-            />
-            <ProjectInfoCard project={project} />
-          </div>
+      <div className="flex gap-6 p-6 items-start">
+        <ProjectSidebar cloudProvider={project.cloudProvider}>
+          <GcpInfoCard
+            project={project}
+            credentials={credentials}
+            onOpenGuide={handleOpenGuide}
+            onManageCredentials={handleManageCredentials}
+          />
+          <ProjectInfoCard project={project} />
+        </ProjectSidebar>
+
+        <main className="flex-1 min-w-0 space-y-6">
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
@@ -214,7 +216,6 @@ export const GcpProjectPage = ({
             approvalError={approvalError}
             approvalResources={approvalResources}
           />
-        </div>
 
         {/* Cloud 리소스 */}
         {currentStep === ProcessStatus.APPLYING_APPROVED ? (
@@ -285,7 +286,8 @@ export const GcpProjectPage = ({
             </button>
           )}
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };
