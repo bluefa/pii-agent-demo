@@ -25,6 +25,7 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { ProjectHeader, RejectionAlert } from '../common';
 import { isVmResource } from '@/app/components/features/resource-table';
+import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
 
 interface AwsProjectPageProps {
@@ -269,38 +270,49 @@ export const AwsProjectPage = ({
         </div>
 
         {/* Cloud 리소스 통합 컨테이너 */}
-        <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
-          <div className="px-6 pt-6">
-            <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+          <div ref={resourceSectionRef}>
+            <ResourceTransitionPanel
+              targetSourceId={project.targetSourceId}
+              resources={project.resources}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+            />
           </div>
+        ) : (
+          <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
+            <div className="px-6 pt-6">
+              <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+            </div>
 
-          <ScanPanel
-            targetSourceId={project.targetSourceId}
-            cloudProvider={project.cloudProvider}
-            onScanComplete={async () => {
-              const updatedProject = await getProject(project.targetSourceId);
-              onProjectUpdate(updatedProject);
-            }}
-          />
+            <ScanPanel
+              targetSourceId={project.targetSourceId}
+              cloudProvider={project.cloudProvider}
+              onScanComplete={async () => {
+                const updatedProject = await getProject(project.targetSourceId);
+                onProjectUpdate(updatedProject);
+              }}
+            />
 
-          <ResourceTable
-            resources={project.resources.map((r) => ({
-              ...r,
-              vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-            }))}
-            cloudProvider={project.cloudProvider}
-            processStatus={currentStep}
-            isEditMode={effectiveEditMode}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            credentials={credentials}
-            onCredentialChange={handleCredentialChange}
-            expandedVmId={expandedVmId}
-            onVmConfigToggle={setExpandedVmId}
-            onVmConfigSave={handleVmConfigSave}
-            onEditModeChange={setIsEditMode}
-          />
-        </div>
+            <ResourceTable
+              resources={project.resources.map((r) => ({
+                ...r,
+                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+              }))}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+              isEditMode={effectiveEditMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+              expandedVmId={expandedVmId}
+              onVmConfigToggle={setExpandedVmId}
+              onVmConfigSave={handleVmConfigSave}
+              onEditModeChange={setIsEditMode}
+            />
+          </div>
+        )}
 
         <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
 
