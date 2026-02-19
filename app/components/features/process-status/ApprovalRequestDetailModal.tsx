@@ -1,5 +1,3 @@
-'use client';
-
 import { Modal } from '@/app/components/ui/Modal';
 import type { ApprovalHistoryResponse } from '@/app/lib/api';
 import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors, tableStyles } from '@/lib/theme';

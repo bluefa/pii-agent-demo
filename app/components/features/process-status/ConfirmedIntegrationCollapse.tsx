@@ -30,7 +30,7 @@ export const ConfirmedIntegrationCollapse = ({
         setLoading(false);
       }
     }
-    setOpen(!open);
+    setOpen((prev) => !prev);
   };
 
   return (

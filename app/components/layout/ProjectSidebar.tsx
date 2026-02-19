@@ -1,5 +1,3 @@
-'use client';
-
 import type { CloudProvider } from '@/lib/types';
 import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
 import { cn } from '@/lib/theme';

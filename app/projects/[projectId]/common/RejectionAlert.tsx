@@ -1,5 +1,3 @@
-'use client';
-
 import { Project } from '@/lib/types';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
