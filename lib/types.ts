@@ -5,10 +5,11 @@ import type { AzureVmNic } from '@/lib/types/azure';
 export enum ProcessStatus {
   WAITING_TARGET_CONFIRMATION = 1,  // 연동 대상 확정 대기
   WAITING_APPROVAL = 2,              // 승인 대기
-  INSTALLING = 3,                    // 설치 진행 중
-  WAITING_CONNECTION_TEST = 4,       // 연결 테스트 필요
-  CONNECTION_VERIFIED = 5,           // 연결 확인 완료 (관리자 확정 대기)
-  INSTALLATION_COMPLETE = 6          // 설치 완료
+  APPLYING_APPROVED = 3,             // 연동대상 반영 중
+  INSTALLING = 4,                    // 설치 진행 중
+  WAITING_CONNECTION_TEST = 5,       // 연결 테스트 필요
+  CONNECTION_VERIFIED = 6,           // 연결 확인 완료 (관리자 확정 대기)
+  INSTALLATION_COMPLETE = 7          // 설치 완료
 }
 
 export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'PENDING';

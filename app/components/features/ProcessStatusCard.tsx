@@ -20,6 +20,8 @@ import { getProcessGuide } from '@/lib/constants/process-guides';
 import { cn, statusColors, primaryColors } from '@/lib/theme';
 import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
+import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
+import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
 
 type ProcessTabType = 'status' | 'history';
 
@@ -68,6 +70,9 @@ export const ProcessStatusCard = ({
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
 
+  // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
+  const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
+
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableOnProjectUpdate = useCallback(
@@ -78,6 +83,7 @@ export const ProcessStatusCard = ({
   useEffect(() => {
     const shouldPoll =
       currentStep === ProcessStatus.WAITING_APPROVAL ||
+      currentStep === ProcessStatus.APPLYING_APPROVED ||
       currentStep === ProcessStatus.INSTALLING;
 
     if (!shouldPoll || !project.targetSourceId) {
@@ -96,6 +102,7 @@ export const ProcessStatusCard = ({
     const poll = async () => {
       try {
         const status = await getProcessStatus(project.targetSourceId);
+        setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
         if (status.process_status !== expectedBff) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
@@ -104,6 +111,9 @@ export const ProcessStatusCard = ({
         // polling failure ignored
       }
     };
+
+    // 마운트 시 즉시 1회 조회
+    poll();
 
     pollRef.current = setInterval(poll, 10_000);
     return () => {
@@ -195,14 +205,24 @@ export const ProcessStatusCard = ({
                   </div>
                 )}
 
-                {currentStep === ProcessStatus.WAITING_APPROVAL && (
-                  <div className="w-full text-center py-2.5 text-gray-500 text-sm">
-                    관리자 승인을 기다리는 중입니다
-                  </div>
+                {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
+                  <ApprovalWaitingCard
+                    targetSourceId={project.targetSourceId}
+                    onCancelSuccess={handleInstallComplete}
+                    hasConfirmedIntegration={hasConfirmedIntegration}
+                  />
+                )}
+
+                {currentStep === ProcessStatus.APPLYING_APPROVED && (
+                  <ApprovalApplyingBanner
+                    targetSourceId={project.targetSourceId}
+                    hasConfirmedIntegration={hasConfirmedIntegration}
+                  />
                 )}
 
                 {currentStep === ProcessStatus.INSTALLING && (
-                  project.cloudProvider === 'Azure' ? (
+                  <>
+                  {project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={project.resources}
@@ -231,7 +251,8 @@ export const ProcessStatusCard = ({
                         {progress.completed}/{progress.total}
                       </span>
                     </button>
-                  )
+                  )}
+                  </>
                 )}
 
                 {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||

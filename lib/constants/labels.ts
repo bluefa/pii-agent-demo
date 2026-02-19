@@ -23,6 +23,7 @@ export const ERROR_TYPE_LABELS: Record<string, string> = {
 export const PROCESS_STATUS_LABELS: Record<ProcessStatus, string> = {
   [ProcessStatus.WAITING_TARGET_CONFIRMATION]: '연동 대상 확정 대기',
   [ProcessStatus.WAITING_APPROVAL]: '승인 대기',
+  [ProcessStatus.APPLYING_APPROVED]: '연동대상 반영 중',
   [ProcessStatus.INSTALLING]: '설치 진행 중',
   [ProcessStatus.WAITING_CONNECTION_TEST]: '연결 테스트 필요',
   [ProcessStatus.CONNECTION_VERIFIED]: '연결 확인 완료',

@@ -1,5 +1,5 @@
 import { getProjectById, updateProject, generateId } from '@/lib/mock-data';
-import { Project, Resource, DatabaseType } from '@/lib/types';
+import { Project, Resource, DatabaseType, ProcessStatus } from '@/lib/types';
 import {
   IdcInstallationStatus,
   IdcTfStatus,
@@ -334,7 +334,7 @@ export const confirmIdcTargets = (
   // 프로젝트 리소스 추가 및 단계 전이 (INSTALLING으로)
   const updatedProject = updateProject(projectId, {
     resources: convertedResources,
-    processStatus: 3, // ProcessStatus.INSTALLING
+    processStatus: ProcessStatus.INSTALLING,
   });
 
   // IDC 설치 상태 초기화
