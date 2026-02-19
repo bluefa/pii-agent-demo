@@ -236,8 +236,8 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // approval.status가 AUTO_APPROVED로 설정됨
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      // installation이 즉시 IN_PROGRESS로 전환됨
-      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+      // installation은 PENDING 상태에서 시작 (APPLYING_APPROVED 단계 표시용)
+      expect(getProjectInstallationStatus()).toBe('PENDING');
 
       // BFF process_status = APPLYING_APPROVED (P1 버그 수정)
       const status = await getProcessStatus();
@@ -288,7 +288,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(201);
 
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+      expect(getProjectInstallationStatus()).toBe('PENDING');
 
       const status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
