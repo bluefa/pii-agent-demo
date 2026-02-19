@@ -62,6 +62,9 @@ export const GcpProjectPage = ({
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
+    currentStep === ProcessStatus.APPLYING_APPROVED ||
+    currentStep === ProcessStatus.INSTALLING;
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
@@ -226,7 +229,7 @@ export const GcpProjectPage = ({
                 연동 대상 확정 승인 요청
               </button>
             </>
-          ) : (
+          ) : !isProcessing && (
             <button
               onClick={handleStartEdit}
               className={getButtonClass('secondary')}

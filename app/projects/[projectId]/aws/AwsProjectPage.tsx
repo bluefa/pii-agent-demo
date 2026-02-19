@@ -117,6 +117,9 @@ export const AwsProjectPage = ({
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
+    currentStep === ProcessStatus.APPLYING_APPROVED ||
+    currentStep === ProcessStatus.INSTALLING;
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
@@ -284,7 +287,7 @@ export const AwsProjectPage = ({
                 연동 대상 확정 승인 요청
               </button>
             </>
-          ) : (
+          ) : !isProcessing && (
             <button
               onClick={handleStartEdit}
               className={getButtonClass('secondary')}
