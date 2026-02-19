@@ -6,6 +6,7 @@ import { cn, statusColors, getButtonClass } from '@/lib/theme';
 export const steps = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 확정' },
   { step: ProcessStatus.WAITING_APPROVAL, label: '승인 대기' },
+  { step: ProcessStatus.APPLYING_APPROVED, label: '연동대상반영중' },
   { step: ProcessStatus.INSTALLING, label: '설치 진행' },
   { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트' },
   { step: ProcessStatus.CONNECTION_VERIFIED, label: '연결 확인' },

@@ -83,6 +83,7 @@ export const ProcessStatusCard = ({
   useEffect(() => {
     const shouldPoll =
       currentStep === ProcessStatus.WAITING_APPROVAL ||
+      currentStep === ProcessStatus.APPLYING_APPROVED ||
       currentStep === ProcessStatus.INSTALLING;
 
     if (!shouldPoll || !project.targetSourceId) {
@@ -212,12 +213,15 @@ export const ProcessStatusCard = ({
                   />
                 )}
 
-                {currentStep === ProcessStatus.INSTALLING && (
-                  <>
+                {currentStep === ProcessStatus.APPLYING_APPROVED && (
                   <ApprovalApplyingBanner
                     targetSourceId={project.targetSourceId}
                     hasConfirmedIntegration={hasConfirmedIntegration}
                   />
+                )}
+
+                {currentStep === ProcessStatus.INSTALLING && (
+                  <>
                   {project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
