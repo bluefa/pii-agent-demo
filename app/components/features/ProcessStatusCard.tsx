@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
-import { TerraformStatusModal } from './TerraformStatusModal';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -15,15 +15,19 @@ import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
-import { ProcessGuideModal } from './process-status/ProcessGuideModal';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { cn, statusColors, primaryColors } from '@/lib/theme';
-import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
 import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
 import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
 
+// bundle-dynamic-imports: 모달은 열릴 때만 필요 → 지연 로딩
+const TerraformStatusModal = dynamic(() => import('./TerraformStatusModal').then(m => ({ default: m.TerraformStatusModal })));
+const ProcessGuideModal = dynamic(() => import('./process-status/ProcessGuideModal').then(m => ({ default: m.ProcessGuideModal })));
+const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
+
 type ProcessTabType = 'status' | 'history';
+const EMPTY_CREDENTIALS: SecretKey[] = [];
 
 interface ProcessStatusCardProps {
   project: Project;
@@ -54,7 +58,7 @@ export const ProcessStatusCard = ({
   onProjectUpdate,
   onTestConnection,
   testLoading,
-  credentials = [],
+  credentials = EMPTY_CREDENTIALS,
   onCredentialChange,
   approvalModalOpen = false,
   onApprovalModalClose,

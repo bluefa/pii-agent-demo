@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ConnectionTestHistory, SecretKey, Resource, needsCredential } from '@/lib/types';
 import { ConnectionHistoryTab } from '@/app/components/features/ConnectionHistoryTab';
 import { CredentialListTab } from '@/app/components/features/CredentialListTab';
@@ -43,12 +43,14 @@ export const ConnectionTestPanel = ({
     (r) => needsCredential(r.databaseType) && !r.selectedCredentialId
   );
 
-  // 미설정 리소스가 없어지면 History 탭으로 전환
-  useEffect(() => {
+  // rerender-derived-state-no-effect: 렌더 중 파생 상태 계산
+  const [prevMissingCount, setPrevMissingCount] = useState(missingCredentialResources.length);
+  if (missingCredentialResources.length !== prevMissingCount) {
+    setPrevMissingCount(missingCredentialResources.length);
     if (missingCredentialResources.length === 0 && connectionTab === 'missing') {
-      queueMicrotask(() => setConnectionTab('history'));
+      setConnectionTab('history');
     }
-  }, [missingCredentialResources.length, connectionTab]);
+  }
 
   // Test Connection 클릭 핸들러
   const handleTestConnectionClick = () => {
