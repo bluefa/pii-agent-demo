@@ -17,7 +17,7 @@ import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectHeader, RejectionAlert } from '../common';
+import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { getButtonClass } from '@/lib/theme';
