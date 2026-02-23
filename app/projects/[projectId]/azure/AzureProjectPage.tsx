@@ -17,9 +17,11 @@ import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectHeader, RejectionAlert } from '../common';
+import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
+import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { getButtonClass } from '@/lib/theme';
+import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface AzureProjectPageProps {
   project: Project;
@@ -76,6 +78,9 @@ export const AzureProjectPage = ({
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
+    currentStep === ProcessStatus.APPLYING_APPROVED ||
+    currentStep === ProcessStatus.INSTALLING;
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
@@ -164,22 +169,22 @@ export const AzureProjectPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <ProjectHeader project={project} />
 
-      <main className="p-6 space-y-6">
-        {/* Info & Process Status Cards */}
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <div className="space-y-6">
-            <AzureInfoCard
-              project={project}
-              serviceSettings={serviceSettings}
-              credentials={credentials}
-              onOpenGuide={handleOpenGuide}
-              onManageCredentials={handleManageCredentials}
-            />
-            <ProjectInfoCard project={project} />
-          </div>
+      <div className="flex flex-1 overflow-hidden">
+        <ProjectSidebar cloudProvider={project.cloudProvider}>
+          <AzureInfoCard
+            project={project}
+            serviceSettings={serviceSettings}
+            credentials={credentials}
+            onOpenGuide={handleOpenGuide}
+            onManageCredentials={handleManageCredentials}
+          />
+          <ProjectInfoCard project={project} />
+        </ProjectSidebar>
+
+        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
@@ -190,37 +195,46 @@ export const AzureProjectPage = ({
             approvalError={approvalError}
             approvalResources={approvalResources}
           />
-        </div>
 
-        {/* Scan Panel */}
-        <ScanPanel
-          targetSourceId={project.targetSourceId}
-          cloudProvider={project.cloudProvider}
-          onScanComplete={async () => {
-            const updatedProject = await getProject(project.targetSourceId);
-            onProjectUpdate(updatedProject);
-          }}
-        />
+        {/* Cloud 리소스 */}
+        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+          <ResourceTransitionPanel
+            targetSourceId={project.targetSourceId}
+            resources={project.resources}
+            cloudProvider={project.cloudProvider}
+            processStatus={currentStep}
+          />
+        ) : (
+          <>
+            <ScanPanel
+              targetSourceId={project.targetSourceId}
+              cloudProvider={project.cloudProvider}
+              onScanComplete={async () => {
+                const updatedProject = await getProject(project.targetSourceId);
+                onProjectUpdate(updatedProject);
+              }}
+            />
 
-        {/* Resource Table */}
-        <ResourceTable
-          resources={project.resources.map((r) => ({
-            ...r,
-            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-          }))}
-          cloudProvider={project.cloudProvider}
-          processStatus={currentStep}
-          isEditMode={effectiveEditMode}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          credentials={credentials}
-          onCredentialChange={handleCredentialChange}
-          expandedVmId={expandedVmId}
-          onVmConfigToggle={setExpandedVmId}
-          onVmConfigSave={handleVmConfigSave}
-        />
+            <ResourceTable
+              resources={project.resources.map((r) => ({
+                ...r,
+                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+              }))}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+              isEditMode={effectiveEditMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+              expandedVmId={expandedVmId}
+              onVmConfigToggle={setExpandedVmId}
+              onVmConfigSave={handleVmConfigSave}
+            />
+          </>
+        )}
 
-        <RejectionAlert project={project} />
+        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-3">
@@ -229,7 +243,7 @@ export const AzureProjectPage = ({
               {!isStep1 && (
                 <button
                   onClick={handleCancelEdit}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className={getButtonClass('secondary')}
                 >
                   취소
                 </button>
@@ -243,16 +257,17 @@ export const AzureProjectPage = ({
                 연동 대상 확정 승인 요청
               </button>
             </>
-          ) : (
+          ) : !isProcessing && (
             <button
               onClick={handleStartEdit}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className={getButtonClass('secondary')}
             >
               확정 대상 수정
             </button>
           )}
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

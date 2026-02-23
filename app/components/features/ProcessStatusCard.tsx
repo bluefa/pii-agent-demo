@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
-import { TerraformStatusModal } from './TerraformStatusModal';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -15,13 +15,24 @@ import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
-import { ProcessGuideModal } from './process-status/ProcessGuideModal';
 import { getProcessGuide } from '@/lib/constants/process-guides';
-import { cn, statusColors, primaryColors } from '@/lib/theme';
-import { ApprovalRequestModal } from './process-status/ApprovalRequestModal';
+import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
+import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
+import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
+
+// bundle-dynamic-imports: 모달은 열릴 때만 필요 → 지연 로딩
+const TerraformStatusModal = dynamic(() => import('./TerraformStatusModal').then(m => ({ default: m.TerraformStatusModal })));
+const ProcessGuideModal = dynamic(() => import('./process-status/ProcessGuideModal').then(m => ({ default: m.ProcessGuideModal })));
+const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
 
 type ProcessTabType = 'status' | 'history';
+
+// rendering-hoist-jsx: 정적 탭 정의를 컴포넌트 밖으로 호이스팅
+const TABS: { id: ProcessTabType; label: string }[] = [
+  { id: 'status', label: '프로세스 진행 상태' },
+  { id: 'history', label: '진행 내역' },
+];
 
 interface ProcessStatusCardProps {
   project: Project;
@@ -55,10 +66,6 @@ export const ProcessStatusCard = ({
 }: ProcessStatusCardProps) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
-  const tabs = [
-    { id: 'status' as const, label: '프로세스 진행 상태' },
-    { id: 'history' as const, label: '진행 내역' },
-  ];
 
   // Modal states
   const terraformModal = useModal();
@@ -67,6 +74,9 @@ export const ProcessStatusCard = ({
   const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
   const selectedResources = project.resources.filter((r) => r.isSelected);
+
+  // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
+  const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
 
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -78,6 +88,7 @@ export const ProcessStatusCard = ({
   useEffect(() => {
     const shouldPoll =
       currentStep === ProcessStatus.WAITING_APPROVAL ||
+      currentStep === ProcessStatus.APPLYING_APPROVED ||
       currentStep === ProcessStatus.INSTALLING;
 
     if (!shouldPoll || !project.targetSourceId) {
@@ -96,6 +107,7 @@ export const ProcessStatusCard = ({
     const poll = async () => {
       try {
         const status = await getProcessStatus(project.targetSourceId);
+        setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
         if (status.process_status !== expectedBff) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
@@ -104,6 +116,9 @@ export const ProcessStatusCard = ({
         // polling failure ignored
       }
     };
+
+    // 마운트 시 즉시 1회 조회
+    poll();
 
     pollRef.current = setInterval(poll, 10_000);
     return () => {
@@ -137,7 +152,7 @@ export const ProcessStatusCard = ({
       {/* 탭 헤더 */}
       <div className="border-b border-gray-200">
         <nav className="flex">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -145,7 +160,7 @@ export const ProcessStatusCard = ({
                 'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
                 activeTab === tab.id
                   ? `${primaryColors.border} ${primaryColors.text}`
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : interactiveColors.inactiveTab
               )}
             >
               {tab.label}
@@ -195,14 +210,24 @@ export const ProcessStatusCard = ({
                   </div>
                 )}
 
-                {currentStep === ProcessStatus.WAITING_APPROVAL && (
-                  <div className="w-full text-center py-2.5 text-gray-500 text-sm">
-                    관리자 승인을 기다리는 중입니다
-                  </div>
+                {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
+                  <ApprovalWaitingCard
+                    targetSourceId={project.targetSourceId}
+                    onCancelSuccess={refreshProject}
+                    hasConfirmedIntegration={hasConfirmedIntegration}
+                  />
+                )}
+
+                {currentStep === ProcessStatus.APPLYING_APPROVED && (
+                  <ApprovalApplyingBanner
+                    targetSourceId={project.targetSourceId}
+                    hasConfirmedIntegration={hasConfirmedIntegration}
+                  />
                 )}
 
                 {currentStep === ProcessStatus.INSTALLING && (
-                  project.cloudProvider === 'Azure' ? (
+                  <>
+                  {project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={project.resources}
@@ -231,7 +256,8 @@ export const ProcessStatusCard = ({
                         {progress.completed}/{progress.total}
                       </span>
                     </button>
-                  )
+                  )}
+                  </>
                 )}
 
                 {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||

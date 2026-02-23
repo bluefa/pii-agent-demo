@@ -16,6 +16,8 @@ const getStepGuideText = (status: ProcessStatus, provider?: CloudProvider): stri
       return '리소스를 스캔하고 연동 대상을 선택하세요';
     case ProcessStatus.WAITING_APPROVAL:
       return '연동 대상이 확정되었습니다. 관리자 승인을 대기 중입니다';
+    case ProcessStatus.APPLYING_APPROVED:
+      return '승인이 완료되어 연동 대상을 반영하고 있습니다';
     case ProcessStatus.INSTALLING:
       return 'PII Agent를 설치하고 있습니다';
     case ProcessStatus.WAITING_CONNECTION_TEST:
@@ -52,7 +54,8 @@ const getStepIcon = (status: ProcessStatus) => {
 };
 
 export const StepGuide = ({ currentStep, cloudProvider }: StepGuideProps) => {
-  if (currentStep === ProcessStatus.INSTALLING ||
+  if (currentStep === ProcessStatus.APPLYING_APPROVED ||
+      currentStep === ProcessStatus.INSTALLING ||
       currentStep === ProcessStatus.WAITING_CONNECTION_TEST) {
     return null;
   }
