@@ -5,7 +5,7 @@
  * 테스트 대상: lib/api-client/mock/confirm.ts
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval } from '@/lib/api-client/mock/confirm';
+import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval, _setApprovedIntegration } from '@/lib/api-client/mock/confirm';
 import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
@@ -236,7 +236,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // approval.status가 AUTO_APPROVED로 설정됨
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      // installation이 즉시 IN_PROGRESS로 전환됨
+      // 자동 승인 시 installation은 즉시 IN_PROGRESS로 전환
       expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
 
       // BFF process_status = APPLYING_APPROVED (P1 버그 수정)
@@ -441,22 +441,24 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
   });
 
   describe('시나리오 5: 409 Conflict', () => {
-    it('반영 중(INSTALLING) 재요청 → 409 CONFLICT_APPLYING_IN_PROGRESS', async () => {
+    it('반영 중(APPLYING_APPROVED) 재요청 → 409 CONFLICT_APPLYING_IN_PROGRESS', async () => {
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
         targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
         approval: { status: 'APPROVED', approvedAt: '2026-01-10T00:00:00Z' },
-        installation: { status: 'IN_PROGRESS' },
+        installation: { status: 'PENDING' },
       };
       addTestProject({
-        processStatus: ProcessStatus.INSTALLING,
+        processStatus: ProcessStatus.APPLYING_APPROVED,
         status,
         resources: [
           createTestResource('res-1', { isSelected: true }),
           createTestResource('res-2', { isSelected: true }),
         ],
       });
+      // 실시간 computeProcessStatus가 APPLYING_APPROVED를 감지하려면 store 필요
+      _setApprovedIntegration(TEST_PROJECT_ID);
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
       const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
@@ -490,7 +492,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(data.error).toBe('CONFLICT_REQUEST_PENDING');
     });
 
-    it('연결 테스트 대기 중(WAITING_CONNECTION_TEST) 재요청 → 409', async () => {
+    it('연결 테스트 대기 중(TARGET_CONFIRMED) → 변경 요청 가능 (201)', async () => {
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
@@ -507,7 +509,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       const reqBody = createApprovalRequestBody(['res-1']);
       const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
-      expect(reqRes.status).toBe(409);
+      expect(reqRes.status).toBe(201);
     });
   });
 

@@ -17,9 +17,9 @@ import {
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { ProjectHeader, RejectionAlert } from '../common';
+import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
-import { IdcProcessStatusCard } from './IdcProcessStatusCard';
+import { IdcProcessStatusCard } from '@/app/projects/[projectId]/idc/IdcProcessStatusCard';
 import { cn, getButtonClass } from '@/lib/theme';
 
 interface IdcProjectPageProps {

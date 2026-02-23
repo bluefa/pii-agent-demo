@@ -5,7 +5,6 @@ import { Resource, DatabaseType, SecretKey, needsCredential, CloudProvider, VmDa
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { ConnectionIndicator } from './ConnectionIndicator';
-import { StatusIcon } from './StatusIcon';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from './VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
@@ -226,16 +225,6 @@ export const ResourceRow = ({
           </td>
         )}
 
-        {/* Status Icons */}
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-1">
-            {resource.isSelected && <StatusIcon type="selected" />}
-            {isVm && hasVmConfig && <StatusIcon type="configured" />}
-            {isVm && isSelected && !hasVmConfig && <StatusIcon type="needsConfig" />}
-
-            {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
-          </div>
-        </td>
       </tr>
 
       {/* VM Configuration Panel */}

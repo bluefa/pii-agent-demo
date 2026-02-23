@@ -21,9 +21,11 @@ import { ProcessGuideModal } from '@/app/components/features/process-status/Proc
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
-import { ProjectHeader, RejectionAlert } from '../common';
+import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
+import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
+import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -117,6 +119,9 @@ export const AwsProjectPage = ({
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
+    currentStep === ProcessStatus.APPLYING_APPROVED ||
+    currentStep === ProcessStatus.INSTALLING;
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
@@ -200,22 +205,23 @@ export const AwsProjectPage = ({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <ProjectHeader project={project} />
 
-      <main className="p-6 space-y-6">
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <div className="space-y-6">
-            <AwsInfoCard
-              project={project}
-              awsStatus={awsStatus}
-              awsSettings={awsSettings}
-              credentials={credentials}
-              onOpenGuide={handleOpenGuide}
-              onManageCredentials={handleManageCredentials}
-            />
-            <ProjectInfoCard project={project} />
-          </div>
+      <div className="flex flex-1 overflow-hidden">
+        <ProjectSidebar cloudProvider={project.cloudProvider}>
+          <AwsInfoCard
+            project={project}
+            awsStatus={awsStatus}
+            awsSettings={awsSettings}
+            credentials={credentials}
+            onOpenGuide={handleOpenGuide}
+            onManageCredentials={handleManageCredentials}
+          />
+          <ProjectInfoCard project={project} />
+        </ProjectSidebar>
+
+        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
@@ -226,43 +232,53 @@ export const AwsProjectPage = ({
             approvalError={approvalError}
             approvalResources={approvalResources}
           />
-        </div>
 
         {/* Cloud 리소스 통합 컨테이너 */}
-        <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
-          <div className="px-6 pt-6">
-            <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+          <div ref={resourceSectionRef}>
+            <ResourceTransitionPanel
+              targetSourceId={project.targetSourceId}
+              resources={project.resources}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+            />
           </div>
+        ) : (
+          <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
+            <div className="px-6 pt-6">
+              <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+            </div>
 
-          <ScanPanel
-            targetSourceId={project.targetSourceId}
-            cloudProvider={project.cloudProvider}
-            onScanComplete={async () => {
-              const updatedProject = await getProject(project.targetSourceId);
-              onProjectUpdate(updatedProject);
-            }}
-          />
+            <ScanPanel
+              targetSourceId={project.targetSourceId}
+              cloudProvider={project.cloudProvider}
+              onScanComplete={async () => {
+                const updatedProject = await getProject(project.targetSourceId);
+                onProjectUpdate(updatedProject);
+              }}
+            />
 
-          <ResourceTable
-            resources={project.resources.map((r) => ({
-              ...r,
-              vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-            }))}
-            cloudProvider={project.cloudProvider}
-            processStatus={currentStep}
-            isEditMode={effectiveEditMode}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            credentials={credentials}
-            onCredentialChange={handleCredentialChange}
-            expandedVmId={expandedVmId}
-            onVmConfigToggle={setExpandedVmId}
-            onVmConfigSave={handleVmConfigSave}
-            onEditModeChange={setIsEditMode}
-          />
-        </div>
+            <ResourceTable
+              resources={project.resources.map((r) => ({
+                ...r,
+                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+              }))}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+              isEditMode={effectiveEditMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+              expandedVmId={expandedVmId}
+              onVmConfigToggle={setExpandedVmId}
+              onVmConfigSave={handleVmConfigSave}
+              onEditModeChange={setIsEditMode}
+            />
+          </div>
+        )}
 
-        <RejectionAlert project={project} />
+        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
 
         <div className="flex justify-end gap-3">
           {effectiveEditMode ? (
@@ -284,7 +300,7 @@ export const AwsProjectPage = ({
                 연동 대상 확정 승인 요청
               </button>
             </>
-          ) : (
+          ) : !isProcessing && (
             <button
               onClick={handleStartEdit}
               className={getButtonClass('secondary')}
@@ -293,7 +309,8 @@ export const AwsProjectPage = ({
             </button>
           )}
         </div>
-      </main>
+        </main>
+      </div>
 
       {guide && (
         <ProcessGuideModal
