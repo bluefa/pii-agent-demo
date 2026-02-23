@@ -1,432 +1,424 @@
-# AWS 연동 워크플로우 API 매핑
+# AWS 연동 워크플로우 — State별 UI-API 매핑
 
-> **Base URL**: `/api/v1`
-> **Path Parameter**: `{targetSourceId}` — 타겟소스 고유 식별자 (integer)
+> **Base Path**: `/api/v1`
+> **Path Param**: `{id}` = `targetSourceId` (integer)
 > **대상 Provider**: AWS
 
 ---
 
-## 1. 유저 스토리별 API 매핑
+## 프로세스 바 범례
 
-### US-001: Scan 수행
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 최신 스캔 내역 | GET | `/target-sources/{targetSourceId}/scanJob/latest` | scan.yaml | Polling용 (5s 간격) |
-| 스캔 이력 | GET | `/target-sources/{targetSourceId}/scan/history?page={page}&size={size}` | scan.yaml | 페이지네이션 |
-| 스캔 시작 | POST | `/target-sources/{targetSourceId}/scan` | scan.yaml | 202 Accepted, 비동기 |
-
-**상태 모델**: `SCANNING` → `SUCCESS` / `FAIL` / `CANCELED` / `TIMEOUT`
-
-**에러 처리**:
-- 409 `CONFLICT_IN_PROGRESS`: 이미 진행 중인 스캔 존재
-- 404 `TARGET_SOURCE_NOT_FOUND`: 타겟소스 없음
-
----
-
-### US-002: 연동 대상 리소스 목록 조회
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 리소스 목록 | GET | `/target-sources/{targetSourceId}/resources` | confirm.yaml | 최신 스캔 기반 |
-
-**Response**:
-```json
-{
-  "resources": [
-    {
-      "id": "...",
-      "resourceId": "...",
-      "name": "...",
-      "resourceType": "RDS",
-      "integrationCategory": "TARGET",
-      "selectedCredentialId": null,
-      "metadata": {
-        "provider": "AWS",
-        "resourceType": "RDS",
-        "region": "ap-northeast-2",
-        "arn": "...",
-        "host": "...",
-        "port": 3306,
-        "databaseName": "...",
-        "vpcId": "..."
-      }
-    }
-  ],
-  "totalCount": 5
-}
 ```
-
-**`integrationCategory`**:
-- `TARGET`: 연동 대상 (제외 시 사유 필수)
-- `NO_INSTALL_NEEDED`: EC2 등 설치 불필요 리소스
-- `INSTALL_INELIGIBLE`: 연동 불가 리소스
-
-**AWS 리소스 타입**: `DYNAMODB`, `RDS`, `RDS_CLUSTER`, `ATHENA`, `REDSHIFT`, `EC2`
-
----
-
-### US-003: 연동 대상 선택 및 입력값 설정
-
-**API 호출 없음** — 프론트엔드 로컬 상태 관리
-
-참고 API (Credential 목록 조회):
-
-| 용도 | Method | Endpoint | Swagger |
-|------|--------|----------|---------|
-| DB Credential 목록 | GET | `/target-sources/{targetSourceId}/secrets` | credential.yaml |
-
----
-
-### US-004: 연동 대상 승인 요청
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 승인 요청 생성 | POST | `/target-sources/{targetSourceId}/approval-requests` | confirm.yaml | 201 Created |
-
-**Request Body**:
-```json
-{
-  "input_data": {
-    "resource_inputs": [
-      {
-        "resource_id": "aws-rds-123",
-        "selected": true,
-        "resource_input": {
-          "credential_id": "cred-456"
-        }
-      },
-      {
-        "resource_id": "aws-ec2-789",
-        "selected": true,
-        "resource_input": {
-          "endpoint_config": {
-            "db_type": "MYSQL",
-            "port": 3306,
-            "host": "10.0.0.5"
-          }
-        }
-      },
-      {
-        "resource_id": "aws-dynamo-111",
-        "selected": false,
-        "exclusion_reason": "Phase 2에서 처리 예정"
-      }
-    ],
-    "exclusion_reason_default": "이번 단계에서 제외"
-  }
-}
-```
-
-**에러 처리**:
-- 409 `CONFLICT_REQUEST_PENDING`: 이미 승인 요청 진행 중
-- 409 `CONFLICT_APPLYING_IN_PROGRESS`: 승인 반영 중 신규 요청 차단
-
----
-
-### US-005: 승인 요청 내역 조회
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 프로세스 상태 | GET | `/target-sources/{targetSourceId}/process-status` | confirm.yaml | |
-| 승인 이력 | GET | `/target-sources/{targetSourceId}/approval-history?page=0&size=1` | confirm.yaml | 최신 1건 |
-| 확정 정보 | GET | `/target-sources/{targetSourceId}/confirmed-integration` | confirm.yaml | nullable |
-| 승인 반영 중 정보 | GET | `/target-sources/{targetSourceId}/approved-integration` | confirm.yaml | nullable |
-
-**ProcessStatus 상태 (ADR-009)**:
-- `REQUEST_REQUIRED`: 요청 필요
-- `WAITING_APPROVAL`: 승인 대기
-- `APPLYING_APPROVED`: 승인 반영 중
-- `TARGET_CONFIRMED`: 연동 확정 완료
-
-**process-status 응답에 포함되는 추가 정보**:
-- `status_inputs.last_rejection_reason`: 최근 반려/시스템 에러 사유
-
----
-
-### US-006: 승인 요청 취소
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 승인 요청 취소 | POST | `/target-sources/{targetSourceId}/approval-requests/cancel` | confirm.yaml | |
-
-**에러 처리**:
-- 400 `VALIDATION_FAILED`: 취소 가능한 승인 요청 없음
-- 409 `CONFLICT_APPLYING_IN_PROGRESS`: 반영 중 취소 불가
-
----
-
-### US-007: 연동 확정 후 재요청
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 현재 확정 목록 조회 | GET | `/target-sources/{targetSourceId}/confirmed-integration` | confirm.yaml | |
-| 리소스 목록 재조회 | GET | `/target-sources/{targetSourceId}/resources` | confirm.yaml | |
-| 신규 승인 요청 | POST | `/target-sources/{targetSourceId}/approval-requests` | confirm.yaml | |
-
-"확정 대상 수정" 클릭 시 State 1(연동 대상 확정)부터 동일한 플로우 재시작
-
----
-
-### US-008: 연동 확정 변경 내역 비교 조회
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 변경 전 (현재 확정) | GET | `/target-sources/{targetSourceId}/confirmed-integration` | confirm.yaml | nullable |
-| 변경 후 (승인 반영 중) | GET | `/target-sources/{targetSourceId}/approved-integration` | confirm.yaml | nullable |
-
-두 응답의 `resource_infos[]`를 비교하여 생성/삭제/유지 판별 (프론트엔드 로직):
-- `approved`에만 존재 → **생성**
-- `confirmed`에만 존재 → **삭제**
-- 양쪽 모두 존재 → **유지**
-- 이전 확정 없는 경우 (신규) → 모두 **생성**
-
----
-
-### Admin-001: 승인 요청 목록 조회
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 승인 이력 목록 | GET | `/target-sources/{targetSourceId}/approval-history?page={page}&size={size}` | confirm.yaml | 페이지네이션 |
-| 프로세스 상태 | GET | `/target-sources/{targetSourceId}/process-status` | confirm.yaml | |
-
----
-
-### Admin-002: 승인 요청 승인/반려
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 승인 | POST | `/target-sources/{targetSourceId}/approval-requests/approve` | confirm.yaml | |
-| 반려 | POST | `/target-sources/{targetSourceId}/approval-requests/reject` | confirm.yaml | |
-
-**승인 Request**: `{ "comment": "..." }` (선택)
-**반려 Request**: `{ "reason": "..." }` (필수, minLength: 1)
-
-**에러 처리**:
-- 400 `VALIDATION_FAILED`: 승인 대기 상태가 아님 / 반려 사유 누락
-
----
-
-### US-009: 설치 상태 조회 (AWS 전용)
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 설치 상태 조회 | GET | `/aws/target-sources/{targetSourceId}/installation-status` | aws.yaml | 캐시 5분 |
-| 설치 상태 새로고침 | POST | `/aws/target-sources/{targetSourceId}/check-installation` | aws.yaml | 강제 동기화 |
-
-**Response (`AwsInstallationStatus`)**:
-```json
-{
-  "lastCheck": {
-    "status": "SUCCESS",
-    "checkedAt": "2026-02-15T10:30:00Z"
-  },
-  "hasExecutionPermission": true,
-  "executionRoleArn": "arn:aws:iam::123456789012:role/PiiExecutionRole",
-  "serviceScripts": [
-    {
-      "scriptName": "VPC Endpoint (vpc-0123abcd / ap-northeast-2)",
-      "status": "COMPLETED",
-      "region": "ap-northeast-2",
-      "resources": [
-        { "resourceId": "...", "type": "RDS", "name": "my-db" }
-      ]
-    }
-  ],
-  "bdcStatus": { "status": "COMPLETED" }
-}
-```
-
-**ServiceScript 상태**: `PENDING` / `COMPLETED` / `FAILED`
-
----
-
-### US-010: Terraform Script 다운로드 (AWS 전용)
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| TF Script 다운로드 | GET | `/aws/target-sources/{targetSourceId}/terraform-script` | aws.yaml | 수동설치 모드 전용 |
-
-**Response**:
-```json
-{
-  "downloadUrl": "https://...",
-  "fileName": "terraform-script.zip",
-  "expiresAt": "2026-02-15T11:30:00Z"
-}
-```
-
-**에러 처리**: AUTO 모드에서 호출 시 400 에러
-
----
-
-### US-011: 연결 테스트 수행
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 테스트 내역 | GET | `/target-sources/{targetSourceId}/test-connection/results?page={page}&size={size}` | test-connection.yaml | 페이지네이션 |
-| 최신 테스트 결과 | GET | `/target-sources/{targetSourceId}/test-connection/latest` | test-connection.yaml | Polling용 (10s) |
-| 마지막 성공 결과 | GET | `/target-sources/{targetSourceId}/test-connection/last-success` | test-connection.yaml | |
-| 테스트 시작 | POST | `/target-sources/{targetSourceId}/test-connection` | test-connection.yaml | 202 Accepted |
-| DB Credential 목록 | GET | `/target-sources/{targetSourceId}/secrets` | credential.yaml | |
-| DB Credential 설정 | PATCH | `/target-sources/{targetSourceId}/resources/credential` | confirm.yaml | |
-
-**Credential 갱신 Request**:
-```json
-{
-  "resourceId": "aws-rds-123",
-  "credentialId": "cred-456"
-}
-```
-
-**테스트 상태**: `PENDING` → `SUCCESS` / `FAIL`
-
-**리소스별 에러 유형** (`error_status`):
-- `AUTH_FAIL`: 인증 실패 (credential 오류)
-- `CONNECTION_FAIL`: 연결 실패 (네트워크/호스트)
-- `PERMISSION_DENIED`: 권한 부족
-
-**에러 처리**: 409 `CONFLICT_IN_PROGRESS`: 이미 진행 중
-
----
-
-### US-012: 연결 완료 리소스 상태 조회
-
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| 논리 DB 연결 상태 | GET | `/target-sources/{targetSourceId}/logical-db-status` | logical-db-status.yaml | 7일 기준 |
-
-**Response**:
-```json
-{
-  "resources": [
-    {
-      "resource_id": "aws-rds-123",
-      "total_database_count": 5,
-      "success_database_count": 4,
-      "fail_count": 1,
-      "pending_count": 0
-    }
-  ],
-  "checked_at": "2026-02-23T10:00:00Z",
-  "query_period_days": 7,
-  "agent_running": true
-}
+[연동대상확정] → [승인대기] → [반영중] → [설치] → [테스트] → [확인] → [완료]
 ```
 
 ---
 
-## 2. 공통 / 사전 조치 API (AWS 전용)
+## User Story 인덱스
 
-| 용도 | Method | Endpoint | Swagger | 비고 |
-|------|--------|----------|---------|------|
-| AWS 설정 조회 | GET | `/aws/target-sources/{targetSourceId}/settings` | aws.yaml | ScanRole + ExecutionRole 상태 |
-| ScanRole 검증 | POST | `/aws/target-sources/{targetSourceId}/verify-scan-role` | aws.yaml | 동기, 1~30s |
-| ExecutionRole 검증 | POST | `/aws/target-sources/{targetSourceId}/verify-execution-role` | aws.yaml | 동기, 1~30s |
-| 설치 모드 설정 | POST | `/aws/target-sources/{targetSourceId}/installation-mode` | aws.yaml | 1회만 설정 가능 |
-| 관리자 설치 확정 | POST | `/target-sources/{targetSourceId}/pii-agent-installation/confirm` | confirm.yaml | State 6→7 전이 |
-
-**AWS 설정 Response (`AwsSettings`)**:
-```json
-{
-  "executionRole": {
-    "roleArn": "arn:aws:iam::...:role/PiiExecutionRole",
-    "status": "VALID",
-    "lastVerifiedAt": "2026-02-15T10:30:00Z"
-  },
-  "scanRole": {
-    "roleArn": "arn:aws:iam::...:role/PiiScanRole",
-    "status": "VALID",
-    "lastVerifiedAt": "2026-02-15T10:30:00Z"
-  }
-}
-```
-
-**Role 상태**: `VALID` / `INVALID` / `UNVERIFIED`
-
-**Role 실패 사유** (`failReason`):
-- `ROLE_NOT_CONFIGURED`: Role ARN 미설정
-- `ROLE_INSUFFICIENT_PERMISSIONS`: 권한 부족
-- `SCAN_ROLE_UNAVAILABLE`: Scan Role 사용 불가
+| US | 이름 | 주요 State |
+|----|------|-----------|
+| US-001 | Scan 수행 | 1, 7 |
+| US-002 | 연동 대상 리소스 목록 조회 | 1 |
+| US-003 | 연동 대상 선택 및 입력값 설정 | 1 |
+| US-004 | 연동 대상 승인 요청 | 1 |
+| US-005 | 승인 요청 내역/상태 조회 | 2, 3 |
+| US-006 | 승인 요청 취소 | 2 |
+| US-007 | 연동 확정 후 재요청 | 7 |
+| US-008 | 연동 확정 변경 내역 비교 | 3 |
+| US-009 | 설치 상태 조회 (AWS) | 4 |
+| US-010 | TF Script 다운로드 (AWS) | 4 |
+| US-011 | 연결 테스트 수행 | 5 |
+| US-012 | 연결 완료 리소스 상태 조회 | 7 |
+| Admin-001 | 승인 요청 목록 조회 | 2 |
+| Admin-002 | 승인 요청 승인/반려 | 2 |
 
 ---
 
-## 3. State별 화면 진입 시 API 호출 목록
+## State 0 → State 1 전이: 사전 조치
 
-### State 1: 연동 대상 확정
-
-```
-GET /target-sources/{targetSourceId}/process-status
-GET /aws/target-sources/{targetSourceId}/settings
-GET /target-sources/{targetSourceId}/scanJob/latest
-GET /target-sources/{targetSourceId}/scan/history
-GET /target-sources/{targetSourceId}/resources
-GET /target-sources/{targetSourceId}/secrets
-```
-
-### State 2: 승인 대기
+────────────────────────────────────────
 
 ```
-GET /target-sources/{targetSourceId}/process-status
-GET /target-sources/{targetSourceId}/approval-history?page=0&size=1
-```
+[연동 관리 메인 화면] - State 0: AWS 사전 조치
+  관련 US: (없음 — Provider 설정 단계)
 
-### State 3: 연동대상반영중
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  (프로세스 상태)
+    └─ GET  /api/v1/aws/target-sources/{id}/settings                    (AWS Role 설정)
 
-```
-GET /target-sources/{targetSourceId}/process-status
-GET /target-sources/{targetSourceId}/confirmed-integration
-GET /target-sources/{targetSourceId}/approved-integration
-```
+  ## 프로세스 바
+    [사전조치(🔵)] → [연동대상확정] → [승인대기] → [반영중] → [설치] → [테스트] → [확인] → [완료]
 
-### State 4: 설치 진행
+  ## AWS 설치 모드 선택 컴포넌트
+    └─ [설치 모드 선택] 버튼 (AUTO / MANUAL)
+        └─ 클릭
+            └─ API: POST /api/v1/aws/target-sources/{id}/installation-mode
+                    Body: { "mode": "AUTO" | "MANUAL" }
+                    ⚠️ 1회만 설정 가능 (immutable), 409 시 이미 설정됨
 
-```
-GET /target-sources/{targetSourceId}/process-status
-GET /target-sources/{targetSourceId}/confirmed-integration
-GET /aws/target-sources/{targetSourceId}/installation-status
-```
+  ## Scan Role 검증 컴포넌트
+    ├─ 현재 상태 표시 (settings.scanRole.status)
+    └─ [검증] 버튼
+        └─ 클릭
+            └─ API: POST /api/v1/aws/target-sources/{id}/verify-scan-role
+                    동기 (1s~30s), 200 응답 내 status: VALID | INVALID
 
-### State 5: 연결 테스트
-
-```
-GET /target-sources/{targetSourceId}/process-status
-GET /target-sources/{targetSourceId}/confirmed-integration
-GET /target-sources/{targetSourceId}/test-connection/results
-GET /target-sources/{targetSourceId}/test-connection/latest
-```
-
-### State 6: 연결 확인
-
-```
-GET /target-sources/{targetSourceId}/process-status
-GET /target-sources/{targetSourceId}/confirmed-integration
-```
-
-### State 7: 완료
-
-```
-GET /target-sources/{targetSourceId}/process-status
-GET /target-sources/{targetSourceId}/confirmed-integration
-GET /target-sources/{targetSourceId}/scanJob/latest
-GET /target-sources/{targetSourceId}/scan/history
-GET /target-sources/{targetSourceId}/logical-db-status
-GET /target-sources/{targetSourceId}/test-connection/results
-GET /target-sources/{targetSourceId}/test-connection/latest
+  ## Execution Role 검증 컴포넌트 (AUTO 모드 전용)
+    ├─ 현재 상태 표시 (settings.executionRole.status)
+    └─ [검증] 버튼
+        └─ 클릭
+            └─ API: POST /api/v1/aws/target-sources/{id}/verify-execution-role
+                    동기 (1s~30s), 200 응답 내 status: VALID | INVALID
+                    failReason: ROLE_NOT_CONFIGURED | ROLE_INSUFFICIENT_PERMISSIONS | SCAN_ROLE_UNAVAILABLE
 ```
 
 ---
 
-## 4. 비동기 작업 Polling 가이드
+## State 1: 연동 대상 확정
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 1: 연동 대상 확정
+  관련 US: US-001, US-002, US-003, US-004
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  (프로세스 상태)
+    ├─ GET  /api/v1/aws/target-sources/{id}/settings                    (AWS Role 설정)
+    ├─ GET  /api/v1/target-sources/{id}/scanJob/latest                  [US-001] (최신 스캔 상태)
+    ├─ GET  /api/v1/target-sources/{id}/scan/history?page=0&size=10     [US-001] (스캔 이력)
+    ├─ GET  /api/v1/target-sources/{id}/resources                       [US-002] (리소스 목록)
+    └─ GET  /api/v1/target-sources/{id}/secrets                         (DB Credential 목록)
+
+  ## 프로세스 바
+    [연동대상확정(🔵)] → [승인대기] → [반영중] → [설치] → [테스트] → [확인] → [완료]
+
+  ## 스캔 수행 컴포넌트 [US-001]
+    ├─ 최신 스캔 상태 표시 (scanJob/latest)
+    ├─ 스캔 이력 목록 (scan/history)
+    └─ [스캔 실행] 버튼
+        └─ 클릭
+            ├─ API: POST /api/v1/target-sources/{id}/scan
+            │       202 Accepted (비동기)
+            ├─ Polling 시작 (5s 간격)
+            │   └─ API: GET /api/v1/target-sources/{id}/scanJob/latest
+            │           완료 조건: scanStatus !== "SCANNING"
+            ├─ 스캔 완료 시
+            │   └─ API: GET /api/v1/target-sources/{id}/resources   [US-002] (리소스 목록 갱신)
+            └─ 에러
+                └─ 409 CONFLICT_IN_PROGRESS: "현재 스캔이 진행 중입니다"
+
+  ## 리소스 목록 컴포넌트 [US-002]
+    ├─ 리소스 목록 표시 (resources)
+    │   └─ integrationCategory별 구분:
+    │       ├─ TARGET: 연동 대상 (제외 시 사유 필수)
+    │       ├─ NO_INSTALL_NEEDED: EC2 등 설치 불필요
+    │       └─ INSTALL_INELIGIBLE: 연동 불가
+    └─ DB Credential 선택 드롭다운
+        └─ 데이터: GET /api/v1/target-sources/{id}/secrets 응답
+
+  ## 연동 대상 선택 컴포넌트 [US-003]
+    └─ API 호출 없음 — 프론트엔드 로컬 상태 관리
+        ├─ 리소스별 선택/제외 토글
+        ├─ 제외 시 사유 입력 (integrationCategory=TARGET인 경우 필수)
+        ├─ EC2 선택 시 endpoint_config 입력 (db_type, port, host)
+        └─ RDS 선택 시 credential_id 선택
+
+  ## [승인 요청] 버튼 [US-004]
+    └─ 클릭
+        ├─ API: POST /api/v1/target-sources/{id}/approval-requests
+        │       Body: { "input_data": { "resource_inputs": [...] } }
+        │       201 Created
+        ├─ 성공 시 → State 2 전이
+        └─ 에러
+            ├─ 409 CONFLICT_REQUEST_PENDING: "이미 승인 요청이 진행 중입니다"
+            └─ 409 CONFLICT_APPLYING_IN_PROGRESS: "승인된 내용이 반영 중입니다"
+```
+
+---
+
+## State 1 → State 2 전이
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 2: 승인 대기
+  관련 US: US-005, US-006, Admin-001, Admin-002
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  [US-005] (프로세스 상태)
+    └─ GET  /api/v1/target-sources/{id}/approval-history?page=0&size=1  [US-005] (최신 승인 요청)
+
+  ## 프로세스 바
+    [연동대상확정] → [승인대기(🔵)] → [반영중] → [설치] → [테스트] → [확인] → [완료]
+
+  ## 스캔 수행 컴포넌트 → 미노출
+
+  ## 승인 요청 내역 컴포넌트 [US-005]
+    ├─ 프로세스 상태 표시 (process-status.process_status = WAITING_APPROVAL)
+    ├─ 최근 승인 요청 정보 (approval-history)
+    │   └─ 요청자, 요청 일시, 선택된 리소스 요약
+    └─ 반려 이력 표시 (process-status.status_inputs.last_rejection_reason)
+
+  ## [승인 요청 취소] 버튼 [US-006] (서비스 담당자)
+    └─ 클릭
+        ├─ API: POST /api/v1/target-sources/{id}/approval-requests/cancel
+        │       200 OK, result: "CANCELLED"
+        ├─ 성공 시 → State 1 복귀 (REQUEST_REQUIRED 또는 TARGET_CONFIRMED)
+        └─ 에러
+            ├─ 400 VALIDATION_FAILED: "취소할 수 있는 승인 요청이 없습니다"
+            └─ 409 CONFLICT_APPLYING_IN_PROGRESS: "반영 중에는 취소 불가"
+
+  ## 관리자 전용: 승인 요청 목록 [Admin-001]
+    └─ 승인 이력 페이지네이션
+        └─ API: GET /api/v1/target-sources/{id}/approval-history?page={page}&size={size}
+
+  ## 관리자 전용: [승인] / [반려] 버튼 [Admin-002]
+    ├─ [승인] 클릭
+    │   ├─ API: POST /api/v1/target-sources/{id}/approval-requests/approve
+    │   │       Body: { "comment": "..." }  (선택)
+    │   └─ 성공 시 → State 3 전이 (APPLYING_APPROVED)
+    └─ [반려] 클릭
+        ├─ API: POST /api/v1/target-sources/{id}/approval-requests/reject
+        │       Body: { "reason": "..." }  (필수, minLength: 1)
+        ├─ 성공 시 → State 1 복귀 (REQUEST_REQUIRED)
+        └─ 에러
+            └─ 400 VALIDATION_FAILED: "승인 대기 상태가 아닙니다" / "반려 사유를 입력해주세요"
+```
+
+---
+
+## State 2 → State 3 전이
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 3: 연동대상반영중
+  관련 US: US-005, US-008
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  [US-005] (프로세스 상태)
+    ├─ GET  /api/v1/target-sources/{id}/confirmed-integration           [US-008] (변경 전: 현재 확정)
+    └─ GET  /api/v1/target-sources/{id}/approved-integration            [US-008] (변경 후: 승인 반영 중)
+
+  ## 프로세스 바
+    [연동대상확정] → [승인대기] → [반영중(🔵)] → [설치] → [테스트] → [확인] → [완료]
+
+  ## 스캔 수행 컴포넌트 → 미노출
+
+  ## 변경 내역 비교 컴포넌트 [US-008]
+    ├─ confirmed-integration (nullable: 최초 연동 시 null)
+    ├─ approved-integration (반영 중 스냅샷)
+    └─ 두 응답의 resource_infos[] 비교 (프론트엔드 로직)
+        ├─ approved에만 존재 → 🟢 생성
+        ├─ confirmed에만 존재 → 🔴 삭제
+        ├─ 양쪽 모두 존재 → ⚪ 유지
+        └─ confirmed가 null (신규) → 모두 🟢 생성
+
+  ## 안내 텍스트
+    └─ "승인된 연동 대상이 인프라에 반영되고 있습니다. 완료 시 자동으로 다음 단계로 이동합니다."
+        (반영 완료 시 시스템이 자동으로 State 4로 전이)
+```
+
+---
+
+## State 3 → State 4 전이
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 4: 설치 진행
+  관련 US: US-005, US-009, US-010
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  [US-005] (프로세스 상태)
+    ├─ GET  /api/v1/target-sources/{id}/confirmed-integration           (확정 리소스 목록)
+    └─ GET  /api/v1/aws/target-sources/{id}/installation-status         [US-009] (설치 상태)
+
+  ## 프로세스 바
+    [연동대상확정] → [승인대기] → [반영중] → [설치(🔵)] → [테스트] → [확인] → [완료]
+
+  ## 스캔 수행 컴포넌트 → 미노출
+
+  ## 설치 상태 컴포넌트 [US-009]
+    ├─ 확정 리소스 목록 (confirmed-integration)
+    ├─ ServiceScript별 설치 상태 표시
+    │   └─ 각 스크립트: scriptName, status (PENDING | COMPLETED | FAILED), region
+    ├─ BDC 상태 (bdcStatus.status)
+    ├─ lastCheck 정보 (checkedAt, status)
+    └─ [설치 상태 새로고침] 버튼
+        └─ 클릭
+            └─ API: POST /api/v1/aws/target-sources/{id}/check-installation
+                    동기 (30s~5m), 강제 동기화 후 최신 상태 반환
+
+  ## TF Script 다운로드 컴포넌트 [US-010] (MANUAL 모드 전용)
+    └─ [TF Script 다운로드] 버튼
+        └─ 클릭
+            ├─ API: GET /api/v1/aws/target-sources/{id}/terraform-script
+            │       Response: { downloadUrl, fileName, expiresAt }
+            └─ 에러
+                └─ 400: AUTO 모드에서는 스크립트 불필요
+
+  ## AUTO 모드 안내
+    └─ "TerraformExecutionRole을 통해 자동으로 설치가 진행됩니다."
+        └─ ExecutionRole 미등록 시 경고 배너 표시
+            └─ "TerraformExecutionRole이 등록되지 않았습니다."
+
+  ## MANUAL 모드 안내
+    └─ "TF Script를 다운로드 받아서 담당자와 함께 설치 일정을 조율하세요."
+```
+
+---
+
+## State 4 → State 5 전이
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 5: 연결 테스트
+  관련 US: US-005, US-011
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  [US-005] (프로세스 상태)
+    ├─ GET  /api/v1/target-sources/{id}/confirmed-integration           (확정 리소스 목록)
+    ├─ GET  /api/v1/target-sources/{id}/test-connection/results?page=0&size=10  [US-011] (테스트 내역)
+    └─ GET  /api/v1/target-sources/{id}/test-connection/latest          [US-011] (마지막 테스트 상태)
+
+  ## 프로세스 바
+    [연동대상확정] → [승인대기] → [반영중] → [설치] → [테스트(🔵)] → [확인] → [완료]
+
+  ## 스캔 수행 컴포넌트 → 미노출
+
+  ## 연결 테스트 컴포넌트 [US-011]
+    ├─ 확정 리소스 목록 (confirmed-integration)
+    ├─ 연결 테스트 내역 (test-connection/results)
+    ├─ 마지막 연결 테스트 상태 (test-connection/latest)
+    │   └─ 리소스별 개별 결과: resource_results[]
+    │       ├─ status: PENDING | SUCCESS | FAIL
+    │       └─ error_status (FAIL 시): AUTH_FAIL | CONNECTION_FAIL | PERMISSION_DENIED
+    └─ [연결 테스트] 버튼 [US-011]
+        └─ 클릭
+            ├─ DB Credential 미설정 리소스 존재
+            │   → 팝업: "DB Credential을 설정해주세요"
+            │   → API: GET  /api/v1/target-sources/{id}/secrets                  [US-011] (Credential 목록)
+            │   → 사용자가 Credential 선택
+            │   → API: PATCH /api/v1/target-sources/{id}/resources/credential    [US-011] (Credential 설정)
+            │          Body: { "resourceId": "...", "credentialId": "..." }
+            │   → 설정 완료 후 재시도
+            │
+            ├─ 테스트 실행
+            │   ├─ API: POST /api/v1/target-sources/{id}/test-connection
+            │   │       202 Accepted (비동기, 1m~10m)
+            │   ├─ Polling 시작 (10s 간격)
+            │   │   └─ API: GET /api/v1/target-sources/{id}/test-connection/latest
+            │   │           완료 조건: status !== "PENDING"
+            │   ├─ 전체 SUCCESS 시 → State 6 전이
+            │   └─ FAIL 시 → 리소스별 error_status + guide 표시
+            │       ├─ AUTH_FAIL → "Credential 재확인 필요"
+            │       │   → API: GET  /api/v1/target-sources/{id}/secrets
+            │       │   → API: PATCH /api/v1/target-sources/{id}/resources/credential
+            │       ├─ CONNECTION_FAIL → "네트워크/호스트 접근 불가"
+            │       └─ PERMISSION_DENIED → "접근 권한 부족"
+            │
+            └─ 에러
+                └─ 409 CONFLICT_IN_PROGRESS: "현재 연결 테스트가 진행 중입니다"
+```
+
+---
+
+## State 5 → State 6 전이
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 6: 연결 확인
+  관련 US: US-005
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  [US-005] (프로세스 상태)
+    └─ GET  /api/v1/target-sources/{id}/confirmed-integration           (확정 리소스 목록)
+
+  ## 프로세스 바
+    [연동대상확정] → [승인대기] → [반영중] → [설치] → [테스트] → [확인(🔵)] → [완료]
+
+  ## 스캔 수행 컴포넌트 → 미노출
+
+  ## 연결 확인 컴포넌트
+    ├─ 확정 리소스 목록 및 연결 상태 요약
+    └─ 관리자 전용: [설치 확정] 버튼
+        └─ 클릭
+            ├─ API: POST /api/v1/target-sources/{id}/pii-agent-installation/confirm
+            │       200 OK, { success: true, confirmedAt: "..." }
+            ├─ 성공 시 → State 7 전이 (INSTALLATION_COMPLETE)
+            └─ 에러
+                └─ 400 VALIDATION_FAILED: "설치 확정 가능한 상태가 아닙니다"
+```
+
+---
+
+## State 6 → State 7 전이
+
+────────────────────────────────────────
+
+```
+[연동 관리 메인 화면] - State 7: 완료
+  관련 US: US-001, US-005, US-007, US-011, US-012
+
+  ## 화면 진입 시 API
+    ├─ GET  /api/v1/target-sources/{id}/process-status                  [US-005] (프로세스 상태)
+    ├─ GET  /api/v1/target-sources/{id}/confirmed-integration           (확정 리소스 목록)
+    ├─ GET  /api/v1/target-sources/{id}/scanJob/latest                  [US-001] (최신 스캔 상태)
+    ├─ GET  /api/v1/target-sources/{id}/scan/history?page=0&size=10     [US-001] (스캔 이력)
+    ├─ GET  /api/v1/target-sources/{id}/logical-db-status               [US-012] (논리 DB 연결 상태)
+    ├─ GET  /api/v1/target-sources/{id}/test-connection/results?page=0&size=10  [US-011] (테스트 내역)
+    └─ GET  /api/v1/target-sources/{id}/test-connection/latest          [US-011] (마지막 테스트 상태)
+
+  ## 프로세스 바
+    [연동대상확정] → [승인대기] → [반영중] → [설치] → [테스트] → [확인] → [완료(🔵)]
+
+  ## 스캔 수행 컴포넌트 [US-001]
+    ├─ 최신 스캔 상태 표시
+    ├─ 스캔 이력 목록
+    └─ [스캔 실행] 버튼 (신규 리소스 발견 시)
+        └─ State 1과 동일한 스캔 플로우
+
+  ## 논리 DB 연결 상태 컴포넌트 [US-012]
+    └─ 리소스별 연결 현황
+        ├─ total_database_count: 전체 논리 DB 수
+        ├─ success_database_count: 연결 성공 수
+        ├─ fail_count: 연결 실패 수
+        ├─ pending_count: 대기 수
+        ├─ agent_running: PII Agent 정상 동작 여부
+        └─ query_period_days: 조회 기간 (7일)
+
+  ## 연결 테스트 내역 컴포넌트 [US-011]
+    ├─ 최근 테스트 결과 (test-connection/latest)
+    └─ 테스트 이력 목록 (test-connection/results)
+
+  ## [확정 대상 수정] 버튼 [US-007]
+    └─ 클릭
+        ├─ 현재 확정 정보 로드
+        │   └─ API: GET /api/v1/target-sources/{id}/confirmed-integration
+        ├─ 리소스 목록 재조회
+        │   └─ API: GET /api/v1/target-sources/{id}/resources
+        └─ State 1 (연동 대상 확정) 플로우 재시작
+            └─ 신규 승인 요청
+                └─ API: POST /api/v1/target-sources/{id}/approval-requests
+```
+
+---
+
+## 비동기 작업 Polling 가이드
 
 | 작업 | Trigger | Polling Endpoint | 간격 | 완료 조건 |
 |------|---------|-----------------|------|----------|
-| 스캔 | `POST .../scan` | `GET .../scanJob/latest` | 5s | `status !== "SCANNING"` |
-| 연결 테스트 | `POST .../test-connection` | `GET .../test-connection/latest` | 10s | `status !== "PENDING"` |
+| 스캔 | `POST /api/v1/target-sources/{id}/scan` | `GET /api/v1/target-sources/{id}/scanJob/latest` | 5s | `scanStatus !== "SCANNING"` |
+| 연결 테스트 | `POST /api/v1/target-sources/{id}/test-connection` | `GET /api/v1/target-sources/{id}/test-connection/latest` | 10s | `status !== "PENDING"` |
 
 ---
 
-## 5. Swagger 소스 파일 참조
+## Swagger 소스 파일 참조
 
 | 파일 | 주요 도메인 |
 |------|-----------|
