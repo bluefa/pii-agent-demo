@@ -885,7 +885,8 @@ export const mockConfirm = {
       );
     }
 
-    if (project.processStatus !== ProcessStatus.CONNECTION_VERIFIED) {
+    const currentStep = getCurrentStep(project.cloudProvider, project.status);
+    if (currentStep !== ProcessStatus.CONNECTION_VERIFIED) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_FAILED', message: '설치 확정 가능한 상태가 아닙니다.' } },
         { status: 400 },

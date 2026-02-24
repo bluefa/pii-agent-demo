@@ -13,17 +13,21 @@ interface ProjectsTableProps {
   onViewApproval?: (project: ProjectSummary, e: React.MouseEvent) => void;
 }
 
-const getStatusBadge = (status: ProcessStatus, hasDisconnected: boolean, hasNew: boolean) => {
-  if (hasDisconnected) return { text: '끊김', color: 'bg-red-500' };
-  if (hasNew) return { text: '신규', color: statusColors.info.dot };
-
+const getStatusBadge = (status: ProcessStatus) => {
   switch (status) {
     case ProcessStatus.INSTALLATION_COMPLETE:
-      return { text: '완료', color: 'bg-green-500' };
+      return { text: '완료', color: statusColors.success.dot };
+    case ProcessStatus.CONNECTION_VERIFIED:
+      return { text: '연결확인', color: statusColors.success.dot };
+    case ProcessStatus.WAITING_CONNECTION_TEST:
+      return { text: '테스트대기', color: statusColors.pending.dot };
     case ProcessStatus.INSTALLING:
-      return { text: '설치중', color: 'bg-orange-500' };
+    case ProcessStatus.APPLYING_APPROVED:
+      return { text: '설치중', color: statusColors.warning.dot };
+    case ProcessStatus.WAITING_APPROVAL:
+      return { text: '승인대기', color: statusColors.info.dot };
     default:
-      return { text: '대기', color: 'bg-gray-400' };
+      return { text: '대기', color: statusColors.pending.dot };
   }
 };
 
@@ -92,7 +96,7 @@ export const ProjectsTable = ({
       </thead>
       <tbody className="divide-y divide-gray-50">
         {projects.map((project) => {
-          const badge = getStatusBadge(project.processStatus, project.hasDisconnected, project.hasNew);
+          const badge = getStatusBadge(project.processStatus);
           return (
             <tr
               key={project.id}
