@@ -26,6 +26,7 @@ export const StepProgressBar = ({ currentStep, onGuideClick }: StepProgressBarPr
           const isCompleted = currentStep > item.step;
           const isCurrent = currentStep === item.step;
           const isLast = index === steps.length - 1;
+          const isCurrentComplete = isCurrent && isLast;
 
           return (
             <div key={item.step} className="flex items-center flex-1">
@@ -34,11 +35,12 @@ export const StepProgressBar = ({ currentStep, onGuideClick }: StepProgressBarPr
                   className={cn(
                     'w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200',
                     isCompleted && cn(statusColors.success.dot, 'text-white'),
-                    isCurrent && cn(statusColors.info.dot, 'text-white ring-2', statusColors.info.border),
+                    isCurrentComplete && cn(statusColors.success.dot, 'text-white ring-2', statusColors.success.border),
+                    isCurrent && !isCurrentComplete && cn(statusColors.info.dot, 'text-white ring-2', statusColors.info.border),
                     !isCompleted && !isCurrent && cn(statusColors.pending.bg, statusColors.pending.text)
                   )}
                 >
-                  {isCompleted ? (
+                  {isCompleted || isCurrentComplete ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -49,8 +51,8 @@ export const StepProgressBar = ({ currentStep, onGuideClick }: StepProgressBarPr
                 <span
                   className={cn(
                     'mt-1.5 text-xs text-center max-w-[70px] leading-tight',
-                    isCompleted && cn(statusColors.success.textDark, 'font-medium'),
-                    isCurrent && cn(statusColors.info.textDark, 'font-medium'),
+                    (isCompleted || isCurrentComplete) && cn(statusColors.success.textDark, 'font-medium'),
+                    isCurrent && !isCurrentComplete && cn(statusColors.info.textDark, 'font-medium'),
                     !isCompleted && !isCurrent && statusColors.pending.text
                   )}
                 >
