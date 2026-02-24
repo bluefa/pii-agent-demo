@@ -37,15 +37,19 @@ const ICON_PATHS: Partial<Record<ProcessStatus, string>> = {
 };
 const DEFAULT_ICON_PATH = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
 
-// --- Step 7 전용: 완료 안내 카드 ---
+// --- Step 6 전용: 연결 확인 안내 카드 ---
 
-const CompletionGuide = () => (
+const ConnectionVerifiedGuide = () => (
   <div className={cn('mb-4 rounded-lg border bg-white p-4', borderColors.default)}>
     <div className="flex items-start gap-3">
-      <span className={cn('mt-0.5 w-2 h-2 rounded-full flex-shrink-0', statusColors.success.dot)} />
+      <div className={cn('w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
+        <svg className={cn('w-4 h-4', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
       <div className="space-y-2">
         <p className={cn('text-sm font-medium', textColors.primary)}>
-          PII Agent 연결 작업이 완료되었습니다
+          연결이 확인되었습니다
         </p>
         <div className={cn('text-sm space-y-1', textColors.tertiary)}>
           <p>운영 인력이 PII Agent 연동이 마무리되었는지 확인하고 있습니다.</p>
@@ -64,8 +68,21 @@ export const StepGuide = ({ currentStep, cloudProvider }: StepGuideProps) => {
     return null;
   }
 
+  if (currentStep === ProcessStatus.CONNECTION_VERIFIED) {
+    return <ConnectionVerifiedGuide />;
+  }
+
   if (currentStep === ProcessStatus.INSTALLATION_COMPLETE) {
-    return <CompletionGuide />;
+    return (
+      <div className="flex items-center gap-3 mb-4">
+        <div className={cn('w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0', statusColors.success.bg)}>
+          <svg className={cn('w-4 h-4', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p className={cn('font-medium text-sm', textColors.primary)}>PII Agent 연동이 완료되었습니다</p>
+      </div>
+    );
   }
 
   const guideText = getStepGuideText(currentStep, cloudProvider);
