@@ -261,8 +261,7 @@ export const ProcessStatusCard = ({
                   </>
                 )}
 
-                {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||
-                  currentStep === ProcessStatus.CONNECTION_VERIFIED) && (
+                {currentStep === ProcessStatus.WAITING_CONNECTION_TEST && (
                   <ConnectionTestPanel
                     targetSourceId={project.targetSourceId}
                     selectedResources={selectedResources}
@@ -270,7 +269,8 @@ export const ProcessStatusCard = ({
                   />
                 )}
 
-                {currentStep === ProcessStatus.INSTALLATION_COMPLETE && (
+                {(currentStep === ProcessStatus.CONNECTION_VERIFIED ||
+                  currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
                   <div className="grid grid-cols-2 gap-4">
                     <ConnectionTestPanel
                       targetSourceId={project.targetSourceId}
@@ -279,6 +279,7 @@ export const ProcessStatusCard = ({
                     />
                     <LogicalDbStatusPanel
                       targetSourceId={project.targetSourceId}
+                      cloudProvider={project.cloudProvider}
                       resources={project.resources}
                     />
                   </div>

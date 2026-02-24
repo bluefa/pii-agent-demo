@@ -1148,24 +1148,22 @@ function generateDbCounts(resourceId: string, databaseType: string) {
   const total = DB_COUNT_MAP[databaseType] ?? 2;
   const h = simpleHash(resourceId) % 100;
 
-  // 약 70% 전부 성공, 20% 일부 실패, 10% pending 포함
-  let success: number;
+  // 약 60% 전부 성공, 25% 일부 실패, 15% pending 포함
   let fail: number;
   let pending: number;
 
-  if (h >= 90) {
-    success = Math.max(total - 2, 0);
-    fail = 1;
-    pending = total - success - fail;
-  } else if (h >= 70) {
+  if (h >= 85) {
+    fail = Math.min(1, total);
+    pending = Math.min(1, total - fail);
+  } else if (h >= 60) {
     fail = Math.min(Math.max(1, (h % 3) + 1), total);
-    success = total - fail;
     pending = 0;
   } else {
-    success = total;
     fail = 0;
     pending = 0;
   }
+
+  const success = total - fail - pending;
 
   return {
     total_database_count: total,

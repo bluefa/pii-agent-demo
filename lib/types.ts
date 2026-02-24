@@ -332,6 +332,7 @@ export interface ProjectConnectionTestStatus {
   status: ProjectConnectionTestStatusType;
   lastTestedAt?: string;
   passedAt?: string;
+  operationConfirmed?: boolean;
 }
 
 /**

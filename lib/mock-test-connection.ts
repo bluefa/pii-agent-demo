@@ -1,4 +1,5 @@
 import { getStore } from '@/lib/mock-store';
+import { getCurrentStep } from '@/lib/process';
 import type { Project, Resource, ConnectionErrorType } from '@/lib/types';
 
 // ===== Types =====
@@ -194,7 +195,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
     };
     updateJobInStore(completed);
 
-    // SUCCESS → 프로세스 상태 전환 (WAITING_CONNECTION_TEST → CONNECTION_VERIFIED)
+    // 프로세스 상태 전환
     if (finalStatus === 'SUCCESS') {
       project.status.connectionTest = {
         status: 'PASSED',
@@ -208,6 +209,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
         lastTestedAt: completedAt,
       };
     }
+    project.processStatus = getCurrentStep(project.cloudProvider, project.status);
 
     return completed;
   }
