@@ -913,6 +913,7 @@ export const mockConfirm = {
         ...project.status.connectionTest,
         status: 'PASSED',
         passedAt: project.status.connectionTest.passedAt || now,
+        operationConfirmed: true,
       },
     };
 
