@@ -3,6 +3,7 @@ import * as mockData from '@/lib/mock-data';
 import * as mockServiceSettings from '@/lib/mock-service-settings';
 import * as azureFns from '@/lib/mock-azure';
 import * as idcFns from '@/lib/mock-idc';
+import { getCurrentStep } from '@/lib/process';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import type { UpdateAwsSettingsRequest } from '@/lib/types';
@@ -139,7 +140,7 @@ export const mockServices = {
           id: p.id,
           targetSourceId: p.targetSourceId,
           projectCode: p.projectCode,
-          processStatus: p.processStatus,
+          processStatus: getCurrentStep(p.cloudProvider, p.status),
           cloudProvider: p.cloudProvider,
           resourceCount: p.resources.length,
           hasDisconnected,
