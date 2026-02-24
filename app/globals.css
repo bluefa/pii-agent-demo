@@ -16,7 +16,7 @@
   --color-primary-light: theme('colors.blue.100');
 
   /* Status Colors (상태 색상) - CLAUDE.md 규칙 준수 */
-  --color-status-success: theme('colors.green.500');
+  --color-status-success: #45CB85;
   --color-status-error: theme('colors.red.500');
   --color-status-warning: theme('colors.orange.500');
   --color-status-pending: theme('colors.gray.400');

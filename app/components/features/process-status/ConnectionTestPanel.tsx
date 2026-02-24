@@ -7,7 +7,7 @@ import { getSecrets, updateResourceCredential, getTestConnectionResults } from '
 import type { TestConnectionJob, TestConnectionResourceResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { statusColors, primaryColors, textColors, getButtonClass, cn } from '@/lib/theme';
+import { statusColors, primaryColors, textColors, borderColors, getButtonClass, cn } from '@/lib/theme';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 
 // ===== Constants =====
@@ -32,6 +32,7 @@ const CredentialSetupModal = ({
   credentials,
   targetSourceId,
   onComplete,
+  reviewMode = false,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -39,9 +40,24 @@ const CredentialSetupModal = ({
   credentials: SecretKey[];
   targetSourceId: number;
   onComplete: () => void;
+  reviewMode?: boolean;
 }) => {
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  // reviewMode: 기존 credential 값으로 초기화
+  useEffect(() => {
+    if (!isOpen) return;
+    if (reviewMode) {
+      const initial: Record<string, string> = {};
+      missingResources.forEach((r) => {
+        if (r.selectedCredentialId) initial[r.id] = r.selectedCredentialId;
+      });
+      setSelections(initial);
+    } else {
+      setSelections({});
+    }
+  }, [isOpen, reviewMode, missingResources]);
 
   const allSelected = missingResources.every((r) => selections[r.id]);
 
@@ -66,13 +82,21 @@ const CredentialSetupModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Credential 설정 필요"
-      subtitle="연결 테스트를 실행하려면 아래 리소스에 Credential을 설정해주세요."
+      title={reviewMode ? 'DB Credential 확인' : 'Credential 설정 필요'}
+      subtitle={reviewMode
+        ? '마지막 Test Connection이 실패하였습니다. DB Credential을 변경할 부분이 있는지 확인 부탁드리겠습니다.'
+        : '연결 테스트를 실행하려면 아래 리소스에 Credential을 설정해주세요.'}
       size="lg"
       icon={
-        <svg className={cn('w-5 h-5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-        </svg>
+        reviewMode ? (
+          <svg className={cn('w-5 h-5', statusColors.warning.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        ) : (
+          <svg className={cn('w-5 h-5', statusColors.info.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+        )
       }
       footer={
         <>
@@ -85,7 +109,7 @@ const CredentialSetupModal = ({
             className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
           >
             {saving && <LoadingSpinner />}
-            설정 완료 후 테스트 실행
+            {reviewMode ? '테스트 실행' : '설정 완료 후 테스트 실행'}
           </button>
         </>
       }
@@ -320,28 +344,25 @@ const HistoryJobCard = ({ job }: { job: TestConnectionJob }) => {
   });
 
   return (
-    <div className={cn('border rounded-lg overflow-hidden', isSuccess ? statusColors.success.border : isFail ? statusColors.error.border : statusColors.pending.border)}>
+    <div className={cn('border rounded-lg overflow-hidden', borderColors.default)}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className={cn(
-          'w-full px-4 py-3 flex items-center justify-between text-left',
-          isSuccess ? statusColors.success.bg : isFail ? statusColors.error.bg : statusColors.pending.bg,
-        )}
+        className="w-full px-4 py-3 flex items-center justify-between text-left bg-white hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className={cn(
             'w-2 h-2 rounded-full',
             isSuccess ? statusColors.success.dot : isFail ? statusColors.error.dot : statusColors.pending.dot,
           )} />
-          <span className="text-sm font-medium text-gray-700">{dateStr}</span>
+          <span className={cn('text-sm font-medium', textColors.secondary)}>{dateStr}</span>
           <span className={cn(
-            'text-xs font-medium px-2 py-0.5 rounded-full',
-            isSuccess ? cn(statusColors.success.bg, statusColors.success.text) : isFail ? cn(statusColors.error.bg, statusColors.error.text) : cn(statusColors.pending.bg, statusColors.pending.text),
+            'text-xs font-medium',
+            isSuccess ? statusColors.success.text : isFail ? statusColors.error.text : statusColors.pending.text,
           )}>
             {isSuccess ? '성공' : isFail ? `실패 (${failCount}건)` : '진행 중'}
           </span>
         </div>
-        <svg className={cn('w-4 h-4 text-gray-400 transition-transform', expanded && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={cn('w-4 h-4 transition-transform', textColors.quaternary, expanded && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -393,35 +414,32 @@ const ResourceResultRow = ({ result }: { result: TestConnectionResourceResult })
   const isFail = result.status === 'FAIL';
 
   return (
-    <div className={cn(
-      'flex items-start gap-3 px-4 py-2.5 border-b border-gray-100 last:border-b-0',
-      isFail && statusColors.error.bg,
-    )}>
+    <div className="flex items-start gap-3 px-4 py-2.5 border-b border-gray-100 last:border-b-0">
       <span className={cn(
         'w-2 h-2 rounded-full mt-1.5 flex-shrink-0',
         isSuccess ? statusColors.success.dot : statusColors.error.dot,
       )} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-500 uppercase">{result.resource_type}</span>
-          <span className="text-sm text-gray-700 font-mono truncate">{result.resource_id}</span>
+          <span className={cn('text-xs font-medium uppercase', textColors.quaternary)}>{result.resource_type}</span>
+          <span className={cn('text-sm font-mono truncate', textColors.secondary)}>{result.resource_id}</span>
         </div>
         {isFail && (
-          <div className={cn('mt-1 text-xs', statusColors.error.text)}>
+          <div className={cn('mt-1 text-xs', textColors.tertiary)}>
             <span className="font-medium">{result.error_status}</span>
             {result.guide ? (
-              <span className="ml-1 opacity-80">— {result.guide}</span>
+              <span className="ml-1">— {result.guide}</span>
             ) : (
-              <span className="ml-1 text-gray-400">— 가이드: 미지원</span>
+              <span className={cn('ml-1', textColors.quaternary)}>— 가이드: 미지원</span>
             )}
           </div>
         )}
       </div>
       <span className={cn(
-        'text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0',
-        isSuccess ? cn(statusColors.success.bg, statusColors.success.text) : cn(statusColors.error.bg, statusColors.error.text),
+        'text-xs font-medium flex-shrink-0',
+        isSuccess ? statusColors.success.text : statusColors.error.text,
       )}>
-        {result.status}
+        {isSuccess ? '성공' : '실패'}
       </span>
     </div>
   );
@@ -448,27 +466,17 @@ const ResultSummary = ({
   return (
     <div className={cn('space-y-2', isShaking && 'animate-shake')}>
       <span className={cn('text-xs font-semibold uppercase tracking-wide', textColors.tertiary)}>최근 테스트 결과</span>
-      <div className={cn(
-        'flex items-center gap-2 px-3 py-2.5 rounded-lg border',
-        isSuccess
-          ? cn(statusColors.success.bg, statusColors.success.border)
-          : cn(statusColors.error.bg, statusColors.error.border),
-      )}>
-        {isSuccess ? (
-          <svg className={cn('w-4 h-4 flex-shrink-0', statusColors.success.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        ) : (
-          <svg className={cn('w-4 h-4 flex-shrink-0', statusColors.error.text)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        )}
-        <span className={cn('text-sm flex-1', isSuccess ? statusColors.success.textDark : statusColors.error.textDark)}>
+      <div className={cn('flex items-center gap-2 px-3 py-2.5 bg-white rounded-lg border', borderColors.default)}>
+        <span className={cn(
+          'w-2 h-2 rounded-full flex-shrink-0',
+          isSuccess ? statusColors.success.dot : statusColors.error.dot,
+        )} />
+        <span className={cn('text-sm flex-1', textColors.secondary)}>
           {isSuccess
             ? `${successCount}개 성공`
             : `${successCount}개 성공, ${failCount}개 실패`}
           <span className="mx-1.5 opacity-50">·</span>
-          <span className="opacity-70">{dateStr}</span>
+          <span className={textColors.quaternary}>{dateStr}</span>
         </span>
         <button onClick={onShowDetail} className={TEXT_LINK_CLASS}>
           상세 보기 →
@@ -512,6 +520,7 @@ export const ConnectionTestPanel = ({
 
   // Credential 모달 상태
   const [credModalOpen, setCredModalOpen] = useState(false);
+  const [credReviewMode, setCredReviewMode] = useState(false);
   const [credentials, setCredentials] = useState<SecretKey[]>([]);
   const [missingCredResources, setMissingCredResources] = useState<Resource[]>([]);
 
@@ -520,6 +529,24 @@ export const ConnectionTestPanel = ({
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleTriggerClick = useCallback(async () => {
+    // 마지막 테스트 실패 시: credential 확인 모달 (review mode)
+    if (latestJob?.status === 'FAIL') {
+      const credResources = selectedResources.filter((r) => needsCredential(r.databaseType));
+      if (credResources.length > 0) {
+        try {
+          const creds = await getSecrets(targetSourceId);
+          setCredentials(creds);
+          setMissingCredResources(credResources);
+          setCredReviewMode(true);
+          setCredModalOpen(true);
+        } catch {
+          trigger();
+        }
+        return;
+      }
+    }
+
+    // 미설정 credential 확인
     const missing = selectedResources.filter(
       (r) => needsCredential(r.databaseType) && !r.selectedCredentialId,
     );
@@ -529,6 +556,7 @@ export const ConnectionTestPanel = ({
         const creds = await getSecrets(targetSourceId);
         setCredentials(creds);
         setMissingCredResources(missing);
+        setCredReviewMode(false);
         setCredModalOpen(true);
       } catch {
         trigger();
@@ -537,10 +565,11 @@ export const ConnectionTestPanel = ({
     }
 
     trigger();
-  }, [selectedResources, targetSourceId, trigger]);
+  }, [selectedResources, targetSourceId, trigger, latestJob]);
 
   const handleCredentialComplete = useCallback(() => {
     setCredModalOpen(false);
+    setCredReviewMode(false);
     onResourceUpdate?.();
     trigger();
   }, [trigger, onResourceUpdate]);
@@ -569,19 +598,16 @@ export const ConnectionTestPanel = ({
         )}
       </div>
 
-      {/* 가이드 (info box) */}
-      <div className={cn('p-3 rounded-lg border', statusColors.info.bg, statusColors.info.border)}>
-        <p className={cn('text-sm font-medium mb-2', statusColors.info.textDark)}>
+      {/* 가이드 */}
+      <div className="space-y-1">
+        <p className={cn('text-sm', textColors.tertiary)}>
           설치가 완료되었습니다. DB 연결을 테스트하세요.
         </p>
-        <ol className={cn('text-sm list-decimal list-inside space-y-0.5', statusColors.info.textDark)}>
+        <ol className={cn('text-xs list-decimal list-inside space-y-0.5', textColors.quaternary)}>
           <li>[연결 테스트 수행] 버튼 클릭</li>
           <li>연결 결과 확인 (성공/실패)</li>
           <li>실패 시 Credential 확인 또는 네트워크 점검</li>
         </ol>
-        <p className={cn('text-xs mt-2', statusColors.warning.text)}>
-          ⚠ DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다
-        </p>
       </div>
 
       {/* CTA + 결과 */}
@@ -615,11 +641,12 @@ export const ConnectionTestPanel = ({
       {/* Modals */}
       <CredentialSetupModal
         isOpen={credModalOpen}
-        onClose={() => setCredModalOpen(false)}
+        onClose={() => { setCredModalOpen(false); setCredReviewMode(false); }}
         missingResources={missingCredResources}
         credentials={credentials}
         targetSourceId={targetSourceId}
         onComplete={handleCredentialComplete}
+        reviewMode={credReviewMode}
       />
 
       {isCompleted && latestJob && (

@@ -25,7 +25,7 @@ export const primaryColors = {
 
 /**
  * 상태 색상 (CLAUDE.md 규칙 준수)
- * - success (green-500): 연결됨, 완료
+ * - success (#45CB85): 연결됨, 완료
  * - error (red-500): 끊김, 에러
  * - warning (orange-500): 진행중, AWS
  * - pending (gray-400): 대기중
@@ -33,11 +33,11 @@ export const primaryColors = {
  */
 export const statusColors = {
   success: {
-    bg: 'bg-green-100',
-    text: 'text-green-500',
-    textDark: 'text-green-800',
-    border: 'border-green-300',
-    dot: 'bg-green-500',
+    bg: 'bg-[#45CB85]/10',
+    text: 'text-[#45CB85]',
+    textDark: 'text-[#2A7D52]',
+    border: 'border-[#45CB85]/30',
+    dot: 'bg-[#45CB85]',
   },
   error: {
     bg: 'bg-red-100',
@@ -132,7 +132,7 @@ export const buttonStyles = {
     primary: 'bg-[#0064FF] text-white hover:bg-[#0050D6] shadow-sm hover:shadow',
     secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
     danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow',
-    success: 'bg-green-600 text-white hover:bg-green-700 shadow-sm hover:shadow',
+    success: 'bg-[#45CB85] text-white hover:bg-[#3AB574] shadow-sm hover:shadow',
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
   },
   sizes: {
@@ -163,7 +163,7 @@ export const cardStyles = {
 export const inputStyles = {
   base: 'w-full px-4 py-3 border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] focus:border-transparent transition-shadow',
   error: 'border-red-300 bg-red-50 text-red-700 focus:ring-red-500',
-  success: 'border-green-300 bg-green-50',
+  success: 'border-[#45CB85]/30 bg-[#45CB85]/5',
 } as const;
 
 /**

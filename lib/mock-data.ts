@@ -82,7 +82,7 @@ const createStatusForProcessStatus = (
         targets: { confirmed: true, selectedCount, excludedCount },
         approval: { status: 'APPROVED', approvedAt: new Date().toISOString() },
         installation: { status: 'COMPLETED', completedAt: new Date().toISOString() },
-        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString() },
+        connectionTest: { status: 'PASSED', passedAt: new Date().toISOString(), operationConfirmed: true },
       };
 
     default:
