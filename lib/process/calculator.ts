@@ -60,15 +60,17 @@ const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
     return ProcessStatus.INSTALLING;
   }
 
-  // 4. 연결 테스트 필요
-  if (status.connectionTest.status !== 'PASSED') {
+  // 5. 연결 테스트 — 한번이라도 성공(passedAt 존재)하면 연결 확인으로 이동
+  if (!status.connectionTest.passedAt) {
     return ProcessStatus.WAITING_CONNECTION_TEST;
   }
 
-  // 5. 연결 확인 완료 (관리자 확정 대기)
-  // CONNECTION_VERIFIED는 connectionTest가 PASSED이고 관리자 확정 전
-  // 여기서는 INSTALLATION_COMPLETE로 직접 가는 것으로 간주
-  // (별도의 adminConfirmed 필드가 필요하면 추후 추가)
+  // 6. 연결 확인 완료 (운영 확인 대기)
+  if (!status.connectionTest.operationConfirmed) {
+    return ProcessStatus.CONNECTION_VERIFIED;
+  }
+
+  // 7. 설치 완료
   return ProcessStatus.INSTALLATION_COMPLETE;
 };
 
@@ -86,9 +88,14 @@ const getCurrentStepWithoutApproval = (status: ProjectStatus): ProcessStatus => 
     return ProcessStatus.INSTALLING;
   }
 
-  // 3. 연결 테스트 필요
-  if (status.connectionTest.status !== 'PASSED') {
+  // 3. 연결 테스트 — 한번이라도 성공(passedAt 존재)하면 연결 확인으로 이동
+  if (!status.connectionTest.passedAt) {
     return ProcessStatus.WAITING_CONNECTION_TEST;
+  }
+
+  // 4. 연결 확인 완료 (운영 확인 대기)
+  if (!status.connectionTest.operationConfirmed) {
+    return ProcessStatus.CONNECTION_VERIFIED;
   }
 
   return ProcessStatus.INSTALLATION_COMPLETE;
