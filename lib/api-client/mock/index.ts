@@ -11,6 +11,7 @@ import { mockServices } from '@/lib/api-client/mock/services';
 import { mockDev } from '@/lib/api-client/mock/dev';
 import { mockScan } from '@/lib/api-client/mock/scan';
 import { mockConfirm } from '@/lib/api-client/mock/confirm';
+import { mockQueueBoard } from '@/lib/api-client/mock/queue-board';
 
 export const mockClient: ApiClient = {
   targetSources: mockTargetSources,
@@ -24,5 +25,6 @@ export const mockClient: ApiClient = {
   services: mockServices,
   dev: mockDev,
   scan: mockScan,
+  taskAdmin: mockQueueBoard,
   confirm: mockConfirm,
 };
