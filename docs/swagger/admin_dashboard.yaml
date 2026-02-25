@@ -1,0 +1,451 @@
+openapi: 3.0.3
+info:
+  title: Admin Dashboard API
+  version: 1.0.0
+  description: |
+    관리자 연동 현황 대시보드 API 명세서입니다.
+
+    ### 주요 기능
+    * **KPI 요약 조회**: 전체 시스템의 DB 연동 현황 요약 지표
+    * **시스템 상세 목록**: 서비스코드별 상세 정보 (검색, 필터, 정렬, 페이지네이션)
+    * **CSV 추출**: 현재 조회 조건 기준 시스템 현황 다운로드
+
+    ### 데이터 집계 구조
+    * 시스템 = 서비스코드(ServiceCode) 단위
+    * 1 시스템 안에 N개 target-source(Provider별) 존재
+    * DB 현황은 각 target-source의 logical-db-status를 시스템 단위로 합산
+
+servers:
+  - url: /api/v1
+    description: v1 Base Path
+
+tags:
+  - name: Dashboard Summary
+    description: 전체 KPI 요약 조회
+  - name: System Details
+    description: 시스템(서비스코드) 상세 현황 목록, 검색, 필터, CSV 추출
+
+paths:
+  /admin/dashboard/summary:
+    get:
+      tags: [Dashboard Summary]
+      summary: 연동 현황 KPI 요약 조회
+      operationId: getDashboardSummary
+      x-expected-duration: "500ms ~ 2s"
+      description: |
+        전체 시스템의 DB 연동 현황을 집계하여 KPI 요약 지표를 반환합니다.
+
+        **집계 대상**: 등록된 모든 서비스코드의 하위 target-source에서
+        logical-db-status를 합산합니다.
+
+        **연동률 계산**: (active_integration_db_count / total_target_db_count) × 100
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+              example:
+                total_system_count: 152
+                total_target_db_count: 1204
+                active_integration_db_count: 987
+                healthy_db_count: 964
+                unhealthy_db_count: 23
+                connection_rate: 82.0
+                checked_at: "2026-02-26T10:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '500':
+          description: 서버 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "대시보드 데이터 집계 중 오류가 발생했습니다."
+
+  /admin/dashboard/systems:
+    get:
+      tags: [System Details]
+      summary: 시스템 상세 현황 목록 조회
+      operationId: getSystemDetails
+      x-expected-duration: "500ms ~ 3s"
+      description: |
+        서비스코드별 시스템 상세 정보를 페이지네이션, 검색, 필터 조건으로 조회합니다.
+
+        각 시스템의 DB 연동 현황은 하위 target-source의 logical-db-status를 합산합니다.
+
+        **검색 대상**: service_name, manager_name, service_code, nirp_codes, sw_plm_codes
+        **필터**: integration_method(다중 선택), connection_status
+      parameters:
+        - name: search
+          in: query
+          description: |
+            통합 검색 키워드. 시스템명, 담당자명, 서비스코드, N-IRP 코드, SW-PLM 코드를 대상으로 부분 일치 검색합니다.
+          schema:
+            type: string
+          example: "금융시스템"
+        - name: integration_method
+          in: query
+          description: |
+            연동 방식 필터. 콤마(,) 구분으로 다중 선택 가능합니다.
+            해당 연동 방식을 1개 이상 포함하는 시스템을 반환합니다. (OR 조건)
+          schema:
+            type: string
+          example: "AWS,Azure"
+        - name: connection_status
+          in: query
+          description: |
+            연동 상태 필터.
+            - `all`: 전체 (기본값)
+            - `healthy`: Unhealthy DB가 0인 시스템만
+            - `unhealthy`: Unhealthy DB가 1개 이상인 시스템만
+            - `none`: 연동중 DB가 0인 시스템만 (미연동)
+          schema:
+            type: string
+            enum: [all, healthy, unhealthy, none]
+            default: all
+        - name: sort_by
+          in: query
+          description: 정렬 기준 컬럼
+          schema:
+            type: string
+            enum: [service_name, manager_name, target_db_count, healthy_db_count, unhealthy_db_count, active_db_count]
+            default: service_name
+        - name: sort_order
+          in: query
+          description: 정렬 방향
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          description: 페이지 번호 (0-based)
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: 페이지 크기
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemDetailListResponse'
+              example:
+                systems:
+                  - service_code: "SVC-001"
+                    service_name: "금융결제시스템"
+                    manager:
+                      name: "김철수"
+                      email: "cs.kim@example.com"
+                    nirp_codes: ["NI-001", "NI-002"]
+                    sw_plm_codes: ["PLM-A01"]
+                    integration_methods: ["AWS", "Azure"]
+                    db_status:
+                      target_db_count: 45
+                      healthy_db_count: 38
+                      unhealthy_db_count: 3
+                      active_db_count: 41
+                total_count: 152
+                page: 0
+                size: 20
+                total_pages: 8
+        '400':
+          description: 잘못된 요청 파라미터
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INVALID_PARAMETER"
+                  message: "지원하지 않는 정렬 기준입니다: invalid_column"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /admin/dashboard/systems/export:
+    get:
+      tags: [System Details]
+      summary: 시스템 현황 CSV 추출
+      operationId: exportSystemDetails
+      x-expected-duration: "1s ~ 10s"
+      description: |
+        현재 검색/필터 조건에 해당하는 시스템 현황을 CSV 파일로 반환합니다.
+        페이지네이션 없이 조건에 맞는 전체 데이터를 포함합니다.
+
+        **CSV 컬럼 순서**: 서비스코드, 시스템명, 담당자, N-IRP 코드, SW-PLM 코드,
+        연동 방식, 연동 대상 DB, Healthy DB, Unhealthy DB, 연동중 DB
+
+        **태그 필드 처리**: N-IRP, SW-PLM, 연동 방식은 콤마(,) 구분 문자열로 출력됩니다.
+      parameters:
+        - name: search
+          in: query
+          description: 통합 검색 키워드 (systems 엔드포인트와 동일)
+          schema:
+            type: string
+        - name: integration_method
+          in: query
+          description: 연동 방식 필터 (systems 엔드포인트와 동일)
+          schema:
+            type: string
+        - name: connection_status
+          in: query
+          description: 연동 상태 필터 (systems 엔드포인트와 동일)
+          schema:
+            type: string
+            enum: [all, healthy, unhealthy, none]
+            default: all
+        - name: sort_by
+          in: query
+          description: 정렬 기준 (systems 엔드포인트와 동일)
+          schema:
+            type: string
+            enum: [service_name, manager_name, target_db_count, healthy_db_count, unhealthy_db_count, active_db_count]
+            default: service_name
+        - name: sort_order
+          in: query
+          description: 정렬 방향
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: CSV 파일 다운로드
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: 'attachment; filename="시스템현황_2026-02-26.csv"'
+          content:
+            text/csv:
+              schema:
+                type: string
+              example: |
+                서비스코드,시스템명,담당자,N-IRP 코드,SW-PLM 코드,연동 방식,연동 대상 DB,Healthy DB,Unhealthy DB,연동중 DB
+                SVC-001,금융결제시스템,김철수,"NI-001,NI-002",PLM-A01,"AWS,Azure",45,38,3,41
+                SVC-002,인사관리시스템,박영희,NI-003,,"GCP,IDC",12,12,0,12
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '500':
+          description: CSV 생성 중 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "EXPORT_FAILED"
+                  message: "CSV 파일 생성 중 오류가 발생했습니다."
+
+components:
+  schemas:
+    DashboardSummary:
+      type: object
+      required:
+        - total_system_count
+        - total_target_db_count
+        - active_integration_db_count
+        - healthy_db_count
+        - unhealthy_db_count
+        - connection_rate
+        - checked_at
+      properties:
+        total_system_count:
+          type: integer
+          description: 누적 시스템(서비스코드) 수
+          example: 152
+        total_target_db_count:
+          type: integer
+          description: 전체 연동 대상 DB 수
+          example: 1204
+        active_integration_db_count:
+          type: integer
+          description: 현재 연동중인 DB 수 (설치 완료 후 모니터링 중 = Healthy + Unhealthy)
+          example: 987
+        healthy_db_count:
+          type: integer
+          description: 정상 연결(Healthy) DB 수
+          example: 964
+        unhealthy_db_count:
+          type: integer
+          description: 연결 끊김(Unhealthy) DB 수 — KPI 지표
+          example: 23
+        connection_rate:
+          type: number
+          format: float
+          description: 연동률 (%) = (active_integration_db_count / total_target_db_count) × 100
+          example: 82.0
+        checked_at:
+          type: string
+          format: date-time
+          description: 데이터 집계 시점
+          example: "2026-02-26T10:30:00Z"
+
+    SystemDetail:
+      type: object
+      required:
+        - service_code
+        - service_name
+        - manager
+        - nirp_codes
+        - sw_plm_codes
+        - integration_methods
+        - db_status
+      properties:
+        service_code:
+          type: string
+          description: 서비스코드
+          example: "SVC-001"
+        service_name:
+          type: string
+          description: 시스템명
+          example: "금융결제시스템"
+        manager:
+          $ref: '#/components/schemas/SystemManager'
+        nirp_codes:
+          type: array
+          items:
+            type: string
+          description: N-IRP 코드 목록 (태그 형태, 0~N개)
+          example: ["NI-001", "NI-002"]
+        sw_plm_codes:
+          type: array
+          items:
+            type: string
+          description: SW-PLM 코드 목록 (태그 형태, 0~N개)
+          example: ["PLM-A01"]
+        integration_methods:
+          type: array
+          items:
+            type: string
+            enum: [AWS, Azure, GCP, IDC, SDU, 수동조사]
+          description: 연동 방식 목록 (해당 시스템의 target-source provider 종류)
+          example: ["AWS", "Azure"]
+        db_status:
+          $ref: '#/components/schemas/SystemDbStatus'
+
+    SystemManager:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: 담당자 이름
+          example: "김철수"
+        email:
+          type: string
+          format: email
+          description: 담당자 이메일
+          example: "cs.kim@example.com"
+
+    SystemDbStatus:
+      type: object
+      required:
+        - target_db_count
+        - healthy_db_count
+        - unhealthy_db_count
+        - active_db_count
+      properties:
+        target_db_count:
+          type: integer
+          description: 연동 대상 DB 총 수
+          example: 45
+        healthy_db_count:
+          type: integer
+          description: 정상 연결(Healthy) DB 수
+          example: 38
+        unhealthy_db_count:
+          type: integer
+          description: 비정상 연결(Unhealthy) DB 수
+          example: 3
+        active_db_count:
+          type: integer
+          description: 현재 연동중인 DB 수 (Healthy + Unhealthy)
+          example: 41
+
+    SystemDetailListResponse:
+      type: object
+      required:
+        - systems
+        - total_count
+        - page
+        - size
+        - total_pages
+      properties:
+        systems:
+          type: array
+          items:
+            $ref: '#/components/schemas/SystemDetail'
+        total_count:
+          type: integer
+          description: 조건에 맞는 전체 시스템 수
+          example: 152
+        page:
+          type: integer
+          description: 현재 페이지 (0-based)
+          example: 0
+        size:
+          type: integer
+          description: 페이지 크기
+          example: 20
+        total_pages:
+          type: integer
+          description: 전체 페이지 수
+          example: 8
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: 에러 코드
+            message:
+              type: string
+              description: 에러 메시지
+
+  responses:
+    Unauthorized:
+      description: 인증 실패
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "인증이 필요합니다."
+    PermissionDenied:
+      description: 권한 부족 (관리자 권한 필요)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "PERMISSION_DENIED"
+              message: "관리자 권한이 필요합니다."
