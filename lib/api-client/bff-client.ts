@@ -188,6 +188,18 @@ export const bffClient: ApiClient = {
     create: (projectId, body) => proxyPost(`/scan/projects/${projectId}/scans`, body),
     getStatus: (projectId) => proxyGet(`/scan/projects/${projectId}/status`),
   },
+  taskAdmin: {
+    getApprovalRequestQueue: (params) => {
+      const searchParams = new URLSearchParams();
+      searchParams.set('status', params.status);
+      if (params.requestType) searchParams.set('requestType', params.requestType);
+      if (params.search) searchParams.set('search', params.search);
+      if (params.page !== undefined) searchParams.set('page', String(params.page));
+      if (params.size !== undefined) searchParams.set('size', String(params.size));
+      if (params.sort) searchParams.set('sort', params.sort);
+      return proxyGet(`/v1/task-admin/approval-requests?${searchParams.toString()}`);
+    },
+  },
   confirm: {
     getResources: (projectId) => proxyGet(`/target-sources/${projectId}/resources`),
     createApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests`, body),
