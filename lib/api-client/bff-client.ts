@@ -56,6 +56,17 @@ const proxyDelete = async (path: string): Promise<NextResponse> => {
 };
 
 export const bffClient: ApiClient = {
+  dashboard: {
+    summary: () => proxyGet('/v1/admin/dashboard/summary'),
+    systems: (params) => {
+      const qs = params.toString();
+      return proxyGet(`/v1/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
+    },
+    systemsExport: (params) => {
+      const qs = params.toString();
+      return proxyGet(`/v1/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
+    },
+  },
   targetSources: {
     list: (serviceCode) => proxyGet(`/v1/services/${serviceCode}/target-sources`),
     get: (projectId) => proxyGet(`/v1/target-sources/${projectId}`),

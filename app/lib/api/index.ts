@@ -396,3 +396,6 @@ export * from './gcp';
 
 // ===== Scan API =====
 export * from './scan';
+
+// ===== Admin Dashboard API =====
+export * from './dashboard';

@@ -8,11 +8,13 @@ import { mockAzure } from '@/lib/api-client/mock/azure';
 import { mockGcp } from '@/lib/api-client/mock/gcp';
 import { mockIdc } from '@/lib/api-client/mock/idc';
 import { mockServices } from '@/lib/api-client/mock/services';
+import { mockDashboard } from '@/lib/api-client/mock/dashboard';
 import { mockDev } from '@/lib/api-client/mock/dev';
 import { mockScan } from '@/lib/api-client/mock/scan';
 import { mockConfirm } from '@/lib/api-client/mock/confirm';
 
 export const mockClient: ApiClient = {
+  dashboard: mockDashboard,
   targetSources: mockTargetSources,
   projects: mockProjects,
   users: mockUsers,
