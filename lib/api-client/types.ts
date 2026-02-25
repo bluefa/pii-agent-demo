@@ -102,6 +102,11 @@ export interface ApiClient {
       };
     };
   };
+  dashboard: {
+    summary: () => Promise<NextResponse>;
+    systems: (params: URLSearchParams) => Promise<NextResponse>;
+    systemsExport: (params: URLSearchParams) => Promise<NextResponse>;
+  };
   dev: {
     getUsers: () => Promise<NextResponse>;
     switchUser: (body: unknown) => Promise<NextResponse>;
