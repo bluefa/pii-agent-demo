@@ -40,14 +40,29 @@ Queue Board (/task_admin)
 
 ### Queue Board 테이블 컬럼
 
-| 컬럼 | 설명 | 비고 |
-|------|------|------|
-| 요청 유형 | 연동 대상 확정, EoS 처리 등 | requestType 표시명 |
-| 서비스코드 | ServiceCode | |
-| Cloud Provider | AWS, Azure, GCP, IDC, SDU | |
-| Cloud 정보 | Provider별 식별 정보 | 아래 표 참조 |
-| 요청 일시 | 승인 요청 생성 시각 | |
-| Action | 승인/반려/상세 (Pending) 또는 상세 (완료) | 탭별 상이 |
+**Pending Tasks 탭:**
+
+| 컬럼 | 설명 |
+|------|------|
+| 요청 유형 | 연동 대상 확정, EoS 처리 등 (requestType 표시명) |
+| 서비스코드 | ServiceCode |
+| Cloud Provider | AWS, Azure, GCP, IDC, SDU |
+| Cloud 정보 | Provider별 식별 정보 (아래 표 참조) |
+| 요청 시간 | 승인 요청 생성 시각 (`requested_at`, datetime) |
+| Action | [승인] [반려] [상세] |
+
+**완료 내역 탭:**
+
+| 컬럼 | 설명 |
+|------|------|
+| 요청 유형 | (동일) |
+| 서비스코드 | (동일) |
+| Cloud Provider | (동일) |
+| Cloud 정보 | (동일) |
+| 요청 시간 | 승인 요청 생성 시각 (`requested_at`, datetime) |
+| 처리 시간 | 승인/반려 처리 시각 (`processed_at`, datetime) |
+| 결과 | 승인 / 반려 |
+| Action | [상세] |
 
 #### Provider별 Cloud 정보
 
@@ -73,7 +88,7 @@ Queue Board (/task_admin)
 - [AC1] Queue Board 진입 시 기본으로 [Pending Tasks] 탭이 활성화된다
 - [AC2] `PENDING` 상태의 승인 요청만 테이블에 표시된다
   - API: `GET /api/v1/task-admin/approval-requests?status=PENDING&page=0&size=20`
-- [AC3] 각 행에 요청 유형, 서비스코드, Cloud Provider, Cloud 정보, 요청 일시가 표시된다
+- [AC3] 각 행에 요청 유형, 서비스코드, Cloud Provider, Cloud 정보, 요청 시간이 표시된다
 - [AC4] 각 행에 [승인], [반려], [상세] 액션 버튼이 노출된다
 - [AC5] 요청이 0건이면 빈 상태 안내가 표시된다
 - [AC6] Pending 건수가 탭 라벨에 배지로 표시된다 (예: `Pending Tasks (5)`)
@@ -89,7 +104,7 @@ Queue Board (/task_admin)
 **AC:**
 - [AC1] [완료 내역] 탭 클릭 시 `APPROVED` + `REJECTED` 상태의 요청이 표시된다
   - API: `GET /api/v1/task-admin/approval-requests?status=APPROVED,REJECTED&page=0&size=20`
-- [AC2] 각 행에 요청 유형, 서비스코드, Cloud Provider, Cloud 정보, 요청 일시, 처리 결과(승인/반려)가 표시된다
+- [AC2] 각 행에 요청 유형, 서비스코드, Cloud Provider, Cloud 정보, 요청 시간, 처리 시간, 결과(승인/반려)가 표시된다
 - [AC3] 각 행에는 [상세] 액션만 노출된다 (승인/반려 불가)
 - [AC4] 페이지네이션으로 과거 이력을 탐색할 수 있다
 
@@ -178,23 +193,23 @@ Queue Board (/task_admin)
 │ [요청 유형 ▼] [검색: 서비스코드/서비스명]  [초기화]              │
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
-│  ※ Pending Tasks 탭 활성 시                                   │
-│ ┌──────────┬──────┬──────┬────────────┬──────┬─────────────┐│
-│ │요청 유형  │서비스 │Provider│Cloud 정보  │요청일│ Action      ││
-│ ├──────────┼──────┼──────┼────────────┼──────┼─────────────┤│
-│ │연동 확정  │SVC01│ AWS  │1234...9012 │02-25│[승인][반려]  ││
-│ │          │      │      │            │      │[상세]       ││
-│ │EoS 처리  │SVC02│Azure │contoso/sub │02-24│[승인][반려]  ││
-│ │          │      │      │            │      │[상세]       ││
-│ └──────────┴──────┴──────┴────────────┴──────┴─────────────┘│
-│                                                               │
-│  ※ 완료 내역 탭 활성 시                                       │
-│ ┌──────────┬──────┬──────┬────────────┬──────┬──────┬──────┐│
-│ │요청 유형  │서비스 │Provider│Cloud 정보  │요청일│결과  │Action││
-│ ├──────────┼──────┼──────┼────────────┼──────┼──────┼──────┤│
-│ │연동 확정  │SVC03│ GCP  │my-proj-123 │02-23│승인  │[상세]││
-│ │연동 확정  │SVC04│ IDC  │IDC         │02-22│반려  │[상세]││
-│ └──────────┴──────┴──────┴────────────┴──────┴──────┴──────┘│
+│  ※ Pending Tasks 탭 활성 시                                          │
+│ ┌──────────┬──────┬────────┬────────────┬─────────────┬─────────────┐│
+│ │요청 유형  │서비스 │Provider│Cloud 정보   │요청 시간     │ Action      ││
+│ ├──────────┼──────┼────────┼────────────┼─────────────┼─────────────┤│
+│ │연동 확정  │SVC01│ AWS    │1234...9012 │02-25 10:30  │[승인][반려]  ││
+│ │          │      │        │            │             │[상세]       ││
+│ │EoS 처리  │SVC02│ Azure  │contoso/sub │02-24 09:00  │[승인][반려]  ││
+│ │          │      │        │            │             │[상세]       ││
+│ └──────────┴──────┴────────┴────────────┴─────────────┴─────────────┘│
+│                                                                       │
+│  ※ 완료 내역 탭 활성 시                                               │
+│ ┌──────────┬──────┬────────┬───────────┬────────────┬────────────┬──────┬──────┐│
+│ │요청 유형  │서비스 │Provider│Cloud 정보  │요청 시간   │처리 시간    │결과  │Action││
+│ ├──────────┼──────┼────────┼───────────┼────────────┼────────────┼──────┼──────┤│
+│ │연동 확정  │SVC03│ GCP    │my-proj-123│02-23 14:00 │02-23 16:30 │승인  │[상세]││
+│ │연동 확정  │SVC04│ IDC    │IDC        │02-22 11:00 │02-22 15:45 │반려  │[상세]││
+│ └──────────┴──────┴────────┴───────────┴────────────┴────────────┴──────┴──────┘│
 │                                                               │
 │ [< 1 2 3 >]                                                  │
 └──────────────────────────────────────────────────────────────┘
@@ -215,6 +230,40 @@ Queue Board (신규 — 읽기 전용 집계)         기존 confirm.yaml (재�
          (전체 Target Source 횡단)              개별 승인/반려 액션
                                               (Target Source 단위)
 ```
+
+---
+
+### 데이터 플로우: 승인 요청 생성 → Queue Board 노출
+
+기존 Target Source 상세 페이지에서 승인 요청이 생성되면, Queue Board에 자동으로 노출된다.
+
+```
+[원천 담당자 — /detail/{id}]                    [관리자 — /task_admin]
+
+ 1. 승인 요청 생성
+    POST /target-sources/{id}/approval-requests
+    { requestType: "TARGET_CONFIRMATION",       ─────→  Queue Board
+      input_data: { resource_inputs: [...] } }          GET /task-admin/approval-requests
+                                                        ?status=PENDING
+    ※ requestType 미지정 시 TARGET_CONFIRMATION              ↓
+      (기존 호출과 완전 호환)                          [Pending Tasks] 탭에 신규 행 노출
+                                                        ├ 요청 유형: 연동 대상 확정
+                                                        ├ 서비스코드, Provider, Cloud 정보
+                                                        ├ 요청 시간: requested_at
+                                                        └ Action: [승인][반려][상세]
+
+ 2. 관리자 승인/반려 (Queue Board에서)
+    POST /target-sources/{id}/approval-requests/approve  ← 기존 API
+    POST /target-sources/{id}/approval-requests/reject   ← 기존 API
+
+ 3. 처리 완료
+    Queue Board Pending 탭에서 행 제거               ─→  [완료 내역] 탭에 행 추가
+                                                        ├ 처리 시간: processed_at
+    원천 담당자 상세 페이지에서 결과 확인                    └ 결과: 승인/반려
+    GET /target-sources/{id}/process-status
+```
+
+**핵심**: Queue Board의 신규 API(`GET /task-admin/approval-requests`)는 기존 `ApprovalRequest` 테이블을 전체 Target Source에 걸쳐 집계하는 **읽기 전용 뷰**일 뿐이다. 쓰기 동작은 모두 기존 `confirm.yaml` 엔드포인트를 재사용한다.
 
 ---
 
@@ -415,3 +464,4 @@ Queue Board (신규 — 읽기 전용 집계)         기존 confirm.yaml (재�
 | 2026-02-26 | 요구사항 기반 초안 작성 |
 | 2026-02-26 | v2: 기존 승인 프로세스 확장 모델로 전면 개편 |
 | 2026-02-26 | v3: 2탭 구조(Pending/완료), Cloud 정보 컬럼 추가, Task 유형 정리(TARGET_CONFIRMATION + END_OF_SERVICE) |
+| 2026-02-26 | v4: 요청일자→요청시간/처리시간, API 연계 데이터 플로우 추가, 완료 내역 탭에 처리시간 컬럼 추가 |

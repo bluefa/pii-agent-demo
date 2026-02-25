@@ -143,7 +143,7 @@ paths:
                         cloudInfo: "contoso.onmicrosoft.com / prod-sub-01"
                         requestedAt: "2026-02-24T09:00:00Z"
                         requestedBy: "김담당"
-                        completedAt: "2026-02-24T14:30:00Z"
+                        processedAt: "2026-02-24T14:30:00Z"
                         processedBy: "박관리"
                     page:
                       totalElements: 7
@@ -258,16 +258,18 @@ components:
         requestedAt:
           type: string
           format: date-time
-          description: "요청 일시"
+          description: "요청 시간 (승인 요청 생성 시각). 기존 ApprovalRequest.requested_at과 동일."
+          example: "2026-02-25T10:30:00Z"
         requestedBy:
           type: string
           description: "요청 담당자명"
           example: "홍길동"
-        completedAt:
+        processedAt:
           type: string
           format: date-time
           nullable: true
-          description: "처리 완료 일시 (APPROVED/REJECTED 시)"
+          description: "처리 시간 (승인/반려 처리 시각). 기존 ApprovalResult.processed_at과 동일. PENDING 상태에서는 null."
+          example: "2026-02-25T14:30:00Z"
         processedBy:
           type: string
           nullable: true
