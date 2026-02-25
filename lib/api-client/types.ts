@@ -1,5 +1,6 @@
 import type { NextResponse } from 'next/server';
 import type { VerifyTfRoleRequest } from '@/lib/types';
+import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
 
 interface SetInstallationModeBody {
   mode: 'AUTO' | 'MANUAL';
@@ -116,6 +117,9 @@ export interface ApiClient {
     getHistory: (projectId: string, query: { limit: number; offset: number }) => Promise<NextResponse>;
     create: (projectId: string, body: unknown) => Promise<NextResponse>;
     getStatus: (projectId: string) => Promise<NextResponse>;
+  };
+  taskAdmin: {
+    getApprovalRequestQueue(params: QueueBoardQueryParams): Promise<NextResponse>;
   };
   confirm: {
     getResources: (projectId: string) => Promise<NextResponse>;

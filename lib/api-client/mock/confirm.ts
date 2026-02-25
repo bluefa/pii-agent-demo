@@ -5,15 +5,16 @@ import * as tcFns from '@/lib/mock-test-connection';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
+import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
 import type {
   Resource,
+  Project,
   ProjectStatus,
   ConnectionStatus,
   ConnectionTestResult,
   ConnectionTestHistory,
   VmDatabaseConfig,
   ResourceExclusion,
-  Project,
   BffApprovedIntegration,
 } from '@/lib/types';
 
@@ -148,6 +149,24 @@ interface ApprovalRequestCreateBody {
     exclusion_reason_default?: string;
   };
 }
+
+// --- Queue Board Integration Helpers ---
+
+const getCloudInfo = (project: Project): string => {
+  switch (project.cloudProvider) {
+    case 'AWS':
+      return project.awsAccountId ?? '';
+    case 'Azure':
+      return [project.tenantId, project.subscriptionId].filter(Boolean).join(' / ');
+    case 'GCP':
+      return project.gcpProjectId ?? '';
+    default:
+      return project.cloudProvider;
+  }
+};
+
+const getServiceName = (serviceCode: string): string =>
+  mockData.mockServiceCodes.find((s) => s.code === serviceCode)?.name ?? serviceCode;
 
 // --- Mock Confirm Module ---
 
@@ -344,6 +363,23 @@ export const mockConfirm = {
       approvalTimestampStore.set(projectId, Date.now());
       await mockHistory.addAutoApprovedHistory(projectId);
     }
+
+    // Queue Board 연동: 승인 요청 생성 시 Admin Tasks에 항목 추가
+    addQueueItem({
+      targetSourceId: project.targetSourceId,
+      requestType: 'TARGET_CONFIRMATION',
+      serviceCode: project.serviceCode,
+      serviceName: getServiceName(project.serviceCode),
+      provider: project.cloudProvider,
+      cloudInfo: getCloudInfo(project),
+      requestedBy: user.name,
+    });
+
+    // 자동 승인인 경우 즉시 IN_PROGRESS로 전환
+    if (autoApprovalResult.shouldAutoApprove) {
+      updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', '시스템(자동승인)');
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -694,6 +730,9 @@ export const mockConfirm = {
 
     mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
 
+    // Queue Board 연동: 승인 → IN_PROGRESS
+    updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', user.name);
+
     return NextResponse.json({
       success: true,
       result: 'APPROVED',
@@ -764,6 +803,9 @@ export const mockConfirm = {
     });
 
     mockHistory.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+
+    // Queue Board 연동: 반려 → REJECTED
+    updateQueueItemStatus(project.targetSourceId, 'REJECTED', user.name, reason);
 
     return NextResponse.json({
       success: true,
