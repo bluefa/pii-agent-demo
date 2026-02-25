@@ -1,46 +1,62 @@
 openapi: 3.0.3
 info:
-  title: Task Dashboard API
+  title: Task Dashboard API (Queue Board)
   version: 1.0.0
   description: |
-    PII 모니터링 모듈 관련 PM/개발 개입이 필요한 Task를 관리하는 Queue Board API입니다.
+    PII 모니터링 모듈 관련 PM/개발 개입이 필요한 승인 요청을 일괄 조회하는 **Queue Board** API입니다.
 
-    **주요 기능:**
-    1. **Task Queue Board**: 관리자가 대기 중인 Task를 일괄 조회하고 승인/반려 처리
-    2. **Task 이력 관리**: Task 생성, 승인, 반려, 재요청 이력 추적
-    3. **원천 담당자 조회**: 요청한 Task의 상태 및 반려 사유 확인
+    ---
 
-    **Task 유형:**
-    - `DB_EXCLUSION_REVIEW`: 연동 대상 확정 중 일부 DB 제외 사유 확인 (dev, stg 등)
-    - `PRD_EXCLUSION_REVIEW`: PRD DB 연동 대상 제외 여부 확인
-    - `MODULE_REMOVAL_FULL`: 전체 인프라 모니터링 모듈 제거 (EoS, IRP 폐기, 타 인프라 migration)
-    - `MODULE_REMOVAL_PARTIAL`: 일부 DB 모니터링 모듈 제거 (DB 변경 케이스)
+    ### 아키텍처: 기존 승인 프로세스의 확장
 
-    **라우팅**: `/task_admin`
+    Queue Board에서 관리하는 항목은 별도 엔티티가 아니라, **기존 `ApprovalRequest`에 `requestType`을 확장**한 것입니다.
+
+    ```
+    Target Source (기존)
+      └── ApprovalRequest (기존 엔티티 확장)
+            ├── TARGET_CONFIRMATION    ← 기존
+            ├── DB_EXCLUSION_REVIEW    ← 신규
+            ├── PRD_EXCLUSION_REVIEW   ← 신규
+            ├── MODULE_REMOVAL_FULL    ← 신규
+            └── MODULE_REMOVAL_PARTIAL ← 신규
+    ```
+
+    ### API 역할 분담
+
+    | 역할 | API | Swagger |
+    |------|-----|---------|
+    | 목록/통계 조회 (전체 TS 횡단) | `GET /task-admin/approval-requests[/summary]` | **이 파일** |
+    | 개별 승인/반려 액션 | `POST /target-sources/{id}/approval-requests/approve\|reject` | `confirm.yaml` (재사용) |
+    | 승인 요청 생성 | `POST /target-sources/{id}/approval-requests` | `confirm.yaml` (requestType 확장) |
+    | 승인 이력 조회 | `GET /target-sources/{id}/approval-history` | `confirm.yaml` (재사용) |
+
+    ### 라우팅
+
+    Next.js: `/task_admin`
 
 servers:
   - url: /api/v1
     description: v1 Base Path
 
 tags:
-  - name: Task Admin
-    description: 관리자 Task Queue Board — Task 목록 조회, 승인/반려 처리
-  - name: Task Source
-    description: 원천 담당자 — Task 생성, 본인 요청 Task 조회
+  - name: Queue Board
+    description: |
+      관리자 Queue Board — 전체 Target Source를 횡단하여 승인 요청을 집계 조회.
+      승인/반려 액션은 기존 `confirm.yaml`의 API를 재사용합니다.
 
 paths:
-  # ─────────────────────────────────────────────
-  # 관리자 API
-  # ─────────────────────────────────────────────
-  /task-admin/tasks:
+  /task-admin/approval-requests:
     get:
-      tags: [Task Admin]
-      summary: Task 목록 조회
-      operationId: getTaskList
-      x-expected-duration: "500ms 이내"
+      tags: [Queue Board]
+      summary: 승인 요청 목록 조회 (전체 Target Source 횡단)
+      operationId: getApprovalRequestQueue
+      x-expected-duration: "500ms ~ 2s"
       description: |
-        관리자 Queue Board에서 Task 목록을 조회합니다.
-        필터(유형, 상태), 검색(서비스코드/서비스명), 정렬, 페이지네이션을 지원합니다.
+        전체 Target Source에 걸쳐 승인 요청을 집계하여 목록으로 반환합니다.
+        필터(요청 유형, 상태), 검색(서비스코드/서비스명), 정렬, 페이지네이션을 지원합니다.
+
+        **참고**: 이 API는 읽기 전용 집계 뷰입니다.
+        승인/반려는 `confirm.yaml`의 `POST /target-sources/{id}/approval-requests/approve|reject`를 사용합니다.
       parameters:
         - name: page
           in: query
@@ -57,18 +73,18 @@ paths:
           required: false
           schema: { type: string, default: "requestedAt,desc" }
           description: "정렬 기준 (예: requestedAt,desc / requestedAt,asc)"
-        - name: taskType
+        - name: requestType
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/TaskType'
-          description: "Task 유형 필터"
+            $ref: '#/components/schemas/ApprovalRequestType'
+          description: "승인 요청 유형 필터"
         - name: status
           in: query
           required: false
           schema:
-            $ref: '#/components/schemas/TaskStatus'
-          description: "Task 상태 필터"
+            $ref: '#/components/schemas/ApprovalRequestStatus'
+          description: "승인 요청 상태 필터"
         - name: search
           in: query
           required: false
@@ -80,277 +96,62 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskListResponse'
+                $ref: '#/components/schemas/ApprovalRequestQueueResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /task-admin/tasks/summary:
+  /task-admin/approval-requests/summary:
     get:
-      tags: [Task Admin]
-      summary: Task 요약 통계 조회
-      operationId: getTaskSummary
-      x-expected-duration: "300ms 이내"
+      tags: [Queue Board]
+      summary: 승인 요청 요약 통계 조회
+      operationId: getApprovalRequestQueueSummary
+      x-expected-duration: "300ms ~ 1s"
       description: |
-        Queue Board 상단에 표시할 Task 요약 통계를 조회합니다.
-        전체 건수, 상태별 건수, 유형별 건수를 반환합니다.
+        Queue Board 상단에 표시할 승인 요청 요약 통계를 조회합니다.
+        전체 건수, 상태별 건수, 요청 유형별 건수를 반환합니다.
       responses:
         '200':
           description: 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskSummaryResponse'
+                $ref: '#/components/schemas/ApprovalRequestQueueSummary'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
-
-  /task-admin/tasks/{taskId}:
-    parameters:
-      - $ref: '#/components/parameters/TaskId'
-    get:
-      tags: [Task Admin]
-      summary: Task 상세 조회
-      operationId: getTaskDetail
-      x-expected-duration: "500ms 이내"
-      description: |
-        Task의 상세 정보를 조회합니다.
-        Task 기본 정보, 시스템 정보, 요청 내용(DB 목록/사유), 처리 결과를 포함합니다.
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskDetailResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TaskNotFound'
-
-  /task-admin/tasks/{taskId}/approve:
-    parameters:
-      - $ref: '#/components/parameters/TaskId'
-    post:
-      tags: [Task Admin]
-      summary: Task 승인
-      operationId: approveTask
-      x-expected-duration: "500ms 이내"
-      description: |
-        PENDING 상태의 Task를 승인합니다.
-        승인 시 Task 상태가 APPROVED로 전환됩니다.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskApproveRequest'
-      responses:
-        '200':
-          description: 승인 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskActionResponse'
-        '400':
-          description: "승인 대기 상태가 아님"
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-              example:
-                error: { code: "VALIDATION_FAILED", message: "승인 대기 상태의 Task가 아닙니다." }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TaskNotFound'
-
-  /task-admin/tasks/{taskId}/reject:
-    parameters:
-      - $ref: '#/components/parameters/TaskId'
-    post:
-      tags: [Task Admin]
-      summary: Task 반려
-      operationId: rejectTask
-      x-expected-duration: "500ms 이내"
-      description: |
-        PENDING 상태의 Task를 반려합니다.
-        반려 사유(`reason`)는 필수이며, 원천 담당자가 조회할 수 있습니다.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskRejectRequest'
-      responses:
-        '200':
-          description: 반려 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskActionResponse'
-        '400':
-          description: "승인 대기 상태가 아니거나 반려 사유 누락"
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
-              examples:
-                invalid_state:
-                  summary: 승인 대기 상태가 아님
-                  value:
-                    error: { code: "VALIDATION_FAILED", message: "승인 대기 상태의 Task가 아닙니다." }
-                missing_reason:
-                  summary: 반려 사유 누락
-                  value:
-                    error: { code: "VALIDATION_FAILED", message: "반려 사유를 입력해주세요." }
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TaskNotFound'
-
-  /task-admin/tasks/{taskId}/history:
-    parameters:
-      - $ref: '#/components/parameters/TaskId'
-    get:
-      tags: [Task Admin]
-      summary: Task 이력 조회
-      operationId: getTaskHistory
-      x-expected-duration: "300ms 이내"
-      description: |
-        Task의 생성, 승인, 반려, 재요청 등의 이력을 시간순으로 조회합니다.
-        재요청으로 연결된 이전 Task의 이력도 포함됩니다.
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskHistoryResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TaskNotFound'
-
-  # ─────────────────────────────────────────────
-  # 원천 담당자 API
-  # ─────────────────────────────────────────────
-  /target-sources/{targetSourceId}/tasks:
-    parameters:
-      - $ref: '#/components/parameters/TargetSourceId'
-    get:
-      tags: [Task Source]
-      summary: 해당 시스템의 Task 목록 조회
-      operationId: getTasksByTargetSource
-      x-expected-duration: "500ms 이내"
-      description: |
-        특정 Target Source에 대해 생성된 Task 목록을 조회합니다.
-        원천 담당자가 본인 시스템의 Task 상태 및 반려 사유를 확인할 때 사용합니다.
-      parameters:
-        - name: page
-          in: query
-          required: false
-          schema: { type: integer, default: 0 }
-        - name: size
-          in: query
-          required: false
-          schema: { type: integer, default: 10 }
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskListResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
-
-    post:
-      tags: [Task Source]
-      summary: Task 생성 (제외 확인 / 모듈 제거 요청)
-      operationId: createTask
-      x-expected-duration: "500ms 이내"
-      description: |
-        원천 담당자가 Task를 생성합니다.
-        - DB 연동 제외 사유 확인 (DB_EXCLUSION_REVIEW, PRD_EXCLUSION_REVIEW)
-        - 모니터링 모듈 제거 요청 (MODULE_REMOVAL_FULL, MODULE_REMOVAL_PARTIAL)
-
-        재요청 시 `previousTaskId`를 포함하여 이전 Task와 연결합니다.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskCreateRequest'
-      responses:
-        '201':
-          description: Task 생성 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskCreateResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
 
 components:
-  parameters:
-    TaskId:
-      name: taskId
-      in: path
-      required: true
-      schema: { type: string }
-      description: "Task 식별자"
-      example: "task_01H8X..."
-
-    TargetSourceId:
-      name: targetSourceId
-      in: path
-      required: true
-      schema: { type: integer, format: int64 }
-      description: "Target Source 식별자"
-
   schemas:
     # ─────────────────────────────────────────────
-    # Enums
+    # Enums (confirm.yaml의 기존 enum 확장)
     # ─────────────────────────────────────────────
-    TaskType:
+    ApprovalRequestType:
       type: string
       enum:
+        - TARGET_CONFIRMATION
         - DB_EXCLUSION_REVIEW
         - PRD_EXCLUSION_REVIEW
         - MODULE_REMOVAL_FULL
         - MODULE_REMOVAL_PARTIAL
       description: |
+        승인 요청 유형. 기존 `confirm.yaml`의 ApprovalRequest에 `requestType` 필드로 추가.
+        - `TARGET_CONFIRMATION`: 연동 대상 확정 승인 (기존)
         - `DB_EXCLUSION_REVIEW`: 연동 대상 확정 중 일부 DB(dev, stg) 제외 사유 확인
         - `PRD_EXCLUSION_REVIEW`: PRD DB 연동 대상 제외 여부 확인
         - `MODULE_REMOVAL_FULL`: 전체 인프라 모니터링 모듈 제거 (EoS, IRP 폐기, migration)
         - `MODULE_REMOVAL_PARTIAL`: 일부 DB 모니터링 모듈 제거 (DB 변경)
 
-    TaskStatus:
+    ApprovalRequestStatus:
       type: string
       enum:
         - PENDING
         - APPROVED
         - REJECTED
       description: |
+        기존 ApprovalRequest 상태와 동일.
         - `PENDING`: 접수됨, 관리자 처리 대기
         - `APPROVED`: 관리자 승인 완료
         - `REJECTED`: 관리자 반려 (사유 포함)
@@ -364,7 +165,7 @@ components:
         - DB_CHANGE
         - OTHER
       description: |
-        모니터링 모듈 제거 사유:
+        모니터링 모듈 제거 사유 (MODULE_REMOVAL 유형 전용):
         - `END_OF_SERVICE`: EoS (서비스 종료)
         - `IRP_DISPOSAL`: IRP 폐기
         - `INFRASTRUCTURE_MIGRATION`: 타 인프라 migration
@@ -376,34 +177,49 @@ components:
       enum: [AWS, Azure, GCP, IDC, SDU]
 
     # ─────────────────────────────────────────────
-    # List & Summary
+    # Queue Board 응답 (읽기 전용 집계)
     # ─────────────────────────────────────────────
-    TaskListResponse:
+    ApprovalRequestQueueResponse:
       type: object
       required: [content, page]
       properties:
         content:
           type: array
           items:
-            $ref: '#/components/schemas/TaskListItem'
+            $ref: '#/components/schemas/ApprovalRequestQueueItem'
         page:
           $ref: '#/components/schemas/PageInfo'
 
-    TaskListItem:
+    ApprovalRequestQueueItem:
       type: object
-      required: [taskId, taskType, taskName, status, systemInfo, requestedAt, requestedBy]
+      required:
+        - approvalRequestId
+        - targetSourceId
+        - requestType
+        - status
+        - systemInfo
+        - requestedAt
+        - requestedBy
+      description: |
+        Queue Board 테이블의 한 행. 기존 ApprovalRequest + Target Source 정보를 조인한 뷰.
       properties:
-        taskId:
+        approvalRequestId:
           type: string
-          example: "task_01H8X..."
-        taskType:
-          $ref: '#/components/schemas/TaskType'
-        taskName:
+          description: "기존 ApprovalRequest ID (승인/반려 시 사용)"
+          example: "ar_01H8X..."
+        targetSourceId:
+          type: integer
+          format: int64
+          description: "Target Source ID (기존 approve/reject API 호출 및 상세 페이지 진입에 필요)"
+          example: 42
+        requestType:
+          $ref: '#/components/schemas/ApprovalRequestType'
+        requestTypeName:
           type: string
-          description: "Task 표시명 (예: '연동 대상 확정 — DB 제외 사유 확인', 'EoS 전체 제거')"
+          description: "요청 유형 표시명 (UI용)"
           example: "연동 대상 확정 — DB 제외 사유 확인"
         status:
-          $ref: '#/components/schemas/TaskStatus'
+          $ref: '#/components/schemas/ApprovalRequestStatus'
         systemInfo:
           $ref: '#/components/schemas/SystemInfo'
         requestedAt:
@@ -418,12 +234,16 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: "완료일시 (승인/반려 처리일)"
+          description: "처리 완료일시 (승인/반려 시)"
         processedBy:
           type: string
           nullable: true
-          description: "승인/반려 처리 담당자명"
+          description: "처리 담당자명 (승인/반려 시)"
           example: "김관리"
+        rejectionReason:
+          type: string
+          nullable: true
+          description: "반려 사유 (REJECTED 상태에서만)"
 
     SystemInfo:
       type: object
@@ -439,306 +259,134 @@ components:
           example: "결제 시스템"
         provider:
           $ref: '#/components/schemas/CloudProvider'
-        targetSourceId:
-          type: integer
-          format: int64
-          description: "Target Source ID (상세 페이지 진입용)"
-          example: 42
 
-    TaskSummaryResponse:
+    ApprovalRequestQueueSummary:
       type: object
-      required: [total, byStatus, byType]
+      required: [total, byStatus, byRequestType]
       properties:
         total:
           type: integer
-          description: "전체 Task 건수"
+          description: "전체 승인 요청 건수"
           example: 12
         byStatus:
           type: object
           required: [pending, approved, rejected]
           properties:
-            pending:
-              type: integer
-              example: 5
-            approved:
-              type: integer
-              example: 4
-            rejected:
-              type: integer
-              example: 3
-        byType:
+            pending: { type: integer, example: 5 }
+            approved: { type: integer, example: 4 }
+            rejected: { type: integer, example: 3 }
+        byRequestType:
           type: object
-          required: [dbExclusionReview, prdExclusionReview, moduleRemovalFull, moduleRemovalPartial]
+          required:
+            - targetConfirmation
+            - dbExclusionReview
+            - prdExclusionReview
+            - moduleRemovalFull
+            - moduleRemovalPartial
           properties:
-            dbExclusionReview:
-              type: integer
-              example: 3
-            prdExclusionReview:
-              type: integer
-              example: 2
-            moduleRemovalFull:
-              type: integer
-              example: 4
-            moduleRemovalPartial:
-              type: integer
-              example: 3
+            targetConfirmation: { type: integer, example: 3 }
+            dbExclusionReview: { type: integer, example: 2 }
+            prdExclusionReview: { type: integer, example: 1 }
+            moduleRemovalFull: { type: integer, example: 4 }
+            moduleRemovalPartial: { type: integer, example: 2 }
 
     # ─────────────────────────────────────────────
-    # Detail
+    # confirm.yaml 스키마 확장 제안
+    # (이 파일에서 참조 정의, 실제 반영은 confirm.yaml에)
     # ─────────────────────────────────────────────
-    TaskDetailResponse:
+    ApprovalRequestCreateExtension:
+      description: |
+        **confirm.yaml 확장 제안**: 기존 `ApprovalRequestCreateRequest`에 추가할 필드.
+        이 스키마는 참조용이며, 실제 반영은 `confirm.yaml`에서 수행합니다.
       type: object
-      required: [task]
       properties:
-        task:
-          $ref: '#/components/schemas/TaskDetail'
+        requestType:
+          $ref: '#/components/schemas/ApprovalRequestType'
+          description: "승인 요청 유형. 미지정 시 TARGET_CONFIRMATION (기존 동작 유지)"
+        exclusion_data:
+          $ref: '#/components/schemas/ExclusionReviewData'
+        removal_data:
+          $ref: '#/components/schemas/ModuleRemovalData'
 
-    TaskDetail:
+    ExclusionReviewData:
       type: object
-      required: [taskId, taskType, taskName, status, systemInfo, requestedAt, requestedBy, taskData]
+      description: "DB_EXCLUSION_REVIEW / PRD_EXCLUSION_REVIEW 요청 시 포함되는 데이터"
+      required: [excluded_databases]
       properties:
-        taskId:
-          type: string
-        taskType:
-          $ref: '#/components/schemas/TaskType'
-        taskName:
-          type: string
-        status:
-          $ref: '#/components/schemas/TaskStatus'
-        systemInfo:
-          $ref: '#/components/schemas/SystemInfo'
-        requestedAt:
-          type: string
-          format: date-time
-        requestedBy:
-          type: string
-        completedAt:
-          type: string
-          format: date-time
-          nullable: true
-        processedBy:
-          type: string
-          nullable: true
-        rejectionReason:
-          type: string
-          nullable: true
-          description: "반려 사유 (REJECTED 상태에서만 존재)"
-        previousTaskId:
-          type: string
-          nullable: true
-          description: "재요청 시 이전 Task ID (이력 추적용)"
-        taskData:
-          $ref: '#/components/schemas/TaskData'
-
-    TaskData:
-      description: "Task 유형별 상세 데이터"
-      oneOf:
-        - $ref: '#/components/schemas/DbExclusionReviewData'
-        - $ref: '#/components/schemas/ModuleRemovalData'
-      discriminator:
-        propertyName: type
-
-    DbExclusionReviewData:
-      type: object
-      required: [type, excludedDatabases]
-      properties:
-        type:
-          type: string
-          enum: [DB_EXCLUSION_REVIEW, PRD_EXCLUSION_REVIEW]
-        excludedDatabases:
+        excluded_databases:
           type: array
-          description: "제외 대상 DB 목록"
           items:
-            $ref: '#/components/schemas/ExcludedDatabase'
+            $ref: '#/components/schemas/ExcludedDatabaseInfo'
 
-    ExcludedDatabase:
+    ExcludedDatabaseInfo:
       type: object
-      required: [resourceId, resourceName, resourceType, exclusionReason]
+      required: [resource_id, resource_name, resource_type, exclusion_reason]
       properties:
-        resourceId:
+        resource_id:
           type: string
           description: "리소스 식별자"
-        resourceName:
+        resource_name:
           type: string
           description: "DB 리소스명"
           example: "payment-db-dev"
-        resourceType:
+        resource_type:
           type: string
           description: "DB 유형 (RDS, AZURE_MSSQL 등)"
           example: "RDS"
         environment:
           type: string
-          description: "환경 구분 (dev, stg, prd)"
+          description: "환경 구분"
           example: "dev"
-        exclusionReason:
+        exclusion_reason:
           type: string
           description: "제외 사유"
           example: "개발 환경 DB — 모니터링 대상 아님"
 
     ModuleRemovalData:
       type: object
-      required: [type, removalReason, targetDatabases]
+      description: "MODULE_REMOVAL_FULL / MODULE_REMOVAL_PARTIAL 요청 시 포함되는 데이터"
+      required: [removal_reason, target_databases]
       properties:
-        type:
-          type: string
-          enum: [MODULE_REMOVAL_FULL, MODULE_REMOVAL_PARTIAL]
-        removalReason:
+        removal_reason:
           $ref: '#/components/schemas/RemovalReason'
-        removalReasonDetail:
+        removal_reason_detail:
           type: string
           nullable: true
           description: "제거 사유 상세 설명"
           example: "2026년 3월 말 EoS 예정, 대체 시스템으로 migration 완료"
-        targetDatabases:
+        target_databases:
           type: array
-          description: "제거 대상 DB 목록"
           items:
-            $ref: '#/components/schemas/RemovalTargetDatabase'
+            $ref: '#/components/schemas/RemovalTargetDatabaseInfo'
 
-    RemovalTargetDatabase:
+    RemovalTargetDatabaseInfo:
       type: object
-      required: [resourceId, resourceName, resourceType]
+      required: [resource_id, resource_name, resource_type]
       properties:
-        resourceId:
+        resource_id:
           type: string
-        resourceName:
+        resource_name:
           type: string
           example: "payment-db-prd-01"
-        resourceType:
+        resource_type:
           type: string
           example: "RDS"
-        monitoringModuleType:
+        monitoring_module_type:
           type: string
           enum: [AGENT, SDU]
           description: "설치된 모니터링 모듈 유형"
 
     # ─────────────────────────────────────────────
-    # Actions
-    # ─────────────────────────────────────────────
-    TaskApproveRequest:
-      type: object
-      properties:
-        comment:
-          type: string
-          nullable: true
-          description: "승인 코멘트 (선택)"
-
-    TaskRejectRequest:
-      type: object
-      required: [reason]
-      properties:
-        reason:
-          type: string
-          minLength: 1
-          description: "반려 사유 (필수, 원천 담당자에게 노출)"
-          example: "PRD DB가 제외 대상에 포함되어 있습니다. 의도를 확인해주세요."
-
-    TaskActionResponse:
-      type: object
-      required: [success, taskId, status, processedAt]
-      properties:
-        success:
-          type: boolean
-        taskId:
-          type: string
-        status:
-          $ref: '#/components/schemas/TaskStatus'
-        processedAt:
-          type: string
-          format: date-time
-        processedBy:
-          type: string
-          description: "처리 담당자명"
-        reason:
-          type: string
-          nullable: true
-          description: "반려 사유 (REJECTED 시)"
-
-    # ─────────────────────────────────────────────
-    # History
-    # ─────────────────────────────────────────────
-    TaskHistoryResponse:
-      type: object
-      required: [taskId, events]
-      properties:
-        taskId:
-          type: string
-        events:
-          type: array
-          items:
-            $ref: '#/components/schemas/TaskHistoryEvent'
-
-    TaskHistoryEvent:
-      type: object
-      required: [eventType, occurredAt, actor]
-      properties:
-        eventType:
-          type: string
-          enum:
-            - CREATED
-            - APPROVED
-            - REJECTED
-            - RESUBMITTED
-          description: |
-            - `CREATED`: Task 생성
-            - `APPROVED`: 관리자 승인
-            - `REJECTED`: 관리자 반려
-            - `RESUBMITTED`: 원천 담당자 재요청
-        occurredAt:
-          type: string
-          format: date-time
-        actor:
-          type: string
-          description: "이벤트 수행자명"
-        detail:
-          type: string
-          nullable: true
-          description: "이벤트 상세 (반려 사유, 승인 코멘트 등)"
-
-    # ─────────────────────────────────────────────
-    # Create (원천 담당자)
-    # ─────────────────────────────────────────────
-    TaskCreateRequest:
-      type: object
-      required: [taskType, taskData]
-      properties:
-        taskType:
-          $ref: '#/components/schemas/TaskType'
-        previousTaskId:
-          type: string
-          nullable: true
-          description: "재요청 시 이전 Task ID"
-        taskData:
-          $ref: '#/components/schemas/TaskData'
-
-    TaskCreateResponse:
-      type: object
-      required: [success, task]
-      properties:
-        success:
-          type: boolean
-        task:
-          $ref: '#/components/schemas/TaskListItem'
-
-    # ─────────────────────────────────────────────
-    # Common
+    # Common (confirm.yaml과 동일 구조)
     # ─────────────────────────────────────────────
     PageInfo:
       type: object
       required: [totalElements, totalPages, number, size]
       properties:
-        totalElements:
-          type: integer
-          example: 15
-        totalPages:
-          type: integer
-          example: 2
-        number:
-          type: integer
-          description: "현재 페이지 번호 (0-based)"
-        size:
-          type: integer
-          description: "요청한 페이지 당 항목 수"
+        totalElements: { type: integer, example: 15 }
+        totalPages: { type: integer, example: 2 }
+        number: { type: integer, description: "현재 페이지 번호 (0-based)" }
+        size: { type: integer, description: "요청한 페이지 당 항목 수" }
 
     ErrorResponse:
       type: object
@@ -766,24 +414,3 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
           example:
             error: { code: "FORBIDDEN", message: "관리자 권한이 필요합니다." }
-    TaskNotFound:
-      description: "Task를 찾을 수 없음"
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
-          example:
-            error: { code: "TASK_NOT_FOUND", message: "해당 ID의 Task가 존재하지 않습니다." }
-    TargetSourceNotFound:
-      description: "Target Source를 찾을 수 없음"
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
-          example:
-            error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }
-    BadRequest:
-      description: "잘못된 요청 파라미터"
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
-          example:
-            error: { code: "VALIDATION_FAILED", message: "요청 파라미터가 올바르지 않습니다." }
