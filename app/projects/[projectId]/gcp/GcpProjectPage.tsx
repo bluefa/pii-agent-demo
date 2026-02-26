@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Project, ProcessStatus, SecretKey, needsCredential, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
   updateResourceCredential,
-  runConnectionTest,
   getProject,
-  ResourceCredentialInput,
 } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
@@ -39,7 +37,6 @@ export const GcpProjectPage = ({
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
   );
   const [submitting, setSubmitting] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
@@ -61,33 +58,6 @@ export const GcpProjectPage = ({
       onProjectUpdate(updatedProject);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
-    }
-  };
-
-  const handleTestConnection = async () => {
-    const selectedResources = project.resources.filter((r) => r.isSelected);
-    const missingCredentials = selectedResources.filter(
-      (r) => needsCredential(r.databaseType) && !r.selectedCredentialId
-    );
-
-    if (missingCredentials.length > 0) {
-      alert(`다음 리소스에 Credential을 선택해주세요:\n${missingCredentials.map((r) => r.resourceId).join('\n')}`);
-      return;
-    }
-
-    try {
-      setTestLoading(true);
-      const resourceCredentials: ResourceCredentialInput[] = selectedResources.map((r) => ({
-        resourceId: r.id,
-        credentialId: r.selectedCredentialId,
-      }));
-      await runConnectionTest(project.targetSourceId, resourceCredentials);
-      const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
-    } finally {
-      setTestLoading(false);
     }
   };
 
@@ -205,10 +175,6 @@ export const GcpProjectPage = ({
           <ProcessStatusCard
             project={project}
             onProjectUpdate={onProjectUpdate}
-            onTestConnection={handleTestConnection}
-            testLoading={testLoading}
-            credentials={credentials}
-            onCredentialChange={handleCredentialChange}
             approvalModalOpen={approvalModalOpen}
             onApprovalModalClose={() => setApprovalModalOpen(false)}
             onApprovalSubmit={handleApprovalSubmit}

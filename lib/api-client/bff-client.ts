@@ -56,6 +56,17 @@ const proxyDelete = async (path: string): Promise<NextResponse> => {
 };
 
 export const bffClient: ApiClient = {
+  dashboard: {
+    summary: () => proxyGet('/v1/admin/dashboard/summary'),
+    systems: (params) => {
+      const qs = params.toString();
+      return proxyGet(`/v1/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
+    },
+    systemsExport: (params) => {
+      const qs = params.toString();
+      return proxyGet(`/v1/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
+    },
+  },
   targetSources: {
     list: (serviceCode) => proxyGet(`/v1/services/${serviceCode}/target-sources`),
     get: (projectId) => proxyGet(`/v1/target-sources/${projectId}`),
@@ -177,6 +188,18 @@ export const bffClient: ApiClient = {
     create: (projectId, body) => proxyPost(`/scan/projects/${projectId}/scans`, body),
     getStatus: (projectId) => proxyGet(`/scan/projects/${projectId}/status`),
   },
+  taskAdmin: {
+    getApprovalRequestQueue: (params) => {
+      const searchParams = new URLSearchParams();
+      searchParams.set('status', params.status);
+      if (params.requestType) searchParams.set('requestType', params.requestType);
+      if (params.search) searchParams.set('search', params.search);
+      if (params.page !== undefined) searchParams.set('page', String(params.page));
+      if (params.size !== undefined) searchParams.set('size', String(params.size));
+      if (params.sort) searchParams.set('sort', params.sort);
+      return proxyGet(`/v1/task-admin/approval-requests?${searchParams.toString()}`);
+    },
+  },
   confirm: {
     getResources: (projectId) => proxyGet(`/target-sources/${projectId}/resources`),
     createApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests`, body),
@@ -193,8 +216,6 @@ export const bffClient: ApiClient = {
     testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
     getTestConnectionResults: (projectId, page, size) =>
       proxyGet(`/target-sources/${projectId}/test-connection/results?page=${page}&size=${size}`),
-    getTestConnectionLastSuccess: (projectId) =>
-      proxyGet(`/target-sources/${projectId}/test-connection/last-success`),
     getTestConnectionLatest: (projectId) =>
       proxyGet(`/target-sources/${projectId}/test-connection/latest`),
     getConnectionStatus: (projectId) => proxyGet(`/target-sources/${projectId}/logical-db-status`),

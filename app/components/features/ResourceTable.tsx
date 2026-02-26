@@ -39,16 +39,6 @@ const WarningIcon = () => (
   </svg>
 );
 
-const ConnectionBadge = ({ label, count, variant }: { label: string; count: number; variant: 'success' | 'error' | 'pending' }) => {
-  const colors = statusColors[variant];
-  return (
-    <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, colors.bg, colors.textDark)}>
-      <span className={cn('w-1.5 h-1.5 rounded-full', colors.dot)} />
-      {label} {count}
-    </span>
-  );
-};
-
 export const ResourceTable = ({
   resources,
   cloudProvider,
@@ -72,10 +62,7 @@ export const ResourceTable = ({
   const isEditMode = externalEditMode || internalEditMode;
   const isCheckboxEnabled =
     processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
-  const showConnectionStatus =
-    processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-    processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-    processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+  const showConnectionStatus = false;
   const showCredentialColumn =
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
@@ -85,10 +72,6 @@ export const ResourceTable = ({
   const nonTargetResources = resources.filter(r => !r.isSelected && !selectedIdsSet.has(r.id));
   const vnetResources = nonTargetResources.filter(r => r.integrationCategory === 'INSTALL_INELIGIBLE');
   const normalNonTargetResources = nonTargetResources.filter(r => r.integrationCategory !== 'INSTALL_INELIGIBLE');
-
-  const connectedCount = targetResources.filter((r) => r.connectionStatus === 'CONNECTED').length;
-  const disconnectedCount = targetResources.filter((r) => r.connectionStatus === 'DISCONNECTED').length;
-  const pendingCount = targetResources.filter((r) => !r.connectionStatus || r.connectionStatus === 'PENDING').length;
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -161,18 +144,11 @@ export const ResourceTable = ({
       <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className={cn('text-sm font-semibold', textColors.primary)}>
-            {isEditMode ? '전체 리소스' : '연동 대상'}
+            {isEditMode ? '전체 리소스' : '리소스'}
           </span>
           <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, statusColors.info.bg, statusColors.info.textDark)}>
             {isEditMode ? `${selectedIdsSet.size}/${resources.length} 선택` : targetResources.length}
           </span>
-          {!isEditMode && showConnectionStatus && (
-            <>
-              {connectedCount > 0 && <ConnectionBadge label="연결" count={connectedCount} variant="success" />}
-              {disconnectedCount > 0 && <ConnectionBadge label="끊김" count={disconnectedCount} variant="error" />}
-              {pendingCount > 0 && <ConnectionBadge label="대기" count={pendingCount} variant="pending" />}
-            </>
-          )}
         </div>
         {!externalEditMode && targetResources.length > 0 && (
           <button

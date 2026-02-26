@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Project, ProcessStatus, Resource } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType } from '@/lib/types/idc';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { ConnectionTestPanel } from '@/app/components/features/process-status/ConnectionTestPanel';
 import { statusColors, primaryColors, cn } from '@/lib/theme';
 
 // IDC Step Progress Bar - 승인 단계 없음 (4단계)
@@ -266,13 +266,15 @@ const FirewallGuide = ({ resources }: { resources: Resource[] }) => {
 const IdcInstallationStatusDisplay = ({
   status,
   resources,
+  targetSourceId,
   onRetry,
-  onTestConnection,
+  onResourceUpdate,
 }: {
   status: IdcInstallationStatusType;
   resources: Resource[];
+  targetSourceId: number;
   onRetry: () => void;
-  onTestConnection: () => void;
+  onResourceUpdate?: () => void;
 }) => {
   const isBdcCompleted = status.bdcTf === 'COMPLETED';
   const isBdcFailed = status.bdcTf === 'FAILED';
@@ -321,12 +323,11 @@ const IdcInstallationStatusDisplay = ({
 
       {/* 연결 테스트 */}
       {isBdcCompleted && status.firewallOpened && (
-        <button
-          onClick={onTestConnection}
-          className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-        >
-          Test Connection
-        </button>
+        <ConnectionTestPanel
+          targetSourceId={targetSourceId}
+          selectedResources={resources.filter((r) => r.isSelected)}
+          onResourceUpdate={onResourceUpdate}
+        />
       )}
     </div>
   );
@@ -337,12 +338,11 @@ interface IdcProcessStatusCardProps {
   idcInstallationStatus: IdcInstallationStatusType | null;
   showResourceInput: boolean;
   idcActionLoading: boolean;
-  testLoading: boolean;
   hasPendingResources?: boolean;
   onShowResourceInput: () => void;
   onConfirmFirewall: () => void;
   onRetry: () => void;
-  onTestConnection: () => void;
+  onResourceUpdate?: () => void;
 }
 
 export const IdcProcessStatusCard = ({
@@ -350,13 +350,13 @@ export const IdcProcessStatusCard = ({
   idcInstallationStatus,
   showResourceInput,
   idcActionLoading,
-  testLoading,
   hasPendingResources = false,
   onShowResourceInput,
   onConfirmFirewall,
   onRetry,
-  onTestConnection,
+  onResourceUpdate,
 }: IdcProcessStatusCardProps) => {
+  const selectedResources = project.resources.filter((r) => r.isSelected);
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
@@ -383,24 +383,20 @@ export const IdcProcessStatusCard = ({
             <IdcInstallationStatusDisplay
               status={idcInstallationStatus}
               resources={project.resources}
+              targetSourceId={project.targetSourceId}
               onRetry={onRetry}
-              onTestConnection={onTestConnection}
+              onResourceUpdate={onResourceUpdate}
             />
           )}
 
           {(project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
             project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
             project.processStatus === ProcessStatus.INSTALLATION_COMPLETE) && (
-            <div className="space-y-3">
-              <button
-                onClick={onTestConnection}
-                disabled={testLoading}
-                className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                {testLoading && <LoadingSpinner />}
-                Test Connection
-              </button>
-            </div>
+            <ConnectionTestPanel
+              targetSourceId={project.targetSourceId}
+              selectedResources={selectedResources}
+              onResourceUpdate={onResourceUpdate}
+            />
           )}
         </div>
       </div>

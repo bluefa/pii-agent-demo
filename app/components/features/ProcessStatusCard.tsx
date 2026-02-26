@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { ProcessStatus, Project, TerraformStatus, SecretKey, Resource } from '@/lib/types';
+import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -10,6 +10,7 @@ import {
   StepProgressBar,
   StepGuide,
   ConnectionTestPanel,
+  LogicalDbStatusPanel,
 } from './process-status';
 import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
@@ -27,7 +28,6 @@ const ProcessGuideModal = dynamic(() => import('./process-status/ProcessGuideMod
 const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
 
 type ProcessTabType = 'status' | 'history';
-const EMPTY_CREDENTIALS: SecretKey[] = [];
 
 // rendering-hoist-jsx: 정적 탭 정의를 컴포넌트 밖으로 호이스팅
 const TABS: { id: ProcessTabType; label: string }[] = [
@@ -38,10 +38,6 @@ const TABS: { id: ProcessTabType; label: string }[] = [
 interface ProcessStatusCardProps {
   project: Project;
   onProjectUpdate?: (project: Project) => void;
-  onTestConnection?: () => void;
-  testLoading?: boolean;
-  credentials?: SecretKey[];
-  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
   approvalModalOpen?: boolean;
   onApprovalModalClose?: () => void;
   onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
@@ -62,10 +58,6 @@ const getProgress = (project: Project) => {
 export const ProcessStatusCard = ({
   project,
   onProjectUpdate,
-  onTestConnection,
-  testLoading,
-  credentials = EMPTY_CREDENTIALS,
-  onCredentialChange,
   approvalModalOpen = false,
   onApprovalModalClose,
   onApprovalSubmit,
@@ -144,8 +136,8 @@ export const ProcessStatusCard = ({
     : undefined;
   const guide = getProcessGuide(project.cloudProvider, guideVariant);
 
-  // 설치 완료 핸들러 — 설치 인라인이 완료를 감지하면 프로젝트 상태를 갱신
-  const handleInstallComplete = async () => {
+  // 프로젝트 상태 갱신 — 설치 완료, credential 변경 등 서버 데이터 변경 후 호출
+  const refreshProject = async () => {
     try {
       const updatedProject = await getProject(project.targetSourceId);
       if (updatedProject) {
@@ -222,7 +214,7 @@ export const ProcessStatusCard = ({
                 {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
                   <ApprovalWaitingCard
                     targetSourceId={project.targetSourceId}
-                    onCancelSuccess={handleInstallComplete}
+                    onCancelSuccess={refreshProject}
                     hasConfirmedIntegration={hasConfirmedIntegration}
                   />
                 )}
@@ -240,17 +232,17 @@ export const ProcessStatusCard = ({
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={project.resources}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'AWS' ? (
                     <AwsInstallationInline
                       targetSourceId={project.targetSourceId}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'GCP' ? (
                     <GcpInstallationInline
                       targetSourceId={project.targetSourceId}
-                      onInstallComplete={handleInstallComplete}
+                      onInstallComplete={refreshProject}
                     />
                   ) : (
                     <button
@@ -269,17 +261,28 @@ export const ProcessStatusCard = ({
                   </>
                 )}
 
-                {(currentStep === ProcessStatus.WAITING_CONNECTION_TEST ||
-                  currentStep === ProcessStatus.CONNECTION_VERIFIED ||
-                  currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
+                {currentStep === ProcessStatus.WAITING_CONNECTION_TEST && (
                   <ConnectionTestPanel
-                    connectionTestHistory={project.connectionTestHistory || []}
-                    credentials={credentials}
+                    targetSourceId={project.targetSourceId}
                     selectedResources={selectedResources}
-                    onTestConnection={onTestConnection}
-                    testLoading={testLoading}
-                    onCredentialChange={onCredentialChange}
+                    onResourceUpdate={refreshProject}
                   />
+                )}
+
+                {(currentStep === ProcessStatus.CONNECTION_VERIFIED ||
+                  currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <ConnectionTestPanel
+                      targetSourceId={project.targetSourceId}
+                      selectedResources={selectedResources}
+                      onResourceUpdate={refreshProject}
+                    />
+                    <LogicalDbStatusPanel
+                      targetSourceId={project.targetSourceId}
+                      cloudProvider={project.cloudProvider}
+                      resources={project.resources}
+                    />
+                  </div>
                 )}
               </div>
             </div>

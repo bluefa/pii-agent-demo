@@ -5,15 +5,16 @@ import * as tcFns from '@/lib/mock-test-connection';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
+import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
 import type {
   Resource,
+  Project,
   ProjectStatus,
   ConnectionStatus,
   ConnectionTestResult,
   ConnectionTestHistory,
   VmDatabaseConfig,
   ResourceExclusion,
-  Project,
   BffApprovedIntegration,
 } from '@/lib/types';
 
@@ -148,6 +149,24 @@ interface ApprovalRequestCreateBody {
     exclusion_reason_default?: string;
   };
 }
+
+// --- Queue Board Integration Helpers ---
+
+const getCloudInfo = (project: Project): string => {
+  switch (project.cloudProvider) {
+    case 'AWS':
+      return project.awsAccountId ?? '';
+    case 'Azure':
+      return [project.tenantId, project.subscriptionId].filter(Boolean).join(' / ');
+    case 'GCP':
+      return project.gcpProjectId ?? '';
+    default:
+      return project.cloudProvider;
+  }
+};
+
+const getServiceName = (serviceCode: string): string =>
+  mockData.mockServiceCodes.find((s) => s.code === serviceCode)?.name ?? serviceCode;
 
 // --- Mock Confirm Module ---
 
@@ -304,8 +323,15 @@ export const mockConfirm = {
       approval: autoApprovalResult.shouldAutoApprove
         ? { status: 'AUTO_APPROVED', approvedAt: now }
         : { status: 'PENDING' },
-      installation: { status: 'PENDING' },
+      installation: autoApprovalResult.shouldAutoApprove
+        ? { status: 'IN_PROGRESS' }
+        : { status: 'PENDING' },
+      // 프로세스 재시작 시 연결 테스트 상태 초기화
+      connectionTest: { status: 'NOT_TESTED' },
     };
+
+    // 기존 연결 테스트 내역 삭제
+    tcFns.clearJobHistory(projectId);
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
     const actor = { id: user.id, name: user.name };
@@ -337,6 +363,23 @@ export const mockConfirm = {
       approvalTimestampStore.set(projectId, Date.now());
       await mockHistory.addAutoApprovedHistory(projectId);
     }
+
+    // Queue Board 연동: 승인 요청 생성 시 Admin Tasks에 항목 추가
+    addQueueItem({
+      targetSourceId: project.targetSourceId,
+      requestType: 'TARGET_CONFIRMATION',
+      serviceCode: project.serviceCode,
+      serviceName: getServiceName(project.serviceCode),
+      provider: project.cloudProvider,
+      cloudInfo: getCloudInfo(project),
+      requestedBy: user.name,
+    });
+
+    // 자동 승인인 경우 즉시 IN_PROGRESS로 전환
+    if (autoApprovalResult.shouldAutoApprove) {
+      updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', '시스템(자동승인)');
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -687,6 +730,9 @@ export const mockConfirm = {
 
     mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
 
+    // Queue Board 연동: 승인 → IN_PROGRESS
+    updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', user.name);
+
     return NextResponse.json({
       success: true,
       result: 'APPROVED',
@@ -757,6 +803,9 @@ export const mockConfirm = {
     });
 
     mockHistory.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+
+    // Queue Board 연동: 반려 → REJECTED
+    updateQueueItemStatus(project.targetSourceId, 'REJECTED', user.name, reason);
 
     return NextResponse.json({
       success: true,
@@ -878,7 +927,8 @@ export const mockConfirm = {
       );
     }
 
-    if (project.processStatus !== ProcessStatus.CONNECTION_VERIFIED) {
+    const currentStep = getCurrentStep(project.cloudProvider, project.status);
+    if (currentStep !== ProcessStatus.CONNECTION_VERIFIED) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_FAILED', message: '설치 확정 가능한 상태가 아닙니다.' } },
         { status: 400 },
@@ -906,6 +956,7 @@ export const mockConfirm = {
         ...project.status.connectionTest,
         status: 'PASSED',
         passedAt: project.status.connectionTest.passedAt || now,
+        operationConfirmed: true,
       },
     };
 
@@ -1046,26 +1097,6 @@ export const mockConfirm = {
     });
   },
 
-  getTestConnectionLastSuccess: async (projectId: string) => {
-    const project = mockData.getProjectById(projectId);
-    if (!project) {
-      return NextResponse.json(
-        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
-        { status: 404 },
-      );
-    }
-
-    const job = tcFns.getLastSuccessJob(projectId);
-    if (!job) {
-      return NextResponse.json(
-        { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '성공한 연결 테스트 이력이 없습니다.' } },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json(tcFns.toJobResponse(job));
-  },
-
   getTestConnectionLatest: async (projectId: string) => {
     const project = mockData.getProjectById(projectId);
     if (!project) {
@@ -1161,24 +1192,22 @@ function generateDbCounts(resourceId: string, databaseType: string) {
   const total = DB_COUNT_MAP[databaseType] ?? 2;
   const h = simpleHash(resourceId) % 100;
 
-  // 약 70% 전부 성공, 20% 일부 실패, 10% pending 포함
-  let success: number;
+  // 약 60% 전부 성공, 25% 일부 실패, 15% pending 포함
   let fail: number;
   let pending: number;
 
-  if (h >= 90) {
-    success = Math.max(total - 2, 0);
-    fail = 1;
-    pending = total - success - fail;
-  } else if (h >= 70) {
+  if (h >= 85) {
+    fail = Math.min(1, total);
+    pending = Math.min(1, total - fail);
+  } else if (h >= 60) {
     fail = Math.min(Math.max(1, (h % 3) + 1), total);
-    success = total - fail;
     pending = 0;
   } else {
-    success = total;
     fail = 0;
     pending = 0;
   }
+
+  const success = total - fail - pending;
 
   return {
     total_database_count: total,

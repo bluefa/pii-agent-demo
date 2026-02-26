@@ -44,10 +44,7 @@ export const IdcResourceTable = ({
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
-  const showConnectionStatus =
-    processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-    processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-    processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+  const showConnectionStatus = false;
 
   const totalCount = resources.length + pendingInputs.length;
 

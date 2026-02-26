@@ -1,5 +1,6 @@
 import type { NextResponse } from 'next/server';
 import type { VerifyTfRoleRequest } from '@/lib/types';
+import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
 
 interface SetInstallationModeBody {
   mode: 'AUTO' | 'MANUAL';
@@ -102,6 +103,11 @@ export interface ApiClient {
       };
     };
   };
+  dashboard: {
+    summary: () => Promise<NextResponse>;
+    systems: (params: URLSearchParams) => Promise<NextResponse>;
+    systemsExport: (params: URLSearchParams) => Promise<NextResponse>;
+  };
   dev: {
     getUsers: () => Promise<NextResponse>;
     switchUser: (body: unknown) => Promise<NextResponse>;
@@ -111,6 +117,9 @@ export interface ApiClient {
     getHistory: (projectId: string, query: { limit: number; offset: number }) => Promise<NextResponse>;
     create: (projectId: string, body: unknown) => Promise<NextResponse>;
     getStatus: (projectId: string) => Promise<NextResponse>;
+  };
+  taskAdmin: {
+    getApprovalRequestQueue(params: QueueBoardQueryParams): Promise<NextResponse>;
   };
   confirm: {
     getResources: (projectId: string) => Promise<NextResponse>;
@@ -126,7 +135,6 @@ export interface ApiClient {
     updateResourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
     testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;
     getTestConnectionResults: (projectId: string, page: number, size: number) => Promise<NextResponse>;
-    getTestConnectionLastSuccess: (projectId: string) => Promise<NextResponse>;
     getTestConnectionLatest: (projectId: string) => Promise<NextResponse>;
     getConnectionStatus: (projectId: string) => Promise<NextResponse>;
   };

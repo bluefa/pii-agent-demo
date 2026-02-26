@@ -1,4 +1,5 @@
 import { getStore } from '@/lib/mock-store';
+import { getCurrentStep } from '@/lib/process';
 import type { Project, Resource, ConnectionErrorType } from '@/lib/types';
 
 // ===== Types =====
@@ -15,6 +16,11 @@ export interface TestConnectionResourceResult {
   agent_id: string | null;
 }
 
+interface ResourceScheduleItem {
+  resource_id: string;
+  complete_at: string;
+}
+
 export interface TestConnectionJob {
   id: string;
   projectId: string;
@@ -23,14 +29,18 @@ export interface TestConnectionJob {
   requested_at: string;
   completed_at: string | null;
   requested_by: string;
-  estimated_end_at: string;
   resource_results: TestConnectionResourceResult[];
+}
+
+/** 내부용: Mock 시뮬레이션에서만 사용하는 확장 타입 */
+interface InternalTestConnectionJob extends TestConnectionJob {
+  estimated_end_at: string;
+  resource_schedule: ResourceScheduleItem[];
 }
 
 // ===== Constants =====
 
-const TC_MIN_DURATION_MS = 5_000;  // 최소 5초
-const TC_MAX_DURATION_MS = 15_000; // 최대 15초
+const RESOURCE_INTERVAL_MS = 5_000; // 리소스당 5초
 
 const ERROR_GUIDES: Record<TestConnectionErrorStatus, string> = {
   AUTH_FAIL: 'Credential 정보를 확인해주세요. 비밀번호가 만료되었거나 잘못 입력되었을 수 있습니다.',
@@ -59,10 +69,18 @@ export const createTestConnectionJob = (
   requestedBy: string,
 ): TestConnectionJob => {
   const now = new Date();
-  const duration = TC_MIN_DURATION_MS + Math.random() * (TC_MAX_DURATION_MS - TC_MIN_DURATION_MS);
-  const estimatedEnd = new Date(now.getTime() + duration);
+  const selectedResources = project.resources.filter((r) => r.isSelected);
 
-  const job: TestConnectionJob = {
+  // 리소스별 5초 간격 스케줄링
+  const schedule: ResourceScheduleItem[] = selectedResources.map((r, index) => ({
+    resource_id: r.resourceId,
+    complete_at: new Date(now.getTime() + RESOURCE_INTERVAL_MS * (index + 1)).toISOString(),
+  }));
+
+  const totalDuration = RESOURCE_INTERVAL_MS * Math.max(selectedResources.length, 1);
+  const estimatedEnd = new Date(now.getTime() + totalDuration);
+
+  const job: InternalTestConnectionJob = {
     id: generateId(),
     projectId: project.id,
     target_source_id: targetSourceId,
@@ -72,6 +90,7 @@ export const createTestConnectionJob = (
     requested_by: requestedBy,
     estimated_end_at: estimatedEnd.toISOString(),
     resource_results: [],
+    resource_schedule: schedule,
   };
 
   const store = getStore();
@@ -88,17 +107,6 @@ export const getLatestJob = (projectId: string): TestConnectionJob | undefined =
 
   if (jobs.length === 0) return undefined;
   return calculateJobStatus(jobs[0]);
-};
-
-export const getLastSuccessJob = (projectId: string): TestConnectionJob | undefined => {
-  const store = getStore();
-  const jobs = store.testConnectionJobs
-    .filter((j) => j.projectId === projectId)
-    .map(calculateJobStatus)
-    .filter((j) => j.status === 'SUCCESS')
-    .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
-
-  return jobs[0];
 };
 
 export const getJobHistory = (
@@ -129,24 +137,15 @@ export const hasPendingJob = (projectId: string): boolean => {
   });
 };
 
-// ===== Time-based Status Calculation =====
+// ===== Time-based Status Calculation (순차 리소스 처리) =====
 
 const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   if (job.status === 'SUCCESS' || job.status === 'FAIL') {
     return job;
   }
 
+  const internal = job as InternalTestConnectionJob;
   const now = Date.now();
-  const estimatedEnd = new Date(job.estimated_end_at).getTime();
-
-  if (now >= estimatedEnd) {
-    return completeJob(job);
-  }
-
-  return job;
-};
-
-const completeJob = (job: TestConnectionJob): TestConnectionJob => {
   const store = getStore();
   const project = store.projects.find((p) => p.id === job.projectId);
 
@@ -161,20 +160,67 @@ const completeJob = (job: TestConnectionJob): TestConnectionJob => {
     return failed;
   }
 
-  const selectedResources = project.resources.filter((r) => r.isSelected);
-  const resourceResults = selectedResources.map((r) => simulateResourceResult(r));
+  // 스케줄 기반으로 완료된 리소스만 결과에 포함
+  const completedResults: TestConnectionResourceResult[] = [];
+  let allDone = true;
 
-  const hasFailure = resourceResults.some((r) => r.status === 'FAIL');
+  for (const scheduleItem of internal.resource_schedule) {
+    const completeAt = new Date(scheduleItem.complete_at).getTime();
+    if (now >= completeAt) {
+      // 이미 결과가 있으면 재사용, 없으면 생성
+      const existing = job.resource_results.find((r) => r.resource_id === scheduleItem.resource_id);
+      if (existing) {
+        completedResults.push(existing);
+      } else {
+        const resource = project.resources.find((r) => r.resourceId === scheduleItem.resource_id);
+        if (resource) {
+          completedResults.push(simulateResourceResult(resource));
+        }
+      }
+    } else {
+      allDone = false;
+    }
+  }
 
-  const completed: TestConnectionJob = {
+  if (allDone) {
+    // 모든 리소스 완료 → 전체 상태 결정
+    const hasFailure = completedResults.some((r) => r.status === 'FAIL');
+    const finalStatus = hasFailure ? 'FAIL' : 'SUCCESS';
+    const completedAt = new Date().toISOString();
+    const completed: TestConnectionJob = {
+      ...job,
+      status: finalStatus,
+      completed_at: completedAt,
+      resource_results: completedResults,
+    };
+    updateJobInStore(completed);
+
+    // 프로세스 상태 전환
+    if (finalStatus === 'SUCCESS') {
+      project.status.connectionTest = {
+        status: 'PASSED',
+        lastTestedAt: completedAt,
+        passedAt: completedAt,
+      };
+    } else {
+      project.status.connectionTest = {
+        ...project.status.connectionTest,
+        status: 'FAILED',
+        lastTestedAt: completedAt,
+      };
+    }
+    project.processStatus = getCurrentStep(project.cloudProvider, project.status);
+
+    return completed;
+  }
+
+  // 아직 진행 중 — 부분 결과 업데이트
+  const updated: TestConnectionJob = {
     ...job,
-    status: hasFailure ? 'FAIL' : 'SUCCESS',
-    completed_at: new Date().toISOString(),
-    resource_results: resourceResults,
+    resource_results: completedResults,
   };
-
-  updateJobInStore(completed);
-  return completed;
+  updateJobInStore(updated);
+  return updated;
 };
 
 const simulateResourceResult = (resource: Resource): TestConnectionResourceResult => {
@@ -212,6 +258,14 @@ const updateJobInStore = (job: TestConnectionJob): void => {
   if (index >= 0) {
     store.testConnectionJobs[index] = job;
   }
+};
+
+// ===== Job Cleanup =====
+
+/** 프로세스 재시작 시 기존 연결 테스트 내역 전체 삭제 */
+export const clearJobHistory = (projectId: string): void => {
+  const store = getStore();
+  store.testConnectionJobs = store.testConnectionJobs.filter((j) => j.projectId !== projectId);
 };
 
 // ===== Public Response Helpers =====
