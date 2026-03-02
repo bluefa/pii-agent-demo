@@ -97,7 +97,9 @@ else                                  → Step 7
   - API: `GET /api/v1/target-sources/{id}/athena/regions/{region}/databases?page={n}&size={m}`
 - [AC7] Athena Database 클릭 시 Table 목록을 페이지네이션으로 조회할 수 있다
   - API: `GET /api/v1/target-sources/{id}/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
-- [AC8] Database/Table 조회 중에는 로딩 Spinner가 표시되고, 탐색 API는 사용자가 펼칠 때만 호출된다 (lazy load)
+- [AC8] Athena 선택 UI는 Region/Database/Table 모두 기본 체크박스 형태로 표현된다 (선택=체크, 제외=미체크)
+- [AC9] `include_all_tables`는 Region/Database 레벨에서만 별도 체크박스로 노출되며, 해당 노드가 선택된 경우에만 표시된다
+- [AC10] Database/Table 조회 중에는 로딩 Spinner가 표시되고, 탐색 API는 사용자가 펼칠 때만 호출된다 (lazy load)
 
 > **참고**: 프론트엔드 로컬 상태 관리. 리소스 선택 자체는 API 호출 없음 (Credential 할당만 API 호출).
 
@@ -285,6 +287,8 @@ else                                  → Step 7
   - API: `GET /api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases?page={n}&size={m}`
   - API: `GET /api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
 - [AC6] 모든 Athena 상세 조회는 Pagination + Spinner를 제공한다
+- [AC7] 승인요청 상세(요청 내용 확인)에서도 동일한 Region > Database > Table drill-down을 제공한다 (읽기 전용 체크박스 트리)
+- [AC8] 미선택(제외) 상태의 Region/Database/Table에는 `include_all_tables`를 표시하지 않는다
 
 ---
 
@@ -762,14 +766,14 @@ Provider별 InlineInstallation 컴포넌트:
 
 ---
 
-## 6. Athena UI/UX 구성안 (Step 1 + 승인상세 공통)
+## 6. Athena UI/UX 구성안 (Step 1 + 승인요청상세 공통)
 
 ### 6.1 트리거 UI
 
 - `ResourceTable`에서 `resourceType=ATHENA_REGION` 행 클릭 시 Athena 상세 패널(또는 모달) 오픈
 - 승인 대기/이력/확정 정보 모달에서도 동일하게 Region row 클릭 시 Athena 상세 패널 오픈
 
-### 6.2 모달 레이아웃 (process-guide-design 3.2 스타일)
+### 6.2 모달 레이아웃 (process-guide-design 3.2 스타일, 체크박스 트리)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -781,15 +785,16 @@ Provider별 InlineInstallation 컴포넌트:
 │  │                          │  │                                         │ │
 │  │ • resource_id            │  │ [Database 목록]   page 1/12   [<] [>]   │ │
 │  │ • athena_region          │  │ ┌─────────────────────────────────────┐ │ │
-│  │ • selected_table_count   │  │ │ analytics_db                      > │ │ │
-│  │                          │  │ │ billing_db                        > │ │ │
-│  │ [모든 Table 포함 선택]    │  │ │ ...                                 │ │ │
-│  │ (POST에서만 반영)         │  │ └─────────────────────────────────────┘ │ │
+│  │ • selected_table_count   │  │ │ [x] analytics_db                  > │ │ │
+│  │                          │  │ │     [x] 현재 시점 모든 Table 포함   │ │ │
+│  │ [x] Region 선택          │  │ │ [ ] billing_db                    > │ │ │
+│  │ [x] 현재 시점 모든 Table │  │ │ ...                                 │ │ │
+│  │     포함 (POST 전용)     │  │ └─────────────────────────────────────┘ │ │
 │  │                          │  │                                         │ │
 │  │                          │  │ [Table 목록 - analytics_db]             │ │
 │  │                          │  │ ┌─────────────────────────────────────┐ │ │
-│  │                          │  │ │ orders_2025        [선택] [제외]     │ │ │
-│  │                          │  │ │ orders_2026        [선택] [제외]     │ │ │
+│  │                          │  │ │ [x] orders_2025                      │ │ │
+│  │                          │  │ │ [ ] orders_2026                      │ │ │
 │  │                          │  │ │ ...                                 │ │ │
 │  │                          │  │ └─────────────────────────────────────┘ │ │
 │  │                          │  │                                         │ │
@@ -805,8 +810,11 @@ Provider별 InlineInstallation 컴포넌트:
 
 - 기본 응답은 Region 요약만 렌더하고, Database/Table은 클릭 시점에만 조회한다
 - 페이지 이동 시 현재 컨텍스트(Region/Database/requestId/historyId)를 유지한다
-- `include_all_tables`는 화면 토글로 제공하되, 실제 전송은 승인 요청 POST에서만 수행한다
+- 선택/제외는 별도 버튼이 아니라 체크박스 상태(체크/미체크)로만 표현한다
+- `include_all_tables`는 Region/Database 체크박스가 선택된 경우에만 보이며, 실제 전송은 승인 요청 POST에서만 수행한다
+- 미선택(제외) 상태의 항목에서는 `include_all_tables`를 숨긴다
 - 조회 API 응답에는 `include_all_tables`를 표시하지 않는다
+- 승인요청 상세 모달도 동일 drill-down UI를 사용하되 읽기 전용(체크박스 disabled)으로 표시한다
 
 ### 6.4 시퀀스 다이어그램 (요약)
 
@@ -849,6 +857,30 @@ sequenceDiagram
 - Athena는 Region 행(`ATHENA_REGION`)을 선택한 뒤 상세는 drill-down 조회
 - 하나의 테이블에서 함께 보이되, 선택 모델만 다르게 동작
 
+#### Athena 상세 패널 표시 (혼합, 체크박스 트리)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Athena 상세 (us-east-1)                                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ [x] Region: athena:123456789012/us-east-1                                    │
+│ [x] 현재 시점 모든 Table 포함 (Region)                                        │
+│                                                                              │
+│ [Database 목록]                                                               │
+│  [x] analytics_db                                                             │
+│      [x] 현재 시점 모든 Table 포함 (Database)                                 │
+│  [ ] billing_db                                                               │
+│      (미선택이므로 include_all_tables 미노출)                                │
+│                                                                              │
+│ [Table 목록 - billing_db]                                                     │
+│  [x] billing_ledger                                                           │
+│  [ ] billing_archive                                                          │
+│  [ ] billing_tmp                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                  [취소] [적용]              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
 #### 승인 요청 모달 표시 (혼합)
 
 ```
@@ -858,11 +890,15 @@ sequenceDiagram
 │ [포함 리소스]                                                                │
 │  - RDS: prod-rds-orders (credential: cred-001)                              │
 │  - RDS: prod-rds-billing (credential: cred-002)                             │
-│  - ATHENA_REGION: athena:123456789012/us-east-1                             │
-│    ㄴ include_all_tables = true (현재 시점 기준)                             │
+│  - ATHENA_REGION: athena:123456789012/us-east-1                              │
+│    ㄴ Region include_all_tables = true                                        │
+│    ㄴ DATABASE analytics_db include_all_tables = true                         │
+│    ㄴ TABLE billing_ledger = 포함                                             │
 │                                                                              │
 │ [제외 리소스]                                                                │
-│  - ATHENA_REGION: athena:123456789012/us-west-2                             │
+│  - ATHENA_REGION: athena:123456789012/us-west-2                              │
+│  - TABLE billing_archive                                                      │
+│  - TABLE billing_tmp                                                          │
 │                                                                              │
 │ [제외 사유 기본값] 보안 정책상 현 시점 제외                                  │
 ├──────────────────────────────────────────────────────────────────────────────┤
@@ -870,7 +906,7 @@ sequenceDiagram
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 승인 요청 payload 예시 (혼합)
+#### 승인 요청 payload 예시 (혼합, 체크박스 기반)
 
 ```json
 {
@@ -899,6 +935,27 @@ sequenceDiagram
           "resource_id": "athena:123456789012/us-east-1",
           "selected": true,
           "include_all_tables": true
+        },
+        {
+          "scope": "DATABASE",
+          "resource_id": "athena:123456789012/us-east-1/analytics_db",
+          "selected": true,
+          "include_all_tables": true
+        },
+        {
+          "scope": "TABLE",
+          "resource_id": "athena:123456789012/us-east-1/billing_db/billing_ledger",
+          "selected": true
+        },
+        {
+          "scope": "TABLE",
+          "resource_id": "athena:123456789012/us-east-1/billing_db/billing_archive",
+          "selected": false
+        },
+        {
+          "scope": "TABLE",
+          "resource_id": "athena:123456789012/us-east-1/billing_db/billing_tmp",
+          "selected": false
         }
       ]
     },
@@ -907,11 +964,33 @@ sequenceDiagram
 }
 ```
 
+#### 승인요청 상세 모달 표시 (드릴다운, 읽기 전용)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 요청 내용 확인 (requestId=req-20260302-001)                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ [Athena Region 요약]                                                         │
+│  - athena:123456789012/us-east-1 (selected_table_count: 1240)               │
+│  - athena:123456789012/us-west-2 (selected_table_count: 0)                  │
+│                                                                              │
+│ [x] us-east-1 펼치기                                                         │
+│   ├─ [x] analytics_db  (include_all_tables: true)                            │
+│   └─ [x] billing_db                                                           │
+│       ├─ [x] billing_ledger                                                   │
+│       ├─ [ ] billing_archive                                                  │
+│       └─ [ ] billing_tmp                                                      │
+│                                                                              │
+│ ※ 체크박스는 읽기 전용(disabled), 펼침 시 drill-down API 호출               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                              [닫기]         │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
 ### 6.6 확인 필요 포인트
 
 1. Athena 상세를 독립 모달로 고정할지, ResourceTable row expansion 패널로 둘지
-2. `include_all_tables` UI 문구를 "현재 시점 모든 Table 포함"으로 고정할지
-3. Table 목록에서 기본 페이지 크기(`size`)를 50/100 중 무엇으로 할지
+2. Table 목록에서 기본 페이지 크기(`size`)를 50/100 중 무엇으로 할지
 
 ---
 
@@ -921,3 +1000,4 @@ sequenceDiagram
 |------|------|
 | 2026-02-25 | 구현 코드 기반 초안 작성 (AWS/Azure/GCP) |
 | 2026-03-02 | Athena Region 기반 시나리오/Flow/API/UX 구성안 추가 |
+| 2026-03-02 | 체크박스 기반 Athena 선택 UX + 승인요청 상세 drill-down 반영 |
