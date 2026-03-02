@@ -62,6 +62,7 @@ const sanitizeSegment = (value: string): string =>
 export const isAthenaResource = (resource: Resource): boolean =>
   resource.awsType === 'ATHENA' ||
   resource.type === 'ATHENA' ||
+  resource.type === 'ATHENA_REGION' ||
   resource.databaseType === 'ATHENA';
 
 export const parseAthenaResourceId = (resourceId: string): ParsedAthenaResourceId | null => {
@@ -110,7 +111,11 @@ export const extractAthenaTables = (
     if (!isAthenaResource(resource)) continue;
 
     const parsed = parseAthenaResourceId(resource.resourceId);
-    if (parsed?.database && parsed.table) {
+    if (parsed) {
+      if (!parsed.database || !parsed.table) {
+        // Region/Database 레벨 리소스는 선택 규칙의 기준점이며, 테이블 목록에는 포함하지 않는다.
+        continue;
+      }
       dedup.set(resource.resourceId, {
         accountId: parsed.accountId,
         athenaRegion: parsed.region,
@@ -123,15 +128,14 @@ export const extractAthenaTables = (
     }
 
     const fromArn = parseAthenaArn(resource.resourceId);
-    const accountId = parsed?.accountId ??
-      fromArn?.accountId ??
+    if (!fromArn) continue;
+    const accountId = fromArn.accountId ??
       defaultAccountId ??
       '000000000000';
-    const athenaRegion = parsed?.region ??
-      fromArn?.region ??
+    const athenaRegion = fromArn.region ??
       resource.region ??
       DEFAULT_ATHENA_REGION;
-    const database = sanitizeSegment(parsed?.database ?? DEFAULT_ATHENA_DATABASE);
+    const database = sanitizeSegment(DEFAULT_ATHENA_DATABASE);
     const table = sanitizeSegment(resource.id);
     const tableResourceId = toAthenaTableResourceId(accountId, athenaRegion, database, table);
 

@@ -111,6 +111,39 @@ describe('mockConfirm Athena drill-down', () => {
     ).toBeTruthy();
   });
 
+  it('Athena Region 리소스는 가짜 Database/Table로 확장되지 않는다', async () => {
+    const store = getStore();
+    store.projects.push(createTestProject({
+      resources: [
+        createAthenaResource('ath-region', `athena:${ACCOUNT_ID}/${REGION}`),
+        createAthenaResource('ath-table', `athena:${ACCOUNT_ID}/${REGION}/analytics_db/clickstream`),
+      ],
+    }));
+
+    const resourcesResponse = await mockConfirm.getResources(TEST_PROJECT_ID);
+    expect(resourcesResponse.status).toBe(200);
+    const resourcesData = await parseResponse(resourcesResponse);
+    expect(
+      resourcesData.resources.find(
+        (resource: { resourceType: string; resourceId: string }) =>
+          resource.resourceType === 'ATHENA_REGION' &&
+          resource.resourceId === `athena:${ACCOUNT_ID}/${REGION}`,
+      ),
+    ).toBeTruthy();
+
+    const databaseResponse = await mockConfirm.getAthenaRegionDatabases(
+      TEST_PROJECT_ID,
+      REGION,
+      0,
+      10,
+    );
+    expect(databaseResponse.status).toBe(200);
+    const databaseData = await parseResponse(databaseResponse);
+    expect(databaseData.content.map((node: { database: string }) => node.database)).toEqual([
+      'analytics_db',
+    ]);
+  });
+
   it('approval-request Athena drill-down은 선택된 테이블만 반환한다', async () => {
     const store = getStore();
     store.projects.push(createTestProject({
