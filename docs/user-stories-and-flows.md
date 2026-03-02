@@ -827,7 +827,87 @@ sequenceDiagram
   API-->>UI: 201 created
 ```
 
-### 6.5 확인 필요 포인트
+### 6.5 RDS + Athena 혼합 표시 예시
+
+#### 리소스 테이블 표시 (Step 1)
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│ ResourceTable                                                                             │
+├────┬────────────────────────────────────────┬────────────────┬──────────────┬────────────┤
+│Sel │ Resource                               │ Type           │ Region       │ Status     │
+├────┼────────────────────────────────────────┼────────────────┼──────────────┼────────────┤
+│ ☑  │ prod-rds-orders                        │ RDS            │ us-east-1    │ connected  │
+│ ☑  │ prod-rds-billing                       │ RDS            │ us-east-1    │ connected  │
+│ ☑  │ athena:123456789012/us-east-1          │ ATHENA_REGION  │ us-east-1    │ selectable │
+│    │   └ 클릭 시 Database/Table drill-down  │                │              │            │
+│ ☐  │ athena:123456789012/us-west-2          │ ATHENA_REGION  │ us-west-2    │ selectable │
+└────┴────────────────────────────────────────┴────────────────┴──────────────┴────────────┘
+```
+
+- RDS는 기존 방식대로 리소스 행에서 직접 선택/credential 할당
+- Athena는 Region 행(`ATHENA_REGION`)을 선택한 뒤 상세는 drill-down 조회
+- 하나의 테이블에서 함께 보이되, 선택 모델만 다르게 동작
+
+#### 승인 요청 모달 표시 (혼합)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 연동 대상 확정 승인 요청                                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ [포함 리소스]                                                                │
+│  - RDS: prod-rds-orders (credential: cred-001)                              │
+│  - RDS: prod-rds-billing (credential: cred-002)                             │
+│  - ATHENA_REGION: athena:123456789012/us-east-1                             │
+│    ㄴ include_all_tables = true (현재 시점 기준)                             │
+│                                                                              │
+│ [제외 리소스]                                                                │
+│  - ATHENA_REGION: athena:123456789012/us-west-2                             │
+│                                                                              │
+│ [제외 사유 기본값] 보안 정책상 현 시점 제외                                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                  [취소] [요청]              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 승인 요청 payload 예시 (혼합)
+
+```json
+{
+  "input_data": {
+    "resource_inputs": [
+      {
+        "resource_id": "rds:arn:aws:rds:us-east-1:123456789012:db:prod-rds-orders",
+        "selected": true,
+        "resource_input": { "credential_id": "cred-001" }
+      },
+      {
+        "resource_id": "rds:arn:aws:rds:us-east-1:123456789012:db:prod-rds-billing",
+        "selected": true,
+        "resource_input": { "credential_id": "cred-002" }
+      },
+      {
+        "resource_id": "athena:123456789012/us-west-2",
+        "selected": false,
+        "exclusion_reason": "현 시점 제외"
+      }
+    ],
+    "athena_input": {
+      "rules": [
+        {
+          "scope": "REGION",
+          "resource_id": "athena:123456789012/us-east-1",
+          "selected": true,
+          "include_all_tables": true
+        }
+      ]
+    },
+    "exclusion_reason_default": "보안 정책상 현 시점 제외"
+  }
+}
+```
+
+### 6.6 확인 필요 포인트
 
 1. Athena 상세를 독립 모달로 고정할지, ResourceTable row expansion 패널로 둘지
 2. `include_all_tables` UI 문구를 "현재 시점 모든 Table 포함"으로 고정할지
