@@ -27,7 +27,8 @@ const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: Retu
 
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
-// Mock: MOCK_INSTALLATION_DELAY_MS(기본 15초) 경과 후 설치 완료 처리
+// Mock: APPLYING -> INSTALLING -> COMPLETED 순서로 전이
+const MOCK_APPLYING_DELAY_MS = 5_000;
 const MOCK_INSTALLATION_DELAY_MS = 15_000;
 const approvalTimestampStore = new Map<string, number>();
 
@@ -602,14 +603,61 @@ export const mockConfirm = {
       );
     }
 
-    // Mock 자동 전환: APPLYING_APPROVED 10초 경과 → 설치 완료 처리
+    // Mock 자동 전환:
+    // 1) 승인 후 일정 시간 경과 시 APPLYING_APPROVED -> INSTALLING
+    // 2) 추가 경과 시 INSTALLING -> WAITING_CONNECTION_TEST
     const approvedAt = approvalTimestampStore.get(project.id);
     if (
       approvedIntegrationStore.has(project.id) &&
-      approvedAt &&
-      Date.now() - approvedAt >= MOCK_INSTALLATION_DELAY_MS
+      approvedAt
     ) {
+      const elapsedMs = Date.now() - approvedAt;
       const now = new Date().toISOString();
+
+      if (
+        project.status.installation.status === 'PENDING' &&
+        elapsedMs >= MOCK_APPLYING_DELAY_MS
+      ) {
+        const progressedStatus: ProjectStatus = {
+          ...project.status,
+          installation: { status: 'IN_PROGRESS' },
+        };
+        const calcStatus = getCurrentStep(project.cloudProvider, progressedStatus);
+        mockData.updateProject(project.id, {
+          processStatus: calcStatus,
+          status: progressedStatus,
+        });
+
+        const updated = mockData.getProjectById(projectId)!;
+        return NextResponse.json({
+          target_source_id: updated.targetSourceId,
+          process_status: computeProcessStatus(updated),
+          status_inputs: {
+            has_confirmed_integration: updated.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(updated.id),
+            has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
+            has_approved_integration: approvedIntegrationStore.has(updated.id),
+            last_approval_result: computeLastApprovalResult(updated),
+            last_rejection_reason: updated.status.approval.rejectionReason ?? null,
+          },
+          evaluated_at: now,
+        });
+      }
+
+      if (elapsedMs < MOCK_INSTALLATION_DELAY_MS) {
+        return NextResponse.json({
+          target_source_id: project.targetSourceId,
+          process_status: computeProcessStatus(project),
+          status_inputs: {
+            has_confirmed_integration: project.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(project.id),
+            has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
+            has_approved_integration: approvedIntegrationStore.has(project.id),
+            last_approval_result: computeLastApprovalResult(project),
+            last_rejection_reason: project.status.approval.rejectionReason ?? null,
+          },
+          evaluated_at: now,
+        });
+      }
+
       const updatedStatus: ProjectStatus = {
         ...project.status,
         installation: { status: 'COMPLETED', completedAt: now },
