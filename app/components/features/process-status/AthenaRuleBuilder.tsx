@@ -43,6 +43,8 @@ interface AthenaTableState {
   error: string | null;
 }
 
+type DatabaseDetailTab = 'overview' | 'tables';
+
 const DEFAULT_PAGE_SIZE = 20;
 
 const tableKey = (region: string, database: string): string => `${region}::${database}`;
@@ -125,6 +127,34 @@ const getRegionSelectedTableCount = (
   return count;
 };
 
+const isDatabaseEffectivelySelected = (
+  rules: AthenaSelectionRule[],
+  regionResourceId: string,
+  databaseResourceId: string,
+): boolean => {
+  const databaseRule = getRule(rules, 'DATABASE', databaseResourceId);
+  if (databaseRule) return databaseRule.selected;
+
+  const regionRule = getRule(rules, 'REGION', regionResourceId);
+  return regionRule?.selected === true && regionRule.include_all_tables === true;
+};
+
+const isTableEffectivelySelected = (
+  rules: AthenaSelectionRule[],
+  regionResourceId: string,
+  databaseResourceId: string,
+  tableResourceId: string,
+): boolean => {
+  const tableRule = getRule(rules, 'TABLE', tableResourceId);
+  if (tableRule) return tableRule.selected;
+
+  const databaseRule = getRule(rules, 'DATABASE', databaseResourceId);
+  if (databaseRule?.selected === true && databaseRule.include_all_tables === true) return true;
+
+  const regionRule = getRule(rules, 'REGION', regionResourceId);
+  return regionRule?.selected === true && regionRule.include_all_tables === true;
+};
+
 export const AthenaRuleBuilder = ({
   targetSourceId,
   regions,
@@ -132,9 +162,10 @@ export const AthenaRuleBuilder = ({
   onChange,
 }: AthenaRuleBuilderProps) => {
   const [expandedRegions, setExpandedRegions] = useState<Record<string, boolean>>({});
-  const [expandedDatabases, setExpandedDatabases] = useState<Record<string, boolean>>({});
   const [databaseStates, setDatabaseStates] = useState<Record<string, AthenaDatabaseState>>({});
   const [tableStates, setTableStates] = useState<Record<string, AthenaTableState>>({});
+  const [activeDatabaseByRegion, setActiveDatabaseByRegion] = useState<Record<string, string>>({});
+  const [activeTabByRegion, setActiveTabByRegion] = useState<Record<string, DatabaseDetailTab>>({});
 
   const sortedRegions = useMemo(
     () => [...regions].sort((a, b) => a.athena_region.localeCompare(b.athena_region)),
@@ -212,11 +243,8 @@ export const AthenaRuleBuilder = ({
     }
   };
 
-  const setDatabaseExpanded = async (region: string, database: string, expanded: boolean) => {
+  const ensureTableLoaded = async (region: string, database: string) => {
     const key = tableKey(region, database);
-    setExpandedDatabases((prev) => ({ ...prev, [key]: expanded }));
-    if (!expanded) return;
-
     const current = tableStates[key];
     if (current?.data || current?.loading) return;
 
@@ -311,9 +339,42 @@ export const AthenaRuleBuilder = ({
     onChange(upsertRule(rules, buildIncludeAllRule(rules, scope, resourceId, checked)));
   };
 
-  const renderTableRows = (region: string, database: string, tables: AthenaTableNode[]) =>
+  const onRegionCheckboxChange = async (
+    region: AthenaRegionCandidate,
+    selected: boolean,
+  ) => {
+    onRegionSelectChange(region.resource_id, selected);
+    if (selected) {
+      await setRegionExpanded(region, true);
+    }
+  };
+
+  const onDatabaseOpen = async (
+    region: string,
+    database: string,
+    tab: DatabaseDetailTab = 'tables',
+  ) => {
+    setActiveDatabaseByRegion((prev) => ({ ...prev, [region]: database }));
+    setActiveTabByRegion((prev) => ({ ...prev, [region]: tab }));
+    if (tab === 'tables') {
+      await ensureTableLoaded(region, database);
+    }
+  };
+
+  const renderTableRows = (
+    region: string,
+    database: string,
+    regionResourceId: string,
+    databaseResourceId: string,
+    tables: AthenaTableNode[],
+  ) =>
     tables.map((table) => {
-      const selected = getRule(rules, 'TABLE', table.resource_id)?.selected === true;
+      const selected = isTableEffectivelySelected(
+        rules,
+        regionResourceId,
+        databaseResourceId,
+        table.resource_id,
+      );
       return (
         <tr key={table.resource_id} className={tableStyles.row}>
           <td className={cn(tableStyles.cell, 'pl-16')}>
@@ -346,7 +407,9 @@ export const AthenaRuleBuilder = ({
               <input
                 type="checkbox"
                 checked={regionSelected}
-                onChange={(event) => onRegionSelectChange(region.resource_id, event.target.checked)}
+                onChange={(event) => {
+                  void onRegionCheckboxChange(region, event.target.checked);
+                }}
               />
               <div className="min-w-0 flex-1">
                 <p className={cn('text-sm font-medium', textColors.primary)}>{region.resource_id}</p>
@@ -371,7 +434,7 @@ export const AthenaRuleBuilder = ({
                     checked={regionIncludeAll}
                     onChange={(event) => onIncludeAllChange('REGION', region.resource_id, event.target.checked)}
                   />
-                  <span>현재 시점 모든 Table 포함 (Region)</span>
+                  <span>이 Region의 모든 Database 선택</span>
                 </label>
               </div>
             )}
@@ -394,146 +457,254 @@ export const AthenaRuleBuilder = ({
                     {dbState.data.content.length === 0 ? (
                       <p className={cn('text-sm', textColors.tertiary)}>Database가 없습니다.</p>
                     ) : (
-                      dbState.data.content.map((database: AthenaDatabaseNode) => {
-                        const databaseRule = getRule(rules, 'DATABASE', database.resource_id);
-                        const databaseSelected = databaseRule?.selected === true;
-                        const databaseIncludeAll = databaseRule?.include_all_tables === true;
-                        const key = tableKey(region.athena_region, database.database);
-                        const tableState = tableStates[key];
+                      <>
+                        <div className={cn('border rounded-lg', statusColors.pending.border, 'overflow-hidden')}>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className={tableStyles.header}>
+                                <th className={tableStyles.headerCell}>선택</th>
+                                <th className={tableStyles.headerCell}>Database</th>
+                                <th className={tableStyles.headerCell}>Resource ID</th>
+                              </tr>
+                            </thead>
+                            <tbody className={tableStyles.body}>
+                              {dbState.data.content.map((database: AthenaDatabaseNode) => {
+                                const databaseSelected = isDatabaseEffectivelySelected(
+                                  rules,
+                                  region.resource_id,
+                                  database.resource_id,
+                                );
+                                const isActive = activeDatabaseByRegion[region.athena_region] === database.database;
 
-                        return (
-                          <div key={database.resource_id} className={cn('border rounded-lg', statusColors.pending.border)}>
-                            <div className="px-4 py-3 flex items-center gap-3">
-                              <input
-                                type="checkbox"
-                                checked={databaseSelected}
-                                onChange={(event) => onDatabaseSelectChange(database.resource_id, event.target.checked)}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className={cn('text-sm font-medium', textColors.primary)}>{database.database}</p>
-                                <p className={cn('text-xs font-mono', textColors.tertiary)}>{database.resource_id}</p>
-                              </div>
-                              <Button
-                                variant="secondary"
-                                className="px-2 py-1 text-xs"
-                                onClick={() => setDatabaseExpanded(region.athena_region, database.database, !expandedDatabases[key])}
-                              >
-                                {expandedDatabases[key] ? '닫기' : 'Table 보기'}
-                              </Button>
-                            </div>
+                                return (
+                                  <tr
+                                    key={database.resource_id}
+                                    className={cn(tableStyles.row, 'cursor-pointer', isActive && statusColors.info.bg)}
+                                    onClick={() => {
+                                      void onDatabaseOpen(region.athena_region, database.database, 'tables');
+                                    }}
+                                  >
+                                    <td className={tableStyles.cell} onClick={(event) => event.stopPropagation()}>
+                                      <input
+                                        type="checkbox"
+                                        checked={databaseSelected}
+                                        onChange={(event) => onDatabaseSelectChange(database.resource_id, event.target.checked)}
+                                      />
+                                    </td>
+                                    <td className={cn(tableStyles.cell, textColors.secondary)}>{database.database}</td>
+                                    <td className={cn(tableStyles.cell, 'font-mono text-xs', textColors.tertiary)}>
+                                      {database.resource_id}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
 
-                            {databaseSelected && (
-                              <div className={cn('px-4 pb-3', textColors.secondary)}>
-                                <label className="inline-flex items-center gap-2 text-sm">
-                                  <input
-                                    type="checkbox"
-                                    checked={databaseIncludeAll}
-                                    onChange={(event) => onIncludeAllChange('DATABASE', database.resource_id, event.target.checked)}
-                                  />
-                                  <span>현재 시점 모든 Table 포함 (Database)</span>
-                                </label>
-                              </div>
-                            )}
-
-                            {expandedDatabases[key] && (
-                              <div className={cn('border-t', statusColors.pending.border)}>
-                                {tableState?.loading && (
-                                  <div className="px-4 py-4 flex items-center gap-2 text-sm">
-                                    <LoadingSpinner size="sm" />
-                                    <span className={textColors.tertiary}>Table 목록 조회 중...</span>
-                                  </div>
-                                )}
-
-                                {!tableState?.loading && tableState?.error && (
-                                  <div className={cn('px-4 py-3 text-sm', statusColors.error.textDark)}>{tableState.error}</div>
-                                )}
-
-                                {!tableState?.loading && tableState?.data && (
-                                  <div className="pb-3">
-                                    <table className="w-full text-sm">
-                                      <thead>
-                                        <tr className={tableStyles.header}>
-                                          <th className={tableStyles.headerCell}>선택</th>
-                                          <th className={tableStyles.headerCell}>Table Resource ID</th>
-                                          <th className={tableStyles.headerCell}>Table</th>
-                                          <th className={tableStyles.headerCell}>Database</th>
-                                          <th className={tableStyles.headerCell}>Region</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className={tableStyles.body}>
-                                        {renderTableRows(region.athena_region, database.database, tableState.data.content)}
-                                      </tbody>
-                                    </table>
-                                    <div className="px-4 pt-3 flex items-center justify-end gap-2">
-                                      <Button
-                                        variant="secondary"
-                                        className="px-2 py-1 text-xs"
-                                        disabled={tableState.data.page.number <= 0}
-                                        onClick={() => loadTablePage(
-                                          region.athena_region,
-                                          database.database,
-                                          Math.max(0, tableState.data!.page.number - 1),
-                                          tableState.data!.page.size,
-                                        )}
-                                      >
-                                        이전
-                                      </Button>
-                                      <span className={cn('text-xs', textColors.tertiary)}>
-                                        {tableState.data.page.number + 1} / {tableState.data.page.totalPages}
-                                      </span>
-                                      <Button
-                                        variant="secondary"
-                                        className="px-2 py-1 text-xs"
-                                        disabled={tableState.data.page.number + 1 >= tableState.data.page.totalPages}
-                                        onClick={() => loadTablePage(
-                                          region.athena_region,
-                                          database.database,
-                                          tableState.data!.page.number + 1,
-                                          tableState.data!.page.size,
-                                        )}
-                                      >
-                                        다음
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                        {dbState.data.page.totalPages > 1 && (
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              className="px-2 py-1 text-xs"
+                              disabled={dbState.data.page.number <= 0}
+                              onClick={() => loadDatabasePage(
+                                region.athena_region,
+                                Math.max(0, dbState.data!.page.number - 1),
+                                dbState.data!.page.size,
+                              )}
+                            >
+                              이전
+                            </Button>
+                            <span className={cn('text-xs', textColors.tertiary)}>
+                              {dbState.data.page.number + 1} / {dbState.data.page.totalPages}
+                            </span>
+                            <Button
+                              variant="secondary"
+                              className="px-2 py-1 text-xs"
+                              disabled={dbState.data.page.number + 1 >= dbState.data.page.totalPages}
+                              onClick={() => loadDatabasePage(
+                                region.athena_region,
+                                dbState.data!.page.number + 1,
+                                dbState.data!.page.size,
+                              )}
+                            >
+                              다음
+                            </Button>
                           </div>
-                        );
-                      })
-                    )}
+                        )}
 
-                    {dbState.data.page.totalPages > 1 && (
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="secondary"
-                          className="px-2 py-1 text-xs"
-                          disabled={dbState.data.page.number <= 0}
-                          onClick={() => loadDatabasePage(
-                            region.athena_region,
-                            Math.max(0, dbState.data!.page.number - 1),
-                            dbState.data!.page.size,
-                          )}
-                        >
-                          이전
-                        </Button>
-                        <span className={cn('text-xs', textColors.tertiary)}>
-                          {dbState.data.page.number + 1} / {dbState.data.page.totalPages}
-                        </span>
-                        <Button
-                          variant="secondary"
-                          className="px-2 py-1 text-xs"
-                          disabled={dbState.data.page.number + 1 >= dbState.data.page.totalPages}
-                          onClick={() => loadDatabasePage(
-                            region.athena_region,
-                            dbState.data!.page.number + 1,
-                            dbState.data!.page.size,
-                          )}
-                        >
-                          다음
-                        </Button>
-                      </div>
+                        {activeDatabaseByRegion[region.athena_region] && (() => {
+                          const activeDatabase = activeDatabaseByRegion[region.athena_region];
+                          const activeDatabaseNode = dbState.data!.content.find(
+                            (database) => database.database === activeDatabase,
+                          );
+                          if (!activeDatabaseNode) return null;
+
+                          const activeKey = tableKey(region.athena_region, activeDatabaseNode.database);
+                          const tableState = tableStates[activeKey];
+                          const databaseRule = getRule(rules, 'DATABASE', activeDatabaseNode.resource_id);
+                          const databaseSelected = isDatabaseEffectivelySelected(
+                            rules,
+                            region.resource_id,
+                            activeDatabaseNode.resource_id,
+                          );
+                          const databaseIncludeAll = databaseRule?.include_all_tables === true;
+                          const activeTab = activeTabByRegion[region.athena_region] ?? 'tables';
+
+                          return (
+                            <div className={cn('border rounded-lg', statusColors.pending.border)}>
+                              <div className={cn('px-4 py-3 border-b', statusColors.pending.border)}>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className={cn('text-sm font-medium', textColors.primary)}>
+                                      Database 상세: {activeDatabaseNode.database}
+                                    </p>
+                                    <p className={cn('text-xs font-mono', textColors.tertiary)}>
+                                      {activeDatabaseNode.resource_id}
+                                    </p>
+                                  </div>
+                                  <div className={cn('inline-flex rounded-md border', statusColors.pending.border)}>
+                                    <button
+                                      type="button"
+                                      className={cn(
+                                        'px-3 py-1.5 text-xs',
+                                        activeTab === 'overview'
+                                          ? cn(statusColors.info.bg, statusColors.info.textDark)
+                                          : textColors.secondary,
+                                      )}
+                                      onClick={() => setActiveTabByRegion((prev) => ({
+                                        ...prev,
+                                        [region.athena_region]: 'overview',
+                                      }))}
+                                    >
+                                      개요
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={cn(
+                                        'px-3 py-1.5 text-xs border-l',
+                                        statusColors.pending.border,
+                                        activeTab === 'tables'
+                                          ? cn(statusColors.info.bg, statusColors.info.textDark)
+                                          : textColors.secondary,
+                                      )}
+                                      onClick={() => {
+                                        void onDatabaseOpen(
+                                          region.athena_region,
+                                          activeDatabaseNode.database,
+                                          'tables',
+                                        );
+                                      }}
+                                    >
+                                      Table 선택
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {activeTab === 'overview' ? (
+                                <div className={cn('p-4 space-y-3', textColors.secondary)}>
+                                  <label className="inline-flex items-center gap-2 text-sm">
+                                    <input
+                                      type="checkbox"
+                                      checked={databaseSelected}
+                                      onChange={(event) => onDatabaseSelectChange(
+                                        activeDatabaseNode.resource_id,
+                                        event.target.checked,
+                                      )}
+                                    />
+                                    <span>이 Database 선택</span>
+                                  </label>
+                                  {databaseSelected && (
+                                    <label className="inline-flex items-center gap-2 text-sm">
+                                      <input
+                                        type="checkbox"
+                                        checked={databaseIncludeAll}
+                                        onChange={(event) => onIncludeAllChange(
+                                          'DATABASE',
+                                          activeDatabaseNode.resource_id,
+                                          event.target.checked,
+                                        )}
+                                      />
+                                      <span>이 Database의 모든 Table 선택</span>
+                                    </label>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className={cn('border-t', statusColors.pending.border)}>
+                                  {tableState?.loading && (
+                                    <div className="px-4 py-4 flex items-center gap-2 text-sm">
+                                      <LoadingSpinner size="sm" />
+                                      <span className={textColors.tertiary}>Table 목록 조회 중...</span>
+                                    </div>
+                                  )}
+
+                                  {!tableState?.loading && tableState?.error && (
+                                    <div className={cn('px-4 py-3 text-sm', statusColors.error.textDark)}>{tableState.error}</div>
+                                  )}
+
+                                  {!tableState?.loading && tableState?.data && (
+                                    <div className="pb-3">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className={tableStyles.header}>
+                                            <th className={tableStyles.headerCell}>선택</th>
+                                            <th className={tableStyles.headerCell}>Table Resource ID</th>
+                                            <th className={tableStyles.headerCell}>Table</th>
+                                            <th className={tableStyles.headerCell}>Database</th>
+                                            <th className={tableStyles.headerCell}>Region</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className={tableStyles.body}>
+                                          {renderTableRows(
+                                            region.athena_region,
+                                            activeDatabaseNode.database,
+                                            region.resource_id,
+                                            activeDatabaseNode.resource_id,
+                                            tableState.data.content,
+                                          )}
+                                        </tbody>
+                                      </table>
+                                      <div className="px-4 pt-3 flex items-center justify-end gap-2">
+                                        <Button
+                                          variant="secondary"
+                                          className="px-2 py-1 text-xs"
+                                          disabled={tableState.data.page.number <= 0}
+                                          onClick={() => loadTablePage(
+                                            region.athena_region,
+                                            activeDatabaseNode.database,
+                                            Math.max(0, tableState.data!.page.number - 1),
+                                            tableState.data!.page.size,
+                                          )}
+                                        >
+                                          이전
+                                        </Button>
+                                        <span className={cn('text-xs', textColors.tertiary)}>
+                                          {tableState.data.page.number + 1} / {tableState.data.page.totalPages}
+                                        </span>
+                                        <Button
+                                          variant="secondary"
+                                          className="px-2 py-1 text-xs"
+                                          disabled={tableState.data.page.number + 1 >= tableState.data.page.totalPages}
+                                          onClick={() => loadTablePage(
+                                            region.athena_region,
+                                            activeDatabaseNode.database,
+                                            tableState.data!.page.number + 1,
+                                            tableState.data!.page.size,
+                                          )}
+                                        >
+                                          다음
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </>
                     )}
                   </div>
                 )}
