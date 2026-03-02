@@ -1,13 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { statusColors, cn } from '@/lib/theme';
+import { useState, useEffect, useCallback } from 'react';
+import { statusColors, cn, getButtonClass } from '@/lib/theme';
 import { getAwsInstallationStatus, checkAwsInstallation } from '@/app/lib/api/aws';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
-import { ActionCard } from '@/app/components/features/process-status/shared/ActionCard';
-import { AwsInstallModeCard } from '@/app/components/features/process-status/aws/AwsInstallModeCard';
-import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import type { AwsInstallationStatus } from '@/lib/types';
 
@@ -16,64 +13,38 @@ interface AwsInstallationInlineProps {
   onInstallComplete?: () => void;
 }
 
-type InstallState = 'completed' | 'in_progress' | 'pending' | 'preparing';
-
-const isServiceScriptsCompleted = (status: AwsInstallationStatus): boolean =>
-  status.serviceScripts.length > 0 && status.serviceScripts.every(s => s.status === 'COMPLETED');
-
-const isBdcCompleted = (status: AwsInstallationStatus): boolean =>
-  status.bdcStatus.status === 'COMPLETED';
-
-const isFullyCompleted = (status: AwsInstallationStatus): boolean =>
-  isServiceScriptsCompleted(status) && isBdcCompleted(status);
-
-const getInstallState = (status: AwsInstallationStatus): InstallState => {
-  const scriptsCompleted = isServiceScriptsCompleted(status);
-  const bdcDone = isBdcCompleted(status);
-  if (scriptsCompleted && bdcDone) return 'completed';
-  if (scriptsCompleted || (status.hasExecutionPermission && !scriptsCompleted)) return 'in_progress';
-  if (!status.hasExecutionPermission && !scriptsCompleted) return 'pending';
-  return 'preparing';
-};
-
-const getProgressPercent = (status: AwsInstallationStatus): number => {
-  const scriptsCompleted = isServiceScriptsCompleted(status);
-  if (scriptsCompleted && isBdcCompleted(status)) return 100;
-  if (scriptsCompleted) return 50;
-  return 0;
-};
-
-const STATE_CONFIG = {
-  completed: {
-    colors: statusColors.success,
-    label: 'AWS 에이전트 설치 완료',
-    icon: '●',
-  },
-  in_progress: {
-    colors: statusColors.warning,
-    label: 'AWS 에이전트 설치 진행 중',
-    icon: '◐',
-  },
-  pending: {
-    colors: statusColors.pending,
-    label: 'AWS 에이전트 설치 대기 중',
-    icon: '○',
-  },
-  preparing: {
-    colors: statusColors.warning,
-    label: 'AWS 에이전트 설치 준비 중',
-    icon: '◐',
-  },
-} as const;
-
-const getReassuranceText = (status: AwsInstallationStatus, state: InstallState): string | null => {
-  if (state === 'completed' || state === 'pending') return null;
-  if (state === 'preparing') return '자동으로 설치가 진행될 예정입니다.';
-  if (status.hasExecutionPermission) {
-    return '자동으로 설치가 진행되고 있습니다.\nAWS 계정에 보안 연결 환경을 구성하고\n에이전트가 DB에 접근할 수 있도록 설정합니다.';
+const getActionSummary = (status: AwsInstallationStatus) => {
+  if (status.actionSummary) {
+    return status.actionSummary;
   }
-  return '설치 스크립트가 실행되었습니다. 자동으로 완료됩니다.';
+
+  return {
+    serviceActionRequired: status.serviceScripts.some(script => script.status !== 'COMPLETED'),
+    bdcInstallationRequired: status.bdcStatus.status !== 'COMPLETED',
+  };
 };
+
+const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
+  const summary = getActionSummary(status);
+  return !summary.serviceActionRequired && !summary.bdcInstallationRequired;
+};
+
+const getScriptBadge = (scriptStatus: 'PENDING' | 'COMPLETED' | 'FAILED') => {
+  if (scriptStatus === 'COMPLETED') {
+    return {
+      label: '설치 완료',
+      colors: statusColors.success,
+    };
+  }
+
+  return {
+    label: '서비스 측 확인 필요',
+    colors: statusColors.warning,
+  };
+};
+
+const getResourceDisplayLabel = (status?: 'NOT_INSTALLED' | 'COMPLETED') =>
+  status === 'COMPLETED' ? '설치 완료' : '설치 확인중';
 
 export const AwsInstallationInline = ({
   targetSourceId,
@@ -83,10 +54,10 @@ export const AwsInstallationInline = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showRoleGuide, setShowRoleGuide] = useState(false);
   const [showScriptGuide, setShowScriptGuide] = useState(false);
+  const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -98,7 +69,7 @@ export const AwsInstallationInline = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [onInstallComplete, targetSourceId]);
 
   const handleRefresh = async () => {
     try {
@@ -114,109 +85,149 @@ export const AwsInstallationInline = ({
     }
   };
 
-  const handleDownloadScript = () => {
-    window.open(`/api/v1/aws/target-sources/${targetSourceId}/terraform-script`, '_blank');
-  };
-
   useEffect(() => {
     fetchStatus();
-  }, [targetSourceId]);
+  }, [fetchStatus]);
 
   if (loading) return <InstallationLoadingView provider="AWS" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
   if (!status) return null;
 
-  const state = getInstallState(status);
-  const config = STATE_CONFIG[state];
-  const percent = getProgressPercent(status);
-  const reassurance = getReassuranceText(status, state);
-  const isCompleted = state === 'completed';
-  const scriptsCompleted = isServiceScriptsCompleted(status);
+  const actionSummary = getActionSummary(status);
+  const serviceActionRequired = actionSummary.serviceActionRequired;
+  const bdcInstallationRequired = actionSummary.bdcInstallationRequired;
+  const selectedScript =
+    status.serviceScripts.find(script =>
+      script.scriptId ? script.scriptId === selectedScriptId : script.scriptName === selectedScriptId
+    ) ??
+    status.serviceScripts.find(script => script.status !== 'COMPLETED') ??
+    status.serviceScripts[0];
 
   return (
     <div className="w-full space-y-3">
-      {/* Main progress card */}
-      <div className={cn('px-4 py-3 rounded-lg border', config.colors.bg, config.colors.border)}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {state === 'in_progress' || state === 'preparing' ? (
-              <div className={cn('w-4 h-4 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0', config.colors.border)} />
-            ) : (
-              <span className={cn('text-sm flex-shrink-0', config.colors.text)}>{config.icon}</span>
-            )}
-            <span className={cn('text-sm font-medium', config.colors.textDark)}>{config.label}</span>
-          </div>
-          {!isCompleted && (
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className={cn('p-1 rounded transition-colors disabled:opacity-50 flex-shrink-0 ml-2', config.colors.textDark, 'hover:bg-white/50')}
-              title="새로고침"
-            >
-              {refreshing ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              )}
-            </button>
-          )}
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
+        <div className={cn('rounded-lg border px-4 py-3', serviceActionRequired ? statusColors.warning.bg : statusColors.success.bg, serviceActionRequired ? statusColors.warning.border : statusColors.success.border)}>
+          <p className={cn('text-xs', serviceActionRequired ? statusColors.warning.text : statusColors.success.text)}>
+            서비스 담당자 조치
+          </p>
+          <p className={cn('mt-1 text-sm font-semibold', serviceActionRequired ? statusColors.warning.textDark : statusColors.success.textDark)}>
+            {serviceActionRequired ? '필요' : '불필요'}
+          </p>
         </div>
 
-        <div className="mt-2 h-1.5 rounded-full bg-white/50 overflow-hidden">
-          <div
-            className={cn('h-full rounded-full transition-all duration-500', config.colors.dot)}
-            style={{ width: `${percent}%` }}
-          />
+        <div className={cn('rounded-lg border px-4 py-3', bdcInstallationRequired ? statusColors.pending.bg : statusColors.success.bg, bdcInstallationRequired ? statusColors.pending.border : statusColors.success.border)}>
+          <p className={cn('text-xs', bdcInstallationRequired ? statusColors.pending.text : statusColors.success.text)}>
+            BDC 설치
+          </p>
+          <p className={cn('mt-1 text-sm font-semibold', bdcInstallationRequired ? statusColors.pending.textDark : statusColors.success.textDark)}>
+            {bdcInstallationRequired ? '필요' : '불필요'}
+          </p>
         </div>
-        <span className={cn('text-xs mt-1 block', config.colors.textDark)}>{percent}%</span>
 
-        {reassurance && (
-          <p className="mt-1.5 text-xs text-gray-500 whitespace-pre-line">{reassurance}</p>
-        )}
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className={getButtonClass('secondary', 'sm')}
+        >
+          {refreshing ? '확인 중...' : '상태 다시 확인'}
+        </button>
       </div>
 
-      {/* Install mode card (hidden when completed) */}
-      {!isCompleted && (
-        <AwsInstallModeCard
-          isAutoMode={status.hasExecutionPermission}
-          serviceTfCompleted={scriptsCompleted}
-          onShowRoleGuide={() => setShowRoleGuide(true)}
-          onShowScriptGuide={() => setShowScriptGuide(true)}
-          onDownloadScript={handleDownloadScript}
-        />
-      )}
-
-      {/* Action card for manual mode before script execution */}
-      {!status.hasExecutionPermission && !scriptsCompleted && (
-        <ActionCard title="조치 필요">
-          <p className="text-sm text-gray-700 mb-3">
-            설치 스크립트를 담당자와 함께 실행해주세요.
-            스크립트는 AWS 계정에 보안 연결 환경을 구성하고
-            에이전트 접근 설정을 수행합니다.
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleDownloadScript}
-              className={cn('inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors', statusColors.warning.dot, 'text-white hover:opacity-90')}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              설치 스크립트 다운로드
-            </button>
-            <button
-              onClick={() => setShowScriptGuide(true)}
-              className={cn('text-sm hover:underline', statusColors.warning.textDark)}
-            >
-              설치 가이드 보기
-            </button>
+      {status.serviceScripts.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-gray-200 bg-white">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <h4 className="text-sm font-semibold text-gray-800">Service Terraform Scripts</h4>
+            </div>
+            <div className="p-2">
+              {status.serviceScripts.map(script => {
+                const scriptId = script.scriptId ?? script.scriptName;
+                const isSelected = selectedScript?.scriptId === script.scriptId ||
+                  (!selectedScript?.scriptId && selectedScript?.scriptName === script.scriptName);
+                const badge = getScriptBadge(script.status);
+                return (
+                  <button
+                    key={scriptId}
+                    onClick={() => setSelectedScriptId(script.scriptId ?? script.scriptName)}
+                    className={cn(
+                      'w-full rounded-lg border px-3 py-2 text-left transition-colors',
+                      isSelected ? 'border-gray-300 bg-gray-50' : 'border-transparent hover:bg-gray-50'
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-gray-800">
+                        {script.terraformScriptName ?? script.scriptName}
+                      </span>
+                      <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', badge.colors.bg, badge.colors.textDark)}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">리소스 {script.resourceCount ?? script.resources.length}개</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </ActionCard>
+
+          <div className="rounded-lg border border-gray-200 bg-white">
+            <div className="border-b border-gray-100 px-4 py-3">
+              <h4 className="text-sm font-semibold text-gray-800">
+                {selectedScript ? `${selectedScript.terraformScriptName ?? selectedScript.scriptName} 리소스` : '리소스'}
+              </h4>
+            </div>
+
+            {selectedScript ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500">
+                      <th className="px-4 py-2.5">Resource</th>
+                      <th className="px-4 py-2.5">설치 상태</th>
+                      <th className="px-4 py-2.5">조치</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {selectedScript.resources.map(resource => {
+                      const displayStatus = getResourceDisplayLabel(resource.installationDisplayStatus);
+                      const isCompleted = resource.installationDisplayStatus === 'COMPLETED';
+                      return (
+                        <tr key={resource.resourceId}>
+                          <td className="px-4 py-2.5 text-sm text-gray-800">{resource.name}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={cn(
+                              'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                              isCompleted ? statusColors.success.bg : statusColors.pending.bg,
+                              isCompleted ? statusColors.success.textDark : statusColors.pending.textDark
+                            )}
+                            >
+                              {displayStatus}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm">
+                            {isCompleted ? (
+                              <span className="text-gray-400">-</span>
+                            ) : (
+                              <button
+                                onClick={() => setShowScriptGuide(true)}
+                                className={cn('text-sm font-medium hover:underline', statusColors.warning.textDark)}
+                              >
+                                설치 가이드
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-4 py-6 text-sm text-gray-500">표시할 리소스가 없습니다.</p>
+            )}
+          </div>
+        </div>
       )}
 
-      {showRoleGuide && <TfRoleGuideModal onClose={() => setShowRoleGuide(false)} />}
       {showScriptGuide && <TfScriptGuideModal onClose={() => setShowScriptGuide(false)} />}
     </div>
   );
