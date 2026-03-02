@@ -29,8 +29,8 @@ const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
   return !summary.serviceActionRequired && !summary.bdcInstallationRequired;
 };
 
-const getResourceDisplayLabel = (status?: 'NOT_INSTALLED' | 'COMPLETED') =>
-  status === 'COMPLETED' ? '설치 완료' : '설치 확인중';
+const getServiceResourceDisplayLabel = (scriptStatus: 'PENDING' | 'COMPLETED' | 'FAILED') =>
+  scriptStatus === 'COMPLETED' ? '설치 완료' : '설치 확인중';
 
 const getProgressStateColor = (state: 'completed' | 'current' | 'pending') => {
   if (state === 'completed') return cn(statusColors.success.dot, 'text-white');
@@ -90,8 +90,8 @@ export const AwsInstallationInline = ({
     script.resources.map(resource => ({
       key: `${script.scriptId ?? script.scriptName}-${resource.resourceId}`,
       scriptLabel: script.scriptName,
+      scriptStatus: script.status,
       resourceName: resource.name,
-      installationDisplayStatus: resource.installationDisplayStatus,
     })),
   );
 
@@ -160,7 +160,7 @@ export const AwsInstallationInline = ({
           <div className="rounded-lg border border-gray-200 bg-white">
             <div className="border-b border-gray-100 px-4 py-3">
               <h4 className="text-sm font-semibold text-gray-800">
-                설치 대상 리소스
+                서비스 측 TF 설치 대상 리소스
               </h4>
             </div>
 
@@ -177,8 +177,8 @@ export const AwsInstallationInline = ({
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {resourceRows.map(row => {
-                      const displayStatus = getResourceDisplayLabel(row.installationDisplayStatus);
-                      const isCompleted = row.installationDisplayStatus === 'COMPLETED';
+                      const displayStatus = getServiceResourceDisplayLabel(row.scriptStatus);
+                      const isCompleted = row.scriptStatus === 'COMPLETED';
                       return (
                         <tr key={row.key}>
                           <td className="px-4 py-2.5 text-sm text-gray-800">{row.scriptLabel}</td>
