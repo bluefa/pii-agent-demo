@@ -179,7 +179,8 @@ export const ApprovalRequestModal = ({
   const handleSubmit = () => {
     const rules = currentAthenaRules.filter((rule) =>
       rule.scope === 'TABLE' ||
-      (rule.selected && rule.include_all_tables === true)
+      rule.selected === false ||
+      rule.include_all_tables === true
     );
     onSubmit({
       exclusion_reason_default: defaultReason.trim() || undefined,
