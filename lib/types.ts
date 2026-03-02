@@ -482,7 +482,7 @@ export interface V1LastCheck {
   failReason?: string;
 }
 
-export type V1ScriptStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+export type V1ScriptStatus = 'PENDING' | 'INSTALLING' | 'COMPLETED' | 'FAILED';
 export type InstallationDisplayStatus = 'NOT_INSTALLED' | 'COMPLETED';
 
 export interface V1ResourceItem {

@@ -13,7 +13,7 @@ import type {
 type TransformSource = LegacyAwsInstallationStatus | LegacyCheckInstallationResponse;
 
 const toScriptStatus = (status: TfScriptStatus): V1ScriptStatus =>
-  status === 'IN_PROGRESS' ? 'PENDING' : status;
+  status === 'IN_PROGRESS' ? 'INSTALLING' : status;
 
 const toInstallationDisplayStatus = (
   serviceStatus: V1ScriptStatus,

@@ -61,7 +61,7 @@ export interface ScanHistoryResponse {
 
 // --- AWS API ---
 
-export type ScriptStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+export type ScriptStatus = 'PENDING' | 'INSTALLING' | 'COMPLETED' | 'FAILED';
 export type RoleStatus = 'VALID' | 'INVALID' | 'UNVERIFIED';
 
 export interface ResourceItem {

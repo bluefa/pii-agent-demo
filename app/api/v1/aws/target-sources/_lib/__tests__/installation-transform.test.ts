@@ -60,7 +60,7 @@ describe('installation-transform', () => {
 
     expect(result.serviceScripts[0].resources[0].installationDisplayStatus).toBe('NOT_INSTALLED');
     expect(result.serviceScripts[1].resources[0].installationDisplayStatus).toBe('NOT_INSTALLED');
-    expect(result.bdcStatus.status).toBe('PENDING');
+    expect(result.bdcStatus.status).toBe('INSTALLING');
   });
 
   it('service/bdc 모두 완료면 resource installationDisplayStatus를 COMPLETED로 반환한다', () => {
