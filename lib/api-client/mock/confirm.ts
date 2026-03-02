@@ -623,19 +623,24 @@ export const mockConfirm = {
     // Mock 자동 전환:
     // 승인 후 일정 시간 경과 시 APPLYING_APPROVED -> INSTALLING
     // (자동 완료 전이는 수행하지 않음)
-    const approvedAt = approvalTimestampStore.get(project.id);
+    const isApprovedStatus =
+      project.status.approval.status === 'APPROVED' ||
+      project.status.approval.status === 'AUTO_APPROVED';
+    const approvedAtFromStore = approvalTimestampStore.get(project.id);
+    const approvedAtFromStatus = project.status.approval.approvedAt
+      ? Date.parse(project.status.approval.approvedAt)
+      : Number.NaN;
+    const approvedAt = approvedAtFromStore ?? (Number.isFinite(approvedAtFromStatus) ? approvedAtFromStatus : undefined);
     if (
       ENABLE_PROCESS_AUTO_TRANSITION &&
-      approvedIntegrationStore.has(project.id) &&
-      approvedAt
+      isApprovedStatus &&
+      project.status.installation.status === 'PENDING' &&
+      approvedAt !== undefined
     ) {
       const elapsedMs = Date.now() - approvedAt;
       const now = new Date().toISOString();
 
-      if (
-        project.status.installation.status === 'PENDING' &&
-        elapsedMs >= MOCK_APPLYING_DELAY_MS
-      ) {
+      if (elapsedMs >= MOCK_APPLYING_DELAY_MS) {
         const progressedStatus: ProjectStatus = {
           ...project.status,
           installation: { status: 'IN_PROGRESS' },
