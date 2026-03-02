@@ -385,7 +385,7 @@ export const mockProjects: Project[] = [
       {
         id: 'res-2',
         type: 'ATHENA',
-        resourceId: 'ath-001',
+        resourceId: 'athena:123456789012/ap-northeast-2',
         databaseType: 'ATHENA',
         connectionStatus: 'PENDING',
         isSelected: false,
