@@ -7,6 +7,7 @@ import { ResourceRow } from './ResourceRow';
 interface RegionGroupProps {
   region: string;
   resources: Resource[];
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode?: boolean;
   isCheckboxEnabled: boolean;
@@ -31,6 +32,7 @@ const RegionIcon = () => (
 export const RegionGroup = ({
   region,
   resources,
+  targetSourceId,
   selectedIds,
   isEditMode = false,
   isCheckboxEnabled,
@@ -63,7 +65,9 @@ export const RegionGroup = ({
         key={resource.id}
         resource={resource}
         cloudProvider="AWS"
+        targetSourceId={targetSourceId}
         selectedIds={selectedIds}
+        colSpan={colSpan}
         isEditMode={isEditMode}
         isCheckboxEnabled={isCheckboxEnabled}
         showConnectionStatus={showConnectionStatus}

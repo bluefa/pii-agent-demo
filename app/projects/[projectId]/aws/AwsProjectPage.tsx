@@ -271,6 +271,7 @@ export const AwsProjectPage = ({
             />
 
             <ResourceTable
+              targetSourceId={project.targetSourceId}
               resources={project.resources.map((r) => ({
                 ...r,
                 vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,

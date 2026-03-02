@@ -7,6 +7,7 @@ import { ResourceRow } from './ResourceRow';
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -24,6 +25,7 @@ interface ResourceTableBodyProps {
 export const FlatResourceTableBody = ({
   resources,
   cloudProvider,
+  targetSourceId,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
@@ -54,7 +56,9 @@ export const FlatResourceTableBody = ({
           key={resource.id}
           resource={resource}
           cloudProvider={cloudProvider}
+          targetSourceId={targetSourceId}
           selectedIds={selectedIds}
+          colSpan={colSpan}
           isEditMode={isEditMode}
           isCheckboxEnabled={isCheckboxEnabled}
           showConnectionStatus={showConnectionStatus}

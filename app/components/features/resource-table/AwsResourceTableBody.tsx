@@ -9,6 +9,7 @@ import { ResourceTypeGroup } from './ResourceTypeGroup';
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -36,6 +37,7 @@ const groupByAwsType = (res: Resource[]): [AwsResourceType, Resource[]][] => {
 
 export const AwsResourceTableBody = ({
   resources,
+  targetSourceId,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
@@ -68,6 +70,7 @@ export const AwsResourceTableBody = ({
             key={resourceType}
             resourceType={resourceType}
             resources={typeResources}
+            targetSourceId={targetSourceId}
             selectedIds={selectedIds}
             isEditMode={isEditMode}
             isCheckboxEnabled={isCheckboxEnabled}
