@@ -22,6 +22,8 @@ interface ApprovalRequestModalProps {
   onSubmit: (data: ApprovalRequestFormData) => void;
   targetSourceId: number;
   resources: Resource[];
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
   loading: boolean;
   error?: string | null;
 }
@@ -82,6 +84,8 @@ export const ApprovalRequestModal = ({
   onSubmit,
   targetSourceId,
   resources,
+  athenaRules: controlledAthenaRules,
+  onAthenaRulesChange,
   loading,
   error,
 }: ApprovalRequestModalProps) => {
@@ -148,15 +152,17 @@ export const ApprovalRequestModal = ({
     return selectedRules;
   }, [resources]);
 
-  const [athenaRules, setAthenaRules] = useState<AthenaSelectionRule[]>(initialAthenaRules);
+  const [internalAthenaRules, setInternalAthenaRules] = useState<AthenaSelectionRule[]>(initialAthenaRules);
+  const currentAthenaRules = controlledAthenaRules ?? internalAthenaRules;
+  const setCurrentAthenaRules = onAthenaRulesChange ?? setInternalAthenaRules;
 
   const hasSelectedAthena = useMemo(
-    () => athenaRules.some((rule) =>
+    () => currentAthenaRules.some((rule) =>
       rule.scope === 'TABLE'
         ? rule.selected
         : rule.selected && rule.include_all_tables === true
     ),
-    [athenaRules],
+    [currentAthenaRules],
   );
 
   // Validation: TARGET excluded resources must have individual or default reason
@@ -171,7 +177,7 @@ export const ApprovalRequestModal = ({
   }, [includedResources, excludedResources, defaultReason, hasSelectedAthena, loading]);
 
   const handleSubmit = () => {
-    const rules = athenaRules.filter((rule) =>
+    const rules = currentAthenaRules.filter((rule) =>
       rule.scope === 'TABLE' ||
       (rule.selected && rule.include_all_tables === true)
     );
@@ -184,7 +190,9 @@ export const ApprovalRequestModal = ({
   const handleClose = () => {
     if (loading) return;
     setDefaultReason('');
-    setAthenaRules(initialAthenaRules);
+    if (!onAthenaRulesChange) {
+      setInternalAthenaRules(initialAthenaRules);
+    }
     onClose();
   };
 
@@ -265,8 +273,8 @@ export const ApprovalRequestModal = ({
               <AthenaRuleBuilder
                 targetSourceId={targetSourceId}
                 regions={athenaRegions}
-                rules={athenaRules}
-                onChange={setAthenaRules}
+                rules={currentAthenaRules}
+                onChange={setCurrentAthenaRules}
               />
             </div>
           </div>
