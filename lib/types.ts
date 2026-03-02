@@ -628,7 +628,28 @@ export interface ProjectHistoryDetails {
   reason?: string;                    // 반려/폐기 사유
   resourceCount?: number;             // 연동 확정 시 리소스 개수
   excludedResourceCount?: number;     // 연동 제외된 리소스 개수
+  requestId?: string;                 // 승인 요청 식별자 (approval-request drill-down용)
   inputData?: ApprovalRequestInputSnapshot; // 요청 시점 스냅샷 (approval-history용)
+}
+
+export type AthenaSelectionScope = 'REGION' | 'DATABASE' | 'TABLE';
+
+export interface AthenaSelectionRule {
+  scope: AthenaSelectionScope;
+  resource_id: string;
+  selected: boolean;
+  include_all_tables?: boolean | null;
+}
+
+export interface AthenaRequestInputSnapshot {
+  rules: AthenaSelectionRule[];
+}
+
+export interface AthenaRegionResourceSummary {
+  resource_id: string;
+  resource_type: 'ATHENA_REGION';
+  athena_region: string;
+  selected_table_count: number | null;
 }
 
 /** approval-history에서 사용하는 요청 시점 input_data 스냅샷 */
@@ -638,6 +659,7 @@ export interface ApprovalRequestInputSnapshot {
     | { resource_id: string; selected: false; exclusion_reason?: string }
   >;
   exclusion_reason_default?: string;
+  athena_input?: AthenaRequestInputSnapshot;
 }
 
 export interface ProjectHistory {
@@ -681,6 +703,7 @@ export interface BffApprovedIntegration {
   request_id: string;
   approved_at: string;
   resource_infos: ResourceSnapshot[];
+  athena_region_resources?: AthenaRegionResourceSummary[];
   excluded_resource_ids: string[];
   exclusion_reason?: string;
 }
@@ -688,4 +711,5 @@ export interface BffApprovedIntegration {
 /** 연동 확정 정보 — 현재 실제 상태 (Swagger ConfirmedIntegration) */
 export interface BffConfirmedIntegration {
   resource_infos: ResourceSnapshot[];
+  athena_region_resources?: AthenaRegionResourceSummary[];
 }

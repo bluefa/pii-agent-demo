@@ -414,7 +414,7 @@ export const generateAwsResource = (): Resource => {
       databaseType = 'DYNAMODB';
       break;
     case 'ATHENA':
-      resourceId = `arn:aws:athena:${region}:${accountId}:workgroup/${pickRandom(['primary', 'analytics', 'reporting'])}`;
+      resourceId = `athena:${accountId}/${region}/${generateResourceName('dataset')}/${generateResourceName('table').toLowerCase()}`;
       databaseType = 'ATHENA';
       break;
     case 'REDSHIFT':

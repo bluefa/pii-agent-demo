@@ -203,10 +203,48 @@ export const bffClient: ApiClient = {
   confirm: {
     getResources: (projectId) => proxyGet(`/target-sources/${projectId}/resources`),
     createApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests`, body),
+    getAthenaRegionDatabases: (projectId, region, page, size) =>
+      proxyGet(`/target-sources/${projectId}/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`),
+    getAthenaDatabaseTables: (projectId, region, database, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+      ),
     getConfirmedIntegration: (projectId) => proxyGet(`/target-sources/${projectId}/confirmed-integration`),
     getApprovedIntegration: (projectId) => proxyGet(`/target-sources/${projectId}/approved-integration`),
     getApprovalHistory: (projectId, page, size) =>
       proxyGet(`/target-sources/${projectId}/approval-history?page=${page}&size=${size}`),
+    getApprovalRequestAthenaDatabases: (projectId, requestId, region, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/approval-requests/${encodeURIComponent(requestId)}/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+      ),
+    getApprovalRequestAthenaTables: (projectId, requestId, region, database, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/approval-requests/${encodeURIComponent(requestId)}/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+      ),
+    getApprovalHistoryAthenaDatabases: (projectId, historyId, region, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/approval-history/${encodeURIComponent(historyId)}/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+      ),
+    getApprovalHistoryAthenaTables: (projectId, historyId, region, database, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/approval-history/${encodeURIComponent(historyId)}/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+      ),
+    getConfirmedIntegrationAthenaDatabases: (projectId, region, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/confirmed-integration/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+      ),
+    getConfirmedIntegrationAthenaTables: (projectId, region, database, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/confirmed-integration/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+      ),
+    getApprovedIntegrationAthenaDatabases: (projectId, region, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/approved-integration/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+      ),
+    getApprovedIntegrationAthenaTables: (projectId, region, database, page, size) =>
+      proxyGet(
+        `/target-sources/${projectId}/approved-integration/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+      ),
     getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
     approveApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
     rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),

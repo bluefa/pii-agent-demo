@@ -64,6 +64,7 @@ export interface AddHistoryOptions {
     reason?: string;
     resourceCount?: number;
     excludedResourceCount?: number;
+    requestId?: string;
     inputData?: ApprovalRequestInputSnapshot;
   };
 }
@@ -94,12 +95,13 @@ export const addTargetConfirmedHistory = (
   resourceCount: number,
   excludedResourceCount: number,
   inputData?: ApprovalRequestInputSnapshot,
+  requestId?: string,
 ): ProjectHistory => {
   return addProjectHistory({
     projectId,
     type: 'TARGET_CONFIRMED',
     actor,
-    details: { resourceCount, excludedResourceCount, inputData },
+    details: { resourceCount, excludedResourceCount, inputData, requestId },
   });
 };
 

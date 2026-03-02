@@ -124,9 +124,73 @@ export interface ApiClient {
   confirm: {
     getResources: (projectId: string) => Promise<NextResponse>;
     createApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
+    getAthenaRegionDatabases: (projectId: string, region: string, page: number, size: number) => Promise<NextResponse>;
+    getAthenaDatabaseTables: (
+      projectId: string,
+      region: string,
+      database: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
     getConfirmedIntegration: (projectId: string) => Promise<NextResponse>;
     getApprovedIntegration: (projectId: string) => Promise<NextResponse>;
     getApprovalHistory: (projectId: string, page: number, size: number) => Promise<NextResponse>;
+    getApprovalRequestAthenaDatabases: (
+      projectId: string,
+      requestId: string,
+      region: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getApprovalRequestAthenaTables: (
+      projectId: string,
+      requestId: string,
+      region: string,
+      database: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getApprovalHistoryAthenaDatabases: (
+      projectId: string,
+      historyId: string,
+      region: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getApprovalHistoryAthenaTables: (
+      projectId: string,
+      historyId: string,
+      region: string,
+      database: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getConfirmedIntegrationAthenaDatabases: (
+      projectId: string,
+      region: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getConfirmedIntegrationAthenaTables: (
+      projectId: string,
+      region: string,
+      database: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getApprovedIntegrationAthenaDatabases: (
+      projectId: string,
+      region: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
+    getApprovedIntegrationAthenaTables: (
+      projectId: string,
+      region: string,
+      database: string,
+      page: number,
+      size: number,
+    ) => Promise<NextResponse>;
     getProcessStatus: (projectId: string) => Promise<NextResponse>;
     approveApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
     rejectApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
