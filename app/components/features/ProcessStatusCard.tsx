@@ -109,7 +109,8 @@ export const ProcessStatusCard = ({
       try {
         const status = await getProcessStatus(project.targetSourceId);
         setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
-        if (status.process_status !== expectedBff) {
+        const shouldRefreshOnApplying = currentStep === ProcessStatus.APPLYING_APPROVED;
+        if (status.process_status !== expectedBff || shouldRefreshOnApplying) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
         }
