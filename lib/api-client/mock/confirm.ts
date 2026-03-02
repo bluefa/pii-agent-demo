@@ -16,6 +16,7 @@ import {
   paginate,
   parseAthenaResourceId,
   resolveAthenaSelection,
+  toAthenaRegionResourceId,
   type AthenaResolvedSnapshot,
   type AthenaTableRecord,
 } from '@/lib/api-client/mock/athena';
@@ -166,6 +167,21 @@ const isVmDatabaseType = (value: unknown): value is VmDatabaseConfig['databaseTy
 const getAllAthenaTables = (project: Project): AthenaTableRecord[] =>
   extractAthenaTables(project.resources, project.awsAccountId);
 
+const getAthenaRegionIdMapFromProject = (project: Project): Map<string, string> => {
+  const regions = new Map<string, string>();
+  for (const resource of project.resources) {
+    if (!isAthenaResource(resource)) continue;
+    const parsed = parseAthenaResourceId(resource.resourceId);
+    const region = parsed?.region ?? resource.region;
+    if (!region) continue;
+    const accountId = parsed?.accountId ?? project.awsAccountId ?? '000000000000';
+    if (!regions.has(region)) {
+      regions.set(region, accountId);
+    }
+  }
+  return regions;
+};
+
 const getSelectedAthenaTablesFromProject = (project: Project): AthenaTableRecord[] => {
   const selectedAthenaResources = project.resources.filter(
     (resource) => isAthenaResource(resource) && resource.isSelected,
@@ -183,8 +199,21 @@ const getActiveAthenaTablesFromProject = (project: Project): AthenaTableRecord[]
   return extractAthenaTables(activeAthenaResources, project.awsAccountId);
 };
 
-const getAthenaRegionSummariesFromProject = (project: Project): AthenaRegionResourceSummary[] =>
-  buildAthenaRegionSummaries(getAllAthenaTables(project));
+const getAthenaRegionSummariesFromProject = (project: Project): AthenaRegionResourceSummary[] => {
+  const tableBasedSummaries = buildAthenaRegionSummaries(getAllAthenaTables(project));
+  const tableCountByRegion = new Map(
+    tableBasedSummaries.map((summary) => [summary.athena_region, summary.selected_table_count ?? 0]),
+  );
+
+  return Array.from(getAthenaRegionIdMapFromProject(project).entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([region, accountId]) => ({
+      resource_id: toAthenaRegionResourceId(accountId, region),
+      resource_type: 'ATHENA_REGION',
+      athena_region: region,
+      selected_table_count: tableCountByRegion.get(region) ?? 0,
+    }));
+};
 
 const getAthenaRegionIntegrationCategory = (
   project: Project,
