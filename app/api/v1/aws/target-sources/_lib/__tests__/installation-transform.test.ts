@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LegacyAwsInstallationStatus, LegacyCheckInstallationResponse, ServiceTfScript } from '@/lib/types';
-import {
-  transformAwsCheckInstallationStatus,
-  transformAwsInstallationStatus,
-} from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
+import { transformAwsInstallationStatus } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 
 const buildScript = (
   overrides: Partial<ServiceTfScript> = {},
@@ -94,7 +91,7 @@ describe('installation-transform', () => {
       lastCheckedAt: '2026-03-02T02:00:00Z',
     };
 
-    const result = transformAwsCheckInstallationStatus(legacy);
+    const result = transformAwsInstallationStatus(legacy);
 
     expect(result.lastCheck).toEqual({
       status: 'FAILED',

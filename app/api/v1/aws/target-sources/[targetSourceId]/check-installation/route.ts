@@ -4,7 +4,7 @@ import { problemResponse } from '@/app/api/_lib/problem';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
 import type { LegacyCheckInstallationResponse } from '@/lib/types';
-import { transformAwsCheckInstallationStatus } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
+import { transformAwsInstallationStatus } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
 
 export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
@@ -17,5 +17,5 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   if (!response.ok) return response;
 
   const legacy = await response.json() as LegacyCheckInstallationResponse;
-  return NextResponse.json(transformAwsCheckInstallationStatus(legacy));
+  return NextResponse.json(transformAwsInstallationStatus(legacy));
 }, { expectedDuration: '300000ms' });
