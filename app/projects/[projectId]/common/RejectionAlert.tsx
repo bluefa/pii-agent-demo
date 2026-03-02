@@ -6,6 +6,19 @@ interface RejectionAlertProps {
   onRetryRequest?: () => void;
 }
 
+const formatRejectedAt = (dateString: string): string => {
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(new Date(dateString));
+};
+
 export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps) => {
   if (!project.isRejected) return null;
 
@@ -24,7 +37,7 @@ export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps)
           )}
           {project.rejectedAt && (
             <p className={cn('text-xs mt-1', statusColors.error.text)}>
-              반려일시: {new Date(project.rejectedAt).toLocaleString('ko-KR')}
+              반려일시: {formatRejectedAt(project.rejectedAt)}
             </p>
           )}
           {onRetryRequest && (

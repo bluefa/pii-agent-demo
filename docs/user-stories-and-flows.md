@@ -775,69 +775,70 @@ Provider별 InlineInstallation 컴포넌트:
 ### 6.1 목표
 
 - Athena 연동 대상 선택은 `연동 대상 확정` 화면에서 수행한다.
-- Region 체크 시 Database 목록을 즉시 조회할 수 있어야 하며, Pagination/Spinner를 적용한다.
-- Region 단위로 `모든 Database 선택` 체크박스를 제공한다.
-- Database 클릭 시 `Table 선택` 탭을 열어 Table 개별 체크박스를 제공한다.
-- `승인 요청`/`승인 이력`/`확정 정보`는 동일 구조를 읽기 전용으로 재사용한다.
+- Athena 리소스의 관리 단위는 기본적으로 `TABLE`이다.
+- 단, `승인요청/승인이력/확정정보/승인완료정보` 화면의 기본 노출은 `ATHENA_REGION(resource_id)` 우선으로 한다.
+- Region 체크/펼침 시 Database 목록을 페이지네이션으로 조회할 수 있어야 하며 Spinner를 적용한다.
+- Region에는 `이 Region의 모든 Database 선택` 체크박스를 제공한다.
+- Database에는 `이 Database의 모든 Table 선택` 체크박스를 제공한다.
+- `연동 대상 확정`은 편집 가능 체크박스 트리, 나머지 화면은 동일 트리를 읽기 전용으로 재사용한다.
 
 ### 6.2 정보 구조
 
 ```text
-Athena 연동 대상 선택
-└─ Region (checkbox)
-   ├─ [ ] 이 Region의 모든 Database 선택
-   └─ Database 목록 (pagination + spinner)
-      ├─ Database (checkbox)
-      │  ├─ [ ] 이 Database의 모든 Table 선택
-      │  └─ Table 선택 탭 (pagination + spinner)
-      │     └─ Table (checkbox)
-      └─ Database ...
+Cloud 리소스 목록
+├─ RDS/EC2/... 리소스 (기존과 동일)
+└─ ATHENA_REGION 리소스 (resource_id: athena:{account}/{region}, metadata.athena_region)
+   └─ (Region row 선택 시) Athena 선택 패널 오픈
+      ├─ [ ] 이 Region의 모든 Database 선택
+      └─ Database 목록 (pagination + spinner)
+         ├─ Database (checkbox)
+         ├─ [ ] 이 Database의 모든 Table 선택
+         └─ Table 목록 (pagination + spinner)
+            └─ Table (checkbox)
 ```
 
 ### 6.3 와이어프레임 (연동 대상 확정)
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Cloud 리소스                                                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Athena 연동 대상 선택                                                       │
-│                                                                             │
-│ [x] athena:123456789012/ap-northeast-2                            [펼치기] │
-│                                                                             │
-│ Region 설정                                                                  │
-│ [ ] 이 Region의 모든 Database 선택                                          │
-│                                                                             │
-│ Database 목록 (Page 1/5)                                      (⏳ 가능)    │
-│ [x] analytics_db (table_count: 1240)                              [탭 열기] │
-│ [ ] billing_db   (table_count: 320)                               [탭 열기] │
-│ [ ] audit_db     (table_count: 89)                                [탭 열기] │
-│                                              [이전] 1 / 5 [다음]           │
-│                                                                             │
-│ ┌─ Database 상세: analytics_db ──────────────────────────────────────────┐  │
-│ │ Tabs: [개요] [Table 선택]                                              │  │
-│ │                                                                        │  │
-│ │ [Table 선택 탭]                                                        │  │
-│ │ [ ] 이 Database의 모든 Table 선택                                      │  │
-│ │                                                                        │  │
-│ │ [x] orders_2026                                                        │  │
-│ │ [x] customers_2026                                                     │  │
-│ │ [ ] sandbox_tmp                                                        │  │
-│ │                                           [이전] 1 / 62 [다음]         │  │
-│ └────────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Cloud 리소스                                                                           │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ [x] rds:arn:aws:rds:ap-northeast-2:123456789012:db:prod-orders                        │
+│ [x] ec2:i-0abc1234                                                                     │
+│ [x] athena:123456789012/ap-northeast-2   (type: ATHENA_REGION)               [선택됨] │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ Athena Database/Table 선택 (Region: ap-northeast-2)                                    │
+│ [x] 이 Region의 모든 Database 선택                                                     │
+│                                                                                        │
+│ Database 목록 (Page 1/5)                                                     (⏳ 가능) │
+│ [x] analytics_db (selected_table_count: 1240)                                 [열기]   │
+│ [ ] billing_db   (selected_table_count: 0)                                    [열기]   │
+│ [x] audit_db     (selected_table_count: 89)                                   [열기]   │
+│                                                     [이전] 1 / 5 [다음]                │
+│                                                                                        │
+│ ┌─ Database: analytics_db ────────────────────────────────────────────────────────────┐ │
+│ │ [x] 이 Database의 모든 Table 선택                                                 │ │
+│ │                                                                                   │ │
+│ │ Table 목록 (Page 1/62)                                                   (⏳ 가능) │ │
+│ │ [x] orders_2026                                                                   │ │
+│ │ [x] customers_2026                                                                │ │
+│ │ [ ] sandbox_tmp                                                                   │ │
+│ │                                              [이전] 1 / 62 [다음]                 │ │
+│ └───────────────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.4 인터랙션 규칙
 
 1. Region 체크박스를 체크하면 선택 상태가 된다.
-2. Region을 펼치면 `GET .../athena/regions/{region}/databases?page&size`를 호출한다.
-3. Region의 `모든 Database 선택` 체크 시 해당 Region의 Database를 전체 선택 상태로 처리한다.
-4. Database 체크박스는 DB 단위 선택 상태를 의미한다.
-5. Database 클릭 시 `Table 선택` 탭을 표시한다.
-6. `Table 선택` 탭 진입 시 `GET .../athena/regions/{region}/databases/{database}/tables?page&size`를 호출한다.
-7. Database의 `모든 Table 선택` 체크 시 해당 Database의 Table을 전체 선택 상태로 처리한다.
-8. Table 체크박스로 개별 Table 선택/해제가 가능하다.
-9. 기본 리스트는 요약만 렌더하고 하위 계층은 사용자 액션 시점에만 lazy-load 한다.
+2. Region row를 클릭하면 `GET .../athena/regions/{region}/databases?page&size`를 호출한다.
+3. Region의 `모든 Database 선택` 체크 시 해당 Region 내 Database를 전체 선택 상태로 반영한다.
+4. Database row 체크박스는 해당 DB 범위의 선택 상태를 의미한다.
+5. Database row를 클릭하면 `GET .../athena/regions/{region}/databases/{database}/tables?page&size`를 호출한다.
+6. Database의 `모든 Table 선택` 체크 시 해당 DB 내 Table을 전체 선택 상태로 반영한다.
+7. Table 체크박스로 개별 Table 선택/해제가 가능하다.
+8. 기본 렌더는 Region 중심 요약이며, Database/Table은 사용자 액션 시점에만 lazy-load 한다.
+9. `include_all_tables`는 조회 응답 필드가 아니라 승인요청 생성 시점의 입력(`POST`)으로만 사용한다.
 
 ### 6.5 API 매핑
 
@@ -849,7 +850,8 @@ Athena 연동 대상 선택
 
 ### 6.6 승인 요청/이력/확정 정보 표시 (읽기 전용)
 
-- 승인 요청 상세, 승인 이력 상세, 확정 정보 화면은 동일한 Region/Database/Table 계층 UI를 사용한다.
+- 승인 요청 상세, 승인 이력 상세, 확정 정보, 승인 완료 정보는 모두 `ATHENA_REGION`을 기본 엔트리로 먼저 보여준다.
+- 각 Region 엔트리에서 동일한 Region/Database/Table 계층 drill-down UI를 사용한다.
 - 체크박스는 disabled 상태로 표시하며, 사용자 입력은 받지 않는다.
 - 상세 계층 조회는 각각의 스냅샷 endpoint를 사용한다 (`approval-request`, `approval-history`, `confirmed-integration`, `approved-integration`).
 
