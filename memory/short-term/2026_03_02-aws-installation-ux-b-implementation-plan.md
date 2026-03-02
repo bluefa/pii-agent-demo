@@ -13,10 +13,9 @@
    - `BDC 설치 필요 여부`
 2. Script 단위 목록
    - `terraformScriptName`별 row
-   - Script 상태 라벨: `서비스 측 확인 필요 | 설치 완료 | 확인 필요`
+   - Script 상태 라벨: `NOT_INSTALLED | COMPLETED` (MVP)
 3. Script 선택 시 Resource 패널
-   - Resource 상태 라벨: `설치 확인중 | 설치 완료 | 확인 필요`
-   - 조치 버튼 타입: `설치 가이드 | 상태 확인 | 없음`
+   - Resource 상태 라벨: `NOT_INSTALLED | COMPLETED` (MVP)
 
 ## 2) 범위/비범위
 
@@ -81,10 +80,6 @@ actionSummary:
 
 - `scriptId: string` (안정적 키)
 - `terraformScriptName: string` (UI 표기용 이름)
-- `serviceDisplayStatus: enum`
-  - `SERVICE_CHECK_REQUIRED`
-  - `INSTALLATION_COMPLETED`
-  - `NEEDS_ATTENTION`
 - `resourceCount: integer`
 
 ### C. `ResourceItem`에 UI 표시 필드 추가
@@ -92,26 +87,16 @@ actionSummary:
 신규 필드:
 
 - `installationDisplayStatus: enum`
-  - `CHECKING` (`설치 확인중`)
-  - `COMPLETED` (`설치 완료`)
-  - `NEEDS_ATTENTION` (`확인 필요`)
-- `actionType: enum`
-  - `SHOW_GUIDE`
-  - `REFRESH_STATUS`
-  - `NONE`
+  - `NOT_INSTALLED`
+  - `COMPLETED`
 
 ## 4.4 상태 매핑 계약 명시(문서화)
 
 Swagger 설명(description)에 아래 규칙을 명시:
 
-1. `serviceDisplayStatus`
-   - Service `PENDING/IN_PROGRESS` -> `SERVICE_CHECK_REQUIRED`
-   - Service `COMPLETED` -> `INSTALLATION_COMPLETED`
-   - Service `FAILED` 또는 상태 불명확 -> `NEEDS_ATTENTION`
-2. `installationDisplayStatus`
+1. `installationDisplayStatus`
    - Service 완료 + BDC 완료 -> `COMPLETED`
-   - Service 미완료 또는 BDC 미완료 -> `CHECKING`
-   - BDC 실패 또는 Service 불명확 -> `NEEDS_ATTENTION`
+   - 그 외(Service 미완료, BDC 미완료/실패, 상태 불명확) -> `NOT_INSTALLED`
 
 ## 4.5 버전/호환성 처리
 
@@ -139,7 +124,7 @@ Swagger 설명(description)에 아래 규칙을 명시:
    - `serviceActionRequired`: service script 중 미완료/불명확 존재 여부
    - `bdcInstallationRequired`: `bdcStatus != COMPLETED`
 3. `ResourceItem`별 표시 상태 계산 함수 추가
-   - Service/BDC 조합으로 `installationDisplayStatus`/`actionType` 산출
+   - Service/BDC 조합으로 `installationDisplayStatus` 산출
 
 ## 5.3 리팩터링 가이드
 
@@ -147,7 +132,6 @@ Swagger 설명(description)에 아래 규칙을 명시:
 
 - 신규 파일(예시): `app/api/v1/aws/target-sources/_lib/installation-transform.ts`
 - 공통 함수:
-  - `toServiceDisplayStatus(...)`
   - `toResourceDisplayStatus(...)`
   - `toActionSummary(...)`
 
@@ -180,7 +164,7 @@ Swagger 설명(description)에 아래 규칙을 명시:
 2. `CASE-B` Service 완료 + BDC 미완료
 3. `CASE-C` Service 완료 + BDC 완료
 4. `CASE-D` Service 상태 불명확(UNKNOWN 취급 대상)
-5. `CASE-E` BDC 실패(상세는 비노출, 결과는 `확인 필요`)
+5. `CASE-E` BDC 실패(상세는 비노출, 결과는 `NOT_INSTALLED`)
 
 각 케이스에 대해:
 
@@ -203,7 +187,7 @@ Swagger 설명(description)에 아래 규칙을 명시:
 
 - `lib/__tests__/mock-installation.test.ts`
   - 케이스별 전이 검증
-  - BDC 실패 시 `NEEDS_ATTENTION`로 승격되는지 검증(변환 로직 기준)
+  - BDC 실패 시 `NOT_INSTALLED`로 유지되는지 검증(변환 로직 기준)
 
 ## 7.2 변환(route) 테스트 추가 권장
 
@@ -214,7 +198,7 @@ Swagger 설명(description)에 아래 규칙을 명시:
 검증 포인트:
 
 1. `actionSummary` 계산 정확성
-2. `serviceDisplayStatus`/`installationDisplayStatus` 매핑 정확성
+2. Script/Resource `installationDisplayStatus` 매핑 정확성
 3. 기존 필드 하위호환 유지(`scriptName`, `status` 존재)
 
 ## 7.3 회귀 검증 명령
@@ -266,7 +250,7 @@ npm run build
 2. **리스크**: mock/route에 상태 매핑 중복
    - **대응**: route 공통 유틸로 단일화
 3. **리스크**: BDC 실패 노출 정책 혼선
-   - **대응**: 문서 기준 고정 (`확인 필요` 승격)
+   - **대응**: MVP는 `NOT_INSTALLED`로 단순화하고, 실패 상세는 비노출
 
 ---
 
