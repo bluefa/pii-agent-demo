@@ -313,6 +313,8 @@ components:
           properties:
             status:
               $ref: '#/components/schemas/ScriptStatus'
+        actionSummary:
+          $ref: '#/components/schemas/AwsInstallationActionSummary'
 
     LastCheckInfo:
       type: object
@@ -336,11 +338,20 @@ components:
       description: "Terraform 스크립트 단위 리소스 그룹"
       required: [scriptName, status]
       properties:
+        scriptId:
+          type: string
+          description: "스크립트 고유 식별자 (UI 안정 키)"
         scriptName:
           type: string
           example: "VPC Endpoint (vpc-0123abcd / ap-northeast-2)"
+        terraformScriptName:
+          type: string
+          description: "terraform script 표시명 (scriptName과 동일 의미)"
         status:
           $ref: '#/components/schemas/ScriptStatus'
+        resourceCount:
+          type: integer
+          description: "스크립트에 매핑된 리소스 개수"
         region:
           type: string
           description: "AWS 리전"
@@ -363,11 +374,30 @@ components:
         name:
           type: string
           description: "Resource 명칭"
+        installationDisplayStatus:
+          $ref: '#/components/schemas/InstallationDisplayStatus'
 
     ScriptStatus:
       type: string
       enum: [PENDING, COMPLETED, FAILED]
       description: "설치 진행 상태"
+
+    InstallationDisplayStatus:
+      type: string
+      description: "사용자 노출용 단순 설치 상태"
+      enum: [NOT_INSTALLED, COMPLETED]
+
+    AwsInstallationActionSummary:
+      type: object
+      description: "화면 상단 요약 카드 데이터"
+      required: [serviceActionRequired, bdcInstallationRequired]
+      properties:
+        serviceActionRequired:
+          type: boolean
+          description: "서비스 담당자 조치 필요 여부"
+        bdcInstallationRequired:
+          type: boolean
+          description: "BDC 설치 필요 여부"
 
     AwsSettings:
       type: object
