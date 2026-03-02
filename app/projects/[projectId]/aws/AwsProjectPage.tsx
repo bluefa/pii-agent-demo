@@ -19,7 +19,6 @@ import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { AwsInfoCard } from '@/app/components/features/AwsInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
-import { AthenaRuleBuilder } from '@/app/components/features/process-status/AthenaRuleBuilder';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
@@ -33,6 +32,12 @@ interface AwsProjectPageProps {
   project: Project;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
+}
+
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
 }
 
 const isAthenaResource = (resource: Project['resources'][number]): boolean =>
@@ -147,8 +152,8 @@ export const AwsProjectPage = ({
     [project.resources, selectedIds],
   );
 
-  const athenaRegions = useMemo(() => {
-    const grouped = new Map<string, { resource_id: string; athena_region: string; total_table_count: number }>();
+  const athenaRegionsByResourceId = useMemo(() => {
+    const grouped = new Map<string, AthenaRegionCandidate>();
     for (const resource of project.resources) {
       if (!isAthenaResource(resource)) continue;
       const parsed = parseAthenaResourceId(resource.resourceId);
@@ -167,7 +172,10 @@ export const AwsProjectPage = ({
         total_table_count: parsed.database && parsed.table ? 1 : 0,
       });
     }
-    return Array.from(grouped.values()).sort((a, b) => a.athena_region.localeCompare(b.athena_region));
+    return Array.from(grouped.values()).reduce<Record<string, AthenaRegionCandidate>>((acc, region) => {
+      acc[region.resource_id] = region;
+      return acc;
+    }, {});
   }, [project.resources]);
 
   const hasSelectedAthena = useMemo(
@@ -378,23 +386,10 @@ export const AwsProjectPage = ({
               onVmConfigToggle={setExpandedVmId}
               onVmConfigSave={handleVmConfigSave}
               onEditModeChange={setIsEditMode}
+              athenaRules={athenaRules}
+              onAthenaRulesChange={setAthenaRules}
+              athenaRegionsByResourceId={athenaRegionsByResourceId}
             />
-
-            {effectiveEditMode && athenaRegions.length > 0 && (
-              <div className="px-6 pb-6">
-                <div className="rounded-lg border border-gray-200 p-4 space-y-3">
-                  <h3 className={cn('text-sm font-semibold', textColors.primary)}>
-                    연동 대상 확정 - Athena Database/Table 선택
-                  </h3>
-                  <AthenaRuleBuilder
-                    targetSourceId={project.targetSourceId}
-                    regions={athenaRegions}
-                    rules={athenaRules}
-                    onChange={setAthenaRules}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
 

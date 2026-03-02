@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Resource, CloudProvider, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import type { ResourceType } from '@/lib/types';
 import { getResourceTypeLabel, RESOURCE_TYPE_ORDER_BY_PROVIDER } from '@/lib/constants/labels';
 import { ServiceIcon } from '@/app/components/ui/ServiceIcon';
@@ -9,6 +10,12 @@ import { cn, textColors, bgColors, providerColors, statusColors } from '@/lib/th
 import { ResourceRow } from './ResourceRow';
 
 const COLLAPSE_THRESHOLD = 5;
+
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
 
 interface ResourceTableBodyProps {
   resources: Resource[];
@@ -26,6 +33,9 @@ interface ResourceTableBodyProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 const groupByResourceType = (res: Resource[], provider: CloudProvider): [ResourceType, Resource[]][] => {
@@ -90,6 +100,9 @@ const TypeGroup = ({ cloudProvider, resourceType, resources, colSpan, rowProps }
           expandedVmId={rowProps.expandedVmId}
           onVmConfigToggle={rowProps.onVmConfigToggle}
           onVmConfigSave={rowProps.onVmConfigSave}
+          athenaRules={rowProps.athenaRules}
+          onAthenaRulesChange={rowProps.onAthenaRulesChange}
+          athenaRegionsByResourceId={rowProps.athenaRegionsByResourceId}
         />
       ))}
       {needsCollapse && (
