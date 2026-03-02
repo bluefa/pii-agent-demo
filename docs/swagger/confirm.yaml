@@ -385,6 +385,7 @@ paths:
       description: |
         Athena Region 리소스 클릭 시 Database 목록을 페이지 단위로 조회합니다.
         본 endpoint는 리소스 선택 단계에서의 탐색 및 추천 목록 표시를 위해 사용됩니다.
+        현재 스캔에서 발견된 Athena Table 전체를 기준으로 집계합니다.
       responses:
         '200':
           description: 조회 성공
@@ -416,6 +417,7 @@ paths:
       description: |
         Athena Database 클릭 시 Table 목록을 페이지 단위로 조회합니다.
         TABLE 단위 개별 선택이 필요한 경우에만 사용합니다.
+        현재 스캔에서 발견된 Table을 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -446,6 +448,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         승인요청(requestId)의 요청 시점 resolved snapshot 기준으로 Athena Database 목록을 조회합니다.
+        선택된 Table만 기준으로 Database를 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -477,6 +480,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         승인요청(requestId)의 요청 시점 resolved snapshot 기준으로 Athena Table 목록을 조회합니다.
+        선택된 Table만 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -507,6 +511,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         승인 이력(historyId)의 요청 시점 resolved snapshot 기준으로 Athena Database 목록을 조회합니다.
+        선택된 Table만 기준으로 Database를 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -538,6 +543,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         승인 이력(historyId)의 요청 시점 resolved snapshot 기준으로 Athena Table 목록을 조회합니다.
+        선택된 Table만 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -567,6 +573,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         ConfirmedIntegration(현재 실제 확정 상태) 기준으로 Athena Database 목록을 조회합니다.
+        확정 상태에서 선택된 Table만 기준으로 Database를 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -597,6 +604,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         ConfirmedIntegration(현재 실제 확정 상태) 기준으로 Athena Table 목록을 조회합니다.
+        선택된 Table만 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -626,6 +634,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         ApprovedIntegration(승인 후 반영 중 스냅샷) 기준으로 Athena Database 목록을 조회합니다.
+        승인 시점에 선택된 Table만 기준으로 Database를 반환합니다.
       responses:
         '200':
           description: 조회 성공
@@ -656,6 +665,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         ApprovedIntegration(승인 후 반영 중 스냅샷) 기준으로 Athena Table 목록을 조회합니다.
+        선택된 Table만 반환합니다.
       responses:
         '200':
           description: 조회 성공

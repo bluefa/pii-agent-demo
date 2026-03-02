@@ -275,13 +275,17 @@ else                                  → Step 7
 **AC:**
 - [AC1] 기본 조회 응답(`approval-request`, `approval-history`, `confirmed-integration`, `approved-integration`)에는 `athena_region_resources`가 포함된다
 - [AC2] 승인요청 상세 모달에서 Region 클릭 시 해당 request 스냅샷 기준 Database 목록을 조회한다
+  - 조회 결과는 요청 시점에 확정된 "선택된 Table" 기준으로만 구성된다
   - API: `GET /api/v1/target-sources/{id}/approval-requests/{requestId}/athena/regions/{region}/databases?page={n}&size={m}`
 - [AC3] 승인요청 상세 모달에서 Database 클릭 시 해당 request 스냅샷 기준 Table 목록을 조회한다
+  - 미선택/제외 Table은 반환하지 않는다
   - API: `GET /api/v1/target-sources/{id}/approval-requests/{requestId}/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
 - [AC4] 승인 이력 탭에서 Region/Database 상세 조회 시 historyId 기준 resolved snapshot을 사용한다
+  - 조회 결과는 해당 이력의 선택된 Table snapshot만 포함한다
   - API: `GET /api/v1/target-sources/{id}/approval-history/{historyId}/athena/regions/{region}/databases?page={n}&size={m}`
   - API: `GET /api/v1/target-sources/{id}/approval-history/{historyId}/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
 - [AC5] 현재 확정/반영중 정보에서도 Region/Database 상세 조회를 각각 지원한다
+  - 두 조회 모두 선택된 Table만 반환한다
   - API: `GET /api/v1/target-sources/{id}/confirmed-integration/athena/regions/{region}/databases?page={n}&size={m}`
   - API: `GET /api/v1/target-sources/{id}/confirmed-integration/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
   - API: `GET /api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases?page={n}&size={m}`
