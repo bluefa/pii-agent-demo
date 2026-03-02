@@ -10,6 +10,8 @@ import type {
   V1ServiceScript,
 } from '@/lib/types';
 
+type TransformSource = LegacyAwsInstallationStatus | LegacyCheckInstallationResponse;
+
 const toScriptStatus = (status: TfScriptStatus): V1ScriptStatus =>
   status === 'IN_PROGRESS' ? 'PENDING' : status;
 
@@ -51,37 +53,23 @@ const transformServiceScript = (
 };
 
 export const transformAwsInstallationStatus = (
-  legacy: LegacyAwsInstallationStatus,
+  legacy: TransformSource,
 ): AwsInstallationStatus => {
   const bdcStatus = toScriptStatus(legacy.bdcTf.status);
   const serviceScripts = legacy.serviceTfScripts.map(script => transformServiceScript(script, bdcStatus));
+  const hasCheckError = 'error' in legacy && Boolean(legacy.error);
+  const lastCheck = hasCheckError
+    ? { status: 'FAILED' as const, checkedAt: legacy.lastCheckedAt, failReason: legacy.error?.message }
+    : legacy.lastCheckedAt
+      ? { status: 'SUCCESS' as const, checkedAt: legacy.lastCheckedAt }
+      : { status: 'SUCCESS' as const };
 
   return {
     hasExecutionPermission: legacy.hasTfPermission,
     ...(legacy.tfExecutionRoleArn && { executionRoleArn: legacy.tfExecutionRoleArn }),
     serviceScripts,
     bdcStatus: { status: bdcStatus },
-    lastCheck: legacy.lastCheckedAt
-      ? { status: 'SUCCESS', checkedAt: legacy.lastCheckedAt }
-      : { status: 'SUCCESS' },
-    actionSummary: toActionSummary(serviceScripts, bdcStatus),
-  };
-};
-
-export const transformAwsCheckInstallationStatus = (
-  legacy: LegacyCheckInstallationResponse,
-): AwsInstallationStatus => {
-  const bdcStatus = toScriptStatus(legacy.bdcTf.status);
-  const serviceScripts = legacy.serviceTfScripts.map(script => transformServiceScript(script, bdcStatus));
-
-  return {
-    hasExecutionPermission: legacy.hasTfPermission,
-    ...(legacy.tfExecutionRoleArn && { executionRoleArn: legacy.tfExecutionRoleArn }),
-    serviceScripts,
-    bdcStatus: { status: bdcStatus },
-    lastCheck: legacy.error
-      ? { status: 'FAILED', checkedAt: legacy.lastCheckedAt, failReason: legacy.error.message }
-      : { status: 'SUCCESS', checkedAt: legacy.lastCheckedAt },
+    lastCheck,
     actionSummary: toActionSummary(serviceScripts, bdcStatus),
   };
 };
