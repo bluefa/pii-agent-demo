@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Resource, SecretKey, VmDatabaseConfig, AwsResourceType } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { AWS_RESOURCE_TYPE_LABELS, REGION_LABELS } from '@/lib/constants/labels';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { ResourceRow } from './ResourceRow';
@@ -10,9 +11,16 @@ import { statusColors, cn, providerColors, textColors, bgColors } from '@/lib/th
 
 const COLLAPSE_THRESHOLD = 5;
 
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
+
 interface ResourceTypeGroupProps {
   resourceType: AwsResourceType;
   resources: Resource[];
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -25,6 +33,9 @@ interface ResourceTypeGroupProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 const groupByRegion = (resources: Resource[]): Map<string, Resource[]> => {
@@ -46,6 +57,7 @@ const RegionIcon = () => (
 export const ResourceTypeGroup = ({
   resourceType,
   resources,
+  targetSourceId,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
@@ -58,6 +70,9 @@ export const ResourceTypeGroup = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  athenaRules,
+  onAthenaRulesChange,
+  athenaRegionsByResourceId,
 }: ResourceTypeGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const regionGroups = groupByRegion(resources);
@@ -153,7 +168,9 @@ export const ResourceTypeGroup = ({
                 key={resource.id}
                 resource={resource}
                 cloudProvider="AWS"
+                targetSourceId={targetSourceId}
                 selectedIds={selectedIds}
+                colSpan={colSpan}
                 isEditMode={isEditMode}
                 isCheckboxEnabled={isCheckboxEnabled}
                 showConnectionStatus={showConnectionStatus}
@@ -164,6 +181,9 @@ export const ResourceTypeGroup = ({
                 expandedVmId={expandedVmId}
                 onVmConfigToggle={onVmConfigToggle}
                 onVmConfigSave={onVmConfigSave}
+                athenaRules={athenaRules}
+                onAthenaRulesChange={onAthenaRulesChange}
+                athenaRegionsByResourceId={athenaRegionsByResourceId}
               />
             )
           ))}

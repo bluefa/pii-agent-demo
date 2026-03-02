@@ -8,6 +8,7 @@ import {
   SecretKey,
   VmDatabaseConfig,
 } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 
 import { cn, statusColors, textColors, badgeStyles, getButtonClass } from '@/lib/theme';
 import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
@@ -18,9 +19,16 @@ import {
   FlatResourceTableBody,
 } from './resource-table';
 
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
+
 interface ResourceTableProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   processStatus: ProcessStatus;
   isEditMode?: boolean;
   selectedIds?: string[];
@@ -31,6 +39,9 @@ interface ResourceTableProps {
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
   onEditModeChange?: (isEdit: boolean) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 const WarningIcon = () => (
@@ -42,6 +53,7 @@ const WarningIcon = () => (
 export const ResourceTable = ({
   resources,
   cloudProvider,
+  targetSourceId,
   processStatus,
   isEditMode: externalEditMode = false,
   selectedIds: externalSelectedIds,
@@ -52,6 +64,9 @@ export const ResourceTable = ({
   onVmConfigToggle,
   onVmConfigSave,
   onEditModeChange,
+  athenaRules,
+  onAthenaRulesChange,
+  athenaRegionsByResourceId,
 }: ResourceTableProps) => {
   const [internalEditMode, setInternalEditMode] = useState(false);
 
@@ -96,7 +111,9 @@ export const ResourceTable = ({
 
   const rowProps = {
     cloudProvider,
+    targetSourceId,
     selectedIds: selectedIdsSet,
+    colSpan,
     isEditMode: false as const,
     isCheckboxEnabled: false,
     showConnectionStatus,
@@ -107,6 +124,9 @@ export const ResourceTable = ({
     expandedVmId,
     onVmConfigToggle,
     onVmConfigSave,
+    athenaRules,
+    onAthenaRulesChange,
+    athenaRegionsByResourceId,
   };
 
   const handleToggleEditMode = () => {
@@ -117,6 +137,7 @@ export const ResourceTable = ({
 
   const bodyProps = {
     cloudProvider,
+    targetSourceId,
     selectedIds: selectedIdsSet,
     isCheckboxEnabled,
     showConnectionStatus,
@@ -128,6 +149,9 @@ export const ResourceTable = ({
     expandedVmId,
     onVmConfigToggle,
     onVmConfigSave,
+    athenaRules,
+    onAthenaRulesChange,
+    athenaRegionsByResourceId,
   };
 
   const renderTable = (res: Resource[]) => (

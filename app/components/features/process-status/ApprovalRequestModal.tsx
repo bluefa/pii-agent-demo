@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { AthenaRuleBuilder } from '@/app/components/features/process-status/AthenaRuleBuilder';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
 import type { Resource, IntegrationCategory } from '@/lib/types';
 
@@ -11,13 +13,17 @@ import type { Resource, IntegrationCategory } from '@/lib/types';
 
 export interface ApprovalRequestFormData {
   exclusion_reason_default?: string;
+  athena_rules?: AthenaSelectionRule[];
 }
 
 interface ApprovalRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: ApprovalRequestFormData) => void;
+  targetSourceId: number;
   resources: Resource[];
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
   loading: boolean;
   error?: string | null;
 }
@@ -43,6 +49,24 @@ const getCategoryBadgeClass = (category: IntegrationCategory): string => {
 const isReasonRequired = (category: IntegrationCategory): boolean =>
   category === 'TARGET';
 
+const isAthenaResource = (resource: Resource): boolean =>
+  resource.awsType === 'ATHENA' ||
+  resource.type === 'ATHENA' ||
+  resource.type === 'ATHENA_REGION' ||
+  resource.databaseType === 'ATHENA';
+
+const parseAthenaResourceId = (
+  resourceId: string,
+): { accountId: string; region: string; database?: string; table?: string } | null => {
+  const matched = /^athena:([^/]+)\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(resourceId);
+  if (!matched) return null;
+  return {
+    accountId: matched[1],
+    region: matched[2],
+    database: matched[3],
+    table: matched[4],
+  };
+};
 
 const getEndpointSummary = (resource: Resource): string => {
   if (resource.vmDatabaseConfig) {
@@ -58,47 +82,122 @@ export const ApprovalRequestModal = ({
   isOpen,
   onClose,
   onSubmit,
+  targetSourceId,
   resources,
+  athenaRules: controlledAthenaRules,
+  onAthenaRulesChange,
   loading,
   error,
 }: ApprovalRequestModalProps) => {
   const [defaultReason, setDefaultReason] = useState('');
 
   const includedResources = useMemo(
-    () => resources.filter((r) => r.isSelected),
+    () => resources.filter((r) => !isAthenaResource(r) && r.isSelected),
     [resources],
   );
 
   const excludedResources = useMemo(
-    () => resources.filter((r) => !r.isSelected),
+    () => resources.filter((r) => !isAthenaResource(r) && !r.isSelected),
     [resources],
   );
 
   const hasExcluded = excludedResources.length > 0;
 
+  const athenaRegions = useMemo(() => {
+    const grouped = new Map<string, { resource_id: string; athena_region: string; total_table_count: number }>();
+    for (const resource of resources) {
+      if (!isAthenaResource(resource)) continue;
+      const parsed = parseAthenaResourceId(resource.resourceId);
+      if (!parsed) continue;
+      const regionResourceId = `athena:${parsed.accountId}/${parsed.region}`;
+      const current = grouped.get(regionResourceId);
+      if (current) {
+        if (parsed.database && parsed.table) {
+          current.total_table_count += 1;
+        }
+        continue;
+      }
+      grouped.set(regionResourceId, {
+        resource_id: regionResourceId,
+        athena_region: parsed.region,
+        total_table_count: parsed.database && parsed.table ? 1 : 0,
+      });
+    }
+    return Array.from(grouped.values()).sort((a, b) => a.athena_region.localeCompare(b.athena_region));
+  }, [resources]);
+
+  const initialAthenaRules = useMemo(() => {
+    const selectedRules: AthenaSelectionRule[] = [];
+    for (const resource of resources) {
+      if (!isAthenaResource(resource) || !resource.isSelected) continue;
+      const parsed = parseAthenaResourceId(resource.resourceId);
+      if (!parsed) continue;
+      if (parsed.database && parsed.table) {
+        selectedRules.push({
+          scope: 'TABLE',
+          resource_id: resource.resourceId,
+          selected: true,
+        });
+        continue;
+      }
+      if (parsed.region && !parsed.database) {
+        selectedRules.push({
+          scope: 'REGION',
+          resource_id: resource.resourceId,
+          selected: true,
+          include_all_tables: false,
+        });
+      }
+    }
+    return selectedRules;
+  }, [resources]);
+
+  const [internalAthenaRules, setInternalAthenaRules] = useState<AthenaSelectionRule[]>(initialAthenaRules);
+  const currentAthenaRules = controlledAthenaRules ?? internalAthenaRules;
+  const setCurrentAthenaRules = onAthenaRulesChange ?? setInternalAthenaRules;
+
+  const hasSelectedAthena = useMemo(
+    () => currentAthenaRules.some((rule) =>
+      rule.scope === 'TABLE'
+        ? rule.selected
+        : rule.selected && rule.include_all_tables === true
+    ),
+    [currentAthenaRules],
+  );
+
   // Validation: TARGET excluded resources must have individual or default reason
   const canSubmit = useMemo(() => {
-    if (includedResources.length === 0) return false;
+    if (includedResources.length === 0 && !hasSelectedAthena) return false;
     if (loading) return false;
 
     const hasTargetExcluded = excludedResources.some((r) => isReasonRequired(r.integrationCategory));
     if (!hasTargetExcluded) return true;
 
     return defaultReason.trim().length > 0;
-  }, [includedResources, excludedResources, defaultReason, loading]);
+  }, [includedResources, excludedResources, defaultReason, hasSelectedAthena, loading]);
 
   const handleSubmit = () => {
+    const rules = currentAthenaRules.filter((rule) =>
+      rule.scope === 'TABLE' ||
+      rule.selected === false ||
+      rule.include_all_tables === true
+    );
     onSubmit({
       exclusion_reason_default: defaultReason.trim() || undefined,
+      athena_rules: rules.length > 0 ? rules : undefined,
     });
   };
 
   const handleClose = () => {
     if (loading) return;
+    setDefaultReason('');
+    if (!onAthenaRulesChange) {
+      setInternalAthenaRules(initialAthenaRules);
+    }
     onClose();
   };
 
-  const subtitle = `포함 ${includedResources.length}건${hasExcluded ? `, 제외 ${excludedResources.length}건` : ''}`;
+  const subtitle = `포함 ${includedResources.length + (hasSelectedAthena ? 1 : 0)}건${hasExcluded ? `, 제외 ${excludedResources.length}건` : ''}`;
 
   return (
     <Modal
@@ -123,10 +222,10 @@ export const ApprovalRequestModal = ({
     >
       <div className="max-h-[60vh] overflow-y-auto space-y-6">
         {/* No included resources warning */}
-        {includedResources.length === 0 && (
+        {includedResources.length === 0 && !hasSelectedAthena && (
           <div className={cn('p-3 rounded-lg border', statusColors.warning.bg, statusColors.warning.border)}>
             <p className={cn('text-sm', statusColors.warning.textDark)}>
-              포함할 리소스를 1개 이상 선택하세요
+              포함할 리소스(일반 리소스 또는 Athena 선택 규칙)를 1개 이상 선택하세요
             </p>
           </div>
         )}
@@ -162,6 +261,22 @@ export const ApprovalRequestModal = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {athenaRegions.length > 0 && (
+          <div>
+            <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
+              Athena 선택 ({athenaRegions.length}개 Region)
+            </h3>
+            <div className="border border-gray-200 rounded-lg p-3">
+              <AthenaRuleBuilder
+                targetSourceId={targetSourceId}
+                regions={athenaRegions}
+                rules={currentAthenaRules}
+                onChange={setCurrentAthenaRules}
+              />
             </div>
           </div>
         )}

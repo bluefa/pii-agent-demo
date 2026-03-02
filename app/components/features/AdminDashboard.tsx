@@ -14,6 +14,7 @@ import {
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
   UserSearchResult,
+  type AthenaRegionResourceSummary,
 } from '@/app/lib/api';
 import type { ApprovalResourceInput } from '@/app/lib/api';
 import { ServiceCode, ProjectSummary, User } from '@/lib/types';
@@ -44,6 +45,7 @@ export const AdminDashboard = () => {
         resource_inputs: ApprovalResourceInput[];
         exclusion_reason_default?: string;
       };
+      athena_region_resources?: AthenaRegionResourceSummary[];
     };
   } | null>(null);
   const [approvalLoading, setApprovalLoading] = useState(false);

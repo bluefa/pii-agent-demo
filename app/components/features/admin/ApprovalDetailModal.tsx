@@ -5,6 +5,12 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import {
+  getApprovalRequestAthenaDatabases,
+  getApprovalRequestAthenaTables,
+  type AthenaRegionResourceSummary,
+} from '@/app/lib/api';
+import { AthenaReadonlyTree } from '@/app/components/features/process-status/AthenaReadonlyTree';
 import { tableStyles, textColors, statusColors, cn, getInputClass } from '@/lib/theme';
 import type { ProjectSummary } from '@/lib/types';
 import type { ApprovalResourceInput } from '@/app/lib/api';
@@ -18,6 +24,7 @@ interface ApprovalRequest {
     resource_inputs: ApprovalResourceInput[];
     exclusion_reason_default?: string;
   };
+  athena_region_resources?: AthenaRegionResourceSummary[];
 }
 
 interface ApprovalDetailModalProps {
@@ -239,6 +246,38 @@ export const ApprovalDetailModal = ({
             </div>
           )}
         </div>
+
+        {!!approvalRequest.athena_region_resources?.length && (
+          <div>
+            <h4 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
+              Athena 선택 상세
+            </h4>
+            <div className="border border-gray-200 rounded-lg p-3">
+              <AthenaReadonlyTree
+                regions={approvalRequest.athena_region_resources}
+                loadDatabases={(region, page, size) =>
+                  getApprovalRequestAthenaDatabases(
+                    project.targetSourceId,
+                    approvalRequest.id,
+                    region,
+                    page,
+                    size,
+                  )
+                }
+                loadTables={(region, database, page, size) =>
+                  getApprovalRequestAthenaTables(
+                    project.targetSourceId,
+                    approvalRequest.id,
+                    region,
+                    database,
+                    page,
+                    size,
+                  )
+                }
+              />
+            </div>
+          </div>
+        )}
 
         {/* 반려 사유 입력 */}
         {showRejectForm && (

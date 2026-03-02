@@ -2,13 +2,21 @@
 
 import React, { useMemo } from 'react';
 import { Resource, CloudProvider, AwsResourceType, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceTypeGroup } from './ResourceTypeGroup';
 
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
+
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -21,6 +29,9 @@ interface ResourceTableBodyProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 const groupByAwsType = (res: Resource[]): [AwsResourceType, Resource[]][] => {
@@ -36,6 +47,7 @@ const groupByAwsType = (res: Resource[]): [AwsResourceType, Resource[]][] => {
 
 export const AwsResourceTableBody = ({
   resources,
+  targetSourceId,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
@@ -48,6 +60,9 @@ export const AwsResourceTableBody = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  athenaRules,
+  onAthenaRulesChange,
+  athenaRegionsByResourceId,
 }: ResourceTableBodyProps) => {
   const grouped = useMemo(() => groupByAwsType(resources), [resources]);
 
@@ -68,6 +83,7 @@ export const AwsResourceTableBody = ({
             key={resourceType}
             resourceType={resourceType}
             resources={typeResources}
+            targetSourceId={targetSourceId}
             selectedIds={selectedIds}
             isEditMode={isEditMode}
             isCheckboxEnabled={isCheckboxEnabled}
@@ -80,6 +96,9 @@ export const AwsResourceTableBody = ({
             expandedVmId={expandedVmId}
             onVmConfigToggle={onVmConfigToggle}
             onVmConfigSave={onVmConfigSave}
+            athenaRules={athenaRules}
+            onAthenaRulesChange={onAthenaRulesChange}
+            athenaRegionsByResourceId={athenaRegionsByResourceId}
           />
         ))}
       </tbody>

@@ -1,7 +1,7 @@
 # PII Agent 연동 관리 — 유저 스토리 & Flow 정의
 
-> **범위**: AWS / Azure / GCP 공통 프로세스 (IDC, SDU는 추후 별도 문서)
-> **기준**: 2026-02-25 main 브랜치 구현 상태
+> **범위**: AWS / Azure / GCP 공통 프로세스 + Athena Region 기반 확장 (IDC, SDU는 추후 별도 문서)
+> **기준**: 2026-03-02 main + Athena 확장 설계 반영 상태
 
 ---
 
@@ -73,6 +73,9 @@ else                                  → Step 7
   - `INSTALL_INELIGIBLE`: 연동 불가 (선택 불가)
 - [AC4] 리소스가 0건이면 빈 상태 안내가 표시된다
 - [AC5] AWS의 경우 리전별/리소스타입별 그룹핑, Azure/GCP는 리소스타입별 그룹핑으로 표시된다
+- [AC6] Athena는 일반 `ATHENA` 리소스가 아닌 `ATHENA_REGION` 리소스로 노출된다
+  - `metadata.athena_region` 필드로 Region 코드를 제공한다
+- [AC7] Scan 결과가 Athena Table 단위로 매우 많아도, 기본 목록은 Region 단위 리소스로 축약되어 노출된다
 
 ---
 
@@ -90,6 +93,13 @@ else                                  → Step 7
   - DB 유형, 포트, 호스트(EC2), NIC 선택(Azure VM), Oracle ServiceId
 - [AC4] VM 리소스가 선택되었으나 DB 설정이 없으면 [연동 대상 확정 승인 요청] 버튼 클릭 시 경고가 표시된다
 - [AC5] 선택한 리소스가 0건이면 [연동 대상 확정 승인 요청] 버튼이 비활성화된다
+- [AC6] Athena Region 리소스 클릭 시 Database 목록을 페이지네이션으로 조회할 수 있다
+  - API: `GET /api/v1/target-sources/{id}/athena/regions/{region}/databases?page={n}&size={m}`
+- [AC7] Athena Database 클릭 시 Table 목록을 페이지네이션으로 조회할 수 있다
+  - API: `GET /api/v1/target-sources/{id}/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
+- [AC8] Athena 선택 UI는 Region/Database/Table 모두 기본 체크박스 형태로 표현된다 (선택=체크, 제외=미체크)
+- [AC9] `include_all_tables`는 Region/Database 레벨에서만 별도 체크박스로 노출되며, 해당 노드가 선택된 경우에만 표시된다
+- [AC10] Database/Table 조회 중에는 로딩 Spinner가 표시되고, 탐색 API는 사용자가 펼칠 때만 호출된다 (lazy load)
 
 > **참고**: 프론트엔드 로컬 상태 관리. 리소스 선택 자체는 API 호출 없음 (Credential 할당만 API 호출).
 
@@ -109,6 +119,10 @@ else                                  → Step 7
 - [AC4] 요청 성공 시 프로젝트 상태가 갱신되어 Step 2(승인대기)로 전이된다
 - [AC5] 요청 실패 시 모달 내에 에러 메시지가 표시된다
 - [AC6] **자동 승인**: 선택하지 않은 리소스가 모두 기 제외(exclusion) 상태인 경우, 자동 승인되어 Step 3으로 즉시 전이된다
+- [AC7] Athena 선택 입력은 `input_data.athena_input.rules[]`로 전송한다
+  - `resource_id`는 기존 ID 포맷(`athena:{aws_account_id}/region[/database[/table]]`)을 그대로 사용한다
+  - `include_all_tables` 필드는 POST requestBody에서만 사용한다
+- [AC8] Athena Table 개별 선택이 과도한 경우(예: 70,000개), Region/Database scope + `include_all_tables=true` 방식으로 요청을 유도한다
 
 ---
 
@@ -126,6 +140,8 @@ else                                  → Step 7
   - API: `GET /api/v1/target-sources/{id}/confirmed-integration`
 - [AC4] 승인 이력을 페이지네이션으로 조회할 수 있다 (진행 내역 탭)
   - API: `GET /api/v1/target-sources/{id}/approval-history?page={n}&size=10`
+- [AC5] approval-request/history/confirmed/approved 응답에는 Athena Region 요약(`athena_region_resources`)이 기본 포함된다
+- [AC6] Athena Database/Table 상세는 필요 시점에만 전용 하위 endpoint로 페이지네이션 조회한다
 
 ---
 
@@ -250,6 +266,36 @@ else                                  → Step 7
 
 ---
 
+### US-013: Athena 스냅샷 기준 상세 조회
+
+**As a** 사용자,
+**I want to** Athena 정보를 Region 요약으로 빠르게 보고, 필요 시 Database/Table 상세를 펼쳐서 보고 싶다,
+**So that** 대량 Athena 환경에서도 화면 응답성을 유지하면서 필요한 수준까지 확인할 수 있다.
+
+**AC:**
+- [AC1] 기본 조회 응답(`approval-request`, `approval-history`, `confirmed-integration`, `approved-integration`)에는 `athena_region_resources`가 포함된다
+- [AC2] 승인요청 상세 모달에서 Region 클릭 시 해당 request 스냅샷 기준 Database 목록을 조회한다
+  - 조회 결과는 요청 시점에 확정된 "선택된 Table" 기준으로만 구성된다
+  - API: `GET /api/v1/target-sources/{id}/approval-requests/{requestId}/athena/regions/{region}/databases?page={n}&size={m}`
+- [AC3] 승인요청 상세 모달에서 Database 클릭 시 해당 request 스냅샷 기준 Table 목록을 조회한다
+  - 미선택/제외 Table은 반환하지 않는다
+  - API: `GET /api/v1/target-sources/{id}/approval-requests/{requestId}/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
+- [AC4] 승인 이력 탭에서 Region/Database 상세 조회 시 historyId 기준 resolved snapshot을 사용한다
+  - 조회 결과는 해당 이력의 선택된 Table snapshot만 포함한다
+  - API: `GET /api/v1/target-sources/{id}/approval-history/{historyId}/athena/regions/{region}/databases?page={n}&size={m}`
+  - API: `GET /api/v1/target-sources/{id}/approval-history/{historyId}/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
+- [AC5] 현재 확정/반영중 정보에서도 Region/Database 상세 조회를 각각 지원한다
+  - 두 조회 모두 선택된 Table만 반환한다
+  - API: `GET /api/v1/target-sources/{id}/confirmed-integration/athena/regions/{region}/databases?page={n}&size={m}`
+  - API: `GET /api/v1/target-sources/{id}/confirmed-integration/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
+  - API: `GET /api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases?page={n}&size={m}`
+  - API: `GET /api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases/{database}/tables?page={n}&size={m}`
+- [AC6] 모든 Athena 상세 조회는 Pagination + Spinner를 제공한다
+- [AC7] 승인요청 상세(요청 내용 확인)에서도 동일한 Region > Database > Table drill-down을 제공한다 (읽기 전용 체크박스 트리)
+- [AC8] 미선택(제외) 상태의 Region/Database/Table에는 `include_all_tables`를 표시하지 않는다
+
+---
+
 ### Admin-001: 승인 요청 목록 조회
 
 **As a** 관리자,
@@ -305,9 +351,38 @@ else                                  → Step 7
 
 ---
 
+### Athena 공통 Drill-down Flow (Step 1/2/3 + 상세 모달)
+
+```
+[ResourceTable/상세모달]
+    │
+    ├─ ATHENA_REGION row 기본 노출 (resource_id + metadata.athena_region)
+    │
+    ├─ Region 클릭
+    │    └─ GET .../athena/regions/{region}/databases?page&size
+    │          → Database 페이지 렌더 + Spinner 종료
+    │
+    ├─ Database 클릭
+    │    └─ GET .../athena/regions/{region}/databases/{database}/tables?page&size
+    │          → Table 페이지 렌더 + Spinner 종료
+    │
+    └─ [승인 요청]
+         └─ POST .../approval-requests
+              input_data.athena_input.rules[] 전달
+              (대량 시 include_all_tables=true 권장)
+```
+
+**컨텍스트별 Athena 상세 조회 기준:**
+- Step 1(리소스 선택): 현재 스캔 기준 `GET /athena/regions/{region}/databases`, `.../tables`
+- Step 2 요청 상세: `approval-requests/{requestId}/athena/**` (요청 시점 resolved snapshot)
+- Step 2 이력 탭: `approval-history/{historyId}/athena/**` (요청 시점 resolved snapshot)
+- Step 3/현재 연동정보: `confirmed-integration/athena/**` 또는 `approved-integration/athena/**`
+
+---
+
 ### State 1: 연동 대상 확정 (WAITING_TARGET_CONFIRMATION)
 
-**관련 US**: US-001, US-002, US-003, US-004
+**관련 US**: US-001, US-002, US-003, US-004, US-013
 
 #### 프로세스 바
 
@@ -324,7 +399,7 @@ else                                  → Step 7
 | 컴포넌트 | 설명 |
 |---------|------|
 | ScanPanel | Scan 시작, 진행 상태, 이력 조회 |
-| ResourceTable | 리소스 체크박스 선택, Credential 할당, VM 설정 |
+| ResourceTable | 리소스 체크박스 선택, Credential 할당, VM 설정, ATHENA_REGION Drill-down 진입 |
 
 #### 사용자 액션
 
@@ -332,6 +407,8 @@ else                                  → Step 7
 |------|-----|------|
 | Scan 시작 | `POST .../scan` | ScanPanel에서 polling 시작 |
 | Credential 할당 | `PATCH .../resources/credential` | 즉시 반영 |
+| Athena Region 펼치기 | `GET .../athena/regions/{region}/databases` | DB 목록 pagination 조회 |
+| Athena Database 펼치기 | `GET .../athena/regions/{region}/databases/{database}/tables` | Table 목록 pagination 조회 |
 | [연동 대상 확정 승인 요청] | (로컬) | ApprovalRequestModal 표시 |
 | 모달에서 [요청] | `POST .../approval-requests` | 성공 → Step 2 전이 |
 
@@ -345,7 +422,7 @@ else                                  → Step 7
 
 ### State 2: 승인 대기 (WAITING_APPROVAL)
 
-**관련 US**: US-005, US-006
+**관련 US**: US-005, US-006, US-013
 
 #### 프로세스 바
 
@@ -381,6 +458,10 @@ else                                  → Step 7
 | 액션 | API | 결과 |
 |------|-----|------|
 | 요청 내용 확인 | `GET .../approval-history?page=0&size=1` | 모달 표시 |
+| 요청 상세의 Athena Region 펼치기 | `GET .../approval-requests/{requestId}/athena/regions/{region}/databases` | DB 목록 pagination 조회 |
+| 요청 상세의 Athena Database 펼치기 | `GET .../approval-requests/{requestId}/athena/regions/{region}/databases/{database}/tables` | Table 목록 pagination 조회 |
+| 이력 항목의 Athena Region 펼치기 | `GET .../approval-history/{historyId}/athena/regions/{region}/databases` | DB 목록 pagination 조회 |
+| 이력 항목의 Athena Database 펼치기 | `GET .../approval-history/{historyId}/athena/regions/{region}/databases/{database}/tables` | Table 목록 pagination 조회 |
 | 요청 취소 | `POST .../approval-requests/cancel` | 성공 → Step 1 전이 |
 | 리소스 다시 선택 (반려 시) | (로컬) | 편집 모드 전환 |
 
@@ -388,7 +469,7 @@ else                                  → Step 7
 
 ### State 3: 연동대상반영중 (APPLYING_APPROVED)
 
-**관련 US**: US-005, US-008
+**관련 US**: US-005, US-008, US-013
 
 #### 프로세스 바
 
@@ -419,6 +500,11 @@ else                                  → Step 7
 #### 사용자 액션
 
 - 없음 (읽기 전용)
+- Athena Region/Database 상세 조회(읽기):
+  - `GET .../confirmed-integration/athena/regions/{region}/databases`
+  - `GET .../confirmed-integration/athena/regions/{region}/databases/{database}/tables`
+  - `GET .../approved-integration/athena/regions/{region}/databases`
+  - `GET .../approved-integration/athena/regions/{region}/databases/{database}/tables`
 
 ---
 
@@ -634,6 +720,21 @@ Provider별 InlineInstallation 컴포넌트:
 | GET | `/api/v1/target-sources/{id}/approved-integration` | 승인 완료 스냅샷 |
 | GET | `/api/v1/target-sources/{id}/confirmed-integration` | 확정 연동 정보 |
 
+### Athena Drill-down
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/v1/target-sources/{id}/athena/regions/{region}/databases` | 현재 스캔 기준 Athena Database 목록 |
+| GET | `/api/v1/target-sources/{id}/athena/regions/{region}/databases/{database}/tables` | 현재 스캔 기준 Athena Table 목록 |
+| GET | `/api/v1/target-sources/{id}/approval-requests/{requestId}/athena/regions/{region}/databases` | 승인요청 스냅샷 기준 Athena Database 목록 |
+| GET | `/api/v1/target-sources/{id}/approval-requests/{requestId}/athena/regions/{region}/databases/{database}/tables` | 승인요청 스냅샷 기준 Athena Table 목록 |
+| GET | `/api/v1/target-sources/{id}/approval-history/{historyId}/athena/regions/{region}/databases` | 승인 이력 스냅샷 기준 Athena Database 목록 |
+| GET | `/api/v1/target-sources/{id}/approval-history/{historyId}/athena/regions/{region}/databases/{database}/tables` | 승인 이력 스냅샷 기준 Athena Table 목록 |
+| GET | `/api/v1/target-sources/{id}/confirmed-integration/athena/regions/{region}/databases` | 확정 정보 기준 Athena Database 목록 |
+| GET | `/api/v1/target-sources/{id}/confirmed-integration/athena/regions/{region}/databases/{database}/tables` | 확정 정보 기준 Athena Table 목록 |
+| GET | `/api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases` | 승인 완료 정보 기준 Athena Database 목록 |
+| GET | `/api/v1/target-sources/{id}/approved-integration/athena/regions/{region}/databases/{database}/tables` | 승인 완료 정보 기준 Athena Table 목록 |
+
 ### 설치
 
 | Method | Path | 설명 |
@@ -669,8 +770,134 @@ Provider별 InlineInstallation 컴포넌트:
 
 ---
 
+## 6. Athena UI/UX 구성안 (연동 대상 확정 중심)
+
+### 6.1 목표
+
+- Athena 연동 대상 선택은 `연동 대상 확정` 화면에서 수행한다.
+- Athena 리소스의 관리 단위는 기본적으로 `TABLE`이다.
+- 단, `승인요청/승인이력/확정정보/승인완료정보` 화면의 기본 노출은 `ATHENA_REGION(resource_id)` 우선으로 한다.
+- Region 체크/펼침 시 Database 목록을 페이지네이션으로 조회할 수 있어야 하며 Spinner를 적용한다.
+- Region에는 `이 Region의 모든 Database 선택` 체크박스를 제공한다.
+- Database에는 `이 Database의 모든 Table 선택` 체크박스를 제공한다.
+- `연동 대상 확정`은 편집 가능 체크박스 트리, 나머지 화면은 동일 트리를 읽기 전용으로 재사용한다.
+
+### 6.2 정보 구조
+
+```text
+Cloud 리소스 목록
+├─ RDS/EC2/... 리소스 (기존과 동일)
+└─ ATHENA_REGION 리소스 (resource_id: athena:{account}/{region}, metadata.athena_region)
+   └─ (Region row 선택 시) Athena 선택 패널 오픈
+      ├─ [ ] 이 Region의 모든 Database 선택
+      └─ Database 목록 (pagination + spinner)
+         ├─ Database (checkbox)
+         ├─ [ ] 이 Database의 모든 Table 선택
+         └─ Table 목록 (pagination + spinner)
+            └─ Table (checkbox)
+```
+
+### 6.3 와이어프레임 (연동 대상 확정)
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Cloud 리소스                                                                           │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ [x] rds:arn:aws:rds:ap-northeast-2:123456789012:db:prod-orders                        │
+│ [x] ec2:i-0abc1234                                                                     │
+│ [x] athena:123456789012/ap-northeast-2   (type: ATHENA_REGION)               [선택됨] │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ Athena Database/Table 선택 (Region: ap-northeast-2)                                    │
+│ [x] 이 Region의 모든 Database 선택                                                     │
+│                                                                                        │
+│ Database 목록 (Page 1/5)                                                     (⏳ 가능) │
+│ [x] analytics_db (selected_table_count: 1240)                                 [열기]   │
+│ [ ] billing_db   (selected_table_count: 0)                                    [열기]   │
+│ [x] audit_db     (selected_table_count: 89)                                   [열기]   │
+│                                                     [이전] 1 / 5 [다음]                │
+│                                                                                        │
+│ ┌─ Database: analytics_db ────────────────────────────────────────────────────────────┐ │
+│ │ [x] 이 Database의 모든 Table 선택                                                 │ │
+│ │                                                                                   │ │
+│ │ Table 목록 (Page 1/62)                                                   (⏳ 가능) │ │
+│ │ [x] orders_2026                                                                   │ │
+│ │ [x] customers_2026                                                                │ │
+│ │ [ ] sandbox_tmp                                                                   │ │
+│ │                                              [이전] 1 / 62 [다음]                 │ │
+│ └───────────────────────────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 6.4 인터랙션 규칙
+
+1. Region 체크박스를 체크하면 선택 상태가 된다.
+2. Region row를 클릭하면 `GET .../athena/regions/{region}/databases?page&size`를 호출한다.
+3. Region의 `모든 Database 선택` 체크 시 해당 Region 내 Database를 전체 선택 상태로 반영한다.
+4. Database row 체크박스는 해당 DB 범위의 선택 상태를 의미한다.
+5. Database row를 클릭하면 `GET .../athena/regions/{region}/databases/{database}/tables?page&size`를 호출한다.
+6. Database의 `모든 Table 선택` 체크 시 해당 DB 내 Table을 전체 선택 상태로 반영한다.
+7. Table 체크박스로 개별 Table 선택/해제가 가능하다.
+8. 기본 렌더는 Region 중심 요약이며, Database/Table은 사용자 액션 시점에만 lazy-load 한다.
+9. `include_all_tables`는 조회 응답 필드가 아니라 승인요청 생성 시점의 입력(`POST`)으로만 사용한다.
+
+### 6.5 API 매핑
+
+| 동작 | Method | Path |
+|------|--------|------|
+| Region 하위 Database 조회 | GET | `/api/v1/target-sources/{id}/athena/regions/{region}/databases?page={page}&size={size}` |
+| Database 하위 Table 조회 | GET | `/api/v1/target-sources/{id}/athena/regions/{region}/databases/{database}/tables?page={page}&size={size}` |
+| 연동 대상 확정 요청 제출 | POST | `/api/v1/target-sources/{id}/approval-requests` (`athena_input.rules`) |
+
+### 6.6 승인 요청/이력/확정 정보 표시 (읽기 전용)
+
+- 승인 요청 상세, 승인 이력 상세, 확정 정보, 승인 완료 정보는 모두 `ATHENA_REGION`을 기본 엔트리로 먼저 보여준다.
+- 각 Region 엔트리에서 동일한 Region/Database/Table 계층 drill-down UI를 사용한다.
+- 체크박스는 disabled 상태로 표시하며, 사용자 입력은 받지 않는다.
+- 상세 계층 조회는 각각의 스냅샷 endpoint를 사용한다 (`approval-request`, `approval-history`, `confirmed-integration`, `approved-integration`).
+
+### 6.7 승인 요청 payload 예시
+
+```json
+{
+  "input_data": {
+    "resource_inputs": [
+      {
+        "resource_id": "rds:arn:aws:rds:us-east-1:123456789012:db:prod-rds-orders",
+        "selected": true,
+        "resource_input": { "credential_id": "cred-001" }
+      }
+    ],
+    "athena_input": {
+      "rules": [
+        {
+          "scope": "REGION",
+          "resource_id": "athena:123456789012/ap-northeast-2",
+          "selected": true
+        },
+        {
+          "scope": "DATABASE",
+          "resource_id": "athena:123456789012/ap-northeast-2/analytics_db",
+          "selected": true,
+          "include_all_tables": true
+        },
+        {
+          "scope": "TABLE",
+          "resource_id": "athena:123456789012/ap-northeast-2/analytics_db/orders_2026",
+          "selected": true
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
 ## 변경 이력
 
 | 날짜 | 내용 |
 |------|------|
 | 2026-02-25 | 구현 코드 기반 초안 작성 (AWS/Azure/GCP) |
+| 2026-03-02 | Athena Region 기반 시나리오/Flow/API/UX 구성안 추가 |
+| 2026-03-02 | 체크박스 기반 Athena 선택 UX + 승인요청 상세 drill-down 반영 |
+| 2026-03-02 | 연동 대상 확정 화면 중심 Athena UX로 재정의 (Region/Database/Table + Pagination + Tab) |

@@ -2,17 +2,31 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as mockHistory from '@/lib/mock-history';
 import * as tcFns from '@/lib/mock-test-connection';
+import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
+import {
+  buildAthenaDatabaseNodes,
+  buildAthenaRegionSummaries,
+  buildAthenaTableNodes,
+  extractAthenaTables,
+  isAthenaResource,
+  paginate,
+  parseAthenaResourceId,
+  resolveAthenaSelection,
+  toAthenaRegionResourceId,
+  type AthenaResolvedSnapshot,
+  type AthenaTableRecord,
+} from '@/lib/api-client/mock/athena';
 import type {
+  ApprovalRequestInputSnapshot,
+  AthenaRegionResourceSummary,
+  BffConfirmedIntegration,
   Resource,
   Project,
   ProjectStatus,
-  ConnectionStatus,
-  ConnectionTestResult,
-  ConnectionTestHistory,
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
@@ -20,10 +34,24 @@ import type {
 
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
 const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
+const approvedAthenaSnapshotStore = new Map<string, AthenaResolvedSnapshot>();
 
 // Mock store: ConfirmedIntegration 스냅샷 (변경 요청 시 이전 확정 보존)
 // 변경 요청 승인 → installation.status=PENDING 리셋 → 기존 확정 데이터 유실 방지
-const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: ReturnType<typeof toResourceSnapshot>[] }>();
+const confirmedIntegrationSnapshotStore = new Map<string, BffConfirmedIntegration>();
+const confirmedAthenaSnapshotStore = new Map<string, AthenaResolvedSnapshot>();
+
+interface StoredApprovalRequestSnapshot {
+  projectId: string;
+  requestId: string;
+  requestedAt: string;
+  requestedBy: string;
+  inputData: ApprovalRequestInputSnapshot;
+  athenaResolved: AthenaResolvedSnapshot;
+}
+
+const approvalRequestSnapshotStore = new Map<string, StoredApprovalRequestSnapshot>();
+const latestApprovalRequestByProjectStore = new Map<string, string>();
 
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
@@ -34,7 +62,11 @@ const approvalTimestampStore = new Map<string, number>();
 /** @internal 테스트 전용: store 초기화 */
 export const _resetApprovedIntegrationStore = () => {
   approvedIntegrationStore.clear();
+  approvedAthenaSnapshotStore.clear();
   confirmedIntegrationSnapshotStore.clear();
+  confirmedAthenaSnapshotStore.clear();
+  approvalRequestSnapshotStore.clear();
+  latestApprovalRequestByProjectStore.clear();
   approvalTimestampStore.clear();
 };
 
@@ -54,11 +86,6 @@ export const _setApprovedIntegration = (projectId: string) => {
   });
   approvalTimestampStore.set(projectId, Date.now());
 };
-
-interface ResourceCredentialInput {
-  resourceId: string;
-  credentialId?: string;
-}
 
 // --- Helpers ---
 
@@ -116,6 +143,189 @@ function buildMetadata(resource: Resource, project: Project): Record<string, unk
   }
 }
 
+const ATHENA_TABLE_RULE_LIMIT = 10_000;
+
+const withPageParams = (page: number, size: number) => ({
+  page: Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0,
+  size: Number.isFinite(size) && size > 0 ? Math.floor(size) : 20,
+});
+
+const VM_DATABASE_TYPES: VmDatabaseConfig['databaseType'][] = [
+  'MYSQL',
+  'POSTGRESQL',
+  'MSSQL',
+  'MONGODB',
+  'ORACLE',
+];
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isVmDatabaseType = (value: unknown): value is VmDatabaseConfig['databaseType'] =>
+  typeof value === 'string' && VM_DATABASE_TYPES.includes(value as VmDatabaseConfig['databaseType']);
+
+const getAllAthenaTables = (project: Project): AthenaTableRecord[] =>
+  extractAthenaTables(project.resources, project.awsAccountId);
+
+const getAthenaRegionIdMapFromProject = (project: Project): Map<string, string> => {
+  const regions = new Map<string, string>();
+  for (const resource of project.resources) {
+    if (!isAthenaResource(resource)) continue;
+    const parsed = parseAthenaResourceId(resource.resourceId);
+    const region = parsed?.region ?? resource.region;
+    if (!region) continue;
+    const accountId = parsed?.accountId ?? project.awsAccountId ?? '000000000000';
+    if (!regions.has(region)) {
+      regions.set(region, accountId);
+    }
+  }
+  return regions;
+};
+
+const getSelectedAthenaTablesFromProject = (project: Project): AthenaTableRecord[] => {
+  const selectedAthenaResources = project.resources.filter(
+    (resource) => isAthenaResource(resource) && resource.isSelected,
+  );
+  return extractAthenaTables(selectedAthenaResources, project.awsAccountId);
+};
+
+const getActiveAthenaTablesFromProject = (project: Project): AthenaTableRecord[] => {
+  const activeAthenaResources = project.resources.filter(
+    (resource) =>
+      isAthenaResource(resource) &&
+      resource.isSelected &&
+      (resource.connectionStatus === 'CONNECTED' || project.status.installation.status === 'COMPLETED'),
+  );
+  return extractAthenaTables(activeAthenaResources, project.awsAccountId);
+};
+
+const getAthenaRegionSummariesFromProject = (project: Project): AthenaRegionResourceSummary[] => {
+  const tableBasedSummaries = buildAthenaRegionSummaries(getAllAthenaTables(project));
+  const tableCountByRegion = new Map(
+    tableBasedSummaries.map((summary) => [summary.athena_region, summary.selected_table_count ?? 0]),
+  );
+
+  return Array.from(getAthenaRegionIdMapFromProject(project).entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([region, accountId]) => ({
+      resource_id: toAthenaRegionResourceId(accountId, region),
+      resource_type: 'ATHENA_REGION',
+      athena_region: region,
+      selected_table_count: tableCountByRegion.get(region) ?? 0,
+    }));
+};
+
+const getAthenaRegionIntegrationCategory = (
+  project: Project,
+  region: string,
+): Resource['integrationCategory'] => {
+  const regionResources = project.resources.filter(
+    (resource) =>
+      isAthenaResource(resource) &&
+      ((parseAthenaResourceId(resource.resourceId)?.region ?? resource.region) === region),
+  );
+  if (regionResources.some((resource) => resource.integrationCategory === 'TARGET')) return 'TARGET';
+  if (regionResources.some((resource) => resource.integrationCategory === 'NO_INSTALL_NEEDED')) {
+    return 'NO_INSTALL_NEEDED';
+  }
+  return 'INSTALL_INELIGIBLE';
+};
+
+const getStoredApprovalRequest = (
+  projectId: string,
+  requestId: string,
+): StoredApprovalRequestSnapshot | null => {
+  const stored = approvalRequestSnapshotStore.get(requestId);
+  if (!stored || stored.projectId !== projectId) return null;
+  return stored;
+};
+
+const getHistoryById = (projectId: string, historyId: string) => {
+  const store = getStore();
+  return store.projectHistory.find(
+    (history) => history.projectId === projectId && history.id === historyId,
+  );
+};
+
+const resolveAthenaSnapshotFromInput = (
+  project: Project,
+  inputData: ApprovalRequestInputSnapshot | undefined,
+): AthenaResolvedSnapshot => {
+  const rules = inputData?.athena_input?.rules ?? [];
+  if (rules.length === 0) return { tables: [] };
+  return resolveAthenaSelection(getAllAthenaTables(project), rules);
+};
+
+const getApprovalRequestAthenaSnapshot = (
+  project: Project,
+  requestId: string,
+): AthenaResolvedSnapshot | null => {
+  const stored = getStoredApprovalRequest(project.id, requestId);
+  if (stored) return stored.athenaResolved;
+  return null;
+};
+
+const getApprovalHistoryAthenaSnapshot = (
+  project: Project,
+  historyId: string,
+): AthenaResolvedSnapshot | null => {
+  const history = getHistoryById(project.id, historyId);
+  if (!history) return null;
+
+  const requestId = history.details.requestId ?? history.id;
+  const stored = getStoredApprovalRequest(project.id, requestId);
+  if (stored) return stored.athenaResolved;
+
+  return resolveAthenaSnapshotFromInput(project, history.details.inputData);
+};
+
+const getPendingApprovalRequestForProject = (
+  project: Project,
+): StoredApprovalRequestSnapshot | null => {
+  const latestRequestId = latestApprovalRequestByProjectStore.get(project.id);
+  if (!latestRequestId) return null;
+  return getStoredApprovalRequest(project.id, latestRequestId);
+};
+
+const getConfirmedAthenaSnapshot = (project: Project): AthenaResolvedSnapshot | null => {
+  const snapshot = confirmedAthenaSnapshotStore.get(project.id);
+  if (snapshot) return snapshot;
+
+  if (project.status.installation.status !== 'COMPLETED') {
+    return null;
+  }
+
+  return { tables: getActiveAthenaTablesFromProject(project) };
+};
+
+const getApprovedAthenaSnapshot = (projectId: string): AthenaResolvedSnapshot | null => {
+  if (!approvedIntegrationStore.has(projectId)) {
+    return null;
+  }
+  return approvedAthenaSnapshotStore.get(projectId) ?? { tables: [] };
+};
+
+const paginateAthenaDatabases = (
+  tables: AthenaTableRecord[],
+  region: string,
+  page: number,
+  size: number,
+) => {
+  const paging = withPageParams(page, size);
+  return paginate(buildAthenaDatabaseNodes(tables, region), paging.page, paging.size);
+};
+
+const paginateAthenaTables = (
+  tables: AthenaTableRecord[],
+  region: string,
+  database: string,
+  page: number,
+  size: number,
+) => {
+  const paging = withPageParams(page, size);
+  return paginate(buildAthenaTableNodes(tables, region, database), paging.page, paging.size);
+};
+
 function toResourceSnapshot(r: Resource) {
   let endpoint_config = null;
   if (r.vmDatabaseConfig) {
@@ -141,13 +351,7 @@ function toResourceSnapshot(r: Resource) {
 }
 
 interface ApprovalRequestCreateBody {
-  input_data: {
-    resource_inputs: Array<
-      | { resource_id: string; selected: true; resource_input?: { credential_id?: string; endpoint_config?: Record<string, unknown> } }
-      | { resource_id: string; selected: false; exclusion_reason?: string }
-    >;
-    exclusion_reason_default?: string;
-  };
+  input_data: ApprovalRequestInputSnapshot;
 }
 
 // --- Queue Board Integration Helpers ---
@@ -188,16 +392,33 @@ export const mockConfirm = {
       );
     }
 
-    const resources = project.resources.map((r) => ({
-      id: r.id,
-      resourceId: r.resourceId,
-      name: r.resourceId,
-      resourceType: r.type,
-      integrationCategory: r.integrationCategory,
-      selectedCredentialId: r.selectedCredentialId ?? null,
-      metadata: buildMetadata(r, project),
+    const nonAthenaResources = project.resources
+      .filter((resource) => !isAthenaResource(resource))
+      .map((resource) => ({
+        id: resource.id,
+        resourceId: resource.resourceId,
+        name: resource.resourceId,
+        resourceType: resource.type,
+        integrationCategory: resource.integrationCategory,
+        selectedCredentialId: resource.selectedCredentialId ?? null,
+        metadata: buildMetadata(resource, project),
+      }));
+
+    const athenaRegionResources = getAthenaRegionSummariesFromProject(project).map((summary) => ({
+      id: summary.resource_id,
+      resourceId: summary.resource_id,
+      name: summary.resource_id,
+      resourceType: 'ATHENA_REGION',
+      integrationCategory: getAthenaRegionIntegrationCategory(project, summary.athena_region),
+      selectedCredentialId: null,
+      metadata: {
+        provider: 'AWS',
+        resourceType: 'ATHENA_REGION',
+        athena_region: summary.athena_region,
+      },
     }));
 
+    const resources = [...nonAthenaResources, ...athenaRegionResources];
     return NextResponse.json({ resources, totalCount: resources.length });
   },
 
@@ -236,17 +457,52 @@ export const mockConfirm = {
     // 기존 확정 정보가 있으면 스냅샷 보존 (변경 요청 시 이전 상태 비교용)
     if (project.status.installation.status === 'COMPLETED') {
       const connectedResources = project.resources.filter(
-        (r) => r.isSelected && r.connectionStatus === 'CONNECTED',
+        (resource) =>
+          !isAthenaResource(resource) &&
+          resource.isSelected &&
+          resource.connectionStatus === 'CONNECTED',
       );
-      if (connectedResources.length > 0) {
+      const confirmedAthenaTables = getActiveAthenaTablesFromProject(project);
+      if (connectedResources.length > 0 || confirmedAthenaTables.length > 0) {
         confirmedIntegrationSnapshotStore.set(projectId, {
           resource_infos: connectedResources.map(toResourceSnapshot),
+          athena_region_resources: buildAthenaRegionSummaries(confirmedAthenaTables),
         });
+        confirmedAthenaSnapshotStore.set(projectId, { tables: confirmedAthenaTables });
+      } else {
+        confirmedIntegrationSnapshotStore.delete(projectId);
+        confirmedAthenaSnapshotStore.delete(projectId);
       }
     }
 
-    const { input_data } = body as ApprovalRequestCreateBody;
+    const input_data = (body as ApprovalRequestCreateBody)?.input_data;
+    if (!input_data || !Array.isArray(input_data.resource_inputs)) {
+      return NextResponse.json(
+        { error: 'VALIDATION_FAILED', message: 'input_data.resource_inputs가 필요합니다.' },
+        { status: 400 },
+      );
+    }
+
     const { resource_inputs, exclusion_reason_default } = input_data;
+    const athenaRules = input_data.athena_input?.rules ?? [];
+
+    const selectedAthenaTableRuleCount = athenaRules.filter(
+      (rule) => rule.scope === 'TABLE' && rule.selected,
+    ).length;
+    if (selectedAthenaTableRuleCount > ATHENA_TABLE_RULE_LIMIT) {
+      return NextResponse.json(
+        {
+          error: 'VALIDATION_FAILED',
+          message: 'Athena TABLE 개별 선택 한도를 초과했습니다. REGION/DATABASE 단위로 요청해주세요.',
+        },
+        { status: 400 },
+      );
+    }
+
+    const athenaResolved = resolveAthenaSelection(getAllAthenaTables(project), athenaRules);
+    const selectedAthenaSourceIds = new Set(
+      athenaResolved.tables.map((table) => table.sourceResourceId),
+    );
 
     const selectedInputs = resource_inputs.filter(
       (ri): ri is Extract<typeof ri, { selected: true }> => ri.selected === true,
@@ -255,7 +511,7 @@ export const mockConfirm = {
       (ri): ri is Extract<typeof ri, { selected: false }> => ri.selected === false,
     );
 
-    if (selectedInputs.length === 0) {
+    if (selectedInputs.length === 0 && athenaResolved.tables.length === 0) {
       return NextResponse.json(
         { error: 'VALIDATION_FAILED', message: '연동 대상이 1개 이상이어야 합니다.' },
         { status: 400 },
@@ -267,19 +523,34 @@ export const mockConfirm = {
     const credentialMap = new Map<string, string>();
 
     for (const si of selectedInputs) {
-      if (si.resource_input?.endpoint_config) {
-        const ec = si.resource_input.endpoint_config;
-        const vmConfig: VmDatabaseConfig = {
-          host: (ec.host as string) ?? '',
-          databaseType: ec.db_type as VmDatabaseConfig['databaseType'],
-          port: ec.port as number,
-        };
-        if (ec.oracleServiceId) vmConfig.oracleServiceId = ec.oracleServiceId as string;
-        if (ec.selectedNicId) vmConfig.selectedNicId = ec.selectedNicId as string;
-        endpointConfigMap.set(si.resource_id, vmConfig);
-      }
-      if (si.resource_input?.credential_id) {
-        credentialMap.set(si.resource_id, si.resource_input.credential_id);
+      if (isRecord(si.resource_input)) {
+        const endpointConfig = isRecord(si.resource_input.endpoint_config)
+          ? si.resource_input.endpoint_config
+          : null;
+        if (endpointConfig) {
+          const dbType = endpointConfig.db_type;
+          const port = endpointConfig.port;
+          const host = typeof endpointConfig.host === 'string' ? endpointConfig.host : '';
+
+          if (isVmDatabaseType(dbType) && typeof port === 'number') {
+            const vmConfig: VmDatabaseConfig = {
+              host,
+              databaseType: dbType,
+              port,
+            };
+            if (typeof endpointConfig.oracleServiceId === 'string') {
+              vmConfig.oracleServiceId = endpointConfig.oracleServiceId;
+            }
+            if (typeof endpointConfig.selectedNicId === 'string') {
+              vmConfig.selectedNicId = endpointConfig.selectedNicId;
+            }
+            endpointConfigMap.set(si.resource_id, vmConfig);
+          }
+        }
+
+        if (typeof si.resource_input.credential_id === 'string') {
+          credentialMap.set(si.resource_id, si.resource_input.credential_id);
+        }
       }
     }
 
@@ -293,27 +564,37 @@ export const mockConfirm = {
     const now = new Date().toISOString();
     const excludedBy = { id: user.id, name: user.name };
 
-    const updatedResources: Resource[] = project.resources.map((r) => {
-      const isSelected = selectedSet.has(r.id);
+    const updatedResources: Resource[] = project.resources.map((resource) => {
+      const athenaResource = isAthenaResource(resource);
+      const isSelected = athenaResource
+        ? selectedAthenaSourceIds.has(resource.id)
+        : selectedSet.has(resource.id);
 
-      let exclusion: ResourceExclusion | undefined = r.exclusion;
-      const exclusionReason = excludedMap.get(r.id);
-      if (excludedMap.has(r.id) && exclusionReason) {
-        exclusion = { reason: exclusionReason, excludedAt: now, excludedBy };
+      let exclusion: ResourceExclusion | undefined = resource.exclusion;
+      if (athenaResource) {
+        exclusion = undefined;
+      } else {
+        const exclusionReason = excludedMap.get(resource.id);
+        if (excludedMap.has(resource.id) && exclusionReason) {
+          exclusion = { reason: exclusionReason, excludedAt: now, excludedBy };
+        }
       }
 
-      const vmDatabaseConfig = endpointConfigMap.get(r.id) ?? r.vmDatabaseConfig;
-      const selectedCredentialId = credentialMap.get(r.id) ?? r.selectedCredentialId;
+      const vmDatabaseConfig = endpointConfigMap.get(resource.id) ?? resource.vmDatabaseConfig;
+      const selectedCredentialId = credentialMap.get(resource.id) ?? resource.selectedCredentialId;
 
-      return { ...r, isSelected, exclusion, vmDatabaseConfig, selectedCredentialId };
+      return { ...resource, isSelected, exclusion, vmDatabaseConfig, selectedCredentialId };
     });
 
-    const selectedCount = selectedInputs.length;
+    const selectedResourceIds = updatedResources
+      .filter((resource) => resource.isSelected)
+      .map((resource) => resource.id);
+    const selectedCount = selectedResourceIds.length;
     const excludedCount = excludedInputs.length;
 
     const autoApprovalResult = evaluateAutoApproval({
       resources: project.resources,
-      selectedResourceIds: selectedInputs.map((si) => si.resource_id),
+      selectedResourceIds,
     });
 
     const updatedStatus: ProjectStatus = {
@@ -342,20 +623,39 @@ export const mockConfirm = {
       processStatus: calculatedProcessStatus,
     });
 
-    // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
-    const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;
-    await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount, inputDataSnapshot);
     const requestId = `req-${Date.now()}`;
+    const inputDataSnapshot = input_data;
+    approvalRequestSnapshotStore.set(requestId, {
+      projectId,
+      requestId,
+      requestedAt: now,
+      requestedBy: user.name,
+      inputData: inputDataSnapshot,
+      athenaResolved,
+    });
+    latestApprovalRequestByProjectStore.set(projectId, requestId);
+    await mockHistory.addTargetConfirmedHistory(
+      projectId,
+      actor,
+      selectedCount,
+      excludedCount,
+      inputDataSnapshot,
+      requestId,
+    );
 
     // ADR-006: 자동 승인 시에도 ApprovedIntegration 스냅샷 생성
     if (autoApprovalResult.shouldAutoApprove) {
-      const selectedResources = updatedResources.filter((r) => r.isSelected);
+      const selectedResources = updatedResources.filter(
+        (resource) => resource.isSelected && !isAthenaResource(resource),
+      );
       const excludedResources = updatedResources.filter((r) => r.exclusion);
+      approvedAthenaSnapshotStore.set(projectId, athenaResolved);
       approvedIntegrationStore.set(projectId, {
         id: `ai-${projectId}-${Date.now()}`,
         request_id: requestId,
         approved_at: now,
         resource_infos: selectedResources.map(toResourceSnapshot),
+        athena_region_resources: buildAthenaRegionSummaries(athenaResolved.tables),
         excluded_resource_ids: excludedResources.map((r) => r.id),
         exclusion_reason: excludedResources[0]?.exclusion?.reason,
       });
@@ -388,6 +688,7 @@ export const mockConfirm = {
           requested_at: now,
           requested_by: user.name,
           input_data: inputDataSnapshot,
+          athena_region_resources: buildAthenaRegionSummaries(athenaResolved.tables),
         },
       },
       { status: 201 },
@@ -414,18 +715,34 @@ export const mockConfirm = {
     // 1. 변경 요청 중 보존된 이전 확정 스냅샷 확인
     const snapshot = confirmedIntegrationSnapshotStore.get(project.id);
     if (snapshot) {
-      return NextResponse.json({ confirmed_integration: snapshot });
+      const confirmedAthena = confirmedAthenaSnapshotStore.get(project.id) ?? { tables: [] };
+      return NextResponse.json({
+        confirmed_integration: {
+          ...snapshot,
+          athena_region_resources: buildAthenaRegionSummaries(confirmedAthena.tables),
+        },
+      });
     }
 
     // 2. 현재 프로젝트 상태에서 확정 정보 도출
-    const activeResources = project.resources.filter((r) => r.isSelected && r.connectionStatus === 'CONNECTED');
-    if (activeResources.length === 0 || project.status.installation.status !== 'COMPLETED') {
+    const activeResources = project.resources.filter(
+      (resource) =>
+        !isAthenaResource(resource) &&
+        resource.isSelected &&
+        resource.connectionStatus === 'CONNECTED',
+    );
+    const activeAthenaTables = getActiveAthenaTablesFromProject(project);
+    if (
+      project.status.installation.status !== 'COMPLETED' ||
+      (activeResources.length === 0 && activeAthenaTables.length === 0)
+    ) {
       return NextResponse.json({ confirmed_integration: null });
     }
 
     return NextResponse.json({
       confirmed_integration: {
         resource_infos: activeResources.map(toResourceSnapshot),
+        athena_region_resources: buildAthenaRegionSummaries(activeAthenaTables),
       },
     });
   },
@@ -456,7 +773,13 @@ export const mockConfirm = {
       );
     }
 
-    return NextResponse.json({ approved_integration: approved });
+    const approvedAthena = approvedAthenaSnapshotStore.get(project.id) ?? { tables: [] };
+    return NextResponse.json({
+      approved_integration: {
+        ...approved,
+        athena_region_resources: buildAthenaRegionSummaries(approvedAthena.tables),
+      },
+    });
   },
 
   getApprovalHistory: async (projectId: string, page: number, size: number) => {
@@ -514,11 +837,28 @@ export const mockConfirm = {
 
     // If WAITING_APPROVAL but no approval history yet, synthesize a PENDING request entry
     if (history.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
+      const pendingSnapshot = getPendingApprovalRequestForProject(project);
+      if (pendingSnapshot) {
+        return NextResponse.json({
+          content: [{
+            request: {
+              id: pendingSnapshot.requestId,
+              requested_at: pendingSnapshot.requestedAt,
+              requested_by: pendingSnapshot.requestedBy,
+              input_data: pendingSnapshot.inputData,
+              athena_region_resources: buildAthenaRegionSummaries(pendingSnapshot.athenaResolved.tables),
+            },
+          }],
+          page: { totalElements: 1, totalPages: 1, number: page, size },
+        });
+      }
+
       const pendingRequest = {
         id: `req-pending-${project.id}`,
         requested_at: project.updatedAt,
         requested_by: user.name,
         input_data: { resource_inputs: buildCurrentResourceInputs() },
+        athena_region_resources: buildAthenaRegionSummaries(getSelectedAthenaTablesFromProject(project)),
       };
       return NextResponse.json({
         content: [{ request: pendingRequest }],
@@ -527,20 +867,27 @@ export const mockConfirm = {
     }
 
     const content = history.map((h) => {
-      // Use stored snapshot if available, otherwise fall back to current state
-      const inputData = h.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
+      const requestId = h.details.requestId ?? h.id;
+      const storedRequest = getStoredApprovalRequest(project.id, requestId);
+      // Use stored snapshot if available, otherwise fall back to history/current state
+      const inputData = storedRequest?.inputData ??
+        h.details.inputData ??
+        { resource_inputs: buildCurrentResourceInputs() };
+      const athenaResolved = storedRequest?.athenaResolved ??
+        resolveAthenaSnapshotFromInput(project, inputData);
       const request = {
-        id: h.id,
+        id: requestId,
         requested_at: h.timestamp,
         requested_by: h.actor.name,
         input_data: inputData,
+        athena_region_resources: buildAthenaRegionSummaries(athenaResolved.tables),
       };
 
       let result;
       if (h.type === 'APPROVAL') {
         result = {
           id: `result-${h.id}`,
-          request_id: h.id,
+          request_id: requestId,
           result: 'APPROVED' as const,
           processed_at: h.timestamp,
           process_info: { user_id: h.actor.id, reason: null },
@@ -548,7 +895,7 @@ export const mockConfirm = {
       } else if (h.type === 'AUTO_APPROVED') {
         result = {
           id: `result-${h.id}`,
-          request_id: h.id,
+          request_id: requestId,
           result: 'AUTO_APPROVED' as const,
           processed_at: h.timestamp,
           process_info: { user_id: null, reason: null },
@@ -556,7 +903,7 @@ export const mockConfirm = {
       } else if (h.type === 'REJECTION') {
         result = {
           id: `result-${h.id}`,
-          request_id: h.id,
+          request_id: requestId,
           result: 'REJECTED' as const,
           processed_at: h.timestamp,
           process_info: { user_id: h.actor.id, reason: h.details.reason ?? null },
@@ -564,7 +911,7 @@ export const mockConfirm = {
       } else if (h.type === 'APPROVAL_CANCELLED') {
         result = {
           id: `result-${h.id}`,
-          request_id: h.id,
+          request_id: requestId,
           result: 'CANCELLED' as const,
           processed_at: h.timestamp,
           process_info: { user_id: h.actor.id, reason: null },
@@ -583,6 +930,374 @@ export const mockConfirm = {
         size,
       },
     });
+  },
+
+  getAthenaRegionDatabases: async (projectId: string, region: string, page: number, size: number) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaDatabases(getAllAthenaTables(project), region, page, size),
+    );
+  },
+
+  getAthenaDatabaseTables: async (
+    projectId: string,
+    region: string,
+    database: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaTables(
+        getAllAthenaTables(project),
+        region,
+        database,
+        page,
+        size,
+      ),
+    );
+  },
+
+  getApprovalRequestAthenaDatabases: async (
+    projectId: string,
+    requestId: string,
+    region: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getApprovalRequestAthenaSnapshot(project, requestId);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인 요청을 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaDatabases(snapshot.tables, region, page, size),
+    );
+  },
+
+  getApprovalRequestAthenaTables: async (
+    projectId: string,
+    requestId: string,
+    region: string,
+    database: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getApprovalRequestAthenaSnapshot(project, requestId);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인 요청을 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaTables(
+        snapshot.tables,
+        region,
+        database,
+        page,
+        size,
+      ),
+    );
+  },
+
+  getApprovalHistoryAthenaDatabases: async (
+    projectId: string,
+    historyId: string,
+    region: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getApprovalHistoryAthenaSnapshot(project, historyId);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인 이력을 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaDatabases(snapshot.tables, region, page, size),
+    );
+  },
+
+  getApprovalHistoryAthenaTables: async (
+    projectId: string,
+    historyId: string,
+    region: string,
+    database: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getApprovalHistoryAthenaSnapshot(project, historyId);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인 이력을 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaTables(
+        snapshot.tables,
+        region,
+        database,
+        page,
+        size,
+      ),
+    );
+  },
+
+  getConfirmedIntegrationAthenaDatabases: async (
+    projectId: string,
+    region: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getConfirmedAthenaSnapshot(project);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '확정된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaDatabases(snapshot.tables, region, page, size),
+    );
+  },
+
+  getConfirmedIntegrationAthenaTables: async (
+    projectId: string,
+    region: string,
+    database: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getConfirmedAthenaSnapshot(project);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '확정된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaTables(
+        snapshot.tables,
+        region,
+        database,
+        page,
+        size,
+      ),
+    );
+  },
+
+  getApprovedIntegrationAthenaDatabases: async (
+    projectId: string,
+    region: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getApprovedAthenaSnapshot(project.id);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaDatabases(snapshot.tables, region, page, size),
+    );
+  },
+
+  getApprovedIntegrationAthenaTables: async (
+    projectId: string,
+    region: string,
+    database: string,
+    page: number,
+    size: number,
+  ) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const snapshot = getApprovedAthenaSnapshot(project.id);
+    if (!snapshot) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인된 연동 정보가 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      paginateAthenaTables(
+        snapshot.tables,
+        region,
+        database,
+        page,
+        size,
+      ),
+    );
   },
 
   getProcessStatus: async (projectId: string) => {
@@ -625,7 +1340,9 @@ export const mockConfirm = {
         },
       });
       approvedIntegrationStore.delete(project.id);
+      approvedAthenaSnapshotStore.delete(project.id);
       confirmedIntegrationSnapshotStore.delete(project.id);
+      confirmedAthenaSnapshotStore.delete(project.id);
 
       const updated = mockData.getProjectById(projectId)!;
       return NextResponse.json({
@@ -713,14 +1430,20 @@ export const mockConfirm = {
     });
 
     // ADR-006 D-008: ApprovedIntegration 스냅샷 생성
-    const selectedResources = updatedResources.filter((r) => r.isSelected);
+    const selectedResources = updatedResources.filter(
+      (resource) => resource.isSelected && !isAthenaResource(resource),
+    );
     const excludedResources = updatedResources.filter((r) => r.exclusion);
-    const requestId = `req-${project.id}-${Date.now()}`;
+    const pendingRequest = getPendingApprovalRequestForProject(project);
+    const requestId = pendingRequest?.requestId ?? `req-${project.id}-${Date.now()}`;
+    const approvedAthena = pendingRequest?.athenaResolved ?? { tables: [] };
+    approvedAthenaSnapshotStore.set(project.id, approvedAthena);
     approvedIntegrationStore.set(project.id, {
       id: `ai-${project.id}-${Date.now()}`,
       request_id: requestId,
       approved_at: now,
       resource_infos: selectedResources.map(toResourceSnapshot),
+      athena_region_resources: buildAthenaRegionSummaries(approvedAthena.tables),
       excluded_resource_ids: excludedResources.map((r) => r.id),
       exclusion_reason: excludedResources[0]?.exclusion?.reason,
     });
@@ -972,7 +1695,9 @@ export const mockConfirm = {
 
     // 설치 확정 시 store 정리 (반영 완료)
     approvedIntegrationStore.delete(project.id);
+    approvedAthenaSnapshotStore.delete(project.id);
     confirmedIntegrationSnapshotStore.delete(project.id);
+    confirmedAthenaSnapshotStore.delete(project.id);
     approvalTimestampStore.delete(project.id);
 
     return NextResponse.json({ success: true, confirmedAt: now });
@@ -1033,7 +1758,8 @@ export const mockConfirm = {
     return NextResponse.json({ success: true });
   },
 
-  testConnection: async (projectId: string, _body: unknown) => {
+  testConnection: async (projectId: string, body: unknown) => {
+    void body;
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(

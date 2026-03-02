@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type { AwsInstallationStatus, AwsSettings } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import {
   createApprovalRequest,
   updateResourceCredential,
@@ -33,6 +34,64 @@ interface AwsProjectPageProps {
   onProjectUpdate: (project: Project) => void;
 }
 
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
+
+const isAthenaResource = (resource: Project['resources'][number]): boolean =>
+  resource.awsType === 'ATHENA' ||
+  resource.type === 'ATHENA' ||
+  resource.type === 'ATHENA_REGION' ||
+  resource.databaseType === 'ATHENA';
+
+const parseAthenaResourceId = (
+  resourceId: string,
+): { accountId: string; region: string; database?: string; table?: string } | null => {
+  const matched = /^athena:([^/]+)\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(resourceId);
+  if (!matched) return null;
+  return {
+    accountId: matched[1],
+    region: matched[2],
+    database: matched[3],
+    table: matched[4],
+  };
+};
+
+const buildInitialAthenaRules = (resources: Project['resources']): AthenaSelectionRule[] => {
+  const selectedRules: AthenaSelectionRule[] = [];
+  for (const resource of resources) {
+    if (!isAthenaResource(resource) || !resource.isSelected) continue;
+    const parsed = parseAthenaResourceId(resource.resourceId);
+    if (!parsed) continue;
+    if (parsed.database && parsed.table) {
+      selectedRules.push({
+        scope: 'TABLE',
+        resource_id: resource.resourceId,
+        selected: true,
+      });
+      continue;
+    }
+    if (parsed.region && !parsed.database) {
+      selectedRules.push({
+        scope: 'REGION',
+        resource_id: `athena:${parsed.accountId}/${parsed.region}`,
+        selected: true,
+        include_all_tables: true,
+      });
+    }
+  }
+  return selectedRules;
+};
+
+const hasSelectedAthenaRules = (rules: AthenaSelectionRule[]): boolean =>
+  rules.some((rule) =>
+    rule.scope === 'TABLE'
+      ? rule.selected
+      : rule.selected && rule.include_all_tables === true
+  );
+
 export const AwsProjectPage = ({
   project,
   credentials,
@@ -45,6 +104,9 @@ export const AwsProjectPage = ({
   const [submitting, setSubmitting] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [athenaRules, setAthenaRules] = useState<AthenaSelectionRule[]>(
+    () => buildInitialAthenaRules(project.resources),
+  );
 
   // Prerequisite data
   const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
@@ -90,6 +152,44 @@ export const AwsProjectPage = ({
     [project.resources, selectedIds],
   );
 
+  const athenaRegionsByResourceId = useMemo(() => {
+    const grouped = new Map<string, AthenaRegionCandidate>();
+    for (const resource of project.resources) {
+      if (!isAthenaResource(resource)) continue;
+      const parsed = parseAthenaResourceId(resource.resourceId);
+      if (!parsed) continue;
+      const regionResourceId = `athena:${parsed.accountId}/${parsed.region}`;
+      const current = grouped.get(regionResourceId);
+      if (current) {
+        if (parsed.database && parsed.table) {
+          current.total_table_count += 1;
+        }
+        continue;
+      }
+      grouped.set(regionResourceId, {
+        resource_id: regionResourceId,
+        athena_region: parsed.region,
+        total_table_count: parsed.database && parsed.table ? 1 : 0,
+      });
+    }
+    return Array.from(grouped.values()).reduce<Record<string, AthenaRegionCandidate>>((acc, region) => {
+      acc[region.resource_id] = region;
+      return acc;
+    }, {});
+  }, [project.resources]);
+
+  const hasSelectedAthena = useMemo(
+    () => hasSelectedAthenaRules(athenaRules),
+    [athenaRules],
+  );
+
+  const hasSelectedNonAthena = useMemo(
+    () => project.resources.some(
+      (resource) => !isAthenaResource(resource) && selectedIds.includes(resource.id),
+    ),
+    [project.resources, selectedIds],
+  );
+
   // 설치 모드 미선택 시 선택 UI 표시
   if (!project.awsInstallationMode) {
     return (
@@ -128,7 +228,7 @@ export const AwsProjectPage = ({
   };
 
   const handleConfirmTargets = () => {
-    if (selectedIds.length === 0) return;
+    if (!hasSelectedNonAthena && !hasSelectedAthena) return;
 
     // VM 리소스 중 설정되지 않은 것 체크
     const selectedVmResources = project.resources.filter(
@@ -148,8 +248,9 @@ export const AwsProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
+      const effectiveAthenaRules = formData.athena_rules ?? athenaRules;
       // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
-      const resourceInputs = project.resources.map(r => {
+      const resourceInputs = project.resources.filter((resource) => !isAthenaResource(resource)).map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -180,10 +281,16 @@ export const AwsProjectPage = ({
       });
 
       await createApprovalRequest(project.targetSourceId, {
-        input_data: { resource_inputs: resourceInputs },
+        input_data: {
+          resource_inputs: resourceInputs,
+          ...(effectiveAthenaRules.length > 0
+            ? { athena_input: { rules: effectiveAthenaRules } }
+            : {}),
+        },
       });
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
+      setAthenaRules(buildInitialAthenaRules(updatedProject.resources));
       setIsEditMode(false);
       setExpandedVmId(null);
       setApprovalModalOpen(false);
@@ -196,11 +303,13 @@ export const AwsProjectPage = ({
 
   const handleStartEdit = () => {
     setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setAthenaRules(buildInitialAthenaRules(project.resources));
     setIsEditMode(true);
   };
 
   const handleCancelEdit = () => {
     setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setAthenaRules(buildInitialAthenaRules(project.resources));
     setIsEditMode(false);
   };
 
@@ -231,6 +340,8 @@ export const AwsProjectPage = ({
             approvalLoading={submitting}
             approvalError={approvalError}
             approvalResources={approvalResources}
+            athenaRules={athenaRules}
+            onAthenaRulesChange={setAthenaRules}
           />
 
         {/* Cloud 리소스 통합 컨테이너 */}
@@ -259,6 +370,7 @@ export const AwsProjectPage = ({
             />
 
             <ResourceTable
+              targetSourceId={project.targetSourceId}
               resources={project.resources.map((r) => ({
                 ...r,
                 vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
@@ -274,6 +386,9 @@ export const AwsProjectPage = ({
               onVmConfigToggle={setExpandedVmId}
               onVmConfigSave={handleVmConfigSave}
               onEditModeChange={setIsEditMode}
+              athenaRules={athenaRules}
+              onAthenaRulesChange={setAthenaRules}
+              athenaRegionsByResourceId={athenaRegionsByResourceId}
             />
           </div>
         )}
@@ -293,7 +408,7 @@ export const AwsProjectPage = ({
               )}
               <button
                 onClick={handleConfirmTargets}
-                disabled={submitting || selectedIds.length === 0}
+                disabled={submitting || (!hasSelectedNonAthena && !hasSelectedAthena)}
                 className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
               >
                 {submitting && <LoadingSpinner />}

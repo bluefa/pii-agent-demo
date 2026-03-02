@@ -1,12 +1,20 @@
 'use client';
 
 import { Resource, CloudProvider, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceRow } from './ResourceRow';
+
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
 
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -19,11 +27,15 @@ interface ResourceTableBodyProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 export const FlatResourceTableBody = ({
   resources,
   cloudProvider,
+  targetSourceId,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
@@ -36,6 +48,9 @@ export const FlatResourceTableBody = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  athenaRules,
+  onAthenaRulesChange,
+  athenaRegionsByResourceId,
 }: ResourceTableBodyProps) => (
   <>
     <thead>
@@ -54,7 +69,9 @@ export const FlatResourceTableBody = ({
           key={resource.id}
           resource={resource}
           cloudProvider={cloudProvider}
+          targetSourceId={targetSourceId}
           selectedIds={selectedIds}
+          colSpan={colSpan}
           isEditMode={isEditMode}
           isCheckboxEnabled={isCheckboxEnabled}
           showConnectionStatus={showConnectionStatus}
@@ -65,6 +82,9 @@ export const FlatResourceTableBody = ({
           expandedVmId={expandedVmId}
           onVmConfigToggle={onVmConfigToggle}
           onVmConfigSave={onVmConfigSave}
+          athenaRules={athenaRules}
+          onAthenaRulesChange={onAthenaRulesChange}
+          athenaRegionsByResourceId={athenaRegionsByResourceId}
         />
       ))}
     </tbody>

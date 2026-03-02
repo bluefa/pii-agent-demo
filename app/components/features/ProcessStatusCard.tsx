@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
 import {
@@ -44,6 +45,8 @@ interface ProcessStatusCardProps {
   approvalLoading?: boolean;
   approvalError?: string | null;
   approvalResources?: Resource[];
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
 }
 
 const getProgress = (project: Project) => {
@@ -64,6 +67,8 @@ export const ProcessStatusCard = ({
   approvalLoading = false,
   approvalError,
   approvalResources,
+  athenaRules,
+  onAthenaRulesChange,
 }: ProcessStatusCardProps) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
@@ -316,10 +321,14 @@ export const ProcessStatusCard = ({
       {/* Approval Request Modal */}
       {onApprovalSubmit && onApprovalModalClose && (
         <ApprovalRequestModal
+          key={`${project.id}-${approvalModalOpen ? 'open' : 'closed'}`}
           isOpen={approvalModalOpen}
           onClose={onApprovalModalClose}
           onSubmit={onApprovalSubmit}
+          targetSourceId={project.targetSourceId}
           resources={approvalResources ?? project.resources}
+          athenaRules={athenaRules}
+          onAthenaRulesChange={onAthenaRulesChange}
           loading={approvalLoading}
           error={approvalError}
         />
