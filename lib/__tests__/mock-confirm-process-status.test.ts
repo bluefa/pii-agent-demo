@@ -330,6 +330,24 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
     });
 
+    it('승인 시각 store가 비어도 approvedAt 기준으로 20초 후 INSTALLING으로 전환된다', async () => {
+      addTestProject({
+        processStatus: ProcessStatus.APPLYING_APPROVED,
+        status: {
+          ...createInitialProjectStatus(),
+          scan: { status: 'COMPLETED' },
+          targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+          approval: { status: 'APPROVED', approvedAt: '2026-01-01T00:00:00.000Z' },
+          installation: { status: 'PENDING' },
+          connectionTest: { status: 'NOT_TESTED' },
+        },
+      });
+
+      await getProcessStatus();
+
+      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+    });
+
     it('자동 승인 시 ApprovedIntegration 스냅샷 생성 확인', async () => {
       addTestProject({
         resources: [
