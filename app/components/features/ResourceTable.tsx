@@ -21,6 +21,7 @@ import {
 interface ResourceTableProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   processStatus: ProcessStatus;
   isEditMode?: boolean;
   selectedIds?: string[];
@@ -42,6 +43,7 @@ const WarningIcon = () => (
 export const ResourceTable = ({
   resources,
   cloudProvider,
+  targetSourceId,
   processStatus,
   isEditMode: externalEditMode = false,
   selectedIds: externalSelectedIds,
@@ -96,7 +98,9 @@ export const ResourceTable = ({
 
   const rowProps = {
     cloudProvider,
+    targetSourceId,
     selectedIds: selectedIdsSet,
+    colSpan,
     isEditMode: false as const,
     isCheckboxEnabled: false,
     showConnectionStatus,
@@ -117,6 +121,7 @@ export const ResourceTable = ({
 
   const bodyProps = {
     cloudProvider,
+    targetSourceId,
     selectedIds: selectedIdsSet,
     isCheckboxEnabled,
     showConnectionStatus,

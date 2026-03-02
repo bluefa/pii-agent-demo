@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Resource, DatabaseType, SecretKey, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
@@ -8,6 +9,12 @@ import { ConnectionIndicator } from './ConnectionIndicator';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from './VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
+import { AthenaReadonlyTree } from '@/app/components/features/process-status/AthenaReadonlyTree';
+import {
+  getAthenaDatabaseTables,
+  getAthenaRegionDatabases,
+  type AthenaRegionResourceSummary,
+} from '@/app/lib/api';
 import { cn, textColors, statusColors, bgColors, primaryColors } from '@/lib/theme';
 
 // VM 리소스 타입 체크 헬퍼
@@ -18,6 +25,8 @@ export const isVmResource = (resource: Resource): boolean => {
 interface ResourceRowProps {
   resource: Resource;
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
+  colSpan?: number;
   hideTypeColumn?: boolean;
   selectedIds: Set<string>;
   isEditMode: boolean;
@@ -32,6 +41,23 @@ interface ResourceRowProps {
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
 }
+
+const isAthenaResource = (resource: Resource): boolean =>
+  resource.awsType === 'ATHENA' ||
+  resource.type === 'ATHENA' ||
+  resource.type === 'ATHENA_REGION' ||
+  resource.databaseType === 'ATHENA';
+
+const parseAthenaRegionSummary = (resourceId: string): AthenaRegionResourceSummary | null => {
+  const matched = /^athena:([^/]+)\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?$/.exec(resourceId);
+  if (!matched) return null;
+  return {
+    resource_id: `athena:${matched[1]}/${matched[2]}`,
+    resource_type: 'ATHENA_REGION',
+    athena_region: matched[2],
+    selected_table_count: 0,
+  };
+};
 
 interface CredentialDisplayProps {
   needsCred: boolean;
@@ -54,6 +80,8 @@ const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentia
 export const ResourceRow = ({
   resource,
   cloudProvider,
+  targetSourceId,
+  colSpan,
   hideTypeColumn,
   selectedIds,
   isEditMode,
@@ -68,6 +96,7 @@ export const ResourceRow = ({
   onVmConfigSave,
 }: ResourceRowProps) => {
   const vnetModal = useModal();
+  const [isAthenaExpanded, setIsAthenaExpanded] = useState(false);
   const needsCred = needsCredential(resource.databaseType);
   const availableCredentials = needsCred ? credentials : [];
   const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
@@ -77,10 +106,31 @@ export const ResourceRow = ({
   const isExpanded = expandedVmId === resource.id;
   const isSelected = selectedIds.has(resource.id);
   const hasVmConfig = !!resource.vmDatabaseConfig;
+  const athenaSummary = useMemo(
+    () => parseAthenaRegionSummary(resource.resourceId),
+    [resource.resourceId],
+  );
+  const isAthena = isAthenaResource(resource);
+  const canShowAthenaDetail =
+    cloudProvider === 'AWS' &&
+    isAthena &&
+    typeof targetSourceId === 'number' &&
+    athenaSummary !== null;
+  const effectiveColSpan =
+    colSpan ??
+    (isEditMode ? 1 : 0) +
+      (hideTypeColumn ? 0 : 1) +
+      2 +
+      (showCredentialColumn ? 1 : 0) +
+      (showConnectionStatus ? 1 : 0);
 
   const handleRowClick = () => {
     if (isVm && isCheckboxEnabled && isSelected && onVmConfigToggle) {
       onVmConfigToggle(isExpanded ? null : resource.id);
+      return;
+    }
+    if (canShowAthenaDetail) {
+      setIsAthenaExpanded((prev) => !prev);
     }
   };
 
@@ -95,7 +145,7 @@ export const ResourceRow = ({
         className={cn(
           'transition-colors',
           `hover:${bgColors.muted}`,
-          isVm && isCheckboxEnabled && isSelected && 'cursor-pointer',
+          ((isVm && isCheckboxEnabled && isSelected) || canShowAthenaDetail) && 'cursor-pointer',
           isExpanded && statusColors.info.bg,
           isVm && isSelected && !hasVmConfig && !isExpanded && statusColors.warning.bg,
           isVnetIneligible && 'opacity-60'
@@ -155,6 +205,17 @@ export const ResourceRow = ({
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
             <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
+            {canShowAthenaDetail && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAthenaExpanded((prev) => !prev);
+                }}
+                className={cn('text-xs font-medium', statusColors.info.textDark, 'hover:underline')}
+              >
+                {isAthenaExpanded ? 'DB/Table 닫기' : 'DB/Table 확인'}
+              </button>
+            )}
             {hideTypeColumn && isVnetIneligible && (
               <button
                 onClick={(e) => { e.stopPropagation(); vnetModal.open(); }}
@@ -236,6 +297,28 @@ export const ResourceRow = ({
           onCancel={() => onVmConfigToggle?.(null)}
           nics={resource.type === 'AZURE_VM' ? resource.nics : undefined}
         />
+      )}
+
+      {canShowAthenaDetail && isAthenaExpanded && athenaSummary && typeof targetSourceId === 'number' && (
+        <tr className={cn(bgColors.muted)}>
+          <td colSpan={effectiveColSpan} className="px-6 py-4">
+            <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
+              <p className={cn('text-xs', textColors.tertiary)}>
+                Athena Database/Table 확인 (선택은 승인 요청 모달에서 수행)
+              </p>
+              <AthenaReadonlyTree
+                regions={[athenaSummary]}
+                loadDatabases={(region, page, size) =>
+                  getAthenaRegionDatabases(targetSourceId, region, page, size)
+                }
+                loadTables={(region, database, page, size) =>
+                  getAthenaDatabaseTables(targetSourceId, region, database, page, size)
+                }
+                emptyMessage="Athena Database가 없습니다."
+              />
+            </div>
+          </td>
+        </tr>
       )}
 
       {isVnetIneligible && typeof document !== 'undefined' && createPortal(

@@ -13,6 +13,7 @@ const COLLAPSE_THRESHOLD = 5;
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -75,8 +76,10 @@ const TypeGroup = ({ cloudProvider, resourceType, resources, colSpan, rowProps }
           key={resource.id}
           resource={resource}
           cloudProvider={cloudProvider}
+          targetSourceId={rowProps.targetSourceId}
           hideTypeColumn
           selectedIds={rowProps.selectedIds}
+          colSpan={colSpan}
           isEditMode={rowProps.isEditMode}
           isCheckboxEnabled={rowProps.isCheckboxEnabled}
           showConnectionStatus={rowProps.showConnectionStatus}

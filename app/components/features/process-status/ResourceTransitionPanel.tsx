@@ -69,6 +69,7 @@ export const ResourceTransitionPanel = ({
           </div>
           <div className="opacity-50">
             <ResourceTable
+              targetSourceId={targetSourceId}
               resources={oldResources!}
               cloudProvider={cloudProvider}
               processStatus={processStatus}
@@ -98,6 +99,7 @@ export const ResourceTransitionPanel = ({
         </span>
       </div>
       <ResourceTable
+        targetSourceId={targetSourceId}
         resources={resources}
         cloudProvider={cloudProvider}
         processStatus={processStatus}

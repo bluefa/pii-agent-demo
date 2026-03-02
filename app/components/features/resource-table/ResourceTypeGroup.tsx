@@ -13,6 +13,7 @@ const COLLAPSE_THRESHOLD = 5;
 interface ResourceTypeGroupProps {
   resourceType: AwsResourceType;
   resources: Resource[];
+  targetSourceId?: number;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
@@ -46,6 +47,7 @@ const RegionIcon = () => (
 export const ResourceTypeGroup = ({
   resourceType,
   resources,
+  targetSourceId,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
@@ -153,7 +155,9 @@ export const ResourceTypeGroup = ({
                 key={resource.id}
                 resource={resource}
                 cloudProvider="AWS"
+                targetSourceId={targetSourceId}
                 selectedIds={selectedIds}
+                colSpan={colSpan}
                 isEditMode={isEditMode}
                 isCheckboxEnabled={isCheckboxEnabled}
                 showConnectionStatus={showConnectionStatus}
