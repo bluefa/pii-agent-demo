@@ -91,8 +91,7 @@ paths:
         - RDS credential 선택은 `resource_input.credential_id`로 전달
 
         Athena는 `input_data.athena_input.rules[]`로 요청합니다.
-        - TABLE 단위 대량 선택 대신 REGION/DATABASE + `include_all_tables=true` 사용을 권장합니다.
-        - `include_all_tables`는 요청 시점의 현재값 기준으로 resolved snapshot을 고정합니다 (미래 신규 테이블 자동 포함 아님).
+        - TABLE 단위 대량 선택 대신 REGION/DATABASE 단위 선택을 권장합니다.
 
         **차단 정책 (ADR-006 D-002, D-008 / ADR-009 D-006):**
         - 이미 PENDING 상태의 승인 요청이 존재하면 409 `CONFLICT_REQUEST_PENDING` 반환
@@ -126,7 +125,7 @@ paths:
                 athena_table_limit_exceeded:
                   summary: Athena TABLE 개별 선택 한도 초과
                   value:
-                    error: { code: "VALIDATION_FAILED", message: "Athena TABLE 개별 선택 한도를 초과했습니다. include_all_tables를 사용해주세요." }
+                    error: { code: "VALIDATION_FAILED", message: "Athena TABLE 개별 선택 한도를 초과했습니다. REGION/DATABASE 단위로 요청해주세요." }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
