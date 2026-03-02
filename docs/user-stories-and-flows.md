@@ -770,160 +770,90 @@ Provider별 InlineInstallation 컴포넌트:
 
 ---
 
-## 6. Athena UI/UX 구성안 (Step 1 + 승인요청상세 공통)
+## 6. Athena UI/UX 구성안 (연동 대상 확정 중심)
 
-### 6.1 트리거 UI
+### 6.1 목표
 
-- `ResourceTable`에서 `resourceType=ATHENA_REGION` 행 클릭 시 Athena 상세 패널(또는 모달) 오픈
-- 승인 대기/이력/확정 정보 모달에서도 동일하게 Region row 클릭 시 Athena 상세 패널 오픈
+- Athena 연동 대상 선택은 `연동 대상 확정` 화면에서 수행한다.
+- Region 체크 시 Database 목록을 즉시 조회할 수 있어야 하며, Pagination/Spinner를 적용한다.
+- Region 단위로 `모든 Database 선택` 체크박스를 제공한다.
+- Database 클릭 시 `Table 선택` 탭을 열어 Table 개별 체크박스를 제공한다.
+- `승인 요청`/`승인 이력`/`확정 정보`는 동일 구조를 읽기 전용으로 재사용한다.
 
-### 6.2 모달 레이아웃 (RDS + Athena 혼합, 단순화 버전)
+### 6.2 정보 구조
 
-> 복잡도 축소 원칙: 한 화면에 모든 계층을 동시에 보여주지 않고,  
-> **좌측은 선택 요약 / 우측은 현재 선택된 리소스 상세**만 보여준다.
-
+```text
+Athena 연동 대상 선택
+└─ Region (checkbox)
+   ├─ [ ] 이 Region의 모든 Database 선택
+   └─ Database 목록 (pagination + spinner)
+      ├─ Database (checkbox)
+      │  ├─ [ ] 이 Database의 모든 Table 선택
+      │  └─ Table 선택 탭 (pagination + spinner)
+      │     └─ Table (checkbox)
+      └─ Database ...
 ```
+
+### 6.3 와이어프레임 (연동 대상 확정)
+
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ 연동 대상 확정 승인 요청                                                [X] │
+│ Cloud 리소스                                                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
+│ Athena 연동 대상 선택                                                       │
 │                                                                             │
-│  ┌──────────────────────────────┐  ┌─────────────────────────────────────┐ │
-│  │ 선택 리소스 요약              │  │ 리소스 상세(선택 항목 1개)          │ │
-│  │                              │  │                                     │ │
-│  │ [x] RDS prod-rds-orders      │  │ RDS prod-rds-orders                 │ │
-│  │ [x] RDS prod-rds-billing     │  │ - credential: [cred-001 v]          │ │
-│  │ [x] ATHENA us-east-1         │  │                                     │ │
-│  │ [ ] ATHENA us-west-2         │  │ (ATHENA 선택 시)                    │ │
-│  │                              │  │ [x] Region 선택                      │ │
-│  │ 제외 사유 기본값             │  │ [x] 현재 시점 모든 Table 포함        │ │
-│  │ [보안 정책상 현 시점 제외]    │  │                                     │ │
-│  │                              │  │ Database 목록 (페이지네이션)         │ │
-│  │                              │  │ [x] analytics_db  [상세]            │ │
-│  │                              │  │ [ ] billing_db    [상세]            │ │
-│  │                              │  │                                     │ │
-│  │                              │  │ billing_db 상세(펼침 시)             │ │
-│  │                              │  │ [x] billing_ledger                  │ │
-│  │                              │  │ [ ] billing_archive                 │ │
-│  │                              │  │ [ ] billing_tmp                     │ │
-│  └──────────────────────────────┘  └─────────────────────────────────────┘ │
+│ [x] athena:123456789012/ap-northeast-2                            [펼치기] │
 │                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                              [취소] [요청]                 │
+│ Region 설정                                                                  │
+│ [ ] 이 Region의 모든 Database 선택                                          │
+│                                                                             │
+│ Database 목록 (Page 1/5)                                      (⏳ 가능)    │
+│ [x] analytics_db (table_count: 1240)                              [탭 열기] │
+│ [ ] billing_db   (table_count: 320)                               [탭 열기] │
+│ [ ] audit_db     (table_count: 89)                                [탭 열기] │
+│                                              [이전] 1 / 5 [다음]           │
+│                                                                             │
+│ ┌─ Database 상세: analytics_db ──────────────────────────────────────────┐  │
+│ │ Tabs: [개요] [Table 선택]                                              │  │
+│ │                                                                        │  │
+│ │ [Table 선택 탭]                                                        │  │
+│ │ [ ] 이 Database의 모든 Table 선택                                      │  │
+│ │                                                                        │  │
+│ │ [x] orders_2026                                                        │  │
+│ │ [x] customers_2026                                                     │  │
+│ │ [ ] sandbox_tmp                                                        │  │
+│ │                                           [이전] 1 / 62 [다음]         │  │
+│ └────────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.3 인터랙션 규칙
+### 6.4 인터랙션 규칙
 
-- 기본 응답은 Region 요약만 렌더하고, Database/Table은 클릭 시점에만 조회한다
-- 페이지 이동 시 현재 컨텍스트(Region/Database/requestId/historyId)를 유지한다
-- 선택/제외는 별도 버튼이 아니라 체크박스 상태(체크/미체크)로만 표현한다
-- `include_all_tables`는 Region/Database 체크박스가 선택된 경우에만 보이며, 실제 전송은 승인 요청 POST에서만 수행한다
-- 미선택(제외) 상태의 항목에서는 `include_all_tables`를 숨긴다
-- 조회 API 응답에는 `include_all_tables`를 표시하지 않는다
-- 승인요청 상세 모달도 동일 drill-down UI를 사용하되 읽기 전용(체크박스 disabled)으로 표시한다
+1. Region 체크박스를 체크하면 선택 상태가 된다.
+2. Region을 펼치면 `GET .../athena/regions/{region}/databases?page&size`를 호출한다.
+3. Region의 `모든 Database 선택` 체크 시 해당 Region의 Database를 전체 선택 상태로 처리한다.
+4. Database 체크박스는 DB 단위 선택 상태를 의미한다.
+5. Database 클릭 시 `Table 선택` 탭을 표시한다.
+6. `Table 선택` 탭 진입 시 `GET .../athena/regions/{region}/databases/{database}/tables?page&size`를 호출한다.
+7. Database의 `모든 Table 선택` 체크 시 해당 Database의 Table을 전체 선택 상태로 처리한다.
+8. Table 체크박스로 개별 Table 선택/해제가 가능하다.
+9. 기본 리스트는 요약만 렌더하고 하위 계층은 사용자 액션 시점에만 lazy-load 한다.
 
-### 6.4 시퀀스 다이어그램 (요약)
+### 6.5 API 매핑
 
-```mermaid
-sequenceDiagram
-  participant U as User
-  participant UI as Athena Detail UI
-  participant API as Confirm API
+| 동작 | Method | Path |
+|------|--------|------|
+| Region 하위 Database 조회 | GET | `/api/v1/target-sources/{id}/athena/regions/{region}/databases?page={page}&size={size}` |
+| Database 하위 Table 조회 | GET | `/api/v1/target-sources/{id}/athena/regions/{region}/databases/{database}/tables?page={page}&size={size}` |
+| 연동 대상 확정 요청 제출 | POST | `/api/v1/target-sources/{id}/approval-requests` (`athena_input.rules`) |
 
-  U->>UI: ATHENA_REGION 클릭
-  UI->>API: GET /athena/regions/{region}/databases?page&size
-  API-->>UI: DatabasePageResponse
-  U->>UI: database 클릭
-  UI->>API: GET /athena/regions/{region}/databases/{database}/tables?page&size
-  API-->>UI: TablePageResponse
-  U->>UI: 승인 요청 제출
-  UI->>API: POST /approval-requests (athena_input.rules + include_all_tables)
-  API-->>UI: 201 created
-```
+### 6.6 승인 요청/이력/확정 정보 표시 (읽기 전용)
 
-### 6.5 RDS + Athena 혼합 표시 예시
+- 승인 요청 상세, 승인 이력 상세, 확정 정보 화면은 동일한 Region/Database/Table 계층 UI를 사용한다.
+- 체크박스는 disabled 상태로 표시하며, 사용자 입력은 받지 않는다.
+- 상세 계층 조회는 각각의 스냅샷 endpoint를 사용한다 (`approval-request`, `approval-history`, `confirmed-integration`, `approved-integration`).
 
-#### 리소스 테이블 표시 (Step 1)
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ResourceTable                                                                             │
-├────┬────────────────────────────────────────┬────────────────┬──────────────┬────────────┤
-│Sel │ Resource                               │ Type           │ Region       │ Status     │
-├────┼────────────────────────────────────────┼────────────────┼──────────────┼────────────┤
-│ ☑  │ prod-rds-orders                        │ RDS            │ us-east-1    │ connected  │
-│ ☑  │ prod-rds-billing                       │ RDS            │ us-east-1    │ connected  │
-│ ☑  │ athena:123456789012/us-east-1          │ ATHENA_REGION  │ us-east-1    │ selectable │
-│    │   └ 클릭 시 Database/Table drill-down  │                │              │            │
-│ ☐  │ athena:123456789012/us-west-2          │ ATHENA_REGION  │ us-west-2    │ selectable │
-└────┴────────────────────────────────────────┴────────────────┴──────────────┴────────────┘
-```
-
-- RDS는 기존 방식대로 리소스 행에서 직접 선택/credential 할당
-- Athena는 Region 행(`ATHENA_REGION`)을 선택한 뒤 상세는 drill-down 조회
-- 하나의 테이블에서 함께 보이되, 선택 모델만 다르게 동작
-
-#### Athena 상세 패널 표시 (혼합, 체크박스 트리)
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Athena 상세 (us-east-1)                                                     │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ [x] Region: athena:123456789012/us-east-1                                    │
-│ [x] 현재 시점 모든 Table 포함 (Region)                                        │
-│                                                                              │
-│ [Database 목록]                                                               │
-│  [x] analytics_db                                                             │
-│      [x] 현재 시점 모든 Table 포함 (Database)                                 │
-│  [ ] billing_db                                                               │
-│      (미선택이므로 include_all_tables 미노출)                                │
-│                                                                              │
-│ [Table 목록 - billing_db]                                                     │
-│  [x] billing_ledger                                                           │
-│  [ ] billing_archive                                                          │
-│  [ ] billing_tmp                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                  [취소] [적용]              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-#### 승인 요청 모달 표시 (혼합, 기존 ApprovalRequestModal과 동일 패턴)
-
-- 기존 승인요청 모달 레이아웃을 그대로 사용한다
-  - 상단: 요청 대상 요약
-  - 중단: `포함 리소스` / `제외 리소스` 목록
-  - 하단: `제외 사유 기본값` + `취소/요청` 액션
-- Athena는 목록 행에서 `Region 요약 + 상세보기`만 보여주고, drill-down은 상세 패널에서 조회한다
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ 연동 대상 확정 승인 요청                                                     │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ [포함 리소스] (기존 테이블 UI 동일)                                           │
-│  - RDS  | prod-rds-orders   | credential: cred-001                           │
-│  - RDS  | prod-rds-billing  | credential: cred-002                           │
-│  - ATHENA_REGION | athena:123456789012/us-east-1 | 선택 Table: 1240 | [상세] │
-│                                                                              │
-│ [제외 리소스] (기존 테이블 UI 동일)                                           │
-│  - ATHENA_REGION | athena:123456789012/us-west-2 | 선택 Table: 0  | [상세]  │
-│                                                                              │
-│ [제외 사유 기본값] 보안 정책상 현 시점 제외                                  │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                  [취소] [요청]              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-```
-[상세] 클릭 시 Athena drill-down 패널(또는 모달) 오픈
-  - [x] us-east-1
-    - [x] analytics_db (include_all_tables=true)
-    - [x] billing_db
-      - [x] billing_ledger
-      - [ ] billing_archive
-      - [ ] billing_tmp
-```
-
-#### 승인 요청 payload 예시 (혼합, 체크박스 기반)
+### 6.7 승인 요청 payload 예시
 
 ```json
 {
@@ -933,81 +863,31 @@ sequenceDiagram
         "resource_id": "rds:arn:aws:rds:us-east-1:123456789012:db:prod-rds-orders",
         "selected": true,
         "resource_input": { "credential_id": "cred-001" }
-      },
-      {
-        "resource_id": "rds:arn:aws:rds:us-east-1:123456789012:db:prod-rds-billing",
-        "selected": true,
-        "resource_input": { "credential_id": "cred-002" }
-      },
-      {
-        "resource_id": "athena:123456789012/us-west-2",
-        "selected": false,
-        "exclusion_reason": "현 시점 제외"
       }
     ],
     "athena_input": {
       "rules": [
         {
           "scope": "REGION",
-          "resource_id": "athena:123456789012/us-east-1",
-          "selected": true,
-          "include_all_tables": true
-        },
-        {
-          "scope": "DATABASE",
-          "resource_id": "athena:123456789012/us-east-1/analytics_db",
-          "selected": true,
-          "include_all_tables": true
-        },
-        {
-          "scope": "TABLE",
-          "resource_id": "athena:123456789012/us-east-1/billing_db/billing_ledger",
+          "resource_id": "athena:123456789012/ap-northeast-2",
           "selected": true
         },
         {
-          "scope": "TABLE",
-          "resource_id": "athena:123456789012/us-east-1/billing_db/billing_archive",
-          "selected": false
+          "scope": "DATABASE",
+          "resource_id": "athena:123456789012/ap-northeast-2/analytics_db",
+          "selected": true,
+          "include_all_tables": true
         },
         {
           "scope": "TABLE",
-          "resource_id": "athena:123456789012/us-east-1/billing_db/billing_tmp",
-          "selected": false
+          "resource_id": "athena:123456789012/ap-northeast-2/analytics_db/orders_2026",
+          "selected": true
         }
       ]
-    },
-    "exclusion_reason_default": "보안 정책상 현 시점 제외"
+    }
   }
 }
 ```
-
-#### 승인요청 상세 모달 표시 (드릴다운, 읽기 전용)
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ 요청 내용 확인 (requestId=req-20260302-001)                                 │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ [Athena Region 요약]                                                         │
-│  - athena:123456789012/us-east-1 (selected_table_count: 1240)               │
-│  - athena:123456789012/us-west-2 (selected_table_count: 0)                  │
-│                                                                              │
-│ [x] us-east-1 펼치기                                                         │
-│   ├─ [x] analytics_db  (include_all_tables: true)                            │
-│   └─ [x] billing_db                                                           │
-│       ├─ [x] billing_ledger                                                   │
-│       ├─ [ ] billing_archive                                                  │
-│       └─ [ ] billing_tmp                                                      │
-│                                                                              │
-│ ※ 체크박스는 읽기 전용(disabled), 펼침 시 drill-down API 호출               │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                              [닫기]         │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 6.6 확인 필요 포인트
-
-1. Athena 상세를 독립 모달로 고정할지, ResourceTable row expansion 패널로 둘지
-2. Table 목록에서 기본 페이지 크기(`size`)를 50/100 중 무엇으로 할지
 
 ---
 
@@ -1018,3 +898,4 @@ sequenceDiagram
 | 2026-02-25 | 구현 코드 기반 초안 작성 (AWS/Azure/GCP) |
 | 2026-03-02 | Athena Region 기반 시나리오/Flow/API/UX 구성안 추가 |
 | 2026-03-02 | 체크박스 기반 Athena 선택 UX + 승인요청 상세 drill-down 반영 |
+| 2026-03-02 | 연동 대상 확정 화면 중심 Athena UX로 재정의 (Region/Database/Table + Pagination + Tab) |
