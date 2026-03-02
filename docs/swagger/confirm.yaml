@@ -416,7 +416,7 @@ paths:
       x-expected-duration: "500ms ~ 5s"
       description: |
         Athena Database 클릭 시 Table 목록을 페이지 단위로 조회합니다.
-        TABLE 단위 개별 선택이 필요한 경우에만 사용하며, 대량 선택 시 include_all_tables 사용을 권장합니다.
+        TABLE 단위 개별 선택이 필요한 경우에만 사용합니다.
       responses:
         '200':
           description: 조회 성공
@@ -1231,10 +1231,6 @@ components:
           enum: [ATHENA_REGION]
         athena_region:
           type: string
-        include_all_tables:
-          type: boolean
-          nullable: true
-          description: "요약 노드 기준 전체 포함 여부"
         selected_table_count:
           type: integer
           nullable: true
@@ -1249,9 +1245,6 @@ components:
           description: "athena:{aws_account_id}/region/database 형식"
         athena_region: { type: string }
         database: { type: string }
-        include_all_tables:
-          type: boolean
-          nullable: true
 
     AthenaTableNode:
       type: object
