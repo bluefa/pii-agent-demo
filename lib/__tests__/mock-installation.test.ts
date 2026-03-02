@@ -131,6 +131,82 @@ describe('mock-installation', () => {
       expect(status.serviceTfCompleted).toBe(false);
       expect(status.bdcTfCompleted).toBe(false);
     });
+
+    it('terraform script name 규칙으로 그룹핑한다 (vpc/athena/dynamodb)', () => {
+      const store = getStore();
+      store.projects.push(createAwsProject('project-3', [
+        {
+          id: 'res-rds-1',
+          type: 'RDS',
+          resourceId: 'rds-1',
+          databaseType: 'MYSQL',
+          connectionStatus: 'PENDING',
+          isSelected: true,
+          awsType: 'RDS',
+          vpcId: 'vpc-seoul-001',
+          region: 'ap-northeast-2',
+          integrationCategory: 'TARGET',
+        },
+        {
+          id: 'res-rds-2',
+          type: 'RDS_CLUSTER',
+          resourceId: 'rds-2',
+          databaseType: 'POSTGRESQL',
+          connectionStatus: 'PENDING',
+          isSelected: true,
+          awsType: 'RDS_CLUSTER',
+          vpcId: 'vpc-seoul-001',
+          region: 'ap-northeast-2',
+          integrationCategory: 'TARGET',
+        },
+        {
+          id: 'res-athena-1',
+          type: 'ATHENA',
+          resourceId: 'athena-1',
+          databaseType: 'ATHENA',
+          connectionStatus: 'PENDING',
+          isSelected: true,
+          awsType: 'ATHENA',
+          region: 'ap-northeast-2',
+          integrationCategory: 'TARGET',
+        },
+        {
+          id: 'res-athena-2',
+          type: 'ATHENA',
+          resourceId: 'athena-2',
+          databaseType: 'ATHENA',
+          connectionStatus: 'PENDING',
+          isSelected: true,
+          awsType: 'ATHENA',
+          region: 'us-west-2',
+          integrationCategory: 'TARGET',
+        },
+        {
+          id: 'res-ddb-1',
+          type: 'DYNAMODB',
+          resourceId: 'ddb-1',
+          databaseType: 'DYNAMODB',
+          connectionStatus: 'PENDING',
+          isSelected: true,
+          awsType: 'DYNAMODB',
+          region: 'ap-northeast-2',
+          integrationCategory: 'TARGET',
+        },
+      ]));
+
+      const status = initializeInstallation('project-3', true);
+      const scriptNames = status.serviceTfScripts.map(script => script.label).sort();
+
+      expect(scriptNames).toEqual([
+        'athena_ap-northeast-2',
+        'athena_us-west-2',
+        'dynamodb_ap-northeast-2',
+        'vpc_vpc-seoul-001_ap-northeast-2',
+      ]);
+
+      const vpcScript = status.serviceTfScripts.find(script => script.label === 'vpc_vpc-seoul-001_ap-northeast-2');
+      expect(vpcScript?.resources).toHaveLength(2);
+    });
   });
 
   describe('getInstallationStatus', () => {
