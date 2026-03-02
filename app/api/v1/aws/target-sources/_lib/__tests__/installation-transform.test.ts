@@ -57,6 +57,12 @@ describe('installation-transform', () => {
       resourceCount: 1,
       status: 'COMPLETED',
     });
+    expect(result.serviceScripts[0].resources[0]).toMatchObject({
+      type: 'RDS',
+      resource_type: 'RDS',
+      resourceId: 'arn:aws:rds:ap-northeast-2:123456789012:db:demo',
+      resource_id: 'arn:aws:rds:ap-northeast-2:123456789012:db:demo',
+    });
 
     expect(result.serviceScripts[0].resources[0].installationDisplayStatus).toBe('NOT_INSTALLED');
     expect(result.serviceScripts[1].resources[0].installationDisplayStatus).toBe('NOT_INSTALLED');

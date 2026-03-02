@@ -45,7 +45,9 @@ const transformServiceScript = (
     ...(script.region && { region: script.region }),
     resources: script.resources.map(resource => ({
       resourceId: resource.resourceId,
+      resource_id: resource.resourceId,
       type: resource.type,
+      resource_type: resource.type,
       name: resource.name,
       installationDisplayStatus: toInstallationDisplayStatus(serviceStatus, bdcStatus),
     })),

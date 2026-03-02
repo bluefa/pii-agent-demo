@@ -368,9 +368,15 @@ components:
         resourceId:
           type: string
           description: "AWS Resource ID"
+        resource_id:
+          type: string
+          description: "AWS Resource ID (snake_case alias)"
         type:
           type: string
           description: "AWS Resource Type"
+        resource_type:
+          type: string
+          description: "AWS Resource Type (snake_case alias)"
         name:
           type: string
           description: "Resource 명칭"
