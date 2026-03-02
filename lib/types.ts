@@ -487,7 +487,9 @@ export type InstallationDisplayStatus = 'NOT_INSTALLED' | 'COMPLETED';
 
 export interface V1ResourceItem {
   resourceId: string;
+  resource_id?: string;
   type: string;
+  resource_type?: string;
   name: string;
   installationDisplayStatus?: InstallationDisplayStatus;
 }

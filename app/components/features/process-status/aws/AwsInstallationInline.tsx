@@ -5,10 +5,11 @@ import { statusColors, cn } from '@/lib/theme';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { Modal } from '@/app/components/ui/Modal';
 import { Badge } from '@/app/components/ui/Badge';
+import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { useModal } from '@/app/hooks/useModal';
-import type { AwsInstallationStatus } from '@/lib/types';
+import type { AwsInstallationStatus, AwsResourceType } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
@@ -46,11 +47,30 @@ const getProgressTextColor = (state: 'completed' | 'current' | 'pending') => {
   return statusColors.pending.textDark;
 };
 
-const getScriptStatusVariant = (status: ScriptStatus) => {
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'INSTALLING') return 'info';
-  if (status === 'FAILED') return 'error';
-  return 'pending';
+const AWS_RESOURCE_TYPES: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DOCUMENTDB', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
+
+const isAwsResourceType = (value: string): value is AwsResourceType =>
+  AWS_RESOURCE_TYPES.includes(value as AwsResourceType);
+
+const getScriptStatusDotColor = (status: ScriptStatus) => {
+  if (status === 'COMPLETED') return statusColors.success.dot;
+  if (status === 'INSTALLING') return statusColors.info.dot;
+  if (status === 'FAILED') return statusColors.error.dot;
+  return statusColors.pending.dot;
+};
+
+const getScriptStatusFillColor = (status: ScriptStatus) => {
+  if (status === 'COMPLETED') return statusColors.success.dot;
+  if (status === 'INSTALLING') return statusColors.info.dot;
+  if (status === 'FAILED') return statusColors.error.dot;
+  return statusColors.pending.dot;
+};
+
+const getScriptStatusPercent = (status: ScriptStatus) => {
+  if (status === 'COMPLETED') return 100;
+  if (status === 'INSTALLING') return 60;
+  if (status === 'FAILED') return 25;
+  return 0;
 };
 
 const getResourceInstallLabel = (
@@ -276,6 +296,7 @@ export const AwsInstallationInline = ({
               const scriptKey = `${script.scriptId ?? script.scriptName}`;
               const isExpanded = expandedScriptKey === scriptKey;
               const resourceCount = script.resourceCount ?? script.resources.length;
+              const scriptStatusPercent = getScriptStatusPercent(script.status);
 
               return (
                 <div key={scriptKey} className="rounded-lg border border-gray-200">
@@ -283,15 +304,31 @@ export const AwsInstallationInline = ({
                     onClick={() =>
                       setExpandedScriptKey(prev => (prev === scriptKey ? null : scriptKey))
                     }
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                    className="flex w-full items-start gap-3 px-4 py-3 text-left"
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
-                      {script.scriptName}
-                    </span>
-                    <span className="text-xs text-gray-500">{resourceCount}개 리소스</span>
-                    <Badge variant={getScriptStatusVariant(script.status)} size="sm">{script.status}</Badge>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-medium tracking-wide text-gray-400">terraform_script_name</p>
+                      <p className="truncate text-sm font-medium text-gray-800">{script.scriptName}</p>
+                      <p className="mt-1 text-xs text-gray-500">{resourceCount}개 리소스</p>
+                    </div>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'h-2.5 w-2.5 rounded-full',
+                          getScriptStatusDotColor(script.status),
+                          script.status === 'INSTALLING' && 'animate-pulse'
+                        )}
+                        title={script.status}
+                      />
+                      <span className="h-1.5 w-14 overflow-hidden rounded-full bg-gray-100">
+                        <span
+                          className={cn('block h-full rounded-full', getScriptStatusFillColor(script.status))}
+                          style={{ width: `${scriptStatusPercent}%` }}
+                        />
+                      </span>
+                    </div>
                     <svg
-                      className={cn('h-4 w-4 text-gray-500 transition-transform', isExpanded && 'rotate-180')}
+                      className={cn('mt-0.5 h-4 w-4 text-gray-500 transition-transform', isExpanded && 'rotate-180')}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -304,24 +341,48 @@ export const AwsInstallationInline = ({
                     <div className="border-t border-gray-100 px-4 py-3">
                       <p className="mb-2 text-xs text-gray-500">관련 리소스</p>
                       <ul className="space-y-1">
-                        {script.resources.map(resource => (
-                          <li
-                            key={resource.resourceId}
-                            className="flex items-center justify-between gap-2 rounded-md border border-gray-100 bg-gray-50 px-3 py-2"
-                          >
-                            <span className="text-sm text-gray-700">{resource.name}</span>
-                            <Badge
-                              variant={
-                                getResourceInstallLabel(resource.installationDisplayStatus, script.status) === '설치 완료'
-                                  ? 'success'
-                                  : 'pending'
-                              }
-                              size="sm"
+                        {script.resources.map(resource => {
+                          const resourceType = resource.resource_type ?? resource.type;
+                          const resourceId = resource.resource_id ?? resource.resourceId;
+                          const installLabel = getResourceInstallLabel(resource.installationDisplayStatus, script.status);
+
+                          return (
+                            <li
+                              key={resource.resourceId}
+                              className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2"
                             >
-                              {getResourceInstallLabel(resource.installationDisplayStatus, script.status)}
-                            </Badge>
-                          </li>
-                        ))}
+                              <div className="flex items-start gap-2">
+                                <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-md border border-gray-200 bg-white">
+                                  {isAwsResourceType(resourceType) ? (
+                                    <AwsServiceIcon type={resourceType} size="sm" />
+                                  ) : (
+                                    <svg className="h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M12 3c4.4 0 8 1.3 8 3v12c0 1.7-3.6 3-8 3s-8-1.3-8-3V6c0-1.7 3.6-3 8-3Zm0 2c-3.8 0-6 .9-6 1s2.2 1 6 1 6-.9 6-1-2.2-1-6-1Zm-6 9v4c0 .1 2.2 1 6 1s6-.9 6-1v-4c-1.5.7-3.8 1-6 1s-4.5-.3-6-1Z" />
+                                    </svg>
+                                  )}
+                                </span>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <Badge variant="neutral" size="sm">resource_type</Badge>
+                                    <span className="text-xs font-medium text-gray-700">{resourceType}</span>
+                                    <Badge
+                                      variant={installLabel === '설치 완료' ? 'success' : 'pending'}
+                                      size="sm"
+                                    >
+                                      {installLabel}
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-1 break-all text-xs text-gray-600">
+                                    <span className="font-medium text-gray-500">resource_id</span>
+                                    {' '}
+                                    {resourceId}
+                                  </p>
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
