@@ -6,7 +6,6 @@ import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { Modal } from '@/app/components/ui/Modal';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
-import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import { useModal } from '@/app/hooks/useModal';
 import type { AwsInstallationStatus } from '@/lib/types';
 
@@ -33,9 +32,6 @@ const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
 
 type ProgressDetailType = 'SERVICE' | 'BDC';
 
-const getServiceResourceDisplayLabel = (scriptStatus: 'PENDING' | 'INSTALLING' | 'COMPLETED' | 'FAILED') =>
-  scriptStatus === 'COMPLETED' ? '설치 완료' : '설치 확인중';
-
 const getProgressStateColor = (state: 'completed' | 'current' | 'pending') => {
   if (state === 'completed') return cn(statusColors.success.dot, 'text-white');
   if (state === 'current') return cn(statusColors.info.dot, 'text-white');
@@ -55,7 +51,7 @@ export const AwsInstallationInline = ({
   const [status, setStatus] = useState<AwsInstallationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showScriptGuide, setShowScriptGuide] = useState(false);
+  const [expandedScriptKey, setExpandedScriptKey] = useState<string | null>(null);
   const detailModal = useModal<ProgressDetailType>();
 
   const fetchStatus = useCallback(async () => {
@@ -98,14 +94,6 @@ export const AwsInstallationInline = ({
       : status.bdcStatus.status === 'INSTALLING'
         ? '설치중'
         : '설치안됨';
-  const resourceRows = status.serviceScripts.flatMap(script =>
-    script.resources.map(resource => ({
-      key: `${script.scriptId ?? script.scriptName}-${resource.resourceId}`,
-      scriptLabel: script.scriptName,
-      scriptStatus: script.status,
-      resourceName: resource.name,
-    })),
-  );
 
   return (
     <div className="w-full space-y-3">
@@ -185,82 +173,59 @@ export const AwsInstallationInline = ({
 
       <Modal
         isOpen={detailModal.isOpen}
-        onClose={detailModal.close}
+        onClose={() => {
+          detailModal.close();
+          setExpandedScriptKey(null);
+        }}
         title={detailModal.data === 'SERVICE' ? '서비스 측 Terraform 스크립트 설치 상세' : 'BDC 측 리소스 설치 상세'}
         size="lg"
       >
         {detailModal.data === 'SERVICE' ? (
-          <div className="space-y-3">
-            <p className="text-sm text-gray-600">
-              상태 코드: <span className="font-medium">COMPLETED / INSTALLING / FAILED / PENDING</span>
-            </p>
-            <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500">
-                    <th className="px-4 py-2.5">Terraform Script</th>
-                    <th className="px-4 py-2.5">상태 코드</th>
-                    <th className="px-4 py-2.5">리소스 수</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {status.serviceScripts.map(script => (
-                    <tr key={script.scriptId ?? script.scriptName}>
-                      <td className="px-4 py-2.5 text-sm text-gray-800">{script.scriptName}</td>
-                      <td className="px-4 py-2.5 text-sm text-gray-700">{script.status}</td>
-                      <td className="px-4 py-2.5 text-sm text-gray-700">{script.resourceCount ?? script.resources.length}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-2">
+            {status.serviceScripts.map(script => {
+              const scriptKey = `${script.scriptId ?? script.scriptName}`;
+              const isExpanded = expandedScriptKey === scriptKey;
 
-            <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500">
-                    <th className="px-4 py-2.5">Script</th>
-                    <th className="px-4 py-2.5">Resource</th>
-                    <th className="px-4 py-2.5">설치 상태</th>
-                    <th className="px-4 py-2.5">조치</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {resourceRows.map(row => {
-                    const displayStatus = getServiceResourceDisplayLabel(row.scriptStatus);
-                    const isCompleted = row.scriptStatus === 'COMPLETED';
+              return (
+                <div key={scriptKey} className="rounded-lg border border-gray-200">
+                  <button
+                    onClick={() =>
+                      setExpandedScriptKey(prev => (prev === scriptKey ? null : scriptKey))
+                    }
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
+                      {script.scriptName}
+                    </span>
+                    <span className="text-sm text-gray-700">{script.status}</span>
+                    <svg
+                      className={cn('h-4 w-4 text-gray-500 transition-transform', isExpanded && 'rotate-180')}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
 
-                    return (
-                      <tr key={row.key}>
-                        <td className="px-4 py-2.5 text-sm text-gray-800">{row.scriptLabel}</td>
-                        <td className="px-4 py-2.5 text-sm text-gray-800">{row.resourceName}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={cn(
-                            'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                            isCompleted ? statusColors.success.bg : statusColors.pending.bg,
-                            isCompleted ? statusColors.success.textDark : statusColors.pending.textDark
-                          )}>
-                            {displayStatus}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-sm">
-                          {isCompleted ? (
-                            <span className="text-gray-400">-</span>
-                          ) : (
-                            <button
-                              onClick={() => setShowScriptGuide(true)}
-                              className={cn('text-sm font-medium hover:underline', statusColors.warning.textDark)}
-                            >
-                              설치 가이드
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  {isExpanded && (
+                    <div className="border-t border-gray-100 px-4 py-3">
+                      <p className="mb-2 text-xs text-gray-500">관련 리소스</p>
+                      <ul className="space-y-1">
+                        {script.resources.map(resource => (
+                          <li
+                            key={resource.resourceId}
+                            className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                          >
+                            {resource.name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="space-y-3">
@@ -282,8 +247,6 @@ export const AwsInstallationInline = ({
           </div>
         )}
       </Modal>
-
-      {showScriptGuide && <TfScriptGuideModal onClose={() => setShowScriptGuide(false)} />}
     </div>
   );
 };
