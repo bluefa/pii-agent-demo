@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as mockHistory from '@/lib/mock-history';
 import * as tcFns from '@/lib/mock-test-connection';
+import * as mockInstallation from '@/lib/mock-installation';
+import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
@@ -336,12 +338,27 @@ export const mockConfirm = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
     const actor = { id: user.id, name: user.name };
+    const terraformState = project.cloudProvider === 'AWS'
+      ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
+      : { bdcTf: 'PENDING' as const };
 
     await mockData.updateProject(projectId, {
       resources: updatedResources,
       status: updatedStatus,
       processStatus: calculatedProcessStatus,
+      terraformState: {
+        ...project.terraformState,
+        ...terraformState,
+      },
     });
+
+    // AWS 변경 요청 시 설치 진행 상태를 항상 초기화한다.
+    if (project.cloudProvider === 'AWS') {
+      const previousAwsInstallation = getStore().awsInstallations.get(projectId);
+      const hasTfPermission = previousAwsInstallation?.hasTfPermission
+        ?? (project.terraformState.serviceTf === 'COMPLETED');
+      mockInstallation.initializeInstallation(projectId, hasTfPermission);
+    }
 
     // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
     const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;

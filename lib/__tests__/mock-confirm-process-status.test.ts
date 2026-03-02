@@ -10,6 +10,7 @@ import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type { Project, ProjectStatus, Resource } from '@/lib/types';
+import type { LegacyAwsInstallationStatus } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 
 // --- Helpers ---
@@ -328,6 +329,82 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(approvedData.approved_integration.resource_infos).toHaveLength(2);
       expect(approvedData.approved_integration.approved_at).toBeDefined();
       expect(approvedData.approved_integration.request_id).toMatch(/^req-/);
+    });
+
+    it('Cloud 리소스 재확정 시 AWS 설치 상태를 초기화한다', async () => {
+      const completedStatus: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: { status: 'APPROVED', approvedAt: '2026-01-10T00:00:00Z' },
+        installation: { status: 'COMPLETED', completedAt: '2026-01-12T00:00:00Z' },
+        connectionTest: { status: 'PASSED', passedAt: '2026-01-13T00:00:00Z' },
+      };
+
+      addTestProject({
+        processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+        status: completedStatus,
+        terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+        resources: [
+          createTestResource('res-1', {
+            isSelected: true,
+            connectionStatus: 'CONNECTED',
+            awsType: 'RDS',
+            region: 'ap-northeast-2',
+            vpcId: 'vpc-seoul-001',
+          }),
+          createTestResource('res-2', {
+            isSelected: true,
+            connectionStatus: 'CONNECTED',
+            awsType: 'DYNAMODB',
+            region: 'ap-northeast-2',
+          }),
+        ],
+      });
+
+      const store = getStore();
+      const legacyInstallation: LegacyAwsInstallationStatus = {
+        provider: 'AWS',
+        hasTfPermission: true,
+        serviceTfScripts: [
+          {
+            id: 'legacy-script',
+            type: 'VPC_ENDPOINT',
+            status: 'COMPLETED',
+            label: 'legacy-script',
+            vpcId: 'vpc-legacy',
+            region: 'ap-northeast-2',
+            resources: [{ resourceId: 'legacy-rds', type: 'RDS', name: 'legacy-rds' }],
+            completedAt: '2026-01-12T00:00:00Z',
+          },
+        ],
+        bdcTf: { status: 'COMPLETED', completedAt: '2026-01-12T00:00:00Z' },
+        serviceTfCompleted: true,
+        bdcTfCompleted: true,
+        completedAt: '2026-01-12T00:00:00Z',
+      };
+      store.awsInstallations.set(TEST_PROJECT_ID, legacyInstallation);
+
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+
+      const resetInstallation = store.awsInstallations.get(TEST_PROJECT_ID);
+      expect(resetInstallation).toBeDefined();
+      expect(resetInstallation?.completedAt).toBeUndefined();
+      expect(resetInstallation?.bdcTf.status).toBe('PENDING');
+      expect(resetInstallation?.serviceTfScripts.length).toBeGreaterThan(0);
+      expect(resetInstallation?.serviceTfScripts.every((script) => script.status === 'PENDING')).toBe(true);
+      expect(resetInstallation?.serviceTfScripts.map((script) => script.label)).toEqual(
+        expect.arrayContaining([
+          'dynamodb_ap-northeast-2',
+          'vpc_vpc-seoul-001_ap-northeast-2',
+        ]),
+      );
+
+      const updatedProject = store.projects.find((p) => p.id === TEST_PROJECT_ID);
+      expect(updatedProject?.terraformState.serviceTf).toBe('PENDING');
+      expect(updatedProject?.terraformState.bdcTf).toBe('PENDING');
     });
   });
 
