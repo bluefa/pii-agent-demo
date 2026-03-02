@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Resource, SecretKey, VmDatabaseConfig, AwsResourceType } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { AWS_RESOURCE_TYPE_LABELS, REGION_LABELS } from '@/lib/constants/labels';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { ResourceRow } from './ResourceRow';
@@ -9,6 +10,12 @@ import { ClusterRow } from './ClusterRow';
 import { statusColors, cn, providerColors, textColors, bgColors } from '@/lib/theme';
 
 const COLLAPSE_THRESHOLD = 5;
+
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
 
 interface ResourceTypeGroupProps {
   resourceType: AwsResourceType;
@@ -26,6 +33,9 @@ interface ResourceTypeGroupProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 const groupByRegion = (resources: Resource[]): Map<string, Resource[]> => {
@@ -60,6 +70,9 @@ export const ResourceTypeGroup = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  athenaRules,
+  onAthenaRulesChange,
+  athenaRegionsByResourceId,
 }: ResourceTypeGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const regionGroups = groupByRegion(resources);
@@ -168,6 +181,9 @@ export const ResourceTypeGroup = ({
                 expandedVmId={expandedVmId}
                 onVmConfigToggle={onVmConfigToggle}
                 onVmConfigSave={onVmConfigSave}
+                athenaRules={athenaRules}
+                onAthenaRulesChange={onAthenaRulesChange}
+                athenaRegionsByResourceId={athenaRegionsByResourceId}
               />
             )
           ))}

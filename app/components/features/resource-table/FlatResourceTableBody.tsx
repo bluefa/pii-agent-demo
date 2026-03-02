@@ -1,8 +1,15 @@
 'use client';
 
 import { Resource, CloudProvider, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import type { AthenaSelectionRule } from '@/app/lib/api';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceRow } from './ResourceRow';
+
+interface AthenaRegionCandidate {
+  resource_id: string;
+  athena_region: string;
+  total_table_count: number;
+}
 
 interface ResourceTableBodyProps {
   resources: Resource[];
@@ -20,6 +27,9 @@ interface ResourceTableBodyProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  athenaRules?: AthenaSelectionRule[];
+  onAthenaRulesChange?: (rules: AthenaSelectionRule[]) => void;
+  athenaRegionsByResourceId?: Record<string, AthenaRegionCandidate>;
 }
 
 export const FlatResourceTableBody = ({
@@ -38,6 +48,9 @@ export const FlatResourceTableBody = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  athenaRules,
+  onAthenaRulesChange,
+  athenaRegionsByResourceId,
 }: ResourceTableBodyProps) => (
   <>
     <thead>
@@ -69,6 +82,9 @@ export const FlatResourceTableBody = ({
           expandedVmId={expandedVmId}
           onVmConfigToggle={onVmConfigToggle}
           onVmConfigSave={onVmConfigSave}
+          athenaRules={athenaRules}
+          onAthenaRulesChange={onAthenaRulesChange}
+          athenaRegionsByResourceId={athenaRegionsByResourceId}
         />
       ))}
     </tbody>
