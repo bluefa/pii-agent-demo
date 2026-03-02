@@ -482,19 +482,38 @@ export interface V1LastCheck {
   failReason?: string;
 }
 
+export type V1ScriptStatus = 'PENDING' | 'COMPLETED' | 'FAILED';
+export type InstallationDisplayStatus = 'NOT_INSTALLED' | 'COMPLETED';
+
+export interface V1ResourceItem {
+  resourceId: string;
+  type: string;
+  name: string;
+  installationDisplayStatus?: InstallationDisplayStatus;
+}
+
 export interface V1ServiceScript {
+  scriptId?: string;
   scriptName: string;
-  status: 'PENDING' | 'COMPLETED' | 'FAILED';
+  terraformScriptName?: string;
+  status: V1ScriptStatus;
+  resourceCount?: number;
   region?: string;
-  resources: { resourceId: string; type: string; name: string }[];
+  resources: V1ResourceItem[];
+}
+
+export interface AwsInstallationActionSummary {
+  serviceActionRequired: boolean;
+  bdcInstallationRequired: boolean;
 }
 
 export interface AwsInstallationStatus {
   hasExecutionPermission: boolean;
   executionRoleArn?: string;
   serviceScripts: V1ServiceScript[];
-  bdcStatus: { status: 'PENDING' | 'COMPLETED' | 'FAILED' };
+  bdcStatus: { status: V1ScriptStatus };
   lastCheck: V1LastCheck;
+  actionSummary?: AwsInstallationActionSummary;
 }
 
 // TF Script
