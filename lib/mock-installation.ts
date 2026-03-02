@@ -90,6 +90,7 @@ const SCRIPT_DURATIONS: Record<string, number> = {
 };
 const VPC_STAGGER_MS = 2000;
 const BDC_TF_DURATION = 5000;
+const ENABLE_INSTALLATION_AUTO_PROGRESS = false;
 
 // ===== TF Role 검증 =====
 
@@ -297,7 +298,12 @@ export const getInstallationStatus = (projectId: string): LegacyAwsInstallationS
   if (!status) return null;
 
   // Auto mode time-based progression
-  if (status.hasTfPermission && !status.completedAt && status._scriptTimings) {
+  if (
+    ENABLE_INSTALLATION_AUTO_PROGRESS &&
+    status.hasTfPermission &&
+    !status.completedAt &&
+    status._scriptTimings
+  ) {
     const now = Date.now();
 
     // Update each service TF script independently

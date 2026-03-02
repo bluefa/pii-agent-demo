@@ -226,7 +226,7 @@ describe('mock-installation', () => {
       expect(status?.bdcTfCompleted).toBe(false);
     });
 
-    it('자동 설치: Service TF 완료 (10초 후)', () => {
+    it('자동 설치: Service TF는 시간 경과만으로 완료되지 않는다 (10초 후)', () => {
       const store = getStore();
       store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
@@ -235,27 +235,24 @@ describe('mock-installation', () => {
       vi.advanceTimersByTime(10000);
 
       const status = getInstallationStatus('project-1');
-      expect(status?.serviceTfCompleted).toBe(true);
+      expect(status?.serviceTfCompleted).toBe(false);
       expect(status?.bdcTfCompleted).toBe(false);
     });
 
-    it('자동 설치: 모든 TF 완료 (Service TF 후 BDC TF)', () => {
+    it('자동 설치: 시간 경과만으로 TF가 완료되지 않는다', () => {
       const store = getStore();
       store.projects.push(createAwsProject('project-1'));
       initializeInstallation('project-1', true);
 
-      // Service TF 완료 대기
+      // 시간 경과
       vi.advanceTimersByTime(10000);
-      // 첫 번째 조회로 BDC TF 시작 트리거
       getInstallationStatus('project-1');
-
-      // BDC TF 완료 대기
       vi.advanceTimersByTime(5000);
 
       const status = getInstallationStatus('project-1');
-      expect(status?.serviceTfCompleted).toBe(true);
-      expect(status?.bdcTfCompleted).toBe(true);
-      expect(status?.completedAt).toBeDefined();
+      expect(status?.serviceTfCompleted).toBe(false);
+      expect(status?.bdcTfCompleted).toBe(false);
+      expect(status?.completedAt).toBeUndefined();
     });
   });
 
