@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { statusColors, cn } from '@/lib/theme';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
-import { StepProgressBar } from '@/app/components/features/process-status/StepProgressBar';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import type { AwsInstallationStatus } from '@/lib/types';
-import type { ProgressBarStep } from '@/app/components/features/process-status/StepProgressBar';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
@@ -31,30 +29,19 @@ const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
   return !summary.serviceActionRequired && !summary.bdcInstallationRequired;
 };
 
-const getScriptBadge = (scriptStatus: 'PENDING' | 'COMPLETED' | 'FAILED') => {
-  if (scriptStatus === 'COMPLETED') {
-    return {
-      label: '설치 완료',
-      colors: statusColors.success,
-    };
-  }
-
-  return {
-    label: '서비스 측 확인 필요',
-    colors: statusColors.warning,
-  };
-};
-
 const getResourceDisplayLabel = (status?: 'NOT_INSTALLED' | 'COMPLETED') =>
   status === 'COMPLETED' ? '설치 완료' : '설치 확인중';
 
-const getScriptStepState = (
-  scriptStatus: 'PENDING' | 'COMPLETED' | 'FAILED',
-  index: number,
-  firstPendingScriptIndex: number,
-): ProgressBarStep['state'] => {
-  if (scriptStatus === 'COMPLETED') return 'completed';
-  return firstPendingScriptIndex === index ? 'current' : 'pending';
+const getProgressStateColor = (state: 'completed' | 'current' | 'pending') => {
+  if (state === 'completed') return cn(statusColors.success.dot, 'text-white');
+  if (state === 'current') return cn(statusColors.info.dot, 'text-white');
+  return cn(statusColors.pending.bg, statusColors.pending.text);
+};
+
+const getProgressTextColor = (state: 'completed' | 'current' | 'pending') => {
+  if (state === 'completed') return statusColors.success.textDark;
+  if (state === 'current') return statusColors.info.textDark;
+  return statusColors.pending.textDark;
 };
 
 export const AwsInstallationInline = ({
@@ -65,7 +52,6 @@ export const AwsInstallationInline = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showScriptGuide, setShowScriptGuide] = useState(false);
-  const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -92,104 +78,111 @@ export const AwsInstallationInline = ({
   const actionSummary = getActionSummary(status);
   const serviceActionRequired = actionSummary.serviceActionRequired;
   const bdcInstallationRequired = actionSummary.bdcInstallationRequired;
-  const firstPendingScriptIndex = status.serviceScripts.findIndex(script => script.status !== 'COMPLETED');
-  const allServiceScriptsCompleted = firstPendingScriptIndex === -1;
-  const bdcStepState: ProgressBarStep['state'] = bdcInstallationRequired
-    ? allServiceScriptsCompleted
+  const serviceProgressState: 'completed' | 'current' | 'pending' = serviceActionRequired ? 'current' : 'completed';
+  const bdcProgressState: 'completed' | 'current' | 'pending' = serviceActionRequired
+    ? 'pending'
+    : bdcInstallationRequired
       ? 'current'
-      : 'pending'
-    : 'completed';
-  const installationSteps: ProgressBarStep[] = [
-    ...status.serviceScripts.map((script, index) => ({
-      id: script.scriptId ?? script.scriptName,
-      label: script.terraformScriptName ?? script.scriptName,
-      state: getScriptStepState(script.status, index, firstPendingScriptIndex),
+      : 'completed';
+  const serviceStatusLabel = serviceActionRequired ? '설치 확인중' : '설치 확인 완료';
+  const bdcStatusLabel = bdcInstallationRequired ? '설치안됨' : '설치됨';
+  const resourceRows = status.serviceScripts.flatMap(script =>
+    script.resources.map(resource => ({
+      key: `${script.scriptId ?? script.scriptName}-${resource.resourceId}`,
+      scriptLabel: script.scriptName,
+      resourceName: resource.name,
+      installationDisplayStatus: resource.installationDisplayStatus,
     })),
-    {
-      id: 'bdc-installation-check',
-      label: 'BDC 리소스 설치 확인',
-      state: bdcStepState,
-    },
-  ];
-  const selectedScript =
-    status.serviceScripts.find(script =>
-      script.scriptId ? script.scriptId === selectedScriptId : script.scriptName === selectedScriptId
-    ) ??
-    status.serviceScripts.find(script => script.status !== 'COMPLETED') ??
-    status.serviceScripts[0];
+  );
 
   return (
     <div className="w-full space-y-3">
-      <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
-        <StepProgressBar customSteps={installationSteps} />
-        <p className={cn(
-          'mt-1 text-xs',
-          serviceActionRequired ? statusColors.warning.textDark : statusColors.pending.textDark
-        )}>
-          서비스 측 Terraform 설치 확인 이후 BDC 측 리소스 설치 확인이 진행됩니다.
-        </p>
-      </div>
-
       {status.serviceScripts.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg border border-gray-200 bg-white">
             <div className="border-b border-gray-100 px-4 py-3">
-              <h4 className="text-sm font-semibold text-gray-800">Service Terraform Scripts</h4>
+              <h4 className="text-sm font-semibold text-gray-800">설치 Progress</h4>
             </div>
-            <div className="p-2">
-              {status.serviceScripts.map(script => {
-                const scriptId = script.scriptId ?? script.scriptName;
-                const isSelected = selectedScript?.scriptId === script.scriptId ||
-                  (!selectedScript?.scriptId && selectedScript?.scriptName === script.scriptName);
-                const badge = getScriptBadge(script.status);
-                return (
-                  <button
-                    key={scriptId}
-                    onClick={() => setSelectedScriptId(script.scriptId ?? script.scriptName)}
-                    className={cn(
-                      'w-full rounded-lg border px-3 py-2 text-left transition-colors',
-                      isSelected ? 'border-gray-300 bg-gray-50' : 'border-transparent hover:bg-gray-50'
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-gray-800">
-                        {script.terraformScriptName ?? script.scriptName}
-                      </span>
-                      <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', badge.colors.bg, badge.colors.textDark)}>
-                        {badge.label}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-500">리소스 {script.resourceCount ?? script.resources.length}개</p>
-                  </button>
-                );
-              })}
+            <div className="space-y-1 p-2">
+              <div className="rounded-lg border px-3 py-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className={cn(
+                      'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+                      getProgressStateColor(serviceProgressState),
+                    )}>
+                      1
+                    </span>
+                    <span className="mt-1 h-6 w-px bg-gray-200" />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">서비스 측 Terraform 스크립트 설치</p>
+                    <p className={cn(
+                      'mt-0.5 text-xs',
+                      getProgressTextColor(serviceProgressState),
+                    )}>
+                      {serviceStatusLabel}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border px-3 py-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className={cn(
+                      'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold',
+                      getProgressStateColor(bdcProgressState),
+                    )}>
+                      2
+                    </span>
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">BDC 측 리소스 설치</p>
+                    <p className={cn(
+                      'mt-0.5 text-xs',
+                      getProgressTextColor(bdcProgressState),
+                    )}>
+                      {bdcStatusLabel}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="px-1 pt-1 text-xs text-gray-500">
+                서비스 측 TF 스크립트 설치 확인 완료 후 BDC 측 설치 여부를 확인합니다.
+              </p>
             </div>
           </div>
 
           <div className="rounded-lg border border-gray-200 bg-white">
             <div className="border-b border-gray-100 px-4 py-3">
               <h4 className="text-sm font-semibold text-gray-800">
-                {selectedScript ? `${selectedScript.terraformScriptName ?? selectedScript.scriptName} 리소스` : '리소스'}
+                설치 대상 리소스
               </h4>
             </div>
 
-            {selectedScript ? (
+            {resourceRows.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500">
+                      <th className="px-4 py-2.5">Script</th>
                       <th className="px-4 py-2.5">Resource</th>
                       <th className="px-4 py-2.5">설치 상태</th>
                       <th className="px-4 py-2.5">조치</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {selectedScript.resources.map(resource => {
-                      const displayStatus = getResourceDisplayLabel(resource.installationDisplayStatus);
-                      const isCompleted = resource.installationDisplayStatus === 'COMPLETED';
+                    {resourceRows.map(row => {
+                      const displayStatus = getResourceDisplayLabel(row.installationDisplayStatus);
+                      const isCompleted = row.installationDisplayStatus === 'COMPLETED';
                       return (
-                        <tr key={resource.resourceId}>
-                          <td className="px-4 py-2.5 text-sm text-gray-800">{resource.name}</td>
+                        <tr key={row.key}>
+                          <td className="px-4 py-2.5 text-sm text-gray-800">{row.scriptLabel}</td>
+                          <td className="px-4 py-2.5 text-sm text-gray-800">{row.resourceName}</td>
                           <td className="px-4 py-2.5">
                             <span className={cn(
                               'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
