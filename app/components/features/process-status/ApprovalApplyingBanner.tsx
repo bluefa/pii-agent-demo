@@ -79,6 +79,7 @@ export const ApprovalApplyingBanner = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
+        targetSourceId={targetSourceId ?? 0}
         request={latestRequest}
       />
     </>

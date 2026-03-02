@@ -1,5 +1,10 @@
 import { Modal } from '@/app/components/ui/Modal';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
+import {
+  getApprovalRequestAthenaDatabases,
+  getApprovalRequestAthenaTables,
+  type ApprovalHistoryResponse,
+} from '@/app/lib/api';
+import { AthenaReadonlyTree } from '@/app/components/features/process-status/AthenaReadonlyTree';
 import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors, tableStyles } from '@/lib/theme';
 
 type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
@@ -7,12 +12,14 @@ type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
 interface ApprovalRequestDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
+  targetSourceId: number;
   request: ApprovalRequest | null;
 }
 
 export const ApprovalRequestDetailModal = ({
   isOpen,
   onClose,
+  targetSourceId,
   request,
 }: ApprovalRequestDetailModalProps) => {
   if (!request) return null;
@@ -97,6 +104,23 @@ export const ApprovalRequestDetailModal = ({
                   <span className={textColors.quaternary}>{r.exclusion_reason || exclusion_reason_default || '-'}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {!!request.athena_region_resources?.length && (
+          <div>
+            <h4 className={cn('text-sm font-medium mb-2', textColors.secondary)}>Athena 선택 상세</h4>
+            <div className={cn('border rounded-lg p-3', borderColors.default)}>
+              <AthenaReadonlyTree
+                regions={request.athena_region_resources}
+                loadDatabases={(region, page, size) =>
+                  getApprovalRequestAthenaDatabases(targetSourceId, request.id, region, page, size)
+                }
+                loadTables={(region, database, page, size) =>
+                  getApprovalRequestAthenaTables(targetSourceId, request.id, region, database, page, size)
+                }
+              />
             </div>
           </div>
         )}
