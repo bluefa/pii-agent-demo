@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { statusColors, cn } from '@/lib/theme';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { Modal } from '@/app/components/ui/Modal';
@@ -90,6 +90,7 @@ export const AwsInstallationInline = ({
   const [error, setError] = useState<string | null>(null);
   const [expandedScriptKey, setExpandedScriptKey] = useState<string | null>(null);
   const detailModal = useModal<ProgressDetailType>();
+  const completionNotifiedRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -97,7 +98,10 @@ export const AwsInstallationInline = ({
       setError(null);
       const data = await getAwsInstallationStatus(targetSourceId);
       setStatus(data);
-      if (isFullyCompleted(data)) onInstallComplete?.();
+      if (isFullyCompleted(data) && !completionNotifiedRef.current) {
+        completionNotifiedRef.current = true;
+        onInstallComplete?.();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
     } finally {
@@ -106,6 +110,7 @@ export const AwsInstallationInline = ({
   }, [onInstallComplete, targetSourceId]);
 
   useEffect(() => {
+    completionNotifiedRef.current = false;
     fetchStatus();
   }, [fetchStatus]);
 
