@@ -32,6 +32,7 @@ const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: Retu
 // Mock: APPLYING -> INSTALLING -> COMPLETED 순서로 전이
 const MOCK_APPLYING_DELAY_MS = 5_000;
 const MOCK_INSTALLATION_DELAY_MS = 15_000;
+const ENABLE_PROCESS_AUTO_TRANSITION = false;
 const approvalTimestampStore = new Map<string, number>();
 
 /** @internal 테스트 전용: store 초기화 */
@@ -625,6 +626,7 @@ export const mockConfirm = {
     // 2) 추가 경과 시 INSTALLING -> WAITING_CONNECTION_TEST
     const approvedAt = approvalTimestampStore.get(project.id);
     if (
+      ENABLE_PROCESS_AUTO_TRANSITION &&
       approvedIntegrationStore.has(project.id) &&
       approvedAt
     ) {
