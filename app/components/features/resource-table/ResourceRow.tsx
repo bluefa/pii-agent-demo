@@ -304,7 +304,7 @@ export const ResourceRow = ({
           <td colSpan={effectiveColSpan} className="px-6 py-4">
             <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-2">
               <p className={cn('text-xs', textColors.tertiary)}>
-                Athena Database/Table 확인 (선택은 승인 요청 모달에서 수행)
+                Athena Database/Table 확인 (선택은 연동 대상 확정 영역에서 수행)
               </p>
               <AthenaReadonlyTree
                 regions={[athenaSummary]}
