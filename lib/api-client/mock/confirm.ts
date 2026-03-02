@@ -762,7 +762,7 @@ export const mockConfirm = {
     const updatedStatus: ProjectStatus = {
       ...project.status,
       approval: { status: 'APPROVED', approvedAt: now },
-      installation: { status: 'PENDING' },
+      installation: { status: 'IN_PROGRESS' },
     };
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
