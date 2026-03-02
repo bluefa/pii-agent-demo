@@ -379,7 +379,7 @@ components:
 
     ScriptStatus:
       type: string
-      enum: [PENDING, COMPLETED, FAILED]
+      enum: [PENDING, INSTALLING, COMPLETED, FAILED]
       description: "설치 진행 상태"
 
     InstallationDisplayStatus:
