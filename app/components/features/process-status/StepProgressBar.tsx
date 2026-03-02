@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { cn, statusColors, getButtonClass } from '@/lib/theme';
+import { cn, statusColors } from '@/lib/theme';
 
 export const steps = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 확정' },
@@ -14,45 +14,68 @@ export const steps = [
 ];
 
 interface StepProgressBarProps {
-  currentStep: ProcessStatus;
+  currentStep?: ProcessStatus;
+  customSteps?: ProgressBarStep[];
   onGuideClick?: () => void;
 }
 
-export const StepProgressBar = ({ currentStep, onGuideClick }: StepProgressBarProps) => {
+export type ProgressBarStepState = 'completed' | 'current' | 'pending';
+
+export interface ProgressBarStep {
+  id: string;
+  label: string;
+  state: ProgressBarStepState;
+}
+
+const toDefaultProgressSteps = (currentStep: ProcessStatus): ProgressBarStep[] =>
+  steps.map((item, index) => {
+    const isCompleted = currentStep > item.step;
+    const isCurrent = currentStep === item.step;
+    const isLast = index === steps.length - 1;
+    const isCurrentComplete = isCurrent && isLast;
+
+    return {
+      id: String(item.step),
+      label: item.label,
+      state: isCompleted || isCurrentComplete ? 'completed' : isCurrent ? 'current' : 'pending',
+    };
+  });
+
+export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: StepProgressBarProps) => {
+  const progressSteps = currentStep ? toDefaultProgressSteps(currentStep) : [];
+
   return (
     <div className="flex items-center gap-4 mb-6">
       <div className="flex items-center justify-between flex-1">
-        {steps.map((item, index) => {
-          const isCompleted = currentStep > item.step;
-          const isCurrent = currentStep === item.step;
-          const isLast = index === steps.length - 1;
-          const isCurrentComplete = isCurrent && isLast;
+        {(customSteps ?? progressSteps).map((item, index, arr) => {
+          const isCompleted = item.state === 'completed';
+          const isCurrent = item.state === 'current';
+          const isLast = index === arr.length - 1;
 
           return (
-            <div key={item.step} className="flex items-center flex-1">
+            <div key={item.id} className="flex items-center flex-1">
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
                     'w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200',
                     isCompleted && cn(statusColors.success.dot, 'text-white'),
-                    isCurrentComplete && cn(statusColors.success.dot, 'text-white ring-2', statusColors.success.border),
-                    isCurrent && !isCurrentComplete && cn(statusColors.info.dot, 'text-white ring-2', statusColors.info.border),
+                    isCurrent && cn(statusColors.info.dot, 'text-white ring-2', statusColors.info.border),
                     !isCompleted && !isCurrent && cn(statusColors.pending.bg, statusColors.pending.text)
                   )}
                 >
-                  {isCompleted || isCurrentComplete ? (
+                  {isCompleted ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   ) : (
-                    item.step
+                    index + 1
                   )}
                 </div>
                 <span
                   className={cn(
-                    'mt-1.5 text-xs text-center max-w-[70px] leading-tight',
-                    (isCompleted || isCurrentComplete) && cn(statusColors.success.textDark, 'font-medium'),
-                    isCurrent && !isCurrentComplete && cn(statusColors.info.textDark, 'font-medium'),
+                    'mt-1.5 text-xs text-center max-w-[120px] leading-tight break-words',
+                    isCompleted && cn(statusColors.success.textDark, 'font-medium'),
+                    isCurrent && cn(statusColors.info.textDark, 'font-medium'),
                     !isCompleted && !isCurrent && statusColors.pending.text
                   )}
                 >

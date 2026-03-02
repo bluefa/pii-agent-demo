@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { statusColors, cn, getButtonClass } from '@/lib/theme';
-import { getAwsInstallationStatus, checkAwsInstallation } from '@/app/lib/api/aws';
+import { statusColors, cn } from '@/lib/theme';
+import { getAwsInstallationStatus } from '@/app/lib/api/aws';
+import { StepProgressBar } from '@/app/components/features/process-status/StepProgressBar';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import type { AwsInstallationStatus } from '@/lib/types';
+import type { ProgressBarStep } from '@/app/components/features/process-status/StepProgressBar';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
@@ -46,13 +48,21 @@ const getScriptBadge = (scriptStatus: 'PENDING' | 'COMPLETED' | 'FAILED') => {
 const getResourceDisplayLabel = (status?: 'NOT_INSTALLED' | 'COMPLETED') =>
   status === 'COMPLETED' ? '설치 완료' : '설치 확인중';
 
+const getScriptStepState = (
+  scriptStatus: 'PENDING' | 'COMPLETED' | 'FAILED',
+  index: number,
+  firstPendingScriptIndex: number,
+): ProgressBarStep['state'] => {
+  if (scriptStatus === 'COMPLETED') return 'completed';
+  return firstPendingScriptIndex === index ? 'current' : 'pending';
+};
+
 export const AwsInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
   const [status, setStatus] = useState<AwsInstallationStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScriptGuide, setShowScriptGuide] = useState(false);
   const [selectedScriptId, setSelectedScriptId] = useState<string | null>(null);
@@ -71,20 +81,6 @@ export const AwsInstallationInline = ({
     }
   }, [onInstallComplete, targetSourceId]);
 
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      setError(null);
-      const data = await checkAwsInstallation(targetSourceId);
-      setStatus(data);
-      if (isFullyCompleted(data)) onInstallComplete?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '상태 새로고침에 실패했습니다.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     fetchStatus();
   }, [fetchStatus]);
@@ -96,6 +92,25 @@ export const AwsInstallationInline = ({
   const actionSummary = getActionSummary(status);
   const serviceActionRequired = actionSummary.serviceActionRequired;
   const bdcInstallationRequired = actionSummary.bdcInstallationRequired;
+  const firstPendingScriptIndex = status.serviceScripts.findIndex(script => script.status !== 'COMPLETED');
+  const allServiceScriptsCompleted = firstPendingScriptIndex === -1;
+  const bdcStepState: ProgressBarStep['state'] = bdcInstallationRequired
+    ? allServiceScriptsCompleted
+      ? 'current'
+      : 'pending'
+    : 'completed';
+  const installationSteps: ProgressBarStep[] = [
+    ...status.serviceScripts.map((script, index) => ({
+      id: script.scriptId ?? script.scriptName,
+      label: script.terraformScriptName ?? script.scriptName,
+      state: getScriptStepState(script.status, index, firstPendingScriptIndex),
+    })),
+    {
+      id: 'bdc-installation-check',
+      label: 'BDC 리소스 설치 확인',
+      state: bdcStepState,
+    },
+  ];
   const selectedScript =
     status.serviceScripts.find(script =>
       script.scriptId ? script.scriptId === selectedScriptId : script.scriptName === selectedScriptId
@@ -105,32 +120,14 @@ export const AwsInstallationInline = ({
 
   return (
     <div className="w-full space-y-3">
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-3">
-        <div className={cn('rounded-lg border px-4 py-3', serviceActionRequired ? statusColors.warning.bg : statusColors.success.bg, serviceActionRequired ? statusColors.warning.border : statusColors.success.border)}>
-          <p className={cn('text-xs', serviceActionRequired ? statusColors.warning.text : statusColors.success.text)}>
-            서비스 담당자 조치
-          </p>
-          <p className={cn('mt-1 text-sm font-semibold', serviceActionRequired ? statusColors.warning.textDark : statusColors.success.textDark)}>
-            {serviceActionRequired ? '필요' : '불필요'}
-          </p>
-        </div>
-
-        <div className={cn('rounded-lg border px-4 py-3', bdcInstallationRequired ? statusColors.pending.bg : statusColors.success.bg, bdcInstallationRequired ? statusColors.pending.border : statusColors.success.border)}>
-          <p className={cn('text-xs', bdcInstallationRequired ? statusColors.pending.text : statusColors.success.text)}>
-            BDC 설치
-          </p>
-          <p className={cn('mt-1 text-sm font-semibold', bdcInstallationRequired ? statusColors.pending.textDark : statusColors.success.textDark)}>
-            {bdcInstallationRequired ? '필요' : '불필요'}
-          </p>
-        </div>
-
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className={getButtonClass('secondary', 'sm')}
-        >
-          {refreshing ? '확인 중...' : '상태 다시 확인'}
-        </button>
+      <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+        <StepProgressBar customSteps={installationSteps} />
+        <p className={cn(
+          'mt-1 text-xs',
+          serviceActionRequired ? statusColors.warning.textDark : statusColors.pending.textDark
+        )}>
+          서비스 측 Terraform 설치 확인 이후 BDC 측 리소스 설치 확인이 진행됩니다.
+        </p>
       </div>
 
       {status.serviceScripts.length > 0 && (
