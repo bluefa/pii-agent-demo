@@ -831,7 +831,7 @@ export const mockProjects = {
           return `arn:aws:dynamodb:${region}:${accountId}:table/pii_demo_table_${rand}`;
         }
         if (awsType === 'ATHENA') {
-          return `arn:aws:athena:${region}:${accountId}:workgroup/pii-demo-wg-${rand}`;
+          return `athena:${accountId}/${region}/pii_demo_${rand}/table_${rand}`;
         }
         return `arn:aws:redshift:${region}:${accountId}:cluster:pii-demo-rs-${rand}`;
       };
