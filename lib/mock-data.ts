@@ -571,7 +571,7 @@ export const mockProjects: Project[] = [
       {
         id: 'res-5',
         type: 'ATHENA',
-        resourceId: 'ath-002',
+        resourceId: 'athena:123456789012/ap-northeast-2/analytics_db/events_2026',
         databaseType: 'ATHENA',
         connectionStatus: 'PENDING',
         isSelected: true,
@@ -751,7 +751,7 @@ export const mockProjects: Project[] = [
       {
         id: 'res-14',
         type: 'ATHENA',
-        resourceId: 'ath-999',
+        resourceId: 'athena:123456789012/ap-northeast-1/default/new_scan_001',
         databaseType: 'ATHENA',
         connectionStatus: 'PENDING',
         isSelected: false,
