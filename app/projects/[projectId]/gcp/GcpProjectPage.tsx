@@ -27,6 +27,12 @@ interface GcpProjectPageProps {
   onProjectUpdate: (project: Project) => void;
 }
 
+const isAthenaResource = (resource: Project['resources'][number]): boolean =>
+  resource.awsType === 'ATHENA' ||
+  resource.type === 'ATHENA' ||
+  resource.type === 'ATHENA_REGION' ||
+  resource.databaseType === 'ATHENA';
+
 export const GcpProjectPage = ({
   project,
   credentials,
@@ -79,7 +85,8 @@ export const GcpProjectPage = ({
   };
 
   const handleConfirmTargets = () => {
-    if (selectedIds.length === 0) return;
+    const hasAthenaResource = project.resources.some(isAthenaResource);
+    if (selectedIds.length === 0 && !hasAthenaResource) return;
 
     const selectedVmResources = project.resources.filter(
       (r) => selectedIds.includes(r.id) && isVmResource(r)
@@ -98,7 +105,7 @@ export const GcpProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
-      const resourceInputs = project.resources.map(r => {
+      const resourceInputs = project.resources.filter((resource) => !isAthenaResource(resource)).map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -129,7 +136,12 @@ export const GcpProjectPage = ({
       });
 
       await createApprovalRequest(project.targetSourceId, {
-        input_data: { resource_inputs: resourceInputs },
+        input_data: {
+          resource_inputs: resourceInputs,
+          ...(formData.athena_rules && formData.athena_rules.length > 0
+            ? { athena_input: { rules: formData.athena_rules } }
+            : {}),
+        },
       });
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
@@ -236,7 +248,7 @@ export const GcpProjectPage = ({
               )}
               <button
                 onClick={handleConfirmTargets}
-                disabled={submitting || selectedIds.length === 0}
+                disabled={submitting || (selectedIds.length === 0 && !project.resources.some(isAthenaResource))}
                 className={`${getButtonClass('primary')} flex items-center gap-2`}
               >
                 {submitting && <LoadingSpinner />}

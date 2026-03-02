@@ -90,6 +90,7 @@ export const ApprovalWaitingCard = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
+        targetSourceId={targetSourceId}
         request={latestRequest}
       />
 

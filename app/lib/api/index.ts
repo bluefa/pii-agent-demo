@@ -141,9 +141,30 @@ export interface ApprovalResourceInput {
   exclusion_reason?: string;
 }
 
+export type AthenaSelectionScope = 'REGION' | 'DATABASE' | 'TABLE';
+
+export interface AthenaSelectionRule {
+  scope: AthenaSelectionScope;
+  resource_id: string;
+  selected: boolean;
+  include_all_tables?: boolean | null;
+}
+
+export interface AthenaRequestInput {
+  rules: AthenaSelectionRule[];
+}
+
+export interface AthenaRegionResourceSummary {
+  resource_id: string;
+  resource_type: 'ATHENA_REGION';
+  athena_region: string;
+  selected_table_count: number | null;
+}
+
 export interface ApprovalRequestInput {
   input_data: {
     resource_inputs: ApprovalResourceInput[];
+    athena_input?: AthenaRequestInput;
     exclusion_reason_default?: string;
   };
 }
@@ -156,8 +177,10 @@ export interface ApprovalRequestResult {
     requested_by: string;
     input_data: {
       resource_inputs: ApprovalResourceInput[];
+      athena_input?: AthenaRequestInput;
       exclusion_reason_default?: string;
     };
+    athena_region_resources?: AthenaRegionResourceSummary[];
   };
 }
 
@@ -180,6 +203,7 @@ export interface ResourceSnapshotItem {
 export interface ConfirmedIntegrationResponse {
   confirmed_integration: {
     resource_infos: ResourceSnapshotItem[];
+    athena_region_resources?: AthenaRegionResourceSummary[];
   } | null;
 }
 
@@ -194,6 +218,7 @@ export interface ApprovedIntegrationResponse {
     request_id: string;
     approved_at: string;
     resource_infos: ResourceSnapshotItem[];
+    athena_region_resources?: AthenaRegionResourceSummary[];
     excluded_resource_ids: string[];
     exclusion_reason?: string;
   } | null;
@@ -212,8 +237,10 @@ export interface ApprovalHistoryResponse {
       requested_by: string;
       input_data: {
         resource_inputs: ApprovalResourceInput[];
+        athena_input?: AthenaRequestInput;
         exclusion_reason_default?: string;
       };
+      athena_region_resources?: AthenaRegionResourceSummary[];
     };
     result?: {
       id: string;
@@ -226,6 +253,36 @@ export interface ApprovalHistoryResponse {
   page: { totalElements: number; totalPages: number; number: number; size: number };
 }
 
+export interface AthenaDatabaseNode {
+  resource_id: string;
+  athena_region: string;
+  database: string;
+}
+
+export interface AthenaTableNode {
+  resource_id: string;
+  athena_region: string;
+  database: string;
+  table: string;
+}
+
+export interface AthenaPageInfo {
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
+export interface AthenaDatabasePageResponse {
+  content: AthenaDatabaseNode[];
+  page: AthenaPageInfo;
+}
+
+export interface AthenaTablePageResponse {
+  content: AthenaTableNode[];
+  page: AthenaPageInfo;
+}
+
 export const getApprovalHistory = async (
   targetSourceId: number,
   page = 0,
@@ -233,6 +290,115 @@ export const getApprovalHistory = async (
 ): Promise<ApprovalHistoryResponse> =>
   fetchJson<ApprovalHistoryResponse>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`
+  );
+
+export const getAthenaRegionDatabases = async (
+  targetSourceId: number,
+  region: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaDatabasePageResponse> =>
+  fetchJson<AthenaDatabasePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+  );
+
+export const getAthenaDatabaseTables = async (
+  targetSourceId: number,
+  region: string,
+  database: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaTablePageResponse> =>
+  fetchJson<AthenaTablePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+  );
+
+export const getApprovalRequestAthenaDatabases = async (
+  targetSourceId: number,
+  requestId: string,
+  region: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaDatabasePageResponse> =>
+  fetchJson<AthenaDatabasePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/${encodeURIComponent(requestId)}/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+  );
+
+export const getApprovalRequestAthenaTables = async (
+  targetSourceId: number,
+  requestId: string,
+  region: string,
+  database: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaTablePageResponse> =>
+  fetchJson<AthenaTablePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/${encodeURIComponent(requestId)}/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+  );
+
+export const getApprovalHistoryAthenaDatabases = async (
+  targetSourceId: number,
+  historyId: string,
+  region: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaDatabasePageResponse> =>
+  fetchJson<AthenaDatabasePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-history/${encodeURIComponent(historyId)}/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+  );
+
+export const getApprovalHistoryAthenaTables = async (
+  targetSourceId: number,
+  historyId: string,
+  region: string,
+  database: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaTablePageResponse> =>
+  fetchJson<AthenaTablePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-history/${encodeURIComponent(historyId)}/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+  );
+
+export const getConfirmedIntegrationAthenaDatabases = async (
+  targetSourceId: number,
+  region: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaDatabasePageResponse> =>
+  fetchJson<AthenaDatabasePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+  );
+
+export const getConfirmedIntegrationAthenaTables = async (
+  targetSourceId: number,
+  region: string,
+  database: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaTablePageResponse> =>
+  fetchJson<AthenaTablePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
+  );
+
+export const getApprovedIntegrationAthenaDatabases = async (
+  targetSourceId: number,
+  region: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaDatabasePageResponse> =>
+  fetchJson<AthenaDatabasePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approved-integration/athena/regions/${encodeURIComponent(region)}/databases?page=${page}&size=${size}`,
+  );
+
+export const getApprovedIntegrationAthenaTables = async (
+  targetSourceId: number,
+  region: string,
+  database: string,
+  page = 0,
+  size = 20,
+): Promise<AthenaTablePageResponse> =>
+  fetchJson<AthenaTablePageResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approved-integration/athena/regions/${encodeURIComponent(region)}/databases/${encodeURIComponent(database)}/tables?page=${page}&size=${size}`,
   );
 
 export const approveApprovalRequestV1 = async (

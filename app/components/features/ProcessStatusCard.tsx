@@ -316,9 +316,11 @@ export const ProcessStatusCard = ({
       {/* Approval Request Modal */}
       {onApprovalSubmit && onApprovalModalClose && (
         <ApprovalRequestModal
+          key={`${project.id}-${approvalModalOpen ? 'open' : 'closed'}`}
           isOpen={approvalModalOpen}
           onClose={onApprovalModalClose}
           onSubmit={onApprovalSubmit}
+          targetSourceId={project.targetSourceId}
           resources={approvalResources ?? project.resources}
           loading={approvalLoading}
           error={approvalError}
