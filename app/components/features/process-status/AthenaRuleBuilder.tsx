@@ -75,7 +75,7 @@ const buildDatabaseRule = (
     scope: 'DATABASE',
     resource_id: resourceId,
     selected,
-    include_all_tables: selected ? (prev?.include_all_tables ?? true) : undefined,
+    include_all_tables: selected ? (prev?.include_all_tables ?? false) : undefined,
   };
 };
 
@@ -89,7 +89,7 @@ const buildRegionRule = (
     scope: 'REGION',
     resource_id: resourceId,
     selected,
-    include_all_tables: selected ? (prev?.include_all_tables ?? true) : undefined,
+    include_all_tables: selected ? (prev?.include_all_tables ?? false) : undefined,
   };
 };
 

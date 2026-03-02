@@ -141,7 +141,7 @@ export const ApprovalRequestModal = ({
           scope: 'REGION',
           resource_id: resource.resourceId,
           selected: true,
-          include_all_tables: true,
+          include_all_tables: false,
         });
       }
     }
@@ -151,7 +151,11 @@ export const ApprovalRequestModal = ({
   const [athenaRules, setAthenaRules] = useState<AthenaSelectionRule[]>(initialAthenaRules);
 
   const hasSelectedAthena = useMemo(
-    () => athenaRules.some((rule) => rule.selected),
+    () => athenaRules.some((rule) =>
+      rule.scope === 'TABLE'
+        ? rule.selected
+        : rule.selected && rule.include_all_tables === true
+    ),
     [athenaRules],
   );
 
@@ -167,7 +171,10 @@ export const ApprovalRequestModal = ({
   }, [includedResources, excludedResources, defaultReason, hasSelectedAthena, loading]);
 
   const handleSubmit = () => {
-    const rules = athenaRules.filter((rule) => rule.selected || rule.include_all_tables !== undefined);
+    const rules = athenaRules.filter((rule) =>
+      rule.scope === 'TABLE' ||
+      (rule.selected && rule.include_all_tables === true)
+    );
     onSubmit({
       exclusion_reason_default: defaultReason.trim() || undefined,
       athena_rules: rules.length > 0 ? rules : undefined,
