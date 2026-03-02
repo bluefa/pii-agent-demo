@@ -237,8 +237,8 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // approval.status가 AUTO_APPROVED로 설정됨
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      // 자동 승인 시 installation은 즉시 IN_PROGRESS로 전환
-      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+      // 자동 승인 직후에는 APPLYING 단계(PENDING)로 유지
+      expect(getProjectInstallationStatus()).toBe('PENDING');
 
       // BFF process_status = APPLYING_APPROVED (P1 버그 수정)
       const status = await getProcessStatus();
@@ -289,7 +289,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(201);
 
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+      expect(getProjectInstallationStatus()).toBe('PENDING');
 
       const status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
@@ -309,6 +309,25 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(201);
 
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
+    });
+
+    it('자동 승인 후 20초 경과 시 INSTALLING(IN_PROGRESS)으로 전환된다', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+        ],
+      });
+
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+      expect(getProjectInstallationStatus()).toBe('PENDING');
+
+      _fastForwardApproval(TEST_PROJECT_ID);
+      await getProcessStatus();
+
+      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
     });
 
     it('자동 승인 시 ApprovedIntegration 스냅샷 생성 확인', async () => {
