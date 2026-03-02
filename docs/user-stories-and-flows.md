@@ -883,29 +883,40 @@ sequenceDiagram
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 승인 요청 모달 표시 (혼합)
+#### 승인 요청 모달 표시 (혼합, 기존 ApprovalRequestModal과 동일 패턴)
+
+- 기존 승인요청 모달 레이아웃을 그대로 사용한다
+  - 상단: 요청 대상 요약
+  - 중단: `포함 리소스` / `제외 리소스` 목록
+  - 하단: `제외 사유 기본값` + `취소/요청` 액션
+- Athena는 목록 행에서 `Region 요약 + 상세보기`만 보여주고, drill-down은 상세 패널에서 조회한다
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ 연동 대상 확정 승인 요청                                                     │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ [포함 리소스]                                                                │
-│  - RDS: prod-rds-orders (credential: cred-001)                              │
-│  - RDS: prod-rds-billing (credential: cred-002)                             │
-│  - ATHENA_REGION: athena:123456789012/us-east-1                              │
-│    ㄴ Region include_all_tables = true                                        │
-│    ㄴ DATABASE analytics_db include_all_tables = true                         │
-│    ㄴ TABLE billing_ledger = 포함                                             │
+│ [포함 리소스] (기존 테이블 UI 동일)                                           │
+│  - RDS  | prod-rds-orders   | credential: cred-001                           │
+│  - RDS  | prod-rds-billing  | credential: cred-002                           │
+│  - ATHENA_REGION | athena:123456789012/us-east-1 | 선택 Table: 1240 | [상세] │
 │                                                                              │
-│ [제외 리소스]                                                                │
-│  - ATHENA_REGION: athena:123456789012/us-west-2                              │
-│  - TABLE billing_archive                                                      │
-│  - TABLE billing_tmp                                                          │
+│ [제외 리소스] (기존 테이블 UI 동일)                                           │
+│  - ATHENA_REGION | athena:123456789012/us-west-2 | 선택 Table: 0  | [상세]  │
 │                                                                              │
 │ [제외 사유 기본값] 보안 정책상 현 시점 제외                                  │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                  [취소] [요청]              │
 └──────────────────────────────────────────────────────────────────────────────┘
+```
+
+```
+[상세] 클릭 시 Athena drill-down 패널(또는 모달) 오픈
+  - [x] us-east-1
+    - [x] analytics_db (include_all_tables=true)
+    - [x] billing_db
+      - [x] billing_ledger
+      - [ ] billing_archive
+      - [ ] billing_tmp
 ```
 
 #### 승인 요청 payload 예시 (혼합, 체크박스 기반)
