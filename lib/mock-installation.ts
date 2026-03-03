@@ -90,6 +90,7 @@ const SCRIPT_DURATIONS: Record<string, number> = {
 };
 const VPC_STAGGER_MS = 2000;
 const BDC_TF_DURATION = 5000;
+const ENABLE_INSTALLATION_AUTO_PROGRESS = false;
 
 // ===== TF Role 검증 =====
 
@@ -145,6 +146,18 @@ const toScriptResource = (r: Resource): ServiceTfScriptResource => ({
   name: r.resourceId,
 });
 
+const toScriptSegment = (value?: string): string =>
+  (value && value.trim().length > 0 ? value : 'unknown').trim();
+
+const toVpcScriptName = (vpcName?: string, region?: string): string =>
+  `vpc_${toScriptSegment(vpcName)}_${toScriptSegment(region)}`;
+
+const toAthenaScriptName = (region?: string): string =>
+  `athena_${toScriptSegment(region)}`;
+
+const toDynamoDbScriptName = (region?: string): string =>
+  `dynamodb_${toScriptSegment(region)}`;
+
 const generateServiceTfScripts = (resources: Resource[]): ServiceTfScript[] => {
   const selected = resources.filter(r => r.isSelected && r.awsType);
   const scripts: ServiceTfScript[] = [];
@@ -159,44 +172,67 @@ const generateServiceTfScripts = (resources: Resource[]): ServiceTfScript[] => {
     vpcGroups.set(key, group);
   });
 
-  let vpcIndex = 0;
   vpcGroups.forEach((group, key) => {
     const [vpcId, region] = key.split('|');
+    const normalizedVpcId = vpcId === 'unknown' ? undefined : vpcId;
+    const normalizedRegion = region === 'unknown' ? undefined : region;
+    const scriptName = toVpcScriptName(normalizedVpcId, normalizedRegion);
     scripts.push({
-      id: `vpc-endpoint-${vpcIndex}`,
+      id: scriptName,
       type: 'VPC_ENDPOINT',
       status: 'PENDING',
-      label: `VPC Endpoint (${vpcId})`,
-      vpcId: vpcId === 'unknown' ? undefined : vpcId,
-      region: region === 'unknown' ? undefined : region,
+      label: scriptName,
+      vpcId: normalizedVpcId,
+      region: normalizedRegion,
       resources: group.map(toScriptResource),
     });
-    vpcIndex++;
   });
 
-  // DYNAMODB_ROLE script: single script for all DynamoDB resources
+  // DYNAMODB_ROLE scripts: group by region
   const dynamoResources = selected.filter(r => r.awsType === 'DYNAMODB');
-  if (dynamoResources.length > 0) {
+  const dynamoGroups = new Map<string, Resource[]>();
+  dynamoResources.forEach(r => {
+    const key = r.region ?? 'unknown';
+    const group = dynamoGroups.get(key) ?? [];
+    group.push(r);
+    dynamoGroups.set(key, group);
+  });
+
+  dynamoGroups.forEach((group, regionKey) => {
+    const normalizedRegion = regionKey === 'unknown' ? undefined : regionKey;
+    const scriptName = toDynamoDbScriptName(normalizedRegion);
     scripts.push({
-      id: 'dynamodb-role-0',
+      id: scriptName,
       type: 'DYNAMODB_ROLE',
       status: 'PENDING',
-      label: 'DynamoDB Role',
-      resources: dynamoResources.map(toScriptResource),
+      label: scriptName,
+      region: normalizedRegion,
+      resources: group.map(toScriptResource),
     });
-  }
+  });
 
-  // ATHENA_GLUE script: single script for all Athena resources
+  // ATHENA_GLUE scripts: group by region
   const athenaResources = selected.filter(r => r.awsType === 'ATHENA');
-  if (athenaResources.length > 0) {
+  const athenaGroups = new Map<string, Resource[]>();
+  athenaResources.forEach(r => {
+    const key = r.region ?? 'unknown';
+    const group = athenaGroups.get(key) ?? [];
+    group.push(r);
+    athenaGroups.set(key, group);
+  });
+
+  athenaGroups.forEach((group, regionKey) => {
+    const normalizedRegion = regionKey === 'unknown' ? undefined : regionKey;
+    const scriptName = toAthenaScriptName(normalizedRegion);
     scripts.push({
-      id: 'athena-glue-0',
+      id: scriptName,
       type: 'ATHENA_GLUE',
       status: 'PENDING',
-      label: 'Athena & Glue',
-      resources: athenaResources.map(toScriptResource),
+      label: scriptName,
+      region: normalizedRegion,
+      resources: group.map(toScriptResource),
     });
-  }
+  });
 
   return scripts;
 };
@@ -262,7 +298,12 @@ export const getInstallationStatus = (projectId: string): LegacyAwsInstallationS
   if (!status) return null;
 
   // Auto mode time-based progression
-  if (status.hasTfPermission && !status.completedAt && status._scriptTimings) {
+  if (
+    ENABLE_INSTALLATION_AUTO_PROGRESS &&
+    status.hasTfPermission &&
+    !status.completedAt &&
+    status._scriptTimings
+  ) {
     const now = Date.now();
 
     // Update each service TF script independently

@@ -10,6 +10,7 @@ import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
 import type { Project, ProjectStatus, Resource } from '@/lib/types';
+import type { LegacyAwsInstallationStatus } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 
 // --- Helpers ---
@@ -236,8 +237,8 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // approval.status가 AUTO_APPROVED로 설정됨
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      // 자동 승인 시 installation은 즉시 IN_PROGRESS로 전환
-      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+      // 자동 승인 직후에는 APPLYING 단계(PENDING)로 유지
+      expect(getProjectInstallationStatus()).toBe('PENDING');
 
       // BFF process_status = APPLYING_APPROVED (P1 버그 수정)
       const status = await getProcessStatus();
@@ -288,7 +289,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(reqRes.status).toBe(201);
 
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+      expect(getProjectInstallationStatus()).toBe('PENDING');
 
       const status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
@@ -310,6 +311,43 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
     });
 
+    it('자동 승인 후 20초 경과 시 INSTALLING(IN_PROGRESS)으로 전환된다', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+        ],
+      });
+
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+      expect(getProjectInstallationStatus()).toBe('PENDING');
+
+      _fastForwardApproval(TEST_PROJECT_ID);
+      await getProcessStatus();
+
+      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+    });
+
+    it('승인 시각 store가 비어도 approvedAt 기준으로 20초 후 INSTALLING으로 전환된다', async () => {
+      addTestProject({
+        processStatus: ProcessStatus.APPLYING_APPROVED,
+        status: {
+          ...createInitialProjectStatus(),
+          scan: { status: 'COMPLETED' },
+          targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+          approval: { status: 'APPROVED', approvedAt: '2026-01-01T00:00:00.000Z' },
+          installation: { status: 'PENDING' },
+          connectionTest: { status: 'NOT_TESTED' },
+        },
+      });
+
+      await getProcessStatus();
+
+      expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
+    });
+
     it('자동 승인 시 ApprovedIntegration 스냅샷 생성 확인', async () => {
       addTestProject({
         resources: [
@@ -328,6 +366,82 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(approvedData.approved_integration.resource_infos).toHaveLength(2);
       expect(approvedData.approved_integration.approved_at).toBeDefined();
       expect(approvedData.approved_integration.request_id).toMatch(/^req-/);
+    });
+
+    it('Cloud 리소스 재확정 시 AWS 설치 상태를 초기화한다', async () => {
+      const completedStatus: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: { status: 'APPROVED', approvedAt: '2026-01-10T00:00:00Z' },
+        installation: { status: 'COMPLETED', completedAt: '2026-01-12T00:00:00Z' },
+        connectionTest: { status: 'PASSED', passedAt: '2026-01-13T00:00:00Z' },
+      };
+
+      addTestProject({
+        processStatus: ProcessStatus.INSTALLATION_COMPLETE,
+        status: completedStatus,
+        terraformState: { serviceTf: 'COMPLETED', bdcTf: 'COMPLETED' },
+        resources: [
+          createTestResource('res-1', {
+            isSelected: true,
+            connectionStatus: 'CONNECTED',
+            awsType: 'RDS',
+            region: 'ap-northeast-2',
+            vpcId: 'vpc-seoul-001',
+          }),
+          createTestResource('res-2', {
+            isSelected: true,
+            connectionStatus: 'CONNECTED',
+            awsType: 'DYNAMODB',
+            region: 'ap-northeast-2',
+          }),
+        ],
+      });
+
+      const store = getStore();
+      const legacyInstallation: LegacyAwsInstallationStatus = {
+        provider: 'AWS',
+        hasTfPermission: true,
+        serviceTfScripts: [
+          {
+            id: 'legacy-script',
+            type: 'VPC_ENDPOINT',
+            status: 'COMPLETED',
+            label: 'legacy-script',
+            vpcId: 'vpc-legacy',
+            region: 'ap-northeast-2',
+            resources: [{ resourceId: 'legacy-rds', type: 'RDS', name: 'legacy-rds' }],
+            completedAt: '2026-01-12T00:00:00Z',
+          },
+        ],
+        bdcTf: { status: 'COMPLETED', completedAt: '2026-01-12T00:00:00Z' },
+        serviceTfCompleted: true,
+        bdcTfCompleted: true,
+        completedAt: '2026-01-12T00:00:00Z',
+      };
+      store.awsInstallations.set(TEST_PROJECT_ID, legacyInstallation);
+
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      expect(reqRes.status).toBe(201);
+
+      const resetInstallation = store.awsInstallations.get(TEST_PROJECT_ID);
+      expect(resetInstallation).toBeDefined();
+      expect(resetInstallation?.completedAt).toBeUndefined();
+      expect(resetInstallation?.bdcTf.status).toBe('PENDING');
+      expect(resetInstallation?.serviceTfScripts.length).toBeGreaterThan(0);
+      expect(resetInstallation?.serviceTfScripts.every((script) => script.status === 'PENDING')).toBe(true);
+      expect(resetInstallation?.serviceTfScripts.map((script) => script.label)).toEqual(
+        expect.arrayContaining([
+          'dynamodb_ap-northeast-2',
+          'vpc_vpc-seoul-001_ap-northeast-2',
+        ]),
+      );
+
+      const updatedProject = store.projects.find((p) => p.id === TEST_PROJECT_ID);
+      expect(updatedProject?.terraformState.serviceTf).toBe('PENDING');
+      expect(updatedProject?.terraformState.bdcTf).toBe('PENDING');
     });
   });
 

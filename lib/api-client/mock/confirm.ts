@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as mockHistory from '@/lib/mock-history';
 import * as tcFns from '@/lib/mock-test-connection';
+import * as mockInstallation from '@/lib/mock-installation';
+import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
@@ -27,8 +29,10 @@ const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: Retu
 
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
-// Mock: MOCK_INSTALLATION_DELAY_MS(기본 15초) 경과 후 설치 완료 처리
+// Mock: APPLYING 상태를 일정 시간 유지 후 INSTALLING으로 전이
+const MOCK_APPLYING_DELAY_MS = 20_000;
 const MOCK_INSTALLATION_DELAY_MS = 15_000;
+const ENABLE_PROCESS_AUTO_TRANSITION = true;
 const approvalTimestampStore = new Map<string, number>();
 
 /** @internal 테스트 전용: store 초기화 */
@@ -40,7 +44,8 @@ export const _resetApprovedIntegrationStore = () => {
 
 /** @internal 테스트 전용: 지연 시간 우회 (승인 시각을 과거로 설정) */
 export const _fastForwardApproval = (projectId: string) => {
-  approvalTimestampStore.set(projectId, Date.now() - MOCK_INSTALLATION_DELAY_MS - 1);
+  const fastForwardMs = Math.max(MOCK_INSTALLATION_DELAY_MS, MOCK_APPLYING_DELAY_MS) + 1;
+  approvalTimestampStore.set(projectId, Date.now() - fastForwardMs);
 };
 
 /** @internal 테스트 전용: ApprovedIntegration 직접 설정 (실시간 상태 계산 테스트용) */
@@ -323,9 +328,7 @@ export const mockConfirm = {
       approval: autoApprovalResult.shouldAutoApprove
         ? { status: 'AUTO_APPROVED', approvedAt: now }
         : { status: 'PENDING' },
-      installation: autoApprovalResult.shouldAutoApprove
-        ? { status: 'IN_PROGRESS' }
-        : { status: 'PENDING' },
+      installation: { status: 'PENDING' },
       // 프로세스 재시작 시 연결 테스트 상태 초기화
       connectionTest: { status: 'NOT_TESTED' },
     };
@@ -335,12 +338,27 @@ export const mockConfirm = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
     const actor = { id: user.id, name: user.name };
+    const terraformState = project.cloudProvider === 'AWS'
+      ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
+      : { bdcTf: 'PENDING' as const };
 
     await mockData.updateProject(projectId, {
       resources: updatedResources,
       status: updatedStatus,
       processStatus: calculatedProcessStatus,
+      terraformState: {
+        ...project.terraformState,
+        ...terraformState,
+      },
     });
+
+    // AWS 변경 요청 시 설치 진행 상태를 항상 초기화한다.
+    if (project.cloudProvider === 'AWS') {
+      const previousAwsInstallation = getStore().awsInstallations.get(projectId);
+      const hasTfPermission = previousAwsInstallation?.hasTfPermission
+        ?? (project.terraformState.serviceTf === 'COMPLETED');
+      mockInstallation.initializeInstallation(projectId, hasTfPermission);
+    }
 
     // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
     const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;
@@ -602,41 +620,61 @@ export const mockConfirm = {
       );
     }
 
-    // Mock 자동 전환: APPLYING_APPROVED 10초 경과 → 설치 완료 처리
-    const approvedAt = approvalTimestampStore.get(project.id);
+    // Mock 자동 전환:
+    // 승인 후 일정 시간 경과 시 APPLYING_APPROVED -> INSTALLING
+    // (자동 완료 전이는 수행하지 않음)
+    const isApprovedStatus =
+      project.status.approval.status === 'APPROVED' ||
+      project.status.approval.status === 'AUTO_APPROVED';
+    const approvedAtFromStore = approvalTimestampStore.get(project.id);
+    const approvedAtFromStatus = project.status.approval.approvedAt
+      ? Date.parse(project.status.approval.approvedAt)
+      : Number.NaN;
+    const approvedAt = approvedAtFromStore ?? (Number.isFinite(approvedAtFromStatus) ? approvedAtFromStatus : undefined);
     if (
-      approvedIntegrationStore.has(project.id) &&
-      approvedAt &&
-      Date.now() - approvedAt >= MOCK_INSTALLATION_DELAY_MS
+      ENABLE_PROCESS_AUTO_TRANSITION &&
+      isApprovedStatus &&
+      project.status.installation.status === 'PENDING' &&
+      approvedAt !== undefined
     ) {
+      const elapsedMs = Date.now() - approvedAt;
       const now = new Date().toISOString();
-      const updatedStatus: ProjectStatus = {
-        ...project.status,
-        installation: { status: 'COMPLETED', completedAt: now },
-      };
-      const calcStatus = getCurrentStep(project.cloudProvider, updatedStatus);
-      mockData.updateProject(project.id, {
-        processStatus: calcStatus,
-        status: updatedStatus,
-        terraformState: {
-          ...project.terraformState,
-          bdcTf: 'COMPLETED' as const,
-          ...(project.cloudProvider === 'AWS' ? { serviceTf: 'COMPLETED' as const } : {}),
-        },
-      });
-      approvedIntegrationStore.delete(project.id);
-      confirmedIntegrationSnapshotStore.delete(project.id);
 
-      const updated = mockData.getProjectById(projectId)!;
+      if (elapsedMs >= MOCK_APPLYING_DELAY_MS) {
+        const progressedStatus: ProjectStatus = {
+          ...project.status,
+          installation: { status: 'IN_PROGRESS' },
+        };
+        const calcStatus = getCurrentStep(project.cloudProvider, progressedStatus);
+        mockData.updateProject(project.id, {
+          processStatus: calcStatus,
+          status: progressedStatus,
+        });
+
+        const updated = mockData.getProjectById(projectId)!;
+        return NextResponse.json({
+          target_source_id: updated.targetSourceId,
+          process_status: computeProcessStatus(updated),
+          status_inputs: {
+            has_confirmed_integration: updated.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(updated.id),
+            has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
+            has_approved_integration: approvedIntegrationStore.has(updated.id),
+            last_approval_result: computeLastApprovalResult(updated),
+            last_rejection_reason: updated.status.approval.rejectionReason ?? null,
+          },
+          evaluated_at: now,
+        });
+      }
+
       return NextResponse.json({
-        target_source_id: updated.targetSourceId,
-        process_status: computeProcessStatus(updated),
+        target_source_id: project.targetSourceId,
+        process_status: computeProcessStatus(project),
         status_inputs: {
-          has_confirmed_integration: updated.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(updated.id),
-          has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
-          has_approved_integration: approvedIntegrationStore.has(updated.id),
-          last_approval_result: computeLastApprovalResult(updated),
-          last_rejection_reason: updated.status.approval.rejectionReason ?? null,
+          has_confirmed_integration: project.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(project.id),
+          has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
+          has_approved_integration: approvedIntegrationStore.has(project.id),
+          last_approval_result: computeLastApprovalResult(project),
+          last_rejection_reason: project.status.approval.rejectionReason ?? null,
         },
         evaluated_at: now,
       });

@@ -982,7 +982,7 @@ export const mockAwsInstallations: Map<string, LegacyAwsInstallationStatus> = ne
       provider: 'AWS',
       hasTfPermission: true,
       serviceTfScripts: [
-        { id: 'svc-vpc-seoul-001-ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'VPC Endpoint (vpc-seoul-001, ap-northeast-2)', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-003', type: 'RDS', name: 'rds-003' }], completedAt: '2024-01-19T08:30:00Z' },
+        { id: 'vpc_vpc-seoul-001_ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'vpc_vpc-seoul-001_ap-northeast-2', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-003', type: 'RDS', name: 'rds-003' }], completedAt: '2024-01-19T08:30:00Z' },
       ],
       bdcTf: { status: 'IN_PROGRESS' },
       serviceTfCompleted: true,
@@ -997,8 +997,8 @@ export const mockAwsInstallations: Map<string, LegacyAwsInstallationStatus> = ne
       provider: 'AWS',
       hasTfPermission: true,
       serviceTfScripts: [
-        { id: 'svc-vpc-seoul-001-ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'VPC Endpoint (vpc-seoul-001, ap-northeast-2)', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-005', type: 'RDS', name: 'rds-005' }], completedAt: '2024-01-21T13:30:00Z' },
-        { id: 'svc-dynamodb-role', type: 'DYNAMODB_ROLE', status: 'COMPLETED', label: 'DynamoDB Role', resources: [{ resourceId: 'ddb-005', type: 'DYNAMODB', name: 'ddb-005' }], completedAt: '2024-01-21T13:35:00Z' },
+        { id: 'vpc_vpc-seoul-001_ap-northeast-2', type: 'VPC_ENDPOINT', status: 'COMPLETED', label: 'vpc_vpc-seoul-001_ap-northeast-2', vpcId: 'vpc-seoul-001', region: 'ap-northeast-2', resources: [{ resourceId: 'rds-005', type: 'RDS', name: 'rds-005' }], completedAt: '2024-01-21T13:30:00Z' },
+        { id: 'dynamodb_ap-northeast-2', type: 'DYNAMODB_ROLE', status: 'COMPLETED', label: 'dynamodb_ap-northeast-2', region: 'ap-northeast-2', resources: [{ resourceId: 'ddb-005', type: 'DYNAMODB', name: 'ddb-005' }], completedAt: '2024-01-21T13:35:00Z' },
       ],
       bdcTf: { status: 'COMPLETED', completedAt: '2024-01-21T14:00:00Z' },
       serviceTfCompleted: true,
