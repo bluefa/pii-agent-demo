@@ -109,7 +109,8 @@ export const ProcessStatusCard = ({
       try {
         const status = await getProcessStatus(project.targetSourceId);
         setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
-        if (status.process_status !== expectedBff) {
+        const shouldRefreshOnApplying = currentStep === ProcessStatus.APPLYING_APPROVED;
+        if (status.process_status !== expectedBff || shouldRefreshOnApplying) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
         }
@@ -128,7 +129,7 @@ export const ProcessStatusCard = ({
         pollRef.current = null;
       }
     };
-  }, [currentStep, project.targetSourceId, project.id, stableOnProjectUpdate]);
+  }, [currentStep, project.targetSourceId, stableOnProjectUpdate]);
 
   // Process Guide
   const guideVariant = project.cloudProvider === 'AWS'
@@ -137,7 +138,7 @@ export const ProcessStatusCard = ({
   const guide = getProcessGuide(project.cloudProvider, guideVariant);
 
   // 프로젝트 상태 갱신 — 설치 완료, credential 변경 등 서버 데이터 변경 후 호출
-  const refreshProject = async () => {
+  const refreshProject = useCallback(async () => {
     try {
       const updatedProject = await getProject(project.targetSourceId);
       if (updatedProject) {
@@ -146,7 +147,7 @@ export const ProcessStatusCard = ({
     } catch (err) {
       console.error('설치 완료 상태 갱신 실패:', err);
     }
-  };
+  }, [onProjectUpdate, project.targetSourceId]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
