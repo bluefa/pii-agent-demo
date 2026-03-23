@@ -6,11 +6,13 @@ import type { BffClient } from '@/lib/bff/types';
 import type { Project, SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
+import { toUpstreamInfraApiPath } from '@/lib/infra-api';
+import { camelCaseKeys } from '@/lib/object-case';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BFF_URL}${path}`, {
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
@@ -21,7 +23,8 @@ async function get<T>(path: string): Promise<T> {
       (body as { message?: string }).message ?? `HTTP ${res.status}`,
     );
   }
-  return res.json() as Promise<T>;
+  const data = await res.json();
+  return camelCaseKeys(data) as T;
 }
 
 export const httpBff: BffClient = {

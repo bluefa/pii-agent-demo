@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchInfra } from '@/app/lib/api/infra';
 import {
   DashboardHeader,
   KpiCardGrid,
@@ -150,7 +151,7 @@ export default function DashboardPage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/admin/dashboard/summary');
+      const res = await fetchInfra('/admin/dashboard/summary');
       if (!res.ok) throw new Error('summary fetch failed');
       const data: DashboardSummary = await res.json();
       setSummary(data);
@@ -175,7 +176,7 @@ export default function DashboardPage() {
         params.set('sort_order', f.sort_order === 'none' ? 'asc' : f.sort_order);
       }
 
-      const res = await fetch(`/api/v1/admin/dashboard/systems?${params}`);
+      const res = await fetchInfra(`/admin/dashboard/systems?${params}`);
       if (!res.ok) throw new Error('systems fetch failed');
       const data: SystemDetailListResponse = await res.json();
       setSystems(data);
@@ -229,7 +230,7 @@ export default function DashboardPage() {
       if (filters.connection_status !== 'all') params.set('connection_status', filters.connection_status);
       if (filters.svc_installed !== 'all') params.set('svc_installed', filters.svc_installed);
 
-      const res = await fetch(`/api/v1/admin/dashboard/systems/export?${params}`);
+      const res = await fetchInfra(`/admin/dashboard/systems/export?${params}`);
       if (!res.ok) throw new Error('export failed');
 
       const blob = await res.blob();

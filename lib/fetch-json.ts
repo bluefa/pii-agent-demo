@@ -113,7 +113,7 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
  * const project = await fetchJson<Project>('/api/projects/123');
  *
  * // POST
- * const result = await fetchJson<ScanJob>('/api/v1/scan', {
+ * const result = await fetchJson<ScanJob>('/api/infra/v1/scan', {
  *   method: 'POST',
  *   body: { targetSourceId: 1 },
  * });

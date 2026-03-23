@@ -14,6 +14,7 @@ import { statusColors, cn } from '@/lib/theme';
 import type { Resource } from '@/lib/types';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
+import { toInternalInfraApiPath } from '@/lib/infra-api';
 
 export type InstallStep =
   | 'SUBNET_REQUIRED'
@@ -60,7 +61,7 @@ const getDbInstallStep = (peStatus?: PrivateEndpointStatus): InstallStep => {
 };
 
 const downloadTfScript = (targetSourceId: number) => {
-  window.open(`/api/v1/azure/target-sources/${targetSourceId}/vm-terraform-script`, '_blank');
+  window.open(toInternalInfraApiPath(`/azure/target-sources/${targetSourceId}/vm-terraform-script`), '_blank');
 };
 
 const toInstallStep = (v1Resource: AzureV1Resource): InstallStep => {

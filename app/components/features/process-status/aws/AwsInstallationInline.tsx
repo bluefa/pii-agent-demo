@@ -108,6 +108,7 @@ export const AwsInstallationInline = ({
       setLoading(false);
     }
   }, [onInstallComplete, targetSourceId]);
+  }, [onInstallComplete, targetSourceId]);
 
   useEffect(() => {
     completionNotifiedRef.current = false;

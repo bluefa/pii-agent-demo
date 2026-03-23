@@ -6,7 +6,7 @@ Issue #122의 Swagger를 기준으로 API Contract를 `target source` 용어 체
 
 ## 2. 이번 세션에서 확정된 기준
 
-- Base Path: `/api/v1`
+- Base Path: `/api/infra/v1`
 - 용어: `project -> target-source`, `projectId -> targetSourceId`
 - 식별자 타입: `targetSourceId`는 `integer`
 - 서비스 식별자 명칭: `serviceCode` (단, GCP settings는 target source 기준으로 관리)
@@ -48,7 +48,7 @@ Issue #122 Swagger를 아래 파일로 분리 반영 완료:
 
 목표: 기존 프론트 동작 유지 + 신규 경로 병행
 
-- `/api/v1/target-sources/**` 신규 라우트 추가 (Confirm 제외)
+- `/api/infra/v1/target-sources/**` 신규 라우트 추가 (Confirm 제외)
 - 기존 `/api/**` 또는 `/api/v2/**` 경로는 deprecated로 유지
 - 내부적으로 동일 handler/service를 공유해 응답 정합성 확보
 
@@ -68,25 +68,25 @@ v1 라우트 (19개):
 
 | 카테고리 | 엔드포인트 | Method |
 |----------|-----------|--------|
-| User | `/api/v1/user/me` | GET |
-| User | `/api/v1/user/services` | GET |
-| User | `/api/v1/users/search` | GET |
-| Scan | `/api/v1/target-sources/{targetSourceId}/scan` | POST |
-| Scan | `/api/v1/target-sources/{targetSourceId}/scanJob/latest` | GET |
-| Scan | `/api/v1/target-sources/{targetSourceId}/scan/history` | GET |
-| AWS | `/api/v1/aws/target-sources/{targetSourceId}/installation-status` | GET |
-| AWS | `/api/v1/aws/target-sources/{targetSourceId}/check-installation` | POST |
-| AWS | `/api/v1/aws/target-sources/{targetSourceId}/verify-execution-role` | POST |
-| AWS | `/api/v1/aws/target-sources/{targetSourceId}/verify-scan-role` | POST |
-| AWS | `/api/v1/aws/target-sources/{targetSourceId}/settings` | GET |
-| Azure | `/api/v1/azure/target-sources/{targetSourceId}/installation-status` | GET |
-| Azure | `/api/v1/azure/target-sources/{targetSourceId}/check-installation` | POST |
-| Azure | `/api/v1/azure/target-sources/{targetSourceId}/vm-terraform-script` | GET |
-| Azure | `/api/v1/azure/target-sources/{targetSourceId}/settings` | GET |
-| GCP | `/api/v1/gcp/target-sources/{targetSourceId}/installation-status` | GET |
-| GCP | `/api/v1/gcp/target-sources/{targetSourceId}/check-installation` | POST |
-| GCP | `/api/v1/gcp/target-sources/{targetSourceId}/settings` | GET |
-| Credential | `/api/v1/target-sources/{targetSourceId}/secrets` | GET |
+| User | `/api/infra/v1/user/me` | GET |
+| User | `/api/infra/v1/user/services` | GET |
+| User | `/api/infra/v1/users/search` | GET |
+| Scan | `/api/infra/v1/target-sources/{targetSourceId}/scan` | POST |
+| Scan | `/api/infra/v1/target-sources/{targetSourceId}/scanJob/latest` | GET |
+| Scan | `/api/infra/v1/target-sources/{targetSourceId}/scan/history` | GET |
+| AWS | `/api/infra/v1/aws/target-sources/{targetSourceId}/installation-status` | GET |
+| AWS | `/api/infra/v1/aws/target-sources/{targetSourceId}/check-installation` | POST |
+| AWS | `/api/infra/v1/aws/target-sources/{targetSourceId}/verify-execution-role` | POST |
+| AWS | `/api/infra/v1/aws/target-sources/{targetSourceId}/verify-scan-role` | POST |
+| AWS | `/api/infra/v1/aws/target-sources/{targetSourceId}/settings` | GET |
+| Azure | `/api/infra/v1/azure/target-sources/{targetSourceId}/installation-status` | GET |
+| Azure | `/api/infra/v1/azure/target-sources/{targetSourceId}/check-installation` | POST |
+| Azure | `/api/infra/v1/azure/target-sources/{targetSourceId}/vm-terraform-script` | GET |
+| Azure | `/api/infra/v1/azure/target-sources/{targetSourceId}/settings` | GET |
+| GCP | `/api/infra/v1/gcp/target-sources/{targetSourceId}/installation-status` | GET |
+| GCP | `/api/infra/v1/gcp/target-sources/{targetSourceId}/check-installation` | POST |
+| GCP | `/api/infra/v1/gcp/target-sources/{targetSourceId}/settings` | GET |
+| Credential | `/api/infra/v1/target-sources/{targetSourceId}/secrets` | GET |
 
 Exception 처리 정책:
 
@@ -108,7 +108,7 @@ Exception 처리 정책:
 
 목표: 프론트 호출 경로 및 응답 모델을 신규 Contract로 전환
 
-- `app/lib/api/*` 호출 경로를 `/api/v1/target-sources/**` 중심으로 변경
+- `app/lib/api/*` 호출 경로를 `/api/infra/v1/target-sources/**` 중심으로 변경
 - snake_case/camelCase 차이 정리
 - 제거 대상 API 사용 코드 정리
 
@@ -138,12 +138,12 @@ Exception 처리 정책:
 
 | 엔드포인트 | Method | 설명 |
 |-----------|--------|------|
-| `/api/v1/target-sources/{id}/resources` | GET | 연동 가능 리소스 목록 |
-| `/api/v1/target-sources/{id}/approval-requests` | POST | 승인 요청 생성 |
-| `/api/v1/target-sources/{id}/confirmed-integration` | GET | 확정 연동 정보 |
-| `/api/v1/target-sources/{id}/approved-integration` | GET | 승인 연동 정보 |
-| `/api/v1/target-sources/{id}/approval-history` | GET | 승인 이력 (페이지네이션) |
-| `/api/v1/target-sources/{id}/process-status` | GET | 프로세스 상태 |
+| `/api/infra/v1/target-sources/{id}/resources` | GET | 연동 가능 리소스 목록 |
+| `/api/infra/v1/target-sources/{id}/approval-requests` | POST | 승인 요청 생성 |
+| `/api/infra/v1/target-sources/{id}/confirmed-integration` | GET | 확정 연동 정보 |
+| `/api/infra/v1/target-sources/{id}/approved-integration` | GET | 승인 연동 정보 |
+| `/api/infra/v1/target-sources/{id}/approval-history` | GET | 승인 이력 (페이지네이션) |
+| `/api/infra/v1/target-sources/{id}/process-status` | GET | 프로세스 상태 |
 
 **409 충돌 코드:**
 - `CONFLICT_APPLYING_IN_PROGRESS`: 인프라 반영 진행 중
@@ -279,7 +279,7 @@ Exception 처리 정책:
 
 ## 6. 추가가 필요한 API (Spec Add Required)
 
-- `GET /api/v1/users/search`: users/search swagger 반영 완료됨
+- `GET /api/infra/v1/users/search`: users/search swagger 반영 완료됨
 - completion/installation 관련 신규 명세 (용어 통합 후 endpoint 확정 필요)
 - GCP settings endpoint를 target source 기준으로 운영할 경우, route 신규 추가 필요
 - ADR-006 기준으로는 아래도 추가 검토 필요:
