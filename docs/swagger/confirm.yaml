@@ -2,32 +2,46 @@ openapi: 3.0.3
 info:
   title: Target Source Management API
   version: 3.0.0
-  description: |
+  description: >
     ADR-006 기반의 연동 대상 소스(Target Source) 통합 관리 API입니다.
 
+
     **아키텍처 설계 요약:**
+
     1. **객체 분리**: Confirmed(현재 확정), Approved(승인 후 반영 중), Request(승인 요청) 정보를 물리적으로 분리하여 관리합니다.
+
     2. **쓰기 권한 단일화**: 사용자는 `POST /approval-requests`를 통해서만 인프라 변경 의사를 표현할 수 있습니다.
+
     3. **이력 관리**: `COMPLETED`(확정 완료) 및 `SYSTEM_ERROR`(반영 실패) 상태를 통해 인프라 반영의 최종 생명주기를 추적합니다.
+
     4. **보안**: `integrationCategory`와 같은 시스템 가이드는 Response에만 포함하며, Request 검증은 백엔드에서 수행합니다.
+
     5. **용어 체계**: processStatus 상태명은 ADR-009 기준을 따릅니다. `APPLYING_APPROVED`는 "승인 반영 중" 전용입니다.
+
 
     ---
 
+
     **Legacy API 대체 매핑표 (v3.0.0):**
 
+
     | Legacy Path | v1 Path | 비고 |
+
     |---|---|---|
+
     | `POST /projects/{id}/confirm-pii-agent` | _(삭제)_ | route 삭제 |
-    | `POST /projects/{id}/confirm-completion` | `POST /target-sources/{id}/pii-agent-installation/confirm` | 관리자 최종 확정 |
+
+    | `POST /projects/{id}/confirm-completion` | `POST /target-sources/{id}/pii-agent-installation/confirm` | 관리자 최종 확정
+    |
+
     | `PATCH /projects/{id}/resources/credential` | `PATCH /target-sources/{id}/resources/credential` | credential 갱신 |
+
     | `POST /projects/{id}/test-connection` | `POST /target-sources/{id}/test-connection` | 연결 테스트 |
+
     | `POST /projects/{id}/complete-installation` | _(삭제)_ | 신규 의존 금지 |
-
 servers:
-  - url: /api/v1
+  - url: /api/infra/v1
     description: v1 Base Path
-
 tags:
   - name: Resources
     description: 리소스 목록, 메타데이터 조회 및 Credential 관리
@@ -37,16 +51,16 @@ tags:
     description: 승인 객체 기반 프로세스 상태 조회 (설치 진행은 Provider별 installation-status 참조)
   - name: Installation
     description: PII Agent 설치 확정 및 연결 테스트
-
 paths:
   /target-sources/{targetSourceId}/resources:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     get:
-      tags: [Resources]
+      tags:
+        - Resources
       summary: 연동 가능 리소스 목록 조회
       operationId: getResources
-      description: "사용 가능한 모든 클라우드 리소스를 조회합니다. UI에서 제외 사유 필수 여부를 결정하기 위한 `integrationCategory`를 포함합니다."
+      description: 사용 가능한 모든 클라우드 리소스를 조회합니다. UI에서 제외 사유 필수 여부를 결정하기 위한 `integrationCategory`를 포함합니다.
       responses:
         '200':
           description: 조회 성공
@@ -57,23 +71,25 @@ paths:
                 properties:
                   resources:
                     type: array
-                    items: { $ref: '#/components/schemas/Resource' }
-                  totalCount: { type: integer }
+                    items:
+                      $ref: '#/components/schemas/Resource'
+                  total_count:
+                    type: integer
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/approval-requests:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     post:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 연동 대상 요청 생성
       operationId: createApprovalRequest
-      x-expected-duration: "500ms 이내"
+      x-expected-duration: 500ms 이내
       description: |
         사용자가 선택한 리소스와 엔드포인트 설정(DB 등)을 바탕으로 승인을 요청합니다.
         이 요청이 승인되면 `ApprovedIntegration`이 생성되고, 인프라 반영이 성공하면 `ConfirmedIntegration`으로 전환됩니다.
@@ -99,8 +115,10 @@ paths:
               schema:
                 type: object
                 properties:
-                  success: { type: boolean }
-                  approval_request: { $ref: '#/components/schemas/ApprovalRequest' }
+                  success:
+                    type: boolean
+                  approval_request:
+                    $ref: '#/components/schemas/ApprovalRequest'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -110,25 +128,30 @@ paths:
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
         '409':
-          description: "승인 요청 충돌 (반영 중이거나 이미 요청 진행 중)"
+          description: 승인 요청 충돌 (반영 중이거나 이미 요청 진행 중)
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
                 applying_in_progress:
                   summary: 반영 중 신규 요청 차단
                   value:
-                    error: { code: "CONFLICT_APPLYING_IN_PROGRESS", message: "승인된 내용이 반영 중입니다. 완료 후 다시 요청해주세요." }
+                    error:
+                      code: CONFLICT_APPLYING_IN_PROGRESS
+                      message: 승인된 내용이 반영 중입니다. 완료 후 다시 요청해주세요.
                 request_pending:
                   summary: 이미 승인 요청 진행 중
                   value:
-                    error: { code: "CONFLICT_REQUEST_PENDING", message: "이미 승인 요청이 진행 중입니다." }
-
+                    error:
+                      code: CONFLICT_REQUEST_PENDING
+                      message: 이미 승인 요청이 진행 중입니다.
   /target-sources/{targetSourceId}/approval-requests/approve:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     post:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 승인 요청 승인 (관리자)
       operationId: approveApprovalRequest
       description: |
@@ -148,24 +171,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApprovalActionResponse'
         '400':
-          description: "승인 대기 상태가 아님"
+          description: 승인 대기 상태가 아님
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               example:
-                error: { code: "VALIDATION_FAILED", message: "승인 대기 상태가 아닙니다." }
+                error:
+                  code: VALIDATION_FAILED
+                  message: 승인 대기 상태가 아닙니다.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/approval-requests/reject:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     post:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 승인 요청 반려 (관리자)
       operationId: rejectApprovalRequest
       description: |
@@ -186,34 +212,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApprovalActionResponse'
         '400':
-          description: "승인 대기 상태가 아니거나 반려 사유 누락"
+          description: 승인 대기 상태가 아니거나 반려 사유 누락
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
                 invalid_state:
                   summary: 승인 대기 상태가 아님
                   value:
-                    error: { code: "VALIDATION_FAILED", message: "승인 대기 상태가 아닙니다." }
+                    error:
+                      code: VALIDATION_FAILED
+                      message: 승인 대기 상태가 아닙니다.
                 missing_reason:
                   summary: 반려 사유 누락
                   value:
-                    error: { code: "VALIDATION_FAILED", message: "반려 사유를 입력해주세요." }
+                    error:
+                      code: VALIDATION_FAILED
+                      message: 반려 사유를 입력해주세요.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/approval-requests/cancel:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     post:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 승인 요청 취소 (요청자)
       operationId: cancelApprovalRequest
-      x-expected-duration: "500ms 이내"
+      x-expected-duration: 500ms 이내
       description: |
         현재 PENDING 상태인 승인 요청을 취소합니다.
         취소 시 ApprovalResult(CANCELLED)가 생성되고, 프로젝트는 이전 상태(REQUEST_REQUIRED 또는 TARGET_CONFIRMED)로 복원됩니다.
@@ -229,12 +260,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApprovalCancelResponse'
         '400':
-          description: "취소 가능한 승인 요청이 없음"
+          description: 취소 가능한 승인 요청이 없음
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               example:
-                error: { code: "VALIDATION_FAILED", message: "취소할 수 있는 승인 요청이 없습니다." }
+                error:
+                  code: VALIDATION_FAILED
+                  message: 취소할 수 있는 승인 요청이 없습니다.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -242,21 +276,24 @@ paths:
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
         '409':
-          description: "승인 반영 중 — 취소 불가"
+          description: 승인 반영 중 — 취소 불가
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               example:
-                error: { code: "CONFLICT_APPLYING_IN_PROGRESS", message: "승인된 내용이 반영 중입니다. 반영 완료 후까지 취소할 수 없습니다." }
-
+                error:
+                  code: CONFLICT_APPLYING_IN_PROGRESS
+                  message: 승인된 내용이 반영 중입니다. 반영 완료 후까지 취소할 수 없습니다.
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     get:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 연동 확정 정보 조회 (현재 실제 상태)
       operationId: getConfirmedIntegration
-      description: "현재 Terraform이 관리 중이며 실제 인프라에 반영 완료되어 구동 중인 정보입니다."
+      description: 현재 Terraform이 관리 중이며 실제 인프라에 반영 완료되어 구동 중인 정보입니다.
       responses:
         '200':
           description: 조회 성공
@@ -274,15 +311,15 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/approved-integration:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     get:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 승인 완료 정보 조회 (반영 중 상태)
       operationId: getApprovedIntegration
-      description: "관리자 승인이 완료되어 인프라에 반영 중인 과도기적 스냅샷 정보입니다."
+      description: 관리자 승인이 완료되어 인프라에 반영 중인 과도기적 스냅샷 정보입니다.
       responses:
         '200':
           description: 조회 성공
@@ -300,25 +337,29 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/approval-history:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
       - name: page
         in: query
         required: false
-        schema: { type: integer, default: 0 }
-        description: "페이지 번호 (0부터 시작)"
+        schema:
+          type: integer
+          default: 0
+        description: 페이지 번호 (0부터 시작)
       - name: size
         in: query
         required: false
-        schema: { type: integer, default: 10 }
-        description: "페이지 당 항목 수"
+        schema:
+          type: integer
+          default: 10
+        description: 페이지 당 항목 수
     get:
-      tags: [Approval Process]
+      tags:
+        - Approval Process
       summary: 승인/반려/확정 이력 전체 조회 (Pagination)
       operationId: getApprovalHistory
-      description: "과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다."
+      description: 과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다.
       responses:
         '200':
           description: 성공
@@ -329,23 +370,25 @@ paths:
                 properties:
                   content:
                     type: array
-                    items: { $ref: '#/components/schemas/ApprovalHistoryItem' }
-                  page: { $ref: '#/components/schemas/PageInfo' }
+                    items:
+                      $ref: '#/components/schemas/ApprovalHistoryItem'
+                  page:
+                    $ref: '#/components/schemas/PageInfo'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/process-status:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     get:
-      tags: [Process Status]
+      tags:
+        - Process Status
       summary: 대상 소스 processStatus 조회
       operationId: getTargetSourceProcessStatus
-      x-expected-duration: "2s ~ 30s"
+      x-expected-duration: 2s ~ 30s
       description: |
         승인 객체(Confirmed/Approved/Request) 존재 여부만으로 계산된 processStatus를 반환합니다.
         설치 진행 상황은 Provider별 `installation-status` API에서 별도 조회합니다.
@@ -362,15 +405,15 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/pii-agent-installation/confirm:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     post:
-      tags: [Installation]
+      tags:
+        - Installation
       summary: PII Agent 설치 확정 (관리자)
       operationId: confirmPiiAgentInstallation
-      x-expected-duration: "500ms 이내"
+      x-expected-duration: 500ms 이내
       description: |
         관리자가 PII Agent 설치를 최종 확정합니다.
         연결 테스트가 완료된(CONNECTION_VERIFIED) 상태에서만 호출 가능합니다.
@@ -383,27 +426,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/InstallationConfirmResponse'
         '400':
-          description: "설치 확정 가능한 상태가 아님"
+          description: 설치 확정 가능한 상태가 아님
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               example:
-                error: { code: "VALIDATION_FAILED", message: "설치 확정 가능한 상태가 아닙니다." }
+                error:
+                  code: VALIDATION_FAILED
+                  message: 설치 확정 가능한 상태가 아닙니다.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/resources/credential:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
     patch:
-      tags: [Resources]
+      tags:
+        - Resources
       summary: 리소스 Credential 갱신
       operationId: updateResourceCredential
-      x-expected-duration: "300ms 이내"
+      x-expected-duration: 300ms 이내
       description: |
         특정 리소스에 연결할 Credential을 변경합니다.
         연결 테스트 단계(WAITING_CONNECTION_TEST, CONNECTION_VERIFIED, INSTALLATION_COMPLETE)에서만 변경 가능합니다.
@@ -421,58 +467,78 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [success]
+                required:
+                  - success
                 properties:
-                  success: { type: boolean }
+                  success:
+                    type: boolean
         '400':
-          description: "요청 파라미터 오류 또는 변경 불가 상태"
+          description: 요청 파라미터 오류 또는 변경 불가 상태
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
                 missing_resource_id:
                   summary: resourceId 누락
                   value:
-                    error: { code: "VALIDATION_FAILED", message: "resourceId가 필요합니다." }
+                    error:
+                      code: VALIDATION_FAILED
+                      message: resourceId가 필요합니다.
                 invalid_state:
                   summary: 변경 불가 상태
                   value:
-                    error: { code: "VALIDATION_FAILED", message: "Credential 변경 가능한 상태가 아닙니다." }
+                    error:
+                      code: VALIDATION_FAILED
+                      message: Credential 변경 가능한 상태가 아닙니다.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
 components:
   parameters:
     TargetSourceId:
       name: targetSourceId
       in: path
       required: true
-      schema: { type: integer, format: int64 }
-
+      schema:
+        type: integer
+        format: int64
   schemas:
-    # --- Resource Models ---
     Resource:
       type: object
-      required: [id, resourceId, name, resourceType, metadata, integrationCategory]
+      required:
+        - id
+        - resource_id
+        - name
+        - resource_type
+        - metadata
+        - integration_category
       properties:
-        id: { type: string }
-        resourceId: { type: string }
-        name: { type: string }
-        resourceType: { type: string }
-        integrationCategory: { $ref: '#/components/schemas/IntegrationCategory' }
-        selectedCredentialId: { type: string, nullable: true }
-        metadata: { $ref: '#/components/schemas/ResourceMetadata' }
-
+        id:
+          type: string
+        resource_id:
+          type: string
+        name:
+          type: string
+        resource_type:
+          type: string
+        integration_category:
+          $ref: '#/components/schemas/IntegrationCategory'
+        selected_credential_id:
+          type: string
+          nullable: true
+        metadata:
+          $ref: '#/components/schemas/ResourceMetadata'
     IntegrationCategory:
       type: string
-      enum: [TARGET, NO_INSTALL_NEEDED, INSTALL_INELIGIBLE]
-      description: "TARGET: 제외 시 사유 필수, NO_INSTALL_NEEDED: 사유 선택, INSTALL_INELIGIBLE: 연동 불가"
-
-    # --- Metadata Union ---
+      enum:
+        - TARGET
+        - NO_INSTALL_NEEDED
+        - INSTALL_INELIGIBLE
+      description: 'TARGET: 제외 시 사유 필수, NO_INSTALL_NEEDED: 사유 선택, INSTALL_INELIGIBLE: 연동 불가'
     ResourceMetadata:
       oneOf:
         - $ref: '#/components/schemas/AwsMetadata'
@@ -481,329 +547,499 @@ components:
         - $ref: '#/components/schemas/OtherMetadata'
       discriminator:
         propertyName: provider
-
     AwsMetadata:
       type: object
-      required: [provider, resourceType, region]
+      required:
+        - provider
+        - resourceType
+        - region
       properties:
-        provider: { type: string, enum: [AWS] }
-        resourceType: { type: string, enum: [DYNAMODB, RDS, RDS_CLUSTER, ATHENA, REDSHIFT, EC2] }
-        region: { type: string }
-        arn: { type: string }
-        host: { type: string }
-        port: { type: integer }
-        databaseName: { type: string }
-        vpcId: { type: string }
-        instanceId: { type: string }
-        hostName: { type: string }
-        privateIp: { type: string }
-        catalog: { type: string }
-
+        provider:
+          type: string
+          enum:
+            - AWS
+        resourceType:
+          type: string
+          enum:
+            - DYNAMODB
+            - RDS
+            - RDS_CLUSTER
+            - ATHENA
+            - REDSHIFT
+            - EC2
+        region:
+          type: string
+        arn:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+        databaseName:
+          type: string
+        vpcId:
+          type: string
+        instanceId:
+          type: string
+        hostName:
+          type: string
+        privateIp:
+          type: string
+        catalog:
+          type: string
     AzureMetadata:
       type: object
-      required: [provider, resourceType, region]
+      required:
+        - provider
+        - resourceType
+        - region
       properties:
-        provider: { type: string, enum: [Azure] }
-        resourceType: { type: string, enum: [AZURE_MSSQL, AZURE_POSTGRESQL, AZURE_MYSQL, AZURE_MARIADB, AZURE_COSMOS_NOSQL, AZURE_SYNAPSE, AZURE_VM] }
-        region: { type: string }
-        subscriptionId: { type: string }
-        resourceGroup: { type: string }
-        serverName: { type: string }
-        host: { type: string }
-        port: { type: integer }
-        accountName: { type: string }
-        endpoint: { type: string }
-        workspaceName: { type: string }
-        vmName: { type: string }
-        hostName: { type: string }
-        privateIp: { type: string }
-
+        provider:
+          type: string
+          enum:
+            - Azure
+        resourceType:
+          type: string
+          enum:
+            - AZURE_MSSQL
+            - AZURE_POSTGRESQL
+            - AZURE_MYSQL
+            - AZURE_MARIADB
+            - AZURE_COSMOS_NOSQL
+            - AZURE_SYNAPSE
+            - AZURE_VM
+        region:
+          type: string
+        subscriptionId:
+          type: string
+        resourceGroup:
+          type: string
+        serverName:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+        accountName:
+          type: string
+        endpoint:
+          type: string
+        workspaceName:
+          type: string
+        vmName:
+          type: string
+        hostName:
+          type: string
+        privateIp:
+          type: string
     GcpMetadata:
       type: object
-      required: [provider, resourceType, region, projectId]
+      required:
+        - provider
+        - resourceType
+        - region
+        - projectId
       properties:
-        provider: { type: string, enum: [GCP] }
-        resourceType: { type: string, enum: [CLOUD_SQL, BIGQUERY, SPANNER] }
-        region: { type: string }
-        projectId: { type: string }
-        instanceName: { type: string }
-        ip: { type: string }
-        serviceAttachment: { type: string }
-        instanceId: { type: string }
-
+        provider:
+          type: string
+          enum:
+            - GCP
+        resourceType:
+          type: string
+          enum:
+            - CLOUD_SQL
+            - BIGQUERY
+            - SPANNER
+        region:
+          type: string
+        projectId:
+          type: string
+        instanceName:
+          type: string
+        ip:
+          type: string
+        serviceAttachment:
+          type: string
+        instanceId:
+          type: string
     OtherMetadata:
       type: object
-      required: [provider, resourceType]
+      required:
+        - provider
+        - resourceType
       properties:
-        provider: { type: string, enum: [IDC, SDU] }
-        resourceType: { type: string, enum: [IDC, ATHENA_TABLE] }
-        s3Bucket: { type: string }
-        athenaDatabase: { type: string }
-        tableName: { type: string }
-
-    # --- Approval & History Models ---
+        provider:
+          type: string
+          enum:
+            - IDC
+            - SDU
+        resourceType:
+          type: string
+          enum:
+            - IDC
+            - ATHENA_TABLE
+        s3Bucket:
+          type: string
+        athenaDatabase:
+          type: string
+        tableName:
+          type: string
     ApprovalHistoryItem:
       type: object
-      required: [request]
+      required:
+        - request
       properties:
-        request: { $ref: '#/components/schemas/ApprovalRequest' }
-        result: { $ref: '#/components/schemas/ApprovalResult' }
-
+        request:
+          $ref: '#/components/schemas/ApprovalRequest'
+        result:
+          $ref: '#/components/schemas/ApprovalResult'
     ApprovalRequestCreateRequest:
       type: object
-      required: [input_data]
+      required:
+        - input_data
       properties:
         input_data:
           $ref: '#/components/schemas/ApprovalRequestInputData'
-
     ApprovalRequestInputData:
       type: object
-      required: [resource_inputs]
+      required:
+        - resource_inputs
       properties:
         resource_inputs:
           type: array
           minItems: 1
-          description: "리소스별 선택 여부와 입력값(credential/endpoint_config) 통합 모델"
+          description: 리소스별 선택 여부와 입력값(credential/endpoint_config) 통합 모델
           items:
             $ref: '#/components/schemas/ApprovalRequestResourceInput'
         exclusion_reason_default:
           type: string
           nullable: true
-          description: "개별 exclusion_reason 미입력 시 사용할 기본 제외 사유"
-
+          description: 개별 exclusion_reason 미입력 시 사용할 기본 제외 사유
     ApprovalRequestResourceInput:
       oneOf:
         - $ref: '#/components/schemas/SelectedResourceInput'
         - $ref: '#/components/schemas/ExcludedResourceInput'
-
     SelectedResourceInput:
       type: object
-      required: [resource_id, selected, resource_input]
+      required:
+        - resource_id
+        - selected
+        - resource_input
       additionalProperties: false
       properties:
         resource_id:
           type: string
-          description: "리소스 식별자"
+          description: 리소스 식별자
         selected:
           type: boolean
-          enum: [true]
-          description: "true면 승인 대상으로 포함"
+          enum:
+            - true
+          description: true면 승인 대상으로 포함
         resource_input:
           $ref: '#/components/schemas/ResourceInputData'
-
     ExcludedResourceInput:
       type: object
-      required: [resource_id, selected]
+      required:
+        - resource_id
+        - selected
       additionalProperties: false
       properties:
         resource_id:
           type: string
-          description: "리소스 식별자"
+          description: 리소스 식별자
         selected:
           type: boolean
-          enum: [false]
-          description: "false면 승인 대상에서 제외"
+          enum:
+            - false
+          description: false면 승인 대상에서 제외
         exclusion_reason:
           type: string
           nullable: true
-          description: "리소스별 제외 사유"
-
+          description: 리소스별 제외 사유
     ResourceInputData:
       oneOf:
         - $ref: '#/components/schemas/CredentialResourceInput'
         - $ref: '#/components/schemas/EndpointConfigResourceInput'
-
     CredentialResourceInput:
       type: object
-      required: [credential_id]
+      required:
+        - credential_id
       additionalProperties: false
       properties:
         credential_id:
           type: string
-          description: "RDS 등 credential 기반 리소스에 사용할 credential ID"
-
+          description: RDS 등 credential 기반 리소스에 사용할 credential ID
     EndpointConfigResourceInput:
       type: object
-      required: [endpoint_config]
+      required:
+        - endpoint_config
       additionalProperties: false
       properties:
         endpoint_config:
           $ref: '#/components/schemas/EndpointConfigInput'
-
     EndpointConfigInput:
-      description: "승인 요청 입력용 엔드포인트 설정. resource_id는 상위 resource_inputs[].resource_id를 사용합니다."
+      description: 승인 요청 입력용 엔드포인트 설정. resource_id는 상위 resource_inputs[].resource_id를 사용합니다.
       oneOf:
         - $ref: '#/components/schemas/OracleEndpointConfigInput'
         - $ref: '#/components/schemas/NonOracleEndpointConfigInput'
-
     OracleEndpointConfigInput:
       type: object
-      required: [db_type, port, host, oracleServiceId]
+      required:
+        - db_type
+        - port
+        - host
+        - oracleServiceId
       additionalProperties: false
       properties:
         db_type:
           type: string
-          enum: [ORACLE]
-        port: { type: integer, minimum: 1, maximum: 65535 }
-        host: { type: string }
+          enum:
+            - ORACLE
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        host:
+          type: string
         oracleServiceId:
           type: string
-          description: "Oracle DB 연결에 필요한 Service ID"
-        selectedNicId: { type: string }
-
+          description: Oracle DB 연결에 필요한 Service ID
+        selectedNicId:
+          type: string
     NonOracleEndpointConfigInput:
       type: object
-      required: [db_type, port, host]
+      required:
+        - db_type
+        - port
+        - host
       additionalProperties: false
       properties:
         db_type:
           type: string
-          enum: [MYSQL, POSTGRESQL, MSSQL, MONGODB]
-        port: { type: integer, minimum: 1, maximum: 65535 }
-        host: { type: string }
-        selectedNicId: { type: string }
-
-    # --- Approval Action Models ---
+          enum:
+            - MYSQL
+            - POSTGRESQL
+            - MSSQL
+            - MONGODB
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        host:
+          type: string
+        selectedNicId:
+          type: string
     ApprovalApproveRequest:
       type: object
       properties:
         comment:
           type: string
           nullable: true
-          description: "승인 코멘트 (선택)"
-
+          description: 승인 코멘트 (선택)
     ApprovalRejectRequest:
       type: object
-      required: [reason]
+      required:
+        - reason
       properties:
         reason:
           type: string
           minLength: 1
-          description: "반려 사유 (필수)"
-
+          description: 반려 사유 (필수)
     ApprovalActionResponse:
       type: object
-      required: [success, result, processed_at]
+      required:
+        - success
+        - result
+        - processed_at
       properties:
-        success: { type: boolean }
+        success:
+          type: boolean
         result:
           type: string
-          enum: [APPROVED, REJECTED]
-        processed_at: { type: string, format: date-time }
+          enum:
+            - APPROVED
+            - REJECTED
+        processed_at:
+          type: string
+          format: date-time
         reason:
           type: string
           nullable: true
-          description: "반려 시 사유"
-
+          description: 반려 시 사유
     ApprovalCancelResponse:
       type: object
-      required: [success, result, processed_at]
+      required:
+        - success
+        - result
+        - processed_at
       properties:
-        success: { type: boolean }
+        success:
+          type: boolean
         result:
           type: string
-          enum: [CANCELLED]
-        processed_at: { type: string, format: date-time }
-
+          enum:
+            - CANCELLED
+        processed_at:
+          type: string
+          format: date-time
     ApprovalRequest:
       type: object
       properties:
-        id: { type: string }
-        requested_at: { type: string, format: date-time }
-        requested_by: { type: string }
+        id:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        requested_by:
+          type: string
         input_data:
           $ref: '#/components/schemas/ApprovalRequestInputData'
-
     ApprovalResult:
       type: object
       properties:
-        id: { type: string }
-        request_id: { type: string }
+        id:
+          type: string
+        request_id:
+          type: string
         result:
           type: string
-          enum: [APPROVED, AUTO_APPROVED, REJECTED, CANCELLED, SYSTEM_ERROR, COMPLETED]
-        processed_at: { type: string, format: date-time }
+          enum:
+            - APPROVED
+            - AUTO_APPROVED
+            - REJECTED
+            - CANCELLED
+            - SYSTEM_ERROR
+            - COMPLETED
+        processed_at:
+          type: string
+          format: date-time
         process_info:
           type: object
           properties:
-            user_id: { type: string, nullable: true }
-            reason: { type: string, nullable: true }
-
-    # --- Integration Snapshots ---
+            user_id:
+              type: string
+              nullable: true
+            reason:
+              type: string
+              nullable: true
     ConfirmedIntegration:
       type: object
       properties:
         resource_infos:
           type: array
-          items: { $ref: '#/components/schemas/ResourceSnapshot' }
-
+          items:
+            $ref: '#/components/schemas/ResourceSnapshot'
     ApprovedIntegration:
       type: object
       properties:
-        id: { type: string }
-        request_id: { type: string }
-        approved_at: { type: string, format: date-time }
+        id:
+          type: string
+        request_id:
+          type: string
+        approved_at:
+          type: string
+          format: date-time
         resource_infos:
           type: array
-          items: { $ref: '#/components/schemas/ResourceSnapshot' }
-        excluded_resource_ids: { type: array, items: { type: string } }
-        exclusion_reason: { type: string }
-
+          items:
+            $ref: '#/components/schemas/ResourceSnapshot'
+        excluded_resource_ids:
+          type: array
+          items:
+            type: string
+        exclusion_reason:
+          type: string
     ResourceSnapshot:
       type: object
       properties:
-        resource_id: { type: string }
-        resource_type: { type: string }
+        resource_id:
+          type: string
+        resource_type:
+          type: string
         endpoint_config:
           nullable: true
-          description: "엔드포인트 설정 스냅샷입니다. Oracle DB 선택 시 oracleServiceId를 포함해야 합니다."
+          description: 엔드포인트 설정 스냅샷입니다. Oracle DB 선택 시 oracleServiceId를 포함해야 합니다.
           allOf:
             - $ref: '#/components/schemas/EndpointConfig'
-        credential_id: { type: string, nullable: true }
-
+        credential_id:
+          type: string
+          nullable: true
     EndpointConfig:
-      description: "엔드포인트 연결 설정. AWS EC2/Azure VM/IDC 모두 Oracle 선택 시 oracleServiceId가 필수입니다."
+      description: 엔드포인트 연결 설정. AWS EC2/Azure VM/IDC 모두 Oracle 선택 시 oracleServiceId가 필수입니다.
       oneOf:
         - $ref: '#/components/schemas/OracleEndpointConfig'
         - $ref: '#/components/schemas/NonOracleEndpointConfig'
-
     OracleEndpointConfig:
       type: object
-      required: [resource_id, db_type, port, host, oracleServiceId]
+      required:
+        - resource_id
+        - db_type
+        - port
+        - host
+        - oracleServiceId
       properties:
-        resource_id: { type: string }
+        resource_id:
+          type: string
         db_type:
           type: string
-          enum: [ORACLE]
-        port: { type: integer, minimum: 1, maximum: 65535 }
-        host: { type: string }
+          enum:
+            - ORACLE
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        host:
+          type: string
         oracleServiceId:
           type: string
-          description: "Oracle DB 연결에 필요한 Service ID"
-        selectedNicId: { type: string }
-
+          description: Oracle DB 연결에 필요한 Service ID
+        selectedNicId:
+          type: string
     NonOracleEndpointConfig:
       type: object
-      required: [resource_id, db_type, port, host]
+      required:
+        - resource_id
+        - db_type
+        - port
+        - host
       properties:
-        resource_id: { type: string }
+        resource_id:
+          type: string
         db_type:
           type: string
-          enum: [MYSQL, POSTGRESQL, MSSQL, MONGODB]
-        port: { type: integer, minimum: 1, maximum: 65535 }
-        host: { type: string }
-        selectedNicId: { type: string }
-
+          enum:
+            - MYSQL
+            - POSTGRESQL
+            - MSSQL
+            - MONGODB
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        host:
+          type: string
+        selectedNicId:
+          type: string
     PageInfo:
       type: object
-      required: [totalElements, totalPages, number, size]
+      required:
+        - total_elements
+        - total_pages
+        - number
+        - size
       properties:
-        totalElements: { type: integer, example: 15 }
-        totalPages: { type: integer, example: 2 }
-        number: { type: integer, description: "현재 페이지 번호 (0-based)" }
-        size: { type: integer, description: "요청한 페이지 당 항목 수" }
-
-    # --- Process Status Models (ADR-009) ---
+        total_elements:
+          type: integer
+          example: 15
+        total_pages:
+          type: integer
+          example: 2
+        number:
+          type: integer
+          description: 현재 페이지 번호 (0-based)
+        size:
+          type: integer
+          description: 요청한 페이지 당 항목 수
     ProcessStatusResponse:
       type: object
       required:
@@ -825,19 +1061,21 @@ components:
             - has_approved_integration
             - last_approval_result
           properties:
-            has_confirmed_integration: { type: boolean }
-            has_pending_approval_request: { type: boolean }
-            has_approved_integration: { type: boolean }
+            has_confirmed_integration:
+              type: boolean
+            has_pending_approval_request:
+              type: boolean
+            has_approved_integration:
+              type: boolean
             last_approval_result:
               $ref: '#/components/schemas/LastApprovalResult'
             last_rejection_reason:
               type: string
               nullable: true
-              description: "최근 REJECTED 또는 SYSTEM_ERROR 사유"
+              description: 최근 REJECTED 또는 SYSTEM_ERROR 사유
         evaluated_at:
           type: string
           format: date-time
-
     TargetSourceProcessStatus:
       type: string
       description: |
@@ -852,7 +1090,6 @@ components:
         - WAITING_APPROVAL
         - APPLYING_APPROVED
         - TARGET_CONFIRMED
-
     LastApprovalResult:
       type: string
       enum:
@@ -862,64 +1099,82 @@ components:
         - CANCELLED
         - SYSTEM_ERROR
         - COMPLETED
-
-    # --- Installation & Connection Test Models ---
     InstallationConfirmResponse:
       type: object
-      required: [success, confirmedAt]
+      required:
+        - success
+        - confirmed_at
       properties:
-        success: { type: boolean }
-        confirmedAt: { type: string, format: date-time }
-
+        success:
+          type: boolean
+        confirmed_at:
+          type: string
+          format: date-time
     UpdateResourceCredentialRequest:
       type: object
-      required: [resourceId]
+      required:
+        - resourceId
       properties:
         resourceId:
           type: string
-          description: "대상 리소스 식별자"
+          description: 대상 리소스 식별자
         credentialId:
           type: string
           nullable: true
-          description: "연결할 Credential ID. null이면 연결 해제"
-
+          description: 연결할 Credential ID. null이면 연결 해제
     ErrorResponse:
       type: object
-      required: [error]
+      required:
+        - error
       properties:
         error:
           type: object
-          required: [code, message]
+          required:
+            - code
+            - message
           properties:
-            code: { type: string }
-            message: { type: string }
-
+            code:
+              type: string
+            message:
+              type: string
   responses:
     Unauthorized:
-      description: "인증 실패 (SSO 토큰 만료 또는 미인증)"
+      description: 인증 실패 (SSO 토큰 만료 또는 미인증)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: { code: "UNAUTHORIZED", message: "인증이 필요합니다." }
+            error:
+              code: UNAUTHORIZED
+              message: 인증이 필요합니다.
     PermissionDenied:
-      description: "인가 실패 (API 호출 권한 없음)"
+      description: 인가 실패 (API 호출 권한 없음)
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: { code: "FORBIDDEN", message: "해당 리소스에 접근할 권한이 없습니다." }
+            error:
+              code: FORBIDDEN
+              message: 해당 리소스에 접근할 권한이 없습니다.
     TargetSourceNotFound:
-      description: "대상 소스를 찾을 수 없음"
+      description: 대상 소스를 찾을 수 없음
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: { code: "TARGET_SOURCE_NOT_FOUND", message: "해당 ID의 Target Source가 존재하지 않습니다." }
+            error:
+              code: TARGET_SOURCE_NOT_FOUND
+              message: 해당 ID의 Target Source가 존재하지 않습니다.
     BadRequest:
-      description: "잘못된 요청 파라미터"
+      description: 잘못된 요청 파라미터
       content:
         application/json:
-          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
           example:
-            error: { code: "VALIDATION_FAILED", message: "요청 파라미터가 올바르지 않습니다." }
+            error:
+              code: VALIDATION_FAILED
+              message: 요청 파라미터가 올바르지 않습니다.

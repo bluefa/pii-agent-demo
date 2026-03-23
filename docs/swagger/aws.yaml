@@ -9,11 +9,10 @@ info:
     본 API의 모든 응답 모델은 향후 확장될 수 있습니다. 클라이언트(또는 AI Agent)는 정의되지 않은 필드가 응답에 포함되더라도 에러를 발생시키지 않고 무시해야 합니다.
   version: 1.15.0
 servers:
-  - url: /api/v1
+  - url: /api/infra/v1
     description: API Gateway Base Path
-
 paths:
-  '/aws/target-sources/{targetSourceId}/installation-status':
+  /aws/target-sources/{targetSourceId}/installation-status:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     get:
@@ -21,7 +20,7 @@ paths:
         - AWS Installation
       summary: AWS 설치 상태 조회
       operationId: getAwsInstallationStatus
-      x-expected-duration: "200ms ~ 5s"
+      x-expected-duration: 200ms ~ 5s
       description: |-
         **동기 작업(Synchronous)**
         배치 작업 또는 실시간 동기화로 갱신된 최신 설치 상태(Terraform 스크립트 단위)를 조회합니다.
@@ -37,8 +36,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
-  '/aws/target-sources/{targetSourceId}/check-installation':
+  /aws/target-sources/{targetSourceId}/check-installation:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     post:
@@ -46,7 +44,7 @@ paths:
         - AWS Installation
       summary: AWS 설치 상태 실시간 동기화
       operationId: refreshAwsInstallationStatus
-      x-expected-duration: "30s ~ 5m"
+      x-expected-duration: 30s ~ 5m
       description: |-
         **동기 작업(Synchronous)**
         현재 AWS 인프라 리소스를 직접 탐색하여 각 ServiceScript의 설치 상태를 강제로 갱신합니다.
@@ -61,8 +59,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
-  '/aws/target-sources/{targetSourceId}/verify-execution-role':
+  /aws/target-sources/{targetSourceId}/verify-execution-role:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     post:
@@ -70,7 +67,7 @@ paths:
         - AWS Verification
       summary: 실행 권한(Execution Role) 검증
       operationId: verifyAwsExecutionRole
-      x-expected-duration: "1s ~ 30s"
+      x-expected-duration: 1s ~ 30s
       description: |-
         **동기 작업(Synchronous)**
         타겟 소스에 할당된 Execution Role의 유효성을 실시간으로 검증합니다.
@@ -96,36 +93,35 @@ paths:
                 valid:
                   summary: 검증 성공
                   value:
-                    roleArn: "arn:aws:iam::123456789012:role/PiiExecutionRole"
-                    status: "VALID"
-                    lastVerifiedAt: "2026-02-15T10:30:00Z"
+                    role_arn: arn:aws:iam::123456789012:role/PiiExecutionRole
+                    status: VALID
+                    last_verified_at: '2026-02-15T10:30:00Z'
                 notConfigured:
                   summary: Role ARN 미설정
                   value:
-                    roleArn: null
-                    status: "INVALID"
-                    failReason: "ROLE_NOT_CONFIGURED"
-                    failMessage: "Execution Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요."
+                    role_arn: null
+                    status: INVALID
+                    fail_reason: ROLE_NOT_CONFIGURED
+                    fail_message: Execution Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요.
                 insufficientPermissions:
                   summary: Role 권한 부족
                   value:
-                    roleArn: "arn:aws:iam::123456789012:role/PiiExecutionRole"
-                    status: "INVALID"
-                    failReason: "ROLE_INSUFFICIENT_PERMISSIONS"
-                    failMessage: "등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요."
+                    role_arn: arn:aws:iam::123456789012:role/PiiExecutionRole
+                    status: INVALID
+                    fail_reason: ROLE_INSUFFICIENT_PERMISSIONS
+                    fail_message: 등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요.
                 scanRoleUnavailable:
                   summary: 검증에 필요한 Scan Role 사용 불가
                   value:
-                    roleArn: "arn:aws:iam::123456789012:role/PiiExecutionRole"
-                    status: "INVALID"
-                    failReason: "SCAN_ROLE_UNAVAILABLE"
-                    failMessage: "Execution Role 검증을 위해 Scan Role이 필요합니다. Scan Role을 먼저 설정하고 검증해주세요."
+                    role_arn: arn:aws:iam::123456789012:role/PiiExecutionRole
+                    status: INVALID
+                    fail_reason: SCAN_ROLE_UNAVAILABLE
+                    fail_message: Execution Role 검증을 위해 Scan Role이 필요합니다. Scan Role을 먼저 설정하고 검증해주세요.
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
-  '/aws/target-sources/{targetSourceId}/verify-scan-role':
+  /aws/target-sources/{targetSourceId}/verify-scan-role:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     post:
@@ -133,7 +129,7 @@ paths:
         - AWS Verification
       summary: 스캔 권한(Scan Role) 검증
       operationId: verifyAwsScanRole
-      x-expected-duration: "1s ~ 30s"
+      x-expected-duration: 1s ~ 30s
       description: |-
         **동기 작업(Synchronous)**
         리소스 조회를 위한 Scan Role의 권한 유효성을 실시간으로 검증합니다.
@@ -150,29 +146,28 @@ paths:
                 valid:
                   summary: 검증 성공
                   value:
-                    roleArn: "arn:aws:iam::123456789012:role/PiiScanRole"
-                    status: "VALID"
-                    lastVerifiedAt: "2026-02-15T10:30:00Z"
+                    role_arn: arn:aws:iam::123456789012:role/PiiScanRole
+                    status: VALID
+                    last_verified_at: '2026-02-15T10:30:00Z'
                 notConfigured:
                   summary: Role ARN 미설정
                   value:
-                    roleArn: null
-                    status: "INVALID"
-                    failReason: "ROLE_NOT_CONFIGURED"
-                    failMessage: "Scan Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요."
+                    role_arn: null
+                    status: INVALID
+                    fail_reason: ROLE_NOT_CONFIGURED
+                    fail_message: Scan Role이 설정되지 않았습니다. Settings에서 Role ARN을 등록해주세요.
                 insufficientPermissions:
                   summary: Role 권한 부족
                   value:
-                    roleArn: "arn:aws:iam::123456789012:role/PiiScanRole"
-                    status: "INVALID"
-                    failReason: "ROLE_INSUFFICIENT_PERMISSIONS"
-                    failMessage: "등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요."
+                    role_arn: arn:aws:iam::123456789012:role/PiiScanRole
+                    status: INVALID
+                    fail_reason: ROLE_INSUFFICIENT_PERMISSIONS
+                    fail_message: 등록된 Role의 AWS IAM 권한이 부족합니다. 필요 권한을 확인해주세요.
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
-  '/aws/target-sources/{targetSourceId}/installation-mode':
+  /aws/target-sources/{targetSourceId}/installation-mode:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     post:
@@ -180,7 +175,7 @@ paths:
         - AWS Installation
       summary: AWS 설치 모드 설정
       operationId: setAwsInstallationMode
-      x-expected-duration: "500ms"
+      x-expected-duration: 500ms
       description: |-
         **동기 작업(Synchronous)**
         AWS PII Agent 설치 방식(AUTO/MANUAL)을 설정합니다.
@@ -191,12 +186,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [mode]
+              required:
+                - mode
               properties:
                 mode:
                   type: string
-                  enum: [AUTO, MANUAL]
-                  description: "설치 모드 (AUTO: TF Role 등록 후 자동 실행, MANUAL: TF Script 직접 실행)"
+                  enum:
+                    - AUTO
+                    - MANUAL
+                  description: '설치 모드 (AUTO: TF Role 등록 후 자동 실행, MANUAL: TF Script 직접 실행)'
       responses:
         '200':
           description: 설정 완료
@@ -209,9 +207,9 @@ paths:
                     type: boolean
                   project:
                     type: object
-                    description: "업데이트된 프로젝트 정보 (Forward Compatibility)"
+                    description: 업데이트된 프로젝트 정보 (Forward Compatibility)
         '400':
-          description: "유효하지 않은 설치 모드"
+          description: 유효하지 않은 설치 모드
           content:
             application/json:
               schema:
@@ -219,13 +217,12 @@ paths:
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
         '409':
-          description: "설치 모드가 이미 설정됨 (변경 불가)"
+          description: 설치 모드가 이미 설정됨 (변경 불가)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-  '/aws/target-sources/{targetSourceId}/terraform-script':
+  /aws/target-sources/{targetSourceId}/terraform-script:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     get:
@@ -233,7 +230,7 @@ paths:
         - AWS Installation
       summary: AWS TF Script 다운로드 정보 조회
       operationId: getAwsTerraformScript
-      x-expected-duration: "500ms"
+      x-expected-duration: 500ms
       description: |-
         **동기 작업(Synchronous)**
         수동 설치(MANUAL) 모드에서 Terraform 스크립트 다운로드 정보를 조회합니다.
@@ -246,15 +243,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/TerraformScriptResponse'
         '400':
-          description: "AUTO 모드에서는 스크립트 불필요"
+          description: AUTO 모드에서는 스크립트 불필요
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
-  '/aws/target-sources/{targetSourceId}/settings':
+  /aws/target-sources/{targetSourceId}/settings:
     parameters:
       - $ref: '#/components/parameters/targetSourceId'
     get:
@@ -262,7 +258,7 @@ paths:
         - Settings
       summary: 대상 소스별 AWS 설정 조회
       operationId: getAwsTargetSourceSettings
-      x-expected-duration: "150ms"
+      x-expected-duration: 150ms
       description: |-
         **동기 작업(Synchronous)**
         타겟 소스에 등록된 AWS IAM Role 정보 및 마지막 검증 상태를 조회합니다.
@@ -277,222 +273,235 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
-
 components:
   parameters:
     targetSourceId:
       name: targetSourceId
       in: path
       required: true
-      description: "타겟 소스 고유 식별자"
+      description: 타겟 소스 고유 식별자
       schema:
         type: integer
-
   schemas:
     AwsInstallationStatus:
       type: object
-      description: "AWS 설치 상태 응답 (Forward Compatibility: 정의되지 않은 필드가 포함되더라도 무시해야 함)"
-      required: [serviceScripts, lastCheck]
+      description: 'AWS 설치 상태 응답 (Forward Compatibility: 정의되지 않은 필드가 포함되더라도 무시해야 함)'
+      required:
+        - service_scripts
+        - last_check
       properties:
-        lastCheck:
+        last_check:
           $ref: '#/components/schemas/LastCheckInfo'
-        hasExecutionPermission:
+        has_execution_permission:
           type: boolean
-          description: "실행 권한 보유 여부"
-        executionRoleArn:
+          description: 실행 권한 보유 여부
+        execution_role_arn:
           type: string
-          description: "TF Execution Role ARN (자동 설치 모드에서만 존재)"
-        serviceScripts:
+          description: TF Execution Role ARN (자동 설치 모드에서만 존재)
+        service_scripts:
           type: array
-          description: "Terraform 스크립트 단위 설치 상태 목록"
+          description: Terraform 스크립트 단위 설치 상태 목록
           items:
             $ref: '#/components/schemas/ServiceScript'
-        bdcStatus:
+        bdc_status:
           type: object
-          description: "BDC 관련 상태"
+          description: BDC 관련 상태
           properties:
             status:
               $ref: '#/components/schemas/ScriptStatus'
-        actionSummary:
+        action_summary:
           $ref: '#/components/schemas/AwsInstallationActionSummary'
-
     LastCheckInfo:
       type: object
-      description: "마지막 스캔 작업에 대한 메타 정보"
-      required: [status]
+      description: 마지막 스캔 작업에 대한 메타 정보
+      required:
+        - status
       properties:
         status:
           type: string
-          enum: [SUCCESS, IN_PROGRESS, FAILED]
-          description: "작업 상태"
-        checkedAt:
+          enum:
+            - SUCCESS
+            - IN_PROGRESS
+            - FAILED
+          description: 작업 상태
+        checked_at:
           type: string
           format: date-time
-          description: "마지막으로 스캔을 완료하거나 시도한 시각"
-        failReason:
+          description: 마지막으로 스캔을 완료하거나 시도한 시각
+        fail_reason:
           type: string
-          description: "FAILED 상태일 경우의 에러 원인"
-
+          description: FAILED 상태일 경우의 에러 원인
     ServiceScript:
       type: object
-      description: "Terraform 스크립트 단위 리소스 그룹"
-      required: [scriptName, status]
+      description: Terraform 스크립트 단위 리소스 그룹
+      required:
+        - script_name
+        - status
       properties:
-        scriptId:
+        script_id:
           type: string
-          description: "스크립트 고유 식별자 (UI 안정 키)"
-        scriptName:
+          description: 스크립트 고유 식별자 (UI 안정 키)
+        script_name:
           type: string
-          example: "VPC Endpoint (vpc-0123abcd / ap-northeast-2)"
-        terraformScriptName:
+          example: VPC Endpoint (vpc-0123abcd / ap-northeast-2)
+        terraform_script_name:
           type: string
-          description: "terraform script 표시명 (scriptName과 동일 의미)"
+          description: terraform script 표시명 (script_name과 동일 의미)
         status:
           $ref: '#/components/schemas/ScriptStatus'
-        resourceCount:
+        resource_count:
           type: integer
-          description: "스크립트에 매핑된 리소스 개수"
+          description: 스크립트에 매핑된 리소스 개수
         region:
           type: string
-          description: "AWS 리전"
+          description: AWS 리전
         resources:
           type: array
-          description: "스크립트에 포함된 개별 리소스 리스트"
+          description: 스크립트에 포함된 개별 리소스 리스트
           items:
             $ref: '#/components/schemas/ResourceItem'
-
     ResourceItem:
       type: object
-      description: "개별 AWS 리소스 정보"
+      description: 개별 AWS 리소스 정보
       properties:
-        resourceId:
-          type: string
-          description: "AWS Resource ID"
         resource_id:
           type: string
-          description: "AWS Resource ID (snake_case alias)"
+          description: AWS Resource ID
         type:
           type: string
-          description: "AWS Resource Type"
+          description: AWS Resource Type
         resource_type:
           type: string
-          description: "AWS Resource Type (snake_case alias)"
+          description: AWS Resource Type (snake_case alias)
         name:
           type: string
-          description: "Resource 명칭"
-        installationDisplayStatus:
+          description: Resource 명칭
+        installation_display_status:
           $ref: '#/components/schemas/InstallationDisplayStatus'
-
     ScriptStatus:
       type: string
-      enum: [PENDING, INSTALLING, COMPLETED, FAILED]
-      description: "설치 진행 상태"
-
+      enum:
+        - PENDING
+        - INSTALLING
+        - COMPLETED
+        - FAILED
+      description: 설치 진행 상태
     InstallationDisplayStatus:
       type: string
-      description: "사용자 노출용 단순 설치 상태"
-      enum: [NOT_INSTALLED, COMPLETED]
-
+      description: 사용자 노출용 단순 설치 상태
+      enum:
+        - NOT_INSTALLED
+        - COMPLETED
     AwsInstallationActionSummary:
       type: object
-      description: "화면 상단 요약 카드 데이터"
-      required: [serviceActionRequired, bdcInstallationRequired]
+      description: 화면 상단 요약 카드 데이터
+      required:
+        - service_action_required
+        - bdc_installation_required
       properties:
-        serviceActionRequired:
+        service_action_required:
           type: boolean
-          description: "서비스 담당자 조치 필요 여부"
-        bdcInstallationRequired:
+          description: 서비스 담당자 조치 필요 여부
+        bdc_installation_required:
           type: boolean
-          description: "BDC 설치 필요 여부"
-
+          description: BDC 설치 필요 여부
     AwsSettings:
       type: object
-      description: "AWS 설정 정보"
-      required: [executionRole, scanRole]
+      description: AWS 설정 정보
+      required:
+        - execution_role
+        - scan_role
       properties:
-        executionRole:
+        execution_role:
           $ref: '#/components/schemas/AwsRoleInfo'
-        scanRole:
+        scan_role:
           $ref: '#/components/schemas/AwsRoleInfo'
-
     AwsRoleInfo:
       type: object
-      description: "IAM Role 정보 및 검증 상태"
-      required: [status]
+      description: IAM Role 정보 및 검증 상태
+      required:
+        - status
       properties:
-        roleArn:
+        role_arn:
           type: string
           nullable: true
-          description: "AWS IAM Role ARN (미설정 시 null)"
+          description: AWS IAM Role ARN (미설정 시 null)
         status:
           type: string
-          enum: [VALID, INVALID, UNVERIFIED]
-          description: "Role 유효성 검증 상태"
-        failReason:
+          enum:
+            - VALID
+            - INVALID
+            - UNVERIFIED
+          description: Role 유효성 검증 상태
+        fail_reason:
           type: string
           nullable: true
-          enum: [ROLE_NOT_CONFIGURED, ROLE_INSUFFICIENT_PERMISSIONS, SCAN_ROLE_UNAVAILABLE]
-          description: "INVALID 상태일 때 실패 사유 (VALID/UNVERIFIED 시 null)"
-        failMessage:
+          enum:
+            - ROLE_NOT_CONFIGURED
+            - ROLE_INSUFFICIENT_PERMISSIONS
+            - SCAN_ROLE_UNAVAILABLE
+          description: INVALID 상태일 때 실패 사유 (VALID/UNVERIFIED 시 null)
+        fail_message:
           type: string
           nullable: true
-          description: "INVALID 상태일 때 사용자 노출 메시지 (VALID/UNVERIFIED 시 null)"
-        lastVerifiedAt:
+          description: INVALID 상태일 때 사용자 노출 메시지 (VALID/UNVERIFIED 시 null)
+        last_verified_at:
           type: string
           format: date-time
-          description: "마지막 검증 시각"
-
+          description: 마지막 검증 시각
     TerraformScriptResponse:
       type: object
-      description: "Terraform 스크립트 다운로드 정보"
-      required: [downloadUrl, fileName]
+      description: Terraform 스크립트 다운로드 정보
+      required:
+        - download_url
+        - file_name
       properties:
-        downloadUrl:
+        download_url:
           type: string
-          description: "스크립트 다운로드 URL"
-        fileName:
+          description: 스크립트 다운로드 URL
+        file_name:
           type: string
-          description: "스크립트 파일명"
-        expiresAt:
+          description: 스크립트 파일명
+        expires_at:
           type: string
           format: date-time
-          description: "다운로드 URL 만료 시각"
-
+          description: 다운로드 URL 만료 시각
     ErrorResponse:
       type: object
-      description: "에러 응답 공통 모델"
-      required: [error]
+      description: 에러 응답 공통 모델
+      required:
+        - error
       properties:
         error:
           type: object
-          required: [code, message]
+          required:
+            - code
+            - message
           properties:
             code:
               type: string
-              description: "에러 코드 (예: AccessDenied, PermissionDenied)"
+              description: '에러 코드 (예: AccessDenied, PermissionDenied)'
             message:
               type: string
-              description: "에러 상세 메시지"
-
+              description: 에러 상세 메시지
   responses:
     PermissionDenied:
-      description: "인가 실패 (API 호출 권한 없음)"
+      description: 인가 실패 (API 호출 권한 없음)
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error:
-              code: "FORBIDDEN"
-              message: "해당 리소스에 접근할 권한이 없습니다."
-
+              code: FORBIDDEN
+              message: 해당 리소스에 접근할 권한이 없습니다.
     TargetSourceNotFound:
-      description: "대상 소스를 찾을 수 없음"
+      description: 대상 소스를 찾을 수 없음
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
           example:
             error:
-              code: "TARGET_SOURCE_NOT_FOUND"
-              message: "요청하신 Target Source를 찾을 수 없습니다."
+              code: TARGET_SOURCE_NOT_FOUND
+              message: 요청하신 Target Source를 찾을 수 없습니다.

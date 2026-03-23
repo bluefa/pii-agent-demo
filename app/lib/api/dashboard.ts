@@ -1,6 +1,7 @@
+import { fetchInfra } from '@/app/lib/api/infra';
 import type { DashboardSummary, SystemDetailListResponse, DashboardFilters } from '@/lib/types/dashboard';
 
-const DASHBOARD_BASE = '/api/v1/admin/dashboard';
+const DASHBOARD_BASE = '/admin/dashboard';
 
 const buildParams = (filters: DashboardFilters): string => {
   const params = new URLSearchParams();
@@ -19,7 +20,7 @@ const buildParams = (filters: DashboardFilters): string => {
 };
 
 export const getDashboardSummary = async (): Promise<DashboardSummary> => {
-  const res = await fetch(`${DASHBOARD_BASE}/summary`);
+  const res = await fetchInfra(`${DASHBOARD_BASE}/summary`);
   if (!res.ok) throw new Error(`summary fetch failed: ${res.status}`);
   return res.json();
 };
@@ -27,7 +28,7 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
 export const getDashboardSystems = async (
   filters: DashboardFilters,
 ): Promise<SystemDetailListResponse> => {
-  const res = await fetch(`${DASHBOARD_BASE}/systems${buildParams(filters)}`);
+  const res = await fetchInfra(`${DASHBOARD_BASE}/systems${buildParams(filters)}`);
   if (!res.ok) throw new Error(`systems fetch failed: ${res.status}`);
   return res.json();
 };
@@ -35,7 +36,7 @@ export const getDashboardSystems = async (
 export const exportDashboardCsv = async (
   filters: DashboardFilters,
 ): Promise<void> => {
-  const res = await fetch(`${DASHBOARD_BASE}/systems/export${buildParams(filters)}`);
+  const res = await fetchInfra(`${DASHBOARD_BASE}/systems/export${buildParams(filters)}`);
   if (!res.ok) throw new Error(`export failed: ${res.status}`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

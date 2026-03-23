@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { cn, textColors, statusColors, getInputClass } from '@/lib/theme';
@@ -21,14 +21,15 @@ export const TaskRejectModal = ({
 }: TaskRejectModalProps) => {
   const [reason, setReason] = useState('');
 
-  // Reset reason when modal opens/closes
-  useEffect(() => {
-    if (!isOpen) setReason('');
-  }, [isOpen]);
+  const handleClose = () => {
+    setReason('');
+    onClose();
+  };
 
   const handleConfirm = () => {
     const trimmed = reason.trim();
     if (trimmed) {
+      setReason('');
       onConfirm(trimmed);
     }
   };
@@ -36,12 +37,12 @@ export const TaskRejectModal = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="승인 요청 반려"
       size="md"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={handleClose}>
             취소
           </Button>
           <Button

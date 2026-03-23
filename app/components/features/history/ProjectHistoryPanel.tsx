@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ProjectHistory } from '@/lib/types';
+import { fetchInfra, parseInfraCamelJson } from '@/app/lib/api/infra';
 import { ProjectHistoryFilter, HistoryFilterType } from './ProjectHistoryFilter';
 import { ProjectHistoryTable } from './ProjectHistoryTable';
 import { ProjectHistoryDetailModal } from './ProjectHistoryDetailModal';
@@ -49,13 +50,13 @@ export const ProjectHistoryPanel = ({
         offset: String(offset),
       });
 
-      const response = await fetch(`/api/v1/target-sources/${targetSourceId}/history?${params}`);
+      const response = await fetchInfra(`/target-sources/${targetSourceId}/history?${params}`);
 
       if (!response.ok) {
         throw new Error('이력을 불러오는데 실패했습니다.');
       }
 
-      const data: HistoryResponse = await response.json();
+      const data = await parseInfraCamelJson<HistoryResponse>(response);
       setHistory(data.history);
       setTotal(data.total);
     } catch (err) {

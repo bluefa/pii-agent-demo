@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { ApiClient } from '@/lib/api-client/types';
+import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 
 const BFF_URL = process.env.BFF_API_URL;
 
 const proxyGet = async (path: string): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${path}`);
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
   return new NextResponse(res.body, {
     status: res.status,
     headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
@@ -12,7 +13,7 @@ const proxyGet = async (path: string): Promise<NextResponse> => {
 };
 
 const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${path}`, {
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -24,7 +25,7 @@ const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => 
 };
 
 const proxyPatch = async (path: string, body: unknown): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${path}`, {
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -36,7 +37,7 @@ const proxyPatch = async (path: string, body: unknown): Promise<NextResponse> =>
 };
 
 const proxyPut = async (path: string, body: unknown): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${path}`, {
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -48,7 +49,7 @@ const proxyPut = async (path: string, body: unknown): Promise<NextResponse> => {
 };
 
 const proxyDelete = async (path: string): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${path}`, { method: 'DELETE' });
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, { method: 'DELETE' });
   return new NextResponse(res.body, {
     status: res.status,
     headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },

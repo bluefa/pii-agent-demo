@@ -11,7 +11,7 @@ import { TaskRejectModal } from '@/app/components/features/queue-board/TaskRejec
 import { TaskDetailModal } from '@/app/components/features/queue-board/TaskDetailModal';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
-import { fetchJson } from '@/lib/fetch-json';
+import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
 import { AppError } from '@/lib/errors';
 import { cn, textColors, primaryColors, cardStyles, statusColors } from '@/lib/theme';
 import type { ApprovalRequestQueueItem, ApprovalRequestQueueResponse } from '@/lib/types/queue-board';
@@ -52,8 +52,8 @@ export const QueueBoard = () => {
       if (type) params.set('requestType', type);
       if (query) params.set('search', query);
 
-      const result = await fetchJson<ApprovalRequestQueueResponse>(
-        `/api/v1/task-admin/approval-requests?${params.toString()}`
+      const result = await fetchInfraCamelJson<ApprovalRequestQueueResponse>(
+        `/task-admin/approval-requests?${params.toString()}`
       );
       setData(result);
     } catch {
@@ -98,7 +98,7 @@ export const QueueBoard = () => {
     if (!approveTarget) return;
     setError(null);
     try {
-      await fetchJson(`/api/v1/target-sources/${approveTarget.targetSourceId}/approval-requests/approve`, {
+      await fetchInfraJson(`/target-sources/${approveTarget.targetSourceId}/approval-requests/approve`, {
         method: 'POST',
         body: {},
       });
@@ -126,7 +126,7 @@ export const QueueBoard = () => {
     if (!selectedItem) return;
     setError(null);
     try {
-      await fetchJson(`/api/v1/target-sources/${selectedItem.targetSourceId}/approval-requests/reject`, {
+      await fetchInfraJson(`/target-sources/${selectedItem.targetSourceId}/approval-requests/reject`, {
         method: 'POST',
         body: { reason },
       });
