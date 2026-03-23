@@ -20,7 +20,7 @@ function snapshotToResources(items: ResourceSnapshotItem[]): Resource[] {
     id: item.resource_id,
     resourceId: item.resource_id,
     type: item.resource_type,
-    databaseType: ((item.endpoint_config?.db_type ?? item.resource_type) as DatabaseType),
+    databaseType: (item.database_type ?? 'MYSQL') as DatabaseType,
     connectionStatus: 'CONNECTED' as const,
     isSelected: true,
     integrationCategory: 'TARGET' as const,
@@ -40,7 +40,7 @@ export const ResourceTransitionPanel = ({
   useEffect(() => {
     getConfirmedIntegration(targetSourceId)
       .then((res) => {
-        const items = res.confirmed_integration?.resource_infos ?? [];
+        const items = res.resource_infos;
         setOldResources(items.length > 0 ? snapshotToResources(items) : null);
       })
       .catch(() => setOldResources(null))
