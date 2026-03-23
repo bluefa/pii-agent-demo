@@ -1,6 +1,18 @@
-import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionStatusResponse } from '@/lib/types';
+import {
+  ServiceCode,
+  ProjectSummary,
+  User,
+  CloudProvider,
+  Project,
+  UserRole,
+  ConnectionStatusResponse,
+  ConfirmResourceMetadata,
+  EndpointConfigInputData,
+  EndpointConfigSnapshot,
+} from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
+import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
 
 
 export interface CurrentUser {
@@ -69,10 +81,10 @@ export const deletePermission = async (serviceCode: string, userId: string): Pro
 };
 
 export const getProject = async (targetSourceId: number): Promise<Project> => {
-  const data = await fetchInfraCamelJson<{ targetSource: Project }>(
+  const data = await fetchInfraCamelJson<TargetSourceDetailResponse>(
     `/target-sources/${targetSourceId}`,
   );
-  return data.targetSource;
+  return extractTargetSource(data);
 };
 
 export interface UserSearchResult {
@@ -108,7 +120,7 @@ export interface ConfirmResourceItem {
   resourceType: string;
   integrationCategory: 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
   selectedCredentialId: string | null;
-  metadata: Record<string, unknown>;
+  metadata: ConfirmResourceMetadata;
 }
 
 export interface ConfirmResourcesResponse {
@@ -126,13 +138,7 @@ export interface ApprovalResourceInput {
   selected: boolean;
   resource_input?: {
     credential_id?: string;
-    endpoint_config?: {
-      db_type: string;
-      port: number;
-      host: string;
-      oracleServiceId?: string;
-      selectedNicId?: string;
-    };
+    endpoint_config?: EndpointConfigInputData;
   };
   exclusion_reason?: string;
 }
@@ -169,7 +175,7 @@ export const createApprovalRequest = async (
 export interface ResourceSnapshotItem {
   resource_id: string;
   resource_type: string;
-  endpoint_config: Record<string, unknown> | null;
+  endpoint_config: EndpointConfigSnapshot | null;
   credential_id: string | null;
 }
 

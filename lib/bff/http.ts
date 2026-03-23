@@ -3,24 +3,30 @@
  * USE_MOCK_DATA=false 일 때 사용된다.
  */
 import type { BffClient } from '@/lib/bff/types';
-import type { Project, SecretKey } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
+import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
+
+interface LegacyErrorPayload {
+  error?: string;
+  message?: string;
+}
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = await res.json().catch((): LegacyErrorPayload => ({}));
     throw new BffError(
       res.status,
-      (body as { error?: string }).error ?? 'UNKNOWN',
-      (body as { message?: string }).message ?? `HTTP ${res.status}`,
+      body.error ?? 'INTERNAL_ERROR',
+      body.message ?? `HTTP ${res.status}`,
     );
   }
   const data = await res.json();
@@ -30,8 +36,8 @@ async function get<T>(path: string): Promise<T> {
 export const httpBff: BffClient = {
   targetSources: {
     get: async (id) => {
-      const data = await get<{ targetSource: Project }>(`/v1/target-sources/${id}`);
-      return data.targetSource;
+      const data = await get<TargetSourceDetailResponse>(`/v1/target-sources/${id}`);
+      return extractTargetSource(data);
     },
 
     secrets: async (id) => {

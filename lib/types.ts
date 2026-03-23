@@ -38,6 +38,18 @@ export interface VmDatabaseConfig {
   selectedNicId?: string;    // Azure VM 전용: 선택된 NIC ID
 }
 
+export interface EndpointConfigInputData {
+  db_type: VmDatabaseType;
+  port: number;
+  host: string;
+  oracleServiceId?: string;
+  selectedNicId?: string;
+}
+
+export interface EndpointConfigSnapshot extends EndpointConfigInputData {
+  resource_id: string;
+}
+
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DOCUMENTDB' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
 // RDS Cluster 전용 타입
@@ -655,7 +667,14 @@ export interface ProjectHistoryDetails {
 /** approval-history에서 사용하는 요청 시점 input_data 스냅샷 */
 export interface ApprovalRequestInputSnapshot {
   resource_inputs: Array<
-    | { resource_id: string; selected: true; resource_input?: Record<string, unknown> }
+    | {
+      resource_id: string;
+      selected: true;
+      resource_input?: {
+        credential_id?: string;
+        endpoint_config?: EndpointConfigInputData;
+      };
+    }
     | { resource_id: string; selected: false; exclusion_reason?: string }
   >;
   exclusion_reason_default?: string;
@@ -692,8 +711,16 @@ export type LastApprovalResultType =
 export interface ResourceSnapshot {
   resource_id: string;
   resource_type: string;
-  endpoint_config: Record<string, unknown> | null;
+  endpoint_config: EndpointConfigSnapshot | null;
   credential_id: string | null;
+}
+
+export interface ConfirmResourceMetadata {
+  provider: CloudProvider;
+  resourceType: string;
+  region?: string;
+  vpcId?: string;
+  projectId?: string;
 }
 
 /** 승인 완료 정보 — 반영 중 스냅샷 (Swagger ApprovedIntegration) */
