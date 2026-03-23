@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { stripAppBasePath } from '@/lib/app-paths';
 import { primaryColors, cn, textColors } from '@/lib/theme';
 
 const NAV_ITEMS = [
@@ -10,7 +11,7 @@ const NAV_ITEMS = [
 ] as const;
 
 export const AdminHeader = () => {
-  const pathname = usePathname();
+  const pathname = stripAppBasePath(usePathname());
 
   return (
     <header className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
