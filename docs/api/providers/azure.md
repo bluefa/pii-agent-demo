@@ -85,9 +85,9 @@ vmConfigs: [{
 **대상 리소스 타입**: `AZURE_MYSQL`, `AZURE_POSTGRESQL`만 해당 (MSSQL, CosmosDB, Synapse 등은 영향 없음)
 
 **스캔 시 동작**:
-- 리소스의 `azureNetworkingMode` 필드로 네트워킹 모드를 전달합니다.
-- `PUBLIC_ACCESS`: PE 연결 가능 (기존 동작)
-- `VNET_INTEGRATION`: PE 연결 불가 → 체크박스 비활성화, 설치 상태에서 제외
+- 프론트는 리소스의 `integrationCategory`로 연동 가능 여부를 판단합니다.
+- `TARGET` 또는 `NO_INSTALL_NEEDED`: 기존 동작대로 연동 대상 선택 가능
+- `INSTALL_INELIGIBLE`: PE 연결 불가 → 체크박스 비활성화, 설치 상태에서 제외
 
 **비즈니스 로직 영향**:
 - `installation-status`: VNet Integration 리소스는 응답에서 제외됩니다.

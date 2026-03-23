@@ -136,14 +136,17 @@
 신규 Path 추가 없이, 기존 `/target-sources/{targetSourceId}/resources` response에 아래 필드를 포함시키는 migration이 필요하다.
 
 - `database_type`
-- `vm_database_config`
-- `azure_networking_mode`
-- `nics`
+- `network_interface_id`
+- `ip_configuration_name`
+- `host`
+- `port`
+- `oracle_service_id`
 
 중요한 점:
 
 - 이는 새 API가 아니라 기존 `/resources` schema 확장이다.
 - 이 작업이 끝나면 Azure/AWS/GCP 선택 테이블은 `project.resources` 대신 `/resources`만으로 렌더링할 수 있다.
+- Azure에서 연동 가능 여부 판단은 `azure_networking_mode`가 아니라 `integration_category`를 기준으로 본다.
 - `is_selected`는 `/resources`에 두지 않는다. 선택 상태는 리소스 카탈로그의 속성이 아니라, 승인/확정 스냅샷의 상태이기 때문이다.
 - `selected_credential_id`도 `/resources`에 두지 않는다. Credential 반영값은 `approval-history`, `approved-integration`, `confirmed-integration` 같은 기존 snapshot 계열 API에서 복원하는 방향을 기준으로 한다.
 
