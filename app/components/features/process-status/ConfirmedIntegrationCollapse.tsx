@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
-import type { ResourceSnapshotItem } from '@/app/lib/api';
+import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
 import { cn, statusColors, textColors, bgColors, tableStyles } from '@/lib/theme';
 
 interface ConfirmedIntegrationCollapseProps {
@@ -15,7 +15,7 @@ export const ConfirmedIntegrationCollapse = ({
   label,
 }: ConfirmedIntegrationCollapseProps) => {
   const [open, setOpen] = useState(false);
-  const [resources, setResources] = useState<ResourceSnapshotItem[] | null>(null);
+  const [resources, setResources] = useState<ConfirmedIntegrationResourceItem[] | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleToggle = async () => {
