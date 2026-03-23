@@ -224,6 +224,7 @@ export const AwsProjectPage = ({
         <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <ProcessStatusCard
             project={project}
+            resources={project.resources}
             onProjectUpdate={onProjectUpdate}
             approvalModalOpen={approvalModalOpen}
             onApprovalModalClose={() => setApprovalModalOpen(false)}
