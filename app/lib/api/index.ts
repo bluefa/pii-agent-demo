@@ -1,6 +1,7 @@
 import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionStatusResponse } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
+import { extractTargetSource } from '@/lib/target-source-response';
 
 
 export interface CurrentUser {
@@ -69,10 +70,10 @@ export const deletePermission = async (serviceCode: string, userId: string): Pro
 };
 
 export const getProject = async (targetSourceId: number): Promise<Project> => {
-  const data = await fetchInfraCamelJson<{ targetSource: Project }>(
+  const data = await fetchInfraCamelJson<unknown>(
     `/target-sources/${targetSourceId}`,
   );
-  return data.targetSource;
+  return extractTargetSource(data);
 };
 
 export interface UserSearchResult {

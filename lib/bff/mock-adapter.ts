@@ -5,13 +5,14 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
-import type { Project, SecretKey } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
 import { getProjectIdByTargetSourceId } from '@/lib/mock-data';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
 import { mockUsers } from '@/lib/api-client/mock/users';
+import { extractTargetSource } from '@/lib/target-source-response';
 
 function resolveProjectId(targetSourceId: number): string {
   const projectId = getProjectIdByTargetSourceId(targetSourceId);
@@ -38,8 +39,8 @@ export const mockBff: BffClient = {
     get: async (id) => {
       const projectId = resolveProjectId(id);
       const res = await mockTargetSources.get(projectId);
-      const data = await unwrap<{ targetSource: Project }>(res);
-      return data.targetSource;
+      const data = await unwrap<unknown>(res);
+      return extractTargetSource(data);
     },
 
     secrets: async (id) => {
