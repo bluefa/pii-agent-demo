@@ -5,10 +5,11 @@ import {
   CloudProvider,
   Project,
   UserRole,
+  ResourceSnapshot,
+  BffConfirmedIntegration,
   ConnectionStatusResponse,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
-  EndpointConfigSnapshot,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
@@ -172,18 +173,9 @@ export const createApprovalRequest = async (
     body: input,
   });
 
-export interface ResourceSnapshotItem {
-  resource_id: string;
-  resource_type: string;
-  endpoint_config: EndpointConfigSnapshot | null;
-  credential_id: string | null;
-}
+export type ResourceSnapshotItem = ResourceSnapshot;
 
-export interface ConfirmedIntegrationResponse {
-  confirmed_integration: {
-    resource_infos: ResourceSnapshotItem[];
-  } | null;
-}
+export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 
 export const getConfirmedIntegration = async (
   targetSourceId: number
