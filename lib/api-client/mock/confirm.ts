@@ -16,6 +16,8 @@ import type {
   ConnectionStatus,
   ConnectionTestResult,
   ConnectionTestHistory,
+  DatabaseType,
+  IntegrationCategory,
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
@@ -67,6 +69,21 @@ export const _setApprovedIntegration = (projectId: string) => {
 interface ResourceCredentialInput {
   resourceId: string;
   credentialId?: string;
+}
+
+interface ResourceCatalogItem {
+  id: string;
+  resource_id: string;
+  name: string;
+  resource_type: string;
+  database_type: DatabaseType;
+  integration_category: IntegrationCategory;
+  host: string | null;
+  port: number | null;
+  oracle_service_id: string | null;
+  network_interface_id: string | null;
+  ip_configuration_name: string | null;
+  metadata: ConfirmResourceMetadata;
 }
 
 // --- Helpers ---
@@ -126,6 +143,23 @@ function buildMetadata(resource: Resource, project: Project): ConfirmResourceMet
     default:
       return base;
   }
+}
+
+function toResourceCatalogItem(resource: Resource, project: Project): ResourceCatalogItem {
+  return {
+    id: resource.id,
+    resource_id: resource.resourceId,
+    name: resource.resourceId,
+    resource_type: resource.type,
+    database_type: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
+    integration_category: resource.integrationCategory,
+    host: resource.vmDatabaseConfig?.host ?? null,
+    port: resource.vmDatabaseConfig?.port ?? null,
+    oracle_service_id: resource.vmDatabaseConfig?.oracleServiceId ?? null,
+    network_interface_id: resource.vmDatabaseConfig?.selectedNicId ?? null,
+    ip_configuration_name: null,
+    metadata: buildMetadata(resource, project),
+  };
 }
 
 function toResourceSnapshot(r: Resource) {
@@ -214,17 +248,9 @@ export const mockConfirm = {
       );
     }
 
-    const resources = project.resources.map((r) => ({
-      id: r.id,
-      resourceId: r.resourceId,
-      name: r.resourceId,
-      resourceType: r.type,
-      integrationCategory: r.integrationCategory,
-      selectedCredentialId: r.selectedCredentialId ?? null,
-      metadata: buildMetadata(r, project),
-    }));
+    const resources = project.resources.map((resource) => toResourceCatalogItem(resource, project));
 
-    return NextResponse.json({ resources, totalCount: resources.length });
+    return NextResponse.json({ resources, total_count: resources.length });
   },
 
   createApprovalRequest: async (projectId: string, body: unknown) => {

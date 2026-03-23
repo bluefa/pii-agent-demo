@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getConfirmedIntegration, getServices, searchUsers } from '@/app/lib/api';
+import { getConfirmResources, getConfirmedIntegration, getServices, searchUsers } from '@/app/lib/api';
 
 describe('app/lib/api/index', () => {
   afterEach(() => {
@@ -109,6 +109,66 @@ describe('app/lib/api/index', () => {
           credential_id: 'cred-1',
         },
       ],
+    });
+  });
+
+  it('getConfirmResources는 확장된 resource catalog 응답을 camelCase로 변환한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          resources: [
+            {
+              id: 'res-1',
+              resource_id: 'vm-db-001',
+              name: 'vm-db-001',
+              resource_type: 'AZURE_VM',
+              database_type: 'ORACLE',
+              integration_category: 'NO_INSTALL_NEEDED',
+              host: 'db.internal',
+              port: 1521,
+              oracle_service_id: 'ORCL',
+              network_interface_id: 'nic-1',
+              ip_configuration_name: null,
+              metadata: {
+                provider: 'Azure',
+                resourceType: 'AZURE_VM',
+                region: '',
+              },
+            },
+          ],
+          total_count: 1,
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const resources = await getConfirmResources(1001);
+
+    expect(resources).toEqual({
+      resources: [
+        {
+          id: 'res-1',
+          resourceId: 'vm-db-001',
+          name: 'vm-db-001',
+          resourceType: 'AZURE_VM',
+          databaseType: 'ORACLE',
+          integrationCategory: 'NO_INSTALL_NEEDED',
+          host: 'db.internal',
+          port: 1521,
+          oracleServiceId: 'ORCL',
+          networkInterfaceId: 'nic-1',
+          ipConfigurationName: null,
+          metadata: {
+            provider: 'Azure',
+            resourceType: 'AZURE_VM',
+            region: '',
+          },
+        },
+      ],
+      totalCount: 1,
     });
   });
 });
