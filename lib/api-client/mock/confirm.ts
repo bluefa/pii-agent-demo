@@ -670,7 +670,7 @@ export const mockConfirm = {
         target_source_id: project.targetSourceId,
         process_status: computeProcessStatus(project),
         status_inputs: {
-          has_confirmed_integration: project.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(project.id),
+          has_confirmed_integration: false,
           has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
           has_approved_integration: approvedIntegrationStore.has(project.id),
           last_approval_result: computeLastApprovalResult(project),
