@@ -18,6 +18,8 @@ import type {
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
+  ConfirmResourceMetadata,
+  EndpointConfigInputData,
 } from '@/lib/types';
 
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
@@ -96,8 +98,11 @@ const computeLastApprovalResult = (project: Project): LastApprovalResult => {
   return 'NONE';
 };
 
-function buildMetadata(resource: Resource, project: Project): Record<string, unknown> {
-  const base: Record<string, unknown> = { resourceType: resource.type };
+function buildMetadata(resource: Resource, project: Project): ConfirmResourceMetadata {
+  const base: ConfirmResourceMetadata = {
+    provider: project.cloudProvider,
+    resourceType: resource.type,
+  };
 
   switch (project.cloudProvider) {
     case 'AWS':
@@ -117,7 +122,7 @@ function buildMetadata(resource: Resource, project: Project): Record<string, unk
         projectId: project.gcpProjectId ?? '',
       };
     default:
-      return { provider: project.cloudProvider, ...base };
+      return base;
   }
 }
 
@@ -148,7 +153,7 @@ function toResourceSnapshot(r: Resource) {
 interface ApprovalRequestCreateBody {
   input_data: {
     resource_inputs: Array<
-      | { resource_id: string; selected: true; resource_input?: { credential_id?: string; endpoint_config?: Record<string, unknown> } }
+      | { resource_id: string; selected: true; resource_input?: { credential_id?: string; endpoint_config?: EndpointConfigInputData } }
       | { resource_id: string; selected: false; exclusion_reason?: string }
     >;
     exclusion_reason_default?: string;
