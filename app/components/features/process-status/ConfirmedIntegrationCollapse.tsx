@@ -23,7 +23,7 @@ export const ConfirmedIntegrationCollapse = ({
       setLoading(true);
       try {
         const res = await getConfirmedIntegration(targetSourceId);
-        setResources(res.confirmed_integration?.resource_infos ?? []);
+        setResources(res.resource_infos);
       } catch {
         setResources([]);
       } finally {

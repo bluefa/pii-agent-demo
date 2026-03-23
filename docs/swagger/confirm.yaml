@@ -300,11 +300,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  confirmed_integration:
-                    $ref: '#/components/schemas/ConfirmedIntegration'
-                    nullable: true
+                $ref: '#/components/schemas/ConfirmedIntegration'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -924,11 +920,64 @@ components:
               nullable: true
     ConfirmedIntegration:
       type: object
+      required:
+        - resource_infos
       properties:
         resource_infos:
           type: array
           items:
-            $ref: '#/components/schemas/ResourceSnapshot'
+            $ref: '#/components/schemas/ConfirmedResourceInfo'
+    ConfirmedResourceInfo:
+      type: object
+      required:
+        - resource_id
+        - resource_type
+        - database_type
+        - port
+        - host
+        - oracle_service_id
+        - network_interface_id
+        - ip_configuration_name
+        - credential_id
+      properties:
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+        database_type:
+          type: string
+          nullable: true
+          enum:
+            - MYSQL
+            - POSTGRESQL
+            - MSSQL
+            - DYNAMODB
+            - ATHENA
+            - REDSHIFT
+            - COSMOSDB
+            - BIGQUERY
+            - MONGODB
+            - ORACLE
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          nullable: true
+        host:
+          type: string
+          nullable: true
+        oracle_service_id:
+          type: string
+          nullable: true
+        network_interface_id:
+          type: string
+          nullable: true
+        ip_configuration_name:
+          type: string
+          nullable: true
+        credential_id:
+          type: string
+          nullable: true
     ApprovedIntegration:
       type: object
       properties:

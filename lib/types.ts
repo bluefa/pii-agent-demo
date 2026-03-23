@@ -715,6 +715,19 @@ export interface ResourceSnapshot {
   credential_id: string | null;
 }
 
+/** 연동 확정 리소스 정보 (Swagger ConfirmedResourceInfo) */
+export interface ConfirmedIntegrationResourceInfo {
+  resource_id: string;
+  resource_type: string;
+  database_type: DatabaseType | null;
+  port: number | null;
+  host: string | null;
+  oracle_service_id: string | null;
+  network_interface_id: string | null;
+  ip_configuration_name: string | null;
+  credential_id: string | null;
+}
+
 export interface ConfirmResourceMetadata {
   provider: CloudProvider;
   resourceType: string;
@@ -735,5 +748,5 @@ export interface BffApprovedIntegration {
 
 /** 연동 확정 정보 — 현재 실제 상태 (Swagger ConfirmedIntegration) */
 export interface BffConfirmedIntegration {
-  resource_infos: ResourceSnapshot[];
+  resource_infos: ConfirmedIntegrationResourceInfo[];
 }
