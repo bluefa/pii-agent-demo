@@ -867,7 +867,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
   });
 
   describe('시나리오 11: ConfirmedIntegration 조회', () => {
-    it('설치 완료 + 연결됨 → confirmed_integration 반환', async () => {
+    it('설치 완료 + 연결됨 → flat confirmed integration을 반환', async () => {
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
@@ -887,16 +887,15 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       const res = await mockConfirm.getConfirmedIntegration(TEST_PROJECT_ID);
       const data = await parseResponse(res);
-      expect(data.confirmed_integration).not.toBeNull();
-      expect(data.confirmed_integration.resource_infos).toHaveLength(2);
+      expect(data.resource_infos).toHaveLength(2);
     });
 
-    it('설치 미완료 → confirmed_integration null', async () => {
+    it('설치 미완료 → 빈 resource_infos를 반환', async () => {
       addTestProject();
 
       const res = await mockConfirm.getConfirmedIntegration(TEST_PROJECT_ID);
       const data = await parseResponse(res);
-      expect(data.confirmed_integration).toBeNull();
+      expect(data).toEqual({ resource_infos: [] });
     });
   });
 

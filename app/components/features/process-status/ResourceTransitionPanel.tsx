@@ -40,7 +40,7 @@ export const ResourceTransitionPanel = ({
   useEffect(() => {
     getConfirmedIntegration(targetSourceId)
       .then((res) => {
-        const items = res.confirmed_integration?.resource_infos ?? [];
+        const items = res.resource_infos;
         setOldResources(items.length > 0 ? snapshotToResources(items) : null);
       })
       .catch(() => setOldResources(null))

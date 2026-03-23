@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getServices, searchUsers } from '@/app/lib/api';
+import { getConfirmedIntegration, getServices, searchUsers } from '@/app/lib/api';
 
 describe('app/lib/api/index', () => {
   afterEach(() => {
@@ -66,5 +66,53 @@ describe('app/lib/api/index', () => {
       { code: 'SERVICE-A', name: 'Service Alpha' },
       { code: 'SERVICE-B', name: 'Service Beta' },
     ]);
+  });
+
+  it('getConfirmedIntegration은 flat confirmed integration 응답을 그대로 사용한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          resource_infos: [
+            {
+              resource_id: 'res-1',
+              resource_type: 'ORACLE_DB',
+              endpoint_config: {
+                resource_id: 'res-1',
+                db_type: 'ORACLE',
+                host: 'db.internal',
+                port: 1521,
+                oracleServiceId: 'ORCL',
+                selectedNicId: 'nic-1',
+              },
+              credential_id: 'cred-1',
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const confirmedIntegration = await getConfirmedIntegration(1001);
+
+    expect(confirmedIntegration).toEqual({
+      resource_infos: [
+        {
+          resource_id: 'res-1',
+          resource_type: 'ORACLE_DB',
+          endpoint_config: {
+            resource_id: 'res-1',
+            db_type: 'ORACLE',
+            host: 'db.internal',
+            port: 1521,
+            oracleServiceId: 'ORCL',
+            selectedNicId: 'nic-1',
+          },
+          credential_id: 'cred-1',
+        },
+      ],
+    });
   });
 });

@@ -8,6 +8,7 @@ import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
+import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import type {
   Resource,
   Project,
@@ -18,6 +19,7 @@ import type {
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
+  BffConfirmedIntegration,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
 } from '@/lib/types';
@@ -27,7 +29,7 @@ const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
 
 // Mock store: ConfirmedIntegration 스냅샷 (변경 요청 시 이전 확정 보존)
 // 변경 요청 승인 → installation.status=PENDING 리셋 → 기존 확정 데이터 유실 방지
-const confirmedIntegrationSnapshotStore = new Map<string, { resource_infos: ReturnType<typeof toResourceSnapshot>[] }>();
+const confirmedIntegrationSnapshotStore = new Map<string, BffConfirmedIntegration>();
 
 // Mock store: 승인 시각 (설치 반영 소요시간 시뮬레이션용)
 // 실제 환경: 빠르면 1분, 최대 하루 이상 소요
@@ -437,20 +439,18 @@ export const mockConfirm = {
     // 1. 변경 요청 중 보존된 이전 확정 스냅샷 확인
     const snapshot = confirmedIntegrationSnapshotStore.get(project.id);
     if (snapshot) {
-      return NextResponse.json({ confirmed_integration: snapshot });
+      return NextResponse.json(snapshot);
     }
 
     // 2. 현재 프로젝트 상태에서 확정 정보 도출
     const activeResources = project.resources.filter((r) => r.isSelected && r.connectionStatus === 'CONNECTED');
     if (activeResources.length === 0 || project.status.installation.status !== 'COMPLETED') {
-      return NextResponse.json({ confirmed_integration: null });
+      return NextResponse.json(createEmptyConfirmedIntegration());
     }
 
     return NextResponse.json({
-      confirmed_integration: {
-        resource_infos: activeResources.map(toResourceSnapshot),
-      },
-    });
+      resource_infos: activeResources.map(toResourceSnapshot),
+    } satisfies BffConfirmedIntegration);
   },
 
   getApprovedIntegration: async (projectId: string) => {

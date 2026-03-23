@@ -300,11 +300,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  confirmed_integration:
-                    $ref: '#/components/schemas/ConfirmedIntegration'
-                    nullable: true
+                $ref: '#/components/schemas/ConfirmedIntegration'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
