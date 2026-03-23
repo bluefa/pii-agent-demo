@@ -5,6 +5,10 @@ import {
   type ConfirmedIntegrationResponsePayload,
 } from '@/lib/confirmed-integration-response';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
+import {
+  extractResourceCatalog,
+  type ResourceCatalogResponsePayload,
+} from '@/lib/resource-catalog-response';
 
 const BFF_URL = process.env.BFF_API_URL;
 
@@ -72,6 +76,20 @@ const proxyConfirmedIntegrationGet = async (path: string): Promise<NextResponse>
 
   const payload = await res.json() as ConfirmedIntegrationResponsePayload;
   return NextResponse.json(extractConfirmedIntegration(payload), { status: res.status });
+};
+
+const proxyResourceCatalogGet = async (path: string): Promise<NextResponse> => {
+  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
+
+  if (!res.ok) {
+    return new NextResponse(res.body, {
+      status: res.status,
+      headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
+    });
+  }
+
+  const payload = await res.json() as ResourceCatalogResponsePayload;
+  return NextResponse.json(extractResourceCatalog(payload), { status: res.status });
 };
 
 export const bffClient: ApiClient = {
@@ -220,7 +238,7 @@ export const bffClient: ApiClient = {
     },
   },
   confirm: {
-    getResources: (projectId) => proxyGet(`/target-sources/${projectId}/resources`),
+    getResources: (projectId) => proxyResourceCatalogGet(`/target-sources/${projectId}/resources`),
     createApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests`, body),
     getConfirmedIntegration: (projectId) =>
       proxyConfirmedIntegrationGet(`/target-sources/${projectId}/confirmed-integration`),
