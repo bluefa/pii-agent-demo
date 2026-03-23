@@ -888,6 +888,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const res = await mockConfirm.getConfirmedIntegration(TEST_PROJECT_ID);
       const data = await parseResponse(res);
       expect(data.resource_infos).toHaveLength(2);
+      expect(data.resource_infos[0]).toMatchObject({
+        database_type: 'MYSQL',
+        port: null,
+        host: null,
+        oracle_service_id: null,
+        network_interface_id: null,
+        ip_configuration_name: null,
+      });
     });
 
     it('설치 미완료 → 빈 resource_infos를 반환', async () => {

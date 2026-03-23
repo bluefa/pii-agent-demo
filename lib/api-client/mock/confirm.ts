@@ -152,6 +152,20 @@ function toResourceSnapshot(r: Resource) {
   };
 }
 
+function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegration['resource_infos'][number] {
+  return {
+    resource_id: r.id,
+    resource_type: r.type,
+    database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+    port: r.vmDatabaseConfig?.port ?? null,
+    host: r.vmDatabaseConfig?.host ?? null,
+    oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? null,
+    network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
+    ip_configuration_name: null,
+    credential_id: r.selectedCredentialId ?? null,
+  };
+}
+
 interface ApprovalRequestCreateBody {
   input_data: {
     resource_inputs: Array<
@@ -252,7 +266,7 @@ export const mockConfirm = {
       );
       if (connectedResources.length > 0) {
         confirmedIntegrationSnapshotStore.set(projectId, {
-          resource_infos: connectedResources.map(toResourceSnapshot),
+          resource_infos: connectedResources.map(toConfirmedIntegrationResourceInfo),
         });
       }
     }
@@ -449,7 +463,7 @@ export const mockConfirm = {
     }
 
     return NextResponse.json({
-      resource_infos: activeResources.map(toResourceSnapshot),
+      resource_infos: activeResources.map(toConfirmedIntegrationResourceInfo),
     } satisfies BffConfirmedIntegration);
   },
 

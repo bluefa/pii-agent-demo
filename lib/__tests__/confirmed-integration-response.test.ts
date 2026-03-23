@@ -10,13 +10,12 @@ const confirmedIntegration: BffConfirmedIntegration = {
     {
       resource_id: 'res-1',
       resource_type: 'ORACLE_DB',
-      endpoint_config: {
-        resource_id: 'res-1',
-        db_type: 'ORACLE',
-        host: 'db.internal',
-        port: 1521,
-        oracleServiceId: 'ORCL',
-      },
+      database_type: 'ORACLE',
+      host: 'db.internal',
+      port: 1521,
+      oracle_service_id: 'ORCL',
+      network_interface_id: 'nic-1',
+      ip_configuration_name: 'ipconfig-1',
       credential_id: 'cred-1',
     },
   ],
@@ -24,7 +23,7 @@ const confirmedIntegration: BffConfirmedIntegration = {
 
 describe('extractConfirmedIntegration', () => {
   it('returns flat payload as-is', () => {
-    expect(extractConfirmedIntegration(confirmedIntegration)).toBe(confirmedIntegration);
+    expect(extractConfirmedIntegration(confirmedIntegration)).toEqual(confirmedIntegration);
   });
 
   it('unwraps legacy envelope payload', () => {
@@ -32,7 +31,45 @@ describe('extractConfirmedIntegration', () => {
       extractConfirmedIntegration({
         confirmed_integration: confirmedIntegration,
       }),
-    ).toBe(confirmedIntegration);
+    ).toEqual(confirmedIntegration);
+  });
+
+  it('normalizes legacy endpoint_config payload to flat snake_case fields', () => {
+    expect(
+      extractConfirmedIntegration({
+        confirmed_integration: {
+          resource_infos: [
+            {
+              resource_id: 'res-1',
+              resource_type: 'AZURE_VM',
+              endpoint_config: {
+                resource_id: 'res-1',
+                db_type: 'ORACLE',
+                host: 'db.internal',
+                port: 1521,
+                oracleServiceId: 'ORCL',
+                selectedNicId: 'nic-1',
+              },
+              credential_id: 'cred-1',
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      resource_infos: [
+        {
+          resource_id: 'res-1',
+          resource_type: 'AZURE_VM',
+          database_type: 'ORACLE',
+          host: 'db.internal',
+          port: 1521,
+          oracle_service_id: 'ORCL',
+          network_interface_id: 'nic-1',
+          ip_configuration_name: null,
+          credential_id: 'cred-1',
+        },
+      ],
+    });
   });
 
   it('converts null envelope payload to an empty confirmed integration', () => {

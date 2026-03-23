@@ -5,7 +5,7 @@ import {
   CloudProvider,
   Project,
   UserRole,
-  ResourceSnapshot,
+  ConfirmedIntegrationResourceInfo,
   BffConfirmedIntegration,
   ConnectionStatusResponse,
   ConfirmResourceMetadata,
@@ -173,7 +173,7 @@ export const createApprovalRequest = async (
     body: input,
   });
 
-export type ResourceSnapshotItem = ResourceSnapshot;
+export type ResourceSnapshotItem = ConfirmedIntegrationResourceInfo;
 
 export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 
