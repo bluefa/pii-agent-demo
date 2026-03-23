@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
+import type {
+  ApprovalHistoryResponse,
+  ApprovedIntegrationResponse,
+  ConfirmedIntegrationResponse,
+  ConfirmResourceItem,
+} from '@/app/lib/api';
 import type { AzureV1Settings } from '@/lib/types/azure';
 import {
   createApprovalRequest,
-  updateResourceCredential,
+  getApprovalHistory,
+  getApprovedIntegration,
+  getConfirmResources,
+  getConfirmedIntegration,
   getProject,
+  updateResourceCredential,
 } from '@/app/lib/api';
 import { getAzureSettings } from '@/app/lib/api/azure';
-import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
@@ -20,7 +29,10 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { getButtonClass } from '@/lib/theme';
+import { AppError } from '@/lib/errors';
+import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
+import { getProjectCurrentStep } from '@/lib/process';
+import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface AzureProjectPageProps {
@@ -29,21 +41,52 @@ interface AzureProjectPageProps {
   onProjectUpdate: (project: Project) => void;
 }
 
+const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
+  resource_infos: [],
+};
+
+const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
+  content: [],
+  page: {
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 1,
+  },
+};
+
+const isMissingSnapshotError = (error: unknown): boolean =>
+  error instanceof AppError
+  && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND');
+
+const getResourceErrorMessage = (error: unknown): string => {
+  if (error instanceof AppError && error.isUserFacing) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'Azure 리소스 정보를 불러오지 못했습니다.';
+};
+
 export const AzureProjectPage = ({
   project,
   credentials,
   onProjectUpdate,
 }: AzureProjectPageProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    project.resources.filter((r) => r.isSelected).map((r) => r.id)
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [draftVmConfigs, setDraftVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
   const [submitting, setSubmitting] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
 
-  // Prerequisite data
   const [serviceSettings, setServiceSettings] = useState<AzureV1Settings | null>(null);
+
+  const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
+  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
+  const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
+  const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
+  const [resourceLoading, setResourceLoading] = useState(true);
+  const [resourceLoaded, setResourceLoaded] = useState(false);
+  const [resourceError, setResourceError] = useState<string | null>(null);
 
   useEffect(() => {
     getAzureSettings(project.targetSourceId).then(setServiceSettings).catch(() => {});
@@ -52,57 +95,127 @@ export const AzureProjectPage = ({
   const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
-  // VM 설정 상태
-  const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
-  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
-    const initial: Record<string, VmDatabaseConfig> = {};
-    project.resources.forEach((r) => {
-      if (r.vmDatabaseConfig) {
-        initial[r.id] = r.vmDatabaseConfig;
-      }
-    });
-    return initial;
-  });
+  const currentStep = getProjectCurrentStep(project);
+  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL
+    || currentStep === ProcessStatus.APPLYING_APPROVED
+    || currentStep === ProcessStatus.INSTALLING;
+
+  const loadAzureResources = useCallback(async () => {
+    setResourceLoading(true);
+    setResourceError(null);
+
+    try {
+      const [
+        catalogResponse,
+        approvalHistoryResponse,
+        approvedIntegrationResponse,
+        confirmedIntegrationResponse,
+      ] = await Promise.all([
+        getConfirmResources(project.targetSourceId),
+        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
+          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
+          throw error;
+        }),
+        getApprovedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingSnapshotError(error)) {
+            return { approved_integration: null } satisfies ApprovedIntegrationResponse;
+          }
+          throw error;
+        }),
+        getConfirmedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+          throw error;
+        }),
+      ]);
+
+      setCatalogResources(catalogResponse.resources);
+      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
+      setApprovedIntegration(approvedIntegrationResponse.approved_integration);
+      setConfirmedIntegration(confirmedIntegrationResponse);
+    } catch (error) {
+      setResourceError(getResourceErrorMessage(error));
+    } finally {
+      setResourceLoading(false);
+      setResourceLoaded(true);
+    }
+  }, [project.targetSourceId]);
+
+  useEffect(() => {
+    void loadAzureResources();
+  }, [loadAzureResources, currentStep, project.updatedAt]);
+
+  const azureResources = useMemo(
+    () =>
+      buildAzureOwnedResources({
+        currentStep,
+        catalog: catalogResources,
+        latestApprovalRequest,
+        approvedIntegration,
+        confirmedIntegration,
+      }).resources,
+    [approvedIntegration, catalogResources, confirmedIntegration, currentStep, latestApprovalRequest],
+  );
+
+  const restoredSelectedIds = useMemo(
+    () => azureResources.filter((resource) => resource.isSelected).map((resource) => resource.id),
+    [azureResources],
+  );
+
+  useEffect(() => {
+    setSelectedIds(restoredSelectedIds);
+    setDraftVmConfigs({});
+    setExpandedVmId(null);
+  }, [restoredSelectedIds, project.targetSourceId]);
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const displayResources = useMemo(
+    () =>
+      azureResources.map((resource) => ({
+        ...resource,
+        vmDatabaseConfig: draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig,
+      })),
+    [azureResources, draftVmConfigs],
+  );
+
+  const approvalResources = useMemo(
+    () =>
+      displayResources.map((resource) => ({
+        ...resource,
+        isSelected: selectedIdSet.has(resource.id),
+      })),
+    [displayResources, selectedIdSet],
+  );
+
+  const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
+    setDraftVmConfigs((previous) => ({ ...previous, [resourceId]: config }));
+  };
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
-      const updatedProject = await getProject(project.targetSourceId);
+      const [updatedProject] = await Promise.all([
+        getProject(project.targetSourceId),
+        loadAzureResources(),
+      ]);
       onProjectUpdate(updatedProject);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Credential 변경에 실패했습니다.');
     }
-  };
-
-  // ADR-004: status 필드에서 현재 단계 계산
-  const currentStep = getProjectCurrentStep(project);
-  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  const effectiveEditMode = isStep1 || isEditMode;
-  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
-    currentStep === ProcessStatus.APPLYING_APPROVED ||
-    currentStep === ProcessStatus.INSTALLING;
-
-  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
-  const approvalResources = useMemo(
-    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
-    [project.resources, selectedIds],
-  );
-
-  const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
-    setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
   };
 
   const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
-    // VM 리소스 중 설정되지 않은 것 체크
-    const selectedVmResources = project.resources.filter(
-      (r) => selectedIds.includes(r.id) && isVmResource(r)
+    const selectedVmResources = approvalResources.filter(
+      (resource) => selectedIdSet.has(resource.id) && isVmResource(resource),
     );
-    const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
+    const unconfiguredVms = selectedVmResources.filter((resource) => !resource.vmDatabaseConfig);
 
     if (unconfiguredVms.length > 0) {
-      alert(`다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n${unconfiguredVms.map((r) => r.resourceId).join('\n')}`);
+      alert(`다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n${unconfiguredVms.map((resource) => resource.resourceId).join('\n')}`);
       return;
     }
 
@@ -113,59 +226,83 @@ export const AzureProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
-      const resourceInputs = project.resources.map(r => {
-        if (selectedIds.includes(r.id)) {
-          const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
-          let resourceInput: Record<string, unknown>;
+
+      const resourceInputs = displayResources.map((resource) => {
+        if (selectedIdSet.has(resource.id)) {
+          const vmConfig = draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig;
+
           if (vmConfig) {
-            resourceInput = {
-              endpoint_config: {
-                db_type: vmConfig.databaseType,
-                port: vmConfig.port,
-                host: vmConfig.host ?? '',
-                ...(vmConfig.oracleServiceId && { oracleServiceId: vmConfig.oracleServiceId }),
-                ...(vmConfig.selectedNicId && { selectedNicId: vmConfig.selectedNicId }),
+            return {
+              resource_id: resource.id,
+              selected: true as const,
+              resource_input: {
+                endpoint_config: {
+                  db_type: vmConfig.databaseType,
+                  port: vmConfig.port,
+                  host: vmConfig.host ?? '',
+                  ...(vmConfig.oracleServiceId ? { oracleServiceId: vmConfig.oracleServiceId } : {}),
+                  ...(vmConfig.selectedNicId ? { selectedNicId: vmConfig.selectedNicId } : {}),
+                },
               },
             };
-          } else {
-            resourceInput = { credential_id: r.selectedCredentialId ?? '' };
           }
+
           return {
-            resource_id: r.id,
+            resource_id: resource.id,
             selected: true as const,
-            resource_input: resourceInput,
+            resource_input: {
+              credential_id: resource.selectedCredentialId ?? '',
+            },
           };
         }
+
         return {
-          resource_id: r.id,
+          resource_id: resource.id,
           selected: false as const,
-          ...(formData.exclusion_reason_default && { exclusion_reason: formData.exclusion_reason_default }),
+          ...(formData.exclusion_reason_default ? { exclusion_reason: formData.exclusion_reason_default } : {}),
         };
       });
 
       await createApprovalRequest(project.targetSourceId, {
-        input_data: { resource_inputs: resourceInputs },
+        input_data: {
+          resource_inputs: resourceInputs,
+        },
       });
-      const updatedProject = await getProject(project.targetSourceId);
+
+      const [updatedProject] = await Promise.all([
+        getProject(project.targetSourceId),
+        loadAzureResources(),
+      ]);
       onProjectUpdate(updatedProject);
       setIsEditMode(false);
-      setExpandedVmId(null);
       setApprovalModalOpen(false);
-    } catch (err) {
-      setApprovalError(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
+    } catch (error) {
+      setApprovalError(error instanceof Error ? error.message : '승인 요청에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleStartEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(restoredSelectedIds);
+    setDraftVmConfigs({});
+    setExpandedVmId(null);
     setIsEditMode(true);
   };
 
   const handleCancelEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(restoredSelectedIds);
+    setDraftVmConfigs({});
+    setExpandedVmId(null);
     setIsEditMode(false);
+  };
+
+  const handleRefreshAfterProjectChange = async () => {
+    const [updatedProject] = await Promise.all([
+      getProject(project.targetSourceId),
+      loadAzureResources(),
+    ]);
+    onProjectUpdate(updatedProject);
   };
 
   return (
@@ -185,87 +322,101 @@ export const AzureProjectPage = ({
         </ProjectSidebar>
 
         <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
-          <ProcessStatusCard
-            project={project}
-            onProjectUpdate={onProjectUpdate}
-            approvalModalOpen={approvalModalOpen}
-            onApprovalModalClose={() => setApprovalModalOpen(false)}
-            onApprovalSubmit={handleApprovalSubmit}
-            approvalLoading={submitting}
-            approvalError={approvalError}
-            approvalResources={approvalResources}
-          />
-
-        {/* Cloud 리소스 */}
-        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-          <ResourceTransitionPanel
-            targetSourceId={project.targetSourceId}
-            resources={project.resources}
-            cloudProvider={project.cloudProvider}
-            processStatus={currentStep}
-          />
-        ) : (
-          <>
-            <ScanPanel
-              targetSourceId={project.targetSourceId}
-              cloudProvider={project.cloudProvider}
-              onScanComplete={async () => {
-                const updatedProject = await getProject(project.targetSourceId);
-                onProjectUpdate(updatedProject);
-              }}
-            />
-
-            <ResourceTable
-              resources={project.resources.map((r) => ({
-                ...r,
-                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-              }))}
-              cloudProvider={project.cloudProvider}
-              processStatus={currentStep}
-              isEditMode={effectiveEditMode}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              credentials={credentials}
-              onCredentialChange={handleCredentialChange}
-              expandedVmId={expandedVmId}
-              onVmConfigToggle={setExpandedVmId}
-              onVmConfigSave={handleVmConfigSave}
-            />
-          </>
-        )}
-
-        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-3">
-          {effectiveEditMode ? (
-            <>
-              {!isStep1 && (
-                <button
-                  onClick={handleCancelEdit}
-                  className={getButtonClass('secondary')}
-                >
-                  취소
-                </button>
-              )}
+          {!resourceLoaded ? (
+            <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+              <LoadingSpinner />
+              <span className={cn('text-sm', textColors.tertiary)}>Azure 리소스 정보를 불러오는 중입니다.</span>
+            </div>
+          ) : resourceError && catalogResources.length === 0 ? (
+            <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+              <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+                {resourceError}
+              </p>
               <button
-                onClick={handleConfirmTargets}
-                disabled={submitting || selectedIds.length === 0}
-                className={`${getButtonClass('primary')} flex items-center gap-2`}
+                onClick={() => void loadAzureResources()}
+                className={getButtonClass('secondary')}
               >
-                {submitting && <LoadingSpinner />}
-                연동 대상 확정 승인 요청
+                다시 시도
               </button>
+            </div>
+          ) : (
+            <>
+              <ProcessStatusCard
+                project={project}
+                resources={displayResources}
+                onProjectUpdate={onProjectUpdate}
+                approvalModalOpen={approvalModalOpen}
+                onApprovalModalClose={() => setApprovalModalOpen(false)}
+                onApprovalSubmit={handleApprovalSubmit}
+                approvalLoading={submitting}
+                approvalError={approvalError ?? resourceError}
+                approvalResources={approvalResources}
+              />
+
+              {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+                <ResourceTransitionPanel
+                  targetSourceId={project.targetSourceId}
+                  resources={displayResources}
+                  cloudProvider={project.cloudProvider}
+                  processStatus={currentStep}
+                />
+              ) : (
+                <>
+                  <ScanPanel
+                    targetSourceId={project.targetSourceId}
+                    cloudProvider={project.cloudProvider}
+                    onScanComplete={handleRefreshAfterProjectChange}
+                  />
+
+                  <ResourceTable
+                    resources={displayResources}
+                    cloudProvider={project.cloudProvider}
+                    processStatus={currentStep}
+                    isEditMode={effectiveEditMode}
+                    selectedIds={selectedIds}
+                    onSelectionChange={setSelectedIds}
+                    credentials={credentials}
+                    onCredentialChange={handleCredentialChange}
+                    expandedVmId={expandedVmId}
+                    onVmConfigToggle={setExpandedVmId}
+                    onVmConfigSave={handleVmConfigSave}
+                  />
+                </>
+              )}
+
+              <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
+
+              <div className="flex justify-end gap-3">
+                {effectiveEditMode ? (
+                  <>
+                    {!isStep1 && (
+                      <button
+                        onClick={handleCancelEdit}
+                        className={getButtonClass('secondary')}
+                      >
+                        취소
+                      </button>
+                    )}
+                    <button
+                      onClick={handleConfirmTargets}
+                      disabled={submitting || resourceLoading || selectedIds.length === 0}
+                      className={`${getButtonClass('primary')} flex items-center gap-2`}
+                    >
+                      {(submitting || resourceLoading) && <LoadingSpinner />}
+                      연동 대상 확정 승인 요청
+                    </button>
+                  </>
+                ) : !isProcessing && (
+                  <button
+                    onClick={handleStartEdit}
+                    className={getButtonClass('secondary')}
+                  >
+                    확정 대상 수정
+                  </button>
+                )}
+              </div>
             </>
-          ) : !isProcessing && (
-            <button
-              onClick={handleStartEdit}
-              className={getButtonClass('secondary')}
-            >
-              확정 대상 수정
-            </button>
           )}
-        </div>
         </main>
       </div>
     </div>

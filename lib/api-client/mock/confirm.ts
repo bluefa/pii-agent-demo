@@ -1111,6 +1111,18 @@ export const mockConfirm = {
       };
     });
 
+    const approvedIntegration = approvedIntegrationStore.get(project.id);
+    if (approvedIntegration) {
+      const selectedResources = updatedResources.filter((resource) => resource.isSelected);
+      const excludedResources = updatedResources.filter((resource) => resource.exclusion);
+
+      approvedIntegrationStore.set(project.id, {
+        ...approvedIntegration,
+        resource_infos: selectedResources.map(toResourceSnapshot),
+        excluded_resource_ids: excludedResources.map((resource) => resource.id),
+      });
+    }
+
     mockData.updateProject(projectId, { resources: updatedResources });
 
     return NextResponse.json({ success: true });

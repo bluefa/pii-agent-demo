@@ -12,6 +12,7 @@ import {
   ConnectionStatusResponse,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
+  ResourceSnapshot,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
@@ -180,7 +181,8 @@ export const createApprovalRequest = async (
     body: input,
   });
 
-export type ResourceSnapshotItem = ConfirmedIntegrationResourceInfo;
+export type ConfirmedIntegrationResourceItem = ConfirmedIntegrationResourceInfo;
+export type ApprovedIntegrationResourceItem = ResourceSnapshot;
 
 export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 
@@ -194,7 +196,7 @@ export interface ApprovedIntegrationResponse {
     id: string;
     request_id: string;
     approved_at: string;
-    resource_infos: ResourceSnapshotItem[];
+    resource_infos: ApprovedIntegrationResourceItem[];
     excluded_resource_ids: string[];
     exclusion_reason?: string;
   } | null;
