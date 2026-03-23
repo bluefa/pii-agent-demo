@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Admin to Azure Integration Page API Catalog
-  version: 2.0.0
+  version: 2.1.0
   description: |-
     Admin 페이지(`/admin`)에서 Azure 연동 상세 페이지(`/projects/{targetSourceId}`)까지 이동하고,
     Azure 설치/연결 테스트를 진행하는 과정에서 프론트엔드가 직접 호출하는 API를 정리한 문서입니다.
@@ -25,6 +25,8 @@ tags:
     description: Admin 페이지에서 직접 실행 가능한 액션 API
   - name: Azure Page Bootstrap
     description: Azure 상세 페이지 초기 로드 시 조회하는 API
+  - name: Resource Catalog
+    description: Azure 상세 페이지에서 사용하는 리소스 카탈로그 조회 API
   - name: Scan
     description: 리소스 스캔 및 스캔 이력 조회 API
   - name: Approval
@@ -230,11 +232,40 @@ paths:
         - $ref: '#/components/parameters/TargetSourceId'
       responses:
         '200':
-          description: Azure 상세 페이지 렌더링에 필요한 타겟소스 상세
+          description: Azure 상세 페이지 진입에 필요한 최소 타겟소스 컨텍스트
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AzurePageTargetSourceDetail'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/resources:
+    get:
+      tags:
+        - Resource Catalog
+      summary: Azure 상세 페이지 리소스 카탈로그 조회
+      operationId: getAzureJourneyResources
+      x-expected-duration: 80ms ~ 300ms
+      description: |-
+        Azure 상세 페이지의 리소스 선택/표시 UI에서 사용하는 리소스 카탈로그를 조회합니다.
+
+        이 응답은 리소스의 고유 속성만 제공합니다.
+        현재 선택 여부나 승인/확정 결과는 포함하지 않으며, 해당 상태는 기존
+        `approval-history`, `approved-integration`, `confirmed-integration` API로 복원합니다.
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: Azure 상세 페이지 리소스 카탈로그 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AzurePageResourceCatalogResponse'
         '401':
           $ref: './user.yaml#/components/responses/Unauthorized'
         '403':
@@ -970,10 +1001,14 @@ components:
 
     AzurePageTargetSourceDetail:
       type: object
-      description: Azure 상세 페이지에서 실제로 소비하는 타겟소스 상세 응답
+      description: Azure 상세 페이지 진입에 필요한 최소 타겟소스 컨텍스트
+      required:
+        - target_source_id
+        - project_code
+        - service_code
+        - cloud_provider
+        - created_at
       properties:
-        id:
-          type: string
         target_source_id:
           type: integer
           format: int64
@@ -989,98 +1024,96 @@ components:
             - GCP
             - IDC
             - SDU
-        process_status:
-          type: integer
         created_at:
           type: string
           format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        name:
-          type: string
         description:
           type: string
-        is_rejected:
-          type: boolean
-        rejection_reason:
-          type: string
           nullable: true
-        rejected_at:
-          type: string
-          format: date-time
-          nullable: true
-        approval_comment:
-          type: string
-          nullable: true
-        approved_at:
-          type: string
-          format: date-time
-          nullable: true
-        pii_agent_installed:
-          type: boolean
-          nullable: true
-        pii_agent_connected_at:
-          type: string
-          format: date-time
-          nullable: true
-        completion_confirmed_at:
-          type: string
-          format: date-time
-          nullable: true
-        tenant_id:
-          type: string
-          nullable: true
-        subscription_id:
-          type: string
-          nullable: true
-        status:
-          type: object
-          additionalProperties: true
-        terraform_state:
-          type: object
-          additionalProperties: true
+
+    AzurePageResourceCatalogResponse:
+      type: object
+      required:
+        - resources
+        - total_count
+      properties:
         resources:
           type: array
           items:
-            $ref: '#/components/schemas/AzurePageResource'
+            $ref: '#/components/schemas/AzurePageResourceCatalogItem'
+        total_count:
+          type: integer
 
-    AzurePageResource:
+    AzurePageResourceCatalogItem:
       type: object
+      required:
+        - id
+        - resource_id
+        - resource_type
+        - database_type
+        - integration_category
       properties:
         id:
           type: string
-        type:
-          type: string
         resource_id:
           type: string
-        connection_status:
+        resource_type:
           type: string
-        is_selected:
-          type: boolean
         database_type:
           type: string
+          description: 화면 표시 및 VM 설정 분기에 사용하는 데이터베이스 종류
         integration_category:
-          type: string
-        selected_credential_id:
-          type: string
-          nullable: true
+          $ref: './confirm.yaml#/components/schemas/IntegrationCategory'
         azure_networking_mode:
-          type: string
-          nullable: true
+          $ref: '#/components/schemas/AzurePageAzureNetworkingMode'
         nics:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            $ref: '#/components/schemas/AzurePageAzureVmNic'
         vm_database_config:
-          type: object
+          $ref: '#/components/schemas/AzurePageVmDatabaseConfig'
           nullable: true
-          additionalProperties: true
-        exclusion:
-          type: object
+
+    AzurePageAzureNetworkingMode:
+      type: string
+      enum:
+        - PUBLIC_ACCESS
+        - VNET_INTEGRATION
+
+    AzurePageAzureVmNic:
+      type: object
+      required:
+        - nic_id
+        - name
+        - private_ip
+      properties:
+        nic_id:
+          type: string
+        name:
+          type: string
+        private_ip:
+          type: string
+
+    AzurePageVmDatabaseConfig:
+      type: object
+      required:
+        - database_type
+        - port
+      properties:
+        host:
+          type: string
           nullable: true
-          additionalProperties: true
+        database_type:
+          type: string
+          description: VM 리소스에 사용자가 지정한 데이터베이스 종류
+        port:
+          type: integer
+        oracle_service_id:
+          type: string
+          nullable: true
+        selected_nic_id:
+          type: string
+          nullable: true
 
     ProjectHistoryResponse:
       type: object
