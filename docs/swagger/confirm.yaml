@@ -1122,6 +1122,13 @@ components:
           type: string
           nullable: true
           description: 연결할 Credential ID. null이면 연결 해제
+    UpdateResourceCredentialResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
     ErrorResponse:
       type: object
       required:

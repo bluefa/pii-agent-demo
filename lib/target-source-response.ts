@@ -1,11 +1,26 @@
 import type { Project } from '@/lib/types';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
+export interface TargetSourceEnvelopeResponse {
+  targetSource: Project;
+}
 
-export const extractTargetSource = (payload: unknown): Project => {
-  if (!isRecord(payload)) return payload as Project;
+export interface TargetSourceSnakeEnvelopeResponse {
+  target_source: Project;
+}
 
-  const nested = payload.targetSource ?? payload.target_source ?? payload.project;
-  return (nested ?? payload) as Project;
+export interface LegacyProjectEnvelopeResponse {
+  project: Project;
+}
+
+export type TargetSourceDetailResponse =
+  | Project
+  | TargetSourceEnvelopeResponse
+  | TargetSourceSnakeEnvelopeResponse
+  | LegacyProjectEnvelopeResponse;
+
+export const extractTargetSource = (payload: TargetSourceDetailResponse): Project => {
+  if ('targetSource' in payload) return payload.targetSource;
+  if ('target_source' in payload) return payload.target_source;
+  if ('project' in payload) return payload.project;
+  return payload;
 };

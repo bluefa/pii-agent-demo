@@ -8,20 +8,25 @@ import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
-import { extractTargetSource } from '@/lib/target-source-response';
+import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
+
+interface LegacyErrorPayload {
+  error?: string;
+  message?: string;
+}
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = await res.json().catch((): LegacyErrorPayload => ({}));
     throw new BffError(
       res.status,
-      (body as { error?: string }).error ?? 'UNKNOWN',
-      (body as { message?: string }).message ?? `HTTP ${res.status}`,
+      body.error ?? 'INTERNAL_ERROR',
+      body.message ?? `HTTP ${res.status}`,
     );
   }
   const data = await res.json();
@@ -31,7 +36,7 @@ async function get<T>(path: string): Promise<T> {
 export const httpBff: BffClient = {
   targetSources: {
     get: async (id) => {
-      const data = await get<unknown>(`/v1/target-sources/${id}`);
+      const data = await get<TargetSourceDetailResponse>(`/v1/target-sources/${id}`);
       return extractTargetSource(data);
     },
 
