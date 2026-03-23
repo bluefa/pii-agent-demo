@@ -37,6 +37,7 @@ const TABS: { id: ProcessTabType; label: string }[] = [
 
 interface ProcessStatusCardProps {
   project: Project;
+  resources: Resource[];
   onProjectUpdate?: (project: Project) => void;
   approvalModalOpen?: boolean;
   onApprovalModalClose?: () => void;
@@ -57,6 +58,7 @@ const getProgress = (project: Project) => {
 
 export const ProcessStatusCard = ({
   project,
+  resources,
   onProjectUpdate,
   approvalModalOpen = false,
   onApprovalModalClose,
@@ -74,7 +76,7 @@ export const ProcessStatusCard = ({
   // ADR-004: status 필드에서 현재 단계 계산
   const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
-  const selectedResources = project.resources.filter((r) => r.isSelected);
+  const selectedResources = resources.filter((r) => r.isSelected);
 
   // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
   const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
@@ -232,7 +234,7 @@ export const ProcessStatusCard = ({
                   {project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
-                      resources={project.resources}
+                      resources={resources}
                       onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'AWS' ? (
@@ -281,7 +283,7 @@ export const ProcessStatusCard = ({
                     <LogicalDbStatusPanel
                       targetSourceId={project.targetSourceId}
                       cloudProvider={project.cloudProvider}
-                      resources={project.resources}
+                      resources={resources}
                     />
                   </div>
                 )}
@@ -320,7 +322,7 @@ export const ProcessStatusCard = ({
           isOpen={approvalModalOpen}
           onClose={onApprovalModalClose}
           onSubmit={onApprovalSubmit}
-          resources={approvalResources ?? project.resources}
+          resources={approvalResources ?? resources}
           loading={approvalLoading}
           error={approvalError}
         />

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
-import type { ResourceSnapshotItem } from '@/app/lib/api';
-import type { Resource, CloudProvider, ProcessStatus, DatabaseType } from '@/lib/types';
+import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import type { Resource, CloudProvider, ProcessStatus, DatabaseType, VmDatabaseType } from '@/lib/types';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { cn, statusColors, textColors, cardStyles } from '@/lib/theme';
 
@@ -15,7 +15,12 @@ interface ResourceTransitionPanelProps {
 }
 
 /** 스냅샷 데이터를 ResourceTable이 사용하는 Resource[]로 변환 */
-function snapshotToResources(items: ResourceSnapshotItem[]): Resource[] {
+const VM_DATABASE_TYPES: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
+
+const isVmDatabaseType = (databaseType: DatabaseType): databaseType is VmDatabaseType =>
+  VM_DATABASE_TYPES.includes(databaseType as VmDatabaseType);
+
+function snapshotToResources(items: ConfirmedIntegrationResourceItem[]): Resource[] {
   return items.map((item) => ({
     id: item.resource_id,
     resourceId: item.resource_id,
@@ -25,6 +30,19 @@ function snapshotToResources(items: ResourceSnapshotItem[]): Resource[] {
     isSelected: true,
     integrationCategory: 'TARGET' as const,
     selectedCredentialId: item.credential_id ?? undefined,
+    vmDatabaseConfig:
+      item.resource_type === 'AZURE_VM'
+      && item.database_type
+      && isVmDatabaseType(item.database_type)
+      && item.port !== null
+        ? {
+            databaseType: item.database_type,
+            port: item.port,
+            ...(item.host !== null ? { host: item.host } : {}),
+            ...(item.oracle_service_id ? { oracleServiceId: item.oracle_service_id } : {}),
+            ...(item.network_interface_id ? { selectedNicId: item.network_interface_id } : {}),
+          }
+        : undefined,
   }));
 }
 
