@@ -4,6 +4,13 @@
 
 `GET /target-sources/{targetSourceId}`를 Azure 상세 페이지의 god API 역할에서 분리하고, 최종적으로는 `GET /services/{serviceCode}/target-sources`와 유사한 최소 컨텍스트 API로 축소한다.
 
+이 문서는 PR #212 머지 이후의 `main`을 기준으로 작성한다. 즉 아래 사항은 이미 반영된 상태를 전제로 한다.
+
+- `GET /target-sources/{targetSourceId}`는 wrapper 없는 flat 응답으로 문서화되어 있다.
+- `docs/swagger/azure-page-apis.yaml`가 존재해 Admin -> Azure 상세 호출 카탈로그가 정리되어 있다.
+
+따라서 이번 문서의 범위는 "flat 응답으로 바꾸기"가 아니라, 그 다음 단계인 "필드 슬림화와 책임 분리"다.
+
 이번 계획의 고정 조건:
 
 - 새 API Path는 추가하지 않는다.
@@ -13,7 +20,7 @@
 
 ## 2. 현재 문제
 
-현재 `GET /target-sources/{targetSourceId}`는 Swagger `TargetSourceDetail`보다 훨씬 큰 실제 payload를 반환하고 있고, 프론트도 아래 책임을 한 번에 기대하고 있다.
+현재 `GET /target-sources/{targetSourceId}`는 flat 응답까지는 정리됐지만, 여전히 Swagger `TargetSourceDetail`보다 훨씬 큰 실제 payload를 반환하고 있고, 프론트도 아래 책임을 한 번에 기대하고 있다.
 
 - 상세 페이지 공통 헤더/기본 정보
 - Provider별 식별자 표시
@@ -255,7 +262,7 @@
 
 목표:
 
-- `GET /target-sources/{targetSourceId}`를 최종 목표 응답으로 축소
+- 이미 flat인 `GET /target-sources/{targetSourceId}`를 최종 목표 응답으로 추가 축소
 
 작업:
 
