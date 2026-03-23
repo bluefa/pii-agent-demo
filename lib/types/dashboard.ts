@@ -17,7 +17,7 @@ export interface SystemDbStatus {
   active_db_count: number;
 }
 
-/** 대시보드 요약 (GET /api/v1/admin/dashboard/summary) */
+/** 대시보드 요약 (GET /api/infra/v1/admin/dashboard/summary) */
 export interface DashboardSummary {
   total_system_count: number;
   total_target_db_count: number;
@@ -30,7 +30,7 @@ export interface DashboardSummary {
   checked_at: string;
 }
 
-/** 시스템 상세 (GET /api/v1/admin/dashboard/systems 항목) */
+/** 시스템 상세 (GET /api/infra/v1/admin/dashboard/systems 항목) */
 export interface SystemDetail {
   service_code: string;
   service_name: string;

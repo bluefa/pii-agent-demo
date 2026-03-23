@@ -21,8 +21,8 @@ describe('app/lib/api/index', () => {
 
     await searchUsers('alice', ['u1', 'u2']);
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      '/api/infra/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
     );
   });
 
@@ -41,7 +41,7 @@ describe('app/lib/api/index', () => {
 
     await searchUsers('');
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/v1/users/search');
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/infra/v1/users/search');
   });
 
   it('getServices는 v1 응답을 ServiceCode[] 형태로 매핑한다', async () => {
@@ -49,8 +49,8 @@ describe('app/lib/api/index', () => {
       new Response(
         JSON.stringify({
           services: [
-            { serviceCode: 'SERVICE-A', serviceName: 'Service Alpha' },
-            { serviceCode: 'SERVICE-B', serviceName: 'Service Beta' },
+            { service_code: 'SERVICE-A', service_name: 'Service Alpha' },
+            { service_code: 'SERVICE-B', service_name: 'Service Beta' },
           ],
         }),
         {
