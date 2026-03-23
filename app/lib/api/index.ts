@@ -1,6 +1,6 @@
 import { ServiceCode, ProjectSummary, User, CloudProvider, Project, UserRole, ConnectionStatusResponse } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
-import { fetchJson } from '@/lib/fetch-json';
+import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
 
 
 export interface CurrentUser {
@@ -11,19 +11,13 @@ export interface CurrentUser {
   serviceCodePermissions: string[];
 }
 
-export const getCurrentUser = async (): Promise<CurrentUser> => {
-  const res = await fetch('/api/v1/user/me');
-  if (!res.ok) throw new Error('Failed to fetch current user');
-  const data = await res.json();
-  return data.user;
-};
+export const getCurrentUser = (): Promise<CurrentUser> =>
+  fetchInfraCamelJson<CurrentUser>('/user/me');
 
 export const getServices = async (): Promise<ServiceCode[]> => {
-  const res = await fetch('/api/v1/user/services');
-  if (!res.ok) throw new Error('Failed to fetch services');
-  const data = await res.json() as {
+  const data = await fetchInfraCamelJson<{
     services: Array<{ serviceCode: string; serviceName: string }>;
-  };
+  }>('/user/services');
   return data.services.map((service) => ({
     code: service.serviceCode,
     name: service.serviceName,
@@ -31,7 +25,9 @@ export const getServices = async (): Promise<ServiceCode[]> => {
 };
 
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
-  const data = await fetchJson<{ targetSources: ProjectSummary[] }>(`/api/v1/services/${serviceCode}/target-sources`);
+  const data = await fetchInfraCamelJson<{ targetSources: ProjectSummary[] }>(
+    `/services/${serviceCode}/target-sources`,
+  );
   return data.targetSources;
 };
 
@@ -46,32 +42,36 @@ export const createProject = async (payload: {
   subscriptionId?: string;
   gcpProjectId?: string;
 }): Promise<void> => {
-  await fetchJson(`/api/v1/services/${payload.serviceCode}/target-sources`, {
+  await fetchInfraJson(`/services/${payload.serviceCode}/target-sources`, {
     method: 'POST',
     body: payload,
   });
 };
 
 export const getPermissions = async (serviceCode: string): Promise<User[]> => {
-  const data = await fetchJson<{ users: User[] }>(`/api/v1/services/${serviceCode}/authorized-users`);
+  const data = await fetchInfraCamelJson<{ users: User[] }>(
+    `/services/${serviceCode}/authorized-users`,
+  );
   return data.users;
 };
 
 export const addPermission = async (serviceCode: string, userId: string): Promise<void> => {
-  await fetchJson(`/api/v1/services/${serviceCode}/authorized-users`, {
+  await fetchInfraJson(`/services/${serviceCode}/authorized-users`, {
     method: 'POST',
     body: { userId },
   });
 };
 
 export const deletePermission = async (serviceCode: string, userId: string): Promise<void> => {
-  await fetchJson(`/api/v1/services/${serviceCode}/authorized-users/${userId}`, {
+  await fetchInfraJson(`/services/${serviceCode}/authorized-users/${userId}`, {
     method: 'DELETE',
   });
 };
 
 export const getProject = async (targetSourceId: number): Promise<Project> => {
-  const data = await fetchJson<{ targetSource: Project }>(`/api/v1/target-sources/${targetSourceId}`);
+  const data = await fetchInfraCamelJson<{ targetSource: Project }>(
+    `/target-sources/${targetSourceId}`,
+  );
   return data.targetSource;
 };
 
@@ -90,20 +90,16 @@ export const searchUsers = async (
   excludeIds.forEach((excludeId) => params.append('excludeIds', excludeId));
 
   const queryString = params.toString();
-  const endpoint = queryString
-    ? `/api/v1/users/search?${queryString}`
-    : '/api/v1/users/search';
-
-  const res = await fetch(endpoint);
-  if (!res.ok) throw new Error('Failed to search users');
-  const data = await res.json();
+  const data = await fetchInfraCamelJson<{ users: UserSearchResult[] }>(
+    queryString ? `/users/search?${queryString}` : '/users/search',
+  );
   return data.users;
 };
 
 
 // ===== Confirm v1 API =====
 
-const CONFIRM_BASE = '/api/v1/target-sources';
+const CONFIRM_BASE = '/target-sources';
 
 export interface ConfirmResourceItem {
   id: string;
@@ -123,7 +119,7 @@ export interface ConfirmResourcesResponse {
 export const getConfirmResources = async (
   targetSourceId: number
 ): Promise<ConfirmResourcesResponse> =>
-  fetchJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
+  fetchInfraCamelJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
 
 export interface ApprovalResourceInput {
   resource_id: string;
@@ -165,7 +161,7 @@ export const createApprovalRequest = async (
   targetSourceId: number,
   input: ApprovalRequestInput
 ): Promise<ApprovalRequestResult> =>
-  fetchJson<ApprovalRequestResult>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
+  fetchInfraJson<ApprovalRequestResult>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
     method: 'POST',
     body: input,
   });
@@ -186,7 +182,7 @@ export interface ConfirmedIntegrationResponse {
 export const getConfirmedIntegration = async (
   targetSourceId: number
 ): Promise<ConfirmedIntegrationResponse> =>
-  fetchJson<ConfirmedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`);
+  fetchInfraJson<ConfirmedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`);
 
 export interface ApprovedIntegrationResponse {
   approved_integration: {
@@ -202,7 +198,7 @@ export interface ApprovedIntegrationResponse {
 export const getApprovedIntegration = async (
   targetSourceId: number
 ): Promise<ApprovedIntegrationResponse> =>
-  fetchJson<ApprovedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`);
+  fetchInfraJson<ApprovedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`);
 
 export interface ApprovalHistoryResponse {
   content: Array<{
@@ -230,16 +226,29 @@ export const getApprovalHistory = async (
   targetSourceId: number,
   page = 0,
   size = 10
-): Promise<ApprovalHistoryResponse> =>
-  fetchJson<ApprovalHistoryResponse>(
-    `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`
-  );
+): Promise<ApprovalHistoryResponse> => {
+  const response = await fetchInfraJson<ApprovalHistoryResponse & {
+    page: {
+      total_elements?: number;
+      total_pages?: number;
+    };
+  }>(`${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`);
+
+  return {
+    ...response,
+    page: {
+      ...response.page,
+      totalElements: response.page.totalElements ?? response.page.total_elements ?? 0,
+      totalPages: response.page.totalPages ?? response.page.total_pages ?? 0,
+    },
+  };
+};
 
 export const approveApprovalRequestV1 = async (
   targetSourceId: number,
   comment?: string
 ): Promise<{ success: boolean; result: string; processed_at: string }> =>
-  fetchJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
+  fetchInfraJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
     method: 'POST',
     body: { comment },
   });
@@ -248,7 +257,7 @@ export const rejectApprovalRequestV1 = async (
   targetSourceId: number,
   reason: string
 ): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> =>
-  fetchJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
+  fetchInfraJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
     method: 'POST',
     body: { reason },
   });
@@ -256,7 +265,7 @@ export const rejectApprovalRequestV1 = async (
 export const cancelApprovalRequest = async (
   targetSourceId: number
 ): Promise<{ success: boolean }> =>
-  fetchJson<{ success: boolean }>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`, {
+  fetchInfraJson<{ success: boolean }>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`, {
     method: 'POST',
   });
 
@@ -279,12 +288,12 @@ export interface ProcessStatusResponse {
 export const getProcessStatus = async (
   targetSourceId: number
 ): Promise<ProcessStatusResponse> =>
-  fetchJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
+  fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
 // ===== Connection Test API (Async) =====
 
 export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
-  fetchJson<SecretKey[]>(`/api/v1/target-sources/${targetSourceId}/secrets`);
+  fetchInfraCamelJson<SecretKey[]>(`${CONFIRM_BASE}/${targetSourceId}/secrets`);
 
 export interface TestConnectionTriggerResponse {
   success: boolean;
@@ -322,7 +331,7 @@ export interface TestConnectionResultsResponse {
 export const triggerTestConnection = async (
   targetSourceId: number
 ): Promise<TestConnectionTriggerResponse> =>
-  fetchJson<TestConnectionTriggerResponse>(
+  fetchInfraJson<TestConnectionTriggerResponse>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection`,
     { method: 'POST' },
   );
@@ -331,7 +340,7 @@ export const triggerTestConnection = async (
 export const getTestConnectionLatest = async (
   targetSourceId: number
 ): Promise<TestConnectionJob> =>
-  fetchJson<TestConnectionJob>(
+  fetchInfraJson<TestConnectionJob>(
     `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest`,
   );
 
@@ -340,10 +349,23 @@ export const getTestConnectionResults = async (
   targetSourceId: number,
   page = 0,
   size = 10,
-): Promise<TestConnectionResultsResponse> =>
-  fetchJson<TestConnectionResultsResponse>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection/results?page=${page}&size=${size}`,
-  );
+): Promise<TestConnectionResultsResponse> => {
+  const response = await fetchInfraJson<TestConnectionResultsResponse & {
+    page: {
+      total_elements?: number;
+      total_pages?: number;
+    };
+  }>(`${CONFIRM_BASE}/${targetSourceId}/test-connection/results?page=${page}&size=${size}`);
+
+  return {
+    ...response,
+    page: {
+      ...response.page,
+      totalElements: response.page.totalElements ?? response.page.total_elements ?? 0,
+      totalPages: response.page.totalPages ?? response.page.total_pages ?? 0,
+    },
+  };
+};
 
 // Credential 갱신 — v1
 export const updateResourceCredential = async (
@@ -351,7 +373,7 @@ export const updateResourceCredential = async (
   resourceId: string,
   credentialId: string | null
 ): Promise<{ success: boolean }> =>
-  fetchJson<{ success: boolean }>(
+  fetchInfraJson<{ success: boolean }>(
     `${CONFIRM_BASE}/${targetSourceId}/resources/credential`,
     {
       method: 'PATCH',
@@ -368,7 +390,7 @@ export interface InstallationConfirmResult {
 export const confirmInstallation = async (
   targetSourceId: number
 ): Promise<InstallationConfirmResult> =>
-  fetchJson<InstallationConfirmResult>(
+  fetchInfraCamelJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST' },
   );
@@ -378,7 +400,7 @@ export const confirmInstallation = async (
 export const getConnectionStatus = async (
   targetSourceId: number
 ): Promise<ConnectionStatusResponse> =>
-  fetchJson<ConnectionStatusResponse>(
+  fetchInfraJson<ConnectionStatusResponse>(
     `${CONFIRM_BASE}/${targetSourceId}/logical-db-status`
   );
 
