@@ -20,7 +20,7 @@ function snapshotToResources(items: ResourceSnapshotItem[]): Resource[] {
     id: item.resource_id,
     resourceId: item.resource_id,
     type: item.resource_type,
-    databaseType: ((item.endpoint_config?.db_type ?? item.resource_type) as DatabaseType),
+    databaseType: (item.database_type ?? 'MYSQL') as DatabaseType,
     connectionStatus: 'CONNECTED' as const,
     isSelected: true,
     integrationCategory: 'TARGET' as const,
