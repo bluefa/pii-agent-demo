@@ -1,6 +1,7 @@
 export const SWAGGER_SPEC_NAMES = [
   'aws',
   'azure',
+  'azure-page-apis',
   'gcp',
   'scan',
   'user',

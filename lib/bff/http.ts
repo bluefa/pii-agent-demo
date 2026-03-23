@@ -3,11 +3,12 @@
  * USE_MOCK_DATA=false 일 때 사용된다.
  */
 import type { BffClient } from '@/lib/bff/types';
-import type { Project, SecretKey } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
+import { extractTargetSource } from '@/lib/target-source-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
@@ -30,8 +31,8 @@ async function get<T>(path: string): Promise<T> {
 export const httpBff: BffClient = {
   targetSources: {
     get: async (id) => {
-      const data = await get<{ targetSource: Project }>(`/v1/target-sources/${id}`);
-      return data.targetSource;
+      const data = await get<unknown>(`/v1/target-sources/${id}`);
+      return extractTargetSource(data);
     },
 
     secrets: async (id) => {

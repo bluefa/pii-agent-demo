@@ -1,0 +1,1130 @@
+openapi: 3.0.3
+info:
+  title: Admin to Azure Integration Page API Catalog
+  version: 2.0.0
+  description: |-
+    Admin 페이지(`/admin`)에서 Azure 연동 상세 페이지(`/projects/{targetSourceId}`)까지 이동하고,
+    Azure 설치/연결 테스트를 진행하는 과정에서 프론트엔드가 직접 호출하는 API를 정리한 문서입니다.
+
+    ### 범위
+    - 포함: Admin 페이지와 Azure 상세 페이지에서 직접 호출하는 조회/실행 API
+    - 포함: 페이지 내부의 선택적 액션(권한 사용자 추가/삭제, 승인 상세 확인, 승인 처리)
+    - 제외: `/admin/dashboard` 전용 통계 API
+
+    ### 정리 원칙
+    - 실제 프론트 호출 경로 기준으로 누락 없이 수집
+    - 응답 스키마는 기존 Swagger를 최대한 재사용
+    - 기존 Swagger가 실제 페이지 응답을 충분히 설명하지 못하는 경우에만 로컬 스키마를 보강
+servers:
+  - url: /api/infra/v1
+    description: BFF Infra v1 Base Path
+tags:
+  - name: Admin Navigation
+    description: Admin 페이지 진입 및 Azure 상세 페이지 이동 전에 조회하는 API
+  - name: Admin Actions
+    description: Admin 페이지에서 직접 실행 가능한 액션 API
+  - name: Azure Page Bootstrap
+    description: Azure 상세 페이지 초기 로드 시 조회하는 API
+  - name: Scan
+    description: 리소스 스캔 및 스캔 이력 조회 API
+  - name: Approval
+    description: 승인 요청 생성 및 상태 확인 API
+  - name: Azure Installation
+    description: Azure 설치 상태 조회 및 설치 보조 API
+  - name: Connection Test
+    description: Credential 보정 및 연결 테스트 API
+  - name: Runtime History
+    description: Azure 상세 페이지 이력 조회 API
+paths:
+  /user/services:
+    get:
+      tags:
+        - Admin Navigation
+      summary: 접근 가능 서비스 코드 목록 조회
+      operationId: getAdminServicesForAzureJourney
+      x-expected-duration: 50ms ~ 200ms
+      responses:
+        '200':
+          description: 서비스 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './user.yaml#/components/schemas/UserServicesResponse'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+
+  /services/{serviceCode}/target-sources:
+    get:
+      tags:
+        - Admin Navigation
+      summary: 서비스별 타겟소스 목록 조회
+      operationId: getAdminTargetSourcesForAzureJourney
+      x-expected-duration: 100ms ~ 500ms
+      parameters:
+        - $ref: './user.yaml#/components/parameters/ServiceCode'
+      responses:
+        '200':
+          description: 타겟소스 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTargetSourceListResponse'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/ServiceNotFound'
+    post:
+      tags:
+        - Admin Actions
+      summary: 서비스에 신규 타겟소스 생성
+      operationId: createAdminTargetSourceForAzureJourney
+      x-expected-duration: 300ms ~ 1s
+      parameters:
+        - $ref: './user.yaml#/components/parameters/ServiceCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './user.yaml#/components/schemas/CreateTargetSourceRequest'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: './user.yaml#/components/schemas/TargetSourceDetailEnvelope'
+        '400':
+          $ref: './user.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/ServiceNotFound'
+        '409':
+          $ref: './user.yaml#/components/responses/Conflict'
+
+  /services/{serviceCode}/authorized-users:
+    get:
+      tags:
+        - Admin Navigation
+      summary: 서비스 권한 사용자 목록 조회
+      operationId: getAdminAuthorizedUsersForAzureJourney
+      x-expected-duration: 80ms ~ 300ms
+      parameters:
+        - $ref: './user.yaml#/components/parameters/ServiceCode'
+      responses:
+        '200':
+          description: 권한 사용자 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './user.yaml#/components/schemas/AuthorizedUsersResponse'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/ServiceNotFound'
+    post:
+      tags:
+        - Admin Actions
+      summary: 서비스 권한 사용자 추가
+      operationId: addAdminAuthorizedUserForAzureJourney
+      x-expected-duration: 100ms ~ 500ms
+      parameters:
+        - $ref: './user.yaml#/components/parameters/ServiceCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './user.yaml#/components/schemas/AddAuthorizedUserRequest'
+      responses:
+        '200':
+          description: 추가 성공
+          content:
+            application/json:
+              schema:
+                $ref: './user.yaml#/components/schemas/AddAuthorizedUserResponse'
+        '400':
+          $ref: './user.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/ServiceNotFound'
+
+  /services/{serviceCode}/authorized-users/{userId}:
+    delete:
+      tags:
+        - Admin Actions
+      summary: 서비스 권한 사용자 제거
+      operationId: removeAdminAuthorizedUserForAzureJourney
+      x-expected-duration: 80ms ~ 300ms
+      parameters:
+        - $ref: './user.yaml#/components/parameters/ServiceCode'
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 제거 성공
+          content:
+            application/json:
+              schema:
+                $ref: './user.yaml#/components/schemas/SuccessResponse'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/ServiceNotFound'
+
+  /users/search:
+    get:
+      tags:
+        - Admin Actions
+      summary: 서비스 권한 부여용 사용자 검색
+      operationId: searchAdminUsersForAzureJourney
+      x-expected-duration: 100ms ~ 300ms
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: excludeIds
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+      responses:
+        '200':
+          description: 사용자 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: './user.yaml#/components/schemas/UserSearchResponse'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+
+  /target-sources/{targetSourceId}:
+    get:
+      tags:
+        - Azure Page Bootstrap
+      summary: Azure 타겟소스 상세 조회
+      operationId: getAzureJourneyTargetSource
+      x-expected-duration: 80ms ~ 300ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: Azure 상세 페이지 렌더링에 필요한 타겟소스 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AzurePageTargetSourceDetail'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/TargetSourceNotFound'
+
+  /user/me:
+    get:
+      tags:
+        - Azure Page Bootstrap
+      summary: 현재 사용자 정보 조회
+      operationId: getAzureJourneyCurrentUser
+      x-expected-duration: 50ms ~ 200ms
+      responses:
+        '200':
+          description: 현재 사용자 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AzurePageCurrentUser'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+
+  /target-sources/{targetSourceId}/secrets:
+    get:
+      tags:
+        - Azure Page Bootstrap
+        - Connection Test
+      summary: Secret Key 목록 조회
+      operationId: getAzureJourneySecrets
+      x-expected-duration: 80ms ~ 300ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: Secret 목록 조회 성공
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: './credential.yaml#/components/schemas/SecretKey'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: './credential.yaml#/components/schemas/ErrorResponse'
+
+  /azure/target-sources/{targetSourceId}/settings:
+    get:
+      tags:
+        - Azure Page Bootstrap
+      summary: Azure 설정 조회
+      operationId: getAzureJourneySettings
+      x-expected-duration: 50ms ~ 200ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: Azure 설정 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './azure.yaml#/components/schemas/AzureSettings'
+        '403':
+          $ref: './azure.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './azure.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/scan:
+    post:
+      tags:
+        - Scan
+      summary: 리소스 스캔 시작
+      operationId: startAzureJourneyScan
+      x-expected-duration: 30s ~ 5m
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '202':
+          description: 스캔 요청 수락
+          content:
+            application/json:
+              schema:
+                $ref: './scan.yaml#/components/schemas/ScanJob'
+        '404':
+          description: Target Source를 찾을 수 없음
+          content:
+            application/json:
+              schema:
+                $ref: './scan.yaml#/components/schemas/ErrorResponse'
+        '409':
+          description: 진행 중인 스캔이 이미 존재
+          content:
+            application/json:
+              schema:
+                $ref: './scan.yaml#/components/schemas/ErrorResponse'
+
+  /target-sources/{targetSourceId}/scanJob/latest:
+    get:
+      tags:
+        - Azure Page Bootstrap
+        - Scan
+      summary: 최근 스캔 작업 조회
+      operationId: getAzureJourneyLatestScan
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 최근 스캔 작업 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './scan.yaml#/components/schemas/ScanJob'
+        '404':
+          description: 스캔 이력이 없음
+
+  /target-sources/{targetSourceId}/scan/history:
+    get:
+      tags:
+        - Scan
+      summary: 스캔 이력 조회
+      operationId: getAzureJourneyScanHistory
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: 스캔 이력 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './scan.yaml#/components/schemas/ScanHistoryResponse'
+        '404':
+          description: Target Source를 찾을 수 없음
+
+  /target-sources/{targetSourceId}/approval-requests:
+    post:
+      tags:
+        - Approval
+      summary: 연동 대상 확정 승인 요청 생성
+      operationId: createAzureJourneyApprovalRequest
+      x-expected-duration: 500ms 이내
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './confirm.yaml#/components/schemas/ApprovalRequestCreateRequest'
+      responses:
+        '201':
+          description: 승인 요청 생성 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  approval_request:
+                    $ref: './confirm.yaml#/components/schemas/ApprovalRequest'
+        '400':
+          $ref: './confirm.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+        '409':
+          description: 승인 요청 충돌
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ErrorResponse'
+
+  /target-sources/{targetSourceId}/approval-history:
+    get:
+      tags:
+        - Admin Actions
+        - Approval
+      summary: 승인 요청 이력 조회
+      operationId: getAzureJourneyApprovalHistory
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: 승인 이력 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: './confirm.yaml#/components/schemas/ApprovalHistoryItem'
+                  page:
+                    $ref: './confirm.yaml#/components/schemas/PageInfo'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/approval-requests/approve:
+    post:
+      tags:
+        - Admin Actions
+      summary: 승인 요청 승인
+      operationId: approveAzureJourneyApprovalRequest
+      x-expected-duration: 500ms 이내
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: './confirm.yaml#/components/schemas/ApprovalApproveRequest'
+      responses:
+        '200':
+          description: 승인 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ApprovalActionResponse'
+        '400':
+          description: 승인 대기 상태가 아님
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/approval-requests/reject:
+    post:
+      tags:
+        - Admin Actions
+      summary: 승인 요청 반려
+      operationId: rejectAzureJourneyApprovalRequest
+      x-expected-duration: 500ms 이내
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './confirm.yaml#/components/schemas/ApprovalRejectRequest'
+      responses:
+        '200':
+          description: 반려 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ApprovalActionResponse'
+        '400':
+          description: 승인 대기 상태가 아니거나 반려 사유 누락
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/approval-requests/cancel:
+    post:
+      tags:
+        - Approval
+      summary: 승인 요청 취소
+      operationId: cancelAzureJourneyApprovalRequest
+      x-expected-duration: 500ms 이내
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 취소 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ApprovalCancelResponse'
+        '400':
+          description: 취소 가능한 승인 요청이 없음
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+        '409':
+          description: 승인 반영 중
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ErrorResponse'
+
+  /target-sources/{targetSourceId}/confirmed-integration:
+    get:
+      tags:
+        - Approval
+      summary: 현재 확정된 연동 정보 조회
+      operationId: getAzureJourneyConfirmedIntegration
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  confirmed_integration:
+                    $ref: './confirm.yaml#/components/schemas/ConfirmedIntegration'
+                    nullable: true
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/process-status:
+    get:
+      tags:
+        - Approval
+      summary: 프로세스 상태 조회
+      operationId: getAzureJourneyProcessStatus
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/ProcessStatusResponse'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /azure/target-sources/{targetSourceId}/installation-status:
+    get:
+      tags:
+        - Azure Installation
+      summary: Azure 설치 상태 조회
+      operationId: getAzureJourneyInstallationStatus
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 설치 상태 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './azure.yaml#/components/schemas/AzureInstallationStatus'
+        '403':
+          $ref: './azure.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './azure.yaml#/components/responses/TargetSourceNotFound'
+
+  /azure/target-sources/{targetSourceId}/check-installation:
+    post:
+      tags:
+        - Azure Installation
+      summary: Azure 설치 상태 새로고침
+      operationId: refreshAzureJourneyInstallationStatus
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 설치 상태 새로고침 성공
+          content:
+            application/json:
+              schema:
+                $ref: './azure.yaml#/components/schemas/AzureInstallationStatus'
+        '403':
+          $ref: './azure.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './azure.yaml#/components/responses/TargetSourceNotFound'
+
+  /azure/target-sources/{targetSourceId}/vm-terraform-script:
+    get:
+      tags:
+        - Azure Installation
+      summary: Azure VM Terraform 스크립트 다운로드
+      operationId: downloadAzureJourneyVmTerraformScript
+      x-expected-duration: 300ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 스크립트 ZIP 파일
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: './azure.yaml#/components/responses/BadRequest'
+        '403':
+          $ref: './azure.yaml#/components/responses/PermissionDenied'
+        '404':
+          description: 대상 없음 또는 VM 리소스 없음
+          content:
+            application/json:
+              schema:
+                $ref: './azure.yaml#/components/schemas/ErrorResponse'
+
+  /target-sources/{targetSourceId}/resources/credential:
+    patch:
+      tags:
+        - Connection Test
+      summary: 리소스별 Credential 갱신
+      operationId: updateAzureJourneyResourceCredential
+      x-expected-duration: 100ms ~ 300ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './confirm.yaml#/components/schemas/UpdateResourceCredentialRequest'
+      responses:
+        '200':
+          description: Credential 갱신 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/UpdateResourceCredentialResponse'
+        '400':
+          $ref: './confirm.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/test-connection:
+    post:
+      tags:
+        - Connection Test
+      summary: 연결 테스트 실행
+      operationId: startAzureJourneyTestConnection
+      x-expected-duration: 1m ~ 10m
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '202':
+          description: 연결 테스트 요청 수락
+          content:
+            application/json:
+              schema:
+                $ref: './test-connection.yaml#/components/schemas/TestConnectionTriggerResponse'
+        '400':
+          description: 연결 테스트 가능한 상태가 아님
+          content:
+            application/json:
+              schema:
+                $ref: './test-connection.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: './test-connection.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './test-connection.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './test-connection.yaml#/components/responses/TargetSourceNotFound'
+        '409':
+          description: 이미 진행 중인 테스트 존재
+          content:
+            application/json:
+              schema:
+                $ref: './test-connection.yaml#/components/schemas/ErrorResponse'
+
+  /target-sources/{targetSourceId}/test-connection/latest:
+    get:
+      tags:
+        - Connection Test
+      summary: 최근 연결 테스트 결과 조회
+      operationId: getAzureJourneyLatestTestConnection
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './test-connection.yaml#/components/schemas/TestConnectionJob'
+        '401':
+          $ref: './test-connection.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './test-connection.yaml#/components/responses/PermissionDenied'
+        '404':
+          description: 테스트 이력 없음
+          content:
+            application/json:
+              schema:
+                $ref: './test-connection.yaml#/components/schemas/ErrorResponse'
+
+  /target-sources/{targetSourceId}/test-connection/results:
+    get:
+      tags:
+        - Connection Test
+      summary: 연결 테스트 결과 이력 조회
+      operationId: getAzureJourneyTestConnectionResults
+      x-expected-duration: 50ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './test-connection.yaml#/components/schemas/TestConnectionResultsResponse'
+        '401':
+          $ref: './test-connection.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './test-connection.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './test-connection.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/pii-agent-installation/confirm:
+    post:
+      tags:
+        - Admin Actions
+      summary: 설치 완료 최종 확정
+      operationId: confirmAzureJourneyInstallationCompletion
+      x-expected-duration: 500ms 이내
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 설치 완료 확정 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/InstallationConfirmResponse'
+        '400':
+          $ref: './confirm.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
+  /target-sources/{targetSourceId}/history:
+    get:
+      tags:
+        - Runtime History
+      summary: 프로젝트 이력 조회
+      operationId: getAzureJourneyProjectHistory
+      x-expected-duration: 300ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            default: all
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 프로젝트 이력 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectHistoryResponse'
+        '401':
+          $ref: './user.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './user.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: './user.yaml#/components/responses/TargetSourceNotFound'
+
+components:
+  parameters:
+    TargetSourceId:
+      name: targetSourceId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+  schemas:
+    AzurePageCurrentUser:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - role
+        - service_code_permissions
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - SERVICE_MANAGER
+            - ADMIN
+        service_code_permissions:
+          type: array
+          items:
+            type: string
+
+    AdminTargetSourceSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        target_source_id:
+          type: integer
+          format: int64
+        project_code:
+          type: string
+        process_status:
+          type: integer
+          description: UI 내부 ProcessStatus enum 값
+        cloud_provider:
+          type: string
+        resource_count:
+          type: integer
+        has_disconnected:
+          type: boolean
+        has_new:
+          type: boolean
+        description:
+          type: string
+          nullable: true
+        is_rejected:
+          type: boolean
+        rejection_reason:
+          type: string
+          nullable: true
+        connection_test_complete:
+          type: boolean
+
+    AdminTargetSourceListResponse:
+      type: object
+      required:
+        - target_sources
+      properties:
+        target_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTargetSourceSummary'
+
+    AzurePageTargetSourceDetail:
+      type: object
+      description: Azure 상세 페이지에서 실제로 소비하는 타겟소스 상세 응답
+      properties:
+        id:
+          type: string
+        target_source_id:
+          type: integer
+          format: int64
+        project_code:
+          type: string
+        service_code:
+          type: string
+        cloud_provider:
+          type: string
+          enum:
+            - AWS
+            - Azure
+            - GCP
+            - IDC
+            - SDU
+        process_status:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        name:
+          type: string
+        description:
+          type: string
+        is_rejected:
+          type: boolean
+        rejection_reason:
+          type: string
+          nullable: true
+        rejected_at:
+          type: string
+          format: date-time
+          nullable: true
+        approval_comment:
+          type: string
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        pii_agent_installed:
+          type: boolean
+          nullable: true
+        pii_agent_connected_at:
+          type: string
+          format: date-time
+          nullable: true
+        completion_confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        tenant_id:
+          type: string
+          nullable: true
+        subscription_id:
+          type: string
+          nullable: true
+        status:
+          type: object
+          additionalProperties: true
+        terraform_state:
+          type: object
+          additionalProperties: true
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/AzurePageResource'
+
+    AzurePageResource:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        resource_id:
+          type: string
+        connection_status:
+          type: string
+        is_selected:
+          type: boolean
+        database_type:
+          type: string
+        integration_category:
+          type: string
+        selected_credential_id:
+          type: string
+          nullable: true
+        azure_networking_mode:
+          type: string
+          nullable: true
+        nics:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        vm_database_config:
+          type: object
+          nullable: true
+          additionalProperties: true
+        exclusion:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    ProjectHistoryResponse:
+      type: object
+      required:
+        - history
+        - total
+      properties:
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectHistoryItem'
+        total:
+          type: integer
+
+    ProjectHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        type:
+          type: string
+        actor:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+          properties:
+            reason:
+              type: string
+              nullable: true
+            resource_count:
+              type: integer
+              nullable: true
+            excluded_resource_count:
+              type: integer
+              nullable: true
+            input_data:
+              $ref: './confirm.yaml#/components/schemas/ApprovalRequestInputData'
