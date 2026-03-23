@@ -12,7 +12,7 @@ export const fetchInfraCamelJson = async <T>(
   path: string,
   options?: FetchJsonOptions,
 ): Promise<T> =>
-  camelCaseKeys(await fetchInfraJson<unknown>(path, options)) as T;
+  camelCaseKeys(await fetchInfraJson<T>(path, options)) as T;
 
 export const parseInfraCamelJson = async <T>(response: Response): Promise<T> =>
   camelCaseKeys(await response.json()) as T;

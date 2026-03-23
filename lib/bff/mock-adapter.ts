@@ -12,7 +12,12 @@ import { getProjectIdByTargetSourceId } from '@/lib/mock-data';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
 import { mockUsers } from '@/lib/api-client/mock/users';
-import { extractTargetSource } from '@/lib/target-source-response';
+import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
+
+interface LegacyErrorPayload {
+  error?: string;
+  message?: string;
+}
 
 function resolveProjectId(targetSourceId: number): string {
   const projectId = getProjectIdByTargetSourceId(targetSourceId);
@@ -25,10 +30,11 @@ function resolveProjectId(targetSourceId: number): string {
 async function unwrap<T>(response: NextResponse): Promise<T> {
   const data = await response.json();
   if (!response.ok) {
+    const errorPayload = data as LegacyErrorPayload;
     throw new BffError(
       response.status,
-      (data as { error?: string }).error ?? 'UNKNOWN',
-      (data as { message?: string }).message ?? `HTTP ${response.status}`,
+      errorPayload.error ?? 'INTERNAL_ERROR',
+      errorPayload.message ?? `HTTP ${response.status}`,
     );
   }
   return data as T;
@@ -39,7 +45,7 @@ export const mockBff: BffClient = {
     get: async (id) => {
       const projectId = resolveProjectId(id);
       const res = await mockTargetSources.get(projectId);
-      const data = await unwrap<unknown>(res);
+      const data = await unwrap<TargetSourceDetailResponse>(res);
       return extractTargetSource(data);
     },
 
