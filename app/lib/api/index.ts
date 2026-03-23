@@ -5,6 +5,8 @@ import {
   CloudProvider,
   Project,
   UserRole,
+  DatabaseType,
+  IntegrationCategory,
   ConfirmedIntegrationResourceInfo,
   BffConfirmedIntegration,
   ConnectionStatusResponse,
@@ -119,8 +121,13 @@ export interface ConfirmResourceItem {
   resourceId: string;
   name: string;
   resourceType: string;
-  integrationCategory: 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
-  selectedCredentialId: string | null;
+  databaseType: DatabaseType;
+  integrationCategory: IntegrationCategory;
+  host: string | null;
+  port: number | null;
+  oracleServiceId: string | null;
+  networkInterfaceId: string | null;
+  ipConfigurationName: string | null;
   metadata: ConfirmResourceMetadata;
 }
 
