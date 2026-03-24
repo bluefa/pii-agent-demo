@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
-import type { Project, SecretKey } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
 import type { AzureV1Settings } from '@/lib/types/azure';
 
 interface AzureInfoCardProps {
-  project: Project;
   serviceSettings: AzureV1Settings | null;
   credentials: SecretKey[];
   onOpenGuide: () => void;
@@ -69,7 +68,6 @@ const IdField = ({ label, value }: { label: string; value: string }) => {
 };
 
 export const AzureInfoCard = ({
-  project,
   serviceSettings,
   credentials,
   onOpenGuide,
@@ -78,6 +76,8 @@ export const AzureInfoCard = ({
   const [showAllCredentials, setShowAllCredentials] = useState(false);
 
   const scanApp = serviceSettings?.scanApp ?? null;
+  const tenantId = serviceSettings?.tenantId;
+  const subscriptionId = serviceSettings?.subscriptionId;
 
   const visibleCredentials = showAllCredentials
     ? credentials
@@ -90,11 +90,11 @@ export const AzureInfoCard = ({
 
       {/* Section 1: Basic Info */}
       <div className="space-y-2">
-        {project.tenantId && (
-          <IdField label={PROVIDER_FIELD_LABELS.Azure.tenantId} value={project.tenantId} />
+        {tenantId && (
+          <IdField label={PROVIDER_FIELD_LABELS.Azure.tenantId} value={tenantId} />
         )}
-        {project.subscriptionId && (
-          <IdField label={PROVIDER_FIELD_LABELS.Azure.subscriptionId} value={project.subscriptionId} />
+        {subscriptionId && (
+          <IdField label={PROVIDER_FIELD_LABELS.Azure.subscriptionId} value={subscriptionId} />
         )}
       </div>
 

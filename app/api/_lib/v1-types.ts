@@ -140,6 +140,8 @@ export interface AzureInstallationStatusResponse {
 }
 
 export interface AzureSettingsResponse {
+  tenantId?: string;
+  subscriptionId?: string;
   scanApp: {
     appId: string;
     status: RoleStatus;

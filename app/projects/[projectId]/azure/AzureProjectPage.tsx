@@ -312,7 +312,6 @@ export const AzureProjectPage = ({
       <div className="flex flex-1 overflow-hidden">
         <ProjectSidebar cloudProvider={project.cloudProvider}>
           <AzureInfoCard
-            project={project}
             serviceSettings={serviceSettings}
             credentials={credentials}
             onOpenGuide={handleOpenGuide}
