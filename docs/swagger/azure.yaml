@@ -104,6 +104,7 @@ paths:
       operationId: getAzureTargetSourceSettings
       tags:
         - Settings
+      x-expected-duration: 50ms ~ 200ms
       description: Azure App 등록 상태 및 Client ID를 조회합니다.
       responses:
         '200':
@@ -224,6 +225,14 @@ components:
       required:
         - scan_app
       properties:
+        tenant_id:
+          type: string
+          format: uuid
+          description: Azure Tenant ID
+        subscription_id:
+          type: string
+          format: uuid
+          description: Azure Subscription ID
         scan_app:
           type: object
           description: Scan App (Service Principal) 정보
