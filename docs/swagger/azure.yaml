@@ -105,7 +105,7 @@ paths:
       tags:
         - Settings
       x-expected-duration: 50ms ~ 200ms
-      description: Azure App 등록 상태 및 Client ID를 조회합니다.
+      description: Azure Tenant/Subscription 식별자와 Scan App 등록 상태를 조회합니다.
       responses:
         '200':
           description: 성공

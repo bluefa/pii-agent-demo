@@ -74,21 +74,29 @@ export interface AzureVmInstallationStatus {
 
 // ===== Azure 서비스 설정 =====
 
-export type ScanAppStatus = 'VALID' | 'INVALID' | 'NOT_VERIFIED';
+export type AzureSettingsStatus = 'VALID' | 'INVALID' | 'UNVERIFIED';
+export type LegacyAzureSettingsStatus = AzureSettingsStatus | 'NOT_VERIFIED';
 
 export interface AzureScanApp {
   registered: boolean;
   appId?: string;
   lastVerifiedAt?: string;
-  status?: ScanAppStatus;
+  status?: LegacyAzureSettingsStatus;
+}
+
+export interface AzureSettingsGuide {
+  description: string;
+  documentUrl?: string;
 }
 
 export interface AzureServiceSettings {
   scanApp: AzureScanApp;
-  guide?: {
-    description: string;
-    documentUrl?: string;
-  };
+  guide?: AzureSettingsGuide;
+}
+
+export interface AzureTargetSourceSettings extends AzureServiceSettings {
+  tenantId?: string;
+  subscriptionId?: string;
 }
 
 // ===== Azure TF Script =====
@@ -148,7 +156,7 @@ export interface AzureV1Settings {
   subscriptionId?: string;
   scanApp: {
     appId: string;
-    status: 'VALID' | 'INVALID' | 'UNVERIFIED';
+    status: AzureSettingsStatus;
     lastVerifiedAt?: string;
   };
 }
