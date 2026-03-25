@@ -75,3 +75,65 @@ describe('bffClient.confirm.getResources', () => {
     });
   });
 });
+
+describe('bffClient.azure.getSettings', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    delete process.env.BFF_API_URL;
+  });
+
+  it('legacy upstream settings 응답을 정규화하고 식별자가 없으면 target-source detail로 보강한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            scanApp: {
+              registered: true,
+              appId: 'scan-app-123',
+              status: 'NOT_VERIFIED',
+              lastVerifiedAt: '2026-03-24T00:00:00Z',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            target_source: {
+              tenant_id: 'tenant-from-detail',
+              subscription_id: 'subscription-from-detail',
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        ),
+      );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    const response = await bffClient.azure.getSettings('1003');
+
+    expect(fetchSpy.mock.calls).toEqual([
+      ['https://bff.example.com/infra/v1/azure/projects/1003/settings'],
+      ['https://bff.example.com/infra/v1/target-sources/1003'],
+    ]);
+    await expect(response.json()).resolves.toEqual({
+      tenant_id: 'tenant-from-detail',
+      subscription_id: 'subscription-from-detail',
+      scan_app: {
+        app_id: 'scan-app-123',
+        status: 'UNVERIFIED',
+        last_verified_at: '2026-03-24T00:00:00Z',
+      },
+    });
+  });
+});

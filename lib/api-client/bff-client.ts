@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { ApiClient } from '@/lib/api-client/types';
 import {
+  extractAzureSettings,
+  type AzureSettingsResponsePayload,
+} from '@/lib/azure-settings-response';
+import {
   extractConfirmedIntegration,
   type ConfirmedIntegrationResponsePayload,
 } from '@/lib/confirmed-integration-response';
@@ -12,6 +16,16 @@ import {
 
 const BFF_URL = process.env.BFF_API_URL;
 
+interface TargetSourceIdentifierPayload {
+  tenant_id?: string;
+  tenantId?: string;
+  subscription_id?: string;
+  subscriptionId?: string;
+  target_source?: TargetSourceIdentifierPayload;
+  targetSource?: TargetSourceIdentifierPayload;
+  project?: TargetSourceIdentifierPayload;
+}
+
 const proxyGet = async (path: string): Promise<NextResponse> => {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
   return new NextResponse(res.body, {
@@ -20,7 +34,7 @@ const proxyGet = async (path: string): Promise<NextResponse> => {
   });
 };
 
-const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => {
+const proxyPost = async <T>(path: string, body: T): Promise<NextResponse> => {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -32,7 +46,7 @@ const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => 
   });
 };
 
-const proxyPatch = async (path: string, body: unknown): Promise<NextResponse> => {
+const proxyPatch = async <T>(path: string, body: T): Promise<NextResponse> => {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -44,7 +58,7 @@ const proxyPatch = async (path: string, body: unknown): Promise<NextResponse> =>
   });
 };
 
-const proxyPut = async (path: string, body: unknown): Promise<NextResponse> => {
+const proxyPut = async <T>(path: string, body: T): Promise<NextResponse> => {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -90,6 +104,46 @@ const proxyResourceCatalogGet = async (path: string): Promise<NextResponse> => {
 
   const payload = await res.json() as ResourceCatalogResponsePayload;
   return NextResponse.json(extractResourceCatalog(payload), { status: res.status });
+};
+
+const extractTargetSourceIdentifiers = (
+  payload: TargetSourceIdentifierPayload,
+): { tenantId?: string; subscriptionId?: string } => {
+  const targetSource = payload.target_source ?? payload.targetSource ?? payload.project ?? payload;
+
+  return {
+    tenantId: targetSource.tenant_id ?? targetSource.tenantId,
+    subscriptionId: targetSource.subscription_id ?? targetSource.subscriptionId,
+  };
+};
+
+const proxyAzureSettingsGet = async (projectId: string): Promise<NextResponse> => {
+  const settingsResponse = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(`/azure/projects/${projectId}/settings`)}`);
+
+  if (!settingsResponse.ok) {
+    return new NextResponse(settingsResponse.body, {
+      status: settingsResponse.status,
+      headers: { 'Content-Type': settingsResponse.headers.get('Content-Type') ?? 'application/json' },
+    });
+  }
+
+  const payload = await settingsResponse.json() as AzureSettingsResponsePayload;
+  const normalized = extractAzureSettings(payload);
+
+  if (normalized.tenant_id && normalized.subscription_id) {
+    return NextResponse.json(normalized, { status: settingsResponse.status });
+  }
+
+  const targetSourceResponse = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(`/v1/target-sources/${projectId}`)}`);
+  if (!targetSourceResponse.ok) {
+    return NextResponse.json(normalized, { status: settingsResponse.status });
+  }
+
+  const targetSourcePayload = await targetSourceResponse.json() as TargetSourceIdentifierPayload;
+  return NextResponse.json(
+    extractAzureSettings(payload, extractTargetSourceIdentifiers(targetSourcePayload)),
+    { status: settingsResponse.status },
+  );
 };
 
 export const bffClient: ApiClient = {
@@ -169,7 +223,7 @@ export const bffClient: ApiClient = {
   azure: {
     checkInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/check-installation`, {}),
     getInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/installation-status`),
-    getSettings: (projectId) => proxyGet(`/azure/projects/${projectId}/settings`),
+    getSettings: (projectId) => proxyAzureSettingsGet(projectId),
     getSubnetGuide: (projectId) => proxyGet(`/azure/projects/${projectId}/subnet-guide`),
     vmCheckInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/vm/check-installation`, {}),
     vmGetInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/vm/installation-status`),

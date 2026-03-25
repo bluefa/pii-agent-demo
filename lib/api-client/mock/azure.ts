@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as azureFns from '@/lib/mock-azure';
+import { extractAzureSettings } from '@/lib/azure-settings-response';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
+
+interface MockAzureResult<T> {
+  error?: {
+    code: string;
+    message: string;
+    status: number;
+  };
+  data?: T;
+}
 
 const authorize = async (projectId: string) => {
   const user = await mockData.getCurrentUser();
@@ -30,7 +40,7 @@ const authorize = async (projectId: string) => {
   return { project };
 };
 
-const handleResult = (result: { error?: { code: string; message: string; status: number }; data?: unknown }) => {
+const handleResult = <T>(result: MockAzureResult<T>) => {
   if (result.error) {
     return NextResponse.json(
       { error: result.error.code, message: result.error.message },
@@ -80,7 +90,21 @@ export const mockAzure = {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.getAzureServiceSettings(auth.project!.serviceCode));
+    const result = await azureFns.getAzureTargetSourceSettings(projectId);
+    if (result.error) {
+      return NextResponse.json(
+        { error: result.error.code, message: result.error.message },
+        { status: result.error.status },
+      );
+    }
+    if (!result.data) {
+      return NextResponse.json(
+        { error: 'INTERNAL_ERROR', message: 'Azure 설정 응답을 생성하지 못했습니다.' },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json(extractAzureSettings(result.data));
   },
 
   vmGetTerraformScript: async (projectId: string) => {

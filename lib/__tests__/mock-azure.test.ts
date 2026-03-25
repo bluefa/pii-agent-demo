@@ -6,7 +6,7 @@ import {
   checkAzureVmInstallation,
   getAzureVmTerraformScript,
   getAzureSubnetGuide,
-  getAzureServiceSettings,
+  getAzureTargetSourceSettings,
   resetAzureStore,
   hasVmResources,
   hasDbResources,
@@ -56,6 +56,8 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
   name: 'Azure Test Project',
   description: 'Azure Test Description',
   isRejected: false,
+  tenantId: '11111111-1111-1111-1111-111111111111',
+  subscriptionId: '22222222-2222-2222-2222-222222222222',
   ...overrides,
 });
 
@@ -339,17 +341,24 @@ describe('mock-azure', () => {
     });
   });
 
-  describe('getAzureServiceSettings', () => {
-    it('서비스 설정 반환', () => {
-      const result = getAzureServiceSettings('SERVICE-A');
+  describe('getAzureTargetSourceSettings', () => {
+    it('대상 소스 설정 반환', () => {
+      const store = getStore();
+      store.projects.push(createAzureProject());
+
+      const result = getAzureTargetSourceSettings('azure-test-project');
       expect(result.error).toBeUndefined();
+      expect(result.data?.tenantId).toBe('11111111-1111-1111-1111-111111111111');
+      expect(result.data?.subscriptionId).toBe('22222222-2222-2222-2222-222222222222');
       expect(result.data?.scanApp).toBeDefined();
       expect(typeof result.data?.scanApp.registered).toBe('boolean');
     });
 
     it('등록된 Scan App은 appId와 status 포함', () => {
-      // SERVICE-A는 해시 기반으로 등록됨
-      const result = getAzureServiceSettings('SERVICE-A');
+      const store = getStore();
+      store.projects.push(createAzureProject());
+
+      const result = getAzureTargetSourceSettings('azure-test-project');
       if (result.data?.scanApp.registered) {
         expect(result.data.scanApp.appId).toBeDefined();
         expect(result.data.scanApp.status).toBe('VALID');
@@ -358,7 +367,15 @@ describe('mock-azure', () => {
     });
 
     it('미등록 Scan App은 가이드 포함', () => {
-      const result = getAzureServiceSettings('SERVICE-B');
+      const store = getStore();
+      store.projects.push(createAzureProject({
+        id: 'azure-test-project-b',
+        serviceCode: 'SERVICE-B',
+        tenantId: '33333333-3333-3333-3333-333333333333',
+        subscriptionId: '44444444-4444-4444-4444-444444444444',
+      }));
+
+      const result = getAzureTargetSourceSettings('azure-test-project-b');
       if (!result.data?.scanApp.registered) {
         expect(result.data?.guide).toBeDefined();
         expect(result.data?.guide?.description).toBeDefined();
@@ -366,9 +383,21 @@ describe('mock-azure', () => {
       }
     });
 
-    it('캐시된 설정은 동일한 결과 반환', () => {
-      const result1 = getAzureServiceSettings('SERVICE-A');
-      const result2 = getAzureServiceSettings('SERVICE-A');
+    it('캐시는 projectId별로 분리된다', () => {
+      const store = getStore();
+      store.projects.push(createAzureProject());
+      store.projects.push(createAzureProject({
+        id: 'azure-test-project-2',
+        targetSourceId: 9003,
+        tenantId: '55555555-5555-5555-5555-555555555555',
+        subscriptionId: '66666666-6666-6666-6666-666666666666',
+      }));
+
+      const result1 = getAzureTargetSourceSettings('azure-test-project');
+      const result2 = getAzureTargetSourceSettings('azure-test-project-2');
+
+      expect(result1.data?.tenantId).toBe('11111111-1111-1111-1111-111111111111');
+      expect(result2.data?.tenantId).toBe('55555555-5555-5555-5555-555555555555');
       expect(result1.data?.scanApp.appId).toBe(result2.data?.scanApp.appId);
     });
   });

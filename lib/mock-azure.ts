@@ -3,6 +3,7 @@ import { Project, Resource, isInstallIneligible } from '@/lib/types';
 import {
   AzureInstallationStatus,
   AzureResourceStatus,
+  AzureTargetSourceSettings,
   AzureVmInstallationStatus,
   AzureVmStatus,
   AzureServiceSettings,
@@ -21,12 +22,14 @@ interface AzureStore {
   installationStatus: Record<string, AzureInstallationStatus>;
   vmInstallationStatus: Record<string, AzureVmInstallationStatus>;
   serviceSettings: Record<string, AzureServiceSettings>;
+  targetSourceSettings: Record<string, AzureTargetSourceSettings>;
 }
 
 const azureStore: AzureStore = {
   installationStatus: {},
   vmInstallationStatus: {},
   serviceSettings: {},
+  targetSourceSettings: {},
 };
 
 // ===== 헬퍼 함수 =====
@@ -352,14 +355,12 @@ export const getAzureSubnetGuide = (
  * Azure 서비스 설정 조회
  */
 export const getAzureServiceSettings = (
-  serviceCode: string
+  serviceCode: string,
 ): { data?: AzureServiceSettings; error?: { code: string; message: string; status: number } } => {
-  // 캐시된 설정이 있으면 반환
   if (azureStore.serviceSettings[serviceCode]) {
     return { data: azureStore.serviceSettings[serviceCode] };
   }
 
-  // 시뮬레이션: 서비스 코드에 따라 다른 상태
   const hash = serviceCode.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const isRegistered = hash % 2 === 0;
 
@@ -386,12 +387,53 @@ export const getAzureServiceSettings = (
   return { data: settings };
 };
 
+/**
+ * Azure 대상 소스 설정 조회
+ */
+export const getAzureTargetSourceSettings = (
+  projectId: string,
+): { data?: AzureTargetSourceSettings; error?: { code: string; message: string; status: number } } => {
+  const project = getProjectById(projectId);
+
+  if (!project) {
+    return {
+      error: { code: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.', status: 404 },
+    };
+  }
+
+  if (!isAzureProject(project)) {
+    return {
+      error: { code: 'NOT_AZURE_PROJECT', message: 'Azure 프로젝트가 아닙니다.', status: 400 },
+    };
+  }
+
+  if (azureStore.targetSourceSettings[projectId]) {
+    return { data: azureStore.targetSourceSettings[projectId] };
+  }
+
+  const serviceSettings = getAzureServiceSettings(project.serviceCode);
+  if (serviceSettings.error || !serviceSettings.data) {
+    return serviceSettings;
+  }
+
+  const settings: AzureTargetSourceSettings = {
+    ...(project.tenantId && { tenantId: project.tenantId }),
+    ...(project.subscriptionId && { subscriptionId: project.subscriptionId }),
+    scanApp: serviceSettings.data.scanApp,
+    guide: serviceSettings.data.guide,
+  };
+
+  azureStore.targetSourceSettings[projectId] = settings;
+  return { data: settings };
+};
+
 // ===== 테스트용 유틸리티 =====
 
 export const resetAzureStore = (): void => {
   azureStore.installationStatus = {};
   azureStore.vmInstallationStatus = {};
   azureStore.serviceSettings = {};
+  azureStore.targetSourceSettings = {};
 };
 
 export const hasVmResources = (projectId: string): boolean => {
