@@ -1,13 +1,11 @@
 import { Modal } from '@/app/components/ui/Modal';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
 import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors, tableStyles } from '@/lib/theme';
-
-type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
+import type { ApprovalRequestReadModel } from '@/lib/types';
 
 interface ApprovalRequestDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  request: ApprovalRequest | null;
+  request: ApprovalRequestReadModel | null;
 }
 
 export const ApprovalRequestDetailModal = ({

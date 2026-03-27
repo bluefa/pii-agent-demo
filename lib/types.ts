@@ -707,6 +707,43 @@ export type LastApprovalResultType =
   | 'SYSTEM_ERROR'
   | 'COMPLETED';
 
+export type ApprovalRequestResultType =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'AUTO_APPROVED'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'SYSTEM_ERROR'
+  | 'COMPLETED';
+
+export interface ApprovalRequestProcessInfo {
+  user_id: string | null;
+  reason: string | null;
+}
+
+export interface ApprovalRequestReadModel {
+  id: string;
+  requested_at: string;
+  requested_by: string;
+  input_data: ApprovalRequestInputSnapshot;
+  result: ApprovalRequestResultType;
+  processed_at: string | null;
+  process_info: ApprovalRequestProcessInfo;
+}
+
+export interface TargetSourceProcessStatusReadModel {
+  target_source_id: number;
+  process_status: TargetSourceProcessStatus;
+  status_inputs: {
+    has_confirmed_integration: boolean;
+    has_pending_approval_request: boolean;
+    has_approved_integration: boolean;
+    last_approval_result: LastApprovalResultType;
+    last_rejection_reason: string | null;
+  };
+  evaluated_at: string;
+}
+
 /** 리소스 스냅샷 (Swagger ResourceSnapshot) */
 export interface ResourceSnapshot {
   resource_id: string;

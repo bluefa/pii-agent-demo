@@ -1,22 +1,23 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, VmDatabaseConfig, type ApprovalRequestReadModel } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type {
-  ApprovalHistoryResponse,
   ApprovedIntegrationResponse,
   ConfirmedIntegrationResponse,
   ConfirmResourceItem,
+  ProcessStatusResponse,
 } from '@/app/lib/api';
 import type { AzureV1Settings } from '@/lib/types/azure';
 import {
   createApprovalRequest,
-  getApprovalHistory,
   getApprovedIntegration,
   getConfirmResources,
   getConfirmedIntegration,
+  getLatestApprovalRequest,
   getProject,
+  getProcessStatus,
   updateResourceCredential,
 } from '@/app/lib/api';
 import { getAzureSettings } from '@/app/lib/api/azure';
@@ -31,9 +32,9 @@ import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError } from '@/lib/errors';
 import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
-import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
+import { getProjectCurrentStepFromReadModels, getRejectionAlertReadModel } from '@/lib/target-source-read-model';
 
 interface AzureProjectPageProps {
   project: Project;
@@ -43,16 +44,6 @@ interface AzureProjectPageProps {
 
 const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
   resource_infos: [],
-};
-
-const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
-  content: [],
-  page: {
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 1,
-  },
 };
 
 const isMissingSnapshotError = (error: unknown): boolean =>
@@ -81,7 +72,8 @@ export const AzureProjectPage = ({
   const [serviceSettings, setServiceSettings] = useState<AzureV1Settings | null>(null);
 
   const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
-  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
+  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalRequestReadModel | null>(null);
+  const [processStatus, setProcessStatus] = useState<ProcessStatusResponse | null>(null);
   const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
   const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
   const [resourceLoading, setResourceLoading] = useState(true);
@@ -95,7 +87,7 @@ export const AzureProjectPage = ({
   const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
-  const currentStep = getProjectCurrentStep(project);
+  const currentStep = getProjectCurrentStepFromReadModels(project, processStatus, latestApprovalRequest);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const effectiveEditMode = isStep1 || isEditMode;
   const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL
@@ -109,15 +101,14 @@ export const AzureProjectPage = ({
     try {
       const [
         catalogResponse,
-        approvalHistoryResponse,
+        latestApprovalResponse,
+        processStatusResponse,
         approvedIntegrationResponse,
         confirmedIntegrationResponse,
       ] = await Promise.all([
         getConfirmResources(project.targetSourceId),
-        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
-          throw error;
-        }),
+        getLatestApprovalRequest(project.targetSourceId),
+        getProcessStatus(project.targetSourceId),
         getApprovedIntegration(project.targetSourceId).catch((error) => {
           if (isMissingSnapshotError(error)) {
             return { approved_integration: null } satisfies ApprovedIntegrationResponse;
@@ -131,7 +122,8 @@ export const AzureProjectPage = ({
       ]);
 
       setCatalogResources(catalogResponse.resources);
-      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
+      setLatestApprovalRequest(latestApprovalResponse.approval_request);
+      setProcessStatus(processStatusResponse);
       setApprovedIntegration(approvedIntegrationResponse.approved_integration);
       setConfirmedIntegration(confirmedIntegrationResponse);
     } catch (error) {
@@ -144,7 +136,7 @@ export const AzureProjectPage = ({
 
   useEffect(() => {
     void loadAzureResources();
-  }, [loadAzureResources, currentStep, project.updatedAt]);
+  }, [loadAzureResources]);
 
   const azureResources = useMemo(
     () =>
@@ -305,6 +297,31 @@ export const AzureProjectPage = ({
     onProjectUpdate(updatedProject);
   };
 
+  const handleProjectUpdateFromProcessCard = useCallback((updatedProject: Project) => {
+    onProjectUpdate(updatedProject);
+    void loadAzureResources();
+  }, [loadAzureResources, onProjectUpdate]);
+
+  const handleProcessStatusUpdate = useCallback((nextProcessStatus: ProcessStatusResponse) => {
+    const readModelChanged = processStatus !== null && (
+      processStatus.process_status !== nextProcessStatus.process_status
+      || processStatus.status_inputs.last_approval_result !== nextProcessStatus.status_inputs.last_approval_result
+      || processStatus.status_inputs.has_approved_integration !== nextProcessStatus.status_inputs.has_approved_integration
+      || processStatus.status_inputs.has_confirmed_integration !== nextProcessStatus.status_inputs.has_confirmed_integration
+    );
+
+    setProcessStatus(nextProcessStatus);
+
+    if (readModelChanged) {
+      void loadAzureResources();
+    }
+  }, [loadAzureResources, processStatus]);
+
+  const rejectionAlert = useMemo(
+    () => getRejectionAlertReadModel(project, processStatus, latestApprovalRequest),
+    [latestApprovalRequest, processStatus, project],
+  );
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
       <ProjectHeader project={project} />
@@ -343,13 +360,16 @@ export const AzureProjectPage = ({
               <ProcessStatusCard
                 project={project}
                 resources={displayResources}
-                onProjectUpdate={onProjectUpdate}
+                onProjectUpdate={handleProjectUpdateFromProcessCard}
                 approvalModalOpen={approvalModalOpen}
                 onApprovalModalClose={() => setApprovalModalOpen(false)}
                 onApprovalSubmit={handleApprovalSubmit}
                 approvalLoading={submitting}
                 approvalError={approvalError ?? resourceError}
                 approvalResources={approvalResources}
+                statusReadModel={processStatus}
+                latestApprovalRequest={latestApprovalRequest}
+                onProcessStatusUpdate={handleProcessStatusUpdate}
               />
 
               {currentStep === ProcessStatus.APPLYING_APPROVED ? (
@@ -383,7 +403,7 @@ export const AzureProjectPage = ({
                 </>
               )}
 
-              <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
+              <RejectionAlert rejection={rejectionAlert} onRetryRequest={handleStartEdit} />
 
               <div className="flex justify-end gap-3">
                 {effectiveEditMode ? (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildAzureOwnedResources, type AzureResourceCatalogItem } from '@/lib/azure-resource-ownership';
-import { ProcessStatus, type ApprovalRequestInputSnapshot, type BffApprovedIntegration, type BffConfirmedIntegration } from '@/lib/types';
+import { ProcessStatus, type ApprovalRequestInputSnapshot, type ApprovalRequestReadModel, type BffApprovedIntegration, type BffConfirmedIntegration } from '@/lib/types';
 
 const createCatalogResource = (
   id: string,
@@ -27,16 +27,23 @@ const createCatalogResource = (
 
 const createApprovalInput = (
   resourceInputs: ApprovalRequestInputSnapshot['resource_inputs'],
-): { request: { input_data: ApprovalRequestInputSnapshot } } => ({
-  request: {
-    input_data: {
-      resource_inputs: resourceInputs,
-    },
+): ApprovalRequestReadModel => ({
+  id: 'request-1',
+  requested_at: '2026-03-26T01:00:00Z',
+  requested_by: 'tester',
+  input_data: {
+    resource_inputs: resourceInputs,
+  },
+  result: 'PENDING',
+  processed_at: null,
+  process_info: {
+    user_id: null,
+    reason: null,
   },
 });
 
 describe('buildAzureOwnedResources', () => {
-  it('uses approval-history while waiting approval and restores VM settings from the request snapshot', () => {
+  it('uses latest approval request while waiting approval and restores VM settings from the request snapshot', () => {
     const result = buildAzureOwnedResources({
       currentStep: ProcessStatus.WAITING_APPROVAL,
       catalog: [
@@ -80,7 +87,7 @@ describe('buildAzureOwnedResources', () => {
       confirmedIntegration: { resource_infos: [] },
     });
 
-    expect(result.selectionSource).toBe('approval-history');
+    expect(result.selectionSource).toBe('latest-approval-request');
     expect(result.resources).toEqual([
       expect.objectContaining({
         id: 'vm-1',

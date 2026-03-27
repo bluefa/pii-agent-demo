@@ -1,39 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getApprovalHistory } from '@/app/lib/api';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
-
-type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
+import type { ApprovalRequestReadModel } from '@/lib/types';
 
 interface ApprovalApplyingBannerProps {
   targetSourceId?: number;
   hasConfirmedIntegration?: boolean;
+  request: ApprovalRequestReadModel | null;
 }
 
 export const ApprovalApplyingBanner = ({
   targetSourceId,
   hasConfirmedIntegration,
+  request,
 }: ApprovalApplyingBannerProps) => {
   const detailModal = useModal();
-  const [latestRequest, setLatestRequest] = useState<ApprovalRequest | null>(null);
-
-  useEffect(() => {
-    if (!targetSourceId) return;
-    let cancelled = false;
-    getApprovalHistory(targetSourceId, 0, 1)
-      .then((history) => {
-        if (!cancelled && history.content.length > 0) {
-          setLatestRequest(history.content[0].request);
-        }
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [targetSourceId]);
 
   return (
     <>
@@ -60,7 +44,7 @@ export const ApprovalApplyingBanner = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestRequest}
+                disabled={!request}
                 className={getButtonClass('ghost', 'sm')}
               >
                 승인 내역 확인
@@ -79,7 +63,7 @@ export const ApprovalApplyingBanner = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
-        request={latestRequest}
+        request={request}
       />
     </>
   );

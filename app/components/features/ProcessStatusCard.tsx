@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
-import { getProcessStatus, getProject } from '@/app/lib/api';
+import { ProcessStatus, Project, TerraformStatus, Resource, type ApprovalRequestReadModel, type TargetSourceProcessStatusReadModel } from '@/lib/types';
+import { getProcessStatus, getProject, type ProcessStatusResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
-import { getProjectCurrentStep } from '@/lib/process';
+import { getProjectCurrentStepFromReadModels, isRejectedLatestApprovalRequest } from '@/lib/target-source-read-model';
 import {
   StepProgressBar,
   StepGuide,
@@ -45,6 +45,9 @@ interface ProcessStatusCardProps {
   approvalLoading?: boolean;
   approvalError?: string | null;
   approvalResources?: Resource[];
+  statusReadModel?: TargetSourceProcessStatusReadModel | null;
+  latestApprovalRequest?: ApprovalRequestReadModel | null;
+  onProcessStatusUpdate?: (status: ProcessStatusResponse) => void;
 }
 
 const getProgress = (project: Project) => {
@@ -66,6 +69,9 @@ export const ProcessStatusCard = ({
   approvalLoading = false,
   approvalError,
   approvalResources,
+  statusReadModel = null,
+  latestApprovalRequest = null,
+  onProcessStatusUpdate,
 }: ProcessStatusCardProps) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
@@ -73,13 +79,14 @@ export const ProcessStatusCard = ({
   // Modal states
   const terraformModal = useModal();
   const guideModal = useModal();
-  // ADR-004: status 필드에서 현재 단계 계산
-  const currentStep = getProjectCurrentStep(project);
+  const currentStep = getProjectCurrentStepFromReadModels(project, statusReadModel, latestApprovalRequest);
   const progress = getProgress(project);
   const selectedResources = resources.filter((r) => r.isSelected);
+  const rejectedApprovalRequest = isRejectedLatestApprovalRequest(latestApprovalRequest);
 
   // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
-  const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
+  const [polledHasConfirmedIntegration, setPolledHasConfirmedIntegration] = useState(false);
+  const hasConfirmedIntegration = statusReadModel?.status_inputs.has_confirmed_integration ?? polledHasConfirmedIntegration;
 
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -110,9 +117,11 @@ export const ProcessStatusCard = ({
     const poll = async () => {
       try {
         const status = await getProcessStatus(project.targetSourceId);
-        setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
+        setPolledHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
+        onProcessStatusUpdate?.(status);
         const shouldRefreshOnApplying = currentStep === ProcessStatus.APPLYING_APPROVED;
-        if (status.process_status !== expectedBff || shouldRefreshOnApplying) {
+        const hasRejectedResult = status.status_inputs.last_approval_result === 'REJECTED';
+        if (status.process_status !== expectedBff || shouldRefreshOnApplying || hasRejectedResult) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
         }
@@ -131,7 +140,7 @@ export const ProcessStatusCard = ({
         pollRef.current = null;
       }
     };
-  }, [currentStep, project.targetSourceId, stableOnProjectUpdate]);
+  }, [currentStep, onProcessStatusUpdate, project.targetSourceId, stableOnProjectUpdate]);
 
   // Process Guide
   const guideVariant = project.cloudProvider === 'AWS'
@@ -214,11 +223,12 @@ export const ProcessStatusCard = ({
                   </div>
                 )}
 
-                {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
+                {currentStep === ProcessStatus.WAITING_APPROVAL && !rejectedApprovalRequest && (
                   <ApprovalWaitingCard
                     targetSourceId={project.targetSourceId}
                     onCancelSuccess={refreshProject}
                     hasConfirmedIntegration={hasConfirmedIntegration}
+                    request={latestApprovalRequest}
                   />
                 )}
 
@@ -226,6 +236,7 @@ export const ProcessStatusCard = ({
                   <ApprovalApplyingBanner
                     targetSourceId={project.targetSourceId}
                     hasConfirmedIntegration={hasConfirmedIntegration}
+                    request={latestApprovalRequest}
                   />
                 )}
 

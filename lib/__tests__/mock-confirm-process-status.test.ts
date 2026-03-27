@@ -76,6 +76,11 @@ const getProcessStatus = async () => {
   return parseResponse(res);
 };
 
+const getLatestApprovalRequest = async () => {
+  const res = await mockConfirm.getLatestApprovalRequest(TEST_PROJECT_ID);
+  return parseResponse(res);
+};
+
 /** mock store에서 프로젝트의 approval.status를 직접 읽기 */
 const getProjectApprovalStatus = () => {
   const store = getStore();
@@ -1166,6 +1171,111 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
       expect(cancelRes.status).toBe(403);
+    });
+  });
+
+  describe('시나리오 13: 최근 승인 요청 read model', () => {
+    it('대기 중 요청은 최신 요청 스냅샷과 PENDING 결과를 반환한다', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      await mockConfirm.createApprovalRequest(
+        TEST_PROJECT_ID,
+        createApprovalRequestBody(['res-1', 'res-2'], ['res-3']),
+      );
+
+      const latest = await getLatestApprovalRequest();
+
+      expect(latest.approval_request).toEqual(
+        expect.objectContaining({
+          requested_by: '관리자',
+          result: 'PENDING',
+          processed_at: null,
+          process_info: {
+            user_id: null,
+            reason: null,
+          },
+        }),
+      );
+      expect(latest.approval_request.input_data.resource_inputs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ resource_id: 'res-1', selected: true }),
+          expect.objectContaining({ resource_id: 'res-3', selected: false, exclusion_reason: '연동 불필요' }),
+        ]),
+      );
+    });
+
+    it('반려 후에도 최신 요청 스냅샷은 유지되고 처리 결과만 REJECTED로 갱신된다', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      await mockConfirm.createApprovalRequest(
+        TEST_PROJECT_ID,
+        createApprovalRequestBody(['res-1', 'res-2'], ['res-3']),
+      );
+      await mockConfirm.rejectApprovalRequest(TEST_PROJECT_ID, { reason: '보안 검토 필요' });
+
+      const latest = await getLatestApprovalRequest();
+
+      expect(latest.approval_request).toEqual(
+        expect.objectContaining({
+          result: 'REJECTED',
+          process_info: {
+            user_id: 'admin-1',
+            reason: '보안 검토 필요',
+          },
+        }),
+      );
+      expect(latest.approval_request.input_data.resource_inputs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ resource_id: 'res-1', selected: true }),
+          expect.objectContaining({ resource_id: 'res-3', selected: false, exclusion_reason: '연동 불필요' }),
+        ]),
+      );
+    });
+
+    it('승인 완료 후에도 최신 요청 기준으로 APPROVED 결과를 반환한다', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+          createTestResource('res-3', { integrationCategory: 'TARGET' }),
+        ],
+      });
+
+      await mockConfirm.createApprovalRequest(
+        TEST_PROJECT_ID,
+        createApprovalRequestBody(['res-1', 'res-2'], ['res-3']),
+      );
+      await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+
+      const latest = await getLatestApprovalRequest();
+
+      expect(latest.approval_request).toEqual(
+        expect.objectContaining({
+          result: 'APPROVED',
+          process_info: {
+            user_id: 'admin-1',
+            reason: null,
+          },
+        }),
+      );
+      expect(latest.approval_request.input_data.resource_inputs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ resource_id: 'res-1', selected: true }),
+          expect.objectContaining({ resource_id: 'res-3', selected: false, exclusion_reason: '연동 불필요' }),
+        ]),
+      );
     });
   });
 });

@@ -10,13 +10,12 @@ import {
   addPermission,
   deletePermission,
   confirmInstallation,
-  getApprovalHistory,
+  getLatestApprovalRequest,
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
   UserSearchResult,
 } from '@/app/lib/api';
-import type { ApprovalResourceInput } from '@/app/lib/api';
-import { ServiceCode, ProjectSummary, User } from '@/lib/types';
+import type { ApprovalRequestReadModel, ServiceCode, ProjectSummary, User } from '@/lib/types';
 import {
   AdminHeader,
   ServiceSidebar,
@@ -36,15 +35,7 @@ export const AdminDashboard = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [approvalDetail, setApprovalDetail] = useState<{
     project: ProjectSummary;
-    approvalRequest: {
-      id: string;
-      requested_at: string;
-      requested_by: string;
-      input_data: {
-        resource_inputs: ApprovalResourceInput[];
-        exclusion_reason_default?: string;
-      };
-    };
+    approvalRequest: ApprovalRequestReadModel;
   } | null>(null);
   const [approvalLoading, setApprovalLoading] = useState(false);
 
@@ -105,13 +96,12 @@ export const AdminDashboard = () => {
   const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const historyResponse = await getApprovalHistory(project.targetSourceId, 0, 1);
-      const latest = historyResponse.content[0];
-      if (!latest) {
+      const latestResponse = await getLatestApprovalRequest(project.targetSourceId);
+      if (!latestResponse.approval_request) {
         alert('승인 요청 이력이 없습니다.');
         return;
       }
-      setApprovalDetail({ project, approvalRequest: latest.request });
+      setApprovalDetail({ project, approvalRequest: latestResponse.approval_request });
     } catch (err) {
       alert(err instanceof Error ? err.message : '승인 요청 조회 실패');
     }

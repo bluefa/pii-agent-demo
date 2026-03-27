@@ -6,25 +6,14 @@ import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { tableStyles, textColors, statusColors, cn, getInputClass } from '@/lib/theme';
-import type { ProjectSummary } from '@/lib/types';
+import type { ApprovalRequestReadModel, ProjectSummary } from '@/lib/types';
 import type { ApprovalResourceInput } from '@/app/lib/api';
-import { ProcessStatus } from '@/lib/types';
-
-interface ApprovalRequest {
-  id: string;
-  requested_at: string;
-  requested_by: string;
-  input_data: {
-    resource_inputs: ApprovalResourceInput[];
-    exclusion_reason_default?: string;
-  };
-}
 
 interface ApprovalDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: ProjectSummary;
-  approvalRequest: ApprovalRequest;
+  approvalRequest: ApprovalRequestReadModel;
   onApprove: () => void;
   onReject: (reason: string) => void;
   loading: boolean;
@@ -48,6 +37,26 @@ const formatDateTime = (iso?: string): string => {
   });
 };
 
+const APPROVAL_RESULT_LABELS: Record<ApprovalRequestReadModel['result'], string> = {
+  PENDING: '승인 대기',
+  APPROVED: '승인됨',
+  AUTO_APPROVED: '자동 승인됨',
+  REJECTED: '반려됨',
+  CANCELLED: '취소됨',
+  SYSTEM_ERROR: '시스템 오류',
+  COMPLETED: '반영 완료',
+};
+
+const APPROVAL_RESULT_VARIANTS: Record<ApprovalRequestReadModel['result'], 'info' | 'success' | 'error' | 'warning'> = {
+  PENDING: 'info',
+  APPROVED: 'success',
+  AUTO_APPROVED: 'success',
+  REJECTED: 'error',
+  CANCELLED: 'warning',
+  SYSTEM_ERROR: 'error',
+  COMPLETED: 'success',
+};
+
 export const ApprovalDetailModal = ({
   isOpen,
   onClose,
@@ -60,7 +69,9 @@ export const ApprovalDetailModal = ({
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
-  const isWaitingApproval = project.processStatus === ProcessStatus.WAITING_APPROVAL;
+  const isWaitingApproval = approvalRequest.result === 'PENDING';
+  const processReason = approvalRequest.process_info.reason;
+  const processedAt = approvalRequest.processed_at;
 
   const includedInputs = useMemo(
     () => approvalRequest.input_data.resource_inputs.filter((ri) => ri.selected),
@@ -155,12 +166,17 @@ export const ApprovalDetailModal = ({
         {/* 상태 뱃지 */}
         {!isWaitingApproval && (
           <div>
-            <Badge variant={project.isRejected ? 'error' : 'success'} dot>
-              {project.isRejected ? '반려됨' : '승인됨'}
+            <Badge variant={APPROVAL_RESULT_VARIANTS[approvalRequest.result]} dot>
+              {APPROVAL_RESULT_LABELS[approvalRequest.result]}
             </Badge>
-            {project.isRejected && project.rejectionReason && (
+            {processReason && (
               <p className={cn('text-sm mt-2', textColors.tertiary)}>
-                반려 사유: {project.rejectionReason}
+                처리 사유: {processReason}
+              </p>
+            )}
+            {processedAt && (
+              <p className={cn('text-sm mt-1', textColors.tertiary)}>
+                처리 시각: {formatDateTime(processedAt)}
               </p>
             )}
           </div>

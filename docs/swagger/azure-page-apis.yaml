@@ -502,6 +502,30 @@ paths:
         '404':
           $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
 
+  /target-sources/{targetSourceId}/approval-requests/latest:
+    get:
+      tags:
+        - Admin Actions
+        - Approval
+      summary: 최근 승인 요청 1건 조회
+      operationId: getAzureJourneyLatestApprovalRequest
+      x-expected-duration: 50ms ~ 200ms
+      parameters:
+        - $ref: '#/components/parameters/TargetSourceId'
+      responses:
+        '200':
+          description: 최근 승인 요청 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: './confirm.yaml#/components/schemas/LatestApprovalRequestResponse'
+        '401':
+          $ref: './confirm.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: './confirm.yaml#/components/responses/PermissionDenied'
+        '404':
+          $ref: './confirm.yaml#/components/responses/TargetSourceNotFound'
+
   /target-sources/{targetSourceId}/approval-requests/approve:
     post:
       tags:

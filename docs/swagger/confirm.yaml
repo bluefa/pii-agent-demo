@@ -378,6 +378,32 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
+  /target-sources/{targetSourceId}/approval-requests/latest:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags:
+        - Approval Process
+      summary: 가장 최근 승인 요청 1건 조회
+      operationId: getLatestApprovalRequest
+      x-expected-duration: 50ms ~ 200ms
+      description: |-
+        Admin/상세 화면에서 가장 최근 승인 요청 1건과 그 처리 결과를 함께 조회합니다.
+
+        승인 요청이 아직 없으면 `approval_request: null`을 반환합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatestApprovalRequestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
   /target-sources/{targetSourceId}/process-status:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -943,6 +969,65 @@ components:
           type: string
         input_data:
           $ref: '#/components/schemas/ApprovalRequestInputData'
+    LatestApprovalRequestResponse:
+      type: object
+      required:
+        - approval_request
+      properties:
+        approval_request:
+          allOf:
+            - $ref: '#/components/schemas/LatestApprovalRequest'
+          nullable: true
+    LatestApprovalRequest:
+      type: object
+      required:
+        - id
+        - requested_at
+        - requested_by
+        - input_data
+        - result
+        - processed_at
+        - process_info
+      properties:
+        id:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        requested_by:
+          type: string
+        input_data:
+          $ref: '#/components/schemas/ApprovalRequestInputData'
+        result:
+          $ref: '#/components/schemas/LatestApprovalRequestResult'
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        process_info:
+          $ref: '#/components/schemas/ApprovalProcessInfo'
+    LatestApprovalRequestResult:
+      type: string
+      enum:
+        - PENDING
+        - APPROVED
+        - AUTO_APPROVED
+        - REJECTED
+        - CANCELLED
+        - SYSTEM_ERROR
+        - COMPLETED
+    ApprovalProcessInfo:
+      type: object
+      required:
+        - user_id
+        - reason
+      properties:
+        user_id:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
     ApprovalResult:
       type: object
       properties:
@@ -963,14 +1048,7 @@ components:
           type: string
           format: date-time
         process_info:
-          type: object
-          properties:
-            user_id:
-              type: string
-              nullable: true
-            reason:
-              type: string
-              nullable: true
+          $ref: '#/components/schemas/ApprovalProcessInfo'
     ConfirmedIntegration:
       type: object
       required:
