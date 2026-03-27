@@ -10,8 +10,13 @@ import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import type {
+  ApprovalRequestInputSnapshot,
+  ApprovalRequestProcessInfo,
+  ApprovalRequestReadModel,
+  ApprovalRequestResultType,
   Resource,
   Project,
+  ProjectHistory,
   ProjectStatus,
   ConnectionStatus,
   ConnectionTestResult,
@@ -201,13 +206,7 @@ function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegratio
 }
 
 interface ApprovalRequestCreateBody {
-  input_data: {
-    resource_inputs: Array<
-      | { resource_id: string; selected: true; resource_input?: { credential_id?: string; endpoint_config?: EndpointConfigInputData } }
-      | { resource_id: string; selected: false; exclusion_reason?: string }
-    >;
-    exclusion_reason_default?: string;
-  };
+  input_data: ApprovalRequestInputSnapshot;
 }
 
 // --- Queue Board Integration Helpers ---
@@ -227,6 +226,250 @@ const getCloudInfo = (project: Project): string => {
 
 const getServiceName = (serviceCode: string): string =>
   mockData.mockServiceCodes.find((s) => s.code === serviceCode)?.name ?? serviceCode;
+
+interface ApprovalHistoryResponseItem {
+  request: Omit<ApprovalRequestReadModel, 'result' | 'processed_at' | 'process_info'>;
+  result?: {
+    id: string;
+    request_id: string;
+    result: ApprovalRequestResultType;
+    processed_at: string;
+    process_info: ApprovalRequestProcessInfo;
+  };
+}
+
+const APPROVAL_RESULT_HISTORY_TYPES = new Set<ProjectHistory['type']>([
+  'AUTO_APPROVED',
+  'APPROVAL',
+  'REJECTION',
+  'APPROVAL_CANCELLED',
+]);
+
+const buildCurrentResourceInputs = (
+  project: Project,
+): ApprovalRequestInputSnapshot['resource_inputs'] => project.resources.map((resource) => {
+  if (!resource.isSelected) {
+    return {
+      resource_id: resource.id,
+      selected: false as const,
+      ...(resource.exclusion?.reason ? { exclusion_reason: resource.exclusion.reason } : {}),
+    };
+  }
+
+  const resourceInput: {
+    credential_id?: string;
+    endpoint_config?: EndpointConfigInputData;
+  } = {};
+
+  if (resource.vmDatabaseConfig) {
+    resourceInput.endpoint_config = {
+      db_type: resource.vmDatabaseConfig.databaseType,
+      port: resource.vmDatabaseConfig.port,
+      host: resource.vmDatabaseConfig.host ?? '',
+      ...(resource.vmDatabaseConfig.oracleServiceId
+        ? { oracleServiceId: resource.vmDatabaseConfig.oracleServiceId }
+        : {}),
+      ...(resource.vmDatabaseConfig.selectedNicId
+        ? { selectedNicId: resource.vmDatabaseConfig.selectedNicId }
+        : {}),
+    };
+  }
+
+  if (resource.selectedCredentialId) {
+    resourceInput.credential_id = resource.selectedCredentialId;
+  }
+
+  return Object.keys(resourceInput).length > 0
+    ? {
+      resource_id: resource.id,
+      selected: true as const,
+      resource_input: resourceInput,
+    }
+    : {
+      resource_id: resource.id,
+      selected: true as const,
+    };
+});
+
+const buildApprovalRequestSnapshot = (
+  historyEntry: ProjectHistory,
+  project: Project,
+): ApprovalHistoryResponseItem['request'] => ({
+  id: historyEntry.id,
+  requested_at: historyEntry.timestamp,
+  requested_by: historyEntry.actor.name,
+  input_data: historyEntry.details.inputData ?? { resource_inputs: buildCurrentResourceInputs(project) },
+});
+
+const buildApprovalResult = (
+  historyEntry: ProjectHistory,
+  requestId: string,
+): ApprovalHistoryResponseItem['result'] | undefined => {
+  switch (historyEntry.type) {
+    case 'APPROVAL':
+      return {
+        id: `result-${historyEntry.id}`,
+        request_id: requestId,
+        result: 'APPROVED',
+        processed_at: historyEntry.timestamp,
+        process_info: { user_id: historyEntry.actor.id, reason: null },
+      };
+    case 'AUTO_APPROVED':
+      return {
+        id: `result-${historyEntry.id}`,
+        request_id: requestId,
+        result: 'AUTO_APPROVED',
+        processed_at: historyEntry.timestamp,
+        process_info: { user_id: null, reason: null },
+      };
+    case 'REJECTION':
+      return {
+        id: `result-${historyEntry.id}`,
+        request_id: requestId,
+        result: 'REJECTED',
+        processed_at: historyEntry.timestamp,
+        process_info: { user_id: historyEntry.actor.id, reason: historyEntry.details.reason ?? null },
+      };
+    case 'APPROVAL_CANCELLED':
+      return {
+        id: `result-${historyEntry.id}`,
+        request_id: requestId,
+        result: 'CANCELLED',
+        processed_at: historyEntry.timestamp,
+        process_info: { user_id: historyEntry.actor.id, reason: null },
+      };
+    default:
+      return undefined;
+  }
+};
+
+const buildPendingApprovalRequest = (
+  project: Project,
+  user: { id: string; name: string },
+): ApprovalRequestReadModel => ({
+  id: `req-pending-${project.id}`,
+  requested_at: project.updatedAt,
+  requested_by: user.name,
+  input_data: { resource_inputs: buildCurrentResourceInputs(project) },
+  result: 'PENDING',
+  processed_at: null,
+  process_info: { user_id: null, reason: null },
+});
+
+const getFallbackApprovalResult = (
+  project: Project,
+): Pick<ApprovalRequestReadModel, 'result' | 'processed_at' | 'process_info'> => {
+  switch (project.status.approval.status) {
+    case 'APPROVED':
+      return {
+        result: 'APPROVED',
+        processed_at: project.status.approval.approvedAt ?? null,
+        process_info: { user_id: null, reason: null },
+      };
+    case 'AUTO_APPROVED':
+      return {
+        result: 'AUTO_APPROVED',
+        processed_at: project.status.approval.approvedAt ?? null,
+        process_info: { user_id: null, reason: null },
+      };
+    case 'REJECTED':
+      return {
+        result: 'REJECTED',
+        processed_at: project.status.approval.rejectedAt ?? null,
+        process_info: { user_id: null, reason: project.status.approval.rejectionReason ?? null },
+      };
+    case 'CANCELLED':
+      return {
+        result: 'CANCELLED',
+        processed_at: project.updatedAt,
+        process_info: { user_id: null, reason: null },
+      };
+    default:
+      return {
+        result: 'PENDING',
+        processed_at: null,
+        process_info: { user_id: null, reason: null },
+      };
+  }
+};
+
+const getApprovalHistoryEntries = (
+  projectId: string,
+  project: Project,
+  user: { id: string; name: string },
+): ApprovalHistoryResponseItem[] => {
+  const { history } = mockHistory.getProjectHistory({
+    projectId,
+    type: 'approval',
+    limit: Number.MAX_SAFE_INTEGER,
+    offset: 0,
+  });
+
+  if (history.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
+    const pendingRequest = buildPendingApprovalRequest(project, user);
+    return [{
+      request: {
+        id: pendingRequest.id,
+        requested_at: pendingRequest.requested_at,
+        requested_by: pendingRequest.requested_by,
+        input_data: pendingRequest.input_data,
+      },
+    }];
+  }
+
+  return history.map((historyEntry) => {
+    const request = buildApprovalRequestSnapshot(historyEntry, project);
+    const result = buildApprovalResult(historyEntry, request.id);
+    return result ? { request, result } : { request };
+  });
+};
+
+const getLatestApprovalRequestReadModel = (
+  projectId: string,
+  project: Project,
+  user: { id: string; name: string },
+): ApprovalRequestReadModel | null => {
+  const { history } = mockHistory.getProjectHistory({
+    projectId,
+    type: 'approval',
+    limit: Number.MAX_SAFE_INTEGER,
+    offset: 0,
+  });
+
+  const latestRequestEntry = history.find((historyEntry) => historyEntry.type === 'TARGET_CONFIRMED');
+  if (!latestRequestEntry) {
+    return project.processStatus === ProcessStatus.WAITING_APPROVAL
+      ? buildPendingApprovalRequest(project, user)
+      : null;
+  }
+
+  const request = buildApprovalRequestSnapshot(latestRequestEntry, project);
+  const requestIndex = history.findIndex((historyEntry) => historyEntry.id === latestRequestEntry.id);
+  const nextRequestIndex = history
+    .findIndex((historyEntry, index) => index > requestIndex && historyEntry.type === 'TARGET_CONFIRMED');
+  const cycleWindowEnd = nextRequestIndex === -1 ? history.length : nextRequestIndex;
+  const resultEntry = history
+    .slice(0, cycleWindowEnd)
+    .filter((historyEntry) => historyEntry.id !== latestRequestEntry.id)
+    .find((historyEntry) => APPROVAL_RESULT_HISTORY_TYPES.has(historyEntry.type));
+  const result = resultEntry
+    ? buildApprovalResult(resultEntry, request.id)
+    : undefined;
+
+  if (result) {
+    return {
+      ...request,
+      result: result.result,
+      processed_at: result.processed_at,
+      process_info: result.process_info,
+    };
+  }
+
+  return {
+    ...request,
+    ...getFallbackApprovalResult(project),
+  };
+};
 
 // --- Mock Confirm Module ---
 
@@ -539,103 +782,10 @@ export const mockConfirm = {
       );
     }
 
-    const { history, total } = mockHistory.getProjectHistory({
-      projectId,
-      type: 'approval',
-      limit: size,
-      offset: page * size,
-    });
-
-    // Helper: build resource_inputs from current project state (fallback for entries without stored snapshot)
-    const buildCurrentResourceInputs = () => project.resources.map((r) => {
-      if (r.isSelected) {
-        const input: Record<string, unknown> = {};
-        if (r.vmDatabaseConfig) {
-          input.endpoint_config = {
-            db_type: r.vmDatabaseConfig.databaseType,
-            port: r.vmDatabaseConfig.port,
-            host: r.vmDatabaseConfig.host ?? '',
-            ...(r.vmDatabaseConfig.oracleServiceId && { oracleServiceId: r.vmDatabaseConfig.oracleServiceId }),
-            ...(r.vmDatabaseConfig.selectedNicId && { selectedNicId: r.vmDatabaseConfig.selectedNicId }),
-          };
-        }
-        if (r.selectedCredentialId) {
-          input.credential_id = r.selectedCredentialId;
-        }
-        return {
-          resource_id: r.id,
-          selected: true as const,
-          ...(Object.keys(input).length > 0 && { resource_input: input }),
-        };
-      }
-      return {
-        resource_id: r.id,
-        selected: false as const,
-        ...(r.exclusion?.reason && { exclusion_reason: r.exclusion.reason }),
-      };
-    });
-
-    // If WAITING_APPROVAL but no approval history yet, synthesize a PENDING request entry
-    if (history.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
-      const pendingRequest = {
-        id: `req-pending-${project.id}`,
-        requested_at: project.updatedAt,
-        requested_by: user.name,
-        input_data: { resource_inputs: buildCurrentResourceInputs() },
-      };
-      return NextResponse.json({
-        content: [{ request: pendingRequest }],
-        page: { totalElements: 1, totalPages: 1, number: page, size },
-      });
-    }
-
-    const content = history.map((h) => {
-      // Use stored snapshot if available, otherwise fall back to current state
-      const inputData = h.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
-      const request = {
-        id: h.id,
-        requested_at: h.timestamp,
-        requested_by: h.actor.name,
-        input_data: inputData,
-      };
-
-      let result;
-      if (h.type === 'APPROVAL') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'APPROVED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: h.actor.id, reason: null },
-        };
-      } else if (h.type === 'AUTO_APPROVED') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'AUTO_APPROVED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: null, reason: null },
-        };
-      } else if (h.type === 'REJECTION') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'REJECTED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: h.actor.id, reason: h.details.reason ?? null },
-        };
-      } else if (h.type === 'APPROVAL_CANCELLED') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'CANCELLED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: h.actor.id, reason: null },
-        };
-      }
-
-      return { request, ...(result && { result }) };
-    });
+    const allEntries = getApprovalHistoryEntries(projectId, project, user);
+    const total = allEntries.length;
+    const start = page * size;
+    const content = allEntries.slice(start, start + size);
 
     return NextResponse.json({
       content,
@@ -645,6 +795,28 @@ export const mockConfirm = {
         number: page,
         size,
       },
+    });
+  },
+
+  getLatestApprovalRequest: async (projectId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      approval_request: getLatestApprovalRequestReadModel(projectId, project, user),
     });
   },
 

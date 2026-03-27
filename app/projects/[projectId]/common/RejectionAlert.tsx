@@ -1,13 +1,23 @@
-import { Project } from '@/lib/types';
+import type { Project } from '@/lib/types';
+import type { RejectionAlertReadModel } from '@/lib/target-source-read-model';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
 interface RejectionAlertProps {
-  project: Project;
+  project?: Pick<Project, 'isRejected' | 'rejectionReason' | 'rejectedAt'>;
+  rejection?: RejectionAlertReadModel | null;
   onRetryRequest?: () => void;
 }
 
-export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps) => {
-  if (!project.isRejected) return null;
+export const RejectionAlert = ({ project, rejection = null, onRetryRequest }: RejectionAlertProps) => {
+  const fallbackRejection = project?.isRejected
+    ? {
+      reason: project.rejectionReason ?? null,
+      rejectedAt: project.rejectedAt ?? null,
+    }
+    : null;
+  const effectiveRejection = rejection ?? fallbackRejection;
+
+  if (!effectiveRejection) return null;
 
   return (
     <div className={cn('rounded-lg p-4 border', statusColors.error.bg, statusColors.error.border)}>
@@ -19,12 +29,12 @@ export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps)
         </div>
         <div>
           <h4 className={cn('font-medium', statusColors.error.textDark)}>승인 요청이 반려되었습니다</h4>
-          {project.rejectionReason && (
-            <p className={cn('text-sm mt-1', statusColors.error.text)}>사유: {project.rejectionReason}</p>
+          {effectiveRejection.reason && (
+            <p className={cn('text-sm mt-1', statusColors.error.text)}>사유: {effectiveRejection.reason}</p>
           )}
-          {project.rejectedAt && (
+          {effectiveRejection.rejectedAt && (
             <p className={cn('text-xs mt-1', statusColors.error.text)}>
-              반려일시: {new Date(project.rejectedAt).toLocaleString('ko-KR')}
+              반려일시: {new Date(effectiveRejection.rejectedAt).toLocaleString('ko-KR')}
             </p>
           )}
           {onRetryRequest && (
