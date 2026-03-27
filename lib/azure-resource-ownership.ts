@@ -1,4 +1,5 @@
 import type {
+  ApprovalRequestReadModel,
   ApprovalRequestInputSnapshot,
   BffApprovedIntegration,
   BffConfirmedIntegration,
@@ -28,15 +29,9 @@ export interface AzureResourceCatalogItem {
   metadata: ConfirmResourceMetadata;
 }
 
-interface AzureApprovalHistoryEntry {
-  request: {
-    input_data: ApprovalRequestInputSnapshot;
-  };
-}
-
 type AzureSelectionSource =
   | 'catalog'
-  | 'approval-history'
+  | 'latest-approval-request'
   | 'approved-integration'
   | 'confirmed-integration';
 
@@ -54,7 +49,7 @@ interface ResolvedSelectionState {
 export interface AzureResourceOwnershipInput {
   currentStep: ProcessStatus;
   catalog: AzureResourceCatalogItem[];
-  latestApprovalRequest: AzureApprovalHistoryEntry | null;
+  latestApprovalRequest: ApprovalRequestReadModel | null;
   approvedIntegration: BffApprovedIntegration | null;
   confirmedIntegration: BffConfirmedIntegration;
 }
@@ -133,12 +128,12 @@ const toVmDatabaseConfigFromConfirmed = (
   };
 };
 
-const buildSelectionFromApprovalHistory = (
-  latestApprovalRequest: AzureApprovalHistoryEntry | null,
+const buildSelectionFromLatestApprovalRequest = (
+  latestApprovalRequest: ApprovalRequestReadModel | null,
 ): Map<string, SelectedResourceState> => {
   if (!latestApprovalRequest) return new Map();
 
-  const selectedInputs = latestApprovalRequest.request.input_data.resource_inputs
+  const selectedInputs = latestApprovalRequest.input_data.resource_inputs
     .filter(isSelectedApprovalInput)
     .map((resourceInput) => [
       resourceInput.resource_id,
@@ -197,14 +192,14 @@ const resolveSelectionState = ({
     };
   }
 
-  const approvalHistorySelection = buildSelectionFromApprovalHistory(latestApprovalRequest);
+  const latestApprovalRequestSelection = buildSelectionFromLatestApprovalRequest(latestApprovalRequest);
   if (
     (currentStep === ProcessStatus.WAITING_APPROVAL || APPROVAL_FALLBACK_STEPS.has(currentStep))
-    && approvalHistorySelection.size > 0
+    && latestApprovalRequestSelection.size > 0
   ) {
     return {
-      source: 'approval-history',
-      selectedResources: approvalHistorySelection,
+      source: 'latest-approval-request',
+      selectedResources: latestApprovalRequestSelection,
     };
   }
 

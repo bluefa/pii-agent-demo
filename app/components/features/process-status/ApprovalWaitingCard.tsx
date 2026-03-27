@@ -1,46 +1,27 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useModal } from '@/app/hooks/useModal';
-import { getApprovalHistory } from '@/app/lib/api';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { CancelApprovalModal } from './CancelApprovalModal';
 import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
-
-type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
+import type { ApprovalRequestReadModel } from '@/lib/types';
 
 interface ApprovalWaitingCardProps {
   targetSourceId: number;
   onCancelSuccess: () => void;
   hasConfirmedIntegration?: boolean;
+  request: ApprovalRequestReadModel | null;
 }
 
 export const ApprovalWaitingCard = ({
   targetSourceId,
   onCancelSuccess,
   hasConfirmedIntegration,
+  request,
 }: ApprovalWaitingCardProps) => {
   const detailModal = useModal();
   const cancelModal = useModal();
-  const [latestRequest, setLatestRequest] = useState<ApprovalRequest | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetchLatest = async () => {
-      try {
-        const history = await getApprovalHistory(targetSourceId, 0, 1);
-        if (!cancelled && history.content.length > 0) {
-          setLatestRequest(history.content[0].request);
-        }
-      } catch {
-        // 조회 실패 시 무시 — 요청 내용 확인 버튼만 비활성화
-      }
-    };
-    fetchLatest();
-    return () => { cancelled = true; };
-  }, [targetSourceId]);
 
   return (
     <>
@@ -65,7 +46,7 @@ export const ApprovalWaitingCard = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestRequest}
+                disabled={!request}
                 className={getButtonClass('ghost', 'sm')}
               >
                 요청 내용 확인
@@ -90,7 +71,7 @@ export const ApprovalWaitingCard = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
-        request={latestRequest}
+        request={request}
       />
 
       <CancelApprovalModal

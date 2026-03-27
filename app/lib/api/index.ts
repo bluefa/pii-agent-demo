@@ -1,4 +1,6 @@
 import {
+  ApprovalRequestInputSnapshot,
+  ApprovalRequestReadModel,
   ServiceCode,
   ProjectSummary,
   User,
@@ -11,8 +13,8 @@ import {
   BffConfirmedIntegration,
   ConnectionStatusResponse,
   ConfirmResourceMetadata,
-  EndpointConfigInputData,
   ResourceSnapshot,
+  TargetSourceProcessStatusReadModel,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
@@ -142,21 +144,10 @@ export const getConfirmResources = async (
 ): Promise<ConfirmResourcesResponse> =>
   fetchInfraCamelJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
 
-export interface ApprovalResourceInput {
-  resource_id: string;
-  selected: boolean;
-  resource_input?: {
-    credential_id?: string;
-    endpoint_config?: EndpointConfigInputData;
-  };
-  exclusion_reason?: string;
-}
+export type ApprovalResourceInput = ApprovalRequestInputSnapshot['resource_inputs'][number];
 
 export interface ApprovalRequestInput {
-  input_data: {
-    resource_inputs: ApprovalResourceInput[];
-    exclusion_reason_default?: string;
-  };
+  input_data: ApprovalRequestInputSnapshot;
 }
 
 export interface ApprovalRequestResult {
@@ -229,6 +220,15 @@ export interface ApprovalHistoryResponse {
   page: { totalElements: number; totalPages: number; number: number; size: number };
 }
 
+export interface LatestApprovalRequestResponse {
+  approval_request: ApprovalRequestReadModel | null;
+}
+
+export const getLatestApprovalRequest = async (
+  targetSourceId: number,
+): Promise<LatestApprovalRequestResponse> =>
+  fetchInfraJson<LatestApprovalRequestResponse>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`);
+
 export const getApprovalHistory = async (
   targetSourceId: number,
   page = 0,
@@ -279,18 +279,7 @@ export const cancelApprovalRequest = async (
 export type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
 export type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
 
-export interface ProcessStatusResponse {
-  target_source_id: number;
-  process_status: BffProcessStatus;
-  status_inputs: {
-    has_confirmed_integration: boolean;
-    has_pending_approval_request: boolean;
-    has_approved_integration: boolean;
-    last_approval_result: LastApprovalResult;
-    last_rejection_reason: string | null;
-  };
-  evaluated_at: string;
-}
+export type ProcessStatusResponse = TargetSourceProcessStatusReadModel;
 
 export const getProcessStatus = async (
   targetSourceId: number
