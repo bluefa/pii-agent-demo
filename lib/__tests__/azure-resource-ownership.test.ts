@@ -26,12 +26,16 @@ const createCatalogResource = (
 });
 
 const createApprovalInput = (
-  resourceInputs: ApprovalRequestInputSnapshot['resource_inputs'],
-): { request: { input_data: ApprovalRequestInputSnapshot } } => ({
+  resourceInputs?: ApprovalRequestInputSnapshot['resource_inputs'],
+): { request: { input_data?: ApprovalRequestInputSnapshot } } => ({
   request: {
-    input_data: {
-      resource_inputs: resourceInputs,
-    },
+    ...(resourceInputs
+      ? {
+        input_data: {
+          resource_inputs: resourceInputs,
+        },
+      }
+      : {}),
   },
 });
 
@@ -100,6 +104,24 @@ describe('buildAzureOwnedResources', () => {
         selectedCredentialId: 'cred-history',
       }),
     ]);
+  });
+
+  it('falls back to catalog when approval-history no longer includes input_data', () => {
+    const result = buildAzureOwnedResources({
+      currentStep: ProcessStatus.WAITING_APPROVAL,
+      catalog: [createCatalogResource('sql-1')],
+      latestApprovalRequest: createApprovalInput(),
+      approvedIntegration: null,
+      confirmedIntegration: { resource_infos: [] },
+    });
+
+    expect(result.selectionSource).toBe('catalog');
+    expect(result.resources[0]).toEqual(
+      expect.objectContaining({
+        id: 'sql-1',
+        isSelected: false,
+      }),
+    );
   });
 
   it('prefers approved-integration over other snapshots while approval is being applied', () => {
@@ -185,6 +207,58 @@ describe('buildAzureOwnedResources', () => {
           host: '10.0.0.5',
           port: 5432,
           selectedNicId: 'nic-approved',
+        },
+      }),
+    );
+  });
+
+  it('does not keep restoring selection from approval-history after approval is in progress', () => {
+    const result = buildAzureOwnedResources({
+      currentStep: ProcessStatus.APPLYING_APPROVED,
+      catalog: [
+        createCatalogResource('vm-1', {
+          resourceType: 'AZURE_VM',
+          databaseType: 'MYSQL',
+          port: 3306,
+          host: '10.0.0.4',
+          networkInterfaceId: 'nic-catalog',
+          metadata: {
+            provider: 'Azure',
+            resourceType: 'AZURE_VM',
+            region: 'koreacentral',
+          },
+        }),
+      ],
+      latestApprovalRequest: createApprovalInput([
+        {
+          resource_id: 'vm-1',
+          selected: true,
+          resource_input: {
+            endpoint_config: {
+              db_type: 'ORACLE',
+              host: '10.0.0.99',
+              port: 1521,
+              oracleServiceId: 'ORCL',
+              selectedNicId: 'nic-approval',
+            },
+          },
+        },
+      ]),
+      approvedIntegration: null,
+      confirmedIntegration: { resource_infos: [] },
+    });
+
+    expect(result.selectionSource).toBe('catalog');
+    expect(result.resources[0]).toEqual(
+      expect.objectContaining({
+        id: 'vm-1',
+        isSelected: false,
+        databaseType: 'MYSQL',
+        vmDatabaseConfig: {
+          databaseType: 'MYSQL',
+          host: '10.0.0.4',
+          port: 3306,
+          selectedNicId: 'nic-catalog',
         },
       }),
     );
