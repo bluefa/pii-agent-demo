@@ -359,7 +359,8 @@ paths:
       operationId: getApprovalHistory
       description: |
         과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다.
-        `request`는 summary 중심 응답이며, 상세 `input_data.resource_inputs`는 포함하지 않습니다.
+        현재 runtime은 legacy 호환을 위해 `request.input_data.resource_inputs`를 포함할 수 있습니다.
+        다만 UI 소비는 요청 메타데이터와 처리 결과 중심의 summary 흐름을 기준으로 합니다.
       responses:
         '200':
           description: 성공
@@ -741,7 +742,7 @@ components:
         - request
       properties:
         request:
-          $ref: '#/components/schemas/ApprovalRequestSummary'
+          $ref: '#/components/schemas/ApprovalRequest'
         result:
           $ref: '#/components/schemas/ApprovalResult'
     ApprovalRequestCreateRequest:
@@ -945,21 +946,6 @@ components:
           type: string
         input_data:
           $ref: '#/components/schemas/ApprovalRequestInputData'
-    ApprovalRequestSummary:
-      type: object
-      required:
-        - id
-        - requested_at
-        - requested_by
-      description: approval-history/latest 응답에서 제공되는 요청 summary. 상세 input_data.resource_inputs는 포함하지 않습니다.
-      properties:
-        id:
-          type: string
-        requested_at:
-          type: string
-          format: date-time
-        requested_by:
-          type: string
     ApprovalResult:
       type: object
       properties:
