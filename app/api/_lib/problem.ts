@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 export type KnownErrorCode =
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
+  | 'APPROVED_INTEGRATION_NOT_FOUND'
   | 'TARGET_SOURCE_NOT_FOUND'
   | 'SERVICE_NOT_FOUND'
   | 'CONFIRMED_INTEGRATION_NOT_FOUND'
@@ -26,6 +27,7 @@ interface ErrorMeta {
 const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   UNAUTHORIZED: { status: 401, title: 'Unauthorized', retriable: false },
   FORBIDDEN: { status: 403, title: 'Forbidden', retriable: false },
+  APPROVED_INTEGRATION_NOT_FOUND: { status: 404, title: 'Approved Integration Not Found', retriable: false },
   TARGET_SOURCE_NOT_FOUND: { status: 404, title: 'Target Source Not Found', retriable: false },
   SERVICE_NOT_FOUND: { status: 404, title: 'Service Not Found', retriable: false },
   CONFIRMED_INTEGRATION_NOT_FOUND: { status: 404, title: 'Confirmed Integration Not Found', retriable: false },
