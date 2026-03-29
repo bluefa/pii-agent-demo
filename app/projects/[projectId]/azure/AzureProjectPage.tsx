@@ -18,7 +18,13 @@ import {
   getProject,
   updateResourceCredential,
 } from '@/app/lib/api';
-import { getAzureScanApp, type AzureScanApp } from '@/app/lib/api/azure';
+import {
+  getAzureScanApp,
+  getAzureSettings,
+  resolveAzureProjectIdentifiers,
+  type AzureScanApp,
+} from '@/app/lib/api/azure';
+import type { AzureV1Settings } from '@/lib/types/azure';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
@@ -85,6 +91,7 @@ export const AzureProjectPage = ({
 
   const [scanApp, setScanApp] = useState<AzureScanApp | null>(null);
   const [scanAppError, setScanAppError] = useState<string | null>(null);
+  const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
 
   const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
   const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
@@ -96,9 +103,11 @@ export const AzureProjectPage = ({
 
   useEffect(() => {
     let cancelled = false;
+    const needsIdentifierFallback = !project.tenantId || !project.subscriptionId;
 
     setScanApp(null);
     setScanAppError(null);
+    setFallbackSettings(null);
 
     void getAzureScanApp(project.targetSourceId)
       .then((response) => {
@@ -110,10 +119,33 @@ export const AzureProjectPage = ({
         setScanAppError(getScanAppErrorMessage(error));
       });
 
+    if (needsIdentifierFallback) {
+      void getAzureSettings(project.targetSourceId)
+        .then((response) => {
+          if (cancelled) return;
+          setFallbackSettings(response);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setFallbackSettings(null);
+        });
+    }
+
     return () => {
       cancelled = true;
     };
-  }, [project.targetSourceId]);
+  }, [project.subscriptionId, project.targetSourceId, project.tenantId]);
+
+  const azureIdentifiers = useMemo(
+    () => resolveAzureProjectIdentifiers(
+      {
+        tenantId: project.tenantId,
+        subscriptionId: project.subscriptionId,
+      },
+      fallbackSettings,
+    ),
+    [fallbackSettings, project.subscriptionId, project.tenantId],
+  );
 
   const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
@@ -335,8 +367,8 @@ export const AzureProjectPage = ({
       <div className="flex flex-1 overflow-hidden">
         <ProjectSidebar cloudProvider={project.cloudProvider}>
           <AzureInfoCard
-            tenantId={project.tenantId}
-            subscriptionId={project.subscriptionId}
+            tenantId={azureIdentifiers.tenantId}
+            subscriptionId={azureIdentifiers.subscriptionId}
             scanApp={scanApp}
             scanAppError={scanAppError}
             credentials={credentials}
