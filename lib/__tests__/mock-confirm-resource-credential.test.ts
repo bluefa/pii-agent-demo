@@ -69,7 +69,7 @@ describe('mockConfirm.updateResourceCredential', () => {
     _setApprovedIntegration(TEST_PROJECT_ID);
 
     const updateResponse = await mockConfirm.updateResourceCredential(TEST_PROJECT_ID, {
-      resourceId: 'res-1',
+      resourceId: 'azure-sql-1',
       credentialId: 'cred-new',
     });
 
@@ -80,7 +80,7 @@ describe('mockConfirm.updateResourceCredential', () => {
 
     expect(approvedBody.approved_integration.resource_infos).toEqual([
       {
-        resource_id: 'res-1',
+        resource_id: 'azure-sql-1',
         resource_type: 'AZURE_MSSQL',
         endpoint_config: null,
         credential_id: 'cred-new',
