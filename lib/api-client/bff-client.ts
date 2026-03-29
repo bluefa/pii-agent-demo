@@ -12,6 +12,19 @@ import {
 
 const BFF_URL = process.env.BFF_API_URL;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const extractTargetSourceCreateRequest = (body: unknown): {
+  serviceCode: string;
+  requestBody: Record<string, unknown>;
+} | null => {
+  if (!isRecord(body) || typeof body.serviceCode !== 'string') return null;
+
+  const { serviceCode, ...requestBody } = body;
+  return { serviceCode, requestBody };
+};
+
 const proxyGet = async (path: string): Promise<NextResponse> => {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
   return new NextResponse(res.body, {
@@ -105,9 +118,13 @@ export const bffClient: ApiClient = {
     },
   },
   targetSources: {
-    list: (serviceCode) => proxyGet(`/v1/services/${serviceCode}/target-sources`),
+    list: (serviceCode) => proxyGet(`/v1/target-sources/services/${serviceCode}`),
     get: (projectId) => proxyGet(`/v1/target-sources/${projectId}`),
-    create: (body) => proxyPost('/v1/target-sources', body),
+    create: (body) => {
+      const request = extractTargetSourceCreateRequest(body);
+      if (!request) return proxyPost('/v1/target-sources', body);
+      return proxyPost(`/v1/target-sources/services/${request.serviceCode}/target-sources`, request.requestBody);
+    },
   },
   projects: {
     get: (projectId) => proxyGet(`/projects/${projectId}`),

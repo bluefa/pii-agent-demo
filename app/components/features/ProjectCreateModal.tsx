@@ -9,7 +9,7 @@ import { cn, getInputClass, modalStyles, providerColors, statusColors, textColor
 import { PROVIDER_DESCRIPTIONS, AWS_REGION_TYPE_LABELS, PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import type { CloudProvider } from '@/lib/types';
 
-const ALL_PROVIDERS: CloudProvider[] = ['AWS', 'Azure', 'GCP', 'IDC', 'SDU'];
+const ALL_PROVIDERS: CloudProvider[] = ['AWS', 'Azure', 'GCP', 'IDC'];
 
 const PROVIDER_SELECTED_STYLES = providerColors;
 
@@ -39,7 +39,6 @@ interface ProjectCreateModalProps {
 }
 
 export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, onCreated }: ProjectCreateModalProps) => {
-  const [projectCode, setProjectCode] = useState('');
   const [description, setDescription] = useState('');
   const [cloudProvider, setCloudProvider] = useState<CloudProvider>('AWS');
   const [loading, setLoading] = useState(false);
@@ -62,20 +61,15 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectCode.trim()) {
-      setError('과제 코드를 입력하세요');
-      return;
-    }
     if (hasValidationError) return;
 
     setLoading(true);
     setError('');
     try {
       await createProject({
-        projectCode,
         serviceCode: selectedServiceCode,
         cloudProvider,
-        description: description || undefined,
+        description: description.trim() || undefined,
         ...(cloudProvider === 'AWS' && {
           ...(awsAccountId && { awsAccountId }),
           awsRegionType,
@@ -89,8 +83,8 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
       onCreated();
       onClose();
     } catch (err) {
-      console.error('과제 생성 실패:', err);
-      setError('과제 생성에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
+      console.error('타겟 소스 생성 실패:', err);
+      setError('타겟 소스 생성에 실패했습니다: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
     } finally {
       setLoading(false);
     }
@@ -198,8 +192,8 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
               </svg>
             </div>
             <div>
-              <h2 className={cn('text-lg font-bold', textColors.primary)}>새 과제 등록</h2>
-              <p className={cn('text-sm', textColors.tertiary)}>PII Agent 설치 과제를 생성합니다</p>
+              <h2 className={cn('text-lg font-bold', textColors.primary)}>새 타겟 소스 등록</h2>
+              <p className={cn('text-sm', textColors.tertiary)}>Issue #222 생성 계약 기준으로 대상을 추가합니다</p>
             </div>
           </div>
           <button
@@ -228,18 +222,6 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
             </div>
           </div>
 
-          {/* 과제 코드 */}
-          <div>
-            <label className={labelClassMb2}>과제 코드</label>
-            <input
-              type="text"
-              value={projectCode}
-              onChange={(e) => setProjectCode(e.target.value)}
-              className={getInputClass()}
-              placeholder="예: N-IRP-001"
-            />
-          </div>
-
           {/* 설명 */}
           <div>
             <label className={labelClassMb2}>
@@ -250,8 +232,9 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               className={cn(getInputClass(), 'resize-none')}
-              placeholder="과제에 대한 간단한 설명을 입력하세요"
+              placeholder="타겟 소스에 대한 간단한 설명을 입력하세요"
             />
+            <p className={hintTextClass}>타겟 소스 ID는 생성 후 서버에서 자동 발급됩니다</p>
           </div>
 
           {/* Cloud Provider 선택 */}
@@ -313,9 +296,9 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
               {loading ? (
                 <span className="flex items-center gap-2">
                   <LoadingSpinner />
-                  등록 중...
+                  생성 중...
                 </span>
-              ) : '과제 등록'}
+              ) : '타겟 소스 등록'}
             </Button>
           </div>
         </form>
