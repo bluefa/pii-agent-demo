@@ -13,16 +13,14 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     return <ErrorState error="유효하지 않은 과제 식별자입니다." />;
   }
 
-  const [project, currentUser, credentials] = await Promise.all([
+  const [project, credentials] = await Promise.all([
     bff.targetSources.get(targetSourceId),
-    bff.users.me(),
     bff.targetSources.secrets(targetSourceId),
   ]);
 
   return (
     <ProjectDetail
       initialProject={project}
-      initialUser={currentUser}
       initialCredentials={credentials}
     />
   );

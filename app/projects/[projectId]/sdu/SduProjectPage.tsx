@@ -38,14 +38,12 @@ import { useModal } from '@/app/hooks/useModal';
 
 interface SduProjectPageProps {
   project: Project;
-  isAdmin: boolean;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
 export const SduProjectPage = ({
   project,
-  isAdmin,
   onProjectUpdate,
 }: SduProjectPageProps) => {
   const [currentStep, setCurrentStep] = useState<SduProcessStatus>('S3_UPLOAD_PENDING');
@@ -264,7 +262,6 @@ export const SduProjectPage = ({
         isOpen={iamUserModal.isOpen}
         onClose={iamUserModal.close}
         iamUser={iamUser}
-        isAdmin={isAdmin}
         onReissue={handleReissueAkSk}
         reissuing={reissuing}
       />
