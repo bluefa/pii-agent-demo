@@ -16,6 +16,13 @@
 - Issue #222의 Azure 관련 BFF 명세는 기존 프론트가 기대하는 필드를 모두 주지 않는다.
 - 따라서 이번 TODO는 "바로 바꿀 수 있는 것"과 "추가 합의가 필요한 것"을 같이 적는다.
 
+## 현재 남은 큰 작업 요약
+
+- `lib/api-client/bff-client.ts`의 잔여 legacy 프록시 경로를 현재 `/install/v1` 계약 기준으로 정리한다.
+- credential update를 `PATCH`에서 `PUT` 계약으로 정리한다.
+- 실행형 Swagger와 실제 Next.js API 응답을 전수 대조해 schema/runtime 불일치를 없앤다.
+- 모든 구현이 끝난 뒤 Next.js 공개 API를 `/api/integration/v1/**`에서 `/integration/api/v1/**`로 옮길지 별도 마이그레이션으로 결정한다.
+
 ## Todo
 
 ### 0. Next.js 경로 마이그레이션
@@ -41,15 +48,15 @@
   대상: [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
 - [ ] BFF 프록시 경로를 새 swagger 경로 체계에 맞게 정리한다.
   대상: [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/api-client/bff-client.ts)
-- [ ] 서버 사이드 BFF HTTP 클라이언트가 새 응답 shape를 읽도록 바꾼다.
-  대상: [lib/bff/http.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/bff/http.ts)
+- [x] 서버 사이드 BFF HTTP 클라이언트가 새 응답 shape를 읽도록 바꾼다.
+  대상: [lib/bff/http.ts](/Users/study/pii-agent-demo/lib/bff/http.ts)
 
 ### 2. Azure 진입에 필요한 공통 사용자/목록 API 정리
 
-- [ ] `GET /install/v1/user/me`의 flat 응답에 맞게 `user/me` route unwrap 로직을 수정한다.
-  대상: [app/api/v1/user/me/route.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/api/v1/user/me/route.ts)
-- [ ] `GET /install/v1/user/services` 응답을 그대로 쓰거나 최소 변환만 하도록 정리한다.
-  대상: [app/api/v1/user/services/route.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/api/v1/user/services/route.ts)
+- [x] `GET /install/v1/user/me`의 flat 응답에 맞게 `user/me` route unwrap 로직을 수정한다.
+  대상: [app/api/integration/v1/user/me/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/user/me/route.ts)
+- [x] `GET /install/v1/user/services` 응답을 그대로 쓰거나 최소 변환만 하도록 정리한다.
+  대상: [app/api/integration/v1/user/services/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/user/services/route.ts)
 - [x] 관리자 목록 진입용 `getProjects()`를 새 `TargetSourceDetail[]` 응답 기준으로 다시 매핑한다.
   대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts)
 - [x] 새 목록 응답의 `process_status` string을 현재 FE `ProcessStatus`로 임시 매핑한다.
@@ -68,32 +75,32 @@
 
 ### 4. Azure 상세 진입용 read model 재설계
 
-- [ ] `GET /install/v1/target-sources/{targetSourceId}` 응답만으로 현재 `Project`를 채울 수 없는 필드를 정리하고, Azure 한정 read model을 따로 둘지 결정한다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [lib/target-source-response.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/target-source-response.ts)
-- [ ] `cloud_provider: AZURE`를 프론트 내부의 `Azure` 값으로 normalize 한다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [lib/types.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/types.ts)
-- [ ] `metadata.tenant_id`, `metadata.subscription_id`를 Azure 프로젝트 정보 카드에서 읽을 수 있도록 상세 응답 매핑을 보강한다.
-  대상: [app/components/features/ProjectInfoCard.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/ProjectInfoCard.tsx), [app/components/features/AzureInfoCard.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/AzureInfoCard.tsx)
-- [ ] 현재 header/sidebar가 기대하는 `serviceCode`, `projectCode`가 swagger detail에 없으므로, Azure 전용 표시 문구나 대체 식별자를 정의한다.
-  대상: [app/projects/[projectId]/common/ProjectHeader.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/common/ProjectHeader.tsx), [app/components/features/ProjectInfoCard.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/ProjectInfoCard.tsx)
+- [x] `GET /install/v1/target-sources/{targetSourceId}` 응답을 공통 `Project` normalize 경로로 흡수하고, 부족한 식별자는 fallback 표시로 보완한다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [lib/target-source-response.ts](/Users/study/pii-agent-demo/lib/target-source-response.ts)
+- [x] `cloud_provider: AZURE`를 프론트 내부의 `Azure` 값으로 normalize 한다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [lib/types.ts](/Users/study/pii-agent-demo/lib/types.ts)
+- [x] `metadata.tenant_id`, `metadata.subscription_id`를 Azure 프로젝트 정보 카드에서 읽을 수 있도록 상세 응답 매핑을 보강한다.
+  대상: [lib/target-source-response.ts](/Users/study/pii-agent-demo/lib/target-source-response.ts), [app/components/features/AzureInfoCard.tsx](/Users/study/pii-agent-demo/app/components/features/AzureInfoCard.tsx)
+- [x] 현재 header/sidebar가 기대하는 `serviceCode`, `projectCode`가 swagger detail에 없을 때 fallback 식별자 문구를 사용한다.
+  대상: [app/projects/[projectId]/common/ProjectHeader.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/common/ProjectHeader.tsx), [app/components/features/ProjectInfoCard.tsx](/Users/study/pii-agent-demo/app/components/features/ProjectInfoCard.tsx)
 
 ### 5. Azure 리소스 카탈로그 정렬
 
-- [ ] `GET /install/v1/target-sources/{targetSourceId}/resources` 응답을 현재 Azure 리소스 테이블이 쓰는 shape로 맞춘다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [lib/resource-catalog-response.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/resource-catalog-response.ts)
-- [ ] swagger resource type enum과 현재 프론트 enum의 naming gap을 Azure 기준으로 normalize 한다.
-  대상: [lib/resource-catalog-response.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/resource-catalog-response.ts), [lib/constants/labels.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/constants/labels.ts), [app/components/ui/ServiceIcon.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/ui/ServiceIcon.tsx)
-- [ ] 현재 selection 기준이 `resource.id`에 걸려 있으므로, swagger의 `resource_id`와 내부 row key를 어떻게 유지할지 정리한다.
-  대상: [lib/azure-resource-ownership.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/azure-resource-ownership.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
+- [x] `GET /install/v1/target-sources/{targetSourceId}/resources` 응답을 현재 Azure 리소스 테이블이 쓰는 shape로 맞춘다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [lib/resource-catalog-response.ts](/Users/study/pii-agent-demo/lib/resource-catalog-response.ts)
+- [x] swagger resource type enum과 현재 프론트 enum의 naming gap을 Azure 기준으로 normalize 한다.
+  대상: [lib/resource-catalog-response.ts](/Users/study/pii-agent-demo/lib/resource-catalog-response.ts), [lib/constants/labels.ts](/Users/study/pii-agent-demo/lib/constants/labels.ts), [app/components/ui/ServiceIcon.tsx](/Users/study/pii-agent-demo/app/components/ui/ServiceIcon.tsx)
+- [x] 현재 selection 기준은 `resource_id`를 `resource.id`로 정규화한 row key를 사용하도록 정리한다.
+  대상: [lib/resource-catalog-response.ts](/Users/study/pii-agent-demo/lib/resource-catalog-response.ts), [lib/azure-resource-ownership.ts](/Users/study/pii-agent-demo/lib/azure-resource-ownership.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
 
 ### 6. Azure 승인 요청 생성 정렬
 
-- [ ] 승인 요청 payload를 `{ input_data: { resource_inputs } }`에서 swagger 기준 top-level `{ resource_inputs }`로 바꾼다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
-- [ ] VM resource input의 endpoint payload 키가 swagger `ResourceConfigDto`와 일치하는지 재확인하고 맞춘다.
-  대상: [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
+- [x] 승인 요청 payload를 `{ input_data: { resource_inputs } }`에서 swagger 기준 top-level `{ resource_inputs }`로 바꾼다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
+- [x] VM resource input의 endpoint payload 키가 swagger `ResourceConfigDto`와 일치하는지 재확인하고 맞춘다.
+  대상: [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
 - [ ] credential update 호출을 `PATCH`에서 `PUT` 계약으로 바꾼다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [app/api/v1/target-sources/[targetSourceId]/resources/credential/route.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/api/v1/target-sources/[targetSourceId]/resources/credential/route.ts)
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/api/integration/v1/target-sources/[targetSourceId]/resources/credential/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/target-sources/[targetSourceId]/resources/credential/route.ts)
 
 ### 7. Azure 승인 이력/상세 UI 재설계
 
@@ -106,19 +113,19 @@
 
 ### 8. Azure approved/confirmed integration 정렬
 
-- [ ] `approved-integration` 응답을 wrapper 없는 top-level schema 기준으로 다시 읽는다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
-- [ ] `excluded_resource_ids` 기반 로직을 `excluded_resource_infos` 기반으로 바꾼다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [lib/azure-resource-ownership.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/azure-resource-ownership.ts)
-- [ ] `confirmed-integration`의 `ip_configuration` 필드를 현재 프론트 필드명과 어떻게 매핑할지 정리한다.
-  대상: [lib/confirmed-integration-response.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/confirmed-integration-response.ts)
+- [x] `approved-integration` 응답을 top-level Issue #222 schema로 읽고, 앱 레이어에서 필요한 shape로 다시 적응한다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
+- [x] `excluded_resource_ids` 기반 로직을 `excluded_resource_infos` 기반으로 바꾼다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [lib/azure-resource-ownership.ts](/Users/study/pii-agent-demo/lib/azure-resource-ownership.ts)
+- [x] `confirmed-integration`의 `ip_configuration` 필드를 현재 프론트 필드명과 매핑한다.
+  대상: [lib/confirmed-integration-response.ts](/Users/study/pii-agent-demo/lib/confirmed-integration-response.ts)
 
 ### 9. Azure process status polling 재설계
 
-- [ ] 현재 `status_inputs` 기반 polling 로직을 제거하고, swagger `process_status`와 프로젝트 재조회만으로 상태 전이를 판단하도록 바꾼다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [app/components/features/ProcessStatusCard.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/ProcessStatusCard.tsx)
-- [ ] 기존 FE `ProcessStatus` enum을 유지할지, Azure 한정으로 BFF string status를 직접 쓰는 adapter를 둘지 결정한다.
-  대상: [lib/types.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/types.ts), [lib/process/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/process/index.ts)
+- [x] 현재 `status_inputs` 기반 polling 로직을 제거하고, swagger `process_status`와 프로젝트 재조회만으로 상태 전이를 판단하도록 바꾼다.
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/components/features/ProcessStatusCard.tsx](/Users/study/pii-agent-demo/app/components/features/ProcessStatusCard.tsx)
+- [x] 기존 FE `ProcessStatus` enum은 유지하고, Azure는 adapter로 BFF string status를 연결하는 방향으로 정리한다.
+  대상: [lib/types.ts](/Users/study/pii-agent-demo/lib/types.ts), [lib/process/index.ts](/Users/study/pii-agent-demo/lib/process/index.ts)
 
 ### 10. Azure 설치 상태/Scan App 조회 정리
 
@@ -168,8 +175,8 @@
 - [x] 0단계: Next.js 경로 마이그레이션
 - [ ] 1단계: 공통 네트워크 경로 정렬
 - [x] 2단계: Azure 목록/생성 진입 정리
-- [ ] 3단계: Azure 상세 read model 정리
-- [ ] 4단계: Azure 리소스/승인 flow 정리
+- [x] 3단계: Azure 상세 read model 정리
+- [ ] 4단계: Azure 잔여 contract cleanup (`bff-client` 잔여 경로, credential `PUT`, 일부 adapter 정리)
 - [x] 5단계: Azure 설치 상태/Scan App 정리
 - [x] 6단계: logical db scanner 제거
 - [x] 7단계: Azure test connection 유지 원칙 반영
@@ -181,7 +188,7 @@
 - [x] route handler 최종 URL 규칙은 `/api/integration/v1/**`로 정리했다.
 - [x] page 최종 URL 규칙은 `/integration/admin`, `/integration/projects/[id]` 기준으로 정리했다.
 - [ ] 현재 Next.js API 공개 경로(`/api/integration/v1/**`)를 장기적으로 `/integration/api/v1/**`로 바꿀지, 아니면 그대로 유지할지 구현 완료 후 별도 합의 필요
-- [ ] `GET /install/v1/target-sources/{targetSourceId}`만으로 현재 Azure 상세 화면이 요구하는 `projectCode`, `serviceCode`, `resources`, 내부 step 계산값을 어떻게 채울지 합의 필요
+- [x] `GET /install/v1/target-sources/{targetSourceId}` 기준 상세 화면은 공통 normalize + fallback identifier 표시로 유지한다.
 - [ ] `GET /install/v1/target-sources/services/{serviceCode}` 설명의 `Azure type only`가 실제 제약인지 확인 필요
 - [x] approval history 상세 모달은 summary UI로 축소하고, legacy `resource_inputs`는 선택적 호환 데이터로만 취급한다.
-- [ ] Azure resource type enum naming을 FE 쪽에서 normalize 할지, backend 응답을 FE naming으로 맞출지 결정 필요
+- [x] Azure resource type enum naming은 FE normalize(`normalizeResourceType`, `normalizeAzureResourceType`)로 유지한다.
