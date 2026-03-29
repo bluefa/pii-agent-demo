@@ -4,7 +4,7 @@ import { problemResponse } from '@/app/api/_lib/problem';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
 import type { LegacyAwsInstallationStatus } from '@/lib/types';
-import { transformAwsInstallationStatus } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
+import { transformAwsInstallationStatus } from '@/app/api/integration/v1/aws/target-sources/_lib/installation-transform';
 
 export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);

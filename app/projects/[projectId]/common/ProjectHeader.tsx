@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Project } from '@/lib/types';
 import { primaryColors } from '@/lib/theme';
+import { integrationRoutes } from '@/lib/routes';
 
 interface ProjectHeaderProps {
   project: Project;
@@ -51,14 +52,14 @@ export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
       <div className="bg-white border-b border-gray-100 px-6 py-3">
         <nav className="flex items-center gap-2 text-sm">
           <button
-            onClick={() => router.push('/admin')}
+            onClick={() => router.push(integrationRoutes.admin)}
             className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             관리자
           </button>
           <ChevronRight />
           <button
-            onClick={() => router.push('/admin')}
+            onClick={() => router.push(integrationRoutes.admin)}
             className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             {project.serviceCode}

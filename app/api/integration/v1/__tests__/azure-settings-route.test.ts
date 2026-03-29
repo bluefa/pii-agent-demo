@@ -9,12 +9,12 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { GET } from '@/app/api/v1/azure/target-sources/[targetSourceId]/settings/route';
+import { GET } from '@/app/api/integration/v1/azure/target-sources/[targetSourceId]/settings/route';
 import { client } from '@/lib/api-client';
 
 const mockedGetSettings = vi.mocked(client.azure.getSettings);
 
-describe('GET /api/v1/azure/target-sources/[targetSourceId]/settings', () => {
+describe('GET /api/integration/v1/azure/target-sources/[targetSourceId]/settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     globalThis.__piiAgentMockStore = undefined;
@@ -31,7 +31,7 @@ describe('GET /api/v1/azure/target-sources/[targetSourceId]/settings', () => {
     }));
 
     const response = await GET(
-      new Request('http://localhost/api/v1/azure/target-sources/1003/settings'),
+      new Request('http://localhost/api/integration/v1/azure/target-sources/1003/settings'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 
@@ -59,7 +59,7 @@ describe('GET /api/v1/azure/target-sources/[targetSourceId]/settings', () => {
     }));
 
     const response = await GET(
-      new Request('http://localhost/api/v1/azure/target-sources/1003/settings'),
+      new Request('http://localhost/api/integration/v1/azure/target-sources/1003/settings'),
       { params: Promise.resolve({ targetSourceId: '1003' }) },
     );
 
