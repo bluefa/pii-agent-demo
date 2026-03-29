@@ -165,11 +165,17 @@ export const AZURE_RESOURCE_TYPE_LABELS: Record<AzureResourceType, string> = {
   AZURE_COSMOS_NOSQL: 'Azure Cosmos DB for NoSQL',
   AZURE_SYNAPSE: 'Azure Synapse Workspace',
   AZURE_VM: 'Azure Virtual Machine',
+  AZURE_PRIVATE_ENDPOINT: 'Azure Private Endpoint',
+  AZURE_VIRTUAL_SUBNET: 'Azure Virtual Subnet',
+  AZURE_NETWORK_INTERFACE: 'Azure Network Interface',
+  AZURE_SERVICE_PRINCIPAL: 'Azure Service Principal',
 };
 
 export const AZURE_RESOURCE_TYPE_ORDER: AzureResourceType[] = [
   'AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL',
   'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM',
+  'AZURE_PRIVATE_ENDPOINT', 'AZURE_NETWORK_INTERFACE', 'AZURE_VIRTUAL_SUBNET',
+  'AZURE_SERVICE_PRINCIPAL',
 ];
 
 export const GCP_RESOURCE_TYPE_LABELS: Record<GcpResourceType, string> = {
