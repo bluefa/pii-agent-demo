@@ -82,7 +82,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
+          $ref: '#/components/responses/ConfirmedIntegrationNotFound'
   /target-sources/{targetSourceId}/approval-requests:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -123,7 +123,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
+          $ref: '#/components/responses/ApprovedIntegrationNotFound'
         '409':
           description: 승인 요청 충돌 (반영 중이거나 이미 요청 진행 중)
           content:
@@ -1497,6 +1497,34 @@ components:
               type: string
             message:
               type: string
+    ProblemDetailsResponse:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - code
+        - retriable
+        - requestId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+        retriable:
+          type: boolean
+        retryAfterMs:
+          type: integer
+        requestId:
+          type: string
   responses:
     Unauthorized:
       description: 인증 실패 (SSO 토큰 만료 또는 미인증)
@@ -1528,6 +1556,34 @@ components:
             error:
               code: TARGET_SOURCE_NOT_FOUND
               message: 해당 ID의 Target Source가 존재하지 않습니다.
+    ApprovedIntegrationNotFound:
+      description: 승인된 연동 스냅샷이 없음
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsResponse'
+          example:
+            type: https://pii-agent.dev/problems/APPROVED_INTEGRATION_NOT_FOUND
+            title: Not Found
+            status: 404
+            detail: 승인된 연동 정보가 없습니다.
+            code: APPROVED_INTEGRATION_NOT_FOUND
+            retriable: false
+            requestId: 123e4567-e89b-12d3-a456-426614174000
+    ConfirmedIntegrationNotFound:
+      description: 확정된 연동 스냅샷이 없음
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsResponse'
+          example:
+            type: https://pii-agent.dev/problems/CONFIRMED_INTEGRATION_NOT_FOUND
+            title: Not Found
+            status: 404
+            detail: 확정된 연동 정보가 없습니다.
+            code: CONFIRMED_INTEGRATION_NOT_FOUND
+            retriable: false
+            requestId: 123e4567-e89b-12d3-a456-426614174000
     BadRequest:
       description: 잘못된 요청 파라미터
       content:
