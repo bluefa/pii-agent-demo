@@ -22,8 +22,9 @@ const getStatusBadge = (status: ProcessStatus) => {
       return { text: '연결확인', color: statusColors.success.dot };
     case ProcessStatus.WAITING_CONNECTION_TEST:
       return { text: '테스트대기', color: statusColors.pending.dot };
-    case ProcessStatus.INSTALLING:
     case ProcessStatus.APPLYING_APPROVED:
+      return { text: '반영중', color: statusColors.warning.dot };
+    case ProcessStatus.INSTALLING:
       return { text: '설치중', color: statusColors.warning.dot };
     case ProcessStatus.WAITING_APPROVAL:
       return { text: '승인대기', color: statusColors.info.dot };
@@ -39,7 +40,7 @@ const getStatusText = (status: ProcessStatus) => {
     case ProcessStatus.WAITING_APPROVAL:
       return '승인 대기';
     case ProcessStatus.APPLYING_APPROVED:
-      return '승인 반영 중';
+      return '연동대상 반영 중';
     case ProcessStatus.INSTALLING:
       return '설치 진행 중';
     case ProcessStatus.WAITING_CONNECTION_TEST:
@@ -141,7 +142,12 @@ export const ProjectsTable = ({
                     승인 요청 확인
                   </button>
                 )}
-                {(project.processStatus === ProcessStatus.APPLYING_APPROVED || project.processStatus === ProcessStatus.INSTALLING) && (
+                {project.processStatus === ProcessStatus.APPLYING_APPROVED && (
+                  <span className="px-3 py-1.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-lg">
+                    연동대상 반영 중
+                  </span>
+                )}
+                {project.processStatus === ProcessStatus.INSTALLING && (
                   <span className="px-3 py-1.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-lg">
                     설치 진행 중
                   </span>
