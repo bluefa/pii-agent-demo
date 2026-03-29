@@ -47,14 +47,17 @@ describe('GET /api/integration/v1/target-sources/[targetSourceId]/approval-reque
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       request: {
-        id: 'req-1',
+        id: 1,
+        target_source_id: 1003,
+        status: 'APPROVED',
         requested_at: '2026-03-29T10:00:00Z',
-        requested_by: '홍길동',
+        requested_by: {
+          user_id: '홍길동',
+        },
       },
       result: {
-        id: 'result-1',
-        request_id: 'req-1',
-        result: 'APPROVED',
+        request_id: 1,
+        status: 'APPROVED',
         processed_at: '2026-03-29T10:10:00Z',
       },
     });

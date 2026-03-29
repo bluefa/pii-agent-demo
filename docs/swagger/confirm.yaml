@@ -40,8 +40,8 @@ info:
 
     | `POST /projects/{id}/complete-installation` | _(삭제)_ | 신규 의존 금지 |
 servers:
-  - url: /api/infra/v1
-    description: v1 Base Path
+  - url: /install/v1
+    description: Issue #222 upstream BFF base path
 tags:
   - name: Resources
     description: 리소스 목록, 메타데이터 조회 및 Credential 관리
@@ -82,7 +82,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
+          $ref: '#/components/responses/ConfirmedIntegrationNotFound'
   /target-sources/{targetSourceId}/approval-requests:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -96,9 +96,9 @@ paths:
         사용자가 선택한 리소스와 엔드포인트 설정(DB 등)을 바탕으로 승인을 요청합니다.
         이 요청이 승인되면 `ApprovedIntegration`이 생성되고, 인프라 반영이 성공하면 `ConfirmedIntegration`으로 전환됩니다.
 
-        요청 입력은 `input_data.resource_inputs[]`로 통합됩니다.
-        - 엔드포인트 설정은 `resource_input.endpoint_config`로 전달
-        - RDS credential 선택은 `resource_input.credential_id`로 전달
+        요청 입력은 GitHub Issue #222 원문과 동일하게 최상위 `resource_inputs[]` 배열을 사용합니다.
+        - 선택 리소스의 세부 설정은 `resource_input` flat 필드(`database_type`, `host`, `port`, `credential_id`)로 전달합니다.
+        - 제외 리소스는 `selected=false`와 `exclusion_reason`으로 표현합니다.
 
         **차단 정책 (ADR-006 D-002, D-008 / ADR-009 D-006):**
         - 이미 PENDING 상태의 승인 요청이 존재하면 409 `CONFLICT_REQUEST_PENDING` 반환
@@ -108,19 +108,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApprovalRequestCreateRequest'
+              $ref: '#/components/schemas/ApprovalRequestInputDto'
       responses:
-        '201':
+        '200':
           description: 요청 생성 성공
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  approval_request:
-                    $ref: '#/components/schemas/ApprovalRequest'
+                $ref: '#/components/schemas/ApprovalRequestSummaryDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -128,7 +123,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
+          $ref: '#/components/responses/ApprovedIntegrationNotFound'
         '409':
           description: 승인 요청 충돌 (반영 중이거나 이미 요청 진행 중)
           content:
@@ -164,14 +159,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApprovalApproveRequest'
+              $ref: '#/components/schemas/ApprovalApproveRequestDto'
       responses:
         '200':
           description: 승인 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalActionResponse'
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
         '400':
           description: 승인 대기 상태가 아님
           content:
@@ -205,14 +200,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApprovalRejectRequest'
+              $ref: '#/components/schemas/ApprovalRejectRequestDto'
       responses:
         '200':
           description: 반려 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalActionResponse'
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
         '400':
           description: 승인 대기 상태가 아니거나 반려 사유 누락
           content:
@@ -260,7 +255,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalCancelResponse'
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
         '400':
           description: 취소 가능한 승인 요청이 없음
           content:
@@ -302,7 +297,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfirmedIntegration'
+                $ref: '#/components/schemas/ConfirmedIntegrationResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -324,11 +319,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  approved_integration:
-                    $ref: '#/components/schemas/ApprovedIntegration'
-                    nullable: true
+                $ref: '#/components/schemas/ApprovedIntegrationResponseDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -359,22 +350,14 @@ paths:
       operationId: getApprovalHistory
       description: |
         과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다.
-        현재 runtime은 legacy 호환을 위해 `request.input_data.resource_inputs`를 포함할 수 있습니다.
-        다만 UI 소비는 요청 메타데이터와 처리 결과 중심의 summary 흐름을 기준으로 합니다.
+        응답은 GitHub Issue #222 원문과 동일한 Spring Page 형태를 사용합니다.
       responses:
         '200':
           description: 성공
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  content:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ApprovalHistoryItem'
-                  page:
-                    $ref: '#/components/schemas/PageInfo'
+                $ref: '#/components/schemas/ApprovalHistoryPageDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -391,15 +374,15 @@ paths:
       operationId: getTargetSourceProcessStatus
       x-expected-duration: 2s ~ 30s
       description: |
-        승인 객체(Confirmed/Approved/Request) 존재 여부만으로 계산된 processStatus를 반환합니다.
-        설치 진행 상황은 Provider별 `installation-status` API에서 별도 조회합니다.
+        GitHub Issue #222 원문 기준의 process status를 반환합니다.
+        현재 client route는 UI 단계와 동일한 값(`IDLE` → `COMPLETED`)으로 정규화해 노출합니다.
       responses:
         '200':
           description: 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProcessStatusResponse'
+                $ref: '#/components/schemas/ProcessStatusResponseDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -745,6 +728,271 @@ components:
           $ref: '#/components/schemas/ApprovalRequest'
         result:
           $ref: '#/components/schemas/ApprovalResult'
+    ActorDto:
+      type: object
+      properties:
+        user_id:
+          type: string
+    ApprovalRequestInputDto:
+      type: object
+      description: GitHub Issue #222 원문과 동일한 승인 요청 payload
+      properties:
+        resource_inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceInputDto'
+        exclusion_reason_default:
+          type: string
+          nullable: true
+    ResourceInputDto:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        selected:
+          type: boolean
+        resource_input:
+          $ref: '#/components/schemas/ResourceConfigDto'
+        exclusion_reason:
+          type: string
+    ApprovalRequestSummaryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        target_source_id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/ApprovalLifecycleStatus'
+        requested_by:
+          $ref: '#/components/schemas/ActorDto'
+        requested_at:
+          type: string
+          format: date-time
+        resource_total_count:
+          type: integer
+          format: int32
+        resource_selected_count:
+          type: integer
+          format: int32
+    ApprovalActionResponseDto:
+      type: object
+      properties:
+        request_id:
+          type: integer
+          format: int64
+        status:
+          $ref: '#/components/schemas/ApprovalLifecycleStatus'
+        processed_by:
+          $ref: '#/components/schemas/ActorDto'
+        processed_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    ApprovalHistoryItemDto:
+      type: object
+      properties:
+        request:
+          $ref: '#/components/schemas/ApprovalRequestSummaryDto'
+        result:
+          $ref: '#/components/schemas/ApprovalActionResponseDto'
+    ApprovalHistoryPageDto:
+      type: object
+      required:
+        - content
+        - totalElements
+        - totalPages
+        - number
+        - size
+        - numberOfElements
+        - first
+        - last
+        - empty
+        - pageable
+        - sort
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        pageable:
+          type: object
+          properties:
+            paged:
+              type: boolean
+            pageNumber:
+              type: integer
+              format: int32
+            pageSize:
+              type: integer
+              format: int32
+            unpaged:
+              type: boolean
+            offset:
+              type: integer
+              format: int64
+            sort:
+              type: array
+              items:
+                type: object
+        first:
+          type: boolean
+        last:
+          type: boolean
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalHistoryItemDto'
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            type: object
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    ApprovalLifecycleStatus:
+      type: string
+      enum:
+        - PENDING
+        - APPROVED
+        - AUTO_APPROVED
+        - REJECTED
+        - CANCELLED
+        - UNAVAILABLE
+        - CONFIRMED
+    ApprovalApproveRequestDto:
+      type: object
+      properties:
+        comment:
+          type: string
+          nullable: true
+    ApprovalRejectRequestDto:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 1
+    ResourceConfigDto:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+        database_type:
+          type: string
+          nullable: true
+          enum:
+            - MYSQL
+            - POSTGRESQL
+            - MSSQL
+            - DYNAMODB
+            - ATHENA
+            - REDSHIFT
+            - COSMOSDB
+            - BIGQUERY
+            - MONGODB
+            - ORACLE
+        port:
+          type: integer
+          format: int32
+          nullable: true
+        host:
+          type: string
+          nullable: true
+        oracle_service_id:
+          type: string
+          nullable: true
+        network_interface_id:
+          type: string
+          nullable: true
+        ip_configuration:
+          type: string
+          nullable: true
+        credential_id:
+          type: string
+          nullable: true
+    ConfirmedIntegrationResponse:
+      type: object
+      properties:
+        resource_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceConfigDto'
+    ExcludedResourceInfo:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        exclusion_reason:
+          type: string
+    ApprovedIntegrationResponseDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: integer
+          format: int64
+        approved_at:
+          type: string
+          format: date-time
+        approved_by:
+          $ref: '#/components/schemas/ActorDto'
+        resource_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceConfigDto'
+        excluded_resource_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcludedResourceInfo'
+    ProcessStatusResponseDto:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
+          $ref: '#/components/schemas/Issue222ProcessStatus'
+        healthy:
+          $ref: '#/components/schemas/Issue222HealthStatus'
+        evaluated_at:
+          type: string
+          format: date-time
+    Issue222ProcessStatus:
+      type: string
+      enum:
+        - IDLE
+        - PENDING
+        - CONFIRMING
+        - CONFIRMED
+        - INSTALLED
+        - CONNECTED
+        - COMPLETED
+    Issue222HealthStatus:
+      type: string
+      enum:
+        - UNKNOWN
+        - HEALTHY
+        - UNHEALTHY
+        - DEGRADED
     ApprovalRequestCreateRequest:
       type: object
       required:
@@ -1249,6 +1497,34 @@ components:
               type: string
             message:
               type: string
+    ProblemDetailsResponse:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - code
+        - retriable
+        - requestId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+        retriable:
+          type: boolean
+        retryAfterMs:
+          type: integer
+        requestId:
+          type: string
   responses:
     Unauthorized:
       description: 인증 실패 (SSO 토큰 만료 또는 미인증)
@@ -1280,6 +1556,34 @@ components:
             error:
               code: TARGET_SOURCE_NOT_FOUND
               message: 해당 ID의 Target Source가 존재하지 않습니다.
+    ApprovedIntegrationNotFound:
+      description: 승인된 연동 스냅샷이 없음
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsResponse'
+          example:
+            type: https://pii-agent.dev/problems/APPROVED_INTEGRATION_NOT_FOUND
+            title: Not Found
+            status: 404
+            detail: 승인된 연동 정보가 없습니다.
+            code: APPROVED_INTEGRATION_NOT_FOUND
+            retriable: false
+            requestId: 123e4567-e89b-12d3-a456-426614174000
+    ConfirmedIntegrationNotFound:
+      description: 확정된 연동 스냅샷이 없음
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailsResponse'
+          example:
+            type: https://pii-agent.dev/problems/CONFIRMED_INTEGRATION_NOT_FOUND
+            title: Not Found
+            status: 404
+            detail: 확정된 연동 정보가 없습니다.
+            code: CONFIRMED_INTEGRATION_NOT_FOUND
+            retriable: false
+            requestId: 123e4567-e89b-12d3-a456-426614174000
     BadRequest:
       description: 잘못된 요청 파라미터
       content:

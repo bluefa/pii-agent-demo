@@ -43,6 +43,7 @@ describe('buildAzureOwnedResources', () => {
   it('uses approval-history while waiting approval and restores VM settings from the request snapshot', () => {
     const result = buildAzureOwnedResources({
       currentStep: ProcessStatus.WAITING_APPROVAL,
+      projectResources: [],
       catalog: [
         createCatalogResource('vm-1', {
           resourceType: 'AZURE_VM',
@@ -109,6 +110,7 @@ describe('buildAzureOwnedResources', () => {
   it('falls back to catalog when approval-history no longer includes input_data', () => {
     const result = buildAzureOwnedResources({
       currentStep: ProcessStatus.WAITING_APPROVAL,
+      projectResources: [],
       catalog: [createCatalogResource('sql-1')],
       latestApprovalRequest: createApprovalInput(),
       approvedIntegration: null,
@@ -164,6 +166,7 @@ describe('buildAzureOwnedResources', () => {
 
     const result = buildAzureOwnedResources({
       currentStep: ProcessStatus.APPLYING_APPROVED,
+      projectResources: [],
       catalog: [
         createCatalogResource('vm-1', {
           resourceType: 'AZURE_VM',
@@ -215,6 +218,7 @@ describe('buildAzureOwnedResources', () => {
   it('does not keep restoring selection from approval-history after approval is in progress', () => {
     const result = buildAzureOwnedResources({
       currentStep: ProcessStatus.APPLYING_APPROVED,
+      projectResources: [],
       catalog: [
         createCatalogResource('vm-1', {
           resourceType: 'AZURE_VM',
@@ -283,6 +287,7 @@ describe('buildAzureOwnedResources', () => {
 
     const result = buildAzureOwnedResources({
       currentStep: ProcessStatus.INSTALLATION_COMPLETE,
+      projectResources: [],
       catalog: [createCatalogResource('sql-1')],
       latestApprovalRequest: createApprovalInput([
         {
@@ -303,6 +308,37 @@ describe('buildAzureOwnedResources', () => {
         id: 'sql-1',
         isSelected: true,
         selectedCredentialId: 'cred-confirmed',
+      }),
+    );
+  });
+
+  it('falls back to project resources while approval is pending when approval-history only has summary data', () => {
+    const result = buildAzureOwnedResources({
+      currentStep: ProcessStatus.WAITING_APPROVAL,
+      projectResources: [
+        {
+          id: 'sql-1',
+          type: 'AZURE_MSSQL',
+          resourceId: 'resource-sql-1',
+          connectionStatus: 'PENDING',
+          isSelected: true,
+          databaseType: 'MSSQL',
+          integrationCategory: 'TARGET',
+          selectedCredentialId: 'cred-project',
+        },
+      ],
+      catalog: [createCatalogResource('sql-1')],
+      latestApprovalRequest: createApprovalInput(),
+      approvedIntegration: null,
+      confirmedIntegration: { resource_infos: [] },
+    });
+
+    expect(result.selectionSource).toBe('project');
+    expect(result.resources[0]).toEqual(
+      expect.objectContaining({
+        id: 'sql-1',
+        isSelected: true,
+        selectedCredentialId: 'cred-project',
       }),
     );
   });
