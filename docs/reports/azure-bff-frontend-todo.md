@@ -20,12 +20,11 @@
 
 - `lib/api-client/bff-client.ts`에 남아 있는 legacy 프록시 경로를 현재 `/install/v1` 계약 기준으로 계속 정리한다.
 - 실행형 Swagger와 실제 Next.js API 응답을 전수 대조해 schema/runtime 불일치를 없앤다.
-- 모든 구현이 끝난 뒤 Next.js 공개 API를 `/api/integration/v1/**`에서 `/integration/api/v1/**`로 옮길지 별도 마이그레이션으로 결정한다.
 
 ## 병렬 진행 메모
 
-- `lib/api-client/bff-client.ts` 잔여 legacy 프록시 경로 정리는 공개 API 경로 마이그레이션과 비교적 독립적으로 진행할 수 있다.
-- 실행형 Swagger와 실제 Next.js API 응답 전수 검증은 공개 API 경로(`/api/integration/v1/**` ↔ `/integration/api/v1/**`) 결정이 끝난 뒤 수행하는 편이 안전하다.
+- `lib/api-client/bff-client.ts` 잔여 legacy 프록시 경로 정리는 최종 Swagger/runtime 전수 검증과 비교적 독립적으로 진행할 수 있다.
+- 실행형 Swagger와 실제 Next.js API 응답 전수 검증은 공개 API 경로가 `/integration/api/v1/**`로 정리된 지금 바로 시작할 수 있다.
 
 ## Todo
 
@@ -33,8 +32,8 @@
 
 - [x] `app/api/infra` 프록시 레이어를 제거한다.
   대상: [app/api/infra/v1/[...path]/route.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/api/infra/v1/[...path]/route.ts), [app/lib/api/infra.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/infra.ts), [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
-- [x] Next.js route handler 경로를 `/api/v1/**`에서 `/api/integration/v1/**` 기준으로 재배치한다.
-  대상: [app/api/v1](/Users/study/pii-agent-demo-azure-bff-todo/app/api/v1)
+- [x] Next.js route handler 경로를 최종적으로 `/integration/api/v1/**` 기준으로 재배치한다.
+  대상: [app/integration/api/v1](/Users/study/pii-agent-demo/app/integration/api/v1)
 - [x] Azure 화면 진입 page 경로를 `/admin`, `/projects/[projectId]`에서 `/integration/**` 기준으로 변경한다.
   대상: [app/admin/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/admin/page.tsx), [app/admin/dashboard/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/admin/dashboard/page.tsx), [app/projects/[projectId]/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/page.tsx)
 - [x] router push, 링크, 새 창 열기 경로를 모두 새 `/integration/**` prefix 기준으로 바꾼다.
@@ -49,18 +48,18 @@
 ### 1. 공통 네트워크 경로 정렬
 
 - [x] upstream base path를 `/infra/v1`에서 `/install/v1` 기준으로 맞춘다.
-  대상: [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
+  대상: [lib/infra-api.ts](/Users/study/pii-agent-demo/lib/infra-api.ts)
 - [ ] BFF 프록시 경로를 새 swagger 경로 체계에 맞게 정리한다.
-  대상: [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/api-client/bff-client.ts)
+  대상: [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo/lib/api-client/bff-client.ts)
 - [x] 서버 사이드 BFF HTTP 클라이언트가 새 응답 shape를 읽도록 바꾼다.
   대상: [lib/bff/http.ts](/Users/study/pii-agent-demo/lib/bff/http.ts)
 
 ### 2. Azure 진입에 필요한 공통 사용자/목록 API 정리
 
 - [x] `GET /install/v1/user/me`의 flat 응답에 맞게 `user/me` route unwrap 로직을 수정한다.
-  대상: [app/api/integration/v1/user/me/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/user/me/route.ts)
+  대상: [app/integration/api/v1/user/me/route.ts](/Users/study/pii-agent-demo/app/integration/api/v1/user/me/route.ts)
 - [x] `GET /install/v1/user/services` 응답을 그대로 쓰거나 최소 변환만 하도록 정리한다.
-  대상: [app/api/integration/v1/user/services/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/user/services/route.ts)
+  대상: [app/integration/api/v1/user/services/route.ts](/Users/study/pii-agent-demo/app/integration/api/v1/user/services/route.ts)
 - [x] 관리자 목록 진입용 `getProjects()`를 새 `TargetSourceDetail[]` 응답 기준으로 다시 매핑한다.
   대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts)
 - [x] 새 목록 응답의 `process_status` string을 현재 FE `ProcessStatus`로 임시 매핑한다.
@@ -104,7 +103,7 @@
 - [x] VM resource input의 endpoint payload 키가 swagger `ResourceConfigDto`와 일치하는지 재확인하고 맞춘다.
   대상: [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
 - [x] credential update 호출을 `PATCH`에서 `PUT` 계약으로 바꾼다.
-  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/api/integration/v1/target-sources/[targetSourceId]/resources/credential/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/target-sources/[targetSourceId]/resources/credential/route.ts)
+  대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/integration/api/v1/target-sources/[targetSourceId]/resources/credential/route.ts](/Users/study/pii-agent-demo/app/integration/api/v1/target-sources/[targetSourceId]/resources/credential/route.ts)
 
 ### 7. Azure 승인 이력/상세 UI 재설계
 
@@ -157,20 +156,20 @@
 ### 13. 최종 계약 검증
 
 - [ ] 모든 작업이 끝난 뒤, 실행형 Swagger와 실제 Next.js API 응답이 일치하는지 전수 확인한다.
-  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml), [app/api/integration/v1](/Users/study/pii-agent-demo-azure-bff-todo/app/api/integration/v1)
+  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo/docs/swagger/issue-222-client.yaml), [app/integration/api/v1](/Users/study/pii-agent-demo/app/integration/api/v1)
 - [ ] 특히 Swagger schema와 실제 응답 body shape가 달라질 수 있는 엔드포인트를 우선 점검한다.
-  예: `GET /integration/v1/user/me`, `GET /integration/v1/user/services`, `GET /integration/v1/target-sources/{targetSourceId}`, `GET /integration/v1/target-sources/{targetSourceId}/process-status`
+  예: `GET /integration/api/v1/user/me`, `GET /integration/api/v1/user/services`, `GET /integration/api/v1/target-sources/{targetSourceId}`, `GET /integration/api/v1/target-sources/{targetSourceId}/process-status`
 - [ ] 불일치가 있으면 구현 또는 Swagger 중 하나를 반드시 맞추고, 변경된 실제 응답 예시는 PR description에 남긴다.
-  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml)
+  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo/docs/swagger/issue-222-client.yaml)
 
-### 14. Next.js API 공개 경로 재정렬 검토
+### 14. Next.js API 공개 경로 재정렬
 
-- [ ] 모든 구현 작업이 끝난 뒤, Next.js API 공개 경로를 현재 `/api/integration/v1/**`에서 `/integration/api/v1/**`로 옮길지 별도 마이그레이션으로 검토한다.
-  대상: [app/api/integration/v1](/Users/study/pii-agent-demo-azure-bff-todo/app/api/integration/v1), [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
-- [ ] 위 경로를 바꾸기로 결정하면, 실행형 Swagger의 호출 주소도 실제 Next.js API 경로와 함께 동일하게 변경한다.
-  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml), [app/integration/api-docs/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/integration/api-docs/page.tsx), [app/integration/swagger/[swaggerFileName]/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/integration/swagger/[swaggerFileName]/page.tsx)
-- [ ] 단, upstream BFF 계약 경로는 계속 `/install/v1/**`를 유지하고, 이 변경은 Next.js 공개 API 경로와 실행형 Swagger에만 적용한다.
-  대상: [docs/swagger/user.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/user.yaml), [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml), [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/api-client/bff-client.ts)
+- [x] Next.js API 공개 경로를 `/integration/api/v1/**` 기준으로 재정렬했다.
+  대상: [app/integration/api/v1](/Users/study/pii-agent-demo/app/integration/api/v1), [lib/infra-api.ts](/Users/study/pii-agent-demo/lib/infra-api.ts)
+- [x] 실행형 Swagger의 호출 주소도 실제 Next.js API 경로와 동일하게 변경했다.
+  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo/docs/swagger/issue-222-client.yaml), [app/integration/api-docs/page.tsx](/Users/study/pii-agent-demo/app/integration/api-docs/page.tsx), [app/integration/swagger/[swaggerFileName]/page.tsx](/Users/study/pii-agent-demo/app/integration/swagger/[swaggerFileName]/page.tsx)
+- [x] 단, upstream BFF 계약 경로는 계속 `/install/v1/**`를 유지하고, 이 변경은 Next.js 공개 API 경로와 실행형 Swagger에만 적용한다.
+  대상: [docs/swagger/user.yaml](/Users/study/pii-agent-demo/docs/swagger/user.yaml), [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo/docs/swagger/issue-222-client.yaml), [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo/lib/api-client/bff-client.ts)
 
 ## 우선순위
 
@@ -185,13 +184,13 @@
 - [x] 6단계: logical db scanner 제거
 - [x] 7단계: Azure test connection 유지 원칙 반영
 - [ ] 8단계: 최종 Swagger-실제 API 계약 검증
-- [ ] 9단계: Next.js API 공개 경로(`/api/integration/v1/**` ↔ `/integration/api/v1/**`) 재정렬 여부 결정
+- [x] 9단계: Next.js API 공개 경로 `/integration/api/v1/**` 재정렬
 
 ## 명세 보완 또는 별도 합의가 필요한 항목
 
-- [x] route handler 최종 URL 규칙은 `/api/integration/v1/**`로 정리했다.
+- [x] route handler 최종 URL 규칙은 `/integration/api/v1/**`로 정리했다.
 - [x] page 최종 URL 규칙은 `/integration/admin`, `/integration/projects/[id]` 기준으로 정리했다.
-- [ ] 현재 Next.js API 공개 경로(`/api/integration/v1/**`)를 장기적으로 `/integration/api/v1/**`로 바꿀지, 아니면 그대로 유지할지 구현 완료 후 별도 합의 필요
+- [x] Next.js API 공개 경로는 `/integration/api/v1/**`로 정리했다.
 - [x] `GET /install/v1/target-sources/{targetSourceId}` 기준 상세 화면은 공통 normalize + fallback identifier 표시로 유지한다.
 - [ ] `GET /install/v1/target-sources/services/{serviceCode}` 설명의 `Azure type only`가 실제 제약인지 확인 필요
 - [x] approval history 상세 모달은 summary UI로 축소하고, legacy `resource_inputs`는 선택적 호환 데이터로만 취급한다.
