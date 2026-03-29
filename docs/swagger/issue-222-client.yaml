@@ -35,6 +35,8 @@ tags:
     description: 서비스 권한 사용자 관리
   - name: Target Source
     description: 타겟소스 목록/생성/상세 조회
+  - name: Resources
+    description: 타겟소스 리소스 카탈로그 조회
   - name: Approval Process
     description: 승인 요청 생성, 조회, 처리, 이력
   - name: Process Status
