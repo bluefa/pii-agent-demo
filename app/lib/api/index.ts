@@ -78,8 +78,8 @@ const normalizeProjectProcessStatus = (value: unknown): ProcessStatus => {
     case 'PENDING':
       return ProcessStatus.WAITING_APPROVAL;
     case 'APPLYING_APPROVED':
-      return ProcessStatus.APPLYING_APPROVED;
     case 'CONFIRMING':
+      return ProcessStatus.APPLYING_APPROVED;
     case 'CONFIRMED':
       return ProcessStatus.INSTALLING;
     case 'INSTALLED':

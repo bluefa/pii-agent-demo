@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getConfirmResources, getConfirmedIntegration, getServices, searchUsers } from '@/app/lib/api';
+import {
+  getConfirmResources,
+  getConfirmedIntegration,
+  getProjects,
+  getServices,
+  searchUsers,
+} from '@/app/lib/api';
+import { ProcessStatus } from '@/lib/types';
 
 describe('app/lib/api/index', () => {
   afterEach(() => {
@@ -170,5 +177,47 @@ describe('app/lib/api/index', () => {
       ],
       totalCount: 1,
     });
+  });
+
+  it('getProjects는 Issue #222 process_status를 기존 UI 상태로 보존해 매핑한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            description: '승인 반영 중',
+            target_source_id: 1011,
+            process_status: 'CONFIRMING',
+            cloud_provider: 'AZURE',
+            created_at: '2026-03-29T00:00:00Z',
+          },
+          {
+            description: '설치 진행 중',
+            target_source_id: 1012,
+            process_status: 'CONFIRMED',
+            cloud_provider: 'AWS',
+            created_at: '2026-03-29T00:00:00Z',
+          },
+        ]),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const projects = await getProjects('SERVICE-A');
+
+    expect(projects).toEqual([
+      expect.objectContaining({
+        targetSourceId: 1011,
+        processStatus: ProcessStatus.APPLYING_APPROVED,
+        cloudProvider: 'Azure',
+      }),
+      expect.objectContaining({
+        targetSourceId: 1012,
+        processStatus: ProcessStatus.INSTALLING,
+        cloudProvider: 'AWS',
+      }),
+    ]);
   });
 });
