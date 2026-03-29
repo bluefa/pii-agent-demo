@@ -124,4 +124,42 @@ describe('bffClient.confirm.getResources', () => {
       },
     );
   });
+
+  it('users.getMe는 Issue #222 singular path를 호출한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ id: 'user-1', name: '홍길동', email: 'hong@company.com' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.users.getMe();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/install/v1/user/me',
+    );
+  });
+
+  it('users.getServices는 Issue #222 singular path를 호출한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ services: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.users.getServices();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/install/v1/user/services',
+    );
+  });
 });

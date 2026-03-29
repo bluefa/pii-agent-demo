@@ -17,6 +17,9 @@ interface LegacyErrorPayload {
   message?: string;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     headers: { Accept: 'application/json' },
@@ -53,8 +56,11 @@ export const httpBff: BffClient = {
 
   users: {
     me: async () => {
-      const data = await get<{ user: CurrentUser }>('/users/me');
-      return data.user;
+      const data = await get<unknown>('/user/me');
+      if (isRecord(data) && isRecord(data.user)) {
+        return data.user as unknown as CurrentUser;
+      }
+      return data as CurrentUser;
     },
   },
 };
