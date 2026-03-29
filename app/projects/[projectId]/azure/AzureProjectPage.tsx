@@ -62,7 +62,11 @@ const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
 
 const isMissingSnapshotError = (error: unknown): boolean =>
   error instanceof AppError
-  && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND');
+  && (
+    error.code === 'NOT_FOUND'
+    || error.code === 'APPROVED_INTEGRATION_NOT_FOUND'
+    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
+  );
 
 const getResourceErrorMessage = (error: unknown): string => {
   if (error instanceof AppError && error.isUserFacing) return error.message;
