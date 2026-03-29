@@ -169,6 +169,14 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ClientProblemDetails'
+              example:
+                type: https://pii-agent.dev/problems/NOT_FOUND
+                title: Not Found
+                status: 404
+                detail: 승인 요청 이력이 없습니다.
+                code: NOT_FOUND
+                retriable: false
+                requestId: 123e4567-e89b-12d3-a456-426614174000
 
   /integration/v1/target-sources/{targetSourceId}/approval-requests/approve:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1approval-requests~1approve'
