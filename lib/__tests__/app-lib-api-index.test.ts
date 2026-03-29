@@ -3,6 +3,7 @@ import {
   createProject,
   getConfirmResources,
   getConfirmedIntegration,
+  getCurrentUser,
   getProject,
   getProjects,
   getServices,
@@ -58,8 +59,8 @@ describe('app/lib/api/index', () => {
       new Response(
         JSON.stringify({
           services: [
-            { service_code: 'SERVICE-A', service_name: 'Service Alpha' },
-            { service_code: 'SERVICE-B', service_name: 'Service Beta' },
+            { serviceCode: 'SERVICE-A', serviceName: 'Service Alpha' },
+            { serviceCode: 'SERVICE-B', serviceName: 'Service Beta' },
           ],
         }),
         {
@@ -75,6 +76,30 @@ describe('app/lib/api/index', () => {
       { code: 'SERVICE-A', name: 'Service Alpha' },
       { code: 'SERVICE-B', name: 'Service Beta' },
     ]);
+  });
+
+  it('getCurrentUser는 flat user/me 응답을 그대로 읽는다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'user-1',
+          name: '홍길동',
+          email: 'hong@company.com',
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const user = await getCurrentUser();
+
+    expect(user).toEqual({
+      id: 'user-1',
+      name: '홍길동',
+      email: 'hong@company.com',
+    });
   });
 
   it('getConfirmedIntegration은 flat confirmed integration 응답을 그대로 사용한다', async () => {
