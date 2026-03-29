@@ -53,7 +53,7 @@ describe('bffClient.confirm.getResources', () => {
     await expect(response.json()).resolves.toEqual({
       resources: [
         {
-          id: 'res-1',
+          id: 'vm-db-001',
           resource_id: 'vm-db-001',
           resource_type: 'AZURE_VM',
           name: 'vm-db-001',
@@ -67,7 +67,67 @@ describe('bffClient.confirm.getResources', () => {
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',
-            region: '',
+            rawResourceType: 'AZURE_VM',
+          },
+        },
+      ],
+      total_count: 1,
+    });
+  });
+
+  it('Issue #222 Azure resource enum을 client-safe schema로 normalize해서 proxy한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          resources: [
+            {
+              resource_id: 'sql-1',
+              resource_type: 'AZURE_SQL_SERVER',
+              name: 'sql-1',
+              integration_category: 'TARGET',
+              metadata: {
+                provider: 'AZURE',
+                resource_type: 'AZURE_SQL_SERVER',
+                subscription_id: 'sub-1',
+                resource_group: 'rg-1',
+              },
+            },
+          ],
+          total_count: 1,
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    const response = await bffClient.confirm.getResources('1001');
+
+    await expect(response.json()).resolves.toEqual({
+      resources: [
+        {
+          id: 'sql-1',
+          resource_id: 'sql-1',
+          resource_type: 'AZURE_MSSQL',
+          name: 'sql-1',
+          database_type: 'MSSQL',
+          integration_category: 'TARGET',
+          host: null,
+          port: null,
+          oracle_service_id: null,
+          network_interface_id: null,
+          ip_configuration_name: null,
+          metadata: {
+            provider: 'Azure',
+            resourceType: 'AZURE_MSSQL',
+            rawResourceType: 'AZURE_SQL_SERVER',
+            subscriptionId: 'sub-1',
+            resourceGroup: 'rg-1',
           },
         },
       ],
