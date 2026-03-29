@@ -9,7 +9,6 @@ interface IamUserManageModalProps {
   isOpen: boolean;
   onClose: () => void;
   iamUser: IamUser | null;
-  isAdmin: boolean;
   onReissue?: () => Promise<IssueAkSkResponse | null>;
   reissuing?: boolean;
 }
@@ -37,7 +36,6 @@ export const IamUserManageModal = ({
   isOpen,
   onClose,
   iamUser,
-  isAdmin,
   onReissue,
   reissuing = false,
 }: IamUserManageModalProps) => {
@@ -165,21 +163,18 @@ export const IamUserManageModal = ({
             {renderRow('만료일', formatDate(iamUser.akSkExpiresAt))}
           </dl>
 
-          {/* 관리자 전용 액션 */}
-          {isAdmin && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <button
-                onClick={() => setShowReissueConfirm(true)}
-                disabled={reissuing}
-                className={cn(getButtonClass('danger', 'md'), 'w-full disabled:opacity-50')}
-              >
-                {reissuing ? 'AK/SK 재발급 중...' : 'AK/SK 재발급'}
-              </button>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                재발급 시 기존 키는 즉시 무효화됩니다.
-              </p>
-            </div>
-          )}
+          <div className="mt-6 pt-6 border-t border-gray-100">
+            <button
+              onClick={() => setShowReissueConfirm(true)}
+              disabled={reissuing}
+              className={cn(getButtonClass('danger', 'md'), 'w-full disabled:opacity-50')}
+            >
+              {reissuing ? 'AK/SK 재발급 중...' : 'AK/SK 재발급'}
+            </button>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              재발급 시 기존 키는 즉시 무효화됩니다.
+            </p>
+          </div>
         </>
       )}
     </Modal>

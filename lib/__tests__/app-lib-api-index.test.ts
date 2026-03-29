@@ -7,6 +7,8 @@ import {
   getConfirmResources,
   getConfirmedIntegration,
   getProcessStatus,
+  getCurrentUser,
+  getProject,
   getProjects,
   getServices,
   searchUsers,
@@ -61,8 +63,8 @@ describe('app/lib/api/index', () => {
       new Response(
         JSON.stringify({
           services: [
-            { service_code: 'SERVICE-A', service_name: 'Service Alpha' },
-            { service_code: 'SERVICE-B', service_name: 'Service Beta' },
+            { serviceCode: 'SERVICE-A', serviceName: 'Service Alpha' },
+            { serviceCode: 'SERVICE-B', serviceName: 'Service Beta' },
           ],
         }),
         {
@@ -78,6 +80,30 @@ describe('app/lib/api/index', () => {
       { code: 'SERVICE-A', name: 'Service Alpha' },
       { code: 'SERVICE-B', name: 'Service Beta' },
     ]);
+  });
+
+  it('getCurrentUser는 flat user/me 응답을 그대로 읽는다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'user-1',
+          name: '홍길동',
+          email: 'hong@company.com',
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const user = await getCurrentUser();
+
+    expect(user).toEqual({
+      id: 'user-1',
+      name: '홍길동',
+      email: 'hong@company.com',
+    });
   });
 
   it('getConfirmedIntegration은 flat confirmed integration 응답을 그대로 사용한다', async () => {
@@ -130,7 +156,7 @@ describe('app/lib/api/index', () => {
         JSON.stringify({
           resources: [
             {
-              id: 'res-1',
+              id: 'vm-db-001',
               resource_id: 'vm-db-001',
               name: 'vm-db-001',
               resource_type: 'AZURE_VM',
@@ -144,6 +170,7 @@ describe('app/lib/api/index', () => {
               metadata: {
                 provider: 'Azure',
                 resourceType: 'AZURE_VM',
+                rawResourceType: 'AZURE_VM',
                 region: '',
               },
             },
@@ -162,7 +189,7 @@ describe('app/lib/api/index', () => {
     expect(resources).toEqual({
       resources: [
         {
-          id: 'res-1',
+          id: 'vm-db-001',
           resourceId: 'vm-db-001',
           name: 'vm-db-001',
           resourceType: 'AZURE_VM',
@@ -176,12 +203,56 @@ describe('app/lib/api/index', () => {
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',
+            rawResourceType: 'AZURE_VM',
             region: '',
           },
         },
       ],
       totalCount: 1,
     });
+  });
+
+  it('getProject는 Issue #222 상세 응답을 Project read model로 복원한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          description: 'Azure read model',
+          target_source_id: 1013,
+          process_status: 'CONNECTED',
+          cloud_provider: 'AZURE',
+          created_at: '2026-03-29T00:00:00Z',
+          metadata: {
+            tenant_id: 'tenant-1',
+            subscription_id: 'subscription-1',
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const project = await getProject(1013);
+
+    expect(project).toEqual(expect.objectContaining({
+      targetSourceId: 1013,
+      projectCode: '',
+      serviceCode: '',
+      cloudProvider: 'Azure',
+      processStatus: ProcessStatus.CONNECTION_VERIFIED,
+      tenantId: 'tenant-1',
+      subscriptionId: 'subscription-1',
+      resources: [],
+    }));
+    expect(project.status).toEqual(expect.objectContaining({
+      targets: expect.objectContaining({ confirmed: true }),
+      installation: expect.objectContaining({ status: 'COMPLETED' }),
+      connectionTest: expect.objectContaining({
+        status: 'PASSED',
+        passedAt: '2026-03-29T00:00:00Z',
+      }),
+    }));
   });
 
   it('createApprovalRequest는 legacy input_data를 Issue #222 flat payload로 변환한다', async () => {

@@ -152,6 +152,15 @@
 - [ ] 불일치가 있으면 구현 또는 Swagger 중 하나를 반드시 맞추고, 변경된 실제 응답 예시는 PR description에 남긴다.
   대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml)
 
+### 14. Next.js API 공개 경로 재정렬 검토
+
+- [ ] 모든 구현 작업이 끝난 뒤, Next.js API 공개 경로를 현재 `/api/integration/v1/**`에서 `/integration/api/v1/**`로 옮길지 별도 마이그레이션으로 검토한다.
+  대상: [app/api/integration/v1](/Users/study/pii-agent-demo-azure-bff-todo/app/api/integration/v1), [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
+- [ ] 위 경로를 바꾸기로 결정하면, 실행형 Swagger의 호출 주소도 실제 Next.js API 경로와 함께 동일하게 변경한다.
+  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml), [app/integration/api-docs/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/integration/api-docs/page.tsx), [app/integration/swagger/[swaggerFileName]/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/integration/swagger/[swaggerFileName]/page.tsx)
+- [ ] 단, upstream BFF 계약 경로는 계속 `/install/v1/**`를 유지하고, 이 변경은 Next.js 공개 API 경로와 실행형 Swagger에만 적용한다.
+  대상: [docs/swagger/user.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/user.yaml), [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml), [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/api-client/bff-client.ts)
+
 ## 우선순위
 
 ### 바로 시작 가능한 순서
@@ -165,11 +174,13 @@
 - [x] 6단계: logical db scanner 제거
 - [x] 7단계: Azure test connection 유지 원칙 반영
 - [ ] 8단계: 최종 Swagger-실제 API 계약 검증
+- [ ] 9단계: Next.js API 공개 경로(`/api/integration/v1/**` ↔ `/integration/api/v1/**`) 재정렬 여부 결정
 
 ## 명세 보완 또는 별도 합의가 필요한 항목
 
 - [x] route handler 최종 URL 규칙은 `/api/integration/v1/**`로 정리했다.
 - [x] page 최종 URL 규칙은 `/integration/admin`, `/integration/projects/[id]` 기준으로 정리했다.
+- [ ] 현재 Next.js API 공개 경로(`/api/integration/v1/**`)를 장기적으로 `/integration/api/v1/**`로 바꿀지, 아니면 그대로 유지할지 구현 완료 후 별도 합의 필요
 - [ ] `GET /install/v1/target-sources/{targetSourceId}`만으로 현재 Azure 상세 화면이 요구하는 `projectCode`, `serviceCode`, `resources`, 내부 step 계산값을 어떻게 채울지 합의 필요
 - [ ] `GET /install/v1/target-sources/services/{serviceCode}` 설명의 `Azure type only`가 실제 제약인지 확인 필요
 - [x] approval history 상세 모달은 summary UI로 축소하고, legacy `resource_inputs`는 선택적 호환 데이터로만 취급한다.
