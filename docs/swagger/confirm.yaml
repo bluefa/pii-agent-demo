@@ -40,8 +40,8 @@ info:
 
     | `POST /projects/{id}/complete-installation` | _(삭제)_ | 신규 의존 금지 |
 servers:
-  - url: /api/infra/v1
-    description: v1 Base Path
+  - url: /install/v1
+    description: Issue #222 upstream BFF base path
 tags:
   - name: Resources
     description: 리소스 목록, 메타데이터 조회 및 Credential 관리
