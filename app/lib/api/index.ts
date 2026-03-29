@@ -4,6 +4,7 @@ import {
   User,
   CloudProvider,
   Project,
+  ProcessStatus,
   UserRole,
   DatabaseType,
   IntegrationCategory,
@@ -39,15 +40,103 @@ export const getServices = async (): Promise<ServiceCode[]> => {
   }));
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseTargetSourceId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+  return null;
+};
+
+const normalizeCloudProvider = (value: unknown): CloudProvider => {
+  if (typeof value !== 'string') return 'IDC';
+
+  switch (value.toUpperCase()) {
+    case 'AWS':
+      return 'AWS';
+    case 'AZURE':
+      return 'Azure';
+    case 'GCP':
+      return 'GCP';
+    case 'SDU':
+      return 'SDU';
+    case 'IDC':
+    case 'UNKNOWN':
+    default:
+      return 'IDC';
+  }
+};
+
+const normalizeProjectProcessStatus = (value: unknown): ProcessStatus => {
+  if (typeof value === 'number' && ProcessStatus[value] !== undefined) {
+    return value as ProcessStatus;
+  }
+
+  switch (String(value).toUpperCase()) {
+    case 'WAITING_APPROVAL':
+    case 'PENDING':
+      return ProcessStatus.WAITING_APPROVAL;
+    case 'APPLYING_APPROVED':
+      return ProcessStatus.APPLYING_APPROVED;
+    case 'CONFIRMING':
+    case 'CONFIRMED':
+      return ProcessStatus.INSTALLING;
+    case 'INSTALLED':
+      return ProcessStatus.WAITING_CONNECTION_TEST;
+    case 'CONNECTED':
+      return ProcessStatus.CONNECTION_VERIFIED;
+    case 'TARGET_CONFIRMED':
+    case 'COMPLETED':
+      return ProcessStatus.INSTALLATION_COMPLETE;
+    case 'REQUEST_REQUIRED':
+    case 'IDLE':
+    default:
+      return ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  }
+};
+
+const toProjectSummary = (value: unknown): ProjectSummary | null => {
+  if (!isRecord(value)) return null;
+
+  const targetSourceId = parseTargetSourceId(value.targetSourceId ?? value.id);
+  if (targetSourceId === null) return null;
+
+  const processStatus = normalizeProjectProcessStatus(value.processStatus);
+  const fallbackCode = `TS-${targetSourceId}`;
+
+  return {
+    id: typeof value.id === 'string' && value.id ? value.id : fallbackCode,
+    targetSourceId,
+    projectCode: typeof value.projectCode === 'string' && value.projectCode ? value.projectCode : fallbackCode,
+    processStatus,
+    cloudProvider: normalizeCloudProvider(value.cloudProvider),
+    resourceCount: typeof value.resourceCount === 'number' ? value.resourceCount : 0,
+    hasDisconnected: typeof value.hasDisconnected === 'boolean' ? value.hasDisconnected : false,
+    hasNew: typeof value.hasNew === 'boolean' ? value.hasNew : false,
+    description: typeof value.description === 'string' ? value.description : '',
+    isRejected: typeof value.isRejected === 'boolean' ? value.isRejected : false,
+    rejectionReason: typeof value.rejectionReason === 'string' ? value.rejectionReason : undefined,
+    connectionTestComplete: typeof value.connectionTestComplete === 'boolean'
+      ? value.connectionTestComplete
+      : processStatus >= ProcessStatus.CONNECTION_VERIFIED,
+  };
+};
+
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
-  const data = await fetchInfraCamelJson<{ targetSources: ProjectSummary[] }>(
-    `/services/${serviceCode}/target-sources`,
-  );
-  return data.targetSources;
+  const payload = await fetchInfraCamelJson<unknown>(`/services/${serviceCode}/target-sources`);
+  const targetSources = Array.isArray(payload)
+    ? payload
+    : isRecord(payload) && Array.isArray(payload.targetSources)
+      ? payload.targetSources
+      : [];
+
+  return targetSources
+    .map(toProjectSummary)
+    .filter((project): project is ProjectSummary => project !== null);
 };
 
 export const createProject = async (payload: {
-  projectCode: string;
   serviceCode: string;
   cloudProvider: CloudProvider;
   description?: string;
@@ -57,9 +146,19 @@ export const createProject = async (payload: {
   subscriptionId?: string;
   gcpProjectId?: string;
 }): Promise<void> => {
+  const body = {
+    ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
+    cloudProvider: payload.cloudProvider === 'Azure' ? 'AZURE' : payload.cloudProvider,
+    ...(payload.awsAccountId ? { awsAccountId: payload.awsAccountId } : {}),
+    ...(payload.awsRegionType ? { awsRegionType: payload.awsRegionType } : {}),
+    ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
+    ...(payload.subscriptionId ? { subscriptionId: payload.subscriptionId } : {}),
+    ...(payload.gcpProjectId ? { gcpProjectId: payload.gcpProjectId } : {}),
+  };
+
   await fetchInfraJson(`/services/${payload.serviceCode}/target-sources`, {
     method: 'POST',
-    body: payload,
+    body,
   });
 };
 

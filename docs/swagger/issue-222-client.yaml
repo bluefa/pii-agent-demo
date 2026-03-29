@@ -64,7 +64,7 @@ paths:
       tags:
         - Target Source
       summary: 서비스별 타겟소스 목록 조회
-      description: 현재 client route의 프로젝트 목록 응답을 그대로 노출합니다.
+      description: Issue #222 원문의 `GET /install/v1/target-sources/services/{serviceCode}`를 현재 client 경로로 실행 가능하게 노출합니다.
       operationId: getClientServiceTargetSources
       responses:
         '200':
@@ -72,7 +72,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClientTargetSourceListResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Issue222TargetSourceDetail'
         '401':
           $ref: './user.yaml#/components/responses/Unauthorized'
         '403':
@@ -83,21 +85,21 @@ paths:
       tags:
         - Target Source
       summary: 서비스에 타겟소스 생성
-      description: 현재 client route의 생성 응답을 그대로 노출합니다.
+      description: Issue #222 원문의 `POST /install/v1/target-sources/services/{serviceCode}/target-sources`를 현재 client 경로로 실행 가능하게 노출합니다.
       operationId: createClientServiceTargetSource
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: './user.yaml#/components/schemas/CreateTargetSourceRequest'
+              $ref: '#/components/schemas/Issue222CreateTargetSourceRequest'
       responses:
         '201':
           description: 생성 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClientTargetSourceEnvelope'
+                $ref: '#/components/schemas/Issue222CreatedTargetSourceInfo'
         '400':
           $ref: './user.yaml#/components/responses/BadRequest'
         '401':
@@ -230,67 +232,93 @@ paths:
           $ref: './user.yaml#/components/responses/TargetSourceNotFound'
 components:
   schemas:
-    ClientTargetSourceListResponse:
+    Issue222CreateTargetSourceRequest:
       type: object
-      required:
-        - targetSources
       properties:
-        targetSources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ClientProjectSummary'
-    ClientTargetSourceEnvelope:
-      type: object
-      required:
-        - targetSource
-      properties:
-        targetSource:
-          $ref: '#/components/schemas/ClientTargetSourceDetail'
-    ClientProjectSummary:
-      type: object
-      required:
-        - id
-        - targetSourceId
-        - projectCode
-        - processStatus
-        - cloudProvider
-        - resourceCount
-        - hasDisconnected
-        - hasNew
-        - isRejected
-        - connectionTestComplete
-      properties:
-        id:
+        description:
           type: string
-        targetSourceId:
-          type: integer
-          format: int64
-        projectCode:
-          type: string
-        processStatus:
-          type: integer
         cloudProvider:
           type: string
           enum:
             - AWS
-            - Azure
             - GCP
+            - AZURE
             - IDC
-            - SDU
-        resourceCount:
-          type: integer
-        hasDisconnected:
-          type: boolean
-        hasNew:
-          type: boolean
+            - UNKNOWN
+        awsAccountId:
+          type: string
+        awsRegionType:
+          type: string
+        tenantId:
+          type: string
+        subscriptionId:
+          type: string
+        gcpProjectId:
+          type: string
+    Issue222TargetSourceMetadata:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+        subscription_id:
+          type: string
+    Issue222TargetSourceDetail:
+      type: object
+      properties:
         description:
           type: string
-        isRejected:
-          type: boolean
-        rejectionReason:
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
           type: string
-        connectionTestComplete:
-          type: boolean
+          enum:
+            - IDLE
+            - PENDING
+            - CONFIRMING
+            - CONFIRMED
+            - INSTALLED
+            - CONNECTED
+            - COMPLETED
+        cloud_provider:
+          type: string
+          enum:
+            - AWS
+            - GCP
+            - AZURE
+            - IDC
+            - UNKNOWN
+        created_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/Issue222TargetSourceMetadata'
+    Issue222CreatedTargetSourceInfo:
+      type: object
+      properties:
+        targetSourceId:
+          type: integer
+          format: int64
+        description:
+          type: string
+        cloudProvider:
+          type: string
+          enum:
+            - AWS
+            - GCP
+            - AZURE
+            - IDC
+            - UNKNOWN
+        createdAt:
+          type: string
+          format: date-time
+        serviceCode:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/Issue222TargetSourceMetadata'
     ClientTargetSourceDetail:
       type: object
       description: |-

@@ -38,6 +38,8 @@ const getStatusText = (status: ProcessStatus) => {
       return '연동 대상 확정 대기';
     case ProcessStatus.WAITING_APPROVAL:
       return '승인 대기';
+    case ProcessStatus.APPLYING_APPROVED:
+      return '승인 반영 중';
     case ProcessStatus.INSTALLING:
       return '설치 진행 중';
     case ProcessStatus.WAITING_CONNECTION_TEST:
@@ -77,8 +79,8 @@ export const ProjectsTable = ({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
         </div>
-        <p className="text-gray-500">등록된 과제가 없습니다</p>
-        <p className="text-gray-400 text-sm mt-1">상단의 과제 등록 버튼으로 새 과제를 추가하세요</p>
+        <p className="text-gray-500">등록된 타겟 소스가 없습니다</p>
+        <p className="text-gray-400 text-sm mt-1">상단의 타겟 소스 등록 버튼으로 새 대상을 추가하세요</p>
       </div>
     );
   }
@@ -88,7 +90,7 @@ export const ProjectsTable = ({
       <thead>
         <tr className="border-b border-gray-100">
           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider w-16"></th>
-          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">과제 코드</th>
+          <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">타겟 소스 ID</th>
           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">설명</th>
           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">상태</th>
           <th className="text-left px-6 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider w-20"></th>
@@ -109,12 +111,17 @@ export const ProjectsTable = ({
                 <CloudProviderIcon provider={project.cloudProvider as CloudProvider} size="sm" />
               </td>
               <td className="px-6 py-4">
-                <span className="font-medium text-gray-900 group-hover:text-[#0064FF] transition-colors">
-                  {project.projectCode}
-                </span>
+                <div className="space-y-1">
+                  <span className="font-medium text-gray-900 group-hover:text-[#0064FF] transition-colors">
+                    TS-{project.targetSourceId}
+                  </span>
+                  <p className="text-xs text-gray-400">
+                    {project.cloudProvider}
+                  </p>
+                </div>
               </td>
               <td className="px-6 py-4 text-gray-500 max-w-xs truncate">
-                {project.description || '-'}
+                {project.description || '설명 없음'}
               </td>
               <td className="px-6 py-4 text-gray-500 text-sm">{getStatusText(project.processStatus)}</td>
               <td className="px-6 py-4">
@@ -134,7 +141,7 @@ export const ProjectsTable = ({
                     승인 요청 확인
                   </button>
                 )}
-                {project.processStatus === ProcessStatus.INSTALLING && (
+                {(project.processStatus === ProcessStatus.APPLYING_APPROVED || project.processStatus === ProcessStatus.INSTALLING) && (
                   <span className="px-3 py-1.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-lg">
                     설치 진행 중
                   </span>
