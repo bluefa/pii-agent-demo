@@ -11,6 +11,7 @@ import {
   StepGuide,
   ConnectionTestPanel,
 } from './process-status';
+import type { ProgressBarStep } from './process-status/StepProgressBar';
 import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
@@ -55,6 +56,41 @@ const getProgress = (project: Project) => {
   return { completed, total: items.length };
 };
 
+const getAzureProgressSteps = (currentStep: ProcessStatus): ProgressBarStep[] => {
+  const completionStep = currentStep === ProcessStatus.INSTALLATION_COMPLETE ? 'completed' : 'current';
+
+  return [
+    {
+      id: String(ProcessStatus.WAITING_TARGET_CONFIRMATION),
+      label: '연동 대상 확정',
+      state: currentStep > ProcessStatus.WAITING_TARGET_CONFIRMATION ? 'completed' : currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION ? 'current' : 'pending',
+    },
+    {
+      id: String(ProcessStatus.WAITING_APPROVAL),
+      label: '승인 대기',
+      state: currentStep > ProcessStatus.WAITING_APPROVAL ? 'completed' : currentStep === ProcessStatus.WAITING_APPROVAL ? 'current' : 'pending',
+    },
+    {
+      id: String(ProcessStatus.APPLYING_APPROVED),
+      label: '연동대상반영중',
+      state: currentStep > ProcessStatus.APPLYING_APPROVED ? 'completed' : currentStep === ProcessStatus.APPLYING_APPROVED ? 'current' : 'pending',
+    },
+    {
+      id: String(ProcessStatus.INSTALLING),
+      label: '설치 진행',
+      state: currentStep > ProcessStatus.INSTALLING ? 'completed' : currentStep === ProcessStatus.INSTALLING ? 'current' : 'pending',
+    },
+    {
+      id: 'azure-complete',
+      label: '완료',
+      state:
+        currentStep >= ProcessStatus.WAITING_CONNECTION_TEST
+          ? completionStep
+          : 'pending',
+    },
+  ];
+};
+
 export const ProcessStatusCard = ({
   project,
   resources,
@@ -77,6 +113,7 @@ export const ProcessStatusCard = ({
   const progress = getProgress(project);
   const selectedResources = resources.filter((r) => r.isSelected);
   const isAzure = project.cloudProvider === 'Azure';
+  const azureProgressSteps = isAzure ? getAzureProgressSteps(currentStep) : undefined;
   const shouldHideAzureConnectionTestGuide =
     isAzure && currentStep === ProcessStatus.WAITING_CONNECTION_TEST;
 
@@ -181,6 +218,7 @@ export const ProcessStatusCard = ({
           <>
             <StepProgressBar
               currentStep={currentStep}
+              customSteps={azureProgressSteps}
               onGuideClick={guide ? guideModal.open : undefined}
             />
 
