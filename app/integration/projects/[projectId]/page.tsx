@@ -7,8 +7,7 @@ interface PageProps {
 }
 
 export default async function ProjectDetailPage({ params }: PageProps) {
-  const { projectId } = await params;
-  const targetSourceId = Number(projectId);
+  const targetSourceId = Number((await params).projectId);
 
   if (!Number.isInteger(targetSourceId) || targetSourceId <= 0) {
     return <ErrorState error="유효하지 않은 과제 식별자입니다." />;
