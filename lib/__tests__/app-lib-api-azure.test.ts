@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getAzureSettings } from '@/app/lib/api/azure';
+import { getAzureSettings, resolveAzureProjectIdentifiers } from '@/app/lib/api/azure';
 
 describe('app/lib/api/azure', () => {
   afterEach(() => {
@@ -38,6 +38,26 @@ describe('app/lib/api/azure', () => {
         status: 'VALID',
         lastVerifiedAt: '2026-03-24T00:00:00Z',
       },
+    });
+  });
+
+  it('resolveAzureProjectIdentifiers는 project 식별자가 비어 있으면 settings fallback을 사용한다', () => {
+    expect(resolveAzureProjectIdentifiers(
+      {
+        tenantId: undefined,
+        subscriptionId: 'subscription-from-project',
+      },
+      {
+        tenantId: 'tenant-from-settings',
+        subscriptionId: 'subscription-from-settings',
+        scanApp: {
+          appId: 'scan-app-123',
+          status: 'VALID',
+        },
+      },
+    )).toEqual({
+      tenantId: 'tenant-from-settings',
+      subscriptionId: 'subscription-from-project',
     });
   });
 });

@@ -9,7 +9,6 @@ import type {
   ConfirmedIntegrationResponse,
   ConfirmResourceItem,
 } from '@/app/lib/api';
-import type { AzureV1Settings } from '@/lib/types/azure';
 import {
   createApprovalRequest,
   getApprovalHistory,
@@ -19,7 +18,13 @@ import {
   getProject,
   updateResourceCredential,
 } from '@/app/lib/api';
-import { getAzureSettings } from '@/app/lib/api/azure';
+import {
+  getAzureScanApp,
+  getAzureSettings,
+  resolveAzureProjectIdentifiers,
+  type AzureScanApp,
+} from '@/app/lib/api/azure';
+import type { AzureV1Settings } from '@/lib/types/azure';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
@@ -65,6 +70,12 @@ const getResourceErrorMessage = (error: unknown): string => {
   return 'Azure 리소스 정보를 불러오지 못했습니다.';
 };
 
+const getScanAppErrorMessage = (error: unknown): string => {
+  if (error instanceof AppError && error.isUserFacing) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'Azure scan app 정보를 불러오지 못했습니다.';
+};
+
 export const AzureProjectPage = ({
   project,
   credentials,
@@ -78,7 +89,9 @@ export const AzureProjectPage = ({
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
 
-  const [serviceSettings, setServiceSettings] = useState<AzureV1Settings | null>(null);
+  const [scanApp, setScanApp] = useState<AzureScanApp | null>(null);
+  const [scanAppError, setScanAppError] = useState<string | null>(null);
+  const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
 
   const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
   const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
@@ -89,8 +102,50 @@ export const AzureProjectPage = ({
   const [resourceError, setResourceError] = useState<string | null>(null);
 
   useEffect(() => {
-    getAzureSettings(project.targetSourceId).then(setServiceSettings).catch(() => {});
-  }, [project.targetSourceId]);
+    let cancelled = false;
+    const needsIdentifierFallback = !project.tenantId || !project.subscriptionId;
+
+    setScanApp(null);
+    setScanAppError(null);
+    setFallbackSettings(null);
+
+    void getAzureScanApp(project.targetSourceId)
+      .then((response) => {
+        if (cancelled) return;
+        setScanApp(response);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setScanAppError(getScanAppErrorMessage(error));
+      });
+
+    if (needsIdentifierFallback) {
+      void getAzureSettings(project.targetSourceId)
+        .then((response) => {
+          if (cancelled) return;
+          setFallbackSettings(response);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setFallbackSettings(null);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [project.subscriptionId, project.targetSourceId, project.tenantId]);
+
+  const azureIdentifiers = useMemo(
+    () => resolveAzureProjectIdentifiers(
+      {
+        tenantId: project.tenantId,
+        subscriptionId: project.subscriptionId,
+      },
+      fallbackSettings,
+    ),
+    [fallbackSettings, project.subscriptionId, project.tenantId],
+  );
 
   const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
@@ -312,7 +367,10 @@ export const AzureProjectPage = ({
       <div className="flex flex-1 overflow-hidden">
         <ProjectSidebar cloudProvider={project.cloudProvider}>
           <AzureInfoCard
-            serviceSettings={serviceSettings}
+            tenantId={azureIdentifiers.tenantId}
+            subscriptionId={azureIdentifiers.subscriptionId}
+            scanApp={scanApp}
+            scanAppError={scanAppError}
             credentials={credentials}
             onOpenGuide={handleOpenGuide}
             onManageCredentials={handleManageCredentials}
