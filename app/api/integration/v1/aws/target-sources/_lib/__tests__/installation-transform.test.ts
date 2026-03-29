@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LegacyAwsInstallationStatus, LegacyCheckInstallationResponse, ServiceTfScript } from '@/lib/types';
-import { transformAwsInstallationStatus } from '@/app/api/v1/aws/target-sources/_lib/installation-transform';
+import { transformAwsInstallationStatus } from '@/app/api/integration/v1/aws/target-sources/_lib/installation-transform';
 
 const buildScript = (
   overrides: Partial<ServiceTfScript> = {},

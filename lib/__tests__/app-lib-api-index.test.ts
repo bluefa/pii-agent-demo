@@ -22,7 +22,7 @@ describe('app/lib/api/index', () => {
     await searchUsers('alice', ['u1', 'u2']);
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-      '/api/infra/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+      '/api/integration/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
     );
   });
 
@@ -41,7 +41,7 @@ describe('app/lib/api/index', () => {
 
     await searchUsers('');
 
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/infra/v1/users/search');
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/integration/v1/users/search');
   });
 
   it('getServices는 v1 응답을 ServiceCode[] 형태로 매핑한다', async () => {

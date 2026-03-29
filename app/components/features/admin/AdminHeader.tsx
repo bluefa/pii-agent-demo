@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { primaryColors, cn, textColors } from '@/lib/theme';
+import { integrationRoutes } from '@/lib/routes';
 
 const NAV_ITEMS = [
-  { href: '/admin', label: '서비스 관리' },
-  { href: '/task_admin', label: 'Admin Tasks' },
+  { href: integrationRoutes.admin, label: '서비스 관리' },
+  { href: integrationRoutes.taskAdmin, label: 'Admin Tasks' },
 ] as const;
 
 export const AdminHeader = () => {
@@ -25,7 +26,7 @@ export const AdminHeader = () => {
         </div>
         <nav className="flex items-center gap-1">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

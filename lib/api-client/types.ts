@@ -136,6 +136,5 @@ export interface ApiClient {
     testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;
     getTestConnectionResults: (projectId: string, page: number, size: number) => Promise<NextResponse>;
     getTestConnectionLatest: (projectId: string) => Promise<NextResponse>;
-    getConnectionStatus: (projectId: string) => Promise<NextResponse>;
   };
 }

@@ -9,7 +9,6 @@ import {
   IntegrationCategory,
   ConfirmedIntegrationResourceInfo,
   BffConfirmedIntegration,
-  ConnectionStatusResponse,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
   ResourceSnapshot,
@@ -400,15 +399,6 @@ export const confirmInstallation = async (
   fetchInfraCamelJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST' },
-  );
-
-// ===== Connection Status API =====
-
-export const getConnectionStatus = async (
-  targetSourceId: number
-): Promise<ConnectionStatusResponse> =>
-  fetchInfraJson<ConnectionStatusResponse>(
-    `${CONFIRM_BASE}/${targetSourceId}/logical-db-status`
   );
 
 // ===== Azure API =====

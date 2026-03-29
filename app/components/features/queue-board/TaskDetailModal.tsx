@@ -8,6 +8,7 @@ import { CloudInfoCell } from '@/app/components/features/queue-board/CloudInfoCe
 import { cn, textColors, statusColors, primaryColors } from '@/lib/theme';
 import type { ApprovalRequestQueueItem, ApprovalRequestStatus } from '@/lib/types/queue-board';
 import type { BadgeVariant } from '@/app/components/ui/Badge';
+import { integrationRoutes } from '@/lib/routes';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export const TaskDetailModal = ({
       footer={
         <div className="flex w-full items-center justify-between">
           <Link
-            href={`/projects/${item.targetSourceId}`}
+            href={integrationRoutes.project(item.targetSourceId)}
             className={cn('text-sm font-medium', primaryColors.text, primaryColors.textHover)}
           >
             해당 시스템 상세 보기
