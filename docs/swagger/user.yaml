@@ -14,22 +14,22 @@ info:
 
     ### Legacy API Replacement Map
 
-    - `GET /api/services/{serviceCode}/projects` -> `GET /api/integration/v1/services/{serviceCode}/target-sources`
+    - `GET /api/services/{serviceCode}/projects` -> `GET /install/v1/target-sources/services/{serviceCode}`
 
-    - `POST /api/projects` -> `POST /api/integration/v1/services/{serviceCode}/target-sources`
+    - `POST /api/projects` -> `POST /install/v1/target-sources/services/{serviceCode}/target-sources`
 
-    - `GET /api/projects/{projectId}` -> `GET /api/integration/v1/target-sources/{targetSourceId}`
+    - `GET /api/projects/{projectId}` -> `GET /install/v1/target-sources/{targetSourceId}`
 
-    - `GET /api/services/{serviceCode}/permissions` -> `GET /api/integration/v1/services/{serviceCode}/authorized-users`
+    - `GET /api/services/{serviceCode}/permissions` -> `GET /install/v1/services/{serviceCode}/authorized-users`
 
-    - `POST /api/services/{serviceCode}/permissions` -> `POST /api/integration/v1/services/{serviceCode}/authorized-users`
+    - `POST /api/services/{serviceCode}/permissions` -> `POST /install/v1/services/{serviceCode}/authorized-users`
 
     - `DELETE /api/services/{serviceCode}/permissions/{userId}` -> `DELETE
-    /api/integration/v1/services/{serviceCode}/authorized-users/{userId}`
+    /install/v1/services/{serviceCode}/authorized-users/{userId}`
   version: 1.1.0
 servers:
-  - url: /api/integration/v1
-    description: v1 API 소스 경로
+  - url: /install/v1
+    description: Issue #222 upstream BFF base
 tags:
   - name: User
     description: 사용자 식별 및 사용자 검색
@@ -39,22 +39,22 @@ tags:
     description: 서비스 소속 타겟소스 조회/생성/상세
 x-legacy-api-replacements:
   - legacy: GET /api/services/{serviceCode}/projects
-    replacement: GET /api/integration/v1/services/{serviceCode}/target-sources
+    replacement: GET /install/v1/target-sources/services/{serviceCode}
     status: migrated
   - legacy: POST /api/projects
-    replacement: POST /api/integration/v1/services/{serviceCode}/target-sources
+    replacement: POST /install/v1/target-sources/services/{serviceCode}/target-sources
     status: migrated
   - legacy: GET /api/projects/{projectId}
-    replacement: GET /api/integration/v1/target-sources/{targetSourceId}
+    replacement: GET /install/v1/target-sources/{targetSourceId}
     status: migrated
   - legacy: GET /api/services/{serviceCode}/permissions
-    replacement: GET /api/integration/v1/services/{serviceCode}/authorized-users
+    replacement: GET /install/v1/services/{serviceCode}/authorized-users
     status: migrated
   - legacy: POST /api/services/{serviceCode}/permissions
-    replacement: POST /api/integration/v1/services/{serviceCode}/authorized-users
+    replacement: POST /install/v1/services/{serviceCode}/authorized-users
     status: migrated
   - legacy: DELETE /api/services/{serviceCode}/permissions/{userId}
-    replacement: DELETE /api/integration/v1/services/{serviceCode}/authorized-users/{userId}
+    replacement: DELETE /install/v1/services/{serviceCode}/authorized-users/{userId}
     status: migrated
 paths:
   /user/me:
@@ -65,7 +65,7 @@ paths:
       operationId: getUserMe
       x-expected-duration: 50ms ~ 200ms
       description: |-
-        GitHub Issue #222의 `GET /install/v1/user/me`와 동일한 flat 사용자 프로필 응답을 반환합니다.
+        현재 로그인한 사용자의 flat 프로필 정보를 반환합니다.
         인증된 세션 혹은 토큰을 기반으로 사용자 정보를 식별합니다.
       responses:
         '200':
@@ -85,7 +85,7 @@ paths:
       summary: 접근 가능 서비스 목록 조회
       operationId: getUserServices
       x-expected-duration: 50ms ~ 200ms
-      description: GitHub Issue #222의 `GET /install/v1/user/services`와 동일한 camelCase 서비스 목록 응답을 반환합니다.
+      description: 현재 사용자가 접근 가능한 서비스를 camelCase 항목 배열로 반환합니다.
       responses:
         '200':
           description: 서비스 목록 조회 성공
