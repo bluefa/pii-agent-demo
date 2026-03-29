@@ -82,7 +82,6 @@ export const buildV1Response = (
       resource_id: r.resourceId,
       resource_name: r.resourceName,
       resource_type: r.resourceType,
-      is_vm: isVm,
       private_endpoint: {
         id: r.privateEndpoint.id,
         name: r.privateEndpoint.name,
@@ -109,7 +108,6 @@ export const buildV1Response = (
   });
 
   return {
-    has_vm: resources.some(r => r.is_vm),
     last_check: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
     resources,
   };

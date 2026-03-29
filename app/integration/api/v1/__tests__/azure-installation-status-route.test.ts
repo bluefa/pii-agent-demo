@@ -76,7 +76,6 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      has_vm: true,
       last_check: {
         status: 'SUCCESS',
         checked_at: '2026-03-30T00:00:00Z',
@@ -86,7 +85,6 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
           resource_id: 'vm-001',
           resource_name: 'vm-001',
           resource_type: 'AZURE_VM',
-          is_vm: true,
           private_endpoint: {
             id: 'pe-vm-001',
             name: 'pe-vm-001',
@@ -104,7 +102,6 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
           resource_id: 'mysql-001',
           resource_name: 'mysql-001',
           resource_type: 'AZURE_MYSQL',
-          is_vm: false,
           private_endpoint: {
             id: 'pe-mysql-001',
             name: 'pe-mysql-001',
