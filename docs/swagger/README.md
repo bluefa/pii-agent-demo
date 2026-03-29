@@ -28,11 +28,11 @@
 
 `npm run dev` 실행 후 아래 경로에서 확인할 수 있습니다.
 
-- 통합 문서 허브(Swagger UI, one-page): `/api-docs`  
-  예: `http://localhost:3001/api-docs`
-- 개별 문서(Swagger UI): `/api-docs/{spec}`  
-  예: `http://localhost:3001/api-docs/aws`
+- 통합 문서 허브(Swagger UI, one-page): `/integration/api-docs`  
+  예: `http://localhost:3001/integration/api-docs`
+- 개별 문서(Swagger UI): `/integration/swagger/{spec}`  
+  예: `http://localhost:3001/integration/swagger/aws`
 - 기존 Swagger UI(개별): `/{spec}`  
   예: `http://localhost:3001/aws`
-- Issue #222 실행형 미러: `/api-docs?spec=issue-222-client`  
-  예: `http://localhost:3001/api-docs?spec=issue-222-client`
+- Issue #222 실행형 미러: `/integration/api-docs?spec=issue-222-client`  
+  예: `http://localhost:3001/integration/api-docs?spec=issue-222-client`

@@ -13,5 +13,5 @@ export default async function ApiDocsSpecRedirectPage({ params }: PageProps) {
     notFound();
   }
 
-  redirect(`/${specName}`);
+  redirect(`/integration/swagger/${specName}`);
 }

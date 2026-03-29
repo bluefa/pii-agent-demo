@@ -48,7 +48,7 @@ describe('bffClient.confirm.getResources', () => {
     const response = await bffClient.confirm.getResources('1001');
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://bff.example.com/infra/v1/target-sources/1001/resources',
+      'https://bff.example.com/install/v1/target-sources/1001/resources',
     );
     await expect(response.json()).resolves.toEqual({
       resources: [
@@ -90,7 +90,7 @@ describe('bffClient.confirm.getResources', () => {
     await bffClient.targetSources.list('SERVICE-A');
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://bff.example.com/infra/v1/target-sources/services/SERVICE-A',
+      'https://bff.example.com/install/v1/target-sources/services/SERVICE-A',
     );
   });
 
@@ -113,7 +113,7 @@ describe('bffClient.confirm.getResources', () => {
     });
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://bff.example.com/infra/v1/target-sources/services/SERVICE-A/target-sources',
+      'https://bff.example.com/install/v1/target-sources/services/SERVICE-A/target-sources',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
