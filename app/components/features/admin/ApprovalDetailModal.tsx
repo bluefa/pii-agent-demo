@@ -14,6 +14,9 @@ interface ApprovalRequest {
   id: string;
   requested_at: string;
   requested_by: string;
+  status?: string;
+  resource_total_count?: number;
+  resource_selected_count?: number;
   input_data?: {
     resource_inputs?: ApprovalResourceInput[];
     exclusion_reason_default?: string;
@@ -55,8 +58,11 @@ export const ApprovalDetailModal = ({
 
   const isWaitingApproval = project.processStatus === ProcessStatus.WAITING_APPROVAL;
   const resourceInputs = approvalRequest.input_data?.resource_inputs ?? [];
-  const includedCount = resourceInputs.filter((resource) => resource.selected).length;
-  const excludedCount = resourceInputs.length - includedCount;
+  const includedCountFromSnapshot = resourceInputs.filter((resource) => resource.selected).length;
+  const totalCount = approvalRequest.resource_total_count ?? resourceInputs.length;
+  const includedCount = approvalRequest.resource_selected_count ?? includedCountFromSnapshot;
+  const excludedCount = Math.max(totalCount - includedCount, 0);
+  const hasRequestSummary = totalCount > 0 || includedCount > 0;
   const hasSnapshotSummary = resourceInputs.length > 0;
 
   const handleRejectSubmit = () => {
@@ -165,22 +171,24 @@ export const ApprovalDetailModal = ({
           </div>
         </div>
 
-        {hasSnapshotSummary ? (
+        {hasRequestSummary ? (
           <div className="grid grid-cols-3 gap-3">
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
-              <p className={cn('text-xs font-medium', textColors.tertiary)}>포함 리소스 수</p>
+              <p className={cn('text-xs font-medium', textColors.tertiary)}>승인 대상 수</p>
               <p className={cn('text-2xl font-semibold', textColors.primary)}>{includedCount}</p>
-              <p className={cn('text-xs', textColors.tertiary)}>legacy 응답에 포함된 참고 요약</p>
+              <p className={cn('text-xs', textColors.tertiary)}>
+                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'Issue #222 summary 응답 기준'}
+              </p>
             </div>
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
-              <p className={cn('text-xs font-medium', textColors.tertiary)}>제외 리소스 수</p>
+              <p className={cn('text-xs font-medium', textColors.tertiary)}>제외 대상 수</p>
               <p className={cn('text-2xl font-semibold', textColors.primary)}>{excludedCount}</p>
-              <p className={cn('text-xs', textColors.tertiary)}>승인 검토용 요약</p>
+              <p className={cn('text-xs', textColors.tertiary)}>총 요청 리소스 {totalCount}개</p>
             </div>
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
-              <p className={cn('text-xs font-medium', textColors.tertiary)}>기본 제외 사유</p>
+              <p className={cn('text-xs font-medium', textColors.tertiary)}>요청 상태</p>
               <p className={cn('text-sm leading-6', textColors.secondary)}>
-                {approvalRequest.input_data?.exclusion_reason_default ?? '-'}
+                {approvalRequest.status ?? 'PENDING'}
               </p>
             </div>
           </div>

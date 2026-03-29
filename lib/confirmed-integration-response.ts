@@ -9,12 +9,17 @@ interface LegacyConfirmedIntegration {
   resource_infos: ResourceSnapshot[];
 }
 
+interface Issue222ConfirmedIntegrationResourceInfo extends Omit<ConfirmedIntegrationResourceInfo, 'ip_configuration_name'> {
+  ip_configuration?: string | null;
+}
+
 export interface ConfirmedIntegrationEnvelopeResponse {
   confirmed_integration: BffConfirmedIntegration | LegacyConfirmedIntegration | null;
 }
 
 export type ConfirmedIntegrationResponsePayload =
   | BffConfirmedIntegration
+  | { resource_infos: Issue222ConfirmedIntegrationResourceInfo[] }
   | LegacyConfirmedIntegration
   | ConfirmedIntegrationEnvelopeResponse;
 
@@ -39,11 +44,11 @@ const DATABASE_TYPE_BY_RESOURCE_TYPE: Partial<Record<string, DatabaseType>> = {
 };
 
 const isLegacyConfirmedResourceInfo = (
-  resourceInfo: ConfirmedIntegrationResourceInfo | ResourceSnapshot,
+  resourceInfo: ConfirmedIntegrationResourceInfo | Issue222ConfirmedIntegrationResourceInfo | ResourceSnapshot,
 ): resourceInfo is ResourceSnapshot => 'endpoint_config' in resourceInfo;
 
 const normalizeConfirmedResourceInfo = (
-  resourceInfo: ConfirmedIntegrationResourceInfo | ResourceSnapshot,
+  resourceInfo: ConfirmedIntegrationResourceInfo | Issue222ConfirmedIntegrationResourceInfo | ResourceSnapshot,
 ): ConfirmedIntegrationResourceInfo => {
   if (isLegacyConfirmedResourceInfo(resourceInfo)) {
     const endpointConfig = resourceInfo.endpoint_config;
@@ -71,13 +76,14 @@ const normalizeConfirmedResourceInfo = (
     host: resourceInfo.host ?? null,
     oracle_service_id: resourceInfo.oracle_service_id ?? null,
     network_interface_id: resourceInfo.network_interface_id ?? null,
-    ip_configuration_name: resourceInfo.ip_configuration_name ?? null,
+    ip_configuration_name:
+      ('ip_configuration_name' in resourceInfo ? resourceInfo.ip_configuration_name : resourceInfo.ip_configuration) ?? null,
     credential_id: resourceInfo.credential_id ?? null,
   };
 };
 
 const normalizeConfirmedIntegration = (
-  integration: BffConfirmedIntegration | LegacyConfirmedIntegration,
+  integration: BffConfirmedIntegration | LegacyConfirmedIntegration | { resource_infos: Issue222ConfirmedIntegrationResourceInfo[] },
 ): BffConfirmedIntegration => ({
   resource_infos: integration.resource_infos.map(normalizeConfirmedResourceInfo),
 });

@@ -311,6 +311,25 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
     });
 
+    it('자동 승인 이력은 request/result 한 항목으로 묶여 approval-history에 노출된다', async () => {
+      addTestProject({
+        resources: [
+          createTestResource('res-1'),
+          createTestResource('res-2'),
+        ],
+      });
+
+      const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
+      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+
+      const historyRes = await mockConfirm.getApprovalHistory(TEST_PROJECT_ID, 0, 10);
+      const historyData = await parseResponse(historyRes);
+
+      expect(historyData.content).toHaveLength(1);
+      expect(historyData.content[0].request.input_data.resource_inputs).toHaveLength(2);
+      expect(historyData.content[0].result.result).toBe('AUTO_APPROVED');
+    });
+
     it('자동 승인 후 20초 경과 시 INSTALLING(IN_PROGRESS)으로 전환된다', async () => {
       addTestProject({
         resources: [
