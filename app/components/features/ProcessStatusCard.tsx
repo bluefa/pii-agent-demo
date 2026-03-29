@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
-import { getProcessStatus, getProject } from '@/app/lib/api';
+import { getConfirmedIntegration, getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
 import {
@@ -79,6 +79,9 @@ export const ProcessStatusCard = ({
 
   // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
   const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
+  const shouldShowConfirmedIntegration =
+    (currentStep === ProcessStatus.WAITING_APPROVAL || currentStep === ProcessStatus.APPLYING_APPROVED)
+    && hasConfirmedIntegration;
 
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -88,10 +91,34 @@ export const ProcessStatusCard = ({
   );
 
   useEffect(() => {
+    const needsConfirmedIntegration =
+      currentStep === ProcessStatus.WAITING_APPROVAL
+      || currentStep === ProcessStatus.APPLYING_APPROVED;
+
+    if (!needsConfirmedIntegration || !project.targetSourceId) return;
+
+    let cancelled = false;
+    void getConfirmedIntegration(project.targetSourceId)
+      .then((response) => {
+        if (!cancelled) {
+          setHasConfirmedIntegration(response.resource_infos.length > 0);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasConfirmedIntegration(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, project.targetSourceId]);
+
+  useEffect(() => {
     const shouldPoll =
       currentStep === ProcessStatus.WAITING_APPROVAL ||
-      currentStep === ProcessStatus.APPLYING_APPROVED ||
-      currentStep === ProcessStatus.INSTALLING;
+      currentStep === ProcessStatus.APPLYING_APPROVED;
 
     if (!shouldPoll || !project.targetSourceId) {
       if (pollRef.current) {
@@ -103,15 +130,13 @@ export const ProcessStatusCard = ({
 
     const expectedBff =
       currentStep === ProcessStatus.WAITING_APPROVAL
-        ? 'WAITING_APPROVAL'
-        : 'APPLYING_APPROVED';
+        ? 'PENDING'
+        : 'CONFIRMING';
 
     const poll = async () => {
       try {
         const status = await getProcessStatus(project.targetSourceId);
-        setHasConfirmedIntegration(status.status_inputs.has_confirmed_integration);
-        const shouldRefreshOnApplying = currentStep === ProcessStatus.APPLYING_APPROVED;
-        if (status.process_status !== expectedBff || shouldRefreshOnApplying) {
+        if (status.process_status !== expectedBff) {
           const updated = await getProject(project.targetSourceId);
           stableOnProjectUpdate(updated);
         }
@@ -217,14 +242,14 @@ export const ProcessStatusCard = ({
                   <ApprovalWaitingCard
                     targetSourceId={project.targetSourceId}
                     onCancelSuccess={refreshProject}
-                    hasConfirmedIntegration={hasConfirmedIntegration}
+                    hasConfirmedIntegration={shouldShowConfirmedIntegration}
                   />
                 )}
 
                 {currentStep === ProcessStatus.APPLYING_APPROVED && (
                   <ApprovalApplyingBanner
                     targetSourceId={project.targetSourceId}
-                    hasConfirmedIntegration={hasConfirmedIntegration}
+                    hasConfirmedIntegration={shouldShowConfirmedIntegration}
                   />
                 )}
 

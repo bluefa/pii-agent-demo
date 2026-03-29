@@ -21,6 +21,17 @@ import {
   normalizeTargetSourceProcessStatus,
   type TargetSourceDetailResponse,
 } from '@/lib/target-source-response';
+import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
+import {
+  normalizeIssue222ApprovalActionResponse,
+  normalizeIssue222ApprovalHistoryPage,
+  normalizeIssue222ApprovalRequestBody,
+  normalizeIssue222ApprovalRequestSummary,
+  normalizeIssue222ApprovedIntegration,
+  normalizeIssue222ProcessStatusResponse,
+  type Issue222ApprovalStatus,
+  type Issue222ResourceConfigDto,
+} from '@/lib/issue-222-approval';
 
 
 export interface CurrentUser {
@@ -206,44 +217,91 @@ export const getConfirmResources = async (
 ): Promise<ConfirmResourcesResponse> =>
   fetchInfraCamelJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
 
+export interface ApprovalResourceInputData {
+  credential_id?: string;
+  endpoint_config?: EndpointConfigInputData;
+  resource_id?: string;
+  resource_type?: string;
+  database_type?: DatabaseType;
+  port?: number;
+  host?: string;
+  oracle_service_id?: string;
+  network_interface_id?: string;
+  ip_configuration?: string;
+}
+
 export interface ApprovalResourceInput {
   resource_id: string;
   selected: boolean;
-  resource_input?: {
-    credential_id?: string;
-    endpoint_config?: EndpointConfigInputData;
-  };
+  resource_input?: ApprovalResourceInputData;
   exclusion_reason?: string;
 }
 
 export interface ApprovalRequestInput {
-  input_data: {
-    resource_inputs: ApprovalResourceInput[];
-    exclusion_reason_default?: string;
-  };
+  resource_inputs: ApprovalResourceInput[];
+  exclusion_reason_default?: string;
+}
+
+interface LegacyApprovalRequestInput {
+  input_data: ApprovalRequestInput;
 }
 
 export interface ApprovalRequestResult {
-  success: boolean;
-  approval_request: {
-    id: string;
-    requested_at: string;
-    requested_by: string;
-    input_data: {
-      resource_inputs: ApprovalResourceInput[];
-      exclusion_reason_default?: string;
-    };
-  };
+  id: string;
+  targetSourceId: number;
+  status: Issue222ApprovalStatus;
+  requestedAt: string;
+  requestedBy: string;
+  resourceTotalCount: number;
+  resourceSelectedCount: number;
 }
+
+const toEndpointConfigSnapshot = (resource: Issue222ResourceConfigDto): ResourceSnapshot['endpoint_config'] => {
+  if (!resource.database_type || resource.port === undefined || !resource.host) {
+    return null;
+  }
+
+  return {
+    resource_id: resource.resource_id ?? '',
+    db_type: resource.database_type as EndpointConfigInputData['db_type'],
+    port: resource.port,
+    host: resource.host,
+    ...(resource.oracle_service_id ? { oracleServiceId: resource.oracle_service_id } : {}),
+    ...(resource.network_interface_id ? { selectedNicId: resource.network_interface_id } : {}),
+  };
+};
+
+const toApprovedIntegrationResourceSnapshot = (
+  resource: Issue222ResourceConfigDto,
+): ApprovedIntegrationResourceItem => ({
+  resource_id: resource.resource_id ?? '',
+  resource_type: resource.resource_type ?? '',
+  endpoint_config: toEndpointConfigSnapshot(resource),
+  credential_id: resource.credential_id ?? null,
+});
 
 export const createApprovalRequest = async (
   targetSourceId: number,
-  input: ApprovalRequestInput
-): Promise<ApprovalRequestResult> =>
-  fetchInfraJson<ApprovalRequestResult>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
-    method: 'POST',
-    body: input,
-  });
+  input: ApprovalRequestInput | LegacyApprovalRequestInput,
+): Promise<ApprovalRequestResult> => {
+  const payload = normalizeIssue222ApprovalRequestSummary(
+    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
+      method: 'POST',
+      body: normalizeIssue222ApprovalRequestBody(input),
+    }),
+    { targetSourceId },
+  );
+
+  return {
+    id: String(payload.id ?? ''),
+    targetSourceId: payload.target_source_id ?? targetSourceId,
+    status: payload.status ?? 'PENDING',
+    requestedAt: payload.requested_at ?? '',
+    requestedBy: payload.requested_by?.user_id ?? '',
+    resourceTotalCount: payload.resource_total_count ?? 0,
+    resourceSelectedCount: payload.resource_selected_count ?? 0,
+  };
+};
 
 export type ConfirmedIntegrationResourceItem = ConfirmedIntegrationResourceInfo;
 export type ApprovedIntegrationResourceItem = ResourceSnapshot;
@@ -253,7 +311,9 @@ export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 export const getConfirmedIntegration = async (
   targetSourceId: number
 ): Promise<ConfirmedIntegrationResponse> =>
-  fetchInfraJson<ConfirmedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`);
+  extractConfirmedIntegration(
+    await fetchInfraJson<ConfirmedIntegrationResponsePayload>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`),
+  );
 
 export interface ApprovedIntegrationResponse {
   approved_integration: {
@@ -268,8 +328,27 @@ export interface ApprovedIntegrationResponse {
 
 export const getApprovedIntegration = async (
   targetSourceId: number
-): Promise<ApprovedIntegrationResponse> =>
-  fetchInfraJson<ApprovedIntegrationResponse>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`);
+): Promise<ApprovedIntegrationResponse> => {
+  const payload = normalizeIssue222ApprovedIntegration(
+    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`),
+  );
+
+  return {
+    approved_integration: {
+      id: String(payload.id ?? ''),
+      request_id: String(payload.request_id ?? ''),
+      approved_at: payload.approved_at ?? '',
+      resource_infos: payload.resource_infos.map(toApprovedIntegrationResourceSnapshot),
+      excluded_resource_ids: payload.excluded_resource_infos
+        ?.map((item) => item.resource_id)
+        .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0)
+        ?? [],
+      exclusion_reason: payload.excluded_resource_infos
+        ?.map((item) => item.exclusion_reason)
+        .find((reason): reason is string => typeof reason === 'string' && reason.length > 0),
+    },
+  };
+};
 
 export interface ApprovalHistoryResponse {
   content: Array<{
@@ -277,6 +356,9 @@ export interface ApprovalHistoryResponse {
       id: string;
       requested_at: string;
       requested_by: string;
+      status?: Issue222ApprovalStatus;
+      resource_total_count: number;
+      resource_selected_count: number;
       input_data: {
         resource_inputs: ApprovalResourceInput[];
         exclusion_reason_default?: string;
@@ -298,19 +380,44 @@ export const getApprovalHistory = async (
   page = 0,
   size = 10
 ): Promise<ApprovalHistoryResponse> => {
-  const response = await fetchInfraJson<ApprovalHistoryResponse & {
-    page: {
-      total_elements?: number;
-      total_pages?: number;
-    };
-  }>(`${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`);
+  const payload = normalizeIssue222ApprovalHistoryPage(
+    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`),
+    targetSourceId,
+  );
 
   return {
-    ...response,
+    content: payload.content.map((item) => ({
+      request: {
+        id: String(item.request.id ?? ''),
+        requested_at: item.request.requested_at ?? '',
+        requested_by: item.request.requested_by?.user_id ?? '',
+        ...(item.request.status ? { status: item.request.status } : {}),
+        resource_total_count: item.request.resource_total_count ?? 0,
+        resource_selected_count: item.request.resource_selected_count ?? 0,
+        input_data: {
+          resource_inputs: [],
+        },
+      },
+      ...(item.result
+        ? {
+            result: {
+              id: String(item.result.request_id ?? item.request.id ?? ''),
+              request_id: String(item.result.request_id ?? item.request.id ?? ''),
+              result: item.result.status ?? 'UNAVAILABLE',
+              processed_at: item.result.processed_at ?? '',
+              process_info: {
+                user_id: item.result.processed_by?.user_id ?? null,
+                reason: item.result.reason ?? null,
+              },
+            },
+          }
+        : {}),
+    })),
     page: {
-      ...response.page,
-      totalElements: response.page.totalElements ?? response.page.total_elements ?? 0,
-      totalPages: response.page.totalPages ?? response.page.total_pages ?? 0,
+      totalElements: payload.totalElements,
+      totalPages: payload.totalPages,
+      number: payload.number,
+      size: payload.size,
     },
   };
 };
@@ -318,48 +425,66 @@ export const getApprovalHistory = async (
 export const approveApprovalRequestV1 = async (
   targetSourceId: number,
   comment?: string
-): Promise<{ success: boolean; result: string; processed_at: string }> =>
-  fetchInfraJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
-    method: 'POST',
-    body: { comment },
-  });
+): Promise<{ success: boolean; result: string; processed_at: string }> => {
+  const payload = normalizeIssue222ApprovalActionResponse(
+    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
+      method: 'POST',
+      body: { comment },
+    }),
+  );
+
+  return {
+    success: true,
+    result: payload.status ?? 'APPROVED',
+    processed_at: payload.processed_at ?? '',
+  };
+};
 
 export const rejectApprovalRequestV1 = async (
   targetSourceId: number,
   reason: string
-): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> =>
-  fetchInfraJson(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
-    method: 'POST',
-    body: { reason },
-  });
+): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> => {
+  const payload = normalizeIssue222ApprovalActionResponse(
+    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
+      method: 'POST',
+      body: { reason },
+    }),
+  );
+
+  return {
+    success: true,
+    result: payload.status ?? 'REJECTED',
+    processed_at: payload.processed_at ?? '',
+    reason: payload.reason ?? reason,
+  };
+};
 
 export const cancelApprovalRequest = async (
   targetSourceId: number
-): Promise<{ success: boolean }> =>
-  fetchInfraJson<{ success: boolean }>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`, {
+): Promise<{ success: boolean }> => {
+  await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`, {
     method: 'POST',
   });
+  return {
+    success: true,
+  };
+};
 
-export type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
-export type LastApprovalResult = 'NONE' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'SYSTEM_ERROR' | 'COMPLETED';
+export type BffProcessStatus = 'IDLE' | 'PENDING' | 'CONFIRMING' | 'CONFIRMED' | 'INSTALLED' | 'CONNECTED' | 'COMPLETED';
 
 export interface ProcessStatusResponse {
   target_source_id: number;
   process_status: BffProcessStatus;
-  status_inputs: {
-    has_confirmed_integration: boolean;
-    has_pending_approval_request: boolean;
-    has_approved_integration: boolean;
-    last_approval_result: LastApprovalResult;
-    last_rejection_reason: string | null;
-  };
+  healthy: 'UNKNOWN' | 'HEALTHY' | 'UNHEALTHY' | 'DEGRADED';
   evaluated_at: string;
 }
 
 export const getProcessStatus = async (
   targetSourceId: number
 ): Promise<ProcessStatusResponse> =>
-  fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
+  normalizeIssue222ProcessStatusResponse(
+    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/process-status`),
+  );
 
 // ===== Connection Test API (Async) =====
 

@@ -19,6 +19,7 @@ export type AppErrorCode =
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR'
   // 도메인 에러 (서버 KnownErrorCode와 1:1 대응)
+  | 'APPROVED_INTEGRATION_NOT_FOUND'
   | 'CONFIRMED_INTEGRATION_NOT_FOUND'
   // 클라이언트 전용 codes
   | 'NETWORK'
@@ -36,6 +37,7 @@ export const KNOWN_ERROR_CODES: ReadonlySet<string> = new Set<string>([
   'CONFLICT',
   'RATE_LIMITED',
   'INTERNAL_ERROR',
+  'APPROVED_INTEGRATION_NOT_FOUND',
   'CONFIRMED_INTEGRATION_NOT_FOUND',
 ]);
 

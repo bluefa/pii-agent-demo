@@ -3,10 +3,7 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { client } from '@/lib/api-client';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-
-interface ApprovalHistoryResponse {
-  content?: unknown[];
-}
+import { normalizeIssue222ApprovalHistoryPage } from '@/lib/issue-222-approval';
 
 const createNotFoundProblem = (requestId: string): NextResponse =>
   NextResponse.json({
@@ -32,8 +29,8 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const response = await client.confirm.getApprovalHistory(resolved.projectId, 0, 1);
   if (!response.ok) return response;
 
-  const payload = await response.json() as ApprovalHistoryResponse;
-  const latest = Array.isArray(payload.content) ? payload.content[0] : undefined;
+  const payload = normalizeIssue222ApprovalHistoryPage(await response.json(), parsed.value);
+  const latest = payload.content[0];
 
   if (!latest) {
     return createNotFoundProblem(requestId);
