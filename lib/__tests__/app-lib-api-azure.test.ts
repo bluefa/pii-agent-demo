@@ -28,7 +28,7 @@ describe('app/lib/api/azure', () => {
     const settings = await getAzureSettings(1003);
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-      '/api/integration/v1/azure/target-sources/1003/settings',
+      '/integration/api/v1/azure/target-sources/1003/settings',
     );
     expect(settings).toEqual({
       tenantId: 'tenant-from-settings',
