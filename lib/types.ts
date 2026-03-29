@@ -23,6 +23,21 @@ export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 export type AwsInstallationMode = 'AUTO' | 'MANUAL';
 
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
+export type Issue222CloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
+
+const CLOUD_PROVIDER_ALIASES: Record<string, CloudProvider> = {
+  AWS: 'AWS',
+  AZURE: 'Azure',
+  GCP: 'GCP',
+  IDC: 'IDC',
+  SDU: 'SDU',
+  UNKNOWN: 'IDC',
+};
+
+export const normalizeCloudProvider = (value: unknown): CloudProvider => {
+  if (typeof value !== 'string') return 'IDC';
+  return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'IDC';
+};
 
 export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'MONGODB' | 'ORACLE';
 
@@ -63,6 +78,21 @@ export interface ClusterInstance {
 }
 
 export type AzureResourceType = 'AZURE_MSSQL' | 'AZURE_POSTGRESQL' | 'AZURE_MYSQL' | 'AZURE_MARIADB' | 'AZURE_COSMOS_NOSQL' | 'AZURE_SYNAPSE' | 'AZURE_VM';
+export type Issue222AzureResourceType =
+  | 'AZURE_SQL_SERVER'
+  | 'AZURE_SQL_SERVER_MANAGED_INSTANCE'
+  | 'AZURE_MYSQL_FLEXIBLE_SERVER'
+  | 'AZURE_MYSQL'
+  | 'AZURE_POSTGRESQL'
+  | 'AZURE_POSTGRESQL_FLEXIBLE_SERVER'
+  | 'AZURE_MARIADB'
+  | 'AZURE_COSMOSDB_NOSQL'
+  | 'AZURE_SERVICE_PRINCIPAL'
+  | 'AZURE_PRIVATE_ENDPOINT'
+  | 'AZURE_VIRTUAL_MACHINE'
+  | 'AZURE_VIRTUAL_SUBNET'
+  | 'AZURE_SYNAPSE_WORKSPACE'
+  | 'AZURE_NETWORK_INTERFACE';
 
 // Azure DB 네트워킹 모드 (MySQL, PostgreSQL Flexible Server)
 export type AzureNetworkingMode = 'PUBLIC_ACCESS' | 'VNET_INTEGRATION';
@@ -70,6 +100,51 @@ export type AzureNetworkingMode = 'PUBLIC_ACCESS' | 'VNET_INTEGRATION';
 export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
 
 export type ResourceType = AwsResourceType | AzureResourceType | GcpResourceType | 'IDC';
+
+const RESOURCE_TYPE_ALIASES = {
+  AWS_ATHENA: 'ATHENA',
+  AWS_DB_CLUSTER: 'RDS_CLUSTER',
+  AWS_DB_INSTANCE: 'RDS',
+  AWS_DYNAMO_DB_GLOBAL_TABLE: 'DYNAMODB',
+  AWS_DYNAMO_DB_TABLE: 'DYNAMODB',
+  AWS_EC2_INSTANCE: 'EC2',
+  AWS_REDSHIFT_CLUSTER: 'REDSHIFT',
+  AZURE_COSMOSDB_NOSQL: 'AZURE_COSMOS_NOSQL',
+  AZURE_MYSQL_FLEXIBLE_SERVER: 'AZURE_MYSQL',
+  AZURE_POSTGRESQL_FLEXIBLE_SERVER: 'AZURE_POSTGRESQL',
+  AZURE_SQL_SERVER: 'AZURE_MSSQL',
+  AZURE_SQL_SERVER_MANAGED_INSTANCE: 'AZURE_MSSQL',
+  AZURE_SYNAPSE_WORKSPACE: 'AZURE_SYNAPSE',
+  AZURE_VIRTUAL_MACHINE: 'AZURE_VM',
+  GCP_BIGQUERY_DATASET_REGION: 'BIGQUERY',
+  GCP_SQL: 'CLOUD_SQL',
+} as const satisfies Record<string, string>;
+
+export const normalizeResourceType = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return null;
+
+  return RESOURCE_TYPE_ALIASES[normalized as keyof typeof RESOURCE_TYPE_ALIASES] ?? normalized;
+};
+
+export const normalizeAzureResourceType = (value: unknown): AzureResourceType | null => {
+  const normalized = normalizeResourceType(value);
+
+  switch (normalized) {
+    case 'AZURE_MSSQL':
+    case 'AZURE_POSTGRESQL':
+    case 'AZURE_MYSQL':
+    case 'AZURE_MARIADB':
+    case 'AZURE_COSMOS_NOSQL':
+    case 'AZURE_SYNAPSE':
+    case 'AZURE_VM':
+      return normalized;
+    default:
+      return null;
+  }
+};
 
 export type AwsRegion =
   | 'ap-northeast-2'
@@ -717,6 +792,18 @@ export interface ConfirmResourceMetadata {
   region?: string;
   vpcId?: string;
   projectId?: string;
+  rawResourceType?: string;
+  subscriptionId?: string;
+  resourceGroup?: string;
+  serverName?: string;
+  host?: string;
+  port?: number;
+  accountName?: string;
+  endpoint?: string;
+  workspaceName?: string;
+  vmName?: string;
+  hostName?: string;
+  privateIp?: string;
 }
 
 /** 승인 완료 정보 — 반영 중 스냅샷 (Swagger ApprovedIntegration) */

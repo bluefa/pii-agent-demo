@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Project } from '@/lib/types';
+import type { Project } from '@/lib/types';
+import { getProjectCodeDisplay, getServiceCodeDisplay } from '@/lib/constants/labels';
 import { primaryColors } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
 
@@ -33,6 +34,8 @@ const ChevronRight = () => (
 
 export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
   const router = useRouter();
+  const projectCode = getProjectCodeDisplay(project.projectCode, project.targetSourceId);
+  const serviceCode = getServiceCodeDisplay(project.serviceCode);
 
   return (
     <>
@@ -62,10 +65,10 @@ export const ProjectHeader = ({ project }: ProjectHeaderProps) => {
             onClick={() => router.push(integrationRoutes.admin)}
             className="text-gray-500 hover:text-gray-700 transition-colors"
           >
-            {project.serviceCode}
+            {serviceCode}
           </button>
           <ChevronRight />
-          <span className="font-medium text-gray-900">{project.projectCode}</span>
+          <span className="font-medium text-gray-900">{projectCode}</span>
         </nav>
       </div>
     </>

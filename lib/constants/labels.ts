@@ -4,7 +4,16 @@
  * UI에서 사용되는 라벨, 에러 메시지, 상태 텍스트 등을 중앙에서 관리합니다.
  */
 
-import { ProcessStatus, ConnectionStatus, AwsResourceType, AzureResourceType, GcpResourceType, ResourceType, CloudProvider } from '@/lib/types';
+import {
+  ProcessStatus,
+  ConnectionStatus,
+  AwsResourceType,
+  AzureResourceType,
+  GcpResourceType,
+  ResourceType,
+  CloudProvider,
+  normalizeResourceType,
+} from '@/lib/types';
 
 /**
  * 연결 에러 타입 라벨
@@ -149,12 +158,12 @@ export const AWS_RESOURCE_TYPE_ORDER: AwsResourceType[] = [
 ];
 
 export const AZURE_RESOURCE_TYPE_LABELS: Record<AzureResourceType, string> = {
-  AZURE_MSSQL: 'Azure SQL Database',
+  AZURE_MSSQL: 'Azure SQL',
   AZURE_POSTGRESQL: 'Azure Database for PostgreSQL',
   AZURE_MYSQL: 'Azure Database for MySQL',
   AZURE_MARIADB: 'Azure Database for MariaDB',
-  AZURE_COSMOS_NOSQL: 'Azure Cosmos DB',
-  AZURE_SYNAPSE: 'Azure Synapse Analytics',
+  AZURE_COSMOS_NOSQL: 'Azure Cosmos DB for NoSQL',
+  AZURE_SYNAPSE: 'Azure Synapse Workspace',
   AZURE_VM: 'Azure Virtual Machine',
 };
 
@@ -170,11 +179,36 @@ export const GCP_RESOURCE_TYPE_LABELS: Record<GcpResourceType, string> = {
 
 export const GCP_RESOURCE_TYPE_ORDER: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
 
-export const getResourceTypeLabel = (type: ResourceType): string => {
-  if (type in AWS_RESOURCE_TYPE_LABELS) return AWS_RESOURCE_TYPE_LABELS[type as AwsResourceType];
-  if (type in AZURE_RESOURCE_TYPE_LABELS) return AZURE_RESOURCE_TYPE_LABELS[type as AzureResourceType];
-  if (type in GCP_RESOURCE_TYPE_LABELS) return GCP_RESOURCE_TYPE_LABELS[type as GcpResourceType];
-  return type;
+const hasIdentifierValue = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && value.trim().length > 0;
+
+export const getProjectCodeDisplay = (
+  projectCode: string | null | undefined,
+  targetSourceId: number,
+): string => (hasIdentifierValue(projectCode) ? projectCode.trim() : `TS-${targetSourceId}`);
+
+export const hasProjectCode = (projectCode: string | null | undefined): boolean =>
+  hasIdentifierValue(projectCode);
+
+export const getServiceCodeDisplay = (serviceCode: string | null | undefined): string =>
+  hasIdentifierValue(serviceCode) ? serviceCode.trim() : '서비스 코드 미제공';
+
+export const hasServiceCode = (serviceCode: string | null | undefined): boolean =>
+  hasIdentifierValue(serviceCode);
+
+export const getResourceTypeLabel = (type: string): string => {
+  const normalizedType = normalizeResourceType(type) ?? type;
+
+  if (normalizedType in AWS_RESOURCE_TYPE_LABELS) {
+    return AWS_RESOURCE_TYPE_LABELS[normalizedType as AwsResourceType];
+  }
+  if (normalizedType in AZURE_RESOURCE_TYPE_LABELS) {
+    return AZURE_RESOURCE_TYPE_LABELS[normalizedType as AzureResourceType];
+  }
+  if (normalizedType in GCP_RESOURCE_TYPE_LABELS) {
+    return GCP_RESOURCE_TYPE_LABELS[normalizedType as GcpResourceType];
+  }
+  return normalizedType;
 };
 
 export const RESOURCE_TYPE_ORDER_BY_PROVIDER: Partial<Record<CloudProvider, ResourceType[]>> = {
@@ -182,4 +216,3 @@ export const RESOURCE_TYPE_ORDER_BY_PROVIDER: Partial<Record<CloudProvider, Reso
   Azure: AZURE_RESOURCE_TYPE_ORDER,
   GCP: GCP_RESOURCE_TYPE_ORDER,
 };
-
