@@ -127,14 +127,12 @@ export interface VmInstallationDetail {
 export interface AzureResourceStatus {
   resourceId: string;
   resourceType: string;
-  isVm: boolean;
   resourceName?: string;
   privateEndpoint?: PrivateEndpointDetail;
   vmInstallation?: VmInstallationDetail;
 }
 
 export interface AzureInstallationStatusResponse {
-  hasVm: boolean;
   lastCheck: LastCheckInfo;
   resources?: AzureResourceStatus[];
 }

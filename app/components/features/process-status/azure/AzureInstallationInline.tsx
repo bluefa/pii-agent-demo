@@ -66,7 +66,7 @@ const downloadTfScript = (targetSourceId: number) => {
 };
 
 const toInstallStep = (v1Resource: AzureV1Resource): InstallStep => {
-  if (v1Resource.isVm && v1Resource.vmInstallation) {
+  if (v1Resource.resourceType === 'AZURE_VM' && v1Resource.vmInstallation) {
     return getVmInstallStep(
       v1Resource.vmInstallation.subnetExists ?? false,
       v1Resource.vmInstallation.loadBalancer?.installed ?? false,
@@ -154,7 +154,7 @@ export const AzureInstallationInline = ({
         id: resource.id,
         name: resource.resourceId,
         resourceType: resource.type,
-        isVm: v1.isVm,
+        isVm: v1.resourceType === 'AZURE_VM',
         step,
         peId: v1.privateEndpoint?.id,
         isCompleted: step === 'COMPLETED',

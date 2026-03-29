@@ -123,12 +123,8 @@ components:
       type: object
       description: 통합 설치 상태 응답 모델
       required:
-        - has_vm
         - last_check
       properties:
-        has_vm:
-          type: boolean
-          description: 대상 리소스 중 VM 포함 여부
         last_check:
           $ref: '#/components/schemas/LastCheckInfo'
         resources:
@@ -162,7 +158,6 @@ components:
       required:
         - resource_id
         - resource_type
-        - is_vm
       properties:
         resource_id:
           type: string
@@ -173,9 +168,6 @@ components:
         resource_type:
           type: string
           description: '리소스 타입 (예: AZURE_VM, AZURE_MSSQL)'
-        is_vm:
-          type: boolean
-          description: VM 여부
         private_endpoint:
           $ref: '#/components/schemas/PrivateEndpointDetail'
         vm_installation:

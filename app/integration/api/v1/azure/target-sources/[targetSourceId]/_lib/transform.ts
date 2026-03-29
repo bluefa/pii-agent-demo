@@ -54,10 +54,10 @@ export interface LegacyVmInstallationStatus {
 
 export const buildLastCheck = (lastCheckedAt?: string, error?: { code: string; message: string }) => {
   if (error) {
-    return { status: 'FAILED' as const, checkedAt: lastCheckedAt, failReason: error.message };
+    return { status: 'FAILED' as const, checked_at: lastCheckedAt, fail_reason: error.message };
   }
   if (lastCheckedAt) {
-    return { status: 'SUCCESS' as const, checkedAt: lastCheckedAt };
+    return { status: 'SUCCESS' as const, checked_at: lastCheckedAt };
   }
   return { status: 'SUCCESS' as const };
 };
@@ -79,11 +79,10 @@ export const buildV1Response = (
     const vm = isVm ? vmMap.get(r.resourceId) : undefined;
 
     const base = {
-      resourceId: r.resourceId,
-      resourceName: r.resourceName,
-      resourceType: r.resourceType,
-      isVm,
-      privateEndpoint: {
+      resource_id: r.resourceId,
+      resource_name: r.resourceName,
+      resource_type: r.resourceType,
+      private_endpoint: {
         id: r.privateEndpoint.id,
         name: r.privateEndpoint.name,
         status: r.privateEndpoint.status,
@@ -95,12 +94,12 @@ export const buildV1Response = (
     // VM: PE 정보를 VM 쪽에서 가져오고, vmInstallation 추가
     return {
       ...base,
-      privateEndpoint: vm.privateEndpoint
+      private_endpoint: vm.privateEndpoint
         ? { id: vm.privateEndpoint.id, name: vm.privateEndpoint.name, status: vm.privateEndpoint.status }
-        : base.privateEndpoint,
-      vmInstallation: {
-        subnetExists: vm.subnetExists,
-        loadBalancer: {
+        : base.private_endpoint,
+      vm_installation: {
+        subnet_exists: vm.subnetExists,
+        load_balancer: {
           installed: vm.loadBalancer.installed,
           name: vm.loadBalancer.name || undefined,
         },
@@ -109,8 +108,7 @@ export const buildV1Response = (
   });
 
   return {
-    hasVm: resources.some(r => r.isVm),
-    lastCheck: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
+    last_check: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
     resources,
   };
 };
