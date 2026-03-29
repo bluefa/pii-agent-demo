@@ -218,7 +218,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const approvedData = await parseResponse(approvedRes);
       expect(approvedData.approved_integration).not.toBeNull();
       expect(approvedData.approved_integration.resource_infos).toHaveLength(2);
-      expect(approvedData.approved_integration.excluded_resource_ids).toContain('res-3');
+      expect(approvedData.approved_integration.excluded_resource_ids).toContain('rds-res-3');
     });
   });
 
@@ -856,7 +856,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(res.status).toBe(200);
       expect(data.approved_integration).not.toBeNull();
       expect(data.approved_integration.resource_infos).toHaveLength(2);
-      expect(data.approved_integration.excluded_resource_ids).toContain('res-3');
+      expect(data.approved_integration.excluded_resource_ids).toContain('rds-res-3');
       expect(data.approved_integration.exclusion_reason).toBe('제외');
     });
 
