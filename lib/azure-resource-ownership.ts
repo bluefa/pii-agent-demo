@@ -36,6 +36,7 @@ interface AzureApprovalHistoryEntry {
 
 type AzureSelectionSource =
   | 'catalog'
+  | 'project'
   | 'approval-history'
   | 'approved-integration'
   | 'confirmed-integration';
@@ -53,6 +54,7 @@ interface ResolvedSelectionState {
 
 export interface AzureResourceOwnershipInput {
   currentStep: ProcessStatus;
+  projectResources: Resource[];
   catalog: AzureResourceCatalogItem[];
   latestApprovalRequest: AzureApprovalHistoryEntry | null;
   approvedIntegration: BffApprovedIntegration | null;
@@ -163,6 +165,22 @@ const buildSelectionFromApprovedIntegration = (
   );
 };
 
+const buildSelectionFromProjectResources = (
+  projectResources: Resource[],
+): Map<string, SelectedResourceState> =>
+  new Map(
+    projectResources
+      .filter((resource) => resource.isSelected)
+      .map((resource) => [
+        resource.id,
+        {
+          databaseType: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
+          selectedCredentialId: resource.selectedCredentialId,
+          vmDatabaseConfig: resource.vmDatabaseConfig,
+        } satisfies SelectedResourceState,
+      ]),
+  );
+
 const buildSelectionFromConfirmedIntegration = (
   confirmedIntegration: BffConfirmedIntegration,
 ): Map<string, SelectedResourceState> =>
@@ -179,6 +197,7 @@ const buildSelectionFromConfirmedIntegration = (
 
 const resolveSelectionState = ({
   currentStep,
+  projectResources,
   latestApprovalRequest,
   approvedIntegration,
   confirmedIntegration,
@@ -188,6 +207,17 @@ const resolveSelectionState = ({
     return {
       source: 'approved-integration',
       selectedResources: approvedSelection,
+    };
+  }
+
+  const projectSelection = buildSelectionFromProjectResources(projectResources);
+  if (
+    (currentStep === ProcessStatus.WAITING_APPROVAL || currentStep === ProcessStatus.APPLYING_APPROVED)
+    && projectSelection.size > 0
+  ) {
+    return {
+      source: 'project',
+      selectedResources: projectSelection,
     };
   }
 
@@ -207,6 +237,13 @@ const resolveSelectionState = ({
     };
   }
 
+  if (projectSelection.size > 0) {
+    return {
+      source: 'project',
+      selectedResources: projectSelection,
+    };
+  }
+
   return {
     source: 'catalog',
     selectedResources: new Map(),
@@ -214,6 +251,7 @@ const resolveSelectionState = ({
 };
 
 export const buildAzureOwnedResources = ({
+  projectResources,
   catalog,
   currentStep,
   latestApprovalRequest,
@@ -222,6 +260,7 @@ export const buildAzureOwnedResources = ({
 }: AzureResourceOwnershipInput): AzureResourceOwnershipResult => {
   const { source, selectedResources } = resolveSelectionState({
     currentStep,
+    projectResources,
     latestApprovalRequest,
     approvedIntegration,
     confirmedIntegration,

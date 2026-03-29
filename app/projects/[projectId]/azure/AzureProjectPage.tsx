@@ -205,12 +205,13 @@ export const AzureProjectPage = ({
     () =>
       buildAzureOwnedResources({
         currentStep,
+        projectResources: project.resources,
         catalog: catalogResources,
         latestApprovalRequest,
         approvedIntegration,
         confirmedIntegration,
       }).resources,
-    [approvedIntegration, catalogResources, confirmedIntegration, currentStep, latestApprovalRequest],
+    [approvedIntegration, catalogResources, confirmedIntegration, currentStep, latestApprovalRequest, project.resources],
   );
 
   const restoredSelectedIds = useMemo(
@@ -291,13 +292,13 @@ export const AzureProjectPage = ({
               resource_id: resource.id,
               selected: true as const,
               resource_input: {
-                endpoint_config: {
-                  db_type: vmConfig.databaseType,
-                  port: vmConfig.port,
-                  host: vmConfig.host ?? '',
-                  ...(vmConfig.oracleServiceId ? { oracleServiceId: vmConfig.oracleServiceId } : {}),
-                  ...(vmConfig.selectedNicId ? { selectedNicId: vmConfig.selectedNicId } : {}),
-                },
+                resource_id: resource.id,
+                resource_type: resource.type,
+                database_type: vmConfig.databaseType,
+                port: vmConfig.port,
+                host: vmConfig.host ?? '',
+                ...(vmConfig.oracleServiceId ? { oracle_service_id: vmConfig.oracleServiceId } : {}),
+                ...(vmConfig.selectedNicId ? { network_interface_id: vmConfig.selectedNicId } : {}),
               },
             };
           }
@@ -306,6 +307,8 @@ export const AzureProjectPage = ({
             resource_id: resource.id,
             selected: true as const,
             resource_input: {
+              resource_id: resource.id,
+              resource_type: resource.type,
               credential_id: resource.selectedCredentialId ?? '',
             },
           };
@@ -319,9 +322,7 @@ export const AzureProjectPage = ({
       });
 
       await createApprovalRequest(project.targetSourceId, {
-        input_data: {
-          resource_inputs: resourceInputs,
-        },
+        resource_inputs: resourceInputs,
       });
 
       const [updatedProject] = await Promise.all([

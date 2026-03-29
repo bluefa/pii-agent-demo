@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createApprovalRequest,
   createProject,
+  getApprovalHistory,
+  getApprovedIntegration,
   getConfirmResources,
   getConfirmedIntegration,
+  getProcessStatus,
   getProjects,
   getServices,
   searchUsers,
@@ -177,6 +181,224 @@ describe('app/lib/api/index', () => {
         },
       ],
       totalCount: 1,
+    });
+  });
+
+  it('createApprovalRequest는 legacy input_data를 Issue #222 flat payload로 변환한다', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 44,
+          target_source_id: 1001,
+          status: 'PENDING',
+          requested_by: { user_id: 'alice' },
+          requested_at: '2026-03-29T00:00:00Z',
+          resource_total_count: 2,
+          resource_selected_count: 1,
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const result = await createApprovalRequest(1001, {
+      input_data: {
+        resource_inputs: [
+          {
+            resource_id: 'vm-1',
+            selected: true,
+            resource_input: {
+              endpoint_config: {
+                db_type: 'ORACLE',
+                host: '10.0.0.7',
+                port: 1521,
+                oracleServiceId: 'ORCL',
+                selectedNicId: 'nic-1',
+              },
+            },
+          },
+          {
+            resource_id: 'sql-2',
+            selected: false,
+            exclusion_reason: 'skip',
+          },
+        ],
+      },
+    });
+
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/integration/v1/target-sources/1001/approval-requests');
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({
+        resource_inputs: [
+          {
+            resource_id: 'vm-1',
+            selected: true,
+            resource_input: {
+              resource_id: 'vm-1',
+              database_type: 'ORACLE',
+              port: 1521,
+              host: '10.0.0.7',
+              oracle_service_id: 'ORCL',
+              network_interface_id: 'nic-1',
+            },
+          },
+          {
+            resource_id: 'sql-2',
+            selected: false,
+            exclusion_reason: 'skip',
+          },
+        ],
+      }),
+    });
+    expect(result).toEqual({
+      id: '44',
+      targetSourceId: 1001,
+      status: 'PENDING',
+      requestedAt: '2026-03-29T00:00:00Z',
+      requestedBy: 'alice',
+      resourceTotalCount: 2,
+      resourceSelectedCount: 1,
+    });
+  });
+
+  it('getApprovedIntegration은 Issue #222 응답을 기존 UI 스냅샷으로 감싼다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 17,
+          request_id: 22,
+          approved_at: '2026-03-29T00:00:00Z',
+          resource_infos: [
+            {
+              resource_id: 'vm-1',
+              resource_type: 'AZURE_VM',
+              database_type: 'POSTGRESQL',
+              port: 5432,
+              host: '10.0.0.9',
+              network_interface_id: 'nic-9',
+            },
+          ],
+          excluded_resource_infos: [
+            {
+              resource_id: 'sql-2',
+              exclusion_reason: 'skip',
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const approvedIntegration = await getApprovedIntegration(1001);
+
+    expect(approvedIntegration).toEqual({
+      approved_integration: {
+        id: '17',
+        request_id: '22',
+        approved_at: '2026-03-29T00:00:00Z',
+        resource_infos: [
+          {
+            resource_id: 'vm-1',
+            resource_type: 'AZURE_VM',
+            endpoint_config: {
+              resource_id: 'vm-1',
+              db_type: 'POSTGRESQL',
+              port: 5432,
+              host: '10.0.0.9',
+              selectedNicId: 'nic-9',
+            },
+            credential_id: null,
+          },
+        ],
+        excluded_resource_ids: ['sql-2'],
+        exclusion_reason: 'skip',
+      },
+    });
+  });
+
+  it('getApprovalHistory는 Issue #222 page 응답을 기존 UI 요약 구조로 변환한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [
+            {
+              request: {
+                id: 11,
+                target_source_id: 1001,
+                status: 'PENDING',
+                requested_by: { user_id: 'alice' },
+                requested_at: '2026-03-29T00:00:00Z',
+                resource_total_count: 3,
+                resource_selected_count: 2,
+              },
+            },
+          ],
+          totalElements: 1,
+          totalPages: 1,
+          number: 0,
+          size: 10,
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const history = await getApprovalHistory(1001);
+
+    expect(history).toEqual({
+      content: [
+        {
+          request: {
+            id: '11',
+            requested_at: '2026-03-29T00:00:00Z',
+            requested_by: 'alice',
+            status: 'PENDING',
+            resource_total_count: 3,
+            resource_selected_count: 2,
+            input_data: {
+              resource_inputs: [],
+            },
+          },
+        },
+      ],
+      page: {
+        totalElements: 1,
+        totalPages: 1,
+        number: 0,
+        size: 10,
+      },
+    });
+  });
+
+  it('getProcessStatus는 Issue #222 process-status 응답을 그대로 사용한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          target_source_id: 1001,
+          process_status: 'CONFIRMING',
+          healthy: 'DEGRADED',
+          evaluated_at: '2026-03-29T00:00:00Z',
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    await expect(getProcessStatus(1001)).resolves.toEqual({
+      target_source_id: 1001,
+      process_status: 'CONFIRMING',
+      healthy: 'DEGRADED',
+      evaluated_at: '2026-03-29T00:00:00Z',
     });
   });
 

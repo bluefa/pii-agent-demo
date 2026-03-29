@@ -7,6 +7,9 @@ type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
 type ApprovalRequest = ApprovalHistoryItem['request'];
 type ApprovalRequestWithOptionalInputData = Omit<ApprovalRequest, 'input_data'> & {
   input_data?: ApprovalRequest['input_data'];
+  resource_total_count?: number;
+  resource_selected_count?: number;
+  status?: ApprovalRequest['status'];
 };
 
 interface ApprovalRequestDetailModalProps {
@@ -103,9 +106,12 @@ export const ApprovalRequestDetailModal = ({
 
   const request = item.request as ApprovalRequestWithOptionalInputData;
   const resourceInputs = request.input_data?.resource_inputs ?? [];
-  const selectedCount = resourceInputs.filter((resource) => resource.selected).length;
-  const excludedCount = resourceInputs.length - selectedCount;
+  const selectedCountFromSnapshot = resourceInputs.filter((resource) => resource.selected).length;
+  const totalCount = request.resource_total_count ?? resourceInputs.length;
+  const selectedCount = request.resource_selected_count ?? selectedCountFromSnapshot;
+  const excludedCount = Math.max(totalCount - selectedCount, 0);
   const hasSnapshotSummary = resourceInputs.length > 0;
+  const hasRequestSummary = totalCount > 0 || selectedCount > 0;
   const resultMeta = getResultMeta(item.result);
 
   return (
@@ -152,29 +158,29 @@ export const ApprovalRequestDetailModal = ({
           </div>
         </div>
 
-        {hasSnapshotSummary ? (
+        {hasRequestSummary ? (
           <div className="grid grid-cols-2 gap-3">
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
-              <p className={cn('text-xs font-medium', textColors.tertiary)}>포함 리소스 수</p>
+              <p className={cn('text-xs font-medium', textColors.tertiary)}>승인 대상 수</p>
               <p className={cn('text-2xl font-semibold', textColors.primary)}>{selectedCount}</p>
-              <p className={cn('text-xs', textColors.tertiary)}>legacy 응답에 포함된 참고 요약</p>
+              <p className={cn('text-xs', textColors.tertiary)}>
+                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'Issue #222 summary 응답 기준'}
+              </p>
             </div>
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
-              <p className={cn('text-xs font-medium', textColors.tertiary)}>제외 리소스 수</p>
+              <p className={cn('text-xs font-medium', textColors.tertiary)}>제외 대상 수</p>
               <p className={cn('text-2xl font-semibold', textColors.primary)}>{excludedCount}</p>
-              <p className={cn('text-xs', textColors.tertiary)}>
-                기본 제외 사유 {request.input_data?.exclusion_reason_default ?? '-'}
-              </p>
+              <p className={cn('text-xs', textColors.tertiary)}>총 요청 리소스 {totalCount}개</p>
             </div>
           </div>
         ) : (
           <div className={cn('rounded-xl border p-4 space-y-2', statusColors.info.bg, statusColors.info.border)}>
             <p className={cn('text-sm font-medium', statusColors.info.textDark)}>
-              상세 입력 스냅샷 없이 요약만 제공됩니다
+              요청 메타데이터 중심 요약입니다
             </p>
             <p className={cn('text-sm leading-6', statusColors.info.text)}>
-              Issue #222 계약 기준으로 `approval-history`와 `approval-requests/latest` 응답에는 `resource_inputs`가 포함되지 않을 수 있습니다.
-              이 화면은 요청 메타데이터와 승인 처리 결과를 빠르게 확인하는 용도로 유지합니다.
+              Issue #222 계약 기준으로 `approval-history`와 `approval-requests/latest`는 요약 정보만 보장합니다.
+              상세 선택 복원은 `target-source`, `approved-integration`, `confirmed-integration` 응답을 기준으로 이어집니다.
             </p>
           </div>
         )}

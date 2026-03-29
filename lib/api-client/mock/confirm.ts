@@ -9,6 +9,7 @@ import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
+import { normalizeIssue222ApprovalRequestBody } from '@/lib/issue-222-approval';
 import type {
   Resource,
   Project,
@@ -201,13 +202,22 @@ function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegratio
 }
 
 interface ApprovalRequestCreateBody {
-  input_data: {
-    resource_inputs: Array<
-      | { resource_id: string; selected: true; resource_input?: { credential_id?: string; endpoint_config?: EndpointConfigInputData } }
-      | { resource_id: string; selected: false; exclusion_reason?: string }
-    >;
-    exclusion_reason_default?: string;
-  };
+  resource_inputs: Array<
+    | {
+      resource_id: string;
+      selected: true;
+      resource_input?: {
+        credential_id?: string;
+        database_type?: string;
+        port?: number;
+        host?: string;
+        oracle_service_id?: string;
+        network_interface_id?: string;
+      };
+    }
+    | { resource_id: string; selected: false; exclusion_reason?: string }
+  >;
+  exclusion_reason_default?: string;
 }
 
 // --- Queue Board Integration Helpers ---
@@ -297,8 +307,8 @@ export const mockConfirm = {
       }
     }
 
-    const { input_data } = body as ApprovalRequestCreateBody;
-    const { resource_inputs, exclusion_reason_default } = input_data;
+    const { resource_inputs, exclusion_reason_default } =
+      normalizeIssue222ApprovalRequestBody(body) as unknown as ApprovalRequestCreateBody;
 
     const selectedInputs = resource_inputs.filter(
       (ri): ri is Extract<typeof ri, { selected: true }> => ri.selected === true,
@@ -319,15 +329,18 @@ export const mockConfirm = {
     const credentialMap = new Map<string, string>();
 
     for (const si of selectedInputs) {
-      if (si.resource_input?.endpoint_config) {
-        const ec = si.resource_input.endpoint_config;
+      if (
+        si.resource_input?.database_type
+        && si.resource_input.port !== undefined
+        && si.resource_input.host
+      ) {
         const vmConfig: VmDatabaseConfig = {
-          host: (ec.host as string) ?? '',
-          databaseType: ec.db_type as VmDatabaseConfig['databaseType'],
-          port: ec.port as number,
+          host: si.resource_input.host,
+          databaseType: si.resource_input.database_type as VmDatabaseConfig['databaseType'],
+          port: si.resource_input.port,
         };
-        if (ec.oracleServiceId) vmConfig.oracleServiceId = ec.oracleServiceId as string;
-        if (ec.selectedNicId) vmConfig.selectedNicId = ec.selectedNicId as string;
+        if (si.resource_input.oracle_service_id) vmConfig.oracleServiceId = si.resource_input.oracle_service_id;
+        if (si.resource_input.network_interface_id) vmConfig.selectedNicId = si.resource_input.network_interface_id;
         endpointConfigMap.set(si.resource_id, vmConfig);
       }
       if (si.resource_input?.credential_id) {
@@ -408,7 +421,47 @@ export const mockConfirm = {
     }
 
     // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
-    const inputDataSnapshot = (body as ApprovalRequestCreateBody).input_data;
+    const inputDataSnapshot = {
+      resource_inputs: resource_inputs.map((resourceInput) => (
+        resourceInput.selected
+          ? {
+              resource_id: resourceInput.resource_id,
+              selected: true as const,
+              ...(resourceInput.resource_input
+                ? {
+                    resource_input: {
+                      ...(resourceInput.resource_input.credential_id
+                        ? { credential_id: resourceInput.resource_input.credential_id }
+                        : {}),
+                      ...(resourceInput.resource_input.database_type
+                        && resourceInput.resource_input.port !== undefined
+                        && resourceInput.resource_input.host
+                        ? {
+                            endpoint_config: {
+                              db_type: resourceInput.resource_input.database_type as EndpointConfigInputData['db_type'],
+                              port: resourceInput.resource_input.port,
+                              host: resourceInput.resource_input.host,
+                              ...(resourceInput.resource_input.oracle_service_id
+                                ? { oracleServiceId: resourceInput.resource_input.oracle_service_id }
+                                : {}),
+                              ...(resourceInput.resource_input.network_interface_id
+                                ? { selectedNicId: resourceInput.resource_input.network_interface_id }
+                                : {}),
+                            },
+                          }
+                        : {}),
+                    },
+                  }
+                : {}),
+            }
+          : {
+              resource_id: resourceInput.resource_id,
+              selected: false as const,
+              ...(resourceInput.exclusion_reason ? { exclusion_reason: resourceInput.exclusion_reason } : {}),
+            }
+      )),
+      ...(exclusion_reason_default ? { exclusion_reason_default } : {}),
+    };
     await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount, inputDataSnapshot);
     const requestId = `req-${Date.now()}`;
 
@@ -539,11 +592,9 @@ export const mockConfirm = {
       );
     }
 
-    const { history, total } = mockHistory.getProjectHistory({
+    const { history: allHistory } = mockHistory.getProjectHistory({
       projectId,
       type: 'approval',
-      limit: size,
-      offset: page * size,
     });
 
     // Helper: build resource_inputs from current project state (fallback for entries without stored snapshot)
@@ -575,8 +626,60 @@ export const mockConfirm = {
       };
     });
 
+    const toRequestEntry = (historyItem: typeof allHistory[number]) => {
+      const inputData = historyItem.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
+
+      return {
+        id: historyItem.id,
+        requested_at: historyItem.timestamp,
+        requested_by: historyItem.actor.name,
+        input_data: inputData,
+      };
+    };
+
+    const toResultEntry = (historyItem: typeof allHistory[number]) => {
+      if (historyItem.type === 'APPROVAL') {
+        return {
+          id: `result-${historyItem.id}`,
+          request_id: historyItem.id,
+          result: 'APPROVED' as const,
+          processed_at: historyItem.timestamp,
+          process_info: { user_id: historyItem.actor.id, reason: null },
+        };
+      }
+      if (historyItem.type === 'AUTO_APPROVED') {
+        return {
+          id: `result-${historyItem.id}`,
+          request_id: historyItem.id,
+          result: 'AUTO_APPROVED' as const,
+          processed_at: historyItem.timestamp,
+          process_info: { user_id: null, reason: null },
+        };
+      }
+      if (historyItem.type === 'REJECTION') {
+        return {
+          id: `result-${historyItem.id}`,
+          request_id: historyItem.id,
+          result: 'REJECTED' as const,
+          processed_at: historyItem.timestamp,
+          process_info: { user_id: historyItem.actor.id, reason: historyItem.details.reason ?? null },
+        };
+      }
+      if (historyItem.type === 'APPROVAL_CANCELLED') {
+        return {
+          id: `result-${historyItem.id}`,
+          request_id: historyItem.id,
+          result: 'CANCELLED' as const,
+          processed_at: historyItem.timestamp,
+          process_info: { user_id: historyItem.actor.id, reason: null },
+        };
+      }
+
+      return undefined;
+    };
+
     // If WAITING_APPROVAL but no approval history yet, synthesize a PENDING request entry
-    if (history.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
+    if (allHistory.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
       const pendingRequest = {
         id: `req-pending-${project.id}`,
         requested_at: project.updatedAt,
@@ -589,53 +692,37 @@ export const mockConfirm = {
       });
     }
 
-    const content = history.map((h) => {
-      // Use stored snapshot if available, otherwise fall back to current state
-      const inputData = h.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
-      const request = {
-        id: h.id,
-        requested_at: h.timestamp,
-        requested_by: h.actor.name,
-        input_data: inputData,
-      };
+    const groupedContent = [...allHistory]
+      .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime())
+      .reduce<Array<{
+        request: ReturnType<typeof toRequestEntry>;
+        result?: ReturnType<typeof toResultEntry>;
+      }>>((acc, historyItem) => {
+        const result = toResultEntry(historyItem);
 
-      let result;
-      if (h.type === 'APPROVAL') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'APPROVED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: h.actor.id, reason: null },
-        };
-      } else if (h.type === 'AUTO_APPROVED') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'AUTO_APPROVED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: null, reason: null },
-        };
-      } else if (h.type === 'REJECTION') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'REJECTED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: h.actor.id, reason: h.details.reason ?? null },
-        };
-      } else if (h.type === 'APPROVAL_CANCELLED') {
-        result = {
-          id: `result-${h.id}`,
-          request_id: h.id,
-          result: 'CANCELLED' as const,
-          processed_at: h.timestamp,
-          process_info: { user_id: h.actor.id, reason: null },
-        };
-      }
+        if (!result) {
+          acc.push({ request: toRequestEntry(historyItem) });
+          return acc;
+        }
 
-      return { request, ...(result && { result }) };
-    });
+        const openRequest = [...acc].reverse().find((entry) => !entry.result);
+        if (openRequest) {
+          openRequest.result = result;
+          return acc;
+        }
+
+        acc.push({
+          request: toRequestEntry(historyItem),
+          result,
+        });
+        return acc;
+      }, []);
+
+    const total = groupedContent.length;
+    const content = groupedContent
+      .slice()
+      .reverse()
+      .slice(page * size, page * size + size);
 
     return NextResponse.json({
       content,
