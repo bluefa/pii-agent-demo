@@ -11,8 +11,8 @@ info:
     - 현재 client에 아직 없는 upstream 전용 endpoint는 제외
 
     ### 경로 규칙
-    - 실행 서버: same-origin `/api`
-    - 실제 호출 경로: `/api/integration/v1/**`
+    - 실행 서버: same-origin `/`
+    - 실제 호출 경로: `/integration/api/v1/**`
 
     ### 제외된 upstream 전용 endpoint
     - `/install/actuator*`
@@ -26,8 +26,8 @@ info:
     - 이미 client에 존재하는 경로는 현재 route shape를 그대로 사용
     - Issue #222에서 필요하지만 client에 없던 `approval-requests/latest`, `azure/scan-app`은 이 문서와 함께 route를 추가
 servers:
-  - url: /api
-    description: Same-origin Next.js API base
+  - url: /
+    description: Same-origin app origin
 tags:
   - name: User
     description: 현재 로그인 사용자 및 접근 가능한 서비스 조회
@@ -48,22 +48,22 @@ tags:
   - name: Azure Installation
     description: Azure 설치 상태 조회
 paths:
-  /integration/v1/user/me:
+  /integration/api/v1/user/me:
     $ref: './user.yaml#/paths/~1user~1me'
 
-  /integration/v1/user/services:
+  /integration/api/v1/user/services:
     $ref: './user.yaml#/paths/~1user~1services'
 
-  /integration/v1/users/search:
+  /integration/api/v1/users/search:
     $ref: './user.yaml#/paths/~1users~1search'
 
-  /integration/v1/services/{serviceCode}/authorized-users:
+  /integration/api/v1/services/{serviceCode}/authorized-users:
     $ref: './user.yaml#/paths/~1services~1{serviceCode}~1authorized-users'
 
-  /integration/v1/services/{serviceCode}/authorized-users/{userId}:
+  /integration/api/v1/services/{serviceCode}/authorized-users/{userId}:
     $ref: './user.yaml#/paths/~1services~1{serviceCode}~1authorized-users~1{userId}'
 
-  /integration/v1/services/{serviceCode}/target-sources:
+  /integration/api/v1/services/{serviceCode}/target-sources:
     parameters:
       - $ref: './user.yaml#/components/parameters/ServiceCode'
     get:
@@ -117,7 +117,7 @@ paths:
         '409':
           $ref: './user.yaml#/components/responses/Conflict'
 
-  /integration/v1/target-sources/{targetSourceId}:
+  /integration/api/v1/target-sources/{targetSourceId}:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -140,7 +140,7 @@ paths:
         '404':
           $ref: './user.yaml#/components/responses/TargetSourceNotFound'
 
-  /integration/v1/target-sources/{targetSourceId}/resources:
+  /integration/api/v1/target-sources/{targetSourceId}/resources:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -164,10 +164,10 @@ paths:
         '404':
           $ref: './user.yaml#/components/responses/TargetSourceNotFound'
 
-  /integration/v1/target-sources/{targetSourceId}/approval-requests:
+  /integration/api/v1/target-sources/{targetSourceId}/approval-requests:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1approval-requests'
 
-  /integration/v1/target-sources/{targetSourceId}/approval-requests/latest:
+  /integration/api/v1/target-sources/{targetSourceId}/approval-requests/latest:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -201,16 +201,16 @@ paths:
                 retriable: false
                 requestId: 123e4567-e89b-12d3-a456-426614174000
 
-  /integration/v1/target-sources/{targetSourceId}/approval-requests/approve:
+  /integration/api/v1/target-sources/{targetSourceId}/approval-requests/approve:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1approval-requests~1approve'
 
-  /integration/v1/target-sources/{targetSourceId}/approval-requests/reject:
+  /integration/api/v1/target-sources/{targetSourceId}/approval-requests/reject:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1approval-requests~1reject'
 
-  /integration/v1/target-sources/{targetSourceId}/approval-requests/cancel:
+  /integration/api/v1/target-sources/{targetSourceId}/approval-requests/cancel:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1approval-requests~1cancel'
 
-  /integration/v1/target-sources/{targetSourceId}/confirmed-integration:
+  /integration/api/v1/target-sources/{targetSourceId}/confirmed-integration:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -258,7 +258,7 @@ paths:
                     retriable: false
                     requestId: 123e4567-e89b-12d3-a456-426614174000
 
-  /integration/v1/target-sources/{targetSourceId}/approved-integration:
+  /integration/api/v1/target-sources/{targetSourceId}/approved-integration:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -306,7 +306,7 @@ paths:
                     retriable: false
                     requestId: 123e4567-e89b-12d3-a456-426614174000
 
-  /integration/v1/target-sources/{targetSourceId}/approval-history:
+  /integration/api/v1/target-sources/{targetSourceId}/approval-history:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
       - name: page
@@ -341,7 +341,7 @@ paths:
         '404':
           $ref: './user.yaml#/components/responses/TargetSourceNotFound'
 
-  /integration/v1/target-sources/{targetSourceId}/process-status:
+  /integration/api/v1/target-sources/{targetSourceId}/process-status:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -365,28 +365,28 @@ paths:
         '404':
           $ref: './user.yaml#/components/responses/TargetSourceNotFound'
 
-  /integration/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm:
+  /integration/api/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1pii-agent-installation~1confirm'
 
-  /integration/v1/target-sources/{targetSourceId}/resources/credential:
+  /integration/api/v1/target-sources/{targetSourceId}/resources/credential:
     $ref: './confirm.yaml#/paths/~1target-sources~1{targetSourceId}~1resources~1credential'
 
-  /integration/v1/target-sources/{targetSourceId}/secrets:
+  /integration/api/v1/target-sources/{targetSourceId}/secrets:
     $ref: './credential.yaml#/paths/~1target-sources~1{targetSourceId}~1secrets'
 
-  /integration/v1/target-sources/{targetSourceId}/scan:
+  /integration/api/v1/target-sources/{targetSourceId}/scan:
     $ref: './scan.yaml#/paths/~1target-sources~1{targetSourceId}~1scan'
 
-  /integration/v1/target-sources/{targetSourceId}/scan/history:
+  /integration/api/v1/target-sources/{targetSourceId}/scan/history:
     $ref: './scan.yaml#/paths/~1target-sources~1{targetSourceId}~1scan~1history'
 
-  /integration/v1/target-sources/{targetSourceId}/scanJob/latest:
+  /integration/api/v1/target-sources/{targetSourceId}/scanJob/latest:
     $ref: './scan.yaml#/paths/~1target-sources~1{targetSourceId}~1scanJob~1latest'
 
-  /integration/v1/azure/target-sources/{targetSourceId}/installation-status:
+  /integration/api/v1/azure/target-sources/{targetSourceId}/installation-status:
     $ref: './azure.yaml#/paths/~1azure~1target-sources~1{targetSourceId}~1installation-status'
 
-  /integration/v1/target-sources/{targetSourceId}/azure/scan-app:
+  /integration/api/v1/target-sources/{targetSourceId}/azure/scan-app:
     parameters:
       - $ref: './confirm.yaml#/components/parameters/TargetSourceId'
     get:
@@ -500,7 +500,7 @@ components:
     ClientTargetSourceDetail:
       type: object
       description: |-
-        현재 client가 `/integration/v1/target-sources/{targetSourceId}`에서 반환하는 Project 기반 응답입니다.
+        현재 client가 `/integration/api/v1/target-sources/{targetSourceId}`에서 반환하는 Project 기반 응답입니다.
         향후 Azure BFF 전환 과정에서 shape가 바뀔 수 있으므로 정의되지 않은 필드는 무시할 수 있어야 합니다.
       required:
         - id

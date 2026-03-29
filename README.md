@@ -28,7 +28,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 이 페이지의 `Try it out`은 브라우저가 BFF를 직접 호출하는 방식이 아니라, 먼저 Next.js API를 호출한 뒤 서버에서 BFF로 프록시합니다.
 
-`Swagger UI` → `Next.js /api/integration/v1/**` → `BFF_API_URL + /install/v1/**`
+`Swagger UI` → `Next.js /integration/api/v1/**` → `BFF_API_URL + /install/v1/**`
 
 실제 BFF 서버로 호출하려면 Next.js 실행 환경에 아래 설정을 추가하세요.
 

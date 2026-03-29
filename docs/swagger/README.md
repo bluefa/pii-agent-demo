@@ -43,7 +43,7 @@
 
 호출 경로는 아래와 같습니다.
 
-`Swagger UI` → `Next.js /api/integration/v1/**` → `BFF_API_URL + /install/v1/**`
+`Swagger UI` → `Next.js /integration/api/v1/**` → `BFF_API_URL + /install/v1/**`
 
 즉, 실행형 Swagger에서 실제 BFF를 확인하려면 Next.js 서버에 아래 설정이 필요합니다.
 

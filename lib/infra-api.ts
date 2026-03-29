@@ -1,16 +1,19 @@
-export const INTERNAL_INFRA_API_PREFIX = '/api/integration/v1';
+export const INTERNAL_INFRA_API_PREFIX = '/integration/api/v1';
 export const UPSTREAM_INFRA_API_PREFIX = '/install/v1';
 
 const ensureLeadingSlash = (path: string): string =>
   path.startsWith('/') ? path : `/${path}`;
 
+const INTERNAL_INFRA_API_PATH_PATTERN =
+  /^\/(?:(?:integration\/api|api\/integration|api\/infra|api|integration)\/v1|v1)(?=\/|$)/;
+
 export const toInternalInfraApiPath = (path: string): string =>
   `${INTERNAL_INFRA_API_PREFIX}${ensureLeadingSlash(path).replace(
-    /^\/api\/(?:integration\/v1|infra\/v1|v1)(?=\/|$)/,
+    INTERNAL_INFRA_API_PATH_PATTERN,
     '',
   )}`;
 
 export const toUpstreamInfraApiPath = (path: string): string => {
-  const normalizedPath = ensureLeadingSlash(path).replace(/^\/v1(?=\/|$)/, '');
+  const normalizedPath = ensureLeadingSlash(path).replace(INTERNAL_INFRA_API_PATH_PATTERN, '');
   return `${UPSTREAM_INFRA_API_PREFIX}${normalizedPath}`;
 };
