@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
@@ -10,7 +10,8 @@ import { AzurePeApprovalGuide } from '@/app/components/features/process-status/a
 import { AzureSubnetGuide } from '@/app/projects/[projectId]/azure/AzureSubnetGuide';
 import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
 import { AppError } from '@/lib/errors';
-import { statusColors, cn } from '@/lib/theme';
+import { formatDateTime } from '@/lib/utils/date';
+import { statusColors, cn, textColors } from '@/lib/theme';
 import type { Resource } from '@/lib/types';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
@@ -81,6 +82,9 @@ const getErrorMessage = (err: unknown): string => {
   return '상태 조회에 실패했습니다.';
 };
 
+const getLastCheckedLabel = (checkedAt?: string): string | null =>
+  checkedAt ? formatDateTime(checkedAt) : null;
+
 export const AzureInstallationInline = ({
   targetSourceId,
   resources,
@@ -95,7 +99,7 @@ export const AzureInstallationInline = ({
 
   const selectedResources = resources.filter(r => r.isSelected);
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -106,7 +110,7 @@ export const AzureInstallationInline = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [targetSourceId]);
 
   const handleRefresh = async () => {
     try {
@@ -121,7 +125,9 @@ export const AzureInstallationInline = ({
     }
   };
 
-  useEffect(() => { fetchStatus(); }, [targetSourceId]);
+  useEffect(() => {
+    void fetchStatus();
+  }, [fetchStatus]);
 
   const unifiedResources: UnifiedInstallResource[] = useMemo(() => {
     const v1ResourceMap = new Map(
@@ -161,11 +167,15 @@ export const AzureInstallationInline = ({
   const allCompleted = completedCount === totalCount && totalCount > 0;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const hasError = unifiedResources.some(r => r.step === 'PE_REJECTED');
+  const lastCheckStatus = status?.lastCheck.status ?? 'SUCCESS';
+  const lastCheckedLabel = getLastCheckedLabel(status?.lastCheck.checkedAt);
+  const hasSyncFailure = lastCheckStatus === 'FAILED';
+  const isChecking = lastCheckStatus === 'IN_PROGRESS';
 
   // allCompleted 시 부모에 알림
   useEffect(() => {
     if (allCompleted) onInstallComplete?.();
-  }, [allCompleted]);
+  }, [allCompleted, onInstallComplete]);
 
   const subnetNeeded = unifiedResources.filter(r => r.step === 'SUBNET_REQUIRED');
   const vmTfNeeded = unifiedResources.filter(r => r.step === 'VM_TF_REQUIRED');
@@ -176,10 +186,24 @@ export const AzureInstallationInline = ({
   if (loading) return <InstallationLoadingView provider="Azure" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
 
-  const mainCardColor = allCompleted ? statusColors.success : hasError ? statusColors.error : statusColors.warning;
-  const statusText = allCompleted
-    ? `Azure 에이전트 설치 완료 (${completedCount}/${totalCount})`
-    : `Azure 에이전트 설치 중... (${completedCount}/${totalCount} 완료)`;
+  const mainCardColor = hasSyncFailure
+    ? statusColors.error
+    : isChecking
+      ? statusColors.info
+      : allCompleted
+        ? statusColors.success
+        : hasError
+          ? statusColors.error
+          : statusColors.warning;
+  const statusText = hasSyncFailure
+    ? 'Azure 설치 상태 확인 실패'
+    : isChecking
+      ? 'Azure 설치 상태 확인 중'
+      : allCompleted
+        ? `Azure 에이전트 설치 완료 (${completedCount}/${totalCount})`
+        : hasError
+          ? `Azure 에이전트 설치 조치 필요 (${completedCount}/${totalCount} 완료)`
+          : `Azure 에이전트 설치 중... (${completedCount}/${totalCount} 완료)`;
 
   return (
     <>
@@ -219,11 +243,44 @@ export const AzureInstallationInline = ({
             />
           </div>
 
-          {!allCompleted && !hasActionOrError && (
-            <p className="mt-2 text-xs text-gray-500">
-              자동으로 설치가 진행 중입니다.{'\n'}각 리소스에 보안 연결을 설정하고 있습니다.
+          {hasSyncFailure ? (
+            <div className="mt-2 space-y-1">
+              <p className={cn('text-xs', mainCardColor.textDark)}>
+                {status?.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다. 새로고침으로 다시 확인해주세요.'}
+              </p>
+              {lastCheckedLabel && (
+                <p className={cn('text-xs', textColors.tertiary)}>
+                  마지막 확인: {lastCheckedLabel}
+                </p>
+              )}
+            </div>
+          ) : isChecking ? (
+            <div className="mt-2 space-y-1">
+              <p className={cn('text-xs', mainCardColor.textDark)}>
+                최신 Azure 설치 상태를 다시 확인하고 있습니다.
+              </p>
+              {lastCheckedLabel && (
+                <p className={cn('text-xs', textColors.tertiary)}>
+                  마지막 확인: {lastCheckedLabel}
+                </p>
+              )}
+            </div>
+          ) : !allCompleted && !hasActionOrError ? (
+            <div className="mt-2 space-y-1">
+              <p className={cn('text-xs', textColors.tertiary)}>
+                자동으로 설치가 진행 중입니다. 각 리소스에 보안 연결을 설정하고 있습니다.
+              </p>
+              {lastCheckedLabel && (
+                <p className={cn('text-xs', textColors.tertiary)}>
+                  마지막 확인: {lastCheckedLabel}
+                </p>
+              )}
+            </div>
+          ) : lastCheckedLabel ? (
+            <p className={cn('mt-2 text-xs', textColors.tertiary)}>
+              마지막 확인: {lastCheckedLabel}
             </p>
-          )}
+          ) : null}
 
           <AzureResourceList resources={unifiedResources} />
         </div>
