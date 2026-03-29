@@ -4,6 +4,7 @@ import {
   getConfirmResources,
   getConfirmedIntegration,
   getCurrentUser,
+  getProject,
   getProjects,
   getServices,
   searchUsers,
@@ -151,7 +152,7 @@ describe('app/lib/api/index', () => {
         JSON.stringify({
           resources: [
             {
-              id: 'res-1',
+              id: 'vm-db-001',
               resource_id: 'vm-db-001',
               name: 'vm-db-001',
               resource_type: 'AZURE_VM',
@@ -165,6 +166,7 @@ describe('app/lib/api/index', () => {
               metadata: {
                 provider: 'Azure',
                 resourceType: 'AZURE_VM',
+                rawResourceType: 'AZURE_VM',
                 region: '',
               },
             },
@@ -183,7 +185,7 @@ describe('app/lib/api/index', () => {
     expect(resources).toEqual({
       resources: [
         {
-          id: 'res-1',
+          id: 'vm-db-001',
           resourceId: 'vm-db-001',
           name: 'vm-db-001',
           resourceType: 'AZURE_VM',
@@ -197,12 +199,56 @@ describe('app/lib/api/index', () => {
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',
+            rawResourceType: 'AZURE_VM',
             region: '',
           },
         },
       ],
       totalCount: 1,
     });
+  });
+
+  it('getProject는 Issue #222 상세 응답을 Project read model로 복원한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          description: 'Azure read model',
+          target_source_id: 1013,
+          process_status: 'CONNECTED',
+          cloud_provider: 'AZURE',
+          created_at: '2026-03-29T00:00:00Z',
+          metadata: {
+            tenant_id: 'tenant-1',
+            subscription_id: 'subscription-1',
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const project = await getProject(1013);
+
+    expect(project).toEqual(expect.objectContaining({
+      targetSourceId: 1013,
+      projectCode: '',
+      serviceCode: '',
+      cloudProvider: 'Azure',
+      processStatus: ProcessStatus.CONNECTION_VERIFIED,
+      tenantId: 'tenant-1',
+      subscriptionId: 'subscription-1',
+      resources: [],
+    }));
+    expect(project.status).toEqual(expect.objectContaining({
+      targets: expect.objectContaining({ confirmed: true }),
+      installation: expect.objectContaining({ status: 'COMPLETED' }),
+      connectionTest: expect.objectContaining({
+        status: 'PASSED',
+        passedAt: '2026-03-29T00:00:00Z',
+      }),
+    }));
   });
 
   it('getProjects는 Issue #222 process_status를 기존 UI 상태로 보존해 매핑한다', async () => {

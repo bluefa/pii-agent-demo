@@ -104,7 +104,7 @@ describe('mockConfirm.getResources', () => {
     expect(body.total_count).toBe(2);
     expect(body.resources).toEqual([
       {
-        id: 'vm-1',
+        id: 'vm-db-001',
         resource_id: 'vm-db-001',
         name: 'vm-db-001',
         resource_type: 'AZURE_VM',
@@ -122,7 +122,7 @@ describe('mockConfirm.getResources', () => {
         },
       },
       {
-        id: 'db-1',
+        id: 'pg-flex-001',
         resource_id: 'pg-flex-001',
         name: 'pg-flex-001',
         resource_type: 'AZURE_POSTGRESQL',
