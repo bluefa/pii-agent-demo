@@ -10,7 +10,6 @@ import {
   StepProgressBar,
   StepGuide,
   ConnectionTestPanel,
-  LogicalDbStatusPanel,
 } from './process-status';
 import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
@@ -274,16 +273,11 @@ export const ProcessStatusCard = ({
 
                 {(currentStep === ProcessStatus.CONNECTION_VERIFIED ||
                   currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <ConnectionTestPanel
                       targetSourceId={project.targetSourceId}
                       selectedResources={selectedResources}
                       onResourceUpdate={refreshProject}
-                    />
-                    <LogicalDbStatusPanel
-                      targetSourceId={project.targetSourceId}
-                      cloudProvider={project.cloudProvider}
-                      resources={resources}
                     />
                   </div>
                 )}

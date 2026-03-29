@@ -3,7 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { ProjectSummary, ProcessStatus, CloudProvider } from '@/lib/types';
 import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
-import { statusColors, primaryColors, cn } from '@/lib/theme';
+import { statusColors, cn } from '@/lib/theme';
+import { integrationRoutes } from '@/lib/routes';
 
 interface ProjectsTableProps {
   projects: ProjectSummary[];
@@ -100,7 +101,7 @@ export const ProjectsTable = ({
           return (
             <tr
               key={project.id}
-              onClick={() => router.push(`/projects/${project.targetSourceId}`)}
+              onClick={() => router.push(integrationRoutes.project(project.targetSourceId))}
               // TODO: hover:bg-blue-50/50 needs a dedicated hover token (dynamic Tailwind classes don't work)
               className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
             >
