@@ -93,7 +93,7 @@ const getScanAppState = (
   if (!scanApp?.appId) {
     return {
       label: '미등록',
-      description: 'Issue #222 scan app 계약 기준으로 App ID가 아직 등록되지 않았습니다.',
+      description: 'App ID가 아직 등록되지 않았습니다.',
       colors: statusColors.warning,
     };
   }
