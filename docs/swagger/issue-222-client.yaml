@@ -701,7 +701,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ClientAzureInstallationStatus'
+                $ref: './azure.yaml#/components/schemas/AzureInstallationStatus'
         '401':
           $ref: './user.yaml#/components/responses/Unauthorized'
         '403':
@@ -1043,85 +1043,3 @@ components:
           type: integer
         size:
           type: integer
-    ClientAzureInstallationStatus:
-      type: object
-      required:
-        - hasVm
-        - lastCheck
-        - resources
-      properties:
-        hasVm:
-          type: boolean
-        lastCheck:
-          $ref: '#/components/schemas/ClientAzureLastCheck'
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ClientAzureInstallationResource'
-    ClientAzureLastCheck:
-      type: object
-      required:
-        - status
-      properties:
-        status:
-          type: string
-          enum:
-            - SUCCESS
-            - IN_PROGRESS
-            - FAILED
-        checkedAt:
-          type: string
-          format: date-time
-        failReason:
-          type: string
-    ClientAzureInstallationResource:
-      type: object
-      required:
-        - resourceId
-        - resourceName
-        - resourceType
-        - isVm
-        - privateEndpoint
-      properties:
-        resourceId:
-          type: string
-        resourceName:
-          type: string
-        resourceType:
-          type: string
-        isVm:
-          type: boolean
-        privateEndpoint:
-          $ref: '#/components/schemas/ClientAzurePrivateEndpoint'
-        vmInstallation:
-          $ref: '#/components/schemas/ClientAzureVmInstallation'
-    ClientAzurePrivateEndpoint:
-      type: object
-      required:
-        - id
-        - name
-        - status
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        status:
-          type: string
-          enum:
-            - NOT_REQUESTED
-            - PENDING_APPROVAL
-            - APPROVED
-            - REJECTED
-    ClientAzureVmInstallation:
-      type: object
-      properties:
-        subnetExists:
-          type: boolean
-        loadBalancer:
-          type: object
-          properties:
-            installed:
-              type: boolean
-            name:
-              type: string
