@@ -30,7 +30,7 @@ export interface AzureResourceCatalogItem {
 
 interface AzureApprovalHistoryEntry {
   request: {
-    input_data: ApprovalRequestInputSnapshot;
+    input_data?: ApprovalRequestInputSnapshot;
   };
 }
 
@@ -71,13 +71,6 @@ const VM_DATABASE_TYPES: VmDatabaseType[] = [
   'MONGODB',
   'ORACLE',
 ];
-
-const APPROVAL_FALLBACK_STEPS = new Set<ProcessStatus>([
-  ProcessStatus.APPLYING_APPROVED,
-  ProcessStatus.INSTALLING,
-  ProcessStatus.WAITING_CONNECTION_TEST,
-  ProcessStatus.CONNECTION_VERIFIED,
-]);
 
 const isVmDatabaseType = (databaseType: DatabaseType): databaseType is VmDatabaseType =>
   VM_DATABASE_TYPES.includes(databaseType as VmDatabaseType);
@@ -136,9 +129,10 @@ const toVmDatabaseConfigFromConfirmed = (
 const buildSelectionFromApprovalHistory = (
   latestApprovalRequest: AzureApprovalHistoryEntry | null,
 ): Map<string, SelectedResourceState> => {
-  if (!latestApprovalRequest) return new Map();
+  const resourceInputs = latestApprovalRequest?.request.input_data?.resource_inputs;
+  if (!resourceInputs || resourceInputs.length === 0) return new Map();
 
-  const selectedInputs = latestApprovalRequest.request.input_data.resource_inputs
+  const selectedInputs = resourceInputs
     .filter(isSelectedApprovalInput)
     .map((resourceInput) => [
       resourceInput.resource_id,
@@ -198,10 +192,7 @@ const resolveSelectionState = ({
   }
 
   const approvalHistorySelection = buildSelectionFromApprovalHistory(latestApprovalRequest);
-  if (
-    (currentStep === ProcessStatus.WAITING_APPROVAL || APPROVAL_FALLBACK_STEPS.has(currentStep))
-    && approvalHistorySelection.size > 0
-  ) {
+  if (currentStep === ProcessStatus.WAITING_APPROVAL && approvalHistorySelection.size > 0) {
     return {
       source: 'approval-history',
       selectedResources: approvalHistorySelection,

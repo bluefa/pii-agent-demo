@@ -357,7 +357,10 @@ paths:
         - Approval Process
       summary: 승인/반려/확정 이력 전체 조회 (Pagination)
       operationId: getApprovalHistory
-      description: 과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다.
+      description: |
+        과거의 모든 요청과 처리 결과(성공, 실패, 반려 등)를 조회합니다.
+        현재 runtime은 legacy 호환을 위해 `request.input_data.resource_inputs`를 포함할 수 있습니다.
+        다만 UI 소비는 요청 메타데이터와 처리 결과 중심의 summary 흐름을 기준으로 합니다.
       responses:
         '200':
           description: 성공
