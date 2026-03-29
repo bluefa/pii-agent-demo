@@ -74,4 +74,54 @@ describe('bffClient.confirm.getResources', () => {
       total_count: 1,
     });
   });
+
+  it('targetSources.list는 Issue #222 service-scoped list path를 호출한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.targetSources.list('SERVICE-A');
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/infra/v1/target-sources/services/SERVICE-A',
+    );
+  });
+
+  it('targetSources.create는 serviceCode를 path로 승격하고 request body에서는 제거한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ targetSourceId: 1012 }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.targetSources.create({
+      serviceCode: 'SERVICE-A',
+      description: 'Issue 222 create test',
+      cloudProvider: 'AZURE',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/infra/v1/target-sources/services/SERVICE-A/target-sources',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: 'Issue 222 create test',
+          cloudProvider: 'AZURE',
+        }),
+      },
+    );
+  });
 });
