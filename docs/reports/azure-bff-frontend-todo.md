@@ -20,17 +20,17 @@
 
 ### 0. Next.js 경로 마이그레이션
 
-- [ ] `app/api/infra` 프록시 레이어를 제거한다.
+- [x] `app/api/infra` 프록시 레이어를 제거한다.
   대상: [app/api/infra/v1/[...path]/route.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/api/infra/v1/[...path]/route.ts), [app/lib/api/infra.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/infra.ts), [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
-- [ ] Next.js route handler 경로를 `/api/v1/**`에서 `/integration/**` 기준으로 재배치한다.
+- [x] Next.js route handler 경로를 `/api/v1/**`에서 `/api/integration/v1/**` 기준으로 재배치한다.
   대상: [app/api/v1](/Users/study/pii-agent-demo-azure-bff-todo/app/api/v1)
-- [ ] Azure 화면 진입 page 경로를 `/admin`, `/projects/[projectId]`에서 `/integration/**` 기준으로 변경한다.
+- [x] Azure 화면 진입 page 경로를 `/admin`, `/projects/[projectId]`에서 `/integration/**` 기준으로 변경한다.
   대상: [app/admin/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/admin/page.tsx), [app/admin/dashboard/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/admin/dashboard/page.tsx), [app/projects/[projectId]/page.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/page.tsx)
-- [ ] router push, 링크, 새 창 열기 경로를 모두 새 `/integration/**` prefix 기준으로 바꾼다.
+- [x] router push, 링크, 새 창 열기 경로를 모두 새 `/integration/**` prefix 기준으로 바꾼다.
   대상: [app/components/features/admin/ProjectsTable.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/admin/ProjectsTable.tsx), [app/components/features/admin/AdminHeader.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/admin/AdminHeader.tsx), [app/projects/[projectId]/common/ProjectHeader.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/projects/[projectId]/common/ProjectHeader.tsx), [app/components/features/process-status/azure/AzureInstallationInline.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/process-status/azure/AzureInstallationInline.tsx)
-- [ ] 경로가 `/integration/**`로 바뀌어도 provider/app icon은 바뀌지 않도록 보장한다.
+- [x] 경로가 `/integration/**`로 바뀌어도 provider/app icon은 바뀌지 않도록 보장한다.
   대상: [app/components/ui/CloudProviderIcon.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/ui/CloudProviderIcon.tsx), [app/components/ui/ServiceIcon.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/ui/ServiceIcon.tsx), [app/icon.svg](/Users/study/pii-agent-demo-azure-bff-todo/app/icon.svg)
-- [ ] icon 선택 로직이 URL path segment에 의존하지 않도록 확인하고, provider/resource type 데이터만으로 렌더링되게 유지한다.
+- [x] icon 선택 로직이 URL path segment에 의존하지 않도록 확인하고, provider/resource type 데이터만으로 렌더링되게 유지한다.
   대상: [app/components/ui/CloudProviderIcon.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/ui/CloudProviderIcon.tsx), [app/components/ui/ServiceIcon.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/ui/ServiceIcon.tsx)
 
 ### 1. 공통 네트워크 경로 정렬
@@ -129,9 +129,9 @@
 
 ### 11. Logical DB scanner 제거
 
-- [ ] Azure 경로에서 `LogicalDbStatusPanel` 렌더링을 제거한다.
+- [x] Azure 경로에서 `LogicalDbStatusPanel` 렌더링을 제거한다.
   대상: [app/components/features/ProcessStatusCard.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/ProcessStatusCard.tsx)
-- [ ] 더 이상 쓰지 않는 `getConnectionStatus()`와 `LogicalDbStatusPanel` export 의존을 정리한다.
+- [x] 더 이상 쓰지 않는 `getConnectionStatus()`와 `LogicalDbStatusPanel` export 의존을 정리한다.
   대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/lib/api/index.ts), [app/components/features/process-status/index.ts](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/process-status/index.ts), [app/components/features/process-status/LogicalDbStatusPanel.tsx](/Users/study/pii-agent-demo-azure-bff-todo/app/components/features/process-status/LogicalDbStatusPanel.tsx)
 
 ### 12. Test connection 제외 반영
@@ -145,19 +145,19 @@
 
 ### 바로 시작 가능한 순서
 
-- [ ] 0단계: Next.js 경로 마이그레이션
+- [x] 0단계: Next.js 경로 마이그레이션
 - [ ] 1단계: 공통 네트워크 경로 정렬
 - [ ] 2단계: Azure 목록/생성 진입 정리
 - [ ] 3단계: Azure 상세 read model 정리
 - [ ] 4단계: Azure 리소스/승인 flow 정리
 - [ ] 5단계: Azure 설치 상태/Scan App 정리
-- [ ] 6단계: logical db scanner 제거
+- [x] 6단계: logical db scanner 제거
 - [ ] 7단계: Azure test connection 제거 또는 숨김
 
 ## 명세 보완 또는 별도 합의가 필요한 항목
 
-- [ ] route handler 최종 URL 규칙을 `/integration/v1/**`로 볼지 `/api/integration/v1/**`로 볼지 합의 필요
-- [ ] page 최종 URL 규칙을 `/integration/admin`, `/integration/projects/[id]`로 고정할지 합의 필요
+- [x] route handler 최종 URL 규칙은 `/api/integration/v1/**`로 정리했다.
+- [x] page 최종 URL 규칙은 `/integration/admin`, `/integration/projects/[id]` 기준으로 정리했다.
 - [ ] `GET /install/v1/target-sources/{targetSourceId}`만으로 현재 Azure 상세 화면이 요구하는 `projectCode`, `serviceCode`, `resources`, 내부 step 계산값을 어떻게 채울지 합의 필요
 - [ ] `GET /install/v1/target-sources/services/{serviceCode}` 설명의 `Azure type only`가 실제 제약인지 확인 필요
 - [ ] approval history에 요청 상세 `resource_inputs`가 없으므로, 상세 모달을 유지할지 summary UI로 축소할지 결정 필요
