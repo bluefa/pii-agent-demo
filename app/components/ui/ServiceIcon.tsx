@@ -2,6 +2,7 @@ import type { AwsResourceType, CloudProvider } from '@/lib/types';
 import { normalizeAzureResourceType, normalizeResourceType } from '@/lib/types';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
+import { CloudProviderIcon } from '@/app/components/ui/CloudProviderIcon';
 import { GcpServiceIcon, isGcpResourceType } from '@/app/components/ui/GcpServiceIcon';
 
 interface ServiceIconProps {
@@ -23,6 +24,9 @@ export const ServiceIcon = ({ provider, resourceType, size = 'md' }: ServiceIcon
   }
   if ((provider === 'Azure' || normalizedAzureType) && normalizedAzureType && isAzureResourceType(normalizedAzureType)) {
     return <AzureServiceIcon type={normalizedAzureType} size={size} />;
+  }
+  if (provider === 'Azure' || normalizedResourceType.startsWith('AZURE_')) {
+    return <CloudProviderIcon provider="Azure" size={size} variant="icon" showLabel={false} />;
   }
   if (provider === 'GCP' && isGcpResourceType(normalizedResourceType)) {
     return <GcpServiceIcon type={normalizedResourceType} size={size} />;

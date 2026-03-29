@@ -77,7 +77,18 @@ export interface ClusterInstance {
   isSelected: boolean;
 }
 
-export type AzureResourceType = 'AZURE_MSSQL' | 'AZURE_POSTGRESQL' | 'AZURE_MYSQL' | 'AZURE_MARIADB' | 'AZURE_COSMOS_NOSQL' | 'AZURE_SYNAPSE' | 'AZURE_VM';
+export type AzureResourceType =
+  | 'AZURE_MSSQL'
+  | 'AZURE_POSTGRESQL'
+  | 'AZURE_MYSQL'
+  | 'AZURE_MARIADB'
+  | 'AZURE_COSMOS_NOSQL'
+  | 'AZURE_SYNAPSE'
+  | 'AZURE_VM'
+  | 'AZURE_PRIVATE_ENDPOINT'
+  | 'AZURE_VIRTUAL_SUBNET'
+  | 'AZURE_NETWORK_INTERFACE'
+  | 'AZURE_SERVICE_PRINCIPAL';
 export type Issue222AzureResourceType =
   | 'AZURE_SQL_SERVER'
   | 'AZURE_SQL_SERVER_MANAGED_INSTANCE'
