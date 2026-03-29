@@ -34,7 +34,7 @@ info:
     | `POST /projects/{id}/confirm-completion` | `POST /target-sources/{id}/pii-agent-installation/confirm` | 관리자 최종 확정
     |
 
-    | `PATCH /projects/{id}/resources/credential` | `PATCH /target-sources/{id}/resources/credential` | credential 갱신 |
+    | `PATCH /projects/{id}/resources/credential` | `PUT /target-sources/{id}/resources/credential` | credential 갱신 |
 
     | `POST /projects/{id}/test-connection` | `POST /target-sources/{id}/test-connection` | 연결 테스트 |
 
@@ -428,7 +428,7 @@ paths:
   /target-sources/{targetSourceId}/resources/credential:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
-    patch:
+    put:
       tags:
         - Resources
       summary: 리소스 Credential 갱신
@@ -438,6 +438,7 @@ paths:
         특정 리소스에 연결할 Credential을 변경합니다.
         연결 테스트 단계(WAITING_CONNECTION_TEST, CONNECTION_VERIFIED, INSTALLATION_COMPLETE)에서만 변경 가능합니다.
         `credentialId`를 null로 전달하면 Credential 연결을 해제합니다.
+        GitHub Issue #222 원문 Swagger와 동일하게 `PUT` 메서드를 사용합니다.
       requestBody:
         required: true
         content:
@@ -450,12 +451,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - success
-                properties:
-                  success:
-                    type: boolean
+                $ref: '#/components/schemas/UpdateResourceCredentialResponse'
         '400':
           description: 요청 파라미터 오류 또는 변경 불가 상태
           content:
