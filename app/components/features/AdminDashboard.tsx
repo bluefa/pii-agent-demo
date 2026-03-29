@@ -197,7 +197,7 @@ export const AdminDashboard = () => {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  과제 등록
+                  타겟 소스 등록
                 </Button>
               </div>
 
@@ -211,7 +211,7 @@ export const AdminDashboard = () => {
 
                 <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">과제 목록</h3>
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">타겟 소스 목록</h3>
                   </div>
                   <ProjectsTable
                     projects={projects}
