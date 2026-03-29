@@ -143,6 +143,15 @@
 - [x] Swagger 미기재는 기능 삭제 근거가 아니라 문서 범위 제외로 해석한다는 점을 작업 기준에 반영한다.
   대상: [docs/reports/azure-bff-frontend-todo.md](/Users/study/pii-agent-demo-azure-bff-todo/docs/reports/azure-bff-frontend-todo.md), [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml)
 
+### 13. 최종 계약 검증
+
+- [ ] 모든 작업이 끝난 뒤, 실행형 Swagger와 실제 Next.js API 응답이 일치하는지 전수 확인한다.
+  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml), [app/api/integration/v1](/Users/study/pii-agent-demo-azure-bff-todo/app/api/integration/v1)
+- [ ] 특히 Swagger schema와 실제 응답 body shape가 달라질 수 있는 엔드포인트를 우선 점검한다.
+  예: `GET /integration/v1/user/me`, `GET /integration/v1/user/services`, `GET /integration/v1/target-sources/{targetSourceId}`, `GET /integration/v1/target-sources/{targetSourceId}/process-status`
+- [ ] 불일치가 있으면 구현 또는 Swagger 중 하나를 반드시 맞추고, 변경된 실제 응답 예시는 PR description에 남긴다.
+  대상: [docs/swagger/issue-222-client.yaml](/Users/study/pii-agent-demo-azure-bff-todo/docs/swagger/issue-222-client.yaml)
+
 ## 우선순위
 
 ### 바로 시작 가능한 순서
@@ -155,6 +164,7 @@
 - [x] 5단계: Azure 설치 상태/Scan App 정리
 - [x] 6단계: logical db scanner 제거
 - [x] 7단계: Azure test connection 유지 원칙 반영
+- [ ] 8단계: 최종 Swagger-실제 API 계약 검증
 
 ## 명세 보완 또는 별도 합의가 필요한 항목
 
