@@ -12,6 +12,11 @@ export interface AzureScanApp {
   lastVerifiedAt?: string;
 }
 
+export interface AzureProjectIdentifiers {
+  tenantId?: string;
+  subscriptionId?: string;
+}
+
 export const getAzureInstallationStatus = (
   targetSourceId: number,
 ): Promise<AzureV1InstallationStatus> =>
@@ -28,6 +33,14 @@ export const getAzureScanApp = (
   targetSourceId: number,
 ): Promise<AzureScanApp> =>
   fetchInfraCamelJson<AzureScanApp>(`${TARGET_SOURCE_BASE_URL}/${targetSourceId}/azure/scan-app`);
+
+export const resolveAzureProjectIdentifiers = (
+  projectIdentifiers: AzureProjectIdentifiers,
+  fallbackSettings: AzureV1Settings | null,
+): AzureProjectIdentifiers => ({
+  tenantId: projectIdentifiers.tenantId ?? fallbackSettings?.tenantId,
+  subscriptionId: projectIdentifiers.subscriptionId ?? fallbackSettings?.subscriptionId,
+});
 
 export const getAzureSettings = (
   targetSourceId: number,
