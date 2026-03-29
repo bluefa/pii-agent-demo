@@ -148,7 +148,7 @@ function buildMetadata(resource: Resource, project: Project): ConfirmResourceMet
 
 function toResourceCatalogItem(resource: Resource, project: Project): ResourceCatalogItem {
   return {
-    id: resource.id,
+    id: resource.resourceId,
     resource_id: resource.resourceId,
     name: resource.resourceId,
     resource_type: resource.type,
@@ -167,7 +167,7 @@ function toResourceSnapshot(r: Resource) {
   let endpoint_config = null;
   if (r.vmDatabaseConfig) {
     endpoint_config = {
-      resource_id: r.id,
+      resource_id: r.resourceId,
       db_type: r.vmDatabaseConfig.databaseType,
       port: r.vmDatabaseConfig.port,
       host: r.vmDatabaseConfig.host ?? '',
@@ -180,7 +180,7 @@ function toResourceSnapshot(r: Resource) {
     };
   }
   return {
-    resource_id: r.id,
+    resource_id: r.resourceId,
     resource_type: r.type,
     endpoint_config,
     credential_id: r.selectedCredentialId ?? null,
@@ -189,7 +189,7 @@ function toResourceSnapshot(r: Resource) {
 
 function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegration['resource_infos'][number] {
   return {
-    resource_id: r.id,
+    resource_id: r.resourceId,
     resource_type: r.type,
     database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
     port: r.vmDatabaseConfig?.port ?? null,
@@ -208,6 +208,8 @@ interface ApprovalRequestCreateBody {
       selected: true;
       resource_input?: {
         credential_id?: string;
+        endpoint_config?: EndpointConfigInputData;
+        resource_id?: string;
         database_type?: string;
         port?: number;
         host?: string;
@@ -327,34 +329,48 @@ export const mockConfirm = {
     // Build endpoint config map from selected resources
     const endpointConfigMap = new Map<string, VmDatabaseConfig>();
     const credentialMap = new Map<string, string>();
+    const resolveInternalResourceId = (resourceId: string): string => (
+      project.resources.find((resource) => (
+        resource.resourceId === resourceId || resource.id === resourceId
+      ))?.id ?? resourceId
+    );
 
     for (const si of selectedInputs) {
-      if (
-        si.resource_input?.database_type
-        && si.resource_input.port !== undefined
-        && si.resource_input.host
-      ) {
+      const internalResourceId = resolveInternalResourceId(si.resource_id);
+      const endpointConfig = si.resource_input?.endpoint_config;
+      const databaseType = si.resource_input?.database_type ?? endpointConfig?.db_type;
+      const port = si.resource_input?.port ?? endpointConfig?.port;
+      const host = si.resource_input?.host ?? endpointConfig?.host;
+
+      if (databaseType && port !== undefined && host) {
         const vmConfig: VmDatabaseConfig = {
-          host: si.resource_input.host,
-          databaseType: si.resource_input.database_type as VmDatabaseConfig['databaseType'],
-          port: si.resource_input.port,
+          host,
+          databaseType: databaseType as VmDatabaseConfig['databaseType'],
+          port,
         };
-        if (si.resource_input.oracle_service_id) vmConfig.oracleServiceId = si.resource_input.oracle_service_id;
-        if (si.resource_input.network_interface_id) vmConfig.selectedNicId = si.resource_input.network_interface_id;
-        endpointConfigMap.set(si.resource_id, vmConfig);
+        const oracleServiceId = si.resource_input?.oracle_service_id ?? endpointConfig?.oracleServiceId;
+        const networkInterfaceId = si.resource_input?.network_interface_id ?? endpointConfig?.selectedNicId;
+
+        if (oracleServiceId) vmConfig.oracleServiceId = oracleServiceId;
+        if (networkInterfaceId) vmConfig.selectedNicId = networkInterfaceId;
+        endpointConfigMap.set(internalResourceId, vmConfig);
       }
       if (si.resource_input?.credential_id) {
-        credentialMap.set(si.resource_id, si.resource_input.credential_id);
+        credentialMap.set(internalResourceId, si.resource_input.credential_id);
       }
     }
 
     // Build exclusion map
     const excludedMap = new Map<string, string | undefined>();
     for (const ei of excludedInputs) {
-      excludedMap.set(ei.resource_id, ei.exclusion_reason ?? exclusion_reason_default);
+      excludedMap.set(
+        resolveInternalResourceId(ei.resource_id),
+        ei.exclusion_reason ?? exclusion_reason_default,
+      );
     }
 
-    const selectedSet = new Set(selectedInputs.map((si) => si.resource_id));
+    const selectedResourceIds = selectedInputs.map((si) => resolveInternalResourceId(si.resource_id));
+    const selectedSet = new Set(selectedResourceIds);
     const now = new Date().toISOString();
     const excludedBy = { id: user.id, name: user.name };
 
@@ -378,7 +394,7 @@ export const mockConfirm = {
 
     const autoApprovalResult = evaluateAutoApproval({
       resources: project.resources,
-      selectedResourceIds: selectedInputs.map((si) => si.resource_id),
+      selectedResourceIds,
     });
 
     const updatedStatus: ProjectStatus = {
@@ -474,7 +490,7 @@ export const mockConfirm = {
         request_id: requestId,
         approved_at: now,
         resource_infos: selectedResources.map(toResourceSnapshot),
-        excluded_resource_ids: excludedResources.map((r) => r.id),
+        excluded_resource_ids: excludedResources.map((r) => r.resourceId),
         exclusion_reason: excludedResources[0]?.exclusion?.reason,
       });
       // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
@@ -614,13 +630,13 @@ export const mockConfirm = {
           input.credential_id = r.selectedCredentialId;
         }
         return {
-          resource_id: r.id,
+          resource_id: r.resourceId,
           selected: true as const,
           ...(Object.keys(input).length > 0 && { resource_input: input }),
         };
       }
       return {
-        resource_id: r.id,
+        resource_id: r.resourceId,
         selected: false as const,
         ...(r.exclusion?.reason && { exclusion_reason: r.exclusion.reason }),
       };
@@ -891,7 +907,7 @@ export const mockConfirm = {
       request_id: requestId,
       approved_at: now,
       resource_infos: selectedResources.map(toResourceSnapshot),
-      excluded_resource_ids: excludedResources.map((r) => r.id),
+      excluded_resource_ids: excludedResources.map((r) => r.resourceId),
       exclusion_reason: excludedResources[0]?.exclusion?.reason,
     });
 
@@ -1191,7 +1207,7 @@ export const mockConfirm = {
     }
 
     const updatedResources = project.resources.map((r) => {
-      if (r.id !== resourceId) return r;
+      if (r.id !== resourceId && r.resourceId !== resourceId) return r;
       return {
         ...r,
         selectedCredentialId: credentialId || undefined,
@@ -1206,7 +1222,7 @@ export const mockConfirm = {
       approvedIntegrationStore.set(project.id, {
         ...approvedIntegration,
         resource_infos: selectedResources.map(toResourceSnapshot),
-        excluded_resource_ids: excludedResources.map((resource) => resource.id),
+        excluded_resource_ids: excludedResources.map((resource) => resource.resourceId),
       });
     }
 

@@ -5,7 +5,6 @@ import {
   CloudProvider,
   Project,
   ProcessStatus,
-  UserRole,
   DatabaseType,
   IntegrationCategory,
   ConfirmedIntegrationResourceInfo,
@@ -13,10 +12,15 @@ import {
   ConfirmResourceMetadata,
   EndpointConfigInputData,
   ResourceSnapshot,
+  normalizeCloudProvider,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
-import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
+import {
+  extractTargetSource,
+  normalizeTargetSourceProcessStatus,
+  type TargetSourceDetailResponse,
+} from '@/lib/target-source-response';
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
 import {
   normalizeIssue222ApprovalActionResponse,
@@ -34,8 +38,6 @@ export interface CurrentUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
-  serviceCodePermissions: string[];
 }
 
 export const getCurrentUser = (): Promise<CurrentUser> =>
@@ -60,25 +62,6 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const normalizeCloudProvider = (value: unknown): CloudProvider => {
-  if (typeof value !== 'string') return 'IDC';
-
-  switch (value.toUpperCase()) {
-    case 'AWS':
-      return 'AWS';
-    case 'AZURE':
-      return 'Azure';
-    case 'GCP':
-      return 'GCP';
-    case 'SDU':
-      return 'SDU';
-    case 'IDC':
-    case 'UNKNOWN':
-    default:
-      return 'IDC';
-  }
-};
-
 const toIssue222CloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN' => {
   switch (cloudProvider) {
     case 'Azure':
@@ -90,41 +73,13 @@ const toIssue222CloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 
   }
 };
 
-const normalizeProjectProcessStatus = (value: unknown): ProcessStatus => {
-  if (typeof value === 'number' && ProcessStatus[value] !== undefined) {
-    return value as ProcessStatus;
-  }
-
-  switch (String(value).toUpperCase()) {
-    case 'WAITING_APPROVAL':
-    case 'PENDING':
-      return ProcessStatus.WAITING_APPROVAL;
-    case 'APPLYING_APPROVED':
-    case 'CONFIRMING':
-      return ProcessStatus.APPLYING_APPROVED;
-    case 'CONFIRMED':
-      return ProcessStatus.INSTALLING;
-    case 'INSTALLED':
-      return ProcessStatus.WAITING_CONNECTION_TEST;
-    case 'CONNECTED':
-      return ProcessStatus.CONNECTION_VERIFIED;
-    case 'TARGET_CONFIRMED':
-    case 'COMPLETED':
-      return ProcessStatus.INSTALLATION_COMPLETE;
-    case 'REQUEST_REQUIRED':
-    case 'IDLE':
-    default:
-      return ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  }
-};
-
 const toProjectSummary = (value: unknown): ProjectSummary | null => {
   if (!isRecord(value)) return null;
 
   const targetSourceId = parseTargetSourceId(value.targetSourceId ?? value.id);
   if (targetSourceId === null) return null;
 
-  const processStatus = normalizeProjectProcessStatus(value.processStatus);
+  const processStatus = normalizeTargetSourceProcessStatus(value.processStatus);
   const fallbackCode = `TS-${targetSourceId}`;
 
   return {

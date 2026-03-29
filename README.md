@@ -20,6 +20,39 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Real BFF For Swagger
+
+실행형 Swagger는 아래 경로에서 확인합니다.
+
+- `/integration/api-docs?spec=issue-222-client`
+
+이 페이지의 `Try it out`은 브라우저가 BFF를 직접 호출하는 방식이 아니라, 먼저 Next.js API를 호출한 뒤 서버에서 BFF로 프록시합니다.
+
+`Swagger UI` → `Next.js /api/integration/v1/**` → `BFF_API_URL + /install/v1/**`
+
+실제 BFF 서버로 호출하려면 Next.js 실행 환경에 아래 설정을 추가하세요.
+
+```bash
+USE_MOCK_DATA=false
+BFF_API_URL=http://your-bff-host:port
+```
+
+예시:
+
+```bash
+USE_MOCK_DATA=false \
+BFF_API_URL=http://localhost:8080 \
+npm run dev
+```
+
+그 다음 [http://localhost:3000/integration/api-docs?spec=issue-222-client](http://localhost:3000/integration/api-docs?spec=issue-222-client) 에서 확인하면 됩니다.
+
+참고:
+
+- upstream BFF 경로는 `/install/v1/**` 여야 합니다.
+- 브라우저가 BFF를 직접 치지 않으므로 BFF CORS를 직접 열 필요는 없습니다.
+- 현재 구현은 외부 BFF로 인증 헤더/쿠키를 자동 전달하지 않습니다. BFF가 별도 인증 없이 접근 가능하거나, 내부망/VPN에서 접근 가능해야 합니다.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -36,3 +36,25 @@
   예: `http://localhost:3001/aws`
 - Issue #222 실행형 미러: `/integration/api-docs?spec=issue-222-client`  
   예: `http://localhost:3001/integration/api-docs?spec=issue-222-client`
+
+## 실제 BFF 연동
+
+`/integration/api-docs?spec=issue-222-client` 의 `Try it out`은 브라우저가 BFF를 직접 호출하지 않습니다.
+
+호출 경로는 아래와 같습니다.
+
+`Swagger UI` → `Next.js /api/integration/v1/**` → `BFF_API_URL + /install/v1/**`
+
+즉, 실행형 Swagger에서 실제 BFF를 확인하려면 Next.js 서버에 아래 설정이 필요합니다.
+
+```bash
+USE_MOCK_DATA=false
+BFF_API_URL=http://your-bff-host:port
+```
+
+확인 체크리스트:
+
+- Next.js 서버 프로세스가 `BFF_API_URL`에 네트워크로 접근 가능해야 합니다.
+- upstream BFF는 `Issue #222` 기준 `/install/v1/**` 경로를 지원해야 합니다.
+- Swagger는 Next.js same-origin API를 호출하므로, 브라우저에서 BFF CORS를 직접 열 필요는 없습니다.
+- 현재 구현은 외부 BFF로 인증 헤더/쿠키를 자동 전달하지 않습니다. BFF가 별도 인증 없이 접근 가능하거나, 같은 내부망/VPN에서 허용되어야 합니다.
