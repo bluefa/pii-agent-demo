@@ -1,13 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { cardStyles, statusColors, cn, textColors } from '@/lib/theme';
+import type { AzureScanApp } from '@/app/lib/api/azure';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
+import { formatDateTime } from '@/lib/utils/date';
+import { badgeStyles, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
 import type { SecretKey } from '@/lib/types';
-import type { AzureV1Settings } from '@/lib/types/azure';
 
 interface AzureInfoCardProps {
-  serviceSettings: AzureV1Settings | null;
+  tenantId?: string;
+  subscriptionId?: string;
+  scanApp: AzureScanApp | null;
+  scanAppError?: string | null;
   credentials: SecretKey[];
   onOpenGuide: () => void;
   onManageCredentials: () => void;
@@ -45,6 +49,13 @@ const CheckSmallIcon = () => (
   </svg>
 );
 
+const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="flex items-start justify-between gap-3">
+    <span className={cn('text-sm', textColors.tertiary)}>{label}</span>
+    <div className="min-w-0 text-right">{children}</div>
+  </div>
+);
+
 const IdField = ({ label, value }: { label: string; value: string }) => {
   const [copied, setCopied] = useState(false);
 
@@ -67,17 +78,61 @@ const IdField = ({ label, value }: { label: string; value: string }) => {
   );
 };
 
+const getScanAppState = (
+  scanApp: AzureScanApp | null,
+  scanAppError?: string | null,
+) => {
+  if (scanAppError) {
+    return {
+      label: '조회 실패',
+      description: scanAppError,
+      colors: statusColors.error,
+    };
+  }
+
+  if (!scanApp?.appId) {
+    return {
+      label: '미등록',
+      description: 'Issue #222 scan app 계약 기준으로 App ID가 아직 등록되지 않았습니다.',
+      colors: statusColors.warning,
+    };
+  }
+
+  if (scanApp.status === 'VALID') {
+    return {
+      label: '검증 완료',
+      description: 'Azure scan app이 정상적으로 등록되어 있고 최근 검증도 통과했습니다.',
+      colors: statusColors.success,
+    };
+  }
+
+  if (scanApp.status === 'INVALID') {
+    return {
+      label: '검증 실패',
+      description: 'Azure scan app이 등록되어 있지만 최근 검증에서 문제가 확인됐습니다.',
+      colors: statusColors.error,
+    };
+  }
+
+  return {
+    label: '미검증',
+    description: 'Azure scan app은 등록되어 있지만 아직 검증 결과가 확정되지 않았습니다.',
+    colors: statusColors.pending,
+  };
+};
+
 export const AzureInfoCard = ({
-  serviceSettings,
+  tenantId,
+  subscriptionId,
+  scanApp,
+  scanAppError,
   credentials,
   onOpenGuide,
   onManageCredentials,
 }: AzureInfoCardProps) => {
   const [showAllCredentials, setShowAllCredentials] = useState(false);
 
-  const scanApp = serviceSettings?.scanApp ?? null;
-  const tenantId = serviceSettings?.tenantId;
-  const subscriptionId = serviceSettings?.subscriptionId;
+  const scanAppState = getScanAppState(scanApp, scanAppError);
 
   const visibleCredentials = showAllCredentials
     ? credentials
@@ -95,6 +150,11 @@ export const AzureInfoCard = ({
         )}
         {subscriptionId && (
           <IdField label={PROVIDER_FIELD_LABELS.Azure.subscriptionId} value={subscriptionId} />
+        )}
+        {!tenantId && !subscriptionId && (
+          <p className={cn('text-sm py-1', textColors.quaternary)}>
+            타겟소스 metadata에 Azure 식별자가 아직 없습니다.
+          </p>
         )}
       </div>
 
@@ -157,25 +217,58 @@ export const AzureInfoCard = ({
           </button>
         </div>
 
-        {scanApp?.appId ? (
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={cn('inline-flex items-center gap-1 text-sm font-medium', statusColors.success.text)}>
-                <CheckIcon />
-                등록 완료
-              </span>
-              <span className={cn('text-sm', textColors.secondary)}>PII Agent Scanner</span>
+        <div className={cn('rounded-lg border p-3 space-y-3', scanAppState.colors.bg, scanAppState.colors.border)}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className={cn('inline-flex items-center gap-1.5 text-sm font-medium', scanAppState.colors.textDark)}>
+                {scanAppState.label === '검증 완료'
+                  ? <CheckIcon />
+                  : <WarningIcon />}
+                {scanAppState.label}
+              </div>
+              <p className={cn('mt-1 text-sm leading-relaxed', textColors.secondary)}>
+                {scanAppState.description}
+              </p>
             </div>
-            <p className={cn('mt-1 font-mono text-xs truncate', textColors.tertiary)} title={scanApp.appId}>
-              App ID: {scanApp.appId}
-            </p>
+            {scanApp?.appId && !scanAppError && (
+              <span className={cn(
+                badgeStyles.base,
+                badgeStyles.sizes.sm,
+                scanAppState.colors.bg,
+                scanAppState.colors.textDark,
+              )}
+              >
+                {scanApp.status}
+              </span>
+            )}
           </div>
-        ) : (
-          <span className={cn('inline-flex items-center gap-1 text-sm font-medium', statusColors.warning.text)}>
-            <WarningIcon />
-            미등록
-          </span>
-        )}
+
+          {scanApp?.appId && (
+            <IdField label="App ID" value={scanApp.appId} />
+          )}
+
+          {scanApp?.lastVerifiedAt && !scanAppError && (
+            <InfoRow label="마지막 검증">
+              <span className={cn('text-sm', textColors.primary)}>
+                {formatDateTime(scanApp.lastVerifiedAt)}
+              </span>
+            </InfoRow>
+          )}
+
+          {scanApp?.failReason && (
+            <InfoRow label="실패 사유">
+              <span className={cn('font-mono text-xs break-all', scanAppState.colors.textDark)}>
+                {scanApp.failReason}
+              </span>
+            </InfoRow>
+          )}
+
+          {scanApp?.failMessage && (
+            <p className={cn('text-xs leading-relaxed', textColors.secondary)}>
+              {scanApp.failMessage}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
