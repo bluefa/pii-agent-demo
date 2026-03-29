@@ -18,7 +18,7 @@
 
 ## 현재 남은 큰 작업 요약
 
-- `lib/api-client/bff-client.ts`에 남아 있는 legacy 프록시 경로를 현재 `/install/v1` 계약 기준으로 계속 정리한다.
+- `lib/api-client/bff-client.ts`에 남아 있는 legacy `/projects/**`, provider `/aws|azure|gcp/projects/**`, `services/*/permissions` 프록시를 현재 `/install/v1` 계약 기준 또는 폐기 방향으로 정리한다.
 - `GET /install/v1/target-sources/services/{serviceCode}` 설명의 `Azure type only`가 실제 제약인지 확인한다.
 - 서비스 권한 사용자 추가/삭제 404의 의미를 `사용자 없음` 기준으로 더 정확히 정리할지 후속 검토한다.
 
@@ -50,7 +50,7 @@
 
 - [x] upstream base path를 `/infra/v1`에서 `/install/v1` 기준으로 맞춘다.
   대상: [lib/infra-api.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/infra-api.ts)
-- [ ] BFF 프록시 경로를 새 swagger 경로 체계에 맞게 정리한다.
+- [ ] `bffClient.projects.*`, provider `*/projects/*`, `services/*/permissions` 등 남은 legacy 프록시 경로를 새 swagger 경로 체계에 맞게 정리한다.
   대상: [lib/api-client/bff-client.ts](/Users/study/pii-agent-demo-azure-bff-todo/lib/api-client/bff-client.ts)
 - [x] 서버 사이드 BFF HTTP 클라이언트가 새 응답 shape를 읽도록 바꾼다.
   대상: [lib/bff/http.ts](/Users/study/pii-agent-demo/lib/bff/http.ts)
@@ -130,6 +130,8 @@
   대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/components/features/ProcessStatusCard.tsx](/Users/study/pii-agent-demo/app/components/features/ProcessStatusCard.tsx)
 - [x] 기존 FE `ProcessStatus` enum은 유지하고, Azure는 adapter로 BFF string status를 연결하는 방향으로 정리한다.
   대상: [lib/types.ts](/Users/study/pii-agent-demo/lib/types.ts), [lib/process/index.ts](/Users/study/pii-agent-demo/lib/process/index.ts)
+- [x] Azure `INSTALLING` 상태에서도 "확정정보 수정 요청" 진입 버튼을 유지한다.
+  대상: [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
 
 ### 10. Azure 설치 상태/Scan App 조회 정리
 
@@ -177,10 +179,10 @@
 ### 바로 시작 가능한 순서
 
 - [x] 0단계: Next.js 경로 마이그레이션
-- [ ] 1단계: 공통 네트워크 경로 정렬
+- [ ] 1단계: 잔여 BFF 프록시 경로 정리
 - [x] 2단계: Azure 목록/생성 진입 정리
 - [x] 3단계: Azure 상세 read model 정리
-- [ ] 4단계: Azure 잔여 contract cleanup (`bff-client` 잔여 경로, 일부 adapter 정리)
+- [ ] 4단계: 계약 확인/문서화 후속 (`Azure type only`, 권한 API 404 의미)
 - [x] 5단계: Azure 설치 상태/Scan App 정리
 - [x] 6단계: logical db scanner 제거
 - [x] 7단계: Azure test connection 유지 원칙 반영
