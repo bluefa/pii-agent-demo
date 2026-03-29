@@ -132,13 +132,11 @@ export interface AzureV1Resource {
   resourceId: string;
   resourceName: string;
   resourceType: string;
-  isVm: boolean;
   privateEndpoint?: AzureV1PrivateEndpoint;
   vmInstallation?: AzureV1VmInstallation;
 }
 
 export interface AzureV1InstallationStatus {
-  hasVm: boolean;
   lastCheck: AzureV1LastCheck;
   resources?: AzureV1Resource[];
 }

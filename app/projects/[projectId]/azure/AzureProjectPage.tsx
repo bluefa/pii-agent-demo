@@ -160,6 +160,7 @@ export const AzureProjectPage = ({
   const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL
     || currentStep === ProcessStatus.APPLYING_APPROVED
     || currentStep === ProcessStatus.INSTALLING;
+  const canRequestTargetRevision = currentStep === ProcessStatus.INSTALLING;
 
   const loadAzureResources = useCallback(async () => {
     setResourceLoading(true);
@@ -468,12 +469,12 @@ export const AzureProjectPage = ({
                       연동 대상 확정 승인 요청
                     </button>
                   </>
-                ) : !isProcessing && (
+                ) : (!isProcessing || canRequestTargetRevision) && (
                   <button
                     onClick={handleStartEdit}
                     className={getButtonClass('secondary')}
                   >
-                    확정 대상 수정
+                    {canRequestTargetRevision ? '확정정보 수정 요청' : '확정 대상 수정'}
                   </button>
                 )}
               </div>
