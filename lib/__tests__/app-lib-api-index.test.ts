@@ -37,7 +37,7 @@ describe('app/lib/api/index', () => {
     await searchUsers('alice', ['u1', 'u2']);
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-      '/api/integration/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+      '/integration/api/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
     );
   });
 
@@ -56,7 +56,7 @@ describe('app/lib/api/index', () => {
 
     await searchUsers('');
 
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/integration/v1/users/search');
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/users/search');
   });
 
   it('getServices는 v1 응답을 ServiceCode[] 형태로 매핑한다', async () => {
@@ -228,7 +228,7 @@ describe('app/lib/api/index', () => {
 
     expect(response).toEqual({ success: true });
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/integration/v1/target-sources/1001/resources/credential',
+      '/integration/api/v1/target-sources/1001/resources/credential',
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify({
@@ -326,7 +326,7 @@ describe('app/lib/api/index', () => {
       },
     });
 
-    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/integration/v1/target-sources/1001/approval-requests');
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/target-sources/1001/approval-requests');
     expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
       body: JSON.stringify({
@@ -565,14 +565,14 @@ describe('app/lib/api/index', () => {
     const [firstCallUrl, firstCallInit] = fetchSpy.mock.calls[0] ?? [];
     const [secondCallUrl, secondCallInit] = fetchSpy.mock.calls[1] ?? [];
 
-    expect(firstCallUrl).toBe('/api/integration/v1/services/SERVICE-A/target-sources');
+    expect(firstCallUrl).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
     expect(firstCallInit?.method).toBe('POST');
     expect(firstCallInit?.body).toBe(JSON.stringify({
       cloudProvider: 'AZURE',
       tenantId: '11111111-1111-1111-1111-111111111111',
     }));
 
-    expect(secondCallUrl).toBe('/api/integration/v1/services/SERVICE-A/target-sources');
+    expect(secondCallUrl).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
     expect(secondCallInit?.method).toBe('POST');
     expect(secondCallInit?.body).toBe(JSON.stringify({
       description: 'legacy sdu source',
