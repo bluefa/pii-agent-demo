@@ -572,7 +572,7 @@ export const updateResourceCredential = async (
   fetchInfraJson<{ success: boolean }>(
     `${CONFIRM_BASE}/${targetSourceId}/resources/credential`,
     {
-      method: 'PATCH',
+      method: 'PUT',
       body: { resourceId, credentialId },
     },
   );

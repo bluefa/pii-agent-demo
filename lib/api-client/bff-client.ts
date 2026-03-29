@@ -45,18 +45,6 @@ const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => 
   });
 };
 
-const proxyPatch = async (path: string, body: unknown): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return new NextResponse(res.body, {
-    status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
-  });
-};
-
 const proxyPut = async (path: string, body: unknown): Promise<NextResponse> => {
   const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
     method: 'PUT',
@@ -135,7 +123,7 @@ export const bffClient: ApiClient = {
     confirmTargets: (projectId, body) => proxyPost(`/projects/${projectId}/confirm-targets`, body),
     completeInstallation: (projectId) => proxyPost(`/projects/${projectId}/complete-installation`, {}),
     confirmCompletion: (projectId) => proxyPost(`/projects/${projectId}/confirm-completion`, {}),
-    credentials: (projectId) => proxyGet(`/projects/${projectId}/credentials`),
+    credentials: (projectId) => proxyGet(`/target-sources/${projectId}/secrets`),
     history: (projectId, query) => {
       const params = new URLSearchParams();
       if (query.type) params.set('type', query.type);
@@ -144,7 +132,7 @@ export const bffClient: ApiClient = {
       const qs = params.toString();
       return proxyGet(`/projects/${projectId}/history${qs ? `?${qs}` : ''}`);
     },
-    resourceCredential: (projectId, body) => proxyPatch(`/projects/${projectId}/resources/credential`, body),
+    resourceCredential: (projectId, body) => proxyPut(`/target-sources/${projectId}/resources/credential`, body),
     resourceExclusions: (projectId) => proxyGet(`/projects/${projectId}/resources/exclusions`),
     resources: (projectId) => proxyGet(`/projects/${projectId}/resources`),
     scan: (projectId) => proxyPost(`/projects/${projectId}/scan`, {}),
@@ -155,7 +143,7 @@ export const bffClient: ApiClient = {
     search: (query, excludeIds) => {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
-      if (excludeIds.length > 0) params.set('exclude', excludeIds.join(','));
+      excludeIds.forEach((excludeId) => params.append('excludeIds', excludeId));
       const qs = params.toString();
       return proxyGet(`/users/search${qs ? `?${qs}` : ''}`);
     },
@@ -267,7 +255,7 @@ export const bffClient: ApiClient = {
     rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),
     cancelApprovalRequest: (projectId) => proxyPost(`/target-sources/${projectId}/approval-requests/cancel`, {}),
     confirmInstallation: (projectId) => proxyPost(`/target-sources/${projectId}/pii-agent-installation/confirm`, {}),
-    updateResourceCredential: (projectId, body) => proxyPatch(`/target-sources/${projectId}/resources/credential`, body),
+    updateResourceCredential: (projectId, body) => proxyPut(`/target-sources/${projectId}/resources/credential`, body),
     testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
     getTestConnectionResults: (projectId, page, size) =>
       proxyGet(`/target-sources/${projectId}/test-connection/results?page=${page}&size=${size}`),

@@ -12,6 +12,7 @@ import {
   getProjects,
   getServices,
   searchUsers,
+  updateResourceCredential,
 } from '@/app/lib/api';
 import { ProcessStatus } from '@/lib/types';
 
@@ -210,6 +211,32 @@ describe('app/lib/api/index', () => {
       ],
       totalCount: 1,
     });
+  });
+
+  it('updateResourceCredential은 Issue #222 PUT 계약으로 호출한다', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: true }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+
+    const response = await updateResourceCredential(1001, 'res-1', 'cred-1');
+
+    expect(response).toEqual({ success: true });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/integration/v1/target-sources/1001/resources/credential',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          resourceId: 'res-1',
+          credentialId: 'cred-1',
+        }),
+      }),
+    );
   });
 
   it('getProject는 Issue #222 상세 응답을 Project read model로 복원한다', async () => {
