@@ -3,7 +3,7 @@ import { client } from '@/lib/api-client';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 
-export const PATCH = withV1(async (request, { requestId, params }) => {
+export const PUT = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 

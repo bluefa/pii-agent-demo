@@ -154,6 +154,25 @@ describe('bffClient.confirm.getResources', () => {
     );
   });
 
+  it('targetSources.get은 Issue #222 target-source detail path를 호출한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ target_source_id: 1001 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.targetSources.get('1001');
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/install/v1/target-sources/1001',
+    );
+  });
+
   it('targetSources.create는 serviceCode를 path로 승격하고 request body에서는 제거한다', async () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
 
@@ -204,6 +223,25 @@ describe('bffClient.confirm.getResources', () => {
     );
   });
 
+  it('users.search는 Issue #222 excludeIds 반복 쿼리를 그대로 전달한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ users: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.users.search('alice', ['u1', 'u2']);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/install/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+    );
+  });
+
   it('users.getServices는 Issue #222 singular path를 호출한다', async () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
 
@@ -220,6 +258,55 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/user/services',
+    );
+  });
+
+  it('projects.credentials는 Issue #222 secrets path를 호출한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.projects.credentials('1001');
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/install/v1/target-sources/1001/secrets',
+    );
+  });
+
+  it('confirm.updateResourceCredential는 Issue #222 PUT path를 호출한다', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { bffClient } = await import('@/lib/api-client/bff-client');
+
+    await bffClient.confirm.updateResourceCredential('1001', {
+      resourceId: 'res-1',
+      credentialId: 'cred-1',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://bff.example.com/install/v1/target-sources/1001/resources/credential',
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resourceId: 'res-1',
+          credentialId: 'cred-1',
+        }),
+      },
     );
   });
 });
