@@ -95,34 +95,34 @@ const proxyResourceCatalogGet = async (path: string): Promise<NextResponse> => {
 
 export const bffClient: ApiClient = {
   dashboard: {
-    summary: () => proxyGet('/v1/admin/dashboard/summary'),
+    summary: () => proxyGet('/admin/dashboard/summary'),
     systems: (params) => {
       const qs = params.toString();
-      return proxyGet(`/v1/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
+      return proxyGet(`/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
     },
     systemsExport: (params) => {
       const qs = params.toString();
-      return proxyGet(`/v1/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
+      return proxyGet(`/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
     },
   },
   targetSources: {
-    list: (serviceCode) => proxyGet(`/v1/target-sources/services/${serviceCode}`),
-    get: (projectId) => proxyGet(`/v1/target-sources/${projectId}`),
+    list: (serviceCode) => proxyGet(`/target-sources/services/${serviceCode}`),
+    get: (projectId) => proxyGet(`/target-sources/${projectId}`),
     create: (body) => {
       const request = extractTargetSourceCreateRequest(body);
-      if (!request) return proxyPost('/v1/target-sources', body);
-      return proxyPost(`/v1/target-sources/services/${request.serviceCode}/target-sources`, request.requestBody);
+      if (!request) return proxyPost('/target-sources', body);
+      return proxyPost(`/target-sources/services/${request.serviceCode}/target-sources`, request.requestBody);
     },
   },
   projects: {
-    get: (projectId) => proxyGet(`/projects/${projectId}`),
-    delete: (projectId) => proxyDelete(`/projects/${projectId}`),
-    create: (body) => proxyPost('/projects', body),
-    approve: (projectId, body) => proxyPost(`/projects/${projectId}/approve`, body),
-    reject: (projectId, body) => proxyPost(`/projects/${projectId}/reject`, body),
+    get: (projectId) => proxyGet(`/target-sources/${projectId}`),
+    delete: (projectId) => proxyDelete(`/target-sources/${projectId}`),
+    create: (body) => bffClient.targetSources.create(body),
+    approve: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
+    reject: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),
     confirmTargets: (projectId, body) => proxyPost(`/projects/${projectId}/confirm-targets`, body),
     completeInstallation: (projectId) => proxyPost(`/projects/${projectId}/complete-installation`, {}),
-    confirmCompletion: (projectId) => proxyPost(`/projects/${projectId}/confirm-completion`, {}),
+    confirmCompletion: (projectId) => proxyPost(`/target-sources/${projectId}/pii-agent-installation/confirm`, {}),
     credentials: (projectId) => proxyGet(`/target-sources/${projectId}/secrets`),
     history: (projectId, query) => {
       const params = new URLSearchParams();
@@ -130,14 +130,14 @@ export const bffClient: ApiClient = {
       if (query.limit) params.set('limit', query.limit);
       if (query.offset) params.set('offset', query.offset);
       const qs = params.toString();
-      return proxyGet(`/projects/${projectId}/history${qs ? `?${qs}` : ''}`);
+      return proxyGet(`/target-sources/${projectId}/history${qs ? `?${qs}` : ''}`);
     },
     resourceCredential: (projectId, body) => proxyPut(`/target-sources/${projectId}/resources/credential`, body),
-    resourceExclusions: (projectId) => proxyGet(`/projects/${projectId}/resources/exclusions`),
-    resources: (projectId) => proxyGet(`/projects/${projectId}/resources`),
-    scan: (projectId) => proxyPost(`/projects/${projectId}/scan`, {}),
-    terraformStatus: (projectId) => proxyGet(`/projects/${projectId}/terraform-status`),
-    testConnection: (projectId, body) => proxyPost(`/projects/${projectId}/test-connection`, body),
+    resourceExclusions: (projectId) => proxyGet(`/target-sources/${projectId}/resources/exclusions`),
+    resources: (projectId) => proxyGet(`/target-sources/${projectId}/resources`),
+    scan: (projectId) => proxyPost(`/target-sources/${projectId}/scan`, {}),
+    terraformStatus: (projectId) => proxyGet(`/target-sources/${projectId}/terraform-status`),
+    testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
   },
   users: {
     search: (query, excludeIds) => {
@@ -151,58 +151,58 @@ export const bffClient: ApiClient = {
     getServices: () => proxyGet('/user/services'),
   },
   sdu: {
-    checkInstallation: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/check-installation`, {}),
-    getAthenaTables: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/athena-tables`),
-    executeConnectionTest: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/connection-test/execute`, {}),
-    getConnectionTest: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/connection-test`),
-    issueAkSk: (projectId, body) => proxyPost(`/v1/sdu/target-sources/${projectId}/iam-user/issue-aksk`, body),
-    getIamUser: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/iam-user`),
-    getInstallationStatus: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/installation-status`),
-    checkS3Upload: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/s3-upload/check`, {}),
-    getS3Upload: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/s3-upload`),
-    confirmSourceIp: (projectId, body) => proxyPost(`/v1/sdu/target-sources/${projectId}/source-ip/confirm`, body),
-    registerSourceIp: (projectId, body) => proxyPost(`/v1/sdu/target-sources/${projectId}/source-ip/register`, body),
-    getSourceIpList: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/source-ip`),
+    checkInstallation: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/check-installation`, {}),
+    getAthenaTables: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/athena-tables`),
+    executeConnectionTest: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/connection-test/execute`, {}),
+    getConnectionTest: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/connection-test`),
+    issueAkSk: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/iam-user/issue-aksk`, body),
+    getIamUser: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/iam-user`),
+    getInstallationStatus: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/installation-status`),
+    checkS3Upload: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/s3-upload/check`, {}),
+    getS3Upload: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/s3-upload`),
+    confirmSourceIp: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/source-ip/confirm`, body),
+    registerSourceIp: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/source-ip/register`, body),
+    getSourceIpList: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/source-ip`),
   },
   aws: {
-    checkInstallation: (projectId) => proxyPost(`/aws/projects/${projectId}/check-installation`, {}),
-    setInstallationMode: (projectId, body) => proxyPost(`/aws/projects/${projectId}/installation-mode`, body),
-    getInstallationStatus: (projectId) => proxyGet(`/aws/projects/${projectId}/installation-status`),
-    getTerraformScript: (projectId) => proxyGet(`/aws/projects/${projectId}/terraform-script`),
-    verifyTfRole: (_projectId, body) => proxyPost('/aws/verify-tf-role', body ?? {}),
+    checkInstallation: (projectId) => proxyPost(`/aws/target-sources/${projectId}/check-installation`, {}),
+    setInstallationMode: (projectId, body) => proxyPost(`/aws/target-sources/${projectId}/installation-mode`, body),
+    getInstallationStatus: (projectId) => proxyGet(`/aws/target-sources/${projectId}/installation-status`),
+    getTerraformScript: (projectId) => proxyGet(`/aws/target-sources/${projectId}/terraform-script`),
+    verifyTfRole: (projectId, body) => proxyPost(`/aws/target-sources/${projectId}/verify-execution-role`, body ?? {}),
   },
   azure: {
-    checkInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/check-installation`, {}),
-    getInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/installation-status`),
-    getSettings: (projectId) => proxyGet(`/azure/projects/${projectId}/settings`),
-    getSubnetGuide: (projectId) => proxyGet(`/azure/projects/${projectId}/subnet-guide`),
-    vmCheckInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/vm/check-installation`, {}),
-    vmGetInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/vm/installation-status`),
-    vmGetTerraformScript: (projectId) => proxyGet(`/azure/projects/${projectId}/vm/terraform-script`),
+    checkInstallation: (projectId) => proxyPost(`/azure/target-sources/${projectId}/check-installation`, {}),
+    getInstallationStatus: (projectId) => proxyGet(`/azure/target-sources/${projectId}/installation-status`),
+    getSettings: (projectId) => proxyGet(`/azure/target-sources/${projectId}/settings`),
+    getSubnetGuide: (projectId) => proxyGet(`/azure/target-sources/${projectId}/subnet-guide`),
+    vmCheckInstallation: (projectId) => proxyPost(`/azure/target-sources/${projectId}/vm/check-installation`, {}),
+    vmGetInstallationStatus: (projectId) => proxyGet(`/azure/target-sources/${projectId}/vm/installation-status`),
+    vmGetTerraformScript: (projectId) => proxyGet(`/azure/target-sources/${projectId}/vm-terraform-script`),
   },
   gcp: {
-    checkInstallation: (projectId) => proxyPost(`/gcp/projects/${projectId}/check-installation`, {}),
-    getInstallationStatus: (projectId) => proxyGet(`/gcp/projects/${projectId}/installation-status`),
+    checkInstallation: (projectId) => proxyPost(`/gcp/target-sources/${projectId}/check-installation`, {}),
+    getInstallationStatus: (projectId) => proxyGet(`/gcp/target-sources/${projectId}/installation-status`),
   },
   idc: {
     getSourceIpRecommendation: (ipType) =>
-      proxyGet(`/v1/idc/source-ip-recommendation${ipType ? `?ipType=${ipType}` : ''}`),
-    checkInstallation: (projectId) => proxyPost(`/v1/idc/target-sources/${projectId}/check-installation`, {}),
-    confirmFirewall: (projectId) => proxyPost(`/v1/idc/target-sources/${projectId}/confirm-firewall`, {}),
-    confirmTargets: (projectId, body) => proxyPost(`/v1/idc/target-sources/${projectId}/confirm-targets`, body),
-    getInstallationStatus: (projectId) => proxyGet(`/v1/idc/target-sources/${projectId}/installation-status`),
-    getResources: (projectId) => proxyGet(`/v1/idc/target-sources/${projectId}/resources`),
-    updateResources: (projectId, body) => proxyPut(`/v1/idc/target-sources/${projectId}/resources`, body),
-    updateResourcesList: (projectId, body) => proxyPut(`/v1/idc/target-sources/${projectId}/resources/list`, body),
+      proxyGet(`/idc/source-ip-recommendation${ipType ? `?ipType=${ipType}` : ''}`),
+    checkInstallation: (projectId) => proxyPost(`/idc/target-sources/${projectId}/check-installation`, {}),
+    confirmFirewall: (projectId) => proxyPost(`/idc/target-sources/${projectId}/confirm-firewall`, {}),
+    confirmTargets: (projectId, body) => proxyPost(`/idc/target-sources/${projectId}/confirm-targets`, body),
+    getInstallationStatus: (projectId) => proxyGet(`/idc/target-sources/${projectId}/installation-status`),
+    getResources: (projectId) => proxyGet(`/idc/target-sources/${projectId}/resources`),
+    updateResources: (projectId, body) => proxyPut(`/idc/target-sources/${projectId}/resources`, body),
+    updateResourcesList: (projectId, body) => proxyPut(`/idc/target-sources/${projectId}/resources/list`, body),
   },
   services: {
     permissions: {
-      list: (serviceCode) => proxyGet(`/services/${serviceCode}/permissions`),
-      add: (serviceCode, body) => proxyPost(`/services/${serviceCode}/permissions`, body),
-      remove: (serviceCode, userId) => proxyDelete(`/services/${serviceCode}/permissions/${userId}`),
+      list: (serviceCode) => proxyGet(`/services/${serviceCode}/authorized-users`),
+      add: (serviceCode, body) => proxyPost(`/services/${serviceCode}/authorized-users`, body),
+      remove: (serviceCode, userId) => proxyDelete(`/services/${serviceCode}/authorized-users/${userId}`),
     },
     projects: {
-      list: (serviceCode) => proxyGet(`/services/${serviceCode}/projects`),
+      list: (serviceCode) => proxyGet(`/services/${serviceCode}/target-sources`),
     },
     settings: {
       aws: {
@@ -224,11 +224,11 @@ export const bffClient: ApiClient = {
     switchUser: (body) => proxyPost('/dev/switch-user', body),
   },
   scan: {
-    get: (projectId, scanId) => proxyGet(`/scan/projects/${projectId}/scans/${scanId}`),
+    get: (projectId, scanId) => proxyGet(`/target-sources/${projectId}/scan/${scanId}`),
     getHistory: (projectId, query) =>
-      proxyGet(`/scan/projects/${projectId}/history?limit=${query.limit}&offset=${query.offset}`),
-    create: (projectId, body) => proxyPost(`/scan/projects/${projectId}/scans`, body),
-    getStatus: (projectId) => proxyGet(`/scan/projects/${projectId}/status`),
+      proxyGet(`/target-sources/${projectId}/scan/history?limit=${query.limit}&offset=${query.offset}`),
+    create: (projectId, body) => proxyPost(`/target-sources/${projectId}/scan`, body),
+    getStatus: (projectId) => proxyGet(`/target-sources/${projectId}/scanJob/latest`),
   },
   taskAdmin: {
     getApprovalRequestQueue: (params) => {
@@ -239,7 +239,7 @@ export const bffClient: ApiClient = {
       if (params.page !== undefined) searchParams.set('page', String(params.page));
       if (params.size !== undefined) searchParams.set('size', String(params.size));
       if (params.sort) searchParams.set('sort', params.sort);
-      return proxyGet(`/v1/task-admin/approval-requests?${searchParams.toString()}`);
+      return proxyGet(`/task-admin/approval-requests?${searchParams.toString()}`);
     },
   },
   confirm: {
