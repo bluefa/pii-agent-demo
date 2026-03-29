@@ -7,6 +7,7 @@ export const SWAGGER_SPEC_NAMES = [
   'user',
   'credential',
   'confirm',
+  'issue-222-client',
   'test-connection',
 ] as const;
 

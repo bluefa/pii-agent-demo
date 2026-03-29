@@ -16,6 +16,7 @@
 - `idc.yaml`
 - `sdu.yaml`
 - `logical-db-status.yaml`
+- `issue-222-client.yaml`
 
 ## 반영 원칙
 
@@ -33,3 +34,5 @@
   예: `http://localhost:3001/api-docs/aws`
 - 기존 Swagger UI(개별): `/{spec}`  
   예: `http://localhost:3001/aws`
+- Issue #222 실행형 미러: `/api-docs?spec=issue-222-client`  
+  예: `http://localhost:3001/api-docs?spec=issue-222-client`
