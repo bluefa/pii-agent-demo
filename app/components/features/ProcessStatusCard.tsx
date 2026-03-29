@@ -76,6 +76,9 @@ export const ProcessStatusCard = ({
   const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
   const selectedResources = resources.filter((r) => r.isSelected);
+  const isAzure = project.cloudProvider === 'Azure';
+  const shouldHideAzureConnectionTestGuide =
+    isAzure && currentStep === ProcessStatus.WAITING_CONNECTION_TEST;
 
   // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
   const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
@@ -184,7 +187,9 @@ export const ProcessStatusCard = ({
             <div className="border-t border-gray-100 my-4" />
 
             <div className="flex-1 flex flex-col">
-              <StepGuide currentStep={currentStep} cloudProvider={project.cloudProvider} />
+              {!shouldHideAzureConnectionTestGuide && (
+                <StepGuide currentStep={currentStep} cloudProvider={project.cloudProvider} />
+              )}
 
               {/* Action Buttons */}
               <div className="mt-auto pt-4">
@@ -264,15 +269,26 @@ export const ProcessStatusCard = ({
                 )}
 
                 {currentStep === ProcessStatus.WAITING_CONNECTION_TEST && (
-                  <ConnectionTestPanel
-                    targetSourceId={project.targetSourceId}
-                    selectedResources={selectedResources}
-                    onResourceUpdate={refreshProject}
-                  />
+                  isAzure ? (
+                    <div className={cn('w-full p-4 rounded-lg space-y-2', statusColors.info.bg, statusColors.info.border, 'border')}>
+                      <p className={cn('text-sm font-medium', statusColors.info.textDark)}>
+                        Azure 전환 안내
+                      </p>
+                      <p className={cn('text-sm', statusColors.info.textDark)}>
+                        설치가 완료되었습니다. Azure 전환 범위에서는 별도 연결 테스트를 노출하지 않습니다.
+                      </p>
+                    </div>
+                  ) : (
+                    <ConnectionTestPanel
+                      targetSourceId={project.targetSourceId}
+                      selectedResources={selectedResources}
+                      onResourceUpdate={refreshProject}
+                    />
+                  )
                 )}
 
                 {(currentStep === ProcessStatus.CONNECTION_VERIFIED ||
-                  currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
+                  currentStep === ProcessStatus.INSTALLATION_COMPLETE) && !isAzure && (
                   <div className="grid grid-cols-1 gap-4">
                     <ConnectionTestPanel
                       targetSourceId={project.targetSourceId}
