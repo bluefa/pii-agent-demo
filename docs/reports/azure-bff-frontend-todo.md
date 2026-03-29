@@ -18,10 +18,14 @@
 
 ## 현재 남은 큰 작업 요약
 
-- `lib/api-client/bff-client.ts`의 잔여 legacy 프록시 경로를 현재 `/install/v1` 계약 기준으로 정리한다.
-- credential update를 `PATCH`에서 `PUT` 계약으로 정리한다.
+- `lib/api-client/bff-client.ts`에 남아 있는 legacy 프록시 경로를 현재 `/install/v1` 계약 기준으로 계속 정리한다.
 - 실행형 Swagger와 실제 Next.js API 응답을 전수 대조해 schema/runtime 불일치를 없앤다.
 - 모든 구현이 끝난 뒤 Next.js 공개 API를 `/api/integration/v1/**`에서 `/integration/api/v1/**`로 옮길지 별도 마이그레이션으로 결정한다.
+
+## 병렬 진행 메모
+
+- `lib/api-client/bff-client.ts` 잔여 legacy 프록시 경로 정리는 공개 API 경로 마이그레이션과 비교적 독립적으로 진행할 수 있다.
+- 실행형 Swagger와 실제 Next.js API 응답 전수 검증은 공개 API 경로(`/api/integration/v1/**` ↔ `/integration/api/v1/**`) 결정이 끝난 뒤 수행하는 편이 안전하다.
 
 ## Todo
 
@@ -99,7 +103,7 @@
   대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
 - [x] VM resource input의 endpoint payload 키가 swagger `ResourceConfigDto`와 일치하는지 재확인하고 맞춘다.
   대상: [app/projects/[projectId]/azure/AzureProjectPage.tsx](/Users/study/pii-agent-demo/app/projects/[projectId]/azure/AzureProjectPage.tsx)
-- [ ] credential update 호출을 `PATCH`에서 `PUT` 계약으로 바꾼다.
+- [x] credential update 호출을 `PATCH`에서 `PUT` 계약으로 바꾼다.
   대상: [app/lib/api/index.ts](/Users/study/pii-agent-demo/app/lib/api/index.ts), [app/api/integration/v1/target-sources/[targetSourceId]/resources/credential/route.ts](/Users/study/pii-agent-demo/app/api/integration/v1/target-sources/[targetSourceId]/resources/credential/route.ts)
 
 ### 7. Azure 승인 이력/상세 UI 재설계
@@ -176,7 +180,7 @@
 - [ ] 1단계: 공통 네트워크 경로 정렬
 - [x] 2단계: Azure 목록/생성 진입 정리
 - [x] 3단계: Azure 상세 read model 정리
-- [ ] 4단계: Azure 잔여 contract cleanup (`bff-client` 잔여 경로, credential `PUT`, 일부 adapter 정리)
+- [ ] 4단계: Azure 잔여 contract cleanup (`bff-client` 잔여 경로, 일부 adapter 정리)
 - [x] 5단계: Azure 설치 상태/Scan App 정리
 - [x] 6단계: logical db scanner 제거
 - [x] 7단계: Azure test connection 유지 원칙 반영
