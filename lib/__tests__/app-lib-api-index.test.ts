@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createProject,
   getConfirmResources,
   getConfirmedIntegration,
   getProjects,
@@ -219,5 +220,43 @@ describe('app/lib/api/index', () => {
         cloudProvider: 'AWS',
       }),
     ]);
+  });
+
+  it('createProject는 Issue #222 cloudProvider enum으로 요청을 직렬화한다', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({}), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await createProject({
+      serviceCode: 'SERVICE-A',
+      cloudProvider: 'Azure',
+      tenantId: '11111111-1111-1111-1111-111111111111',
+    });
+
+    await createProject({
+      serviceCode: 'SERVICE-A',
+      cloudProvider: 'SDU',
+      description: 'legacy sdu source',
+    });
+
+    const [firstCallUrl, firstCallInit] = fetchSpy.mock.calls[0] ?? [];
+    const [secondCallUrl, secondCallInit] = fetchSpy.mock.calls[1] ?? [];
+
+    expect(firstCallUrl).toBe('/api/integration/v1/services/SERVICE-A/target-sources');
+    expect(firstCallInit?.method).toBe('POST');
+    expect(firstCallInit?.body).toBe(JSON.stringify({
+      cloudProvider: 'AZURE',
+      tenantId: '11111111-1111-1111-1111-111111111111',
+    }));
+
+    expect(secondCallUrl).toBe('/api/integration/v1/services/SERVICE-A/target-sources');
+    expect(secondCallInit?.method).toBe('POST');
+    expect(secondCallInit?.body).toBe(JSON.stringify({
+      description: 'legacy sdu source',
+      cloudProvider: 'UNKNOWN',
+    }));
   });
 });

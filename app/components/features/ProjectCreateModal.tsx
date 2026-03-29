@@ -9,7 +9,7 @@ import { cn, getInputClass, modalStyles, providerColors, statusColors, textColor
 import { PROVIDER_DESCRIPTIONS, AWS_REGION_TYPE_LABELS, PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import type { CloudProvider } from '@/lib/types';
 
-const ALL_PROVIDERS: CloudProvider[] = ['AWS', 'Azure', 'GCP', 'IDC', 'SDU'];
+const ALL_PROVIDERS: CloudProvider[] = ['AWS', 'Azure', 'GCP', 'IDC'];
 
 const PROVIDER_SELECTED_STYLES = providerColors;
 

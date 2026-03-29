@@ -68,6 +68,17 @@ const normalizeCloudProvider = (value: unknown): CloudProvider => {
   }
 };
 
+const toIssue222CloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN' => {
+  switch (cloudProvider) {
+    case 'Azure':
+      return 'AZURE';
+    case 'SDU':
+      return 'UNKNOWN';
+    default:
+      return cloudProvider;
+  }
+};
+
 const normalizeProjectProcessStatus = (value: unknown): ProcessStatus => {
   if (typeof value === 'number' && ProcessStatus[value] !== undefined) {
     return value as ProcessStatus;
@@ -148,7 +159,7 @@ export const createProject = async (payload: {
 }): Promise<void> => {
   const body = {
     ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
-    cloudProvider: payload.cloudProvider === 'Azure' ? 'AZURE' : payload.cloudProvider,
+    cloudProvider: toIssue222CloudProvider(payload.cloudProvider),
     ...(payload.awsAccountId ? { awsAccountId: payload.awsAccountId } : {}),
     ...(payload.awsRegionType ? { awsRegionType: payload.awsRegionType } : {}),
     ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
