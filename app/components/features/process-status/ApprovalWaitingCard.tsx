@@ -9,7 +9,7 @@ import { CancelApprovalModal } from './CancelApprovalModal';
 import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
-type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
+type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
 
 interface ApprovalWaitingCardProps {
   targetSourceId: number;
@@ -24,7 +24,7 @@ export const ApprovalWaitingCard = ({
 }: ApprovalWaitingCardProps) => {
   const detailModal = useModal();
   const cancelModal = useModal();
-  const [latestRequest, setLatestRequest] = useState<ApprovalRequest | null>(null);
+  const [latestEntry, setLatestEntry] = useState<ApprovalHistoryItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +32,7 @@ export const ApprovalWaitingCard = ({
       try {
         const history = await getApprovalHistory(targetSourceId, 0, 1);
         if (!cancelled && history.content.length > 0) {
-          setLatestRequest(history.content[0].request);
+          setLatestEntry(history.content[0]);
         }
       } catch {
         // 조회 실패 시 무시 — 요청 내용 확인 버튼만 비활성화
@@ -65,10 +65,10 @@ export const ApprovalWaitingCard = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestRequest}
+                disabled={!latestEntry}
                 className={getButtonClass('ghost', 'sm')}
               >
-                요청 내용 확인
+                요청 요약 보기
               </button>
               <button
                 onClick={() => cancelModal.open()}
@@ -90,7 +90,7 @@ export const ApprovalWaitingCard = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
-        request={latestRequest}
+        item={latestEntry}
       />
 
       <CancelApprovalModal

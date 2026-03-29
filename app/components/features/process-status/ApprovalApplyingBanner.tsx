@@ -8,7 +8,7 @@ import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
-type ApprovalRequest = ApprovalHistoryResponse['content'][0]['request'];
+type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
 
 interface ApprovalApplyingBannerProps {
   targetSourceId?: number;
@@ -20,7 +20,7 @@ export const ApprovalApplyingBanner = ({
   hasConfirmedIntegration,
 }: ApprovalApplyingBannerProps) => {
   const detailModal = useModal();
-  const [latestRequest, setLatestRequest] = useState<ApprovalRequest | null>(null);
+  const [latestEntry, setLatestEntry] = useState<ApprovalHistoryItem | null>(null);
 
   useEffect(() => {
     if (!targetSourceId) return;
@@ -28,7 +28,7 @@ export const ApprovalApplyingBanner = ({
     getApprovalHistory(targetSourceId, 0, 1)
       .then((history) => {
         if (!cancelled && history.content.length > 0) {
-          setLatestRequest(history.content[0].request);
+          setLatestEntry(history.content[0]);
         }
       })
       .catch(() => {});
@@ -60,10 +60,10 @@ export const ApprovalApplyingBanner = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestRequest}
+                disabled={!latestEntry}
                 className={getButtonClass('ghost', 'sm')}
               >
-                승인 내역 확인
+                승인 요약 보기
               </button>
             </div>
             {hasConfirmedIntegration && targetSourceId && (
@@ -79,7 +79,7 @@ export const ApprovalApplyingBanner = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
-        request={latestRequest}
+        item={latestEntry}
       />
     </>
   );
