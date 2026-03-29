@@ -5,7 +5,6 @@ import {
   CloudProvider,
   Project,
   ProcessStatus,
-  UserRole,
   DatabaseType,
   IntegrationCategory,
   ConfirmedIntegrationResourceInfo,
@@ -23,8 +22,6 @@ export interface CurrentUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
-  serviceCodePermissions: string[];
 }
 
 export const getCurrentUser = (): Promise<CurrentUser> =>
