@@ -82,7 +82,7 @@ export default async function IntegrationSwaggerPreviewPage({ params }: PageProp
     notFound();
   }
 
-  const specUrl = `/api/swagger-spec/${specName}`;
+  const specUrl = `/integration/api/swagger-spec/${specName}`;
 
   return (
     <main className="min-h-screen bg-white">
