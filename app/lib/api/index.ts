@@ -583,12 +583,19 @@ export interface InstallationConfirmResult {
   confirmedAt: string;
 }
 
+export interface PiiAgentInstallationConfirmRequest {
+  confirm: boolean;
+}
+
 export const confirmInstallation = async (
   targetSourceId: number
 ): Promise<InstallationConfirmResult> =>
   fetchInfraCamelJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
-    { method: 'POST' },
+    { 
+      method: 'POST',
+      body: { confirm: true },
+    },
   );
 
 // ===== Azure API =====
