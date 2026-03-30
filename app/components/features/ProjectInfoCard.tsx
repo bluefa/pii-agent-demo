@@ -46,7 +46,7 @@ export const ProjectInfoCard = ({ project }: ProjectInfoCardProps) => {
 
         {usesFallbackIdentifier && (
           <p className={cn('rounded-lg bg-gray-50 px-3 py-2 text-xs leading-relaxed', textColors.tertiary)}>
-            Issue #222 상세 응답에 없는 식별자는 Target Source 기준 대체 표시를 사용합니다.
+            상세 응답에 없는 식별자는 Target Source 기준 대체 표시를 사용합니다.
           </p>
         )}
 

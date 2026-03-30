@@ -8,8 +8,8 @@
 // ===== Legacy 타입 (BFF 응답 형태) =====
 
 export interface LegacyPrivateEndpoint {
-  id: string;
-  name: string;
+  id: string | null;
+  name: string | null;
   status: string;
   requestedAt?: string;
   approvedAt?: string;
@@ -20,7 +20,7 @@ export interface LegacyResource {
   resourceId: string;
   resourceName: string;
   resourceType: string;
-  privateEndpoint: LegacyPrivateEndpoint;
+  privateEndpoint: LegacyPrivateEndpoint | null;
 }
 
 export interface LegacyInstallationStatus {
@@ -54,12 +54,13 @@ export interface LegacyVmInstallationStatus {
 
 export const buildLastCheck = (lastCheckedAt?: string, error?: { code: string; message: string }) => {
   if (error) {
-    return { status: 'FAILED' as const, checked_at: lastCheckedAt, fail_reason: error.message };
+    return { status: 'FAILED' as const, checkedAt: lastCheckedAt, failReason: error.message };
   }
-  if (lastCheckedAt) {
-    return { status: 'SUCCESS' as const, checked_at: lastCheckedAt };
-  }
-  return { status: 'SUCCESS' as const };
+  return { 
+    status: 'IN_PROGRESS' as const, 
+    checkedAt: lastCheckedAt,
+    failReason: null 
+  };
 };
 
 /**
@@ -79,14 +80,21 @@ export const buildV1Response = (
     const vm = isVm ? vmMap.get(r.resourceId) : undefined;
 
     const base = {
-      resource_id: r.resourceId,
-      resource_name: r.resourceName,
-      resource_type: r.resourceType,
-      private_endpoint: {
-        id: r.privateEndpoint.id,
-        name: r.privateEndpoint.name,
-        status: r.privateEndpoint.status,
-      },
+      resourceId: r.resourceId,
+      resourceName: r.resourceName,
+      resourceType: r.resourceType,
+      privateEndpoint: r.privateEndpoint
+        ? {
+            id: r.privateEndpoint.id,
+            name: r.privateEndpoint.name,
+            status: r.privateEndpoint.status,
+          }
+        : {
+            id: null,
+            name: null,
+            status: 'NOT_REQUESTED',
+          },
+      vmInstallation: null,
     };
 
     if (!vm) return base;
@@ -94,12 +102,16 @@ export const buildV1Response = (
     // VM: PE 정보를 VM 쪽에서 가져오고, vmInstallation 추가
     return {
       ...base,
-      private_endpoint: vm.privateEndpoint
-        ? { id: vm.privateEndpoint.id, name: vm.privateEndpoint.name, status: vm.privateEndpoint.status }
-        : base.private_endpoint,
-      vm_installation: {
-        subnet_exists: vm.subnetExists,
-        load_balancer: {
+      privateEndpoint: vm.privateEndpoint
+        ? { 
+            id: vm.privateEndpoint.id, 
+            name: vm.privateEndpoint.name, 
+            status: vm.privateEndpoint.status 
+          }
+        : base.privateEndpoint,
+      vmInstallation: {
+        subnetExists: vm.subnetExists,
+        loadBalancer: {
           installed: vm.loadBalancer.installed,
           name: vm.loadBalancer.name || undefined,
         },
@@ -108,7 +120,7 @@ export const buildV1Response = (
   });
 
   return {
-    last_check: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
+    lastCheck: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
     resources,
   };
 };

@@ -145,7 +145,7 @@ export const ApprovalDetailModal = ({
             isWaitingApproval ? statusColors.info.textDark : project.isRejected ? statusColors.error.textDark : statusColors.success.textDark,
           )}>
             {isWaitingApproval
-              ? 'Issue #222 계약 기준으로 승인 상세는 요청 메타와 현재 상태 중심으로 검토합니다. 세부 선택 목록은 별도 상세 API 없이 보장되지 않습니다.'
+              ? '승인 대기 중입니다. 요청 메타데이터와 현재 상태를 중심으로 검토합니다. 세부 선택 목록은 별도 상세 API 없이 보장되지 않습니다.'
               : project.isRejected
                 ? '반려된 요청입니다. 아래 요약과 반려 사유를 기준으로 다시 요청 여부를 판단할 수 있습니다.'
                 : '승인된 요청입니다. 실제 적용 대상은 이후 approved/confirmed snapshot에서 확인하는 흐름을 기준으로 합니다.'}
@@ -177,7 +177,7 @@ export const ApprovalDetailModal = ({
               <p className={cn('text-xs font-medium', textColors.tertiary)}>승인 대상 수</p>
               <p className={cn('text-2xl font-semibold', textColors.primary)}>{includedCount}</p>
               <p className={cn('text-xs', textColors.tertiary)}>
-                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'Issue #222 summary 응답 기준'}
+                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'summary 응답 기준'}
               </p>
             </div>
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
