@@ -113,10 +113,10 @@ export interface ApiClient {
     switchUser: (body: unknown) => Promise<NextResponse>;
   };
   scan: {
-    get: (projectId: string, scanId: string) => Promise<NextResponse>;
-    getHistory: (projectId: string, query: { limit: number; offset: number }) => Promise<NextResponse>;
-    create: (projectId: string, body: unknown) => Promise<NextResponse>;
-    getStatus: (projectId: string) => Promise<NextResponse>;
+    get: (targetSourceId: string, scanId: string) => Promise<NextResponse>;
+    getHistory: (targetSourceId: string, query: { limit: number; offset: number }) => Promise<NextResponse>;
+    create: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    getStatus: (targetSourceId: string) => Promise<NextResponse>;
   };
   taskAdmin: {
     getApprovalRequestQueue(params: QueueBoardQueryParams): Promise<NextResponse>;

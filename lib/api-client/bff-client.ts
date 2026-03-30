@@ -26,7 +26,10 @@ const extractTargetSourceCreateRequest = (body: unknown): {
 };
 
 const proxyGet = async (path: string): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF Client] GET ${path} -> ${fullPath}`);
+  const res = await fetch(fullPath);
+  console.log(`[BFF Client] Response ${res.status} from ${fullPath}`);
   return new NextResponse(res.body, {
     status: res.status,
     headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
@@ -224,11 +227,16 @@ export const bffClient: ApiClient = {
     switchUser: (body) => proxyPost('/dev/switch-user', body),
   },
   scan: {
-    get: (projectId, scanId) => proxyGet(`/scan/projects/${projectId}/scans/${scanId}`),
-    getHistory: (projectId, query) =>
-      proxyGet(`/scan/projects/${projectId}/history?limit=${query.limit}&offset=${query.offset}`),
-    create: (projectId, body) => proxyPost(`/scan/projects/${projectId}/scans`, body),
-    getStatus: (projectId) => proxyGet(`/scan/projects/${projectId}/status`),
+    get: (targetSourceId, scanId) => proxyGet(`/target-sources/${targetSourceId}/scans/${scanId}`),
+    getHistory: (targetSourceId, query) => {
+      const params = new URLSearchParams();
+      if (query.limit) params.set('limit', String(query.limit));
+      if (query.offset) params.set('offset', String(query.offset));
+      const qs = params.toString();
+      return proxyGet(`/target-sources/${targetSourceId}/scan/history${qs ? `?${qs}` : ''}`);
+    },
+    create: (targetSourceId, body) => proxyPost(`/target-sources/${targetSourceId}/scan`, body),
+    getStatus: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/scanJob/latest`),
   },
   taskAdmin: {
     getApprovalRequestQueue: (params) => {
