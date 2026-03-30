@@ -89,4 +89,20 @@ export const mockAzure = {
 
     return handleResult(await azureFns.getAzureVmTerraformScript(projectId));
   },
+
+  getScanApp: async (projectId: string) => {
+    const auth = await authorize(projectId);
+    if (auth.error) return auth.error;
+
+    // getAzureServiceSettings는 serviceCode를 사용하므로 project에서 serviceCode를 가져옴
+    const project = await mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    return handleResult(await azureFns.getAzureServiceSettings(project.serviceCode));
+  },
 };
