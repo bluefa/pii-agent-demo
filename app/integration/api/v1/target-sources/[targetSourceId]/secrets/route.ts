@@ -14,13 +14,14 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const response = await client.projects.credentials(resolved.projectId);
   if (!response.ok) return response;
 
-  const data = (await response.json()) as {
-    credentials: Array<{ name: string; databaseType?: string; createdAt: string }>;
-  };
+  const data = await response.json();
 
-  const secretKeys = data.credentials.map((c) => ({
+  // Handle both mock data structure { credentials: [...] } and BFF structure [...]
+  const credentials = Array.isArray(data) ? data : (data.credentials || []);
+
+  const secretKeys = credentials.map((c: any) => ({
     name: c.name,
-    createTimeStr: c.createdAt,
+    createTimeStr: c.create_time_str || c.createdAt,
     ...(c.databaseType && { labels: { databaseType: c.databaseType } }),
   }));
 
