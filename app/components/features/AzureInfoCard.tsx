@@ -101,7 +101,7 @@ const getScanAppState = (
   if (scanApp.status === 'VALID') {
     return {
       label: '검증 완료',
-      description: 'Azure scan app이 정상적으로 등록되어 있고 최근 검증도 통과했습니다.',
+      description: '',
       colors: statusColors.success,
     };
   }
