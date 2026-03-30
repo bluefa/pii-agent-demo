@@ -167,7 +167,7 @@ export const ScanHistoryList = ({ targetSourceId, limit = 5, lastCompletedAt }: 
                     {formatDate(item.updatedAt, 'short')}
                   </td>
                   <td className={cn('px-3 py-2', textColors.tertiary)}>
-                    {formatDuration(item.durationSeconds)}
+                    {formatDuration(item.durationSeconds * 1000)}
                   </td>
                   <td className={cn('px-3 py-2 text-right', textColors.secondary)}>
                     {totalFound || '-'}

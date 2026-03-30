@@ -18,16 +18,5 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   const dbStatus = await response.json() as LegacyInstallationStatus;
 
-  // VM 상태 조회 — 실패해도 DB 결과만 반환 (graceful fallback)
-  let vmStatus: LegacyVmInstallationStatus | null = null;
-  try {
-    const vmResponse = await client.azure.vmGetInstallationStatus(resolved.projectId);
-    if (vmResponse.ok) {
-      vmStatus = await vmResponse.json() as LegacyVmInstallationStatus;
-    }
-  } catch {
-    // VM 조회 실패 시 무시
-  }
-
-  return NextResponse.json(buildV1Response(dbStatus, vmStatus));
+  return NextResponse.json(buildV1Response(dbStatus, null));
 });
