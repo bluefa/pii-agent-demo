@@ -15,23 +15,29 @@ export const POST = withV1(async (request, { requestId, params }) => {
   const response = await client.scan.create(resolved.projectId, body);
   if (!response.ok) return response;
 
-  const legacy = await response.json() as {
-    scanId: string;
-    status: string;
-    startedAt: string;
-    estimatedDuration: number;
+  const data = await response.json() as {
+    id: number;
+    scan_status: string;
+    target_source_id: number;
+    created_at: string;
+    updated_at: string;
+    scan_version: number | null;
+    scan_progress: number | null;
+    duration_seconds: number;
+    resource_count_by_resource_type: Record<string, number> | null;
+    scan_error: string | null;
   };
 
   return NextResponse.json({
-    id: Number(legacy.scanId.replace(/\D/g, '')) || 1,
-    scanStatus: 'SCANNING',
-    targetSourceId: parsed.value,
-    createdAt: legacy.startedAt,
-    updatedAt: legacy.startedAt,
-    scanVersion: 1,
-    scanProgress: null,
-    durationSeconds: 0,
-    resourceCountByResourceType: {},
-    scanError: null,
+    id: data.id,
+    scanStatus: data.scan_status,
+    targetSourceId: data.target_source_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    scanVersion: data.scan_version || 1,
+    scanProgress: data.scan_progress,
+    durationSeconds: data.duration_seconds,
+    resourceCountByResourceType: data.resource_count_by_resource_type || {},
+    scanError: data.scan_error,
   }, { status: 202 });
 }, { expectedDuration: '30000ms' });

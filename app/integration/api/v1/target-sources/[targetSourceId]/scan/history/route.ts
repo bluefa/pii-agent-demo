@@ -5,14 +5,17 @@ import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-sou
 import { problemResponse } from '@/app/api/_lib/problem';
 import type { ScanStatus, ScanResult, ResourceType } from '@/lib/types';
 
-interface LegacyHistoryItem {
-  scanId: string;
-  status: ScanStatus;
-  startedAt: string;
-  completedAt: string;
-  duration: number;
-  result: ScanResult | null;
-  error?: string;
+interface BffHistoryItem {
+  id: number;
+  scan_status: string;
+  target_source_id: number;
+  created_at: string;
+  updated_at: string;
+  scan_version: number | null;
+  scan_progress: number | null;
+  duration_seconds: number;
+  resource_count_by_resource_type: Record<string, number> | null;
+  scan_error: string | null;
 }
 
 export const GET = withV1(async (request, { requestId, params }) => {
@@ -30,30 +33,23 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const response = await client.scan.getHistory(resolved.projectId, { limit: size, offset });
   if (!response.ok) return response;
 
-  const data = await response.json() as { history: LegacyHistoryItem[]; total: number };
-  const totalElements = data.total;
+  const data = await response.json() as { content: BffHistoryItem[]; totalElements: number };
+  const totalElements = data.totalElements;
   const totalPages = Math.ceil(totalElements / size);
 
-  // Transform legacy history items → Swagger ScanJob schema
-  const content = data.history.map((item, idx) => {
-    const resourceCountByResourceType: Record<string, number> = {};
-    if (item.result?.byResourceType) {
-      for (const { resourceType, count } of item.result.byResourceType) {
-        resourceCountByResourceType[resourceType as ResourceType] = count;
-      }
-    }
-
+  // Transform BFF history items → Swagger ScanJob schema
+  const content = data.content.map((item, idx) => {
     return {
-      id: Number(item.scanId.replace(/\D/g, '')) || (offset + idx + 1),
-      scanStatus: item.status,
-      targetSourceId: parsed.value,
-      createdAt: item.startedAt,
-      updatedAt: item.completedAt,
-      scanVersion: 1,
-      durationSeconds: item.duration,
-      scanProgress: null,
-      resourceCountByResourceType,
-      scanError: item.error ?? null,
+      id: item.id,
+      scanStatus: item.scan_status,
+      targetSourceId: item.target_source_id,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+      scanVersion: item.scan_version || 1,
+      durationSeconds: item.duration_seconds,
+      scanProgress: item.scan_progress,
+      resourceCountByResourceType: item.resource_count_by_resource_type || {},
+      scanError: item.scan_error,
     };
   });
 
