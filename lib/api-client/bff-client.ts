@@ -200,9 +200,9 @@ export const bffClient: ApiClient = {
   },
   services: {
     permissions: {
-      list: (serviceCode) => proxyGet(`/services/${serviceCode}/permissions`),
-      add: (serviceCode, body) => proxyPost(`/services/${serviceCode}/permissions`, body),
-      remove: (serviceCode, userId) => proxyDelete(`/services/${serviceCode}/permissions/${userId}`),
+      list: (serviceCode) => proxyGet(`/services/${serviceCode}/authorized-users`),
+      add: (serviceCode, body) => proxyPost(`/services/${serviceCode}/authorized-users`, body),
+      remove: (serviceCode, userId) => proxyDelete(`/services/${serviceCode}/authorized-users/${userId}`),
     },
     projects: {
       list: (serviceCode) => proxyGet(`/services/${serviceCode}/projects`),

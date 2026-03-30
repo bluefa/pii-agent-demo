@@ -44,12 +44,10 @@ export const httpBff: BffClient = {
     },
 
     secrets: async (id) => {
-      const data = await get<{
-        credentials: Array<{ name: string; databaseType?: string; createdAt: string }>;
-      }>(`/v1/target-sources/${id}/secrets`);
-      return data.credentials.map((c): SecretKey => ({
+      const data = await get<Array<{ name: string; createTime: string | null; createTimeStr: string | null }>>(`/v1/target-sources/${id}/secrets`);
+      return data.map((c): SecretKey => ({
         name: c.name,
-        createTimeStr: c.createdAt,
+        createTimeStr: c.createTimeStr ?? '',
       }));
     },
   },
