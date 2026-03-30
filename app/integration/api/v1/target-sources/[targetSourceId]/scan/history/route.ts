@@ -33,7 +33,21 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const response = await client.scan.getHistory(resolved.projectId, { limit: size, offset });
   if (!response.ok) return response;
 
-  const data = await response.json() as { content: BffHistoryItem[]; totalElements: number };
+  const data = await response.json() as { 
+    content: {
+      id: number;
+      scanStatus: string;
+      targetSourceId: number;
+      createdAt: string;
+      updatedAt: string;
+      scanVersion: number | null;
+      scanProgress: number | null;
+      durationSeconds: number;
+      resourceCountByResourceType: Record<string, number> | null;
+      scanError: string | null;
+    }[];
+    totalElements: number;
+  };
   const totalElements = data.totalElements;
   const totalPages = Math.ceil(totalElements / size);
 
@@ -41,15 +55,15 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const content = data.content.map((item, idx) => {
     return {
       id: item.id,
-      scanStatus: item.scan_status,
-      targetSourceId: item.target_source_id,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at,
-      scanVersion: item.scan_version || 1,
-      durationSeconds: item.duration_seconds,
-      scanProgress: item.scan_progress,
-      resourceCountByResourceType: item.resource_count_by_resource_type || {},
-      scanError: item.scan_error,
+      scanStatus: item.scanStatus,
+      targetSourceId: item.targetSourceId,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      scanVersion: item.scanVersion || 1,
+      durationSeconds: item.durationSeconds,
+      scanProgress: item.scanProgress,
+      resourceCountByResourceType: item.resourceCountByResourceType || {},
+      scanError: item.scanError,
     };
   });
 

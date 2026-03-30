@@ -92,7 +92,7 @@ const getResultMeta = (result?: ApprovalHistoryItem['result']) => {
         panelBg: statusColors.info.bg,
         panelBorder: statusColors.info.border,
         panelText: statusColors.info.textDark,
-        description: '관리자 검토를 기다리는 요청입니다. Issue #222 계약 기준으로 이 화면은 요청 메타데이터와 처리 결과 중심으로 표시합니다.',
+        description: '관리자 검토를 기다리는 요청입니다. 계약 기준으로 이 화면은 요청 메타데이터와 처리 결과 중심으로 표시합니다.',
       };
   }
 };
@@ -164,7 +164,7 @@ export const ApprovalRequestDetailModal = ({
               <p className={cn('text-xs font-medium', textColors.tertiary)}>승인 대상 수</p>
               <p className={cn('text-2xl font-semibold', textColors.primary)}>{selectedCount}</p>
               <p className={cn('text-xs', textColors.tertiary)}>
-                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'Issue #222 summary 응답 기준'}
+                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'summary 응답 기준'}
               </p>
             </div>
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
@@ -179,7 +179,7 @@ export const ApprovalRequestDetailModal = ({
               요청 메타데이터 중심 요약입니다
             </p>
             <p className={cn('text-sm leading-6', statusColors.info.text)}>
-              Issue #222 계약 기준으로 `approval-history`와 `approval-requests/latest`는 요약 정보만 보장합니다.
+              계약 기준으로 `approval-history`와 `approval-requests/latest`는 요약 정보만 보장합니다.
               상세 선택 복원은 `target-source`, `approved-integration`, `confirmed-integration` 응답을 기준으로 이어집니다.
             </p>
           </div>

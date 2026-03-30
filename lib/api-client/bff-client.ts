@@ -9,6 +9,7 @@ import {
   extractResourceCatalog,
   type ResourceCatalogResponsePayload,
 } from '@/lib/resource-catalog-response';
+import { camelCaseKeys } from '@/lib/object-case';
 
 const BFF_URL = process.env.BFF_API_URL;
 
@@ -30,9 +31,20 @@ const proxyGet = async (path: string): Promise<NextResponse> => {
   console.log(`[BFF Client] GET ${path} -> ${fullPath}`);
   const res = await fetch(fullPath);
   console.log(`[BFF Client] Response ${res.status} from ${fullPath}`);
-  return new NextResponse(res.body, {
+  
+  if (!res.ok) {
+    return new NextResponse(res.body, {
+      status: res.status,
+      headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
+    });
+  }
+  
+  const data = await res.json();
+  const camelCasedData = camelCaseKeys(data);
+  
+  return new NextResponse(JSON.stringify(camelCasedData), {
     status: res.status,
-    headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
   });
 };
 
@@ -175,13 +187,14 @@ export const bffClient: ApiClient = {
     verifyTfRole: (_projectId, body) => proxyPost('/aws/verify-tf-role', body ?? {}),
   },
   azure: {
-    checkInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/check-installation`, {}),
-    getInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/installation-status`),
-    getSettings: (projectId) => proxyGet(`/azure/projects/${projectId}/settings`),
-    getSubnetGuide: (projectId) => proxyGet(`/azure/projects/${projectId}/subnet-guide`),
-    vmCheckInstallation: (projectId) => proxyPost(`/azure/projects/${projectId}/vm/check-installation`, {}),
-    vmGetInstallationStatus: (projectId) => proxyGet(`/azure/projects/${projectId}/vm/installation-status`),
-    vmGetTerraformScript: (projectId) => proxyGet(`/azure/projects/${projectId}/vm/terraform-script`),
+    checkInstallation: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/azure/check-installation`, {}),
+    getInstallationStatus: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/installation-status`),
+    getSettings: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/settings`),
+    getSubnetGuide: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/subnet-guide`),
+    getScanApp: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/scan-app`),
+    vmCheckInstallation: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/azure/vm/check-installation`, {}),
+    vmGetInstallationStatus: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/vm/installation-status`),
+    vmGetTerraformScript: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/vm/terraform-script`),
   },
   gcp: {
     checkInstallation: (projectId) => proxyPost(`/gcp/projects/${projectId}/check-installation`, {}),
@@ -200,9 +213,9 @@ export const bffClient: ApiClient = {
   },
   services: {
     permissions: {
-      list: (serviceCode) => proxyGet(`/services/${serviceCode}/permissions`),
-      add: (serviceCode, body) => proxyPost(`/services/${serviceCode}/permissions`, body),
-      remove: (serviceCode, userId) => proxyDelete(`/services/${serviceCode}/permissions/${userId}`),
+      list: (serviceCode) => proxyGet(`/services/${serviceCode}/authorized-users`),
+      add: (serviceCode, body) => proxyPost(`/services/${serviceCode}/authorized-users`, body),
+      remove: (serviceCode, userId) => proxyDelete(`/services/${serviceCode}/authorized-users/${userId}`),
     },
     projects: {
       list: (serviceCode) => proxyGet(`/services/${serviceCode}/projects`),

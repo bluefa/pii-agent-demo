@@ -57,13 +57,14 @@ export interface ApiClient {
     verifyTfRole: (projectId: string, body?: { roleArn?: string }) => Promise<NextResponse>;
   };
   azure: {
-    checkInstallation: (projectId: string) => Promise<NextResponse>;
-    getInstallationStatus: (projectId: string) => Promise<NextResponse>;
-    getSettings: (projectId: string) => Promise<NextResponse>;
-    getSubnetGuide: (projectId: string) => Promise<NextResponse>;
-    vmCheckInstallation: (projectId: string) => Promise<NextResponse>;
-    vmGetInstallationStatus: (projectId: string) => Promise<NextResponse>;
-    vmGetTerraformScript: (projectId: string) => Promise<NextResponse>;
+    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
+    getSettings: (targetSourceId: string) => Promise<NextResponse>;
+    getSubnetGuide: (targetSourceId: string) => Promise<NextResponse>;
+    getScanApp: (targetSourceId: string) => Promise<NextResponse>;
+    vmCheckInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    vmGetInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
+    vmGetTerraformScript: (targetSourceId: string) => Promise<NextResponse>;
   };
   gcp: {
     checkInstallation: (projectId: string) => Promise<NextResponse>;

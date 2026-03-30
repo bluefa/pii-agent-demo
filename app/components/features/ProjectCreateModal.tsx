@@ -193,7 +193,7 @@ export const ProjectCreateModal = ({ selectedServiceCode, serviceName, onClose, 
             </div>
             <div>
               <h2 className={cn('text-lg font-bold', textColors.primary)}>새 타겟 소스 등록</h2>
-              <p className={cn('text-sm', textColors.tertiary)}>Issue #222 생성 계약 기준으로 대상을 추가합니다</p>
+              <p className={cn('text-sm', textColors.tertiary)}>생성 계약 기준으로 대상을 추가합니다</p>
             </div>
           </div>
           <button
