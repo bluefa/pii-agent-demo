@@ -21,13 +21,13 @@ const sizeMap = {
 // Azure 공식 아이콘 파일 매핑 (Azure Architecture Icons)
 // 출처: https://learn.microsoft.com/en-us/azure/architecture/icons/
 const iconFileMap: Record<AzureResourceType, string> = {
-  AZURE_MSSQL: '/icons/azure-sql.svg',
-  AZURE_POSTGRESQL: '/icons/azure-postgresql.svg',
-  AZURE_MYSQL: '/icons/azure-mysql.svg',
-  AZURE_MARIADB: '/icons/azure-mariadb.svg',
-  AZURE_COSMOS_NOSQL: '/icons/azure-cosmos.svg',
-  AZURE_SYNAPSE: '/icons/azure-synapse.svg',
-  AZURE_VM: '/icons/azure-vm.svg',
+  AZURE_MSSQL: '/integration/icons/azure-sql.svg',
+  AZURE_POSTGRESQL: '/integration/icons/azure-postgresql.svg',
+  AZURE_MYSQL: '/integration/icons/azure-mysql.svg',
+  AZURE_MARIADB: '/integration/icons/azure-mariadb.svg',
+  AZURE_COSMOS_NOSQL: '/integration/icons/azure-cosmos.svg',
+  AZURE_SYNAPSE: '/integration/icons/azure-synapse.svg',
+  AZURE_VM: '/integration/icons/azure-vm.svg',
 };
 
 export const AzureServiceIcon = ({ type, size = 'md' }: AzureServiceIconProps) => {
