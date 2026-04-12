@@ -41,40 +41,34 @@
 │  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
 │  │ ① Subnet 생성    │ │ ② Service TF    │ │ ③ BDC TF        │
 │  │   ● 완료  2/3    │ │   ● 진행중 1/3   │ │   ○ 대기  0/3    │
-│  │   ■■■■□          │ │   ■□□□□          │ │   □□□□□          │
 │  └──────────────────┘ └──────────────────┘ └──────────────────┘
 │                                                              │
-│  전체 진행률: 2/5 완료                                        │
-│  ████████░░░░░░░░░░░░  40%                                   │
-│                                                              │
 ├─────────────────────────────────────────────────────────────┤
-│  리소스별 상세 상태                                           │
+│  리소스별 설치 상태                                           │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  ┌─ cloud-sql-instance-1  (CLOUD_SQL / PRIVATE_IP_MODE) ───┐ │
-│  │  Subnet 생성: ✅ 완료                                     │ │
-│  │  Service TF:  🔄 진행중  "Terraform apply 실행 중..."     │ │
-│  │  BDC TF:     ○ 대기                                      │ │
-│  └──────────────────────────────────────────────────────────┘ │
+│  ┌────────────────────┬──────────┬──────────┬──────────┐    │
+│  │ 리소스              │ Subnet   │ Svc TF   │ BDC TF   │    │
+│  ├────────────────────┼──────────┼──────────┼──────────┤    │
+│  │ cloud-sql-inst-1   │ ✅ 완료  │ 🔄 진행중│ ○ 대기   │    │
+│  │ CLOUD_SQL/PRIVATE   │          │          │          │    │
+│  ├────────────────────┼──────────┼──────────┼──────────┤    │
+│  │ cloud-sql-inst-2   │ ─ 해당없음│ ─ 해당없음│ ✅ 완료  │    │
+│  │ CLOUD_SQL/PSC       │  (gray)  │  (gray)  │          │    │
+│  ├────────────────────┼──────────┼──────────┼──────────┤    │
+│  │ bq-dataset-1       │ ─ 해당없음│ ❌ 실패  │ ○ 대기   │    │
+│  │ BIGQUERY            │  (gray)  │ guide ▼  │          │    │
+│  └────────────────────┴──────────┴──────────┴──────────┘    │
 │                                                              │
-│  ┌─ cloud-sql-instance-2  (CLOUD_SQL / PSC_MODE) ──────────┐ │
-│  │  Subnet 생성: ─ SKIP                                     │ │
-│  │  Service TF:  ─ SKIP                                     │ │
-│  │  BDC TF:     ✅ 완료                                     │ │
-│  └──────────────────────────────────────────────────────────┘ │
-│                                                              │
-│  ┌─ bigquery-dataset-1  (BIGQUERY) ────────────────────────┐ │
-│  │  Subnet 생성: ─ SKIP                                     │ │
-│  │  Service TF:  ❌ 실패  "권한 부족. 가이드를 확인하세요."   │ │
-│  │  BDC TF:     ○ 대기                                      │ │
-│  └──────────────────────────────────────────────────────────┘ │
+│  * FAIL 셀 클릭/확장 시 guide 텍스트 표시                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **핵심 UX:**
-- 상단: 3단계 Step 요약 카드 (각 Step별 집계 상태 + 미니 진행바)
-- 중단: 전체 진행률 바 + Summary
-- 하단: 리소스별 3-Step 상세 (SKIP은 회색 처리, guide 텍스트 표시)
+- 상단: 3단계 Step 요약 카드 (각 Step별 집계 상태 + 카운트)
+- 하단: 리소스별 테이블 (리소스 ID + 3-Step 상태 컬럼)
+- SKIP 셀: 회색 텍스트 "해당없음" 표시
+- FAIL 셀: 빨간색 + guide 텍스트 확장 가능
 
 ---
 
@@ -154,7 +148,7 @@
 **`GcpStepSummaryCard.tsx`** — 개별 Step 요약 카드
 ```
 Props: { stepKey: string; label: string; activeCount: number; completedCount: number; status: 집계상태 }
-UI: Step 이름 + 상태 아이콘 + "N/M" 카운트 + 미니 진행바
+UI: Step 이름 + 상태 아이콘 + "N/M" 카운트
 색상: COMPLETED=green, FAIL=red, IN_PROGRESS=amber, 전체SKIP=gray
 ```
 
@@ -165,14 +159,17 @@ UI: 3칸 grid로 StepSummaryCard 3개 렌더링
 각 카드에 stepKey별 집계 상태/카운트 전달
 ```
 
-**`GcpResourceDetailCard.tsx`** — 리소스별 3-Step 상세 카드
+**`GcpResourceStatusTable.tsx`** — 리소스별 설치 상태 테이블
 ```
-Props: { resource: GcpResourceStatus }
+Props: { resources: GcpResourceStatus[] }
 UI:
-- 헤더: resourceName (resourceType / resourceSubType)
-- 3행: 각 Step의 상태 아이콘 + 라벨 + guide 텍스트 (있으면 표시)
-- SKIP step은 회색 + "─" 표시
-- FAIL step은 빨간색 + guide 텍스트 강조
+- 테이블 헤더: 리소스 | Subnet 생성 | Service TF | BDC TF
+- 각 행: resourceName + (resourceType/subType) | 3개 Step 상태 셀
+- 상태 셀 표현:
+  - COMPLETED: 녹색 아이콘 + "완료"
+  - IN_PROGRESS: 주황 spinner + "진행중"
+  - FAIL: 빨간 아이콘 + "실패" (guide 텍스트 있으면 아래에 확장 표시)
+  - SKIP: 회색 "─ 해당없음"
 ```
 
 #### 수정 컴포넌트
@@ -183,8 +180,7 @@ UI:
 변경 후:
 - 헤더: 제목 + 새로고침 버튼 + lastCheck 시각
 - GcpStepSummaryRow (3-Step 요약)
-- 전체 진행률 바 (summary.completedCount / summary.totalCount)
-- GcpResourceDetailCard 리스트 (각 리소스)
+- GcpResourceStatusTable (리소스별 테이블)
 
 상태 판단:
 - allCompleted → onInstallComplete 콜백
@@ -202,7 +198,7 @@ UI:
 | 3 | Mock 데이터 재작성 | `lib/mock-gcp.ts` | tsc 통과 |
 | 4 | API Route 변환 로직 교체 | `installation-status/route.ts`, `check-installation/route.ts` | API 응답 확인 |
 | 5 | 프론트엔드 API 클라이언트 타입 수정 | `app/lib/api/gcp.ts` | tsc 통과 |
-| 6 | 신규 컴포넌트 작성 | `GcpStepSummaryCard`, `GcpStepSummaryRow`, `GcpResourceDetailCard` | tsc 통과 |
+| 6 | 신규 컴포넌트 작성 | `GcpStepSummaryCard`, `GcpStepSummaryRow`, `GcpResourceStatusTable` | tsc 통과 |
 | 7 | GcpInstallationInline 개편 | `GcpInstallationInline.tsx` | dev 서버 UI 확인 |
 | 8 | 삭제 정리 | `RegionalManagedProxyPanel`, `PscApprovalGuide`, index 재export | tsc 통과 |
 | 9 | 전체 빌드 검증 | - | `scripts/verify.sh` 통과 |
