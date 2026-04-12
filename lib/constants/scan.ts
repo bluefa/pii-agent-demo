@@ -2,7 +2,7 @@ import { CloudProvider, AwsResourceType, AzureResourceType, GcpResourceType, Res
 
 // 스캔 관련 상수
 export const MAX_RESOURCES = 10;
-export const SCAN_COOLDOWN_MS = 5 * 60 * 1000; // 5분
+export const SCAN_COOLDOWN_MS = 0;
 export const SCAN_MIN_DURATION_MS = 3000; // 최소 3초
 export const SCAN_MAX_DURATION_MS = 10000; // 최대 10초
 

@@ -1,7 +1,2 @@
-// ===== GCP TF 설치 상태 =====
-
-export type GcpTfStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-
-// ===== PSC Connection 상태 =====
-
-export type GcpPscStatus = 'NOT_REQUESTED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
+// GCP types are now defined in @/app/api/_lib/v1-types.ts
+// This file is kept for backward compatibility — legacy types removed.

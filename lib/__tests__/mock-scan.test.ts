@@ -143,37 +143,10 @@ describe('mock-scan', () => {
     });
 
     describe('쿨다운 검증', () => {
-      it('5분 이내 완료된 스캔이 있으면 스캔 불가 (SCAN_TOO_RECENT)', () => {
+      it('쿨다운이 0이므로 최근 완료된 스캔이 있어도 스캔 가능', () => {
         const project = createTestProject();
         const store = getStore();
 
-        // 최근 완료된 스캔 이력 추가
-        store.scanHistory.push({
-          id: 'history-1',
-          projectId: project.id,
-          scanId: 'scan-old',
-          provider: 'AWS',
-          status: 'SUCCESS',
-          startedAt: new Date(Date.now() - 60000).toISOString(),
-          completedAt: new Date(Date.now() - 30000).toISOString(), // 30초 전 완료
-          duration: 30,
-          result: { totalFound: 1, byResourceType: [] },
-          resourceCountBefore: 0,
-          resourceCountAfter: 1,
-          addedResourceIds: [],
-        });
-
-        const result = validateScanRequest(project, false);
-        expect(result.valid).toBe(false);
-        expect(result.errorCode).toBe('SCAN_TOO_RECENT');
-        expect(result.httpStatus).toBe(429);
-      });
-
-      it('force=true이면 쿨다운 무시', () => {
-        const project = createTestProject();
-        const store = getStore();
-
-        // 최근 완료된 스캔 이력 추가
         store.scanHistory.push({
           id: 'history-1',
           projectId: project.id,
@@ -189,7 +162,7 @@ describe('mock-scan', () => {
           addedResourceIds: [],
         });
 
-        const result = validateScanRequest(project, true);
+        const result = validateScanRequest(project, false);
         expect(result.valid).toBe(true);
       });
 
