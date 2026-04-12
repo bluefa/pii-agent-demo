@@ -70,55 +70,41 @@ const deriveInstallationStatus = (steps: StepStatus[]): InstallationStatus => {
   return 'IN_PROGRESS';
 };
 
+// [subnet, serviceTf, bdcTf] — true=활성, false=SKIP
+const STEP_MATRIX: Record<string, [boolean, boolean, boolean]> = {
+  'BIGQUERY:': [false, true, true],
+  'CLOUD_SQL:PRIVATE_IP_MODE': [true, true, true],
+  'CLOUD_SQL:PSC_MODE': [false, false, true],
+  'CLOUD_SQL:BDC_PRIVATE_HOST_MODE': [false, false, false],
+};
+
+const FAIL_GUIDES = [
+  'Subnet 생성에 실패했습니다. 네트워크 권한을 확인하세요.',
+  'Service Terraform 적용에 실패했습니다. 로그를 확인하세요.',
+  'BDC Terraform 적용에 실패했습니다. 관리자에게 문의하세요.',
+];
+
+const buildStep = (active: boolean, resourceId: string, offset: number, failGuide: string): StepStatus => {
+  if (!active) return { status: 'SKIP' };
+  const status = generateStepStatus(resourceId, offset);
+  return { status, guide: status === 'FAIL' ? failGuide : null };
+};
+
 const buildInstallResource = (resource: Resource): GcpInstallResource => {
   const resourceSubType = determineResourceSubType(resource);
+  const key = `${resource.type}:${resourceSubType ?? ''}`;
+  const [subnetActive, svcActive, bdcActive] = STEP_MATRIX[key] ?? [false, false, false];
 
-  // Step 활성화 매트릭스 적용
-  let subnetCreation: StepStatus;
-  let serviceTf: StepStatus;
-  let bdcTf: StepStatus;
-
-  if (resource.type === 'BIGQUERY') {
-    // BIGQUERY: subnet=SKIP, serviceTF=활성, bdcTF=활성
-    subnetCreation = { status: 'SKIP' };
-    serviceTf = { status: generateStepStatus(resource.resourceId, 0), guide: null };
-    bdcTf = { status: generateStepStatus(resource.resourceId, 100), guide: null };
-  } else if (resourceSubType === 'PRIVATE_IP_MODE') {
-    // CLOUD_SQL/PRIVATE_IP_MODE: 전부 활성
-    subnetCreation = { status: generateStepStatus(resource.resourceId, 200), guide: null };
-    serviceTf = { status: generateStepStatus(resource.resourceId, 0), guide: null };
-    bdcTf = { status: generateStepStatus(resource.resourceId, 100), guide: null };
-  } else if (resourceSubType === 'PSC_MODE') {
-    // CLOUD_SQL/PSC_MODE: subnet=SKIP, serviceTF=SKIP, bdcTF=활성
-    subnetCreation = { status: 'SKIP' };
-    serviceTf = { status: 'SKIP' };
-    bdcTf = { status: generateStepStatus(resource.resourceId, 100), guide: null };
-  } else {
-    // CLOUD_SQL/BDC_PRIVATE_HOST_MODE: 전부 SKIP
-    subnetCreation = { status: 'SKIP' };
-    serviceTf = { status: 'SKIP' };
-    bdcTf = { status: 'SKIP' };
-  }
-
-  // FAIL 상태에 guide 텍스트 추가
-  if (subnetCreation.status === 'FAIL') {
-    subnetCreation.guide = 'Subnet 생성에 실패했습니다. 네트워크 권한을 확인하세요.';
-  }
-  if (serviceTf.status === 'FAIL') {
-    serviceTf.guide = 'Service Terraform 적용에 실패했습니다. 로그를 확인하세요.';
-  }
-  if (bdcTf.status === 'FAIL') {
-    bdcTf.guide = 'BDC Terraform 적용에 실패했습니다. 관리자에게 문의하세요.';
-  }
-
-  const steps = [subnetCreation, serviceTf, bdcTf];
+  const subnetCreation = buildStep(subnetActive, resource.resourceId, 200, FAIL_GUIDES[0]);
+  const serviceTf = buildStep(svcActive, resource.resourceId, 0, FAIL_GUIDES[1]);
+  const bdcTf = buildStep(bdcActive, resource.resourceId, 100, FAIL_GUIDES[2]);
 
   return {
     resourceId: resource.resourceId,
     resourceName: resource.resourceId,
     resourceType: resource.type as 'CLOUD_SQL' | 'BIGQUERY',
     resourceSubType: resourceSubType,
-    installationStatus: deriveInstallationStatus(steps),
+    installationStatus: deriveInstallationStatus([subnetCreation, serviceTf, bdcTf]),
     serviceSideSubnetCreation: subnetCreation,
     serviceSideTerraformApply: serviceTf,
     bdcSideTerraformApply: bdcTf,
@@ -182,7 +168,6 @@ export const checkGcpInstallation = (
   const result = getGcpInstallationStatus(projectId);
 
   if (result.data) {
-    // 랜덤 진행: IN_PROGRESS → COMPLETED
     result.data.resources = result.data.resources.map((resource) => {
       const updated = { ...resource };
       const advanceStep = (step: StepStatus): StepStatus => {

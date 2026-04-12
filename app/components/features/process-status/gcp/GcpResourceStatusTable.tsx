@@ -81,7 +81,7 @@ export const GcpResourceStatusTable = ({ resources }: GcpResourceStatusTableProp
               : '';
 
             return (
-              <tr key={resource.resourceId} className="border-b border-gray-100 last:border-b-0">
+              <tr key={resource.resourceId} className={cn('border-b last:border-b-0', borderColors.default)}>
                 <td className="px-4 py-3">
                   <div className={cn('font-medium', textColors.primary)}>{name}</div>
                   <div className={cn('text-xs', textColors.tertiary)}>{typeLabel}{subTypeLabel}</div>
