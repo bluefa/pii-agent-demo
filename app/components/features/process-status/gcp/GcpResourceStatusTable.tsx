@@ -1,7 +1,6 @@
-import { statusColors, cn } from '@/lib/theme';
+import { statusColors, textColors, borderColors, cn } from '@/lib/theme';
 import { GCP_STEP_KEYS, GCP_STEP_LABELS, GCP_STEP_STATUS_LABELS } from '@/lib/constants/gcp';
-import type { GcpResourceStatus, GcpStepStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
-import type { GcpStepKey } from '@/lib/constants/gcp';
+import type { GcpResourceStatus, GcpStepStatus } from '@/app/api/_lib/v1-types';
 
 interface GcpResourceStatusTableProps {
   resources: GcpResourceStatus[];
@@ -39,7 +38,7 @@ const StepStatusCell = ({ step }: { step: GcpStepStatus }) => {
           </svg>
           <span className={cn('text-sm', statusColors.error.textDark)}>{GCP_STEP_STATUS_LABELS.FAIL}</span>
         </div>
-        {guide && <p className="mt-0.5 text-xs text-gray-500">{guide}</p>}
+        {guide && <p className={cn('mt-0.5 text-xs', textColors.tertiary)}>{guide}</p>}
       </div>
     );
   }
@@ -49,15 +48,6 @@ const StepStatusCell = ({ step }: { step: GcpStepStatus }) => {
       ─ {GCP_STEP_STATUS_LABELS.SKIP}
     </span>
   );
-};
-
-const getResourceDisplayInfo = (resource: GcpResourceStatus) => {
-  const name = resource.resourceName || resource.resourceId;
-  const typeLabel = resource.resourceType === 'CLOUD_SQL' ? 'Cloud SQL' : 'BigQuery';
-  const subTypeLabel = resource.resourceSubType
-    ? ` / ${resource.resourceSubType.replace(/_/g, ' ')}`
-    : '';
-  return { name, detail: `${typeLabel}${subTypeLabel}` };
 };
 
 export const GcpResourceStatusTable = ({ resources }: GcpResourceStatusTableProps) => {
@@ -70,13 +60,13 @@ export const GcpResourceStatusTable = ({ resources }: GcpResourceStatusTableProp
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
+    <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200">
-            <th className="px-4 py-2.5 text-left font-medium text-gray-700">리소스</th>
+          <tr className={cn('border-b', borderColors.default)}>
+            <th className={cn('px-4 py-2.5 text-left font-medium', textColors.secondary)}>리소스</th>
             {GCP_STEP_KEYS.map((key) => (
-              <th key={key} className="px-4 py-2.5 text-left font-medium text-gray-700">
+              <th key={key} className={cn('px-4 py-2.5 text-left font-medium', textColors.secondary)}>
                 {GCP_STEP_LABELS[key]}
               </th>
             ))}
@@ -84,14 +74,19 @@ export const GcpResourceStatusTable = ({ resources }: GcpResourceStatusTableProp
         </thead>
         <tbody>
           {resources.map((resource) => {
-            const { name, detail } = getResourceDisplayInfo(resource);
+            const name = resource.resourceName || resource.resourceId;
+            const typeLabel = resource.resourceType === 'CLOUD_SQL' ? 'Cloud SQL' : 'BigQuery';
+            const subTypeLabel = resource.resourceSubType
+              ? ` / ${resource.resourceSubType.replace(/_/g, ' ')}`
+              : '';
+
             return (
               <tr key={resource.resourceId} className="border-b border-gray-100 last:border-b-0">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900">{name}</div>
-                  <div className="text-xs text-gray-500">{detail}</div>
+                  <div className={cn('font-medium', textColors.primary)}>{name}</div>
+                  <div className={cn('text-xs', textColors.tertiary)}>{typeLabel}{subTypeLabel}</div>
                 </td>
-                {GCP_STEP_KEYS.map((key: GcpStepKey) => (
+                {GCP_STEP_KEYS.map((key) => (
                   <td key={key} className="px-4 py-3">
                     <StepStatusCell step={resource[key]} />
                   </td>

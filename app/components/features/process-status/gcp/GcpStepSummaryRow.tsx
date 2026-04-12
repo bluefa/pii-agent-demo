@@ -11,7 +11,6 @@ export const GcpStepSummaryRow = ({ resources }: GcpStepSummaryRowProps) => (
     {GCP_STEP_KEYS.map((stepKey) => (
       <GcpStepSummaryCard
         key={stepKey}
-        stepKey={stepKey}
         label={GCP_STEP_LABELS[stepKey]}
         activeCount={getGcpActiveStepCount(resources, stepKey)}
         completedCount={getGcpCompletedStepCount(resources, stepKey)}
