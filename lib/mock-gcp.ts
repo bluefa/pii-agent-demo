@@ -58,7 +58,7 @@ const determineResourceSubType = (resource: Resource): ResourceSubType | null =>
 
 const generateStepStatus = (resourceId: string, offset: number): StepStatusValue => {
   const hash = hashString(resourceId) + offset;
-  const statuses: StepStatusValue[] = ['IN_PROGRESS', 'COMPLETED', 'COMPLETED', 'COMPLETED'];
+  const statuses: StepStatusValue[] = ['IN_PROGRESS', 'COMPLETED', 'COMPLETED', 'FAIL', 'COMPLETED'];
   return statuses[hash % statuses.length];
 };
 

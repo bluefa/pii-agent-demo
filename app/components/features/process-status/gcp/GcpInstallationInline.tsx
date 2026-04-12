@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getGcpInstallationStatus, checkGcpInstallation } from '@/app/lib/api/gcp';
-import { statusColors, cn } from '@/lib/theme';
+import { statusColors, textColors, interactiveColors, cn } from '@/lib/theme';
+import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
+import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { GcpStepSummaryRow } from './GcpStepSummaryRow';
 import { GcpResourceStatusTable } from './GcpResourceStatusTable';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
@@ -11,15 +13,6 @@ interface GcpInstallationInlineProps {
   targetSourceId: number;
   onInstallComplete?: () => void;
 }
-
-const formatCheckedAt = (checkedAt?: string): string => {
-  if (!checkedAt) return '';
-  try {
-    return new Date(checkedAt).toLocaleString('ko-KR');
-  } catch {
-    return checkedAt;
-  }
-};
 
 export const GcpInstallationInline = ({
   targetSourceId,
@@ -30,25 +23,19 @@ export const GcpInstallationInline = ({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const checkCompletion = (data: GcpInstallationStatusResponse) => {
-    if (data.resources.every((r) => r.installationStatus === 'COMPLETED')) {
-      onInstallComplete?.();
-    }
-  };
-
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getGcpInstallationStatus(targetSourceId);
       setStatus(data);
-      checkCompletion(data);
+      if (data.summary.allCompleted) onInstallComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [targetSourceId, onInstallComplete]);
 
   const handleRefresh = async () => {
     try {
@@ -56,7 +43,7 @@ export const GcpInstallationInline = ({
       setError(null);
       const data = await checkGcpInstallation(targetSourceId);
       setStatus(data);
-      checkCompletion(data);
+      if (data.summary.allCompleted) onInstallComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 새로고침에 실패했습니다.');
     } finally {
@@ -66,50 +53,32 @@ export const GcpInstallationInline = ({
 
   useEffect(() => {
     fetchStatus();
-  }, [targetSourceId]);
+  }, [fetchStatus]);
 
-  if (loading) {
-    return (
-      <div className={cn('w-full px-4 py-3 rounded-lg border', statusColors.pending.bg, statusColors.pending.border)}>
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-gray-600">GCP 설치 상태 확인 중...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={cn('w-full px-4 py-3 rounded-lg border', statusColors.error.bg, statusColors.error.border)}>
-        <div className="flex items-center justify-between">
-          <span className={cn('text-sm', statusColors.error.textDark)}>{error}</span>
-          <button onClick={fetchStatus} className={cn('text-sm hover:underline', statusColors.error.textDark)}>
-            다시 시도
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <InstallationLoadingView provider="GCP" />;
+  if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
 
   const resources = status?.resources || [];
   const lastCheck = status?.lastCheck;
+  const checkedAt = lastCheck?.checkedAt
+    ? new Date(lastCheck.checkedAt).toLocaleString('ko-KR')
+    : null;
 
   return (
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-gray-900">GCP 에이전트 설치 상태</h3>
-          {lastCheck?.checkedAt && (
-            <span className="text-xs text-gray-500">
-              마지막 확인: {formatCheckedAt(lastCheck.checkedAt)}
+          <h3 className={cn('text-sm font-semibold', textColors.primary)}>GCP 에이전트 설치 상태</h3>
+          {checkedAt && (
+            <span className={cn('text-xs', textColors.tertiary)}>
+              마지막 확인: {checkedAt}
             </span>
           )}
         </div>
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="p-1 rounded transition-colors disabled:opacity-50 text-gray-600 hover:bg-gray-100"
+          className={cn('p-1 rounded transition-colors disabled:opacity-50', interactiveColors.closeButton)}
           title="새로고침"
         >
           {refreshing ? (

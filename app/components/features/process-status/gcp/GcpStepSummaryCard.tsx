@@ -1,8 +1,7 @@
 import { statusColors, cn } from '@/lib/theme';
-import type { GcpStepKey, GcpStepAggregateStatus } from '@/lib/constants/gcp';
+import type { GcpStepAggregateStatus } from '@/lib/constants/gcp';
 
 interface GcpStepSummaryCardProps {
-  stepKey: GcpStepKey;
   label: string;
   activeCount: number;
   completedCount: number;

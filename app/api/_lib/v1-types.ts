@@ -5,8 +5,8 @@
 // --- Common ---
 
 export interface LastCheckInfo {
-  status: 'NEVER_CHECKED' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  checkedAt: string;
+  status: 'NEVER_CHECKED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  checkedAt?: string | null;
   failReason?: string;
 }
 
@@ -170,8 +170,15 @@ export interface GcpResourceStatus {
   bdcSideTerraformApply: GcpStepStatus;
 }
 
+export interface GcpInstallationSummary {
+  totalCount: number;
+  completedCount: number;
+  allCompleted: boolean;
+}
+
 export interface GcpInstallationStatusResponse {
   lastCheck: LastCheckInfo;
+  summary: GcpInstallationSummary;
   resources: GcpResourceStatus[];
 }
 
