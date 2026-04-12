@@ -37,29 +37,39 @@ export const GCP_INSTALLATION_STATUS_LABELS = {
 
 export type GcpStepAggregateStatus = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'PENDING';
 
-export const getGcpStepAggregateStatus = (
+export interface GcpStepSummary {
+  status: GcpStepAggregateStatus;
+  activeCount: number;
+  completedCount: number;
+}
+
+export const getGcpStepSummary = (
   resources: GcpResourceStatus[],
   stepKey: GcpStepKey
-): GcpStepAggregateStatus => {
-  const active = resources.filter(r => r[stepKey].status !== 'SKIP');
-  if (active.length === 0) return 'PENDING';
-  if (active.every(r => r[stepKey].status === 'COMPLETED')) return 'COMPLETED';
-  if (active.some(r => r[stepKey].status === 'FAIL')) return 'FAIL';
-  if (active.some(r => r[stepKey].status === 'IN_PROGRESS' || r[stepKey].status === 'COMPLETED')) return 'IN_PROGRESS';
-  return 'PENDING';
+): GcpStepSummary => {
+  let activeCount = 0;
+  let completedCount = 0;
+  let hasFail = false;
+  let hasInProgress = false;
+
+  for (const r of resources) {
+    const s = r[stepKey].status;
+    if (s === 'SKIP') continue;
+    activeCount++;
+    if (s === 'COMPLETED') completedCount++;
+    else if (s === 'FAIL') hasFail = true;
+    else if (s === 'IN_PROGRESS') hasInProgress = true;
+  }
+
+  let status: GcpStepAggregateStatus;
+  if (activeCount === 0) status = 'PENDING';
+  else if (completedCount === activeCount) status = 'COMPLETED';
+  else if (hasFail) status = 'FAIL';
+  else if (hasInProgress || completedCount > 0) status = 'IN_PROGRESS';
+  else status = 'PENDING';
+
+  return { status, activeCount, completedCount };
 };
-
-export const getGcpActiveStepCount = (
-  resources: GcpResourceStatus[],
-  stepKey: GcpStepKey
-): number =>
-  resources.filter(r => r[stepKey].status !== 'SKIP').length;
-
-export const getGcpCompletedStepCount = (
-  resources: GcpResourceStatus[],
-  stepKey: GcpStepKey
-): number =>
-  resources.filter(r => r[stepKey].status === 'COMPLETED').length;
 
 // ===== GCP 에러 코드 =====
 
