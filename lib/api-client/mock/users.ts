@@ -60,4 +60,46 @@ export const mockUsers = {
 
     return NextResponse.json({ services });
   },
+
+  getServicesPage: async (page: number, size: number, query?: string) => {
+    const user = await mockData.getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    const allServiceCodes = mockData.mockServiceCodes;
+    const permitted =
+      user.role === 'ADMIN'
+        ? allServiceCodes
+        : allServiceCodes.filter((s) => user.serviceCodePermissions.includes(s.code));
+
+    const filtered = query
+      ? permitted.filter((s) => {
+          const q = query.toLowerCase();
+          return s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q);
+        })
+      : permitted;
+
+    const totalElements = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalElements / size));
+    const start = page * size;
+    const content = filtered.slice(start, start + size);
+
+    return NextResponse.json({
+      content: content.map((s) => ({
+        serviceCode: s.code,
+        serviceName: s.name,
+      })),
+      page: {
+        page,
+        size,
+        totalElements,
+        totalPages,
+      },
+    });
+  },
 };
