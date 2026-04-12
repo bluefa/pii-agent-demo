@@ -1,37 +1,27 @@
 import { getProjectById } from '@/lib/mock-data';
 import type { Project, Resource } from '@/lib/types';
-import type {
-  GcpTfStatus,
-  GcpPscStatus,
-} from '@/lib/types/gcp';
 
-// ===== Legacy 내부 타입 (v1 route 변환용) =====
+// ===== Step 상태 타입 (내부용) =====
+
+type StepStatusValue = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'SKIP';
+
+interface StepStatus {
+  status: StepStatusValue;
+  guide?: string | null;
+}
+
+type ResourceSubType = 'PRIVATE_IP_MODE' | 'BDC_PRIVATE_HOST_MODE' | 'PSC_MODE';
+type InstallationStatus = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS';
 
 interface GcpInstallResource {
-  id: string;
-  name: string;
+  resourceId: string;
+  resourceName: string;
   resourceType: 'CLOUD_SQL' | 'BIGQUERY';
-  connectionType: 'PRIVATE_IP' | 'PSC' | 'BIGQUERY';
-  databaseType: string;
-  serviceTfStatus: GcpTfStatus;
-  bdcTfStatus: GcpTfStatus;
-  regionalManagedProxy?: {
-    exists: boolean;
-    networkProjectId: string;
-    vpcName: string;
-    cloudSqlRegion: string;
-    subnetName?: string;
-    subnetCidr?: string;
-  };
-  pscConnection?: {
-    status: GcpPscStatus;
-    connectionId?: string;
-    serviceAttachmentUri?: string;
-    requestedAt?: string;
-    approvedAt?: string;
-    rejectedAt?: string;
-  };
-  isCompleted: boolean;
+  resourceSubType: ResourceSubType | null;
+  installationStatus: InstallationStatus;
+  serviceSideSubnetCreation: StepStatus;
+  serviceSideTerraformApply: StepStatus;
+  bdcSideTerraformApply: StepStatus;
 }
 
 interface GcpInstallationStatus {
@@ -59,75 +49,66 @@ const isGcpProject = (project: Project): boolean =>
 const hashString = (str: string): number =>
   str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-const determineConnectionType = (resource: Resource): 'PRIVATE_IP' | 'PSC' | 'BIGQUERY' => {
-  if (resource.type === 'BIGQUERY') return 'BIGQUERY';
+const determineResourceSubType = (resource: Resource): ResourceSubType | null => {
+  if (resource.type === 'BIGQUERY') return null;
   const hash = hashString(resource.resourceId);
-  return hash % 2 === 0 ? 'PRIVATE_IP' : 'PSC';
+  const subTypes: ResourceSubType[] = ['PRIVATE_IP_MODE', 'BDC_PRIVATE_HOST_MODE', 'PSC_MODE'];
+  return subTypes[hash % subTypes.length];
 };
 
-const generateTfStatus = (resourceId: string, offset: number): GcpTfStatus => {
+const generateStepStatus = (resourceId: string, offset: number): StepStatusValue => {
   const hash = hashString(resourceId) + offset;
-  const statuses: GcpTfStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'COMPLETED'];
+  const statuses: StepStatusValue[] = ['IN_PROGRESS', 'COMPLETED', 'COMPLETED', 'FAIL', 'COMPLETED'];
   return statuses[hash % statuses.length];
 };
 
-const generatePscStatus = (resourceId: string): GcpPscStatus => {
-  const hash = hashString(resourceId);
-  const statuses: GcpPscStatus[] = ['NOT_REQUESTED', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'];
-  return statuses[hash % statuses.length];
+const deriveInstallationStatus = (steps: StepStatus[]): InstallationStatus => {
+  const active = steps.filter(s => s.status !== 'SKIP');
+  if (active.length === 0) return 'COMPLETED';
+  if (active.every(s => s.status === 'COMPLETED')) return 'COMPLETED';
+  if (active.some(s => s.status === 'FAIL')) return 'FAIL';
+  return 'IN_PROGRESS';
+};
+
+// [subnet, serviceTf, bdcTf] — true=활성, false=SKIP
+const STEP_MATRIX: Record<string, [boolean, boolean, boolean]> = {
+  'BIGQUERY:': [false, true, true],
+  'CLOUD_SQL:PRIVATE_IP_MODE': [true, true, true],
+  'CLOUD_SQL:PSC_MODE': [false, false, true],
+  'CLOUD_SQL:BDC_PRIVATE_HOST_MODE': [false, false, false],
+};
+
+const FAIL_GUIDES = [
+  'Subnet 생성에 실패했습니다. 네트워크 권한을 확인하세요.',
+  'Service Terraform 적용에 실패했습니다. 로그를 확인하세요.',
+  'BDC Terraform 적용에 실패했습니다. 관리자에게 문의하세요.',
+];
+
+const buildStep = (active: boolean, resourceId: string, offset: number, failGuide: string): StepStatus => {
+  if (!active) return { status: 'SKIP' };
+  const status = generateStepStatus(resourceId, offset);
+  return { status, guide: status === 'FAIL' ? failGuide : null };
 };
 
 const buildInstallResource = (resource: Resource): GcpInstallResource => {
-  const connectionType = determineConnectionType(resource);
+  const resourceSubType = determineResourceSubType(resource);
+  const key = `${resource.type}:${resourceSubType ?? ''}`;
+  const [subnetActive, svcActive, bdcActive] = STEP_MATRIX[key] ?? [false, false, false];
 
-  const serviceTfStatus = connectionType === 'PSC'
-    ? 'COMPLETED' as GcpTfStatus
-    : generateTfStatus(resource.resourceId, 0);
-  const bdcTfStatus = serviceTfStatus === 'COMPLETED'
-    ? generateTfStatus(resource.resourceId, 100)
-    : 'PENDING';
+  const subnetCreation = buildStep(subnetActive, resource.resourceId, 200, FAIL_GUIDES[0]);
+  const serviceTf = buildStep(svcActive, resource.resourceId, 0, FAIL_GUIDES[1]);
+  const bdcTf = buildStep(bdcActive, resource.resourceId, 100, FAIL_GUIDES[2]);
 
-  const base: GcpInstallResource = {
-    id: resource.resourceId,
-    name: resource.resourceId,
+  return {
+    resourceId: resource.resourceId,
+    resourceName: resource.resourceId,
     resourceType: resource.type as 'CLOUD_SQL' | 'BIGQUERY',
-    connectionType,
-    databaseType: resource.databaseType,
-    serviceTfStatus,
-    bdcTfStatus,
-    isCompleted: false,
+    resourceSubType: resourceSubType,
+    installationStatus: deriveInstallationStatus([subnetCreation, serviceTf, bdcTf]),
+    serviceSideSubnetCreation: subnetCreation,
+    serviceSideTerraformApply: serviceTf,
+    bdcSideTerraformApply: bdcTf,
   };
-
-  if (connectionType === 'PRIVATE_IP') {
-    const hash = hashString(resource.resourceId);
-    const proxyExists = hash % 3 !== 0;
-    base.regionalManagedProxy = {
-      exists: proxyExists,
-      networkProjectId: `host-project-${hash % 10}`,
-      vpcName: `vpc-${resource.resourceId}`,
-      cloudSqlRegion: 'asia-northeast3',
-      subnetName: proxyExists ? `proxy-subnet-${resource.resourceId}` : undefined,
-      subnetCidr: proxyExists ? '10.129.0.0/23' : undefined,
-    };
-    base.isCompleted = serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'COMPLETED';
-  } else if (connectionType === 'PSC') {
-    const pscStatus = generatePscStatus(resource.resourceId);
-    base.pscConnection = {
-      status: pscStatus,
-      connectionId: pscStatus !== 'NOT_REQUESTED' ? `psc-${resource.resourceId}` : undefined,
-      serviceAttachmentUri: pscStatus !== 'NOT_REQUESTED'
-        ? `projects/host-project/regions/asia-northeast3/serviceAttachments/sa-${resource.resourceId}`
-        : undefined,
-      requestedAt: pscStatus !== 'NOT_REQUESTED' ? '2026-01-15T10:00:00Z' : undefined,
-      approvedAt: pscStatus === 'APPROVED' ? '2026-01-16T14:30:00Z' : undefined,
-      rejectedAt: pscStatus === 'REJECTED' ? '2026-01-16T14:30:00Z' : undefined,
-    };
-    base.isCompleted = bdcTfStatus === 'COMPLETED' && pscStatus === 'APPROVED';
-  } else {
-    base.isCompleted = serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'COMPLETED';
-  }
-
-  return base;
 };
 
 // ===== API 함수 =====
@@ -188,23 +169,22 @@ export const checkGcpInstallation = (
 
   if (result.data) {
     result.data.resources = result.data.resources.map((resource) => {
-      if (resource.serviceTfStatus === 'IN_PROGRESS' && Math.random() < 0.4) {
-        return { ...resource, serviceTfStatus: 'COMPLETED' as GcpTfStatus };
-      }
-      if (resource.bdcTfStatus === 'PENDING' && resource.serviceTfStatus === 'COMPLETED' && Math.random() < 0.3) {
-        return { ...resource, bdcTfStatus: 'IN_PROGRESS' as GcpTfStatus };
-      }
-      if (resource.pscConnection?.status === 'PENDING_APPROVAL' && Math.random() < 0.3) {
-        return {
-          ...resource,
-          pscConnection: {
-            ...resource.pscConnection,
-            status: 'APPROVED' as GcpPscStatus,
-            approvedAt: new Date().toISOString(),
-          },
-        };
-      }
-      return resource;
+      const updated = { ...resource };
+      const advanceStep = (step: StepStatus): StepStatus => {
+        if (step.status === 'IN_PROGRESS' && Math.random() < 0.4) {
+          return { status: 'COMPLETED', guide: null };
+        }
+        return step;
+      };
+      updated.serviceSideSubnetCreation = advanceStep(resource.serviceSideSubnetCreation);
+      updated.serviceSideTerraformApply = advanceStep(resource.serviceSideTerraformApply);
+      updated.bdcSideTerraformApply = advanceStep(resource.bdcSideTerraformApply);
+      updated.installationStatus = deriveInstallationStatus([
+        updated.serviceSideSubnetCreation,
+        updated.serviceSideTerraformApply,
+        updated.bdcSideTerraformApply,
+      ]);
+      return updated;
     });
 
     result.data.lastCheckedAt = new Date().toISOString();
