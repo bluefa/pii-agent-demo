@@ -1,22 +1,65 @@
-import type { GcpResourceStatus } from '@/app/api/_lib/v1-types';
+import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 
-// ===== GCP TF 상태 라벨 =====
+// ===== GCP Step Keys =====
 
-export const GCP_TF_STATUS_LABELS = {
-  PENDING: '설치 준비 중',
-  IN_PROGRESS: '설치 진행 중',
+export const GCP_STEP_KEYS = [
+  'serviceSideSubnetCreation',
+  'serviceSideTerraformApply',
+  'bdcSideTerraformApply',
+] as const;
+
+export type GcpStepKey = typeof GCP_STEP_KEYS[number];
+
+export const GCP_STEP_LABELS: Record<GcpStepKey, string> = {
+  serviceSideSubnetCreation: 'Subnet 생성',
+  serviceSideTerraformApply: 'Service TF 설치',
+  bdcSideTerraformApply: 'BDC TF 설치',
+} as const;
+
+// ===== GCP Step Status Labels =====
+
+export const GCP_STEP_STATUS_LABELS: Record<GcpStepStatusValue, string> = {
+  COMPLETED: '완료',
+  FAIL: '실패',
+  IN_PROGRESS: '진행중',
+  SKIP: '해당없음',
+} as const;
+
+// ===== GCP Installation Status Labels =====
+
+export const GCP_INSTALLATION_STATUS_LABELS = {
   COMPLETED: '설치 완료',
-  FAILED: '설치 실패',
+  FAIL: '설치 실패',
+  IN_PROGRESS: '설치 진행 중',
 } as const;
 
-// ===== GCP PSC 상태 라벨 =====
+// ===== GCP Step Aggregate Status =====
 
-export const GCP_PSC_STATUS_LABELS = {
-  NOT_REQUESTED: '확인 대기',
-  PENDING_APPROVAL: '승인 대기 중',
-  APPROVED: '승인 완료',
-  REJECTED: '승인 거부 — 재신청 필요',
-} as const;
+export type GcpStepAggregateStatus = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'PENDING';
+
+export const getGcpStepAggregateStatus = (
+  resources: GcpResourceStatus[],
+  stepKey: GcpStepKey
+): GcpStepAggregateStatus => {
+  const active = resources.filter(r => r[stepKey].status !== 'SKIP');
+  if (active.length === 0) return 'PENDING';
+  if (active.every(r => r[stepKey].status === 'COMPLETED')) return 'COMPLETED';
+  if (active.some(r => r[stepKey].status === 'FAIL')) return 'FAIL';
+  if (active.some(r => r[stepKey].status === 'IN_PROGRESS' || r[stepKey].status === 'COMPLETED')) return 'IN_PROGRESS';
+  return 'PENDING';
+};
+
+export const getGcpActiveStepCount = (
+  resources: GcpResourceStatus[],
+  stepKey: GcpStepKey
+): number =>
+  resources.filter(r => r[stepKey].status !== 'SKIP').length;
+
+export const getGcpCompletedStepCount = (
+  resources: GcpResourceStatus[],
+  stepKey: GcpStepKey
+): number =>
+  resources.filter(r => r[stepKey].status === 'COMPLETED').length;
 
 // ===== GCP 에러 코드 =====
 
@@ -67,67 +110,3 @@ export const GCP_GUIDE_URLS = {
   SUBNET_CREATION: 'https://docs.example.com/gcp/subnet-creation',
   PSC_APPROVAL: 'https://docs.example.com/gcp/psc-approval',
 } as const;
-
-// ===== GCP 통합 상태 =====
-
-export type GcpUnifiedStatus = 'COMPLETED' | 'FAILED' | 'IN_PROGRESS' | 'PENDING' | 'ACTION_REQUIRED';
-
-export const GCP_UNIFIED_STATUS_LABELS: Record<GcpUnifiedStatus, string> = {
-  COMPLETED: '설치 완료',
-  FAILED: '설치 실패',
-  IN_PROGRESS: '설치 진행 중',
-  PENDING: '설치 준비 중',
-  ACTION_REQUIRED: '조치 필요',
-} as const;
-
-export const getGcpUnifiedStatus = (resource: GcpResourceStatus): GcpUnifiedStatus => {
-  const { serviceTfStatus, bdcTfStatus, pendingAction } = resource;
-
-  if (serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'COMPLETED') {
-    return 'COMPLETED';
-  }
-
-  if (serviceTfStatus === 'FAILED' || bdcTfStatus === 'FAILED') {
-    return 'FAILED';
-  }
-
-  if (pendingAction === 'CREATE_PROXY_SUBNET' || pendingAction === 'APPROVE_PSC_CONNECTION') {
-    return 'ACTION_REQUIRED';
-  }
-
-  if (
-    serviceTfStatus === 'IN_PROGRESS' ||
-    bdcTfStatus === 'IN_PROGRESS' ||
-    (serviceTfStatus === 'COMPLETED' && bdcTfStatus === 'PENDING') ||
-    (serviceTfStatus === 'PENDING' && bdcTfStatus === 'COMPLETED')
-  ) {
-    return 'IN_PROGRESS';
-  }
-
-  return 'PENDING';
-};
-
-// ===== GCP 그룹 상태 =====
-
-export type GcpGroupStatus = 'COMPLETED' | 'FAILED' | 'IN_PROGRESS' | 'PENDING';
-
-export const GCP_GROUP_STATUS_LABELS: Record<GcpGroupStatus, string> = {
-  COMPLETED: '완료',
-  FAILED: '실패',
-  IN_PROGRESS: '진행 중',
-  PENDING: '대기 중',
-} as const;
-
-export const getGcpGroupStatus = (
-  resources: GcpResourceStatus[],
-  field: 'serviceTfStatus' | 'bdcTfStatus'
-): GcpGroupStatus => {
-  if (resources.length === 0) return 'PENDING';
-  if (resources.every(r => r[field] === 'COMPLETED')) return 'COMPLETED';
-  if (resources.some(r => r[field] === 'FAILED')) return 'FAILED';
-  if (
-    resources.some(r => r[field] === 'IN_PROGRESS') ||
-    (resources.some(r => r[field] === 'COMPLETED') && resources.some(r => r[field] === 'PENDING'))
-  ) return 'IN_PROGRESS';
-  return 'PENDING';
-};

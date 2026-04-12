@@ -5,7 +5,7 @@
 // --- Common ---
 
 export interface LastCheckInfo {
-  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  status: 'NEVER_CHECKED' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
   checkedAt: string;
   failReason?: string;
 }
@@ -149,39 +149,29 @@ export interface AzureSettingsResponse {
 
 // --- GCP API ---
 
-export type GcpTfStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+export type GcpStepStatusValue = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'SKIP';
+export type GcpInstallationStatusValue = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS';
+export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
+export type GcpResourceSubType = 'PRIVATE_IP_MODE' | 'BDC_PRIVATE_HOST_MODE' | 'PSC_MODE';
 
-export type GcpPendingAction =
-  | 'CREATE_PROXY_SUBNET'
-  | 'APPROVE_PSC_CONNECTION'
-  | null;
-
-export interface PscConnection {
-  status: PrivateEndpointStatus;
-  connectionId?: string;
-  serviceAttachmentUri?: string;
+export interface GcpStepStatus {
+  status: GcpStepStatusValue;
+  guide?: string | null;
 }
 
 export interface GcpResourceStatus {
-  id: string;
-  name: string;
-  resourceType: 'CLOUD_SQL' | 'BIGQUERY';
-  serviceTfStatus: GcpTfStatus;
-  bdcTfStatus: GcpTfStatus;
-  isInstallCompleted: boolean;
-  pendingAction?: GcpPendingAction;
-  regionalManagedProxy?: {
-    exists: boolean;
-    networkProjectId: string;
-    vpcName: string;
-    cloudSqlRegion: string;
-  };
-  pscConnection?: PscConnection;
+  resourceId: string;
+  resourceName?: string;
+  resourceType: GcpResourceType;
+  resourceSubType?: GcpResourceSubType | null;
+  installationStatus: GcpInstallationStatusValue;
+  serviceSideSubnetCreation: GcpStepStatus;
+  serviceSideTerraformApply: GcpStepStatus;
+  bdcSideTerraformApply: GcpStepStatus;
 }
 
 export interface GcpInstallationStatusResponse {
-  provider: string;
-  lastCheck?: LastCheckInfo;
+  lastCheck: LastCheckInfo;
   resources: GcpResourceStatus[];
 }
 

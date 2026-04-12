@@ -4,35 +4,20 @@ import { problemResponse } from '@/app/api/_lib/problem';
 import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
 
-interface LegacyRegionalManagedProxy {
-  exists: boolean;
-  networkProjectId: string;
-  vpcName: string;
-  cloudSqlRegion: string;
-  subnetName?: string;
-  subnetCidr?: string;
-}
-
-interface LegacyPscConnection {
-  status: 'NOT_REQUESTED' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
-  connectionId?: string;
-  serviceAttachmentUri?: string;
-  requestedAt?: string;
-  approvedAt?: string;
-  rejectedAt?: string;
+interface LegacyStepStatus {
+  status: 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'SKIP';
+  guide?: string | null;
 }
 
 interface LegacyGcpResource {
-  id: string;
-  name: string;
+  resourceId: string;
+  resourceName?: string;
   resourceType: 'CLOUD_SQL' | 'BIGQUERY';
-  connectionType: string;
-  databaseType: string;
-  serviceTfStatus: string;
-  bdcTfStatus: string;
-  regionalManagedProxy?: LegacyRegionalManagedProxy;
-  pscConnection?: LegacyPscConnection;
-  isCompleted: boolean;
+  resourceSubType?: 'PRIVATE_IP_MODE' | 'BDC_PRIVATE_HOST_MODE' | 'PSC_MODE' | null;
+  installationStatus: 'COMPLETED' | 'FAIL' | 'IN_PROGRESS';
+  serviceSideSubnetCreation: LegacyStepStatus;
+  serviceSideTerraformApply: LegacyStepStatus;
+  bdcSideTerraformApply: LegacyStepStatus;
 }
 
 interface LegacyGcpInstallationStatus {
@@ -42,52 +27,28 @@ interface LegacyGcpInstallationStatus {
   error?: { code: string; message: string };
 }
 
-type GcpActionType = 'CREATE_PROXY_SUBNET' | 'APPROVE_PSC_CONNECTION';
-
 const buildLastCheck = (lastCheckedAt?: string, error?: { code: string; message: string }) => {
+  if (!lastCheckedAt && !error) {
+    return { status: 'NEVER_CHECKED' as const, checkedAt: '' };
+  }
   if (error) {
-    return { status: 'FAILED' as const, checkedAt: lastCheckedAt, failReason: error.message };
+    return { status: 'FAILED' as const, checkedAt: lastCheckedAt ?? '', failReason: error.message };
   }
-  if (lastCheckedAt) {
-    return { status: 'SUCCESS' as const, checkedAt: lastCheckedAt };
-  }
-  return { status: 'SUCCESS' as const };
+  return { status: 'COMPLETED' as const, checkedAt: lastCheckedAt ?? '' };
 };
-
-const derivePendingAction = (r: LegacyGcpResource): GcpActionType | null => {
-  if (r.regionalManagedProxy?.exists === false) return 'CREATE_PROXY_SUBNET';
-  if (r.pscConnection?.status === 'PENDING_APPROVAL' || r.pscConnection?.status === 'REJECTED') return 'APPROVE_PSC_CONNECTION';
-  return null;
-};
-
-const transformResource = (r: LegacyGcpResource) => ({
-  id: r.id,
-  name: r.name,
-  resourceType: r.resourceType,
-  serviceTfStatus: r.serviceTfStatus,
-  bdcTfStatus: r.bdcTfStatus,
-  isInstallCompleted: r.isCompleted,
-  pendingAction: derivePendingAction(r),
-  ...(r.regionalManagedProxy && {
-    regionalManagedProxy: {
-      exists: r.regionalManagedProxy.exists,
-      networkProjectId: r.regionalManagedProxy.networkProjectId,
-      vpcName: r.regionalManagedProxy.vpcName,
-    },
-  }),
-  ...(r.pscConnection && {
-    pscConnection: {
-      status: r.pscConnection.status,
-      ...(r.pscConnection.connectionId && { connectionId: r.pscConnection.connectionId }),
-      ...(r.pscConnection.serviceAttachmentUri && { serviceAttachmentUri: r.pscConnection.serviceAttachmentUri }),
-    },
-  }),
-});
 
 const transformInstallationStatus = (legacy: LegacyGcpInstallationStatus) => ({
-  provider: legacy.provider,
   lastCheck: buildLastCheck(legacy.lastCheckedAt, legacy.error),
-  resources: legacy.resources.map(transformResource),
+  resources: legacy.resources.map((r) => ({
+    resourceId: r.resourceId,
+    resourceName: r.resourceName,
+    resourceType: r.resourceType,
+    resourceSubType: r.resourceSubType ?? null,
+    installationStatus: r.installationStatus,
+    serviceSideSubnetCreation: r.serviceSideSubnetCreation,
+    serviceSideTerraformApply: r.serviceSideTerraformApply,
+    bdcSideTerraformApply: r.bdcSideTerraformApply,
+  })),
 });
 
 export const GET = withV1(async (_request, { requestId, params }) => {

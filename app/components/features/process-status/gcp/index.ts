@@ -1,3 +1,4 @@
 export { GcpInstallationInline } from './GcpInstallationInline';
-export { RegionalManagedProxyPanel } from './RegionalManagedProxyPanel';
-export { PscApprovalGuide } from './PscApprovalGuide';
+export { GcpStepSummaryCard } from './GcpStepSummaryCard';
+export { GcpStepSummaryRow } from './GcpStepSummaryRow';
+export { GcpResourceStatusTable } from './GcpResourceStatusTable';
