@@ -53,6 +53,28 @@ export const getServices = async (): Promise<ServiceCode[]> => {
   }));
 };
 
+export interface ServicePageResponse {
+  content: ServiceCode[];
+  page: { totalElements: number; totalPages: number; number: number; size: number };
+}
+
+export const getServicesPage = async (
+  page = 0,
+  size = 10,
+  query?: string,
+): Promise<ServicePageResponse> => {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (query) params.set('query', query);
+  const data = await fetchInfraCamelJson<{
+    content: Array<{ serviceCode: string; serviceName: string }>;
+    page: { totalElements: number; totalPages: number; number: number; size: number };
+  }>(`/user/services/page?${params}`);
+  return {
+    content: data.content.map((s) => ({ code: s.serviceCode, name: s.serviceName })),
+    page: data.page,
+  };
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 

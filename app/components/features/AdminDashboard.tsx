@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { ProjectCreateModal } from './ProjectCreateModal';
 import {
-  getServices,
+  getServicesPage,
   getProjects,
   getPermissions,
   addPermission,
@@ -15,6 +15,7 @@ import {
   rejectApprovalRequestV1,
   UserSearchResult,
 } from '@/app/lib/api';
+import type { ServicePageResponse } from '@/app/lib/api';
 import type { ApprovalResourceInput } from '@/app/lib/api';
 import { ServiceCode, ProjectSummary, User } from '@/lib/types';
 import {
@@ -48,14 +49,39 @@ export const AdminDashboard = () => {
   } | null>(null);
   const [approvalLoading, setApprovalLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchServices = async () => {
-      const data = await getServices();
-      setServices(data);
-      if (data.length > 0) setSelectedService(data[0].code);
-    };
-    fetchServices();
+  const [serviceQuery, setServiceQuery] = useState('');
+  const [servicePageNum, setServicePageNum] = useState(0);
+  const [servicePageInfo, setServicePageInfo] = useState<ServicePageResponse['page']>({
+    totalElements: 0, totalPages: 0, number: 0, size: 10,
+  });
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const fetchServicesPage = useCallback(async (page: number, query?: string) => {
+    const data = await getServicesPage(page, 10, query || undefined);
+    setServices(data.content);
+    setServicePageInfo(data.page);
+    if (page === 0 && data.content.length > 0) {
+      setSelectedService(data.content[0].code);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchServicesPage(0);
+  }, [fetchServicesPage]);
+
+  const handleSearchChange = useCallback((query: string) => {
+    setServiceQuery(query);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setServicePageNum(0);
+      fetchServicesPage(0, query);
+    }, 300);
+  }, [fetchServicesPage]);
+
+  const handlePageChange = useCallback((page: number) => {
+    setServicePageNum(page);
+    fetchServicesPage(page, serviceQuery);
+  }, [fetchServicesPage, serviceQuery]);
 
   useEffect(() => {
     if (!selectedService) return;
@@ -168,6 +194,10 @@ export const AdminDashboard = () => {
           selectedService={selectedService}
           onSelectService={setSelectedService}
           projectCount={projects.length}
+          searchQuery={serviceQuery}
+          onSearchChange={handleSearchChange}
+          pageInfo={servicePageInfo}
+          onPageChange={handlePageChange}
         />
 
         <main className="flex-1 p-6 overflow-auto bg-gray-50/50">

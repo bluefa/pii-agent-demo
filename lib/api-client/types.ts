@@ -34,6 +34,7 @@ export interface ApiClient {
     search: (query: string, excludeIds: string[]) => Promise<NextResponse>;
     getMe: () => Promise<NextResponse>;
     getServices: () => Promise<NextResponse>;
+    getServicesPage: (page: number, size: number, query?: string) => Promise<NextResponse>;
   };
   sdu: {
     checkInstallation: (projectId: string) => Promise<NextResponse>;
