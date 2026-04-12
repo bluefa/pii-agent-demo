@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as scanFns from '@/lib/mock-scan';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
+import type { ScanResult } from '@/lib/types';
+
+const parseNumericId = (projectId: string): number =>
+  Number(projectId.replace(/\D/g, '')) || 0;
+
+const toResourceCountMap = (result: ScanResult | null | undefined): Record<string, number> | null => {
+  if (!result?.byResourceType) return null;
+  const counts: Record<string, number> = {};
+  for (const { resourceType, count } of result.byResourceType) {
+    counts[resourceType] = count;
+  }
+  return counts;
+};
 
 export const mockScan = {
   get: async (projectId: string, scanId: string) => {
@@ -74,18 +87,22 @@ export const mockScan = {
     }
 
     const { history, total } = await scanFns.getScanHistory(projectId, query.limit, query.offset);
+    const targetSourceId = parseNumericId(projectId);
 
     return NextResponse.json({
-      history: history.map((h) => ({
-        scanId: h.scanId,
-        status: h.status,
-        startedAt: h.startedAt,
-        completedAt: h.completedAt,
-        duration: h.duration,
-        result: h.result,
-        error: h.error,
+      content: history.map((h) => ({
+        id: parseNumericId(h.scanId),
+        scanStatus: h.status,
+        targetSourceId,
+        createdAt: h.startedAt,
+        updatedAt: h.completedAt,
+        scanVersion: 1,
+        scanProgress: null,
+        durationSeconds: h.duration,
+        resourceCountByResourceType: toResourceCountMap(h.result),
+        scanError: h.error ?? null,
       })),
-      total,
+      totalElements: total,
     });
   },
 
@@ -130,16 +147,18 @@ export const mockScan = {
 
     const scanJob = await scanFns.createScanJob(project);
 
-    const estimatedDuration = Math.ceil(
-      (new Date(scanJob.estimatedEndAt).getTime() - new Date(scanJob.startedAt).getTime()) / 1000
-    );
-
     return NextResponse.json(
       {
-        scanId: scanJob.id,
-        status: 'STARTED',
-        startedAt: scanJob.startedAt,
-        estimatedDuration,
+        id: parseNumericId(scanJob.id),
+        scan_status: 'SCANNING',
+        target_source_id: parseNumericId(projectId),
+        created_at: scanJob.startedAt,
+        updated_at: scanJob.startedAt,
+        scan_version: 1,
+        scan_progress: scanJob.progress,
+        duration_seconds: 0,
+        resource_count_by_resource_type: null,
+        scan_error: null,
       },
       { status: 202 }
     );
@@ -169,41 +188,55 @@ export const mockScan = {
       );
     }
 
+    const targetSourceId = parseNumericId(projectId);
     const activeScan = await scanFns.getLatestScanForProject(projectId);
-
-    let currentScan = null;
-    let isScanning = false;
 
     if (activeScan) {
       const updated = await scanFns.calculateScanStatus(activeScan);
       if (updated.status === 'SCANNING') {
-        isScanning = true;
-        currentScan = {
-          scanId: updated.id,
-          status: updated.status,
-          startedAt: updated.startedAt,
-          progress: updated.progress,
-        };
+        return NextResponse.json({
+          id: parseNumericId(updated.id),
+          scanStatus: updated.status,
+          targetSourceId,
+          createdAt: updated.startedAt,
+          updatedAt: updated.startedAt,
+          scanVersion: 1,
+          scanProgress: updated.progress,
+          durationSeconds: 0,
+          resourceCountByResourceType: null,
+          scanError: null,
+        });
       }
     }
 
     const { history } = await scanFns.getScanHistory(projectId, 1, 0);
-    const lastCompletedScan = history.length > 0 ? {
-      scanId: history[0].scanId,
-      status: history[0].status,
-      completedAt: history[0].completedAt,
-      result: history[0].result,
-    } : null;
-
-    const scanability = await scanFns.canScan(project);
+    if (history.length > 0) {
+      const last = history[0];
+      return NextResponse.json({
+        id: parseNumericId(last.scanId),
+        scanStatus: last.status,
+        targetSourceId,
+        createdAt: last.startedAt,
+        updatedAt: last.completedAt,
+        scanVersion: 1,
+        scanProgress: null,
+        durationSeconds: last.duration,
+        resourceCountByResourceType: toResourceCountMap(last.result),
+        scanError: last.error ?? null,
+      });
+    }
 
     return NextResponse.json({
-      isScanning,
-      canScan: scanability.canScan,
-      canScanReason: scanability.reason,
-      cooldownUntil: scanability.cooldownUntil,
-      currentScan,
-      lastCompletedScan,
+      id: 0,
+      scanStatus: 'NO_SCAN',
+      targetSourceId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      scanVersion: null,
+      scanProgress: null,
+      durationSeconds: 0,
+      resourceCountByResourceType: null,
+      scanError: null,
     });
   },
 };

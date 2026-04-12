@@ -83,6 +83,21 @@ export const mockAzure = {
     return handleResult(await azureFns.getAzureServiceSettings(auth.project!.serviceCode));
   },
 
+  getScanApp: async (projectId: string) => {
+    const auth = await authorize(projectId);
+    if (auth.error) return auth.error;
+
+    const result = azureFns.getAzureServiceSettings(auth.project!.serviceCode);
+    if (result.error) return handleResult(result);
+
+    const scanApp = result.data!.scanApp;
+    const data = scanApp.registered
+      ? { app_id: scanApp.appId, status: scanApp.status ?? 'HEALTHY', fail_reason: null, fail_message: null, last_verified_at: scanApp.lastVerifiedAt ?? new Date().toISOString() }
+      : { app_id: null, status: 'UNREGISTERED', fail_reason: null, fail_message: null, last_verified_at: null };
+
+    return NextResponse.json(data);
+  },
+
   vmGetTerraformScript: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
