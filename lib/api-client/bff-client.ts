@@ -164,6 +164,13 @@ export const bffClient: ApiClient = {
     },
     getMe: () => proxyGet('/user/me'),
     getServices: () => proxyGet('/user/services'),
+    getServicesPage: (page: number, size: number, query?: string) => {
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('size', String(size));
+      if (query) params.set('query', query);
+      return proxyGet(`/user/services/page?${params.toString()}`);
+    },
   },
   sdu: {
     checkInstallation: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/check-installation`, {}),

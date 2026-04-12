@@ -19,7 +19,8 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   // Handle both mock data structure { credentials: [...] } and BFF structure [...]
   const credentials = Array.isArray(data) ? data : (data.credentials || []);
 
-  const secretKeys = credentials.map((c: any) => ({
+  interface RawCredential { name: string; create_time_str?: string; createdAt?: string; databaseType?: string }
+  const secretKeys = (credentials as RawCredential[]).map((c) => ({
     name: c.name,
     createTimeStr: c.create_time_str || c.createdAt,
     ...(c.databaseType && { labels: { databaseType: c.databaseType } }),
