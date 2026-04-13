@@ -131,8 +131,8 @@ export const GcpProjectPage = ({
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
-    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
-    [project.resources, selectedIds],
+    () => resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [resources, selectedIds],
   );
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
@@ -142,7 +142,7 @@ export const GcpProjectPage = ({
   const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
-    const selectedVmResources = project.resources.filter(
+    const selectedVmResources = resources.filter(
       (r) => selectedIds.includes(r.id) && isVmResource(r)
     );
     const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
@@ -159,7 +159,7 @@ export const GcpProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
-      const resourceInputs = project.resources.map(r => {
+      const resourceInputs = resources.map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -205,7 +205,7 @@ export const GcpProjectPage = ({
   };
 
   const handleStartEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(true);
   };
 
@@ -213,7 +213,7 @@ export const GcpProjectPage = ({
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
   const handleCancelEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(false);
   };
 
