@@ -794,43 +794,44 @@ export const mockConfirm = {
     const selectedCount = project.resources.filter((r) => r.isSelected).length;
     const totalCount = project.resources.length;
     const approvalStatus = project.status.approval.status;
-    const now = new Date().toISOString();
 
     // BFF 실제 응답 형식으로 반환
     const requestTimestamp = latestRequest?.timestamp ?? project.updatedAt;
     const requestActor = latestRequest?.actor ?? { id: user.id, name: user.name };
 
-    const response: {
-      request: Record<string, unknown>;
-      result: Record<string, unknown>;
-    } = {
+    const toBffStatus = (status: string): string => {
+      switch (status) {
+        case 'PENDING': return 'PENDING';
+        case 'APPROVED': return 'APPROVED';
+        case 'AUTO_APPROVED': return 'AUTO_APPROVED';
+        case 'REJECTED': return 'REJECTED';
+        case 'CANCELLED': return 'CANCELLED';
+        default: return 'PENDING';
+      }
+    };
+
+    const bffStatus = toBffStatus(approvalStatus);
+    const requestId = latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0;
+    const processedAt = latestRequest?.timestamp ?? new Date().toISOString();
+
+    return NextResponse.json({
       request: {
-        id: latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0,
+        id: requestId,
         target_source_id: project.targetSourceId,
-        status: approvalStatus === 'PENDING' ? 'PENDING'
-          : approvalStatus === 'APPROVED' || approvalStatus === 'AUTO_APPROVED' ? 'APPROVED'
-          : approvalStatus === 'REJECTED' ? 'REJECTED'
-          : approvalStatus === 'CANCELLED' ? 'CANCELLED'
-          : 'PENDING',
+        status: bffStatus,
         requested_by: { user_id: requestActor.name ?? requestActor.id },
         requested_at: requestTimestamp,
         resource_total_count: totalCount,
         resource_selected_count: selectedCount,
       },
       result: {
-        request_id: latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : null,
-        status: approvalStatus === 'PENDING' ? 'PENDING'
-          : approvalStatus === 'APPROVED' || approvalStatus === 'AUTO_APPROVED' ? 'APPROVED'
-          : approvalStatus === 'REJECTED' ? 'REJECTED'
-          : approvalStatus === 'CANCELLED' ? 'CANCELLED'
-          : 'PENDING',
+        request_id: latestRequest ? requestId : null,
+        status: bffStatus,
         processed_by: { user_id: requestActor.name ?? requestActor.id },
-        processed_at: now,
+        processed_at: processedAt,
         reason: project.status.approval.rejectionReason ?? null,
       },
-    };
-
-    return NextResponse.json(response);
+    });
   },
 
   getProcessStatus: async (projectId: string) => {
