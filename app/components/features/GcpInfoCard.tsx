@@ -1,20 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import { cardStyles, statusColors, cn, textColors } from '@/lib/theme';
+import { badgeStyles, cardStyles, statusColors, cn, textColors } from '@/lib/theme';
 import { PROVIDER_FIELD_LABELS } from '@/lib/constants/labels';
 import { Modal } from '@/app/components/ui/Modal';
 import { useModal } from '@/app/hooks/useModal';
 import type { Project, SecretKey } from '@/lib/types';
+import type { GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
 
 interface GcpInfoCardProps {
   project: Project;
   credentials: SecretKey[];
+  scanServiceAccount: GcpServiceAccountInfo | null;
+  terraformServiceAccount: GcpServiceAccountInfo | null;
   onOpenGuide: () => void;
   onManageCredentials: () => void;
 }
 
 const CREDENTIAL_PREVIEW_COUNT = 3;
+
+const CheckIcon = () => (
+  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+  </svg>
+);
+
+const WarningIcon = () => (
+  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+  </svg>
+);
 
 const ArrowIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,6 +44,63 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
   </div>
 );
 
+const ServiceAccountStatusRow = ({
+  label,
+  info,
+  onGuide,
+}: {
+  label: string;
+  info: GcpServiceAccountInfo;
+  onGuide: () => void;
+}) => {
+  const isValid = info.status === 'VALID';
+  const isInvalid = info.status === 'INVALID';
+
+  return (
+    <div className="py-2">
+      <div className="flex items-center justify-between">
+        <span className={cn('text-sm font-medium', textColors.secondary)}>{label}</span>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            'inline-flex items-center gap-1 text-sm font-medium',
+            isValid
+              ? statusColors.success.text
+              : isInvalid
+                ? statusColors.warning.text
+                : textColors.quaternary
+          )}>
+            {isValid && <CheckIcon />}
+            {isInvalid && <WarningIcon />}
+            {isValid ? '검증 완료' : isInvalid ? '검증 실패' : '미검증'}
+          </span>
+          {!isValid && (
+            <button
+              onClick={onGuide}
+              className={cn('inline-flex items-center gap-0.5 text-sm', statusColors.info.text, 'hover:underline')}
+            >
+              등록 가이드
+              <ArrowIcon />
+            </button>
+          )}
+        </div>
+      </div>
+      {isValid && info.lastVerifiedAt && (
+        <p className={cn('mt-1 text-xs', textColors.tertiary)}>
+          {new Date(info.lastVerifiedAt).toLocaleString('ko-KR', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit',
+          })} 검증
+        </p>
+      )}
+      {isInvalid && info.failMessage && (
+        <p className={cn('mt-1 text-xs', statusColors.error.text)}>
+          {info.failMessage}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const GUIDE_STEPS = [
   'GCP Console에서 IAM & Admin → Service Accounts로 이동합니다.',
   'Create Service Account를 클릭하고, 이름을 pii-agent-scanner로 설정합니다.',
@@ -40,6 +112,8 @@ const GUIDE_STEPS = [
 export const GcpInfoCard = ({
   project,
   credentials,
+  scanServiceAccount,
+  terraformServiceAccount,
   onOpenGuide,
   onManageCredentials,
 }: GcpInfoCardProps) => {
@@ -50,6 +124,11 @@ export const GcpInfoCard = ({
     ? credentials
     : credentials.slice(0, CREDENTIAL_PREVIEW_COUNT);
   const hiddenCount = credentials.length - CREDENTIAL_PREVIEW_COUNT;
+
+  const hasSAData = scanServiceAccount !== null || terraformServiceAccount !== null;
+  const completedCount = [scanServiceAccount, terraformServiceAccount]
+    .filter((sa) => sa?.status === 'VALID').length;
+  const totalCount = 2;
 
   return (
     <div className={cn(cardStyles.base, 'p-6')}>
@@ -110,19 +189,39 @@ export const GcpInfoCard = ({
         )}
       </div>
 
-      {/* Section 3: Scan Service Account */}
-      <div className="mt-4 pt-4 border-t border-gray-100">
-        <div className="flex items-center justify-between">
-          <span className={cn('text-sm font-medium', textColors.secondary)}>Scan Service Account</span>
-          <button
-            onClick={() => guideModal.open()}
-            className={cn('inline-flex items-center gap-0.5 text-sm', statusColors.info.text, 'hover:underline')}
-          >
-            등록 가이드
-            <ArrowIcon />
-          </button>
+      {/* Section 3: Prerequisite Status */}
+      {hasSAData && (
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className={cn('text-sm font-medium', textColors.secondary)}>사전 조치 현황</span>
+            <span className={cn(
+              badgeStyles.base, badgeStyles.sizes.sm,
+              completedCount === totalCount
+                ? cn(statusColors.success.bg, statusColors.success.textDark)
+                : cn(statusColors.warning.bg, statusColors.warning.textDark)
+            )}>
+              {completedCount}/{totalCount} 완료
+            </span>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {scanServiceAccount && (
+              <ServiceAccountStatusRow
+                label="Scan Service Account"
+                info={scanServiceAccount}
+                onGuide={() => guideModal.open()}
+              />
+            )}
+            {terraformServiceAccount && (
+              <ServiceAccountStatusRow
+                label="Terraform Execution SA"
+                info={terraformServiceAccount}
+                onGuide={onOpenGuide}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <Modal isOpen={guideModal.isOpen} onClose={guideModal.close} title="Scan Service Account 등록 가이드" size="md">
         <ol className="space-y-3">
