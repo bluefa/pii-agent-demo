@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useModal } from '@/app/hooks/useModal';
-import { getApprovalHistory } from '@/app/lib/api';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
+import { getApprovalRequestLatest } from '@/app/lib/api';
+import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { CancelApprovalModal } from './CancelApprovalModal';
 import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
-
-type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
 
 interface ApprovalWaitingCardProps {
   targetSourceId: number;
@@ -24,15 +22,15 @@ export const ApprovalWaitingCard = ({
 }: ApprovalWaitingCardProps) => {
   const detailModal = useModal();
   const cancelModal = useModal();
-  const [latestEntry, setLatestEntry] = useState<ApprovalHistoryItem | null>(null);
+  const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const fetchLatest = async () => {
       try {
-        const history = await getApprovalHistory(targetSourceId, 0, 1);
-        if (!cancelled && history.content.length > 0) {
-          setLatestEntry(history.content[0]);
+        const response = await getApprovalRequestLatest(targetSourceId);
+        if (!cancelled) {
+          setLatestResponse(response);
         }
       } catch {
         // 조회 실패 시 무시 — 요청 내용 확인 버튼만 비활성화
@@ -65,7 +63,7 @@ export const ApprovalWaitingCard = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestEntry}
+                disabled={!latestResponse}
                 className={getButtonClass('ghost', 'sm')}
               >
                 요청 요약 보기
@@ -90,7 +88,7 @@ export const ApprovalWaitingCard = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
-        item={latestEntry}
+        latestResponse={latestResponse}
       />
 
       <CancelApprovalModal

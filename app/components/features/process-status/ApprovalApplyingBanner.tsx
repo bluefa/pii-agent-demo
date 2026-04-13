@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getApprovalHistory } from '@/app/lib/api';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
+import { getApprovalRequestLatest } from '@/app/lib/api';
+import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
-
-type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
 
 interface ApprovalApplyingBannerProps {
   targetSourceId?: number;
@@ -20,15 +18,15 @@ export const ApprovalApplyingBanner = ({
   hasConfirmedIntegration,
 }: ApprovalApplyingBannerProps) => {
   const detailModal = useModal();
-  const [latestEntry, setLatestEntry] = useState<ApprovalHistoryItem | null>(null);
+  const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
   useEffect(() => {
     if (!targetSourceId) return;
     let cancelled = false;
-    getApprovalHistory(targetSourceId, 0, 1)
-      .then((history) => {
-        if (!cancelled && history.content.length > 0) {
-          setLatestEntry(history.content[0]);
+    getApprovalRequestLatest(targetSourceId)
+      .then((response) => {
+        if (!cancelled) {
+          setLatestResponse(response);
         }
       })
       .catch(() => {});
@@ -60,7 +58,7 @@ export const ApprovalApplyingBanner = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestEntry}
+                disabled={!latestResponse}
                 className={getButtonClass('ghost', 'sm')}
               >
                 승인 요약 보기
@@ -79,7 +77,7 @@ export const ApprovalApplyingBanner = ({
       <ApprovalRequestDetailModal
         isOpen={detailModal.isOpen}
         onClose={detailModal.close}
-        item={latestEntry}
+        latestResponse={latestResponse}
       />
     </>
   );
