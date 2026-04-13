@@ -1,21 +1,15 @@
 import { Badge } from '@/app/components/ui/Badge';
 import { Modal } from '@/app/components/ui/Modal';
-import type { ApprovalHistoryResponse } from '@/app/lib/api';
+import type { ApprovalHistoryResponse, ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors } from '@/lib/theme';
 
 type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
-type ApprovalRequest = ApprovalHistoryItem['request'];
-type ApprovalRequestWithOptionalInputData = Omit<ApprovalRequest, 'input_data'> & {
-  input_data?: ApprovalRequest['input_data'];
-  resource_total_count?: number;
-  resource_selected_count?: number;
-  status?: ApprovalRequest['status'];
-};
 
 interface ApprovalRequestDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: ApprovalHistoryItem | null;
+  item?: ApprovalHistoryItem | null;
+  latestResponse?: ApprovalRequestLatestResponse | null;
 }
 
 const formatDateTime = (iso?: string): string => {
@@ -29,8 +23,10 @@ const formatDateTime = (iso?: string): string => {
   });
 };
 
-const getResultMeta = (result?: ApprovalHistoryItem['result']) => {
-  switch (result?.result) {
+type ResultStatus = string | undefined;
+
+const getResultMeta = (status: ResultStatus) => {
+  switch (status) {
     case 'APPROVED':
       return {
         badgeVariant: 'success' as const,
@@ -97,22 +93,69 @@ const getResultMeta = (result?: ApprovalHistoryItem['result']) => {
   }
 };
 
+interface NormalizedData {
+  requestId: string;
+  requestedBy: string;
+  requestedAt: string;
+  resultStatus: ResultStatus;
+  processedAt: string | undefined;
+  processedBy: string | null;
+  reason: string | null;
+  totalCount: number;
+  selectedCount: number;
+  excludedCount: number;
+}
+
+const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): NormalizedData => {
+  const totalCount = response.request.resource_total_count;
+  const selectedCount = response.request.resource_selected_count;
+  return {
+    requestId: String(response.request.id),
+    requestedBy: response.request.requested_by.user_id,
+    requestedAt: response.request.requested_at,
+    resultStatus: response.result.status,
+    processedAt: response.result.processed_at,
+    processedBy: response.result.processed_by?.user_id ?? null,
+    reason: response.result.reason,
+    totalCount,
+    selectedCount,
+    excludedCount: Math.max(totalCount - selectedCount, 0),
+  };
+};
+
+const normalizeFromHistoryItem = (item: ApprovalHistoryItem): NormalizedData => {
+  const resourceInputs = item.request.input_data?.resource_inputs ?? [];
+  const selectedCountFromSnapshot = resourceInputs.filter((r) => r.selected).length;
+  const totalCount = item.request.resource_total_count ?? resourceInputs.length;
+  const selectedCount = item.request.resource_selected_count ?? selectedCountFromSnapshot;
+  return {
+    requestId: String(item.request.id),
+    requestedBy: item.request.requested_by,
+    requestedAt: item.request.requested_at,
+    resultStatus: item.result?.result,
+    processedAt: item.result?.processed_at,
+    processedBy: item.result?.process_info.user_id ?? null,
+    reason: item.result?.process_info.reason ?? null,
+    totalCount,
+    selectedCount,
+    excludedCount: Math.max(totalCount - selectedCount, 0),
+  };
+};
+
 export const ApprovalRequestDetailModal = ({
   isOpen,
   onClose,
   item,
+  latestResponse,
 }: ApprovalRequestDetailModalProps) => {
-  if (!item) return null;
+  if (!item && !latestResponse) return null;
 
-  const request = item.request as ApprovalRequestWithOptionalInputData;
-  const resourceInputs = request.input_data?.resource_inputs ?? [];
-  const selectedCountFromSnapshot = resourceInputs.filter((resource) => resource.selected).length;
-  const totalCount = request.resource_total_count ?? resourceInputs.length;
-  const selectedCount = request.resource_selected_count ?? selectedCountFromSnapshot;
-  const excludedCount = Math.max(totalCount - selectedCount, 0);
-  const hasSnapshotSummary = resourceInputs.length > 0;
-  const hasRequestSummary = totalCount > 0 || selectedCount > 0;
-  const resultMeta = getResultMeta(item.result);
+  const data = latestResponse
+    ? normalizeFromLatestResponse(latestResponse)
+    : normalizeFromHistoryItem(item!);
+
+  const hasRequestSummary = data.totalCount > 0 || data.selectedCount > 0;
+  const resultMeta = getResultMeta(data.resultStatus);
 
   return (
     <Modal
@@ -138,7 +181,7 @@ export const ApprovalRequestDetailModal = ({
             <Badge variant={resultMeta.badgeVariant} dot>
               {resultMeta.badgeLabel}
             </Badge>
-            <span className={cn('text-xs', textColors.tertiary)}>요청 ID {request.id}</span>
+            <span className={cn('text-xs', textColors.tertiary)}>요청 ID {data.requestId}</span>
           </div>
           <p className={cn('text-sm leading-6', resultMeta.panelText)}>{resultMeta.description}</p>
         </div>
@@ -146,15 +189,15 @@ export const ApprovalRequestDetailModal = ({
         <div className="grid grid-cols-3 gap-3">
           <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default, bgColors.muted)}>
             <p className={cn('text-xs font-medium', textColors.tertiary)}>요청자</p>
-            <p className={cn('text-sm font-semibold', textColors.primary)}>{request.requested_by}</p>
+            <p className={cn('text-sm font-semibold', textColors.primary)}>{data.requestedBy}</p>
           </div>
           <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default, bgColors.muted)}>
             <p className={cn('text-xs font-medium', textColors.tertiary)}>요청 시각</p>
-            <p className={cn('text-sm font-semibold', textColors.primary)}>{formatDateTime(request.requested_at)}</p>
+            <p className={cn('text-sm font-semibold', textColors.primary)}>{formatDateTime(data.requestedAt)}</p>
           </div>
           <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default, bgColors.muted)}>
             <p className={cn('text-xs font-medium', textColors.tertiary)}>처리 시각</p>
-            <p className={cn('text-sm font-semibold', textColors.primary)}>{formatDateTime(item.result?.processed_at)}</p>
+            <p className={cn('text-sm font-semibold', textColors.primary)}>{formatDateTime(data.processedAt)}</p>
           </div>
         </div>
 
@@ -162,15 +205,13 @@ export const ApprovalRequestDetailModal = ({
           <div className="grid grid-cols-2 gap-3">
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
               <p className={cn('text-xs font-medium', textColors.tertiary)}>승인 대상 수</p>
-              <p className={cn('text-2xl font-semibold', textColors.primary)}>{selectedCount}</p>
-              <p className={cn('text-xs', textColors.tertiary)}>
-                {hasSnapshotSummary ? '요청 스냅샷 기반 복원' : 'summary 응답 기준'}
-              </p>
+              <p className={cn('text-2xl font-semibold', textColors.primary)}>{data.selectedCount}</p>
+              <p className={cn('text-xs', textColors.tertiary)}>summary 응답 기준</p>
             </div>
             <div className={cn('rounded-lg border p-4 space-y-1', borderColors.default)}>
               <p className={cn('text-xs font-medium', textColors.tertiary)}>제외 대상 수</p>
-              <p className={cn('text-2xl font-semibold', textColors.primary)}>{excludedCount}</p>
-              <p className={cn('text-xs', textColors.tertiary)}>총 요청 리소스 {totalCount}개</p>
+              <p className={cn('text-2xl font-semibold', textColors.primary)}>{data.excludedCount}</p>
+              <p className={cn('text-xs', textColors.tertiary)}>총 요청 리소스 {data.totalCount}개</p>
             </div>
           </div>
         ) : (
@@ -185,26 +226,26 @@ export const ApprovalRequestDetailModal = ({
           </div>
         )}
 
-        {item.result && (
+        {data.resultStatus && data.resultStatus !== 'PENDING' && (
           <div className={cn('rounded-xl border p-4 space-y-3', borderColors.default, bgColors.muted)}>
             <div className="flex items-center justify-between gap-3">
               <p className={cn('text-sm font-semibold', textColors.primary)}>처리 결과 요약</p>
-              <Badge variant={resultMeta.badgeVariant}>{item.result.result}</Badge>
+              <Badge variant={resultMeta.badgeVariant}>{data.resultStatus}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <p className={cn('text-xs font-medium', textColors.tertiary)}>처리자</p>
-                <p className={cn('text-sm', textColors.secondary)}>{item.result.process_info.user_id ?? '시스템'}</p>
+                <p className={cn('text-sm', textColors.secondary)}>{data.processedBy ?? '시스템'}</p>
               </div>
               <div className="space-y-1">
                 <p className={cn('text-xs font-medium', textColors.tertiary)}>처리 시각</p>
-                <p className={cn('text-sm', textColors.secondary)}>{formatDateTime(item.result.processed_at)}</p>
+                <p className={cn('text-sm', textColors.secondary)}>{formatDateTime(data.processedAt)}</p>
               </div>
             </div>
             <div className="space-y-1">
               <p className={cn('text-xs font-medium', textColors.tertiary)}>메모</p>
               <p className={cn('text-sm leading-6', textColors.secondary)}>
-                {item.result.process_info.reason ?? '추가 메모가 없습니다.'}
+                {data.reason ?? '추가 메모가 없습니다.'}
               </p>
             </div>
           </div>
