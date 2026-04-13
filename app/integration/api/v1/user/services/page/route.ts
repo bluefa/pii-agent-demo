@@ -42,17 +42,17 @@ export const GET = withV1(async (request) => {
 
   const raw = await response.json();
 
-  if (!isRecord(raw) || !Array.isArray(raw.content) || !isRecord(raw.page)) {
+  if (!isRecord(raw) || !Array.isArray(raw.content)) {
     throw new Error('Invalid services/page response payload');
   }
 
   return NextResponse.json({
     content: raw.content.map(normalizeServiceItem),
     page: {
-      totalElements: Number(raw.page.totalElements ?? 0),
-      totalPages: Number(raw.page.totalPages ?? 0),
-      number: Number(raw.page.page ?? raw.page.number ?? 0),
-      size: Number(raw.page.size ?? 10),
+      totalElements: Number(raw.totalElements ?? 0),
+      totalPages: Number(raw.totalPages ?? 0),
+      number: Number(raw.number ?? 0),
+      size: Number(raw.size ?? 10),
     },
   });
 }, { expectedDuration: '50ms ~ 300ms' });
