@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Project, ProcessStatus, SecretKey, VmDatabaseConfig, Resource, VmDatabaseType } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
   updateResourceCredential,
   getProject,
+  getConfirmResources,
 } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
@@ -16,10 +17,11 @@ import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
-import { getButtonClass } from '@/lib/theme';
+import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
+import { AppError } from '@/lib/errors';
 
 interface GcpProjectPageProps {
   project: Project;
@@ -51,6 +53,65 @@ export const GcpProjectPage = ({
     return initial;
   });
 
+  // Resource loading state
+  const [resources, setResources] = useState<Resource[]>(project.resources);
+  const [resourceLoading, setResourceLoading] = useState(true);
+  const [resourceError, setResourceError] = useState<string | null>(null);
+
+  const loadGcpResources = useCallback(async () => {
+    setResourceLoading(true);
+    setResourceError(null);
+
+    try {
+      const response = await getConfirmResources(project.targetSourceId);
+      // Convert ConfirmResourceItem[] to Resource[]
+      const convertedResources: Resource[] = response.resources.map(resource => {
+        // Only create VM config for actual VM database types
+        let vmDatabaseConfig: VmDatabaseConfig | undefined;
+        if (resource.resourceType === 'AZURE_VM') {
+          const vmDatabaseTypes: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
+          if (vmDatabaseTypes.includes(resource.databaseType as VmDatabaseType) && resource.port !== null) {
+            vmDatabaseConfig = {
+              databaseType: resource.databaseType as VmDatabaseType,
+              port: resource.port ?? 0,
+              host: resource.host ?? '',
+              ...(resource.oracleServiceId ? { oracleServiceId: resource.oracleServiceId } : {}),
+              ...(resource.networkInterfaceId ? { selectedNicId: resource.networkInterfaceId } : {}),
+            };
+          }
+        }
+
+        return {
+          id: resource.id,
+          type: resource.resourceType,
+          resourceId: resource.resourceId,
+          name: resource.name,
+          databaseType: resource.databaseType,
+          integrationCategory: resource.integrationCategory,
+          isSelected: false, // Will be updated based on project state
+          connectionStatus: 'PENDING',
+          selectedCredentialId: undefined,
+          vmDatabaseConfig,
+        };
+      });
+
+      setResources(convertedResources);
+    } catch (error) {
+      const errorMessage = error instanceof AppError && error.isUserFacing 
+        ? error.message 
+        : error instanceof Error 
+          ? error.message 
+          : 'GCP 리소스 정보를 불러오지 못했습니다.';
+      setResourceError(errorMessage);
+    } finally {
+      setResourceLoading(false);
+    }
+  }, [project.targetSourceId]);
+
+  useEffect(() => {
+    void loadGcpResources();
+  }, [loadGcpResources]);
+
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
@@ -70,8 +131,8 @@ export const GcpProjectPage = ({
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
-    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
-    [project.resources, selectedIds],
+    () => resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [resources, selectedIds],
   );
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
@@ -81,7 +142,7 @@ export const GcpProjectPage = ({
   const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
-    const selectedVmResources = project.resources.filter(
+    const selectedVmResources = resources.filter(
       (r) => selectedIds.includes(r.id) && isVmResource(r)
     );
     const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
@@ -98,7 +159,7 @@ export const GcpProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
-      const resourceInputs = project.resources.map(r => {
+      const resourceInputs = resources.map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -144,7 +205,7 @@ export const GcpProjectPage = ({
   };
 
   const handleStartEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(true);
   };
 
@@ -152,7 +213,7 @@ export const GcpProjectPage = ({
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
   const handleCancelEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(false);
   };
 
@@ -174,7 +235,7 @@ export const GcpProjectPage = ({
         <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <ProcessStatusCard
             project={project}
-            resources={project.resources}
+            resources={resources}
             onProjectUpdate={onProjectUpdate}
             approvalModalOpen={approvalModalOpen}
             onApprovalModalClose={() => setApprovalModalOpen(false)}
@@ -188,7 +249,7 @@ export const GcpProjectPage = ({
         {currentStep === ProcessStatus.APPLYING_APPROVED ? (
           <ResourceTransitionPanel
             targetSourceId={project.targetSourceId}
-            resources={project.resources}
+            resources={resources}
             cloudProvider={project.cloudProvider}
             processStatus={currentStep}
           />
@@ -203,22 +264,41 @@ export const GcpProjectPage = ({
               }}
             />
 
-            <ResourceTable
-              resources={project.resources.map((r) => ({
-                ...r,
-                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-              }))}
-              cloudProvider={project.cloudProvider}
-              processStatus={currentStep}
-              isEditMode={effectiveEditMode}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              credentials={credentials}
-              onCredentialChange={handleCredentialChange}
-              expandedVmId={expandedVmId}
-              onVmConfigToggle={setExpandedVmId}
-              onVmConfigSave={handleVmConfigSave}
-            />
+            {resourceLoading ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+                <LoadingSpinner />
+                <span className={cn('text-sm', textColors.tertiary)}>GCP 리소스 정보를 불러오는 중입니다.</span>
+              </div>
+            ) : resourceError ? (
+              <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+                <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+                  {resourceError}
+                </p>
+                <button
+                  onClick={() => void loadGcpResources()}
+                  className={getButtonClass('secondary')}
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : (
+              <ResourceTable
+                resources={resources.map((r) => ({
+                  ...r,
+                  vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+                }))}
+                cloudProvider={project.cloudProvider}
+                processStatus={currentStep}
+                isEditMode={effectiveEditMode}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                credentials={credentials}
+                onCredentialChange={handleCredentialChange}
+                expandedVmId={expandedVmId}
+                onVmConfigToggle={setExpandedVmId}
+                onVmConfigSave={handleVmConfigSave}
+              />
+            )}
           </>
         )}
 
