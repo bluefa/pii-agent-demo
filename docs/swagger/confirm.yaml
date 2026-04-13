@@ -326,6 +326,31 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
         '404':
           $ref: '#/components/responses/TargetSourceNotFound'
+  /target-sources/{targetSourceId}/approval-requests/latest:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    get:
+      tags:
+        - Approval Process
+      summary: 최신 승인 요청 조회
+      operationId: getApprovalRequestLatest
+      x-expected-duration: 500ms 이내
+      description: |
+        가장 최근의 승인 요청과 처리 결과를 반환합니다.
+        승인 요청 이력이 없으면 404를 반환합니다.
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestLatestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
   /target-sources/{targetSourceId}/approval-history:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -724,6 +749,76 @@ components:
           $ref: '#/components/schemas/ApprovalRequest'
         result:
           $ref: '#/components/schemas/ApprovalResult'
+    ApprovalRequestLatestResponse:
+      type: object
+      required:
+        - request
+        - result
+      properties:
+        request:
+          type: object
+          required:
+            - id
+            - target_source_id
+            - status
+            - requested_by
+            - requested_at
+            - resource_total_count
+            - resource_selected_count
+          properties:
+            id:
+              type: integer
+              format: int64
+            target_source_id:
+              type: integer
+              format: int64
+            status:
+              type: string
+              enum:
+                - PENDING
+                - APPROVED
+                - AUTO_APPROVED
+                - REJECTED
+                - CANCELLED
+            requested_by:
+              $ref: '#/components/schemas/ActorDto'
+            requested_at:
+              type: string
+              format: date-time
+            resource_total_count:
+              type: integer
+            resource_selected_count:
+              type: integer
+        result:
+          type: object
+          required:
+            - request_id
+            - status
+            - processed_by
+            - processed_at
+            - reason
+          properties:
+            request_id:
+              type: integer
+              format: int64
+              nullable: true
+            status:
+              type: string
+              enum:
+                - PENDING
+                - APPROVED
+                - AUTO_APPROVED
+                - REJECTED
+                - CANCELLED
+            processed_by:
+              $ref: '#/components/schemas/ActorDto'
+            processed_at:
+              type: string
+              format: date-time
+            reason:
+              type: string
+              nullable: true
+              description: 반려 시 사유
     ActorDto:
       type: object
       properties:
