@@ -3,7 +3,7 @@ info:
   title: Excluded Logical Database & Test Connection Confirmation API
   version: 1.0.0
   description: |
-    연동 제외 논리 DB 관리 및 Test Connection 완료 확인 API 명세서입니다.
+    연동 제외 논리 DB 관리 및 Test Connection 완료 확인 **BFF API** 명세서입니다.
 
     ### 주요 기능
     * **연동 제외 논리 DB 목록 관리**: 리소스별 연동 제외 논리 DB 목록을 조회/업데이트합니다.
@@ -16,8 +16,8 @@ info:
     - 변경 후: `/target-sources/{targetSourceId}/excluded-logical-databases?resourceId={resourceId}`
 
 servers:
-  - url: /install/v1
-    description: Install API Base Path
+  - url: /integration/api/v1
+    description: BFF API Base Path
 
 tags:
   - name: Excluded Logical Database
