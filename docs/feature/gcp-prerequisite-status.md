@@ -228,6 +228,63 @@ export const getGcpTerraformServiceAccount = async (
 
 ---
 
+## TODO — 구현 작업 목록
+
+> **규칙:** 각 TODO를 완료할 때마다 아래 순서를 따릅니다.
+> 1. 코드 작성
+> 2. `/pr-context-review` 수행 — 변경사항이 계획에 맞는지, 타입/린트 에러 없는지 검증
+> 3. 검증 통과 후 commit 생성
+>
+> `/pr-context-review`에서 문제가 발견되면 수정 후 다시 리뷰한 뒤 commit합니다.
+
+### TODO 1. 타입 정의 추가
+
+- [ ] `app/api/_lib/v1-types.ts`에 `GcpServiceAccountStatus`, `GcpServiceAccountFailReason`, `GcpServiceAccountInfo` 타입 추가
+- **커밋 메시지:** `feat: add GcpServiceAccountInfo type definitions (#259)`
+- **검증:** `npm run type-check` 통과
+
+### TODO 2. BFF API 라우트 — Scan SA
+
+- [ ] `app/api/v1/gcp/target-sources/[targetSourceId]/scan-service-account/route.ts` 신규 생성
+- [ ] `withV1` 래퍼 + 인증/권한 검증 (settings route 패턴)
+- [ ] Mock 응답: `status: 'VALID'`, `lastVerifiedAt: 현재시각`
+- **커밋 메시지:** `feat: add scan service account BFF route (#259)`
+- **검증:** `npm run type-check` 통과 + API 응답 스키마가 Swagger 명세와 일치
+
+### TODO 3. BFF API 라우트 — Terraform SA
+
+- [ ] `app/api/v1/gcp/target-sources/[targetSourceId]/terraform-service-account/route.ts` 신규 생성
+- [ ] Scan SA route와 동일 구조
+- [ ] Mock 응답: `status: 'VALID'`, `lastVerifiedAt: 현재시각`
+- **커밋 메시지:** `feat: add terraform service account BFF route (#259)`
+- **검증:** `npm run type-check` 통과 + API 응답 스키마가 Swagger 명세와 일치
+
+### TODO 4. 프론트엔드 API 클라이언트
+
+- [ ] `app/lib/api/gcp.ts`에 `getGcpScanServiceAccount()`, `getGcpTerraformServiceAccount()` 추가
+- **커밋 메시지:** `feat: add GCP service account API client functions (#259)`
+- **검증:** `npm run type-check` 통과 + import 경로 정상
+
+### TODO 5. GcpInfoCard 사전 조치 현황 UI
+
+- [ ] Props 확장: `scanServiceAccount`, `terraformServiceAccount` 추가
+- [ ] `CheckIcon`, `WarningIcon` 아이콘 추가 (AWS 패턴)
+- [ ] `ServiceAccountStatusRow` 내부 컴포넌트 구현
+- [ ] Section 3 교체: 기존 Scan SA 스텁 → "사전 조치 현황" 섹션 (헤더 + 완료 배지 + StatusRow x2)
+- [ ] 기존 등록 가이드 모달 유지
+- **커밋 메시지:** `feat: implement prerequisite status section in GcpInfoCard (#259)`
+- **검증:** `npm run type-check` + `npm run lint` 통과 + 상태별 렌더링 정상 (VALID/INVALID/UNVERIFIED)
+
+### TODO 6. GcpProjectPage 데이터 페칭 연결
+
+- [ ] `scanSA`, `tfSA` state 추가
+- [ ] `useEffect`에서 두 API 호출 (AWS 패턴 동일)
+- [ ] GcpInfoCard에 새 props 전달
+- **커밋 메시지:** `feat: fetch GCP service account status in GcpProjectPage (#259)`
+- **검증:** `npm run type-check` + `npm run lint` + dev 서버에서 GCP 상세 페이지 사이드바 확인
+
+---
+
 ## 참고: AWS 사전 조치 현황 패턴 (레퍼런스)
 
 - `app/components/features/AwsInfoCard.tsx` — RoleStatusRow, CheckIcon/WarningIcon, 완료 배지
