@@ -751,6 +751,88 @@ export const mockConfirm = {
     });
   },
 
+  getApprovalRequestLatest: async (projectId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectById(projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const { history: allHistory } = mockHistory.getProjectHistory({
+      projectId,
+      type: 'approval',
+    });
+
+    // 최신 요청 이력 찾기
+    const sortedHistory = [...allHistory].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+    // 요청(TARGET_CONFIRMED) 이력 찾기
+    const latestRequest = sortedHistory.find((h) =>
+      h.type === 'TARGET_CONFIRMED' || h.type === 'APPROVAL' || h.type === 'AUTO_APPROVED' || h.type === 'REJECTION' || h.type === 'APPROVAL_CANCELLED',
+    );
+
+    // 이력이 없고 WAITING_APPROVAL 상태이면 현재 상태로 합성
+    if (!latestRequest && project.processStatus !== ProcessStatus.WAITING_APPROVAL) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '승인 요청 이력이 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const selectedCount = project.resources.filter((r) => r.isSelected).length;
+    const totalCount = project.resources.length;
+    const approvalStatus = project.status.approval.status;
+    const now = new Date().toISOString();
+
+    // BFF 실제 응답 형식으로 반환
+    const requestTimestamp = latestRequest?.timestamp ?? project.updatedAt;
+    const requestActor = latestRequest?.actor ?? { id: user.id, name: user.name };
+
+    const response: {
+      request: Record<string, unknown>;
+      result: Record<string, unknown>;
+    } = {
+      request: {
+        id: latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0,
+        target_source_id: project.targetSourceId,
+        status: approvalStatus === 'PENDING' ? 'PENDING'
+          : approvalStatus === 'APPROVED' || approvalStatus === 'AUTO_APPROVED' ? 'APPROVED'
+          : approvalStatus === 'REJECTED' ? 'REJECTED'
+          : approvalStatus === 'CANCELLED' ? 'CANCELLED'
+          : 'PENDING',
+        requested_by: { user_id: requestActor.name ?? requestActor.id },
+        requested_at: requestTimestamp,
+        resource_total_count: totalCount,
+        resource_selected_count: selectedCount,
+      },
+      result: {
+        request_id: latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : null,
+        status: approvalStatus === 'PENDING' ? 'PENDING'
+          : approvalStatus === 'APPROVED' || approvalStatus === 'AUTO_APPROVED' ? 'APPROVED'
+          : approvalStatus === 'REJECTED' ? 'REJECTED'
+          : approvalStatus === 'CANCELLED' ? 'CANCELLED'
+          : 'PENDING',
+        processed_by: { user_id: requestActor.name ?? requestActor.id },
+        processed_at: now,
+        reason: project.status.approval.rejectionReason ?? null,
+      },
+    };
+
+    return NextResponse.json(response);
+  },
+
   getProcessStatus: async (projectId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {

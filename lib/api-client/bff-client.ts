@@ -278,6 +278,8 @@ export const bffClient: ApiClient = {
     getApprovedIntegration: (projectId) => proxyGet(`/target-sources/${projectId}/approved-integration`),
     getApprovalHistory: (projectId, page, size) =>
       proxyGet(`/target-sources/${projectId}/approval-history?page=${page}&size=${size}`),
+    getApprovalRequestLatest: (projectId) =>
+      proxyGet(`/target-sources/${projectId}/approval-requests/latest`),
     getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
     approveApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
     rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),

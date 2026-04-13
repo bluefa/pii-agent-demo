@@ -481,6 +481,34 @@ export const rejectApprovalRequestV1 = async (
   };
 };
 
+// === Approval Request Latest (BFF 실제 응답 구조) ===
+
+export interface ApprovalRequestLatestResponse {
+  request: {
+    id: number;
+    target_source_id: number;
+    status: string;
+    requested_by: { user_id: string };
+    requested_at: string;
+    resource_total_count: number;
+    resource_selected_count: number;
+  };
+  result: {
+    request_id: number | null;
+    status: string;
+    processed_by: { user_id: string };
+    processed_at: string;
+    reason: string | null;
+  };
+}
+
+export const getApprovalRequestLatest = async (
+  targetSourceId: number
+): Promise<ApprovalRequestLatestResponse> =>
+  fetchInfraJson<ApprovalRequestLatestResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`,
+  );
+
 export const cancelApprovalRequest = async (
   targetSourceId: number
 ): Promise<{ success: boolean }> => {
