@@ -188,6 +188,23 @@ export interface GcpSettingsResponse {
   terraformExecutionServiceAccount: string;
 }
 
+export type GcpServiceAccountStatus = 'VALID' | 'INVALID' | 'UNVERIFIED';
+
+export type GcpServiceAccountFailReason =
+  | 'SA_NOT_CONFIGURED'
+  | 'SA_KEY_EXPIRED'
+  | 'SA_NOT_FOUND'
+  | 'SA_INSUFFICIENT_PERMISSIONS'
+  | 'SCAN_SA_UNAVAILABLE';
+
+export interface GcpServiceAccountInfo {
+  gcpProjectId: string;
+  status: GcpServiceAccountStatus;
+  failReason?: GcpServiceAccountFailReason | null;
+  failMessage?: string | null;
+  lastVerifiedAt?: string;
+}
+
 // --- Credential API ---
 
 export interface SecretEntry {
