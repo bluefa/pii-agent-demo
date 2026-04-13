@@ -9,6 +9,8 @@ import {
   getProject,
   getConfirmResources,
 } from '@/app/lib/api';
+import { getGcpScanServiceAccount, getGcpTerraformServiceAccount } from '@/app/lib/api/gcp';
+import type { GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
@@ -52,6 +54,15 @@ export const GcpProjectPage = ({
     });
     return initial;
   });
+
+  // Prerequisite data
+  const [scanSA, setScanSA] = useState<GcpServiceAccountInfo | null>(null);
+  const [tfSA, setTfSA] = useState<GcpServiceAccountInfo | null>(null);
+
+  useEffect(() => {
+    getGcpScanServiceAccount(project.targetSourceId).then(setScanSA).catch(() => {});
+    getGcpTerraformServiceAccount(project.targetSourceId).then(setTfSA).catch(() => {});
+  }, [project.targetSourceId]);
 
   // Resource loading state
   const [resources, setResources] = useState<Resource[]>(project.resources);
@@ -226,6 +237,8 @@ export const GcpProjectPage = ({
           <GcpInfoCard
             project={project}
             credentials={credentials}
+            scanServiceAccount={scanSA}
+            terraformServiceAccount={tfSA}
             onOpenGuide={handleOpenGuide}
             onManageCredentials={handleManageCredentials}
           />
