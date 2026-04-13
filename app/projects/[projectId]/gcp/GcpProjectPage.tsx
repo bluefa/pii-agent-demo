@@ -1,14 +1,24 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig, Resource, VmDatabaseType } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
+import type {
+  ApprovalHistoryResponse,
+  ApprovedIntegrationResponse,
+  ConfirmedIntegrationResponse,
+  ConfirmResourceItem,
+} from '@/app/lib/api';
 import {
   createApprovalRequest,
-  updateResourceCredential,
-  getProject,
+  getApprovalHistory,
+  getApprovedIntegration,
   getConfirmResources,
+  getConfirmedIntegration,
+  getProject,
+  updateResourceCredential,
 } from '@/app/lib/api';
+import { buildGcpOwnedResources } from '@/lib/gcp-resource-ownership';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
@@ -23,6 +33,28 @@ import { ResourceTransitionPanel } from '@/app/components/features/process-statu
 import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 import { AppError } from '@/lib/errors';
 
+const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
+  resource_infos: [],
+};
+
+const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
+  content: [],
+  page: {
+    totalElements: 0,
+    totalPages: 0,
+    number: 0,
+    size: 1,
+  },
+};
+
+const isMissingSnapshotError = (error: unknown): boolean =>
+  error instanceof AppError
+  && (
+    error.code === 'NOT_FOUND'
+    || error.code === 'APPROVED_INTEGRATION_NOT_FOUND'
+    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
+  );
+
 interface GcpProjectPageProps {
   project: Project;
   credentials: SecretKey[];
@@ -35,9 +67,7 @@ export const GcpProjectPage = ({
   onProjectUpdate,
 }: GcpProjectPageProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    project.resources.filter((r) => r.isSelected).map((r) => r.id)
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
@@ -53,55 +83,56 @@ export const GcpProjectPage = ({
     return initial;
   });
 
-  // Resource loading state
-  const [resources, setResources] = useState<Resource[]>(project.resources);
+  const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
+  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
+  const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
+  const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceError, setResourceError] = useState<string | null>(null);
+
+  const currentStep = getProjectCurrentStep(project);
+  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  const effectiveEditMode = isStep1 || isEditMode;
+  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
+    currentStep === ProcessStatus.APPLYING_APPROVED ||
+    currentStep === ProcessStatus.INSTALLING;
 
   const loadGcpResources = useCallback(async () => {
     setResourceLoading(true);
     setResourceError(null);
 
     try {
-      const response = await getConfirmResources(project.targetSourceId);
-      // Convert ConfirmResourceItem[] to Resource[]
-      const convertedResources: Resource[] = response.resources.map(resource => {
-        // Only create VM config for actual VM database types
-        let vmDatabaseConfig: VmDatabaseConfig | undefined;
-        if (resource.resourceType === 'AZURE_VM') {
-          const vmDatabaseTypes: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
-          if (vmDatabaseTypes.includes(resource.databaseType as VmDatabaseType) && resource.port !== null) {
-            vmDatabaseConfig = {
-              databaseType: resource.databaseType as VmDatabaseType,
-              port: resource.port ?? 0,
-              host: resource.host ?? '',
-              ...(resource.oracleServiceId ? { oracleServiceId: resource.oracleServiceId } : {}),
-              ...(resource.networkInterfaceId ? { selectedNicId: resource.networkInterfaceId } : {}),
-            };
+      const [
+        catalogResponse,
+        approvalHistoryResponse,
+        approvedIntegrationResponse,
+        confirmedIntegrationResponse,
+      ] = await Promise.all([
+        getConfirmResources(project.targetSourceId),
+        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
+          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
+          throw error;
+        }),
+        getApprovedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingSnapshotError(error)) {
+            return { approved_integration: null } satisfies ApprovedIntegrationResponse;
           }
-        }
+          throw error;
+        }),
+        getConfirmedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+          throw error;
+        }),
+      ]);
 
-        return {
-          id: resource.id,
-          type: resource.resourceType,
-          resourceId: resource.resourceId,
-          name: resource.name,
-          databaseType: resource.databaseType,
-          integrationCategory: resource.integrationCategory,
-          isSelected: false, // Will be updated based on project state
-          connectionStatus: 'PENDING',
-          selectedCredentialId: undefined,
-          vmDatabaseConfig,
-        };
-      });
-
-      setResources(convertedResources);
+      setCatalogResources(catalogResponse.resources);
+      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
+      setApprovedIntegration(approvedIntegrationResponse.approved_integration);
+      setConfirmedIntegration(confirmedIntegrationResponse);
     } catch (error) {
-      const errorMessage = error instanceof AppError && error.isUserFacing 
-        ? error.message 
-        : error instanceof Error 
-          ? error.message 
-          : 'GCP 리소스 정보를 불러오지 못했습니다.';
+      const errorMessage = error instanceof AppError && error.isUserFacing
+        ? error.message
+        : error instanceof Error ? error.message : 'GCP 리소스 정보를 불러오지 못했습니다.';
       setResourceError(errorMessage);
     } finally {
       setResourceLoading(false);
@@ -110,7 +141,28 @@ export const GcpProjectPage = ({
 
   useEffect(() => {
     void loadGcpResources();
-  }, [loadGcpResources]);
+  }, [loadGcpResources, currentStep, project.updatedAt]);
+
+  const gcpResources = useMemo(
+    () => buildGcpOwnedResources({
+      currentStep,
+      projectResources: project.resources,
+      catalog: catalogResources,
+      latestApprovalRequest,
+      approvedIntegration,
+      confirmedIntegration,
+    }).resources,
+    [currentStep, project.resources, catalogResources, latestApprovalRequest, approvedIntegration, confirmedIntegration],
+  );
+
+  const restoredSelectedIds = useMemo(
+    () => gcpResources.filter((r) => r.isSelected).map((r) => r.id),
+    [gcpResources],
+  );
+
+  useEffect(() => {
+    setSelectedIds(restoredSelectedIds);
+  }, [restoredSelectedIds, project.targetSourceId]);
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -122,17 +174,9 @@ export const GcpProjectPage = ({
     }
   };
 
-  const currentStep = getProjectCurrentStep(project);
-  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  const effectiveEditMode = isStep1 || isEditMode;
-  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
-    currentStep === ProcessStatus.APPLYING_APPROVED ||
-    currentStep === ProcessStatus.INSTALLING;
-
-  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
-    () => resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
-    [resources, selectedIds],
+    () => gcpResources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [gcpResources, selectedIds],
   );
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
@@ -142,7 +186,7 @@ export const GcpProjectPage = ({
   const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
-    const selectedVmResources = resources.filter(
+    const selectedVmResources = gcpResources.filter(
       (r) => selectedIds.includes(r.id) && isVmResource(r)
     );
     const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
@@ -159,7 +203,7 @@ export const GcpProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
-      const resourceInputs = resources.map(r => {
+      const resourceInputs = gcpResources.map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -205,7 +249,7 @@ export const GcpProjectPage = ({
   };
 
   const handleStartEdit = () => {
-    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(gcpResources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(true);
   };
 
@@ -213,7 +257,7 @@ export const GcpProjectPage = ({
   const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
   const handleCancelEdit = () => {
-    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
+    setSelectedIds(gcpResources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(false);
   };
 
@@ -235,7 +279,7 @@ export const GcpProjectPage = ({
         <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
           <ProcessStatusCard
             project={project}
-            resources={resources}
+            resources={gcpResources}
             onProjectUpdate={onProjectUpdate}
             approvalModalOpen={approvalModalOpen}
             onApprovalModalClose={() => setApprovalModalOpen(false)}
@@ -249,7 +293,7 @@ export const GcpProjectPage = ({
         {currentStep === ProcessStatus.APPLYING_APPROVED ? (
           <ResourceTransitionPanel
             targetSourceId={project.targetSourceId}
-            resources={resources}
+            resources={gcpResources}
             cloudProvider={project.cloudProvider}
             processStatus={currentStep}
           />
@@ -283,7 +327,7 @@ export const GcpProjectPage = ({
               </div>
             ) : (
               <ResourceTable
-                resources={resources.map((r) => ({
+                resources={gcpResources.map((r) => ({
                   ...r,
                   vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
                 }))}
