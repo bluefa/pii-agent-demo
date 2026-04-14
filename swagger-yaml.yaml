@@ -2868,6 +2868,15 @@ components:
           type: array
           items:
             type: string
+        monitoring_module:
+          type: string
+          enum:
+            - AWS_AGENT_AUTO
+            - AWS_AGENT_MANUAL
+            - AZURE_AGENT
+            - GCP_AGENT
+            - IDC_AGENT
+            - SDU
     TargetSourceInfo:
       type: object
       properties:
@@ -3554,11 +3563,6 @@ components:
             - GCP_AGENT
             - IDC_AGENT
             - SDU
-        aws_installation_mode:
-          type: string
-          enum:
-            - AUTO
-            - MANUAL
         created_at:
           type: string
           format: date-time
@@ -3576,5 +3580,5 @@ components:
           type: string
         gcp_project_id:
           type: string
-        other_provider_name:
+        other_cloud_provider_name:
           type: string
