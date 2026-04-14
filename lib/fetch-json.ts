@@ -1,4 +1,4 @@
-/**
+와요./**
  * CSR용 단일 fetch 래퍼.
  *
  * 모든 비정상 응답을 AppError로 정규화한다.
@@ -142,6 +142,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
   }
 
   try {
+    console.log('HTTP 요청:', url, init);
     const res = await fetch(url, {
       ...init,
       headers,
