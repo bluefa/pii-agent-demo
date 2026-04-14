@@ -21,15 +21,11 @@ export const checkGcpInstallation = async (
 export const getGcpScanServiceAccount = async (
   targetSourceId: number
 ): Promise<GcpServiceAccountInfo> => {
-  const response = await client.gcp.getScanServiceAccount(targetSourceId.toString());
-  const data = await response.json();
-  return data as GcpServiceAccountInfo;
+  return fetchInfraCamelJson<GcpServiceAccountInfo>(`/gcp/target-sources/${targetSourceId}/scan-service-account`);
 };
 
 export const getGcpTerraformServiceAccount = async (
   targetSourceId: number
 ): Promise<GcpServiceAccountInfo> => {
-  const response = await client.gcp.getTerraformServiceAccount(targetSourceId.toString());
-  const data = await response.json();
-  return data as GcpServiceAccountInfo;
+  return fetchInfraCamelJson<GcpServiceAccountInfo>(`/gcp/target-sources/${targetSourceId}/terraform-service-account`);
 };
