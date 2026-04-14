@@ -138,9 +138,11 @@ export const GcpProjectPage = ({
       // Convert ConfirmResourceItem[] to Resource[]
       const convertedResources: Resource[] = catalogResponse.resources.map(resource => {
         // Check if this resource is in confirmed integration
-        const isConfirmed = confirmedIntegrationResponse.resource_infos.some(
+        const confirmedResourceInfo = confirmedIntegrationResponse.resource_infos.find(
           confirmedResource => confirmedResource.resource_id === resource.resourceId
         );
+        const isConfirmed = !!confirmedResourceInfo;
+        const selectedCredentialId = confirmedResourceInfo?.credential_id ?? undefined;
         
         // Only create VM config for actual VM database types
         let vmDatabaseConfig: VmDatabaseConfig | undefined;
@@ -166,7 +168,7 @@ export const GcpProjectPage = ({
           integrationCategory: resource.integrationCategory,
           isSelected: isConfirmed, // Set based on confirmed integration
           connectionStatus: 'PENDING',
-          selectedCredentialId: undefined,
+          selectedCredentialId,
           vmDatabaseConfig,
         };
       });
