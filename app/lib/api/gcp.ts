@@ -1,5 +1,6 @@
 import type { GcpInstallationStatusResponse, GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
 import { fetchInfraCamelJson } from '@/app/lib/api/infra';
+import { client } from '@/lib/api-client';
 
 // GCP installation status uses existing endpoint structure
 export const getGcpInstallationStatus = async (
@@ -19,10 +20,16 @@ export const checkGcpInstallation = async (
 
 export const getGcpScanServiceAccount = async (
   targetSourceId: number
-): Promise<GcpServiceAccountInfo> =>
-  fetchInfraCamelJson<GcpServiceAccountInfo>(`${BASE_URL}/${targetSourceId}/scan-service-account`);
+): Promise<GcpServiceAccountInfo> => {
+  const response = await client.gcp.getScanServiceAccount(targetSourceId.toString());
+  const data = await response.json();
+  return data as GcpServiceAccountInfo;
+};
 
 export const getGcpTerraformServiceAccount = async (
   targetSourceId: number
-): Promise<GcpServiceAccountInfo> =>
-  fetchInfraCamelJson<GcpServiceAccountInfo>(`${BASE_URL}/${targetSourceId}/terraform-service-account`);
+): Promise<GcpServiceAccountInfo> => {
+  const response = await client.gcp.getTerraformServiceAccount(targetSourceId.toString());
+  const data = await response.json();
+  return data as GcpServiceAccountInfo;
+};
