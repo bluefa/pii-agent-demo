@@ -206,6 +206,8 @@ export const bffClient: ApiClient = {
   gcp: {
     checkInstallation: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/gcp/check-installation`, {}),
     getInstallationStatus: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/gcp/installation-status`),
+    getScanServiceAccount: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/gcp/scan-service-account`),
+    getTerraformServiceAccount: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/gcp/terraform-service-account`),
   },
   idc: {
     getSourceIpRecommendation: (ipType) =>

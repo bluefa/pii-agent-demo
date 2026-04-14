@@ -68,8 +68,10 @@ export interface ApiClient {
     vmGetTerraformScript: (targetSourceId: string) => Promise<NextResponse>;
   };
   gcp: {
-    checkInstallation: (projectId: string) => Promise<NextResponse>;
-    getInstallationStatus: (projectId: string) => Promise<NextResponse>;
+    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
+    getScanServiceAccount: (targetSourceId: string) => Promise<NextResponse>;
+    getTerraformServiceAccount: (targetSourceId: string) => Promise<NextResponse>;
   };
   idc: {
     getSourceIpRecommendation: (ipType: string | null) => Promise<NextResponse>;

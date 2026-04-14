@@ -54,4 +54,28 @@ export const mockGcp = {
 
     return handleResult(await gcpFns.getGcpInstallationStatus(projectId));
   },
+
+  getScanServiceAccount: async (targetSourceId: string) => {
+    const auth = await authorize(targetSourceId);
+    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
+
+    // Mock data for scan service account
+    return NextResponse.json({
+      email: `scan-sa-${targetSourceId}@example.iam.gserviceaccount.com`,
+      projectId: `project-${targetSourceId}`,
+      status: 'ACTIVE',
+    });
+  },
+
+  getTerraformServiceAccount: async (targetSourceId: string) => {
+    const auth = await authorize(targetSourceId);
+    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
+
+    // Mock data for terraform service account
+    return NextResponse.json({
+      email: `terraform-sa-${targetSourceId}@example.iam.gserviceaccount.com`,
+      projectId: `project-${targetSourceId}`,
+      status: 'ACTIVE',
+    });
+  },
 };
