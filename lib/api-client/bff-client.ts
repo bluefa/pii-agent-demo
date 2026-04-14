@@ -204,8 +204,8 @@ export const bffClient: ApiClient = {
     vmGetTerraformScript: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/azure/vm/terraform-script`),
   },
   gcp: {
-    checkInstallation: (projectId) => proxyPost(`/gcp/projects/${projectId}/check-installation`, {}),
-    getInstallationStatus: (projectId) => proxyGet(`/gcp/projects/${projectId}/installation-status`),
+    checkInstallation: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/gcp/check-installation`, {}),
+    getInstallationStatus: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/gcp/installation-status`),
   },
   idc: {
     getSourceIpRecommendation: (ipType) =>
