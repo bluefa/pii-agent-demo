@@ -1,0 +1,3580 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+  - url: https://dip-stg.di.atlas.samsung.com
+    description: Generated server url
+tags:
+  - name: Confirmed Integration
+    description: Confirmed integration information APIs
+  - name: Cloud Resource Scan
+    description: Cloud resource scanning APIs for AWS/Azure/GCP
+  - name: Service Access
+    description: Service access related APIs
+  - name: Installation Status
+    description: 통합 설치 상태 조회
+  - name: TargetSources
+    description: Target Source management APIs
+  - name: Resource Recommendation
+    description: Aws/Azure/GCP resource recommendation APIs
+  - name: Target Source Management
+    description: Target Source Management APIs
+  - name: Approval Management
+    description: Self-Installation Tool Approval Management APIs
+  - name: Azure Scan App
+    description: Azure App 스캔 정보 조회 API
+  - name: GCP Settings
+    description: GCP Service Account 정보 조회
+  - name: Process Status
+    description: Target source process status APIs
+  - name: Azure Health Check
+    description: Azure Private Link Health Check API
+  - name: Actuator
+    description: Monitor and interact
+    externalDocs:
+      description: Spring Boot Actuator Web API Documentation
+      url: https://docs.spring.io/spring-boot/docs/current/actuator-api/html/
+paths:
+  /install/v1/target-sources/{targetSourceId}/resources/credential:
+    put:
+      tags:
+        - Target Source Management
+      summary: Update resource credential for target source
+      operationId: updateResourceCredential
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCredentialRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UpdateCredentialResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/scan:
+    post:
+      tags:
+        - Cloud Resource Scan
+      summary: Start cloud resource scan
+      description: Initiates an asynchronous scan of cloud resources for the specified target source ID
+      operationId: startScan
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '202':
+          description: Accepted
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ScanJobResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm:
+    post:
+      tags:
+        - TargetSources
+      summary: Confirm PII agent installation
+      description: Confirms the installation of PII agent for the specified target source ID
+      operationId: confirmPiiAgentInstallation
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PiiAgentInstallationConfirmRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TargetSourceResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests:
+    post:
+      tags:
+        - Approval Management
+      summary: Create approval request
+      description: Create a new approval request for resource integration
+      operationId: createApprovalRequest
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequestInputDto'
+        required: true
+      responses:
+        '200':
+          description: Approval request created successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestSummaryDto'
+        '400':
+          description: Invalid input data
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Target source not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - pending request already exists
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/reject:
+    post:
+      tags:
+        - Approval Management
+      summary: Reject approval request
+      description: Reject the latest pending approval request
+      operationId: rejectApprovalRequest
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRejectRequestDto'
+        required: true
+      responses:
+        '200':
+          description: Approval request rejected successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid input data or request status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request already processed
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/cancel:
+    post:
+      tags:
+        - Approval Management
+      summary: Cancel approval request
+      description: Cancel the latest pending approval request
+      operationId: cancelApprovalRequest
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Approval request cancelled successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid request status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request already processed or applying in progress
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/approve:
+    post:
+      tags:
+        - Approval Management
+      summary: Approve approval request
+      description: Approve the latest pending approval request
+      operationId: approveApprovalRequest
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalApproveRequestDto'
+      responses:
+        '200':
+          description: Approval request approved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid request status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request already processed
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/services/{serviceCode}/target-sources:
+    post:
+      tags:
+        - Target Source Management
+      summary: Create target source with infrastructure info
+      description: |
+        선택 된 서비스가 사용하는 인프라/DB 정보를 등록합니다.
+        - Add to List를 통해 입력한 정보를 List에 추가할 수 있습니다
+        - List에 추가된 인프라를 일괄 등록합니다
+        - 선택된 Provider를 기반으로 인프라 정보 입력 필드가 동적으로 생성됩니다
+        - PII 모니터링 모듈 연동 방식은 입력된 provider, DB 정보 기준으로 자동 판정됩니다
+        - AWS Agent에 한해서 연동 방식(자동/수동) 선택 가능하고, Default값은 AWS Agent(자동)입니다
+      operationId: createTargetSourceWithInfra
+      parameters:
+        - name: serviceCode
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTargetSourceWithInfraRequest'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TargetSourceInfo'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/users/search:
+    get:
+      tags:
+        - user-search-controller
+      operationId: searchUsers
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: excludeIds
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserSearchResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/user/services/page:
+    get:
+      tags:
+        - user-controller
+      operationId: getUserServices
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageServiceItem'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/user/me:
+    get:
+      tags:
+        - user-controller
+      operationId: getUserMe
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserMeResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}:
+    get:
+      tags:
+        - TargetSources
+      summary: Get target source detail
+      description: Get detailed information of target source by ID
+      operationId: getTargetSourceDetail
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TargetSourceDetail'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/secrets:
+    get:
+      tags:
+        - secret-controller
+      operationId: getTargetSourceSecrets
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SecretResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/scanJob/latest:
+    get:
+      tags:
+        - Cloud Resource Scan
+      summary: Get latest scan status
+      description: Retrieves the status of the most recent scan job for the specified target source ID
+      operationId: getLatestScan
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ScanJobResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/scan/history:
+    get:
+      tags:
+        - Cloud Resource Scan
+      summary: Get scan history
+      description: Retrieves the scan history for the specified target source ID
+      operationId: getScanHistory
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          description: Page number (0-based)
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          description: Page size
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageScanJobResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/resources:
+    get:
+      tags:
+        - Resource Recommendation
+      summary: Get recommended resources for target source
+      description: Fetches recommended cloud resources (AWS/GCP/Azure) for the specified target source ID
+      operationId: getRecommendedResources
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CloudResourceResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/process-status:
+    get:
+      tags:
+        - Process Status
+      summary: Get process status for target source
+      description: Fetches the process status for the specified target source ID
+      operationId: getProcessStatus
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ProcessStatusResponseDto'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/gcp/terraform-service-account:
+    get:
+      tags:
+        - GCP Settings
+      summary: Terraform Execution Service Account 정보 조회
+      description: 대상 소스에 등록된 Terraform Execution Service Account의 설정 정보 및 검증 상태를 조회합니다.
+      operationId: getGcpTerraformServiceAccount
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GcpServiceAccountInfoResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/gcp/scan-service-account:
+    get:
+      tags:
+        - GCP Settings
+      summary: Scan Service Account 정보 조회
+      description: 대상 소스에 등록된 Scan Service Account의 설정 정보 및 검증 상태를 조회합니다.
+      operationId: getGcpScanServiceAccount
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GcpServiceAccountInfoResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/gcp/installation-status:
+    get:
+      tags:
+        - Installation Status
+      summary: Gcp 통합 설치 상태 조회
+      description: 대상 소스의 설치 상태를 조회합니다.
+      operationId: getGcpInstallationStatus
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/GcpInstallationStatusResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/confirmed-integration:
+    get:
+      tags:
+        - Confirmed Integration
+      summary: Get confirmed integration information
+      description: Retrieves the confirmed integration information for the specified target source ID
+      operationId: getConfirmedIntegration
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConfirmedIntegrationResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/azure/scan-app:
+    get:
+      tags:
+        - Azure Scan App
+      summary: Azure App 스캔 정보 조회
+      description: 지정된 타겟 소스 ID에 대한 Azure App 스캔 정보를 조회합니다.
+      operationId: getAzureScanApp
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AzureServicePrincipalVerificationResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/azure/installation-status:
+    get:
+      tags:
+        - Installation Status
+      summary: Azure 통합 설치 상태 조회
+      description: 대상 소스의 설치 상태를 조회합니다.
+      operationId: getInstallationStatus
+      parameters:
+        - name: targetSourceId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AzureInstallationStatusResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approved-integration:
+    get:
+      tags:
+        - Approval Management
+      summary: Get approved integration
+      description: Get the approved integration information
+      operationId: getApprovedIntegration
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Approved integration retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovedIntegrationResponseDto'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No approved integration found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/latest:
+    get:
+      tags:
+        - Approval Management
+      summary: Get latest approval request
+      description: Get the latest approval request for the target source
+      operationId: getLatestApprovalRequest
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Latest approval request retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalHistoryItemDto'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No approval request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-history:
+    get:
+      tags:
+        - Approval Management
+      summary: Get approval history
+      description: Get approval history with pagination
+      operationId: getApprovalHistory
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          description: Page number (0-based)
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+          example: 0
+        - name: size
+          in: query
+          description: Page size
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 10
+          example: 10
+      responses:
+        '200':
+          description: Approval history retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Target source not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/services/{serviceCode}:
+    get:
+      tags:
+        - TargetSources
+      summary: Get target sources by service code
+      description: Get target sources list by service code (Azure type only)
+      operationId: getTargetSourcesByServiceCode
+      parameters:
+        - name: serviceCode
+          in: path
+          description: Service code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TargetSourceDetail'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/services/{serviceCode}/authorized-users:
+    get:
+      tags:
+        - Service Access
+      summary: Get service authorized users
+      description: Retrieve users authorized to access the specified service
+      operationId: getServiceAuthorizedUsers
+      parameters:
+        - name: serviceCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AuthorizedUsersResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/infra/target-sources/{targetSourceId}/azure-private-link-health-check:
+    get:
+      tags:
+        - Azure Health Check
+      summary: Azure Private Link Health Check 조회
+      description: 지정된 Target Source ID에 대한 Azure Private Link의 건강 상태를 조회합니다
+      operationId: getAzurePrivateLinkHealthCheck
+      parameters:
+        - name: targetSourceId
+          in: path
+          description: Target source ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AzureHealthCheckResult'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/actuator:
+    get:
+      tags:
+        - Actuator
+      summary: Actuator root web endpoint
+      operationId: links
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Link'
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Link'
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Link'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/actuator/metrics:
+    get:
+      tags:
+        - Actuator
+      summary: Actuator web endpoint 'metrics'
+      operationId: metrics
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/actuator/metrics/{requiredMetricName}:
+    get:
+      tags:
+        - Actuator
+      summary: Actuator web endpoint 'metrics-requiredMetricName'
+      operationId: metrics-requiredMetricName
+      parameters:
+        - name: requiredMetricName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/actuator/health:
+    get:
+      tags:
+        - Actuator
+      summary: Actuator web endpoint 'health'
+      operationId: health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/actuator/health/**:
+    get:
+      tags:
+        - Actuator
+      summary: Actuator web endpoint 'health-path'
+      operationId: health-path
+      responses:
+        '200':
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+components:
+  schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - 100 CONTINUE
+            - 101 SWITCHING_PROTOCOLS
+            - 102 PROCESSING
+            - 103 EARLY_HINTS
+            - 103 CHECKPOINT
+            - 200 OK
+            - 201 CREATED
+            - 202 ACCEPTED
+            - 203 NON_AUTHORITATIVE_INFORMATION
+            - 204 NO_CONTENT
+            - 205 RESET_CONTENT
+            - 206 PARTIAL_CONTENT
+            - 207 MULTI_STATUS
+            - 208 ALREADY_REPORTED
+            - 226 IM_USED
+            - 300 MULTIPLE_CHOICES
+            - 301 MOVED_PERMANENTLY
+            - 302 FOUND
+            - 302 MOVED_TEMPORARILY
+            - 303 SEE_OTHER
+            - 304 NOT_MODIFIED
+            - 305 USE_PROXY
+            - 307 TEMPORARY_REDIRECT
+            - 308 PERMANENT_REDIRECT
+            - 400 BAD_REQUEST
+            - 401 UNAUTHORIZED
+            - 402 PAYMENT_REQUIRED
+            - 403 FORBIDDEN
+            - 404 NOT_FOUND
+            - 405 METHOD_NOT_ALLOWED
+            - 406 NOT_ACCEPTABLE
+            - 407 PROXY_AUTHENTICATION_REQUIRED
+            - 408 REQUEST_TIMEOUT
+            - 409 CONFLICT
+            - 410 GONE
+            - 411 LENGTH_REQUIRED
+            - 412 PRECONDITION_FAILED
+            - 413 PAYLOAD_TOO_LARGE
+            - 413 REQUEST_ENTITY_TOO_LARGE
+            - 414 URI_TOO_LONG
+            - 414 REQUEST_URI_TOO_LONG
+            - 415 UNSUPPORTED_MEDIA_TYPE
+            - 416 REQUESTED_RANGE_NOT_SATISFIABLE
+            - 417 EXPECTATION_FAILED
+            - 418 I_AM_A_TEAPOT
+            - 419 INSUFFICIENT_SPACE_ON_RESOURCE
+            - 420 METHOD_FAILURE
+            - 421 DESTINATION_LOCKED
+            - 422 UNPROCESSABLE_ENTITY
+            - 423 LOCKED
+            - 424 FAILED_DEPENDENCY
+            - 425 TOO_EARLY
+            - 426 UPGRADE_REQUIRED
+            - 428 PRECONDITION_REQUIRED
+            - 429 TOO_MANY_REQUESTS
+            - 431 REQUEST_HEADER_FIELDS_TOO_LARGE
+            - 451 UNAVAILABLE_FOR_LEGAL_REASONS
+            - 500 INTERNAL_SERVER_ERROR
+            - 501 NOT_IMPLEMENTED
+            - 502 BAD_GATEWAY
+            - 503 SERVICE_UNAVAILABLE
+            - 504 GATEWAY_TIMEOUT
+            - 505 HTTP_VERSION_NOT_SUPPORTED
+            - 506 VARIANT_ALSO_NEGOTIATES
+            - 507 INSUFFICIENT_STORAGE
+            - 508 LOOP_DETECTED
+            - 509 BANDWIDTH_LIMIT_EXCEEDED
+            - 510 NOT_EXTENDED
+            - 511 NETWORK_AUTHENTICATION_REQUIRED
+        message:
+          type: string
+        path:
+          type: string
+    UpdateCredentialRequest:
+      type: object
+      properties:
+        resourceId:
+          type: string
+        credentialId:
+          type: string
+    UpdateCredentialResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+    ScanJobResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        scan_status:
+          type: string
+          enum:
+            - SCANNING
+            - FAIL
+            - CANCELED
+            - SUCCESS
+            - TIMEOUT
+        target_source_id:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        scan_version:
+          type: integer
+          format: int32
+        scan_progress:
+          type: integer
+          format: int32
+        duration_seconds:
+          type: number
+          format: float
+        resource_count_by_resource_type:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        scan_error:
+          type: string
+          enum:
+            - AUTH_PERMISSION_ERROR
+            - RATE_LIMIT
+            - NETWORK_ERROR
+            - SERVICE_ERROR
+            - UNKNOWN
+    PiiAgentInstallationConfirmRequest:
+      required:
+        - confirm
+      type: object
+      properties:
+        confirm:
+          type: boolean
+    ServiceInfoRefinedResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        serviceName:
+          type: string
+        abbr:
+          type: string
+        installed:
+          type: boolean
+        isEosService:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TargetSourceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        serviceInfo:
+          $ref: '#/components/schemas/ServiceInfoRefinedResponse'
+        serviceType:
+          type: string
+        division:
+          type: string
+        cloudProvider:
+          type: string
+          enum:
+            - AWS
+            - GCP
+            - AZURE
+            - IDC
+            - UNKNOWN
+        state:
+          type: string
+          enum:
+            - CREATED
+            - CONFIRMED
+            - PROVISIONING
+            - ACTIVE
+            - CONFIRM_FAILED
+            - PROVISION_FAILED
+            - DESTROY_FAILED
+        supportRawData:
+          type: boolean
+        description:
+          type: string
+        cloudResourceAccessList:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        confirmStatus:
+          type: string
+          enum:
+            - IDLE
+            - PENDING
+            - UNAVAILABLE
+            - CONFIRMING
+            - RESOURCE_CLEANING
+            - RESOURCE_CLEAN_FAILED
+            - CONFIRMED
+        piiAgentInstalledAt:
+          type: string
+          format: date-time
+    ApprovalRequestInputDto:
+      type: object
+      properties:
+        resource_inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceInputDto'
+      description: Approval request input data
+    ResourceConfigDto:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+        database_type:
+          type: string
+        port:
+          type: integer
+          format: int32
+        host:
+          type: string
+        oracle_service_id:
+          type: string
+        network_interface_id:
+          type: string
+        ip_configuration:
+          type: string
+        credential_id:
+          type: string
+        database_region:
+          type: string
+        resource_name:
+          type: string
+    ResourceInputDto:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        selected:
+          type: boolean
+        resource_input:
+          $ref: '#/components/schemas/ResourceConfigDto'
+        exclusion_reason:
+          type: string
+    ActorDto:
+      type: object
+      properties:
+        user_id:
+          type: string
+    ApprovalRequestSummaryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        target_source_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - AUTO_APPROVED
+            - REJECTED
+            - CANCELLED
+            - UNAVAILABLE
+            - CONFIRMED
+        requested_by:
+          $ref: '#/components/schemas/ActorDto'
+        requested_at:
+          type: string
+          format: date-time
+        resource_total_count:
+          type: integer
+          format: int32
+        resource_selected_count:
+          type: integer
+          format: int32
+    ApprovalRejectRequestDto:
+      required:
+        - reason
+      type: object
+      properties:
+        reason:
+          type: string
+      description: Rejection reason
+    ApprovalActionResponseDto:
+      type: object
+      properties:
+        request_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - AUTO_APPROVED
+            - REJECTED
+            - CANCELLED
+            - UNAVAILABLE
+            - CONFIRMED
+        processed_by:
+          $ref: '#/components/schemas/ActorDto'
+        processed_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    ApprovalApproveRequestDto:
+      type: object
+      properties:
+        comment:
+          type: string
+      description: Approval comment (optional)
+    CreateTargetSourceRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        cloudProvider:
+          type: string
+        awsAccountId:
+          type: string
+        awsRegionType:
+          type: string
+        tenantId:
+          type: string
+        subscriptionId:
+          type: string
+        gcpProjectId:
+          type: string
+
+    CreateTargetSourceWithInfraRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        provider_type:
+          type: string
+          enum:
+            - AWS
+            - Azure
+            - GCP
+            - IDC
+            - On-prem
+            - Other_Cloud
+            - SaaS
+        provider_details:
+          $ref: '#/components/schemas/ProviderDetails'
+        database_type_list:
+          type: array
+          items:
+            type: string
+    TargetSourceInfo:
+      type: object
+      properties:
+        targetSourceId:
+          type: integer
+          format: int64
+        description:
+          type: string
+        cloudProvider:
+          type: string
+          enum:
+            - AWS
+            - GCP
+            - AZURE
+            - IDC
+            - UNKNOWN
+        createdAt:
+          type: string
+          format: date-time
+        serviceCode:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/TargetSourceMetadata'
+    TargetSourceMetadata:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+        subscription_id:
+          type: string
+        gcp_project_id:
+          type: string
+        aws_account_id:
+          type: string
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+    UserSearchResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInfo'
+    PageServiceItem:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceItem'
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortObject'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        pageable:
+          $ref: '#/components/schemas/PageableObject'
+        empty:
+          type: boolean
+    PageableObject:
+      type: object
+      properties:
+        offset:
+          type: integer
+          format: int64
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortObject'
+        paged:
+          type: boolean
+        pageNumber:
+          type: integer
+          format: int32
+        pageSize:
+          type: integer
+          format: int32
+        unpaged:
+          type: boolean
+    ServiceItem:
+      type: object
+      properties:
+        service_code:
+          type: string
+        service_name:
+          type: string
+        division:
+          type: string
+        business_entity:
+          type: string
+        related_systems:
+          type: array
+          items:
+            type: string
+        managers:
+          type: array
+          items:
+            type: string
+        database_type_list:
+          type: array
+          items:
+            type: string
+    SortObject:
+      type: object
+      properties:
+        direction:
+          type: string
+        nullHandling:
+          type: string
+        ascending:
+          type: boolean
+        property:
+          type: string
+        ignoreCase:
+          type: boolean
+    UserMeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+    TargetSourceDetail:
+      type: object
+      properties:
+        description:
+          type: string
+        target_source_id:
+          type: integer
+          format: int64
+        service_code:
+          type: string
+        process_status:
+          type: string
+          enum:
+            - IDLE
+            - PENDING
+            - CONFIRMING
+            - CONFIRMED
+            - INSTALLED
+            - CONNECTED
+            - COMPLETED
+        cloud_provider:
+          type: string
+          enum:
+            - AWS
+            - GCP
+            - AZURE
+            - IDC
+            - UNKNOWN
+        created_at:
+          type: string
+          format: date-time
+        metadata:
+          $ref: '#/components/schemas/TargetSourceMetadata'
+    SecretResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        create_time:
+          type: integer
+          format: int64
+        create_time_str:
+          type: string
+    PageScanJobResponse:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanJobResponse'
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortObject'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        pageable:
+          $ref: '#/components/schemas/PageableObject'
+        empty:
+          type: boolean
+    CloudResourceResponse:
+      type: object
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationResourceDto'
+        total_count:
+          type: integer
+          format: int32
+    RecommendationResourceDto:
+      type: object
+      properties:
+        name:
+          type: string
+        metadata:
+          type: object
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+          enum:
+            - AWS_ATHENA
+            - AWS_DB_CLUSTER
+            - AWS_DB_INSTANCE
+            - AWS_REDSHIFT_CLUSTER
+            - AWS_DYNAMO_DB_TABLE
+            - AWS_DYNAMO_DB_GLOBAL_TABLE
+            - AWS_NETWORK_INTERFACE
+            - AWS_SUBNET
+            - AWS_RDS_GLOBAL_CLUSTER
+            - AWS_RDS_SUBNET_GROUP
+            - AWS_RDS_PROXY
+            - AWS_RDS_DB_CLUSTER_PARAMETER_GROUP
+            - AWS_RDS_DB_PARAMETER_GROUP
+            - AWS_REDSHIFT_SUBNET_GROUP
+            - AWS_VPC_ENDPOINT_SERVICE
+            - AWS_VPC_ENDPOINT
+            - AWS_VPC_SECURITY_GROUP
+            - AWS_IAM_ROLE
+            - AWS_GLUE_RESOURCE_POLICY
+            - AWS_ECR_POLICY
+            - AWS_S3_BUCKET_POLICY
+            - AWS_GLUE_TABLE
+            - AWS_EC2_INSTANCE
+            - AWS_EC2_REGION
+            - AWS_OPEN_SEARCH_DOMAIN
+            - AWS_KMS
+            - AWS_AUTO_SCALING_GROUP
+            - AZURE_SQL_SERVER
+            - AZURE_SQL_SERVER_MANAGED_INSTANCE
+            - AZURE_MYSQL_FLEXIBLE_SERVER
+            - AZURE_MYSQL
+            - AZURE_POSTGRESQL
+            - AZURE_POSTGRESQL_FLEXIBLE_SERVER
+            - AZURE_MARIADB
+            - AZURE_COSMOSDB_NOSQL
+            - AZURE_SERVICE_PRINCIPAL
+            - AZURE_PRIVATE_ENDPOINT
+            - AZURE_VIRTUAL_MACHINE
+            - AZURE_VIRTUAL_SUBNET
+            - AZURE_SYNAPSE_WORKSPACE
+            - AZURE_NETWORK_INTERFACE
+            - GCP_SQL
+            - GCP_BIGQUERY_DATASET_REGION
+            - GCP_VPC_NETWORK
+        integration_category:
+          type: string
+          enum:
+            - TARGET
+            - NO_INSTALL_NEEDED
+            - INSTALL_INELIGIBLE
+        recommend_fail_reason:
+          type: string
+          enum:
+            - GCP_CLOUD_SQL_HAS_PUBLIC_IP
+            - GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET
+            - AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED
+    ProcessStatusResponseDto:
+      type: object
+      properties:
+        target_source_id:
+          type: integer
+          format: int64
+        process_status:
+          type: string
+          enum:
+            - IDLE
+            - PENDING
+            - CONFIRMING
+            - CONFIRMED
+            - INSTALLED
+            - CONNECTED
+            - COMPLETED
+        healthy:
+          type: string
+          enum:
+            - UNKNOWN
+            - HEALTHY
+            - UNHEALTHY
+            - DEGRADED
+        evaluated_at:
+          type: string
+          format: date-time
+    GcpServiceAccountInfoResponse:
+      type: object
+      properties:
+        gcpProjectId:
+          type: string
+        status:
+          type: string
+          enum:
+            - VALID
+            - INVALID
+            - UNVERIFIED
+        failReason:
+          type: string
+          enum:
+            - SA_NOT_CONFIGURED
+            - SA_NOT_FOUND
+            - SA_INSUFFICIENT_PERMISSIONS
+            - SCAN_SA_UNAVAILABLE
+        failMessage:
+          type: string
+        lastVerifiedAt:
+          type: string
+          format: date-time
+    GcpInstallationStatusResponse:
+      type: object
+      properties:
+        last_check:
+          $ref: '#/components/schemas/GcpLastCheckInfoDto'
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/GcpResourceInstallationStatusDto'
+    GcpInstallationStepStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - COMPLETED
+            - FAIL
+            - IN_PROGRESS
+            - SKIP
+        guide:
+          type: string
+    GcpLastCheckInfoDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - NEVER_CHECKED
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+        checked_at:
+          type: string
+          format: date-time
+        fail_reason:
+          type: string
+    GcpResourceInstallationStatusDto:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        resource_name:
+          type: string
+        installation_status:
+          type: string
+          enum:
+            - COMPLETED
+            - FAIL
+            - IN_PROGRESS
+        service_side_subnet_creation:
+          $ref: '#/components/schemas/GcpInstallationStepStatusDto'
+        service_side_terraform_apply:
+          $ref: '#/components/schemas/GcpInstallationStepStatusDto'
+        bdc_side_terraform_apply:
+          $ref: '#/components/schemas/GcpInstallationStepStatusDto'
+    ConfirmedIntegrationResponse:
+      type: object
+      properties:
+        resource_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceConfigDto'
+    AzureServicePrincipalVerificationResponse:
+      type: object
+      properties:
+        app_id:
+          type: string
+        status:
+          type: string
+        fail_reason:
+          type: string
+        fail_message:
+          type: string
+        last_verified_at:
+          type: string
+          format: date-time
+    AzureInstallationStatusResponse:
+      type: object
+      properties:
+        last_check:
+          $ref: '#/components/schemas/LastCheckInfo'
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/AzureResourceStatus'
+    AzureResourceStatus:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        resource_name:
+          type: string
+        resource_type:
+          type: string
+        private_endpoint:
+          $ref: '#/components/schemas/PrivateEndpointDetail'
+        vm_installation:
+          $ref: '#/components/schemas/VmInstallationDetail'
+    LastCheckInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - SUCCESS
+            - IN_PROGRESS
+            - FAILED
+        checked_at:
+          type: string
+          format: date-time
+        fail_reason:
+          type: string
+    PrivateEndpointDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+    VmInstallationDetail:
+      type: object
+      properties:
+        subnet_exists:
+          type: boolean
+        load_balancer:
+          type: object
+    ApprovedIntegrationResponseDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: integer
+          format: int64
+        approved_at:
+          type: string
+          format: date-time
+        approved_by:
+          $ref: '#/components/schemas/ActorDto'
+        resource_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceConfigDto'
+        excluded_resource_infos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcludedResourceInfo'
+    ExcludedResourceInfo:
+      type: object
+      properties:
+        resource_id:
+          type: string
+        exclusion_reason:
+          type: string
+    ApprovalHistoryItemDto:
+      type: object
+      properties:
+        request:
+          $ref: '#/components/schemas/ApprovalRequestSummaryDto'
+        result:
+          $ref: '#/components/schemas/ApprovalActionResponseDto'
+    Page:
+      type: object
+      properties:
+        totalPages:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            type: object
+        number:
+          type: integer
+          format: int32
+        sort:
+          type: array
+          items:
+            $ref: '#/components/schemas/SortObject'
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        pageable:
+          $ref: '#/components/schemas/PageableObject'
+        empty:
+          type: boolean
+    AuthorizedUsersResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInfo'
+    AzureHealthCheckResult:
+      type: object
+      properties:
+        healthCheckStatus:
+          type: string
+          enum:
+            - HEALTHY
+            - UPDATING
+            - UNHEALTHY
+            - UNHEALTHY_NEED_SERVICE_ACTION
+            - UNHEALTHY_NEED_BDC_SIDE_ACTION
+            - NEED_TERRAFORM_EXECUTION
+            - NEED_SCAN_PERMISSION
+            - INTERNAL_SERVER_ERROR
+            - EMPTY
+        azurePrivateLinkHealthResultList:
+          type: array
+          items:
+            $ref: '#/components/schemas/AzurePrivateLinkHealthResult'
+    AzurePrivateLinkHealthResult:
+      type: object
+      properties:
+        provisioningState:
+          type: string
+        resourceId:
+          type: string
+        privateLinkId:
+          type: string
+        resourceType:
+          type: string
+          enum:
+            - AWS_ATHENA
+            - AWS_DB_CLUSTER
+            - AWS_DB_INSTANCE
+            - AWS_REDSHIFT_CLUSTER
+            - AWS_DYNAMO_DB_TABLE
+            - AWS_DYNAMO_DB_GLOBAL_TABLE
+            - AWS_NETWORK_INTERFACE
+            - AWS_SUBNET
+            - AWS_RDS_GLOBAL_CLUSTER
+            - AWS_RDS_SUBNET_GROUP
+            - AWS_RDS_PROXY
+            - AWS_RDS_DB_CLUSTER_PARAMETER_GROUP
+            - AWS_RDS_DB_PARAMETER_GROUP
+            - AWS_REDSHIFT_SUBNET_GROUP
+            - AWS_VPC_ENDPOINT_SERVICE
+            - AWS_VPC_ENDPOINT
+            - AWS_VPC_SECURITY_GROUP
+            - AWS_IAM_ROLE
+            - AWS_GLUE_RESOURCE_POLICY
+            - AWS_ECR_POLICY
+            - AWS_S3_BUCKET_POLICY
+            - AWS_GLUE_TABLE
+            - AWS_EC2_INSTANCE
+            - AWS_EC2_REGION
+            - AWS_OPEN_SEARCH_DOMAIN
+            - AWS_KMS
+            - AWS_AUTO_SCALING_GROUP
+            - AZURE_SQL_SERVER
+            - AZURE_SQL_SERVER_MANAGED_INSTANCE
+            - AZURE_MYSQL_FLEXIBLE_SERVER
+            - AZURE_MYSQL
+            - AZURE_POSTGRESQL
+            - AZURE_POSTGRESQL_FLEXIBLE_SERVER
+            - AZURE_MARIADB
+            - AZURE_COSMOSDB_NOSQL
+            - AZURE_SERVICE_PRINCIPAL
+            - AZURE_PRIVATE_ENDPOINT
+            - AZURE_VIRTUAL_MACHINE
+            - AZURE_VIRTUAL_SUBNET
+            - AZURE_SYNAPSE_WORKSPACE
+            - AZURE_NETWORK_INTERFACE
+            - GCP_SQL
+            - GCP_BIGQUERY_DATASET_REGION
+            - GCP_VPC_NETWORK
+        healthCheckStatus:
+          type: string
+          enum:
+            - HEALTHY
+            - UPDATING
+            - UNHEALTHY
+            - UNHEALTHY_NEED_SERVICE_ACTION
+            - UNHEALTHY_NEED_BDC_SIDE_ACTION
+            - NEED_TERRAFORM_EXECUTION
+            - NEED_SCAN_PERMISSION
+            - INTERNAL_SERVER_ERROR
+            - EMPTY
+    Link:
+      type: object
+      properties:
+        href:
+          type: string
+        templated:
+          type: boolean
+
+    InfrastructureInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        cloud_provider:
+          type: string
+          enum:
+            - AWS_AUTO_AGENT
+            - AWS_MANUAL_AGENT
+            - GCP
+            - AZURE
+            - SDU
+            - IDC
+            - OTHER
+        provider_details:
+          $ref: '#/components/schemas/ProviderDetails'
+        database_type_list:
+          type: array
+          items:
+            type: string
+        monitoring_module:
+          type: string
+          enum:
+            - AWS_AGENT_AUTO
+            - AWS_AGENT_MANUAL
+            - AZURE_AGENT
+            - GCP_AGENT
+            - IDC_AGENT
+            - SDU
+        aws_installation_mode:
+          type: string
+          enum:
+            - AUTO
+            - MANUAL
+        created_at:
+          type: string
+          format: date-time
+
+    ProviderDetails:
+      type: object
+      properties:
+        aws_payer_account:
+          type: string
+        aws_linked_account:
+          type: string
+        azure_tenant_id:
+          type: string
+        azure_subscription_id:
+          type: string
+        gcp_project_id:
+          type: string
+        other_provider_name:
+          type: string
