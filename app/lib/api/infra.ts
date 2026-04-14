@@ -1,6 +1,10 @@
+
+
 import { fetchJson, type FetchJsonOptions } from '@/lib/fetch-json';
-import { toInternalInfraApiPath } from '@/lib/infra-api';
+import { toInternalInfraApiPath, toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
+
+const BFF_URL = process.env.BFF_API_URL || 'http://localhost:8082';
 
 export const fetchInfra = (path: string, init?: RequestInit): Promise<Response> =>
   fetch(toInternalInfraApiPath(path), init);
