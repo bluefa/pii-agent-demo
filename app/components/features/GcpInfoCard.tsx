@@ -50,9 +50,31 @@ const ServiceAccountStatusRow = ({
   onGuide,
 }: {
   label: string;
-  info: GcpServiceAccountInfo;
+  info: GcpServiceAccountInfo | null;
   onGuide: () => void;
 }) => {
+  if (info === null) {
+    return (
+      <div className="py-2">
+        <div className="flex items-center justify-between">
+          <span className={cn('text-sm font-medium', textColors.secondary)}>{label}</span>
+          <div className="flex items-center gap-2">
+            <span className={cn('inline-flex items-center gap-1 text-sm font-medium', textColors.quaternary)}>
+              미검증
+            </span>
+            <button
+              onClick={onGuide}
+              className={cn('inline-flex items-center gap-0.5 text-sm', statusColors.info.text, 'hover:underline')}
+            >
+              등록 가이드
+              <ArrowIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isValid = info.status === 'VALID';
   const isInvalid = info.status === 'INVALID';
 
@@ -190,38 +212,32 @@ export const GcpInfoCard = ({
       </div>
 
       {/* Section 3: Prerequisite Status */}
-      {hasSAData && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <span className={cn('text-sm font-medium', textColors.secondary)}>사전 조치 현황</span>
-            <span className={cn(
-              badgeStyles.base, badgeStyles.sizes.sm,
-              completedCount === totalCount
-                ? cn(statusColors.success.bg, statusColors.success.textDark)
-                : cn(statusColors.warning.bg, statusColors.warning.textDark)
-            )}>
-              {completedCount}/{totalCount} 완료
-            </span>
-          </div>
-
-          <div className="divide-y divide-gray-100">
-            {scanServiceAccount && (
-              <ServiceAccountStatusRow
-                label="Scan Service Account"
-                info={scanServiceAccount}
-                onGuide={() => guideModal.open()}
-              />
-            )}
-            {terraformServiceAccount && (
-              <ServiceAccountStatusRow
-                label="Terraform Execution SA"
-                info={terraformServiceAccount}
-                onGuide={onOpenGuide}
-              />
-            )}
-          </div>
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <div className="flex items-center justify-between mb-2">
+          <span className={cn('text-sm font-medium', textColors.secondary)}>사전 조치 현황</span>
+          <span className={cn(
+            badgeStyles.base, badgeStyles.sizes.sm,
+            completedCount === totalCount
+              ? cn(statusColors.success.bg, statusColors.success.textDark)
+              : cn(statusColors.warning.bg, statusColors.warning.textDark)
+          )}>
+            {completedCount}/{totalCount} 완료
+          </span>
         </div>
-      )}
+
+        <div className="divide-y divide-gray-100">
+          <ServiceAccountStatusRow
+            label="Scan Service Account"
+            info={scanServiceAccount}
+            onGuide={() => guideModal.open()}
+          />
+          <ServiceAccountStatusRow
+            label="Terraform Execution SA"
+            info={terraformServiceAccount}
+            onGuide={onOpenGuide}
+          />
+        </div>
+      </div>
 
       <Modal isOpen={guideModal.isOpen} onClose={guideModal.close} title="Scan Service Account 등록 가이드" size="md">
         <ol className="space-y-3">

@@ -53,6 +53,18 @@ npm run dev
 - 브라우저가 BFF를 직접 치지 않으므로 BFF CORS를 직접 열 필요는 없습니다.
 - 현재 구현은 외부 BFF로 인증 헤더/쿠키를 자동 전달하지 않습니다. BFF가 별도 인증 없이 접근 가능하거나, 내부망/VPN에서 접근 가능해야 합니다.
 
+## Docker
+
+To build and run the application using Docker:
+
+```bash
+# Build the Docker image
+docker build -t pii-agent-demo .
+
+# Run the container
+docker run -p 3000:3000 pii-agent-demo
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
