@@ -142,6 +142,7 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
   }
 
   try {
+    console.log('HTTP 요청:', url, init);
     const res = await fetch(url, {
       ...init,
       headers,

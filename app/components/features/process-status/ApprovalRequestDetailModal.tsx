@@ -111,11 +111,11 @@ const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): N
   const selectedCount = response.request.resource_selected_count;
   return {
     requestId: String(response.request.id),
-    requestedBy: response.request.requested_by.user_id,
+    requestedBy: response.request.requested_by?.user_id ?? response.request.requested_by ?? 'Unknown',
     requestedAt: response.request.requested_at,
     resultStatus: response.result.status,
     processedAt: response.result.processed_at,
-    processedBy: response.result.processed_by?.user_id ?? null,
+    processedBy: response.result.processed_by?.user_id ?? response.result.processed_by ?? null,
     reason: response.result.reason,
     totalCount,
     selectedCount,
