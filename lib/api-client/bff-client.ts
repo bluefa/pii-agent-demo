@@ -110,23 +110,23 @@ const proxyResourceCatalogGet = async (path: string): Promise<NextResponse> => {
 
 export const bffClient: ApiClient = {
   dashboard: {
-    summary: () => proxyGet('/v1/admin/dashboard/summary'),
+    summary: () => proxyGet('/admin/dashboard/summary'),
     systems: (params) => {
       const qs = params.toString();
-      return proxyGet(`/v1/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
+      return proxyGet(`/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
     },
     systemsExport: (params) => {
       const qs = params.toString();
-      return proxyGet(`/v1/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
+      return proxyGet(`/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
     },
   },
   targetSources: {
-    list: (serviceCode) => proxyGet(`/v1/target-sources/services/${serviceCode}`),
-    get: (projectId) => proxyGet(`/v1/target-sources/${projectId}`),
+    list: (serviceCode) => proxyGet(`/target-sources/services/${serviceCode}`),
+    get: (projectId) => proxyGet(`/target-sources/${projectId}`),
     create: (body) => {
       const request = extractTargetSourceCreateRequest(body);
-      if (!request) return proxyPost('/v1/target-sources', body);
-      return proxyPost(`/v1/target-sources/services/${request.serviceCode}/target-sources`, request.requestBody);
+      if (!request) return proxyPost('/target-sources', body);
+      return proxyPost(`/target-sources/services/${request.serviceCode}/target-sources`, request.requestBody);
     },
   },
   projects: {
@@ -173,18 +173,18 @@ export const bffClient: ApiClient = {
     },
   },
   sdu: {
-    checkInstallation: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/check-installation`, {}),
-    getAthenaTables: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/athena-tables`),
-    executeConnectionTest: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/connection-test/execute`, {}),
-    getConnectionTest: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/connection-test`),
-    issueAkSk: (projectId, body) => proxyPost(`/v1/sdu/target-sources/${projectId}/iam-user/issue-aksk`, body),
-    getIamUser: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/iam-user`),
-    getInstallationStatus: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/installation-status`),
-    checkS3Upload: (projectId) => proxyPost(`/v1/sdu/target-sources/${projectId}/s3-upload/check`, {}),
-    getS3Upload: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/s3-upload`),
-    confirmSourceIp: (projectId, body) => proxyPost(`/v1/sdu/target-sources/${projectId}/source-ip/confirm`, body),
-    registerSourceIp: (projectId, body) => proxyPost(`/v1/sdu/target-sources/${projectId}/source-ip/register`, body),
-    getSourceIpList: (projectId) => proxyGet(`/v1/sdu/target-sources/${projectId}/source-ip`),
+    checkInstallation: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/check-installation`, {}),
+    getAthenaTables: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/athena-tables`),
+    executeConnectionTest: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/connection-test/execute`, {}),
+    getConnectionTest: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/connection-test`),
+    issueAkSk: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/iam-user/issue-aksk`, body),
+    getIamUser: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/iam-user`),
+    getInstallationStatus: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/installation-status`),
+    checkS3Upload: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/s3-upload/check`, {}),
+    getS3Upload: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/s3-upload`),
+    confirmSourceIp: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/source-ip/confirm`, body),
+    registerSourceIp: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/source-ip/register`, body),
+    getSourceIpList: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/source-ip`),
   },
   aws: {
     checkInstallation: (projectId) => proxyPost(`/aws/projects/${projectId}/check-installation`, {}),
@@ -211,14 +211,14 @@ export const bffClient: ApiClient = {
   },
   idc: {
     getSourceIpRecommendation: (ipType) =>
-      proxyGet(`/v1/idc/source-ip-recommendation${ipType ? `?ipType=${ipType}` : ''}`),
-    checkInstallation: (projectId) => proxyPost(`/v1/idc/target-sources/${projectId}/check-installation`, {}),
-    confirmFirewall: (projectId) => proxyPost(`/v1/idc/target-sources/${projectId}/confirm-firewall`, {}),
-    confirmTargets: (projectId, body) => proxyPost(`/v1/idc/target-sources/${projectId}/confirm-targets`, body),
-    getInstallationStatus: (projectId) => proxyGet(`/v1/idc/target-sources/${projectId}/installation-status`),
-    getResources: (projectId) => proxyGet(`/v1/idc/target-sources/${projectId}/resources`),
-    updateResources: (projectId, body) => proxyPut(`/v1/idc/target-sources/${projectId}/resources`, body),
-    updateResourcesList: (projectId, body) => proxyPut(`/v1/idc/target-sources/${projectId}/resources/list`, body),
+      proxyGet(`/idc/source-ip-recommendation${ipType ? `?ipType=${ipType}` : ''}`),
+    checkInstallation: (projectId) => proxyPost(`/idc/target-sources/${projectId}/check-installation`, {}),
+    confirmFirewall: (projectId) => proxyPost(`/idc/target-sources/${projectId}/confirm-firewall`, {}),
+    confirmTargets: (projectId, body) => proxyPost(`/idc/target-sources/${projectId}/confirm-targets`, body),
+    getInstallationStatus: (projectId) => proxyGet(`/idc/target-sources/${projectId}/installation-status`),
+    getResources: (projectId) => proxyGet(`/idc/target-sources/${projectId}/resources`),
+    updateResources: (projectId, body) => proxyPut(`/idc/target-sources/${projectId}/resources`, body),
+    updateResourcesList: (projectId, body) => proxyPut(`/idc/target-sources/${projectId}/resources/list`, body),
   },
   services: {
     permissions: {
@@ -269,7 +269,7 @@ export const bffClient: ApiClient = {
       if (params.page !== undefined) searchParams.set('page', String(params.page));
       if (params.size !== undefined) searchParams.set('size', String(params.size));
       if (params.sort) searchParams.set('sort', params.sort);
-      return proxyGet(`/v1/task-admin/approval-requests?${searchParams.toString()}`);
+      return proxyGet(`/task-admin/approval-requests?${searchParams.toString()}`);
     },
   },
   confirm: {
