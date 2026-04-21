@@ -39,12 +39,12 @@ async function get<T>(path: string): Promise<T> {
 export const httpBff: BffClient = {
   targetSources: {
     get: async (id) => {
-      const data = await get<TargetSourceDetailResponse>(`/v1/target-sources/${id}`);
+      const data = await get<TargetSourceDetailResponse>(`/target-sources/${id}`);
       return extractTargetSource(data);
     },
 
     secrets: async (id) => {
-      const data = await get<Array<{ name: string; createTime: string | null; createTimeStr: string | null }>>(`/v1/target-sources/${id}/secrets`);
+      const data = await get<Array<{ name: string; createTime: string | null; createTimeStr: string | null }>>(`/target-sources/${id}/secrets`);
       return data.map((c): SecretKey => ({
         name: c.name,
         createTimeStr: c.createTimeStr ?? '',
