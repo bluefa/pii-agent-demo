@@ -21,9 +21,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] → GET ${fullPath}`);
+  const res = await fetch(fullPath, {
     headers: { Accept: 'application/json' },
   });
+  console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) {
     const body = await res.json().catch((): LegacyErrorPayload => ({}));
     throw new BffError(

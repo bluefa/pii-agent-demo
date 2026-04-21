@@ -49,6 +49,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/target-sources/1001/resources',
+      { method: 'GET' },
     );
     await expect(response.json()).resolves.toEqual({
       resources: [
@@ -151,6 +152,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/target-sources/services/SERVICE-A',
+      { method: 'GET' },
     );
   });
 
@@ -170,6 +172,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/target-sources/1001',
+      { method: 'GET' },
     );
   });
 
@@ -220,6 +223,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/user/me',
+      { method: 'GET' },
     );
   });
 
@@ -239,6 +243,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/users/search?q=alice&excludeIds=u1&excludeIds=u2',
+      { method: 'GET' },
     );
   });
 
@@ -258,6 +263,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/user/services',
+      { method: 'GET' },
     );
   });
 
@@ -277,6 +283,7 @@ describe('bffClient.confirm.getResources', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith(
       'https://bff.example.com/install/v1/target-sources/1001/secrets',
+      { method: 'GET' },
     );
   });
 
