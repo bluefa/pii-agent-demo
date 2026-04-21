@@ -26,22 +26,38 @@ const extractTargetSourceCreateRequest = (body: unknown): {
   return { serviceCode, requestBody };
 };
 
-const proxyGet = async (path: string): Promise<NextResponse> => {
+type BffMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+const bffFetch = async (
+  method: BffMethod,
+  path: string,
+  body?: unknown,
+): Promise<Response> => {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
-  console.log(`[BFF Client] GET ${path} -> ${fullPath}`);
-  const res = await fetch(fullPath);
-  console.log(`[BFF Client] Response ${res.status} from ${fullPath}`);
-  
+  console.log(`[BFF] → ${method} ${fullPath}`);
+  const init: RequestInit = { method };
+  if (body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetch(fullPath, init);
+  console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);
+  return res;
+};
+
+const proxyGet = async (path: string): Promise<NextResponse> => {
+  const res = await bffFetch('GET', path);
+
   if (!res.ok) {
     return new NextResponse(res.body, {
       status: res.status,
       headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
     });
   }
-  
+
   const data = await res.json();
   const camelCasedData = camelCaseKeys(data);
-  
+
   return new NextResponse(JSON.stringify(camelCasedData), {
     status: res.status,
     headers: { 'Content-Type': 'application/json' },
@@ -49,11 +65,7 @@ const proxyGet = async (path: string): Promise<NextResponse> => {
 };
 
 const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const res = await bffFetch('POST', path, body);
   return new NextResponse(res.body, {
     status: res.status,
     headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
@@ -61,11 +73,7 @@ const proxyPost = async (path: string, body: unknown): Promise<NextResponse> => 
 };
 
 const proxyPut = async (path: string, body: unknown): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const res = await bffFetch('PUT', path, body);
   return new NextResponse(res.body, {
     status: res.status,
     headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
@@ -73,7 +81,7 @@ const proxyPut = async (path: string, body: unknown): Promise<NextResponse> => {
 };
 
 const proxyDelete = async (path: string): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, { method: 'DELETE' });
+  const res = await bffFetch('DELETE', path);
   return new NextResponse(res.body, {
     status: res.status,
     headers: { 'Content-Type': res.headers.get('Content-Type') ?? 'application/json' },
@@ -81,7 +89,7 @@ const proxyDelete = async (path: string): Promise<NextResponse> => {
 };
 
 const proxyConfirmedIntegrationGet = async (path: string): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
+  const res = await bffFetch('GET', path);
 
   if (!res.ok) {
     return new NextResponse(res.body, {
@@ -95,7 +103,7 @@ const proxyConfirmedIntegrationGet = async (path: string): Promise<NextResponse>
 };
 
 const proxyResourceCatalogGet = async (path: string): Promise<NextResponse> => {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`);
+  const res = await bffFetch('GET', path);
 
   if (!res.ok) {
     return new NextResponse(res.body, {
