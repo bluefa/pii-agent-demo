@@ -21,9 +21,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BFF_URL}${toUpstreamInfraApiPath(path)}`, {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] → GET ${fullPath}`);
+  const res = await fetch(fullPath, {
     headers: { Accept: 'application/json' },
   });
+  console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) {
     const body = await res.json().catch((): LegacyErrorPayload => ({}));
     throw new BffError(
@@ -39,12 +42,12 @@ async function get<T>(path: string): Promise<T> {
 export const httpBff: BffClient = {
   targetSources: {
     get: async (id) => {
-      const data = await get<TargetSourceDetailResponse>(`/v1/target-sources/${id}`);
+      const data = await get<TargetSourceDetailResponse>(`/target-sources/${id}`);
       return extractTargetSource(data);
     },
 
     secrets: async (id) => {
-      const data = await get<Array<{ name: string; createTime: string | null; createTimeStr: string | null }>>(`/v1/target-sources/${id}/secrets`);
+      const data = await get<Array<{ name: string; createTime: string | null; createTimeStr: string | null }>>(`/target-sources/${id}/secrets`);
       return data.map((c): SecretKey => ({
         name: c.name,
         createTimeStr: c.createTimeStr ?? '',
