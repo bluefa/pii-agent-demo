@@ -894,19 +894,29 @@ export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 
 ---
 
-## 6. 오픈 이슈 (Phase 0 확정 필요)
+## 6. 오픈 이슈 — **전체 Resolved (2026-04-22 사용자 확정)**
 
-| # | 이슈 | 의사결정 필요 항목 | 제안 |
-|---|---|---|---|
-| 1 | **PermissionsPanel 위치** | 현행 320px 좌측 패널 → 신규에 없음. 드로어/모달/상단 축소 중 어느 것? | 별도 "권한 관리" 드로어 (우측 슬라이드) |
-| 2 | **InfraCard 내 ProcessStatus CTA** | 아코디언 헤더 split 버튼과 별개로, 승인/확정 버튼 어디 둘지? | 헤더 우측에 status-aware CTA 배지 (현행 로직 그대로 복제) |
-| 3 | **타겟소스 상세 사이드바 제거** | `AwsInfoCard`/`ProjectInfoCard` 내용 어디로? | 상단 PageMeta 4kv + "상세 정보" 링크 → 오른쪽 드로어 |
-| 4 | **Step 06 "관리자 승인 대기"** | 신규 ProcessStatus 추가 vs 라벨만 추가 | 라벨만 추가 (CONNECTION_VERIFIED를 "관리자 승인 대기"로 간주) |
-| 5 | **ScanHistoryList / CooldownTimer** | 시안에 없음 → 제거 vs 보존 | "스캔 이력 보기" 링크로 모달 분리 보존 |
-| 6 | **"스캔 이력" 컬럼 (NEW/CHANGED)** | 백엔드 지원 필요 | BFF에 `resource.scanHistoryStatus` 신규 필드 요청 후 컬럼 활성화 |
-| 7 | **CloudProvider 확장 (OTHER/SAAS)** | Swagger에 정의되어 있는가? | BFF 확인 후 A/B 결정 |
-| 8 | **미구현 상단 메뉴 (Credentials, PII Tag, PII Map)** | nav 표시 vs 숨김 | 표시하되 disabled or "Coming soon" 토스트 |
-| 9 | **상세 페이지 TopNav 없음 → 복귀 UX 보강** ✅ | 사용자 확정: **상세 페이지에 TopNav 비표시**. 복귀 동선은 Breadcrumb만으로 충분한가? | Breadcrumb의 "Service List" 링크 + 페이지 헤더 좌측 `← 목록으로` ghost 버튼 추가 (보조) |
+| # | 이슈 | **확정 결정** |
+|---|---|---|
+| I-01 | PermissionsPanel 처리 | ✅ **삭제**. `PermissionsPanel.tsx` + `AdminDashboard`의 관련 상태·핸들러·`getPermissions` 호출 제거. API 함수(`addPermission`/`deletePermission`/`getPermissions`)와 route.ts·mock은 dead code로 보존 후 별도 cleanup PR에서 일괄 정리 |
+| I-02 | InfraCard 내 ProcessStatus CTA | ✅ **A안** — 헤더 우측에 `[status-aware CTA][관리 ▾]` 2개 병렬 배치. 추가 규칙: ① expand chevron은 `ProcessStatus ≥ INSTALLING`에서만 활성, ② IDC·SDU는 펼침 영역 자체 없음, ③ expand 클릭 시에만 `getConfirmedIntegration(targetSourceId)` lazy fetch + 컴포넌트 state 캐시 |
+| I-03 | 타겟소스 상세 사이드바 이관 | ✅ **PageMeta 4kv만**. Cloud Provider / Subscription·Account ID / Jira Link / 모니터링 방식. 드로어·"상세 정보 보기" 링크 등 추가 UI 없음. `AwsInfoCard`·`AzureInfoCard`·`GcpInfoCard`·`ProjectInfoCard` 사용 중단 (컴포넌트 파일은 T17에서 정리) |
+| I-04 | Step 06 "관리자 승인 대기" | ✅ **라벨만 추가** (`ProcessStatus` enum **불변**). Step 06은 `CONNECTION_VERIFIED` 상태에 매핑하여 UI 표시 |
+| I-05 | ScanHistoryList / CooldownTimer | ✅ **완전 삭제** (모달 분리 보존 X). `ScanHistoryList.tsx` 200 LOC + `CooldownTimer.tsx` 78 LOC = **-278 LOC**. `CooldownTimer`는 이미 dead code. "Last Scan: {timestamp}"은 `latestJob.updatedAt`로 헤더에 표시 유지 |
+| I-06 | "스캔 이력" 컬럼 (NEW/CHANGED) | ✅ **stub 렌더**. 컬럼 헤더 유지, 모든 row 값은 `—` (null). 데이터 소스 헬퍼 `getResourceScanHistory(resource) → null` 스텁 1줄. BFF 필드 확정 시 이 헬퍼만 교체 |
+| I-07 | 상세 페이지 복귀 UX | ✅ **Breadcrumb + `backHref`** 이중 제공. Breadcrumb의 "Service List" 링크 + `<PageHeader backHref={integrationRoutes.admin}>`의 좌측 `← 목록으로` ghost 버튼 |
+| I-08 | 미구현 상단 메뉴 | ✅ **표시 + "Coming soon" 토스트**. Credentials / PII Tag mgmt. / PII Map 메뉴를 TopNav에 렌더하되 클릭 시 비활성 상태 피드백 |
+| C-01 | CloudProvider 확장 (OTHER/SAAS) | ✅ **자동 해소** — C-03/C-04에서 IDC·Other·SaaS chip을 disabled 처리하므로 enum 확장 불필요. Swagger 확인 스킵 |
+| C-02 | 생성 모달 누적형 vs 단일 | ✅ **누적형 유지**. Save 시 `Promise.all(createProject)` 병렬 호출. bulk endpoint 신규 X |
+| C-03 | 커뮤니케이션 모듈 매핑 | ✅ **AWS / Azure / GCP만 활성**. 각각 `AWS Agent` / `Azure Agent` / `GCP Agent`. **IDC, Other Cloud/IDC, SaaS는 chip disabled ("준비중" 배지)** — 이 3종에 대한 모듈 매핑 정의 불필요 |
+| C-04 | Provider별 입력 필드 | ✅ **AWS/Azure/GCP만 필드 렌더**. 시안대로 AWS(Payer+Linked) / Azure(Tenant+Subscription) / GCP(Project ID). 기존 AWS `awsRegionType` radio는 chip AWS Global/China로 분리되므로 **필드에서 제거**. 나머지 3 chip은 클릭 불가 |
+| C-05 | DB Type 목록 출처 | ✅ `lib/constants/db-types.ts` 정적 상수 6종: `mysql, mssql, postgresql, athena, redshift, bigquery` |
+| C-06 | 모달 폭 변경 | ✅ **560 → 840px** |
+
+### 후속 재검토 사항 (이번 Phase 제외)
+- **IDC 신규 생성 경로** — C-03/C-04에서 IDC chip이 disabled 처리되어 이 모달로는 IDC 타겟소스를 새로 만들 수 없음. 기존 IDC 프로젝트 조회/상세/스캔은 정상 동작. IDC 온보딩 경로는 후속 PR에서 재검토
+- **PermissionsPanel 전면 폐기** — 현재는 UI만 제거. 권한 관리 API의 운영 지속 여부는 별도 의사결정
+- **`resource.scanHistoryStatus`** — BFF 지원 시 헬퍼 교체로 스캔 이력 컬럼 활성화
 
 ---
 
