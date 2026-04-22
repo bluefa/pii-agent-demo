@@ -29,11 +29,7 @@ import { ScanPanel } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { RejectionAlert } from '@/app/projects/[projectId]/common';
-import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
-import { PageHeader } from '@/app/components/ui/PageHeader';
-import { PageMeta } from '@/app/components/ui/PageMeta';
-import { integrationRoutes } from '@/lib/routes';
+import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError } from '@/lib/errors';
@@ -367,13 +363,6 @@ export const AzureProjectPage = ({
     onProjectUpdate(updatedProject);
   };
 
-  const breadcrumbCrumbs = [
-    { label: 'SIT Home', href: '/' },
-    { label: 'Service List', href: integrationRoutes.admin },
-    { label: project.serviceCode, href: integrationRoutes.admin },
-    { label: 'Azure Infrastructure' },
-  ];
-
   const pageMetaItems = [
     { label: 'Cloud Provider', value: 'Azure' },
     { label: 'Subscription ID', value: azureIdentifiers.subscriptionId ?? '-' },
@@ -383,110 +372,103 @@ export const AzureProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <Breadcrumb crumbs={breadcrumbCrumbs} />
-      <PageHeader
-        title={`${project.name || project.projectCode} (${project.serviceCode})`}
-        backHref={integrationRoutes.admin}
-      />
-      <PageMeta items={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="Azure Infrastructure" metaItems={pageMetaItems} />
 
-      <>
-          {!resourceLoaded ? (
-            <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
-              <LoadingSpinner />
-              <span className={cn('text-sm', textColors.tertiary)}>Azure 리소스 정보를 불러오는 중입니다.</span>
-            </div>
-          ) : resourceError && catalogResources.length === 0 ? (
-            <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-              <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
-                {resourceError}
-              </p>
-              <button
-                onClick={() => void loadAzureResources()}
-                className={getButtonClass('secondary')}
-              >
-                다시 시도
-              </button>
-            </div>
+      {!resourceLoaded ? (
+        <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>Azure 리소스 정보를 불러오는 중입니다.</span>
+        </div>
+      ) : resourceError && catalogResources.length === 0 ? (
+        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+            {resourceError}
+          </p>
+          <button
+            onClick={() => void loadAzureResources()}
+            className={getButtonClass('secondary')}
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : (
+        <>
+          <ProcessStatusCard
+            project={project}
+            resources={displayResources}
+            onProjectUpdate={onProjectUpdate}
+            approvalModalOpen={approvalModalOpen}
+            onApprovalModalClose={() => setApprovalModalOpen(false)}
+            onApprovalSubmit={handleApprovalSubmit}
+            approvalLoading={submitting}
+            approvalError={approvalError ?? resourceError}
+            approvalResources={approvalResources}
+          />
+
+          {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+            <ResourceTransitionPanel
+              targetSourceId={project.targetSourceId}
+              resources={displayResources}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+            />
           ) : (
             <>
-              <ProcessStatusCard
-                project={project}
-                resources={displayResources}
-                onProjectUpdate={onProjectUpdate}
-                approvalModalOpen={approvalModalOpen}
-                onApprovalModalClose={() => setApprovalModalOpen(false)}
-                onApprovalSubmit={handleApprovalSubmit}
-                approvalLoading={submitting}
-                approvalError={approvalError ?? resourceError}
-                approvalResources={approvalResources}
+              <ScanPanel
+                targetSourceId={project.targetSourceId}
+                cloudProvider={project.cloudProvider}
+                onScanComplete={handleRefreshAfterProjectChange}
               />
 
-              {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-                <ResourceTransitionPanel
-                  targetSourceId={project.targetSourceId}
-                  resources={displayResources}
-                  cloudProvider={project.cloudProvider}
-                  processStatus={currentStep}
-                />
-              ) : (
-                <>
-                  <ScanPanel
-                    targetSourceId={project.targetSourceId}
-                    cloudProvider={project.cloudProvider}
-                    onScanComplete={handleRefreshAfterProjectChange}
-                  />
-
-                  <ResourceTable
-                    resources={displayResources}
-                    cloudProvider={project.cloudProvider}
-                    processStatus={currentStep}
-                    isEditMode={effectiveEditMode}
-                    selectedIds={selectedIds}
-                    onSelectionChange={setSelectedIds}
-                    credentials={credentials}
-                    onCredentialChange={handleCredentialChange}
-                    expandedVmId={expandedVmId}
-                    onVmConfigToggle={setExpandedVmId}
-                    onVmConfigSave={handleVmConfigSave}
-                  />
-                </>
-              )}
-
-              <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-              <div className="flex justify-end gap-3">
-                {effectiveEditMode ? (
-                  <>
-                    {!isStep1 && (
-                      <button
-                        onClick={handleCancelEdit}
-                        className={getButtonClass('secondary')}
-                      >
-                        취소
-                      </button>
-                    )}
-                    <button
-                      onClick={handleConfirmTargets}
-                      disabled={submitting || resourceLoading || selectedIds.length === 0}
-                      className={`${getButtonClass('primary')} flex items-center gap-2`}
-                    >
-                      {(submitting || resourceLoading) && <LoadingSpinner />}
-                      연동 대상 확정 승인 요청
-                    </button>
-                  </>
-                ) : (!isProcessing || canRequestTargetRevision) && (
-                  <button
-                    onClick={handleStartEdit}
-                    className={getButtonClass('secondary')}
-                  >
-                    {canRequestTargetRevision ? '확정정보 수정 요청' : '확정 대상 수정'}
-                  </button>
-                )}
-              </div>
+              <ResourceTable
+                resources={displayResources}
+                cloudProvider={project.cloudProvider}
+                processStatus={currentStep}
+                isEditMode={effectiveEditMode}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                credentials={credentials}
+                onCredentialChange={handleCredentialChange}
+                expandedVmId={expandedVmId}
+                onVmConfigToggle={setExpandedVmId}
+                onVmConfigSave={handleVmConfigSave}
+              />
             </>
           )}
-      </>
+
+          <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
+
+          <div className="flex justify-end gap-3">
+            {effectiveEditMode ? (
+              <>
+                {!isStep1 && (
+                  <button
+                    onClick={handleCancelEdit}
+                    className={getButtonClass('secondary')}
+                  >
+                    취소
+                  </button>
+                )}
+                <button
+                  onClick={handleConfirmTargets}
+                  disabled={submitting || resourceLoading || selectedIds.length === 0}
+                  className={`${getButtonClass('primary')} flex items-center gap-2`}
+                >
+                  {(submitting || resourceLoading) && <LoadingSpinner />}
+                  연동 대상 확정 승인 요청
+                </button>
+              </>
+            ) : (!isProcessing || canRequestTargetRevision) && (
+              <button
+                onClick={handleStartEdit}
+                className={getButtonClass('secondary')}
+              >
+                {canRequestTargetRevision ? '확정정보 수정 요청' : '확정 대상 수정'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </main>
   );
 };
