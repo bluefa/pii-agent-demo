@@ -2,36 +2,31 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/app/components/ui/Button';
+import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
+import { PageHeader } from '@/app/components/ui/PageHeader';
+import { PageMeta } from '@/app/components/ui/PageMeta';
 import { ProjectCreateModal } from './ProjectCreateModal';
 import {
   getServicesPage,
   getProjects,
-  getPermissions,
-  addPermission,
-  deletePermission,
   confirmInstallation,
   getApprovalHistory,
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
-  UserSearchResult,
 } from '@/app/lib/api';
 import type { ServicePageResponse } from '@/app/lib/api';
 import type { ApprovalResourceInput } from '@/app/lib/api';
-import { ServiceCode, ProjectSummary, User } from '@/lib/types';
+import { ServiceCode, ProjectSummary } from '@/lib/types';
 import {
-  AdminHeader,
   ServiceSidebar,
-  PermissionsPanel,
   ProjectsTable,
   ApprovalDetailModal,
 } from './admin';
-import { statusColors, cn } from '@/lib/theme';
 
 export const AdminDashboard = () => {
   const [services, setServices] = useState<ServiceCode[]>([]);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [permissions, setPermissions] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -87,12 +82,8 @@ export const AdminDashboard = () => {
     if (!selectedService) return;
     const fetchServiceData = async () => {
       setLoading(true);
-      const [projectsData, permissionsData] = await Promise.all([
-        getProjects(selectedService),
-        getPermissions(selectedService),
-      ]);
+      const projectsData = await getProjects(selectedService);
       setProjects(projectsData);
-      setPermissions(permissionsData);
       setLoading(false);
     };
     fetchServiceData();
@@ -104,28 +95,6 @@ export const AdminDashboard = () => {
     const data = await getProjects(selectedService);
     setProjects(data);
     setLoading(false);
-  };
-
-  const handleAddUser = async (user: UserSearchResult) => {
-    if (!selectedService) return;
-    try {
-      await addPermission(selectedService, user.id);
-      const data = await getPermissions(selectedService);
-      setPermissions(data);
-    } catch {
-      alert('사용자 추가 실패');
-    }
-  };
-
-  const handleRemoveUser = async (userId: string) => {
-    if (!selectedService) return;
-    try {
-      await deletePermission(selectedService, userId);
-      const data = await getPermissions(selectedService);
-      setPermissions(data);
-    } catch {
-      alert('사용자 삭제 실패');
-    }
   };
 
   const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
@@ -184,11 +153,11 @@ export const AdminDashboard = () => {
     }
   };
 
+  const selectedServiceObj = services.find((s) => s.code === selectedService);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminHeader />
-
-      <div className="flex h-[calc(100vh-73px)]">
+      <div className="flex h-[calc(100vh-56px)]">
         <ServiceSidebar
           services={services}
           selectedService={selectedService}
@@ -214,43 +183,44 @@ export const AdminDashboard = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Service Header */}
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-gray-900">{selectedService}</h2>
-                    <span className={cn('px-2 py-0.5 text-xs font-medium rounded', statusColors.info.bg, statusColors.info.textDark)}>서비스</span>
-                  </div>
-                  <p className="text-gray-500 mt-1">{services.find((s) => s.code === selectedService)?.name}</p>
-                </div>
-                <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  타겟 소스 등록
-                </Button>
-              </div>
+              <Breadcrumb
+                crumbs={[
+                  { label: 'SIT Home', href: '/' },
+                  { label: 'Service List' },
+                ]}
+              />
+              <PageHeader
+                title={`${selectedService} ${selectedServiceObj?.name ?? ''}`.trim()}
+                action={
+                  <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    타겟 소스 등록
+                  </Button>
+                }
+              />
+              <PageMeta
+                items={[
+                  { label: '서비스 코드', value: selectedService },
+                  { label: '서비스명', value: selectedServiceObj?.name ?? '-' },
+                  ...(selectedServiceObj?.description
+                    ? [{ label: '설명', value: selectedServiceObj.description }]
+                    : []),
+                ]}
+              />
 
-              {/* Main Content - 2 Columns */}
-              <div className="grid grid-cols-[320px_1fr] gap-6">
-                <PermissionsPanel
-                  permissions={permissions}
-                  onAddUser={handleAddUser}
-                  onRemoveUser={handleRemoveUser}
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">타겟 소스 목록</h3>
+                </div>
+                <ProjectsTable
+                  projects={projects}
+                  loading={loading}
+                  actionLoading={actionLoading}
+                  onConfirmCompletion={handleConfirmCompletion}
+                  onViewApproval={handleViewApproval}
                 />
-
-                <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">타겟 소스 목록</h3>
-                  </div>
-                  <ProjectsTable
-                    projects={projects}
-                    loading={loading}
-                    actionLoading={actionLoading}
-                    onConfirmCompletion={handleConfirmCompletion}
-                    onViewApproval={handleViewApproval}
-                  />
-                </div>
               </div>
             </div>
           )}
@@ -272,7 +242,7 @@ export const AdminDashboard = () => {
       {showCreateModal && selectedService && (
         <ProjectCreateModal
           selectedServiceCode={selectedService}
-          serviceName={services.find((s) => s.code === selectedService)?.name || ''}
+          serviceName={selectedServiceObj?.name || ''}
           onClose={() => setShowCreateModal(false)}
           onCreated={refreshProjects}
         />
