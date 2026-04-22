@@ -1,7 +1,7 @@
 'use client';
 
 import { cn, getInputClass, tagStyles, textColors } from '@/lib/theme';
-import { DB_TYPES, type DbType } from '@/lib/constants/db-types';
+import { DB_TYPES, DB_TYPE_LABEL, type DbType } from '@/lib/constants/db-types';
 
 interface DbTypeMultiSelectProps {
   values: DbType[];
@@ -33,7 +33,7 @@ export const DbTypeMultiSelect = ({ values, onChange }: DbTypeMultiSelectProps) 
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {values.map((v) => {
-            const label = DB_TYPES.find((t) => t.value === v)?.label ?? v;
+            const label = DB_TYPE_LABEL[v] ?? v;
             return (
               <span
                 key={v}
