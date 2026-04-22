@@ -28,11 +28,11 @@ const chevronLeftIcon = (
 export const PageHeader = ({ title, subtitle, action, backHref }: PageHeaderProps) => {
   return (
     <div className="flex justify-between items-start">
-      <div className="flex items-start gap-3">
+      <div className="flex items-baseline gap-3">
         {backHref && (
           <Link
             href={backHref}
-            className={`${buttonStyles.variants.ghost} inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm font-medium transition-colors mt-1`}
+            className={`${buttonStyles.variants.ghost} inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm font-medium transition-colors`}
           >
             {chevronLeftIcon}
             목록으로
