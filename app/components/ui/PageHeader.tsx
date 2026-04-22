@@ -9,6 +9,22 @@ interface PageHeaderProps {
   backHref?: string;
 }
 
+const chevronLeftIcon = (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+);
+
 export const PageHeader = ({ title, subtitle, action, backHref }: PageHeaderProps) => {
   return (
     <div className="flex justify-between items-start">
@@ -18,19 +34,7 @@ export const PageHeader = ({ title, subtitle, action, backHref }: PageHeaderProp
             href={backHref}
             className={`${buttonStyles.variants.ghost} inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm font-medium transition-colors mt-1`}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            {chevronLeftIcon}
             목록으로
           </Link>
         )}
