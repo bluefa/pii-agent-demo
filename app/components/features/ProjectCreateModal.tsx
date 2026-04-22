@@ -162,8 +162,8 @@ export const ProjectCreateModal = ({
 
   const canAdd =
     activeChip.enabled &&
-    Object.values(currentFields).some((v) => v.trim().length > 0) &&
-    currentDbTypes.length > 0;
+    currentDbTypes.length > 0 &&
+    validateCredentials(currentChip, currentFields) === null;
 
   return (
     <div className={modalStyles.overlay} onClick={onClose}>

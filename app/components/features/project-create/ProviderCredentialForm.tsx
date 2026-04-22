@@ -2,6 +2,11 @@
 
 import { cn, getInputClass, textColors, statusColors } from '@/lib/theme';
 import type { ProviderChipKey } from '@/lib/constants/provider-mapping';
+import {
+  validateAwsAccountId,
+  validateGuid,
+  sanitizeDigits,
+} from '@/lib/validation/infra-credentials';
 
 export interface CredentialFieldDef {
   name: string;
@@ -13,62 +18,34 @@ export interface CredentialFieldDef {
   validate?: (value: string) => string | null;
 }
 
+const awsAccountField = (name: string, label: string): CredentialFieldDef => ({
+  name,
+  label,
+  placeholder: '12-digit AWS account ID',
+  maxLength: 12,
+  sanitize: (v) => sanitizeDigits(v, 12),
+  validate: validateAwsAccountId,
+});
+
+const azureGuidField = (name: string, label: string): CredentialFieldDef => ({
+  name,
+  label,
+  placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+  validate: validateGuid,
+});
+
 export const CREDENTIAL_FIELDS: Record<Extract<ProviderChipKey, 'aws-global' | 'aws-china' | 'azure' | 'gcp'>, CredentialFieldDef[]> = {
   'aws-global': [
-    {
-      name: 'payerAccount',
-      label: 'Payer Account',
-      placeholder: '12-digit AWS account ID',
-      maxLength: 12,
-      sanitize: (v) => v.replace(/\D/g, '').slice(0, 12),
-      validate: (v) => (v && !/^\d{12}$/.test(v) ? '12자리 숫자를 입력하세요' : null),
-    },
-    {
-      name: 'linkedAccount',
-      label: 'Linked Account',
-      placeholder: '12-digit AWS account ID',
-      maxLength: 12,
-      sanitize: (v) => v.replace(/\D/g, '').slice(0, 12),
-      validate: (v) => (v && !/^\d{12}$/.test(v) ? '12자리 숫자를 입력하세요' : null),
-    },
+    awsAccountField('payerAccount', 'Payer Account'),
+    awsAccountField('linkedAccount', 'Linked Account'),
   ],
   'aws-china': [
-    {
-      name: 'payerAccount',
-      label: 'Payer Account',
-      placeholder: '12-digit AWS account ID',
-      maxLength: 12,
-      sanitize: (v) => v.replace(/\D/g, '').slice(0, 12),
-      validate: (v) => (v && !/^\d{12}$/.test(v) ? '12자리 숫자를 입력하세요' : null),
-    },
-    {
-      name: 'linkedAccount',
-      label: 'Linked Account',
-      placeholder: '12-digit AWS account ID',
-      maxLength: 12,
-      sanitize: (v) => v.replace(/\D/g, '').slice(0, 12),
-      validate: (v) => (v && !/^\d{12}$/.test(v) ? '12자리 숫자를 입력하세요' : null),
-    },
+    awsAccountField('payerAccount', 'Payer Account'),
+    awsAccountField('linkedAccount', 'Linked Account'),
   ],
   azure: [
-    {
-      name: 'tenantId',
-      label: 'Tenant ID',
-      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-      validate: (v) =>
-        v && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
-          ? 'GUID 형식이 올바르지 않습니다'
-          : null,
-    },
-    {
-      name: 'subscriptionId',
-      label: 'Subscription ID',
-      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-      validate: (v) =>
-        v && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
-          ? 'GUID 형식이 올바르지 않습니다'
-          : null,
-    },
+    azureGuidField('tenantId', 'Tenant ID'),
+    azureGuidField('subscriptionId', 'Subscription ID'),
   ],
   gcp: [
     {

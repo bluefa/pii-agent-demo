@@ -10,24 +10,31 @@ interface DbTypeMultiSelectProps {
 
 export const DbTypeMultiSelect = ({ values, onChange }: DbTypeMultiSelectProps) => {
   const available = DB_TYPES.filter((t) => !values.includes(t.value));
+  const allSelected = available.length === 0;
 
   return (
     <div className="space-y-2">
-      <select
-        className={getInputClass()}
-        value=""
-        onChange={(e) => {
-          const next = e.target.value as DbType;
-          if (next && !values.includes(next)) onChange([...values, next]);
-        }}
-      >
-        <option value="">DB Type 선택…</option>
-        {available.map((t) => (
-          <option key={t.value} value={t.value}>
-            {t.label}
-          </option>
-        ))}
-      </select>
+      {allSelected ? (
+        <p className={cn('text-xs', textColors.tertiary)}>
+          모든 DB Type이 선택되었습니다
+        </p>
+      ) : (
+        <select
+          className={getInputClass()}
+          value=""
+          onChange={(e) => {
+            const next = e.target.value as DbType;
+            if (next && !values.includes(next)) onChange([...values, next]);
+          }}
+        >
+          <option value="">DB Type 선택…</option>
+          {available.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      )}
       {values.length === 0 ? (
         <p className={cn('text-xs', textColors.tertiary)}>선택된 DB Type이 없습니다</p>
       ) : (
