@@ -24,6 +24,7 @@ export const primaryColors = {
   borderHoverBase: 'hover:border-[#0064FF]',
   focusRing: 'focus:ring-[#0064FF]',
   haloRing: 'shadow-[0_0_0_4px_rgba(0,100,255,0.15)]',
+  marker: 'marker:text-[#0064FF]',
 } as const;
 
 /**
