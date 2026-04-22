@@ -80,9 +80,6 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-const USER_EMAIL = 'cyongj2.park@samsung.com';
-const USER_INITIALS = 'CP';
-
 export const TopNav = () => {
   const pathname = usePathname() ?? '';
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -95,7 +92,7 @@ export const TopNav = () => {
 
   const handleDisabledClick = (event: React.MouseEvent, label: string) => {
     event.preventDefault();
-    setToastMessage(`${label} — Coming soon`);
+    setToastMessage(`${label} — 준비 중입니다`);
   };
 
   return (
@@ -158,19 +155,6 @@ export const TopNav = () => {
         </nav>
 
         <div className="flex-1" />
-
-        <div className={cn('flex items-center gap-2.5 text-[13px]', navStyles.user.email)}>
-          <span>{USER_EMAIL}</span>
-          <div
-            className={cn(
-              'w-8 h-8 rounded-full grid place-items-center font-semibold text-xs',
-              navStyles.user.avatar,
-            )}
-            aria-hidden="true"
-          >
-            {USER_INITIALS}
-          </div>
-        </div>
       </header>
 
       {toastMessage && (
