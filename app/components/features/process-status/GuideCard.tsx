@@ -1,5 +1,3 @@
-'use client';
-
 import { cardStyles, cn, primaryColors } from '@/lib/theme';
 import { ProcessStatus } from '@/lib/types';
 import type { AwsInstallationMode, CloudProvider } from '@/lib/types';
@@ -34,7 +32,7 @@ const renderInline = (parts: GuideInline[]): React.ReactNode =>
     );
   });
 
-const LightbulbIcon = () => (
+const lightbulbIcon = (
   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path
       strokeLinecap="round"
@@ -72,7 +70,7 @@ export const GuideCard = ({ currentStep, provider, installationMode }: GuideCard
               cardStyles.warmVariant.icon,
             )}
           >
-            <LightbulbIcon />
+            {lightbulbIcon}
           </span>
           가이드
         </h2>
