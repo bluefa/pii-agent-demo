@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
@@ -17,13 +18,15 @@ import {
 import type { ServicePageResponse } from '@/app/lib/api';
 import type { ApprovalResourceInput } from '@/app/lib/api';
 import { ServiceCode, ProjectSummary } from '@/lib/types';
+import { integrationRoutes } from '@/lib/routes';
 import {
   ServiceSidebar,
-  ProjectsTable,
   ApprovalDetailModal,
 } from './admin';
+import { InfrastructureList } from './admin/infrastructure';
 
 export const AdminDashboard = () => {
+  const router = useRouter();
   const [services, setServices] = useState<ServiceCode[]>([]);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -153,6 +156,18 @@ export const AdminDashboard = () => {
     }
   };
 
+  const handleOpenDetail = useCallback((targetSourceId: number) => {
+    router.push(integrationRoutes.project(targetSourceId));
+  }, [router]);
+
+  const handleManageAction = useCallback((action: 'view' | 'delete', targetSourceId: number) => {
+    if (action === 'view') {
+      router.push(integrationRoutes.project(targetSourceId));
+      return;
+    }
+    alert('삭제 미구현');
+  }, [router]);
+
   const selectedServiceObj = services.find((s) => s.code === selectedService);
 
   return (
@@ -210,18 +225,16 @@ export const AdminDashboard = () => {
                 ]}
               />
 
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">타겟 소스 목록</h3>
-                </div>
-                <ProjectsTable
-                  projects={projects}
-                  loading={loading}
-                  actionLoading={actionLoading}
-                  onConfirmCompletion={handleConfirmCompletion}
-                  onViewApproval={handleViewApproval}
-                />
-              </div>
+              <InfrastructureList
+                projects={projects}
+                loading={loading}
+                actionLoading={actionLoading}
+                onAddInfra={() => setShowCreateModal(true)}
+                onOpenDetail={handleOpenDetail}
+                onManageAction={handleManageAction}
+                onConfirmCompletion={handleConfirmCompletion}
+                onViewApproval={handleViewApproval}
+              />
             </div>
           )}
         </main>
