@@ -2,13 +2,13 @@ import Link from 'next/link';
 
 import { textColors } from '@/lib/theme';
 
-interface BreadcrumbCrumb {
+interface BreadcrumbItem {
   label: string;
   href?: string;
 }
 
 interface BreadcrumbProps {
-  crumbs: BreadcrumbCrumb[];
+  crumbs: BreadcrumbItem[];
 }
 
 export const Breadcrumb = ({ crumbs }: BreadcrumbProps) => {
