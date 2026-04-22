@@ -71,7 +71,7 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
                   className={cn(
                     'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 border-2',
                     isCompleted && cn(statusColors.success.dot, 'text-white border-transparent'),
-                    isCurrent && cn(primaryColors.bg, primaryColors.border, 'text-white', primaryColors.haloRing),
+                    isCurrent && cn(primaryColors.bg, 'text-white border-transparent', primaryColors.haloRing),
                     !isCompleted && !isCurrent && cn(
                       statusColors.pending.bg,
                       statusColors.pending.text,
