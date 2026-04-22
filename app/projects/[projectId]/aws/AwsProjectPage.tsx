@@ -19,14 +19,10 @@ import { ProcessGuideModal } from '@/app/components/features/process-status/Proc
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
-import { RejectionAlert } from '@/app/projects/[projectId]/common';
+import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
-import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
-import { PageHeader } from '@/app/components/ui/PageHeader';
-import { PageMeta } from '@/app/components/ui/PageMeta';
-import { integrationRoutes } from '@/lib/routes';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -91,13 +87,6 @@ export const AwsProjectPage = ({
     [project.resources, selectedIds],
   );
 
-  const breadcrumbCrumbs = [
-    { label: 'SIT Home', href: '/' },
-    { label: 'Service List', href: integrationRoutes.admin },
-    { label: project.serviceCode, href: integrationRoutes.admin },
-    { label: 'AWS Infrastructure' },
-  ];
-
   const pageMetaItems = [
     { label: 'Cloud Provider', value: 'AWS' },
     { label: 'AWS Account ID', value: project.awsAccountId ?? '-' },
@@ -109,12 +98,7 @@ export const AwsProjectPage = ({
   if (!project.awsInstallationMode) {
     return (
       <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-        <Breadcrumb crumbs={breadcrumbCrumbs} />
-        <PageHeader
-          title={`${project.name || project.projectCode} (${project.serviceCode})`}
-          backHref={integrationRoutes.admin}
-        />
-        <PageMeta items={pageMetaItems} />
+        <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" metaItems={pageMetaItems} />
         <AwsInstallationModeSelector
           targetSourceId={project.targetSourceId}
           onModeSelected={handleModeSelected}
@@ -224,12 +208,7 @@ export const AwsProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <Breadcrumb crumbs={breadcrumbCrumbs} />
-      <PageHeader
-        title={`${project.name || project.projectCode} (${project.serviceCode})`}
-        backHref={integrationRoutes.admin}
-      />
-      <PageMeta items={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" metaItems={pageMetaItems} />
 
       <ProcessStatusCard
         project={project}
