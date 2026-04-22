@@ -14,18 +14,19 @@ import { getProjectCurrentStep } from '@/lib/process';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { useModal } from '@/app/hooks/useModal';
 import { ScanPanel } from '@/app/components/features/scan';
-import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
-import { AwsInfoCard } from '@/app/components/features/AwsInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
-import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
-import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
+import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
+import { PageHeader } from '@/app/components/ui/PageHeader';
+import { PageMeta } from '@/app/components/ui/PageMeta';
+import { integrationRoutes } from '@/lib/routes';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -90,18 +91,35 @@ export const AwsProjectPage = ({
     [project.resources, selectedIds],
   );
 
+  const breadcrumbCrumbs = [
+    { label: 'SIT Home', href: '/' },
+    { label: 'Service List', href: integrationRoutes.admin },
+    { label: project.serviceCode, href: integrationRoutes.admin },
+    { label: 'AWS Infrastructure' },
+  ];
+
+  const pageMetaItems = [
+    { label: 'Cloud Provider', value: 'AWS' },
+    { label: 'AWS Account ID', value: project.awsAccountId ?? '-' },
+    { label: 'Jira Link', value: '-' },
+    { label: '모니터링 방식', value: 'AWS Agent' },
+  ];
+
   // 설치 모드 미선택 시 선택 UI 표시
   if (!project.awsInstallationMode) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <ProjectHeader project={project} />
-        <main className="p-6">
-          <AwsInstallationModeSelector
-            targetSourceId={project.targetSourceId}
-            onModeSelected={handleModeSelected}
-          />
-        </main>
-      </div>
+      <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+        <Breadcrumb crumbs={breadcrumbCrumbs} />
+        <PageHeader
+          title={`${project.name || project.projectCode} (${project.serviceCode})`}
+          backHref={integrationRoutes.admin}
+        />
+        <PageMeta items={pageMetaItems} />
+        <AwsInstallationModeSelector
+          targetSourceId={project.targetSourceId}
+          onModeSelected={handleModeSelected}
+        />
+      </main>
     );
   }
 
@@ -205,112 +223,101 @@ export const AwsProjectPage = ({
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
-      <ProjectHeader project={project} />
+    <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <Breadcrumb crumbs={breadcrumbCrumbs} />
+      <PageHeader
+        title={`${project.name || project.projectCode} (${project.serviceCode})`}
+        backHref={integrationRoutes.admin}
+      />
+      <PageMeta items={pageMetaItems} />
 
-      <div className="flex flex-1 overflow-hidden">
-        <ProjectSidebar cloudProvider={project.cloudProvider}>
-          <AwsInfoCard
-            project={project}
-            awsStatus={awsStatus}
-            awsSettings={awsSettings}
-            credentials={credentials}
-            onOpenGuide={handleOpenGuide}
-            onManageCredentials={handleManageCredentials}
-          />
-          <ProjectInfoCard project={project} />
-        </ProjectSidebar>
+      <ProcessStatusCard
+        project={project}
+        resources={project.resources}
+        onProjectUpdate={onProjectUpdate}
+        approvalModalOpen={approvalModalOpen}
+        onApprovalModalClose={() => setApprovalModalOpen(false)}
+        onApprovalSubmit={handleApprovalSubmit}
+        approvalLoading={submitting}
+        approvalError={approvalError}
+        approvalResources={approvalResources}
+      />
 
-        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
-          <ProcessStatusCard
-            project={project}
+      {/* Cloud 리소스 통합 컨테이너 */}
+      {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+        <div ref={resourceSectionRef}>
+          <ResourceTransitionPanel
+            targetSourceId={project.targetSourceId}
             resources={project.resources}
-            onProjectUpdate={onProjectUpdate}
-            approvalModalOpen={approvalModalOpen}
-            onApprovalModalClose={() => setApprovalModalOpen(false)}
-            onApprovalSubmit={handleApprovalSubmit}
-            approvalLoading={submitting}
-            approvalError={approvalError}
-            approvalResources={approvalResources}
+            cloudProvider={project.cloudProvider}
+            processStatus={currentStep}
+          />
+        </div>
+      ) : (
+        <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
+          <div className="px-6 pt-6">
+            <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+          </div>
+
+          <ScanPanel
+            targetSourceId={project.targetSourceId}
+            cloudProvider={project.cloudProvider}
+            onScanComplete={async () => {
+              const updatedProject = await getProject(project.targetSourceId);
+              onProjectUpdate(updatedProject);
+            }}
           />
 
-        {/* Cloud 리소스 통합 컨테이너 */}
-        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-          <div ref={resourceSectionRef}>
-            <ResourceTransitionPanel
-              targetSourceId={project.targetSourceId}
-              resources={project.resources}
-              cloudProvider={project.cloudProvider}
-              processStatus={currentStep}
-            />
-          </div>
-        ) : (
-          <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
-            <div className="px-6 pt-6">
-              <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
-            </div>
-
-            <ScanPanel
-              targetSourceId={project.targetSourceId}
-              cloudProvider={project.cloudProvider}
-              onScanComplete={async () => {
-                const updatedProject = await getProject(project.targetSourceId);
-                onProjectUpdate(updatedProject);
-              }}
-            />
-
-            <ResourceTable
-              resources={project.resources.map((r) => ({
-                ...r,
-                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-              }))}
-              cloudProvider={project.cloudProvider}
-              processStatus={currentStep}
-              isEditMode={effectiveEditMode}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              credentials={credentials}
-              onCredentialChange={handleCredentialChange}
-              expandedVmId={expandedVmId}
-              onVmConfigToggle={setExpandedVmId}
-              onVmConfigSave={handleVmConfigSave}
-              onEditModeChange={setIsEditMode}
-            />
-          </div>
-        )}
-
-        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-        <div className="flex justify-end gap-3">
-          {effectiveEditMode ? (
-            <>
-              {!isStep1 && (
-                <button
-                  onClick={handleCancelEdit}
-                  className={getButtonClass('secondary')}
-                >
-                  취소
-                </button>
-              )}
-              <button
-                onClick={handleConfirmTargets}
-                disabled={submitting || selectedIds.length === 0}
-                className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
-              >
-                {submitting && <LoadingSpinner />}
-                연동 대상 확정 승인 요청
-              </button>
-            </>
-          ) : !isProcessing && (
-            <button
-              onClick={handleStartEdit}
-              className={getButtonClass('secondary')}
-            >
-              확정 대상 수정
-            </button>
-          )}
+          <ResourceTable
+            resources={project.resources.map((r) => ({
+              ...r,
+              vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+            }))}
+            cloudProvider={project.cloudProvider}
+            processStatus={currentStep}
+            isEditMode={effectiveEditMode}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            credentials={credentials}
+            onCredentialChange={handleCredentialChange}
+            expandedVmId={expandedVmId}
+            onVmConfigToggle={setExpandedVmId}
+            onVmConfigSave={handleVmConfigSave}
+            onEditModeChange={setIsEditMode}
+          />
         </div>
-        </main>
+      )}
+
+      <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
+
+      <div className="flex justify-end gap-3">
+        {effectiveEditMode ? (
+          <>
+            {!isStep1 && (
+              <button
+                onClick={handleCancelEdit}
+                className={getButtonClass('secondary')}
+              >
+                취소
+              </button>
+            )}
+            <button
+              onClick={handleConfirmTargets}
+              disabled={submitting || selectedIds.length === 0}
+              className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
+            >
+              {submitting && <LoadingSpinner />}
+              연동 대상 확정 승인 요청
+            </button>
+          </>
+        ) : !isProcessing && (
+          <button
+            onClick={handleStartEdit}
+            className={getButtonClass('secondary')}
+          >
+            확정 대상 수정
+          </button>
+        )}
       </div>
 
       {guide && (
@@ -321,6 +328,6 @@ export const AwsProjectPage = ({
           currentStepNumber={currentStep}
         />
       )}
-    </div>
+    </main>
   );
 };

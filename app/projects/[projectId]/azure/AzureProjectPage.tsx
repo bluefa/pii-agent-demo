@@ -26,19 +26,20 @@ import {
 } from '@/app/lib/api/azure';
 import type { AzureV1Settings } from '@/lib/types/azure';
 import { ScanPanel } from '@/app/components/features/scan';
-import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
-import { AzureInfoCard } from '@/app/components/features/AzureInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { RejectionAlert } from '@/app/projects/[projectId]/common';
+import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
+import { PageHeader } from '@/app/components/ui/PageHeader';
+import { PageMeta } from '@/app/components/ui/PageMeta';
+import { integrationRoutes } from '@/lib/routes';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError } from '@/lib/errors';
 import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
 import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
-import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
 
 interface AzureProjectPageProps {
   project: Project;
@@ -366,25 +367,30 @@ export const AzureProjectPage = ({
     onProjectUpdate(updatedProject);
   };
 
+  const breadcrumbCrumbs = [
+    { label: 'SIT Home', href: '/' },
+    { label: 'Service List', href: integrationRoutes.admin },
+    { label: project.serviceCode, href: integrationRoutes.admin },
+    { label: 'Azure Infrastructure' },
+  ];
+
+  const pageMetaItems = [
+    { label: 'Cloud Provider', value: 'Azure' },
+    { label: 'Subscription ID', value: azureIdentifiers.subscriptionId ?? '-' },
+    { label: 'Tenant ID', value: azureIdentifiers.tenantId ?? '-' },
+    { label: '모니터링 방식', value: 'Azure Agent' },
+  ];
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
-      <ProjectHeader project={project} />
+    <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <Breadcrumb crumbs={breadcrumbCrumbs} />
+      <PageHeader
+        title={`${project.name || project.projectCode} (${project.serviceCode})`}
+        backHref={integrationRoutes.admin}
+      />
+      <PageMeta items={pageMetaItems} />
 
-      <div className="flex flex-1 overflow-hidden">
-        <ProjectSidebar cloudProvider={project.cloudProvider}>
-          <AzureInfoCard
-            tenantId={azureIdentifiers.tenantId}
-            subscriptionId={azureIdentifiers.subscriptionId}
-            scanApp={scanApp}
-            scanAppError={scanAppError}
-            credentials={credentials}
-            onOpenGuide={handleOpenGuide}
-            onManageCredentials={handleManageCredentials}
-          />
-          <ProjectInfoCard project={project} />
-        </ProjectSidebar>
-
-        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
+      <>
           {!resourceLoaded ? (
             <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
               <LoadingSpinner />
@@ -480,8 +486,7 @@ export const AzureProjectPage = ({
               </div>
             </>
           )}
-        </main>
-      </div>
-    </div>
+      </>
+    </main>
   );
 };
