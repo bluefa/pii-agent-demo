@@ -14,10 +14,13 @@ import {
   updateIdcResourcesList,
   confirmIdcTargets,
 } from '@/app/lib/api/idc';
-import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { RejectionAlert } from '@/app/projects/[projectId]/common';
+import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
+import { PageHeader } from '@/app/components/ui/PageHeader';
+import { PageMeta } from '@/app/components/ui/PageMeta';
+import { integrationRoutes } from '@/lib/routes';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { IdcProcessStatusCard } from '@/app/projects/[projectId]/idc/IdcProcessStatusCard';
 import { cn, getButtonClass } from '@/lib/theme';
@@ -220,15 +223,32 @@ export const IdcProjectPage = ({
 
   const hasPendingResources = pendingResources.length > 0 && isStep1;
 
+  const breadcrumbCrumbs = [
+    { label: 'SIT Home', href: '/' },
+    { label: 'Service List', href: integrationRoutes.admin },
+    { label: project.serviceCode, href: integrationRoutes.admin },
+    { label: 'IDC Infrastructure' },
+  ];
+
+  const pageMetaItems = [
+    { label: 'Cloud Provider', value: 'IDC' },
+    { label: '서비스 코드', value: project.serviceCode },
+    { label: 'Jira Link', value: '-' },
+    { label: '모니터링 방식', value: 'SDU' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ProjectHeader project={project} />
+    <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <Breadcrumb crumbs={breadcrumbCrumbs} />
+      <PageHeader
+        title={`${project.name || project.projectCode} (${project.serviceCode})`}
+        backHref={integrationRoutes.admin}
+      />
+      <PageMeta items={pageMetaItems} />
 
-      <main className="p-6 space-y-6">
+      <>
         {/* Info & Process Status Cards - Side by Side */}
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <ProjectInfoCard project={project} />
-
+        <div>
           <IdcProcessStatusCard
             project={project}
             idcInstallationStatus={idcInstallationStatus}
@@ -366,7 +386,7 @@ export const IdcProjectPage = ({
             </button>
           )}
         </div>
-      </main>
-    </div>
+      </>
+    </main>
   );
 };

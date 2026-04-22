@@ -25,7 +25,11 @@ import {
   executeSduConnectionTest,
 } from '@/app/lib/api/sdu';
 import { getProject } from '@/app/lib/api';
-import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { RejectionAlert } from '@/app/projects/[projectId]/common';
+import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
+import { PageHeader } from '@/app/components/ui/PageHeader';
+import { PageMeta } from '@/app/components/ui/PageMeta';
+import { integrationRoutes } from '@/lib/routes';
 import { SduProjectInfoCard } from '@/app/projects/[projectId]/sdu/SduProjectInfoCard';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
 import {
@@ -221,21 +225,31 @@ export const SduProjectPage = ({
                            currentStep === 'CONNECTION_VERIFIED' ||
                            currentStep === 'INSTALLATION_COMPLETE';
 
+  const breadcrumbCrumbs = [
+    { label: 'SIT Home', href: '/' },
+    { label: 'Service List', href: integrationRoutes.admin },
+    { label: project.serviceCode, href: integrationRoutes.admin },
+    { label: 'SDU Infrastructure' },
+  ];
+
+  const pageMetaItems = [
+    { label: 'Cloud Provider', value: 'SDU' },
+    { label: '서비스 코드', value: project.serviceCode },
+    { label: 'Jira Link', value: '-' },
+    { label: '모니터링 방식', value: 'SDU' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <ProjectHeader project={project} />
+    <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <Breadcrumb crumbs={breadcrumbCrumbs} />
+      <PageHeader
+        title={`${project.name || project.projectCode} (${project.serviceCode})`}
+        backHref={integrationRoutes.admin}
+      />
+      <PageMeta items={pageMetaItems} />
 
-      <main className="p-6 space-y-6">
-        <div className="grid grid-cols-[350px_1fr] gap-6 items-start">
-          <SduProjectInfoCard
-            project={project}
-            iamUser={iamUser}
-            sourceIps={sourceIpList?.entries || []}
-            onOpenIamUser={iamUserModal.open}
-            onOpenSourceIp={sourceIpModal.open}
-            onOpenSetupGuide={setupGuideModal.open}
-          />
-
+      <>
+        <div>
           <SduProcessStatusCard
             project={project}
             currentStep={currentStep}
@@ -256,7 +270,6 @@ export const SduProjectPage = ({
         )}
 
         <RejectionAlert project={project} />
-      </main>
 
       <IamUserManageModal
         isOpen={iamUserModal.isOpen}
@@ -277,6 +290,7 @@ export const SduProjectPage = ({
         isOpen={setupGuideModal.isOpen}
         onClose={setupGuideModal.close}
       />
-    </div>
+      </>
+    </main>
   );
 };

@@ -24,16 +24,17 @@ import {
 } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
-import { ProjectInfoCard } from '@/app/components/features/ProjectInfoCard';
-import { GcpInfoCard } from '@/app/components/features/GcpInfoCard';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectHeader, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { RejectionAlert } from '@/app/projects/[projectId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { ProjectSidebar } from '@/app/components/layout/ProjectSidebar';
+import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
+import { PageHeader } from '@/app/components/ui/PageHeader';
+import { PageMeta } from '@/app/components/ui/PageMeta';
+import { integrationRoutes } from '@/lib/routes';
 import { AppError } from '@/lib/errors';
 
 interface GcpProjectPageProps {
@@ -298,24 +299,30 @@ export const GcpProjectPage = ({
     setIsEditMode(false);
   };
 
+  const breadcrumbCrumbs = [
+    { label: 'SIT Home', href: '/' },
+    { label: 'Service List', href: integrationRoutes.admin },
+    { label: project.serviceCode, href: integrationRoutes.admin },
+    { label: 'GCP Infrastructure' },
+  ];
+
+  const pageMetaItems = [
+    { label: 'Cloud Provider', value: 'GCP' },
+    { label: 'GCP Project ID', value: project.gcpProjectId ?? '-' },
+    { label: 'Jira Link', value: '-' },
+    { label: '모니터링 방식', value: 'GCP Agent' },
+  ];
+
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
-      <ProjectHeader project={project} />
+    <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <Breadcrumb crumbs={breadcrumbCrumbs} />
+      <PageHeader
+        title={`${project.name || project.projectCode} (${project.serviceCode})`}
+        backHref={integrationRoutes.admin}
+      />
+      <PageMeta items={pageMetaItems} />
 
-      <div className="flex flex-1 overflow-hidden">
-        <ProjectSidebar cloudProvider={project.cloudProvider}>
-          <GcpInfoCard
-            project={project}
-            credentials={credentials}
-            scanServiceAccount={scanSA}
-            terraformServiceAccount={tfSA}
-            onOpenGuide={handleOpenGuide}
-            onManageCredentials={handleManageCredentials}
-          />
-          <ProjectInfoCard project={project} />
-        </ProjectSidebar>
-
-        <main className="flex-1 min-w-0 overflow-y-auto p-6 space-y-6">
+      <>
           <ProcessStatusCard
             project={project}
             resources={resources}
@@ -416,8 +423,7 @@ export const GcpProjectPage = ({
             </button>
           )}
         </div>
-        </main>
-      </div>
-    </div>
+      </>
+    </main>
   );
 };
