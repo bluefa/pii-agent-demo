@@ -55,9 +55,8 @@ export const InfraCard = ({
     setExpanded((prev) => !prev);
   };
 
-  const handleRetry = async () => {
-    setConfirmedResources(null);
-    await fetchResources();
+  const handleRetry = () => {
+    void fetchResources();
   };
 
   return (

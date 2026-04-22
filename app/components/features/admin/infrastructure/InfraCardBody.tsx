@@ -32,7 +32,7 @@ export const InfraCardBody = ({ resources, loading, error, onRetry }: InfraCardB
             e.stopPropagation();
             onRetry();
           }}
-          className="text-[#0064FF] font-medium hover:underline"
+          className="text-[var(--color-primary)] font-medium hover:underline"
         >
           다시 시도
         </button>

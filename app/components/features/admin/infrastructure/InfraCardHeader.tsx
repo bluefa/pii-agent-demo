@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus, type CloudProvider, type ProjectSummary } from '@/lib/types';
-import { cn, providerColors, statusColors, textColors } from '@/lib/theme';
+import { cn, providerColors, textColors } from '@/lib/theme';
 import { ManagementSplitButton } from './ManagementSplitButton';
 
 interface InfraCardHeaderProps {
@@ -15,14 +15,6 @@ interface InfraCardHeaderProps {
   onManageAction: (action: 'view' | 'delete', targetSourceId: number) => void;
   onOpenDetail: (targetSourceId: number) => void;
 }
-
-const PROVIDER_BAR_COLOR: Record<CloudProvider, string> = {
-  AWS: 'bg-[#FF9900]',
-  Azure: 'bg-[#0078D4]',
-  GCP: 'bg-[#4285F4]',
-  IDC: 'bg-gray-700',
-  SDU: 'bg-purple-600',
-};
 
 const PROVIDER_LABEL: Record<CloudProvider, string> = {
   AWS: 'AWS',
@@ -71,11 +63,7 @@ const StatusCta = ({
             e.stopPropagation();
             onViewApproval(project, e);
           }}
-          className={cn(
-            'px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5',
-            statusColors.info.dot,
-            'hover:bg-[#0064FF]',
-          )}
+          className="px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]"
         >
           {DOCUMENT_ICON}
           승인 요청 확인
@@ -161,7 +149,7 @@ export const InfraCardHeader = ({
       ) : null}
 
       <span className={cn('inline-flex items-center gap-2 text-sm font-semibold', providerColor.text)}>
-        <span className={cn('inline-block w-1 h-[18px] rounded', PROVIDER_BAR_COLOR[project.cloudProvider])} />
+        <span className={cn('inline-block w-1 h-[18px] rounded', providerColor.bar)} />
         {PROVIDER_LABEL[project.cloudProvider]}
       </span>
 
