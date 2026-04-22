@@ -13,6 +13,18 @@ export const steps = [
   { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
 ];
 
+const checkIcon = (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const guideIcon = (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+  </svg>
+);
+
 interface StepProgressBarProps {
   currentStep?: ProcessStatus;
   customSteps?: ProgressBarStep[];
@@ -69,13 +81,7 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
                     )
                   )}
                 >
-                  {isCompleted ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    String(index + 1).padStart(2, '0')
-                  )}
+                  {isCompleted ? checkIcon : String(index + 1).padStart(2, '0')}
                 </div>
                 <span
                   className={cn(
@@ -113,9 +119,7 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
           )}
           aria-label="전체 프로세스 가이드 보기"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
+          {guideIcon}
           전체 가이드
         </button>
       )}
