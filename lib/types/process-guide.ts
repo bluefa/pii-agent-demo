@@ -12,7 +12,25 @@ export interface PrerequisiteGuide {
 }
 
 /**
+ * GuideCard 본문에 렌더할 인라인 파트 (일반 텍스트 / 강조 / 링크)
+ */
+export type GuideInline =
+  | string
+  | { strong: string }
+  | { link: string; href: string };
+
+/**
+ * GuideCard 본문 콘텐츠 (프로토타입 L1453-1518 GUIDES 구조)
+ */
+export interface StepGuideContent {
+  heading: string;          // <h4> 제목
+  summary: GuideInline[];   // <p> 요약 인라인 파트
+  bullets: GuideInline[][]; // <ul><li> 목록, 각 항목은 인라인 파트 배열
+}
+
+/**
  * 프로세스 가이드 단계의 상세 내용
+ * stepNumber 는 `ProcessStatus` enum 값(1-7)과 정렬된다.
  */
 export interface ProcessGuideStep {
   stepNumber: number;
@@ -23,6 +41,7 @@ export interface ProcessGuideStep {
   procedures?: string[];     // 수행 절차 (번호 매긴 스텝)
   warnings?: string[];       // 주의사항
   notes?: string[];          // 참고사항 (ⓘ 형태)
+  guide?: StepGuideContent;  // GuideCard(warm variant) 렌더 콘텐츠
 }
 
 /**
