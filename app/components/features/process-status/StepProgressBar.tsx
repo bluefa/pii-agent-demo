@@ -1,17 +1,29 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { cn, statusColors } from '@/lib/theme';
+import { cn, primaryColors, statusColors } from '@/lib/theme';
 
 export const steps = [
-  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 확정' },
-  { step: ProcessStatus.WAITING_APPROVAL, label: '승인 대기' },
-  { step: ProcessStatus.APPLYING_APPROVED, label: '연동대상반영중' },
-  { step: ProcessStatus.INSTALLING, label: '설치 진행' },
-  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트' },
-  { step: ProcessStatus.CONNECTION_VERIFIED, label: '연결 확인' },
+  { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
+  { step: ProcessStatus.WAITING_APPROVAL, label: '연동 대상 승인 대기' },
+  { step: ProcessStatus.APPLYING_APPROVED, label: '연동 대상 반영중' },
+  { step: ProcessStatus.INSTALLING, label: 'Agent 설치' },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트 (N-IRP 연동)' },
+  { step: ProcessStatus.CONNECTION_VERIFIED, label: '관리자 승인 대기' },
   { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
 ];
+
+const checkIcon = (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  </svg>
+);
+
+const guideIcon = (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+  </svg>
+);
 
 interface StepProgressBarProps {
   currentStep?: ProcessStatus;
@@ -57,25 +69,25 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200',
-                    isCompleted && cn(statusColors.success.dot, 'text-white'),
-                    isCurrent && cn(statusColors.info.dot, 'text-white ring-2', statusColors.info.border),
-                    !isCompleted && !isCurrent && cn(statusColors.pending.bg, statusColors.pending.text)
+                    'w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 border-2',
+                    isCompleted && cn(statusColors.success.dot, 'text-white border-transparent'),
+                    isCurrent && cn(primaryColors.bg, 'text-white border-transparent', primaryColors.haloRing),
+                    !isCompleted && !isCurrent && cn(
+                      statusColors.pending.bg,
+                      statusColors.pending.text,
+                      'border-transparent',
+                      primaryColors.borderHoverBase,
+                      primaryColors.textHoverBase
+                    )
                   )}
                 >
-                  {isCompleted ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    index + 1
-                  )}
+                  {isCompleted ? checkIcon : String(index + 1).padStart(2, '0')}
                 </div>
                 <span
                   className={cn(
                     'mt-1.5 text-xs text-center max-w-[120px] leading-tight break-words',
                     isCompleted && cn(statusColors.success.textDark, 'font-medium'),
-                    isCurrent && cn(statusColors.info.textDark, 'font-medium'),
+                    isCurrent && cn(primaryColors.text, 'font-semibold'),
                     !isCompleted && !isCurrent && statusColors.pending.text
                   )}
                 >
@@ -83,10 +95,10 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
                 </span>
               </div>
               {!isLast && (
-                <div className="flex-1 mx-1 mt-[-20px]">
+                <div className="flex-1 mx-1 mt-[-24px]">
                   <div
                     className={cn(
-                      'h-0.5 rounded-full',
+                      'h-[2px] rounded-full',
                       isCompleted ? statusColors.success.dot : statusColors.pending.bg
                     )}
                   />
@@ -107,9 +119,7 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
           )}
           aria-label="전체 프로세스 가이드 보기"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
+          {guideIcon}
           전체 가이드
         </button>
       )}
