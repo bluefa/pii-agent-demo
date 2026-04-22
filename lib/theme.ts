@@ -155,6 +155,13 @@ export const cardStyles = {
   },
   header: 'px-6 py-4 border-b border-gray-100',
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
+  /** GuideCard 용 warm(amber) variant — SIT 프로토타입 */
+  warmVariant: {
+    container: 'bg-amber-50/40 border-amber-200',
+    header: 'bg-gradient-to-b from-amber-100/50 to-amber-50/30 border-b border-amber-200',
+    icon: 'bg-amber-500 text-white',
+    titleText: 'text-amber-900',
+  },
 } as const;
 
 /**
@@ -204,6 +211,46 @@ export const badgeStyles = {
     sm: 'text-xs px-2 py-0.5',
     md: 'text-sm px-2.5 py-1',
   },
+} as const;
+
+/**
+ * TopNav 스타일 — SIT 프로토타입 전용 (slate-900 shell + 브랜드 그라디언트)
+ *
+ * brandGradient 의 raw hex (#0064FF / #4F46E5) 는 브랜드 색으로 예외 허용.
+ * 소비 측에서 이 상수만 참조하고 문자열을 중복 정의하지 말 것.
+ */
+export const navStyles = {
+  bg: 'bg-slate-900',
+  brandGradient: 'bg-gradient-to-br from-[#0064FF] to-[#4F46E5]',
+  link: {
+    inactive: 'text-slate-300 hover:bg-white/5 hover:text-white',
+    active: 'text-white bg-white/10',
+  },
+  user: {
+    avatar: 'bg-slate-600 text-white',
+    email: 'text-slate-300',
+  },
+} as const;
+
+/**
+ * 인라인 색상 태그 — DB Type, 연동 대상/비대상 등 6종
+ */
+export const tagStyles = {
+  blue: 'bg-blue-100 text-blue-800',
+  gray: 'bg-gray-100 text-gray-700',
+  green: 'bg-green-100 text-green-800',
+  red: 'bg-red-100 text-red-800',
+  orange: 'bg-orange-100 text-orange-800',
+  amber: 'bg-amber-100 text-amber-800',
+} as const;
+
+/**
+ * "관리" split 버튼 — primary 색상 CSS 변수 경유 (--color-primary)
+ */
+export const mgmtGroupStyles = {
+  primary: 'bg-[var(--color-primary)] text-white rounded-l-md',
+  more: 'bg-[var(--color-primary)] text-white rounded-r-md border-l border-white/20',
+  menu: 'absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[160px]',
 } as const;
 
 // =============================================================================
