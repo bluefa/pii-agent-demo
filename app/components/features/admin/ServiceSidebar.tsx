@@ -1,7 +1,40 @@
 'use client';
 
 import { ServiceCode } from '@/lib/types';
-import { statusColors, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
+import { primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
+
+const footerLinkClass = cn(
+  'flex items-center gap-2 text-[13px] py-1.5 transition-colors',
+  textColors.secondary,
+  primaryColors.textHover,
+);
+
+const sidebarFooter = (
+  <nav className="border-t border-gray-100 px-5 py-3 flex flex-col gap-1">
+    <a href="#" className={footerLinkClass}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+      Notice
+    </a>
+    <a href="#" className={footerLinkClass}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </svg>
+      Guide
+    </a>
+    <a href="#" className={footerLinkClass}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      FAQ
+    </a>
+  </nav>
+);
 
 interface ServicePageInfo {
   totalElements: number;
@@ -25,7 +58,6 @@ export const ServiceSidebar = ({
   services,
   selectedService,
   onSelectService,
-  projectCount,
   searchQuery,
   onSearchChange,
   pageInfo,
@@ -38,9 +70,9 @@ export const ServiceSidebar = ({
   const pageNumbers = Array.from({ length: paginationEnd - paginationStart }, (_, i) => paginationStart + i);
 
   return (
-    <aside className="w-64 bg-white shadow-sm flex flex-col">
+    <aside className="w-[280px] bg-white shadow-sm flex flex-col">
       <div className="px-4 py-3 border-b border-gray-100">
-        <h2 className={cn('text-xs font-semibold uppercase tracking-wider', textColors.quaternary)}>서비스 코드</h2>
+        <h2 className={cn('text-[15px] font-semibold', textColors.primary)}>Service List</h2>
       </div>
 
       <div className="px-3 py-2 border-b border-gray-100">
@@ -48,7 +80,7 @@ export const ServiceSidebar = ({
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="서비스 검색..."
+          placeholder="Service name or Service Code"
           className={cn(getInputClass(), '!py-2 !px-3 text-sm')}
         />
       </div>
@@ -60,32 +92,28 @@ export const ServiceSidebar = ({
             <p className={cn('text-xs mt-1', textColors.quaternary)}>다른 검색어를 입력해 주세요</p>
           </li>
         ) : (
-          services.map((service) => (
-            <li
-              key={service.code}
-              onClick={() => onSelectService(service.code)}
-              className={cn(
-                'mx-2 px-3 py-3 cursor-pointer rounded-lg transition-all duration-150',
-                selectedService === service.code
-                  ? `${statusColors.info.bgLight} border-l-4 border-l-blue-500 shadow-sm`
-                  : 'hover:bg-gray-50 border-l-4 border-l-transparent'
-              )}
-            >
-              <div className="flex items-center justify-between">
-                <span className={cn('font-medium', selectedService === service.code ? statusColors.info.textDark : 'text-gray-900')}>
-                  {service.code}
-                </span>
-                {selectedService === service.code && projectCount > 0 && (
-                  <span className={cn('text-xs px-2 py-0.5 rounded-full', statusColors.info.bg, primaryColors.text)}>
-                    {projectCount}
-                  </span>
+          services.map((service) => {
+            const isSelected = selectedService === service.code;
+            return (
+              <li
+                key={service.code}
+                onClick={() => onSelectService(service.code)}
+                className={cn(
+                  'mx-2 mb-0.5 cursor-pointer rounded-lg transition-all duration-150',
+                  isSelected
+                    ? cn('px-[13px] py-[11px] border', primaryColors.bgLight, primaryColors.border)
+                    : 'px-[14px] py-3 hover:bg-gray-50',
                 )}
-              </div>
-              <div className={cn('text-sm', selectedService === service.code ? primaryColors.text : textColors.tertiary)}>
-                {service.name}
-              </div>
-            </li>
-          ))
+              >
+                <div className={cn('text-[13px] font-semibold', isSelected ? primaryColors.text : textColors.primary)}>
+                  {service.code}
+                </div>
+                <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
+                  {service.name}
+                </div>
+              </li>
+            );
+          })
         )}
       </ul>
 
@@ -143,6 +171,8 @@ export const ServiceSidebar = ({
           </div>
         </div>
       )}
+
+      {sidebarFooter}
     </aside>
   );
 };
