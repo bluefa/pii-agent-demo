@@ -24,10 +24,12 @@ Or open the file, select all, copy, and paste manually.
 | 3 — Admin shell restructure | ✅ merged | #282 |
 | 4a — Admin InfraCard integration | ✅ merged | #283 |
 | 4b — Detail shell 5-provider | ✅ merged | #284 |
-| **5 — ProjectPageMeta + Scan headless** | 🟡 available | (B5 + B6, parallel) |
-| **6 — Scan state UIs** | 🔵 blocked by B6 | (B7) |
-| **7 — DbSelectionTable** | 🔵 blocked by B7 | (B8) |
-| **8 — Cleanup** | 🔵 blocked by A4+B5+B8 | (T17) |
+| 5 — ProjectPageMeta + Scan headless | ✅ merged | #286, #287 |
+| 6 — Scan state UIs | ✅ merged | #288 |
+| 7 — DbSelectionTable | ✅ merged | #289 |
+| 8 — Cleanup | 🟡 in review | #291 |
+| Post-Phase-1 — Detail TopNav injection | 🟡 in review | #292 |
+| **9 — Detail page integration finalize** | 🟡 available | `wave9-detail-integration.md` |
 
 ## Files
 
@@ -55,6 +57,9 @@ Or open the file, select all, copy, and paste manually.
 
 ### Wave 8 — requires A4 + B5 + B8 merged
 - `wave8-T17.md` — Phase 1 cleanup (delete orphan files, prune dead state, MEMORY refresh)
+
+### Wave 9 — requires B2 + B7 + B8 merged (all ✅)
+- `wave9-detail-integration.md` — Insert `GuideCard` between Stepper and DB card; consolidate `ScanPanel`+`ResourceTable` into unified `DbSelectionCard`; remove duplicate `<StepGuide>` from `ProcessStatusCard`
 
 ## Recommended execution
 
@@ -87,4 +92,4 @@ After PR #284 (B4) merges:
 
 ## Next waves
 
-Phase 1 ends with T17. For Phase 2 and beyond (e.g. IDC creation path, permissions API retirement, real scanHistoryStatus wiring), add new files alongside these.
+Phase 1 wraps with **T17 cleanup (#291)** + **Wave 9 detail integration**. For Phase 2 and beyond (e.g. IDC creation path, permissions API retirement, real `scanHistoryStatus` wiring, orphan `ScanPanel` removal), add new files alongside these.
