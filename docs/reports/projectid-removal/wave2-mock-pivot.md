@@ -170,8 +170,11 @@ export function resolveProjectId(...) { ... }          // 삭제
 export function resolveProject(...) { ... }            // 삭제 또는 rewire
 ```
 
-**After (~30 LOC):**
+**After (~40 LOC):** `parseTargetSourceId` 유지 + `resolveProject` 는 소비자 3곳이 있으므로 **mock-data 의존성만 교체해 보존**:
+
 ```ts
+import { getProjectByTargetSourceId } from '@/lib/mock-data';
+import type { Project } from '@/lib/types';
 import type { ProblemDetails } from '@/app/api/_lib/problem';
 import { createProblem } from '@/app/api/_lib/problem';
 
@@ -193,14 +196,39 @@ export function parseTargetSourceId(param: string, requestId: string): ParseResu
   }
   return { ok: true, value: id };
 }
+
+export function resolveProject(
+  targetSourceId: number,
+  requestId: string,
+): { ok: true; project: Project } | { ok: false; problem: ProblemDetails } {
+  const project = getProjectByTargetSourceId(targetSourceId);
+  if (!project) {
+    return {
+      ok: false,
+      problem: createProblem(
+        'TARGET_SOURCE_NOT_FOUND',
+        `targetSourceId ${targetSourceId}에 해당하는 리소스를 찾을 수 없습니다.`,
+        requestId,
+      ),
+    };
+  }
+  return { ok: true, project };
+}
 ```
 
-**`resolveProject` 사용처 확인**:
-```bash
-grep -rn "resolveProject\b" app/integration/api --include="*.ts" | grep -v "resolveProjectId"
+**삭제된 것**:
+- `resolveProjectId` 함수 전체
+- `getProjectIdByTargetSourceId` import
+- `resolveProject` 내부의 `!IS_MOCK` 분기 + `IS_MOCK` const
+- `const IS_MOCK = process.env.USE_MOCK_DATA !== 'false'` 선언 (불필요)
+
+**`resolveProject` 호출처 (main@`2b4f641` 기준 3개 — 이 wave에서 호출부 수정 불필요)**:
 ```
-- 사용 있으면: targetSourceId 직접 받는 형태로 유지 (`getProjectByTargetSourceId(targetSourceId)` 호출).
-- 사용 없으면: 삭제.
+app/integration/api/v1/azure/target-sources/[targetSourceId]/settings/route.ts:22
+app/integration/api/v1/gcp/target-sources/[targetSourceId]/settings/route.ts:11
+app/integration/api/v1/aws/target-sources/[targetSourceId]/verify-scan-role/route.ts:10
+```
+시그니처 동일하므로 변경 불필요 — mock-data 내부 조회만 단순화됨.
 
 ### 3-5. BFF Route 59개 업데이트
 
@@ -387,6 +415,10 @@ app/api/_lib/target-source.ts: 89 LOC → ~30 LOC
 
 59 route 파일: 각 3-4 LOC 감소 (resolver 호출 + guard 삭제).
 총 LOC: −200 이상."
+
+# ⛔ CLAUDE.md rule: push/PR 전 rebase 필수
+git fetch origin main
+git rebase origin/main
 
 git push -u origin refactor/projid-w2-mock-pivot
 ```

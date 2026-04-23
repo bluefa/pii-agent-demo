@@ -238,6 +238,10 @@ Scope: routing 레이어 일관성만. 다음 wave:
 - W3: app/projects 폴더 해체
 - W4: lib/api-client/types.ts 파라미터명 + integrationRoutes 함수명"
 
+# ⛔ CLAUDE.md rule: push/PR 전 rebase 필수
+git fetch origin main
+git rebase origin/main
+
 git push -u origin refactor/projid-w1-route-segment
 ```
 

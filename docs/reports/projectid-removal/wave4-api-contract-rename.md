@@ -195,6 +195,7 @@ grep -rn "projectId" --include="*.ts" --include="*.tsx" . \
 
 ## Step 4: Do NOT touch
 
+- **`ConfirmResourceMetadata.projectId`** (`lib/types.ts` L805) — GCP Cloud Project ID, **절대 수정 금지** (외부 계약)
 - **함수 이름** `client.projects.*`, `client.confirm.*`, `client.sdu.*` 등 네임스페이스/메서드명 — 이 wave 범위 밖. 별도 wave로 고려.
 - **URL 경로 리터럴** `/api/projects/...`, `/integration/projects/...` — W5에서 판단 (breakage 리스크).
 - `lib/types.ts` — W2 담당 (이미 merge)
@@ -256,6 +257,10 @@ URL 경로 /integration/projects/\${...} 는 유지 (breakage 리스크 회피).
 함수명만 rename — 4개 call site (AdminDashboard x2, TaskDetailModal, design ProjectsTable).
 
 모든 call site가 이미 targetSourceId 값을 전달하고 있었음 → 동작 변경 없음."
+
+# ⛔ CLAUDE.md rule: push/PR 전 rebase 필수
+git fetch origin main
+git rebase origin/main
 
 git push -u origin refactor/projid-w4-api-contract
 ```
