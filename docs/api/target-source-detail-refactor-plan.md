@@ -328,7 +328,7 @@
 
 - `rg` 기준으로 `project.resources`, `project.status`, `project.tenantId`, `project.subscriptionId` 등 직접 접근 지점을 단계별로 줄여간다.
 - Azure 상세 페이지에서 `getProject()` 이후 UI refresh가 필요한 지점을 개별 refetch로 치환한다.
-- SSR 진입부 `app/projects/[projectId]/page.tsx`가 필요한 read model을 병렬 조회하는지 확인한다.
+- SSR 진입부 `app/integration/target-sources/[targetSourceId]/page.tsx`가 필요한 read model을 병렬 조회하는지 확인한다.
 
 ### 10-3. 시나리오 검증
 

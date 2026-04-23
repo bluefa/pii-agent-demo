@@ -1,4 +1,6 @@
 > **DEPRECATED**: 이 문서는 더 이상 유지보수되지 않습니다. `docs/swagger/azure.yaml`을 참조하세요.
+>
+> **주의 (2026-04-24)**: 본 문서의 `/api/azure/projects/{projectId}/...` 경로는 projid-removal W1-W4 merge 로 `/integration/api/v1/azure/target-sources/{targetSourceId}/...` 형태로 이관 완료되었습니다. 본 문서는 historical reference.
 
 # Azure API
 

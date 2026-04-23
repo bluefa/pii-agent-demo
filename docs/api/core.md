@@ -1,4 +1,6 @@
 > **DEPRECATED**: 이 문서는 더 이상 유지보수되지 않습니다. `docs/swagger/*.yaml`을 참조하세요.
+>
+> **주의 (2026-04-24)**: 본 문서는 `project` / `projectId` 용어 체계로 작성된 historical reference입니다. 현행 contract에서는 `target-source` / `targetSourceId`로 용어가 이관되었으며 (projid-removal W1-W4 merge 완료), `/api/projects/{projectId}` 경로는 모두 `/integration/api/v1/target-sources/{targetSourceId}`로 대체되었습니다. 본 문서의 URL/필드명은 neither 수정하지 않습니다 — 최신 스펙은 `docs/swagger/user.yaml` 외 swagger 파일 참조.
 
 # Core API
 
