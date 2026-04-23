@@ -68,4 +68,20 @@ describe('resolveProject', () => {
       expect(result.project).toBe(fakeProject);
     }
   });
+
+  it('BFF 모드(USE_MOCK_DATA=false)에서는 INTERNAL_ERROR를 반환한다 (mock seed 누설 방지)', async () => {
+    vi.stubEnv('USE_MOCK_DATA', 'false');
+    vi.resetModules();
+    const { resolveProject: resolveProjectBff } = await import('@/app/api/_lib/target-source');
+
+    const result = resolveProjectBff(1001, 'req');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.problem.code).toBe('INTERNAL_ERROR');
+    }
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
 });
