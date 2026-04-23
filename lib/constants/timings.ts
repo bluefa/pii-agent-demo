@@ -8,6 +8,8 @@ export const TIMINGS = {
   PROCESS_STATUS_POLL_MS: 10_000,
   /** ID copy-to-clipboard 후 인라인 check mark 피드백 유지 시간. */
   COPY_FEEDBACK_MS: 1500,
+  /** Toast 자동 dismiss 기본 시간. TopNav, IdcProcessStatusCard 가 이미 쓰는 값. */
+  TOAST_HIDE_MS: 2000,
 } as const;
 
 export type TimingKey = keyof typeof TIMINGS;
