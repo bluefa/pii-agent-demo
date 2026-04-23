@@ -215,7 +215,124 @@ AI 가 기다려야 하는 것들:
 
 ---
 
-## 8. 참조
+## 8. Todo Checklist
+
+진행 상태 추적용 체크리스트. 각 항목의 owner 는 🤖 AI / 👤 사용자 / 🤝 협업.
+
+### Phase 0 · 계획 완결 (현재 단계)
+
+**Blocker 결정 — W1 시작 전 필수**
+- [ ] 👤 Q-B1 seed HTML 변환 규칙 승인 (heading/summary/bullets/procedures/warnings/notes 매핑)
+- [ ] 👤 Q-B2 en 초기값 (빈 / ko 복제 / placeholder / 기계번역)
+- [ ] 👤 Q-B3 step 4 variant-specific stepLabel 42개 개별 복사 확인
+- [ ] 👤 Q-B4 기존 `process-guides.ts` 삭제 시점 (W4-C 즉시 / deprecate / W5 까지 보존)
+
+**Important 결정 — W3 시작 전 필수**
+- [ ] 👤 Q-I1 저장 후 피드백 (토스트 / 목록 이동 / 토스트만)
+- [ ] 👤 Q-I2 미저장 이탈 경고 (beforeunload)
+- [ ] 👤 Q-I3 Preview 디바운스 주기 (0 / 200ms / 500ms)
+- [ ] 🤝 Q-I4 Admin 권한 체크 — 현재 인증 체계 확인 후 정책 결정
+- [ ] 👤 Q-I5 Process 타임라인 다른 단계 클릭 동작
+- [ ] 👤 Q-I6 en 편집 시 ko 참조 UI 필요 여부
+
+**스콥 재확인**
+- [ ] 👤 N7 이미지 툴바 MVP 포함 여부 재확인 (도메인 allow-list 부재 리스크)
+
+**문서 승격**
+- [ ] 🤖 `requirements-draft.md` → `spec.md` 승격 (Blocker 답 반영 후)
+- [ ] 🤖 `docs/swagger/guides.yaml` 초안 작성 (1-D)
+- [ ] 🤖 `docs/reports/guide-cms/data-model.md` 생성 (타입 + 변환 매핑)
+
+---
+
+### W1 · 기반 구현 (🤖 AI 독립)
+
+**PR-W1-a: 타입 + 상수 + Swagger**
+- [ ] 🤖 1-A `lib/types/guide.ts` (`GuideName` union, `GuideListItem`, `GuideDetail`, `GuideContent`, `CardPosition`, `CloudProviderGroup`)
+- [ ] 🤖 1-B `lib/constants/guide-names.ts` — 42개 `GUIDE_NAMES as const`
+- [ ] 🤖 1-C `lib/constants/guide-registry.ts` — `Record<GuideName, GuideMeta>` (provider/stepNumber/stepLabel/component/usedIn)
+- [ ] 🤖 1-D `docs/swagger/guides.yaml` — GET 목록 / GET 단건 / PUT
+- [ ] 👤 PR-W1-a 리뷰 & 머지
+
+**PR-W1-b: API 레이어**
+- [ ] 🤖 1-E `lib/mocks/guide-store.ts` — in-memory/파일 기반 read/write
+- [ ] 🤖 1-F `app/api/v1/guides/route.ts` + `app/api/v1/guides/[name]/route.ts` — USE_MOCK_DATA 분기
+- [ ] 🤖 1-G `lib/utils/sanitize-html.ts` — DOMPurify allow-list (태그 + `data-panel` 속성)
+- [ ] 🤖 1-I `lib/bff/client.ts` 확장 — `client.guides.{list,get,put}`
+- [ ] 👤 PR-W1-b 리뷰 & 머지
+
+**PR-W1-c: seed + 훅**
+- [ ] 🤖 1-H `scripts/migrate-guides-to-html.ts` — 기존 `process-guides.ts` → 42개 HTML 초기값
+- [ ] 🤝 1-H 결과 샘플 5개 검수 (사용자 체크포인트)
+- [ ] 🤖 1-J `app/hooks/useGuide.ts` — SWR 기반 단건 조회 + fallback
+- [ ] 👤 PR-W1-c 리뷰 & 머지
+
+---
+
+### W2 · 디자인 시안 (👤 사용자 주도 · Claude Design)
+
+- [ ] 👤 2-A 목록 페이지 시안 요청 (Provider 탭·테이블·검색)
+- [ ] 👤 2-B 편집 페이지 시안 요청 (메타 헤더·ko/en 탭·승인 버튼·저장 버튼·좌우 split)
+- [ ] 👤 2-C Panel 4종 스타일 시안 (`[data-panel="info|warning|note|success"]`)
+- [ ] 👤 2-D Process 타임라인 compact 시안 (7단계 + 현재 단계 하이라이트)
+- [ ] 👤 2-E Tiptap 툴바 버튼 19개 배치 시안
+- [ ] 👤 시안 PR push — 링크를 implementation-plan 에 추가
+
+---
+
+### W3 · 시안 기반 구현 (🤖 AI · W2 완료 후)
+
+**PR-W3-a: 목록 페이지**
+- [ ] 🤖 3-A `/admin/guides` 페이지 + 테이블 + Provider 탭 + 검색
+- [ ] 👤 PR-W3-a 리뷰 & 머지
+
+**PR-W3-b: 편집 페이지 shell + 탭 상태머신**
+- [ ] 🤖 3-B `/admin/guides/[name]` 라우트 + 메타 헤더
+- [ ] 🤖 3-D ko/en 탭 + "작성 완료 ✓" 버튼 + 저장 버튼 상태머신
+- [ ] 👤 PR-W3-b 리뷰 & 머지
+
+**PR-W3-c: Tiptap + Panel extension**
+- [ ] 🤖 3-C Tiptap 에디터 + 커스텀 Panel node (`data-panel`)
+- [ ] 🤖 3-F Panel CSS (`@tailwindcss/typography` prose + `[data-panel]` 스타일)
+- [ ] 👤 PR-W3-c 리뷰 & 머지
+
+**PR-W3-d: Preview**
+- [ ] 🤖 3-E Preview 영역 (Process 타임라인 + GuideCard 실시간 렌더 + ko/en 토글 + Process 접기)
+- [ ] 👤 PR-W3-d 리뷰 & 머지
+
+---
+
+### W4 · 기존 사용처 전환 (🤖 AI · W1 후, W3 과 병렬)
+
+**PR-W4**
+- [ ] 🤖 4-A `GuideCard` 리팩토링 — `content: { title, body: HTMLString }` prop
+- [ ] 🤖 4-B 5 provider 페이지 — `getProcessGuide()` → `useGuide(name)` 교체
+- [ ] 🤖 4-C 기존 `lib/constants/process-guides.ts` 삭제 또는 deprecate (Q-B4 답에 따름)
+- [ ] 🤝 5 provider 페이지 시각 회귀 QA (스크린샷 비교)
+- [ ] 👤 PR-W4 리뷰 & 머지
+
+---
+
+### W5 · QA · 마무리
+
+- [ ] 🤖 5-A 통합 테스트 — 목록 조회 → 편집 → 저장 → 재조회 전체 플로우
+- [ ] 🤖 5-B README + ADR 업데이트 (API 스펙, SoT 정책, 새 가이드 추가 절차)
+- [ ] 🤝 5-C 사용자 최종 검수 + 사인오프
+- [ ] 🤖 worktree 정리
+
+---
+
+### 후속 wave (이번 MVP 스콥 외)
+
+- [ ] PREREQ_* 3개 가이드 편집 추가 (`card_position: "prerequisite"`)
+- [ ] 이미지 업로드 + 도메인 allow-list (N7)
+- [ ] 편집 이력 / 감사 로그 (N1)
+- [ ] 낙관적 락 동시 편집 방어 (N3)
+- [ ] End-user UI 전체 i18n 승급 (Q6 → C)
+
+---
+
+## 9. 참조
 
 - 요구사항 문서: [`requirements-draft.md`](./requirements-draft.md)
 - Swagger: (예정) `docs/swagger/guides.yaml`
