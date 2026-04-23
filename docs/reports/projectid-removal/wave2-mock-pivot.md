@@ -48,12 +48,15 @@ cd /Users/study/pii-agent-demo-projid-w2-mock-pivot
 1. `docs/reports/projectid-removal/00-README.md` — 전체 배경 & simplify rationale
 2. `docs/reports/projectid-removal/inventory.md` §4, §5, §6, §7 — 증거 + 파일 리스트
 3. `app/api/_lib/target-source.ts` (89 LOC) — 현재 resolver 구현
-4. `lib/mock-data.ts:855-868` — mapping 헬퍼 3개
-5. `lib/types.ts:444-471, 752-759, 800-810` — 해당 타입 정의
-6. `lib/mock-idc.ts` — store 구조 레퍼런스 (다른 provider도 동일 패턴)
-7. 샘플 route: `app/integration/api/v1/idc/target-sources/[targetSourceId]/installation-status/route.ts` — 전형적 호출 패턴
-8. `.claude/skills/coding-standards/SKILL.md` — 스타일 참고
-9. `.claude/skills/simplify/SKILL.md` (있으면) — 단순화 원칙
+4. `lib/bff/mock-adapter.ts` (73 LOC) — **mock 모드의 BFF client**. `getProjectIdByTargetSourceId` 의존 + 자체 `resolveProjectId` 내부 함수 존재
+5. `lib/bff/client.ts:9` — `IS_MOCK ? mockBff : httpBff` 진입점
+6. `lib/mock-data.ts:855-868` — mapping 헬퍼 3개
+7. `lib/types.ts:444-471, 752-759, 800-810` — 해당 타입 정의
+8. `lib/mock-idc.ts` — store 구조 레퍼런스 (다른 provider도 동일 패턴)
+9. 샘플 route: `app/integration/api/v1/idc/target-sources/[targetSourceId]/installation-status/route.ts` — 전형적 호출 패턴
+10. `app/api/_lib/__tests__/target-source.test.ts` — `resolveProjectId` 직접 테스트 (§3-7 에서 업데이트 대상)
+11. `.claude/skills/coding-standards/SKILL.md` — 스타일 참고
+12. `.claude/skills/simplify/SKILL.md` — 단순화 원칙
 
 ## Step 3: Implementation
 
@@ -142,7 +145,7 @@ const generateTfStatus = (targetSourceId: number): IdcTfStatus => {
 export const getTargetSourceIdByProjectId = (projectId: string): number | undefined =>
   getStore().projects.find(p => p.id === projectId)?.targetSourceId;
 
-// L867-868 — resolveProjectId의 유일한 소비자
+// L867-868 — 소비자 2곳: app/api/_lib/target-source.ts 의 resolveProjectId + lib/bff/mock-adapter.ts
 export const getProjectIdByTargetSourceId = (targetSourceId: number): string | undefined =>
   getStore().projects.find(p => p.targetSourceId === targetSourceId)?.id;
 ```
@@ -230,6 +233,83 @@ app/integration/api/v1/aws/target-sources/[targetSourceId]/verify-scan-role/rout
 ```
 시그니처 동일하므로 변경 불필요 — mock-data 내부 조회만 단순화됨.
 
+### 3-4.5. `lib/bff/mock-adapter.ts` — legacy helper 의존 제거
+
+**중요**: 이 파일은 mock 모드(`USE_MOCK_DATA=true`)의 기본 BFF client (`lib/bff/client.ts:9` — `mockBff` export). `getProjectIdByTargetSourceId` 에 의존 + 자체 `resolveProjectId` 내부 함수까지 정의. W2 에서 이를 단순화하지 않으면 mock 모드가 **런타임에 깨짐**.
+
+**현재 구조 (main@`2b4f641`):**
+```ts
+// lib/bff/mock-adapter.ts
+import { getProjectIdByTargetSourceId } from '@/lib/mock-data';
+import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
+import { mockProjects } from '@/lib/api-client/mock/projects';
+
+function resolveProjectId(targetSourceId: number): string {
+  const projectId = getProjectIdByTargetSourceId(targetSourceId);
+  if (!projectId) {
+    throw new BffError(404, 'NOT_FOUND', '...');
+  }
+  return projectId;
+}
+
+export const mockBff: BffClient = {
+  targetSources: {
+    get: async (id) => {
+      const projectId = resolveProjectId(id);
+      const res = await mockTargetSources.get(projectId);
+      // ...
+    },
+    secrets: async (id) => {
+      const projectId = resolveProjectId(id);
+      const res = await mockProjects.credentials(projectId);
+      // ...
+    },
+  },
+  // ...
+};
+```
+
+**After (W2):**
+`lib/api-client/mock/target-sources.ts`, `mock/projects.ts` 내부가 targetSourceId(number)를 직접 처리하게 되었으므로 (§3-2 참조), mock-adapter의 resolver는 불필요. `String(id)` passthrough 로 축약:
+
+```ts
+// lib/bff/mock-adapter.ts (after)
+import type { NextResponse } from 'next/server';
+import type { BffClient } from '@/lib/bff/types';
+import type { SecretKey } from '@/lib/types';
+import type { CurrentUser } from '@/app/lib/api';
+import { BffError } from '@/lib/bff/errors';
+import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
+import { mockProjects } from '@/lib/api-client/mock/projects';
+import { mockUsers } from '@/lib/api-client/mock/users';
+import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
+
+// getProjectIdByTargetSourceId import 삭제
+// 자체 resolveProjectId 내부 함수 삭제 (-7 LOC)
+
+async function unwrap<T>(response: NextResponse): Promise<T> { /* unchanged */ }
+
+export const mockBff: BffClient = {
+  targetSources: {
+    get: async (id) => {
+      const res = await mockTargetSources.get(String(id));
+      const data = await unwrap<TargetSourceDetailResponse>(res);
+      return extractTargetSource(data);
+    },
+    secrets: async (id) => {
+      const res = await mockProjects.credentials(String(id));
+      const data = await unwrap<...>(res);
+      return data.credentials.map(...);
+    },
+  },
+  users: { /* unchanged */ },
+};
+```
+
+**효과**: mock-adapter.ts −10 LOC 추가 단순화. 404 NOT_FOUND 에러는 이제 mock-client 내부(`mockTargetSources.get`)에서 발생 — behavior 동일.
+
+**주의**: `mockTargetSources.get(projectId: string)` 시그니처는 W4 에서 `targetSourceId: string` 으로 rename 예정. W2 에서는 `String(id)` passthrough 이므로 W4 merge 후에도 자연스러움.
+
 ### 3-5. BFF Route 59개 업데이트
 
 **공통 패턴 변경**:
@@ -303,6 +383,15 @@ export async function checkInstallation(projectId: string) {
 - `lib/__tests__/mock-history.test.ts` (13건) — filter/assertion의 projectId → targetSourceId. test fixture의 projectId 값이 string이었다면 number로.
 - `lib/__tests__/mock-scan.test.ts` (8건) — ScanJob fixture & assertion.
 - `lib/__tests__/mock-target-source.test.ts` (8건) — `getProjectIdByTargetSourceId`/`getTargetSourceIdByProjectId` 테스트 **삭제**. `getProjectByTargetSourceId`만 남는다면 해당 테스트로 축소.
+- `app/api/_lib/__tests__/target-source.test.ts` — `parseTargetSourceId` 테스트는 유지. `describe('resolveProjectId', ...)` 블록은 **삭제** (production helper 삭제와 동반). `resolveProject` 테스트는 §3-4의 보존 helper에 맞춰 새로 작성:
+  ```ts
+  // vi.mock('@/lib/mock-data', () => ({ getProjectByTargetSourceId: vi.fn() }))
+  describe('resolveProject', () => {
+    it('존재하지 않는 targetSourceId 는 TARGET_SOURCE_NOT_FOUND 반환', ...);
+    it('존재하는 targetSourceId 는 project 반환', ...);
+  });
+  ```
+- 갭 파일 (mock-sdu/mock-gcp/mock-test-connection): Wave 0 에서 선행 작성된 상태여야 함 — Wave 0 merge 확인 후 이 wave 진행.
 
 ### 3-8. 잔여 `projectId` 검증
 
@@ -318,7 +407,8 @@ grep -rn "projectId" --include="*.ts" --include="*.tsx" . \
 
 - `lib/types.ts::ConfirmResourceMetadata.projectId` — GCP native
 - `lib/types.ts::Project` interface 필드 구성 (id/targetSourceId/projectCode) — 도메인
-- `lib/bff/client.ts`, `lib/bff/mock-adapter.ts` — 이미 깨끗함
+- `lib/bff/client.ts` — projectId 직접 참조 없음, 변경 불필요 (`mockBff` / `httpBff` 분기만 수행)
+- `lib/bff/http.ts`, `lib/bff/types.ts`, `lib/bff/errors.ts` — 변경 없음
 - `app/integration/projects/[projectId]/` folder rename — W1 담당
 - `app/projects/` folder 해체 — W3 담당
 - `lib/api-client/types.ts` 파라미터명 — W4 담당
@@ -327,44 +417,93 @@ grep -rn "projectId" --include="*.ts" --include="*.tsx" . \
 - `docs/swagger/*.yaml`, `docs/api/**/*.md` — W5 담당
 - ADR 문서
 
-## Step 5: Verify
+## Step 5: Verify — Behavior Preservation (핵심)
 
+이 wave 의 성공 기준은 **외부에서 관찰 가능한 동작 불변**. 5-layer 검증:
+
+### Layer 1 — TypeScript cascade (자동, 가장 강력한 보증)
 ```bash
-# 타입 (이게 가장 중요 — cascade 에러 많이 발생 예상)
 npx tsc --noEmit
+```
+`projectId: string` 필드를 `targetSourceId: number` 로 바꿨기 때문에 아직 잘못 참조하는 소비자가 있으면 즉시 컴파일 실패. **0 에러가 되어야** 모든 전파가 완료된 것.
 
-# 테스트 전체
+주요 에러 패턴:
+- `Record<string, T>` vs `Record<number, T>` 불일치 → 위쪽 호출자부터 고침
+- 변수명이 `projectId` 지만 타입은 number 인 임시 케이스 → 변수명도 `targetSourceId` 로 정리
+- 테스트 fixture 의 타입 미스매치
+
+### Layer 2 — 기존 behavior 테스트 (assertion 불변 증명)
+```bash
+# 먼저 전체 전체 regression
 npm test
 
-# 린트
-npm run lint
+# 특히 중요 (assertion 한 줄도 수정하지 않고 통과해야 함):
+npm test -- lib/__tests__/mock-history.test.ts
+npm test -- lib/__tests__/mock-scan.test.ts
+npm test -- lib/__tests__/mock-idc.test.ts         # W0 아님 — 기존 테스트
+npm test -- lib/__tests__/mock-azure.test.ts       # W0 아님
+npm test -- lib/__tests__/mock-installation.test.ts
+```
 
-# 빌드
+**⛔ assertion 수정 금지**. fixture 객체의 `projectId: 'sdu-1'` 을 `targetSourceId: 1001` 로 바꾸는 것은 허용 — 값의 의미가 같고 타입만 바뀌는 것이므로. `expect(result.data?.status).toBe('COMPLETED')` 같은 behavior assertion 은 건드리지 않음. assertion 을 바꿔야 green 이 나오면 **behavior drift 가 생긴 것** — 원인 찾아 production 코드 수정.
+
+### Layer 3 — W0 behavior lock-in 통과 (가장 crucial)
+```bash
+# W0 에서 sdu / gcp / test-connection 에 lock-in 된 behavior 가 그대로 통과해야 함
+npm test -- lib/__tests__/mock-sdu.test.ts
+npm test -- lib/__tests__/mock-gcp.test.ts
+npm test -- lib/__tests__/mock-test-connection.test.ts
+```
+
+이 세 파일의 assertion **한 줄도 수정하지 않고** 모두 GREEN 이어야 한다. fixture 의 string projectId 를 number targetSourceId 로 치환하는 변경만 허용.
+
+만약 red 면:
+- production behavior 가 실제로 바뀐 것 → 코드 수정
+- 또는 W0 quirk 가 실수로 의존한 내부 구현이 바뀐 것 → W0 assertion 이 너무 tight 했던 것. 상의 후 loosen.
+
+### Layer 4 — 린트 + 빌드
+```bash
+npm run lint
 rm -rf .next && npm run build
 ```
 
-**TypeScript 에러가 많이 나올 수 있다.** 주요 패턴:
-- `Record<string, T>` vs `Record<number, T>` 불일치 → 위쪽 호출자부터 고침
-- `projectId` 전파가 남아 있는 곳 — 변수명이 projectId지만 타입은 number인 임시 케이스도 있을 수 있음. 변수명도 targetSourceId로 정리.
-- 테스트 fixture의 타입 미스매치
+### Layer 5 — 코드 잔여 검증
+```bash
+# 이 wave 완료 후 이하 grep 전부 0건 (예외 제외)
+grep -rn "resolveProjectId" app/ lib/ --include="*.ts" --include="*.tsx"
+# → 0 건 (lib/bff/mock-adapter.ts 도 제거됨)
 
-## Step 5.5: Dev 수동 검증
+grep -rn "getProjectIdByTargetSourceId\|getTargetSourceIdByProjectId" --include="*.ts" .
+# → 0 건
+
+grep -rn "projectId" lib/types.ts
+# → 1 건 (L805 ConfirmResourceMetadata.projectId — GCP native 의도적 유지)
+```
+
+## Step 5.5: Dev 수동 E2E — 5 provider × 5 flow 매트릭스
 
 ```bash
 bash scripts/dev.sh
 ```
 
-체크 (mock 모드, default):
-- `/integration/admin` → 목록 표시
-- Row 클릭 → 상세 페이지 로드 성공
-- 상세 페이지에서 다음 동작 성공:
-  - Scan 실행 버튼 (mock-scan 경유)
-  - 설치 상태 폴링 (mock-installation + provider-specific)
-  - Approval 요청/취소 (mock-history + confirm APIs)
-  - Azure/GCP/IDC/SDU 각 provider 페이지 한 번씩 — `/integration/projects/<id>` 다양한 targetSourceId
-- Queue board → `/integration/task_admin`
+반드시 5개 provider 각각 다음 flow 를 직접 클릭하여 확인. mock 모드는 결정론적이므로 동일 target source ID 로 W2 전/후 같은 화면/데이터가 나와야 한다.
 
-BFF 모드는 별도 환경 필요. 이 wave에서는 mock만 확인 + type 확인으로 BFF 안정성 간접 검증.
+| Flow | AWS | Azure | GCP | IDC | SDU |
+|---|---|---|---|---|---|
+| 목록 로딩 (`/integration/admin`) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 상세 페이지 로드 (`/integration/projects/<id>`) | | | | | |
+| 설치 상태 폴링 (10초 간격) | | | | | |
+| Scan 실행 + 결과 | | | | | |
+| Approval 요청 + 취소 | | | | | |
+
+추가:
+- Queue board (`/integration/task_admin`) 목록 + 상세 modal 링크 → 상세 페이지 이동
+- Error 상태 — `/integration/projects/abc` → "유효하지 않은 과제 식별자" 에러 페이지 (W1 merge 후부터)
+- Process status: REQUEST_REQUIRED / WAITING_APPROVAL / APPLYING_APPROVED / TARGET_CONFIRMED 각 상태 렌더
+
+**비교 기준**: 같은 clicks 로 main@`2b4f641` (W2 전) 에서 본 것과 **화면/데이터 동일**. 다른 부분 발견 시 즉시 rollback 후 원인 분석.
+
+**BFF 모드** 는 별도 환경 필요. 이 wave 에서는 mock 만 확인 — Layer 1/2 의 타입 안전성이 BFF 모드 안정성을 간접 보증 (같은 시그니처, `String(targetSourceId)` passthrough).
 
 ## Step 6: Commit + push + PR
 

@@ -206,13 +206,38 @@ grep -rn "projectId" --include="*.ts" --include="*.tsx" . \
 - `docs/**` — W5 담당
 - UI 컴포넌트 파일명 / export 이름
 
-## Step 5: Verify
+## Step 5: Verify — Behavior Preservation
 
+이 wave 는 **파라미터/함수 이름 rename 만** — 타입(`string`)과 전달값은 그대로이므로 **동작 변경 없어야** 한다.
+
+### Layer 1 — TypeScript (signature 정합)
 ```bash
 npx tsc --noEmit
-npm run lint
+```
+`types.ts` 파라미터명과 mock 구현체 시그니처가 불일치하면 즉시 실패.
+
+### Layer 2 — 기존 테스트 (assertion 불변)
+```bash
 npm test
+```
+모든 기존 테스트 그대로 통과. 파라미터명 rename 이 behavior 와 무관함을 증명.
+
+### Layer 3 — 린트 + 빌드
+```bash
+npm run lint
 rm -rf .next && npm run build
+```
+
+### Layer 4 — 코드 잔여 검증
+```bash
+grep -rn "projectId: string" lib/api-client/types.ts
+# 기대: 0 건
+
+grep -rn "integrationRoutes\.project\b" --include="*.ts" --include="*.tsx" .
+# 기대: 0 건
+
+grep -rn "integrationRoutes\.targetSource\b" --include="*.ts" --include="*.tsx" .
+# 기대: 5 건 (정의 1 + call site 4)
 ```
 
 **TS 에러 흔한 원인**:
