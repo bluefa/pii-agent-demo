@@ -232,28 +232,43 @@ grep -rn "app/projects" docs/ | head -10
 - `lib/api-client/types.ts` — W4 담당
 - `docs/**` — W5 담당
 
-## Step 5: Verify
+## Step 5: Verify — Behavior Preservation
 
+이 wave 는 **파일 위치 이동만** 수행 — 컴포넌트 동작 변경 없음을 보장해야 한다.
+
+### Layer 1 — TypeScript (import 경로 정합)
 ```bash
-# `.next/` 정리 (라우트 폴더 구조 변경으로 stale cache 위험)
-rm -rf .next
-
-# TypeScript
 npx tsc --noEmit
+```
+이동 후 모든 import 경로가 존재하는 파일을 가리키는지 검증.
 
-# Lint
+### Layer 2 — 기존 테스트 (assertion 불변)
+```bash
+npm test -- app/integration/projects
+npm test  # 전체 regression
+```
+`page.test.ts` assertion 은 그대로. `vi.mock` 경로만 새 위치로.
+
+### Layer 3 — 린트 + clean build
+```bash
+rm -rf .next   # 라우트 폴더 구조 변경으로 stale cache 위험
 npm run lint
 
-# 테스트 (특히 page.test.ts)
-npm test -- app/integration/projects
-
-# Build
 npm run build
 ```
 
 **빌드 에러 흔한 원인**:
 - `_components/` private folder 규칙 위반 (바깥에서 내부 참조) → AzureSubnetGuide 승격이 제대로 안 됨
 - self-reference import 누락 — grep으로 검증
+
+### Layer 4 — 코드 잔여 검증
+```bash
+grep -rn "@/app/projects" --include="*.ts" --include="*.tsx" .
+# 기대: 0 건
+
+find app -type d -name "projects"
+# 기대: app/integration/projects 단일
+```
 
 ## Step 5.5: Dev 수동 확인
 

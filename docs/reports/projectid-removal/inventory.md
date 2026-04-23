@@ -166,6 +166,8 @@ export function resolveProject(targetSourceId: number, requestId: string) { ... 
 
 **59개 BFF route가 `resolveProjectId`를 호출** (리스트는 §7 참고). 이 함수의 삭제 = 이관의 핵심 단순화.
 
+**별개 동명 함수**: `lib/bff/mock-adapter.ts:22-28` 에 자체 `resolveProjectId(targetSourceId: number): string` 내부 함수가 정의되어 있음. `getProjectIdByTargetSourceId` 에 의존. mock 모드 BFF client (`lib/bff/client.ts:9` → `mockBff`) 가 이것을 사용하므로 W2 에서 **함께 단순화**해야 mock 모드가 안 깨짐 — 자세한 rewire는 `wave2-mock-pivot.md:§3-4.5`.
+
 ---
 
 ## 6. Mock 레이어
@@ -299,11 +301,20 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
 ---
 
-## 9. 테스트 파일
+## 9. 테스트 파일 (projectId 관련)
 
+### 업데이트 필요
 - `lib/__tests__/mock-history.test.ts` — 13 건 (projectId 필터링 검증)
 - `lib/__tests__/mock-scan.test.ts` — 8 건 (ScanJob.projectId 검증)
 - `lib/__tests__/mock-target-source.test.ts` — 8 건 (양방향 매핑 검증, `getProjectIdByTargetSourceId` 등)
+- `app/api/_lib/__tests__/target-source.test.ts` — `parseTargetSourceId` 유지, `describe('resolveProjectId')` 블록은 production helper 삭제와 함께 제거/rewrite (`resolveProject` 용으로)
+
+### 테스트 없음 (Wave 0 에서 선행 생성 필요)
+- `lib/mock-sdu.ts` (65건 projectId) — 테스트 파일 부재
+- `lib/mock-gcp.ts` (10건) — 테스트 파일 부재
+- `lib/mock-test-connection.ts` (11건) — 테스트 파일 부재
+
+W2 의 리팩토링 안전망 확보를 위해 **Wave 0 (behavior lock-in tests)** 을 W2 전에 merge 권장. `wave0-test-scaffolding.md` 참조.
 - `app/integration/projects/[projectId]/page.test.ts` — 4 건 (세그먼트 + import 경로)
 
 ---

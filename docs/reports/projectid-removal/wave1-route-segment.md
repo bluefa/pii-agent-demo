@@ -182,20 +182,41 @@ grep -rn "\[projectId\]" docs/ | head -20
 - `docs/api/**/*.md`, swagger — W5 담당
 - **컴포넌트 파일명, 컴포넌트 export 이름** — 유지
 
-## Step 5: Verify
+## Step 5: Verify — Behavior Preservation
 
+이 wave 는 **식별자 rename 만** 수행 — 런타임 동작 변경 없음을 보장해야 한다.
+
+### Layer 1 — TypeScript
 ```bash
-# TypeScript
 npx tsc --noEmit
+```
+`params.projectId` → `params.targetSourceId` 로 바꾼 곳을 놓치면 즉시 컴파일 실패.
 
-# Lint
-npm run lint
-
-# 테스트 (page.test.ts 포함)
+### Layer 2 — 기존 테스트 (assertion 불변)
+```bash
 npm test -- app/integration/projects
+```
+`page.test.ts` 의 **assertion 은 건드리지 않는다**. mock path / describe label 만 새 경로 반영. 통과해야 rename 이 의미 보존함을 증명.
 
-# Build (가장 중요 — App Router 라우트 폴더 rename은 build에서 drift 노출)
-npm run build
+### Layer 3 — 전체 regression
+```bash
+npm test
+```
+이 wave 는 라우팅만 건드리므로 다른 테스트가 깨지면 실수.
+
+### Layer 4 — 린트 + clean build (라우트 폴더 rename 은 build 에서 drift 노출)
+```bash
+npm run lint
+rm -rf .next && npm run build
+```
+
+### Layer 5 — 코드 잔여 검증
+```bash
+grep -rn "\[projectId\]" --include="*.ts" --include="*.tsx" .
+# 기대: 0 건 (docs/, .claude/ 제외)
+
+grep -rn "\[projectId\]" docs/ | head -20
+# 여러 건 정상 (W5 에서 처리)
 ```
 
 **빌드 실패 시 흔한 원인**:

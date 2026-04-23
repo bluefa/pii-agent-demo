@@ -21,6 +21,7 @@
 |---|---|---|
 | BFF 업스트림 계약 | 이미 `/target-sources/{id}` 통일 | 유지 |
 | `lib/bff/client.ts` | projectId 참조 0건 | 유지 |
+| `lib/bff/mock-adapter.ts` | `getProjectIdByTargetSourceId` import + 자체 `resolveProjectId` 내부 함수 | **단순화** (W2) — legacy helper 의존 제거 |
 | URL route segment | `[projectId]` 1개 라우트 (실제 값은 targetSourceId) | **rename** (W1) |
 | Mock provider stores | `{[projectId: string]: ...}` key 사용 | **pivot to targetSourceId** (W2) |
 | `resolveProjectId()` helper | 59 route에서 호출 | **삭제** (W2) |
@@ -68,11 +69,41 @@
 
 | Key | Title | Scope | Est. LOC Δ | Depends on |
 |---|---|---|---|---|
+| `wave0-test-scaffolding` | Behavior lock-in tests (선행 안전망) | `lib/__tests__/mock-sdu|gcp|test-connection.test.ts` 신규 | +670 / −0 (순수 테스트) | — |
 | `wave1-route-segment` | URL 세그먼트 rename | `[projectId]` → `[targetSourceId]` folder + `lib/routes.ts` param name | +10 / −15 | — |
-| `wave2-mock-pivot` | Mock store pivot + resolver 제거 | 10 mock 파일 + 59 routes + `lib/types.ts` 3 필드 + `target-source.ts` | +40 / −250 | — |
+| `wave2-mock-pivot` | Mock store pivot + resolver 제거 + `mock-adapter.ts` 단순화 | 10 mock 파일 + 59 routes + `lib/types.ts` 3 필드 + `target-source.ts` + `lib/bff/mock-adapter.ts` | +40 / −260 | **W0** |
 | `wave3-component-relocate` | `app/projects/` 폴더 해체 | 21 파일 이동 + 4 import 경로 | ±0 (이동 위주) | W1 |
 | `wave4-api-contract-rename` | API client 파라미터 + `integrationRoutes` rename | `lib/api-client/types.ts` param names + routes.ts + 4 call sites | +10 / −10 | — |
 | `wave5-docs-sync` | Swagger + docs/api 동기화 | `docs/api/**`, `docs/swagger/*.yaml` | ±50 | W1-W4 완료 |
+
+## Testing Strategy — 로직 보존 보장 (behavior preservation)
+
+리팩토링의 핵심 약속은 **외부 관찰 가능한 동작이 변하지 않는다**는 것. 이 약속은 5-layer 방어선으로 보증한다:
+
+| Layer | 수단 | 언제 | 보증 강도 |
+|---|---|---|---|
+| 1 | `npx tsc --noEmit` | 각 wave Step 5 | 🔒🔒🔒 타입으로 drift cascade 감지. `projectId: string` 필드 삭제 시 소비자 전부 컴파일 실패 |
+| 2 | 기존 vitest 스위트 (`npm test`) | 각 wave Step 5 | 🔒🔒 mock-idc/azure/history/scan/installation/target-source + route tests — **assertion 변경 없이 fixture 타입만 바뀜** |
+| 3 | **Wave 0 behavior lock-in** (신규) | W2 **전** | 🔒🔒 sdu/gcp/test-connection 의 현재 public behavior 를 assertion 으로 동결. W2 후에도 통과해야 success |
+| 4 | Dev 수동 E2E 매트릭스 (5 provider × 5 flow) | 각 wave Step 5.5 | 🔒 integration 스모크 |
+| 5 | `.next/` clean rebuild + grep 잔여 검증 | 각 wave Step 5 | 🔒 stale artifact / missed reference 감지 |
+
+### Wave 별 검증 강도
+
+| Wave | Layer 1 tsc | Layer 2 vitest | Layer 3 W0 테스트 | Layer 4 E2E | Layer 5 grep |
+|---|---|---|---|---|---|
+| W0 | ✓ | ✓ (신규 통과) | N/A (자신이 W0) | 불필요 | — |
+| W1 | ✓ | page.test.ts | — (W0 W2 전용) | 라우팅 smoke | `[projectId]` → 0건 |
+| **W2** | **✓ 필수** | **✓ 필수 (fixture rewrite, assertion 유지)** | **✓ 필수 (sdu/gcp/test-connection 통과)** | **5 provider 전부** | resolver grep 0 |
+| W3 | ✓ | page.test.ts | — | 5 provider 렌더 | `app/projects` → 0건 |
+| W4 | ✓ | ✓ | — | admin/task dashboard | `integrationRoutes.project` → 0건 |
+| W5 | ✓ (문서도 tsc 안전) | ✓ | — | N/A | projectId in docs |
+
+### 핵심 원칙
+
+1. **W2 의 테스트 변경 범위는 fixture 의 타입만** — assertion 은 그대로. `expect(result.data?.provider).toBe('SDU')` 같은 behavior 검증은 W2 에서 **단 한 줄도 수정되지 않아야** behavior 보존 증명.
+2. **W0 발견 quirk 는 W2 에서 수정하지 않는다** — 같은 quirk 가 W2 후에도 살아있어야 "logic unchanged". 개선은 별도 follow-up wave.
+3. **tsc 가 단일 중요 증거** — `projectId: string` 타입이 물리적으로 사라지면 모든 소비자가 `targetSourceId: number` 로 전환되거나 컴파일 에러. 누락 없는 cascade.
 
 ### File-level non-overlap (verified)
 
@@ -90,20 +121,22 @@
 
 ```
 Batch 1 (parallel, 2 agents — disjoint files):
-  ├── /wave-task wave1-route-segment     (lib/routes.ts param rename 포함)
-  └── /wave-task wave2-mock-pivot
+  ├── /wave-task wave0-test-scaffolding   (behavior lock-in, W2 blocker)
+  └── /wave-task wave1-route-segment       (lib/routes.ts param rename 포함)
 
-Batch 2 (parallel, 2 agents — both need W1 merged):
-  ├── /wave-task wave3-component-relocate
-  └── /wave-task wave4-api-contract-rename   (lib/routes.ts 함수명 — W1과 직렬)
+Batch 2 (parallel, 3 agents — W0 + W1 merge 후):
+  ├── /wave-task wave2-mock-pivot          (W0 필수 — 테스트 안전망)
+  ├── /wave-task wave3-component-relocate  (W1 필수)
+  └── /wave-task wave4-api-contract-rename (lib/routes.ts 함수명 — W1과 직렬 후 진행)
 
-Batch 3 (serial — 모든 코드 이관 merge 필요):
+Batch 3 (serial — W1-W4 merge 필요):
   └── /wave-task wave5-docs-sync
 ```
 
 ## Invocation
 
 ```
+/wave-task docs/reports/projectid-removal/wave0-test-scaffolding.md
 /wave-task docs/reports/projectid-removal/wave1-route-segment.md
 /wave-task docs/reports/projectid-removal/wave2-mock-pivot.md
 /wave-task docs/reports/projectid-removal/wave3-component-relocate.md
