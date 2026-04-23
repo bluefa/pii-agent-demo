@@ -48,7 +48,6 @@ export const IdcProjectPage = ({
   // 1단계이면 기본적으로 편집 모드
   const isStep1 = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const isInstalling = project.processStatus === ProcessStatus.INSTALLING;
-  const effectiveEditMode = isStep1 || isEditMode;
 
   // 설치 단계일 때 설치 상태 가져오기
   useEffect(() => {
@@ -65,10 +64,10 @@ export const IdcProjectPage = ({
     return project.resources.filter((r) => !editDeletedIds.has(r.id));
   }, [project.resources, editDeletedIds]);
 
-  // 선택된 ID 관리 (Step 1 이후에만 사용)
-  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
-    return project.resources.filter((r) => r.isSelected).map((r) => r.id);
-  });
+  const hasConfirmedTargets = useMemo(
+    () => project.resources.some((r) => r.isSelected),
+    [project.resources],
+  );
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -348,7 +347,7 @@ export const IdcProjectPage = ({
             </button>
             <button
               onClick={handleEditConfirm}
-              disabled={submitting || selectedIds.length === 0}
+              disabled={submitting || !hasConfirmedTargets}
               className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
             >
               {submitting && <LoadingSpinner />}
