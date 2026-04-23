@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import { getGcpInstallationStatus, checkGcpInstallation } from '@/app/lib/api/gcp';
 import { statusColors, textColors, interactiveColors, cn } from '@/lib/theme';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { GcpStepSummaryRow } from './GcpStepSummaryRow';
 import { GcpResourceStatusTable } from './GcpResourceStatusTable';
-import { ERROR_MESSAGES } from '@/lib/constants/messages';
+import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
 
 interface GcpInstallationInlineProps {
@@ -19,42 +18,14 @@ export const GcpInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: GcpInstallationInlineProps) => {
-  const [status, setStatus] = useState<GcpInstallationStatusResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getGcpInstallationStatus(targetSourceId);
-      setStatus(data);
-      if (data.summary.allCompleted) onInstallComplete?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : ERROR_MESSAGES.STATUS_FETCH_FAILED);
-    } finally {
-      setLoading(false);
-    }
-  }, [targetSourceId, onInstallComplete]);
-
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      setError(null);
-      const data = await checkGcpInstallation(targetSourceId);
-      setStatus(data);
-      if (data.summary.allCompleted) onInstallComplete?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '상태 새로고침에 실패했습니다.');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
+  const { status, loading, refreshing, error, fetchStatus, refresh } =
+    useInstallationStatus<GcpInstallationStatusResponse>({
+      targetSourceId,
+      getFn: getGcpInstallationStatus,
+      checkFn: checkGcpInstallation,
+      isComplete: (data) => data.summary.allCompleted,
+      onComplete: onInstallComplete,
+    });
 
   if (loading) return <InstallationLoadingView provider="GCP" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
@@ -77,7 +48,7 @@ export const GcpInstallationInline = ({
           )}
         </div>
         <button
-          onClick={handleRefresh}
+          onClick={refresh}
           disabled={refreshing}
           className={cn('p-1 rounded transition-colors disabled:opacity-50', interactiveColors.closeButton)}
           title="새로고침"

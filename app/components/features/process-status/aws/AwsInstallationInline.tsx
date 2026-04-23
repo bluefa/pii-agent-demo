@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { statusColors, cn } from '@/lib/theme';
 import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { Modal } from '@/app/components/ui/Modal';
@@ -9,7 +9,7 @@ import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { useModal } from '@/app/hooks/useModal';
-import { ERROR_MESSAGES } from '@/lib/constants/messages';
+import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import type { AwsInstallationStatus, AwsResourceType } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
@@ -86,33 +86,25 @@ export const AwsInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
-  const [status, setStatus] = useState<AwsInstallationStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [expandedScriptKey, setExpandedScriptKey] = useState<string | null>(null);
   const detailModal = useModal<ProgressDetailType>();
   const completionNotifiedRef = useRef(false);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getAwsInstallationStatus(targetSourceId);
-      setStatus(data);
-      if (isFullyCompleted(data) && !completionNotifiedRef.current) {
+  useEffect(() => {
+    completionNotifiedRef.current = false;
+  }, [targetSourceId]);
+
+  const { status, loading, error, fetchStatus } = useInstallationStatus<AwsInstallationStatus>({
+    targetSourceId,
+    getFn: getAwsInstallationStatus,
+    isComplete: isFullyCompleted,
+    onComplete: () => {
+      if (!completionNotifiedRef.current) {
         completionNotifiedRef.current = true;
         onInstallComplete?.();
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : ERROR_MESSAGES.STATUS_FETCH_FAILED);
-    } finally {
-      setLoading(false);
-    }
-  }, [onInstallComplete, targetSourceId]);
-  useEffect(() => {
-    completionNotifiedRef.current = false;
-    fetchStatus();
-  }, [fetchStatus]);
+    },
+  });
 
   if (loading) return <InstallationLoadingView provider="AWS" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
@@ -9,10 +9,9 @@ import { AzureResourceList } from '@/app/components/features/process-status/azur
 import { AzurePeApprovalGuide } from '@/app/components/features/process-status/azure/AzurePeApprovalGuide';
 import { AzureSubnetGuide } from '@/app/projects/[projectId]/azure/AzureSubnetGuide';
 import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
-import { AppError } from '@/lib/errors';
+import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { formatDateTime } from '@/lib/utils/date';
 import { statusColors, cn, textColors } from '@/lib/theme';
-import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import type { Resource } from '@/lib/types';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
@@ -77,12 +76,6 @@ const toInstallStep = (v1Resource: AzureV1Resource): InstallStep => {
   return getDbInstallStep(v1Resource.privateEndpoint?.status as PrivateEndpointStatus | undefined);
 };
 
-const getErrorMessage = (err: unknown): string => {
-  if (err instanceof AppError) return err.message;
-  if (err instanceof Error) return err.message;
-  return ERROR_MESSAGES.STATUS_FETCH_FAILED;
-};
-
 const getLastCheckedLabel = (checkedAt?: string): string | null =>
   checkedAt ? formatDateTime(checkedAt) : null;
 
@@ -91,44 +84,16 @@ export const AzureInstallationInline = ({
   resources,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
-  const [status, setStatus] = useState<AzureV1InstallationStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { status, loading, refreshing, error, fetchStatus, refresh } =
+    useInstallationStatus<AzureV1InstallationStatus>({
+      targetSourceId,
+      getFn: getAzureInstallationStatus,
+      checkFn: checkAzureInstallation,
+    });
   const [showSubnetGuide, setShowSubnetGuide] = useState(false);
   const [showPeGuide, setShowPeGuide] = useState<{ show: boolean; peId?: string }>({ show: false });
 
   const selectedResources = resources.filter(r => r.isSelected);
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getAzureInstallationStatus(targetSourceId);
-      setStatus(data);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [targetSourceId]);
-
-  const handleRefresh = async () => {
-    try {
-      setRefreshing(true);
-      setError(null);
-      const data = await checkAzureInstallation(targetSourceId);
-      setStatus(data);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchStatus();
-  }, [fetchStatus]);
 
   const unifiedResources: UnifiedInstallResource[] = useMemo(() => {
     const v1ResourceMap = new Map(
@@ -222,7 +187,7 @@ export const AzureInstallationInline = ({
               <span className={cn('text-sm font-medium', mainCardColor.textDark)}>{statusText}</span>
             </div>
             <button
-              onClick={handleRefresh}
+              onClick={refresh}
               disabled={refreshing}
               className={cn('p-1 rounded transition-colors disabled:opacity-50 flex-shrink-0 ml-2', mainCardColor.textDark, 'hover:bg-white/50')}
               title="새로고침"
