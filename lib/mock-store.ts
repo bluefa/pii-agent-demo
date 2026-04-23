@@ -49,3 +49,7 @@ export const getStore = (): Store => {
     }
     return globalThis.__piiAgentMockStore;
 };
+
+export const resetStore = (): void => {
+    globalThis.__piiAgentMockStore = undefined;
+};
