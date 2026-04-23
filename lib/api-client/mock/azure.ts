@@ -12,7 +12,7 @@ const authorize = async (projectId: string) => {
     ) };
   }
 
-  const project = await mockData.getProjectById(projectId);
+  const project = mockData.getProjectByTargetSourceId(Number(projectId));
   if (!project) {
     return { error: NextResponse.json(
       { error: AZURE_ERROR_CODES.NOT_FOUND.code, message: AZURE_ERROR_CODES.NOT_FOUND.message },
@@ -45,42 +45,42 @@ export const mockAzure = {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.checkAzureInstallation(projectId));
+    return handleResult(azureFns.checkAzureInstallation(Number(projectId)));
   },
 
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.getAzureInstallationStatus(projectId));
+    return handleResult(azureFns.getAzureInstallationStatus(Number(projectId)));
   },
 
   getSubnetGuide: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.getAzureSubnetGuide(projectId));
+    return handleResult(azureFns.getAzureSubnetGuide(Number(projectId)));
   },
 
   vmCheckInstallation: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.checkAzureVmInstallation(projectId));
+    return handleResult(azureFns.checkAzureVmInstallation(Number(projectId)));
   },
 
   vmGetInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.getAzureVmInstallationStatus(projectId));
+    return handleResult(azureFns.getAzureVmInstallationStatus(Number(projectId)));
   },
 
   getSettings: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.getAzureServiceSettings(auth.project!.serviceCode));
+    return handleResult(azureFns.getAzureServiceSettings(auth.project!.serviceCode));
   },
 
   getScanApp: async (projectId: string) => {
@@ -102,6 +102,6 @@ export const mockAzure = {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(await azureFns.getAzureVmTerraformScript(projectId));
+    return handleResult(azureFns.getAzureVmTerraformScript(Number(projectId)));
   },
 };

@@ -29,6 +29,8 @@ interface MockResourceCatalogResponse {
 }
 
 const TEST_PROJECT_ID = 'test-resource-catalog-project';
+const TEST_TARGET_SOURCE_ID = 3001;
+const TEST_TARGET_SOURCE_ID_STR = String(TEST_TARGET_SOURCE_ID);
 
 const parseResponse = async <T>(response: Response): Promise<T> => {
   return response.json() as Promise<T>;
@@ -47,7 +49,7 @@ const createTestResource = (id: string, overrides: Partial<Resource> = {}): Reso
 
 const createTestProject = (overrides: Partial<Project> = {}): Project => ({
   id: TEST_PROJECT_ID,
-  targetSourceId: 3001,
+  targetSourceId: TEST_TARGET_SOURCE_ID,
   projectCode: 'AZURE-RESOURCE-CATALOG',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'Azure',
@@ -98,7 +100,7 @@ describe('mockConfirm.getResources', () => {
     const store = getStore();
     store.projects.push(createTestProject());
 
-    const response = await mockConfirm.getResources(TEST_PROJECT_ID);
+    const response = await mockConfirm.getResources(TEST_TARGET_SOURCE_ID_STR);
     const body = await parseResponse<MockResourceCatalogResponse>(response);
 
     expect(body.total_count).toBe(2);

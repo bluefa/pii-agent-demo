@@ -6,6 +6,8 @@ import { ProcessStatus, type Project, type Resource } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 
 const TEST_PROJECT_ID = 'test-confirm-credential-sync';
+const TEST_TARGET_SOURCE_ID = 9999;
+const TEST_TARGET_SOURCE_ID_STR = String(TEST_TARGET_SOURCE_ID);
 
 const createTestResource = (overrides?: Partial<Resource>): Resource => ({
   id: 'res-1',
@@ -21,7 +23,7 @@ const createTestResource = (overrides?: Partial<Resource>): Resource => ({
 
 const createTestProject = (): Project => ({
   id: TEST_PROJECT_ID,
-  targetSourceId: 1001,
+  targetSourceId: TEST_TARGET_SOURCE_ID,
   projectCode: 'AZ-001',
   name: 'Azure Test Project',
   description: 'Azure Test',
@@ -66,16 +68,16 @@ describe('mockConfirm.updateResourceCredential', () => {
   });
 
   it('keeps approved-integration snapshot credentials in sync', async () => {
-    _setApprovedIntegration(TEST_PROJECT_ID);
+    _setApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
 
-    const updateResponse = await mockConfirm.updateResourceCredential(TEST_PROJECT_ID, {
+    const updateResponse = await mockConfirm.updateResourceCredential(TEST_TARGET_SOURCE_ID_STR, {
       resourceId: 'azure-sql-1',
       credentialId: 'cred-new',
     });
 
     expect(updateResponse.status).toBe(200);
 
-    const approvedResponse = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
+    const approvedResponse = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
     const approvedBody = await approvedResponse.json();
 
     expect(approvedBody.approved_integration.resource_infos).toEqual([
