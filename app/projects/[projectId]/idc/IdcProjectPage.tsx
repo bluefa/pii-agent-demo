@@ -18,6 +18,7 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
+import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { IdcProcessStatusCard } from '@/app/projects/[projectId]/idc/IdcProcessStatusCard';
 import { cn, getButtonClass } from '@/lib/theme';
 
@@ -242,6 +243,11 @@ export const IdcProjectPage = ({
           const updated = await getProject(project.targetSourceId);
           onProjectUpdate(updated);
         }}
+      />
+
+      <GuideCard
+        currentStep={project.processStatus}
+        provider={project.cloudProvider}
       />
 
       {/* IDC Resource Input Panel - 1단계에서만 표시 */}

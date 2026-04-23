@@ -48,8 +48,6 @@ export const GuideCard = ({ currentStep, provider, installationMode }: GuideCard
   const step = guide?.steps.find((s) => s.stepNumber === currentStep);
   const content: StepGuideContent | undefined = step?.guide;
 
-  if (!content) return null;
-
   return (
     <div
       className={cn(
@@ -77,16 +75,22 @@ export const GuideCard = ({ currentStep, provider, installationMode }: GuideCard
       </div>
 
       <div className="px-6 py-5 text-[13px] text-gray-600 leading-[1.72]">
-        <h4 className="text-sm font-bold text-gray-900 mb-1.5">{content.heading}</h4>
-        <p className="mb-2">{renderInline(content.summary)}</p>
-        {content.bullets.length > 0 && (
-          <ul className={cn('list-disc pl-5 space-y-0.5', primaryColors.marker)}>
-            {content.bullets.map((bullet, idx) => (
-              <li key={idx} className="text-gray-600">
-                {renderInline(bullet)}
-              </li>
-            ))}
-          </ul>
+        {content ? (
+          <>
+            <h4 className="text-sm font-bold text-gray-900 mb-1.5">{content.heading}</h4>
+            <p className="mb-2">{renderInline(content.summary)}</p>
+            {content.bullets.length > 0 && (
+              <ul className={cn('list-disc pl-5 space-y-0.5', primaryColors.marker)}>
+                {content.bullets.map((bullet, idx) => (
+                  <li key={idx} className="text-gray-600">
+                    {renderInline(bullet)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="text-gray-500">가이드를 준비 중입니다.</p>
         )}
       </div>
     </div>
