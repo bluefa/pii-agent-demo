@@ -15,6 +15,7 @@ import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
 import { getProcessGuide } from '@/lib/constants/process-guides';
+import { TIMINGS } from '@/lib/constants/timings';
 import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
 import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
@@ -147,7 +148,7 @@ export const ProcessStatusCard = ({
     // 마운트 시 즉시 1회 조회
     poll();
 
-    pollRef.current = setInterval(poll, 10_000);
+    pollRef.current = setInterval(poll, TIMINGS.PROCESS_STATUS_POLL_MS);
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
