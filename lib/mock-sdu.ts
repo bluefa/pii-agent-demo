@@ -1,4 +1,4 @@
-import { getProjectById } from '@/lib/mock-data';
+import { getProjectByTargetSourceId } from '@/lib/mock-data';
 import type { Project } from '@/lib/types';
 import type {
   SduInstallationStatus,
@@ -16,12 +16,12 @@ import { SDU_ERROR_CODES } from '@/lib/constants/sdu';
 // ===== 내부 상태 저장소 (개발용) =====
 
 interface SduStore {
-  installationStatus: Record<string, SduInstallationStatus>;
-  s3Upload: Record<string, S3UploadInfo>;
-  iamUsers: Record<string, IamUser>;
-  sourceIps: Record<string, SourceIpManagement>;
-  athenaTables: Record<string, SduAthenaTable[]>;
-  connectionTest: Record<string, SduConnectionTestInfo>;
+  installationStatus: Record<number, SduInstallationStatus>;
+  s3Upload: Record<number, S3UploadInfo>;
+  iamUsers: Record<number, IamUser>;
+  sourceIps: Record<number, SourceIpManagement>;
+  athenaTables: Record<number, SduAthenaTable[]>;
+  connectionTest: Record<number, SduConnectionTestInfo>;
 }
 
 const sduStore: SduStore = {
@@ -39,20 +39,21 @@ const isSduProject = (project: Project): boolean => {
   return project.cloudProvider === 'SDU';
 };
 
-const generateIamUser = (projectId: string): IamUser => {
+// slice(-8) 입력은 원본 project.id 문자열 유지 — W0 lock-in 값 보존 (기존: 'sdu-user--sdu-001', 'sdu-user-u-proj-1' 등)
+const generateIamUser = (projectIdString: string): IamUser => {
   const now = new Date();
   const expiresAt = new Date(now);
   expiresAt.setFullYear(expiresAt.getFullYear() + 1); // +1년
 
   return {
-    userName: `sdu-user-${projectId.slice(-8)}`,
+    userName: `sdu-user-${projectIdString.slice(-8)}`,
     akSkIssuedAt: now.toISOString(),
     akSkIssuedBy: 'admin@example.com',
     akSkExpiresAt: expiresAt.toISOString(),
   };
 };
 
-const generateDefaultSourceIps = (projectId: string): SourceIpEntry[] => {
+const generateDefaultSourceIps = (): SourceIpEntry[] => {
   const now = new Date();
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -75,18 +76,18 @@ const generateDefaultSourceIps = (projectId: string): SourceIpEntry[] => {
   ];
 };
 
-const generateAthenaTables = (projectId: string): SduAthenaTable[] => {
-  const database = `sdu_db_${projectId.slice(-8)}`;
+const generateAthenaTables = (projectIdString: string): SduAthenaTable[] => {
+  const database = `sdu_db_${projectIdString.slice(-8)}`;
   return [
     {
       tableName: 'pii_users',
       database,
-      s3Location: `s3://sdu-data-${projectId.slice(-8)}/pii_users/`,
+      s3Location: `s3://sdu-data-${projectIdString.slice(-8)}/pii_users/`,
     },
     {
       tableName: 'pii_transactions',
       database,
-      s3Location: `s3://sdu-data-${projectId.slice(-8)}/pii_transactions/`,
+      s3Location: `s3://sdu-data-${projectIdString.slice(-8)}/pii_transactions/`,
     },
   ];
 };
@@ -97,9 +98,9 @@ const generateAthenaTables = (projectId: string): SduAthenaTable[] => {
  * SDU 설치 상태 조회
  */
 export const getSduInstallationStatus = (
-  projectId: string
+  targetSourceId: number
 ): { data?: SduInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -110,11 +111,11 @@ export const getSduInstallationStatus = (
   }
 
   // 캐시된 상태가 있으면 반환
-  if (sduStore.installationStatus[projectId]) {
-    return { data: sduStore.installationStatus[projectId] };
+  if (sduStore.installationStatus[targetSourceId]) {
+    return { data: sduStore.installationStatus[targetSourceId] };
   }
 
-  // 초기 설치 상태 생성
+  // 초기 설치 상태 생성 — database 이름은 project.id slice 기반으로 W0 lock-in 보존
   const result: SduInstallationStatus = {
     provider: 'SDU',
     crawler: {
@@ -124,7 +125,7 @@ export const getSduInstallationStatus = (
     athenaTable: {
       status: 'PENDING',
       tableCount: 0,
-      database: `sdu_db_${projectId.slice(-8)}`,
+      database: `sdu_db_${project.id.slice(-8)}`,
     },
     targetConfirmed: false,
     athenaSetup: {
@@ -133,7 +134,7 @@ export const getSduInstallationStatus = (
     lastCheckedAt: new Date().toISOString(),
   };
 
-  sduStore.installationStatus[projectId] = result;
+  sduStore.installationStatus[targetSourceId] = result;
   return { data: result };
 };
 
@@ -141,9 +142,9 @@ export const getSduInstallationStatus = (
  * SDU 설치 상태 새로고침 (상태를 한 단계씩 진행시키는 시뮬레이션)
  */
 export const checkSduInstallation = (
-  projectId: string
+  targetSourceId: number
 ): { data?: SduInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -154,7 +155,7 @@ export const checkSduInstallation = (
   }
 
   // 현재 상태 조회
-  const currentResult = getSduInstallationStatus(projectId);
+  const currentResult = getSduInstallationStatus(targetSourceId);
   if (currentResult.error || !currentResult.data) {
     return currentResult;
   }
@@ -185,7 +186,7 @@ export const checkSduInstallation = (
   }
 
   status.lastCheckedAt = new Date().toISOString();
-  sduStore.installationStatus[projectId] = status;
+  sduStore.installationStatus[targetSourceId] = status;
 
   return { data: status };
 };
@@ -194,9 +195,9 @@ export const checkSduInstallation = (
  * S3 업로드 상태 조회
  */
 export const getS3UploadStatus = (
-  projectId: string
+  targetSourceId: number
 ): { data?: S3UploadInfo; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -207,8 +208,8 @@ export const getS3UploadStatus = (
   }
 
   // 캐시된 상태가 있으면 반환
-  if (sduStore.s3Upload[projectId]) {
-    return { data: sduStore.s3Upload[projectId] };
+  if (sduStore.s3Upload[targetSourceId]) {
+    return { data: sduStore.s3Upload[targetSourceId] };
   }
 
   // 초기 상태: PENDING
@@ -216,7 +217,7 @@ export const getS3UploadStatus = (
     status: 'PENDING',
   };
 
-  sduStore.s3Upload[projectId] = result;
+  sduStore.s3Upload[targetSourceId] = result;
   return { data: result };
 };
 
@@ -224,9 +225,9 @@ export const getS3UploadStatus = (
  * S3 업로드 상태 진단 (시스템이 S3 버킷을 확인하여 업로드 여부를 판별)
  */
 export const checkS3Upload = (
-  projectId: string
+  targetSourceId: number
 ): { data?: S3UploadInfo; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -236,7 +237,7 @@ export const checkS3Upload = (
     return { error: SDU_ERROR_CODES.NOT_SDU_PROJECT };
   }
 
-  const currentResult = getS3UploadStatus(projectId);
+  const currentResult = getS3UploadStatus(targetSourceId);
   if (currentResult.error || !currentResult.data) {
     return { error: currentResult.error || SDU_ERROR_CODES.VALIDATION_FAILED };
   }
@@ -249,11 +250,11 @@ export const checkS3Upload = (
   // 시뮬레이션: 40% 확률로 S3 업로드 감지
   if (Math.random() < 0.4) {
     const now = new Date().toISOString();
-    sduStore.s3Upload[projectId] = {
+    sduStore.s3Upload[targetSourceId] = {
       status: 'CONFIRMED',
       confirmedAt: now,
     };
-    return { data: sduStore.s3Upload[projectId] };
+    return { data: sduStore.s3Upload[targetSourceId] };
   }
 
   return { data: currentResult.data };
@@ -263,9 +264,9 @@ export const checkS3Upload = (
  * IAM USER 조회
  */
 export const getIamUser = (
-  projectId: string
+  targetSourceId: number
 ): { data?: IamUser; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -276,13 +277,13 @@ export const getIamUser = (
   }
 
   // 캐시된 IAM USER가 있으면 반환
-  if (sduStore.iamUsers[projectId]) {
-    return { data: sduStore.iamUsers[projectId] };
+  if (sduStore.iamUsers[targetSourceId]) {
+    return { data: sduStore.iamUsers[targetSourceId] };
   }
 
   // 초기 IAM USER 생성
-  const user = generateIamUser(projectId);
-  sduStore.iamUsers[projectId] = user;
+  const user = generateIamUser(project.id);
+  sduStore.iamUsers[targetSourceId] = user;
 
   return { data: user };
 };
@@ -291,10 +292,10 @@ export const getIamUser = (
  * AK/SK 재발급
  */
 export const issueAkSk = (
-  projectId: string,
+  targetSourceId: number,
   issuedBy: string
 ): { data?: IssueAkSkResponse; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -305,7 +306,7 @@ export const issueAkSk = (
   }
 
   // 현재 IAM USER 조회
-  const userResult = getIamUser(projectId);
+  const userResult = getIamUser(targetSourceId);
   if (userResult.error || !userResult.data) {
     return { error: userResult.error || SDU_ERROR_CODES.IAM_USER_NOT_FOUND };
   }
@@ -315,7 +316,7 @@ export const issueAkSk = (
   expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
   // IAM USER 업데이트
-  sduStore.iamUsers[projectId] = {
+  sduStore.iamUsers[targetSourceId] = {
     ...userResult.data,
     akSkIssuedAt: now.toISOString(),
     akSkIssuedBy: issuedBy,
@@ -337,9 +338,9 @@ export const issueAkSk = (
  * SourceIP 목록 조회
  */
 export const getSourceIpList = (
-  projectId: string
+  targetSourceId: number
 ): { data?: SourceIpManagement; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -350,16 +351,16 @@ export const getSourceIpList = (
   }
 
   // 캐시된 SourceIP가 있으면 반환
-  if (sduStore.sourceIps[projectId]) {
-    return { data: sduStore.sourceIps[projectId] };
+  if (sduStore.sourceIps[targetSourceId]) {
+    return { data: sduStore.sourceIps[targetSourceId] };
   }
 
   // 초기 SourceIP 생성
   const sourceIps: SourceIpManagement = {
-    entries: generateDefaultSourceIps(projectId),
+    entries: generateDefaultSourceIps(),
   };
 
-  sduStore.sourceIps[projectId] = sourceIps;
+  sduStore.sourceIps[targetSourceId] = sourceIps;
   return { data: sourceIps };
 };
 
@@ -367,11 +368,11 @@ export const getSourceIpList = (
  * SourceIP 등록
  */
 export const registerSourceIp = (
-  projectId: string,
+  targetSourceId: number,
   cidr: string,
   registeredBy: string
 ): { data?: SourceIpEntry; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -382,7 +383,7 @@ export const registerSourceIp = (
   }
 
   // 현재 SourceIP 목록 가져오기
-  const currentResult = getSourceIpList(projectId);
+  const currentResult = getSourceIpList(targetSourceId);
   if (currentResult.error || !currentResult.data) {
     return { error: currentResult.error || SDU_ERROR_CODES.VALIDATION_FAILED };
   }
@@ -395,7 +396,7 @@ export const registerSourceIp = (
   };
 
   // 엔트리 추가
-  sduStore.sourceIps[projectId] = {
+  sduStore.sourceIps[targetSourceId] = {
     entries: [...currentResult.data.entries, newEntry],
   };
 
@@ -406,11 +407,11 @@ export const registerSourceIp = (
  * SourceIP 확인 (BDC)
  */
 export const confirmSourceIp = (
-  projectId: string,
+  targetSourceId: number,
   cidr: string,
   confirmedBy: string
 ): { data?: SourceIpEntry; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -421,7 +422,7 @@ export const confirmSourceIp = (
   }
 
   // 현재 SourceIP 목록 가져오기
-  const currentResult = getSourceIpList(projectId);
+  const currentResult = getSourceIpList(targetSourceId);
   if (currentResult.error || !currentResult.data) {
     return { error: currentResult.error || SDU_ERROR_CODES.VALIDATION_FAILED };
   }
@@ -443,7 +444,7 @@ export const confirmSourceIp = (
   const updatedEntries = [...currentResult.data.entries];
   updatedEntries[entryIndex] = updatedEntry;
 
-  sduStore.sourceIps[projectId] = {
+  sduStore.sourceIps[targetSourceId] = {
     entries: updatedEntries,
   };
 
@@ -454,9 +455,9 @@ export const confirmSourceIp = (
  * Athena Table 목록 조회
  */
 export const getAthenaTables = (
-  projectId: string
+  targetSourceId: number
 ): { data?: SduAthenaTable[]; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -467,13 +468,13 @@ export const getAthenaTables = (
   }
 
   // 캐시된 테이블 목록이 있으면 반환
-  if (sduStore.athenaTables[projectId]) {
-    return { data: sduStore.athenaTables[projectId] };
+  if (sduStore.athenaTables[targetSourceId]) {
+    return { data: sduStore.athenaTables[targetSourceId] };
   }
 
-  // 초기 테이블 목록 생성
-  const tables = generateAthenaTables(projectId);
-  sduStore.athenaTables[projectId] = tables;
+  // 초기 테이블 목록 생성 — table 이름은 project.id slice 기반 (W0 lock-in 보존)
+  const tables = generateAthenaTables(project.id);
+  sduStore.athenaTables[targetSourceId] = tables;
 
   return { data: tables };
 };
@@ -515,9 +516,9 @@ export const getSduServiceSettings = (
  * SDU 연결 테스트 상태 조회
  */
 export const getSduConnectionTest = (
-  projectId: string
+  targetSourceId: number
 ): { data?: SduConnectionTestInfo; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -528,8 +529,8 @@ export const getSduConnectionTest = (
   }
 
   // 캐시된 상태가 있으면 반환
-  if (sduStore.connectionTest[projectId]) {
-    return { data: sduStore.connectionTest[projectId] };
+  if (sduStore.connectionTest[targetSourceId]) {
+    return { data: sduStore.connectionTest[targetSourceId] };
   }
 
   // 초기 상태: NOT_TESTED
@@ -537,7 +538,7 @@ export const getSduConnectionTest = (
     status: 'NOT_TESTED',
   };
 
-  sduStore.connectionTest[projectId] = result;
+  sduStore.connectionTest[targetSourceId] = result;
   return { data: result };
 };
 
@@ -545,9 +546,9 @@ export const getSduConnectionTest = (
  * SDU 연결 테스트 실행
  */
 export const executeSduConnectionTest = (
-  projectId: string
+  targetSourceId: number
 ): { data?: SduConnectionTestInfo; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: SDU_ERROR_CODES.NOT_FOUND };
@@ -564,7 +565,7 @@ export const executeSduConnectionTest = (
     status: passed ? 'PASSED' : 'FAILED',
   };
 
-  sduStore.connectionTest[projectId] = result;
+  sduStore.connectionTest[targetSourceId] = result;
   return { data: result };
 };
 
