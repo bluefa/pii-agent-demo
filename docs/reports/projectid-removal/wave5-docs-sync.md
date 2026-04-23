@@ -244,6 +244,10 @@ Scope:
 - docs/api/**, docs/swagger/**, docs/detail-page.md, docs/api/boundaries.md
 - docs/reports/projectid-removal/00-README.md status 업데이트"
 
+# ⛔ CLAUDE.md rule: push/PR 전 rebase 필수
+git fetch origin main
+git rebase origin/main
+
 git push -u origin docs/projid-w5-docs
 ```
 

@@ -74,21 +74,6 @@
 | `wave4-api-contract-rename` | API client 파라미터 + `integrationRoutes` rename | `lib/api-client/types.ts` param names + routes.ts + 4 call sites | +10 / −10 | — |
 | `wave5-docs-sync` | Swagger + docs/api 동기화 | `docs/api/**`, `docs/swagger/*.yaml` | ±50 | W1-W4 완료 |
 
-## 병렬 실행 전략
-
-```
-Batch 1 (parallel, 3 agents — disjoint files):
-  ├── /wave-task wave1-route-segment
-  ├── /wave-task wave2-mock-pivot
-  └── /wave-task wave4-api-contract-rename
-
-Batch 2 (serial — W1 merge 필요):
-  └── /wave-task wave3-component-relocate
-
-Batch 3 (serial — 모든 코드 이관 merge 필요):
-  └── /wave-task wave5-docs-sync
-```
-
 ### File-level non-overlap (verified)
 
 | Spec | Files it modifies |
@@ -99,18 +84,21 @@ Batch 3 (serial — 모든 코드 이관 merge 필요):
 | W4 | `lib/api-client/types.ts`, `lib/routes.ts` (function name), 4 `integrationRoutes.project()` call sites, `lib/api-client/mock/**` (signature match) |
 | W5 | `docs/api/**/*.md`, `docs/swagger/user.yaml`, `docs/swagger/confirm.yaml`, `docs/detail-page.md` (if exists) |
 
-**W1과 W4 모두 `lib/routes.ts`를 만짐** — W1은 파라미터명만, W4는 함수명. 같은 파일이라 직렬 권장. 아래 배치에서 조정:
+**W1과 W4 모두 `lib/routes.ts` 를 만짐** — W1은 파라미터명, W4는 함수명. diff 충돌은 사소하지만 리뷰 friction을 피하기 위해 **직렬** 실행.
+
+## 병렬 실행 전략
 
 ```
-Batch 1 (parallel, 2 agents):
-  ├── /wave-task wave1-route-segment     (lib/routes.ts param)
+Batch 1 (parallel, 2 agents — disjoint files):
+  ├── /wave-task wave1-route-segment     (lib/routes.ts param rename 포함)
   └── /wave-task wave2-mock-pivot
 
 Batch 2 (parallel, 2 agents — both need W1 merged):
   ├── /wave-task wave3-component-relocate
-  └── /wave-task wave4-api-contract-rename   (lib/routes.ts function — W1과 직렬)
+  └── /wave-task wave4-api-contract-rename   (lib/routes.ts 함수명 — W1과 직렬)
 
-Batch 3: wave5-docs-sync
+Batch 3 (serial — 모든 코드 이관 merge 필요):
+  └── /wave-task wave5-docs-sync
 ```
 
 ## Invocation
