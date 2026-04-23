@@ -225,7 +225,8 @@ AI 가 기다려야 하는 것들:
 - [ ] 👤 Q-B1 seed HTML 변환 규칙 승인 (heading/summary/bullets/procedures/warnings/notes 매핑)
 - [ ] 👤 Q-B2 en 초기값 (빈 / ko 복제 / placeholder / 기계번역)
 - [ ] 👤 Q-B3 step 4 variant-specific stepLabel 42개 개별 복사 확인
-- [ ] 👤 Q-B4 기존 `process-guides.ts` 삭제 시점 (W4-C 즉시 / deprecate / W5 까지 보존)
+- [x] 👤 Q-B4 기존 상수 삭제 방침 — **즉시 삭제 (W4-C)** 확정 (2026-04-23)
+- [ ] 👤 Q-B5 사전조치(PREREQ_*) 처리 — 상수 분리 유지 / CMS 스콥 확장 / UI 제거
 
 **Important 결정 — W3 시작 전 필수**
 - [ ] 👤 Q-I1 저장 후 피드백 (토스트 / 목록 이동 / 토스트만)
@@ -304,12 +305,22 @@ AI 가 기다려야 하는 것들:
 
 ### W4 · 기존 사용처 전환 (🤖 AI · W1 후, W3 과 병렬)
 
-**PR-W4**
+**PR-W4-a: GuideCard + 사용처 전환**
 - [ ] 🤖 4-A `GuideCard` 리팩토링 — `content: { title, body: HTMLString }` prop
 - [ ] 🤖 4-B 5 provider 페이지 — `getProcessGuide()` → `useGuide(name)` 교체
-- [ ] 🤖 4-C 기존 `lib/constants/process-guides.ts` 삭제 또는 deprecate (Q-B4 답에 따름)
 - [ ] 🤝 5 provider 페이지 시각 회귀 QA (스크린샷 비교)
-- [ ] 👤 PR-W4 리뷰 & 머지
+- [ ] 👤 PR-W4-a 리뷰 & 머지
+
+**PR-W4-b: 기존 상수 완전 삭제 (Q-B4 = A 확정)**
+- [ ] 🤖 4-C-1 사전조치 분리 — `lib/constants/prerequisite-guides.ts` 신규 (Q-B5 답에 따름)
+  - Q-B5 = A 시: `SCAN_ROLE_GUIDE` / `DB_CREDENTIAL_GUIDE` / `TF_EXECUTION_ROLE_GUIDE` 3종 + 참조하는 컴포넌트 import 경로 업데이트
+  - Q-B5 = B 시: 사전조치도 CMS 에 포함 (스콥 확장, W1 의 `GUIDE_NAMES` 45개로 증가)
+  - Q-B5 = C 시: 사전조치 UI 제거
+- [ ] 🤖 4-C-2 `lib/constants/process-guides.ts` **파일 통째 삭제** (525줄)
+- [ ] 🤖 4-C-3 `lib/types/process-guide.ts` 정리 — `GuideInline` / `StepGuideContent` / `ProviderProcessGuide` 삭제. `PrerequisiteGuide` / `ProcessGuideStep`(축소판) 유지
+- [ ] 🤖 4-C-4 이전 export 를 import 하던 파일 전수 정리 (컴파일 에러 fix)
+- [ ] 🤖 4-C-5 `lib/mocks/mock-idc.ts`, `lib/mocks/azure-catalog.ts` 등 기존 import 없는지 grep 확인
+- [ ] 👤 PR-W4-b 리뷰 & 머지
 
 ---
 
