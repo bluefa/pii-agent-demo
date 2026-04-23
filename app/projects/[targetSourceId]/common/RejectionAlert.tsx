@@ -1,12 +1,11 @@
 import { Project } from '@/lib/types';
-import { cn, statusColors, getButtonClass } from '@/lib/theme';
+import { cn, statusColors } from '@/lib/theme';
 
 interface RejectionAlertProps {
   project: Project;
-  onRetryRequest?: () => void;
 }
 
-export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps) => {
+export const RejectionAlert = ({ project }: RejectionAlertProps) => {
   if (!project.isRejected) return null;
 
   return (
@@ -26,11 +25,6 @@ export const RejectionAlert = ({ project, onRetryRequest }: RejectionAlertProps)
             <p className={cn('text-xs mt-1', statusColors.error.text)}>
               반려일시: {new Date(project.rejectedAt).toLocaleString('ko-KR')}
             </p>
-          )}
-          {onRetryRequest && (
-            <button onClick={onRetryRequest} className={`mt-2 ${getButtonClass('secondary', 'sm')}`}>
-              리소스 다시 선택하기
-            </button>
           )}
         </div>
       </div>

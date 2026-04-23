@@ -9,19 +9,14 @@ import {
   getProject,
 } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
-import { getProcessGuide } from '@/lib/constants/process-guides';
-import { useModal } from '@/app/hooks/useModal';
 import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
-import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
-import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { cn, getButtonClass } from '@/lib/theme';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -35,15 +30,12 @@ export const AwsProjectPage = ({
   onProjectUpdate,
 }: AwsProjectPageProps) => {
   const toast = useToast();
-  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
   );
   const [submitting, setSubmitting] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
-
-  const guideModal = useModal();
 
   // VM 설정 상태
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
@@ -56,9 +48,6 @@ export const AwsProjectPage = ({
     });
     return initial;
   });
-
-  const guideVariant = project.awsInstallationMode === 'AUTO' ? 'auto' : 'manual';
-  const guide = getProcessGuide('AWS', guideVariant);
 
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
@@ -105,13 +94,7 @@ export const AwsProjectPage = ({
     }
   };
 
-  // ADR-004: status 필드에서 현재 단계 계산
   const currentStep = getProjectCurrentStep(project);
-  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  const effectiveEditMode = isStep1 || isEditMode;
-  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
-    currentStep === ProcessStatus.APPLYING_APPROVED ||
-    currentStep === ProcessStatus.INSTALLING;
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
@@ -174,7 +157,6 @@ export const AwsProjectPage = ({
       });
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
-      setIsEditMode(false);
       setExpandedVmId(null);
       setApprovalModalOpen(false);
     } catch (err) {
@@ -182,16 +164,6 @@ export const AwsProjectPage = ({
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleStartEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
-    setIsEditMode(true);
-  };
-
-  const handleCancelEdit = () => {
-    setSelectedIds(project.resources.filter((r) => r.isSelected).map((r) => r.id));
-    setIsEditMode(false);
   };
 
   return (
@@ -236,7 +208,6 @@ export const AwsProjectPage = ({
             vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
           }))}
           processStatus={currentStep}
-          isEditMode={effectiveEditMode}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           credentials={credentials}
@@ -244,49 +215,12 @@ export const AwsProjectPage = ({
           expandedVmId={expandedVmId}
           onVmConfigToggle={setExpandedVmId}
           onVmConfigSave={handleVmConfigSave}
+          onRequestApproval={handleConfirmTargets}
+          approvalSubmitting={submitting}
         />
       )}
 
-      <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-      <div className="flex justify-end gap-3">
-        {effectiveEditMode ? (
-          <>
-            {!isStep1 && (
-              <button
-                onClick={handleCancelEdit}
-                className={getButtonClass('secondary')}
-              >
-                취소
-              </button>
-            )}
-            <button
-              onClick={handleConfirmTargets}
-              disabled={submitting || selectedIds.length === 0}
-              className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
-            >
-              {submitting && <LoadingSpinner />}
-              연동 대상 확정 승인 요청
-            </button>
-          </>
-        ) : !isProcessing && (
-          <button
-            onClick={handleStartEdit}
-            className={getButtonClass('secondary')}
-          >
-            확정 대상 수정
-          </button>
-        )}
-      </div>
-
-      {guide && (
-        <ProcessGuideModal
-          isOpen={guideModal.isOpen}
-          onClose={guideModal.close}
-          guide={guide}
-          currentStepNumber={currentStep}
-        />
-      )}
+      <RejectionAlert project={project} />
     </main>
   );
 };
