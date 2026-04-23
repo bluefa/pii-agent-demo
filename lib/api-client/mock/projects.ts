@@ -59,7 +59,7 @@ const awsTypeToDatabaseType = (awsType: AwsResourceType): DatabaseType => {
 };
 
 export const mockProjects = {
-  get: async (projectId: string) => {
+  get: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -68,7 +68,7 @@ export const mockProjects = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -86,7 +86,7 @@ export const mockProjects = {
     return NextResponse.json({ project });
   },
 
-  delete: async (projectId: string) => {
+  delete: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -95,7 +95,7 @@ export const mockProjects = {
       );
     }
 
-    const success = mockData.deleteProject(projectId);
+    const success = mockData.deleteProject(targetSourceId);
     if (!success) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -106,7 +106,7 @@ export const mockProjects = {
     return NextResponse.json({ success: true });
   },
 
-  approve: async (projectId: string, body: unknown) => {
+  approve: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -115,7 +115,7 @@ export const mockProjects = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -152,7 +152,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = mockData.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -164,7 +164,7 @@ export const mockProjects = {
       approvedAt: now,
     });
 
-    mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
+    mockHistory.addApprovalHistory(targetSourceId, { id: user.id, name: user.name });
 
     return NextResponse.json({ success: true, project: updatedProject });
   },
@@ -252,7 +252,7 @@ export const mockProjects = {
     return NextResponse.json({ project: newProject }, { status: 201 });
   },
 
-  completeInstallation: async (projectId: string) => {
+  completeInstallation: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -261,7 +261,7 @@ export const mockProjects = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -300,7 +300,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = mockData.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -310,7 +310,7 @@ export const mockProjects = {
     return NextResponse.json({ success: true, project: updatedProject });
   },
 
-  confirmCompletion: async (projectId: string) => {
+  confirmCompletion: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -326,7 +326,7 @@ export const mockProjects = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -354,7 +354,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = mockData.updateProject(projectId, {
+    const updatedProject = mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       completionConfirmedAt: now,
@@ -365,7 +365,7 @@ export const mockProjects = {
     return NextResponse.json({ project: updatedProject });
   },
 
-  confirmTargets: async (projectId: string, body: unknown) => {
+  confirmTargets: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -374,7 +374,7 @@ export const mockProjects = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -472,16 +472,16 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       resources: updatedResources,
       status: updatedStatus,
       processStatus: calculatedProcessStatus,
     });
 
-    await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount);
+    await mockHistory.addTargetConfirmedHistory(targetSourceId, actor, selectedCount, excludedCount);
 
     if (autoApprovalResult.shouldAutoApprove) {
-      await mockHistory.addAutoApprovedHistory(projectId);
+      await mockHistory.addAutoApprovedHistory(targetSourceId);
     }
 
     return NextResponse.json({
@@ -491,7 +491,7 @@ export const mockProjects = {
     });
   },
 
-  credentials: async (projectId: string) => {
+  credentials: async (targetSourceId: string) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -500,7 +500,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -520,7 +520,7 @@ export const mockProjects = {
     return NextResponse.json({ credentials });
   },
 
-  history: async (projectId: string, query: { type: string; limit: string; offset: string }) => {
+  history: async (targetSourceId: string, query: { type: string; limit: string; offset: string }) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -529,7 +529,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: HISTORY_ERROR_CODES.NOT_FOUND.message },
@@ -559,7 +559,7 @@ export const mockProjects = {
     const offset = Math.max(0, offsetParam);
 
     const { history, total } = await mockHistory.getProjectHistory({
-      projectId,
+      projectId: targetSourceId,
       type: typeParam as HistoryFilterType,
       limit,
       offset,
@@ -577,7 +577,7 @@ export const mockProjects = {
     });
   },
 
-  reject: async (projectId: string, body: unknown) => {
+  reject: async (targetSourceId: string, body: unknown) => {
     const user = await mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -586,7 +586,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -632,7 +632,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -641,12 +641,12 @@ export const mockProjects = {
       rejectedAt: now,
     });
 
-    await mockHistory.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+    await mockHistory.addRejectionHistory(targetSourceId, { id: user.id, name: user.name }, reason || '');
 
     return NextResponse.json({ success: true, project: updatedProject, reason });
   },
 
-  resourceCredential: async (projectId: string, body: unknown) => {
+  resourceCredential: async (targetSourceId: string, body: unknown) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -655,7 +655,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -696,7 +696,7 @@ export const mockProjects = {
       };
     });
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       resources: updatedResources,
     });
 
@@ -706,7 +706,7 @@ export const mockProjects = {
     });
   },
 
-  resourceExclusions: async (projectId: string) => {
+  resourceExclusions: async (targetSourceId: string) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -715,7 +715,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -747,7 +747,7 @@ export const mockProjects = {
     });
   },
 
-  resources: async (projectId: string) => {
+  resources: async (targetSourceId: string) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -756,7 +756,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -774,7 +774,7 @@ export const mockProjects = {
     return NextResponse.json({ resources: project.resources });
   },
 
-  scan: async (projectId: string) => {
+  scan: async (targetSourceId: string) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -783,7 +783,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -853,7 +853,7 @@ export const mockProjects = {
       newResourcesFound = 1;
     }
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       resources: updatedResources,
     });
 
@@ -864,7 +864,7 @@ export const mockProjects = {
     });
   },
 
-  terraformStatus: async (projectId: string) => {
+  terraformStatus: async (targetSourceId: string) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -873,7 +873,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -891,7 +891,7 @@ export const mockProjects = {
     return NextResponse.json({ terraformState: project.terraformState });
   },
 
-  testConnection: async (projectId: string, body: unknown) => {
+  testConnection: async (targetSourceId: string, body: unknown) => {
     const user = await mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -900,7 +900,7 @@ export const mockProjects = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1014,7 +1014,7 @@ export const mockProjects = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       resources: updatedResources,
       connectionTestHistory: updatedHistory,
       status: updatedStatus,

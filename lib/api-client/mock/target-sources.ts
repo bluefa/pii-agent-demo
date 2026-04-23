@@ -139,8 +139,8 @@ export const mockTargetSources = {
     );
   },
 
-  get: async (projectId: string) => {
-    const response = await mockProjects.get(projectId);
+  get: async (targetSourceId: string) => {
+    const response = await mockProjects.get(targetSourceId);
     if (!response.ok) return response;
     const { project } = await response.json();
     return NextResponse.json({ targetSource: project });

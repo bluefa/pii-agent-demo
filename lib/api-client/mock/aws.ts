@@ -8,8 +8,8 @@ interface SetInstallationModeBody {
 }
 
 export const mockAws = {
-  checkInstallation: async (projectId: string) => {
-    const project = await mockData.getProjectById(projectId);
+  checkInstallation: async (targetSourceId: string) => {
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -24,18 +24,18 @@ export const mockAws = {
       );
     }
 
-    let result = await mockInstallation.checkInstallation(projectId);
+    let result = await mockInstallation.checkInstallation(targetSourceId);
 
     if (!result) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      await mockInstallation.initializeInstallation(projectId, hasTfPermission);
-      result = await mockInstallation.checkInstallation(projectId);
+      await mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
+      result = await mockInstallation.checkInstallation(targetSourceId);
     }
 
     return NextResponse.json(result);
   },
 
-  setInstallationMode: async (projectId: string, body: SetInstallationModeBody) => {
+  setInstallationMode: async (targetSourceId: string, body: SetInstallationModeBody) => {
     if (!body.mode || !['AUTO', 'MANUAL'].includes(body.mode)) {
       return NextResponse.json(
         { error: 'INVALID_REQUEST', message: '유효하지 않은 설치 모드입니다. AUTO 또는 MANUAL을 선택하세요.' },
@@ -43,7 +43,7 @@ export const mockAws = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -67,11 +67,11 @@ export const mockAws = {
 
     const hasTfPermission = body.mode === 'AUTO';
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       awsInstallationMode: body.mode,
     });
 
-    await mockInstallation.initializeInstallation(projectId, hasTfPermission);
+    await mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
 
     return NextResponse.json({
       success: true,
@@ -79,8 +79,8 @@ export const mockAws = {
     });
   },
 
-  getInstallationStatus: async (projectId: string) => {
-    const project = await mockData.getProjectById(projectId);
+  getInstallationStatus: async (targetSourceId: string) => {
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -95,18 +95,18 @@ export const mockAws = {
       );
     }
 
-    let status = await mockInstallation.getInstallationStatus(projectId);
+    let status = await mockInstallation.getInstallationStatus(targetSourceId);
 
     if (!status) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      status = await mockInstallation.initializeInstallation(projectId, hasTfPermission);
+      status = await mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
     }
 
     return NextResponse.json(status);
   },
 
-  getTerraformScript: async (projectId: string) => {
-    const project = await mockData.getProjectById(projectId);
+  getTerraformScript: async (targetSourceId: string) => {
+    const project = await mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -121,10 +121,10 @@ export const mockAws = {
       );
     }
 
-    let status = await mockInstallation.getInstallationStatus(projectId);
+    let status = await mockInstallation.getInstallationStatus(targetSourceId);
 
     if (!status) {
-      status = await mockInstallation.initializeInstallation(projectId, false);
+      status = await mockInstallation.initializeInstallation(targetSourceId, false);
     }
 
     if (status.hasTfPermission) {
@@ -134,7 +134,7 @@ export const mockAws = {
       );
     }
 
-    const result = await mockInstallation.getTerraformScript(projectId);
+    const result = await mockInstallation.getTerraformScript(targetSourceId);
 
     if (!result) {
       return NextResponse.json(
@@ -146,12 +146,12 @@ export const mockAws = {
     return NextResponse.json(result);
   },
 
-  verifyTfRole: async (projectId: string, body?: { roleArn?: string; accountId?: string }) => {
-    // v1: projectId로 accountId 유도, v2(legacy): body.accountId 직접 사용
+  verifyTfRole: async (targetSourceId: string, body?: { roleArn?: string; accountId?: string }) => {
+    // v1: targetSourceId로 accountId 유도, v2(legacy): body.accountId 직접 사용
     let accountId = body?.accountId;
 
-    if (!accountId && projectId) {
-      const project = await mockData.getProjectById(projectId);
+    if (!accountId && targetSourceId) {
+      const project = await mockData.getProjectById(targetSourceId);
       if (!project) {
         return NextResponse.json(
           { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -163,7 +163,7 @@ export const mockAws = {
 
     if (!accountId) {
       return NextResponse.json(
-        { error: 'INVALID_REQUEST', message: 'accountId 또는 projectId가 필요합니다.' },
+        { error: 'INVALID_REQUEST', message: 'accountId 또는 targetSourceId가 필요합니다.' },
         { status: 400 }
       );
     }

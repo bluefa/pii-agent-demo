@@ -9,26 +9,26 @@ interface SetInstallationModeBody {
 export interface ApiClient {
   targetSources: {
     list: (serviceCode: string) => Promise<NextResponse>;
-    get: (projectId: string) => Promise<NextResponse>;
+    get: (targetSourceId: string) => Promise<NextResponse>;
     create: (body: unknown) => Promise<NextResponse>;
   };
   projects: {
-    get: (projectId: string) => Promise<NextResponse>;
-    delete: (projectId: string) => Promise<NextResponse>;
+    get: (targetSourceId: string) => Promise<NextResponse>;
+    delete: (targetSourceId: string) => Promise<NextResponse>;
     create: (body: unknown) => Promise<NextResponse>;
-    approve: (projectId: string, body: unknown) => Promise<NextResponse>;
-    reject: (projectId: string, body: unknown) => Promise<NextResponse>;
-    confirmTargets: (projectId: string, body: unknown) => Promise<NextResponse>;
-    completeInstallation: (projectId: string) => Promise<NextResponse>;
-    confirmCompletion: (projectId: string) => Promise<NextResponse>;
-    credentials: (projectId: string) => Promise<NextResponse>;
-    history: (projectId: string, query: { type: string; limit: string; offset: string }) => Promise<NextResponse>;
-    resourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
-    resourceExclusions: (projectId: string) => Promise<NextResponse>;
-    resources: (projectId: string) => Promise<NextResponse>;
-    scan: (projectId: string) => Promise<NextResponse>;
-    terraformStatus: (projectId: string) => Promise<NextResponse>;
-    testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;
+    approve: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    reject: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    confirmTargets: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    completeInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    confirmCompletion: (targetSourceId: string) => Promise<NextResponse>;
+    credentials: (targetSourceId: string) => Promise<NextResponse>;
+    history: (targetSourceId: string, query: { type: string; limit: string; offset: string }) => Promise<NextResponse>;
+    resourceCredential: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    resourceExclusions: (targetSourceId: string) => Promise<NextResponse>;
+    resources: (targetSourceId: string) => Promise<NextResponse>;
+    scan: (targetSourceId: string) => Promise<NextResponse>;
+    terraformStatus: (targetSourceId: string) => Promise<NextResponse>;
+    testConnection: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
   };
   users: {
     search: (query: string, excludeIds: string[]) => Promise<NextResponse>;
@@ -37,25 +37,25 @@ export interface ApiClient {
     getServicesPage: (page: number, size: number, query?: string) => Promise<NextResponse>;
   };
   sdu: {
-    checkInstallation: (projectId: string) => Promise<NextResponse>;
-    getAthenaTables: (projectId: string) => Promise<NextResponse>;
-    executeConnectionTest: (projectId: string) => Promise<NextResponse>;
-    getConnectionTest: (projectId: string) => Promise<NextResponse>;
-    issueAkSk: (projectId: string, body: { issuedBy: string }) => Promise<NextResponse>;
-    getIamUser: (projectId: string) => Promise<NextResponse>;
-    getInstallationStatus: (projectId: string) => Promise<NextResponse>;
-    checkS3Upload: (projectId: string) => Promise<NextResponse>;
-    getS3Upload: (projectId: string) => Promise<NextResponse>;
-    confirmSourceIp: (projectId: string, body: { cidr: string }) => Promise<NextResponse>;
-    registerSourceIp: (projectId: string, body: { cidr: string }) => Promise<NextResponse>;
-    getSourceIpList: (projectId: string) => Promise<NextResponse>;
+    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    getAthenaTables: (targetSourceId: string) => Promise<NextResponse>;
+    executeConnectionTest: (targetSourceId: string) => Promise<NextResponse>;
+    getConnectionTest: (targetSourceId: string) => Promise<NextResponse>;
+    issueAkSk: (targetSourceId: string, body: { issuedBy: string }) => Promise<NextResponse>;
+    getIamUser: (targetSourceId: string) => Promise<NextResponse>;
+    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
+    checkS3Upload: (targetSourceId: string) => Promise<NextResponse>;
+    getS3Upload: (targetSourceId: string) => Promise<NextResponse>;
+    confirmSourceIp: (targetSourceId: string, body: { cidr: string }) => Promise<NextResponse>;
+    registerSourceIp: (targetSourceId: string, body: { cidr: string }) => Promise<NextResponse>;
+    getSourceIpList: (targetSourceId: string) => Promise<NextResponse>;
   };
   aws: {
-    checkInstallation: (projectId: string) => Promise<NextResponse>;
-    setInstallationMode: (projectId: string, body: SetInstallationModeBody) => Promise<NextResponse>;
-    getInstallationStatus: (projectId: string) => Promise<NextResponse>;
-    getTerraformScript: (projectId: string) => Promise<NextResponse>;
-    verifyTfRole: (projectId: string, body?: { roleArn?: string }) => Promise<NextResponse>;
+    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    setInstallationMode: (targetSourceId: string, body: SetInstallationModeBody) => Promise<NextResponse>;
+    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
+    getTerraformScript: (targetSourceId: string) => Promise<NextResponse>;
+    verifyTfRole: (targetSourceId: string, body?: { roleArn?: string }) => Promise<NextResponse>;
   };
   azure: {
     checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
@@ -75,13 +75,13 @@ export interface ApiClient {
   };
   idc: {
     getSourceIpRecommendation: (ipType: string | null) => Promise<NextResponse>;
-    checkInstallation: (projectId: string) => Promise<NextResponse>;
-    confirmFirewall: (projectId: string) => Promise<NextResponse>;
-    confirmTargets: (projectId: string, body: unknown) => Promise<NextResponse>;
-    getInstallationStatus: (projectId: string) => Promise<NextResponse>;
-    getResources: (projectId: string) => Promise<NextResponse>;
-    updateResources: (projectId: string, body: unknown) => Promise<NextResponse>;
-    updateResourcesList: (projectId: string, body: unknown) => Promise<NextResponse>;
+    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    confirmFirewall: (targetSourceId: string) => Promise<NextResponse>;
+    confirmTargets: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
+    getResources: (targetSourceId: string) => Promise<NextResponse>;
+    updateResources: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    updateResourcesList: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
   };
   services: {
     permissions: {
@@ -126,20 +126,20 @@ export interface ApiClient {
     getApprovalRequestQueue(params: QueueBoardQueryParams): Promise<NextResponse>;
   };
   confirm: {
-    getResources: (projectId: string) => Promise<NextResponse>;
-    createApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
-    getConfirmedIntegration: (projectId: string) => Promise<NextResponse>;
-    getApprovedIntegration: (projectId: string) => Promise<NextResponse>;
-    getApprovalHistory: (projectId: string, page: number, size: number) => Promise<NextResponse>;
-    getApprovalRequestLatest: (projectId: string) => Promise<NextResponse>;
-    getProcessStatus: (projectId: string) => Promise<NextResponse>;
-    approveApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
-    rejectApprovalRequest: (projectId: string, body: unknown) => Promise<NextResponse>;
-    cancelApprovalRequest: (projectId: string) => Promise<NextResponse>;
-    confirmInstallation: (projectId: string) => Promise<NextResponse>;
-    updateResourceCredential: (projectId: string, body: unknown) => Promise<NextResponse>;
-    testConnection: (projectId: string, body: unknown) => Promise<NextResponse>;
-    getTestConnectionResults: (projectId: string, page: number, size: number) => Promise<NextResponse>;
-    getTestConnectionLatest: (projectId: string) => Promise<NextResponse>;
+    getResources: (targetSourceId: string) => Promise<NextResponse>;
+    createApprovalRequest: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    getConfirmedIntegration: (targetSourceId: string) => Promise<NextResponse>;
+    getApprovedIntegration: (targetSourceId: string) => Promise<NextResponse>;
+    getApprovalHistory: (targetSourceId: string, page: number, size: number) => Promise<NextResponse>;
+    getApprovalRequestLatest: (targetSourceId: string) => Promise<NextResponse>;
+    getProcessStatus: (targetSourceId: string) => Promise<NextResponse>;
+    approveApprovalRequest: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    rejectApprovalRequest: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    cancelApprovalRequest: (targetSourceId: string) => Promise<NextResponse>;
+    confirmInstallation: (targetSourceId: string) => Promise<NextResponse>;
+    updateResourceCredential: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    testConnection: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
+    getTestConnectionResults: (targetSourceId: string, page: number, size: number) => Promise<NextResponse>;
+    getTestConnectionLatest: (targetSourceId: string) => Promise<NextResponse>;
   };
 }

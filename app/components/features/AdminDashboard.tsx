@@ -159,12 +159,12 @@ export const AdminDashboard = () => {
   };
 
   const handleOpenDetail = useCallback((targetSourceId: number) => {
-    router.push(integrationRoutes.project(targetSourceId));
+    router.push(integrationRoutes.targetSource(targetSourceId));
   }, [router]);
 
   const handleManageAction = useCallback((action: 'view' | 'delete', targetSourceId: number) => {
     if (action === 'view') {
-      router.push(integrationRoutes.project(targetSourceId));
+      router.push(integrationRoutes.targetSource(targetSourceId));
       return;
     }
     toast.info('삭제 미구현');

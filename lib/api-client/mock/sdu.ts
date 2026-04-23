@@ -14,8 +14,8 @@ const authCheck = async () => {
   return { user };
 };
 
-const projectCheck = async (projectId: string) => {
-  const project = await mockData.getProjectById(projectId);
+const projectCheck = async (targetSourceId: string) => {
+  const project = await mockData.getProjectById(targetSourceId);
   if (!project) {
     return { error: NextResponse.json(
       { error: SDU_ERROR_CODES.NOT_FOUND.code, message: SDU_ERROR_CODES.NOT_FOUND.message },
@@ -82,11 +82,11 @@ const validateCidr = (cidr: string) => {
 };
 
 export const mockSdu = {
-  checkInstallation: async (projectId: string) => {
+  checkInstallation: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -95,14 +95,14 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.checkSduInstallation(projectId));
+    return handleResult(await sduFns.checkSduInstallation(targetSourceId));
   },
 
-  getAthenaTables: async (projectId: string) => {
+  getAthenaTables: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -111,14 +111,14 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.getAthenaTables(projectId));
+    return handleResult(await sduFns.getAthenaTables(targetSourceId));
   },
 
-  executeConnectionTest: async (projectId: string) => {
+  executeConnectionTest: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = adminOnlyCheck(auth.user!.role);
@@ -127,14 +127,14 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.executeSduConnectionTest(projectId));
+    return handleResult(await sduFns.executeSduConnectionTest(targetSourceId));
   },
 
-  getConnectionTest: async (projectId: string) => {
+  getConnectionTest: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -143,14 +143,14 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.getSduConnectionTest(projectId));
+    return handleResult(await sduFns.getSduConnectionTest(targetSourceId));
   },
 
-  issueAkSk: async (projectId: string, body: { issuedBy: string }) => {
+  issueAkSk: async (targetSourceId: string, body: { issuedBy: string }) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = adminOnlyCheck(auth.user!.role);
@@ -166,14 +166,14 @@ export const mockSdu = {
       );
     }
 
-    return handleResult(await sduFns.issueAkSk(projectId, body.issuedBy));
+    return handleResult(await sduFns.issueAkSk(targetSourceId, body.issuedBy));
   },
 
-  getIamUser: async (projectId: string) => {
+  getIamUser: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -182,14 +182,14 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.getIamUser(projectId));
+    return handleResult(await sduFns.getIamUser(targetSourceId));
   },
 
-  getInstallationStatus: async (projectId: string) => {
+  getInstallationStatus: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -198,27 +198,27 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.getSduInstallationStatus(projectId));
+    return handleResult(await sduFns.getSduInstallationStatus(targetSourceId));
   },
 
-  checkS3Upload: async (projectId: string) => {
+  checkS3Upload: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.checkS3Upload(projectId));
+    return handleResult(await sduFns.checkS3Upload(targetSourceId));
   },
 
-  getS3Upload: async (projectId: string) => {
+  getS3Upload: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -227,14 +227,14 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.getS3UploadStatus(projectId));
+    return handleResult(await sduFns.getS3UploadStatus(targetSourceId));
   },
 
-  confirmSourceIp: async (projectId: string, body: { cidr: string }) => {
+  confirmSourceIp: async (targetSourceId: string, body: { cidr: string }) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = adminOnlyCheck(auth.user!.role);
@@ -246,14 +246,14 @@ export const mockSdu = {
     const cidrError = validateCidr(body.cidr);
     if (cidrError) return cidrError;
 
-    return handleResult(await sduFns.confirmSourceIp(projectId, body.cidr, auth.user!.name));
+    return handleResult(await sduFns.confirmSourceIp(targetSourceId, body.cidr, auth.user!.name));
   },
 
-  registerSourceIp: async (projectId: string, body: { cidr: string }) => {
+  registerSourceIp: async (targetSourceId: string, body: { cidr: string }) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -265,14 +265,14 @@ export const mockSdu = {
     const cidrError = validateCidr(body.cidr);
     if (cidrError) return cidrError;
 
-    return handleResult(await sduFns.registerSourceIp(projectId, body.cidr, auth.user!.name));
+    return handleResult(await sduFns.registerSourceIp(targetSourceId, body.cidr, auth.user!.name));
   },
 
-  getSourceIpList: async (projectId: string) => {
+  getSourceIpList: async (targetSourceId: string) => {
     const auth = await authCheck();
     if (auth.error) return auth.error;
 
-    const proj = await projectCheck(projectId);
+    const proj = await projectCheck(targetSourceId);
     if (proj.error) return proj.error;
 
     const forbidden = permissionCheck(auth.user!.role, auth.user!.serviceCodePermissions, proj.project!.serviceCode);
@@ -281,6 +281,6 @@ export const mockSdu = {
     const notSdu = sduCheck(proj.project!.cloudProvider);
     if (notSdu) return notSdu;
 
-    return handleResult(await sduFns.getSourceIpList(projectId));
+    return handleResult(await sduFns.getSourceIpList(targetSourceId));
   },
 };

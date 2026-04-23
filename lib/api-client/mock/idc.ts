@@ -5,7 +5,7 @@ import { IDC_ERROR_CODES } from '@/lib/constants/idc';
 import type { IdcResourceInput, IpType } from '@/lib/types/idc';
 import type { Resource, DatabaseType } from '@/lib/types';
 
-const authorize = async (projectId: string) => {
+const authorize = async (targetSourceId: string) => {
   const user = await mockData.getCurrentUser();
   if (!user) {
     return { error: NextResponse.json(
@@ -14,7 +14,7 @@ const authorize = async (projectId: string) => {
     ) };
   }
 
-  const project = await mockData.getProjectById(projectId);
+  const project = await mockData.getProjectById(targetSourceId);
   if (!project) {
     return { error: NextResponse.json(
       { error: IDC_ERROR_CODES.NOT_FOUND.code, message: IDC_ERROR_CODES.NOT_FOUND.message },
@@ -62,22 +62,22 @@ export const mockIdc = {
     return handleResult(await idcFns.getSourceIpRecommendation(ipType as IpType));
   },
 
-  checkInstallation: async (projectId: string) => {
-    const auth = await authorize(projectId);
+  checkInstallation: async (targetSourceId: string) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await idcFns.checkIdcInstallation(projectId));
+    return handleResult(await idcFns.checkIdcInstallation(targetSourceId));
   },
 
-  confirmFirewall: async (projectId: string) => {
-    const auth = await authorize(projectId);
+  confirmFirewall: async (targetSourceId: string) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await idcFns.confirmFirewall(projectId));
+    return handleResult(await idcFns.confirmFirewall(targetSourceId));
   },
 
-  confirmTargets: async (projectId: string, body: unknown) => {
-    const auth = await authorize(projectId);
+  confirmTargets: async (targetSourceId: string, body: unknown) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
     const parsed = body as { resources?: IdcResourceInput[] };
@@ -89,21 +89,21 @@ export const mockIdc = {
       );
     }
 
-    return handleResult(await idcFns.confirmIdcTargets(projectId, parsed.resources));
+    return handleResult(await idcFns.confirmIdcTargets(targetSourceId, parsed.resources));
   },
 
-  getInstallationStatus: async (projectId: string) => {
-    const auth = await authorize(projectId);
+  getInstallationStatus: async (targetSourceId: string) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await idcFns.getIdcInstallationStatus(projectId));
+    return handleResult(await idcFns.getIdcInstallationStatus(targetSourceId));
   },
 
-  getResources: async (projectId: string) => {
-    const auth = await authorize(projectId);
+  getResources: async (targetSourceId: string) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    const result = await idcFns.getIdcResources(projectId);
+    const result = await idcFns.getIdcResources(targetSourceId);
     if (result.error) {
       return NextResponse.json(
         { error: result.error.code, message: result.error.message },
@@ -113,8 +113,8 @@ export const mockIdc = {
     return NextResponse.json({ resources: result.data });
   },
 
-  updateResources: async (projectId: string, body: unknown) => {
-    const auth = await authorize(projectId);
+  updateResources: async (targetSourceId: string, body: unknown) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
     const parsed = body as { resources?: IdcResourceInput[] };
@@ -126,7 +126,7 @@ export const mockIdc = {
       );
     }
 
-    const result = await idcFns.updateIdcResources(projectId, parsed.resources);
+    const result = await idcFns.updateIdcResources(targetSourceId, parsed.resources);
     if (result.error) {
       return NextResponse.json(
         { error: result.error.code, message: result.error.message },
@@ -136,8 +136,8 @@ export const mockIdc = {
     return NextResponse.json({ resources: result.data });
   },
 
-  updateResourcesList: async (projectId: string, body: unknown) => {
-    const auth = await authorize(projectId);
+  updateResourcesList: async (targetSourceId: string, body: unknown) => {
+    const auth = await authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
     const parsed = body as { keepResourceIds?: string[]; newResources?: IdcResourceInput[] };
@@ -173,7 +173,7 @@ export const mockIdc = {
       );
     }
 
-    const updatedProject = await mockData.updateProject(projectId, {
+    const updatedProject = await mockData.updateProject(targetSourceId, {
       resources: allResources,
     });
 
