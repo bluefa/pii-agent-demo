@@ -5,7 +5,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 
 # PII Agent Frontend Anti-Pattern Catalog
 
-43 anti-patterns identified through a full codebase audit. Consumed alongside `/coding-standards`.
+44 anti-patterns identified through a full codebase audit. Consumed alongside `/coding-standards`.
 
 ## When to invoke
 
@@ -22,7 +22,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 | D | Effects & Hooks | 6 |
 | E | Rendering | 5 |
 | F | Error Handling | 4 |
-| G | Naming & Constants | 6 |
+| G | Naming & Constants | 7 |
 | H | UI Composition (Icons/Assets) | 3 |
 
 Concrete evidence (file:line) from the current codebase → `docs/reports/frontend-anti-patterns-audit-2026-04-23.md`
@@ -507,6 +507,41 @@ interface Props {
 Strings like "조회에 실패했습니다" duplicated across files → i18n and typo-fix cost explodes.
 
 → centralize in `lib/constants/messages.ts`.
+
+### G7. Vague parameter names (`fn`, `cb`, `data`, `val`) 🟡
+
+Naming a callback/function parameter `fn` / `cb` / `handler` erases intent at the call site — the reader can't tell *what* the function fetches or does without opening the body. The type signature shows shape, not meaning. The cost is highest in reusable hooks and utilities, where many unrelated callers have to decode the same vague name.
+
+```ts
+// ❌ Bad — name tells you nothing; you must read the body
+const run = useCallback(
+  async (fn: (id: number) => Promise<T>, setInFlight: (v: boolean) => void) => {
+    setInFlight(true);
+    const data = await fn(targetSourceId);
+    setStatus(data);
+  },
+  [targetSourceId],
+);
+
+// ✅ Good — name declares the role ("fetches status")
+const run = useCallback(
+  async (fetcher: (id: number) => Promise<T>, setInFlight: (v: boolean) => void) => {
+    setInFlight(true);
+    const data = await fetcher(targetSourceId);
+    setStatus(data);
+  },
+  [targetSourceId],
+);
+```
+
+Pick by role:
+- fetch-shaped → `fetcher` (SWR / React Query convention)
+- event reaction → not `handler`, but `onApprove` / `onSelect` — name the action
+- value transform → `mapper`, `transform`, `selector`
+- predicate → `validator`, `predicate`, `isEligible`
+- payload → not `data` / `val`, but `response` / `row` / `record` — name the entity
+
+Rule of thumb: if the parameter name alone doesn't let a reader guess what the caller is passing, rename it.
 
 ---
 
