@@ -29,7 +29,9 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Service List',
     href: integrationRoutes.admin,
-    isActive: (pathname) => pathname.startsWith('/integration/admin'),
+    isActive: (pathname) =>
+      pathname.startsWith('/integration/admin') ||
+      pathname.startsWith('/integration/projects'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
         <line x1="8" y1="6" x2="21" y2="6" />
