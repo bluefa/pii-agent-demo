@@ -1,6 +1,8 @@
 # SDU 연동 프로세스 설계
 
 > SDU(Structured Data Upload) Provider의 연동 프로세스, 상태 모델, UX 구조를 정의합니다.
+>
+> **주의 (2026-04-24)**: 본 문서의 일부 식별자 표기(`projectId` 등)는 projid-removal 이전 용어 체계이며, 현행 코드는 `targetSourceId` 기반으로 이관되었습니다. 설계 컨셉은 유효하되, 식별자 필드명/URL 등의 구체 사양은 현행 코드와 swagger (`docs/swagger/sdu.yaml`)를 우선 참조하세요.
 
 ---
 

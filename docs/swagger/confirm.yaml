@@ -710,6 +710,9 @@ components:
           type: string
         projectId:
           type: string
+          description: |
+            GCP Cloud Project ID (GCP 계정의 외부 식별자).
+            본 시스템의 내부 `targetSourceId`와는 별개이며, 레거시 `projectId`(과제 식별자) 개념과도 다름 — 혼동 금지.
         instanceName:
           type: string
         ip:

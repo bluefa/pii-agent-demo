@@ -1,6 +1,8 @@
 # AWS 설치 모드 UI 기획
 
 > 자동/수동 설치 모드를 사용자가 프로세스 전반에서 인지할 수 있도록 하는 UI 설계
+>
+> **주의 (2026-04-24)**: 본 문서의 `/api/aws/projects/{projectId}/...` 경로는 projid-removal W1-W4 이관 전 기획본입니다. 현행 경로는 `/integration/api/v1/aws/target-sources/{targetSourceId}/...` 이며, 최신 계약은 `docs/swagger/aws.yaml`을 참조하세요.
 
 ---
 

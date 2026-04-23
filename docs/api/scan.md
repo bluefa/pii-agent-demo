@@ -1,4 +1,6 @@
 > **DEPRECATED**: 이 문서는 더 이상 유지보수되지 않습니다. `docs/swagger/scan.yaml`을 참조하세요.
+>
+> **주의 (2026-04-24)**: 본 문서의 `/api/projects/{projectId}/scan` 계열 경로는 projid-removal W1-W4 merge 로 `/integration/api/v1/target-sources/{targetSourceId}/scan`으로 이관 완료되었습니다. 본 문서는 historical reference이며, 현행 스펙은 `docs/swagger/scan.yaml`에 있습니다. GCP `projectId` 필드(L48)는 GCP Cloud Project ID로 내부 식별자와 무관합니다.
 
 # Scan API
 

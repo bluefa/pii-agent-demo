@@ -1,5 +1,7 @@
 # Swagger Migration Plan (Phase Draft)
 
+> **Status (2026-04-24)**: 코드 측 `projectId → targetSourceId` 전환은 projid-removal W1-W4 (#320 / #328 / #324 / #325)와 URL 경로 W6 (#329)에서 완료. 본 문서의 projectId 표기는 모두 **migration 이전 상태를 설명하는 historical reference**이며, 현행 contract는 `targetSourceId` 기반입니다.
+
 ## 1. 목표
 
 Issue #122의 Swagger를 기준으로 API Contract를 `target source` 용어 체계로 통합하고, 이후 세션에서 실제 API migration을 수행할 수 있도록 단계/리스크/논의 항목을 고정합니다.
