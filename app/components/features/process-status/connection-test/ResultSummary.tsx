@@ -2,8 +2,7 @@
 
 import type { TestConnectionJob } from '@/app/lib/api';
 import { statusColors, textColors, borderColors, cn } from '@/lib/theme';
-
-const TEXT_LINK_CLASS = 'text-sm text-gray-700 hover:text-gray-900 underline underline-offset-2 cursor-pointer';
+import { TEXT_LINK_CLASS } from './constants';
 
 interface ResultSummaryProps {
   job: TestConnectionJob;

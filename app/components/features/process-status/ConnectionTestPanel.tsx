@@ -9,18 +9,20 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { statusColors, textColors, getButtonClass, cn } from '@/lib/theme';
 import { ProgressBar } from './connection-test/ProgressBar';
 import { ResultSummary } from './connection-test/ResultSummary';
+import { TEXT_LINK_CLASS } from './connection-test/constants';
 
 const CredentialSetupModal = dynamic(
   () => import('./connection-test/CredentialSetupModal').then(m => ({ default: m.CredentialSetupModal })),
+  { ssr: false },
 );
 const ResultDetailModal = dynamic(
   () => import('./connection-test/ResultDetailModal').then(m => ({ default: m.ResultDetailModal })),
+  { ssr: false },
 );
 const TestConnectionHistoryModal = dynamic(
   () => import('./connection-test/TestConnectionHistoryModal').then(m => ({ default: m.TestConnectionHistoryModal })),
+  { ssr: false },
 );
-
-const TEXT_LINK_CLASS = 'text-sm text-gray-700 hover:text-gray-900 underline underline-offset-2 cursor-pointer';
 
 interface ConnectionTestPanelProps {
   targetSourceId: number;
