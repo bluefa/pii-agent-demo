@@ -128,8 +128,8 @@ export const ResourceRow = ({
         )}
 
         <td className="px-6 py-4">
-          <Badge variant={resource.isSelected ? 'success' : 'pending'} size="sm">
-            {resource.isSelected ? '대상' : '비대상'}
+          <Badge variant={isSelected ? 'success' : 'pending'} size="sm">
+            {isSelected ? '대상' : '비대상'}
           </Badge>
         </td>
 

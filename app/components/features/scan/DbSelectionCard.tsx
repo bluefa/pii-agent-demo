@@ -84,16 +84,16 @@ export const DbSelectionCard = ({
   <ScanController targetSourceId={targetSourceId} onScanComplete={onScanComplete}>
     {({ state, lastScanAt, progress, starting, canStart, startScan }) => (
       <section className={cn(cardStyles.base, 'overflow-hidden')}>
-        <header className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h2 className="text-[15px] font-semibold text-gray-900">연동 대상 DB 선택</h2>
+        <header className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 border-b border-gray-100">
+          <div className="flex-shrink-0">
+            <h2 className="text-[15px] font-semibold text-gray-900 whitespace-nowrap">연동 대상 DB 선택</h2>
             <p className="mt-1 text-xs text-gray-500">
               Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
             {lastScanAt && (
-              <span className={cn('inline-flex items-center gap-1 text-[11.5px]', textColors.tertiary)}>
+              <span className={cn('inline-flex items-center gap-1 text-[11.5px] whitespace-nowrap', textColors.tertiary)}>
                 {clockIcon}
                 Last Scan: {formatDate(lastScanAt, 'datetime')}
               </span>
