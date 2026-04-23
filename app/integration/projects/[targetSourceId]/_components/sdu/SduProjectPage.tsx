@@ -26,8 +26,8 @@ import {
   executeSduConnectionTest,
 } from '@/app/lib/api/sdu';
 import { getProject } from '@/app/lib/api';
-import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
-import { SduProcessStatusCard } from '@/app/projects/[targetSourceId]/sdu/SduProcessStatusCard';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/projects/[targetSourceId]/_components/common';
+import { SduProcessStatusCard } from '@/app/integration/projects/[targetSourceId]/_components/sdu/SduProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import {
   IamUserManageModal,

@@ -1,34 +1,50 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Project, ProcessStatus, SecretKey, VmDatabaseConfig, Resource, VmDatabaseType } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
   updateResourceCredential,
   getProject,
+  getConfirmResources,
+  getConfirmedIntegration,
 } from '@/app/lib/api';
+import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
-import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
-import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/projects/[targetSourceId]/_components/common';
+import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
+import { AppError } from '@/lib/errors';
 
-interface AwsProjectPageProps {
+interface GcpProjectPageProps {
   project: Project;
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
 
-export const AwsProjectPage = ({
+const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
+  resource_infos: [],
+};
+
+const isMissingSnapshotError = (error: unknown): boolean =>
+  error instanceof AppError
+  && (
+    error.code === 'NOT_FOUND'
+    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
+  );
+
+export const GcpProjectPage = ({
   project,
   credentials,
   onProjectUpdate,
-}: AwsProjectPageProps) => {
+}: GcpProjectPageProps) => {
   const toast = useToast();
   const [selectedIds, setSelectedIds] = useState<string[]>(
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
@@ -37,7 +53,6 @@ export const AwsProjectPage = ({
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
-  // VM 설정 상태
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
   const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
     const initial: Record<string, VmDatabaseConfig> = {};
@@ -49,40 +64,78 @@ export const AwsProjectPage = ({
     return initial;
   });
 
-  const handleModeSelected = (updatedProject: Project) => {
-    onProjectUpdate(updatedProject);
-  };
+  // Resource loading state
+  const [resources, setResources] = useState<Resource[]>(project.resources);
+  const [resourceLoading, setResourceLoading] = useState(true);
+  const [resourceError, setResourceError] = useState<string | null>(null);
 
-  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
-  const approvalResources = useMemo(
-    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
-    [project.resources, selectedIds],
-  );
+  const loadGcpResources = useCallback(async () => {
+    setResourceLoading(true);
+    setResourceError(null);
 
-  const identity: ProjectIdentity = {
-    cloudProvider: 'AWS',
-    monitoringMethod: 'AWS Agent',
-    jiraLink: null,
-    identifiers: [
-      { label: 'AWS Account ID', value: project.awsAccountId ?? null, mono: true },
-      ...(project.awsRegionType
-        ? [{ label: 'Region Type', value: project.awsRegionType === 'china' ? 'China' : 'Global' }]
-        : []),
-    ],
-  };
+    try {
+      const [catalogResponse, confirmedIntegrationResponse] = await Promise.all([
+        getConfirmResources(project.targetSourceId),
+        getConfirmedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+          throw error;
+        }),
+      ]);
 
-  // 설치 모드 미선택 시 선택 UI 표시
-  if (!project.awsInstallationMode) {
-    return (
-      <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-        <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
-        <AwsInstallationModeSelector
-          targetSourceId={project.targetSourceId}
-          onModeSelected={handleModeSelected}
-        />
-      </main>
-    );
-  }
+      // Convert ConfirmResourceItem[] to Resource[]
+      const convertedResources: Resource[] = catalogResponse.resources.map(resource => {
+        // Check if this resource is in confirmed integration
+        const confirmedResourceInfo = confirmedIntegrationResponse.resource_infos.find(
+          confirmedResource => confirmedResource.resource_id === resource.resourceId
+        );
+        const isConfirmed = !!confirmedResourceInfo;
+        const selectedCredentialId = confirmedResourceInfo?.credential_id ?? undefined;
+        
+        // Only create VM config for actual VM database types
+        let vmDatabaseConfig: VmDatabaseConfig | undefined;
+        if (resource.resourceType === 'AZURE_VM') {
+          const vmDatabaseTypes: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
+          if (vmDatabaseTypes.includes(resource.databaseType as VmDatabaseType) && resource.port !== null) {
+            vmDatabaseConfig = {
+              databaseType: resource.databaseType as VmDatabaseType,
+              port: resource.port ?? 0,
+              host: resource.host ?? '',
+              ...(resource.oracleServiceId ? { oracleServiceId: resource.oracleServiceId } : {}),
+              ...(resource.networkInterfaceId ? { selectedNicId: resource.networkInterfaceId } : {}),
+            };
+          }
+        }
+
+        return {
+          id: resource.id,
+          type: resource.resourceType,
+          resourceId: resource.resourceId,
+          name: resource.name,
+          databaseType: resource.databaseType,
+          integrationCategory: resource.integrationCategory,
+          isSelected: isConfirmed, // Set based on confirmed integration
+          connectionStatus: 'PENDING',
+          selectedCredentialId,
+          vmDatabaseConfig,
+        };
+      });
+
+      setResources(convertedResources);
+    } catch (error) {
+      const errorMessage = error instanceof AppError && error.isUserFacing 
+        ? error.message 
+        : error instanceof Error 
+          ? error.message 
+          : 'GCP 리소스 정보를 불러오지 못했습니다.';
+      setResourceError(errorMessage);
+    } finally {
+      setResourceLoading(false);
+    }
+  }, [project.targetSourceId]);
+
+  useEffect(() => {
+    void loadGcpResources();
+  }, [loadGcpResources]);
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -96,6 +149,12 @@ export const AwsProjectPage = ({
 
   const currentStep = getProjectCurrentStep(project);
 
+  // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
+  const approvalResources = useMemo(
+    () => resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [resources, selectedIds],
+  );
+
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
   };
@@ -103,8 +162,7 @@ export const AwsProjectPage = ({
   const handleConfirmTargets = () => {
     if (selectedIds.length === 0) return;
 
-    // VM 리소스 중 설정되지 않은 것 체크
-    const selectedVmResources = project.resources.filter(
+    const selectedVmResources = resources.filter(
       (r) => selectedIds.includes(r.id) && isVmResource(r)
     );
     const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
@@ -121,8 +179,7 @@ export const AwsProjectPage = ({
     try {
       setSubmitting(true);
       setApprovalError(null);
-      // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
-      const resourceInputs = project.resources.map(r => {
+      const resourceInputs = resources.map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -166,13 +223,22 @@ export const AwsProjectPage = ({
     }
   };
 
+  const identity: ProjectIdentity = {
+    cloudProvider: 'GCP',
+    monitoringMethod: 'GCP Agent',
+    jiraLink: null,
+    identifiers: [
+      { label: 'GCP Project ID', value: project.gcpProjectId ?? null, mono: true },
+    ],
+  };
+
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
+      <ProjectPageMeta project={project} providerLabel="GCP Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
 
       <ProcessStatusCard
         project={project}
-        resources={project.resources}
+        resources={resources}
         onProjectUpdate={onProjectUpdate}
         approvalModalOpen={approvalModalOpen}
         onApprovalModalClose={() => setApprovalModalOpen(false)}
@@ -185,25 +251,44 @@ export const AwsProjectPage = ({
       <GuideCard
         currentStep={currentStep}
         provider={project.cloudProvider}
-        installationMode={project.awsInstallationMode}
       />
 
       {currentStep === ProcessStatus.APPLYING_APPROVED ? (
         <ResourceTransitionPanel
           targetSourceId={project.targetSourceId}
-          resources={project.resources}
+          resources={resources}
           cloudProvider={project.cloudProvider}
           processStatus={currentStep}
         />
+      ) : resourceLoading ? (
+        <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>GCP 리소스 정보를 불러오는 중입니다.</span>
+        </div>
+      ) : resourceError ? (
+        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+            {resourceError}
+          </p>
+          <button
+            onClick={() => void loadGcpResources()}
+            className={getButtonClass('secondary')}
+          >
+            다시 시도
+          </button>
+        </div>
       ) : (
         <DbSelectionCard
           targetSourceId={project.targetSourceId}
           cloudProvider={project.cloudProvider}
           onScanComplete={async () => {
-            const updatedProject = await getProject(project.targetSourceId);
+            const [updatedProject] = await Promise.all([
+              getProject(project.targetSourceId),
+              loadGcpResources(),
+            ]);
             onProjectUpdate(updatedProject);
           }}
-          resources={project.resources.map((r) => ({
+          resources={resources.map((r) => ({
             ...r,
             vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
           }))}
