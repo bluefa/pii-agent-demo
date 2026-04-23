@@ -1,4 +1,6 @@
 > **DEPRECATED**: 이 문서는 더 이상 유지보수되지 않습니다. `docs/swagger/gcp.yaml`을 참조하세요.
+>
+> **주의 (2026-04-24)**: 본 문서의 `/api/gcp/projects/{projectId}/...` URL 에서의 `{projectId}`는 내부 과제 식별자(=레거시, 현 `targetSourceId`)를 의미하며, projid-removal W1-W4 merge 로 `/integration/api/v1/gcp/target-sources/{targetSourceId}/...` 형태로 이관되었습니다. 본 문서 하단에 등장하는 GCP Cloud SQL / BigQuery / Spanner 설명 등의 `projectId`는 **GCP Cloud Project ID**(외부 식별자)로 내부 개념과 무관합니다 — 혼동 금지.
 
 # GCP API
 

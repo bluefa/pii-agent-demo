@@ -1,11 +1,15 @@
 # 과제 상세 페이지 구현 계획
 
+> **주의 (2026-04-24)**: 본 문서는 상세 페이지 초기 구현 계획(Phase 1-4)으로, projid-removal 이전의 `project` / `projectId` 용어 체계로 작성되었습니다. **현행 라우트/폴더 구조는 아래 "현행" 라인에서 확인**하고, 나머지 본문(컴포넌트 예시, API path, 시나리오 URL 등)은 historical reference로만 참고하세요.
+> 최신 API 스펙은 `docs/swagger/*.yaml`을 참조합니다.
+
 ## 개요
 
 과제(Project) 상세 페이지는 PII Agent 설치 프로세스의 핵심 페이지입니다.
 5단계 설치 프로세스의 현재 상태를 보여주고, 단계별 액션을 수행할 수 있습니다.
 
-**라우트**: `/projects/[projectId]`
+**라우트 (현행, W1/W3/W6 이관 후)**: `/integration/target-sources/[targetSourceId]`
+**라우트 (레거시, 본문 전반)**: `/projects/[projectId]`
 
 ---
 
@@ -201,6 +205,8 @@ const getProgress = (project: Project) => {
 ---
 
 ## 컴포넌트 구조
+
+> **현행 위치 (W3 relocate + W1/W6 rename 반영)**: `app/integration/target-sources/[targetSourceId]/`. 하위 컴포넌트는 `_components/`로 colocate됨. 아래 트리는 초기 구현 기준 historical reference.
 
 ```
 app/projects/[projectId]/page.tsx          # 페이지 (Server Component)

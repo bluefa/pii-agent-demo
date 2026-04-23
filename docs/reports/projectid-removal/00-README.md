@@ -65,6 +65,20 @@
 
 ---
 
+## Status (2026-04-24)
+
+| Wave | Status | PR |
+|---|---|---|
+| W0 — behavior lock-in tests | ✅ merged | #322 |
+| W1 — route segment `[projectId]` → `[targetSourceId]` | ✅ merged | #320 |
+| W2 — mock store pivot + `resolveProjectId` 제거 | ✅ merged | #328 |
+| W3 — `app/projects/` 해체 → route `_components/` colocate | ✅ merged | #324 |
+| W4 — API client param + `integrationRoutes` rename | ✅ merged | #325 |
+| W6 — URL 경로 `/integration/projects/` → `/integration/target-sources/` | ✅ merged | #329 |
+| W5 — docs/swagger 동기화 | 🟢 (current) | — |
+
+코드 측 projectId → targetSourceId 전환은 완료되었고, 본 wave(W5)가 docs 동기화로 전체 migration을 종료합니다.
+
 ## Wave 구성
 
 | Key | Title | Scope | Est. LOC Δ | Depends on |

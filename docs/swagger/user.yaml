@@ -14,6 +14,9 @@ info:
 
     ### Legacy API Replacement Map
 
+    > Last reviewed: 2026-04-24 — projid-removal W1-W4 (#320 / #328 / #324 / #325) merge 완료 후 검증.
+    > 레거시 `projectId` 개념은 코드에서 전면 폐기되었으며, 본 map은 historical reference입니다.
+
     - `GET /api/services/{serviceCode}/projects` -> `GET /install/v1/target-sources/services/{serviceCode}`
 
     - `POST /api/projects` -> `POST /install/v1/target-sources/services/{serviceCode}/target-sources`

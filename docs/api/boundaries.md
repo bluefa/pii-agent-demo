@@ -20,7 +20,7 @@ The app has **two parallel data-fetching pipelines**. They look similar but serv
 
 ## Pipeline 1 — CSR (client-side rendering)
 
-This is the default for interactive pages under `app/projects/**`, `app/components/**`.
+This is the default for interactive pages under `app/integration/target-sources/**`, `app/components/**`.
 
 ```
 ┌──────────────┐   fetch      ┌───────────────────┐   dispatch   ┌──────────────┐    HTTP     ┌──────────────┐
@@ -69,7 +69,7 @@ Hop 1 exists because the app is mounted under `/integration` (`next.config.ts` a
 
 ## Pipeline 2 — SSR (Server Component)
 
-Used only by React Server Components (currently `app/integration/projects/[projectId]/page.tsx`).
+Used only by React Server Components (currently `app/integration/target-sources/[targetSourceId]/page.tsx`).
 
 ```
 ┌──────────────────┐   function call   ┌────────────────────────┐    HTTP     ┌──────────────┐
@@ -111,8 +111,8 @@ Is it a file under app/integration/api/v1/**/route.ts?           ──▶ Route
 
 | From | Must NOT import |
 |------|-----------------|
-| `app/components/**`, `app/projects/**` (CSR) | `@/lib/api-client/*`, `@/lib/bff/*` |
-| `app/integration/projects/*/page.tsx` (Server Component) | `@/app/lib/api/*`, `@/lib/api-client/*` |
+| `app/components/**`, `app/integration/target-sources/**` (CSR) | `@/lib/api-client/*`, `@/lib/bff/*` |
+| `app/integration/target-sources/[targetSourceId]/page.tsx` (Server Component) | `@/app/lib/api/*`, `@/lib/api-client/*` |
 | `app/integration/api/v1/**/route.ts` (route handler) | `@/app/lib/api/*`, `@/lib/bff/*` |
 | `lib/api-client/*` | `@/app/lib/api/*` |
 | `lib/bff/*` | `@/app/lib/api/*`, `@/lib/api-client/*` |
