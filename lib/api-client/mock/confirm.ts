@@ -50,21 +50,21 @@ export const _resetApprovedIntegrationStore = () => {
 };
 
 /** @internal 테스트 전용: 지연 시간 우회 (승인 시각을 과거로 설정) */
-export const _fastForwardApproval = (projectId: string) => {
+export const _fastForwardApproval = (targetSourceId: string) => {
   const fastForwardMs = Math.max(MOCK_INSTALLATION_DELAY_MS, MOCK_APPLYING_DELAY_MS) + 1;
-  approvalTimestampStore.set(projectId, Date.now() - fastForwardMs);
+  approvalTimestampStore.set(targetSourceId, Date.now() - fastForwardMs);
 };
 
 /** @internal 테스트 전용: ApprovedIntegration 직접 설정 (실시간 상태 계산 테스트용) */
-export const _setApprovedIntegration = (projectId: string) => {
-  approvedIntegrationStore.set(projectId, {
-    id: `ai-test-${projectId}`,
-    request_id: `req-test-${projectId}`,
+export const _setApprovedIntegration = (targetSourceId: string) => {
+  approvedIntegrationStore.set(targetSourceId, {
+    id: `ai-test-${targetSourceId}`,
+    request_id: `req-test-${targetSourceId}`,
     approved_at: new Date().toISOString(),
     resource_infos: [],
     excluded_resource_ids: [],
   });
-  approvalTimestampStore.set(projectId, Date.now());
+  approvalTimestampStore.set(targetSourceId, Date.now());
 };
 
 interface ResourceCredentialInput {
@@ -222,7 +222,7 @@ const getServiceName = (serviceCode: string): string =>
 // --- Mock Confirm Module ---
 
 export const mockConfirm = {
-  getResources: async (projectId: string) => {
+  getResources: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -231,7 +231,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -244,7 +244,7 @@ export const mockConfirm = {
     return NextResponse.json({ resources, total_count: resources.length });
   },
 
-  createApprovalRequest: async (projectId: string, body: unknown) => {
+  createApprovalRequest: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -253,7 +253,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -282,7 +282,7 @@ export const mockConfirm = {
         (r) => r.isSelected && r.connectionStatus === 'CONNECTED',
       );
       if (connectedResources.length > 0) {
-        confirmedIntegrationSnapshotStore.set(projectId, {
+        confirmedIntegrationSnapshotStore.set(targetSourceId, {
           resource_infos: connectedResources.map(toConfirmedIntegrationResourceInfo),
         });
       }
@@ -388,7 +388,7 @@ export const mockConfirm = {
     };
 
     // 기존 연결 테스트 내역 삭제
-    tcFns.clearJobHistory(projectId);
+    tcFns.clearJobHistory(targetSourceId);
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
     const actor = { id: user.id, name: user.name };
@@ -396,7 +396,7 @@ export const mockConfirm = {
       ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
       : { bdcTf: 'PENDING' as const };
 
-    await mockData.updateProject(projectId, {
+    await mockData.updateProject(targetSourceId, {
       resources: updatedResources,
       status: updatedStatus,
       processStatus: calculatedProcessStatus,
@@ -408,10 +408,10 @@ export const mockConfirm = {
 
     // AWS 변경 요청 시 설치 진행 상태를 항상 초기화한다.
     if (project.cloudProvider === 'AWS') {
-      const previousAwsInstallation = getStore().awsInstallations.get(projectId);
+      const previousAwsInstallation = getStore().awsInstallations.get(targetSourceId);
       const hasTfPermission = previousAwsInstallation?.hasTfPermission
         ?? (project.terraformState.serviceTf === 'COMPLETED');
-      mockInstallation.initializeInstallation(projectId, hasTfPermission);
+      mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
     }
 
     // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
@@ -456,15 +456,15 @@ export const mockConfirm = {
       )),
       ...(exclusion_reason_default ? { exclusion_reason_default } : {}),
     };
-    await mockHistory.addTargetConfirmedHistory(projectId, actor, selectedCount, excludedCount, inputDataSnapshot);
+    await mockHistory.addTargetConfirmedHistory(targetSourceId, actor, selectedCount, excludedCount, inputDataSnapshot);
     const requestId = `req-${Date.now()}`;
 
     // ADR-006: 자동 승인 시에도 ApprovedIntegration 스냅샷 생성
     if (autoApprovalResult.shouldAutoApprove) {
       const selectedResources = updatedResources.filter((r) => r.isSelected);
       const excludedResources = updatedResources.filter((r) => r.exclusion);
-      approvedIntegrationStore.set(projectId, {
-        id: `ai-${projectId}-${Date.now()}`,
+      approvedIntegrationStore.set(targetSourceId, {
+        id: `ai-${targetSourceId}-${Date.now()}`,
         request_id: requestId,
         approved_at: now,
         resource_infos: selectedResources.map(toResourceSnapshot),
@@ -472,8 +472,8 @@ export const mockConfirm = {
         exclusion_reason: excludedResources[0]?.exclusion?.reason,
       });
       // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
-      approvalTimestampStore.set(projectId, Date.now());
-      await mockHistory.addAutoApprovedHistory(projectId);
+      approvalTimestampStore.set(targetSourceId, Date.now());
+      await mockHistory.addAutoApprovedHistory(targetSourceId);
     }
 
     // Queue Board 연동: 승인 요청 생성 시 Admin Tasks에 항목 추가
@@ -506,7 +506,7 @@ export const mockConfirm = {
     );
   },
 
-  getConfirmedIntegration: async (projectId: string) => {
+  getConfirmedIntegration: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -515,7 +515,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -540,7 +540,7 @@ export const mockConfirm = {
     } satisfies BffConfirmedIntegration);
   },
 
-  getApprovedIntegration: async (projectId: string) => {
+  getApprovedIntegration: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -549,7 +549,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -569,7 +569,7 @@ export const mockConfirm = {
     return NextResponse.json({ approved_integration: approved });
   },
 
-  getApprovalHistory: async (projectId: string, page: number, size: number) => {
+  getApprovalHistory: async (targetSourceId: string, page: number, size: number) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -578,7 +578,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -587,7 +587,7 @@ export const mockConfirm = {
     }
 
     const { history: allHistory } = mockHistory.getProjectHistory({
-      projectId,
+      projectId: targetSourceId,
       type: 'approval',
     });
 
@@ -729,7 +729,7 @@ export const mockConfirm = {
     });
   },
 
-  getApprovalRequestLatest: async (projectId: string) => {
+  getApprovalRequestLatest: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -738,7 +738,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -747,7 +747,7 @@ export const mockConfirm = {
     }
 
     const { history: allHistory } = mockHistory.getProjectHistory({
-      projectId,
+      projectId: targetSourceId,
       type: 'approval',
     });
 
@@ -812,7 +812,7 @@ export const mockConfirm = {
     });
   },
 
-  getProcessStatus: async (projectId: string) => {
+  getProcessStatus: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -821,7 +821,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -860,7 +860,7 @@ export const mockConfirm = {
           status: progressedStatus,
         });
 
-        const updated = mockData.getProjectById(projectId)!;
+        const updated = mockData.getProjectById(targetSourceId)!;
         return NextResponse.json({
           target_source_id: updated.targetSourceId,
           process_status: computeProcessStatus(updated),
@@ -903,7 +903,7 @@ export const mockConfirm = {
     });
   },
 
-  approveApprovalRequest: async (projectId: string, body: unknown) => {
+  approveApprovalRequest: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -912,7 +912,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -947,7 +947,7 @@ export const mockConfirm = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    mockData.updateProject(projectId, {
+    mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -975,7 +975,7 @@ export const mockConfirm = {
     // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
     approvalTimestampStore.set(project.id, Date.now());
 
-    mockHistory.addApprovalHistory(projectId, { id: user.id, name: user.name });
+    mockHistory.addApprovalHistory(targetSourceId, { id: user.id, name: user.name });
 
     // Queue Board 연동: 승인 → IN_PROGRESS
     updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', user.name);
@@ -987,7 +987,7 @@ export const mockConfirm = {
     });
   },
 
-  rejectApprovalRequest: async (projectId: string, body: unknown) => {
+  rejectApprovalRequest: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -996,7 +996,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1040,7 +1040,7 @@ export const mockConfirm = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    mockData.updateProject(projectId, {
+    mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
@@ -1049,7 +1049,7 @@ export const mockConfirm = {
       rejectedAt: now,
     });
 
-    mockHistory.addRejectionHistory(projectId, { id: user.id, name: user.name }, reason || '');
+    mockHistory.addRejectionHistory(targetSourceId, { id: user.id, name: user.name }, reason || '');
 
     // Queue Board 연동: 반려 → REJECTED
     updateQueueItemStatus(project.targetSourceId, 'REJECTED', user.name, reason);
@@ -1062,7 +1062,7 @@ export const mockConfirm = {
     });
   },
 
-  cancelApprovalRequest: async (projectId: string) => {
+  cancelApprovalRequest: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -1071,7 +1071,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1142,13 +1142,13 @@ export const mockConfirm = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    mockData.updateProject(projectId, {
+    mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       resources: updatedResources,
     });
 
-    mockHistory.addApprovalCancelledHistory(projectId, { id: user.id, name: user.name });
+    mockHistory.addApprovalCancelledHistory(targetSourceId, { id: user.id, name: user.name });
 
     return NextResponse.json({
       success: true,
@@ -1157,7 +1157,7 @@ export const mockConfirm = {
     });
   },
 
-  confirmInstallation: async (projectId: string) => {
+  confirmInstallation: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -1166,7 +1166,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1209,7 +1209,7 @@ export const mockConfirm = {
 
     const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
 
-    mockData.updateProject(projectId, {
+    mockData.updateProject(targetSourceId, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
       completionConfirmedAt: now,
@@ -1225,7 +1225,7 @@ export const mockConfirm = {
     return NextResponse.json({ success: true, confirmedAt: now });
   },
 
-  updateResourceCredential: async (projectId: string, body: unknown) => {
+  updateResourceCredential: async (targetSourceId: string, body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -1234,7 +1234,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1287,12 +1287,12 @@ export const mockConfirm = {
       });
     }
 
-    mockData.updateProject(projectId, { resources: updatedResources });
+    mockData.updateProject(targetSourceId, { resources: updatedResources });
 
     return NextResponse.json({ success: true });
   },
 
-  testConnection: async (projectId: string, _body: unknown) => {
+  testConnection: async (targetSourceId: string, _body: unknown) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -1301,7 +1301,7 @@ export const mockConfirm = {
       );
     }
 
-    const project = mockData.getProjectById(projectId);
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
@@ -1325,21 +1325,21 @@ export const mockConfirm = {
       );
     }
 
-    if (tcFns.hasPendingJob(projectId)) {
+    if (tcFns.hasPendingJob(targetSourceId)) {
       return NextResponse.json(
         { error: { code: 'CONFLICT_IN_PROGRESS', message: '현재 연결 테스트가 진행 중입니다.' } },
         { status: 409 },
       );
     }
 
-    const targetSourceId = project.targetSourceId ?? (Number(projectId.replace(/\D/g, '')) || 0);
-    const job = tcFns.createTestConnectionJob(project, targetSourceId, user.id);
+    const numericTargetSourceId = project.targetSourceId ?? (Number(targetSourceId.replace(/\D/g, '')) || 0);
+    const job = tcFns.createTestConnectionJob(project, numericTargetSourceId, user.id);
 
     return NextResponse.json({ id: job.id }, { status: 202 });
   },
 
-  getTestConnectionResults: async (projectId: string, page: number, size: number) => {
-    const project = mockData.getProjectById(projectId);
+  getTestConnectionResults: async (targetSourceId: string, page: number, size: number) => {
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
@@ -1347,7 +1347,7 @@ export const mockConfirm = {
       );
     }
 
-    const { content, total } = tcFns.getJobHistory(projectId, page, size);
+    const { content, total } = tcFns.getJobHistory(targetSourceId, page, size);
     const totalPages = Math.ceil(total / size);
 
     return NextResponse.json({
@@ -1356,8 +1356,8 @@ export const mockConfirm = {
     });
   },
 
-  getTestConnectionLatest: async (projectId: string) => {
-    const project = mockData.getProjectById(projectId);
+  getTestConnectionLatest: async (targetSourceId: string) => {
+    const project = mockData.getProjectById(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
@@ -1365,7 +1365,7 @@ export const mockConfirm = {
       );
     }
 
-    const job = tcFns.getLatestJob(projectId);
+    const job = tcFns.getLatestJob(targetSourceId);
     if (!job) {
       return NextResponse.json(
         { error: { code: 'TEST_CONNECTION_NOT_FOUND', message: '연결 테스트 이력이 없습니다.' } },
