@@ -62,7 +62,6 @@ interface DbSelectionCardProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (id: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
-  onEditModeChange?: (isEdit: boolean) => void;
 }
 
 export const DbSelectionCard = ({
@@ -79,7 +78,6 @@ export const DbSelectionCard = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
-  onEditModeChange,
 }: DbSelectionCardProps) => (
   <ScanController targetSourceId={targetSourceId} onScanComplete={onScanComplete}>
     {({ state, lastScanAt, progress, starting, canStart, startScan }) => (
@@ -136,7 +134,6 @@ export const DbSelectionCard = ({
               expandedVmId={expandedVmId}
               onVmConfigToggle={onVmConfigToggle}
               onVmConfigSave={onVmConfigSave}
-              onEditModeChange={onEditModeChange}
             />
           )}
         </div>

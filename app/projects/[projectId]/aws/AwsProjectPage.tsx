@@ -237,7 +237,6 @@ export const AwsProjectPage = ({
           expandedVmId={expandedVmId}
           onVmConfigToggle={setExpandedVmId}
           onVmConfigSave={handleVmConfigSave}
-          onEditModeChange={setIsEditMode}
         />
       )}
 
