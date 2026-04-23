@@ -61,12 +61,14 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
   });
 
   const { execute: doStartScan, loading: starting } = useApiAction(
-    () => startScan(targetSourceId),
+    async () => {
+      const minSpinnerDelay = new Promise<void>((resolve) => setTimeout(resolve, 500));
+      await startScan(targetSourceId);
+      await refresh();
+      startPolling();
+      await minSpinnerDelay;
+    },
     {
-      onSuccess: () => {
-        startPolling();
-        refresh();
-      },
       errorMessage: '스캔을 시작할 수 없습니다.',
     }
   );
