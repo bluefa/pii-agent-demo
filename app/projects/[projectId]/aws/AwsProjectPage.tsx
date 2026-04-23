@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
-import type { AwsInstallationStatus, AwsSettings } from '@/lib/types';
 import {
   createApprovalRequest,
   updateResourceCredential,
   getProject,
 } from '@/app/lib/api';
-import { getAwsInstallationStatus, getAwsSettings } from '@/app/lib/api/aws';
 import { getProjectCurrentStep } from '@/lib/process';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { useModal } from '@/app/hooks/useModal';
@@ -43,11 +41,7 @@ export const AwsProjectPage = ({
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
-  // Prerequisite data
-  const [awsStatus, setAwsStatus] = useState<AwsInstallationStatus | null>(null);
-  const [awsSettings, setAwsSettings] = useState<AwsSettings | null>(null);
   const guideModal = useModal();
-  const resourceSectionRef = useRef<HTMLDivElement>(null);
 
   // VM 설정 상태
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
@@ -61,21 +55,8 @@ export const AwsProjectPage = ({
     return initial;
   });
 
-  useEffect(() => {
-    getAwsInstallationStatus(project.targetSourceId).then(setAwsStatus).catch(() => {});
-    getAwsSettings(project.targetSourceId).then(setAwsSettings).catch(() => {});
-  }, [project.targetSourceId]);
-
   const guideVariant = project.awsInstallationMode === 'AUTO' ? 'auto' : 'manual';
   const guide = getProcessGuide('AWS', guideVariant);
-
-  const handleOpenGuide = () => {
-    guideModal.open();
-  };
-
-  const handleManageCredentials = () => {
-    resourceSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
@@ -224,7 +205,7 @@ export const AwsProjectPage = ({
 
       {/* Cloud 리소스 통합 컨테이너 */}
       {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-        <div ref={resourceSectionRef}>
+        <div>
           <ResourceTransitionPanel
             targetSourceId={project.targetSourceId}
             resources={project.resources}
@@ -233,7 +214,7 @@ export const AwsProjectPage = ({
           />
         </div>
       ) : (
-        <div ref={resourceSectionRef} className={cn(cardStyles.base, 'overflow-hidden')}>
+        <div className={cn(cardStyles.base, 'overflow-hidden')}>
           <div className="px-6 pt-6">
             <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
           </div>

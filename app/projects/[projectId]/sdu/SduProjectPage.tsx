@@ -26,7 +26,6 @@ import {
 } from '@/app/lib/api/sdu';
 import { getProject } from '@/app/lib/api';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
-import { SduProjectInfoCard } from '@/app/projects/[projectId]/sdu/SduProjectInfoCard';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
 import {
   IamUserManageModal,
