@@ -16,7 +16,7 @@ import {
 } from '@/app/lib/api/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[projectId]/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { IdcProcessStatusCard } from '@/app/projects/[projectId]/idc/IdcProcessStatusCard';
@@ -219,16 +219,18 @@ export const IdcProjectPage = ({
 
   const hasPendingResources = pendingResources.length > 0 && isStep1;
 
-  const pageMetaItems = [
-    { label: 'Cloud Provider', value: 'IDC' },
-    { label: '서비스 코드', value: project.serviceCode },
-    { label: 'Jira Link', value: '-' },
-    { label: '모니터링 방식', value: 'SDU' },
-  ];
+  const identity: ProjectIdentity = {
+    cloudProvider: 'IDC',
+    monitoringMethod: 'SDU',
+    jiraLink: null,
+    identifiers: [
+      { label: '서비스 코드', value: project.serviceCode },
+    ],
+  };
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="IDC Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="IDC Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
 
       <IdcProcessStatusCard
         project={project}

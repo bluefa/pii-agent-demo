@@ -27,7 +27,7 @@ import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError } from '@/lib/errors';
@@ -338,16 +338,19 @@ export const AzureProjectPage = ({
     onProjectUpdate(updatedProject);
   };
 
-  const pageMetaItems = [
-    { label: 'Cloud Provider', value: 'Azure' },
-    { label: 'Subscription ID', value: azureIdentifiers.subscriptionId ?? '-' },
-    { label: 'Tenant ID', value: azureIdentifiers.tenantId ?? '-' },
-    { label: '모니터링 방식', value: 'Azure Agent' },
-  ];
+  const identity: ProjectIdentity = {
+    cloudProvider: 'Azure',
+    monitoringMethod: 'Azure Agent',
+    jiraLink: null,
+    identifiers: [
+      { label: 'Subscription ID', value: azureIdentifiers.subscriptionId ?? null, mono: true },
+      { label: 'Tenant ID', value: azureIdentifiers.tenantId ?? null, mono: true },
+    ],
+  };
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="Azure Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="Azure Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
 
       {!resourceLoaded ? (
         <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
