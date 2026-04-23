@@ -1,6 +1,6 @@
 'use client';
 
-import { ErrorState } from '@/app/integration/projects/[targetSourceId]/_components/common';
+import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 
 export default function ProjectDetailError({
   error,
