@@ -1,6 +1,29 @@
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
+import type { EndpointConfigInputData } from '@/lib/types';
 
 type JsonRecord = Record<string, unknown>;
+
+export type ApprovalRequestResourceInput =
+  | {
+      resource_id: string;
+      selected: true;
+      resource_input?: {
+        credential_id?: string;
+        endpoint_config?: EndpointConfigInputData;
+        resource_id?: string;
+        database_type?: string;
+        port?: number;
+        host?: string;
+        oracle_service_id?: string;
+        network_interface_id?: string;
+      };
+    }
+  | { resource_id: string; selected: false; exclusion_reason?: string };
+
+export interface ApprovalRequestCreateBody {
+  resource_inputs: ApprovalRequestResourceInput[];
+  exclusion_reason_default?: string;
+}
 
 export type Issue222ApprovalStatus =
   | 'PENDING'
@@ -275,40 +298,48 @@ const toIssue222ExcludedResourceInfos = (value: unknown): Issue222ExcludedResour
   return fallbackInfos.length > 0 ? fallbackInfos : undefined;
 };
 
-export const normalizeIssue222ApprovalRequestBody = (body: unknown): JsonRecord => {
+const toApprovalRequestResourceInput = (item: JsonRecord): ApprovalRequestResourceInput | null => {
+  const resourceId = toStringOrUndefined(item.resource_id);
+  if (!resourceId) return null;
+
+  if (toBoolean(item.selected)) {
+    const legacyResourceInput = isRecord(item.resource_input) ? item.resource_input : null;
+    const normalized = legacyResourceInput ? toIssue222ResourceConfigDto(legacyResourceInput) : null;
+    type SelectedResourceInput = Extract<ApprovalRequestResourceInput, { selected: true }>['resource_input'];
+    const resourceInput: SelectedResourceInput = normalized
+      ? {
+          resource_id: resourceId,
+          ...(normalized.credential_id ? { credential_id: normalized.credential_id } : {}),
+          ...(normalized.database_type ? { database_type: normalized.database_type } : {}),
+          ...(normalized.port !== undefined ? { port: normalized.port } : {}),
+          ...(normalized.host ? { host: normalized.host } : {}),
+          ...(normalized.oracle_service_id ? { oracle_service_id: normalized.oracle_service_id } : {}),
+          ...(normalized.network_interface_id ? { network_interface_id: normalized.network_interface_id } : {}),
+        }
+      : undefined;
+
+    return {
+      resource_id: resourceId,
+      selected: true,
+      ...(resourceInput && Object.keys(resourceInput).length > 1 ? { resource_input: resourceInput } : {}),
+    };
+  }
+
+  const exclusionReason = toStringOrUndefined(item.exclusion_reason);
+  return {
+    resource_id: resourceId,
+    selected: false,
+    ...(exclusionReason ? { exclusion_reason: exclusionReason } : {}),
+  };
+};
+
+export const normalizeIssue222ApprovalRequestBody = (body: unknown): ApprovalRequestCreateBody => {
   const input = getLegacyApprovalInput(body);
   const resourceInputs = Array.isArray(input?.resource_inputs)
     ? input.resource_inputs
         .filter(isRecord)
-        .map((item) => {
-          const resourceId = toStringOrUndefined(item.resource_id);
-          const selected = toBoolean(item.selected);
-          const legacyResourceInput = isRecord(item.resource_input) ? item.resource_input : null;
-          const normalizedResourceInput = legacyResourceInput
-            ? toIssue222ResourceConfigDto(legacyResourceInput)
-            : null;
-          const resourceInput = normalizedResourceInput
-            ? {
-                ...(resourceId ? { resource_id: resourceId } : {}),
-                ...normalizedResourceInput,
-              }
-            : null;
-
-          return {
-            ...(resourceId ? { resource_id: resourceId } : {}),
-            selected,
-            ...(resourceInput && Object.values(resourceInput).some((fieldValue) => fieldValue !== undefined)
-              ? {
-                  resource_input: Object.fromEntries(
-                    Object.entries(resourceInput).filter(([, fieldValue]) => fieldValue !== undefined),
-                  ),
-                }
-              : {}),
-            ...(toStringOrUndefined(item.exclusion_reason)
-              ? { exclusion_reason: toStringOrUndefined(item.exclusion_reason) }
-              : {}),
-          };
-        })
+        .map(toApprovalRequestResourceInput)
+        .filter((item): item is ApprovalRequestResourceInput => item !== null)
     : [];
 
   const exclusionReasonDefault = toStringOrUndefined(input?.exclusion_reason_default);
