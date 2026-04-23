@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
     href: integrationRoutes.admin,
     isActive: (pathname) =>
       pathname.startsWith('/integration/admin') ||
-      pathname.startsWith('/integration/projects'),
+      pathname.startsWith('/integration/target-sources'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
         <line x1="8" y1="6" x2="21" y2="6" />

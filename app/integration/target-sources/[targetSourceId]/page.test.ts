@@ -20,17 +20,17 @@ vi.mock('@/lib/bff/client', () => ({
   },
 }));
 
-vi.mock('@/app/integration/projects/[targetSourceId]/_components/ProjectDetail', () => ({
+vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/ProjectDetail', () => ({
   ProjectDetail: () => null,
 }));
 
-vi.mock('@/app/integration/projects/[targetSourceId]/_components/common', () => ({
+vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/common', () => ({
   ErrorState: () => null,
 }));
 
-import ProjectDetailPage from '@/app/integration/projects/[targetSourceId]/page';
+import ProjectDetailPage from '@/app/integration/target-sources/[targetSourceId]/page';
 
-describe('GET /integration/projects/[targetSourceId]', () => {
+describe('GET /integration/target-sources/[targetSourceId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
