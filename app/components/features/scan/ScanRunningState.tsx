@@ -18,18 +18,20 @@ export const ScanRunningState = ({ progress }: ScanRunningStateProps) => {
           primaryColors.text,
         )}
       >
-        <svg
-          className="w-8 h-8 animate-spin"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.6}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
+        <div className="animate-spin">
+          <svg
+            className="w-8 h-8"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        </div>
       </div>
       <h3 className={cn('text-base font-semibold mb-1.5', textColors.primary)}>
         인프라 스캔 진행중입니다
