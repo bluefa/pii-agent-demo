@@ -1,0 +1,134 @@
+---
+name: wave-task
+description: Spec-driven PR pipeline. Takes one markdown spec and runs implement → self-audit → PR → auto review+fix loop → merge wait. Standardizes the workflow used across PRs #274-288.
+user_invocable: true
+---
+
+# /wave-task - Spec-Driven PR Pipeline
+
+Take one markdown spec and drive a single PR end-to-end.
+
+## Input
+
+- `$1` (required): spec path or spec key — e.g. `wave5-B5`, `docs/reports/sit-migration-prompts/wave7-B8.md`
+- `--skip-merge-wait` (optional): skip Phase 8 user confirmation and auto-merge. Off by default, not recommended.
+- `--max-review-loops <N>` (optional): cap on Phase 7 auto-fix iterations (default 3).
+
+## Phase 0 — Spec Locate (⛔ include origin/main)
+
+Local HEAD may lag behind origin. Always fetch first.
+
+```bash
+git fetch origin main
+```
+
+Lookup order:
+1. If `$1` is a file path, Read it directly.
+2. If it is a key, check `docs/reports/sit-migration-prompts/<key>.md` locally.
+3. If missing locally, try `git show origin/main:docs/reports/sit-migration-prompts/<key>.md`.
+4. Still missing: `git ls-tree -r origin/main | grep <key>` and `find . -name "*<key>*.md"`.
+
+Once the spec is loaded, report the following to the user before continuing:
+- spec file path + origin SHA
+- target files / components / scope
+- Phase 0 decisions (I-XX) referenced by the spec
+- explicitly deferred items (T17 etc.) the spec says are out of scope
+
+## Phase 1 — Worktree
+
+Invoke `/worktree`. Derive branch prefix from spec type: `feat/`, `refactor/`, `fix/`, `docs/`.
+Example: `feat/sit-wave7-b8`.
+
+## Phase 2 — Implement
+
+Follow the spec's implementation steps in order. `/coding-standards` auto-applies.
+
+⛔ Rules:
+- **Do not touch files outside the spec's declared scope** — capture any drive-by findings for Phase 7 instead.
+- Keep orphan imports/state only when the spec explicitly defers them to a later wave (e.g. T17); otherwise remove in-PR.
+- Never hardcode real PII (emails, names, initials) from design mockups. Use placeholders (`user@example.com`, `JD`, etc.).
+- Stay aligned with `/sit-recurring-checks` while writing.
+
+## Phase 3 — Self-Audit (sequential)
+
+Invoke the following skills in order. Any fix in a step triggers re-running the previous step to check for regression.
+
+1. `/sit-recurring-checks` — grep/rule-based detection + auto-fix for repeat offenders.
+2. `/simplify` — review the diff for reuse, quality, efficiency.
+3. `/vercel-react-best-practices` — cross-check against the 57 React/Next.js rules and fix violations.
+
+Constraints:
+- A fix in step 2 or 3 must re-run step 1 (recurring checks) before moving on.
+- Do not expand beyond spec scope to satisfy an audit finding — record it in Phase 7 instead.
+
+## Phase 4 — Verify
+
+```bash
+npx tsc --noEmit
+npm run lint -- <changed paths>
+```
+
+- `tsc` must exit 0.
+- Lint: 0 new warnings introduced by this PR. Pre-existing warnings may remain.
+
+## Phase 5 — Commit & Push
+
+```bash
+git fetch origin main && git rebase origin/main
+```
+
+- Commit format: `<type>(<scope>): <desc> (<spec-key>)`
+  - e.g. `refactor(scan): ScanPanel headless (ScanController) (wave5-B6)`
+- Resolve rebase conflicts then `git rebase --continue`.
+- Push.
+
+## Phase 6 — PR Create
+
+Invoke `/pr`. PR body must include:
+- Spec path + head SHA
+- Changed files (net LOC)
+- Deviations from the spec with rationale
+- Orphan items deferred to later waves (if any)
+- `tsc` / `lint` result summary
+
+## Phase 7 — Self-Review + Auto-Fix Loop
+
+Invoke `/pr-context-review <PR#>`. Parse the verdict:
+
+| Verdict label | Next action |
+|---|---|
+| `APPROVE` / `READY_TO_MERGE` | Proceed to Phase 8 |
+| `MINOR_COMMENTS` | If only P3 remains, proceed to Phase 8. If P2+ remains, enter loop. |
+| `BLOCKING` / any P1 | Enter auto-fix loop |
+
+### Auto-Fix Loop (up to `--max-review-loops` iterations)
+
+1. Parse findings: severity (P1/P2/P3), `file:line`, impact.
+2. Decide per finding:
+   - **P1**: must fix.
+   - **P2 (grep-fixable)**: auto-fix — raw hex → theme token, `animate-spin` wrapping, empty fragment removal, orphan import cleanup.
+   - **P2 (structural)**: fix if inside spec scope; otherwise record in PR body under `## Deferred`.
+   - **P3**: report only, do not auto-fix (avoids bloating the diff).
+3. Re-run Phase 3 (self-audit) → Phase 4 (verify).
+4. Commit: `review: address pr-context-review findings` + push.
+5. Re-run `/pr-context-review <PR#>` — upsert the same comment via the `<!-- claude-pr-context-review -->` marker.
+6. Repeat until `READY_TO_MERGE`. If the cap is hit, report remaining findings to the user and stop the loop.
+
+## Phase 8 — Merge Wait
+
+Default: wait for the user's explicit merge instruction (per CLAUDE.md: merges are user-triggered).
+Only auto-merge when `--skip-merge-wait` is passed.
+
+On user merge instruction → `/pr-merge` → `/worktree-cleanup`.
+
+## Prohibited
+
+- Skipping Phase 0 (no implementation without a located spec).
+- Omitting any Phase 3 skill.
+- Entering Phase 8 with unresolved BLOCKING findings.
+- Refactoring outside spec scope inside the auto-fix loop.
+- Auto-fixing P3 findings just to clear the comment.
+
+## Origin of this pipeline
+
+Standardization of the flow repeated across PRs #274-288 (SIT Wave 2-7). Recurring review findings are prevented by `/sit-recurring-checks`.
