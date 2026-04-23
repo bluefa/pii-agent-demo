@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/app/components/ui/Button';
+import { useToast } from '@/app/components/ui/toast';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
 import { PageMeta } from '@/app/components/ui/PageMeta';
@@ -27,6 +28,7 @@ import { InfrastructureList } from './admin/infrastructure';
 
 export const AdminDashboard = () => {
   const router = useRouter();
+  const toast = useToast();
   const [services, setServices] = useState<ServiceCode[]>([]);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -106,12 +108,12 @@ export const AdminDashboard = () => {
       const historyResponse = await getApprovalHistory(project.targetSourceId, 0, 1);
       const latest = historyResponse.content[0];
       if (!latest) {
-        alert('승인 요청 이력이 없습니다.');
+        toast.info('승인 요청 이력이 없습니다.');
         return;
       }
       setApprovalDetail({ project, approvalRequest: latest.request });
     } catch (err) {
-      alert(err instanceof Error ? err.message : '승인 요청 조회 실패');
+      toast.error(err instanceof Error ? err.message : '승인 요청 조회 실패');
     }
   };
 
@@ -123,7 +125,7 @@ export const AdminDashboard = () => {
       setApprovalDetail(null);
       await refreshProjects();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '승인 처리 실패');
+      toast.error(err instanceof Error ? err.message : '승인 처리 실패');
     } finally {
       setApprovalLoading(false);
     }
@@ -137,7 +139,7 @@ export const AdminDashboard = () => {
       setApprovalDetail(null);
       await refreshProjects();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '반려 처리 실패');
+      toast.error(err instanceof Error ? err.message : '반려 처리 실패');
     } finally {
       setApprovalLoading(false);
     }
@@ -150,7 +152,7 @@ export const AdminDashboard = () => {
       await confirmInstallation(targetSourceId);
       await refreshProjects();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '설치 완료 확정 실패');
+      toast.error(err instanceof Error ? err.message : '설치 완료 확정 실패');
     } finally {
       setActionLoading(null);
     }
@@ -165,8 +167,8 @@ export const AdminDashboard = () => {
       router.push(integrationRoutes.project(targetSourceId));
       return;
     }
-    alert('삭제 미구현');
-  }, [router]);
+    toast.info('삭제 미구현');
+  }, [router, toast]);
 
   const selectedServiceObj = services.find((s) => s.code === selectedService);
 

@@ -3,12 +3,14 @@
 import { SecretKey } from '@/lib/types';
 import { formatDateOnly } from '@/lib/utils/date';
 import { cn, statusColors, primaryColors } from '@/lib/theme';
+import { useToast } from '@/app/components/ui/toast';
 
 interface CredentialListTabProps {
   credentials: SecretKey[];
 }
 
 export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
+  const toast = useToast();
 
   if (credentials.length === 0) {
     return (
@@ -22,7 +24,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
             href="#"
             onClick={(e) => {
               e.preventDefault();
-              alert('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
+              toast.info('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
             }}
             className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium inline-flex items-center gap-1`}
           >
@@ -50,7 +52,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            alert('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
+            toast.info('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
           }}
           className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium inline-flex items-center gap-1`}
         >

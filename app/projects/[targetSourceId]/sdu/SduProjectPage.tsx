@@ -36,6 +36,7 @@ import {
   SduAthenaTableList,
 } from '@/app/components/features/sdu';
 import { useModal } from '@/app/hooks/useModal';
+import { useToast } from '@/app/components/ui/toast';
 import { TIMINGS } from '@/lib/constants/timings';
 
 interface SduProjectPageProps {
@@ -59,6 +60,7 @@ export const SduProjectPage = ({
   const s3PollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const installPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const toast = useToast();
   const iamUserModal = useModal();
   const sourceIpModal = useModal();
   const setupGuideModal = useModal();
@@ -185,13 +187,13 @@ export const SduProjectPage = ({
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
 
-      alert('연결 테스트가 성공했습니다.');
+      toast.success('연결 테스트가 성공했습니다.');
     } catch (err) {
-      alert(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '연결 테스트에 실패했습니다.');
     } finally {
       setConnectionTestLoading(false);
     }
-  }, [project.targetSourceId, onProjectUpdate]);
+  }, [project.targetSourceId, onProjectUpdate, toast]);
 
   const handleReissueAkSk = useCallback(async (): Promise<IssueAkSkResponse | null> => {
     try {
@@ -201,12 +203,12 @@ export const SduProjectPage = ({
       setIamUser(iam);
       return result;
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'AK/SK 재발급에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : 'AK/SK 재발급에 실패했습니다.');
       return null;
     } finally {
       setReissuing(false);
     }
-  }, [project.targetSourceId]);
+  }, [project.targetSourceId, toast]);
 
   const handleRegisterSourceIp = useCallback(async (cidr: string) => {
     try {
@@ -214,9 +216,9 @@ export const SduProjectPage = ({
       const sourceIp = await getSourceIpList(project.targetSourceId);
       setSourceIpList(sourceIp);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Source IP 등록에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : 'Source IP 등록에 실패했습니다.');
     }
-  }, [project.targetSourceId]);
+  }, [project.targetSourceId, toast]);
 
   const showAthenaTables = currentStep === 'INSTALLING' ||
                            currentStep === 'WAITING_CONNECTION_TEST' ||

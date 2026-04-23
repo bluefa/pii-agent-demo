@@ -5,6 +5,7 @@ import type { Resource, SecretKey } from '@/lib/types';
 import { updateResourceCredential } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
+import { useToast } from '@/app/components/ui/toast';
 import { statusColors, primaryColors, textColors, getButtonClass, cn } from '@/lib/theme';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 
@@ -27,6 +28,7 @@ export const CredentialSetupModal = ({
   onComplete,
   reviewMode = false,
 }: CredentialSetupModalProps) => {
+  const toast = useToast();
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -57,7 +59,7 @@ export const CredentialSetupModal = ({
       }
       onComplete();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Credential 설정에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : 'Credential 설정에 실패했습니다.');
     } finally {
       setSaving(false);
     }

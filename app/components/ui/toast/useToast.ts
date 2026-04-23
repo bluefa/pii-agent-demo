@@ -24,3 +24,4 @@ export const useToast = (): UseToastReturn => {
     [show, dismiss]
   );
 };
+
