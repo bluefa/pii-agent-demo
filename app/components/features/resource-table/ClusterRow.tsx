@@ -4,16 +4,18 @@ import { useState, useCallback } from 'react';
 import { cn, statusColors, textColors, bgColors } from '@/lib/theme';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { Badge } from '@/app/components/ui/Badge';
-import { StatusIcon } from './StatusIcon';
 import { InstancePanel } from './InstancePanel';
-import type { Resource, ClusterInstance } from '@/lib/types';
+import { getResourceIntegrationStatus, getResourceScanHistory, getResourceDisplayName } from '@/lib/resource';
+import type { Resource, ClusterInstance, ProcessStatus } from '@/lib/types';
 
 interface ClusterRowProps {
   resource: Resource;
+  processStatus: ProcessStatus;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
-  showConnectionStatus: boolean;
+  showCredentialColumn: boolean;
+  colSpan: number;
   onCheckboxChange: (id: string, checked: boolean) => void;
 }
 
@@ -50,10 +52,12 @@ const SelectedInstancesSummary = ({ instances }: { instances: ClusterInstance[] 
 
 export const ClusterRow = ({
   resource,
+  processStatus,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
-  showConnectionStatus,
+  showCredentialColumn,
+  colSpan,
   onCheckboxChange,
 }: ClusterRowProps) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -73,6 +77,9 @@ export const ClusterRow = ({
   }));
   const selectedCount = instances.filter((i) => i.isSelected).length;
   const isReadOnly = !isEditMode && !isCheckboxEnabled;
+  const integrationStatus = getResourceIntegrationStatus(resource, processStatus);
+  const scanHistory = getResourceScanHistory(resource);
+  const displayName = getResourceDisplayName(resource);
 
   const handleCheckboxChange = (checked: boolean) => {
     onCheckboxChange(resource.id, checked);
@@ -80,7 +87,6 @@ export const ClusterRow = ({
       setIsPanelOpen(true);
     } else {
       setIsPanelOpen(false);
-      // Reset instance selections on uncheck
       const reset: Record<string, boolean> = {};
       baseInstances.forEach((inst) => { reset[inst.instanceId] = false; });
       setInstanceSelections(reset);
@@ -106,9 +112,8 @@ export const ClusterRow = ({
         )}
         onClick={handleRowClick}
       >
-        {/* Checkbox */}
         {isEditMode && (
-          <td className="px-6 py-4 w-12" onClick={(e) => e.stopPropagation()}>
+          <td className="px-6 py-4 w-10" onClick={(e) => e.stopPropagation()}>
             {isCheckboxEnabled && (
               <input
                 type="checkbox"
@@ -121,55 +126,74 @@ export const ClusterRow = ({
           </td>
         )}
 
-        {/* Resource ID + Cluster Type Badge + Instance summary */}
         <td className="px-6 py-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
-              {resource.clusterType && (
-                <Badge variant={resource.clusterType === 'GLOBAL' ? 'info' : 'pending'} size="sm">
-                  {resource.clusterType === 'GLOBAL' ? 'Global' : 'Regional'}
-                </Badge>
-              )}
-            </div>
-            <div className={cn('text-xs mt-0.5', textColors.quaternary)}>
-              {instances.length} Instances
-              {isSelected && selectedCount > 0 && (
-                <span className={cn('ml-1', statusColors.info.textDark)}>
-                  · {selectedCount}개 선택됨
-                </span>
-              )}
-            </div>
-            {isSelected && !isPanelOpen && <SelectedInstancesSummary instances={instances} />}
-            {isReadOnly && <SelectedInstancesSummary instances={instances} />}
-          </div>
+          <Badge variant={resource.isSelected ? 'success' : 'pending'} size="sm">
+            {resource.isSelected ? '대상' : '비대상'}
+          </Badge>
         </td>
 
-        {/* Database Type */}
         <td className="px-6 py-4">
-          <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
+          <Badge variant="info" size="sm">{getDatabaseLabel(resource.databaseType)}</Badge>
         </td>
 
-        {/* Connection Status placeholder */}
-        {showConnectionStatus && <td className="px-6 py-4" />}
-
-        {/* Status Icons + Chevron */}
         <td className="px-6 py-4">
-          <div className="flex items-center gap-1">
-            {resource.isSelected && <StatusIcon type="selected" />}
-
-            {resource.connectionStatus === 'DISCONNECTED' && <StatusIcon type="disconnected" />}
+          <div className="flex items-center gap-2">
+            <span className={cn('font-mono text-xs', textColors.tertiary)}>{resource.resourceId}</span>
+            {resource.clusterType && (
+              <Badge variant={resource.clusterType === 'GLOBAL' ? 'info' : 'pending'} size="sm">
+                {resource.clusterType === 'GLOBAL' ? 'Global' : 'Regional'}
+              </Badge>
+            )}
             {isSelected && <ChevronIcon expanded={isPanelOpen} />}
           </div>
+          <div className={cn('text-xs mt-0.5', textColors.quaternary)}>
+            {instances.length} Instances
+            {isSelected && selectedCount > 0 && (
+              <span className={cn('ml-1', statusColors.info.textDark)}>
+                · {selectedCount}개 선택됨
+              </span>
+            )}
+          </div>
+          {isSelected && !isPanelOpen && <SelectedInstancesSummary instances={instances} />}
+          {isReadOnly && <SelectedInstancesSummary instances={instances} />}
         </td>
+
+        <td className="px-6 py-4">
+          <span className={cn('font-mono text-xs', textColors.tertiary)}>
+            {resource.region ?? '—'}
+          </span>
+        </td>
+
+        <td className="px-6 py-4">
+          <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
+        </td>
+
+        <td className="px-6 py-4">
+          <span className={cn(
+            'text-sm',
+            integrationStatus === '연동 완료' && statusColors.success.textDark,
+            integrationStatus === '연동 진행중' && statusColors.info.textDark,
+            integrationStatus === '—' && textColors.quaternary,
+          )}>
+            {integrationStatus}
+          </span>
+        </td>
+
+        <td className="px-6 py-4">
+          {scanHistory === '신규' && <Badge variant="info" size="sm">신규</Badge>}
+          {scanHistory === '변경' && <Badge variant="warning" size="sm">변경</Badge>}
+          {scanHistory === null && <span className={cn('text-sm', textColors.quaternary)}>—</span>}
+        </td>
+
+        {showCredentialColumn && <td className="px-6 py-4" />}
       </tr>
 
-      {/* Instance Panel */}
       {isPanelOpen && isSelected && (
         <InstancePanel
           instances={instances}
           isEditMode={isEditMode || isCheckboxEnabled}
           onInstanceToggle={handleInstanceToggle}
+          colSpan={colSpan}
         />
       )}
     </>

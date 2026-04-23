@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Resource, CloudProvider, AwsResourceType, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, CloudProvider, ProcessStatus, AwsResourceType, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceTypeGroup } from './ResourceTypeGroup';
@@ -9,10 +9,10 @@ import { ResourceTypeGroup } from './ResourceTypeGroup';
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  processStatus: ProcessStatus;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
-  showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
@@ -36,10 +36,10 @@ const groupByAwsType = (res: Resource[]): [AwsResourceType, Resource[]][] => {
 
 export const AwsResourceTableBody = ({
   resources,
+  processStatus,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
-  showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
   colSpan,
@@ -55,11 +55,15 @@ export const AwsResourceTableBody = ({
     <>
       <thead>
         <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
-          {isEditMode && <th className="px-6 py-3 w-12" />}
-          <th className="px-6 py-3">리소스 ID</th>
-          <th className="px-6 py-3">데이터베이스</th>
+          {isEditMode && <th className="px-6 py-3 w-10" />}
+          <th className="px-6 py-3">연동 대상 여부</th>
+          <th className="px-6 py-3">DB Type</th>
+          <th className="px-6 py-3">Resource ID</th>
+          <th className="px-6 py-3">Region</th>
+          <th className="px-6 py-3">DB Name</th>
+          <th className="px-6 py-3">연동 완료 여부</th>
+          <th className="px-6 py-3">스캔 이력</th>
           {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
-          {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100">
@@ -68,10 +72,10 @@ export const AwsResourceTableBody = ({
             key={resourceType}
             resourceType={resourceType}
             resources={typeResources}
+            processStatus={processStatus}
             selectedIds={selectedIds}
             isEditMode={isEditMode}
             isCheckboxEnabled={isCheckboxEnabled}
-            showConnectionStatus={showConnectionStatus}
             showCredentialColumn={showCredentialColumn}
             onCheckboxChange={onCheckboxChange}
             colSpan={colSpan}

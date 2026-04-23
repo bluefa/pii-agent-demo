@@ -9,7 +9,6 @@ import { Button } from '@/app/components/ui/Button';
 import { ScanEmptyState } from './ScanEmptyState';
 import { ScanRunningState } from './ScanRunningState';
 import { ScanErrorState } from './ScanErrorState';
-import { ScanResultSummary } from './ScanResultSummary';
 import type { CloudProvider, V1ScanJob, ScanResult, ResourceType } from '@/lib/types';
 
 export type ScanUiState = 'EMPTY' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILED';
@@ -98,7 +97,6 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
 
 const ScanPanelView = ({
   state,
-  lastResult,
   lastScanAt,
   progress,
   starting,
@@ -148,11 +146,6 @@ const ScanPanelView = ({
     {state === 'EMPTY' && <ScanEmptyState />}
     {state === 'IN_PROGRESS' && <ScanRunningState progress={progress} />}
     {state === 'FAILED' && <ScanErrorState onRetry={handleStart} />}
-    {state === 'SUCCESS' && lastResult && (
-      <div className="px-4 py-4">
-        <ScanResultSummary result={lastResult} completedAt={lastScanAt} />
-      </div>
-    )}
   </div>
 );
 

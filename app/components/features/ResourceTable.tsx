@@ -9,7 +9,8 @@ import {
   VmDatabaseConfig,
 } from '@/lib/types';
 
-import { cn, statusColors, textColors, badgeStyles, getButtonClass } from '@/lib/theme';
+import { cn, statusColors, textColors, badgeStyles, primaryColors, getButtonClass } from '@/lib/theme';
+import { Button } from '@/app/components/ui/Button';
 import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
 import {
   ResourceRow,
@@ -31,6 +32,8 @@ interface ResourceTableProps {
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
   onEditModeChange?: (isEdit: boolean) => void;
+  onRequestApproval?: () => void;
+  approvalSubmitting?: boolean;
 }
 
 const WarningIcon = () => (
@@ -52,6 +55,8 @@ export const ResourceTable = ({
   onVmConfigToggle,
   onVmConfigSave,
   onEditModeChange,
+  onRequestApproval,
+  approvalSubmitting = false,
 }: ResourceTableProps) => {
   const [internalEditMode, setInternalEditMode] = useState(false);
 
@@ -62,7 +67,6 @@ export const ResourceTable = ({
   const isEditMode = externalEditMode || internalEditMode;
   const isCheckboxEnabled =
     processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
-  const showConnectionStatus = false;
   const showCredentialColumn =
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
@@ -91,15 +95,14 @@ export const ResourceTable = ({
     SDU: FlatResourceTableBody,
   }[cloudProvider];
 
-  const baseColumnCount = (cloudProvider === 'IDC' || cloudProvider === 'SDU') ? 4 : 3;
-  const colSpan = baseColumnCount + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0) + (showConnectionStatus ? 1 : 0);
+  const BASE_COLUMN_COUNT = 7;
+  const colSpan = BASE_COLUMN_COUNT + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0);
 
   const rowProps = {
-    cloudProvider,
     selectedIds: selectedIdsSet,
+    processStatus,
     isEditMode: false as const,
     isCheckboxEnabled: false,
-    showConnectionStatus,
     showCredentialColumn,
     onCheckboxChange: handleCheckboxChange,
     credentials: credentials || [],
@@ -117,9 +120,9 @@ export const ResourceTable = ({
 
   const bodyProps = {
     cloudProvider,
+    processStatus,
     selectedIds: selectedIdsSet,
     isCheckboxEnabled,
-    showConnectionStatus,
     showCredentialColumn,
     onCheckboxChange: handleCheckboxChange,
     colSpan,
@@ -138,9 +141,12 @@ export const ResourceTable = ({
     </div>
   );
 
+  const selectedCount = selectedIdsSet.size;
+  const totalCount = resources.length;
+  const showSummary = onRequestApproval !== undefined && isEditMode;
+
   return (
     <div>
-      {/* Header Bar */}
       <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className={cn('text-sm font-semibold', textColors.primary)}>
@@ -160,7 +166,6 @@ export const ResourceTable = ({
         )}
       </div>
 
-      {/* Edit mode: single unified list */}
       {isEditMode ? (
         resources.length > 0 ? renderTable(resources) : (
           <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
@@ -169,14 +174,12 @@ export const ResourceTable = ({
         )
       ) : (
         <>
-          {/* Monitor mode: target resources */}
           {targetResources.length === 0 ? (
             <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
               아직 연동 대상이 선택되지 않았습니다
             </div>
           ) : renderTable(targetResources)}
 
-          {/* Monitor mode: non-target resources */}
           {vnetResources.length > 0 && (
             <CollapsibleSection
               label="설치 불가 (VNet Integration)"
@@ -213,6 +216,22 @@ export const ResourceTable = ({
             </CollapsibleSection>
           )}
         </>
+      )}
+
+      {showSummary && (
+        <div className="flex justify-between items-center px-6 py-4 border-t border-gray-100 mt-2">
+          <span className={cn('text-xs', textColors.tertiary)}>
+            총 <strong className={textColors.primary}>{totalCount}</strong>건 ·{' '}
+            <strong className={primaryColors.text}>{selectedCount}</strong>건 선택됨
+          </span>
+          <Button
+            variant="primary"
+            onClick={onRequestApproval}
+            disabled={approvalSubmitting || selectedCount === 0}
+          >
+            연동 대상 승인 요청
+          </Button>
+        </div>
       )}
     </div>
   );
