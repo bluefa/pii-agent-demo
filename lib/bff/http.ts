@@ -20,6 +20,12 @@ interface LegacyErrorPayload {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isCurrentUser = (value: unknown): value is CurrentUser =>
+  isRecord(value)
+    && typeof value.id === 'string'
+    && typeof value.name === 'string'
+    && typeof value.email === 'string';
+
 async function get<T>(path: string): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
@@ -58,10 +64,11 @@ export const httpBff: BffClient = {
   users: {
     me: async () => {
       const data = await get<unknown>('/user/me');
-      if (isRecord(data) && isRecord(data.user)) {
-        return data.user as unknown as CurrentUser;
+      const candidate = isRecord(data) && isRecord(data.user) ? data.user : data;
+      if (!isCurrentUser(candidate)) {
+        throw new BffError(502, 'INVALID_RESPONSE_SHAPE', 'Invalid CurrentUser response shape');
       }
-      return data as CurrentUser;
+      return candidate;
     },
   },
 };
