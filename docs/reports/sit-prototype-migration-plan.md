@@ -904,7 +904,7 @@ export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 | I-04 | Step 06 "관리자 승인 대기" | ✅ **라벨만 추가** (`ProcessStatus` enum **불변**). Step 06은 `CONNECTION_VERIFIED` 상태에 매핑하여 UI 표시 |
 | I-05 | ScanHistoryList / CooldownTimer | ✅ **완전 삭제** (모달 분리 보존 X). `ScanHistoryList.tsx` 200 LOC + `CooldownTimer.tsx` 78 LOC = **-278 LOC**. `CooldownTimer`는 이미 dead code. "Last Scan: {timestamp}"은 `latestJob.updatedAt`로 헤더에 표시 유지 |
 | I-06 | "스캔 이력" 컬럼 (NEW/CHANGED) | ✅ **stub 렌더**. 컬럼 헤더 유지, 모든 row 값은 `—` (null). 데이터 소스 헬퍼 `getResourceScanHistory(resource) → null` 스텁 1줄. BFF 필드 확정 시 이 헬퍼만 교체 |
-| I-07 | 상세 페이지 복귀 UX | ✅ **Breadcrumb + `backHref`** 이중 제공. Breadcrumb의 "Service List" 링크 + `<PageHeader backHref={integrationRoutes.admin}>`의 좌측 `← 목록으로` ghost 버튼 |
+| I-07 | 상세 페이지 복귀 UX | ✅ **Breadcrumb 단일 제공**. 초기 결정(Breadcrumb + `backHref` 이중 제공)은 2026-04-23 사용자 요청으로 번복 — `PageHeader backHref` 및 `← 목록으로` ghost 버튼 제거. Breadcrumb의 "Service List" 링크만 유지. 관련 PR: #294 |
 | I-08 | 미구현 상단 메뉴 | ✅ **표시 + "Coming soon" 토스트**. Credentials / PII Tag mgmt. / PII Map 메뉴를 TopNav에 렌더하되 클릭 시 비활성 상태 피드백 |
 | C-01 | CloudProvider 확장 (OTHER/SAAS) | ✅ **자동 해소** — C-03/C-04에서 IDC·Other·SaaS chip을 disabled 처리하므로 enum 확장 불필요. Swagger 확인 스킵 |
 | C-02 | 생성 모달 누적형 vs 단일 | ✅ **누적형 유지**. Save 시 `Promise.all(createProject)` 병렬 호출. bulk endpoint 신규 X |
@@ -917,6 +917,7 @@ export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
 - **IDC 신규 생성 경로** — C-03/C-04에서 IDC chip이 disabled 처리되어 이 모달로는 IDC 타겟소스를 새로 만들 수 없음. 기존 IDC 프로젝트 조회/상세/스캔은 정상 동작. IDC 온보딩 경로는 후속 PR에서 재검토
 - **PermissionsPanel 전면 폐기** — 현재는 UI만 제거. 권한 관리 API의 운영 지속 여부는 별도 의사결정
 - **`resource.scanHistoryStatus`** — BFF 지원 시 헬퍼 교체로 스캔 이력 컬럼 활성화
+- **2026-04-23: I-07 번복** — `PageHeader` `← 목록으로` ghost 버튼 제거. Breadcrumb만으로 복귀 동선 충분하다는 사용자 결정 (PR #294)
 
 ---
 
