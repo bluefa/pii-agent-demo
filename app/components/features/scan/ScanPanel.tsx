@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { startScan } from '@/app/lib/api/scan';
-import { cn, statusColors, bgColors, textColors, borderColors } from '@/lib/theme';
+import { cn, borderColors, textColors } from '@/lib/theme';
 import { formatDate } from '@/lib/utils/date';
-import { ScanStatusBadge } from './ScanStatusBadge';
-import { ScanProgressBar } from './ScanProgressBar';
-import { ScanResultSummary } from './ScanResultSummary';
 import { Button } from '@/app/components/ui/Button';
+import { ScanEmptyState } from './ScanEmptyState';
+import { ScanRunningState } from './ScanRunningState';
+import { ScanErrorState } from './ScanErrorState';
+import { ScanResultSummary } from './ScanResultSummary';
 import type { CloudProvider, V1ScanJob, ScanResult, ResourceType } from '@/lib/types';
 
 export type ScanUiState = 'EMPTY' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILED';
@@ -96,140 +96,65 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
   })}</>;
 };
 
-const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
-  <svg
-    className={cn('w-4 h-4 transition-transform duration-200', expanded && 'rotate-90')}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
-
 const ScanPanelView = ({
   state,
-  latestJob,
   lastResult,
   lastScanAt,
+  progress,
   starting,
-  loading,
   isInProgress,
   canStart,
   startScan: handleStart,
-}: ScanControllerRenderProps) => {
-  const [expanded, setExpanded] = useState(false);
-
-  useEffect(() => {
-    if (isInProgress) queueMicrotask(() => setExpanded(true));
-  }, [isInProgress]);
-
-  const handleStartScan = () => {
-    if (canStart) handleStart();
-  };
-
-  const summaryBg = isInProgress ? statusColors.warning.bg : bgColors.muted;
-  const badgeUiState = state === 'SUCCESS' ? 'COMPLETED' : state === 'EMPTY' ? 'IDLE' : state;
-
-  return (
-    <div className={cn('mx-4 mt-4 border rounded-lg overflow-hidden', borderColors.default)}>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setExpanded(!expanded)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(!expanded); }}
-        className={cn(
-          'w-full px-4 py-3 flex items-center justify-between cursor-pointer transition-colors',
-          summaryBg
-        )}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <ChevronIcon expanded={expanded} />
+}: ScanControllerRenderProps) => (
+  <div className={cn('mx-4 mt-4 border rounded-lg overflow-hidden bg-white', borderColors.default)}>
+    <div className={cn('px-4 py-3 flex items-center justify-between border-b', borderColors.default)}>
+      <div className="min-w-0">
+        {lastScanAt ? (
+          <span className={cn('text-xs inline-flex items-center gap-1', textColors.tertiary)}>
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Last Scan: {formatDate(lastScanAt, 'datetime')}
+          </span>
+        ) : (
           <span className={cn('text-sm font-medium', textColors.secondary)}>리소스 스캔</span>
-          {!loading && <ScanStatusBadge uiState={badgeUiState} />}
-
-          {!loading && !isInProgress && lastResult && (
-            <span className={cn('text-xs', textColors.tertiary)}>
-              {lastResult.totalFound}개 발견
-              {lastScanAt && ` | 마지막: ${formatDate(lastScanAt, 'short')}`}
-            </span>
-          )}
-
-          {!loading && !isInProgress && !lastResult && (
-            <span className={cn('text-xs', textColors.quaternary)}>
-              스캔을 시작하여 리소스를 검색하세요
-            </span>
-          )}
-
-          {!loading && isInProgress && (
-            <span className={cn('text-xs', statusColors.warning.textDark)}>
-              리소스를 검색하고 있습니다
-            </span>
-          )}
-        </div>
-
-        {!loading && !isInProgress && (
-          <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            {starting ? (
-              <Button variant="primary" disabled className="text-sm py-1.5">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  시작 중...
-                </span>
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                onClick={handleStartScan}
-                disabled={!canStart}
-                className="text-sm py-1.5"
-              >
-                스캔 시작
-              </Button>
-            )}
-          </div>
         )}
       </div>
-
-      {!loading && isInProgress && latestJob?.scanStatus === 'SCANNING' && (
-        <div className={cn('px-4 pb-3', statusColors.warning.bg)}>
-          <ScanProgressBar
-            progress={latestJob.scanProgress ?? 0}
-            startedAt={latestJob.createdAt}
-          />
-        </div>
-      )}
-
-      {expanded && !loading && (
-        <div className={cn('px-4 py-4 space-y-4 border-t', borderColors.default)}>
-          {state === 'FAILED' && (
-            <div className={cn('flex items-center gap-2 py-4 px-3 rounded-lg', statusColors.error.bg)}>
-              <svg className={cn('w-5 h-5', statusColors.error.text)} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      {!isInProgress && (
+        <Button
+          variant="primary"
+          onClick={handleStart}
+          disabled={!canStart}
+          className="inline-flex items-center gap-1.5 text-sm py-1.5"
+        >
+          {starting ? (
+            <>
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              시작 중...
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
-              <span className={cn('text-sm', statusColors.error.textDark)}>
-                스캔 중 오류가 발생했습니다. 다시 시도해주세요.
-              </span>
-            </div>
+              Run Infra Scan
+            </>
           )}
-
-          {state === 'SUCCESS' && lastResult && (
-            <ScanResultSummary
-              result={lastResult}
-              completedAt={lastScanAt}
-            />
-          )}
-
-          {state === 'EMPTY' && !lastResult && (
-            <div className={cn('text-center py-6 text-sm', textColors.tertiary)}>
-              스캔을 시작하여 리소스를 검색하세요.
-            </div>
-          )}
-        </div>
+        </Button>
       )}
     </div>
-  );
-};
+
+    {state === 'EMPTY' && <ScanEmptyState />}
+    {state === 'IN_PROGRESS' && <ScanRunningState progress={progress} />}
+    {state === 'FAILED' && <ScanErrorState onRetry={handleStart} />}
+    {state === 'SUCCESS' && lastResult && (
+      <div className="px-4 py-4">
+        <ScanResultSummary result={lastResult} completedAt={lastScanAt} />
+      </div>
+    )}
+  </div>
+);
 
 interface ScanPanelProps {
   targetSourceId: number;
