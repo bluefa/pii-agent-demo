@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { TIMINGS } from '@/lib/constants/timings';
 import { ToastContainer, type ToastItem } from './ToastContainer';
 import type { ToastVariant } from './Toast';
+import { registerGlobalToast, unregisterGlobalToast, type ToastBus } from './toastBus';
 
 const MAX_VISIBLE = 3;
 const ERROR_DURATION_MULTIPLIER = 1.5;
@@ -77,6 +78,21 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       timers.clear();
     };
   }, []);
+
+  const bus = useMemo<ToastBus>(
+    () => ({
+      success: (message, options) => show('success', message, options),
+      error: (message, options) => show('error', message, options),
+      info: (message, options) => show('info', message, options),
+      warning: (message, options) => show('warning', message, options),
+    }),
+    [show]
+  );
+
+  useEffect(() => {
+    registerGlobalToast(bus);
+    return () => unregisterGlobalToast(bus);
+  }, [bus]);
 
   const value = useMemo<ToastContextValue>(() => ({ show, dismiss }), [show, dismiss]);
 

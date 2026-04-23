@@ -16,6 +16,7 @@ import {
 } from '@/app/lib/api/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
+import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
@@ -33,6 +34,7 @@ export const IdcProjectPage = ({
   credentials,
   onProjectUpdate,
 }: IdcProjectPageProps) => {
+  const toast = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // IDC-specific states
@@ -76,7 +78,7 @@ export const IdcProjectPage = ({
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
     }
   };
 
@@ -117,7 +119,7 @@ export const IdcProjectPage = ({
 
     // 최소 1개 리소스 확인
     if (keepResourceIds.length === 0 && editPendingResources.length === 0) {
-      alert('최소 1개 이상의 리소스가 필요합니다.');
+      toast.warning('최소 1개 이상의 리소스가 필요합니다.');
       return;
     }
 
@@ -141,11 +143,11 @@ export const IdcProjectPage = ({
       setEditDeletedIds(new Set());
       setIsEditMode(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '리소스 업데이트에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '리소스 업데이트에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
-  }, [project.targetSourceId, project.resources, editDeletedIds, editPendingResources, onProjectUpdate]);
+  }, [project.targetSourceId, project.resources, editDeletedIds, editPendingResources, onProjectUpdate, toast]);
 
   // IDC: 리소스 추가 (로컬 상태에만 - API 호출 안 함)
   const handleIdcResourceSave = useCallback((data: IdcResourceInput) => {
@@ -169,9 +171,9 @@ export const IdcProjectPage = ({
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '방화벽 확인에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '방화벽 확인에 실패했습니다.');
     }
-  }, [project.targetSourceId, onProjectUpdate]);
+  }, [project.targetSourceId, onProjectUpdate, toast]);
 
   // IDC: 설치 재시도 핸들러
   const handleIdcRetry = useCallback(async () => {
@@ -181,14 +183,14 @@ export const IdcProjectPage = ({
       const statusData = await fetchIdcInstallationStatus(project.targetSourceId);
       setIdcInstallationStatus(statusData);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '재시도에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '재시도에 실패했습니다.');
     }
-  }, [project.targetSourceId]);
+  }, [project.targetSourceId, toast]);
 
   // IDC: 연동 대상 확정 (모든 입력된 리소스를 API로 전송)
   const handleIdcConfirmTargets = useCallback(async () => {
     if (pendingResources.length === 0) {
-      alert('확정할 리소스가 없습니다. 먼저 리소스를 추가해주세요.');
+      toast.warning('확정할 리소스가 없습니다. 먼저 리소스를 추가해주세요.');
       return;
     }
 
@@ -211,11 +213,11 @@ export const IdcProjectPage = ({
       const statusData = await fetchIdcInstallationStatus(project.targetSourceId);
       setIdcInstallationStatus(statusData);
     } catch (err) {
-      alert(err instanceof Error ? err.message : '연동 대상 확정에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '연동 대상 확정에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
-  }, [project.targetSourceId, pendingResources, onProjectUpdate]);
+  }, [project.targetSourceId, pendingResources, onProjectUpdate, toast]);
 
   const hasPendingResources = pendingResources.length > 0 && isStep1;
 

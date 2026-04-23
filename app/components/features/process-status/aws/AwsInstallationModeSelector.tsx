@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
+import { useToast } from '@/app/components/ui/toast';
 import { setAwsInstallationMode } from '@/app/lib/api/aws';
 import { cn, statusColors, primaryColors, getButtonClass } from '@/lib/theme';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
@@ -18,6 +19,7 @@ export const AwsInstallationModeSelector = ({
   onModeSelected,
 }: AwsInstallationModeSelectorProps) => {
   const [selecting, setSelecting] = useState<AwsInstallationMode | null>(null);
+  const toast = useToast();
   const roleGuideModal = useModal();
   const scriptGuideModal = useModal();
 
@@ -28,7 +30,7 @@ export const AwsInstallationModeSelector = ({
       onModeSelected(data.project as Project);
     } catch (error) {
       console.error('Failed to select installation mode:', error);
-      alert('설치 모드 선택에 실패했습니다. 다시 시도해주세요.');
+      toast.error('설치 모드 선택에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setSelecting(null);
     }

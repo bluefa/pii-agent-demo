@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { toastGlobal } from '@/app/components/ui/toast/toastBus';
 
 export interface UseApiMutationOptions<TData, TResult> {
   /** 성공 시 콜백 */
@@ -7,7 +8,7 @@ export interface UseApiMutationOptions<TData, TResult> {
   onError?: (error: Error, data: TData) => void;
   /** 에러 시 표시할 기본 메시지 */
   errorMessage?: string;
-  /** alert 대신 커스텀 에러 핸들링 사용 */
+  /** 기본 토스트 알림 대신 커스텀 에러 핸들링 사용 */
   suppressAlert?: boolean;
 }
 
@@ -80,7 +81,7 @@ export const useApiMutation = <TData, TResult>(
         if (onError) {
           onError(error, data);
         } else if (!suppressAlert) {
-          alert(errorMessage || error.message || '작업에 실패했습니다.');
+          toastGlobal()?.error(errorMessage || error.message || '작업에 실패했습니다.');
         }
         return undefined;
       } finally {
