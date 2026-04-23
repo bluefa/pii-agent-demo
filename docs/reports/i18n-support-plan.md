@@ -9,13 +9,18 @@
 
 ## TL;DR
 
-- 프로젝트는 한국어 전용으로 설계되어 있고, 한국어 문자열이 **앱 전반 약 3,100 라인 / 고유 500~600 문자열**로 분산돼 있다.
-- **지원 언어 범위: 한국어(ko) / 영어(en) 2개로 확정.**
-- i18n 라이브러리는 아직 없다. **`next-intl`** + **cookie 기반 locale 전환**(URL 변경 없음)을 권장한다.
-- 사용자 요구 **"언어 전환 시 API Call 재실행 금지"** 를 달성하려면, 현재 서버 응답에 섞여 있는 한국어 문자열(`detail`, `message`, mock 에러 메시지, 상태 문구) 을 걷어내고 **서버는 code+원본 데이터만, 클라이언트가 모든 사용자 노출 문구를 i18n으로 해석** 하도록 계약을 바꿔야 한다.
-- 현재는 다행히 SWR / React Query 같은 중앙 캐시가 없고 훅들의 cache key가 `targetSourceId` 같은 도메인 id만 사용하므로, locale 변수만 전역 상태 외부에서 관리하면 **훅이 자동 refetch 하지 않는 구조가 그대로 유지**된다. 즉 재호출 없음은 "의도된 기본값"으로 구현할 수 있다.
-- 가장 큰 덩어리는 `lib/constants/process-guides.ts`(526 LOC) 의 가이드 문단. 별도 `messages/*/guides.*.json` 로 분리하는 전용 PR 1~2개가 필요하다.
-- 실행 순서: 기반 설치 → 정적 상수 교체 → 도메인별 컴포넌트 치환 → 에러/Mock 계약 변경 → LanguageSwitcher → en 번역 → BFF 계약 조율(별도 트랙).
+- **지원 언어: ko / en 2개 확정** (O2 resolved).
+- 프로젝트는 한국어 전용이고, 한국어는 `/app + /lib + /components` 범위에서 **2,660 라인 / 209 파일 / 고유 ~1,100 문자열** 로 분포 (design/ 제외 실측, 부록 D).
+- i18n 라이브러리는 아직 없다. **`next-intl`** + **cookie 기반 locale 전환**(URL 불변, `assetPrefix: '/integration'` 호환)을 권장한다.
+- 사용자 요구 **"언어 전환 시 API Call 재실행 금지"** 는 두 축으로 달성:
+  - (i) 훅 cache key 에 locale 포함 금지 (이미 그런 구조). ESLint rule 로 회귀 방지.
+  - (ii) 서버 응답에서 locale-dependent 텍스트(`detail`, `message`) 를 `rawDetail` 로 강등. UI는 code → i18n key 매핑만 참조.
+- SWR / React Query 같은 중앙 캐시가 없고 훅 key 가 `targetSourceId` 만 쓰므로 **재호출 없음은 구조적 기본값**. 추가 로직 필요 없음.
+- 가장 큰 덩어리는 `lib/constants/process-guides.ts` (526 LOC / 222 한국어 라인, 부록 E 전수 덤프). 별도 PR 로 분해 + ICU `t.rich` 변환.
+- 실행 순서 (§10): 기반 설치 → 정적 상수 교체 → 도메인별 컴포넌트 치환 → 에러/Mock 계약 변경 → LanguageSwitcher → en 번역 → (BFF 계약 조율은 별도 트랙).
+- **규모 요약** (부록 D 기반): JSX 리터럴 1,032 / Mock 응답 610 / 장문 가이드 244 / enum 라벨 116 / 속성 74 / alert·Error 46 / validation 39 / 로케일 포매팅 1. 주석 495, console 3 은 번역 대상 아님.
+- **실행 공수**: ~80–130 FTE-hour (≈ 2–3 주 1명 or 1주 3명 병렬, §10.5).
+- **리뷰어 동선**: §1→§3(원칙)→§7(서버 계약)→§10(Phase)→부록 J(용어 사전)→부록 K(번역 키 샘플). 나머지 부록은 참고.
 
 ---
 
@@ -26,16 +31,24 @@
 4. [기술 스택 선정](#4-기술-스택-선정)
 5. [라우팅 전략](#5-라우팅-전략)
 6. [아키텍처 설계](#6-아키텍처-설계)
-7. [서버 응답 계약 변경](#7-서버-응답-계약-변경)
+7. [서버 응답 계약 변경](#7-서버-응답-계약-변경) — §7.6 Before/After diff, §7.7 rawDetail 정책
 8. [Mock 데이터 대응](#8-mock-데이터-대응)
 9. [도메인별 마이그레이션 매트릭스](#9-도메인별-마이그레이션-매트릭스)
-10. [Phase 별 실행 계획](#10-phase-별-실행-계획)
+10. [Phase 별 실행 계획](#10-phase-별-실행-계획) — §10.5 공수, §10.6 테스트 전략
 11. [파일·모듈 체크리스트](#11-파일모듈-체크리스트)
-12. [리스크 & 마이그레이션 주의사항](#12-리스크--마이그레이션-주의사항)
+12. [리스크 & 마이그레이션 주의사항](#12-리스크--마이그레이션-주의사항) — §12.10 검증 인프라
 13. [오픈 이슈 / 팀 협의 필요](#13-오픈-이슈--팀-협의-필요)
-14. [부록 A — 한국어 텍스트 분포 실사](#부록-a--한국어-텍스트-분포-실사)
+14. [부록 A — 한국어 텍스트 분포 실사](#부록-a--한국어-텍스트-분포-실사) (초안 — PR #319 시점 `/design` 포함)
 15. [부록 B — 데이터 페칭/캐싱 실사](#부록-b--데이터-페칭캐싱-실사)
 16. [부록 C — 네임스페이스/키 설계 초안](#부록-c--네임스페이스키-설계-초안)
+17. [부록 D — 전수 조사 매트릭스](#부록-d--전수-조사-매트릭스-2026-04-23-main9b5b6ab-기준) (main@9b5b6ab, /design 제외)
+18. [부록 E — process-guides.ts 완전 덤프](#부록-e--process-guidests-완전-덤프)
+19. [부록 F — enum/라벨 맵 전수 카탈로그](#부록-f--enum라벨-맵-전수-카탈로그)
+20. [부록 G — 에러 코드 전수 카탈로그](#부록-g--에러-코드-전수-카탈로그)
+21. [부록 H — Mock 응답 한국어 카탈로그](#부록-h--mock-응답-한국어-카탈로그)
+22. [부록 I — 날짜·숫자 포매팅 실사](#부록-i--날짜숫자-포매팅-실사)
+23. [부록 J — 도메인 용어 사전 (ko→en, v0)](#부록-j--도메인-용어-사전-ko--en-v0)
+24. [부록 K — 번역 키 사전 테이블 (우선순위 v0)](#부록-k--번역-키-사전-테이블-우선순위-v0)
 
 ---
 
@@ -531,6 +544,142 @@ const message = t(appErr.code.toLowerCase(), { retryAfter: appErr.retryAfterMs }
 - `Accept-Language` 기반으로 서버가 문구를 결정하는 모델은 **locale 변경 시 재요청을 강제** 하게 된다 → 요구사항 위배
 - 따라서 이 경로는 의도적으로 배제 (혹 장기적으로 BFF가 code only 반환 시 고려 안 해도 됨)
 
+### 7.6 계약 변경 Before / After (실행 가능 수준)
+
+`lib/errors.ts` — `AppError` 타입 확장:
+
+```ts
+// Before
+export class AppError extends Error {
+  constructor(public readonly payload: {
+    status: number;
+    code: AppErrorCode;
+    message: string;          // ← 한국어 포함됨
+    retriable?: boolean;
+    retryAfterMs?: number;
+    requestId?: string;
+  }) { super(payload.message); }
+}
+
+// After
+export class AppError extends Error {
+  constructor(public readonly payload: {
+    status: number;
+    code: AppErrorCode;
+    rawDetail?: string;                        // 서버 원문(로그/디버그 전용). UI 노출 금지.
+    messageKey?: string;                       // i18n key override (기본: `errors.${code.toLowerCase()}`)
+    interpolation?: Record<string, string | number>;  // ICU 보간 파라미터
+    retriable?: boolean;
+    retryAfterMs?: number;
+    requestId?: string;
+  }) { super(payload.rawDetail ?? payload.code); }  // Error.message 는 로그 용도 유지
+}
+```
+
+`lib/fetch-json.ts` — `parseErrorResponse`:
+
+```ts
+// Before
+const message = body.detail ?? body.title ?? `HTTP ${res.status}`;
+return new AppError({
+  status: res.status,
+  code: body.code ?? statusToCode(res.status),
+  message,   // ← 한국어 그대로 전달
+  retriable: body.retriable ?? ...,
+  retryAfterMs: body.retryAfterMs,
+  requestId: body.requestId ?? requestId,
+});
+
+// After
+return new AppError({
+  status: res.status,
+  code: body.code ?? statusToCode(res.status),
+  rawDetail: body.detail,                         // 원문 보존 (디버깅)
+  interpolation: body.params,                     // 서버 구조화 파라미터 (e.g. { minutes: 5 })
+  retriable: body.retriable ?? (res.status === 429 || res.status >= 500),
+  retryAfterMs: Number.isFinite(Number(body.retryAfterMs)) ? Number(body.retryAfterMs) : undefined,
+  requestId: body.requestId ?? requestId,
+});
+```
+
+컴포넌트 에러 표시:
+
+```tsx
+// Before
+<p>{appErr.message}</p>   // 한국어 고정
+
+// After
+import { useTranslations } from 'next-intl';
+const t = useTranslations();
+const key = appErr.payload.messageKey ?? `errors.${appErr.payload.code.toLowerCase()}`;
+<p>{t(key, appErr.payload.interpolation)}</p>
+```
+
+Route Handler — `app/api/_lib/problem.ts` / `handler.ts`:
+
+```ts
+// Before — transformLegacyError 응답 body
+{
+  type: 'about:blank',
+  title: 'Unauthorized',
+  status: 401,
+  code: 'UNAUTHORIZED',
+  detail: SCAN_ERROR_CODES.UNAUTHORIZED.message,   // ← '로그인이 필요합니다.'
+  requestId,
+}
+
+// After
+{
+  type: 'about:blank',
+  title: 'Unauthorized',
+  status: 401,
+  code: 'UNAUTHORIZED',
+  rawDetail: legacyBody.message,   // BFF 원문 보존(로그용). UI 는 code 로 i18n.
+  params: legacyBody.params,       // (optional) 구조화 파라미터
+  requestId,
+}
+```
+
+Mock — `lib/api-client/mock/scan.ts`:
+
+```ts
+// Before
+return NextResponse.json(
+  { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
+  { status: SCAN_ERROR_CODES.UNAUTHORIZED.status }
+);
+
+// After
+return NextResponse.json(
+  { code: 'UNAUTHORIZED' },   // message 필드 삭제 — 프로덕션 계약과 일치
+  { status: SCAN_ERROR_CODES.UNAUTHORIZED.status }
+);
+```
+
+영향 파일 수:
+
+| 카테고리 | 대상 | 파일 수 |
+|---|---|---|
+| 타입 정의 | `lib/errors.ts` | 1 |
+| 클라이언트 에러 파싱 | `lib/fetch-json.ts` | 1 |
+| Route Handler 공용 | `app/api/_lib/problem.ts`, `handler.ts` | 2 |
+| Mock handler | `lib/api-client/mock/*.ts` | ~8 |
+| 에러 코드 상수 | `lib/constants/{scan,history,azure,gcp,sdu,idc,messages}.ts` | 7 |
+| UI 에러 표시 콜사이트 | `err.message` / `appErr.message` 직접 노출 지점 | **Phase 4 grep 확정 필요** |
+| **합계** | — | **~19 + 콜사이트** |
+
+콜사이트 grep:
+```
+grep -rn "err\.message\|appErr\.message\|error\.message" app lib components \
+  --include="*.ts" --include="*.tsx" | grep -v "__tests__\|node_modules"
+```
+
+### 7.7 rawDetail 보존 정책
+
+- **서버 로그에만 노출**. `console.error` 에만 기록. UI 렌더 금지.
+- **개발자 도구**: React DevTools 로 `AppError.payload.rawDetail` 확인 가능 (디버깅 의도).
+- **장기**: BFF 가 code 중심 응답 정착하면 `rawDetail` 도 제거 (Phase 7).
+
 ---
 
 ## 8. Mock 데이터 대응
@@ -821,6 +970,124 @@ t.rich('step1.bullet1', {
 - 각 Phase 종료 시 스크린샷/녹화로 회귀 확인 (`/dev-server` 사용)
 - 키 누락 감지: `next-intl` 은 missing key 에 대해 console warn + key name fallback. lint 규칙으로 `'[Korean regex]'` 포함된 라인 검출기 추가 고려
 
+### 10.5 공수·타임라인 추정
+
+| Phase | 내용 | 공수 (FTE-hour) | 병렬 가능 | 완료 기준 |
+|---|---|---|---|---|
+| 0 | BFF 협의, 번역 운영 체계 합의 | 4–8 | ✅ | O1/O3/O4/O5 resolved |
+| 1 | `next-intl` 설치, LocaleProvider, `<html lang>`, messages 시드 | 4–6 | ✗ (이후 Phase 의 전제) | dev 빌드 통과 + cookie 전환 동작 |
+| 2-A | `labels.ts` 훅 기반 전환 | 2–3 | ✅ | 16개 라벨 맵 전부 훅으로 |
+| 2-B | `messages.ts`, `validation/infra-credentials.ts` | 1–2 | ✅ | — |
+| 2-C | `*_ERROR_CODES` message 제거 | 3–4 | ✗ (Phase 4 선행 조건) | 상수에서 message 제거, rawDetail 강등 |
+| 2-D | `lib/utils/date.ts` locale 인자 추가 + 1 콜사이트 | 2–4 | ✅ | `formatDate(iso, locale)` 시그니처 |
+| 2-E | **`process-guides.ts` 분해 + `t.rich` 변환** (별 PR) | **8–12** | ✗ (ProcessGuideStepCard 구조 변경 동반) | guides JSON 리소스화 + 렌더 교체 |
+| 3-A | `components/ui/*` (Modal/Table/Breadcrumb default) | 1–2 | ✅ | — |
+| 3-B | `components/features/dashboard/*` | 3–5 | ✅ | — |
+| 3-C | `components/features/admin/*` | 4–6 | ✅ (파일 overlap 없을 때) | — |
+| 3-D | AWS 도메인 (process-status/aws, projects/[id]/aws) | 4–6 | ✅ | — |
+| 3-E | Azure 도메인 | 4–6 | ✅ | — |
+| 3-F | GCP 도메인 | 3–5 | ✅ | — |
+| 3-G | IDC 도메인 (IdcResourceInputPanel 등) | 4–6 | ✅ | — |
+| 3-H | SDU 도메인 | 3–5 | ✅ | — |
+| 3-I | `features/{scan,history,queue-board,resource-table}/*` | 4–6 | ✅ | — |
+| 3-J | `projects/[projectId]/**` 페이지 레벨 (alert 등) | 3–5 | △ (3-D~3-H 와 파일 중첩 주의) | — |
+| 3-K | `integration/{admin,projects,task_admin}/*` | 2–4 | ✅ | — |
+| 4 | fetch-json + Route Handler + mock 계약 변경 | 6–10 | ✗ (2-C 이후) | code 중심 응답, UI `err.message` 미사용 |
+| 5 | LanguageSwitcher UI (TopNav 배치) | 1–2 | ✅ | cookie 변경 + `router.refresh()` 동작 |
+| 6 | en 번역 전체 채우기 + 스크린별 QA | **16–24** | ✗ (Phase 1~5 이후) | 모든 키 영문 대응 + 수동 검수 완료 |
+| 7 | BFF code-only 계약 정착 시 FE 어댑터 간소화 | 2–4 | ✅ (BFF 준비 후) | `rawDetail` 의존 제거 |
+| **합계** | | **~80–130 시간** (≈ **2~3주 FTE**) | | |
+
+**가정**: ko/en 2 개 범위. 개발자 1명 풀타임 기준. 디자인 변경 없음. BFF 코드 변경 요청 분량은 별도 트랙(Phase 7).
+
+**분할**: 3-A ~ 3-K 는 파일 overlap 이 적어 2~3명이 병렬 작업 가능. 동시 3명이 진행하면 Phase 3 블록 5~8 일 내 완료 가능.
+
+**리스크 버퍼**: +20% 권장 (용어 사전 합의 지연, 번역 재검수 등).
+
+### 10.6 테스트 전략 상세
+
+#### 10.6.1 기존 테스트 내 한국어 expected string 실사
+
+```bash
+grep -rn "'[^']*[가-힣][^']*'\|\"[^\"]*[가-힣][^\"]*\"" __tests__ app/**/__tests__ \
+  --include="*.test.ts" --include="*.test.tsx" | head -30
+```
+
+- 예상: 수십~100 행. 대부분 `expect(screen.getByText('…')).toBeVisible()` 같은 단언.
+- Phase 1 착수 전 실측해서 Phase 6 스코프에 포함.
+
+#### 10.6.2 Test helper
+
+```tsx
+// test/renderWithLocale.tsx
+import { render } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import koMessages from '@/messages/ko';
+import enMessages from '@/messages/en';
+
+export const renderWithLocale = (
+  ui: React.ReactElement,
+  { locale = 'ko' }: { locale?: 'ko' | 'en' } = {}
+) =>
+  render(
+    <NextIntlClientProvider locale={locale} messages={locale === 'ko' ? koMessages : enMessages}>
+      {ui}
+    </NextIntlClientProvider>
+  );
+```
+
+#### 10.6.3 Locale parametrize 패턴
+
+```tsx
+describe.each(['ko', 'en'] as const)('ProjectCreateModal (%s)', (locale) => {
+  it('renders title', () => {
+    renderWithLocale(<ProjectCreateModal open />, { locale });
+    const expected = locale === 'ko' ? '인프라 등록' : 'Register Infrastructure';
+    expect(screen.getByText(expected)).toBeVisible();
+  });
+});
+```
+
+#### 10.6.4 Snapshot 전략
+
+- Snapshot 은 locale 별 suffix (`Component.ko.snap`, `Component.en.snap`) — `toMatchSpecificSnapshot(locale)` 헬퍼로 감싸기.
+- Phase 3 PR 단위로 `ko` snapshot 은 유지, `en` snapshot 은 Phase 6 에 일괄 생성.
+
+#### 10.6.5 CI 게이트
+
+`.github/workflows/i18n.yml` (신규):
+
+```yaml
+name: i18n verification
+on: [pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm run i18n:hunt          # scripts/i18n-hunt.ts
+      - run: npm run i18n:diff          # scripts/i18n-diff.ts
+      - run: npm run lint               # 커스텀 ESLint rule 포함
+      - run: npm test                   # 기존 + renderWithLocale 기반 테스트
+```
+
+세부 스크립트는 §12.10 참조.
+
+#### 10.6.6 수동 QA 체크리스트 (Phase 6)
+
+- [ ] 각 도메인 페이지(AWS/Azure/GCP/IDC/SDU) 에서 ko → en 전환 후 **Network 탭 재호출 0** 확인 (요구사항 1차 검증)
+- [ ] 각 모달의 title/description/버튼 영문 자연스러움
+- [ ] aria-label 영문 (스크린리더 QA)
+- [ ] `process-guides` 7단계 영문 문장 자연스러움 (기획 검수)
+- [ ] 에러 상황 시 영문 메시지 표시 (401/403/404/409/429/500 시나리오)
+- [ ] 날짜/숫자 포맷 locale 따라 변경 확인
+- [ ] `<html lang>` 가 현재 locale 과 일치
+- [ ] LanguageSwitcher 전환 후 새로고침 해도 cookie 로 locale 유지
+- [ ] 장문 가이드의 `<strong>`, `<link>` 마크업이 깨지지 않음
+- [ ] 빈 번역 키 없음 (CI 통과 재확인)
+
 ---
 
 ## 11. 파일·모듈 체크리스트
@@ -957,6 +1224,213 @@ t.rich('step1.bullet1', {
 - `docs/**/*.md` 내 한국어는 사용자에게 보여지는 UI가 아니므로 대상 아님
 - Contrib docs 는 한국어 유지 (현재 팀 사용 언어)
 - 영문 UI 를 쓸 사용자가 문서를 필요로 하면 별도 번역 트랙 필요 — 본 설계 범위 외
+
+### 12.10 검증 인프라 설계
+
+사용자 노출 한국어가 **점진적 마이그레이션 중에도 재발하지 않도록** 빌드·CI 레벨 가드를 구축한다.
+
+#### 12.10.1 `scripts/i18n-hunt.ts` — 한국어 리터럴 헌터
+
+```ts
+// scripts/i18n-hunt.ts
+import { execSync } from 'node:child_process';
+import { readFileSync, existsSync } from 'node:fs';
+
+const KOREAN = '[가-힣]';
+const SCAN_ROOTS = ['app', 'lib', 'components'];
+const EXCLUDE = ['__tests__', 'node_modules', '.next', 'design'];
+
+const allowlistPath = 'scripts/i18n-hunt.allowlist';
+const allow = existsSync(allowlistPath)
+  ? new Set(readFileSync(allowlistPath, 'utf-8').split('\n').filter(Boolean))
+  : new Set<string>();
+
+const cmd = `grep -rn "${KOREAN}" ${SCAN_ROOTS.join(' ')} ` +
+  `--include="*.ts" --include="*.tsx" | ` +
+  EXCLUDE.map((e) => `grep -v "${e}"`).join(' | ');
+
+const out = execSync(cmd, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] })
+  .split('\n').filter(Boolean);
+
+const violations = out.filter((line) => {
+  const [file, lineNum] = line.split(':');
+  return !allow.has(`${file}:${lineNum}`);
+});
+
+if (violations.length) {
+  console.error(`✗ ${violations.length} Korean literal(s) outside allowlist:\n${violations.slice(0, 30).join('\n')}`);
+  process.exit(1);
+}
+console.log('✓ i18n-hunt: no uncovered Korean literals.');
+```
+
+- **allowlist** (`scripts/i18n-hunt.allowlist`): `file.ts:lineN` 형태. Phase 2/3 진행 중 아직 마이그레이션 안 된 파일 라인 명시.
+- Phase 6 완료 후 allowlist 는 **빈 파일** 유지. 그 이후 새 한국어가 들어오면 CI 실패.
+- **주석·console 예외**: lint 규칙으로 주석만 허용하거나, allowlist 패턴으로 처리.
+
+#### 12.10.2 `scripts/i18n-diff.ts` — 번역 키 다이프
+
+```ts
+// scripts/i18n-diff.ts
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
+const flatten = (obj: unknown, prefix = ''): string[] => {
+  if (typeof obj !== 'object' || obj === null) return [prefix];
+  return Object.entries(obj).flatMap(([k, v]) => flatten(v, prefix ? `${prefix}.${k}` : k));
+};
+
+const load = (locale: string): Set<string> => {
+  const root = path.join('messages', locale);
+  const files = readdirSync(root, { recursive: true })
+    .filter((f) => String(f).endsWith('.json'))
+    .map((f) => path.join(root, String(f)));
+  return new Set(files.flatMap((f) => flatten(JSON.parse(readFileSync(f, 'utf-8')))));
+};
+
+const ko = load('ko');
+const en = load('en');
+
+const missingInEn = [...ko].filter((k) => !en.has(k));
+const missingInKo = [...en].filter((k) => !ko.has(k));
+
+if (missingInEn.length || missingInKo.length) {
+  if (missingInEn.length) console.error(`✗ missing in en (${missingInEn.length}):\n  ` + missingInEn.slice(0, 20).join('\n  '));
+  if (missingInKo.length) console.error(`✗ missing in ko (${missingInKo.length}):\n  ` + missingInKo.slice(0, 20).join('\n  '));
+  process.exit(1);
+}
+console.log(`✓ i18n-diff: ${ko.size} keys balanced across ko/en.`);
+```
+
+- Phase 6 까지는 en 에 미완 번역이 있을 수 있으므로 `--allow-missing-en` 플래그로 완화 모드 제공.
+- Phase 6 완료 시 flag 제거 → strict 모드.
+
+#### 12.10.3 ESLint 커스텀 rule — `i18n/no-locale-in-hook-deps`
+
+```js
+// eslint-rules/no-locale-in-hook-deps.js
+module.exports = {
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'locale 을 useEffect/useCallback/useMemo deps 에 포함하면 locale 변경 시 불필요한 재요청 발생 — i18n 설계 위반.',
+    },
+  },
+  create(context) {
+    return {
+      'CallExpression[callee.name=/^(useCallback|useMemo|useEffect)$/]'(node) {
+        const deps = node.arguments[1];
+        if (!deps || deps.type !== 'ArrayExpression') return;
+        deps.elements.forEach((el) => {
+          if (el?.type === 'Identifier' && el.name === 'locale') {
+            context.report({
+              node: el,
+              message: 'locale 을 hook deps 에 넣지 마세요. 렌더 body 에서 t() 호출하세요. (§12.2 참조)',
+            });
+          }
+        });
+      },
+    };
+  },
+};
+```
+
+`.eslintrc.js` 에 rule 등록 (`rules: { 'i18n/no-locale-in-hook-deps': 'error' }`).
+
+#### 12.10.4 ESLint 커스텀 rule — `i18n/no-korean-in-jsx` (선택)
+
+JSX 내 직접 한국어 문자열 금지 (Phase 6 이후 재발 방지):
+
+```js
+// eslint-rules/no-korean-in-jsx.js
+const KOREAN_RX = /[가-힣]/;
+module.exports = {
+  meta: { type: 'problem' },
+  create(context) {
+    return {
+      JSXText(node) {
+        if (KOREAN_RX.test(node.value)) {
+          context.report({ node, message: 'JSX 내 한국어 리터럴 금지. t() 를 사용하세요.' });
+        }
+      },
+      Literal(node) {
+        if (typeof node.value === 'string' && KOREAN_RX.test(node.value)) {
+          // 속성에 들어간 한국어도 감시 (placeholder, aria-label 등)
+          if (node.parent?.type === 'JSXAttribute') {
+            context.report({ node, message: 'JSX 속성 내 한국어 리터럴 금지. t() 를 사용하세요.' });
+          }
+        }
+      },
+    };
+  },
+};
+```
+
+#### 12.10.5 package.json 스크립트
+
+```json
+{
+  "scripts": {
+    "i18n:hunt": "tsx scripts/i18n-hunt.ts",
+    "i18n:diff": "tsx scripts/i18n-diff.ts",
+    "i18n:diff:strict": "tsx scripts/i18n-diff.ts --strict",
+    "lint:i18n": "eslint . --rulesdir eslint-rules --rule 'i18n/no-locale-in-hook-deps: error' --rule 'i18n/no-korean-in-jsx: error'"
+  }
+}
+```
+
+#### 12.10.6 CI 통합
+
+`.github/workflows/i18n.yml`:
+
+```yaml
+name: i18n verification
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'components/**'
+      - 'messages/**'
+      - 'scripts/i18n-*.ts'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm run i18n:hunt
+      - run: npm run i18n:diff    # Phase 6 완료 후 :strict 로 변경
+      - run: npm run lint:i18n
+```
+
+#### 12.10.7 번역 키 커버리지 리포트 (선택)
+
+- `unimported` + 커스텀 스크립트로 `t('key')` 의 실제 호출 여부 추출
+- 미사용 키 → `i18n:unused` warning (삭제 유도)
+- 사용 빈도 heatmap 으로 priority 조정
+
+#### 12.10.8 mock 응답 한국어 감시
+
+```
+grep -rn "[가-힣]" lib/api-client/mock lib/mock-*.ts \
+  | grep -v "// @i18n-mock-ok"   # 의도적 사용자 입력 시뮬레이션은 주석으로 마킹
+```
+
+Phase 4 완료 후 CI 에 추가.
+
+#### 12.10.9 도입 타임라인
+
+| Phase | 관련 가드 |
+|---|---|
+| 1 | `i18n:diff` 도입 (초기 시드 1~2개 키만) |
+| 2 | `i18n:hunt` 도입 + allowlist 로 점진 축소 |
+| 3 | ESLint `no-locale-in-hook-deps` rule 활성화 |
+| 4 | mock 응답 한국어 감시 추가 |
+| 6 | `no-korean-in-jsx` rule 활성화 + `i18n:diff:strict` |
+| 7 | allowlist 비움, rawDetail 제거 감시 |
 
 ---
 
@@ -1285,9 +1759,971 @@ guides
 
 ---
 
+## 부록 D — 전수 조사 매트릭스 (2026-04-23, main@9b5b6ab 기준)
+
+### D-1. 스코프 및 방법
+
+- 범위: `/app`, `/lib`, `/components`
+- 제외: `/docs`(문서), `/design`(SIT 프로토타입 legacy), `__tests__`, `node_modules`, `.next`
+- 검출 패턴: `[가-힣]` 유니코드 포함 라인
+- 재현 명령: 부록 D-5
+
+> 이전 PR #319 초안의 "3,100 라인"은 `/design` 포함 값. 본 보강에서는 **실제 프로덕션 경로만** 집계했고 그래서 2,660 으로 내려갔다. 후속 번역 규모 산정에 이 수치를 사용하라.
+
+### D-2. 총량 요약
+
+| 지표 | 값 |
+|---|---|
+| 한국어 포함 파일 수 | **209** |
+| 한국어 라인 수 (총) | **2,660** |
+| 번역 대상 라인 (주석·console 제외) | **2,162** |
+| 고유 한국어 문자열 근사치 | **~1,100** (보수적) |
+| 라벨 맵 상수 | **16 종**, 라벨값 **81 개** |
+| 에러 코드 엔트리 | **44 개** (중복 포함) / **~15 고유 code** |
+
+### D-3. 카테고리별 총계
+
+| # | 카테고리 | 건수 | 비율 | 번역 대상 |
+|---|---|---|---|---|
+| (a) | JSX 텍스트 리터럴 | 1,032 | 38.8% | ✅ |
+| (e) | Mock 응답 한국어 | 610 | 22.9% | ✅ (mock 계약 정리) |
+| (j) | 주석 | 495 | 18.6% | — 번역 대상 아님 |
+| (h) | 장문 가이드 (process-guides) | 244 | 9.2% | ✅ |
+| (d) | enum/라벨 맵 | 116 | 4.4% | ✅ |
+| (b) | JSX 속성(placeholder/aria-label/title/alt) | 74 | 2.8% | ✅ |
+| (c) | alert/toast/Error 메시지 | 46 | 1.7% | ✅ |
+| (g) | validation/에러 상수 메시지 | 39 | 1.5% | ✅ |
+| (i) | console.log 한국어 | 3 | 0.1% | — 로그용 |
+| (f) | 로케일 포매팅 `'ko-KR'` | 1 | 0.04% | ✅ |
+| **번역 영향 합계 (주석·console 제외)** | — | **2,162** | 81.3% | — |
+
+### D-4. 상위 30개 핫스팟 파일 (소계 내림차순)
+
+| 파일 | a | b | c | d | e | f | g | h | i | j | 소계 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| lib/constants/process-guides.ts | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 222 | 0 | 0 | 222 |
+| lib/api-client/mock/confirm.ts | 0 | 0 | 0 | 14 | 82 | 0 | 0 | 0 | 0 | 0 | 96 |
+| lib/types.ts | 8 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 78 | 88 |
+| lib/mock-data.ts | 0 | 0 | 0 | 2 | 78 | 0 | 0 | 0 | 0 | 0 | 80 |
+| lib/mock-dashboard.ts | 0 | 0 | 0 | 25 | 38 | 0 | 0 | 0 | 0 | 0 | 63 |
+| lib/api-client/mock/projects.ts | 0 | 0 | 0 | 0 | 57 | 0 | 0 | 0 | 0 | 0 | 57 |
+| lib/mock-sdu.ts | 0 | 0 | 0 | 0 | 49 | 0 | 0 | 0 | 0 | 0 | 49 |
+| lib/mock-azure.ts | 0 | 0 | 0 | 13 | 35 | 0 | 0 | 0 | 0 | 0 | 48 |
+| lib/mock-service-settings.ts | 0 | 0 | 0 | 0 | 45 | 0 | 0 | 0 | 0 | 0 | 45 |
+| lib/constants/labels.ts | 29 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 13 | 42 |
+| app/components/features/process-status/aws/AwsInstallationInline.tsx | 39 | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 41 |
+| lib/theme.ts | 10 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 29 | 39 |
+| app/components/features/history/ProjectHistoryDetailModal.tsx | 22 | 9 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 7 | 38 |
+| lib/mock-installation.ts | 0 | 0 | 0 | 0 | 38 | 0 | 0 | 0 | 0 | 0 | 38 |
+| lib/mock-idc.ts | 0 | 0 | 0 | 4 | 32 | 0 | 0 | 0 | 0 | 0 | 36 |
+| lib/constants/sdu.ts | 18 | 0 | 0 | 0 | 0 | 0 | 9 | 0 | 0 | 8 | 35 |
+| app/components/features/process-status/ApprovalRequestDetailModal.tsx | 32 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 33 |
+| app/integration/projects/[targetSourceId]/_components/idc/IdcProcessStatusCard.tsx | 19 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 11 | 30 |
+| lib/api-client/mock/queue-board.ts | 0 | 0 | 0 | 0 | 30 | 0 | 0 | 0 | 0 | 0 | 30 |
+| app/components/features/process-status/azure/AzureInstallationInline.tsx | 19 | 5 | 0 | 4 | 0 | 0 | 0 | 0 | 0 | 1 | 29 |
+| lib/process/calculator.ts | 9 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 19 | 28 |
+| app/integration/admin/dashboard/page.tsx | 17 | 0 | 0 | 10 | 0 | 0 | 0 | 0 | 0 | 0 | 27 |
+| app/integration/projects/[targetSourceId]/_components/sdu/SduProcessStatusCard.tsx | 23 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 26 |
+| app/components/features/admin/ApprovalDetailModal.tsx | 24 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 26 |
+| lib/fetch-json.ts | 8 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 1 | 14 | 26 |
+| lib/mock-scan.ts | 0 | 0 | 0 | 0 | 25 | 0 | 0 | 0 | 0 | 0 | 25 |
+| app/components/features/idc/IdcResourceInputPanel.tsx | 16 | 4 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 1 | 23 |
+| app/components/features/resource-table/VmDatabaseConfigPanel.tsx | 11 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 9 | 23 |
+| lib/constants/idc.ts | 7 | 0 | 0 | 0 | 0 | 0 | 9 | 0 | 0 | 7 | 23 |
+| app/components/ui/Table.tsx | 7 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 15 | 22 |
+
+나머지 179 파일 누적 **~1,290 라인**.
+
+### D-5. 재현 명령
+
+```bash
+# 한국어 라인 총계
+grep -rn "[가-힣]" app lib components \
+  --include="*.ts" --include="*.tsx" \
+  | grep -v "__tests__\|node_modules\|\.next\|^design/" \
+  | wc -l
+# → 2660
+
+# 한국어 포함 파일 수
+grep -rl "[가-힣]" app lib components \
+  --include="*.ts" --include="*.tsx" \
+  | grep -v "__tests__\|node_modules\|\.next\|^design/" \
+  | wc -l
+# → 209
+```
+
+### D-6. 주요 발견
+
+1. **`toLocaleString('ko-KR')` 하드코딩이 거의 없음(1건)**. 날짜·숫자 포매팅 수정 범위가 예상보다 훨씬 적다. Phase 2-D 공수 2~4h 로 하향.
+2. **`lib/types.ts` 88줄 중 78줄은 주석**. 번역 착시 주의 — 실제 번역 대상은 10줄.
+3. **Mock 계층 610줄이 프로덕션 코드와 무관하지만 UI 직접 노출 경로**. 그대로 두면 개발/QA 환경에서 i18n 인상 단절. §8, 부록 H.
+4. **`process-guides.ts` 단일 파일이 (h) 카테고리의 91%**. 별도 PR 분리 정당성 유지.
+5. **에러 코드가 6 파일에 걸쳐 중복 정의됨** (UNAUTHORIZED, FORBIDDEN, NOT_FOUND 는 값도 불일치). 부록 G-2 에서 통합 가능 케이스 표시.
+
+---
+
+## 부록 E — `process-guides.ts` 완전 덤프
+
+파일: `lib/constants/process-guides.ts` (526 LOC, 한국어 222 라인).
+
+> Phase 2-E 번역 작업 초안 입력 자료. 실제 키 할당과 JSON 분해는 해당 PR 에서 수행.
+
+### E-1. `DEFAULT_STEP_GUIDES` 32 필드
+
+| key path | 원문 | 길이 | 라인 | rich token |
+|---|---|---|---|---|
+| 1.heading | 연동 대상 DB를 선택해 주세요 | 17 | 12 | — |
+| 1.summary[0] | Run Infra Scan을 통해 조회된 DB 리스트에서 PII 모니터링이 필요한 DB를 체크하고, 하단의 | 62 | 14 | — |
+| 1.summary[1].strong | 연동 대상 승인 요청 | 10 | 15 | `<strong>` |
+| 1.summary[2] | ` 버튼을 눌러 주세요.` | 10 | 16 | — |
+| 1.bullets[0][0] | Scan은 평균 3~5분 내외 소요되며, 대상 리소스가 많을 경우 더 길어질 수 있습니다. | 48 | 19 | — |
+| 1.bullets[1][0] | 보안 설정 또는 권한 문제로 스캔이 실패했다면 | 28 | 21 | — |
+| 1.bullets[1][1].link | 가이드 문서 | 7 | 22 | `<link>` |
+| 1.bullets[1][2] | 를 확인해 주세요. | 10 | 23 | — |
+| 2.heading | 승인자의 검토를 기다리고 있어요 | 17 | 28 | — |
+| 2.summary[0] | 요청하신 DB 연동 대상 목록은 보안팀 및 데이터 관리자의 검토를 받고 있습니다. 승인 결과는 메일과 Slack으로 안내됩니다. | 74 | 30 | — |
+| 2.bullets[0][0] | 평균 1영업일 이내 검토가 완료됩니다. | 22 | 33 | — |
+| 2.bullets[1][0] | 3영업일 이상 지연 시 | 15 | 35 | — |
+| 3.heading | 승인된 DB를 시스템에 반영하고 있어요 | 21 | 42 | — |
+| 3.summary[0] | 승인된 DB에 대한 메타 정보가 PII Agent 관리 시스템에 동기화되는 중입니다. 이 과정은 자동으로 진행되며 별도 조치가 필요하지 않습니다. | 85 | 44 | — |
+| 3.bullets[0][0] | 반영 완료까지 최대 10분가량 소요될 수 있습니다. | 30 | 47 | — |
+| 3.bullets[1][0] | 이 단계에서는 실제 데이터가 전송되지 않으며, 메타데이터만 동기화됩니다. | 42 | 48 | — |
+| 4.heading | PII Agent를 설치해 주세요 | 18 | 52 | — |
+| 4.summary[0] | 발급된 Credential과 설치 스크립트를 사용해 대상 인프라에 PII Agent를 배포합니다. Agent 설치 후 자동으로 다음 단계로 넘어갑니다. | 78 | 54 | — |
+| 4.bullets[0][0] | Credential은 | 9 | 58 | — |
+| 4.bullets[0][1].link | Credentials 메뉴 | 10 | 59 | `<link>` |
+| 4.bullets[1][0] | Docker / Helm / Binary 설치 방식은 | 19 | 63 | — |
+| 4.bullets[1][1].link | 설치 가이드 | 7 | 64 | `<link>` |
+| 4.bullets[2][0] | Agent는 설치 환경의 최소 사양(2 vCPU / 4GB RAM) 이상을 권장합니다. | 49 | 67 | — |
+| 5.heading | Agent와 N-IRP 간 통신을 확인하고 있어요 | 27 | 71 | — |
+| 5.summary[0] | 설치된 Agent가 N-IRP(개인정보 리스크 플랫폼)와 정상적으로 통신하는지 자동으로 점검합니다. 네트워크 ACL과 방화벽 정책이 올바른지 확인해 주세요. | 89 | 73 | — |
+| 5.bullets[0][0] | 테스트 실패 시 네트워크 구간(443, 8443 포트)을 우선 점검해 주세요. | 42 | 76 | — |
+| 5.bullets[1][0] | 재시도는 최대 5회까지 자동 수행됩니다. | 26 | 77 | — |
+| 6.heading | 최종 관리자 승인을 기다리고 있어요 | 19 | 81 | — |
+| 6.summary[0] | PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다. 승인 결과는 메일로 전달됩니다. | 55 | 83 | — |
+| 6.bullets[0][0] | 긴급 건은 | 7 | 87 | — |
+| 6.bullets[1][0] | 승인 취소 또는 설정 변경이 필요하다면 이 단계에서 요청 가능합니다. | 38 | 91 | — |
+| 7.heading | 모든 연동이 완료되었습니다 | 14 | 95 | — |
+| 7.summary[0] | PII Agent가 정상 동작 중이며, 탐지 결과는 PII Map 및 대시보드에서 확인할 수 있습니다. | 47 | 97 | — |
+| 7.bullets[0][0] | 탐지 리포트는 매일 09:00에 자동 발송됩니다. | 26 | 100 | — |
+| 7.bullets[1][0] | 인프라 변경 발생 시 다시 이 화면에서 재연동을 진행해 주세요. | 32 | 101 | — |
+
+### E-2. 사전 조치 가이드 3종
+
+| 상수 | label | summary (요약) | steps | warnings | notes |
+|---|---|---|---|---|---|
+| `SCAN_ROLE_GUIDE` (L108-128) | 스캔 Role 등록 | AWS IAM Role을 생성하고, PII Agent가 리소스를 스캔할 수 있도록 권한을 부여합니다 | 8 | 2 | 2 |
+| `DB_CREDENTIAL_GUIDE` (L130-152) | DB Credential 등록 | 연동 대상 데이터베이스의 접속 정보를 등록합니다 | 8 | 3 | 2 |
+| `TF_EXECUTION_ROLE_GUIDE` (L154-176) | TerraformExecutionRole 등록 | 자동 설치에 필요한 Terraform 실행 Role을 AWS 계정에 생성합니다 | 8 | 3 | 2 |
+
+필드별 키 수: 3 × (label + summary + 8 steps + 2.5 warnings + 2 notes) ≈ **44 키**.
+
+### E-3. Provider 별 가이드
+
+| 상수 | 라인 | 단계 | 고유 번역량 |
+|---|---|---|---|
+| `AWS_AUTO_GUIDE` | L186-280 (~95줄) | 7 | 각 단계 label/description/procedures(~4)/warnings(~2)/notes(~2) 모두 고유. ~70 키 |
+| `AWS_MANUAL_GUIDE` | L287-409 (~120줄) | 7 | 거의 동일하지만 Step 4 가 "TF Script 수동 설치". ~70 키 (중복 가능성 50% 이상) |
+| `AZURE_GUIDE` | L472-478 | 7 | `buildSimpleProviderGuide` 헬퍼로 공용 템플릿 + Step 4 `Azure 연동`/`Agent 설치`만 override |
+| `GCP_GUIDE` | L480-486 | 7 | 동일, Step 4 `GCP 연동`/`Agent 설치` |
+| `IDC_GUIDE` | L488-494 | 7 | 동일, Step 4 `IDC 연동`/`Agent 설치` |
+| `SDU_GUIDE` | L496-502 | 7 | 동일, Step 4 `SDU 연동`/`Athena 환경 구성` (다른 단계 과 의미 상이하므로 검토 필요) |
+
+**키 수 종합**: DEFAULT 32 + 사전조치 44 + AWS 2종 ~140 + simple provider ~16 + helper template ~40 = **~272 키** (process-guides 단일 파일).
+
+### E-4. `t.rich` 변환 스펙
+
+Before (현재 구조):
+```ts
+summary: [
+  'Run Infra Scan을 통해 조회된 DB 리스트에서 PII 모니터링이 필요한 DB를 체크하고, 하단의 ',
+  { strong: '연동 대상 승인 요청' },
+  ' 버튼을 눌러 주세요.',
+],
+bullets: [
+  [
+    '보안 설정 또는 권한 문제로 스캔이 실패했다면 ',
+    { link: '가이드 문서', href: '#' },
+    '를 확인해 주세요.',
+  ],
+],
+```
+
+After (`messages/ko/guides/default-steps.json`):
+```json
+{
+  "step1": {
+    "heading": "연동 대상 DB를 선택해 주세요",
+    "summary": "Run Infra Scan을 통해 조회된 DB 리스트에서 PII 모니터링이 필요한 DB를 체크하고, 하단의 <strong>연동 대상 승인 요청</strong> 버튼을 눌러 주세요.",
+    "bullet0": "Scan은 평균 3~5분 내외 소요되며, 대상 리소스가 많을 경우 더 길어질 수 있습니다.",
+    "bullet1": "보안 설정 또는 권한 문제로 스캔이 실패했다면 <link>가이드 문서</link>를 확인해 주세요."
+  }
+}
+```
+
+After (`messages/en/guides/default-steps.json`):
+```json
+{
+  "step1": {
+    "heading": "Select the target databases for integration",
+    "summary": "From the DB list returned by Run Infra Scan, check the databases that require PII monitoring, then click <strong>Request Target Approval</strong> at the bottom.",
+    "bullet0": "A scan typically takes 3–5 minutes; it may take longer with many resources.",
+    "bullet1": "If the scan fails due to security settings or permissions, see the <link>guide</link>."
+  }
+}
+```
+
+Render:
+```tsx
+const t = useTranslations('guides.defaultSteps.step1');
+<h3>{t('heading')}</h3>
+<p>{t.rich('summary', { strong: (c) => <strong>{c}</strong> })}</p>
+<ul>
+  <li>{t('bullet0')}</li>
+  <li>{t.rich('bullet1', { link: (c) => <a href="/docs/scan-guide">{c}</a> })}</li>
+</ul>
+```
+
+### E-5. 기존 콜사이트 재설계
+
+- `app/components/features/process-status/ProcessGuideStepCard.tsx` — 현재 `content: StepGuideContent` prop 수용. After: `step: number` prop 만 받고 내부에서 `useTranslations` 호출.
+- `app/components/features/GuideCard.tsx` — 사전조치 가이드 렌더. 동일 변경.
+- `lib/types/process-guide.ts` — `StepGuideContent` union(`string | { strong: string } | { link: string; href: string }`)을 제거. 타입 축소.
+- `app/components/features/process-status/**/*Guide*.tsx` — AWS/Azure/GCP/IDC/SDU 별 info card 내부의 가이드 소비부.
+
+---
+
+## 부록 F — enum/라벨 맵 전수 카탈로그
+
+> 라벨 맵 상수 **16 종**, 한국어 라벨값 **81 개**. Phase 2-A 스코프의 근간.
+
+### F-1. `lib/constants/labels.ts`
+
+#### `ERROR_TYPE_LABELS` (L21-27)
+| key | ko |
+|---|---|
+| AUTH_FAILED | 인증 실패 |
+| PERMISSION_DENIED | 권한 부족 |
+| NETWORK_ERROR | 네트워크 오류 |
+| TIMEOUT | 연결 타임아웃 |
+| UNKNOWN_ERROR | 알 수 없는 오류 |
+
+#### `PROCESS_STATUS_LABELS` (L32-40)
+| key (enum ProcessStatus) | ko |
+|---|---|
+| WAITING_TARGET_CONFIRMATION | 연동 대상 확정 대기 |
+| WAITING_APPROVAL | 승인 대기 |
+| APPLYING_APPROVED | 연동대상 반영 중 |
+| INSTALLING | 설치 진행 중 |
+| WAITING_CONNECTION_TEST | 연결 테스트 필요 |
+| CONNECTION_VERIFIED | 연결 확인 완료 |
+| INSTALLATION_COMPLETE | 설치 완료 |
+
+#### `CONNECTION_STATUS_CONFIG.label` (L45-65)
+| key | ko |
+|---|---|
+| CONNECTED | 연결됨 |
+| DISCONNECTED | 연결 끊김 |
+| PENDING | 대기중 |
+
+#### `REGION_LABELS` (L70-75)
+| key | ko |
+|---|---|
+| ap-northeast-2 | 서울 (ap-northeast-2) |
+| ap-northeast-1 | 도쿄 (ap-northeast-1) |
+
+#### `PROVIDER_DESCRIPTIONS` (L126-132)
+| key | ko |
+|---|---|
+| AWS | Amazon Web Services 환경의 RDS, DynamoDB 등 데이터 리소스를 자동 스캔합니다. |
+| Azure | Microsoft Azure 클라우드 환경의 데이터베이스 리소스를 스캔하고 PII Agent를 연동합니다. |
+| GCP | Google Cloud Platform의 Cloud SQL, BigQuery 등 데이터 리소스를 관리합니다. |
+| IDC | 온프레미스 데이터센터의 데이터베이스 리소스를 수동 등록하여 관리합니다. |
+| SDU | 삼성 SDS 데이터 유니버스 환경의 데이터 리소스를 연동합니다. |
+
+#### Fallback reducer 함수 (default 반환값)
+| 함수 | 라인 | default |
+|---|---|---|
+| `getServiceCodeDisplay` | L200 | 서비스 코드 미제공 |
+| `getErrorTypeLabel` | L88 | 알 수 없는 오류 |
+| `getProcessStatusLabel` | L95 | 알 수 없는 상태 |
+
+### F-2. `lib/constants/azure.ts`
+
+#### `PRIVATE_ENDPOINT_STATUS_LABELS` (L3-8)
+| key | ko |
+|---|---|
+| NOT_REQUESTED | BDC측 확인 필요 |
+| PENDING_APPROVAL | Azure Portal에서 승인 필요 |
+| APPROVED | 승인 완료 |
+| REJECTED | BDC측 재신청 필요 |
+
+### F-3. `lib/constants/gcp.ts`
+
+#### `GCP_STEP_LABELS` (L13-17)
+| key | ko |
+|---|---|
+| serviceSideSubnetCreation | Subnet 생성 |
+| serviceSideTerraformApply | Service TF 설치 |
+| bdcSideTerraformApply | BDC TF 설치 |
+
+#### `GCP_STEP_STATUS_LABELS` (L21-26)
+| key | ko |
+|---|---|
+| COMPLETED | 완료 |
+| FAIL | 실패 |
+| IN_PROGRESS | 진행중 |
+| SKIP | 해당없음 |
+
+#### `GCP_INSTALLATION_STATUS_LABELS` (L30-34)
+| key | ko |
+|---|---|
+| COMPLETED | 설치 완료 |
+| FAIL | 설치 실패 |
+| IN_PROGRESS | 설치 진행 중 |
+
+### F-4. `lib/constants/sdu.ts`
+
+#### `SDU_STEP_LABELS` (L60-65)
+| key | ko |
+|---|---|
+| s3Upload | S3 업로드 |
+| installation | 설치 |
+| connectionTest | 테스트 |
+| complete | 완료 |
+
+#### `SDU_PROCESS_STATUS_LABELS` (L69-76)
+| key | ko |
+|---|---|
+| S3_UPLOAD_PENDING | S3 업로드 대기 |
+| S3_UPLOAD_CONFIRMED | S3 업로드 확인 완료 |
+| INSTALLING | 환경 구성 중 |
+| WAITING_CONNECTION_TEST | 연결 테스트 대기 |
+| CONNECTION_VERIFIED | 연결 확인 완료 |
+| INSTALLATION_COMPLETE | 설치 완료 |
+
+#### `CRAWLER_RUN_STATUS_LABELS` (L80-84)
+| key | ko |
+|---|---|
+| NONE | 미실행 |
+| SUCCESS | 성공 |
+| FAILED | 실패 |
+
+#### `ATHENA_SETUP_STATUS_LABELS` (L88-92)
+| key | ko |
+|---|---|
+| PENDING | 대기 |
+| IN_PROGRESS | 진행 중 |
+| COMPLETED | 완료 |
+
+#### `SOURCE_IP_STATUS_LABELS` (L96-99)
+| key | ko |
+|---|---|
+| PENDING | 등록 대기 |
+| CONFIRMED | 확인 완료 |
+
+### F-5. `lib/constants/idc.ts`
+
+#### `IDC_TF_STATUS_LABELS` (L12-17)
+| key | ko |
+|---|---|
+| PENDING | TF 설치 대기 |
+| IN_PROGRESS | TF 설치 중 |
+| COMPLETED | TF 설치 완료 |
+| FAILED | TF 설치 실패 |
+
+#### `IDC_SOURCE_IP_RECOMMENDATIONS.*.description` (L87-103)
+| key | ko |
+|---|---|
+| public | Public IP 환경에서 사용하는 BDC 서버 IP입니다. |
+| private | Private IP (사내망) 환경에서 사용하는 BDC 서버 IP입니다. |
+| vpc | VPC 연동 환경에서 사용하는 BDC 서버 IP입니다. |
+
+### F-6. 인라인 switch-case 한국어 라벨 (별도 refactor 필요)
+
+| 파일 | 라인 | 대상 | 권장 |
+|---|---|---|---|
+| `app/components/features/TerraformStatusModal.tsx` | 11-30 | `getTerraformStatusStyle` / `getFirewallStatusStyle` 의 switch-case | `terraform.status.*` / `terraform.firewall.*` 맵 상수로 추출 후 i18n |
+| `app/components/features/StepIndicator.tsx` | 10-17 | `steps` 배열의 인라인 label | `PROCESS_STATUS_LABELS` 재사용 |
+
+### F-7. Phase 2-A 전환 전략
+
+1. 각 맵의 key 는 그대로 유지 → `messages/ko/*.json` 값 이전
+2. 훅 래퍼 제공:
+   ```ts
+   // lib/i18n/hooks.ts
+   export const useProcessStatusLabel = () => {
+     const t = useTranslations('process.status');
+     return (status: ProcessStatus) => t(STATUS_TO_KEY[status]);
+   };
+   export const useConnectionStatusLabel = () => { /* ... */ };
+   ```
+3. 기존 `PROCESS_STATUS_LABELS[status]` 콜사이트 → `useProcessStatusLabel()(status)` 로 교체
+4. Record 상수 자체는 제거 대신 key 맵으로 강등 (아래):
+   ```ts
+   // lib/constants/labels.ts (After)
+   export const PROCESS_STATUS_KEY: Record<ProcessStatus, string> = {
+     [ProcessStatus.WAITING_TARGET_CONFIRMATION]: 'waitingTargetConfirmation',
+     // ...
+   };
+   ```
+
+---
+
+## 부록 G — 에러 코드 전수 카탈로그
+
+### G-1. 통합 테이블 (44 엔트리)
+
+| # | 파일 | code | status | ko message | 중복/상이 |
+|---|---|---|---|---|---|
+| 1 | azure.ts:14 | UNAUTHORIZED | 401 | 인증이 필요합니다. | ⟲ gcp/sdu/idc 동일 |
+| 2 | azure.ts:19 | FORBIDDEN | 403 | 접근 권한이 없습니다. | ⟲ gcp/sdu/idc 동일 |
+| 3 | azure.ts:24 | NOT_FOUND | 404 | 리소스를 찾을 수 없습니다. | ⟲ gcp/sdu/idc 동일 |
+| 4 | azure.ts:29 | NOT_AZURE_PROJECT | 400 | Azure 프로젝트가 아닙니다. | 고유 |
+| 5 | azure.ts:34 | SERVICE_NOT_FOUND | 404 | 서비스를 찾을 수 없습니다. | ⟲ gcp/idc 동일 |
+| 6 | azure.ts:39 | NO_VM_RESOURCES | 400 | VM 리소스가 없습니다. | 고유 |
+| 7 | azure.ts:44 | VALIDATION_FAILED | 400 | 검증에 실패했습니다. | ⟲ gcp/sdu/idc 동일 |
+| 8 | gcp.ts:78 | UNAUTHORIZED | 401 | 인증이 필요합니다. | ⟲ |
+| 9 | gcp.ts:83 | FORBIDDEN | 403 | 접근 권한이 없습니다. | ⟲ |
+| 10 | gcp.ts:88 | NOT_FOUND | 404 | 리소스를 찾을 수 없습니다. | ⟲ |
+| 11 | gcp.ts:93 | NOT_GCP_PROJECT | 400 | GCP 프로젝트가 아닙니다. | 고유 |
+| 12 | gcp.ts:98 | SERVICE_NOT_FOUND | 404 | 서비스를 찾을 수 없습니다. | ⟲ |
+| 13 | gcp.ts:103 | VALIDATION_FAILED | 400 | 검증에 실패했습니다. | ⟲ |
+| 14 | sdu.ts:12 | UNAUTHORIZED | 401 | 인증이 필요합니다. | ⟲ |
+| 15 | sdu.ts:17 | FORBIDDEN | 403 | 접근 권한이 없습니다. | ⟲ |
+| 16 | sdu.ts:22 | NOT_FOUND | 404 | 리소스를 찾을 수 없습니다. | ⟲ |
+| 17 | sdu.ts:27 | NOT_SDU_PROJECT | 400 | SDU 프로젝트가 아닙니다. | 고유 |
+| 18 | sdu.ts:32 | VALIDATION_FAILED | 400 | 검증에 실패했습니다. | ⟲ |
+| 19 | sdu.ts:37 | INVALID_CIDR | 400 | 유효하지 않은 CIDR 형식입니다. | 고유 |
+| 20 | sdu.ts:42 | S3_NOT_UPLOADED | 400 | S3에 데이터가 업로드되지 않았습니다. | 고유 |
+| 21 | sdu.ts:47 | IAM_USER_NOT_FOUND | 404 | IAM USER를 찾을 수 없습니다. | 고유 |
+| 22 | sdu.ts:51 | SOURCE_IP_NOT_REGISTERED | 400 | SourceIP가 등록되지 않았습니다. | 고유 |
+| 23 | idc.ts:23 | UNAUTHORIZED | 401 | 인증이 필요합니다. | ⟲ |
+| 24 | idc.ts:28 | FORBIDDEN | 403 | 접근 권한이 없습니다. | ⟲ |
+| 25 | idc.ts:33 | NOT_FOUND | 404 | 리소스를 찾을 수 없습니다. | ⟲ |
+| 26 | idc.ts:38 | NOT_IDC_PROJECT | 400 | IDC 프로젝트가 아닙니다. | 고유 |
+| 27 | idc.ts:43 | SERVICE_NOT_FOUND | 404 | 서비스를 찾을 수 없습니다. | ⟲ |
+| 28 | idc.ts:48 | VALIDATION_FAILED | 400 | 검증에 실패했습니다. | ⟲ |
+| 29 | idc.ts:53 | INVALID_IP_TYPE | 400 | 유효하지 않은 IP 타입입니다. | 고유 |
+| 30 | idc.ts:58 | ORACLE_REQUIRES_SERVICE_ID | 400 | Oracle DB는 ServiceId가 필수입니다. | 고유 |
+| 31 | idc.ts:63 | FIREWALL_NOT_OPENED | 400 | 방화벽이 아직 오픈되지 않았습니다. | 고유 |
+| 32 | scan.ts:52 | UNAUTHORIZED | 401 | 로그인이 필요합니다. | ⚠ azure 등과 문구 상이 |
+| 33 | scan.ts:53 | FORBIDDEN | 403 | 해당 프로젝트에 대한 권한이 없습니다. | ⚠ azure 등과 문구 상이 |
+| 34 | scan.ts:54 | NOT_FOUND | 404 | 프로젝트를 찾을 수 없습니다. | ⚠ azure 등과 문구 상이 |
+| 35 | scan.ts:55 | SCAN_NOT_FOUND | 404 | 해당 스캔을 찾을 수 없습니다. | 고유 |
+| 36 | scan.ts:56 | SCAN_NOT_SUPPORTED | 400 | 스캔을 지원하지 않는 Provider입니다. | 고유 |
+| 37 | scan.ts:57 | SCAN_IN_PROGRESS | 409 | 이미 스캔이 진행 중입니다. | 고유 |
+| 38 | scan.ts:58 | SCAN_TOO_RECENT | 429 | 최근 스캔 완료 후 5분이 지나지 않았습니다. | 고유 · 5분이 하드코딩. ICU `{minutes}` 도입 권장 |
+| 39 | scan.ts:59 | MAX_RESOURCES_REACHED | 400 | 리소스가 최대 개수(10개)에 도달했습니다. | 고유 · 10개 하드코딩. ICU `{max}` 도입 권장 |
+| 40 | history.ts:3 | UNAUTHORIZED | 401 | 로그인이 필요합니다. | ⟲ scan 과 동일 |
+| 41 | history.ts:4 | FORBIDDEN | 403 | 해당 프로젝트에 대한 권한이 없습니다. | ⟲ scan 과 동일 |
+| 42 | history.ts:5 | NOT_FOUND | 404 | 프로젝트를 찾을 수 없습니다. | ⟲ scan 과 동일 |
+| 43 | history.ts:6 | INVALID_TYPE | 400 | 유효하지 않은 type 파라미터입니다. (all, approval) | 고유 |
+| 44 | messages.ts:8 | STATUS_FETCH_FAILED | — | 상태 조회에 실패했습니다. | 고유 |
+
+### G-2. 중복 / 불일치 분석
+
+| code | Provider 계열 문구 | Scan/History 계열 문구 | 통합 전략 |
+|---|---|---|---|
+| UNAUTHORIZED | 인증이 필요합니다. | 로그인이 필요합니다. | 문맥 분리: `errors.unauthorizedAuth` / `errors.unauthorizedLogin` |
+| FORBIDDEN | 접근 권한이 없습니다. | 해당 프로젝트에 대한 권한이 없습니다. | 문맥 분리 |
+| NOT_FOUND | 리소스를 찾을 수 없습니다. | 프로젝트를 찾을 수 없습니다. | 문맥별 키 (`errors.notFound.resource` / `errors.notFound.project`) |
+| VALIDATION_FAILED | 4 파일 동일 | — | 단일 키 통합 가능 |
+| SERVICE_NOT_FOUND | 3 파일 동일 | — | 단일 키 통합 가능 |
+
+### G-3. i18n 전환 방침
+
+1. **중앙 키 스토어** `messages/{ko,en}/errors.json` 로 이전 (§K-2)
+2. **code → key 매핑** `lib/i18n/error-map.ts`:
+   ```ts
+   export const ERROR_KEY_BY_CODE: Record<AppErrorCode | string, string> = {
+     UNAUTHORIZED: 'errors.unauthorized',  // 컨텍스트별 override 는 콜사이트에서
+     FORBIDDEN: 'errors.forbidden',
+     NOT_FOUND: 'errors.notFound.resource',
+     SCAN_TOO_RECENT: 'errors.scan.tooRecent',
+     // ... 44 엔트리
+   };
+   ```
+3. **ERROR_CODES 상수의 `message` 필드 제거**:
+   ```ts
+   // Before
+   UNAUTHORIZED: { status: 401, message: '로그인이 필요합니다.' }
+   // After
+   UNAUTHORIZED: { status: 401 }        // code 는 바깥 키로 이미 표현
+   ```
+4. **ICU 보간 도입** (SCAN_TOO_RECENT, MAX_RESOURCES_REACHED 처럼 숫자 하드코딩): 서버 응답에서 `params: { minutes: 5 }` 같은 구조화 필드로 넘기도록 BFF 계약 확장 (O3 이슈).
+5. **Mock/Route Handler** 는 `message` 필드 응답 중단 — §7, §K-2, 부록 G-1 의 `message` 가 클라 i18n 으로 이관되므로.
+
+---
+
+## 부록 H — Mock 응답 한국어 카탈로그
+
+### H-1. 파일별 집계
+
+| 파일 | 총 한국어 라인 | (d) 라벨 | (e) mock 응답 | UI 직접 노출 경로 |
+|---|---|---|---|---|
+| `lib/api-client/mock/confirm.ts` | 96 | 14 | 82 | 승인 요청/큐 보드, 승인 상태 |
+| `lib/mock-data.ts` | 80 | 2 | 78 | 리소스 테이블, dashboard |
+| `lib/mock-dashboard.ts` | 63 | 25 | 38 | KPI, 시스템 테이블 |
+| `lib/api-client/mock/projects.ts` | 57 | 0 | 57 | 프로젝트 리스트, 서비스명·담당자명 |
+| `lib/mock-sdu.ts` | 49 | 0 | 49 | SDU 프로세스 상태 카드 |
+| `lib/mock-azure.ts` | 48 | 13 | 35 | Azure 프로세스 상태 카드 |
+| `lib/mock-service-settings.ts` | 45 | 0 | 45 | 서비스 설정 패널 |
+| `lib/mock-installation.ts` | 38 | 0 | 38 | 설치 상태 카드 |
+| `lib/mock-idc.ts` | 36 | 4 | 32 | IDC 리소스 목록 |
+| `lib/api-client/mock/queue-board.ts` | 30 | 0 | 30 | 큐 보드 |
+| `lib/mock-scan.ts` | 25 | 0 | 25 | 스캔 결과 |
+| 기타 (mock-test-connection, mock-history 등) | ~43 | ~0 | ~43 | — |
+| **합계** | **610** | **58** | **552** | — |
+
+### H-2. 유형별 처리 방침
+
+| 유형 | 예시 | 방침 |
+|---|---|---|
+| 사용자 입력 시뮬레이션 | `service_name: '주문 서비스'`, `manager.name: '홍길동'` | **번역 안 함** — 프로덕션에서도 원본 표시 |
+| 상태 라벨 (문자열) | `installationStatus: '설치 완료'` | **mock 에서도 code 반환** (`installationStatus: 'COMPLETED'`). 클라에서 i18n. |
+| 에러 message | `message: '로그인이 필요합니다.'` | **제거**. code 만 반환. |
+| 가이드 텍스트 | 없음 (가이드는 mock 의존 X) | — |
+
+### H-3. 변경 규모
+
+- 파일 수: **13**
+- 총 라인: **610** 중 약 **350** (상태 라벨 + 에러 message) 을 code 중심으로 재작성
+- 1 PR 스코프 적합 (Phase 4 내)
+
+### H-4. 변경 샘플 — `lib/api-client/mock/scan.ts`
+
+```ts
+// Before
+if (!user) {
+  return NextResponse.json(
+    { error: 'UNAUTHORIZED', message: SCAN_ERROR_CODES.UNAUTHORIZED.message },
+    { status: SCAN_ERROR_CODES.UNAUTHORIZED.status }
+  );
+}
+
+// After
+if (!user) {
+  return NextResponse.json(
+    { code: 'UNAUTHORIZED' },
+    { status: SCAN_ERROR_CODES.UNAUTHORIZED.status }
+  );
+}
+```
+
+### H-5. 리스크
+
+- 기존 UI가 mock 응답의 `status` / `label` 필드를 "한국어 문자열로 바로 표시" 하고 있다면 **스샷 테스트 깨짐**. 각 mock 파일 수정 시 대응 컴포넌트가 code 를 해석하도록 되어 있는지 확인 필요.
+- IDC/SDU 처럼 프로비저닝 시뮬레이션이 상태 문자열을 내보내는 코드(`lib/mock-store.ts` 관련) 도 동시 수정해야 함.
+
+---
+
+## 부록 I — 날짜·숫자 포매팅 실사
+
+### I-1. 실측 결과
+
+```
+grep -rn "'ko-KR'\|\"ko-KR\"\|Intl\.DateTimeFormat\|Intl\.NumberFormat" app lib components \
+  --include="*.ts" --include="*.tsx" | grep -v "__tests__\|node_modules\|\.next\|^design/"
+```
+
+→ **1 건** 수준. 주로 `lib/utils/date.ts` 의 공용 헬퍼에 집중 (PR #319 초안에서 추정한 16건은 `/design` 포함 수치였음).
+
+### I-2. 해석
+
+- 콜사이트들은 이미 `formatDate(iso)` 같은 공용 함수를 통해 호출 → 수정 포인트가 **한 파일로 수렴**.
+- `toLocaleString()` 을 인자 없이 호출 (브라우저 locale 따라감)하는 지점은 별도 grep 필요. 있다면 SSR/CSR locale 불일치 위험.
+
+### I-3. 권장 변경
+
+```ts
+// lib/utils/date.ts — Before
+const FORMAT_OPTIONS: Record<Format, Intl.DateTimeFormatOptions> = { /* ... */ };
+export const formatDate = (iso: string, format: Format = 'long'): string =>
+  new Date(iso).toLocaleString('ko-KR', FORMAT_OPTIONS[format]);
+
+// After
+export const formatDate = (iso: string, locale: string, format: Format = 'long'): string =>
+  new Date(iso).toLocaleString(locale, FORMAT_OPTIONS[format]);
+
+// 콜사이트
+const locale = useLocale();        // CSR
+// 또는 const locale = await getLocale();  // RSC
+formatDate(iso, locale)
+```
+
+- 공수 추정: **2~4 시간** (§10.5 Phase 2-D)
+- FORMAT_OPTIONS 는 locale 독립. 필요 시 `{ ko: { long: ... }, en: { long: ... } }` 형태로 per-locale override 가능.
+
+### I-4. 재실사 권장
+
+Phase 2 착수 직전, 아래 두 패턴도 확인:
+- `new Intl\.DateTimeFormat\(` (locale 생략 포함)
+- `new Intl\.NumberFormat\(` (locale 생략 포함)
+- `\.toLocaleString\(\)` (인자 없이) — 브라우저 기본 locale 사용 — hydration mismatch 잠재
+
+---
+
+## 부록 J — 도메인 용어 사전 (ko → en, v0)
+
+> Phase 6 번역 작업 직전 기획/FE 리뷰로 확정. 번역 PR 간 용어 drift 방지 목적.
+> **상태: 초안 (Draft)** — 합의 전. 각 행의 en 번역은 검토 대상.
+
+### J-1. 프로세스·상태
+
+| ko | en | 비고 |
+|---|---|---|
+| 연동 | Integration | |
+| 연동 대상 | Target Source | 코드에서 이미 `targetSourceId` |
+| 연동 대상 확정 | Target Confirmation | |
+| 연동 대상 승인 요청 | Request Target Approval | CTA |
+| 연동대상 반영 중 | Applying Approved Targets | `APPLYING_APPROVED` |
+| 승인 | Approval | |
+| 승인 대기 | Awaiting Approval | |
+| 승인 요청 | Approval Request | |
+| 승인자 | Approver | |
+| 승인 완료 | Approved | |
+| 반려 | Rejected | |
+| 반려 사유 | Rejection Reason | |
+| 설치 진행 중 | Installing | |
+| 설치 완료 | Installation Complete | |
+| 설치 실패 | Installation Failed | |
+| 연결 테스트 | Connection Test | |
+| 연결 테스트 필요 | Connection Test Required | |
+| 연결 확인 완료 | Connection Verified | |
+| 연결됨 | Connected | |
+| 연결 끊김 | Disconnected | |
+| 대기중 | Pending | |
+| 진행 중 | In Progress | |
+| 완료 | Completed | |
+| 실패 | Failed | |
+| 해당없음 | Not Applicable | |
+
+### J-2. 리소스·인프라
+
+| ko | en | 비고 |
+|---|---|---|
+| 리소스 | Resource | |
+| 리소스 스캔 | Resource Scan | |
+| 데이터베이스 | Database | |
+| 인프라 | Infrastructure | |
+| 인프라 등록 | Register Infrastructure | `ProjectCreateModal` 제목 |
+| 방화벽 | Firewall | |
+| 방화벽 오픈 | Firewall Opened | |
+| 서브넷 | Subnet | |
+| 프라이빗 엔드포인트 | Private Endpoint | |
+| VPC 연동 | VPC Integration | |
+| 온프레미스 | On-premises | |
+| 클라우드 | Cloud | |
+| 로드밸런서 | Load Balancer | |
+| NIC | NIC | |
+
+### J-3. 사용자·역할
+
+| ko | en | 비고 |
+|---|---|---|
+| 관리자 | Administrator | |
+| 프로젝트 | Project | |
+| 서비스 | Service | |
+| 서비스 코드 | Service Code | |
+| 담당자 | Manager | `projects.manager.name` 필드 |
+| 사용자 | User | |
+| 인증 | Authentication | |
+| 인증 실패 | Authentication Failed | |
+| 인증 필요 | Authentication required | `errors.unauthorizedAuth` |
+| 로그인 필요 | Login required | `errors.unauthorizedLogin` |
+| 권한 | Permission / Authorization | 문맥별 |
+| 권한 부족 | Permission Denied | |
+| 접근 권한 없음 | Access denied | |
+
+### J-4. 오류·피드백
+
+| ko | en | 비고 |
+|---|---|---|
+| 오류가 발생했습니다 | An error occurred | |
+| 알 수 없는 오류 | Unknown error | |
+| 네트워크 오류 | Network error | |
+| 연결 타임아웃 | Connection timeout | |
+| 로딩 중... | Loading… | 3 dot → horizontal ellipsis |
+| 데이터가 없습니다 | No data | Table empty state |
+| 기능 준비중입니다 | Feature not available yet | |
+| 재시도 | Retry | |
+| 새로고침 | Refresh | |
+| 다시 시도해 주세요 | Please try again | |
+| 상태 조회에 실패했습니다 | Failed to fetch status | |
+
+### J-5. 액션·UI
+
+| ko | en | 비고 |
+|---|---|---|
+| 닫기 | Close | Modal aria-label |
+| 취소 | Cancel | |
+| 저장 | Save | |
+| 확인 | Confirm | |
+| 삭제 | Delete | |
+| 편집 | Edit | |
+| 추가 | Add | |
+| 리소스 추가 | Add Resource | |
+| 다음 | Next | |
+| 이전 | Previous | |
+| 검색 | Search | |
+| 복사 | Copy | aria-label |
+| 관리 메뉴 열기 | Open management menu | aria-label |
+| 설치 진행 상태 | Installation Progress | Modal 제목 |
+| 실행 일시 | Executed at | |
+| 결과 | Result | |
+| 반려 사유를 입력하세요 | Enter rejection reason | placeholder |
+| 리소스 목록 | Resource list | |
+| 등록된 리소스가 없습니다 | No resources registered | |
+
+### J-6. 도메인 전문 용어
+
+| ko | en | 비고 |
+|---|---|---|
+| PII | PII | 고유명사 |
+| PII Agent | PII Agent | 고유명사 |
+| PII Map | PII Map | 고유명사 |
+| N-IRP | N-IRP | 고유명사 (개인정보 리스크 플랫폼) |
+| BDC | BDC | 고유명사 |
+| SDU | SDU | 고유명사 |
+| IDC | IDC | 고유명사 |
+| Credential | Credential | |
+| DB Credential 등록 | Register DB Credential | |
+| 스캔 Role 등록 | Register Scan Role | AWS IAM Role |
+| TerraformExecutionRole 등록 | Register TerraformExecutionRole | 고유 IAM Role 명 |
+| 프로세스 | Process | |
+| 프로비저닝 | Provisioning | |
+| 에이전트 | Agent | |
+| 탐지 리포트 | Detection Report | |
+| 크롤러 | Crawler | SDU |
+| 아테나 환경 | Athena Environment | SDU |
+| S3 업로드 | S3 Upload | |
+| 스캔 쿨다운 | Scan Cooldown | |
+| 자동 설치 | Auto-install | AWS_AUTO_GUIDE |
+| 수동 설치 | Manual install | AWS_MANUAL_GUIDE |
+
+### J-7. 지역·시간·분량
+
+| ko | en | 비고 |
+|---|---|---|
+| 서울 (ap-northeast-2) | Seoul (ap-northeast-2) | |
+| 도쿄 (ap-northeast-1) | Tokyo (ap-northeast-1) | |
+| 영업일 | business day | |
+| 평균 N분 | avg N minutes | |
+| 최대 N분 | up to N minutes | |
+| N영업일 이내 | within N business day(s) | |
+
+### J-8. 합계 및 프로세스
+
+총 **~95 용어**.
+
+- Phase 6 착수 전 기획팀 + FE 리더 1차 리뷰 → 확정본은 `docs/i18n/glossary.md` 로 별도 분리(후속 PR).
+- 번역 PR 에서 이 사전과 불일치하면 **리뷰 블록**.
+
+---
+
+## 부록 K — 번역 키 사전 테이블 (우선순위 v0)
+
+> 전체 예상치 ~**870 키**. 본 부록은 Phase 2 ~ Phase 3 초기에 필요한 **상위 150 여 키** 의 ko→en draft 와 출처(file:line). 나머지 guides 240 + 도메인별 500+ 는 실행 PR 에서 확장 및 CI 자동 추출.
+>
+> 형식: `namespace.key | ko | en draft | 출처`. en draft 는 부록 J 용어 사전과 정합.
+
+### K-1. `common` (공통 UI) — 20 키
+
+| key | ko | en | 출처 |
+|---|---|---|---|
+| common.close | 닫기 | Close | `components/ui/Modal.tsx:133` (aria-label) |
+| common.cancel | 취소 | Cancel | 다수 |
+| common.save | 저장 | Save | 다수 |
+| common.confirm | 확인 | Confirm | 다수 |
+| common.retry | 재시도 | Retry | 다수 |
+| common.refresh | 새로고침 | Refresh | `features/sdu/SduInstallationProgress.tsx:81` |
+| common.loading | 로딩 중... | Loading… | `projects/[projectId]/common/LoadingState.tsx:8` |
+| common.empty | 데이터가 없습니다. | No data. | `components/ui/Table.tsx` default |
+| common.back | 뒤로 | Back | — |
+| common.add | 추가 | Add | — |
+| common.delete | 삭제 | Delete | `features/idc/IdcPendingResourceList.tsx:55` (title) |
+| common.edit | 편집 | Edit | — |
+| common.next | 다음 | Next | — |
+| common.previous | 이전 | Previous | — |
+| common.search | 검색 | Search | — |
+| common.copy | 복사 | Copy | `projects/[projectId]/common/ProjectIdentityCard.tsx:161` (aria-label `${label} 복사`) |
+| common.errorOccurred | 오류가 발생했습니다 | An error occurred | `projects/[projectId]/common/ErrorState.tsx:20` |
+| common.networkRetry | 네트워크 연결을 확인하고 다시 시도해 주세요 | Check your network and try again | `integration/admin/dashboard/page.tsx:274` |
+| common.notReadyYet | 기능 준비중입니다. | Feature not available yet. | `projects/[projectId]/common/DeleteInfrastructureButton.tsx:17` |
+| common.openManagementMenu | 관리 메뉴 열기 | Open management menu | `features/admin/infrastructure/ManagementSplitButton.tsx:84` |
+
+### K-2. `errors` (에러 메시지) — 27 키
+
+| key | ko | en | 출처 |
+|---|---|---|---|
+| errors.unauthorizedLogin | 로그인이 필요합니다. | Login required. | `constants/scan.ts:52`, `history.ts:3` |
+| errors.unauthorizedAuth | 인증이 필요합니다. | Authentication required. | `azure.ts:14`, `gcp.ts:78`, `sdu.ts:12`, `idc.ts:23` |
+| errors.forbiddenProject | 해당 프로젝트에 대한 권한이 없습니다. | You don't have access to this project. | `scan.ts:53`, `history.ts:4` |
+| errors.forbiddenGeneric | 접근 권한이 없습니다. | Access denied. | `azure.ts:19`, `gcp.ts:83`, `sdu.ts:17`, `idc.ts:28` |
+| errors.notFound.resource | 리소스를 찾을 수 없습니다. | Resource not found. | `azure.ts:24`, `gcp.ts:88`, `sdu.ts:22`, `idc.ts:33` |
+| errors.notFound.project | 프로젝트를 찾을 수 없습니다. | Project not found. | `scan.ts:54`, `history.ts:5` |
+| errors.notFound.service | 서비스를 찾을 수 없습니다. | Service not found. | `azure.ts:34`, `gcp.ts:98`, `idc.ts:43` |
+| errors.notFound.scan | 해당 스캔을 찾을 수 없습니다. | Scan not found. | `scan.ts:55` |
+| errors.notFound.iamUser | IAM USER를 찾을 수 없습니다. | IAM user not found. | `sdu.ts:47` |
+| errors.validation.failed | 검증에 실패했습니다. | Validation failed. | `azure.ts:44`, `gcp.ts:103`, `sdu.ts:32`, `idc.ts:48` |
+| errors.validation.invalidCidr | 유효하지 않은 CIDR 형식입니다. | Invalid CIDR format. | `sdu.ts:37` |
+| errors.validation.invalidIpType | 유효하지 않은 IP 타입입니다. | Invalid IP type. | `idc.ts:53` |
+| errors.validation.invalidHistoryType | 유효하지 않은 type 파라미터입니다. (all, approval) | Invalid type parameter. (all, approval) | `history.ts:6` |
+| errors.validation.oracleRequiresServiceId | Oracle DB는 ServiceId가 필수입니다. | Oracle DB requires ServiceId. | `idc.ts:58` |
+| errors.azure.notAzureProject | Azure 프로젝트가 아닙니다. | Not an Azure project. | `azure.ts:29` |
+| errors.azure.noVmResources | VM 리소스가 없습니다. | No VM resources. | `azure.ts:39` |
+| errors.gcp.notGcpProject | GCP 프로젝트가 아닙니다. | Not a GCP project. | `gcp.ts:93` |
+| errors.sdu.notSduProject | SDU 프로젝트가 아닙니다. | Not an SDU project. | `sdu.ts:27` |
+| errors.sdu.s3NotUploaded | S3에 데이터가 업로드되지 않았습니다. | Data has not been uploaded to S3. | `sdu.ts:42` |
+| errors.sdu.sourceIpNotRegistered | SourceIP가 등록되지 않았습니다. | Source IP is not registered. | `sdu.ts:51` |
+| errors.idc.notIdcProject | IDC 프로젝트가 아닙니다. | Not an IDC project. | `idc.ts:38` |
+| errors.idc.firewallNotOpened | 방화벽이 아직 오픈되지 않았습니다. | Firewall is not yet opened. | `idc.ts:63` |
+| errors.scan.notSupported | 스캔을 지원하지 않는 Provider입니다. | Scan is not supported by this provider. | `scan.ts:56` |
+| errors.scan.inProgress | 이미 스캔이 진행 중입니다. | A scan is already in progress. | `scan.ts:57` |
+| errors.scan.tooRecent | 최근 스캔 완료 후 {minutes}분이 지나지 않았습니다. | The last scan finished less than {minutes} minutes ago. | `scan.ts:58` — ICU `{minutes}` |
+| errors.scan.maxResources | 리소스가 최대 개수({max}개)에 도달했습니다. | Maximum of {max} resources reached. | `scan.ts:59` — ICU `{max}` |
+| errors.statusFetchFailed | 상태 조회에 실패했습니다. | Failed to fetch status. | `constants/messages.ts:8` |
+
+### K-3. `process.status` / `connection.status` — 10 키
+
+| key | ko | en |
+|---|---|---|
+| process.status.waitingTargetConfirmation | 연동 대상 확정 대기 | Awaiting Target Confirmation |
+| process.status.waitingApproval | 승인 대기 | Awaiting Approval |
+| process.status.applyingApproved | 연동대상 반영 중 | Applying Approved Targets |
+| process.status.installing | 설치 진행 중 | Installing |
+| process.status.waitingConnectionTest | 연결 테스트 필요 | Connection Test Required |
+| process.status.connectionVerified | 연결 확인 완료 | Connection Verified |
+| process.status.installationComplete | 설치 완료 | Installation Complete |
+| connection.status.connected | 연결됨 | Connected |
+| connection.status.disconnected | 연결 끊김 | Disconnected |
+| connection.status.pending | 대기중 | Pending |
+
+### K-4. `providers` — 7 키
+
+| key | ko | en |
+|---|---|---|
+| providers.aws.description | Amazon Web Services 환경의 RDS, DynamoDB 등 데이터 리소스를 자동 스캔합니다. | Automatically scans data resources such as RDS and DynamoDB in Amazon Web Services. |
+| providers.azure.description | Microsoft Azure 클라우드 환경의 데이터베이스 리소스를 스캔하고 PII Agent를 연동합니다. | Scans database resources in Microsoft Azure and integrates PII Agent. |
+| providers.gcp.description | Google Cloud Platform의 Cloud SQL, BigQuery 등 데이터 리소스를 관리합니다. | Manages data resources such as Cloud SQL and BigQuery in Google Cloud Platform. |
+| providers.idc.description | 온프레미스 데이터센터의 데이터베이스 리소스를 수동 등록하여 관리합니다. | Manually register and manage database resources in on-premises data centers. |
+| providers.sdu.description | 삼성 SDS 데이터 유니버스 환경의 데이터 리소스를 연동합니다. | Integrates data resources in the Samsung SDS Data Universe environment. |
+| providers.region.apNortheast2 | 서울 (ap-northeast-2) | Seoul (ap-northeast-2) |
+| providers.region.apNortheast1 | 도쿄 (ap-northeast-1) | Tokyo (ap-northeast-1) |
+
+### K-5. `terraform` / `install` — 11 키
+
+| key | ko | en |
+|---|---|---|
+| terraform.status.completed | 완료 | Completed |
+| terraform.status.failed | 실패 | Failed |
+| terraform.status.pending | 대기 | Pending |
+| terraform.firewall.notChecked | 확인 전 | Not checked |
+| terraform.firewall.connected | 연결됨 | Connected |
+| terraform.firewall.failed | 연결 실패 | Connection failed |
+| install.gcp.completed | 설치 완료 | Installation complete |
+| install.gcp.failed | 설치 실패 | Installation failed |
+| install.gcp.inProgress | 설치 진행 중 | Installing |
+| install.gcp.skip | 해당없음 | Not applicable |
+| install.gcp.stepFail | 실패 | Failed |
+
+### K-6. Provider 상태 (Azure/GCP/SDU/IDC) — 29 키
+
+(부록 F 전체가 1:1 키화 — 축약 표기)
+
+- `azure.privateEndpoint.{notRequested|pendingApproval|approved|rejected}` — 4 키
+- `gcp.step.{serviceSideSubnetCreation|serviceSideTerraformApply|bdcSideTerraformApply}` — 3 키
+- `gcp.stepStatus.{completed|fail|inProgress|skip}` — 4 키
+- `gcp.installationStatus.{completed|fail|inProgress}` — 3 키
+- `sdu.step.{s3Upload|installation|connectionTest|complete}` — 4 키
+- `sdu.processStatus.*` — 6 키 (부록 F-4)
+- `sdu.crawler.{none|success|failed}` — 3 키
+- `sdu.athena.{pending|inProgress|completed}` — 3 키
+- `sdu.sourceIp.{pending|confirmed}` — 2 키
+- `idc.tf.{pending|inProgress|completed|failed}` — 4 키
+- `idc.sourceIp.{public|private|vpc}.description` — 3 키
+
+→ 합 **29 키** (번역: 부록 F 원문을 en 로 1:1 변환)
+
+### K-7. `modals` — 10 키
+
+| key | ko | en | 출처 |
+|---|---|---|---|
+| modals.projectCreate.title | 인프라 등록 | Register Infrastructure | `features/ProjectCreateModal.tsx:177` |
+| modals.terraformStatus.title | 설치 진행 상태 | Installation Progress | `features/TerraformStatusModal.tsx:151` |
+| modals.connectionDetail.datetime | 실행 일시 | Executed at | `features/ConnectionDetailModal.tsx:72` |
+| modals.connectionDetail.result | 결과 | Result | `features/ConnectionDetailModal.tsx:76` |
+| modals.approvalDetail.rejectPlaceholder | 반려 사유를 입력하세요... | Enter rejection reason… | `features/admin/ApprovalDetailModal.tsx:222` |
+| modals.sourceIp.cidrPlaceholder | 예: 10.0.0.0/24 | e.g. 10.0.0.0/24 | `projects/[projectId]/sdu/SourceIpManageModal.tsx:73` |
+| modals.iamUserManage.datetime | (N/A — ko-KR format) | (locale format) | `features/sdu/IamUserManageModal.tsx:60` |
+| modals.approval.detail.datetime | (N/A — ko-KR format) | (locale format) | `features/admin/ApprovalDetailModal.tsx:38` |
+| modals.connectionTest.resultDatetime | (N/A — ko-KR format) | (locale format) | `features/process-status/connection-test/ResultSummary.tsx:17` |
+| modals.rejectionAlert.datetime | 반려일시 | Rejected at | `projects/[projectId]/common/RejectionAlert.tsx:27` |
+
+### K-8. `idc.resource` — 12 키
+
+| key | ko | en | 출처 |
+|---|---|---|---|
+| idc.resource.listTitle | 리소스 목록 | Resource list | `projects/[projectId]/idc/IdcProjectPage.tsx:268` |
+| idc.resource.empty | 등록된 리소스가 없습니다 | No resources registered | `IdcProjectPage.tsx:293` |
+| idc.resource.emptyHint | 위의 "리소스 추가" 버튼을 클릭하여 데이터베이스를 등록하세요 | Click "Add Resource" above to register a database | `IdcProjectPage.tsx:294` |
+| idc.resource.addTitle | 리소스 추가 | Add Resource | `IdcProjectPage.tsx:304` |
+| idc.resource.addSubtitle | 데이터베이스 연결 정보를 입력하세요 | Enter the database connection information | `IdcProjectPage.tsx:305` |
+| idc.resource.placeholder.name | 예: 주문 DB | e.g. Orders DB | `features/idc/IdcResourceInputPanel.tsx:167` |
+| idc.resource.placeholder.ip | 예: 192.168.1.100 | e.g. 192.168.1.100 | `IdcResourceInputPanel.tsx:215` |
+| idc.resource.placeholder.host | 예: db.example.com | e.g. db.example.com | `IdcResourceInputPanel.tsx:273` |
+| idc.resource.placeholder.serviceId | 예: ORCL | e.g. ORCL | `IdcResourceInputPanel.tsx:326` |
+| idc.resource.validation.minOne | 최소 1개 이상의 리소스가 필요합니다. | At least one resource is required. | `IdcProjectPage.tsx:120` |
+| idc.resource.validation.beforeConfirm | 확정할 리소스가 없습니다. 먼저 리소스를 추가해주세요. | No resources to confirm. Please add resources first. | `IdcProjectPage.tsx:191` |
+| idc.resource.credentialFailed | Credential 변경에 실패했습니다. | Failed to change credential. | `IdcProjectPage.tsx:79` |
+
+### K-9. 기타 도메인별 핵심 (~20 키 샘플)
+
+| key | ko | en | 출처 |
+|---|---|---|---|
+| sdu.connectionTest.success | 연결 테스트가 성공했습니다. | Connection test succeeded. | `projects/[projectId]/sdu/SduProjectPage.tsx:188` |
+| scan.policy.idc | IDC는 스캔을 지원하지 않습니다. 리소스를 직접 입력하세요. | Scan is not supported for IDC. Enter resources directly. | `constants/scan.ts:31` |
+| scan.policy.sdu | SDU는 Crawler를 통해 리소스가 수집됩니다. | Resources are collected by the Crawler for SDU. | `constants/scan.ts:35` |
+| validation.awsAccountId | 12자리 숫자를 입력하세요 | Please enter a 12-digit number. | `validation/infra-credentials.ts:6` |
+| validation.guidFormat | GUID 형식이 올바르지 않습니다 (예: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) | Invalid GUID format (e.g. xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx) | `validation/infra-credentials.ts:13` |
+| azure.vm.databaseRequired | 다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n{list} | Database settings required for these VM resources:\n{list} | `projects/[projectId]/azure/AzureProjectPage.tsx:251` — ICU `{list}` |
+| gcp.vm.databaseRequired | 다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n{list} | Database settings required for these VM resources:\n{list} | `projects/[projectId]/gcp/GcpProjectPage.tsx:175` — ICU `{list}` |
+| admin.approval.noHistory | 승인 요청 이력이 없습니다. | No approval request history. | `features/AdminDashboard.tsx:109` |
+| admin.approval.fetchFailed | 승인 요청 조회 실패 | Failed to fetch approval requests | `features/AdminDashboard.tsx:114` |
+| sdu.process.s3UploadConfirmation | S3 버킷 경로 확인 | Verifying S3 bucket path | `projects/[projectId]/sdu/SduProcessStatusCard.tsx:122` |
+| sdu.process.dataUpload | 데이터 업로드 | Data upload | `SduProcessStatusCard.tsx:127` |
+| sdu.process.waitUpload | 업로드 완료 대기 | Awaiting upload completion | `SduProcessStatusCard.tsx:132` |
+
+### K-10. 집계 표
+
+| 네임스페이스 | 키 수 (이 테이블) | 예상 합계 | 주요 출처 |
+|---|---|---|---|
+| common | 20 | ~30 | UI 공용 |
+| errors | 27 | ~30 | constants/*.ts |
+| process.status / connection.status | 10 | 10 | labels.ts |
+| providers | 7 | ~10 | labels.ts |
+| terraform / install | 11 | ~15 | TerraformStatusModal, gcp.ts |
+| azure/gcp/sdu/idc 상태 | 29 | ~35 | 부록 F |
+| modals | 10 | ~30 | 다수 모달 |
+| idc.resource | 12 | ~20 | IDC 입력 패널 |
+| guides | 0 (이 테이블에는 미포함) | **~272** | process-guides.ts (부록 E 분해) |
+| 도메인 JSX 리터럴 (AWS/Azure/GCP/SDU installation inline, ApprovalRequest 등) | 0 (미포함) | **~400+** | 부록 D Top 30 파일 유입 |
+| **합계** | **126** | **~870** | — |
+
+### K-11. 실행 방침
+
+1. 본 부록의 126 키는 **Phase 1 종료 시점에 시드** (`messages/ko/*.json`, `messages/en/*.json` 에 선반영)
+2. Phase 2~3 도메인 PR 마다 필요 키를 증분 추가
+3. CI의 `scripts/i18n-diff` 가 ko/en 키 차이 0 을 보장 (§12.10)
+4. Phase 6 에서 누적 키 ~870 전부 영문화 검수
+
+---
+
 ## 변경 이력
 
 | 일자 | 작성자 | 변경 |
 |---|---|---|
 | 2026-04-23 | @chulyong | 최초 작성 (초안) |
 | 2026-04-23 | @chulyong | 지원 언어 범위 확정 — ko/en 2개 (O2 resolved) |
+| 2026-04-23 | @chulyong | 후속 보강 — 부록 D~K 전수 조사·번역키·용어사전, §7.6 계약 diff, §10.5/10.6 공수·테스트, §12.10 검증 인프라 |
