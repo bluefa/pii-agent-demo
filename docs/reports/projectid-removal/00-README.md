@@ -74,7 +74,8 @@
 | `wave2-mock-pivot` | Mock store pivot + resolver 제거 + `mock-adapter.ts` 단순화 | 10 mock 파일 + 59 routes + `lib/types.ts` 3 필드 + `target-source.ts` + `lib/bff/mock-adapter.ts` | +40 / −260 | **W0** |
 | `wave3-component-relocate` | `app/projects/` 폴더 해체 | 21 파일 이동 + 4 import 경로 | ±0 (이동 위주) | W1 |
 | `wave4-api-contract-rename` | API client 파라미터 + `integrationRoutes` rename | `lib/api-client/types.ts` param names + routes.ts + 4 call sites | +10 / −10 | — |
-| `wave5-docs-sync` | Swagger + docs/api 동기화 | `docs/api/**`, `docs/swagger/*.yaml` | ±50 | W1-W4 완료 |
+| `wave6-url-path-rename` | URL 경로 `/integration/projects/` → `/integration/target-sources/` | 폴더 rename + `lib/routes.ts` URL 리터럴 + TopNav + `_components/` 절대경로 | +15 / −15 | W3, W4 |
+| `wave5-docs-sync` | Swagger + docs/api 동기화 | `docs/api/**`, `docs/swagger/*.yaml` | ±50 | W1-W4, W6 완료 |
 
 ## Testing Strategy — 로직 보존 보장 (behavior preservation)
 
@@ -147,7 +148,10 @@ Batch 2 (parallel, 3 agents — W0 + W1 merge 후):
   ├── /wave-task wave3-component-relocate  (W1 필수)
   └── /wave-task wave4-api-contract-rename (lib/routes.ts 함수명 — W1과 직렬 후 진행)
 
-Batch 3 (serial — W1-W4 merge 필요):
+Batch 3 (serial — W3 + W4 merge 후):
+  └── /wave-task wave6-url-path-rename     (URL 경로 /integration/projects → /integration/target-sources)
+
+Batch 4 (serial — W1-W4, W6 merge 후):
   └── /wave-task wave5-docs-sync
 ```
 
@@ -159,6 +163,7 @@ Batch 3 (serial — W1-W4 merge 필요):
 /wave-task docs/reports/projectid-removal/wave2-mock-pivot.md
 /wave-task docs/reports/projectid-removal/wave3-component-relocate.md
 /wave-task docs/reports/projectid-removal/wave4-api-contract-rename.md
+/wave-task docs/reports/projectid-removal/wave6-url-path-rename.md
 /wave-task docs/reports/projectid-removal/wave5-docs-sync.md
 ```
 
