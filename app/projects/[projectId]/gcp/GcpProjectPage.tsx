@@ -27,14 +27,10 @@ import { ScanPanel } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { RejectionAlert } from '@/app/projects/[projectId]/common';
+import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
-import { PageHeader } from '@/app/components/ui/PageHeader';
-import { PageMeta } from '@/app/components/ui/PageMeta';
-import { integrationRoutes } from '@/lib/routes';
 import { AppError } from '@/lib/errors';
 
 interface GcpProjectPageProps {
@@ -299,13 +295,6 @@ export const GcpProjectPage = ({
     setIsEditMode(false);
   };
 
-  const breadcrumbCrumbs = [
-    { label: 'SIT Home', href: '/' },
-    { label: 'Service List', href: integrationRoutes.admin },
-    { label: project.serviceCode, href: integrationRoutes.admin },
-    { label: 'GCP Infrastructure' },
-  ];
-
   const pageMetaItems = [
     { label: 'Cloud Provider', value: 'GCP' },
     { label: 'GCP Project ID', value: project.gcpProjectId ?? '-' },
@@ -315,115 +304,107 @@ export const GcpProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <Breadcrumb crumbs={breadcrumbCrumbs} />
-      <PageHeader
-        title={`${project.name || project.projectCode} (${project.serviceCode})`}
-        backHref={integrationRoutes.admin}
+      <ProjectPageMeta project={project} providerLabel="GCP Infrastructure" metaItems={pageMetaItems} />
+
+      <ProcessStatusCard
+        project={project}
+        resources={resources}
+        onProjectUpdate={onProjectUpdate}
+        approvalModalOpen={approvalModalOpen}
+        onApprovalModalClose={() => setApprovalModalOpen(false)}
+        onApprovalSubmit={handleApprovalSubmit}
+        approvalLoading={submitting}
+        approvalError={approvalError}
+        approvalResources={approvalResources}
       />
-      <PageMeta items={pageMetaItems} />
 
-      <>
-          <ProcessStatusCard
-            project={project}
-            resources={resources}
-            onProjectUpdate={onProjectUpdate}
-            approvalModalOpen={approvalModalOpen}
-            onApprovalModalClose={() => setApprovalModalOpen(false)}
-            onApprovalSubmit={handleApprovalSubmit}
-            approvalLoading={submitting}
-            approvalError={approvalError}
-            approvalResources={approvalResources}
-          />
-
-        {/* Cloud 리소스 */}
-        {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-          <ResourceTransitionPanel
+      {currentStep === ProcessStatus.APPLYING_APPROVED ? (
+        <ResourceTransitionPanel
+          targetSourceId={project.targetSourceId}
+          resources={resources}
+          cloudProvider={project.cloudProvider}
+          processStatus={currentStep}
+        />
+      ) : (
+        <>
+          <ScanPanel
             targetSourceId={project.targetSourceId}
-            resources={resources}
             cloudProvider={project.cloudProvider}
-            processStatus={currentStep}
+            onScanComplete={async () => {
+              const updatedProject = await getProject(project.targetSourceId);
+              onProjectUpdate(updatedProject);
+            }}
           />
-        ) : (
-          <>
-            <ScanPanel
-              targetSourceId={project.targetSourceId}
-              cloudProvider={project.cloudProvider}
-              onScanComplete={async () => {
-                const updatedProject = await getProject(project.targetSourceId);
-                onProjectUpdate(updatedProject);
-              }}
-            />
 
-            {resourceLoading ? (
-              <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
-                <LoadingSpinner />
-                <span className={cn('text-sm', textColors.tertiary)}>GCP 리소스 정보를 불러오는 중입니다.</span>
-              </div>
-            ) : resourceError ? (
-              <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-                <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
-                  {resourceError}
-                </p>
-                <button
-                  onClick={() => void loadGcpResources()}
-                  className={getButtonClass('secondary')}
-                >
-                  다시 시도
-                </button>
-              </div>
-            ) : (
-              <ResourceTable
-                resources={resources.map((r) => ({
-                  ...r,
-                  vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-                }))}
-                cloudProvider={project.cloudProvider}
-                processStatus={currentStep}
-                isEditMode={effectiveEditMode}
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-                credentials={credentials}
-                onCredentialChange={handleCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={setExpandedVmId}
-                onVmConfigSave={handleVmConfigSave}
-              />
-            )}
-          </>
-        )}
-
-        <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-        <div className="flex justify-end gap-3">
-          {effectiveEditMode ? (
-            <>
-              {!isStep1 && (
-                <button
-                  onClick={handleCancelEdit}
-                  className={getButtonClass('secondary')}
-                >
-                  취소
-                </button>
-              )}
+          {resourceLoading ? (
+            <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+              <LoadingSpinner />
+              <span className={cn('text-sm', textColors.tertiary)}>GCP 리소스 정보를 불러오는 중입니다.</span>
+            </div>
+          ) : resourceError ? (
+            <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+              <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+                {resourceError}
+              </p>
               <button
-                onClick={handleConfirmTargets}
-                disabled={submitting || selectedIds.length === 0}
-                className={`${getButtonClass('primary')} flex items-center gap-2`}
+                onClick={() => void loadGcpResources()}
+                className={getButtonClass('secondary')}
               >
-                {submitting && <LoadingSpinner />}
-                연동 대상 확정 승인 요청
+                다시 시도
               </button>
-            </>
-          ) : !isProcessing && (
-            <button
-              onClick={handleStartEdit}
-              className={getButtonClass('secondary')}
-            >
-              확정 대상 수정
-            </button>
+            </div>
+          ) : (
+            <ResourceTable
+              resources={resources.map((r) => ({
+                ...r,
+                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+              }))}
+              cloudProvider={project.cloudProvider}
+              processStatus={currentStep}
+              isEditMode={effectiveEditMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+              expandedVmId={expandedVmId}
+              onVmConfigToggle={setExpandedVmId}
+              onVmConfigSave={handleVmConfigSave}
+            />
           )}
-        </div>
-      </>
+        </>
+      )}
+
+      <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
+
+      <div className="flex justify-end gap-3">
+        {effectiveEditMode ? (
+          <>
+            {!isStep1 && (
+              <button
+                onClick={handleCancelEdit}
+                className={getButtonClass('secondary')}
+              >
+                취소
+              </button>
+            )}
+            <button
+              onClick={handleConfirmTargets}
+              disabled={submitting || selectedIds.length === 0}
+              className={`${getButtonClass('primary')} flex items-center gap-2`}
+            >
+              {submitting && <LoadingSpinner />}
+              연동 대상 확정 승인 요청
+            </button>
+          </>
+        ) : !isProcessing && (
+          <button
+            onClick={handleStartEdit}
+            className={getButtonClass('secondary')}
+          >
+            확정 대상 수정
+          </button>
+        )}
+      </div>
     </main>
   );
 };
