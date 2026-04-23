@@ -295,7 +295,10 @@ export const GcpProjectPage = ({
           targetSourceId={project.targetSourceId}
           cloudProvider={project.cloudProvider}
           onScanComplete={async () => {
-            const updatedProject = await getProject(project.targetSourceId);
+            const [updatedProject] = await Promise.all([
+              getProject(project.targetSourceId),
+              loadGcpResources(),
+            ]);
             onProjectUpdate(updatedProject);
           }}
           resources={resources.map((r) => ({
