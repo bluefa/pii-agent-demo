@@ -20,11 +20,11 @@ vi.mock('@/lib/bff/client', () => ({
   },
 }));
 
-vi.mock('@/app/projects/[targetSourceId]/ProjectDetail', () => ({
+vi.mock('@/app/integration/projects/[targetSourceId]/_components/ProjectDetail', () => ({
   ProjectDetail: () => null,
 }));
 
-vi.mock('@/app/projects/[targetSourceId]/common', () => ({
+vi.mock('@/app/integration/projects/[targetSourceId]/_components/common', () => ({
   ErrorState: () => null,
 }));
 

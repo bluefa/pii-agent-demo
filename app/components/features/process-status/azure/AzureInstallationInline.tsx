@@ -7,7 +7,7 @@ import { InstallationErrorView } from '@/app/components/features/process-status/
 import { ActionCard } from '@/app/components/features/process-status/shared/ActionCard';
 import { AzureResourceList } from '@/app/components/features/process-status/azure/AzureResourceList';
 import { AzurePeApprovalGuide } from '@/app/components/features/process-status/azure/AzurePeApprovalGuide';
-import { AzureSubnetGuide } from '@/app/projects/[targetSourceId]/azure/AzureSubnetGuide';
+import { AzureSubnetGuide } from '@/app/components/features/process-status/azure/AzureSubnetGuide';
 import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { formatDateTime } from '@/lib/utils/date';
