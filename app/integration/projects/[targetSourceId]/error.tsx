@@ -1,6 +1,6 @@
 'use client';
 
-import { ErrorState } from '@/app/projects/[projectId]/common';
+import { ErrorState } from '@/app/projects/[targetSourceId]/common';
 
 export default function ProjectDetailError({
   error,
