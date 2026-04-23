@@ -26,6 +26,14 @@ const TAB_STATUS_MAP: Record<TabKey, string> = {
 
 const PAGE_SIZE = 20;
 
+type ModalState =
+  | { type: 'none' }
+  | { type: 'reject'; item: ApprovalRequestQueueItem }
+  | { type: 'detail'; item: ApprovalRequestQueueItem }
+  | { type: 'approve'; target: ApprovalRequestQueueItem };
+
+const MODAL_CLOSED: ModalState = { type: 'none' };
+
 export const QueueBoard = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('pending');
   const [requestType, setRequestType] = useState<string | null>(null);
@@ -33,12 +41,8 @@ export const QueueBoard = () => {
   const [page, setPage] = useState(0);
   const [data, setData] = useState<ApprovalRequestQueueResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<ApprovalRequestQueueItem | null>(null);
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [approveModalOpen, setApproveModalOpen] = useState(false);
-  const [approveTarget, setApproveTarget] = useState<ApprovalRequestQueueItem | null>(null);
+  const [modal, setModal] = useState<ModalState>(MODAL_CLOSED);
 
   const fetchData = useCallback(async (tab: TabKey, currentPage: number, type: string | null, query: string) => {
     setLoading(true);
@@ -90,24 +94,22 @@ export const QueueBoard = () => {
 
   const handleApproveOpen = (item: ApprovalRequestQueueItem) => {
     setError(null);
-    setApproveTarget(item);
-    setApproveModalOpen(true);
+    setModal({ type: 'approve', target: item });
   };
 
   const handleApproveConfirm = async () => {
-    if (!approveTarget) return;
+    if (modal.type !== 'approve') return;
+    const target = modal.target;
     setError(null);
     try {
-      await fetchInfraJson(`/target-sources/${approveTarget.targetSourceId}/approval-requests/approve`, {
+      await fetchInfraJson(`/target-sources/${target.targetSourceId}/approval-requests/approve`, {
         method: 'POST',
         body: {},
       });
-      setApproveModalOpen(false);
-      setApproveTarget(null);
+      setModal(MODAL_CLOSED);
       fetchData(activeTab, page, requestType, search);
     } catch (err) {
-      setApproveModalOpen(false);
-      setApproveTarget(null);
+      setModal(MODAL_CLOSED);
       if (err instanceof AppError && err.status === 409) {
         setError('다른 관리자가 이미 처리했습니다.');
         fetchData(activeTab, page, requestType, search);
@@ -118,24 +120,22 @@ export const QueueBoard = () => {
   };
 
   const handleRejectOpen = (item: ApprovalRequestQueueItem) => {
-    setSelectedItem(item);
-    setRejectModalOpen(true);
+    setModal({ type: 'reject', item });
   };
 
   const handleRejectConfirm = async (reason: string) => {
-    if (!selectedItem) return;
+    if (modal.type !== 'reject') return;
+    const item = modal.item;
     setError(null);
     try {
-      await fetchInfraJson(`/target-sources/${selectedItem.targetSourceId}/approval-requests/reject`, {
+      await fetchInfraJson(`/target-sources/${item.targetSourceId}/approval-requests/reject`, {
         method: 'POST',
         body: { reason },
       });
-      setRejectModalOpen(false);
-      setSelectedItem(null);
+      setModal(MODAL_CLOSED);
       fetchData(activeTab, page, requestType, search);
     } catch (err) {
-      setRejectModalOpen(false);
-      setSelectedItem(null);
+      setModal(MODAL_CLOSED);
       if (err instanceof AppError && err.status === 409) {
         setError('다른 관리자가 이미 처리했습니다.');
         fetchData(activeTab, page, requestType, search);
@@ -146,8 +146,7 @@ export const QueueBoard = () => {
   };
 
   const handleDetail = (item: ApprovalRequestQueueItem) => {
-    setSelectedItem(item);
-    setDetailModalOpen(true);
+    setModal({ type: 'detail', item });
   };
 
   const items = data?.content ?? [];
@@ -286,26 +285,26 @@ export const QueueBoard = () => {
       </div>
 
       <TaskRejectModal
-        isOpen={rejectModalOpen}
-        onClose={() => { setRejectModalOpen(false); setSelectedItem(null); }}
+        isOpen={modal.type === 'reject'}
+        onClose={() => setModal(MODAL_CLOSED)}
         onConfirm={handleRejectConfirm}
-        item={selectedItem}
+        item={modal.type === 'reject' ? modal.item : null}
       />
 
       <TaskDetailModal
-        isOpen={detailModalOpen}
-        onClose={() => { setDetailModalOpen(false); setSelectedItem(null); }}
-        item={selectedItem}
+        isOpen={modal.type === 'detail'}
+        onClose={() => setModal(MODAL_CLOSED)}
+        item={modal.type === 'detail' ? modal.item : null}
       />
 
       <Modal
-        isOpen={approveModalOpen}
-        onClose={() => { setApproveModalOpen(false); setApproveTarget(null); }}
+        isOpen={modal.type === 'approve'}
+        onClose={() => setModal(MODAL_CLOSED)}
         title="승인 확인"
         size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setApproveModalOpen(false); setApproveTarget(null); }}>
+            <Button variant="secondary" onClick={() => setModal(MODAL_CLOSED)}>
               취소
             </Button>
             <Button onClick={handleApproveConfirm}>
@@ -314,13 +313,13 @@ export const QueueBoard = () => {
           </>
         }
       >
-        {approveTarget && (
+        {modal.type === 'approve' && (
           <p className={cn('text-sm', textColors.secondary)}>
-            <span className="font-medium">{approveTarget.serviceCode}</span>
+            <span className="font-medium">{modal.target.serviceCode}</span>
             {' '}
-            {approveTarget.serviceName}
+            {modal.target.serviceName}
             <span className={cn('mx-1.5', textColors.quaternary)}>|</span>
-            {approveTarget.requestTypeName}
+            {modal.target.requestTypeName}
             <span className={cn('block mt-2', textColors.primary)}>
               이 요청을 승인하시겠습니까?
             </span>
