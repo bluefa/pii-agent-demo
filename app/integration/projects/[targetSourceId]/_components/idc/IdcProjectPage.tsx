@@ -15,10 +15,10 @@ import {
 } from '@/app/lib/api/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
-import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/projects/[targetSourceId]/_components/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
-import { IdcProcessStatusCard } from '@/app/projects/[targetSourceId]/idc/IdcProcessStatusCard';
+import { IdcProcessStatusCard } from '@/app/integration/projects/[targetSourceId]/_components/idc/IdcProcessStatusCard';
 import { cn, getButtonClass } from '@/lib/theme';
 
 interface IdcProjectPageProps {

@@ -1,6 +1,6 @@
 import { bff } from '@/lib/bff/client';
-import { ProjectDetail } from '@/app/projects/[targetSourceId]/ProjectDetail';
-import { ErrorState } from '@/app/projects/[targetSourceId]/common';
+import { ProjectDetail } from '@/app/integration/projects/[targetSourceId]/_components/ProjectDetail';
+import { ErrorState } from '@/app/integration/projects/[targetSourceId]/_components/common';
 
 interface PageProps {
   params: Promise<{ targetSourceId: string }>;

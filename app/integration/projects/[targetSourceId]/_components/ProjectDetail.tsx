@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import type { Project, SecretKey } from '@/lib/types';
-import { ErrorState } from '@/app/projects/[targetSourceId]/common';
-import { AwsProjectPage } from '@/app/projects/[targetSourceId]/aws';
-import { AzureProjectPage } from '@/app/projects/[targetSourceId]/azure';
-import { GcpProjectPage } from '@/app/projects/[targetSourceId]/gcp';
-import { IdcProjectPage } from '@/app/projects/[targetSourceId]/idc';
-import { SduProjectPage } from '@/app/projects/[targetSourceId]/sdu';
+import { ErrorState } from '@/app/integration/projects/[targetSourceId]/_components/common';
+import { AwsProjectPage } from '@/app/integration/projects/[targetSourceId]/_components/aws';
+import { AzureProjectPage } from '@/app/integration/projects/[targetSourceId]/_components/azure';
+import { GcpProjectPage } from '@/app/integration/projects/[targetSourceId]/_components/gcp';
+import { IdcProjectPage } from '@/app/integration/projects/[targetSourceId]/_components/idc';
+import { SduProjectPage } from '@/app/integration/projects/[targetSourceId]/_components/sdu';
 
 interface ProjectDetailProps {
   initialProject: Project;
