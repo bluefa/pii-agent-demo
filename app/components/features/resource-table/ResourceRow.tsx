@@ -19,7 +19,6 @@ interface ResourceRowProps {
   resource: Resource;
   processStatus: ProcessStatus;
   selectedIds: Set<string>;
-  isEditMode: boolean;
   isCheckboxEnabled: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
@@ -29,24 +28,6 @@ interface ResourceRowProps {
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
 }
-
-interface CredentialDisplayProps {
-  needsCred: boolean;
-  selectedCredentialId: string | undefined;
-  availableCredentials: SecretKey[];
-}
-
-const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentials }: CredentialDisplayProps) => {
-  if (!needsCred) return <span className={cn('text-xs', textColors.quaternary)}>불필요</span>;
-
-  const selectedCred = selectedCredentialId
-    ? availableCredentials.find((c) => c.name === selectedCredentialId)
-    : null;
-
-  if (selectedCred) return <span className={cn('text-xs', textColors.primary)}>{selectedCred.name}</span>;
-
-  return <span className={cn('text-xs font-medium', statusColors.error.text)}>미선택</span>;
-};
 
 const WarningTriangleIcon = ({ className }: { className?: string }) => (
   <svg className={cn('w-3.5 h-3.5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +39,6 @@ export const ResourceRow = ({
   resource,
   processStatus,
   selectedIds,
-  isEditMode,
   isCheckboxEnabled,
   showCredentialColumn,
   onCheckboxChange,
@@ -74,7 +54,7 @@ export const ResourceRow = ({
   const hasCredentialError = showCredentialColumn && needsCred && resource.isSelected && !resource.selectedCredentialId;
 
   const isVm = isVmResource(resource);
-  const isVnetIneligible = resource.integrationCategory === 'INSTALL_INELIGIBLE';
+  const isIneligible = resource.integrationCategory === 'INSTALL_INELIGIBLE';
   const isExpanded = expandedVmId === resource.id;
   const isSelected = selectedIds.has(resource.id);
   const hasVmConfig = !!resource.vmDatabaseConfig;
@@ -105,31 +85,29 @@ export const ResourceRow = ({
           isVm && isCheckboxEnabled && isSelected && 'cursor-pointer',
           isExpanded && statusColors.info.bg,
           isVm && isSelected && !hasVmConfig && !isExpanded && statusColors.warning.bg,
-          isVnetIneligible && 'opacity-60'
+          isIneligible && 'opacity-60'
         )}
         onClick={handleRowClick}
       >
-        {isEditMode && (
+        {isCheckboxEnabled && (
           <td className="px-6 py-3 w-10" onClick={(e) => e.stopPropagation()}>
-            {isCheckboxEnabled && (
-              <input
-                type="checkbox"
-                checked={isSelected}
-                disabled={!!resource.exclusion || isVnetIneligible}
-                onChange={(e) => {
-                  onCheckboxChange(resource.id, e.target.checked);
-                  if (isVm && e.target.checked) onVmConfigToggle?.(resource.id);
-                  if (isVm && !e.target.checked) onVmConfigToggle?.(null);
-                }}
-                className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
-              />
-            )}
+            <input
+              type="checkbox"
+              checked={isSelected}
+              disabled={!!resource.exclusion || isIneligible}
+              onChange={(e) => {
+                onCheckboxChange(resource.id, e.target.checked);
+                if (isVm && e.target.checked) onVmConfigToggle?.(resource.id);
+                if (isVm && !e.target.checked) onVmConfigToggle?.(null);
+              }}
+              className={cn('w-4 h-4 rounded disabled:opacity-50 disabled:cursor-not-allowed', statusColors.pending.border, primaryColors.text, primaryColors.focusRing)}
+            />
           </td>
         )}
 
         <td className="px-6 py-3">
-          <Badge variant={isSelected ? 'success' : 'pending'} size="sm">
-            {isSelected ? '대상' : '비대상'}
+          <Badge variant={isIneligible ? 'pending' : 'success'} size="sm">
+            {isIneligible ? '비대상' : '대상'}
           </Badge>
         </td>
 
@@ -145,7 +123,7 @@ export const ResourceRow = ({
         <td className="px-6 py-3">
           <div className="flex items-center gap-2">
             <span className={cn('font-mono text-xs', textColors.tertiary)}>{resource.resourceId}</span>
-            {isVnetIneligible && (
+            {isIneligible && (
               <button
                 onClick={(e) => { e.stopPropagation(); vnetModal.open(); }}
                 className={cn('flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
@@ -180,36 +158,28 @@ export const ResourceRow = ({
 
         {showCredentialColumn && (
           <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
-            {isEditMode ? (
-              needsCred ? (
-                <select
-                  value={resource.selectedCredentialId || ''}
-                  onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
-                  className={cn(
-                    `w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${primaryColors.focusRing}`,
-                    hasCredentialError
-                      ? cn(statusColors.error.border, statusColors.error.bg, statusColors.error.textDark)
-                      : resource.selectedCredentialId
-                      ? cn(statusColors.success.border, statusColors.success.bg, textColors.primary)
-                      : cn(statusColors.pending.border, textColors.primary)
-                  )}
-                >
-                  <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
-                  {availableCredentials.map((cred) => (
-                    <option key={cred.name} value={cred.name}>
-                      {cred.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className={cn('text-xs', textColors.quaternary)}>불필요</span>
-              )
+            {needsCred ? (
+              <select
+                value={resource.selectedCredentialId || ''}
+                onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
+                className={cn(
+                  `w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 ${primaryColors.focusRing}`,
+                  hasCredentialError
+                    ? cn(statusColors.error.border, statusColors.error.bg, statusColors.error.textDark)
+                    : resource.selectedCredentialId
+                    ? cn(statusColors.success.border, statusColors.success.bg, textColors.primary)
+                    : cn(statusColors.pending.border, textColors.primary)
+                )}
+              >
+                <option value="">{hasCredentialError ? '미선택' : '선택하세요'}</option>
+                {availableCredentials.map((cred) => (
+                  <option key={cred.name} value={cred.name}>
+                    {cred.name}
+                  </option>
+                ))}
+              </select>
             ) : (
-              <CredentialDisplay
-                needsCred={needsCred}
-                selectedCredentialId={resource.selectedCredentialId}
-                availableCredentials={availableCredentials}
-              />
+              <span className={cn('text-xs', textColors.quaternary)}>불필요</span>
             )}
           </td>
         )}
@@ -226,7 +196,7 @@ export const ResourceRow = ({
         />
       )}
 
-      {isVnetIneligible && typeof document !== 'undefined' && createPortal(
+      {isIneligible && typeof document !== 'undefined' && createPortal(
         <VnetIntegrationGuideModal isOpen={vnetModal.isOpen} onClose={vnetModal.close} resourceId={resource.resourceId} />,
         document.body
       )}

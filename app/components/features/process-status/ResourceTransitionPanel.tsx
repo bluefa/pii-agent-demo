@@ -90,7 +90,6 @@ export const ResourceTransitionPanel = ({
               resources={oldResources}
               cloudProvider={cloudProvider}
               processStatus={processStatus}
-              isEditMode={false}
             />
           </div>
 
@@ -119,7 +118,6 @@ export const ResourceTransitionPanel = ({
         resources={resources}
         cloudProvider={cloudProvider}
         processStatus={processStatus}
-        isEditMode={false}
       />
     </div>
   );

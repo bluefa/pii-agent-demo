@@ -19,16 +19,9 @@ const checkIcon = (
   </svg>
 );
 
-const guideIcon = (
-  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-  </svg>
-);
-
 interface StepProgressBarProps {
   currentStep?: ProcessStatus;
   customSteps?: ProgressBarStep[];
-  onGuideClick?: () => void;
 }
 
 export type ProgressBarStepState = 'completed' | 'current' | 'pending';
@@ -53,7 +46,7 @@ const toDefaultProgressSteps = (currentStep: ProcessStatus): ProgressBarStep[] =
     };
   });
 
-export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: StepProgressBarProps) => {
+export const StepProgressBar = ({ currentStep, customSteps }: StepProgressBarProps) => {
   const progressSteps = currentStep ? toDefaultProgressSteps(currentStep) : [];
 
   return (
@@ -108,21 +101,6 @@ export const StepProgressBar = ({ currentStep, customSteps, onGuideClick }: Step
           );
         })}
       </div>
-
-      {onGuideClick && (
-        <button
-          onClick={onGuideClick}
-          className={cn(
-            'flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
-            statusColors.info.bg, statusColors.info.textDark,
-            'hover:ring-1', statusColors.info.border
-          )}
-          aria-label="전체 프로세스 가이드 보기"
-        >
-          {guideIcon}
-          전체 가이드
-        </button>
-      )}
     </div>
   );
 };
