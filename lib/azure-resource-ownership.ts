@@ -172,7 +172,7 @@ const buildSelectionFromProjectResources = (
     projectResources
       .filter((resource) => resource.isSelected)
       .map((resource) => [
-        resource.id,
+        resource.resourceId,
         {
           databaseType: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
           selectedCredentialId: resource.selectedCredentialId,
@@ -269,7 +269,7 @@ export const buildAzureOwnedResources = ({
   return {
     selectionSource: source,
     resources: catalog.map((resource) => {
-      const selectedState = selectedResources.get(resource.id);
+      const selectedState = selectedResources.get(resource.resourceId);
 
       return {
         id: resource.id,

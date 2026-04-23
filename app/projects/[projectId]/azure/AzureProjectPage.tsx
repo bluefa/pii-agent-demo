@@ -23,9 +23,9 @@ import {
   resolveAzureProjectIdentifiers,
 } from '@/app/lib/api/azure';
 import type { AzureV1Settings } from '@/lib/types/azure';
-import { ScanPanel } from '@/app/components/features/scan';
+import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { ResourceTable } from '@/app/components/features/ResourceTable';
+import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
@@ -380,6 +380,11 @@ export const AzureProjectPage = ({
             approvalResources={approvalResources}
           />
 
+          <GuideCard
+            currentStep={currentStep}
+            provider={project.cloudProvider}
+          />
+
           {currentStep === ProcessStatus.APPLYING_APPROVED ? (
             <ResourceTransitionPanel
               targetSourceId={project.targetSourceId}
@@ -388,27 +393,21 @@ export const AzureProjectPage = ({
               processStatus={currentStep}
             />
           ) : (
-            <>
-              <ScanPanel
-                targetSourceId={project.targetSourceId}
-                cloudProvider={project.cloudProvider}
-                onScanComplete={handleRefreshAfterProjectChange}
-              />
-
-              <ResourceTable
-                resources={displayResources}
-                cloudProvider={project.cloudProvider}
-                processStatus={currentStep}
-                isEditMode={effectiveEditMode}
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-                credentials={credentials}
-                onCredentialChange={handleCredentialChange}
-                expandedVmId={expandedVmId}
-                onVmConfigToggle={setExpandedVmId}
-                onVmConfigSave={handleVmConfigSave}
-              />
-            </>
+            <DbSelectionCard
+              targetSourceId={project.targetSourceId}
+              cloudProvider={project.cloudProvider}
+              onScanComplete={handleRefreshAfterProjectChange}
+              resources={displayResources}
+              processStatus={currentStep}
+              isEditMode={effectiveEditMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              credentials={credentials}
+              onCredentialChange={handleCredentialChange}
+              expandedVmId={expandedVmId}
+              onVmConfigToggle={setExpandedVmId}
+              onVmConfigSave={handleVmConfigSave}
+            />
           )}
 
           <RejectionAlert project={project} onRetryRequest={handleStartEdit} />

@@ -8,7 +8,6 @@ import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
 import {
   StepProgressBar,
-  StepGuide,
   ConnectionTestPanel,
 } from './process-status';
 import { AzureInstallationInline } from './process-status/azure';
@@ -209,8 +208,6 @@ export const ProcessStatusCard = ({
             <div className="border-t border-gray-100 my-4" />
 
             <div className="flex-1 flex flex-col">
-              <StepGuide currentStep={currentStep} cloudProvider={project.cloudProvider} />
-
               {/* Action Buttons */}
               <div className="mt-auto pt-4">
                 {currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION && (

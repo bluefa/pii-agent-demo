@@ -28,7 +28,6 @@ export const ProjectPageMeta = ({ project, providerLabel, metaItems, action }: P
       <Breadcrumb crumbs={crumbs} />
       <PageHeader
         title={`${project.name || project.projectCode} (${project.serviceCode})`}
-        backHref={integrationRoutes.admin}
         action={action}
       />
       <PageMeta items={metaItems} />

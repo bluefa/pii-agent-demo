@@ -12,9 +12,9 @@ import {
 } from '@/app/lib/api';
 import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
-import { ScanPanel } from '@/app/components/features/scan';
+import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { ResourceTable } from '@/app/components/features/ResourceTable';
+import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
@@ -261,6 +261,11 @@ export const GcpProjectPage = ({
         approvalResources={approvalResources}
       />
 
+      <GuideCard
+        currentStep={currentStep}
+        provider={project.cloudProvider}
+      />
+
       {currentStep === ProcessStatus.APPLYING_APPROVED ? (
         <ResourceTransitionPanel
           targetSourceId={project.targetSourceId}
@@ -268,53 +273,48 @@ export const GcpProjectPage = ({
           cloudProvider={project.cloudProvider}
           processStatus={currentStep}
         />
+      ) : resourceLoading ? (
+        <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>GCP 리소스 정보를 불러오는 중입니다.</span>
+        </div>
+      ) : resourceError ? (
+        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+            {resourceError}
+          </p>
+          <button
+            onClick={() => void loadGcpResources()}
+            className={getButtonClass('secondary')}
+          >
+            다시 시도
+          </button>
+        </div>
       ) : (
-        <>
-          <ScanPanel
-            targetSourceId={project.targetSourceId}
-            cloudProvider={project.cloudProvider}
-            onScanComplete={async () => {
-              const updatedProject = await getProject(project.targetSourceId);
-              onProjectUpdate(updatedProject);
-            }}
-          />
-
-          {resourceLoading ? (
-            <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
-              <LoadingSpinner />
-              <span className={cn('text-sm', textColors.tertiary)}>GCP 리소스 정보를 불러오는 중입니다.</span>
-            </div>
-          ) : resourceError ? (
-            <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-              <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
-                {resourceError}
-              </p>
-              <button
-                onClick={() => void loadGcpResources()}
-                className={getButtonClass('secondary')}
-              >
-                다시 시도
-              </button>
-            </div>
-          ) : (
-            <ResourceTable
-              resources={resources.map((r) => ({
-                ...r,
-                vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-              }))}
-              cloudProvider={project.cloudProvider}
-              processStatus={currentStep}
-              isEditMode={effectiveEditMode}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              credentials={credentials}
-              onCredentialChange={handleCredentialChange}
-              expandedVmId={expandedVmId}
-              onVmConfigToggle={setExpandedVmId}
-              onVmConfigSave={handleVmConfigSave}
-            />
-          )}
-        </>
+        <DbSelectionCard
+          targetSourceId={project.targetSourceId}
+          cloudProvider={project.cloudProvider}
+          onScanComplete={async () => {
+            const [updatedProject] = await Promise.all([
+              getProject(project.targetSourceId),
+              loadGcpResources(),
+            ]);
+            onProjectUpdate(updatedProject);
+          }}
+          resources={resources.map((r) => ({
+            ...r,
+            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+          }))}
+          processStatus={currentStep}
+          isEditMode={effectiveEditMode}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          credentials={credentials}
+          onCredentialChange={handleCredentialChange}
+          expandedVmId={expandedVmId}
+          onVmConfigToggle={setExpandedVmId}
+          onVmConfigSave={handleVmConfigSave}
+        />
       )}
 
       <RejectionAlert project={project} onRetryRequest={handleStartEdit} />

@@ -27,6 +27,8 @@ import {
 import { getProject } from '@/app/lib/api';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
+import { GuideCard } from '@/app/components/features/process-status/GuideCard';
+import { ProcessStatus } from '@/lib/types';
 import {
   IamUserManageModal,
   SourceIpManageModal,
@@ -240,6 +242,11 @@ export const SduProjectPage = ({
         connectionTestLoading={connectionTestLoading}
         onExecuteConnectionTest={handleExecuteConnectionTest}
         projectId={project.id}
+      />
+
+      <GuideCard
+        currentStep={ProcessStatus.WAITING_TARGET_CONFIRMATION}
+        provider={project.cloudProvider}
       />
 
       {showAthenaTables && athenaTables.length > 0 && (

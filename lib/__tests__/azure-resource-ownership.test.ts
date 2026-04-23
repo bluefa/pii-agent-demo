@@ -7,8 +7,8 @@ const createCatalogResource = (
   overrides?: Partial<AzureResourceCatalogItem>,
 ): AzureResourceCatalogItem => ({
   id,
-  resourceId: `resource-${id}`,
-  name: `resource-${id}`,
+  resourceId: id,
+  name: id,
   resourceType: 'AZURE_MSSQL',
   databaseType: 'MSSQL',
   integrationCategory: 'TARGET',
@@ -319,7 +319,7 @@ describe('buildAzureOwnedResources', () => {
         {
           id: 'sql-1',
           type: 'AZURE_MSSQL',
-          resourceId: 'resource-sql-1',
+          resourceId: 'sql-1',
           connectionStatus: 'PENDING',
           isSelected: true,
           databaseType: 'MSSQL',
