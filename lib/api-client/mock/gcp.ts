@@ -12,7 +12,7 @@ const authorize = async (projectId: string) => {
     ) };
   }
 
-  const project = await mockData.getProjectById(projectId);
+  const project = mockData.getProjectByTargetSourceId(Number(projectId));
   if (!project) {
     return { error: NextResponse.json(
       { error: GCP_ERROR_CODES.NOT_FOUND.code, message: GCP_ERROR_CODES.NOT_FOUND.message },
@@ -45,14 +45,14 @@ export const mockGcp = {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await gcpFns.checkGcpInstallation(projectId));
+    return handleResult(gcpFns.checkGcpInstallation(Number(projectId)));
   },
 
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
 
-    return handleResult(await gcpFns.getGcpInstallationStatus(projectId));
+    return handleResult(gcpFns.getGcpInstallationStatus(Number(projectId)));
   },
 
   getScanServiceAccount: async (targetSourceId: string) => {

@@ -1,14 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { Project } from '@/lib/types';
 
 vi.mock('@/lib/mock-data', () => ({
   getProjectByTargetSourceId: vi.fn(),
-  getProjectIdByTargetSourceId: vi.fn(),
 }));
 
-import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
-import { getProjectIdByTargetSourceId } from '@/lib/mock-data';
+import { parseTargetSourceId, resolveProject } from '@/app/api/_lib/target-source';
+import { getProjectByTargetSourceId } from '@/lib/mock-data';
 
-const mockedGetProjectIdByTargetSourceId = vi.mocked(getProjectIdByTargetSourceId);
+const mockedGetProjectByTargetSourceId = vi.mocked(getProjectByTargetSourceId);
 
 describe('parseTargetSourceId', () => {
   it('유효한 숫자 문자열을 파싱한다', () => {
@@ -45,11 +45,11 @@ describe('parseTargetSourceId', () => {
   });
 });
 
-describe('resolveProjectId', () => {
+describe('resolveProject', () => {
   it('존재하지 않는 targetSourceId는 TARGET_SOURCE_NOT_FOUND를 반환한다', () => {
-    mockedGetProjectIdByTargetSourceId.mockReturnValue(undefined);
+    mockedGetProjectByTargetSourceId.mockReturnValue(undefined);
 
-    const result = resolveProjectId(9999, 'req');
+    const result = resolveProject(9999, 'req');
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -57,11 +57,31 @@ describe('resolveProjectId', () => {
     }
   });
 
-  it('존재하는 targetSourceId는 projectId를 반환한다', () => {
-    mockedGetProjectIdByTargetSourceId.mockReturnValue('proj-1');
+  it('존재하는 targetSourceId는 project를 반환한다', () => {
+    const fakeProject = { id: 'proj-1', targetSourceId: 1001 } as Project;
+    mockedGetProjectByTargetSourceId.mockReturnValue(fakeProject);
 
-    const result = resolveProjectId(1001, 'req');
+    const result = resolveProject(1001, 'req');
 
-    expect(result).toEqual({ ok: true, projectId: 'proj-1' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.project).toBe(fakeProject);
+    }
+  });
+
+  it('BFF 모드(USE_MOCK_DATA=false)에서는 INTERNAL_ERROR를 반환한다 (mock seed 누설 방지)', async () => {
+    vi.stubEnv('USE_MOCK_DATA', 'false');
+    vi.resetModules();
+    const { resolveProject: resolveProjectBff } = await import('@/app/api/_lib/target-source');
+
+    const result = resolveProjectBff(1001, 'req');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.problem.code).toBe('INTERNAL_ERROR');
+    }
+
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 });

@@ -255,11 +255,11 @@ const getScriptDuration = (script: ServiceTfScript, index: number): number => {
 // ===== 설치 상태 관리 =====
 
 export const initializeInstallation = (
-  projectId: string,
+  targetSourceId: number,
   hasTfPermission: boolean,
 ): LegacyAwsInstallationStatus => {
   const store = getStore();
-  const project = store.projects.find(p => p.id === projectId);
+  const project = store.projects.find(p => p.targetSourceId === targetSourceId);
   const accountId = project?.awsAccountId ?? '000000000000';
   const resources = project?.resources ?? [];
 
@@ -284,7 +284,7 @@ export const initializeInstallation = (
     status._scriptTimings = timings;
   }
 
-  store.awsInstallations.set(projectId, status);
+  store.awsInstallations.set(targetSourceId, status);
 
   return {
     ...status,
@@ -292,9 +292,9 @@ export const initializeInstallation = (
   };
 };
 
-export const getInstallationStatus = (projectId: string): LegacyAwsInstallationStatus | null => {
+export const getInstallationStatus = (targetSourceId: number): LegacyAwsInstallationStatus | null => {
   const store = getStore();
-  const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
+  const status = store.awsInstallations.get(targetSourceId) as InstallationInternal | undefined;
   if (!status) return null;
 
   // Auto mode time-based progression
@@ -352,10 +352,10 @@ export const getInstallationStatus = (projectId: string): LegacyAwsInstallationS
 };
 
 export const checkInstallation = (
-  projectId: string,
+  targetSourceId: number,
 ): LegacyCheckInstallationResponse | null => {
   const store = getStore();
-  const status = store.awsInstallations.get(projectId) as InstallationInternal | undefined;
+  const status = store.awsInstallations.get(targetSourceId) as InstallationInternal | undefined;
   if (!status) return null;
 
   const now = new Date().toISOString();
@@ -365,7 +365,8 @@ export const checkInstallation = (
     const pendingScripts = status.serviceTfScripts.filter(s => s.status !== 'COMPLETED');
 
     if (pendingScripts.length > 0) {
-      if (projectId.includes('fail')) {
+      const project = store.projects.find(p => p.targetSourceId === targetSourceId);
+      if (project?.id.includes('fail')) {
         for (const script of pendingScripts) {
           script.status = 'FAILED';
           script.error = {
@@ -418,7 +419,7 @@ export const checkInstallation = (
   }
 
   // Auto mode: delegate to time-based update
-  getInstallationStatus(projectId);
+  getInstallationStatus(targetSourceId);
   status.lastCheckedAt = now;
 
   const computed = computeStatus(status.serviceTfScripts, status.bdcTf);
@@ -427,13 +428,16 @@ export const checkInstallation = (
 
 // ===== TF Script Download =====
 
-export const getTerraformScript = (projectId: string): TerraformScriptResponse | null => {
-  const status = getInstallationStatus(projectId);
+export const getTerraformScript = (targetSourceId: number): TerraformScriptResponse | null => {
+  const status = getInstallationStatus(targetSourceId);
   if (!status || status.hasTfPermission) return null;
 
+  const project = getStore().projects.find(p => p.targetSourceId === targetSourceId);
+  if (!project) return null;
+
   return {
-    downloadUrl: `https://storage.example.com/tf-scripts/${projectId}/service-tf.zip?token=mock-token`,
-    fileName: `service-tf-${projectId}.zip`,
+    downloadUrl: `https://storage.example.com/tf-scripts/${project.id}/service-tf.zip?token=mock-token`,
+    fileName: `service-tf-${project.id}.zip`,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
 };

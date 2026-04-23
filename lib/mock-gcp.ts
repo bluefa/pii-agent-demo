@@ -1,4 +1,4 @@
-import { getProjectById } from '@/lib/mock-data';
+import { getProjectByTargetSourceId } from '@/lib/mock-data';
 import type { Project, Resource } from '@/lib/types';
 
 // ===== Step 상태 타입 (내부용) =====
@@ -34,7 +34,7 @@ interface GcpInstallationStatus {
 // ===== 내부 상태 저장소 (개발용) =====
 
 interface GcpStore {
-  installationStatus: Record<string, GcpInstallationStatus>;
+  installationStatus: Record<number, GcpInstallationStatus>;
 }
 
 const gcpStore: GcpStore = {
@@ -114,9 +114,9 @@ const buildInstallResource = (resource: Resource): GcpInstallResource => {
 // ===== API 함수 =====
 
 export const getGcpInstallationStatus = (
-  projectId: string
+  targetSourceId: number
 ): { data?: GcpInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -130,8 +130,8 @@ export const getGcpInstallationStatus = (
     };
   }
 
-  if (gcpStore.installationStatus[projectId]) {
-    return { data: gcpStore.installationStatus[projectId] };
+  if (gcpStore.installationStatus[targetSourceId]) {
+    return { data: gcpStore.installationStatus[targetSourceId] };
   }
 
   const selectedResources = project.resources.filter((r) => r.isSelected);
@@ -143,14 +143,14 @@ export const getGcpInstallationStatus = (
     lastCheckedAt: new Date().toISOString(),
   };
 
-  gcpStore.installationStatus[projectId] = result;
+  gcpStore.installationStatus[targetSourceId] = result;
   return { data: result };
 };
 
 export const checkGcpInstallation = (
-  projectId: string
+  targetSourceId: number
 ): { data?: GcpInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -164,8 +164,8 @@ export const checkGcpInstallation = (
     };
   }
 
-  delete gcpStore.installationStatus[projectId];
-  const result = getGcpInstallationStatus(projectId);
+  delete gcpStore.installationStatus[targetSourceId];
+  const result = getGcpInstallationStatus(targetSourceId);
 
   if (result.data) {
     result.data.resources = result.data.resources.map((resource) => {
@@ -188,7 +188,7 @@ export const checkGcpInstallation = (
     });
 
     result.data.lastCheckedAt = new Date().toISOString();
-    gcpStore.installationStatus[projectId] = result.data;
+    gcpStore.installationStatus[targetSourceId] = result.data;
   }
 
   return result;

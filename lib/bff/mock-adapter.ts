@@ -8,7 +8,6 @@ import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
-import { getProjectIdByTargetSourceId } from '@/lib/mock-data';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
 import { mockUsers } from '@/lib/api-client/mock/users';
@@ -17,14 +16,6 @@ import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/targ
 interface LegacyErrorPayload {
   error?: string;
   message?: string;
-}
-
-function resolveProjectId(targetSourceId: number): string {
-  const projectId = getProjectIdByTargetSourceId(targetSourceId);
-  if (!projectId) {
-    throw new BffError(404, 'NOT_FOUND', `targetSourceId ${targetSourceId}에 해당하는 과제를 찾을 수 없습니다.`);
-  }
-  return projectId;
 }
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
@@ -43,15 +34,13 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
 export const mockBff: BffClient = {
   targetSources: {
     get: async (id) => {
-      const projectId = resolveProjectId(id);
-      const res = await mockTargetSources.get(projectId);
+      const res = await mockTargetSources.get(String(id));
       const data = await unwrap<TargetSourceDetailResponse>(res);
       return extractTargetSource(data);
     },
 
     secrets: async (id) => {
-      const projectId = resolveProjectId(id);
-      const res = await mockProjects.credentials(projectId);
+      const res = await mockProjects.credentials(String(id));
       const data = await unwrap<{
         credentials: Array<{ name: string; databaseType?: string; createdAt: string }>;
       }>(res);

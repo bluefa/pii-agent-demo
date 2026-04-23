@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { client } from '@/lib/api-client';
-import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
+import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import {
   normalizeIssue222ApprovalActionResponse,
@@ -12,15 +12,12 @@ export const POST = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const resolved = resolveProjectId(parsed.value, requestId);
-  if (!resolved.ok) return problemResponse(resolved.problem);
-
   const body = await request.json().catch(() => ({}));
-  const response = await client.confirm.approveApprovalRequest(resolved.projectId, body);
+  const response = await client.confirm.approveApprovalRequest(String(parsed.value), body);
   if (!response.ok) return response;
 
   const payload = await response.json();
-  const historyResponse = await client.confirm.getApprovalHistory(resolved.projectId, 0, 1);
+  const historyResponse = await client.confirm.getApprovalHistory(String(parsed.value), 0, 1);
   if (historyResponse.ok) {
     const history = normalizeIssue222ApprovalHistoryPage(await historyResponse.json(), parsed.value);
     const latestResult = history.content[0]?.result;

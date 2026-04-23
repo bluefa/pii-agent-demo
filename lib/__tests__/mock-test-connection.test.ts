@@ -16,7 +16,7 @@ const AWS_PROJECT_ID = 'proj-1';
 const AWS_TARGET_SOURCE_ID = 1006;
 const SDU_PROJECT_ID = 'proj-sdu-001';
 const SDU_TARGET_SOURCE_ID = 1001;
-const NONEXISTENT_PROJECT_ID = 'nonexistent-project';
+const NONEXISTENT_TARGET_SOURCE_ID = 99999;
 
 const FIXED_DATE = new Date('2026-04-23T00:00:00.000Z');
 const FIXED_ISO = FIXED_DATE.toISOString();
@@ -66,7 +66,6 @@ describe('mock-test-connection behavior lock-in', () => {
 
       const job = createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'tester@example.com');
 
-      expect(job.projectId).toBe(AWS_PROJECT_ID);
       expect(job.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
       expect(job.status).toBe('PENDING');
       expect(job.requested_at).toBe(FIXED_ISO);
@@ -103,7 +102,7 @@ describe('mock-test-connection behavior lock-in', () => {
 
   describe('getLatestJob', () => {
     it('job 이 없는 project → undefined', () => {
-      expect(getLatestJob(AWS_PROJECT_ID)).toBeUndefined();
+      expect(getLatestJob(AWS_TARGET_SOURCE_ID)).toBeUndefined();
     });
 
     it('최근 requested_at 순으로 첫번째 job 반환', () => {
@@ -113,7 +112,7 @@ describe('mock-test-connection behavior lock-in', () => {
       vi.setSystemTime(new Date('2026-04-23T00:00:05.000Z'));
       const second = createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'b@example.com');
 
-      const latest = getLatestJob(AWS_PROJECT_ID);
+      const latest = getLatestJob(AWS_TARGET_SOURCE_ID);
       expect(latest?.id).toBe(second.id);
       expect(latest?.id).not.toBe(first.id);
     });
@@ -122,7 +121,7 @@ describe('mock-test-connection behavior lock-in', () => {
       const awsProject = getAwsProjectWithSelectedResources();
       createTestConnectionJob(awsProject, AWS_TARGET_SOURCE_ID, 'a@example.com');
 
-      expect(getLatestJob(SDU_PROJECT_ID)).toBeUndefined();
+      expect(getLatestJob(SDU_TARGET_SOURCE_ID)).toBeUndefined();
     });
 
     it('PENDING job 은 시간 진행 시 SUCCESS 로 전환 (Math.random=0)', () => {
@@ -135,7 +134,7 @@ describe('mock-test-connection behavior lock-in', () => {
       const advanceMs = selectedCount * 5000 + 1000;
       vi.setSystemTime(new Date(FIXED_DATE.getTime() + advanceMs));
 
-      const latest = getLatestJob(AWS_PROJECT_ID);
+      const latest = getLatestJob(AWS_TARGET_SOURCE_ID);
       expect(latest?.status).toBe('SUCCESS');
       expect(latest?.completed_at).toBeDefined();
       expect(latest?.resource_results).toHaveLength(selectedCount);
@@ -155,7 +154,7 @@ describe('mock-test-connection behavior lock-in', () => {
       const advanceMs = selectedCount * 5000 + 1000;
       vi.setSystemTime(new Date(FIXED_DATE.getTime() + advanceMs));
 
-      const latest = getLatestJob(AWS_PROJECT_ID);
+      const latest = getLatestJob(AWS_TARGET_SOURCE_ID);
       expect(latest?.status).toBe('FAIL');
       expect(latest?.completed_at).toBeDefined();
       latest?.resource_results.forEach((r) => {
@@ -173,7 +172,7 @@ describe('mock-test-connection behavior lock-in', () => {
       const store = getStore();
       store.projects = store.projects.filter((p) => p.id !== AWS_PROJECT_ID);
 
-      const latest = getLatestJob(AWS_PROJECT_ID);
+      const latest = getLatestJob(AWS_TARGET_SOURCE_ID);
       expect(latest?.status).toBe('FAIL');
       expect(latest?.resource_results).toEqual([]);
     });
@@ -181,7 +180,7 @@ describe('mock-test-connection behavior lock-in', () => {
 
   describe('getJobHistory', () => {
     it('job 이 없는 project → 빈 content + total 0', () => {
-      const result = getJobHistory(AWS_PROJECT_ID, 0, 10);
+      const result = getJobHistory(AWS_TARGET_SOURCE_ID, 0, 10);
       expect(result).toEqual({ content: [], total: 0 });
     });
 
@@ -192,17 +191,17 @@ describe('mock-test-connection behavior lock-in', () => {
         createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, `user-${i}@example.com`);
       }
 
-      const page0 = getJobHistory(AWS_PROJECT_ID, 0, 2);
+      const page0 = getJobHistory(AWS_TARGET_SOURCE_ID, 0, 2);
       expect(page0.total).toBe(5);
       expect(page0.content).toHaveLength(2);
       expect(page0.content[0].requested_by).toBe('user-4@example.com');
       expect(page0.content[1].requested_by).toBe('user-3@example.com');
 
-      const page1 = getJobHistory(AWS_PROJECT_ID, 1, 2);
+      const page1 = getJobHistory(AWS_TARGET_SOURCE_ID, 1, 2);
       expect(page1.content).toHaveLength(2);
       expect(page1.content[0].requested_by).toBe('user-2@example.com');
 
-      const page2 = getJobHistory(AWS_PROJECT_ID, 2, 2);
+      const page2 = getJobHistory(AWS_TARGET_SOURCE_ID, 2, 2);
       expect(page2.content).toHaveLength(1);
       expect(page2.content[0].requested_by).toBe('user-0@example.com');
     });
@@ -211,20 +210,20 @@ describe('mock-test-connection behavior lock-in', () => {
       const project = getAwsProjectWithSelectedResources();
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
 
-      const sduHistory = getJobHistory(SDU_PROJECT_ID, 0, 10);
+      const sduHistory = getJobHistory(SDU_TARGET_SOURCE_ID, 0, 10);
       expect(sduHistory).toEqual({ content: [], total: 0 });
     });
   });
 
   describe('hasPendingJob', () => {
     it('job 없으면 false', () => {
-      expect(hasPendingJob(AWS_PROJECT_ID)).toBe(false);
+      expect(hasPendingJob(AWS_TARGET_SOURCE_ID)).toBe(false);
     });
 
     it('PENDING job 있으면 true', () => {
       const project = getAwsProjectWithSelectedResources();
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
-      expect(hasPendingJob(AWS_PROJECT_ID)).toBe(true);
+      expect(hasPendingJob(AWS_TARGET_SOURCE_ID)).toBe(true);
     });
 
     it('모든 job 이 SUCCESS 면 false', () => {
@@ -236,16 +235,16 @@ describe('mock-test-connection behavior lock-in', () => {
       vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 1000));
 
       // 시간 진행 후 getLatestJob 호출로 status 재계산 → SUCCESS 고정
-      getLatestJob(AWS_PROJECT_ID);
+      getLatestJob(AWS_TARGET_SOURCE_ID);
 
-      expect(hasPendingJob(AWS_PROJECT_ID)).toBe(false);
+      expect(hasPendingJob(AWS_TARGET_SOURCE_ID)).toBe(false);
     });
 
     it('다른 project 의 PENDING job 은 무시', () => {
       const project = getAwsProjectWithSelectedResources();
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
 
-      expect(hasPendingJob(SDU_PROJECT_ID)).toBe(false);
+      expect(hasPendingJob(SDU_TARGET_SOURCE_ID)).toBe(false);
     });
   });
 
@@ -257,15 +256,15 @@ describe('mock-test-connection behavior lock-in', () => {
       createTestConnectionJob(awsProject, AWS_TARGET_SOURCE_ID, 'a@example.com');
       createTestConnectionJob(sduProject, SDU_TARGET_SOURCE_ID, 'b@example.com');
 
-      clearJobHistory(AWS_PROJECT_ID);
+      clearJobHistory(AWS_TARGET_SOURCE_ID);
 
       const store = getStore();
       expect(store.testConnectionJobs).toHaveLength(1);
-      expect(store.testConnectionJobs[0].projectId).toBe(SDU_PROJECT_ID);
+      expect(store.testConnectionJobs[0].target_source_id).toBe(SDU_TARGET_SOURCE_ID);
     });
 
     it('job 없는 project → no-op', () => {
-      expect(() => clearJobHistory(NONEXISTENT_PROJECT_ID)).not.toThrow();
+      expect(() => clearJobHistory(NONEXISTENT_TARGET_SOURCE_ID)).not.toThrow();
     });
   });
 

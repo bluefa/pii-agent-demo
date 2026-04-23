@@ -861,12 +861,6 @@ export const generateTargetSourceId = (): number => {
 export const getProjectByTargetSourceId = (targetSourceId: number): Project | undefined =>
   getStore().projects.find(p => p.targetSourceId === targetSourceId);
 
-export const getTargetSourceIdByProjectId = (projectId: string): number | undefined =>
-  getStore().projects.find(p => p.id === projectId)?.targetSourceId;
-
-export const getProjectIdByTargetSourceId = (targetSourceId: number): string | undefined =>
-  getStore().projects.find(p => p.targetSourceId === targetSourceId)?.id;
-
 // ===== Mock DB Credentials =====
 export const mockCredentials: DBCredential[] = [
   {
@@ -973,11 +967,11 @@ export const getCredentialById = (id: string): DBCredential | undefined => {
 };
 
 // ===== Mock AWS Installation Status =====
-// 기존 AWS 프로젝트들의 설치 상태 초기 데이터
-export const mockAwsInstallations: Map<string, LegacyAwsInstallationStatus> = new Map([
-  // proj-3: 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
+// 기존 AWS 프로젝트들의 설치 상태 초기 데이터 (key: targetSourceId)
+export const mockAwsInstallations: Map<number, LegacyAwsInstallationStatus> = new Map([
+  // targetSourceId 1008 (proj-3): 설치 진행 중 (INSTALLING) - Service TF 완료, BDC TF 진행 중
   [
-    'proj-3',
+    1008,
     {
       provider: 'AWS',
       hasTfPermission: true,
@@ -990,9 +984,9 @@ export const mockAwsInstallations: Map<string, LegacyAwsInstallationStatus> = ne
       lastCheckedAt: '2024-01-19T09:00:00Z',
     },
   ],
-  // proj-5: 연결 테스트 대기 (WAITING_CONNECTION_TEST) - 설치 완료
+  // targetSourceId 1010 (proj-5): 연결 테스트 대기 (WAITING_CONNECTION_TEST) - 설치 완료
   [
-    'proj-5',
+    1010,
     {
       provider: 'AWS',
       hasTfPermission: true,
@@ -1065,8 +1059,8 @@ export const initializeAwsStoreData = () => {
   const store = getStore();
 
   // 초기 AWS 설치 상태 로드
-  mockAwsInstallations.forEach((status, projectId) => {
-    store.awsInstallations.set(projectId, status);
+  mockAwsInstallations.forEach((status, targetSourceId) => {
+    store.awsInstallations.set(targetSourceId, status);
   });
 
   // 초기 AWS 서비스 설정 로드

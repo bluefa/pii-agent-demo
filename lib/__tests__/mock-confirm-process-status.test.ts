@@ -20,6 +20,8 @@ const parseResponse = async (response: Response) => {
 };
 
 const TEST_PROJECT_ID = 'test-confirm-proj';
+const TEST_TARGET_SOURCE_ID = 9999;
+const TEST_TARGET_SOURCE_ID_STR = String(TEST_TARGET_SOURCE_ID);
 
 const createTestResource = (id: string, overrides?: Partial<Resource>): Resource => ({
   id,
@@ -72,7 +74,7 @@ const addTestProject = (overrides?: Partial<Project>) => {
 };
 
 const getProcessStatus = async () => {
-  const res = await mockConfirm.getProcessStatus(TEST_PROJECT_ID);
+  const res = await mockConfirm.getProcessStatus(TEST_TARGET_SOURCE_ID_STR);
   return parseResponse(res);
 };
 
@@ -199,14 +201,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // Step 2: 연동 요청 (2개 선택, 1개 제외 → 수동 승인)
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       status = await getProcessStatus();
       expect(status.process_status).toBe('WAITING_APPROVAL');
 
       // Step 3: 승인
-      const approveRes = await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      const approveRes = await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       expect(approveRes.status).toBe(200);
 
       status = await getProcessStatus();
@@ -214,7 +216,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(status.status_inputs.has_approved_integration).toBe(true);
 
       // Step 4: ApprovedIntegration 스냅샷 확인
-      const approvedRes = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
+      const approvedRes = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const approvedData = await parseResponse(approvedRes);
       expect(approvedData.approved_integration).not.toBeNull();
       expect(approvedData.approved_integration.resource_infos).toHaveLength(2);
@@ -232,7 +234,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       // approval.status가 AUTO_APPROVED로 설정됨
@@ -258,7 +260,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // res-1, res-2만 선택, res-3은 제외로 지정
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       // approval.status가 PENDING (수동 승인 대기)
@@ -285,7 +287,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // res-1만 선택 (res-2는 이미 제외 확정 → 미선택해도 자동 승인)
       const reqBody = createApprovalRequestBody(['res-1']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
@@ -305,7 +307,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // res-1만 선택 (res-2는 NO_INSTALL_NEEDED → 자동 승인 판정 대상 아님)
       const reqBody = createApprovalRequestBody(['res-1']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
@@ -320,9 +322,9 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
 
-      const historyRes = await mockConfirm.getApprovalHistory(TEST_PROJECT_ID, 0, 10);
+      const historyRes = await mockConfirm.getApprovalHistory(TEST_TARGET_SOURCE_ID_STR, 0, 10);
       const historyData = await parseResponse(historyRes);
 
       expect(historyData.content).toHaveLength(1);
@@ -339,11 +341,11 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
       expect(getProjectInstallationStatus()).toBe('PENDING');
 
-      _fastForwardApproval(TEST_PROJECT_ID);
+      _fastForwardApproval(TEST_TARGET_SOURCE_ID_STR);
       await getProcessStatus();
 
       expect(getProjectInstallationStatus()).toBe('IN_PROGRESS');
@@ -376,9 +378,9 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
 
-      const approvedRes = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
+      const approvedRes = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const approvedData = await parseResponse(approvedRes);
 
       expect(approvedData.approved_integration).not.toBeNull();
@@ -439,13 +441,13 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         bdcTfCompleted: true,
         completedAt: '2026-01-12T00:00:00Z',
       };
-      store.awsInstallations.set(TEST_PROJECT_ID, legacyInstallation);
+      store.awsInstallations.set(TEST_TARGET_SOURCE_ID, legacyInstallation);
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
-      const resetInstallation = store.awsInstallations.get(TEST_PROJECT_ID);
+      const resetInstallation = store.awsInstallations.get(TEST_TARGET_SOURCE_ID);
       expect(resetInstallation).toBeDefined();
       expect(resetInstallation?.completedAt).toBeUndefined();
       expect(resetInstallation?.bdcTf.status).toBe('PENDING');
@@ -483,7 +485,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       // 반려
-      const rejectRes = await mockConfirm.rejectApprovalRequest(TEST_PROJECT_ID, {
+      const rejectRes = await mockConfirm.rejectApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {
         reason: '리소스 구성 재검토 필요',
       });
       expect(rejectRes.status).toBe(200);
@@ -509,7 +511,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         status,
       });
 
-      const rejectRes = await mockConfirm.rejectApprovalRequest(TEST_PROJECT_ID, {});
+      const rejectRes = await mockConfirm.rejectApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       expect(rejectRes.status).toBe(400);
     });
   });
@@ -535,7 +537,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 재요청 (2개 선택, 1개 제외)
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       const processStatus = await getProcessStatus();
@@ -561,10 +563,10 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 재요청
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
 
       // 승인
-      const approveRes = await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      const approveRes = await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       expect(approveRes.status).toBe(200);
 
       const processStatus = await getProcessStatus();
@@ -591,10 +593,10 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
       // 실시간 computeProcessStatus가 APPLYING_APPROVED를 감지하려면 store 필요
-      _setApprovedIntegration(TEST_PROJECT_ID);
+      _setApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(409);
 
       const data = await parseResponse(reqRes);
@@ -618,7 +620,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(409);
 
       const data = await parseResponse(reqRes);
@@ -641,7 +643,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
     });
   });
@@ -669,10 +671,10 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     it('CONNECTION_VERIFIED → 확정 → TARGET_CONFIRMED + 스냅샷 삭제', async () => {
       setupConnectionVerifiedProject();
       // 지연 우회 (테스트 속도를 위해)
-      _fastForwardApproval(TEST_PROJECT_ID);
+      _fastForwardApproval(TEST_TARGET_SOURCE_ID_STR);
 
       // 확정
-      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_TARGET_SOURCE_ID_STR);
       expect(confirmRes.status).toBe(200);
 
       // 확정 후 상태 확인
@@ -682,7 +684,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(processStatus.status_inputs.has_approved_integration).toBe(false);
 
       // ApprovedIntegration 삭제 확인 (404)
-      const approvedRes = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
+      const approvedRes = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       expect(approvedRes.status).toBe(404);
     });
 
@@ -713,7 +715,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       // 승인 → approvalTimestampStore에 현재 시각 기록됨
-      await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
 
       // 프로젝트를 CONNECTION_VERIFIED 상태로 강제 전환 (설치 완료 시뮬레이션)
       const verifiedStatus: ProjectStatus = {
@@ -733,7 +735,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       };
 
       // 승인 직후(10초 미경과) 확정 시도 → 409
-      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_TARGET_SOURCE_ID_STR);
       expect(confirmRes.status).toBe(409);
       const data = await parseResponse(confirmRes);
       expect(data.error.code).toBe('INSTALLATION_IN_PROGRESS');
@@ -743,9 +745,9 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     it('10초 경과 후 확정 시도 → 200 성공 (_fastForwardApproval)', async () => {
       setupConnectionVerifiedProject();
       // 지연 우회
-      _fastForwardApproval(TEST_PROJECT_ID);
+      _fastForwardApproval(TEST_TARGET_SOURCE_ID_STR);
 
-      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_TARGET_SOURCE_ID_STR);
       expect(confirmRes.status).toBe(200);
     });
 
@@ -762,7 +764,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         status,
       });
 
-      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_TARGET_SOURCE_ID_STR);
       expect(confirmRes.status).toBe(400);
     });
   });
@@ -771,7 +773,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     it('REQUEST_REQUIRED 상태에서 승인 시도 → 400', async () => {
       addTestProject();
 
-      const approveRes = await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      const approveRes = await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       expect(approveRes.status).toBe(400);
     });
 
@@ -788,7 +790,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         status,
       });
 
-      const rejectRes = await mockConfirm.rejectApprovalRequest(TEST_PROJECT_ID, { reason: '사유' });
+      const rejectRes = await mockConfirm.rejectApprovalRequest(TEST_TARGET_SOURCE_ID_STR, { reason: '사유' });
       expect(rejectRes.status).toBe(400);
     });
   });
@@ -819,7 +821,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 재요청 (리소스 변경: res-1, res-3 선택, res-2 제외)
       const reqBody = createApprovalRequestBody(['res-1', 'res-3'], ['res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       processStatus = await getProcessStatus();
@@ -832,7 +834,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       addTestProject();
 
       const reqBody = createApprovalRequestBody([], ['res-1', 'res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(400);
 
       const data = await parseResponse(reqRes);
@@ -844,7 +846,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     it('승인 전 상태 → approved_integration null', async () => {
       addTestProject();
 
-      const res = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
+      const res = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       expect(res.status).toBe(404);
     });
 
@@ -868,9 +870,9 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
-      await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
 
-      const res = await mockConfirm.getApprovedIntegration(TEST_PROJECT_ID);
+      const res = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const data = await parseResponse(res);
       expect(res.status).toBe(200);
       expect(data.approved_integration).not.toBeNull();
@@ -904,7 +906,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
-      const res = await mockConfirm.getConfirmedIntegration(TEST_PROJECT_ID);
+      const res = await mockConfirm.getConfirmedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const data = await parseResponse(res);
       expect(data.resource_infos).toHaveLength(2);
       expect(data.resource_infos[0]).toMatchObject({
@@ -920,7 +922,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     it('설치 미완료 → 빈 resource_infos를 반환', async () => {
       addTestProject();
 
-      const res = await mockConfirm.getConfirmedIntegration(TEST_PROJECT_ID);
+      const res = await mockConfirm.getConfirmedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const data = await parseResponse(res);
       expect(data).toEqual({ resource_infos: [] });
     });
@@ -938,12 +940,12 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 수동 승인 대기 상태로 만들기
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       let status = await getProcessStatus();
       expect(status.process_status).toBe('WAITING_APPROVAL');
 
       // 취소
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(200);
       const cancelData = await parseResponse(cancelRes);
       expect(cancelData.result).toBe('CANCELLED');
@@ -965,7 +967,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 전체 선택 → 자동 승인 → APPLYING_APPROVED
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       let status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
 
@@ -981,17 +983,17 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody2 = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody2);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody2);
       status = await getProcessStatus();
       expect(status.process_status).toBe('WAITING_APPROVAL');
 
       // 취소
-      await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       status = await getProcessStatus();
       expect(status.process_status).toBe('REQUEST_REQUIRED');
 
       // 재요청 성공 확인
-      const reqRes2 = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody2);
+      const reqRes2 = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody2);
       expect(reqRes2.status).toBe(201);
 
       status = await getProcessStatus();
@@ -1001,7 +1003,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     it('REQUEST_REQUIRED 상태에서 취소 시도 → 400 (승인 요청 내역 없음)', async () => {
       addTestProject();
 
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(400);
       const data = await parseResponse(cancelRes);
       expect(data.error.code).toBe('VALIDATION_FAILED');
@@ -1017,14 +1019,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       });
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
 
       // 자동 승인됨 확인
       const status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
 
       // 취소 시도 → 409
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(409);
       const data = await parseResponse(cancelRes);
       expect(data.error.code).toBe('CONFLICT_APPLYING_IN_PROGRESS');
@@ -1042,19 +1044,19 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 수동 승인 대기 상태로
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
 
       // 승인
-      await mockConfirm.approveApprovalRequest(TEST_PROJECT_ID, {});
+      await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
       let status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
 
       // 취소 시도 → 409 (반영 중이므로 불가)
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(409);
 
       // 10초 우회 + CONNECTION_VERIFIED로 전환
-      _fastForwardApproval(TEST_PROJECT_ID);
+      _fastForwardApproval(TEST_TARGET_SOURCE_ID_STR);
       const store = getStore();
       const projIdx = store.projects.findIndex((p) => p.id === TEST_PROJECT_ID);
       store.projects[projIdx] = {
@@ -1071,7 +1073,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       };
 
       // 확정 성공
-      const confirmRes = await mockConfirm.confirmInstallation(TEST_PROJECT_ID);
+      const confirmRes = await mockConfirm.confirmInstallation(TEST_TARGET_SOURCE_ID_STR);
       expect(confirmRes.status).toBe(200);
 
       status = await getProcessStatus();
@@ -1092,7 +1094,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         status,
       });
 
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(400);
     });
 
@@ -1107,11 +1109,11 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 요청 → 취소
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
-      await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
+      await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
 
       // approval-history 조회
-      const historyRes = await mockConfirm.getApprovalHistory(TEST_PROJECT_ID, 0, 10);
+      const historyRes = await mockConfirm.getApprovalHistory(TEST_TARGET_SOURCE_ID_STR, 0, 10);
       const historyData = await parseResponse(historyRes);
 
       // APPROVAL_CANCELLED 이력 존재 확인
@@ -1150,14 +1152,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 변경 요청 (res-1, res-3 선택, res-2 제외)
       const reqBody = createApprovalRequestBody(['res-1', 'res-3'], ['res-2']);
-      const reqRes = await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
       processStatus = await getProcessStatus();
       expect(processStatus.process_status).toBe('WAITING_APPROVAL');
 
       // 취소 → TARGET_CONFIRMED로 복원되어야 함
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(200);
 
       processStatus = await getProcessStatus();
@@ -1178,12 +1180,12 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       // 먼저 admin으로 요청 생성
       const reqBody = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_PROJECT_ID, reqBody);
+      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
 
       // 일반 사용자로 전환 (SERVICE-RESTRICTED 권한 없음)
       setCurrentUser('user-1');
 
-      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_PROJECT_ID);
+      const cancelRes = await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       expect(cancelRes.status).toBe(403);
     });
   });
