@@ -9,11 +9,9 @@ import {
   VmDatabaseConfig,
 } from '@/lib/types';
 
-import { cn, statusColors, textColors, badgeStyles, primaryColors, getButtonClass } from '@/lib/theme';
+import { cn, textColors, badgeStyles, primaryColors, getButtonClass, statusColors } from '@/lib/theme';
 import { Button } from '@/app/components/ui/Button';
-import { CollapsibleSection } from '@/app/components/ui/CollapsibleSection';
 import {
-  ResourceRow,
   AwsResourceTableBody,
   GroupedResourceTableBody,
   FlatResourceTableBody,
@@ -35,12 +33,6 @@ interface ResourceTableProps {
   onRequestApproval?: () => void;
   approvalSubmitting?: boolean;
 }
-
-const WarningIcon = () => (
-  <svg className={cn('w-4 h-4', statusColors.warning.text)} viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-  </svg>
-);
 
 export const ResourceTable = ({
   resources,
@@ -72,14 +64,9 @@ export const ResourceTable = ({
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
-  const targetResources: Resource[] = [];
-  const vnetResources: Resource[] = [];
-  const normalNonTargetResources: Resource[] = [];
-  for (const r of resources) {
-    if (r.isSelected || selectedIdsSet.has(r.id)) targetResources.push(r);
-    else if (r.integrationCategory === 'INSTALL_INELIGIBLE') vnetResources.push(r);
-    else normalNonTargetResources.push(r);
-  }
+  const targetCount = resources.filter(
+    (r) => r.isSelected || selectedIdsSet.has(r.id),
+  ).length;
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -102,20 +89,6 @@ export const ResourceTable = ({
   const VISIBLE_DATA_COLUMNS = 7;
   const colSpan = VISIBLE_DATA_COLUMNS + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0);
 
-  const rowProps = {
-    selectedIds: selectedIdsSet,
-    processStatus,
-    isEditMode: false as const,
-    isCheckboxEnabled: false,
-    showCredentialColumn,
-    onCheckboxChange: handleCheckboxChange,
-    credentials: credentials || [],
-    onCredentialChange,
-    expandedVmId,
-    onVmConfigToggle,
-    onVmConfigSave,
-  };
-
   const handleToggleEditMode = () => {
     const next = !internalEditMode;
     setInternalEditMode(next);
@@ -137,30 +110,20 @@ export const ResourceTable = ({
     onVmConfigSave,
   };
 
-  const renderTable = (res: Resource[]) => (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <BodyComponent resources={res} isEditMode={isEditMode} {...bodyProps} />
-      </table>
-    </div>
-  );
-
-  const selectedCount = selectedIdsSet.size;
   const totalCount = resources.length;
+  const selectedCount = isEditMode ? selectedIdsSet.size : targetCount;
   const showSummary = onRequestApproval !== undefined && isEditMode;
 
   return (
     <div>
       <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className={cn('text-sm font-semibold', textColors.primary)}>
-            {isEditMode ? '전체 리소스' : '리소스'}
-          </span>
+          <span className={cn('text-sm font-semibold', textColors.primary)}>리소스</span>
           <span className={cn(badgeStyles.base, badgeStyles.sizes.sm, statusColors.info.bg, statusColors.info.textDark)}>
-            {isEditMode ? `${selectedIdsSet.size}/${resources.length} 선택` : targetResources.length}
+            {selectedCount}/{totalCount}
           </span>
         </div>
-        {!externalEditMode && targetResources.length > 0 && (
+        {!externalEditMode && targetCount > 0 && (
           <button
             onClick={handleToggleEditMode}
             className={getButtonClass(internalEditMode ? 'secondary' : 'ghost', 'sm')}
@@ -170,56 +133,16 @@ export const ResourceTable = ({
         )}
       </div>
 
-      {isEditMode ? (
-        resources.length > 0 ? renderTable(resources) : (
-          <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-            발견된 리소스가 없습니다
-          </div>
-        )
+      {resources.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <BodyComponent resources={resources} isEditMode={isEditMode} {...bodyProps} />
+          </table>
+        </div>
       ) : (
-        <>
-          {targetResources.length === 0 ? (
-            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-              아직 연동 대상이 선택되지 않았습니다
-            </div>
-          ) : renderTable(targetResources)}
-
-          {vnetResources.length > 0 && (
-            <CollapsibleSection
-              label="설치 불가 (VNet Integration)"
-              count={vnetResources.length}
-              icon={<WarningIcon />}
-              labelClassName={statusColors.warning.textDark}
-              contentClassName={cn('rounded-lg', statusColors.warning.bg)}
-              defaultOpen
-            >
-              <table className="w-full">
-                <tbody>
-                  {vnetResources.map(r => (
-                    <ResourceRow key={r.id} resource={r} {...rowProps} />
-                  ))}
-                </tbody>
-              </table>
-            </CollapsibleSection>
-          )}
-
-          {normalNonTargetResources.length > 0 && (
-            <CollapsibleSection
-              label={targetResources.length === 0 ? '발견된 리소스' : '연동 제외 리소스'}
-              count={normalNonTargetResources.length}
-              contentClassName="opacity-60"
-            >
-              <table className="w-full">
-                <BodyComponent
-                  resources={normalNonTargetResources}
-                  isEditMode={false}
-                  {...bodyProps}
-                  isCheckboxEnabled={false}
-                />
-              </table>
-            </CollapsibleSection>
-          )}
-        </>
+        <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+          발견된 리소스가 없습니다
+        </div>
       )}
 
       {showSummary && (
