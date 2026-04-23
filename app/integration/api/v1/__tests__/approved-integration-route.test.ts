@@ -38,7 +38,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approved-integ
       status: 404,
       code: 'APPROVED_INTEGRATION_NOT_FOUND',
     });
-    expect(mockedGetApprovedIntegration).toHaveBeenCalledWith('azure-proj-3');
+    expect(mockedGetApprovedIntegration).toHaveBeenCalledWith('1005');
   });
 
   it('approved integration 응답을 Issue #222 dto shape로 반환한다', async () => {
