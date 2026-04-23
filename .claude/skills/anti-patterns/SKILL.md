@@ -5,7 +5,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 
 # PII Agent Frontend Anti-Pattern Catalog
 
-44 anti-patterns identified through a full codebase audit. Consumed alongside `/coding-standards`.
+47 anti-patterns identified through a full codebase audit. Consumed alongside `/coding-standards`.
 
 ## When to invoke
 
@@ -18,11 +18,11 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 |---|----------|-------|
 | A | Type Safety | 5 |
 | B | Component Structure | 6 |
-| C | State Management | 8 |
+| C | State Management | 9 |
 | D | Effects & Hooks | 6 |
 | E | Rendering | 5 |
 | F | Error Handling | 4 |
-| G | Naming & Constants | 7 |
+| G | Naming & Constants | 9 |
 | H | UI Composition (Icons/Assets) | 3 |
 
 Concrete evidence (file:line) from the current codebase → `docs/reports/frontend-anti-patterns-audit-2026-04-23.md`
@@ -260,6 +260,32 @@ const [state, setState] = useState(JSON.parse(localStorage.getItem('x') ?? '{}')
 // ✅ Good
 const [state, setState] = useState(() => JSON.parse(localStorage.getItem('x') ?? '{}'));
 ```
+
+### C9. Discriminated union variants with inconsistent payload field names 🟡
+
+When variants carry the **same entity** (e.g., the row being acted on), use the **same field name** across variants. Mixing `item` in one variant and `target` in another forces every reader to reopen the type to decide which field to destructure, and invites bugs when a handler copied from one variant is pasted into another.
+
+```ts
+// ❌ Bad — same entity, different field names per variant
+type ModalState =
+  | { type: 'none' }
+  | { type: 'reject';   item: ApprovalRequestQueueItem }
+  | { type: 'detail';   item: ApprovalRequestQueueItem }
+  | { type: 'approve';  target: ApprovalRequestQueueItem };  // why 'target' here?
+
+// Callers must branch on the name, not just the type:
+if (modal.type === 'approve') use(modal.target);
+if (modal.type === 'reject')  use(modal.item);
+
+// ✅ Good — one payload name, one mental model
+type ModalState =
+  | { type: 'none' }
+  | { type: 'reject';  item: ApprovalRequestQueueItem }
+  | { type: 'detail';  item: ApprovalRequestQueueItem }
+  | { type: 'approve'; item: ApprovalRequestQueueItem };
+```
+
+**Rule of thumb**: if two variants carry the same type, they should use the same field name. A divergent field name is a signal the payload is actually different — rename only when the role truly differs (`source` vs `target` in a copy operation, for instance).
 
 ---
 
@@ -542,6 +568,70 @@ Pick by role:
 - payload → not `data` / `val`, but `response` / `row` / `record` — name the entity
 
 Rule of thumb: if the parameter name alone doesn't let a reader guess what the caller is passing, rename it.
+
+### G8. Inconsistent naming convention within a sibling cluster 🟡
+
+A "sibling cluster" is a set of variables/fields that serve the same role in the same scope — all callback refs in a hook, all error variables in a validator, all modal states in a component. When one sibling breaks the cluster's convention, the reader loses the "I can skim this group" property and has to re-read each name to find out what's different.
+
+```ts
+// ❌ Bad — three role-noun refs, one Fn-suffix ref
+const fetchRef    = useRef(fetchOnce);
+const updateRef   = useRef(onUpdate);
+const completeRef = useRef(onComplete);
+const stopFnRef   = useRef(shouldStop);   // odd one out — Fn suffix
+
+// ✅ Good — every ref is named by role
+const fetchRef      = useRef(fetchOnce);
+const updateRef     = useRef(onUpdate);
+const completeRef   = useRef(onComplete);
+const shouldStopRef = useRef(shouldStop); // predicate-style role name
+```
+
+```ts
+// ❌ Bad — three full field names, one abbreviation
+const nameErr = validateName(state.name);
+const hostErr = validateHost(state.host);
+const portErr = validatePort(state.port);
+const sidErr  = validateServiceId(state.serviceId);  // 'sid' ≠ the field 'serviceId'
+
+// ✅ Good — suffix derived from the field, consistently
+const nameErr      = validateName(state.name);
+const hostErr      = validateHost(state.host);
+const portErr      = validatePort(state.port);
+const serviceIdErr = validateServiceId(state.serviceId);
+```
+
+**Rule of thumb**: pick a rule per cluster ("ref name = role-noun + Ref", "local err var = fieldName + Err") and apply it to *every* member. If one sibling can't follow the rule, the rule is probably wrong — change it for all, not for one.
+
+Related: **G4** (non-verb function names) and **G7** (vague parameter names). G8 is specifically about *consistency inside one group*, even when each individual name is acceptable in isolation.
+
+### G9. Comments narrating past bugs or refactor history 🟢
+
+Comments should describe **invariants** (why code must stay this way) — not history (what used to be wrong, what a reviewer flagged, what a previous PR fixed). History rots fast: readers months later hit a mention of "this refactor" with no idea which refactor, and the comment becomes noise that competes with real invariants.
+
+```ts
+// ❌ Bad — narrates the fix history
+// Iterate the original array so `ip_${index}` error keys line up with the
+// JSX `ips.map((_, index) => ...)` read — extracting to filtered-index
+// here was the pre-existing bug flagged during review of this refactor.
+ips.forEach((ip, index) => { /* ... */ });
+
+// ✅ Good — same invariant, no history
+// Index must match the JSX map index (`ips.map((_, i) => ...)`),
+// so iterate the full array even when some entries are blank.
+ips.forEach((ip, index) => { /* ... */ });
+
+// ❌ Bad
+// Added in PR #311 to handle the Oracle case we missed earlier.
+if (state.databaseType === 'ORACLE') { /* ... */ }
+
+// ✅ Good — delete the comment; git blame has the PR.
+if (state.databaseType === 'ORACLE') { /* ... */ }
+```
+
+**Forbidden phrases**: "this refactor", "the fix", "previously", "was flagged", "PR #NNN", "the reviewer noted". If you need to remember the context, put it in the commit message or PR description — both are preserved by git history, neither rots in the source.
+
+Aligned with `CLAUDE.md`: *"Don't reference the current task, fix, or callers — those belong in the PR description and rot as the codebase evolves."*
 
 ---
 
