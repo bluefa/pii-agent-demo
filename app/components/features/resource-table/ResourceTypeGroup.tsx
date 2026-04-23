@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Resource, SecretKey, VmDatabaseConfig, AwsResourceType } from '@/lib/types';
+import { Resource, ProcessStatus, SecretKey, VmDatabaseConfig, AwsResourceType } from '@/lib/types';
 import { AWS_RESOURCE_TYPE_LABELS, REGION_LABELS } from '@/lib/constants/labels';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { ResourceRow } from './ResourceRow';
@@ -13,10 +13,10 @@ const COLLAPSE_THRESHOLD = 5;
 interface ResourceTypeGroupProps {
   resourceType: AwsResourceType;
   resources: Resource[];
+  processStatus: ProcessStatus;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
-  showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
@@ -46,10 +46,10 @@ const RegionIcon = () => (
 export const ResourceTypeGroup = ({
   resourceType,
   resources,
+  processStatus,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
-  showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
   colSpan,
@@ -91,7 +91,6 @@ export const ResourceTypeGroup = ({
 
   return (
     <>
-      {/* Resource Type Header */}
       <tr className={cn('border-l-4', providerColors.AWS.border)}>
         <td colSpan={colSpan} className="px-6 py-3">
           <div className="flex items-center gap-2">
@@ -104,7 +103,6 @@ export const ResourceTypeGroup = ({
         </td>
       </tr>
 
-      {/* EC2 안내 배너 -- 선택 모드(전체 탭)에서만 표시 */}
       {resourceType === 'EC2' && isCheckboxEnabled && (
         <tr>
           <td colSpan={colSpan} className="px-6 py-2">
@@ -121,7 +119,6 @@ export const ResourceTypeGroup = ({
         </tr>
       )}
 
-      {/* Region Subgroups */}
       {visibleResources.map(([region, regionResources]) => (
         <React.Fragment key={region}>
           {hasMultipleRegions && (
@@ -142,21 +139,22 @@ export const ResourceTypeGroup = ({
               <ClusterRow
                 key={resource.id}
                 resource={resource}
+                processStatus={processStatus}
                 selectedIds={selectedIds}
                 isEditMode={isEditMode}
                 isCheckboxEnabled={isCheckboxEnabled}
-                showConnectionStatus={showConnectionStatus}
+                showCredentialColumn={showCredentialColumn}
+                colSpan={colSpan}
                 onCheckboxChange={onCheckboxChange}
               />
             ) : (
               <ResourceRow
                 key={resource.id}
                 resource={resource}
-                cloudProvider="AWS"
+                processStatus={processStatus}
                 selectedIds={selectedIds}
                 isEditMode={isEditMode}
                 isCheckboxEnabled={isCheckboxEnabled}
-                showConnectionStatus={showConnectionStatus}
                 showCredentialColumn={showCredentialColumn}
                 onCheckboxChange={onCheckboxChange}
                 credentials={credentials}
@@ -170,7 +168,6 @@ export const ResourceTypeGroup = ({
         </React.Fragment>
       ))}
 
-      {/* Expand / Collapse toggle */}
       {needsCollapse && (
         <tr>
           <td colSpan={colSpan} className="px-6 py-2">

@@ -1,33 +1,30 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { Resource, DatabaseType, SecretKey, needsCredential, CloudProvider, VmDatabaseConfig } from '@/lib/types';
+import { Resource, DatabaseType, SecretKey, needsCredential, VmDatabaseConfig, ProcessStatus } from '@/lib/types';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
-import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/AzureServiceIcon';
-import { ConnectionIndicator } from './ConnectionIndicator';
+import { Badge } from '@/app/components/ui/Badge';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from './VnetIntegrationGuideModal';
+import { ScanHistoryBadge } from './ScanHistoryBadge';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, textColors, statusColors, bgColors, primaryColors } from '@/lib/theme';
+import { getResourceIntegrationStatus, getResourceDisplayName, getIntegrationStatusTextClass } from '@/lib/resource';
 
-// VM 리소스 타입 체크 헬퍼
 export const isVmResource = (resource: Resource): boolean => {
   return resource.type === 'AZURE_VM' || resource.awsType === 'EC2';
 };
 
 interface ResourceRowProps {
   resource: Resource;
-  cloudProvider: CloudProvider;
-  hideTypeColumn?: boolean;
+  processStatus: ProcessStatus;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
-  showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
-  // VM 설정 관련
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
@@ -51,14 +48,18 @@ const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentia
   return <span className={cn('text-sm font-medium', statusColors.error.text)}>미선택</span>;
 };
 
+const WarningTriangleIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-3.5 h-3.5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+);
+
 export const ResourceRow = ({
   resource,
-  cloudProvider,
-  hideTypeColumn,
+  processStatus,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
-  showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
   credentials,
@@ -77,6 +78,12 @@ export const ResourceRow = ({
   const isExpanded = expandedVmId === resource.id;
   const isSelected = selectedIds.has(resource.id);
   const hasVmConfig = !!resource.vmDatabaseConfig;
+
+  const effectiveDbType: DatabaseType = isVm && hasVmConfig
+    ? resource.vmDatabaseConfig!.databaseType
+    : resource.databaseType;
+  const integrationStatus = getResourceIntegrationStatus(resource, processStatus);
+  const displayName = getResourceDisplayName(resource);
 
   const handleRowClick = () => {
     if (isVm && isCheckboxEnabled && isSelected && onVmConfigToggle) {
@@ -102,9 +109,8 @@ export const ResourceRow = ({
         )}
         onClick={handleRowClick}
       >
-        {/* Checkbox — 편집 모드에서만 표시 */}
         {isEditMode && (
-          <td className="px-6 py-4 w-12" onClick={(e) => e.stopPropagation()}>
+          <td className="px-6 py-4 w-10" onClick={(e) => e.stopPropagation()}>
             {isCheckboxEnabled && (
               <input
                 type="checkbox"
@@ -121,67 +127,57 @@ export const ResourceRow = ({
           </td>
         )}
 
-        {/* Instance Type — Provider별 렌더링 (AWS는 ResourceTypeGroup 헤더에 표시) */}
-        {!hideTypeColumn && cloudProvider === 'Azure' && (
-          <td className="px-6 py-4">
-            <div className="flex items-center gap-2">
-              {isAzureResourceType(resource.type) && <AzureServiceIcon type={resource.type} size="lg" />}
-              <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
-              {isVm && isSelected && !hasVmConfig && (
-                <span className={cn('text-xs ml-1', statusColors.warning.textDark)}>(DB 설정 필요)</span>
-              )}
-              {isVnetIneligible && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); vnetModal.open(); }}
-                  className={cn('ml-1 flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
-                  aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
-                </button>
-              )}
-            </div>
-          </td>
-        )}
-        {!hideTypeColumn && (cloudProvider === 'GCP' || cloudProvider === 'IDC' || cloudProvider === 'SDU') && (
-          <td className="px-6 py-4">
-            <span className={cn('font-medium', textColors.primary)}>{resource.type}</span>
-          </td>
-        )}
+        <td className="px-6 py-4">
+          <Badge variant={resource.isSelected ? 'success' : 'pending'} size="sm">
+            {resource.isSelected ? '대상' : '비대상'}
+          </Badge>
+        </td>
 
-        {/* Resource ID */}
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-1.5">
+            <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
+            {isVm && isSelected && !hasVmConfig && (
+              <span className={cn('text-xs', statusColors.warning.textDark)}>(DB 설정 필요)</span>
+            )}
+          </div>
+        </td>
+
         <td className="px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className={cn('font-mono text-sm', textColors.tertiary)}>{resource.resourceId}</span>
-            {hideTypeColumn && isVnetIneligible && (
+            <span className={cn('font-mono text-xs', textColors.tertiary)}>{resource.resourceId}</span>
+            {isVnetIneligible && (
               <button
                 onClick={(e) => { e.stopPropagation(); vnetModal.open(); }}
                 className={cn('flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
                 aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <WarningTriangleIcon />
                 <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
               </button>
             )}
           </div>
         </td>
 
-        {/* Database Type */}
         <td className="px-6 py-4">
-          {isVm && hasVmConfig ? (
-            <span className={cn('text-sm', textColors.primary)}>
-              {getDatabaseLabel(resource.vmDatabaseConfig!.databaseType)}
-            </span>
-          ) : (
-            <span className={cn('text-sm', textColors.secondary)}>{getDatabaseLabel(resource.databaseType)}</span>
-          )}
+          <span className={cn('font-mono text-xs', textColors.tertiary)}>
+            {resource.region ?? '—'}
+          </span>
         </td>
 
-        {/* Credential */}
+        <td className="px-6 py-4">
+          <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
+        </td>
+
+        <td className="px-6 py-4">
+          <span className={cn('text-sm', getIntegrationStatusTextClass(integrationStatus))}>
+            {integrationStatus}
+          </span>
+        </td>
+
+        <td className="px-6 py-4">
+          <ScanHistoryBadge resource={resource} />
+        </td>
+
         {showCredentialColumn && (
           <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
             {isEditMode ? (
@@ -218,16 +214,8 @@ export const ResourceRow = ({
           </td>
         )}
 
-        {/* Connection Status */}
-        {showConnectionStatus && (
-          <td className="px-6 py-4">
-            <ConnectionIndicator status={resource.connectionStatus} hasCredentialError={hasCredentialError} />
-          </td>
-        )}
-
       </tr>
 
-      {/* VM Configuration Panel */}
       {isExpanded && (
         <VmDatabaseConfigPanel
           resourceId={resource.id}
