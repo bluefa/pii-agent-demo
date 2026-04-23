@@ -27,9 +27,10 @@ Or open the file, select all, copy, and paste manually.
 | 5 — ProjectPageMeta + Scan headless | ✅ merged | #286, #287 |
 | 6 — Scan state UIs | ✅ merged | #288 |
 | 7 — DbSelectionTable | ✅ merged | #289 |
-| 8 — Cleanup | 🟡 in review | #291 |
-| Post-Phase-1 — Detail TopNav injection | 🟡 in review | #292 |
-| **9 — Detail page integration finalize** | 🟡 available | `wave9-detail-integration.md` |
+| 8 — Cleanup | ✅ merged | #291 |
+| Post-Phase-1 — Detail TopNav injection | ✅ merged | #292 |
+| 9 — Detail page integration finalize | ✅ merged | #293 (prompt), #294 (impl) |
+| **10 — Phase 1 finalize (guides + SDU + docs + cleanup)** | 🟡 available | `wave10-finalize.md` |
 
 ## Files
 
@@ -60,6 +61,9 @@ Or open the file, select all, copy, and paste manually.
 
 ### Wave 9 — requires B2 + B7 + B8 merged (all ✅)
 - `wave9-detail-integration.md` — Insert `GuideCard` between Stepper and DB card; consolidate `ScanPanel`+`ResourceTable` into unified `DbSelectionCard`; remove duplicate `<StepGuide>` from `ProcessStatusCard`
+
+### Wave 10 — requires Wave 9 merged (✅)
+- `wave10-finalize.md` — Phase 1 wrap-up: Azure/GCP/IDC guide content + SDU bridge & guide + I-07 docs update + dead file cleanup + MEMORY.md entry. **Single PR, 5 sub-tasks.**
 
 ## Recommended execution
 
