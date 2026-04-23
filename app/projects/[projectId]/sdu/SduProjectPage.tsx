@@ -12,6 +12,7 @@ import type {
   SduAthenaTable,
 } from '@/lib/types/sdu';
 import { getSduCurrentStep } from '@/lib/process/calculator';
+import { mapSduStatusToProcessStatus } from '@/lib/process/sdu-guide-bridge';
 import {
   getSduInstallationStatus,
   getS3UploadStatus,
@@ -28,7 +29,6 @@ import { getProject } from '@/app/lib/api';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
-import { ProcessStatus } from '@/lib/types';
 import {
   IamUserManageModal,
   SourceIpManageModal,
@@ -245,7 +245,7 @@ export const SduProjectPage = ({
       />
 
       <GuideCard
-        currentStep={ProcessStatus.WAITING_TARGET_CONFIRMATION}
+        currentStep={mapSduStatusToProcessStatus(currentStep)}
         provider={project.cloudProvider}
       />
 

@@ -409,17 +409,117 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
 };
 
 /**
+ * 비-AWS Provider 공통 7단계 가이드를 생성한다.
+ * AWS와 절차/체크리스트 항목은 다르지만, GuideCard 본문(`StepGuideContent`)은
+ * 단계별 의미가 동일하므로 `DEFAULT_STEP_GUIDES`를 그대로 재사용한다.
+ */
+const buildSimpleProviderGuide = (
+  provider: CloudProvider,
+  title: string,
+  step1Description: string,
+  step4Label: string,
+  step4Description: string,
+): ProviderProcessGuide => ({
+  provider,
+  variant: 'default',
+  title,
+  steps: [
+    {
+      stepNumber: 1,
+      label: '연동 대상 확정',
+      description: step1Description,
+      guide: DEFAULT_STEP_GUIDES[1],
+    },
+    {
+      stepNumber: 2,
+      label: '승인 대기',
+      description: '관리자의 승인을 기다리는 중입니다.',
+      guide: DEFAULT_STEP_GUIDES[2],
+    },
+    {
+      stepNumber: 3,
+      label: '연동 대상 반영 중',
+      description: '승인된 DB 메타데이터가 PII Agent 관리 시스템에 동기화되는 중입니다.',
+      guide: DEFAULT_STEP_GUIDES[3],
+    },
+    {
+      stepNumber: 4,
+      label: step4Label,
+      description: step4Description,
+      guide: DEFAULT_STEP_GUIDES[4],
+    },
+    {
+      stepNumber: 5,
+      label: '연결 테스트',
+      description: '설치가 완료되었습니다. DB 연결을 테스트하세요.',
+      guide: DEFAULT_STEP_GUIDES[5],
+    },
+    {
+      stepNumber: 6,
+      label: '관리자 승인 대기',
+      description: 'PII Agent 연결이 확인되었습니다. 운영팀의 최종 승인을 기다리는 중입니다.',
+      guide: DEFAULT_STEP_GUIDES[6],
+    },
+    {
+      stepNumber: 7,
+      label: '완료',
+      description: 'PII Agent 연동이 완료되었습니다.',
+      guide: DEFAULT_STEP_GUIDES[7],
+    },
+  ],
+});
+
+export const AZURE_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
+  'Azure',
+  'Azure 연동',
+  'Azure Subscription에 등록된 SQL DB / Cosmos DB / Storage 등의 리소스를 스캔하고, PII Agent 연동 대상을 선택합니다.',
+  'Agent 설치',
+  'Azure Agent 설치 스크립트를 실행하고, Subscription / Tenant 인증을 완료합니다.',
+);
+
+export const GCP_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
+  'GCP',
+  'GCP 연동',
+  'GCP Project의 Cloud SQL / BigQuery 등의 리소스를 스캔하고, PII Agent 연동 대상을 선택합니다.',
+  'Agent 설치',
+  'GCP Service Account 인증으로 Agent를 설치합니다. Project ID와 권한 부여 여부를 확인해 주세요.',
+);
+
+export const IDC_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
+  'IDC',
+  'IDC 연동',
+  '온프레미스 환경의 DB 정보를 직접 입력하여 연동 대상을 등록합니다. 자동 스캔은 제공되지 않습니다.',
+  'Agent 설치',
+  '관리자가 안내한 설치 패키지를 IDC 환경에 직접 배포합니다. 방화벽(443/8443) 및 N-IRP 통신을 확인해 주세요.',
+);
+
+export const SDU_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
+  'SDU',
+  'SDU 연동',
+  'IAM User 발급 및 Source IP 등록 후, S3에 스키마 파일을 업로드하여 연동 대상을 확정합니다.',
+  'Athena 환경 구성',
+  'Glue Crawler 실행 및 Athena Table 생성을 통해 SDU 모듈을 설치합니다.',
+);
+
+const ALL_GUIDES: ProviderProcessGuide[] = [
+  AWS_AUTO_GUIDE,
+  AWS_MANUAL_GUIDE,
+  AZURE_GUIDE,
+  GCP_GUIDE,
+  IDC_GUIDE,
+  SDU_GUIDE,
+];
+
+/**
  * 특정 Provider와 variant에 해당하는 프로세스 가이드 조회
  */
 export const getProcessGuide = (provider: CloudProvider, variant?: string): ProviderProcessGuide | undefined => {
-  const guides = [AWS_AUTO_GUIDE, AWS_MANUAL_GUIDE];
-  return guides.find(g => g.provider === provider && (!variant || g.variant === variant));
+  return ALL_GUIDES.find(g => g.provider === provider && (!variant || g.variant === variant));
 };
 
 /**
  * 특정 Provider의 모든 가이드 variant 조회
  */
 export const getProcessGuideVariants = (provider: CloudProvider): ProviderProcessGuide[] => {
-  const guides = [AWS_AUTO_GUIDE, AWS_MANUAL_GUIDE];
-  return guides.filter(g => g.provider === provider);
+  return ALL_GUIDES.filter(g => g.provider === provider);
 };
