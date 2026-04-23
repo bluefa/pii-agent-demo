@@ -167,7 +167,7 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className="text-sm font-semibold text-gray-900">사전 조치</span>
               </div>
               <div className="space-y-2 ml-6">
-                {step.prerequisiteGuides!.map((guide, idx) => (
+                {step.prerequisiteGuides?.map((guide, idx) => (
                   <PrerequisiteGuideItem
                     key={idx}
                     guide={guide}
@@ -189,7 +189,7 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className="text-sm font-semibold text-gray-900">사전 조치</span>
               </div>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 ml-6">
-                {step.prerequisites!.map((item, idx) => (
+                {step.prerequisites?.map((item, idx) => (
                   <li key={idx}>{item}</li>
                 ))}
               </ul>
