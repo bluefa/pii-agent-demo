@@ -16,7 +16,7 @@ import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';

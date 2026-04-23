@@ -17,7 +17,7 @@ import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
-import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, getButtonClass } from '@/lib/theme';

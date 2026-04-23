@@ -20,17 +20,17 @@ vi.mock('@/lib/bff/client', () => ({
   },
 }));
 
-vi.mock('@/app/projects/[projectId]/ProjectDetail', () => ({
+vi.mock('@/app/projects/[targetSourceId]/ProjectDetail', () => ({
   ProjectDetail: () => null,
 }));
 
-vi.mock('@/app/projects/[projectId]/common', () => ({
+vi.mock('@/app/projects/[targetSourceId]/common', () => ({
   ErrorState: () => null,
 }));
 
-import ProjectDetailPage from '@/app/integration/projects/[projectId]/page';
+import ProjectDetailPage from '@/app/integration/projects/[targetSourceId]/page';
 
-describe('GET /integration/projects/[projectId]', () => {
+describe('GET /integration/projects/[targetSourceId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -43,7 +43,7 @@ describe('GET /integration/projects/[projectId]', () => {
     getSecretsMock.mockResolvedValue(credentials);
 
     const element = await ProjectDetailPage({
-      params: Promise.resolve({ projectId: '321' }),
+      params: Promise.resolve({ targetSourceId: '321' }),
     }) as ReactElement<{
       initialProject: Project;
       initialCredentials: SecretKey[];
