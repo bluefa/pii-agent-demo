@@ -30,6 +30,7 @@ type FormAction =
   | { type: 'REMOVE_IP'; index: number }
   | { type: 'SET_IP'; index: number; value: string }
   | { type: 'SET_HOST'; value: string }
+  /** Also resets port to the type's default and clears serviceId for non-ORACLE values. */
   | { type: 'SET_DATABASE_TYPE'; value: IdcDatabaseType }
   | { type: 'SET_PORT'; value: number }
   | { type: 'SET_SERVICE_ID'; value: string }

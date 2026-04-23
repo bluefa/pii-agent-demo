@@ -33,16 +33,16 @@ export const validateServiceId = (serviceId: string): string | null =>
   serviceId.trim() ? null : 'Oracle DB는 Service ID가 필수입니다';
 
 export const validateIps = (ips: string[]): FormErrors => {
-  const trimmed = ips.filter((ip) => ip.trim());
-  if (trimmed.length === 0) {
+  if (ips.every((ip) => !ip.trim())) {
     return { ips: 'IP를 최소 1개 입력하세요' };
   }
   const errors: FormErrors = {};
-  // NOTE: preserves original behavior — index refers to position in the
-  // *filtered* (non-empty) list, not the full `ips` array. Mismatched JSX
-  // key mapping is an existing edge case, out of scope for this refactor.
-  trimmed.forEach((ip, index) => {
-    if (!IDC_VALIDATION.IP_REGEX.test(ip.trim())) {
+  // Iterate the original array so `ip_${index}` error keys line up with the
+  // JSX `ips.map((_, index) => ...)` read — extracting to filtered-index
+  // here was the pre-existing bug flagged during review of this refactor.
+  ips.forEach((ip, index) => {
+    const trimmed = ip.trim();
+    if (trimmed && !IDC_VALIDATION.IP_REGEX.test(trimmed)) {
       errors[`ip_${index}`] = '유효한 IPv4 형식이 아닙니다';
     }
   });
