@@ -101,6 +101,11 @@ Each finding is an actionable unit: one PR (or a small group of related PRs) per
 
 - `app/components/features/AwsInfoCard.tsx:124` — `showAllCredentials` initialized but not synced to prop changes
 
+### C9 — Discriminated-union payload with inconsistent field names · 🟡 · Surfaced 2026-04-23
+
+- `app/components/features/queue-board/QueueBoard.tsx:29-33` — 3 variants carry `ApprovalRequestQueueItem`; two use `item`, one (`approve`) uses `target`. Callers at `:101-110` and `:316-322` must branch on the field name, not just the variant type.
+- Introduced by `refactor(queue-board): modal state → discriminated union (wave11-B2)` (PR #302). The audit post-hoc flagged this during wave-task retrospective (this file).
+
 ---
 
 ## D. Effects & Hooks
@@ -223,6 +228,20 @@ Each finding is an actionable unit: one PR (or a small group of related PRs) per
 
 - `app/components/features/process-status/gcp/GcpInstallationInline.tsx:34,48`
 - `lib/api-client/idc.ts:10,19,30,41,50,66,83,99` — repeated "IDC 설치 상태 조회에 실패했습니다."
+
+### G7 — Vague parameter names (`fn` / `cb` / `data` / `val`) · 🟡
+
+- `app/hooks/useInstallationStatus.ts:7-9` — `getFn` / `checkFn` option props. Internal helper was renamed `fn → fetcher` during PR #309 cleanup, but the **public option names** still carry the `Fn` suffix (G7 regression path).
+- Historical hits removed by PR #309 (`run(fn, setInFlight)` → `run(fetcher, setInFlight)`) — see commit `fae1cb4`.
+
+### G8 — Inconsistent naming within a sibling cluster · 🟡 · Surfaced 2026-04-23
+
+- `app/hooks/usePollingBase.ts:40-43` — four callback refs in one block: `fetchRef` / `updateRef` / `completeRef` + `stopFnRef`. Three are role-noun; one carries an `Fn` suffix. Introduced by PR #304 (wave11-B3).
+- `app/components/features/idc/validation.ts:55-69` — four error locals: `nameErr`, `hostErr`, `portErr`, `sidErr`. Only `sidErr` is an abbreviation (vs. the field `serviceId`). Introduced by PR #311 (wave11-B1).
+
+### G9 — Comments narrating past bugs or refactor history · 🟢 · Surfaced 2026-04-23
+
+- `app/components/features/idc/validation.ts:40-42` — `// extracting to filtered-index here was the pre-existing bug flagged during review of this refactor`. Invariant (index must match JSX map index) is valid; the narration ("this refactor", "flagged during review") violates the CLAUDE.md rule *Don't reference the current task, fix, or callers*. Introduced by PR #311 (wave11-B1).
 
 ---
 

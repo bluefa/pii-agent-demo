@@ -55,6 +55,15 @@ Invoke the following skills in order. Any fix in a step triggers re-running the 
 
 1. `/sit-recurring-checks` — grep/rule-based detection + auto-fix for repeat offenders.
 2. `/simplify` — review the diff for reuse, quality, efficiency.
+   > ⚠️ **No dedicated `/simplify` skill file exists yet** — this step currently runs as an inline self-review.
+   > Until a skill is authored, walk through the checklist below on the diff and fix every violation before moving on:
+   >
+   > - **Reuse**: any new constant / helper duplicated across files in the diff? If yes, extract to `connection-test/constants.ts`, `lib/constants/*`, or a co-located helper.
+   > - **Discriminated-union naming (AP-C9)**: do union variants carrying the same entity use the same field name (`item` vs `target`)?
+   > - **Parameter naming (AP-G7)**: are callback / utility parameters role-named (`fetcher`, `mapper`, `validator`, `onApprove`) — not `fn` / `cb` / `data` / `val`?
+   > - **Sibling-cluster consistency (AP-G8)**: within a cluster (refs, error locals, modal states, option fields), does every member follow one convention? No `stopFnRef` among `fetchRef/updateRef/completeRef`; no `sidErr` among `nameErr/hostErr/portErr`.
+   > - **Comments (AP-G9)**: every comment describes an invariant, not history. No "this refactor" / "the fix" / "was flagged" / "PR #NNN".
+   > - **Dynamic imports**: client-only modals use `dynamic(..., { ssr: false })` when not needed server-side.
 3. `/vercel-react-best-practices` — cross-check against the 57 React/Next.js rules and fix violations.
 
 Constraints:
