@@ -26,7 +26,7 @@ import {
   executeSduConnectionTest,
 } from '@/app/lib/api/sdu';
 import { getProject } from '@/app/lib/api';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[projectId]/common';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import {
@@ -222,16 +222,18 @@ export const SduProjectPage = ({
                            currentStep === 'CONNECTION_VERIFIED' ||
                            currentStep === 'INSTALLATION_COMPLETE';
 
-  const pageMetaItems = [
-    { label: 'Cloud Provider', value: 'SDU' },
-    { label: '서비스 코드', value: project.serviceCode },
-    { label: 'Jira Link', value: '-' },
-    { label: '모니터링 방식', value: 'SDU' },
-  ];
+  const identity: ProjectIdentity = {
+    cloudProvider: 'SDU',
+    monitoringMethod: 'SDU',
+    jiraLink: null,
+    identifiers: [
+      { label: '서비스 코드', value: project.serviceCode },
+    ],
+  };
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="SDU Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="SDU Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
 
       <SduProcessStatusCard
         project={project}
