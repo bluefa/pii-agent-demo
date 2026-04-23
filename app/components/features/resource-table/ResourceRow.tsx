@@ -80,7 +80,7 @@ export const ResourceRow = ({
   const hasVmConfig = !!resource.vmDatabaseConfig;
 
   const effectiveDbType: DatabaseType = isVm && hasVmConfig
-    ? resource.vmDatabaseConfig!.databaseType
+    ? resource.vmDatabaseConfig?.databaseType ?? resource.databaseType
     : resource.databaseType;
   const integrationStatus = getResourceIntegrationStatus(resource, processStatus);
   const displayName = getResourceDisplayName(resource);
