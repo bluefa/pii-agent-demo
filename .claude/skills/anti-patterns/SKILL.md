@@ -5,7 +5,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 
 # PII Agent Frontend Anti-Pattern Catalog
 
-40 anti-patterns identified through a full codebase audit. Consumed alongside `/coding-standards`.
+43 anti-patterns identified through a full codebase audit. Consumed alongside `/coding-standards`.
 
 ## When to invoke
 
@@ -23,6 +23,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 | E | Rendering | 5 |
 | F | Error Handling | 4 |
 | G | Naming & Constants | 6 |
+| H | UI Composition (Icons/Assets) | 3 |
 
 Concrete evidence (file:line) from the current codebase → `docs/reports/frontend-anti-patterns-audit-2026-04-23.md`
 
@@ -509,6 +510,104 @@ Strings like "조회에 실패했습니다" duplicated across files → i18n and
 
 ---
 
+## H. UI Composition (Icons & Assets)
+
+Icons are a textbook case where sloppy composition compounds fast. The current codebase has **195 inline `<svg>` tags across 83 files** — changing an icon means grepping raw path data. The rules below exist because the author of one component should never need to paste `<path d="...">` to add an icon.
+
+### H1. Inline SVG markup in feature components 🔴
+
+Pasting `<svg><path d="..." /></svg>` inside a feature component mixes raw visual data with layout, kills reuse, and makes icon swaps a find-and-replace hazard.
+
+```tsx
+// ❌ Bad — inline SVG, defined locally
+const lightbulbIcon = (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707..." />
+  </svg>
+);
+const GuideCard = () => <div>{lightbulbIcon} 가이드</div>;
+
+// ❌ Bad — scattered per-icon files with no shared surface
+// app/components/ui/LightbulbIcon.tsx
+// app/components/ui/ChevronDownIcon.tsx
+// app/components/ui/WarningIcon.tsx
+// Each consumer guesses the path and re-invents props.
+
+// ✅ Good — single icon module with a uniform API
+// app/components/ui/icons/index.ts
+export { GuideIcon } from './GuideIcon';
+export { ExpandIcon } from './ExpandIcon';
+export { WarningIcon } from './WarningIcon';
+
+// app/components/ui/icons/GuideIcon.tsx
+interface IconProps {
+  className?: string;
+  'aria-label'?: string;
+}
+export const GuideIcon = ({ className, ...rest }: IconProps) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden={!rest['aria-label']} {...rest}>
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="..." />
+  </svg>
+);
+
+// Consumer
+import { GuideIcon } from '@/app/components/ui/icons';
+<GuideIcon className="w-3.5 h-3.5" />
+```
+
+**Why a module (not per-file)**:
+
+- One import path (`@/app/components/ui/icons`), one uniform props contract (`IconProps`)
+- Swapping a design system (e.g., adopting lucide-react or heroicons) is a one-file change in `icons/index.ts`
+- ESLint/grep for "which icon lives where" is trivial
+
+**When inline is OK**: truly one-off brand assets (full-page logos, hero illustrations) that are unambiguously not icons.
+
+### H2. Visual-based icon names 🟡
+
+Name icons by **intent**, not by **appearance**. Intent-based names survive design changes; visual-based names become lies the moment the icon is replaced with a different shape.
+
+```tsx
+// ❌ Bad — describes the picture
+<LightbulbIcon />   // what is the lightbulb for?
+<CheckIcon />       // checking off, or "correct"?
+<XIcon />           // close, or "wrong"?
+<ChevronDownIcon /> // menu, dropdown, collapse, or expand?
+
+// ✅ Good — describes the role
+<GuideIcon />       // a tip/guide cue (could be lightbulb, speech bubble, etc.)
+<SuccessIcon />     // positive outcome
+<CloseIcon />       // dismiss action
+<ExpandIcon />      // open a collapsible section
+```
+
+**Rule of thumb**: if a designer swapped the SVG for a different glyph that conveys the same meaning, would the component name still be accurate? If not, rename.
+
+**Exceptions**: brand/product icons (`AwsIcon`, `AzureIcon`, `GcpIcon`) are correctly visual — those *are* the brand.
+
+### H3. No shared icon barrel 🟡
+
+Even when icons are extracted, scattering them across `app/components/ui/*.tsx` as individual files without an `icons/index.ts` barrel forces every consumer to pick the correct path, and makes the inventory invisible. An icon module should have a single import surface:
+
+```ts
+// ✅ app/components/ui/icons/index.ts
+export type { IconProps } from './types';
+export { GuideIcon } from './GuideIcon';
+export { ExpandIcon } from './ExpandIcon';
+export { WarningIcon } from './WarningIcon';
+// ... etc. Sorted alphabetically, grouped by concern.
+```
+
+**Consequences of skipping the barrel**:
+
+- Inventory drift — duplicate icons sneak in because nobody sees the list
+- Bundle bloat — multiple definitions of the same glyph
+- Refactor tax — name/path changes require multi-file edits
+
+(This is one of the few places the "avoid barrel files" rule from bundler guidance is outweighed. Next.js tree-shakes named re-exports well; the governance benefit wins.)
+
+---
+
 ## Auto-enforceable via lint
 
 | Anti-pattern | ESLint rule |
@@ -520,6 +619,7 @@ Strings like "조회에 실패했습니다" duplicated across files → i18n and
 | F1 `alert` | `no-alert` |
 | E1 index key | `react/no-array-index-key` |
 | relative import | `no-restricted-imports` |
+| H1 inline svg | custom `no-restricted-syntax` matching `JSXElement[openingElement.name.name='svg']` outside `app/components/ui/icons/**` |
 
 ---
 
@@ -558,4 +658,5 @@ Core rules:
 | Long Parameter List | B2, B5 |
 | Data Clumps | C1, C3 |
 | Feature Envy | (API boundary) |
-| Duplicate Code | D4, B3, G2, G6 |
+| Duplicate Code | D4, B3, G2, G6, H1 |
+| Vague Abstraction | G4, H2 |

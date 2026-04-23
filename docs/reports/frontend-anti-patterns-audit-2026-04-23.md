@@ -226,6 +226,70 @@ Each finding is an actionable unit: one PR (or a small group of related PRs) per
 
 ---
 
+## H. UI Composition (Icons & Assets)
+
+### H1 — Inline SVG scattered across feature components · 🔴 · 195 tags across 83 files
+
+Raw `<svg><path d="..." /></svg>` pasted into feature components. Sampling:
+
+- `app/components/features/process-status/GuideCard.tsx:35-44` — `lightbulbIcon` const
+- `app/components/features/process-status/ConnectionTestPanel.tsx:92,96,225,229,293,365` — six inline SVGs in one file (warning/info/error/success/expand)
+- `app/components/features/process-status/StepProgressBar.tsx` — multiple
+- `app/components/features/process-status/MissingCredentialsTab.tsx`
+- `app/components/features/process-status/azure/AzureInstallationInline.tsx`
+- `app/components/features/TerraformStatusModal.tsx`
+- `app/components/features/ConnectionDetailModal.tsx`
+- `app/components/features/ResourceTable.tsx`
+- `app/components/features/StepIndicator.tsx`
+- `app/components/features/idc/IdcResourceTable.tsx`
+- `app/components/features/sdu/SduInstallationProgress.tsx`
+- `app/components/ui/CollapsibleSection.tsx`, `Table.tsx`, `Tooltip.tsx`, `LoadingSpinner.tsx`, `Modal.tsx`, `PageHeader.tsx`
+- `app/components/layout/TopNav.tsx`
+- `app/projects/[projectId]/**` (multiple pages)
+- `app/integration/admin/dashboard/page.tsx`
+
+Full set: `grep -rl '<svg' app/ | wc -l` → 83.
+
+### H2 — Visual-based icon names · 🟡
+
+Names describe shape, not intent:
+
+- `app/components/features/process-status/GuideCard.tsx:35` — `lightbulbIcon` (intent = a tip/guide cue)
+- `app/components/ui/CloudProviderIcon.tsx:25,32,39` — `AwsIcon`, `AzureIcon`, `GcpIcon` (brand icons are OK — these stay visual by design; noted for completeness)
+- Inline SVGs in `ConnectionTestPanel.tsx:92,96,225,229` follow a warning/info/error/success status pattern but are never extracted or named — the shape is repeated six times with slight className changes.
+
+### H3 — No shared icon barrel · 🟡
+
+Existing ad-hoc icon files live in `app/components/ui/` as peers of Button/Badge/Modal:
+
+- `CloudProviderIcon.tsx`, `ServiceIcon.tsx`, `AwsServiceIcon.tsx`, `AzureServiceIcon.tsx`, `GcpServiceIcon.tsx`, `DatabaseIcon.tsx`
+
+There is no `app/components/ui/icons/index.ts` barrel and no shared `IconProps` contract. Each of the existing files invents its own prop shape.
+
+**Proposed target structure**:
+
+```
+app/components/ui/icons/
+├── index.ts                 # barrel with named re-exports, sorted
+├── types.ts                 # IconProps { className?, 'aria-label'? }
+├── GuideIcon.tsx            # was: lightbulbIcon (intent-named)
+├── StatusWarningIcon.tsx    # extract from ConnectionTestPanel:92
+├── StatusInfoIcon.tsx       # extract from ConnectionTestPanel:96
+├── StatusErrorIcon.tsx      # extract from ConnectionTestPanel:225
+├── StatusSuccessIcon.tsx    # extract from ConnectionTestPanel:229
+├── ExpandIcon.tsx           # rotate-180 chevron pattern (CollapsibleSection, etc.)
+├── CloseIcon.tsx
+├── brand/                   # brand icons — visual naming is correct here
+│   ├── AwsIcon.tsx
+│   ├── AzureIcon.tsx
+│   └── GcpIcon.tsx
+└── ...
+```
+
+Migration expected to touch all 83 files but the per-site change is mechanical (replace `<svg>...</svg>` → `<GuideIcon className="..." />`).
+
+---
+
 ## Misc
 
 ### Relative-path imports (project rule violation) · 🟡
@@ -265,4 +329,9 @@ A possible sequencing:
 - A1 — replace `!` with guards (mock files first, then components)
 - A2/A3 — introduce zod validators at the route-handler boundary
 
-Total backlog: ~40 anti-patterns, ~150 occurrences.
+**Wave 8 — Icon module extraction (H1/H2/H3)**
+- Create `app/components/ui/icons/` with a unified `IconProps` contract and a barrel
+- First pass: extract the repeated status glyphs (warning/info/error/success) currently re-pasted across `ConnectionTestPanel`, `StepProgressBar`, etc.
+- Second pass: replace 83-file `<svg>` sites with named imports. The edit is mechanical but wide — can be split per directory (`process-status/`, `resource-table/`, etc.)
+
+Total backlog: 43 anti-patterns, ~345 occurrences (150 from the original audit + 195 inline SVG sites).
