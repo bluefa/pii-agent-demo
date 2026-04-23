@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { toastGlobal } from '@/app/components/ui/toast/toastBus';
 
 interface UseAsyncOptions<T> {
   onSuccess?: (data: T) => void;
@@ -37,7 +38,7 @@ export const useAsync = <T, Args extends unknown[] = []>(
         if (onError) {
           onError(error);
         } else {
-          alert(errorMessage || error.message || '작업에 실패했습니다.');
+          toastGlobal()?.error(errorMessage || error.message || '작업에 실패했습니다.');
         }
         return undefined;
       } finally {

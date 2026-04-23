@@ -27,6 +27,7 @@ import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
@@ -74,6 +75,7 @@ export const AzureProjectPage = ({
   credentials,
   onProjectUpdate,
 }: AzureProjectPageProps) => {
+  const toast = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [draftVmConfigs, setDraftVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
@@ -235,7 +237,7 @@ export const AzureProjectPage = ({
       ]);
       onProjectUpdate(updatedProject);
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Credential 변경에 실패했습니다.');
+      toast.error(error instanceof Error ? error.message : 'Credential 변경에 실패했습니다.');
     }
   };
 
@@ -248,7 +250,7 @@ export const AzureProjectPage = ({
     const unconfiguredVms = selectedVmResources.filter((resource) => !resource.vmDatabaseConfig);
 
     if (unconfiguredVms.length > 0) {
-      alert(`다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n${unconfiguredVms.map((resource) => resource.resourceId).join('\n')}`);
+      toast.warning(`다음 VM 리소스의 데이터베이스 설정이 필요합니다: ${unconfiguredVms.map((resource) => resource.resourceId).join(', ')}`);
       return;
     }
 

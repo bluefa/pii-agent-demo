@@ -16,6 +16,7 @@ import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
@@ -44,6 +45,7 @@ export const GcpProjectPage = ({
   credentials,
   onProjectUpdate,
 }: GcpProjectPageProps) => {
+  const toast = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
@@ -142,7 +144,7 @@ export const GcpProjectPage = ({
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
     }
   };
 
@@ -172,7 +174,7 @@ export const GcpProjectPage = ({
     const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
 
     if (unconfiguredVms.length > 0) {
-      alert(`다음 VM 리소스의 데이터베이스 설정이 필요합니다:\n${unconfiguredVms.map((r) => r.resourceId).join('\n')}`);
+      toast.warning(`다음 VM 리소스의 데이터베이스 설정이 필요합니다: ${unconfiguredVms.map((r) => r.resourceId).join(', ')}`);
       return;
     }
 

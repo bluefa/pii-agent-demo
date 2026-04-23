@@ -1,6 +1,7 @@
 'use client';
 
 import { DeleteIcon } from '@/app/components/ui/icons';
+import { useToast } from '@/app/components/ui/toast';
 
 interface DeleteInfrastructureButtonProps {
   onClick?: () => void;
@@ -14,7 +15,8 @@ interface DeleteInfrastructureButtonProps {
  * 실제 삭제 API 는 아직 연동되지 않아 `onClick` 이 없으면 준비중 안내로 대체한다.
  */
 export const DeleteInfrastructureButton = ({ onClick }: DeleteInfrastructureButtonProps) => {
-  const handleClick = onClick ?? (() => alert('기능 준비중입니다.'));
+  const toast = useToast();
+  const handleClick = onClick ?? (() => toast.info('기능 준비중입니다.'));
 
   return (
     <button
