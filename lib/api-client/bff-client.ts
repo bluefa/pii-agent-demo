@@ -130,7 +130,7 @@ export const bffClient: ApiClient = {
   },
   targetSources: {
     list: (serviceCode) => proxyGet(`/target-sources/services/${serviceCode}`),
-    get: (projectId) => proxyGet(`/target-sources/${projectId}`),
+    get: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}`),
     create: (body) => {
       const request = extractTargetSourceCreateRequest(body);
       if (!request) return proxyPost('/target-sources', body);
@@ -138,29 +138,29 @@ export const bffClient: ApiClient = {
     },
   },
   projects: {
-    get: (projectId) => proxyGet(`/projects/${projectId}`),
-    delete: (projectId) => proxyDelete(`/projects/${projectId}`),
+    get: (targetSourceId) => proxyGet(`/projects/${targetSourceId}`),
+    delete: (targetSourceId) => proxyDelete(`/projects/${targetSourceId}`),
     create: (body) => proxyPost('/projects', body),
-    approve: (projectId, body) => proxyPost(`/projects/${projectId}/approve`, body),
-    reject: (projectId, body) => proxyPost(`/projects/${projectId}/reject`, body),
-    confirmTargets: (projectId, body) => proxyPost(`/projects/${projectId}/confirm-targets`, body),
-    completeInstallation: (projectId) => proxyPost(`/projects/${projectId}/complete-installation`, {}),
-    confirmCompletion: (projectId) => proxyPost(`/projects/${projectId}/confirm-completion`, {}),
-    credentials: (projectId) => proxyGet(`/target-sources/${projectId}/secrets`),
-    history: (projectId, query) => {
+    approve: (targetSourceId, body) => proxyPost(`/projects/${targetSourceId}/approve`, body),
+    reject: (targetSourceId, body) => proxyPost(`/projects/${targetSourceId}/reject`, body),
+    confirmTargets: (targetSourceId, body) => proxyPost(`/projects/${targetSourceId}/confirm-targets`, body),
+    completeInstallation: (targetSourceId) => proxyPost(`/projects/${targetSourceId}/complete-installation`, {}),
+    confirmCompletion: (targetSourceId) => proxyPost(`/projects/${targetSourceId}/confirm-completion`, {}),
+    credentials: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/secrets`),
+    history: (targetSourceId, query) => {
       const params = new URLSearchParams();
       if (query.type) params.set('type', query.type);
       if (query.limit) params.set('limit', query.limit);
       if (query.offset) params.set('offset', query.offset);
       const qs = params.toString();
-      return proxyGet(`/projects/${projectId}/history${qs ? `?${qs}` : ''}`);
+      return proxyGet(`/projects/${targetSourceId}/history${qs ? `?${qs}` : ''}`);
     },
-    resourceCredential: (projectId, body) => proxyPut(`/target-sources/${projectId}/resources/credential`, body),
-    resourceExclusions: (projectId) => proxyGet(`/projects/${projectId}/resources/exclusions`),
-    resources: (projectId) => proxyGet(`/projects/${projectId}/resources`),
-    scan: (projectId) => proxyPost(`/projects/${projectId}/scan`, {}),
-    terraformStatus: (projectId) => proxyGet(`/projects/${projectId}/terraform-status`),
-    testConnection: (projectId, body) => proxyPost(`/projects/${projectId}/test-connection`, body),
+    resourceCredential: (targetSourceId, body) => proxyPut(`/target-sources/${targetSourceId}/resources/credential`, body),
+    resourceExclusions: (targetSourceId) => proxyGet(`/projects/${targetSourceId}/resources/exclusions`),
+    resources: (targetSourceId) => proxyGet(`/projects/${targetSourceId}/resources`),
+    scan: (targetSourceId) => proxyPost(`/projects/${targetSourceId}/scan`, {}),
+    terraformStatus: (targetSourceId) => proxyGet(`/projects/${targetSourceId}/terraform-status`),
+    testConnection: (targetSourceId, body) => proxyPost(`/projects/${targetSourceId}/test-connection`, body),
   },
   users: {
     search: (query, excludeIds) => {
@@ -181,25 +181,25 @@ export const bffClient: ApiClient = {
     },
   },
   sdu: {
-    checkInstallation: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/check-installation`, {}),
-    getAthenaTables: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/athena-tables`),
-    executeConnectionTest: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/connection-test/execute`, {}),
-    getConnectionTest: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/connection-test`),
-    issueAkSk: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/iam-user/issue-aksk`, body),
-    getIamUser: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/iam-user`),
-    getInstallationStatus: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/installation-status`),
-    checkS3Upload: (projectId) => proxyPost(`/sdu/target-sources/${projectId}/s3-upload/check`, {}),
-    getS3Upload: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/s3-upload`),
-    confirmSourceIp: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/source-ip/confirm`, body),
-    registerSourceIp: (projectId, body) => proxyPost(`/sdu/target-sources/${projectId}/source-ip/register`, body),
-    getSourceIpList: (projectId) => proxyGet(`/sdu/target-sources/${projectId}/source-ip`),
+    checkInstallation: (targetSourceId) => proxyPost(`/sdu/target-sources/${targetSourceId}/check-installation`, {}),
+    getAthenaTables: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/athena-tables`),
+    executeConnectionTest: (targetSourceId) => proxyPost(`/sdu/target-sources/${targetSourceId}/connection-test/execute`, {}),
+    getConnectionTest: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/connection-test`),
+    issueAkSk: (targetSourceId, body) => proxyPost(`/sdu/target-sources/${targetSourceId}/iam-user/issue-aksk`, body),
+    getIamUser: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/iam-user`),
+    getInstallationStatus: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/installation-status`),
+    checkS3Upload: (targetSourceId) => proxyPost(`/sdu/target-sources/${targetSourceId}/s3-upload/check`, {}),
+    getS3Upload: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/s3-upload`),
+    confirmSourceIp: (targetSourceId, body) => proxyPost(`/sdu/target-sources/${targetSourceId}/source-ip/confirm`, body),
+    registerSourceIp: (targetSourceId, body) => proxyPost(`/sdu/target-sources/${targetSourceId}/source-ip/register`, body),
+    getSourceIpList: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/source-ip`),
   },
   aws: {
-    checkInstallation: (projectId) => proxyPost(`/aws/projects/${projectId}/check-installation`, {}),
-    setInstallationMode: (projectId, body) => proxyPost(`/aws/projects/${projectId}/installation-mode`, body),
-    getInstallationStatus: (projectId) => proxyGet(`/aws/projects/${projectId}/installation-status`),
-    getTerraformScript: (projectId) => proxyGet(`/aws/projects/${projectId}/terraform-script`),
-    verifyTfRole: (_projectId, body) => proxyPost('/aws/verify-tf-role', body ?? {}),
+    checkInstallation: (targetSourceId) => proxyPost(`/aws/projects/${targetSourceId}/check-installation`, {}),
+    setInstallationMode: (targetSourceId, body) => proxyPost(`/aws/projects/${targetSourceId}/installation-mode`, body),
+    getInstallationStatus: (targetSourceId) => proxyGet(`/aws/projects/${targetSourceId}/installation-status`),
+    getTerraformScript: (targetSourceId) => proxyGet(`/aws/projects/${targetSourceId}/terraform-script`),
+    verifyTfRole: (_targetSourceId, body) => proxyPost('/aws/verify-tf-role', body ?? {}),
   },
   azure: {
     checkInstallation: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/azure/check-installation`, {}),
@@ -220,13 +220,13 @@ export const bffClient: ApiClient = {
   idc: {
     getSourceIpRecommendation: (ipType) =>
       proxyGet(`/idc/source-ip-recommendation${ipType ? `?ipType=${ipType}` : ''}`),
-    checkInstallation: (projectId) => proxyPost(`/idc/target-sources/${projectId}/check-installation`, {}),
-    confirmFirewall: (projectId) => proxyPost(`/idc/target-sources/${projectId}/confirm-firewall`, {}),
-    confirmTargets: (projectId, body) => proxyPost(`/idc/target-sources/${projectId}/confirm-targets`, body),
-    getInstallationStatus: (projectId) => proxyGet(`/idc/target-sources/${projectId}/installation-status`),
-    getResources: (projectId) => proxyGet(`/idc/target-sources/${projectId}/resources`),
-    updateResources: (projectId, body) => proxyPut(`/idc/target-sources/${projectId}/resources`, body),
-    updateResourcesList: (projectId, body) => proxyPut(`/idc/target-sources/${projectId}/resources/list`, body),
+    checkInstallation: (targetSourceId) => proxyPost(`/idc/target-sources/${targetSourceId}/check-installation`, {}),
+    confirmFirewall: (targetSourceId) => proxyPost(`/idc/target-sources/${targetSourceId}/confirm-firewall`, {}),
+    confirmTargets: (targetSourceId, body) => proxyPost(`/idc/target-sources/${targetSourceId}/confirm-targets`, body),
+    getInstallationStatus: (targetSourceId) => proxyGet(`/idc/target-sources/${targetSourceId}/installation-status`),
+    getResources: (targetSourceId) => proxyGet(`/idc/target-sources/${targetSourceId}/resources`),
+    updateResources: (targetSourceId, body) => proxyPut(`/idc/target-sources/${targetSourceId}/resources`, body),
+    updateResourcesList: (targetSourceId, body) => proxyPut(`/idc/target-sources/${targetSourceId}/resources/list`, body),
   },
   services: {
     permissions: {
@@ -281,25 +281,25 @@ export const bffClient: ApiClient = {
     },
   },
   confirm: {
-    getResources: (projectId) => proxyResourceCatalogGet(`/target-sources/${projectId}/resources`),
-    createApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests`, body),
-    getConfirmedIntegration: (projectId) =>
-      proxyConfirmedIntegrationGet(`/target-sources/${projectId}/confirmed-integration`),
-    getApprovedIntegration: (projectId) => proxyGet(`/target-sources/${projectId}/approved-integration`),
-    getApprovalHistory: (projectId, page, size) =>
-      proxyGet(`/target-sources/${projectId}/approval-history?page=${page}&size=${size}`),
-    getApprovalRequestLatest: (projectId) =>
-      proxyGet(`/target-sources/${projectId}/approval-requests/latest`),
-    getProcessStatus: (projectId) => proxyGet(`/target-sources/${projectId}/process-status`),
-    approveApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/approve`, body),
-    rejectApprovalRequest: (projectId, body) => proxyPost(`/target-sources/${projectId}/approval-requests/reject`, body),
-    cancelApprovalRequest: (projectId) => proxyPost(`/target-sources/${projectId}/approval-requests/cancel`, {}),
-    confirmInstallation: (projectId) => proxyPost(`/target-sources/${projectId}/pii-agent-installation/confirm`, {}),
-    updateResourceCredential: (projectId, body) => proxyPut(`/target-sources/${projectId}/resources/credential`, body),
-    testConnection: (projectId, body) => proxyPost(`/target-sources/${projectId}/test-connection`, body),
-    getTestConnectionResults: (projectId, page, size) =>
-      proxyGet(`/target-sources/${projectId}/test-connection/results?page=${page}&size=${size}`),
-    getTestConnectionLatest: (projectId) =>
-      proxyGet(`/target-sources/${projectId}/test-connection/latest`),
+    getResources: (targetSourceId) => proxyResourceCatalogGet(`/target-sources/${targetSourceId}/resources`),
+    createApprovalRequest: (targetSourceId, body) => proxyPost(`/target-sources/${targetSourceId}/approval-requests`, body),
+    getConfirmedIntegration: (targetSourceId) =>
+      proxyConfirmedIntegrationGet(`/target-sources/${targetSourceId}/confirmed-integration`),
+    getApprovedIntegration: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/approved-integration`),
+    getApprovalHistory: (targetSourceId, page, size) =>
+      proxyGet(`/target-sources/${targetSourceId}/approval-history?page=${page}&size=${size}`),
+    getApprovalRequestLatest: (targetSourceId) =>
+      proxyGet(`/target-sources/${targetSourceId}/approval-requests/latest`),
+    getProcessStatus: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/process-status`),
+    approveApprovalRequest: (targetSourceId, body) => proxyPost(`/target-sources/${targetSourceId}/approval-requests/approve`, body),
+    rejectApprovalRequest: (targetSourceId, body) => proxyPost(`/target-sources/${targetSourceId}/approval-requests/reject`, body),
+    cancelApprovalRequest: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/approval-requests/cancel`, {}),
+    confirmInstallation: (targetSourceId) => proxyPost(`/target-sources/${targetSourceId}/pii-agent-installation/confirm`, {}),
+    updateResourceCredential: (targetSourceId, body) => proxyPut(`/target-sources/${targetSourceId}/resources/credential`, body),
+    testConnection: (targetSourceId, body) => proxyPost(`/target-sources/${targetSourceId}/test-connection`, body),
+    getTestConnectionResults: (targetSourceId, page, size) =>
+      proxyGet(`/target-sources/${targetSourceId}/test-connection/results?page=${page}&size=${size}`),
+    getTestConnectionLatest: (targetSourceId) =>
+      proxyGet(`/target-sources/${targetSourceId}/test-connection/latest`),
   },
 };

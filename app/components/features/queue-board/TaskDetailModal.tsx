@@ -67,7 +67,7 @@ export const TaskDetailModal = ({
       footer={
         <div className="flex w-full items-center justify-between">
           <Link
-            href={integrationRoutes.project(item.targetSourceId)}
+            href={integrationRoutes.targetSource(item.targetSourceId)}
             className={cn('text-sm font-medium', primaryColors.text, primaryColors.textHover)}
           >
             해당 시스템 상세 보기
