@@ -1,11 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useReducer } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { SecretKey } from '@/lib/types';
 import { IdcResourceInput, IdcInputFormat, IdcDatabaseType } from '@/lib/types/idc';
 import { IDC_VALIDATION, IDC_DEFAULT_PORTS, IDC_DATABASE_TYPE_LABELS } from '@/lib/constants/idc';
 import { cn, inputStyles, primaryColors, statusColors } from '@/lib/theme';
+import {
+  type FormErrors,
+  type FormState,
+  validateAll,
+} from './validation';
 
 interface IdcResourceInputPanelProps {
   initialData?: IdcResourceInput;
@@ -18,8 +23,75 @@ interface IdcResourceInputPanelProps {
 
 const DATABASE_TYPES: IdcDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'ORACLE'];
 
-const validateIp = (ip: string): boolean => {
-  return IDC_VALIDATION.IP_REGEX.test(ip);
+type FormAction =
+  | { type: 'SET_NAME'; value: string }
+  | { type: 'SET_INPUT_FORMAT'; value: IdcInputFormat }
+  | { type: 'ADD_IP' }
+  | { type: 'REMOVE_IP'; index: number }
+  | { type: 'SET_IP'; index: number; value: string }
+  | { type: 'SET_HOST'; value: string }
+  /** Also resets port to the type's default and clears serviceId for non-ORACLE values. */
+  | { type: 'SET_DATABASE_TYPE'; value: IdcDatabaseType }
+  | { type: 'SET_PORT'; value: number }
+  | { type: 'SET_SERVICE_ID'; value: string }
+  | { type: 'SET_CREDENTIAL_ID'; value: string }
+  | { type: 'SET_ERRORS'; errors: FormErrors };
+
+const clearErrors = (errors: FormErrors, ...keys: string[]): FormErrors => {
+  if (keys.every((k) => !(k in errors))) return errors;
+  const next = { ...errors };
+  for (const k of keys) delete next[k];
+  return next;
+};
+
+const buildInitialState = (initialData?: IdcResourceInput): FormState => ({
+  name: initialData?.name ?? '',
+  inputFormat: initialData?.inputFormat ?? 'IP',
+  ips: initialData?.ips ?? [''],
+  host: initialData?.host ?? '',
+  databaseType: initialData?.databaseType ?? 'MYSQL',
+  port: initialData?.port ?? IDC_DEFAULT_PORTS.MYSQL,
+  serviceId: initialData?.serviceId ?? '',
+  credentialId: initialData?.credentialId ?? '',
+  errors: {},
+});
+
+const formReducer = (state: FormState, action: FormAction): FormState => {
+  switch (action.type) {
+    case 'SET_NAME':
+      return { ...state, name: action.value, errors: clearErrors(state.errors, 'name') };
+    case 'SET_INPUT_FORMAT':
+      return { ...state, inputFormat: action.value };
+    case 'ADD_IP':
+      return state.ips.length < IDC_VALIDATION.MAX_IPS
+        ? { ...state, ips: [...state.ips, ''] }
+        : state;
+    case 'REMOVE_IP':
+      return state.ips.length > 1
+        ? { ...state, ips: state.ips.filter((_, i) => i !== action.index) }
+        : state;
+    case 'SET_IP': {
+      const next = [...state.ips];
+      next[action.index] = action.value;
+      return { ...state, ips: next, errors: clearErrors(state.errors, `ip_${action.index}`) };
+    }
+    case 'SET_HOST':
+      return { ...state, host: action.value, errors: clearErrors(state.errors, 'host') };
+    case 'SET_DATABASE_TYPE': {
+      const base = { ...state, databaseType: action.value, port: IDC_DEFAULT_PORTS[action.value] };
+      return action.value === 'ORACLE'
+        ? base
+        : { ...base, serviceId: '', errors: clearErrors(state.errors, 'serviceId') };
+    }
+    case 'SET_PORT':
+      return { ...state, port: action.value, errors: clearErrors(state.errors, 'port') };
+    case 'SET_SERVICE_ID':
+      return { ...state, serviceId: action.value, errors: clearErrors(state.errors, 'serviceId') };
+    case 'SET_CREDENTIAL_ID':
+      return { ...state, credentialId: action.value };
+    case 'SET_ERRORS':
+      return { ...state, errors: action.errors };
+  }
 };
 
 export const IdcResourceInputPanel = ({
@@ -30,138 +102,44 @@ export const IdcResourceInputPanel = ({
   variant = 'card',
 }: IdcResourceInputPanelProps) => {
   const isModal = variant === 'modal';
-  const [name, setName] = useState(initialData?.name ?? '');
-  const [inputFormat, setInputFormat] = useState<IdcInputFormat>(initialData?.inputFormat ?? 'IP');
-  const [ips, setIps] = useState<string[]>(initialData?.ips ?? ['']);
-  const [host, setHost] = useState(initialData?.host ?? '');
-  const [databaseType, setDatabaseType] = useState<IdcDatabaseType>(initialData?.databaseType ?? 'MYSQL');
-  const [port, setPort] = useState<number>(initialData?.port ?? IDC_DEFAULT_PORTS.MYSQL);
-  const [serviceId, setServiceId] = useState(initialData?.serviceId ?? '');
-  const [credentialId, setCredentialId] = useState(initialData?.credentialId ?? '');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [state, dispatch] = useReducer(formReducer, initialData, buildInitialState);
+  const { name, inputFormat, ips, host, databaseType, port, serviceId, credentialId, errors } = state;
 
-  // IP 추가
-  const handleAddIp = useCallback(() => {
-    if (ips.length < IDC_VALIDATION.MAX_IPS) {
-      setIps([...ips, '']);
-    }
-  }, [ips]);
-
-  // IP 제거
-  const handleRemoveIp = useCallback((index: number) => {
-    if (ips.length > 1) {
-      setIps(ips.filter((_, i) => i !== index));
-    }
-  }, [ips]);
-
-  // IP 변경
-  const handleIpChange = useCallback((index: number, value: string) => {
-    const newIps = [...ips];
-    newIps[index] = value;
-    setIps(newIps);
-
-    // IP 에러 클리어
-    if (errors[`ip_${index}`]) {
-      const newErrors = { ...errors };
-      delete newErrors[`ip_${index}`];
-      setErrors(newErrors);
-    }
-  }, [ips, errors]);
-
-  // Database Type 변경 시 기본 포트 설정
-  const handleDatabaseTypeChange = useCallback((type: IdcDatabaseType) => {
-    setDatabaseType(type);
-    setPort(IDC_DEFAULT_PORTS[type]);
-
-    // Oracle이 아니면 serviceId 초기화
-    if (type !== 'ORACLE') {
-      setServiceId('');
-      if (errors.serviceId) {
-        const newErrors = { ...errors };
-        delete newErrors.serviceId;
-        setErrors(newErrors);
-      }
-    }
-  }, [errors]);
-
-  // 유효성 검증
-  const validate = useCallback((): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // 이름 검증
-    if (!name.trim()) {
-      newErrors.name = '리소스 이름을 입력하세요';
-    }
-
-    // IP/HOST 검증
-    if (inputFormat === 'IP') {
-      const validIps = ips.filter(ip => ip.trim());
-      if (validIps.length === 0) {
-        newErrors.ips = 'IP를 최소 1개 입력하세요';
-      } else {
-        validIps.forEach((ip, index) => {
-          if (!validateIp(ip.trim())) {
-            newErrors[`ip_${index}`] = '유효한 IPv4 형식이 아닙니다';
-          }
-        });
-      }
-    } else {
-      if (!host.trim()) {
-        newErrors.host = 'HOST를 입력하세요';
-      } else if (host.length > IDC_VALIDATION.MAX_HOST_LENGTH) {
-        newErrors.host = `HOST는 ${IDC_VALIDATION.MAX_HOST_LENGTH}자 이내로 입력하세요`;
-      }
-    }
-
-    // 포트 검증
-    if (port < 1 || port > 65535) {
-      newErrors.port = '포트는 1-65535 범위여야 합니다';
-    }
-
-    // Oracle ServiceId 검증
-    if (databaseType === 'ORACLE' && !serviceId.trim()) {
-      newErrors.serviceId = 'Oracle DB는 Service ID가 필수입니다';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [name, inputFormat, ips, host, port, databaseType, serviceId]);
-
-  // 저장
   const handleSave = useCallback(() => {
-    if (!validate()) return;
+    const nextErrors = validateAll(state);
+    if (Object.keys(nextErrors).length > 0) {
+      dispatch({ type: 'SET_ERRORS', errors: nextErrors });
+      return;
+    }
 
     const data: IdcResourceInput = {
-      name: name.trim(),
-      inputFormat,
-      port,
-      databaseType,
+      name: state.name.trim(),
+      inputFormat: state.inputFormat,
+      port: state.port,
+      databaseType: state.databaseType,
     };
 
-    if (inputFormat === 'IP') {
-      data.ips = ips.filter(ip => ip.trim()).map(ip => ip.trim());
+    if (state.inputFormat === 'IP') {
+      data.ips = state.ips.filter((ip) => ip.trim()).map((ip) => ip.trim());
     } else {
-      data.host = host.trim();
+      data.host = state.host.trim();
     }
 
-    if (databaseType === 'ORACLE') {
-      data.serviceId = serviceId.trim();
+    if (state.databaseType === 'ORACLE') {
+      data.serviceId = state.serviceId.trim();
     }
 
-    // Credential ID (Optional)
-    if (credentialId) {
-      data.credentialId = credentialId;
+    if (state.credentialId) {
+      data.credentialId = state.credentialId;
     }
 
     onSave(data);
-  }, [name, inputFormat, ips, host, port, databaseType, serviceId, credentialId, validate, onSave]);
+  }, [state, onSave]);
 
-  // IP 2개 이상 경고
-  const showClusterWarning = inputFormat === 'IP' && ips.filter(ip => ip.trim()).length >= 2;
+  const showClusterWarning = inputFormat === 'IP' && ips.filter((ip) => ip.trim()).length >= 2;
 
   return (
     <div className={isModal ? '' : 'bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden'}>
-      {/* Header - Modal 모드에서는 숨김 */}
       {!isModal && (
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -178,35 +156,25 @@ export const IdcResourceInputPanel = ({
         </div>
       )}
 
-      {/* Body */}
       <div className={isModal ? 'space-y-5' : 'p-6 space-y-5'}>
-        {/* 리소스 이름 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">리소스 이름</label>
           <input
             type="text"
             value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (errors.name) {
-                const newErrors = { ...errors };
-                delete newErrors.name;
-                setErrors(newErrors);
-              }
-            }}
+            onChange={(e) => dispatch({ type: 'SET_NAME', value: e.target.value })}
             className={cn(inputStyles.base, errors.name && inputStyles.error)}
             placeholder="예: 주문 DB"
           />
           {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
         </div>
 
-        {/* 입력 포맷 토글 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">입력 방식</label>
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setInputFormat('IP')}
+              onClick={() => dispatch({ type: 'SET_INPUT_FORMAT', value: 'IP' })}
               className={cn(
                 'flex-1 py-2.5 px-4 rounded-lg border-2 font-medium transition-all',
                 inputFormat === 'IP'
@@ -218,7 +186,7 @@ export const IdcResourceInputPanel = ({
             </button>
             <button
               type="button"
-              onClick={() => setInputFormat('HOST')}
+              onClick={() => dispatch({ type: 'SET_INPUT_FORMAT', value: 'HOST' })}
               className={cn(
                 'flex-1 py-2.5 px-4 rounded-lg border-2 font-medium transition-all',
                 inputFormat === 'HOST'
@@ -231,7 +199,6 @@ export const IdcResourceInputPanel = ({
           </div>
         </div>
 
-        {/* IP 입력 */}
         {inputFormat === 'IP' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -243,14 +210,14 @@ export const IdcResourceInputPanel = ({
                   <input
                     type="text"
                     value={ip}
-                    onChange={(e) => handleIpChange(index, e.target.value)}
+                    onChange={(e) => dispatch({ type: 'SET_IP', index, value: e.target.value })}
                     className={cn(inputStyles.base, errors[`ip_${index}`] && inputStyles.error)}
                     placeholder="예: 192.168.1.100"
                   />
                   {ips.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => handleRemoveIp(index)}
+                      onClick={() => dispatch({ type: 'REMOVE_IP', index })}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -268,7 +235,7 @@ export const IdcResourceInputPanel = ({
             {ips.length < IDC_VALIDATION.MAX_IPS && (
               <button
                 type="button"
-                onClick={handleAddIp}
+                onClick={() => dispatch({ type: 'ADD_IP' })}
                 className={cn('mt-2 flex items-center gap-1 text-sm font-medium', primaryColors.text, primaryColors.textHover)}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,7 +245,6 @@ export const IdcResourceInputPanel = ({
               </button>
             )}
 
-            {/* Cluster IP 경고 */}
             {showClusterWarning && (
               <div className="mt-3 flex items-start gap-2 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg">
                 <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,7 +260,6 @@ export const IdcResourceInputPanel = ({
           </div>
         )}
 
-        {/* HOST 입력 */}
         {inputFormat === 'HOST' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -303,14 +268,7 @@ export const IdcResourceInputPanel = ({
             <input
               type="text"
               value={host}
-              onChange={(e) => {
-                setHost(e.target.value);
-                if (errors.host) {
-                  const newErrors = { ...errors };
-                  delete newErrors.host;
-                  setErrors(newErrors);
-                }
-              }}
+              onChange={(e) => dispatch({ type: 'SET_HOST', value: e.target.value })}
               className={cn(inputStyles.base, errors.host && inputStyles.error)}
               placeholder="예: db.example.com"
               maxLength={IDC_VALIDATION.MAX_HOST_LENGTH}
@@ -320,7 +278,6 @@ export const IdcResourceInputPanel = ({
           </div>
         )}
 
-        {/* Database Type */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Database Type</label>
           <div className="grid grid-cols-4 gap-2">
@@ -328,7 +285,7 @@ export const IdcResourceInputPanel = ({
               <button
                 key={type}
                 type="button"
-                onClick={() => handleDatabaseTypeChange(type)}
+                onClick={() => dispatch({ type: 'SET_DATABASE_TYPE', value: type })}
                 className={cn(
                   'py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all',
                   databaseType === type
@@ -342,20 +299,12 @@ export const IdcResourceInputPanel = ({
           </div>
         </div>
 
-        {/* Port */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Port</label>
           <input
             type="number"
             value={port}
-            onChange={(e) => {
-              setPort(parseInt(e.target.value) || 0);
-              if (errors.port) {
-                const newErrors = { ...errors };
-                delete newErrors.port;
-                setErrors(newErrors);
-              }
-            }}
+            onChange={(e) => dispatch({ type: 'SET_PORT', value: parseInt(e.target.value) || 0 })}
             min={1}
             max={65535}
             className={cn(inputStyles.base, 'w-32', errors.port && inputStyles.error)}
@@ -364,7 +313,6 @@ export const IdcResourceInputPanel = ({
           <p className="mt-1 text-xs text-gray-400">1-65535 범위</p>
         </div>
 
-        {/* Oracle Service ID */}
         {databaseType === 'ORACLE' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -373,14 +321,7 @@ export const IdcResourceInputPanel = ({
             <input
               type="text"
               value={serviceId}
-              onChange={(e) => {
-                setServiceId(e.target.value);
-                if (errors.serviceId) {
-                  const newErrors = { ...errors };
-                  delete newErrors.serviceId;
-                  setErrors(newErrors);
-                }
-              }}
+              onChange={(e) => dispatch({ type: 'SET_SERVICE_ID', value: e.target.value })}
               className={cn(inputStyles.base, errors.serviceId && inputStyles.error)}
               placeholder="예: ORCL"
             />
@@ -388,7 +329,6 @@ export const IdcResourceInputPanel = ({
           </div>
         )}
 
-        {/* DB Credential (Optional) */}
         <div className="border-t border-gray-200 pt-5">
           <div className="flex items-center gap-2 mb-2">
             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,7 +340,7 @@ export const IdcResourceInputPanel = ({
           </div>
           <select
             value={credentialId}
-            onChange={(e) => setCredentialId(e.target.value)}
+            onChange={(e) => dispatch({ type: 'SET_CREDENTIAL_ID', value: e.target.value })}
             className={cn(
               inputStyles.base,
               credentialId ? 'border-green-300 bg-green-50' : ''
@@ -424,7 +364,6 @@ export const IdcResourceInputPanel = ({
         </div>
       </div>
 
-      {/* Footer */}
       <div className={isModal
         ? 'pt-5 flex justify-end gap-3'
         : 'px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3'
