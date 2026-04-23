@@ -20,6 +20,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [ux-requirements](./ux-requirements/SKILL.md) | `/ux-requirements` | UI/UX 요구사항 도출 및 명세서 생성 | - | team-lead |
 | [wave-task](./wave-task/SKILL.md) | `/wave-task` | Spec markdown 1개 → 구현/self-audit/PR/auto-fix 루프/머지 대기 파이프라인 | - | code-implementer |
 | [sit-recurring-checks](./sit-recurring-checks/SKILL.md) | `/sit-recurring-checks` | PR #274-288 리뷰에서 반복된 findings 사전 차단 | O | 전체 |
+| [anti-patterns](./anti-patterns/SKILL.md) | `/anti-patterns` | Frontend Clean Code 안티패턴 카탈로그 (40 patterns) | O | 전체 |
 
 ## 에이전트 (Agents)
 
@@ -80,7 +81,9 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   │   └── SKILL.md
 │   ├── ux-audit/
 │   │   └── SKILL.md
-│   └── ux-requirements/
+│   ├── ux-requirements/
+│   │   └── SKILL.md
+│   └── anti-patterns/
 │       └── SKILL.md
 ├── agents/
 │   ├── code-reviewer.md         # 팀: 종합 코드 리뷰
