@@ -201,27 +201,6 @@ function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegratio
   };
 }
 
-interface ApprovalRequestCreateBody {
-  resource_inputs: Array<
-    | {
-      resource_id: string;
-      selected: true;
-      resource_input?: {
-        credential_id?: string;
-        endpoint_config?: EndpointConfigInputData;
-        resource_id?: string;
-        database_type?: string;
-        port?: number;
-        host?: string;
-        oracle_service_id?: string;
-        network_interface_id?: string;
-      };
-    }
-    | { resource_id: string; selected: false; exclusion_reason?: string }
-  >;
-  exclusion_reason_default?: string;
-}
-
 // --- Queue Board Integration Helpers ---
 
 const getCloudInfo = (project: Project): string => {
@@ -309,8 +288,7 @@ export const mockConfirm = {
       }
     }
 
-    const { resource_inputs, exclusion_reason_default } =
-      normalizeIssue222ApprovalRequestBody(body) as unknown as ApprovalRequestCreateBody;
+    const { resource_inputs, exclusion_reason_default } = normalizeIssue222ApprovalRequestBody(body);
 
     const selectedInputs = resource_inputs.filter(
       (ri): ri is Extract<typeof ri, { selected: true }> => ri.selected === true,
