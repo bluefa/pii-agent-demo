@@ -1,31 +1,15 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Resource, CloudProvider, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, CloudProvider } from '@/lib/types';
 import type { ResourceType } from '@/lib/types';
 import { getResourceTypeLabel, RESOURCE_TYPE_ORDER_BY_PROVIDER } from '@/lib/constants/labels';
 import { ServiceIcon } from '@/app/components/ui/ServiceIcon';
 import { cn, textColors, bgColors, providerColors, statusColors } from '@/lib/theme';
 import { ResourceRow } from './ResourceRow';
+import type { ResourceTableBodyProps } from './types';
 
 const COLLAPSE_THRESHOLD = 5;
-
-interface ResourceTableBodyProps {
-  resources: Resource[];
-  cloudProvider: CloudProvider;
-  processStatus: ProcessStatus;
-  selectedIds: Set<string>;
-  isEditMode: boolean;
-  isCheckboxEnabled: boolean;
-  showCredentialColumn: boolean;
-  onCheckboxChange: (id: string, checked: boolean) => void;
-  colSpan: number;
-  credentials: SecretKey[];
-  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
-  expandedVmId?: string | null;
-  onVmConfigToggle?: (resourceId: string | null) => void;
-  onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
-}
 
 const groupByResourceType = (res: Resource[], provider: CloudProvider): [ResourceType, Resource[]][] => {
   const groups = new Map<ResourceType, Resource[]>();

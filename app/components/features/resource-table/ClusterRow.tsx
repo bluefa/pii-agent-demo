@@ -5,7 +5,8 @@ import { cn, statusColors, textColors, bgColors } from '@/lib/theme';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { Badge } from '@/app/components/ui/Badge';
 import { InstancePanel } from './InstancePanel';
-import { getResourceIntegrationStatus, getResourceScanHistory, getResourceDisplayName } from '@/lib/resource';
+import { ScanHistoryBadge } from './ScanHistoryBadge';
+import { getResourceIntegrationStatus, getResourceDisplayName, getIntegrationStatusTextClass } from '@/lib/resource';
 import type { Resource, ClusterInstance, ProcessStatus } from '@/lib/types';
 
 interface ClusterRowProps {
@@ -78,7 +79,6 @@ export const ClusterRow = ({
   const selectedCount = instances.filter((i) => i.isSelected).length;
   const isReadOnly = !isEditMode && !isCheckboxEnabled;
   const integrationStatus = getResourceIntegrationStatus(resource, processStatus);
-  const scanHistory = getResourceScanHistory(resource);
   const displayName = getResourceDisplayName(resource);
 
   const handleCheckboxChange = (checked: boolean) => {
@@ -169,20 +169,13 @@ export const ClusterRow = ({
         </td>
 
         <td className="px-6 py-4">
-          <span className={cn(
-            'text-sm',
-            integrationStatus === '연동 완료' && statusColors.success.textDark,
-            integrationStatus === '연동 진행중' && statusColors.info.textDark,
-            integrationStatus === '—' && textColors.quaternary,
-          )}>
+          <span className={cn('text-sm', getIntegrationStatusTextClass(integrationStatus))}>
             {integrationStatus}
           </span>
         </td>
 
         <td className="px-6 py-4">
-          {scanHistory === '신규' && <Badge variant="info" size="sm">신규</Badge>}
-          {scanHistory === '변경' && <Badge variant="warning" size="sm">변경</Badge>}
-          {scanHistory === null && <span className={cn('text-sm', textColors.quaternary)}>—</span>}
+          <ScanHistoryBadge resource={resource} />
         </td>
 
         {showCredentialColumn && <td className="px-6 py-4" />}

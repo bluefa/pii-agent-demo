@@ -72,10 +72,14 @@ export const ResourceTable = ({
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
     processStatus === ProcessStatus.INSTALLATION_COMPLETE;
 
-  const targetResources = resources.filter((r) => r.isSelected || selectedIdsSet.has(r.id));
-  const nonTargetResources = resources.filter(r => !r.isSelected && !selectedIdsSet.has(r.id));
-  const vnetResources = nonTargetResources.filter(r => r.integrationCategory === 'INSTALL_INELIGIBLE');
-  const normalNonTargetResources = nonTargetResources.filter(r => r.integrationCategory !== 'INSTALL_INELIGIBLE');
+  const targetResources: Resource[] = [];
+  const vnetResources: Resource[] = [];
+  const normalNonTargetResources: Resource[] = [];
+  for (const r of resources) {
+    if (r.isSelected || selectedIdsSet.has(r.id)) targetResources.push(r);
+    else if (r.integrationCategory === 'INSTALL_INELIGIBLE') vnetResources.push(r);
+    else normalNonTargetResources.push(r);
+  }
 
   const handleCheckboxChange = (resourceId: string, checked: boolean) => {
     const newSelectedIds = new Set(selectedIdsSet);
@@ -95,8 +99,8 @@ export const ResourceTable = ({
     SDU: FlatResourceTableBody,
   }[cloudProvider];
 
-  const BASE_COLUMN_COUNT = 7;
-  const colSpan = BASE_COLUMN_COUNT + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0);
+  const VISIBLE_DATA_COLUMNS = 7;
+  const colSpan = VISIBLE_DATA_COLUMNS + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0);
 
   const rowProps = {
     selectedIds: selectedIdsSet,

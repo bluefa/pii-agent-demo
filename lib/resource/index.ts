@@ -1,4 +1,4 @@
-export { getResourceIntegrationStatus } from './integration-status';
+export { getResourceIntegrationStatus, getIntegrationStatusTextClass } from './integration-status';
 export type { ResourceIntegrationStatus } from './integration-status';
 export { getResourceScanHistory } from './scan-history';
 export type { ResourceScanHistory } from './scan-history';
