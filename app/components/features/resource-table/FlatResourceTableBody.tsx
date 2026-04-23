@@ -20,7 +20,7 @@ export const FlatResourceTableBody = ({
 }: ResourceTableBodyProps) => (
   <>
     <thead>
-      <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
+      <tr className={cn('text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap', textColors.tertiary, bgColors.muted)}>
         {isEditMode && <th className="px-6 py-3 w-10" />}
         <th className="px-6 py-3">연동 대상 여부</th>
         <th className="px-6 py-3">DB Type</th>
