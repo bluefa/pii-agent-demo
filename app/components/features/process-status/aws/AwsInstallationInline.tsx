@@ -9,6 +9,7 @@ import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { useModal } from '@/app/hooks/useModal';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import type { AwsInstallationStatus, AwsResourceType } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
@@ -103,7 +104,7 @@ export const AwsInstallationInline = ({
         onInstallComplete?.();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
+      setError(err instanceof Error ? err.message : ERROR_MESSAGES.STATUS_FETCH_FAILED);
     } finally {
       setLoading(false);
     }

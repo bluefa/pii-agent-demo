@@ -36,6 +36,7 @@ import {
   SduAthenaTableList,
 } from '@/app/components/features/sdu';
 import { useModal } from '@/app/hooks/useModal';
+import { TIMINGS } from '@/lib/constants/timings';
 
 interface SduProjectPageProps {
   project: Project;
@@ -95,7 +96,7 @@ export const SduProjectPage = ({
       } catch {
         // polling failure ignored, retry next interval
       }
-    }, 10000);
+    }, TIMINGS.PROCESS_STATUS_POLL_MS);
   }, [project.targetSourceId, stopInstallPolling]);
 
   const refreshSduStatus = useCallback(async (s3Status: Awaited<ReturnType<typeof getS3UploadStatus>>) => {

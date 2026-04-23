@@ -12,6 +12,7 @@ import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/ap
 import { AppError } from '@/lib/errors';
 import { formatDateTime } from '@/lib/utils/date';
 import { statusColors, cn, textColors } from '@/lib/theme';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import type { Resource } from '@/lib/types';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
@@ -79,7 +80,7 @@ const toInstallStep = (v1Resource: AzureV1Resource): InstallStep => {
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof AppError) return err.message;
   if (err instanceof Error) return err.message;
-  return '상태 조회에 실패했습니다.';
+  return ERROR_MESSAGES.STATUS_FETCH_FAILED;
 };
 
 const getLastCheckedLabel = (checkedAt?: string): string | null =>

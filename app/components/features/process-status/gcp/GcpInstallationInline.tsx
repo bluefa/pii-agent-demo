@@ -7,6 +7,7 @@ import { InstallationLoadingView } from '@/app/components/features/process-statu
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { GcpStepSummaryRow } from './GcpStepSummaryRow';
 import { GcpResourceStatusTable } from './GcpResourceStatusTable';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
 
 interface GcpInstallationInlineProps {
@@ -31,7 +32,7 @@ export const GcpInstallationInline = ({
       setStatus(data);
       if (data.summary.allCompleted) onInstallComplete?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '상태 조회에 실패했습니다.');
+      setError(err instanceof Error ? err.message : ERROR_MESSAGES.STATUS_FETCH_FAILED);
     } finally {
       setLoading(false);
     }
