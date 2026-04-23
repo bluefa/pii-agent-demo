@@ -128,14 +128,63 @@ projectId?: string;
 const generateTfStatus = (projectId: string): IdcTfStatus => {
   const hash = projectId.split('').reduce(...);  // ← string 기반
 ```
-→ 변경:
+
+⛔ **해시 결과 보존** 이 behavior preservation 의 핵심. 단순 rename 으로 바꾸면 같은 project 에 대해 **다른 상태**가 리턴됨 (W0 lock-in 테스트 fail).
+
+**해결**: 해시의 **입력 문자열을 동일하게 유지**:
 ```ts
 const generateTfStatus = (targetSourceId: number): IdcTfStatus => {
-  const hash = targetSourceId;  // number 직접 사용 — 더 단순
-  // ...
+  // ⚠ 주의: 원래 projectId string (예: 'idc-project-1') 과 해시 결과가 달라지면
+  // W0 lock-in 테스트가 fail — 의도적 변경이 아님.
+  // 해결: 기존 projectId 를 입력값으로 복원 후 해시 — §3-1.5 매핑 표 참조
+  const project = getProjectByTargetSourceId(targetSourceId);
+  if (!project) return 'PENDING';
+  const hash = project.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const statuses: IdcTfStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'];
+  return statuses[hash % statuses.length];
 };
 ```
-또는 `String(targetSourceId).split('')` 유지. **더 단순한 쪽 선택** (simplify skill).
+
+같은 원칙이 SDU 의 S3 버킷명 (`sdu-data-${projectId.slice(-8)}`) 에도 적용 — bucket 이름이 `sdu-data-${project.id.slice(-8)}` 로 유지되어야 behavior 보존. `String(targetSourceId).slice(-8)` 로 바꾸면 완전 다른 bucket 이름 → **behavior drift**.
+
+**원칙**: 내부 로직에서 projectId string 을 해시/표시/경로로 쓰던 곳은 **`getProjectByTargetSourceId(targetSourceId).id` 로 복원**해서 원본 string 값을 얻어 사용. simplify 유혹에 굴복해서 `String(targetSourceId)` 로 바꾸면 behavior 가 변함.
+
+### 3-2.5. Fixture 값 매핑 표 (⛔ 필수 선행 작업)
+
+Wave 0 테스트의 fixture id (projectId string) 를 Wave 2 에서 targetSourceId (number) 로 바꿀 때 **정확한 1:1 매핑** 이 필요. 잘못 매핑하면 같은 assertion 이 다른 project 객체를 검증하게 되어 의미 상실.
+
+**Step**:
+```bash
+# main@2b4f641 에서 매핑 테이블 추출
+cat > /tmp/id-mapping.md <<'SH'
+# projectId ↔ targetSourceId 매핑 (main@2b4f641 기준 scratch)
+SH
+
+npx tsx -e "
+import { mockProjects } from '@/lib/mock-data';
+for (const p of mockProjects) {
+  console.log(\`| \${p.cloudProvider} | \${p.id} | \${p.targetSourceId} |\`);
+}
+" >> /tmp/id-mapping.md
+
+cat /tmp/id-mapping.md
+```
+
+예상 결과 (형태):
+```
+| Provider | projectId (legacy) | targetSourceId (new) |
+|---|---|---|
+| AWS | aws-project-1 | 1001 |
+| SDU | sdu-project-1 | 1002 |
+| IDC | idc-project-1 | 1003 |
+| AZURE | azure-project-1 | 1004 |
+| GCP | gcp-project-1 | 1005 |
+...
+```
+
+이 표를 **PR description 에 첨부** + `docs/reports/projectid-removal/id-mapping-snapshot.md` 로 저장 (historical record).
+
+Wave 0 테스트에서 `const SDU_PROJECT_ID = 'sdu-project-1'` 이었다면 Wave 2 에서 `const SDU_TARGET_SOURCE_ID = 1002` 로 교체. 매핑 표로 검증 가능.
 
 ### 3-3. `lib/mock-data.ts` — 매핑 헬퍼 정리
 
@@ -479,6 +528,87 @@ grep -rn "getProjectIdByTargetSourceId\|getTargetSourceIdByProjectId" --include=
 grep -rn "projectId" lib/types.ts
 # → 1 건 (L805 ConfirmResourceMetadata.projectId — GCP native 의도적 유지)
 ```
+
+### Layer 6 — Response Parity (mock 모드 byte-level diff) ⭐ 가장 강력한 증명
+
+Mock 모드는 결정론적 (`USE_MOCK_DATA=true`, seed 고정 가능). **같은 request 에 byte-for-byte 동일한 response** 가 나와야 behavior 보존 증명.
+
+**Step A — main 에서 baseline 수집 (W2 시작 전)**:
+
+```bash
+# W2 worktree 진입 전 — main 상태로
+cd /Users/study/pii-agent-demo
+git fetch origin main && git checkout main
+
+# 시간 결정성 확보 (production 코드가 Date.now 쓰는 곳은 baseline/after 같은 순간에)
+export USE_MOCK_DATA=true
+export TZ=UTC
+
+# dev 서버 시작 (포트 자동)
+PORT=$(bash scripts/dev.sh 2>&1 | grep -oE 'localhost:[0-9]+' | head -1 | cut -d: -f2) &
+SERVER_PID=$!
+sleep 5
+
+# id-mapping 표에서 각 provider 의 targetSourceId 1개씩 선택
+for TS_ID in 1001 1002 1003 1004 1005; do  # AWS/SDU/IDC/AZURE/GCP 매핑에 맞춰 업데이트
+  for ep in \
+    "/integration/api/v1/target-sources/${TS_ID}" \
+    "/integration/api/v1/target-sources/${TS_ID}/process-status" \
+    "/integration/api/v1/target-sources/${TS_ID}/approval-requests/latest" \
+    "/integration/api/v1/target-sources/${TS_ID}/history" \
+    "/integration/api/v1/target-sources/${TS_ID}/resources"; do
+    fname=$(echo "$ep" | tr / _ | sed 's|^_||')
+    curl -s "http://localhost:${PORT}${ep}" | jq -S '.' > "/tmp/baseline-${fname}.json" 2>/dev/null
+  done
+done
+
+# provider-specific endpoints
+curl -s "http://localhost:${PORT}/integration/api/v1/sdu/target-sources/1002/installation-status" | jq -S '.' > /tmp/baseline-sdu-install.json
+curl -s "http://localhost:${PORT}/integration/api/v1/gcp/target-sources/1005/check-installation" | jq -S '.' > /tmp/baseline-gcp-check.json
+curl -s "http://localhost:${PORT}/integration/api/v1/idc/target-sources/1003/installation-status" | jq -S '.' > /tmp/baseline-idc-install.json
+curl -s "http://localhost:${PORT}/integration/api/v1/azure/target-sources/1004/installation-status" | jq -S '.' > /tmp/baseline-azure-install.json
+
+kill $SERVER_PID
+```
+
+**Step B — W2 worktree 에서 같은 endpoint 호출 + diff**:
+
+```bash
+cd /Users/study/pii-agent-demo-projid-w2-mock-pivot
+export USE_MOCK_DATA=true TZ=UTC
+PORT=$(bash scripts/dev.sh 2>&1 | grep -oE 'localhost:[0-9]+' | head -1 | cut -d: -f2) &
+sleep 5
+
+FAILED=0
+for f in /tmp/baseline-*.json; do
+  name=$(basename "$f" .json | sed 's|^baseline-||')
+  # 해당 endpoint 재호출
+  ep=$(...)  # fname 에서 역추출 or 위 리스트 재사용
+  actual=$(curl -s "http://localhost:${PORT}${ep}" | jq -S '.')
+  if ! diff <(cat "$f") <(echo "$actual") > /dev/null 2>&1; then
+    echo "✗ DRIFT: $ep"
+    diff "$f" <(echo "$actual") | head -20
+    FAILED=1
+  else
+    echo "✓ $ep"
+  fi
+done
+
+[ $FAILED -eq 0 ] && echo "✅ All endpoints byte-identical" || echo "❌ Behavior drift detected"
+```
+
+**허용되는 차이점** (있다면 전체 skip 대신 filter 로 제거 후 diff):
+- `lastCheckedAt`, `createdAt`, `updatedAt` 같은 시간 필드 — `jq 'del(.lastCheckedAt)'` 로 제거
+- `requestId` header 기반 필드 — 테스트에서 고정
+- UUID (scan id 등) — 고정 seed 필요
+
+시간 필드 제거 버전:
+```bash
+diff <(jq -S 'del(.lastCheckedAt, .createdAt, .updatedAt, .startedAt, .completedAt)' "$f") \
+     <(curl -s "http://localhost:${PORT}${ep}" | jq -S 'del(.lastCheckedAt, .createdAt, .updatedAt, .startedAt, .completedAt)')
+```
+
+**⛔ 핵심 원칙**: 시간 필드 제외 **나머지가 동일**해야 W2 통과. 값 하나라도 달라지면 실사용자에게 다른 화면이 보임 — 리팩토링 실패.
 
 ## Step 5.5: Dev 수동 E2E — 5 provider × 5 flow 매트릭스
 

@@ -16,6 +16,37 @@ projectId 폐기 프로젝트의 **리팩토링 안전망 선행 wave**. W2 (moc
 
 기존 테스트로 커버되는 것: `mock-idc`, `mock-azure`, `mock-history`, `mock-scan`, `mock-installation`, `mock-target-source`, `app/api/_lib/target-source`, `bff-client`.
 
+## ⚠ 사전 blocker — store 격리 인프라 부재
+
+**중대한 전제 문제**: `lib/mock-store.ts` 에 `resetStore` export **없음** (main@`2b4f641` 기준). provider 별 store (`sduStore`, `gcpStore`, `azureStore`, `idcStore`) 는 각 mock 파일 내부 module-scope const — 외부에서 reset 불가. 테스트 격리 안 되면 순서 의존 failure + pollution.
+
+**해결책**: 이 wave 에서 reset 유틸을 **선행 추가** (production 코드 변경이지만 테스트 인프라 범주):
+
+```ts
+// lib/mock-store.ts 에 추가 (export)
+export const resetStore = (): void => {
+  globalThis.__piiAgentMockStore = undefined;
+};
+```
+
+```ts
+// lib/mock-sdu.ts (기존 module-scope const 유지) 끝에 추가
+export const __resetSduStore = (): void => {
+  sduStore.installationStatus = {};
+  sduStore.s3Upload = {};
+  sduStore.iamUsers = {};
+  sduStore.sourceIps = {};
+  sduStore.athenaTables = {};
+  sduStore.connectionTest = {};
+};
+
+// lib/mock-gcp.ts, lib/mock-test-connection.ts 도 동일 패턴
+```
+
+`__` prefix 로 internal 의도 명시. production 코드에서는 절대 호출하지 않음 — 테스트 전용.
+
+**주의**: W2 에서 store key 가 `number` 로 바뀌면 위 reset 함수도 `Record<number, T>` 형태로 자연히 따라가지만 **assertion 은 동일하게 동작** — reset 유틸은 wave 간 behavior preservation 에 영향 없음.
+
 ## Precondition
 ```bash
 cd /Users/study/pii-agent-demo
@@ -56,6 +87,85 @@ cd /Users/study/pii-agent-demo-projid-w0-tests
 ## Step 3: Implementation
 
 **원칙**: 각 테스트는 "Given / When / Then" 구조로, **public 함수의 input/output만 검증**. 내부 구현 (store key type, 함수 시그니처) 을 assertion 하지 않는다 — 그래야 W2 리팩토링에서 깨지지 않음.
+
+### 3-0. Store reset 유틸 선행 추가 (위 "사전 blocker" 참조)
+
+`lib/mock-store.ts` 에 `resetStore` export + `lib/mock-sdu.ts`/`mock-gcp.ts`/`mock-test-connection.ts` 에 `__resetXxxStore` export. 기존 production 코드 동작 **변경 없음** — 사용하지 않으면 dead export.
+
+### 3-0.5. Assertion 품질 기준 (⛔ 반드시 준수)
+
+Wave 0 의 목적은 "**값 기반** 고정" 이다. 다음 패턴을 사용:
+
+#### 필수 — 값 기반 assertion
+```ts
+// ✓ 좋음 — 실제 값 고정
+expect(result.data?.provider).toBe('SDU');
+expect(result.data?.bdcTf).toBe('COMPLETED');
+expect(result.data?.iamUser.username).toBe('pii-agent-sdu-1');
+
+// ✓ Snapshot 기반 — 구조적 고정 (time/uuid 필드 stubbing 후)
+expect(result.data).toMatchInlineSnapshot(`...`);
+```
+
+#### 금지 — loose assertion
+```ts
+// ✗ 나쁨 — behavior 변경 감지 불가
+expect(result.data).toBeDefined();
+expect(result.data?.provider).toEqual(expect.any(String));
+expect(result).toHaveProperty('data');
+```
+
+**이유**: W2 에서 내부 해시 함수가 `projectId.split('').reduce()` 에서 `targetSourceId` 기반으로 바뀌면 값이 달라질 수 있다. loose assertion 은 이를 놓침.
+
+#### 비결정성 필드는 stubbing
+`Date.now()`, `new Date().toISOString()`, `randomUUID()` 등은 테스트마다 다른 값 → snapshot 깨짐:
+
+```ts
+import { beforeEach, afterEach, vi } from 'vitest';
+
+const FIXED_DATE = new Date('2026-04-23T00:00:00.000Z');
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(FIXED_DATE);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+// 필요 시 uuid stubbing
+vi.mock('crypto', async () => {
+  const actual = await vi.importActual<typeof import('crypto')>('crypto');
+  let counter = 0;
+  return {
+    ...actual,
+    randomUUID: () => `test-uuid-${++counter}`,
+  };
+});
+```
+
+#### 각 describe block 선두에 reset
+```ts
+import { resetStore } from '@/lib/mock-store';
+import { __resetSduStore } from '@/lib/mock-sdu';
+
+beforeEach(() => {
+  resetStore();       // projects, scans, history 초기화
+  __resetSduStore();  // sduStore.* 초기화
+});
+```
+
+#### 값을 직접 기재 (레퍼런스 fixture 금지)
+```ts
+// ✗ mockProjects 에서 random pick — fixture 변경 시 테스트 의미 변함
+const projectId = getStore().projects.find(p => p.cloudProvider === 'SDU')!.id;
+
+// ✓ 명시적 테스트 fixture — 인벤토리의 SDU project id 를 직접 기재
+const SDU_PROJECT_ID = 'sdu-project-1';  // lib/mock-data.ts 의 initial projects 중 SDU cloudProvider 인 것
+```
+
+이 **명시적 fixture id** 가 W2 에서 fixture 매핑 표의 기준점 — projectId ↔ targetSourceId 일대일 매핑을 확정할 수 있다.
 
 ### 3-1. `lib/__tests__/mock-sdu.test.ts` 신규 (최우선, 가장 큼)
 
@@ -174,10 +284,12 @@ it('특정 project 에는 default source IP 가 없음 (현행 동작 기록)', 
 
 ## Step 4: Do NOT touch
 
-- **Production 코드** (`lib/mock-*.ts`, `app/**`) — 한 줄도 수정 금지. 순수 테스트 추가 wave.
+- **Production 비즈니스 로직** (`lib/mock-*.ts` 내부 함수, `app/**`) — 한 줄도 수정 금지. 순수 테스트 추가 wave.
+  - **예외**: 각 mock 파일 끝에 `__resetXxxStore` export 추가는 허용 (테스트 인프라)
+  - **예외**: `lib/mock-store.ts` 에 `resetStore` export 추가는 허용
 - 기존 테스트 파일 (`lib/__tests__/mock-idc.test.ts` 등) — 변경 금지
 - 타입 정의 (`lib/types.ts`) — 변경 금지
-- `lib/mock-store.ts` — store 구조 변경 금지. 조회/reset 유틸만 사용.
+- `lib/mock-store.ts` 의 Store **type 구조** — 변경 금지. reset 유틸 export 만 추가.
 
 ## Step 5: Verify
 

@@ -78,15 +78,16 @@
 
 ## Testing Strategy — 로직 보존 보장 (behavior preservation)
 
-리팩토링의 핵심 약속은 **외부 관찰 가능한 동작이 변하지 않는다**는 것. 이 약속은 5-layer 방어선으로 보증한다:
+리팩토링의 핵심 약속은 **외부 관찰 가능한 동작이 변하지 않는다**는 것. 이 약속은 6-layer 방어선으로 보증한다:
 
-| Layer | 수단 | 언제 | 보증 강도 |
-|---|---|---|---|
-| 1 | `npx tsc --noEmit` | 각 wave Step 5 | 🔒🔒🔒 타입으로 drift cascade 감지. `projectId: string` 필드 삭제 시 소비자 전부 컴파일 실패 |
-| 2 | 기존 vitest 스위트 (`npm test`) | 각 wave Step 5 | 🔒🔒 mock-idc/azure/history/scan/installation/target-source + route tests — **assertion 변경 없이 fixture 타입만 바뀜** |
-| 3 | **Wave 0 behavior lock-in** (신규) | W2 **전** | 🔒🔒 sdu/gcp/test-connection 의 현재 public behavior 를 assertion 으로 동결. W2 후에도 통과해야 success |
-| 4 | Dev 수동 E2E 매트릭스 (5 provider × 5 flow) | 각 wave Step 5.5 | 🔒 integration 스모크 |
-| 5 | `.next/` clean rebuild + grep 잔여 검증 | 각 wave Step 5 | 🔒 stale artifact / missed reference 감지 |
+| Layer | 수단 | 언제 | 보증 강도 | 놓치는 것 |
+|---|---|---|---|---|
+| 1 | `npx tsc --noEmit` | 각 wave Step 5 | 🔒🔒🔒 타입 cascade | semantic 변화 (타입 OK 인 논리 오류) |
+| 2 | 기존 vitest 스위트 | 각 wave Step 5 | 🔒🔒 assertion 동결 | **커버되지 않은 코드 경로** (sdu/gcp/test-conn 갭) |
+| 3 | **Wave 0 behavior lock-in** (신규, 값 기반 + snapshot) | W2 **전** 선행 | 🔒🔒🔒 sdu/gcp/test-conn 갭 메움 | Wave 0 assertion 품질에 의존 |
+| 4 | **Response Parity** (mock byte-level diff) | W2 Step 5 Layer 6 | 🔒🔒🔒 **가장 강력** — 실제 HTTP 응답 동일성 증명 | 시간/UUID 필드는 필터 필요 |
+| 5 | Dev 수동 E2E 매트릭스 (5 provider × 5 flow) | 각 wave Step 5.5 | 🔒 integration 스모크 | 사람 실수 |
+| 6 | grep 잔여 검증 | 각 wave Step 5 | 🔒 정적 잔여 감지 | 런타임 동작 |
 
 ### Wave 별 검증 강도
 
@@ -103,7 +104,24 @@
 
 1. **W2 의 테스트 변경 범위는 fixture 의 타입만** — assertion 은 그대로. `expect(result.data?.provider).toBe('SDU')` 같은 behavior 검증은 W2 에서 **단 한 줄도 수정되지 않아야** behavior 보존 증명.
 2. **W0 발견 quirk 는 W2 에서 수정하지 않는다** — 같은 quirk 가 W2 후에도 살아있어야 "logic unchanged". 개선은 별도 follow-up wave.
-3. **tsc 가 단일 중요 증거** — `projectId: string` 타입이 물리적으로 사라지면 모든 소비자가 `targetSourceId: number` 로 전환되거나 컴파일 에러. 누락 없는 cascade.
+3. **Response Parity (Layer 4) 가 최종 증거** — 타입/테스트가 다 통과해도 실제 HTTP 응답이 다르면 사용자는 다른 화면을 봄. W2 에서 시간 필드 제외 **byte-identical** 이 통과 기준.
+4. **Fixture 매핑 표는 W2 의 contract** — `projectId ↔ targetSourceId` 매핑을 `docs/reports/projectid-removal/id-mapping-snapshot.md` 에 박제 후 W2 PR 에 첨부. Wave 0 테스트의 string id 를 number id 로 교체할 때 이 표가 유일한 ground truth.
+5. **해시/경로 입력 문자열 보존** — `mock-sdu` 의 S3 버킷명 `sdu-data-${projectId.slice(-8)}`, `mock-idc` 의 해시 기반 state 생성 등은 **원본 projectId string** 으로 계산되어야 동일 결과. `String(targetSourceId)` 대체 금지 — `getProjectByTargetSourceId(id).id` 로 원본 복원 후 사용.
+
+### 한계 (honest limitations)
+
+이 전략이 보장하지 못하는 것:
+
+1. **BFF 모드 (`USE_MOCK_DATA=false`) 실서비스 동작**
+   - `httpBff` path 는 원래부터 `String(targetSourceId)` identity 변환만 수행 (resolveProjectId 안 거침) → 실제 변경 사항 없음. 하지만 실제 upstream BFF 연동은 개발자가 staging 환경에서 직접 확인해야 함. 이 계획에서는 증명 불가.
+2. **UI 인터랙션 타이밍/에러 edge case**
+   - E2E 매트릭스는 happy path 5×5 만. 네트워크 실패, polling timeout, race condition 은 수동 검증 불가. Playwright/Cypress 도입 없이는 증명 한계.
+3. **Wave 0 assertion 품질에 의존**
+   - `expect.any(String)` 같은 loose assertion 만 있으면 Layer 3 무력화. Wave 0 스펙 §3-0.5 의 assertion 품질 가이드 준수가 전제.
+4. **Production 코드에 숨겨진 비결정성**
+   - `Math.random()`, `process.env` 읽기 등이 내부에 있으면 Layer 4 parity diff 가 false positive. 발견 시 snapshot 에서 필터 or production 에서 seed 주입.
+5. **W2 의 scope 외 behavior 변화 (의도된)**
+   - mock-adapter.ts 의 404 에러 발생 위치가 바뀜 (`resolveProjectId` 내부 → `mockTargetSources.get` 내부). 에러 shape 은 유지되지만 stack trace 미묘하게 다를 수 있음 — 사용자 관찰 불가 영역이므로 수용.
 
 ### File-level non-overlap (verified)
 
