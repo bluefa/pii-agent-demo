@@ -5,7 +5,6 @@ export interface ResourceTableBodyProps {
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
   selectedIds: Set<string>;
-  isEditMode: boolean;
   isCheckboxEnabled: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;

@@ -8,7 +8,6 @@ export const FlatResourceTableBody = ({
   resources,
   processStatus,
   selectedIds,
-  isEditMode,
   isCheckboxEnabled,
   showCredentialColumn,
   onCheckboxChange,
@@ -21,7 +20,7 @@ export const FlatResourceTableBody = ({
   <>
     <thead>
       <tr className={cn('text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap', textColors.tertiary, bgColors.muted)}>
-        {isEditMode && <th className="px-6 py-3 w-10" />}
+        {isCheckboxEnabled && <th className="px-6 py-3 w-10" />}
         <th className="px-6 py-3">연동 대상 여부</th>
         <th className="px-6 py-3">DB Type</th>
         <th className="px-6 py-3">Resource ID</th>
@@ -39,7 +38,6 @@ export const FlatResourceTableBody = ({
           resource={resource}
           processStatus={processStatus}
           selectedIds={selectedIds}
-          isEditMode={isEditMode}
           isCheckboxEnabled={isCheckboxEnabled}
           showCredentialColumn={showCredentialColumn}
           onCheckboxChange={onCheckboxChange}

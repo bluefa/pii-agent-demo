@@ -10,13 +10,13 @@ import {
 
 import { cn, textColors, primaryColors } from '@/lib/theme';
 import { Button } from '@/app/components/ui/Button';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { FlatResourceTableBody } from './resource-table';
 
 interface ResourceTableProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
-  isEditMode?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (selectedIds: string[]) => void;
   credentials?: SecretKey[];
@@ -32,7 +32,6 @@ export const ResourceTable = ({
   resources,
   cloudProvider,
   processStatus,
-  isEditMode = false,
   selectedIds: externalSelectedIds,
   onSelectionChange,
   credentials = [],
@@ -47,8 +46,7 @@ export const ResourceTable = ({
     externalSelectedIds ?? resources.filter((r) => r.isSelected).map((r) => r.id)
   );
 
-  const isCheckboxEnabled =
-    processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION || isEditMode;
+  const isCheckboxEnabled = processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const showCredentialColumn =
     processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
     processStatus === ProcessStatus.CONNECTION_VERIFIED ||
@@ -65,7 +63,7 @@ export const ResourceTable = ({
   };
 
   const VISIBLE_DATA_COLUMNS = 7;
-  const colSpan = VISIBLE_DATA_COLUMNS + (isEditMode ? 1 : 0) + (showCredentialColumn ? 1 : 0);
+  const colSpan = VISIBLE_DATA_COLUMNS + (isCheckboxEnabled ? 1 : 0) + (showCredentialColumn ? 1 : 0);
 
   const bodyProps = {
     cloudProvider,
@@ -84,7 +82,7 @@ export const ResourceTable = ({
 
   const totalCount = resources.length;
   const selectedCount = selectedIdsSet.size;
-  const showSummary = onRequestApproval !== undefined && isEditMode;
+  const showSummary = onRequestApproval !== undefined && isCheckboxEnabled;
 
   return (
     <div>
@@ -92,7 +90,7 @@ export const ResourceTable = ({
         <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <FlatResourceTableBody resources={resources} isEditMode={isEditMode} {...bodyProps} />
+              <FlatResourceTableBody resources={resources} {...bodyProps} />
             </table>
           </div>
         </div>
@@ -112,8 +110,10 @@ export const ResourceTable = ({
             variant="primary"
             onClick={onRequestApproval}
             disabled={approvalSubmitting || selectedCount === 0}
+            className="flex items-center gap-2"
           >
-            연동 대상 승인 요청
+            {approvalSubmitting && <LoadingSpinner />}
+            연동 대상 확정 승인 요청
           </Button>
         </div>
       )}

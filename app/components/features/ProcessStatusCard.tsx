@@ -14,7 +14,6 @@ import { AzureInstallationInline } from './process-status/azure';
 import { AwsInstallationInline } from './process-status/aws';
 import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
-import { getProcessGuide } from '@/lib/constants/process-guides';
 import { TIMINGS } from '@/lib/constants/timings';
 import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
 import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
@@ -23,7 +22,6 @@ import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner'
 
 // bundle-dynamic-imports: 모달은 열릴 때만 필요 → 지연 로딩
 const TerraformStatusModal = dynamic(() => import('./TerraformStatusModal').then(m => ({ default: m.TerraformStatusModal })));
-const ProcessGuideModal = dynamic(() => import('./process-status/ProcessGuideModal').then(m => ({ default: m.ProcessGuideModal })));
 const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
 
 type ProcessTabType = 'status' | 'history';
@@ -69,10 +67,7 @@ export const ProcessStatusCard = ({
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
 
-  // Modal states
   const terraformModal = useModal();
-  const guideModal = useModal();
-  // ADR-004: status 필드에서 현재 단계 계산
   const currentStep = getProjectCurrentStep(project);
   const progress = getProgress(project);
   const selectedResources = resources.filter((r) => r.isSelected);
@@ -157,12 +152,6 @@ export const ProcessStatusCard = ({
     };
   }, [currentStep, project.targetSourceId, stableOnProjectUpdate]);
 
-  // Process Guide
-  const guideVariant = project.cloudProvider === 'AWS'
-    ? project.awsInstallationMode === 'AUTO' ? 'auto' : 'manual'
-    : undefined;
-  const guide = getProcessGuide(project.cloudProvider, guideVariant);
-
   // 프로젝트 상태 갱신 — 설치 완료, credential 변경 등 서버 데이터 변경 후 호출
   const refreshProject = useCallback(async () => {
     try {
@@ -201,10 +190,7 @@ export const ProcessStatusCard = ({
       <div className="p-6 flex-1 flex flex-col">
         {activeTab === 'status' && (
           <>
-            <StepProgressBar
-              currentStep={currentStep}
-              onGuideClick={guide ? guideModal.open : undefined}
-            />
+            <StepProgressBar currentStep={currentStep} />
 
             <div className="border-t border-gray-100 my-4" />
 
@@ -320,16 +306,6 @@ export const ProcessStatusCard = ({
           terraformState={project.terraformState}
           cloudProvider={project.cloudProvider}
           onClose={() => terraformModal.close()}
-        />
-      )}
-
-      {/* Process Guide Modal */}
-      {guide && (
-        <ProcessGuideModal
-          isOpen={guideModal.isOpen}
-          onClose={guideModal.close}
-          guide={guide}
-          currentStepNumber={currentStep}
         />
       )}
 
