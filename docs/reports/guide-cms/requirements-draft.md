@@ -1,8 +1,8 @@
 # Guide CMS — 요구사항 명세 (Draft)
 
-> **Status**: 🟡 Q1 / Q4 답변 대기 중 (Q2·Q3·Q5·Q6·Q8 확정, Q7 자동 해소)
+> **Status**: 🟡 Q4 답변 대기 중 (Q1·Q2·Q3·Q5·Q6·Q8 확정, Q7 자동 해소)
 > **작성일**: 2026-04-23
-> **최근 업데이트**: 2026-04-23 — Q5 확정: 좌우 split + Process 타임라인(접힘) + GuideCard 실제 렌더 + ko/en 토글. ProcessGuideModal 미리보기는 스콥 제외.
+> **최근 업데이트**: 2026-04-23 — Q1 확정: 영문 UPPER_SNAKE. guide_name = constant fixed set (45개). Admin 목록 페이지 + 편집 페이지 메타 영역 설계 추가.
 > **Owner**: @chulyonga
 > **목적**: `GuideCard` / `ProcessGuideModal` 이 참조하는 가이드 데이터를 **API 기반**으로 전환하고, **Admin 편집 페이지**에서 HTML로 수정 가능하게 만드는 기능 명세.
 >
@@ -114,7 +114,114 @@
 > - B(영문 code) 채택 시: UI 표시는 별도 label 필드(`title.ko`, `title.en`)로 해결
 > - C 유지 시: 한글 alias는 ko 전용 UX sugar로만 사용 (영어 UI에서는 숨김)
 
-**답변**: _(대기)_
+**답변**: ✅ **B의 변형 — 영문 UPPER_SNAKE** (2026-04-23) — "고정된 이름으로, `AZURE_{PROCESS_NAME}` 이렇게 단순하게 선언. 너가 대충 이름 지어봐"
+
+#### 채택 네이밍 규칙
+
+```
+{PROVIDER}[_VARIANT]_{STEP_CODE}
+```
+
+**Provider 접두사**: `AWS` / `AZURE` / `GCP` / `IDC` / `SDU`
+**Variant (AWS 전용)**: `AUTO` / `MANUAL`
+**Step code (7단계 공통)**:
+
+| step | 한글 라벨 (현행) | 영문 CODE |
+|------|----------------|-----------|
+| 1 | 연동 대상 확정 | `TARGET_CONFIRM` |
+| 2 | 승인 대기 | `APPROVAL_PENDING` |
+| 3 | 연동 대상 반영 중 | `APPLYING` |
+| 4 | 설치 / TF 수동 설치 | `INSTALLING` |
+| 5 | 연결 테스트 | `CONNECTION_TEST` |
+| 6 | 관리자 승인 대기 | `ADMIN_APPROVAL` |
+| 7 | 완료 | `COMPLETED` |
+
+**사전조치 3종 (prefix `PREREQ_`, provider 공용)**:
+
+| 현행 | name |
+|------|------|
+| 스캔 Role 등록 | `PREREQ_SCAN_ROLE` |
+| DB Credential 등록 | `PREREQ_DB_CREDENTIAL` |
+| TerraformExecutionRole 등록 | `PREREQ_TF_EXECUTION_ROLE` |
+
+#### 전체 카탈로그 (총 45개)
+
+| 그룹 | 개수 | 예시 |
+|------|------|------|
+| `AWS_AUTO_*` | 7 | `AWS_AUTO_TARGET_CONFIRM` ~ `AWS_AUTO_COMPLETED` |
+| `AWS_MANUAL_*` | 7 | `AWS_MANUAL_TARGET_CONFIRM` ~ `AWS_MANUAL_COMPLETED` |
+| `AZURE_*` | 7 | `AZURE_TARGET_CONFIRM` ~ `AZURE_COMPLETED` |
+| `GCP_*` | 7 | `GCP_TARGET_CONFIRM` ~ `GCP_COMPLETED` |
+| `IDC_*` | 7 | `IDC_TARGET_CONFIRM` ~ `IDC_COMPLETED` |
+| `SDU_*` | 7 | `SDU_TARGET_CONFIRM` ~ `SDU_COMPLETED` |
+| `PREREQ_*` | 3 | `PREREQ_SCAN_ROLE`, `PREREQ_DB_CREDENTIAL`, `PREREQ_TF_EXECUTION_ROLE` |
+
+#### 왜 영문으로
+
+| 근거 | 설명 |
+|------|------|
+| URL safe | `?name=AZURE_TARGET_CONFIRM` — 인코딩 없이 깔끔 |
+| 다국어 친화 | 표시용 `title` 은 `content.ko.title` / `content.en.title` 로 분리. name은 언어 중립 |
+| 사용자 지시 준수 | "고정된 이름, 단순하게 선언" → UPPER_SNAKE 가 가장 단순·고정 |
+| Immutable | 번역·라벨 변경되어도 name은 그대로 — 안정적 식별자 |
+
+#### guide_name = constant (사용자 추가 요구 2026-04-23)
+
+> "가이드 이름은 일종의 constant형태로 다뤄져야해요. 관리자는 가이드 이름을 확인하고, 어떤 프로세스에 어떤 card가 업데이트 되는지 명확히 확인할 수 있어야 되요. 즉, guide name 선택도 가능해야 된다는거야."
+
+**규칙**:
+
+| 항목 | Admin UI에서 | 이유 |
+|------|-------------|------|
+| guide_name 생성 | ❌ 불가 | 45개 fixed set (코드에 정의) |
+| guide_name 삭제 | ❌ 불가 | 45개 fixed set |
+| guide_name 변경 | ❌ 불가 (read-only 표시 + `[🔒 constant]` 배지) | 안정적 식별자 보장 |
+| guide_name 선택 | ✅ 가능 | 목록에서 row 클릭 |
+| **content 편집** | ✅ 가능 | 본문 HTML + title, ko/en 각각 |
+| 새 이름 추가 필요 시 | 코드 PR | `GUIDE_NAMES` 상수 업데이트 + 마이그레이션 |
+
+**TypeScript 레벨 enforce**:
+
+```ts
+// lib/constants/guide-names.ts
+export const GUIDE_NAMES = [
+  'AWS_AUTO_TARGET_CONFIRM', 'AWS_AUTO_APPROVAL_PENDING',
+  'AWS_AUTO_APPLYING', 'AWS_AUTO_INSTALLING',
+  'AWS_AUTO_CONNECTION_TEST', 'AWS_AUTO_ADMIN_APPROVAL',
+  'AWS_AUTO_COMPLETED',
+  // ... 총 45개
+] as const;
+export type GuideName = typeof GUIDE_NAMES[number];
+```
+
+→ API·컴포넌트·Admin UI 전부 `GuideName` union 으로 타입 체크. 존재하지 않는 name은 컴파일 단계에서 실패.
+
+#### 사용처 매핑 Registry (정적 메타데이터)
+
+```ts
+// lib/constants/guide-registry.ts
+export interface GuideMeta {
+  provider: 'AWS' | 'AZURE' | 'GCP' | 'IDC' | 'SDU' | 'COMMON';
+  variant?: 'AUTO' | 'MANUAL';
+  stepNumber?: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  stepLabel: string;       // 한글 단계 라벨
+  component: 'GuideCard' | 'PrerequisiteGuideItem';
+  usedIn: string[];        // 사용처 파일 경로
+}
+
+export const GUIDE_REGISTRY: Record<GuideName, GuideMeta> = {
+  AZURE_TARGET_CONFIRM: {
+    provider: 'AZURE',
+    stepNumber: 1,
+    stepLabel: '연동 대상 확정',
+    component: 'GuideCard',
+    usedIn: ['app/projects/[projectId]/azure/AzureProjectPage.tsx'],
+  },
+  // ... 45개
+};
+```
+
+→ Admin 목록·편집 페이지가 이 registry 를 읽어서 "사용처"·"컴포넌트"·"단계" 정보를 표시. 컴포넌트 이동 시 이 파일만 업데이트.
 
 ---
 
@@ -594,6 +701,111 @@ Q2=A (한 덩어리) 선택 시 이 색 구분이 사라짐. 편집자가 `<bloc
 
 ---
 
+## 3-sexies. Admin UI 네비게이션 — 목록 / 편집 페이지 (2026-04-23 추가)
+
+> 사용자 추가 요구: "관리자는 가이드 이름을 확인하고, 어떤 프로세스에 어떤 card가 업데이트 되는지 명확히 확인할 수 있어야 한다. 즉, guide name 선택도 가능해야 한다."
+
+### 라우트 구조
+
+| 경로 | 역할 |
+|------|------|
+| `/admin/guides` | **목록 페이지** — 45개 guide_name 중 선택 |
+| `/admin/guides/[name]` | **편집 페이지** — Q5 좌우 split 레이아웃 |
+
+### 목록 페이지 레이아웃
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Admin > 가이드 관리                                                   │
+│  ────────────────────────────────────────────────────────────        │
+│  [전체(45)] [AWS_AUTO(7)] [AWS_MANUAL(7)] [AZURE(7)] [GCP(7)]         │
+│  [IDC(7)] [SDU(7)] [사전조치(3)]               ← Provider 탭           │
+│                                                                      │
+│  🔍 [검색_______]   언어 필터 [전체▾]   번역 상태 [전체▾]              │
+│                                                                      │
+│  ┌────────────────────────┬───────────┬───────────┬────┬────┬──────┐ │
+│  │ guide_name             │ 단계       │ 렌더 컴포넌트│ ko │ en │ 수정일 │ │
+│  ├────────────────────────┼───────────┼───────────┼────┼────┼──────┤ │
+│  │ AZURE_TARGET_CONFIRM   │ 1. 연동대상확정 │ GuideCard │ ✅ │ ❌ │ 04-20 │ │
+│  │ AZURE_APPROVAL_PENDING │ 2. 승인 대기    │ GuideCard │ ✅ │ ❌ │ 04-18 │ │
+│  │ AZURE_APPLYING         │ 3. 반영 중      │ GuideCard │ ✅ │ ❌ │ 04-18 │ │
+│  │ AZURE_INSTALLING       │ 4. 설치        │ GuideCard │ ✅ │ ❌ │ 04-15 │ │
+│  │ ...                                                              │ │
+│  └────────────────────────┴───────────┴───────────┴────┴────┴──────┘ │
+│                                                                      │
+│  (row 클릭 → /admin/guides/{name})                                    │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### 목록 페이지 컬럼 정의
+
+| 컬럼 | 설명 | 데이터 소스 |
+|------|------|------------|
+| guide_name | constant 식별자 | `GUIDE_NAMES` |
+| 단계 | `stepNumber + stepLabel` (한글) | `GUIDE_REGISTRY[name].stepLabel` |
+| 렌더 컴포넌트 | `GuideCard` / `PrerequisiteGuideItem` 등 | `GUIDE_REGISTRY[name].component` |
+| ko | ✅ 있음 / ❌ 없음 | 저장된 content 조회 |
+| en | ✅ 있음 / ❌ 없음 | 저장된 content 조회 |
+| 수정일 | ISO 날짜 | `updatedAt` |
+
+### 목록 페이지 필터·검색
+
+- Provider 탭 7개 (+ 전체)
+- 검색: guide_name 부분 일치
+- 언어 필터: 전체 / ko만 / en만
+- 번역 상태: 전체 / 완전 번역(ko+en 모두) / 미번역(en 없음) / ko 없음(데이터 오류)
+
+### 편집 페이지 헤더 메타 영역 (Q5 확장)
+
+편집 페이지 상단에 "이 guide_name이 어디에 어떻게 쓰이는지" 메타 표시:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ ← 목록으로 │ 📛 AZURE_TARGET_CONFIRM    [🔒 constant 변경 불가] │
+├─────────────────────────────────────────────────────────────┤
+│ 📍 사용처:   Azure Project Page                              │
+│ 🔢 Process: Step 1 / 7  (연동 대상 확정)                     │
+│ 🧩 컴포넌트: <GuideCard>                                     │
+│ 🌐 번역:    ko ✅   en ❌ (미작성)                            │
+└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────┬──────────────────────────┐
+│  편집기 (Tiptap Visual)           │  Preview                 │
+│  [B][I][<>][H2][H3]...            │  [ko][en] [Process 접기▾]│
+│                                  │  ● ─ ● ─ ◉ ─ ○ ...       │
+│                                  │  ┌────────────────────┐  │
+│                                  │  │  GuideCard         │  │
+│                                  │  │  (실제 렌더)        │  │
+│                                  │  └────────────────────┘  │
+└──────────────────────────────────┴──────────────────────────┘
+```
+
+### 편집 페이지 메타 필드 정의
+
+| 필드 | 내용 | 소스 |
+|------|------|------|
+| guide_name | `AZURE_TARGET_CONFIRM` (read-only, 복사 가능) | URL path param |
+| 🔒 배지 | "constant 변경 불가" 안내 | 항상 표시 |
+| 📍 사용처 | 렌더되는 페이지(들) | `GUIDE_REGISTRY[name].usedIn` |
+| 🔢 Process | `Step {n} / 7 ({stepLabel})` | registry |
+| 🧩 컴포넌트 | `<GuideCard>` 등 태그 형식으로 표시 | registry |
+| 🌐 번역 | ko/en 상태 뱃지 + 미번역 경고 | content 조회 |
+
+### Preview 영역의 데이터 주입 흐름 (Q5 확정 구조 재확인)
+
+```
+사용자 Tiptap 편집
+     ↓ onUpdate
+편집 중 HTML 문자열 (sanitize)
+     ↓
+실제 <GuideCard> 컴포넌트에 prop 주입
+     ↓
+Preview 영역에 실시간 렌더 (ko/en 토글 지원)
+```
+
+Mock으로 동작할 때도 실제 `GuideCard` 컴포넌트 재사용 → 운영과 1:1 일치.
+
+---
+
 ## 4. 다음 라운드에 이어서 물을 주제
 
 Q1~Q5 확정 후 다음을 이어서 결정할 예정:
@@ -628,7 +840,12 @@ Q1~Q5 확정 후 다음을 이어서 결정할 예정:
 | Q3 | 편집기 라이브러리 | **Tiptap** | "대중적인 편집기 사용", ProseMirror 엔진 (Confluence/Notion 동일) | 사용자 | 2026-04-23 |
 | Q5 | 미리보기 레이아웃 | **좌우 split** (편집 \| Preview) + Preview 내 Process 타임라인(접힘가능) + GuideCard 실제 렌더 + ko/en 토글 | "프로세스 항목 아래에 가이드 페이지, 아니면 가이드 Card만 OK" | 사용자 | 2026-04-23 |
 | Q5-scope | ProcessGuideModal 미리보기 | 이번 스콥 제외 (GuideCard만 미리보기) | "가이드 Card만 보여져도 되고" — 스콥 간소화 | 사용자 | 2026-04-23 |
-| — | _(Q1, Q4 답변 대기)_ | — | — | — | — |
+| Q1 | guide_name 형식 | **영문 UPPER_SNAKE** `{PROVIDER}[_VARIANT]_{STEP_CODE}` (45개 fixed set) | "단순하게 선언, 대충 이름 지어봐" + 다국어 URL-safe | 사용자 위임 | 2026-04-23 |
+| Q1-reg | guide_name 관리 | **constant** — Admin UI에서 생성/삭제/변경 불가, content만 편집 | "constant 형태로 다뤄져야" | 사용자 | 2026-04-23 |
+| Q1-nav | Admin 네비게이션 | 목록(`/admin/guides`) + 편집(`/admin/guides/[name]`) — Provider 탭·검색·번역 상태 필터 | "guide name 선택도 가능해야" | 사용자 | 2026-04-23 |
+| Q1-meta | 편집 페이지 헤더 | 사용처·Process Step·렌더 컴포넌트·번역 상태 메타 영역 | "어떤 프로세스에 어떤 card가 업데이트 되는지 명확히" | 사용자 | 2026-04-23 |
+| Q1-reg-ts | GUIDE_NAMES union + GUIDE_REGISTRY map | TypeScript 레벨 enforce | 컴파일 타임 오타 방지 | AI 추천 | 2026-04-23 |
+| — | _(Q4 답변 대기)_ | — | — | — | — |
 
 ---
 
