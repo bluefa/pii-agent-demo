@@ -9,27 +9,30 @@ import { formatDate } from '@/lib/utils/date';
 import { ScanStatusBadge } from './ScanStatusBadge';
 import { ScanProgressBar } from './ScanProgressBar';
 import { ScanResultSummary } from './ScanResultSummary';
-import { ScanHistoryList } from './ScanHistoryList';
 import { Button } from '@/app/components/ui/Button';
 import type { CloudProvider, V1ScanJob, ScanResult, ResourceType } from '@/lib/types';
 
+export type ScanUiState = 'EMPTY' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILED';
 
-interface ScanPanelProps {
-  targetSourceId: number;
-  cloudProvider: CloudProvider;
-  onScanComplete?: () => void;
+export interface ScanControllerRenderProps {
+  state: ScanUiState;
+  latestJob: V1ScanJob | null;
+  lastResult: ScanResult | null;
+  lastScanAt: string | undefined;
+  progress: number;
+  starting: boolean;
+  loading: boolean;
+  isInProgress: boolean;
+  canStart: boolean;
+  startScan: () => void;
+  refresh: () => void;
 }
 
-const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
-  <svg
-    className={cn('w-4 h-4 transition-transform duration-200', expanded && 'rotate-90')}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
+interface ScanControllerProps {
+  targetSourceId: number;
+  onScanComplete?: () => void;
+  children: (props: ScanControllerRenderProps) => React.ReactNode;
+}
 
 const scanJobToResult = (job: V1ScanJob): ScanResult | null => {
   const entries = Object.entries(job.resourceCountByResourceType);
@@ -43,19 +46,19 @@ const scanJobToResult = (job: V1ScanJob): ScanResult | null => {
   };
 };
 
-export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: ScanPanelProps) => {
-  const [expanded, setExpanded] = useState(false);
+const uiStateToScanUiState = (uiState: 'IDLE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'): ScanUiState => {
+  switch (uiState) {
+    case 'IN_PROGRESS': return 'IN_PROGRESS';
+    case 'COMPLETED': return 'SUCCESS';
+    case 'FAILED': return 'FAILED';
+    case 'IDLE':
+    default: return 'EMPTY';
+  }
+};
 
-  const {
-    latestJob,
-    uiState,
-    loading,
-    refresh,
-    startPolling,
-  } = useScanPolling(targetSourceId, {
-    onScanComplete: () => {
-      onScanComplete?.();
-    },
+export const ScanController = ({ targetSourceId, onScanComplete, children }: ScanControllerProps) => {
+  const { latestJob, uiState, loading, refresh, startPolling } = useScanPolling(targetSourceId, {
+    onScanComplete,
   });
 
   const { execute: doStartScan, loading: starting } = useApiAction(
@@ -70,27 +73,66 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
   );
 
   const isInProgress = uiState === 'IN_PROGRESS';
-  const canStartScan = !starting && uiState !== 'IN_PROGRESS';
+  const canStart = !starting && !isInProgress;
+  const lastResult = latestJob && latestJob.scanStatus === 'SUCCESS' ? scanJobToResult(latestJob) : null;
+  const lastScanAt = latestJob?.scanStatus === 'SUCCESS' ? latestJob.updatedAt : undefined;
+  const state = uiStateToScanUiState(uiState);
+  const progress = isInProgress
+    ? (latestJob?.scanProgress ?? 0)
+    : state === 'SUCCESS' ? 100 : 0;
 
-  const lastResult = latestJob && latestJob.scanStatus === 'SUCCESS'
-    ? scanJobToResult(latestJob)
-    : null;
-  const lastCompletedAt = latestJob?.scanStatus === 'SUCCESS' ? latestJob.updatedAt : undefined;
+  return <>{children({
+    state,
+    latestJob,
+    lastResult,
+    lastScanAt,
+    progress,
+    starting,
+    loading,
+    isInProgress,
+    canStart,
+    startScan: doStartScan,
+    refresh,
+  })}</>;
+};
 
-  // Auto-expand when scan starts
+const ChevronIcon = ({ expanded }: { expanded: boolean }) => (
+  <svg
+    className={cn('w-4 h-4 transition-transform duration-200', expanded && 'rotate-90')}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+  </svg>
+);
+
+const ScanPanelView = ({
+  state,
+  latestJob,
+  lastResult,
+  lastScanAt,
+  starting,
+  loading,
+  isInProgress,
+  canStart,
+  startScan: handleStart,
+}: ScanControllerRenderProps) => {
+  const [expanded, setExpanded] = useState(false);
+
   useEffect(() => {
     if (isInProgress) queueMicrotask(() => setExpanded(true));
   }, [isInProgress]);
 
   const handleStartScan = () => {
-    if (canStartScan) doStartScan();
+    if (canStart) handleStart();
   };
 
   const summaryBg = isInProgress ? statusColors.warning.bg : bgColors.muted;
+  const badgeUiState = state === 'SUCCESS' ? 'COMPLETED' : state === 'EMPTY' ? 'IDLE' : state;
 
   return (
     <div className={cn('mx-4 mt-4 border rounded-lg overflow-hidden', borderColors.default)}>
-      {/* Collapsed Summary Bar */}
       <div
         role="button"
         tabIndex={0}
@@ -104,24 +146,21 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
         <div className="flex items-center gap-3 min-w-0">
           <ChevronIcon expanded={expanded} />
           <span className={cn('text-sm font-medium', textColors.secondary)}>리소스 스캔</span>
-          {!loading && <ScanStatusBadge uiState={uiState} />}
+          {!loading && <ScanStatusBadge uiState={badgeUiState} />}
 
-          {/* Normal mode: key numbers + last scan time */}
           {!loading && !isInProgress && lastResult && (
             <span className={cn('text-xs', textColors.tertiary)}>
               {lastResult.totalFound}개 발견
-              {lastCompletedAt && ` | 마지막: ${formatDate(lastCompletedAt, 'short')}`}
+              {lastScanAt && ` | 마지막: ${formatDate(lastScanAt, 'short')}`}
             </span>
           )}
 
-          {/* No scan history */}
           {!loading && !isInProgress && !lastResult && (
             <span className={cn('text-xs', textColors.quaternary)}>
               스캔을 시작하여 리소스를 검색하세요
             </span>
           )}
 
-          {/* In-progress mode: message */}
           {!loading && isInProgress && (
             <span className={cn('text-xs', statusColors.warning.textDark)}>
               리소스를 검색하고 있습니다
@@ -129,7 +168,6 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
           )}
         </div>
 
-        {/* Right side: scan button (hidden during scan) */}
         {!loading && !isInProgress && (
           <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             {starting ? (
@@ -143,7 +181,7 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
               <Button
                 variant="primary"
                 onClick={handleStartScan}
-                disabled={!canStartScan}
+                disabled={!canStart}
                 className="text-sm py-1.5"
               >
                 스캔 시작
@@ -153,7 +191,6 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
         )}
       </div>
 
-      {/* In-progress inline progress bar (always visible in collapsed/expanded) */}
       {!loading && isInProgress && latestJob?.scanStatus === 'SCANNING' && (
         <div className={cn('px-4 pb-3', statusColors.warning.bg)}>
           <ScanProgressBar
@@ -163,11 +200,9 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
         </div>
       )}
 
-      {/* Expanded Detail */}
       {expanded && !loading && (
         <div className={cn('px-4 py-4 space-y-4 border-t', borderColors.default)}>
-          {/* FAILED: Error Message */}
-          {uiState === 'FAILED' && (
+          {state === 'FAILED' && (
             <div className={cn('flex items-center gap-2 py-4 px-3 rounded-lg', statusColors.error.bg)}>
               <svg className={cn('w-5 h-5', statusColors.error.text)} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -178,32 +213,34 @@ export const ScanPanel = ({ targetSourceId, cloudProvider, onScanComplete }: Sca
             </div>
           )}
 
-          {/* Result Summary (metrics grid + type chips) */}
-          {uiState === 'COMPLETED' && lastResult && (
+          {state === 'SUCCESS' && lastResult && (
             <ScanResultSummary
               result={lastResult}
-              completedAt={lastCompletedAt}
+              completedAt={lastScanAt}
             />
           )}
 
-          {/* IDLE: No scan yet */}
-          {uiState === 'IDLE' && !lastResult && (
+          {state === 'EMPTY' && !lastResult && (
             <div className={cn('text-center py-6 text-sm', textColors.tertiary)}>
               스캔을 시작하여 리소스를 검색하세요.
             </div>
           )}
-
-          {/* Scan History Table */}
-          <div className="pt-2">
-            <div className={cn('text-xs font-medium uppercase tracking-wide mb-2', textColors.tertiary)}>
-              스캔 이력
-            </div>
-            <ScanHistoryList targetSourceId={targetSourceId} limit={5} lastCompletedAt={lastCompletedAt} />
-          </div>
         </div>
       )}
     </div>
   );
 };
+
+interface ScanPanelProps {
+  targetSourceId: number;
+  cloudProvider: CloudProvider;
+  onScanComplete?: () => void;
+}
+
+export const ScanPanel = ({ targetSourceId, cloudProvider: _cloudProvider, onScanComplete }: ScanPanelProps) => (
+  <ScanController targetSourceId={targetSourceId} onScanComplete={onScanComplete}>
+    {(controller) => <ScanPanelView {...controller} />}
+  </ScanController>
+);
 
 export default ScanPanel;
