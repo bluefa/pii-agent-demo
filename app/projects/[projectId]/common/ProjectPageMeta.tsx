@@ -1,13 +1,14 @@
 import type { Project } from '@/lib/types';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
-import { PageMeta } from '@/app/components/ui/PageMeta';
 import { integrationRoutes } from '@/lib/routes';
+import { ProjectIdentityCard } from './ProjectIdentityCard';
+import type { ProjectIdentity } from './ProjectIdentityCard';
 
 interface ProjectPageMetaProps {
   project: Project;
   providerLabel: string;
-  metaItems: Array<{ label: string; value: React.ReactNode }>;
+  identity: ProjectIdentity;
   action?: React.ReactNode;
 }
 
@@ -16,7 +17,7 @@ const STATIC_HEAD_CRUMBS = [
   { label: 'Service List', href: integrationRoutes.admin },
 ];
 
-export const ProjectPageMeta = ({ project, providerLabel, metaItems, action }: ProjectPageMetaProps) => {
+export const ProjectPageMeta = ({ project, providerLabel, identity, action }: ProjectPageMetaProps) => {
   const crumbs = [
     ...STATIC_HEAD_CRUMBS,
     { label: project.serviceCode, href: integrationRoutes.admin },
@@ -30,7 +31,7 @@ export const ProjectPageMeta = ({ project, providerLabel, metaItems, action }: P
         title={`${project.name || project.projectCode} (${project.serviceCode})`}
         action={action}
       />
-      <PageMeta items={metaItems} />
+      <ProjectIdentityCard identity={identity} />
     </>
   );
 };

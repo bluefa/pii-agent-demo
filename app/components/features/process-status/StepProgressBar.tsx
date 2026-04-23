@@ -8,7 +8,7 @@ export const steps = [
   { step: ProcessStatus.WAITING_APPROVAL, label: '연동 대상 승인 대기' },
   { step: ProcessStatus.APPLYING_APPROVED, label: '연동 대상 반영중' },
   { step: ProcessStatus.INSTALLING, label: 'Agent 설치' },
-  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트 (N-IRP 연동)' },
+  { step: ProcessStatus.WAITING_CONNECTION_TEST, label: '연결 테스트' },
   { step: ProcessStatus.CONNECTION_VERIFIED, label: '관리자 승인 대기' },
   { step: ProcessStatus.INSTALLATION_COMPLETE, label: '완료' },
 ];

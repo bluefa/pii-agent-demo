@@ -16,7 +16,7 @@ import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[projectId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
@@ -238,16 +238,18 @@ export const GcpProjectPage = ({
     setIsEditMode(false);
   };
 
-  const pageMetaItems = [
-    { label: 'Cloud Provider', value: 'GCP' },
-    { label: 'GCP Project ID', value: project.gcpProjectId ?? '-' },
-    { label: 'Jira Link', value: '-' },
-    { label: '모니터링 방식', value: 'GCP Agent' },
-  ];
+  const identity: ProjectIdentity = {
+    cloudProvider: 'GCP',
+    monitoringMethod: 'GCP Agent',
+    jiraLink: null,
+    identifiers: [
+      { label: 'GCP Project ID', value: project.gcpProjectId ?? null, mono: true },
+    ],
+  };
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="GCP Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="GCP Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
 
       <ProcessStatusCard
         project={project}

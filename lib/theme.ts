@@ -80,11 +80,41 @@ export const statusColors = {
  * Cloud Provider 브랜드 색상
  */
 export const providerColors = {
-  AWS: { border: 'border-[#FF9900]', bg: 'bg-[#FF9900]/5', text: 'text-[#FF9900]', bar: 'bg-[#FF9900]' },
-  Azure: { border: 'border-[#0078D4]', bg: 'bg-[#0078D4]/5', text: 'text-[#0078D4]', bar: 'bg-[#0078D4]' },
-  GCP: { border: 'border-[#4285F4]', bg: 'bg-[#4285F4]/5', text: 'text-[#4285F4]', bar: 'bg-[#4285F4]' },
-  IDC: { border: 'border-gray-700', bg: 'bg-gray-50', text: 'text-gray-700', bar: 'bg-gray-700' },
-  SDU: { border: 'border-purple-600', bg: 'bg-purple-50', text: 'text-purple-600', bar: 'bg-purple-600' },
+  AWS: {
+    border: 'border-[#FF9900]',
+    bg: 'bg-[#FF9900]/5',
+    text: 'text-[#FF9900]',
+    bar: 'bg-[#FF9900]',
+    gradient: 'bg-gradient-to-r from-[#FF9900] via-[#FFA936] to-[#FFC266]',
+  },
+  Azure: {
+    border: 'border-[#0078D4]',
+    bg: 'bg-[#0078D4]/5',
+    text: 'text-[#0078D4]',
+    bar: 'bg-[#0078D4]',
+    gradient: 'bg-gradient-to-r from-[#0078D4] via-[#2E90E8] to-[#5CA9F5]',
+  },
+  GCP: {
+    border: 'border-[#4285F4]',
+    bg: 'bg-[#4285F4]/5',
+    text: 'text-[#4285F4]',
+    bar: 'bg-[#4285F4]',
+    gradient: 'bg-gradient-to-r from-[#4285F4] via-[#34A853] to-[#FBBC04]',
+  },
+  IDC: {
+    border: 'border-gray-700',
+    bg: 'bg-gray-50',
+    text: 'text-gray-700',
+    bar: 'bg-gray-700',
+    gradient: 'bg-gradient-to-r from-gray-800 via-gray-600 to-gray-400',
+  },
+  SDU: {
+    border: 'border-purple-600',
+    bg: 'bg-purple-50',
+    text: 'text-purple-600',
+    bar: 'bg-purple-600',
+    gradient: 'bg-gradient-to-r from-purple-700 via-fuchsia-600 to-pink-500',
+  },
 } as const;
 
 /**
