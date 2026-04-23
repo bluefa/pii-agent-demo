@@ -11,16 +11,16 @@ import {
 import { getProjectCurrentStep } from '@/lib/process';
 import { getProcessGuide } from '@/lib/constants/process-guides';
 import { useModal } from '@/app/hooks/useModal';
-import { ScanPanel } from '@/app/components/features/scan';
+import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
+import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
-import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { cn, cardStyles, textColors, getButtonClass } from '@/lib/theme';
+import { cn, getButtonClass } from '@/lib/theme';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -203,49 +203,42 @@ export const AwsProjectPage = ({
         approvalResources={approvalResources}
       />
 
-      {/* Cloud 리소스 통합 컨테이너 */}
+      <GuideCard
+        currentStep={currentStep}
+        provider={project.cloudProvider}
+        installationMode={project.awsInstallationMode}
+      />
+
       {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-        <div>
-          <ResourceTransitionPanel
-            targetSourceId={project.targetSourceId}
-            resources={project.resources}
-            cloudProvider={project.cloudProvider}
-            processStatus={currentStep}
-          />
-        </div>
+        <ResourceTransitionPanel
+          targetSourceId={project.targetSourceId}
+          resources={project.resources}
+          cloudProvider={project.cloudProvider}
+          processStatus={currentStep}
+        />
       ) : (
-        <div className={cn(cardStyles.base, 'overflow-hidden')}>
-          <div className="px-6 pt-6">
-            <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
-          </div>
-
-          <ScanPanel
-            targetSourceId={project.targetSourceId}
-            cloudProvider={project.cloudProvider}
-            onScanComplete={async () => {
-              const updatedProject = await getProject(project.targetSourceId);
-              onProjectUpdate(updatedProject);
-            }}
-          />
-
-          <ResourceTable
-            resources={project.resources.map((r) => ({
-              ...r,
-              vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-            }))}
-            cloudProvider={project.cloudProvider}
-            processStatus={currentStep}
-            isEditMode={effectiveEditMode}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            credentials={credentials}
-            onCredentialChange={handleCredentialChange}
-            expandedVmId={expandedVmId}
-            onVmConfigToggle={setExpandedVmId}
-            onVmConfigSave={handleVmConfigSave}
-            onEditModeChange={setIsEditMode}
-          />
-        </div>
+        <DbSelectionCard
+          targetSourceId={project.targetSourceId}
+          cloudProvider={project.cloudProvider}
+          onScanComplete={async () => {
+            const updatedProject = await getProject(project.targetSourceId);
+            onProjectUpdate(updatedProject);
+          }}
+          resources={project.resources.map((r) => ({
+            ...r,
+            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+          }))}
+          processStatus={currentStep}
+          isEditMode={effectiveEditMode}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          credentials={credentials}
+          onCredentialChange={handleCredentialChange}
+          expandedVmId={expandedVmId}
+          onVmConfigToggle={setExpandedVmId}
+          onVmConfigSave={handleVmConfigSave}
+          onEditModeChange={setIsEditMode}
+        />
       )}
 
       <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
