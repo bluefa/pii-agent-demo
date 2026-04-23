@@ -1,6 +1,6 @@
 'use client';
 
-import { statusColors, cn } from '@/lib/theme';
+import { statusColors, interactiveColors, cn } from '@/lib/theme';
 import {
   StatusErrorIcon,
   StatusInfoIcon,
@@ -46,7 +46,7 @@ export const Toast = ({ id, variant, message, dismissible, onDismiss }: ToastPro
           type="button"
           onClick={() => onDismiss(id)}
           aria-label="닫기"
-          className="p-1 -m-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          className={cn('p-1 -m-1 rounded transition-colors', interactiveColors.closeButton)}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
