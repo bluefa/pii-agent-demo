@@ -443,7 +443,7 @@ export interface ScanResult {
 
 export interface ScanJob {
   id: string;
-  projectId: string;
+  targetSourceId: number;
   provider: CloudProvider;
   status: ScanStatus;
   startedAt: string;
@@ -460,7 +460,7 @@ export interface ScanJob {
 
 export interface ScanHistory {
   id: string;
-  projectId: string;
+  targetSourceId: number;
   scanId: string;
   provider: CloudProvider;
   status: 'SUCCESS' | 'FAIL';
@@ -751,7 +751,7 @@ export interface ApprovalRequestInputSnapshot {
 
 export interface ProjectHistory {
   id: string;
-  projectId: string;
+  targetSourceId: number;
   type: ProjectHistoryType;
   actor: ProjectHistoryActor;
   timestamp: string;
@@ -802,6 +802,7 @@ export interface ConfirmResourceMetadata {
   resourceType: string;
   region?: string;
   vpcId?: string;
+  // GCP Cloud Project ID (외부 계약). legacy 내부 projectId와 다름.
   projectId?: string;
   rawResourceType?: string;
   subscriptionId?: string;
