@@ -8,20 +8,9 @@ import {
   updateResourceCredential,
   getProject,
   getConfirmResources,
-} from '@/app/lib/api';
-import { getGcpScanServiceAccount, getGcpTerraformServiceAccount } from '@/app/lib/api/gcp';
-import type { GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
-import type {
-  ApprovalHistoryResponse,
-  ApprovedIntegrationResponse,
-  ConfirmedIntegrationResponse,
-  ConfirmResourceItem,
-} from '@/app/lib/api';
-import {
-  getApprovalHistory,
-  getApprovedIntegration,
   getConfirmedIntegration,
 } from '@/app/lib/api';
+import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { ScanPanel } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -43,21 +32,10 @@ const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
   resource_infos: [],
 };
 
-const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
-  content: [],
-  page: {
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 1,
-  },
-};
-
 const isMissingSnapshotError = (error: unknown): boolean =>
   error instanceof AppError
   && (
     error.code === 'NOT_FOUND'
-    || error.code === 'APPROVED_INTEGRATION_NOT_FOUND'
     || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
   );
 
@@ -85,47 +63,18 @@ export const GcpProjectPage = ({
     return initial;
   });
 
-  // Prerequisite data
-  const [scanSA, setScanSA] = useState<GcpServiceAccountInfo | null>(null);
-  const [tfSA, setTfSA] = useState<GcpServiceAccountInfo | null>(null);
-
-  useEffect(() => {
-    getGcpScanServiceAccount(project.targetSourceId).then(setScanSA).catch(() => {});
-    getGcpTerraformServiceAccount(project.targetSourceId).then(setTfSA).catch(() => {});
-  }, [project.targetSourceId]);
-
   // Resource loading state
   const [resources, setResources] = useState<Resource[]>(project.resources);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceError, setResourceError] = useState<string | null>(null);
-
-  // Approval state
-  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
-  const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
-  const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
 
   const loadGcpResources = useCallback(async () => {
     setResourceLoading(true);
     setResourceError(null);
 
     try {
-      const [
-        catalogResponse,
-        approvalHistoryResponse,
-        approvedIntegrationResponse,
-        confirmedIntegrationResponse,
-      ] = await Promise.all([
+      const [catalogResponse, confirmedIntegrationResponse] = await Promise.all([
         getConfirmResources(project.targetSourceId),
-        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
-          throw error;
-        }),
-        getApprovedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) {
-            return { approved_integration: null } satisfies ApprovedIntegrationResponse;
-          }
-          throw error;
-        }),
         getConfirmedIntegration(project.targetSourceId).catch((error) => {
           if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
           throw error;
@@ -171,9 +120,6 @@ export const GcpProjectPage = ({
       });
 
       setResources(convertedResources);
-      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
-      setApprovedIntegration(approvedIntegrationResponse.approved_integration);
-      setConfirmedIntegration(confirmedIntegrationResponse);
     } catch (error) {
       const errorMessage = error instanceof AppError && error.isUserFacing 
         ? error.message 
@@ -286,9 +232,6 @@ export const GcpProjectPage = ({
     setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
     setIsEditMode(true);
   };
-
-  const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
-  const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
   const handleCancelEdit = () => {
     setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));

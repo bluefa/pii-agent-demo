@@ -19,10 +19,8 @@ import {
   updateResourceCredential,
 } from '@/app/lib/api';
 import {
-  getAzureScanApp,
   getAzureSettings,
   resolveAzureProjectIdentifiers,
-  type AzureScanApp,
 } from '@/app/lib/api/azure';
 import type { AzureV1Settings } from '@/lib/types/azure';
 import { ScanPanel } from '@/app/components/features/scan';
@@ -71,12 +69,6 @@ const getResourceErrorMessage = (error: unknown): string => {
   return 'Azure 리소스 정보를 불러오지 못했습니다.';
 };
 
-const getScanAppErrorMessage = (error: unknown): string => {
-  if (error instanceof AppError && error.isUserFacing) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Azure scan app 정보를 불러오지 못했습니다.';
-};
-
 export const AzureProjectPage = ({
   project,
   credentials,
@@ -90,8 +82,6 @@ export const AzureProjectPage = ({
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
 
-  const [scanApp, setScanApp] = useState<AzureScanApp | null>(null);
-  const [scanAppError, setScanAppError] = useState<string | null>(null);
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
 
   const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
@@ -106,19 +96,7 @@ export const AzureProjectPage = ({
     let cancelled = false;
     const needsIdentifierFallback = !project.tenantId || !project.subscriptionId;
 
-    setScanApp(null);
-    setScanAppError(null);
     setFallbackSettings(null);
-
-    void getAzureScanApp(project.targetSourceId)
-      .then((response) => {
-        if (cancelled) return;
-        setScanApp(response);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setScanAppError(getScanAppErrorMessage(error));
-      });
 
     if (needsIdentifierFallback) {
       void getAzureSettings(project.targetSourceId)
@@ -147,9 +125,6 @@ export const AzureProjectPage = ({
     ),
     [fallbackSettings, project.subscriptionId, project.tenantId],
   );
-
-  const handleOpenGuide = () => { /* TODO: 가이드 모달 연결 */ };
-  const handleManageCredentials = () => { /* TODO: Credential 관리 페이지 이동 */ };
 
   const currentStep = getProjectCurrentStep(project);
   const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
