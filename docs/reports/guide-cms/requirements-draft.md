@@ -1,8 +1,8 @@
 # Guide CMS — 요구사항 명세 (Draft)
 
-> **Status**: 🟡 Q1~Q5 답변 대기 중 (Q6·Q8 확정, Q7 자동 해소)
+> **Status**: 🟡 Q1 / Q4 답변 대기 중 (Q2·Q3·Q5·Q6·Q8 확정, Q7 자동 해소)
 > **작성일**: 2026-04-23
-> **최근 업데이트**: 2026-04-23 — Q6=A, Q8=B 확정. Q7 자동 해소 (lang query 불필요). API 엔드포인트 제안 추가.
+> **최근 업데이트**: 2026-04-23 — Q5 확정: 좌우 split + Process 타임라인(접힘) + GuideCard 실제 렌더 + ko/en 토글. ProcessGuideModal 미리보기는 스콥 제외.
 > **Owner**: @chulyonga
 > **목적**: `GuideCard` / `ProcessGuideModal` 이 참조하는 가이드 데이터를 **API 기반**으로 전환하고, **Admin 편집 페이지**에서 HTML로 수정 가능하게 만드는 기능 명세.
 >
@@ -182,7 +182,68 @@
 
 💡 **추천: A** — 데스크탑 전용이지만 ProcessGuideModal은 원래 전체화면 급이라 축소 렌더링하면 의미가 죽음. 탭 전환이 R4("실제 사용되던 형태 그대로")에 가장 충실.
 
-**답변**: _(대기)_
+**답변**: ✅ **확정** (2026-04-23) — "프로세스 항목 아래에 가이드 페이지 이렇게 보여지는거야. 아니면 그냥 가이드 Card만 보여져도 되고"
+
+#### 확정 레이아웃
+
+**전체 페이지 구조 — 좌우 split (편집 vs 미리보기)**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Admin 편집 페이지                                             │
+├──────────────────────────────────────────────────────────────┤
+│  왼쪽 (50%)                │  오른쪽 (50%) — Preview          │
+│  ─────────────             │  ─────────────                   │
+│  편집기 (Tiptap Visual)    │  [ko] [en]   [Process 접기 ▾]    │
+│  [B] [I] ...               │  ● ─ ● ─ ◉ ─ ○ ─ ○ ─ ○ ─ ○       │
+│                            │  1   2   3   4   5   6   7       │
+│                            │  ─────────────                   │
+│                            │  ┌────────────────────┐          │
+│                            │  │  GuideCard         │          │
+│                            │  │  (실제 렌더)        │          │
+│                            │  │  [heading]         │          │
+│                            │  │  summary           │          │
+│                            │  │  • bullet          │          │
+│                            │  │  [⚠️ warning]       │          │
+│                            │  └────────────────────┘          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**간단 모드 (Process 접힌 상태)**
+
+```
+[Process 접기 ▲]  ← 클릭하면 타임라인 숨김
+┌────────────────────┐
+│  GuideCard         │  ← 편집에 집중하고 싶을 때
+│  (실제 렌더)        │
+└────────────────────┘
+```
+
+#### 구성 요소
+
+| 영역 | 설명 |
+|------|------|
+| **Process 타임라인 (상단)** | 7단계 중 현재 편집 단계 `◉` 강조. compact한 단일 라인. "이 가이드가 어느 단계에 속하는지" 맥락 제공 |
+| **GuideCard (하단)** | 실제 end-user 화면에 렌더되는 그대로. 디자인 토큰·Panel CSS 모두 적용한 최종 형태 |
+| **언어 토글 `[ko] [en]`** | Preview 영역 상단. Q8=B(응답에 ko/en 동시) 덕에 재요청 없이 즉시 전환 |
+| **Process 접기 버튼** | 타임라인 숨김 → GuideCard만 보기. 사용자 허용 간단 모드 |
+| **ProcessGuideModal 미리보기** | **이번 스콥 제외** — 사용자가 "가이드 Card만 보여져도 OK" 로 간소화 허용. 필요 시 후속 wave |
+
+#### Preview의 데이터 주입 흐름
+
+```
+사용자 Tiptap 편집
+     ↓ (onUpdate)
+편집 중 HTML 문자열
+     ↓
+sanitize (DOMPurify)
+     ↓
+GuideCard 컴포넌트에 prop 주입 (실제 컴포넌트 재사용)
+     ↓
+Preview 영역에 실시간 렌더
+```
+
+→ 미리보기는 "장식용 mockup" 이 아니라 **실제 `GuideCard` 컴포넌트를 그대로 재사용**. 따라서 운영 환경과 1:1 일치 보장. 이를 위해 `GuideCard` 를 `content: HTMLString` 을 받는 형태로 약간 리팩토링 필요.
 
 ---
 
@@ -364,16 +425,36 @@ Confluence / Notion / Linear 모두 동일 철학 — 편집자는 **"이건 경
 | `class` 차단 + `data-panel` 예외 | 보안 + 디자인 일관성 양립 |
 | `@tailwindcss/typography` + Panel 전용 CSS | 스타일 앱 전담 |
 
-### 🙋 남은 확인 질문 (Q2 / Q3 수렴 직전)
+### ✅ 확정 (2026-04-23)
 
-- **Q2-1**: Panel 매크로 패턴 (`<div data-panel="warning">`) 채택?
-  - YES → Q2 = **A** 로 결론
-  - NO → Q2 = **A'** (warnings_html 분리) 로 진행
-- **Q2-2**: 필수/강력권장 툴바 목록에 추가·삭제할 기능?
-- **Q2-3**: Table / Image / Expand 중 MVP 포함 여부 (각각 yes/no)
-- **Q3**: 편집기 라이브러리 (Tiptap / CKEditor / textarea+Preview)
+- **Q2-1 Panel 매크로**: ✅ **YES** → Q2 = **A** (순수 한 덩어리 HTML, 필드 분리 없음)
+- **Q2-2 툴바**: **권장 그대로** (필수 10개 + Panel 4개 + 선택 5개 전부)
+- **Q2-3 확장 기능**: Table ✅ / Image(URL만) ✅ / Expand ✅ — 이미지 업로드는 별도 wave
+- **Q2 추가**: **Source 탭 read-only** — Visual 에디터만 편집 진입점, HTML 직접 수정 차단
+- **Q3 라이브러리**: ✅ **Tiptap** — "대중적인 편집기" 요구에 부합, ProseMirror(Confluence/Notion) 엔진
 
-**답변 대기**: _(위 4개 항목)_
+### 설계 귀결
+
+```
+Admin 편집 페이지
+├─ Visual 탭 (편집 가능) — Tiptap WYSIWYG
+│   └─ 툴바: [B] [I] [<>] [H2] [H3] [•] [1.] [🔗]
+│            [ℹ️] [⚠️] [📌] [✅]           ← Panel
+│            [U] [S] [Table] [Image] [Expand]  ← 선택
+├─ Source 탭 (read-only) — 현재 HTML 상태 확인용
+└─ Preview 탭 — BornFrame(?) 레이아웃, Q5 확정 대기
+```
+
+### 보안·일관성 최종 규칙
+
+| 항목 | 규칙 |
+|------|------|
+| 편집 진입점 | Visual(Tiptap) 단일 — Source는 read-only |
+| `class` 속성 | ❌ 차단 |
+| `data-panel` 속성 | ✅ 허용 (info/warning/note/success 4종) |
+| `style` 인라인 | ❌ 차단 |
+| Sanitize | 저장 시 + 렌더 시 양쪽 (DOMPurify allow-list) |
+| 스타일 책임 | 앱 (`@tailwindcss/typography` + Panel CSS) |
 
 ---
 
@@ -539,7 +620,15 @@ Q1~Q5 확정 후 다음을 이어서 결정할 예정:
 | Q8 | API 페이로드 전략 | **B** (응답에 ko/en 동시) | "분기 처리 쉽게... kor, en으로 분류" | 사용자 | 2026-04-23 |
 | Q7 | 언어 선택 방식 | 자동 해소 (lang query 제거) | Q8=B 결과 — 클라이언트가 응답에서 선택 | AI (사용자 확인) | 2026-04-23 |
 | API-shape | 응답 구조 | `{ name, defaultLang, content: { ko, en\|null }, updatedAt }` | Q8=B 구현 세부 | AI 추천 | 2026-04-23 |
-| — | _(Q1~Q5 답변 후 추가 채워짐)_ | — | — | — | — |
+| Q2-1 | Panel 매크로 채택 | ✅ YES (`<div data-panel="warning">`) | 기존 색상 박스 UI 복원 + 본문 한 덩어리 유지 | 사용자 | 2026-04-23 |
+| Q2 | HTML 편집 데이터 모델 | **A** (순수 한 덩어리 HTML) | Q2-1 YES 귀결 | 사용자 | 2026-04-23 |
+| Q2-2 | 툴바 구성 | 권장 버전 (필수10 + Panel4 + 선택5) | "권장 버전으로 가보자" | 사용자 | 2026-04-23 |
+| Q2-3 | Table / Image / Expand | 전부 포함 (단, Image는 URL만) | 권장 버전 그대로 | 사용자 | 2026-04-23 |
+| Q2-src | Source 탭 모드 | read-only | "Source View 수정 불가능하게" — 편집 진입점 단일화, sanitize 우회 차단 | 사용자 | 2026-04-23 |
+| Q3 | 편집기 라이브러리 | **Tiptap** | "대중적인 편집기 사용", ProseMirror 엔진 (Confluence/Notion 동일) | 사용자 | 2026-04-23 |
+| Q5 | 미리보기 레이아웃 | **좌우 split** (편집 \| Preview) + Preview 내 Process 타임라인(접힘가능) + GuideCard 실제 렌더 + ko/en 토글 | "프로세스 항목 아래에 가이드 페이지, 아니면 가이드 Card만 OK" | 사용자 | 2026-04-23 |
+| Q5-scope | ProcessGuideModal 미리보기 | 이번 스콥 제외 (GuideCard만 미리보기) | "가이드 Card만 보여져도 되고" — 스콥 간소화 | 사용자 | 2026-04-23 |
+| — | _(Q1, Q4 답변 대기)_ | — | — | — | — |
 
 ---
 
