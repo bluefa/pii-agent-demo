@@ -6,19 +6,16 @@ import { getApprovalRequestLatest } from '@/app/lib/api';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { CancelApprovalModal } from './CancelApprovalModal';
-import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
 interface ApprovalWaitingCardProps {
   targetSourceId: number;
   onCancelSuccess: () => void;
-  hasConfirmedIntegration?: boolean;
 }
 
 export const ApprovalWaitingCard = ({
   targetSourceId,
   onCancelSuccess,
-  hasConfirmedIntegration,
 }: ApprovalWaitingCardProps) => {
   const detailModal = useModal();
   const cancelModal = useModal();
@@ -75,12 +72,6 @@ export const ApprovalWaitingCard = ({
                 요청 취소
               </button>
             </div>
-            {hasConfirmedIntegration && (
-              <ConfirmedIntegrationCollapse
-                targetSourceId={targetSourceId}
-                label="현재 연동 정보 보기"
-              />
-            )}
           </div>
         </div>
       </div>

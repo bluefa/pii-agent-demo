@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
-import { getConfirmedIntegration, getProcessStatus, getProject } from '@/app/lib/api';
+import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
 import {
@@ -72,43 +72,12 @@ export const ProcessStatusCard = ({
   const progress = getProgress(project);
   const selectedResources = resources.filter((r) => r.isSelected);
 
-  // ADR-006: 변경 요청 시 기존 확정 정보 존재 여부
-  const [hasConfirmedIntegration, setHasConfirmedIntegration] = useState(false);
-  const shouldShowConfirmedIntegration =
-    (currentStep === ProcessStatus.WAITING_APPROVAL || currentStep === ProcessStatus.APPLYING_APPROVED)
-    && hasConfirmedIntegration;
-
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableOnProjectUpdate = useCallback(
     (p: Project) => onProjectUpdate?.(p),
     [onProjectUpdate],
   );
-
-  useEffect(() => {
-    const needsConfirmedIntegration =
-      currentStep === ProcessStatus.WAITING_APPROVAL
-      || currentStep === ProcessStatus.APPLYING_APPROVED;
-
-    if (!needsConfirmedIntegration || !project.targetSourceId) return;
-
-    let cancelled = false;
-    void getConfirmedIntegration(project.targetSourceId)
-      .then((response) => {
-        if (!cancelled) {
-          setHasConfirmedIntegration(response.resource_infos.length > 0);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHasConfirmedIntegration(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentStep, project.targetSourceId]);
 
   useEffect(() => {
     const shouldPoll =
@@ -226,14 +195,12 @@ export const ProcessStatusCard = ({
                   <ApprovalWaitingCard
                     targetSourceId={project.targetSourceId}
                     onCancelSuccess={refreshProject}
-                    hasConfirmedIntegration={shouldShowConfirmedIntegration}
                   />
                 )}
 
                 {currentStep === ProcessStatus.APPLYING_APPROVED && (
                   <ApprovalApplyingBanner
                     targetSourceId={project.targetSourceId}
-                    hasConfirmedIntegration={shouldShowConfirmedIntegration}
                   />
                 )}
 
