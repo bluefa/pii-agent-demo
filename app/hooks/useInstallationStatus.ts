@@ -41,11 +41,11 @@ export function useInstallationStatus<T>({
   isCompleteRef.current = isComplete;
 
   const run = useCallback(
-    async (fn: (id: number) => Promise<T>, setInFlight: (value: boolean) => void) => {
+    async (fetcher: (id: number) => Promise<T>, setInFlight: (value: boolean) => void) => {
       try {
         setInFlight(true);
         setError(null);
-        const data = await fn(targetSourceId);
+        const data = await fetcher(targetSourceId);
         setStatus(data);
         if (isCompleteRef.current?.(data)) onCompleteRef.current?.(data);
       } catch (err) {
