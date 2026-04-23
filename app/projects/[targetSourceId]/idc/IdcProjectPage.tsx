@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Project, ProcessStatus, SecretKey } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
@@ -11,11 +11,9 @@ import {
   getIdcInstallationStatus as fetchIdcInstallationStatus,
   checkIdcInstallation,
   confirmIdcFirewall,
-  updateIdcResourcesList,
   confirmIdcTargets,
 } from '@/app/lib/api/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { Modal } from '@/app/components/ui/Modal';
 import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/projects/[targetSourceId]/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
@@ -35,24 +33,14 @@ export const IdcProjectPage = ({
   onProjectUpdate,
 }: IdcProjectPageProps) => {
   const toast = useToast();
-  const [isEditMode, setIsEditMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // IDC-specific states
   const [showIdcResourceInput, setShowIdcResourceInput] = useState(false);
   const [idcInstallationStatus, setIdcInstallationStatus] = useState<IdcInstallationStatusType | null>(null);
-
-  // 임시 리소스 관리 (1단계에서만 사용)
   const [pendingResources, setPendingResources] = useState<IdcResourceInput[]>([]);
 
-  // 편집 모드용 상태 (Step 1 이후)
-  const [editPendingResources, setEditPendingResources] = useState<IdcResourceInput[]>([]);
-  const [editDeletedIds, setEditDeletedIds] = useState<Set<string>>(new Set());
-
-  // 1단계이면 기본적으로 편집 모드
-  const isStep1 = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  const canEditTargets = project.processStatus === ProcessStatus.WAITING_TARGET_CONFIRMATION;
   const isInstalling = project.processStatus === ProcessStatus.INSTALLING;
 
-  // 설치 단계일 때 설치 상태 가져오기
   useEffect(() => {
     if (isInstalling) {
       fetchIdcInstallationStatus(project.targetSourceId)
@@ -60,17 +48,6 @@ export const IdcProjectPage = ({
         .catch(() => {});
     }
   }, [isInstalling, project.targetSourceId]);
-
-  // 확정 후 표시할 리소스 목록 계산 (Step 1 이후에만 사용)
-  const displayResources = useMemo(() => {
-    // 기존 리소스 중 삭제되지 않은 것만 필터링
-    return project.resources.filter((r) => !editDeletedIds.has(r.id));
-  }, [project.resources, editDeletedIds]);
-
-  const hasConfirmedTargets = useMemo(
-    () => project.resources.some((r) => r.isSelected),
-    [project.resources],
-  );
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -82,85 +59,15 @@ export const IdcProjectPage = ({
     }
   };
 
-  const handleStartEdit = () => {
-    setEditPendingResources([]);
-    setEditDeletedIds(new Set());
-    setIsEditMode(true);
-  };
-
-  const handleCancelEdit = () => {
-    setEditPendingResources([]);
-    setEditDeletedIds(new Set());
-    setIsEditMode(false);
-  };
-
-  // 편집 모드: 리소스 추가
-  const handleEditAddResource = useCallback((data: IdcResourceInput) => {
-    setEditPendingResources((prev) => [...prev, data]);
-    setShowIdcResourceInput(false);
-  }, []);
-
-  // 편집 모드: 기존 리소스 삭제 표시
-  const handleEditRemoveResource = useCallback((resourceId: string) => {
-    setEditDeletedIds((prev) => new Set([...prev, resourceId]));
-  }, []);
-
-  // 편집 모드: 임시 리소스 삭제 (index 기반)
-  const handleEditRemovePendingInput = useCallback((index: number) => {
-    setEditPendingResources((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
-  // 확정 수정 완료 핸들러
-  const handleEditConfirm = useCallback(async () => {
-    // 유지할 리소스 ID (기존 리소스 중 삭제되지 않은 것)
-    const keepResourceIds = project.resources
-      .filter((r) => !editDeletedIds.has(r.id))
-      .map((r) => r.id);
-
-    // 최소 1개 리소스 확인
-    if (keepResourceIds.length === 0 && editPendingResources.length === 0) {
-      toast.warning('최소 1개 이상의 리소스가 필요합니다.');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const data = await updateIdcResourcesList(
-        project.targetSourceId,
-        keepResourceIds,
-        editPendingResources,
-      );
-
-      if (data.project) {
-        onProjectUpdate(data.project as Project);
-      } else {
-        const updatedProject = await getProject(project.targetSourceId);
-        onProjectUpdate(updatedProject);
-      }
-
-      // 편집 상태 초기화
-      setEditPendingResources([]);
-      setEditDeletedIds(new Set());
-      setIsEditMode(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '리소스 업데이트에 실패했습니다.');
-    } finally {
-      setSubmitting(false);
-    }
-  }, [project.targetSourceId, project.resources, editDeletedIds, editPendingResources, onProjectUpdate, toast]);
-
-  // IDC: 리소스 추가 (로컬 상태에만 - API 호출 안 함)
   const handleIdcResourceSave = useCallback((data: IdcResourceInput) => {
     setPendingResources((prev) => [...prev, data]);
     setShowIdcResourceInput(false);
   }, []);
 
-  // IDC: 리소스 제거 (로컬 상태에만 - index 기반)
   const handleRemovePendingResource = useCallback((index: number) => {
     setPendingResources((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  // IDC: 방화벽 확인 완료 핸들러
   const handleIdcConfirmFirewall = useCallback(async () => {
     try {
       await confirmIdcFirewall(project.targetSourceId);
@@ -175,7 +82,6 @@ export const IdcProjectPage = ({
     }
   }, [project.targetSourceId, onProjectUpdate, toast]);
 
-  // IDC: 설치 재시도 핸들러
   const handleIdcRetry = useCallback(async () => {
     try {
       await checkIdcInstallation(project.targetSourceId);
@@ -187,7 +93,6 @@ export const IdcProjectPage = ({
     }
   }, [project.targetSourceId, toast]);
 
-  // IDC: 연동 대상 확정 (모든 입력된 리소스를 API로 전송)
   const handleIdcConfirmTargets = useCallback(async () => {
     if (pendingResources.length === 0) {
       toast.warning('확정할 리소스가 없습니다. 먼저 리소스를 추가해주세요.');
@@ -205,11 +110,8 @@ export const IdcProjectPage = ({
         onProjectUpdate(updatedProject);
       }
 
-      // 상태 초기화
       setPendingResources([]);
-      setIsEditMode(false);
 
-      // 설치 상태 가져오기
       const statusData = await fetchIdcInstallationStatus(project.targetSourceId);
       setIdcInstallationStatus(statusData);
     } catch (err) {
@@ -219,7 +121,7 @@ export const IdcProjectPage = ({
     }
   }, [project.targetSourceId, pendingResources, onProjectUpdate, toast]);
 
-  const hasPendingResources = pendingResources.length > 0 && isStep1;
+  const hasPendingResources = pendingResources.length > 0 && canEditTargets;
 
   const identity: ProjectIdentity = {
     cloudProvider: 'IDC',
@@ -254,8 +156,7 @@ export const IdcProjectPage = ({
         provider={project.cloudProvider}
       />
 
-      {/* IDC Resource Input Panel - 1단계에서만 표시 */}
-      {showIdcResourceInput && isStep1 && (
+      {showIdcResourceInput && canEditTargets && (
         <IdcResourceInputPanel
           credentials={credentials}
           onSave={handleIdcResourceSave}
@@ -263,8 +164,7 @@ export const IdcProjectPage = ({
         />
       )}
 
-      {/* Resource Section - 1단계에서는 추가 버튼 표시 */}
-      {isStep1 && (
+      {canEditTargets && (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">리소스 목록</h3>
@@ -299,44 +199,19 @@ export const IdcProjectPage = ({
         </div>
       )}
 
-      {/* IDC Resource Input Modal - 편집 모드에서 사용 */}
-      <Modal
-        isOpen={showIdcResourceInput && !isStep1 && isEditMode}
-        onClose={() => setShowIdcResourceInput(false)}
-        title="리소스 추가"
-        subtitle="데이터베이스 연결 정보를 입력하세요"
-        size="lg"
-      >
-        <IdcResourceInputPanel
-          credentials={credentials}
-          onSave={handleEditAddResource}
-          onCancel={() => setShowIdcResourceInput(false)}
-          variant="modal"
-        />
-      </Modal>
-
-      {/* Resource Table - 1단계 이후 */}
-      {!isStep1 && (displayResources.length > 0 || editPendingResources.length > 0) && (
+      {!canEditTargets && project.resources.length > 0 && (
         <IdcResourceTable
-          resources={displayResources}
+          resources={project.resources}
           processStatus={project.processStatus}
           credentials={credentials}
           onCredentialChange={handleCredentialChange}
-          isEditMode={isEditMode}
-          onRemove={handleEditRemoveResource}
-          onAdd={() => setShowIdcResourceInput(true)}
-          pendingInputs={editPendingResources}
-          onRemovePendingInput={handleEditRemovePendingInput}
         />
       )}
 
-      {/* Rejection Alert */}
       <RejectionAlert project={project} />
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-3">
-        {/* 1단계: 연동 대상 확정 */}
-        {isStep1 && hasPendingResources && (
+      {canEditTargets && hasPendingResources && (
+        <div className="flex justify-end gap-3">
           <button
             onClick={handleIdcConfirmTargets}
             disabled={submitting}
@@ -345,36 +220,8 @@ export const IdcProjectPage = ({
             {submitting && <LoadingSpinner />}
             연동 대상 확정
           </button>
-        )}
-        {/* 다른 단계: 편집 모드 */}
-        {!isStep1 && isEditMode && (
-          <>
-            <button
-              onClick={handleCancelEdit}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleEditConfirm}
-              disabled={submitting || !hasConfirmedTargets}
-              className={cn(getButtonClass('primary'), 'flex items-center gap-2')}
-            >
-              {submitting && <LoadingSpinner />}
-              확정 수정 완료
-            </button>
-          </>
-        )}
-        {/* 확정 대상 수정 버튼 */}
-        {!isStep1 && !isEditMode && project.processStatus !== ProcessStatus.INSTALLATION_COMPLETE && (
-          <button
-            onClick={handleStartEdit}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            확정 대상 수정
-          </button>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 };

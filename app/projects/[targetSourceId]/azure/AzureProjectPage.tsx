@@ -76,7 +76,6 @@ export const AzureProjectPage = ({
   onProjectUpdate,
 }: AzureProjectPageProps) => {
   const toast = useToast();
-  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [draftVmConfigs, setDraftVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -129,12 +128,6 @@ export const AzureProjectPage = ({
   );
 
   const currentStep = getProjectCurrentStep(project);
-  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  const effectiveEditMode = isStep1 || isEditMode;
-  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL
-    || currentStep === ProcessStatus.APPLYING_APPROVED
-    || currentStep === ProcessStatus.INSTALLING;
-  const canRequestTargetRevision = currentStep === ProcessStatus.INSTALLING;
 
   const loadAzureResources = useCallback(async () => {
     setResourceLoading(true);
@@ -309,27 +302,12 @@ export const AzureProjectPage = ({
         loadAzureResources(),
       ]);
       onProjectUpdate(updatedProject);
-      setIsEditMode(false);
       setApprovalModalOpen(false);
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : '승인 요청에 실패했습니다.');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleStartEdit = () => {
-    setSelectedIds(restoredSelectedIds);
-    setDraftVmConfigs({});
-    setExpandedVmId(null);
-    setIsEditMode(true);
-  };
-
-  const handleCancelEdit = () => {
-    setSelectedIds(restoredSelectedIds);
-    setDraftVmConfigs({});
-    setExpandedVmId(null);
-    setIsEditMode(false);
   };
 
   const handleRefreshAfterProjectChange = async () => {
@@ -404,7 +382,6 @@ export const AzureProjectPage = ({
               onScanComplete={handleRefreshAfterProjectChange}
               resources={displayResources}
               processStatus={currentStep}
-              isEditMode={effectiveEditMode}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               credentials={credentials}
@@ -412,40 +389,12 @@ export const AzureProjectPage = ({
               expandedVmId={expandedVmId}
               onVmConfigToggle={setExpandedVmId}
               onVmConfigSave={handleVmConfigSave}
+              onRequestApproval={handleConfirmTargets}
+              approvalSubmitting={submitting || resourceLoading}
             />
           )}
 
-          <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-          <div className="flex justify-end gap-3">
-            {effectiveEditMode ? (
-              <>
-                {!isStep1 && (
-                  <button
-                    onClick={handleCancelEdit}
-                    className={getButtonClass('secondary')}
-                  >
-                    취소
-                  </button>
-                )}
-                <button
-                  onClick={handleConfirmTargets}
-                  disabled={submitting || resourceLoading || selectedIds.length === 0}
-                  className={`${getButtonClass('primary')} flex items-center gap-2`}
-                >
-                  {(submitting || resourceLoading) && <LoadingSpinner />}
-                  연동 대상 확정 승인 요청
-                </button>
-              </>
-            ) : (!isProcessing || canRequestTargetRevision) && (
-              <button
-                onClick={handleStartEdit}
-                className={getButtonClass('secondary')}
-              >
-                {canRequestTargetRevision ? '확정정보 수정 요청' : '확정 대상 수정'}
-              </button>
-            )}
-          </div>
+          <RejectionAlert project={project} />
         </>
       )}
     </main>

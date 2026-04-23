@@ -54,7 +54,6 @@ interface DbSelectionCardProps {
 
   resources: Resource[];
   processStatus: ProcessStatus;
-  isEditMode?: boolean;
   selectedIds?: string[];
   onSelectionChange?: (ids: string[]) => void;
   credentials?: SecretKey[];
@@ -62,6 +61,8 @@ interface DbSelectionCardProps {
   expandedVmId?: string | null;
   onVmConfigToggle?: (id: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
+  onRequestApproval?: () => void;
+  approvalSubmitting?: boolean;
 }
 
 export const DbSelectionCard = ({
@@ -70,7 +71,6 @@ export const DbSelectionCard = ({
   onScanComplete,
   resources,
   processStatus,
-  isEditMode,
   selectedIds,
   onSelectionChange,
   credentials,
@@ -78,6 +78,8 @@ export const DbSelectionCard = ({
   expandedVmId,
   onVmConfigToggle,
   onVmConfigSave,
+  onRequestApproval,
+  approvalSubmitting,
 }: DbSelectionCardProps) => (
   <ScanController targetSourceId={targetSourceId} onScanComplete={onScanComplete}>
     {({ state, lastScanAt, progress, starting, canStart, startScan }) => (
@@ -118,15 +120,11 @@ export const DbSelectionCard = ({
         </header>
 
         <div className="px-6 py-6">
-          {state === 'EMPTY' && <ScanEmptyState />}
-          {state === 'IN_PROGRESS' && <ScanRunningState progress={progress} />}
-          {state === 'FAILED' && <ScanErrorState onRetry={startScan} />}
-          {state === 'SUCCESS' && (
+          {resources.length > 0 ? (
             <ResourceTable
               resources={resources}
               cloudProvider={cloudProvider}
               processStatus={processStatus}
-              isEditMode={isEditMode}
               selectedIds={selectedIds}
               onSelectionChange={onSelectionChange}
               credentials={credentials}
@@ -134,7 +132,15 @@ export const DbSelectionCard = ({
               expandedVmId={expandedVmId}
               onVmConfigToggle={onVmConfigToggle}
               onVmConfigSave={onVmConfigSave}
+              onRequestApproval={onRequestApproval}
+              approvalSubmitting={approvalSubmitting}
             />
+          ) : state === 'IN_PROGRESS' ? (
+            <ScanRunningState progress={progress} />
+          ) : state === 'FAILED' ? (
+            <ScanErrorState onRetry={startScan} />
+          ) : (
+            <ScanEmptyState />
           )}
         </div>
       </section>

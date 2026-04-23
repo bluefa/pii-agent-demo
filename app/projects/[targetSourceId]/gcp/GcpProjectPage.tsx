@@ -46,7 +46,6 @@ export const GcpProjectPage = ({
   onProjectUpdate,
 }: GcpProjectPageProps) => {
   const toast = useToast();
-  const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>(
     project.resources.filter((r) => r.isSelected).map((r) => r.id)
   );
@@ -149,11 +148,6 @@ export const GcpProjectPage = ({
   };
 
   const currentStep = getProjectCurrentStep(project);
-  const isStep1 = currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  const effectiveEditMode = isStep1 || isEditMode;
-  const isProcessing = currentStep === ProcessStatus.WAITING_APPROVAL ||
-    currentStep === ProcessStatus.APPLYING_APPROVED ||
-    currentStep === ProcessStatus.INSTALLING;
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
@@ -220,7 +214,6 @@ export const GcpProjectPage = ({
       });
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
-      setIsEditMode(false);
       setExpandedVmId(null);
       setApprovalModalOpen(false);
     } catch (err) {
@@ -228,16 +221,6 @@ export const GcpProjectPage = ({
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleStartEdit = () => {
-    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
-    setIsEditMode(true);
-  };
-
-  const handleCancelEdit = () => {
-    setSelectedIds(resources.filter((r) => r.isSelected).map((r) => r.id));
-    setIsEditMode(false);
   };
 
   const identity: ProjectIdentity = {
@@ -310,7 +293,6 @@ export const GcpProjectPage = ({
             vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
           }))}
           processStatus={currentStep}
-          isEditMode={effectiveEditMode}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           credentials={credentials}
@@ -318,40 +300,12 @@ export const GcpProjectPage = ({
           expandedVmId={expandedVmId}
           onVmConfigToggle={setExpandedVmId}
           onVmConfigSave={handleVmConfigSave}
+          onRequestApproval={handleConfirmTargets}
+          approvalSubmitting={submitting}
         />
       )}
 
-      <RejectionAlert project={project} onRetryRequest={handleStartEdit} />
-
-      <div className="flex justify-end gap-3">
-        {effectiveEditMode ? (
-          <>
-            {!isStep1 && (
-              <button
-                onClick={handleCancelEdit}
-                className={getButtonClass('secondary')}
-              >
-                취소
-              </button>
-            )}
-            <button
-              onClick={handleConfirmTargets}
-              disabled={submitting || selectedIds.length === 0}
-              className={`${getButtonClass('primary')} flex items-center gap-2`}
-            >
-              {submitting && <LoadingSpinner />}
-              연동 대상 확정 승인 요청
-            </button>
-          </>
-        ) : !isProcessing && (
-          <button
-            onClick={handleStartEdit}
-            className={getButtonClass('secondary')}
-          >
-            확정 대상 수정
-          </button>
-        )}
-      </div>
+      <RejectionAlert project={project} />
     </main>
   );
 };

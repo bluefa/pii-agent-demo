@@ -68,23 +68,6 @@ export const updateIdcResources = async (
   return parseInfraCamelJson<{ resources: IdcResourceInput[] }>(res);
 };
 
-export const updateIdcResourcesList = async (
-  targetSourceId: number,
-  keepResourceIds: string[],
-  newResources: IdcResourceInput[],
-): Promise<{ project: unknown }> => {
-  const res = await fetchInfra(`${BASE}/target-sources/${targetSourceId}/resources/list`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ keepResourceIds, newResources }),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error?.message || '리소스 업데이트에 실패했습니다.');
-  }
-  return parseInfraCamelJson<{ project: unknown }>(res);
-};
-
 export const confirmIdcTargets = async (
   targetSourceId: number,
   resources: IdcResourceInput[],
