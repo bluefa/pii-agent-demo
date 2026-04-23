@@ -246,6 +246,137 @@
 
 ---
 
+## 3-bis-α. 편집기 상세 논의 — Confluence 스타일 참조 (2026-04-23)
+
+> 사용자 질문: "confluence에서처럼 뭔가.. html 수정하는 일반적인 포맷은 많이 공유되었다고 생각하거든요? 이 부분의 편집기엔 어떤 태그들을 제공하는게 좋다고 생각하시나요? HTML 편집기엔 아무래도 css는 포함되긴 어렵겠죠?"
+
+### 툴바 구성 권장 (Confluence / Notion / Linear 레퍼런스)
+
+#### ✅ 필수 제공
+
+| 기능 | 결과 태그 | 근거 |
+|------|----------|------|
+| Bold | `<strong>` | 강조어 |
+| Italic | `<em>` | 개념/용어 강조 |
+| Inline code | `<code>` | API 이름·파라미터·경로 |
+| Heading 2, 3 | `<h2>`, `<h3>` | 섹션 구분 (H1은 title 필드와 중복이라 숨김) |
+| Bullet list | `<ul><li>` | 기존 `bullets[][]` 대체 |
+| Numbered list | `<ol><li>` | 기존 `procedures[]` 번호 단계 대체 |
+| Link | `<a href target rel>` | 외부 문서 링크 |
+| Quote | `<blockquote>` | 인용 / 참고 텍스트 |
+| Code block | `<pre><code>` | IAM 정책 JSON, CLI 명령어 |
+| Horizontal rule | `<hr>` | 큰 섹션 구분 |
+
+#### ⭐ 강력 권장 — Panel 매크로 패턴 (핵심)
+
+기존 `ProcessGuideModal` 의 의미 박스(warnings 노란/ notes 파란)를 **본문 HTML 내부**에 표현:
+
+```html
+<div data-panel="info">정보 박스</div>
+<div data-panel="warning">⚠️ 주의사항</div>
+<div data-panel="note">📌 참고</div>
+<div data-panel="success">✅ 성공 안내</div>
+```
+
+- 툴바: `[📘 Info] [⚠️ Warning] [📌 Note] [✅ Success]` 버튼 4개
+- 저장: `<div data-panel="warning">` 으로 출력
+- 렌더: 앱이 `[data-panel="warning"]` CSS 셀렉터로 노란 박스 자동 적용
+- Sanitize allow-list 에 `data-panel` 속성 **예외 허용**
+
+**→ 이 패턴 채택 시 Q2 의 A' (warnings_html / notes_html 필드 분리) 불필요. 순수 A (한 덩어리 HTML) 로 기존 색상 박스 UI 완전 복원 가능.**
+
+#### ➕ 선택 제공
+
+| 기능 | 태그 | 판단 |
+|------|------|------|
+| Underline | `<u>` | 한국어 문서 관행상 드묾 — 생략 가능 |
+| Strikethrough | `<s>` | deprecated 표기 유용 |
+| Table | `<table>` | provider 비교표 등 쓸 일 있음, Tiptap 기본 제공 |
+| Image | `<img src alt>` | URL 만 허용 (이번 MVP 스콥), 업로드는 별도 wave |
+| Expand 아코디언 | `<details><summary>` | 기존 사전조치 아코디언 대체 |
+
+#### ❌ 제공 안 함
+
+| 기능 | 차단 이유 |
+|------|----------|
+| Color picker / Font size / Font family | **CSS 스타일 직접 조작 → 디자인 시스템 충돌** |
+| Align (좌/중/우) | 기본 왼쪽정렬 충분, 정렬은 CSS 영역 |
+| Background color | Panel 매크로로 대체 |
+| Indent/Outdent | 목록 태그 중첩으로 해결 |
+| Emoji / Mention / Date | 이모지는 그냥 입력. Mention은 사용자 시스템 필요 |
+| Attachment 업로드 | 스토리지·보안 별도 검토 — 별도 wave |
+
+### "CSS 포함되긴 어렵겠죠?" — 정답
+
+사용자 직관 ✅ 맞음. 세 가지 이유:
+
+1. **의미(Semantic) ↔ 외형(Presentation) 분리 원칙** — 편집자는 `<strong>` (강조이다) 만 선택, 앱이 `<strong>` 의 외형(굵기·색상) 결정. 편집자가 직접 CSS 쓰면 다크모드 도입·브랜드 변경 시 전부 깨짐
+2. **디자인 시스템 일관성** — CLAUDE.md "⛔ Raw 색상 클래스 직접 사용 금지" 원칙과 정면 충돌. `lib/theme.ts` 토큰 시스템의 의미 무너짐
+3. **XSS / 성능 리스크** — `<style>` 태그 허용 = 전역 CSS 재정의 가능 = 보안 사고. Sanitize 복잡성 증가로 우회 경로 위험
+
+**스타일링 책임 분배**:
+```
+편집자 (의미만)      →  태그·Panel 선택
+                      ↓ HTML 저장
+앱 (외형 담당)        →  .prose 스타일 + [data-panel="warning"] CSS
+                      ↓ 렌더
+end-user             →  통일된 결과물
+```
+
+Confluence / Notion / Linear 모두 동일 철학 — 편집자는 **"이건 경고다"** 만 말하고, **"경고가 어떻게 보일지"** 는 앱 전담.
+
+### 편집기 UX 제안 — 3-mode 토글 (Confluence 패턴)
+
+```
+┌────────────────────────────────────────────────────┐
+│ [ Visual ]  [ Source ]  [ Preview ]   ← 모드 탭      │
+├────────────────────────────────────────────────────┤
+│ [B] [I] [<>]  [H2] [H3]  [•] [1.]  [🔗]  [ℹ️] [⚠️]  │← 툴바
+├────────────────────────────────────────────────────┤
+│   편집 영역 (WYSIWYG 또는 raw HTML)                 │
+└────────────────────────────────────────────────────┘
+```
+
+| 모드 | 내용 | 대상 |
+|------|------|------|
+| **Visual** | WYSIWYG 툴바 편집, 결과 즉시 확인 | 일반 편집자 |
+| **Source** | Raw HTML textarea (syntax highlight 선택) | 개발자 / 복잡한 수정 |
+| **Preview** | Q5의 GuideCard / ProcessGuideModal 기존 형태 그대로 렌더 | 최종 확인 |
+
+→ 같은 데이터를 3개 뷰로 전환. 모드 이동 시 내용 유지.
+
+### 구현 옵션 (Q3 라이브러리 선택지)
+
+| 옵션 | 설명 | 번들 크기 영향 |
+|------|------|--------------|
+| **A.** Tiptap + 커스텀 Panel extension | WYSIWYG + HTML source 토글. ProseMirror 기반(Confluence·Notion 동일 엔진) | +~200KB (Admin 전용 — end-user 영향 0) |
+| **B.** CKEditor 5 | 완성도 높음, GPL/상용 라이선스 주의 | +~250KB |
+| **C.** textarea + Preview 만 (WYSIWYG 없음) | 최소 구현, 개발자 전용 체감 | +0 (sanitize 라이브러리만) |
+
+💡 **추천: A (Tiptap)** — 오픈소스(MIT), Panel 커스텀 노드 확장 쉬움, Next.js 호환, Admin 전용이라 end-user 번들 영향 0.
+
+### 확정 시 파급 효과
+
+| 이 그림 채택 시 | 결정 |
+|----------------|------|
+| 본문 하나 + `<div data-panel>` 로 색상 박스 | **Q2 = A** (순수 한 덩어리 HTML) |
+| Tiptap WYSIWYG + Source 토글 | **Q3 = C의 변형** (WYSIWYG 주되 Source 모드 항상 제공 — "HTML 방식" 성격 유지) |
+| `class` 차단 + `data-panel` 예외 | 보안 + 디자인 일관성 양립 |
+| `@tailwindcss/typography` + Panel 전용 CSS | 스타일 앱 전담 |
+
+### 🙋 남은 확인 질문 (Q2 / Q3 수렴 직전)
+
+- **Q2-1**: Panel 매크로 패턴 (`<div data-panel="warning">`) 채택?
+  - YES → Q2 = **A** 로 결론
+  - NO → Q2 = **A'** (warnings_html 분리) 로 진행
+- **Q2-2**: 필수/강력권장 툴바 목록에 추가·삭제할 기능?
+- **Q2-3**: Table / Image / Expand 중 MVP 포함 여부 (각각 yes/no)
+- **Q3**: 편집기 라이브러리 (Tiptap / CKEditor / textarea+Preview)
+
+**답변 대기**: _(위 4개 항목)_
+
+---
+
 ## 3-ter. API 엔드포인트 제안 (Q6=A, Q8=B 확정 기반)
 
 ### 조회 엔드포인트
