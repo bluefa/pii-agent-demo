@@ -1,13 +1,15 @@
 # Guide CMS — 요구사항 명세 (Draft)
 
-> **Status**: 🟡 질문 답변 대기 중 (Phase 2-2, Q1~Q8)
+> **Status**: 🟡 Q1~Q5 답변 대기 중 (Q6·Q8 확정, Q7 자동 해소)
 > **작성일**: 2026-04-23
-> **최근 업데이트**: 2026-04-23 — 다국어(ko/en) 요구 추가, Q6~Q8 i18n 질문 추가. default=ko 확정.
+> **최근 업데이트**: 2026-04-23 — Q6=A, Q8=B 확정. Q7 자동 해소 (lang query 불필요). API 엔드포인트 제안 추가.
 > **Owner**: @chulyonga
 > **목적**: `GuideCard` / `ProcessGuideModal` 이 참조하는 가이드 데이터를 **API 기반**으로 전환하고, **Admin 편집 페이지**에서 HTML로 수정 가능하게 만드는 기능 명세.
 >
 > **선결 확정 사항**:
 > - 기본 언어 = `ko`, 영어 부재 시 한국어 fallback
+> - **Q6 = A** (가이드 콘텐츠만 다국어, end-user UI·Admin UI는 한국어 고정)
+> - **Q8 = B** (API 응답에 ko/en 동시 포함, 클라이언트가 언어 선택 + fallback)
 
 ---
 
@@ -203,7 +205,7 @@
 
 💡 **추천: A** — 사용자 원문 요구는 "가이드" 다국어에 한정됨. end-user UI i18n은 별개의 큰 결정(기획/법무/마케팅 개입 필요). 이번은 **콘텐츠 CMS의 다국어 대응**에 집중하고, UI i18n은 별도 wave로 분리하는 게 건전함.
 
-**답변**: _(대기)_
+**답변**: ✅ **A** (2026-04-23) — "가이드 컨텐츠만 수행할거야"
 
 ---
 
@@ -221,7 +223,7 @@
 
 💡 **추천: A** (이번 스콥) — Q6이 A(가이드 콘텐츠만)면 본격 i18n 라우팅은 과함. `?lang=en` 쿼리로 단순하게, 기본은 ko. 향후 Q6이 C로 승급할 때 D로 확장 가능.
 
-**답변**: _(대기)_
+**답변**: ☑️ **자동 해소** (2026-04-23) — Q8=B 채택으로 API가 ko/en 동시 반환하므로 lang 파라미터/헤더 기반 선택 메커니즘이 불필요. 언어 전환이 필요해지는 향후(Q6 승급) 시점에 D로 확장.
 
 ---
 
@@ -238,7 +240,145 @@
 
 💡 **추천: B** — Admin 편집 시 한·영 동시 편집/비교가 자연스러워지고(Q5 미리보기 탭에서 언어 토글 가능), end-user 측도 1 요청으로 fallback 즉시 판단 가능. 응답 크기 증가는 가이드 1건당 HTML 수 KB 수준이라 문제 없음.
 
-**답변**: _(대기)_
+**답변**: ✅ **B** (2026-04-23) — "나중에 분기 처리가 쉽게 하기 위해서 api 결과에 kor, en으로 분류해서 다 리턴하는게 더 좋겠는데? query param도 제외될 수 있잖아. 우선은 기본언어는 무조건 ko로 결정하는거지."
+
+> Q7 **자동 해소**: Q8=B 채택으로 lang query 불필요. end-user 클라이언트가 응답 받은 `content.ko/en` 중 선택하는 구조 → 언어 선택은 클라이언트 측 결정.
+
+---
+
+## 3-ter. API 엔드포인트 제안 (Q6=A, Q8=B 확정 기반)
+
+### 조회 엔드포인트
+
+```
+GET /api/v1/guides?name={guide_name}
+```
+
+| 파라미터 | 위치 | 필수 | 설명 |
+|----------|------|------|------|
+| `name` | query | required | 가이드 식별자 (Q1 확정 후 최종 형식 결정) |
+| ~~`lang`~~ | ~~query~~ | — | **채택 안 함** (Q8=B 결과 — 응답에 모든 언어 포함) |
+
+### 응답 shape
+
+```jsonc
+{
+  "name": "azure.step3",
+  "defaultLang": "ko",
+  "content": {
+    "ko": {
+      "title": "Azure 연동 대상 확정 중",
+      "body": /* HTML string 또는 구조화 객체 — Q2 결정에 따름 */
+    },
+    "en": {
+      "title": "Azure Target Scope Pending",
+      "body": /* ... */
+    }
+    // en 값이 null 이거나 키 누락 시 → 클라이언트가 ko 로 fallback
+  },
+  "updatedAt": "2026-04-23T10:00:00Z"
+}
+```
+
+### 클라이언트 fallback 로직 (한 줄)
+
+```ts
+const shown = response.content[userLang] ?? response.content[response.defaultLang];
+```
+
+### 설계 근거
+
+| 선택 | 이유 |
+|------|------|
+| 단일 엔드포인트, 언어 파라미터 없음 | 사용자 지시: "query param도 제외될 수 있잖아" |
+| 응답에 `ko/en` 객체 분리 | 사용자 지시: "분기 처리가 쉽게... kor, en으로 분류" |
+| `defaultLang: "ko"` 명시 필드 | 나중에 `ja`, `zh` 추가 시 동일 fallback 규칙으로 확장 가능 |
+| `en: null` 허용 (nullable) | "영문 번역 아직 없음"을 서버가 명시적으로 표현 |
+| Admin 편집은 같은 엔드포인트로 조회 | 양언어 1회 로드로 편집기에 바로 주입 |
+
+### 변경·삭제 엔드포인트 (Q4 답변 후 확정)
+
+```
+PUT  /api/v1/guides/{name}          # 전체 교체 (ko/en 동시)
+DELETE /api/v1/guides/{name}         # 삭제
+GET  /api/v1/guides                  # 목록 (Admin 전용)
+```
+
+→ Q4=A (Mock only)인지 B·C인지에 따라 구현 범위 확정. Swagger 계약은 Q4 답변 후 `docs/swagger/guides.yaml` 에 작성 예정.
+
+---
+
+## 3-quater. Q2 부연 정보 — "HTML 자유 편집"의 기술적 실현 방법
+
+> 사용자 질문(2026-04-23): "HTML 형태의 가이드를 수정하게 하려면 뭐 어떤식으로 기능을 제공해야되지? 나는 그냥 생각한건.. Html 문서를 원하는 포맷으로 다 지원하는걸 생각했어. 뭐.. css는 제외하고 말이야."
+
+### 1) 허용 태그 Safelist ("원하는 포맷 다 지원"의 실제 범위)
+
+| 분류 | 허용 태그 |
+|------|----------|
+| 제목·문단 | `<h1>~<h6>`, `<p>`, `<br>`, `<hr>` |
+| 강조 | `<strong>`, `<em>`, `<b>`, `<i>`, `<u>`, `<mark>`, `<code>` |
+| 목록 | `<ul>`, `<ol>`, `<li>` |
+| 링크 | `<a>` (href / target / rel) |
+| 인용·코드 | `<blockquote>`, `<pre>`, `<code>` |
+| 표 | `<table>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, `<td>` |
+| 이미지 | `<img>` (src 도메인 allow-list + alt) |
+| 구조 | `<div>`, `<span>`, `<section>`, `<details>`, `<summary>` |
+
+`<details>` / `<summary>` 를 허용하면 편집자가 HTML 하나로도 아코디언 UI를 만들 수 있어 기존 사전조치 섹션 대체에 유용.
+
+### 2) XSS 방어 차단 목록 (필수)
+
+- `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>`, `<input>`, `<style>`
+- 모든 이벤트 핸들러 속성 (`onclick`, `onerror`, `onload`, …)
+- `javascript:` URL, 원칙적 `data:` URL (이미지는 조건부)
+
+### 3) 속성 정책 ("CSS 제외"의 정의)
+
+| 속성 | 처리 | 근거 |
+|------|------|------|
+| `style="..."` | ❌ 차단 | 인라인 CSS = 사용자 요구의 "CSS 제외" |
+| `class="..."` | ❌ 차단 **(권장)** | 편집자 임의 class 사용 시 앱 디자인 시스템과 충돌, 일관성 붕괴 |
+| `href`, `src`, `alt`, `target`, `rel`, `title`, `width`, `height` | ✅ 허용 | 콘텐츠 의미 자체 |
+
+**→ 편집자는 태그만으로 의미 표현, 스타일은 앱이 일괄 적용**
+
+### 4) 스타일 제공 전략 (편집자는 CSS 없음 → 누가 예쁘게 만드나)
+
+| 방식 | 구현 | 장점 | 단점 |
+|------|------|------|------|
+| **A.** `@tailwindcss/typography` 의 `prose` 클래스 래퍼 | `<div className="prose">{html}</div>` | 설치 한 줄로 전부 적용 | 플러그인 추가 |
+| **B.** 전용 CSS 파일 (`guide-content.css`) 수동 | 태그별 selector | 디자인 시스템 완벽 맞춤 | 유지보수 부담 |
+| **C.** 최소 스타일만 | 기본 브라우저 + 링크색 override | 가볍다 | 일관성 낮음 |
+
+💡 **추천: A** — Tailwind 기 사용 중, Primary `#0064FF` 를 prose 링크색에 매핑만 하면 됨.
+
+### 5) Sanitize 라이브러리
+
+- `isomorphic-dompurify` (~40KB, 서버·클라 공용)
+- **저장 시 + 렌더 시 양쪽** sanitize (defense in depth)
+- allowList 방식으로 위 safelist 강제
+
+### 6) 트레이드오프 — 기존 UI 손실
+
+기존 `ProcessGuideModal` 은 **의미 기반 시각 구분**이 강함:
+- 사전조치: 아코디언 박스
+- warnings: **노란 박스**
+- notes: **파란 박스**
+- procedures: 번호 매긴 단계 카드
+
+Q2=A (한 덩어리) 선택 시 이 색 구분이 사라짐. 편집자가 `<blockquote>`, `<details>`, `<h3>⚠️ 주의사항</h3>` 등으로 대체해야 함.
+
+### Q2 재배치된 선택지
+
+| 선택 | 설명 |
+|------|------|
+| **A.** 순수 한 덩어리 HTML (`body_html: string`) | 기존 색상 박스 UI 포기. 편집자가 태그로 모든 구분. 데이터 최대 단순 |
+| **A'.** 본문 자유 HTML **+ `warnings_html` / `notes_html` 2개 보조 필드** | 시각 일관성 유지 + 편집 자유도 거의 A급. 3 필드 모두 HTML |
+| **B.** 필드별 HTML (heading / summaryHtml / bulletsHtml / warningsHtml / notesHtml …) | 기존 레이아웃 완전 유지, 에디터 5~7개 |
+| **D.** 직접 제안 | — |
+
+**답변**: _(대기 — A vs A' 선택 + `class` 속성 차단 OK 여부)_
 
 ---
 
@@ -262,7 +402,13 @@ Q1~Q5 확정 후 다음을 이어서 결정할 예정:
 
 | # | 결정 사항 | 선택 | 근거 | 제안자 | 일시 |
 |---|----------|------|------|--------|------|
-| — | _(Q1~Q5 답변 후 채워짐)_ | — | — | — | — |
+| pre-1 | 기본 언어 | `ko` | "default는 kor" | 사용자 | 2026-04-23 |
+| pre-2 | 미번역 fallback | en 부재 시 ko | pre-1 확장 | 사용자 | 2026-04-23 |
+| Q6 | 다국어 적용 범위 | **A** (가이드 콘텐츠만) | "가이드 컨텐츠만 수행할거야" | 사용자 | 2026-04-23 |
+| Q8 | API 페이로드 전략 | **B** (응답에 ko/en 동시) | "분기 처리 쉽게... kor, en으로 분류" | 사용자 | 2026-04-23 |
+| Q7 | 언어 선택 방식 | 자동 해소 (lang query 제거) | Q8=B 결과 — 클라이언트가 응답에서 선택 | AI (사용자 확인) | 2026-04-23 |
+| API-shape | 응답 구조 | `{ name, defaultLang, content: { ko, en\|null }, updatedAt }` | Q8=B 구현 세부 | AI 추천 | 2026-04-23 |
+| — | _(Q1~Q5 답변 후 추가 채워짐)_ | — | — | — | — |
 
 ---
 
