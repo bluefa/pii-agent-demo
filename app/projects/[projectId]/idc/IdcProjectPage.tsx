@@ -16,7 +16,7 @@ import {
 } from '@/app/lib/api/idc';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { IdcResourceInputPanel, IdcPendingResourceList, IdcResourceTable } from '@/app/components/features/idc';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { IdcProcessStatusCard } from '@/app/projects/[projectId]/idc/IdcProcessStatusCard';
@@ -228,7 +228,7 @@ export const IdcProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="IDC Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="IDC Infrastructure" metaItems={pageMetaItems} action={<DeleteInfrastructureButton />} />
 
       <IdcProcessStatusCard
         project={project}

@@ -25,7 +25,7 @@ import {
   executeSduConnectionTest,
 } from '@/app/lib/api/sdu';
 import { getProject } from '@/app/lib/api';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { SduProcessStatusCard } from '@/app/projects/[projectId]/sdu/SduProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { ProcessStatus } from '@/lib/types';
@@ -231,7 +231,7 @@ export const SduProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="SDU Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="SDU Infrastructure" metaItems={pageMetaItems} action={<DeleteInfrastructureButton />} />
 
       <SduProcessStatusCard
         project={project}

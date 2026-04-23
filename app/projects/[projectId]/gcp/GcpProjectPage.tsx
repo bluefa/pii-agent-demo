@@ -16,7 +16,7 @@ import { DbSelectionCard } from '@/app/components/features/scan';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
@@ -247,7 +247,7 @@ export const GcpProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="GCP Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="GCP Infrastructure" metaItems={pageMetaItems} action={<DeleteInfrastructureButton />} />
 
       <ProcessStatusCard
         project={project}

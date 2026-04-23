@@ -17,7 +17,7 @@ import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { ProcessGuideModal } from '@/app/components/features/process-status/ProcessGuideModal';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
-import { ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
+import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert } from '@/app/projects/[projectId]/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { cn, getButtonClass } from '@/lib/theme';
@@ -79,7 +79,7 @@ export const AwsProjectPage = ({
   if (!project.awsInstallationMode) {
     return (
       <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-        <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" metaItems={pageMetaItems} />
+        <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" metaItems={pageMetaItems} action={<DeleteInfrastructureButton />} />
         <AwsInstallationModeSelector
           targetSourceId={project.targetSourceId}
           onModeSelected={handleModeSelected}
@@ -189,7 +189,7 @@ export const AwsProjectPage = ({
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
-      <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" metaItems={pageMetaItems} />
+      <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" metaItems={pageMetaItems} action={<DeleteInfrastructureButton />} />
 
       <ProcessStatusCard
         project={project}
