@@ -1,15 +1,17 @@
 # Guide CMS — 요구사항 명세 (Draft)
 
-> **Status**: 🟡 Q4 답변 대기 중 (Q1·Q2·Q3·Q5·Q6·Q8 확정, Q7 자동 해소)
+> **Status**: ✅ 전 질문 확정 — spec.md 승격 준비 완료
 > **작성일**: 2026-04-23
-> **최근 업데이트**: 2026-04-23 — Q1 확정: 영문 UPPER_SNAKE. guide_name = constant fixed set (45개). Admin 목록 페이지 + 편집 페이지 메타 영역 설계 추가.
+> **최근 업데이트**: 2026-04-23 — Q4 확정 (Mock/BFF 하이브리드). 목록 API 스키마 확정 (4필드). 스콥 축소: **42개 main 가이드만** (PREREQ 3 제외, 향후 wave). **국/영문 동시 편집 필수** 제약 추가.
 > **Owner**: @chulyonga
 > **목적**: `GuideCard` / `ProcessGuideModal` 이 참조하는 가이드 데이터를 **API 기반**으로 전환하고, **Admin 편집 페이지**에서 HTML로 수정 가능하게 만드는 기능 명세.
 >
 > **선결 확정 사항**:
-> - 기본 언어 = `ko`, 영어 부재 시 한국어 fallback
+> - 기본 언어 = `ko` (UI 표시 우선 언어)
+> - **국/영문 동시 편집 필수** (2026-04-23 추가) — "하나만 수정하는 건 없다". 저장 시 `content.ko` + `content.en` 둘 다 required. fallback 규칙은 데이터 오류 방어용으로 격하
 > - **Q6 = A** (가이드 콘텐츠만 다국어, end-user UI·Admin UI는 한국어 고정)
-> - **Q8 = B** (API 응답에 ko/en 동시 포함, 클라이언트가 언어 선택 + fallback)
+> - **Q8 = B** (API 응답에 ko/en 동시 포함, 클라이언트가 언어 선택)
+> - **스콥**: main 가이드 42개만. 사전조치(PREREQ_*) 3개는 향후 wave
 
 ---
 
@@ -20,7 +22,8 @@
 3. **Admin 페이지 일부**로 가이드를 **수정·확인** 할 수 있는 화면이 필요하다.
 4. 편집 화면에서는 `GuideCard` 와 `Process` 가 **기존에 사용되던 형태 그대로 미리보기**로 보여야 한다.
 5. 가이드는 **기본적으로 HTML 방식으로 수정 가능**해야 한다.
-6. **한글/영어 모두 지원** 해야 한다. **기본 언어는 한국어(`ko`)** — 영어 콘텐츠 부재 시 한국어로 fallback. (2026-04-23 추가)
+6. **한글/영어 모두 지원** 해야 한다. **기본 언어는 한국어(`ko`)**. (2026-04-23 추가)
+7. **국문/영문 둘 다 동시 수정 필수** — "하나만 수정하는 건 없어". 편집 저장 시 ko/en 양쪽 모두 내용이 있어야 한다. (2026-04-23 추가)
 
 ---
 
@@ -144,7 +147,7 @@
 | DB Credential 등록 | `PREREQ_DB_CREDENTIAL` |
 | TerraformExecutionRole 등록 | `PREREQ_TF_EXECUTION_ROLE` |
 
-#### 전체 카탈로그 (총 45개)
+#### 이번 스콥 카탈로그 (총 42개 — main 가이드만)
 
 | 그룹 | 개수 | 예시 |
 |------|------|------|
@@ -154,7 +157,7 @@
 | `GCP_*` | 7 | `GCP_TARGET_CONFIRM` ~ `GCP_COMPLETED` |
 | `IDC_*` | 7 | `IDC_TARGET_CONFIRM` ~ `IDC_COMPLETED` |
 | `SDU_*` | 7 | `SDU_TARGET_CONFIRM` ~ `SDU_COMPLETED` |
-| `PREREQ_*` | 3 | `PREREQ_SCAN_ROLE`, `PREREQ_DB_CREDENTIAL`, `PREREQ_TF_EXECUTION_ROLE` |
+| ~~`PREREQ_*`~~ | ~~3~~ | **이번 스콥 제외** — 향후 wave (card_position 확장 필요) |
 
 #### 왜 영문으로
 
@@ -299,22 +302,53 @@ export const GUIDE_REGISTRY: Record<GuideName, GuideMeta> = {
 ┌──────────────────────────────────────────────────────────────┐
 │  Admin 편집 페이지                                             │
 ├──────────────────────────────────────────────────────────────┤
-│  왼쪽 (50%)                │  오른쪽 (50%) — Preview          │
-│  ─────────────             │  ─────────────                   │
-│  편집기 (Tiptap Visual)    │  [ko] [en]   [Process 접기 ▾]    │
-│  [B] [I] ...               │  ● ─ ● ─ ◉ ─ ○ ─ ○ ─ ○ ─ ○       │
-│                            │  1   2   3   4   5   6   7       │
-│                            │  ─────────────                   │
-│                            │  ┌────────────────────┐          │
-│                            │  │  GuideCard         │          │
-│                            │  │  (실제 렌더)        │          │
-│                            │  │  [heading]         │          │
-│                            │  │  summary           │          │
-│                            │  │  • bullet          │          │
-│                            │  │  [⚠️ warning]       │          │
-│                            │  └────────────────────┘          │
+│  왼쪽 (50%) — 편집                │  오른쪽 (50%) — Preview    │
+│  ─────────────                   │  ─────────────             │
+│  [ ko ✅ ]  [ en ❌ 미작성 ]        │  [ko] [en]   [Process 접기▾] │
+│  ───────────────                  │  ● ─ ● ─ ◉ ─ ○ ...         │
+│  편집기 (Tiptap Visual)           │  ┌────────────────────┐   │
+│  [B] [I] [<>] [H2] [H3]...         │  │  GuideCard         │   │
+│                                  │  │  (실제 렌더)        │   │
+│  title: [________________]       │  │  [heading]         │   │
+│  body:                           │  │  summary           │   │
+│  ┌──────────────────────────┐    │  │  • bullet          │   │
+│  │                          │    │  │  [⚠️ warning]       │   │
+│  │  (현재 탭의 언어로 편집)   │    │  └────────────────────┘   │
+│  │                          │    │                          │
+│  └──────────────────────────┘    │                          │
+│                                  │                          │
+│       [ 저장 ]                    │                          │
+│  ↑ ko + en 모두 유효할 때만 활성화  │                          │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+#### 국/영문 동시 편집 + 탭별 승인 게이트 (Q5 확장)
+
+사용자 지시: "kor/en 모두 승인 버튼은 눌러야 된다" — 편집자가 **양쪽 언어를 의식적으로 확인했다는 게이트** 필요.
+
+**UI 흐름**:
+
+```
+[ ko ✅ 완료 ]   [ en ❌ 미완료 ]
+ ├─ title 입력
+ ├─ body Tiptap 편집
+ └─ [ 작성 완료 ✓ ] ← 탭별 승인 버튼
+           ↓
+   양쪽 탭 모두 ✓ 완료 →
+           ↓
+      [ 저장 ] 활성화
+```
+
+**규칙**:
+
+| 상황 | 동작 |
+|------|------|
+| 탭 전환 | 현재 입력값 메모리 유지 (저장 전 손실 없음) |
+| 탭별 "작성 완료 ✓" 클릭 | 해당 언어 탭을 "완료" 상태로 마킹 (로컬 state) |
+| 완료 상태에서 내용 다시 편집 | "✓" 자동 해제 → 다시 승인 필요 |
+| 저장 버튼 활성 조건 | ko 완료 ✓ **AND** en 완료 ✓ |
+| 저장 클릭 시 최종 검증 | 서버에 PUT 요청 — 서버도 ko/en 양쪽 내용 presence 재검증 |
+| 최초 편집 prefill | ko 에 seed 데이터(기존 상수 변환). en 은 빈 상태 → 편집자가 반드시 작성 |
 
 **간단 모드 (Process 접힌 상태)**
 
@@ -565,65 +599,122 @@ Admin 편집 페이지
 
 ---
 
-## 3-ter. API 엔드포인트 제안 (Q6=A, Q8=B 확정 기반)
+## 3-ter. API 엔드포인트 최종 스펙 (Q4/Q6/Q8 확정 기반)
 
-### 조회 엔드포인트
+### 엔드포인트 목록
 
-```
-GET /api/v1/guides?name={guide_name}
-```
+| Method | Path | 용도 | 비고 |
+|--------|------|------|------|
+| `GET` | `/api/v1/guides` | 목록 조회 (Admin 화면용) | 4필드, 42 items |
+| `GET` | `/api/v1/guides?name={name}` | 단건 조회 (end-user + Admin 편집) | ko/en 둘 다 포함 |
+| `PUT` | `/api/v1/guides/{name}` | 본문 업데이트 | ko + en 양쪽 required |
+| ~~POST/DELETE~~ | — | **제공 안 함** | guide_name = constant, 생성·삭제 불가 |
 
-| 파라미터 | 위치 | 필수 | 설명 |
-|----------|------|------|------|
-| `name` | query | required | 가이드 식별자 (Q1 확정 후 최종 형식 결정) |
-| ~~`lang`~~ | ~~query~~ | — | **채택 안 함** (Q8=B 결과 — 응답에 모든 언어 포함) |
-
-### 응답 shape
+### 목록 응답 (`GET /api/v1/guides`)
 
 ```jsonc
 {
-  "name": "azure.step3",
-  "defaultLang": "ko",
+  "items": [
+    { "step": 1, "cloud_provider": "AZURE",    "guide_name": "AZURE_TARGET_CONFIRM",    "card_position": "main" },
+    { "step": 2, "cloud_provider": "AZURE",    "guide_name": "AZURE_APPROVAL_PENDING",  "card_position": "main" },
+    // ...
+    { "step": 1, "cloud_provider": "AWS_AUTO", "guide_name": "AWS_AUTO_TARGET_CONFIRM", "card_position": "main" },
+    // ... 총 42개
+  ]
+}
+```
+
+- `step`: `1 | 2 | 3 | 4 | 5 | 6 | 7`
+- `cloud_provider`: `'AWS_AUTO' | 'AWS_MANUAL' | 'AZURE' | 'GCP' | 'IDC' | 'SDU'`
+- `guide_name`: 42개 `GuideName` union
+- `card_position`: `'main'` (확장 대비 literal type 유지 — 향후 `prerequisite` 등 추가 가능)
+
+번역 상태·수정일은 **단건 조회에서만** 반환 (심플함 우선).
+
+### 단건 조회 응답 (`GET /api/v1/guides?name={name}`)
+
+```jsonc
+{
+  "name": "AZURE_TARGET_CONFIRM",
   "content": {
     "ko": {
-      "title": "Azure 연동 대상 확정 중",
-      "body": /* HTML string 또는 구조화 객체 — Q2 결정에 따름 */
+      "title": "연동 대상 DB를 선택해 주세요",
+      "body": "<p>...</p><div data-panel=\"warning\">...</div>"
     },
     "en": {
-      "title": "Azure Target Scope Pending",
-      "body": /* ... */
+      "title": "Select the DB to integrate",
+      "body": "<p>...</p>"
     }
-    // en 값이 null 이거나 키 누락 시 → 클라이언트가 ko 로 fallback
   },
   "updatedAt": "2026-04-23T10:00:00Z"
 }
 ```
 
-### 클라이언트 fallback 로직 (한 줄)
+**정상 저장된 가이드는 ko/en 둘 다 반드시 존재** (국/영문 동시 편집 필수 제약). nullable 방어는 클라이언트에서 유지(데이터 오류 대비):
 
 ```ts
-const shown = response.content[userLang] ?? response.content[response.defaultLang];
+const shown = response.content[userLang] ?? response.content.ko;
 ```
 
-### 설계 근거
+### 업데이트 요청 (`PUT /api/v1/guides/{name}`)
 
-| 선택 | 이유 |
-|------|------|
-| 단일 엔드포인트, 언어 파라미터 없음 | 사용자 지시: "query param도 제외될 수 있잖아" |
-| 응답에 `ko/en` 객체 분리 | 사용자 지시: "분기 처리가 쉽게... kor, en으로 분류" |
-| `defaultLang: "ko"` 명시 필드 | 나중에 `ja`, `zh` 추가 시 동일 fallback 규칙으로 확장 가능 |
-| `en: null` 허용 (nullable) | "영문 번역 아직 없음"을 서버가 명시적으로 표현 |
-| Admin 편집은 같은 엔드포인트로 조회 | 양언어 1회 로드로 편집기에 바로 주입 |
-
-### 변경·삭제 엔드포인트 (Q4 답변 후 확정)
-
+```jsonc
+// Request body
+{
+  "content": {
+    "ko": {
+      "title": "연동 대상 DB를 선택해 주세요",
+      "body": "<p>...</p>"
+    },
+    "en": {
+      "title": "Select the DB to integrate",
+      "body": "<p>...</p>"
+    }
+  }
+}
 ```
-PUT  /api/v1/guides/{name}          # 전체 교체 (ko/en 동시)
-DELETE /api/v1/guides/{name}         # 삭제
-GET  /api/v1/guides                  # 목록 (Admin 전용)
+
+**서버 검증 규칙** (400 반환 조건):
+- `content.ko` 또는 `content.en` 누락 / null / 빈 객체
+- `title` 빈 문자열
+- `body` 빈 문자열 (sanitize 후 텍스트 없음 포함)
+- 경로 파라미터 `name` 이 `GUIDE_NAMES` union 에 없음 → 404
+
+### Q4 하이브리드 구현 — Mock ↔ BFF 자동 분기
+
+```ts
+// app/api/v1/guides/[name]/route.ts
+import { mockGuideStore } from '@/lib/mocks/guide-store';
+import { bffClient } from '@/lib/api-client/bff-client';
+
+export async function PUT(req: Request, { params }: { params: { name: string } }) {
+  const body = await req.json();
+  // 서버 검증 (ko + en 필수 등)
+  const validation = validateGuideBody(body);
+  if (!validation.ok) return Response.json(validation.error, { status: 400 });
+
+  if (process.env.USE_MOCK_DATA === 'true') {
+    return Response.json(mockGuideStore.put(params.name, body));
+  }
+  return bffClient.guides.put(params.name, body);
+}
 ```
 
-→ Q4=A (Mock only)인지 B·C인지에 따라 구현 범위 확정. Swagger 계약은 Q4 답변 후 `docs/swagger/guides.yaml` 에 작성 예정.
+- **Mock 모드** (`USE_MOCK_DATA=true`): in-memory/파일 store. 프로세스 재시작 시 초기화
+- **BFF 모드**: upstream BFF 프록시 (스펙만 맞으면 동작)
+- Admin UI 는 모드 상관없이 **같은 API 호출** — 분기는 route handler 내부
+
+### source of truth 위치
+
+| 영역 | 위치 | 이유 |
+|------|------|------|
+| `GUIDE_NAMES` union (식별자 존재 목록) | **코드 static** | 컴포넌트 결합, TS 타입 체크 |
+| `GUIDE_REGISTRY` (사용처/단계/컴포넌트 매핑) | **코드 static** | 컴포넌트 결합 |
+| **content (title/body, ko/en)** | **BFF/Mock store** | 편집 대상. 이 기능의 본질 |
+| 목록 API 응답 | **BFF/Mock 경유** | Admin UI 일관성. 내부적으로 코드 registry 기반 |
+| 번역 상태 / 수정일 | **BFF/Mock store** | 런타임 데이터 |
+
+새 guide 추가 = 코드 PR 필수 (`GUIDE_NAMES` + `GUIDE_REGISTRY` + 컴포넌트 렌더 위치). 완전 동적 확장은 이번 스콥 외.
 
 ---
 
@@ -718,42 +809,42 @@ Q2=A (한 덩어리) 선택 시 이 색 구분이 사라짐. 편집자가 `<bloc
 ┌──────────────────────────────────────────────────────────────────────┐
 │  Admin > 가이드 관리                                                   │
 │  ────────────────────────────────────────────────────────────        │
-│  [전체(45)] [AWS_AUTO(7)] [AWS_MANUAL(7)] [AZURE(7)] [GCP(7)]         │
-│  [IDC(7)] [SDU(7)] [사전조치(3)]               ← Provider 탭           │
+│  [전체(42)] [AWS_AUTO(7)] [AWS_MANUAL(7)] [AZURE(7)]                  │
+│  [GCP(7)] [IDC(7)] [SDU(7)]                    ← Provider 탭          │
 │                                                                      │
-│  🔍 [검색_______]   언어 필터 [전체▾]   번역 상태 [전체▾]              │
+│  🔍 [검색_______]                                                      │
 │                                                                      │
-│  ┌────────────────────────┬───────────┬───────────┬────┬────┬──────┐ │
-│  │ guide_name             │ 단계       │ 렌더 컴포넌트│ ko │ en │ 수정일 │ │
-│  ├────────────────────────┼───────────┼───────────┼────┼────┼──────┤ │
-│  │ AZURE_TARGET_CONFIRM   │ 1. 연동대상확정 │ GuideCard │ ✅ │ ❌ │ 04-20 │ │
-│  │ AZURE_APPROVAL_PENDING │ 2. 승인 대기    │ GuideCard │ ✅ │ ❌ │ 04-18 │ │
-│  │ AZURE_APPLYING         │ 3. 반영 중      │ GuideCard │ ✅ │ ❌ │ 04-18 │ │
-│  │ AZURE_INSTALLING       │ 4. 설치        │ GuideCard │ ✅ │ ❌ │ 04-15 │ │
-│  │ ...                                                              │ │
-│  └────────────────────────┴───────────┴───────────┴────┴────┴──────┘ │
+│  ┌──────┬──────────────┬──────────────────────────┬──────────────┐  │
+│  │ step │ cloud_provider│ guide_name               │ card_position│  │
+│  ├──────┼──────────────┼──────────────────────────┼──────────────┤  │
+│  │  1   │ AZURE        │ AZURE_TARGET_CONFIRM     │ main         │  │
+│  │  2   │ AZURE        │ AZURE_APPROVAL_PENDING   │ main         │  │
+│  │  3   │ AZURE        │ AZURE_APPLYING           │ main         │  │
+│  │  4   │ AZURE        │ AZURE_INSTALLING         │ main         │  │
+│  │  1   │ AWS_AUTO     │ AWS_AUTO_TARGET_CONFIRM  │ main         │  │
+│  │  ...                                                          │  │
+│  └──────┴──────────────┴──────────────────────────┴──────────────┘  │
 │                                                                      │
-│  (row 클릭 → /admin/guides/{name})                                    │
+│  (row 클릭 → /admin/guides/{guide_name})                              │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### 목록 페이지 컬럼 정의
+### 목록 페이지 컬럼 정의 (API 응답과 1:1)
 
-| 컬럼 | 설명 | 데이터 소스 |
-|------|------|------------|
-| guide_name | constant 식별자 | `GUIDE_NAMES` |
-| 단계 | `stepNumber + stepLabel` (한글) | `GUIDE_REGISTRY[name].stepLabel` |
-| 렌더 컴포넌트 | `GuideCard` / `PrerequisiteGuideItem` 등 | `GUIDE_REGISTRY[name].component` |
-| ko | ✅ 있음 / ❌ 없음 | 저장된 content 조회 |
-| en | ✅ 있음 / ❌ 없음 | 저장된 content 조회 |
-| 수정일 | ISO 날짜 | `updatedAt` |
+| 컬럼 | 필드 | 설명 |
+|------|------|------|
+| step | `step` | 1~7 |
+| cloud_provider | `cloud_provider` | 6개 group enum |
+| guide_name | `guide_name` | constant 식별자 |
+| card_position | `card_position` | `main` (현재) |
+
+번역 상태·수정일·컴포넌트명은 **편집 페이지 메타 헤더**에서 확인 (목록은 심플함 유지).
 
 ### 목록 페이지 필터·검색
 
-- Provider 탭 7개 (+ 전체)
+- Provider 탭 6개 (+ 전체(42))
 - 검색: guide_name 부분 일치
-- 언어 필터: 전체 / ko만 / en만
-- 번역 상태: 전체 / 완전 번역(ko+en 모두) / 미번역(en 없음) / ko 없음(데이터 오류)
+- ~~언어 필터·번역 상태 필터~~ — **제거**: ko/en 동시 편집 필수라 번역 상태가 항상 동일(양쪽 저장됨)
 
 ### 편집 페이지 헤더 메타 영역 (Q5 확장)
 
@@ -788,7 +879,8 @@ Q2=A (한 덩어리) 선택 시 이 색 구분이 사라짐. 편집자가 `<bloc
 | 📍 사용처 | 렌더되는 페이지(들) | `GUIDE_REGISTRY[name].usedIn` |
 | 🔢 Process | `Step {n} / 7 ({stepLabel})` | registry |
 | 🧩 컴포넌트 | `<GuideCard>` 등 태그 형식으로 표시 | registry |
-| 🌐 번역 | ko/en 상태 뱃지 + 미번역 경고 | content 조회 |
+| 🌐 번역 상태 | ko/en 저장 상태 배지 (정상이면 둘 다 ✅) — 한쪽 비어있으면 저장 금지 경고 | content 조회 |
+| 📅 수정일 | 마지막 업데이트 시각 | content `updatedAt` |
 
 ### Preview 영역의 데이터 주입 흐름 (Q5 확정 구조 재확인)
 
@@ -845,7 +937,14 @@ Q1~Q5 확정 후 다음을 이어서 결정할 예정:
 | Q1-nav | Admin 네비게이션 | 목록(`/admin/guides`) + 편집(`/admin/guides/[name]`) — Provider 탭·검색·번역 상태 필터 | "guide name 선택도 가능해야" | 사용자 | 2026-04-23 |
 | Q1-meta | 편집 페이지 헤더 | 사용처·Process Step·렌더 컴포넌트·번역 상태 메타 영역 | "어떤 프로세스에 어떤 card가 업데이트 되는지 명확히" | 사용자 | 2026-04-23 |
 | Q1-reg-ts | GUIDE_NAMES union + GUIDE_REGISTRY map | TypeScript 레벨 enforce | 컴파일 타임 오타 방지 | AI 추천 | 2026-04-23 |
-| — | _(Q4 답변 대기)_ | — | — | — | — |
+| Q4 | 저장소 범위 | **A+B 하이브리드** — Mock/BFF 모드 분기. PUT API 스펙 작성, Mock 모드는 내부 store | "실제 BFF도 동작 가능하도록 PUT API는 생성, bff 모드면 put api, mock은 내부 저장" | 사용자 | 2026-04-23 |
+| List-API | 목록 응답 4필드 | `{ step, cloud_provider, guide_name, card_position }` only | "step/cloud_provider/guide_name/card_position 이정도는 어때?" | 사용자 | 2026-04-23 |
+| SoT | Source of truth | 코드 static (GUIDE_NAMES + REGISTRY) + BFF/Mock (content/메타) 하이브리드 | 컴포넌트 결합 vs 편집 가능성 균형 | AI 추천 | 2026-04-23 |
+| Scope | MVP 스콥 | **main 가이드 42개만** — PREREQ 3 제외 | "우선은 main만" | 사용자 | 2026-04-23 |
+| CardPos | card_position 값 | `'main'` (확장 대비 literal type 유지) | "우선은 main만" | 사용자 | 2026-04-23 |
+| I18N-req | 국/영문 동시 편집 필수 | ko + en 양쪽 required, 한쪽만 저장 불가 | "국문/영문 모두 수정해야 한다. 하나만 수정하는건 없어" | 사용자 | 2026-04-23 |
+| I18N-gate | 탭별 승인 버튼 게이트 | 양쪽 탭 "작성 완료 ✓" 후에만 최종 저장 버튼 활성화 | "kor/en 모두 승인 버튼은 눌러야 된다" | 사용자 | 2026-04-23 |
+| Plan | 작업 흐름 분리 | AI 독립(W1/W4) ⇔ 사용자 디자인 주도(W2) ⇔ 시안 기반 구현(W3) | "나랑 dependency 안 걸리고 구현할 부분 명확히" | 사용자 | 2026-04-23 |
 
 ---
 
