@@ -12,6 +12,7 @@ interface InstancePanelProps {
   instances: ClusterInstance[];
   isEditMode: boolean;
   onInstanceToggle: (instanceId: string, checked: boolean) => void;
+  colSpan?: number;
 }
 
 const sortInstances = (instances: ClusterInstance[]): ClusterInstance[] => {
@@ -21,7 +22,7 @@ const sortInstances = (instances: ClusterInstance[]): ClusterInstance[] => {
   });
 };
 
-export const InstancePanel = ({ instances, isEditMode, onInstanceToggle }: InstancePanelProps) => {
+export const InstancePanel = ({ instances, isEditMode, onInstanceToggle, colSpan = 10 }: InstancePanelProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const sorted = sortInstances(instances);
   const needsCollapse = sorted.length >= COLLAPSE_THRESHOLD;
@@ -30,7 +31,7 @@ export const InstancePanel = ({ instances, isEditMode, onInstanceToggle }: Insta
 
   return (
     <tr>
-      <td colSpan={7} className="px-0 py-0">
+      <td colSpan={colSpan} className="px-0 py-0">
         <div className="mx-6 my-3">
           <div className={cn('border rounded-lg overflow-hidden', borderColors.default, bgColors.muted)}>
             {/* Guide text */}

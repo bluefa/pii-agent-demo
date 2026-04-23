@@ -1,22 +1,21 @@
 'use client';
 
-import { Resource, DatabaseType, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { REGION_LABELS } from '@/lib/constants/labels';
 import { ResourceRow } from './ResourceRow';
 
 interface RegionGroupProps {
   region: string;
   resources: Resource[];
+  processStatus: ProcessStatus;
   selectedIds: Set<string>;
   isEditMode?: boolean;
   isCheckboxEnabled: boolean;
-  showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
   credentials: SecretKey[];
   onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
-  // VM 설정 관련
   expandedVmId?: string | null;
   onVmConfigToggle?: (resourceId: string | null) => void;
   onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
@@ -31,10 +30,10 @@ const RegionIcon = () => (
 export const RegionGroup = ({
   region,
   resources,
+  processStatus,
   selectedIds,
   isEditMode = false,
   isCheckboxEnabled,
-  showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
   colSpan,
@@ -45,7 +44,6 @@ export const RegionGroup = ({
   onVmConfigSave,
 }: RegionGroupProps) => (
   <>
-    {/* Region Header */}
     <tr className="bg-gradient-to-r from-slate-50 to-transparent">
       <td colSpan={colSpan} className="px-6 py-2">
         <div className="flex items-center gap-2">
@@ -57,16 +55,14 @@ export const RegionGroup = ({
         </div>
       </td>
     </tr>
-    {/* Region Resources */}
     {resources.map((resource) => (
       <ResourceRow
         key={resource.id}
         resource={resource}
-        cloudProvider="AWS"
+        processStatus={processStatus}
         selectedIds={selectedIds}
         isEditMode={isEditMode}
         isCheckboxEnabled={isCheckboxEnabled}
-        showConnectionStatus={showConnectionStatus}
         showCredentialColumn={showCredentialColumn}
         onCheckboxChange={onCheckboxChange}
         credentials={credentials}
