@@ -40,34 +40,28 @@ export function useInstallationStatus<T>({
   onCompleteRef.current = onComplete;
   isCompleteRef.current = isComplete;
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getFn(targetSourceId);
-      setStatus(data);
-      if (isCompleteRef.current?.(data)) onCompleteRef.current?.(data);
-    } catch (err) {
-      setError(toErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [targetSourceId, getFn]);
+  const run = useCallback(
+    async (fn: (id: number) => Promise<T>, setInFlight: (value: boolean) => void) => {
+      try {
+        setInFlight(true);
+        setError(null);
+        const data = await fn(targetSourceId);
+        setStatus(data);
+        if (isCompleteRef.current?.(data)) onCompleteRef.current?.(data);
+      } catch (err) {
+        setError(toErrorMessage(err));
+      } finally {
+        setInFlight(false);
+      }
+    },
+    [targetSourceId],
+  );
 
+  const fetchStatus = useCallback(() => run(getFn, setLoading), [run, getFn]);
   const refresh = useCallback(async () => {
     if (!checkFn) return;
-    try {
-      setRefreshing(true);
-      setError(null);
-      const data = await checkFn(targetSourceId);
-      setStatus(data);
-      if (isCompleteRef.current?.(data)) onCompleteRef.current?.(data);
-    } catch (err) {
-      setError(toErrorMessage(err));
-    } finally {
-      setRefreshing(false);
-    }
-  }, [targetSourceId, checkFn]);
+    await run(checkFn, setRefreshing);
+  }, [run, checkFn]);
 
   useEffect(() => {
     fetchStatus();

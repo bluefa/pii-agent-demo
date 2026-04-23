@@ -24,7 +24,7 @@ export const GcpInstallationInline = ({
       getFn: getGcpInstallationStatus,
       checkFn: checkGcpInstallation,
       isComplete: (data) => data.summary.allCompleted,
-      onComplete: () => onInstallComplete?.(),
+      onComplete: onInstallComplete,
     });
 
   if (loading) return <InstallationLoadingView provider="GCP" />;
