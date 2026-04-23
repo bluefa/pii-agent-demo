@@ -75,19 +75,19 @@ export const ResourceTransitionPanel = ({
       </div>
 
       {/* 기존 연동 리소스 (변경 요청 시에만) */}
-      {hasOld && (
+      {hasOld && oldResources && (
         <>
           <div className={cn('mx-6 mt-4 px-4 py-2 rounded-t-lg flex items-center gap-2', 'bg-gray-100')}>
             <svg className={cn('w-4 h-4', textColors.tertiary)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
             <span className={cn('text-sm font-medium', textColors.tertiary)}>
-              기존 연동 리소스 ({oldResources!.length}개)
+              기존 연동 리소스 ({oldResources.length}개)
             </span>
           </div>
           <div className="opacity-50">
             <ResourceTable
-              resources={oldResources!}
+              resources={oldResources}
               cloudProvider={cloudProvider}
               processStatus={processStatus}
               isEditMode={false}
