@@ -1,16 +1,16 @@
 'use client';
 
-import { Resource, CloudProvider, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, CloudProvider, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceRow } from './ResourceRow';
 
 interface ResourceTableBodyProps {
   resources: Resource[];
   cloudProvider: CloudProvider;
+  processStatus: ProcessStatus;
   selectedIds: Set<string>;
   isEditMode: boolean;
   isCheckboxEnabled: boolean;
-  showConnectionStatus: boolean;
   showCredentialColumn: boolean;
   onCheckboxChange: (id: string, checked: boolean) => void;
   colSpan: number;
@@ -23,14 +23,12 @@ interface ResourceTableBodyProps {
 
 export const FlatResourceTableBody = ({
   resources,
-  cloudProvider,
+  processStatus,
   selectedIds,
   isEditMode,
   isCheckboxEnabled,
-  showConnectionStatus,
   showCredentialColumn,
   onCheckboxChange,
-  colSpan,
   credentials,
   onCredentialChange,
   expandedVmId,
@@ -40,12 +38,15 @@ export const FlatResourceTableBody = ({
   <>
     <thead>
       <tr className={cn('text-left text-xs font-medium uppercase tracking-wider', textColors.tertiary, bgColors.muted)}>
-        {isEditMode && <th className="px-6 py-3 w-12" />}
-        <th className="px-6 py-3">인스턴스 타입</th>
-        <th className="px-6 py-3">리소스 ID</th>
-        <th className="px-6 py-3">데이터베이스</th>
+        {isEditMode && <th className="px-6 py-3 w-10" />}
+        <th className="px-6 py-3">연동 대상 여부</th>
+        <th className="px-6 py-3">DB Type</th>
+        <th className="px-6 py-3">Resource ID</th>
+        <th className="px-6 py-3">Region</th>
+        <th className="px-6 py-3">DB Name</th>
+        <th className="px-6 py-3">연동 완료 여부</th>
+        <th className="px-6 py-3">스캔 이력</th>
         {showCredentialColumn && <th className="px-6 py-3">Credential</th>}
-        {showConnectionStatus && <th className="px-6 py-3">연결 상태</th>}
       </tr>
     </thead>
     <tbody className="divide-y divide-gray-100">
@@ -53,11 +54,10 @@ export const FlatResourceTableBody = ({
         <ResourceRow
           key={resource.id}
           resource={resource}
-          cloudProvider={cloudProvider}
+          processStatus={processStatus}
           selectedIds={selectedIds}
           isEditMode={isEditMode}
           isCheckboxEnabled={isCheckboxEnabled}
-          showConnectionStatus={showConnectionStatus}
           showCredentialColumn={showCredentialColumn}
           onCheckboxChange={onCheckboxChange}
           credentials={credentials}
