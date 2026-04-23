@@ -1,27 +1,11 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Resource, CloudProvider, ProcessStatus, AwsResourceType, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Resource, AwsResourceType } from '@/lib/types';
 import { AWS_RESOURCE_TYPE_ORDER } from '@/lib/constants/labels';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceTypeGroup } from './ResourceTypeGroup';
-
-interface ResourceTableBodyProps {
-  resources: Resource[];
-  cloudProvider: CloudProvider;
-  processStatus: ProcessStatus;
-  selectedIds: Set<string>;
-  isEditMode: boolean;
-  isCheckboxEnabled: boolean;
-  showCredentialColumn: boolean;
-  onCheckboxChange: (id: string, checked: boolean) => void;
-  colSpan: number;
-  credentials: SecretKey[];
-  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
-  expandedVmId?: string | null;
-  onVmConfigToggle?: (resourceId: string | null) => void;
-  onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
-}
+import type { ResourceTableBodyProps } from './types';
 
 const groupByAwsType = (res: Resource[]): [AwsResourceType, Resource[]][] => {
   const groups = new Map<AwsResourceType, Resource[]>();

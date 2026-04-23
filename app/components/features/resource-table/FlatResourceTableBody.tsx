@@ -1,25 +1,8 @@
 'use client';
 
-import { Resource, CloudProvider, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import { cn, textColors, bgColors } from '@/lib/theme';
 import { ResourceRow } from './ResourceRow';
-
-interface ResourceTableBodyProps {
-  resources: Resource[];
-  cloudProvider: CloudProvider;
-  processStatus: ProcessStatus;
-  selectedIds: Set<string>;
-  isEditMode: boolean;
-  isCheckboxEnabled: boolean;
-  showCredentialColumn: boolean;
-  onCheckboxChange: (id: string, checked: boolean) => void;
-  colSpan: number;
-  credentials: SecretKey[];
-  onCredentialChange?: (resourceId: string, credentialId: string | null) => void;
-  expandedVmId?: string | null;
-  onVmConfigToggle?: (resourceId: string | null) => void;
-  onVmConfigSave?: (resourceId: string, config: VmDatabaseConfig) => void;
-}
+import type { ResourceTableBodyProps } from './types';
 
 export const FlatResourceTableBody = ({
   resources,

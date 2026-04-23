@@ -6,9 +6,10 @@ import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { Badge } from '@/app/components/ui/Badge';
 import { VmDatabaseConfigPanel } from './VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from './VnetIntegrationGuideModal';
+import { ScanHistoryBadge } from './ScanHistoryBadge';
 import { useModal } from '@/app/hooks/useModal';
 import { cn, textColors, statusColors, bgColors, primaryColors } from '@/lib/theme';
-import { getResourceIntegrationStatus, getResourceScanHistory, getResourceDisplayName } from '@/lib/resource';
+import { getResourceIntegrationStatus, getResourceDisplayName, getIntegrationStatusTextClass } from '@/lib/resource';
 
 export const isVmResource = (resource: Resource): boolean => {
   return resource.type === 'AZURE_VM' || resource.awsType === 'EC2';
@@ -47,12 +48,6 @@ const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentia
   return <span className={cn('text-sm font-medium', statusColors.error.text)}>미선택</span>;
 };
 
-const renderScanHistoryLabel = (value: ReturnType<typeof getResourceScanHistory>) => {
-  if (value === '신규') return <Badge variant="info" size="sm">신규</Badge>;
-  if (value === '변경') return <Badge variant="warning" size="sm">변경</Badge>;
-  return <span className={cn('text-sm', textColors.quaternary)}>—</span>;
-};
-
 const WarningTriangleIcon = ({ className }: { className?: string }) => (
   <svg className={cn('w-3.5 h-3.5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -88,7 +83,6 @@ export const ResourceRow = ({
     ? resource.vmDatabaseConfig!.databaseType
     : resource.databaseType;
   const integrationStatus = getResourceIntegrationStatus(resource, processStatus);
-  const scanHistory = getResourceScanHistory(resource);
   const displayName = getResourceDisplayName(resource);
 
   const handleRowClick = () => {
@@ -175,18 +169,13 @@ export const ResourceRow = ({
         </td>
 
         <td className="px-6 py-4">
-          <span className={cn(
-            'text-sm',
-            integrationStatus === '연동 완료' && statusColors.success.textDark,
-            integrationStatus === '연동 진행중' && statusColors.info.textDark,
-            integrationStatus === '—' && textColors.quaternary,
-          )}>
+          <span className={cn('text-sm', getIntegrationStatusTextClass(integrationStatus))}>
             {integrationStatus}
           </span>
         </td>
 
         <td className="px-6 py-4">
-          {renderScanHistoryLabel(scanHistory)}
+          <ScanHistoryBadge resource={resource} />
         </td>
 
         {showCredentialColumn && (
