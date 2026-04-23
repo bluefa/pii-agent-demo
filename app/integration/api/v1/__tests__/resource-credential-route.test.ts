@@ -37,7 +37,7 @@ describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/cred
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(mockedUpdateResourceCredential).toHaveBeenCalledWith('azure-proj-1', {
+    expect(mockedUpdateResourceCredential).toHaveBeenCalledWith('1003', {
       resourceId: 'res-1',
       credentialId: 'cred-1',
     });

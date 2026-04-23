@@ -4,8 +4,8 @@ import * as scanFns from '@/lib/mock-scan';
 import { SCAN_ERROR_CODES } from '@/lib/constants/scan';
 import type { ScanResult } from '@/lib/types';
 
-const parseNumericId = (projectId: string): number =>
-  Number(projectId.replace(/\D/g, '')) || 0;
+const parseNumericId = (id: string): number =>
+  Number(id.replace(/\D/g, '')) || 0;
 
 const toResourceCountMap = (result: ScanResult | null | undefined): Record<string, number> | null => {
   if (!result?.byResourceType) return null;
@@ -26,7 +26,8 @@ export const mockScan = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const targetSourceId = Number(projectId);
+    const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -41,8 +42,8 @@ export const mockScan = {
       );
     }
 
-    const scan = await scanFns.getScanJob(scanId);
-    if (!scan || scan.projectId !== projectId) {
+    const scan = scanFns.getScanJob(scanId);
+    if (!scan || scan.targetSourceId !== targetSourceId) {
       return NextResponse.json(
         { error: 'SCAN_NOT_FOUND', message: SCAN_ERROR_CODES.SCAN_NOT_FOUND.message },
         { status: SCAN_ERROR_CODES.SCAN_NOT_FOUND.status }
@@ -51,7 +52,7 @@ export const mockScan = {
 
     return NextResponse.json({
       scanId: scan.id,
-      projectId: scan.projectId,
+      targetSourceId: scan.targetSourceId,
       provider: scan.provider,
       status: scan.status,
       startedAt: scan.startedAt,
@@ -71,7 +72,8 @@ export const mockScan = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const targetSourceId = Number(projectId);
+    const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -86,8 +88,7 @@ export const mockScan = {
       );
     }
 
-    const { history, total } = await scanFns.getScanHistory(projectId, query.limit, query.offset);
-    const targetSourceId = parseNumericId(projectId);
+    const { history, total } = scanFns.getScanHistory(targetSourceId, query.limit, query.offset);
 
     return NextResponse.json({
       content: history.map((h) => ({
@@ -115,7 +116,8 @@ export const mockScan = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const targetSourceId = Number(projectId);
+    const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -133,7 +135,7 @@ export const mockScan = {
     const typedBody = (body ?? {}) as { force?: boolean };
     const force = typedBody.force === true;
 
-    const validation = await scanFns.validateScanRequest(project, force);
+    const validation = scanFns.validateScanRequest(project, force);
     if (!validation.valid) {
       const response: Record<string, unknown> = {
         error: validation.errorCode,
@@ -145,13 +147,13 @@ export const mockScan = {
       return NextResponse.json(response, { status: validation.httpStatus });
     }
 
-    const scanJob = await scanFns.createScanJob(project);
+    const scanJob = scanFns.createScanJob(project);
 
     return NextResponse.json(
       {
         id: parseNumericId(scanJob.id),
         scan_status: 'SCANNING',
-        target_source_id: parseNumericId(projectId),
+        target_source_id: targetSourceId,
         created_at: scanJob.startedAt,
         updated_at: scanJob.startedAt,
         scan_version: 1,
@@ -173,7 +175,8 @@ export const mockScan = {
       );
     }
 
-    const project = await mockData.getProjectById(projectId);
+    const targetSourceId = Number(projectId);
+    const project = mockData.getProjectByTargetSourceId(targetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: SCAN_ERROR_CODES.NOT_FOUND.message },
@@ -188,11 +191,10 @@ export const mockScan = {
       );
     }
 
-    const targetSourceId = parseNumericId(projectId);
-    const activeScan = await scanFns.getLatestScanForProject(projectId);
+    const activeScan = scanFns.getLatestScanForProject(targetSourceId);
 
     if (activeScan) {
-      const updated = await scanFns.calculateScanStatus(activeScan);
+      const updated = scanFns.calculateScanStatus(activeScan);
       if (updated.status === 'SCANNING') {
         return NextResponse.json({
           id: parseNumericId(updated.id),
@@ -209,7 +211,7 @@ export const mockScan = {
       }
     }
 
-    const { history } = await scanFns.getScanHistory(projectId, 1, 0);
+    const { history } = scanFns.getScanHistory(targetSourceId, 1, 0);
     if (history.length > 0) {
       const last = history[0];
       return NextResponse.json({

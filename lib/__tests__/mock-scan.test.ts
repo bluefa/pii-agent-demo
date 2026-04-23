@@ -126,7 +126,7 @@ describe('mock-scan', () => {
         // 진행 중인 스캔 추가
         store.scans.push({
           id: 'scan-1',
-          projectId: project.id,
+          targetSourceId: project.targetSourceId,
           provider: 'AWS',
           status: 'SCANNING',
           startedAt: new Date().toISOString(),
@@ -149,7 +149,7 @@ describe('mock-scan', () => {
 
         store.scanHistory.push({
           id: 'history-1',
-          projectId: project.id,
+          targetSourceId: project.targetSourceId,
           scanId: 'scan-old',
           provider: 'AWS',
           status: 'SUCCESS',
@@ -173,7 +173,7 @@ describe('mock-scan', () => {
         // 6분 전 완료된 스캔 이력 추가
         store.scanHistory.push({
           id: 'history-1',
-          projectId: project.id,
+          targetSourceId: project.targetSourceId,
           scanId: 'scan-old',
           provider: 'AWS',
           status: 'SUCCESS',
@@ -205,7 +205,7 @@ describe('mock-scan', () => {
       const scanJob = createScanJob(project);
 
       expect(scanJob.id).toMatch(/^scan-/);
-      expect(scanJob.projectId).toBe(project.id);
+      expect(scanJob.targetSourceId).toBe(project.targetSourceId);
       expect(scanJob.provider).toBe('AWS');
       expect(scanJob.status).toBe('SCANNING');
       expect(scanJob.progress).toBe(0);
@@ -235,7 +235,7 @@ describe('mock-scan', () => {
       const now = Date.now();
       const scan: ScanJob = {
         id: 'scan-1',
-        projectId: 'test-project-1',
+        targetSourceId: 9001,
         provider: 'AWS',
         status: 'SCANNING',
         startedAt: new Date(now - 2000).toISOString(),
@@ -256,7 +256,7 @@ describe('mock-scan', () => {
       const now = Date.now();
       const scan: ScanJob = {
         id: 'scan-1',
-        projectId: 'test-project-1',
+        targetSourceId: 9001,
         provider: 'AWS',
         status: 'SCANNING',
         startedAt: new Date(now - 5000).toISOString(),
@@ -278,7 +278,7 @@ describe('mock-scan', () => {
     it('이미 SUCCESS인 스캔은 변경 없음', () => {
       const scan: ScanJob = {
         id: 'scan-1',
-        projectId: 'test-project-1',
+        targetSourceId: 9001,
         provider: 'AWS',
         status: 'SUCCESS',
         startedAt: new Date(Date.now() - 5000).toISOString(),
@@ -328,7 +328,7 @@ describe('mock-scan', () => {
 
   describe('getScanHistory', () => {
     it('빈 이력 반환', () => {
-      const result = getScanHistory('test-project-1');
+      const result = getScanHistory(9001);
       expect(result.history).toHaveLength(0);
       expect(result.total).toBe(0);
     });
@@ -340,7 +340,7 @@ describe('mock-scan', () => {
       for (let i = 0; i < 12; i++) {
         store.scanHistory.push({
           id: `history-${i}`,
-          projectId: 'test-project-1',
+          targetSourceId: 9001,
           scanId: `scan-${i}`,
           provider: 'AWS',
           status: 'SUCCESS',
@@ -355,17 +355,17 @@ describe('mock-scan', () => {
       }
 
       // 기본 조회 (limit=10)
-      const result1 = getScanHistory('test-project-1');
+      const result1 = getScanHistory(9001);
       expect(result1.history).toHaveLength(10);
       expect(result1.total).toBe(12);
 
       // limit=5
-      const result2 = getScanHistory('test-project-1', 5);
+      const result2 = getScanHistory(9001, 5);
       expect(result2.history).toHaveLength(5);
       expect(result2.total).toBe(12);
 
       // offset=10
-      const result3 = getScanHistory('test-project-1', 10, 10);
+      const result3 = getScanHistory(9001, 10, 10);
       expect(result3.history).toHaveLength(2);
       expect(result3.total).toBe(12);
     });

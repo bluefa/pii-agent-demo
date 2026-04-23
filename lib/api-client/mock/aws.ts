@@ -9,7 +9,8 @@ interface SetInstallationModeBody {
 
 export const mockAws = {
   checkInstallation: async (targetSourceId: string) => {
-    const project = await mockData.getProjectById(targetSourceId);
+    const numericTargetSourceId = Number(targetSourceId);
+    const project = mockData.getProjectByTargetSourceId(numericTargetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -24,12 +25,12 @@ export const mockAws = {
       );
     }
 
-    let result = await mockInstallation.checkInstallation(targetSourceId);
+    let result = mockInstallation.checkInstallation(numericTargetSourceId);
 
     if (!result) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      await mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
-      result = await mockInstallation.checkInstallation(targetSourceId);
+      mockInstallation.initializeInstallation(numericTargetSourceId, hasTfPermission);
+      result = mockInstallation.checkInstallation(numericTargetSourceId);
     }
 
     return NextResponse.json(result);
@@ -43,7 +44,8 @@ export const mockAws = {
       );
     }
 
-    const project = await mockData.getProjectById(targetSourceId);
+    const numericTargetSourceId = Number(targetSourceId);
+    const project = mockData.getProjectByTargetSourceId(numericTargetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -67,11 +69,11 @@ export const mockAws = {
 
     const hasTfPermission = body.mode === 'AUTO';
 
-    const updatedProject = await mockData.updateProject(targetSourceId, {
+    const updatedProject = mockData.updateProject(project.id, {
       awsInstallationMode: body.mode,
     });
 
-    await mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
+    mockInstallation.initializeInstallation(numericTargetSourceId, hasTfPermission);
 
     return NextResponse.json({
       success: true,
@@ -80,7 +82,8 @@ export const mockAws = {
   },
 
   getInstallationStatus: async (targetSourceId: string) => {
-    const project = await mockData.getProjectById(targetSourceId);
+    const numericTargetSourceId = Number(targetSourceId);
+    const project = mockData.getProjectByTargetSourceId(numericTargetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -95,18 +98,19 @@ export const mockAws = {
       );
     }
 
-    let status = await mockInstallation.getInstallationStatus(targetSourceId);
+    let status = mockInstallation.getInstallationStatus(numericTargetSourceId);
 
     if (!status) {
       const hasTfPermission = project.terraformState.serviceTf === 'COMPLETED';
-      status = await mockInstallation.initializeInstallation(targetSourceId, hasTfPermission);
+      status = mockInstallation.initializeInstallation(numericTargetSourceId, hasTfPermission);
     }
 
     return NextResponse.json(status);
   },
 
   getTerraformScript: async (targetSourceId: string) => {
-    const project = await mockData.getProjectById(targetSourceId);
+    const numericTargetSourceId = Number(targetSourceId);
+    const project = mockData.getProjectByTargetSourceId(numericTargetSourceId);
     if (!project) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -121,10 +125,10 @@ export const mockAws = {
       );
     }
 
-    let status = await mockInstallation.getInstallationStatus(targetSourceId);
+    let status = mockInstallation.getInstallationStatus(numericTargetSourceId);
 
     if (!status) {
-      status = await mockInstallation.initializeInstallation(targetSourceId, false);
+      status = mockInstallation.initializeInstallation(numericTargetSourceId, false);
     }
 
     if (status.hasTfPermission) {
@@ -134,7 +138,7 @@ export const mockAws = {
       );
     }
 
-    const result = await mockInstallation.getTerraformScript(targetSourceId);
+    const result = mockInstallation.getTerraformScript(numericTargetSourceId);
 
     if (!result) {
       return NextResponse.json(
@@ -151,7 +155,7 @@ export const mockAws = {
     let accountId = body?.accountId;
 
     if (!accountId && targetSourceId) {
-      const project = await mockData.getProjectById(targetSourceId);
+      const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
       if (!project) {
         return NextResponse.json(
           { error: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.' },
@@ -168,7 +172,7 @@ export const mockAws = {
       );
     }
 
-    const result = await mockInstallation.verifyTfRole({ accountId, roleArn: body?.roleArn });
+    const result = mockInstallation.verifyTfRole({ accountId, roleArn: body?.roleArn });
     return NextResponse.json(result);
   },
 };

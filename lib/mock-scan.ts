@@ -123,7 +123,7 @@ export const validateScanRequest = (
 
   // 진행 중인 스캔 확인
   const inProgressScan = store.scans.find(
-    (s) => s.projectId === project.id && (s.status === 'SCANNING')
+    (s) => s.targetSourceId === project.targetSourceId && (s.status === 'SCANNING')
   );
   if (inProgressScan) {
     // 시간 기반으로 실제 상태 확인
@@ -142,7 +142,7 @@ export const validateScanRequest = (
   // 쿨다운 확인 (force가 아닐 때만)
   if (!force) {
     const lastCompletedScan = store.scanHistory
-      .filter((h) => h.projectId === project.id && h.status === 'SUCCESS')
+      .filter((h) => h.targetSourceId === project.targetSourceId && h.status === 'SUCCESS')
       .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
     if (lastCompletedScan) {
@@ -170,7 +170,7 @@ export const createScanJob = (project: Project): ScanJob => {
 
   const scanJob: ScanJob = {
     id: generateId('scan'),
-    projectId: project.id,
+    targetSourceId: project.targetSourceId,
     provider: project.cloudProvider,
     status: 'SCANNING',
     startedAt: now.toISOString(),
@@ -190,15 +190,15 @@ export const getScanJob = (scanId: string): ScanJob | undefined => {
   return scan ? calculateScanStatus(scan) : undefined;
 };
 
-export const getScanJobsForProject = (projectId: string): ScanJob[] => {
+export const getScanJobsForProject = (targetSourceId: number): ScanJob[] => {
   const store = getStore();
   return store.scans
-    .filter((s) => s.projectId === projectId)
+    .filter((s) => s.targetSourceId === targetSourceId)
     .map(calculateScanStatus);
 };
 
-export const getLatestScanForProject = (projectId: string): ScanJob | undefined => {
-  const scans = getScanJobsForProject(projectId);
+export const getLatestScanForProject = (targetSourceId: number): ScanJob | undefined => {
+  const scans = getScanJobsForProject(targetSourceId);
   return scans.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
 };
 
@@ -244,7 +244,7 @@ export const calculateScanStatus = (scan: ScanJob): ScanJob => {
 
 const completeScan = (scan: ScanJob): ScanJob => {
   const store = getStore();
-  const project = store.projects.find((p) => p.id === scan.projectId);
+  const project = store.projects.find((p) => p.targetSourceId === scan.targetSourceId);
 
   if (!project) {
     const failedScan: ScanJob = {
@@ -303,7 +303,7 @@ const addScanHistory = (
   const store = getStore();
   const history: ScanHistory = {
     id: generateId('history'),
-    projectId: scan.projectId,
+    targetSourceId: scan.targetSourceId,
     scanId: scan.id,
     provider: scan.provider,
     status: scan.status === 'SUCCESS' ? 'SUCCESS' : 'FAIL',
@@ -524,22 +524,23 @@ export const generateGcpResource = (): Resource => {
   const gcpTypes: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
   const gcpType = pickRandom(gcpTypes);
   const region = pickRandom(GCP_REGIONS);
-  const projectId = `${pickRandom(APP_NAMES)}-${pickRandom(DB_PREFIXES)}-${Math.floor(10000 + Math.random() * 90000)}`;
+  // GCP Cloud Project ID (외부 계약). legacy 내부 projectId와 다름.
+  const gcpProjectId = `${pickRandom(APP_NAMES)}-${pickRandom(DB_PREFIXES)}-${Math.floor(10000 + Math.random() * 90000)}`;
 
   let resourceId: string;
   let databaseType: DatabaseType;
 
   switch (gcpType) {
     case 'CLOUD_SQL':
-      resourceId = `projects/${projectId}/instances/cloudsql-${generateResourceName('db')}`;
+      resourceId = `projects/${gcpProjectId}/instances/cloudsql-${generateResourceName('db')}`;
       databaseType = pickRandom(['MYSQL', 'POSTGRESQL'] as DatabaseType[]);
       break;
     case 'BIGQUERY':
-      resourceId = `bigquery://${region}/${projectId}/${generateResourceName('dataset')}`;
+      resourceId = `bigquery://${region}/${gcpProjectId}/${generateResourceName('dataset')}`;
       databaseType = 'BIGQUERY';
       break;
     default:
-      resourceId = `projects/${projectId}/instances/cloudsql-${generateResourceName('db')}`;
+      resourceId = `projects/${gcpProjectId}/instances/cloudsql-${generateResourceName('db')}`;
       databaseType = 'MYSQL';
   }
 
@@ -558,13 +559,13 @@ export const generateGcpResource = (): Resource => {
 // ===== Scan History =====
 
 export const getScanHistory = (
-  projectId: string,
+  targetSourceId: number,
   limit: number = 10,
   offset: number = 0
 ): { history: ScanHistory[]; total: number } => {
   const store = getStore();
   const projectHistory = store.scanHistory
-    .filter((h) => h.projectId === projectId)
+    .filter((h) => h.targetSourceId === targetSourceId)
     .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
 
   return {
@@ -589,7 +590,7 @@ export const canScan = (project: Project): { canScan: boolean; reason?: string; 
 
   // 진행 중인 스캔 확인
   const inProgressScan = store.scans.find(
-    (s) => s.projectId === project.id && (s.status === 'SCANNING')
+    (s) => s.targetSourceId === project.targetSourceId && (s.status === 'SCANNING')
   );
   if (inProgressScan) {
     const updated = calculateScanStatus(inProgressScan);
@@ -600,7 +601,7 @@ export const canScan = (project: Project): { canScan: boolean; reason?: string; 
 
   // 쿨다운 확인
   const lastCompletedScan = store.scanHistory
-    .filter((h) => h.projectId === project.id && h.status === 'SUCCESS')
+    .filter((h) => h.targetSourceId === project.targetSourceId && h.status === 'SUCCESS')
     .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
 
   if (lastCompletedScan) {

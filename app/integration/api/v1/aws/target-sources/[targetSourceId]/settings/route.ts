@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { problemResponse, createProblem } from '@/app/api/_lib/problem';
-import { parseTargetSourceId, resolveProjectId } from '@/app/api/_lib/target-source';
+import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
 import type { LegacyAwsInstallationStatus } from '@/lib/types';
 
@@ -33,10 +33,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const resolved = resolveProjectId(parsed.value, requestId);
-  if (!resolved.ok) return problemResponse(resolved.problem);
-
-  const projectResponse = await client.projects.get(resolved.projectId);
+  const projectResponse = await client.projects.get(String(parsed.value));
   if (!projectResponse.ok) return projectResponse;
 
   const project = await projectResponse.json() as { serviceCode?: string };
@@ -59,7 +56,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   };
 
   // 설치 상태에서 executionRoleArn을 읽어 settings 응답에 보강한다.
-  const installationResponse = await client.aws.getInstallationStatus(resolved.projectId);
+  const installationResponse = await client.aws.getInstallationStatus(String(parsed.value));
   if (installationResponse.ok) {
     const installation = await installationResponse.json() as LegacyAwsInstallationStatus;
     if (installation.tfExecutionRoleArn) {

@@ -12,10 +12,14 @@ import { getStore } from '@/lib/mock-store';
 import { Project, ProcessStatus } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process';
 
+const IDC_TARGET_SOURCE_ID = 9001;
+const AWS_TARGET_SOURCE_ID = 9002;
+const NONEXISTENT_TARGET_SOURCE_ID = 99999;
+
 // 테스트용 IDC 프로젝트 생성 헬퍼
 const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
   id: 'idc-test-project',
-  targetSourceId: 9001,
+  targetSourceId: IDC_TARGET_SOURCE_ID,
   projectCode: 'IDC-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'IDC',
@@ -58,7 +62,7 @@ const createIdcProject = (overrides: Partial<Project> = {}): Project => ({
 
 const createAwsProject = (): Project => ({
   id: 'aws-test-project',
-  targetSourceId: 9002,
+  targetSourceId: AWS_TARGET_SOURCE_ID,
   projectCode: 'AWS-TEST-001',
   serviceCode: 'SERVICE-A',
   cloudProvider: 'AWS',
@@ -93,7 +97,7 @@ describe('mock-idc', () => {
 
   describe('getIdcInstallationStatus', () => {
     it('존재하지 않는 프로젝트는 NOT_FOUND 에러 반환', () => {
-      const result = getIdcInstallationStatus('non-existent');
+      const result = getIdcInstallationStatus(NONEXISTENT_TARGET_SOURCE_ID);
       expect(result.error).toBeDefined();
       expect(result.error?.code).toBe('NOT_FOUND');
       expect(result.error?.status).toBe(404);
@@ -103,7 +107,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = getIdcInstallationStatus('aws-test-project');
+      const result = getIdcInstallationStatus(AWS_TARGET_SOURCE_ID);
       expect(result.error).toBeDefined();
       expect(result.error?.code).toBe('NOT_IDC_PROJECT');
       expect(result.error?.status).toBe(400);
@@ -113,7 +117,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createIdcProject());
 
-      const result = getIdcInstallationStatus('idc-test-project');
+      const result = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
       expect(result.error).toBeUndefined();
       expect(result.data).toBeDefined();
       expect(result.data?.provider).toBe('IDC');
@@ -124,7 +128,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createIdcProject());
 
-      const result = getIdcInstallationStatus('idc-test-project');
+      const result = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
       const validStatuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'];
       expect(validStatuses).toContain(result.data?.bdcTf);
     });
@@ -133,7 +137,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createIdcProject());
 
-      const result = getIdcInstallationStatus('idc-test-project');
+      const result = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
       expect(typeof result.data?.firewallOpened).toBe('boolean');
     });
 
@@ -141,8 +145,8 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createIdcProject());
 
-      const result1 = getIdcInstallationStatus('idc-test-project');
-      const result2 = getIdcInstallationStatus('idc-test-project');
+      const result1 = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
+      const result2 = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
 
       expect(result1.data?.lastCheckedAt).toBe(result2.data?.lastCheckedAt);
       expect(result1.data?.bdcTf).toBe(result2.data?.bdcTf);
@@ -151,7 +155,7 @@ describe('mock-idc', () => {
 
   describe('checkIdcInstallation', () => {
     it('존재하지 않는 프로젝트는 NOT_FOUND 에러 반환', () => {
-      const result = checkIdcInstallation('non-existent');
+      const result = checkIdcInstallation(NONEXISTENT_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_FOUND');
     });
 
@@ -159,7 +163,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = checkIdcInstallation('aws-test-project');
+      const result = checkIdcInstallation(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_IDC_PROJECT');
     });
 
@@ -167,11 +171,11 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createIdcProject());
 
-      const result1 = getIdcInstallationStatus('idc-test-project');
+      const result1 = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
       expect(result1.data?.lastCheckedAt).toBeDefined();
 
       // checkIdcInstallation은 캐시를 삭제하고 새로 조회하므로 lastCheckedAt가 갱신됨
-      const result2 = checkIdcInstallation('idc-test-project');
+      const result2 = checkIdcInstallation(IDC_TARGET_SOURCE_ID);
       expect(result2.data?.lastCheckedAt).toBeDefined();
       expect(result2.data?.provider).toBe('IDC');
     });
@@ -179,7 +183,7 @@ describe('mock-idc', () => {
 
   describe('confirmFirewall', () => {
     it('존재하지 않는 프로젝트는 NOT_FOUND 에러 반환', () => {
-      const result = confirmFirewall('non-existent');
+      const result = confirmFirewall(NONEXISTENT_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_FOUND');
     });
 
@@ -187,7 +191,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = confirmFirewall('aws-test-project');
+      const result = confirmFirewall(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_IDC_PROJECT');
     });
 
@@ -195,7 +199,7 @@ describe('mock-idc', () => {
       const store = getStore();
       store.projects.push(createIdcProject());
 
-      const result = confirmFirewall('idc-test-project');
+      const result = confirmFirewall(IDC_TARGET_SOURCE_ID);
       expect(result.error).toBeUndefined();
       expect(result.data?.confirmed).toBe(true);
       expect(result.data?.confirmedAt).toBeDefined();
@@ -206,13 +210,13 @@ describe('mock-idc', () => {
       store.projects.push(createIdcProject());
 
       // 먼저 설치 상태 조회 (캐시 생성)
-      getIdcInstallationStatus('idc-test-project');
+      getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
 
       // 방화벽 확인
-      confirmFirewall('idc-test-project');
+      confirmFirewall(IDC_TARGET_SOURCE_ID);
 
       // 다시 설치 상태 조회
-      const result = getIdcInstallationStatus('idc-test-project');
+      const result = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
       expect(result.data?.firewallOpened).toBe(true);
     });
   });
@@ -323,14 +327,14 @@ describe('mock-idc', () => {
       store.projects.push(createIdcProject());
 
       // 상태 조회 (캐시 생성)
-      const result1 = getIdcInstallationStatus('idc-test-project');
+      const result1 = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
       expect(result1.data).toBeDefined();
 
       // 스토어 초기화
       resetIdcStore();
 
       // 다시 조회 (새로운 상태 생성)
-      const result2 = getIdcInstallationStatus('idc-test-project');
+      const result2 = getIdcInstallationStatus(IDC_TARGET_SOURCE_ID);
 
       // 초기화 후에도 데이터가 정상적으로 생성됨을 확인
       expect(result2.data).toBeDefined();

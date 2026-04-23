@@ -15,6 +15,11 @@ import { getStore } from '@/lib/mock-store';
 import { Project, ProcessStatus } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process';
 
+const AZURE_TARGET_SOURCE_ID = 9001;
+const AZURE_VM_TARGET_SOURCE_ID = 9003;
+const AWS_TARGET_SOURCE_ID = 9002;
+const NONEXISTENT_TARGET_SOURCE_ID = 99999;
+
 // 테스트용 Azure 프로젝트 생성 헬퍼
 const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
   id: 'azure-test-project',
@@ -62,6 +67,7 @@ const createAzureProject = (overrides: Partial<Project> = {}): Project => ({
 const createAzureProjectWithVm = (overrides: Partial<Project> = {}): Project => ({
   ...createAzureProject(),
   id: 'azure-vm-project',
+  targetSourceId: AZURE_VM_TARGET_SOURCE_ID,
   resources: [
     {
       id: 'res-vm-1',
@@ -131,7 +137,7 @@ describe('mock-azure', () => {
 
   describe('getAzureInstallationStatus', () => {
     it('존재하지 않는 프로젝트는 NOT_FOUND 에러 반환', () => {
-      const result = getAzureInstallationStatus('non-existent');
+      const result = getAzureInstallationStatus(NONEXISTENT_TARGET_SOURCE_ID);
       expect(result.error).toBeDefined();
       expect(result.error?.code).toBe('NOT_FOUND');
       expect(result.error?.status).toBe(404);
@@ -141,7 +147,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = getAzureInstallationStatus('aws-test-project');
+      const result = getAzureInstallationStatus(AWS_TARGET_SOURCE_ID);
       expect(result.error).toBeDefined();
       expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
       expect(result.error?.status).toBe(400);
@@ -151,7 +157,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
-      const result = getAzureInstallationStatus('azure-test-project');
+      const result = getAzureInstallationStatus(AZURE_TARGET_SOURCE_ID);
       expect(result.error).toBeUndefined();
       expect(result.data).toBeDefined();
       expect(result.data?.provider).toBe('Azure');
@@ -165,7 +171,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
-      const result = getAzureInstallationStatus('azure-test-project');
+      const result = getAzureInstallationStatus(AZURE_TARGET_SOURCE_ID);
       const allApproved = result.data?.resources.every(
         (r) => r.privateEndpoint.status === 'APPROVED'
       );
@@ -176,7 +182,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
-      const result = getAzureInstallationStatus('azure-test-project');
+      const result = getAzureInstallationStatus(AZURE_TARGET_SOURCE_ID);
       const resources = result.data?.resources || [];
 
       resources.forEach((resource) => {
@@ -195,8 +201,8 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
-      const result1 = getAzureInstallationStatus('azure-test-project');
-      const result2 = getAzureInstallationStatus('azure-test-project');
+      const result1 = getAzureInstallationStatus(AZURE_TARGET_SOURCE_ID);
+      const result2 = getAzureInstallationStatus(AZURE_TARGET_SOURCE_ID);
 
       expect(result1.data?.lastCheckedAt).toBe(result2.data?.lastCheckedAt);
     });
@@ -204,7 +210,7 @@ describe('mock-azure', () => {
 
   describe('checkAzureInstallation', () => {
     it('존재하지 않는 프로젝트는 NOT_FOUND 에러 반환', () => {
-      const result = checkAzureInstallation('non-existent');
+      const result = checkAzureInstallation(NONEXISTENT_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_FOUND');
     });
 
@@ -212,11 +218,11 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
-      const result1 = getAzureInstallationStatus('azure-test-project');
+      const result1 = getAzureInstallationStatus(AZURE_TARGET_SOURCE_ID);
       expect(result1.data?.lastCheckedAt).toBeDefined();
 
       // checkAzureInstallation은 캐시를 삭제하고 새로 조회하므로 lastCheckedAt가 갱신됨
-      const result2 = checkAzureInstallation('azure-test-project');
+      const result2 = checkAzureInstallation(AZURE_TARGET_SOURCE_ID);
       expect(result2.data?.lastCheckedAt).toBeDefined();
       // 갱신 함수가 정상 동작하는지 확인 (데이터 반환)
       expect(result2.data?.resources).toBeDefined();
@@ -226,7 +232,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = checkAzureInstallation('aws-test-project');
+      const result = checkAzureInstallation(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
     });
   });
@@ -236,7 +242,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProjectWithVm());
 
-      const result = getAzureVmInstallationStatus('azure-vm-project');
+      const result = getAzureVmInstallationStatus(AZURE_VM_TARGET_SOURCE_ID);
       expect(result.error).toBeUndefined();
       expect(result.data?.vms).toHaveLength(2); // VM만 필터링
       expect(result.data?.lastCheckedAt).toBeDefined();
@@ -246,7 +252,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject()); // DB만 있는 프로젝트
 
-      const result = getAzureVmInstallationStatus('azure-test-project');
+      const result = getAzureVmInstallationStatus(AZURE_TARGET_SOURCE_ID);
       expect(result.data?.vms).toHaveLength(0);
     });
 
@@ -254,7 +260,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProjectWithVm());
 
-      const result = getAzureVmInstallationStatus('azure-vm-project');
+      const result = getAzureVmInstallationStatus(AZURE_VM_TARGET_SOURCE_ID);
       result.data?.vms.forEach((vm) => {
         expect(vm.vmId).toBeDefined();
         expect(vm.vmName).toBeDefined();
@@ -268,7 +274,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = getAzureVmInstallationStatus('aws-test-project');
+      const result = getAzureVmInstallationStatus(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
     });
   });
@@ -278,11 +284,11 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProjectWithVm());
 
-      const result1 = getAzureVmInstallationStatus('azure-vm-project');
+      const result1 = getAzureVmInstallationStatus(AZURE_VM_TARGET_SOURCE_ID);
       expect(result1.data?.lastCheckedAt).toBeDefined();
 
       // checkAzureVmInstallation은 캐시를 삭제하고 새로 조회하므로 lastCheckedAt가 갱신됨
-      const result2 = checkAzureVmInstallation('azure-vm-project');
+      const result2 = checkAzureVmInstallation(AZURE_VM_TARGET_SOURCE_ID);
       expect(result2.data?.lastCheckedAt).toBeDefined();
       // 갱신 함수가 정상 동작하는지 확인 (데이터 반환)
       expect(result2.data?.vms).toBeDefined();
@@ -294,7 +300,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProjectWithVm());
 
-      const result = getAzureVmTerraformScript('azure-vm-project');
+      const result = getAzureVmTerraformScript(AZURE_VM_TARGET_SOURCE_ID);
       expect(result.error).toBeUndefined();
       expect(result.data?.downloadUrl).toBeDefined();
       expect(result.data?.fileName).toContain('terraform');
@@ -305,7 +311,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject()); // DB만 있는 프로젝트
 
-      const result = getAzureVmTerraformScript('azure-test-project');
+      const result = getAzureVmTerraformScript(AZURE_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NO_VM_RESOURCES');
       expect(result.error?.status).toBe(400);
     });
@@ -314,7 +320,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = getAzureVmTerraformScript('aws-test-project');
+      const result = getAzureVmTerraformScript(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
     });
   });
@@ -324,7 +330,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAzureProject());
 
-      const result = getAzureSubnetGuide('azure-test-project');
+      const result = getAzureSubnetGuide(AZURE_TARGET_SOURCE_ID);
       expect(result.error).toBeUndefined();
       expect(result.data?.description).toBeDefined();
       expect(result.data?.documentUrl).toBeDefined();
@@ -334,7 +340,7 @@ describe('mock-azure', () => {
       const store = getStore();
       store.projects.push(createAwsProject());
 
-      const result = getAzureSubnetGuide('aws-test-project');
+      const result = getAzureSubnetGuide(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
     });
   });
@@ -379,8 +385,8 @@ describe('mock-azure', () => {
       store.projects.push(createAzureProject());
       store.projects.push(createAzureProjectWithVm());
 
-      expect(hasVmResources('azure-test-project')).toBe(false);
-      expect(hasVmResources('azure-vm-project')).toBe(true);
+      expect(hasVmResources(AZURE_TARGET_SOURCE_ID)).toBe(false);
+      expect(hasVmResources(AZURE_VM_TARGET_SOURCE_ID)).toBe(true);
     });
 
     it('DB 리소스 존재 여부 확인', () => {
@@ -388,13 +394,13 @@ describe('mock-azure', () => {
       store.projects.push(createAzureProject());
       store.projects.push(createAzureProjectWithVm());
 
-      expect(hasDbResources('azure-test-project')).toBe(true);
-      expect(hasDbResources('azure-vm-project')).toBe(true); // AZURE_SYNAPSE 포함
+      expect(hasDbResources(AZURE_TARGET_SOURCE_ID)).toBe(true);
+      expect(hasDbResources(AZURE_VM_TARGET_SOURCE_ID)).toBe(true); // AZURE_SYNAPSE 포함
     });
 
     it('존재하지 않는 프로젝트는 false', () => {
-      expect(hasVmResources('non-existent')).toBe(false);
-      expect(hasDbResources('non-existent')).toBe(false);
+      expect(hasVmResources(NONEXISTENT_TARGET_SOURCE_ID)).toBe(false);
+      expect(hasDbResources(NONEXISTENT_TARGET_SOURCE_ID)).toBe(false);
     });
   });
 });

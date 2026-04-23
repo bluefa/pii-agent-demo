@@ -1,4 +1,4 @@
-import { getProjectById, updateProject, generateId } from '@/lib/mock-data';
+import { getProjectByTargetSourceId, updateProject, generateId } from '@/lib/mock-data';
 import { Project, Resource, DatabaseType, ProcessStatus } from '@/lib/types';
 import {
   IdcInstallationStatus,
@@ -17,9 +17,9 @@ import {
 // ===== 내부 상태 저장소 (개발용) =====
 
 interface IdcStore {
-  installationStatus: Record<string, IdcInstallationStatus>;
+  installationStatus: Record<number, IdcInstallationStatus>;
   serviceSettings: Record<string, IdcServiceSettings>;
-  resources: Record<string, IdcResourceInput[]>;
+  resources: Record<number, IdcResourceInput[]>;
 }
 
 const idcStore: IdcStore = {
@@ -43,16 +43,18 @@ const isIdcProject = (project: Project): boolean => {
   return project.cloudProvider === 'IDC';
 };
 
-const generateTfStatus = (projectId: string): IdcTfStatus => {
-  // 시뮬레이션: projectId 해시 기반으로 상태 결정
-  const hash = projectId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+// 해시 입력은 기존 project.id 문자열 그대로 유지 — W0 lock-in 통과 조건
+const hashProjectIdString = (projectIdString: string): number =>
+  projectIdString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+const generateTfStatus = (projectIdString: string): IdcTfStatus => {
+  const hash = hashProjectIdString(projectIdString);
   const statuses: IdcTfStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED'];
   return statuses[hash % statuses.length];
 };
 
-const generateFirewallStatus = (projectId: string): boolean => {
-  // 시뮬레이션: projectId 해시 기반으로 방화벽 상태 결정
-  const hash = projectId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+const generateFirewallStatus = (projectIdString: string): boolean => {
+  const hash = hashProjectIdString(projectIdString);
   return hash % 2 === 0; // 50% 확률로 오픈됨
 };
 
@@ -62,9 +64,9 @@ const generateFirewallStatus = (projectId: string): boolean => {
  * IDC 설치 상태 조회
  */
 export const getIdcInstallationStatus = (
-  projectId: string
+  targetSourceId: number
 ): { data?: IdcInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: IDC_ERROR_CODES.NOT_FOUND };
@@ -75,12 +77,12 @@ export const getIdcInstallationStatus = (
   }
 
   // 캐시된 상태가 있으면 반환
-  if (idcStore.installationStatus[projectId]) {
-    return { data: idcStore.installationStatus[projectId] };
+  if (idcStore.installationStatus[targetSourceId]) {
+    return { data: idcStore.installationStatus[targetSourceId] };
   }
 
-  const bdcTfStatus = generateTfStatus(projectId);
-  const firewallOpened = generateFirewallStatus(projectId);
+  const bdcTfStatus = generateTfStatus(project.id);
+  const firewallOpened = generateFirewallStatus(project.id);
 
   const result: IdcInstallationStatus = {
     provider: 'IDC',
@@ -89,7 +91,7 @@ export const getIdcInstallationStatus = (
     lastCheckedAt: new Date().toISOString(),
   };
 
-  idcStore.installationStatus[projectId] = result;
+  idcStore.installationStatus[targetSourceId] = result;
   return { data: result };
 };
 
@@ -97,9 +99,9 @@ export const getIdcInstallationStatus = (
  * IDC 설치 상태 새로고침
  */
 export const checkIdcInstallation = (
-  projectId: string
+  targetSourceId: number
 ): { data?: IdcInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: IDC_ERROR_CODES.NOT_FOUND };
@@ -110,10 +112,10 @@ export const checkIdcInstallation = (
   }
 
   // 캐시 삭제 후 새로 조회
-  delete idcStore.installationStatus[projectId];
+  delete idcStore.installationStatus[targetSourceId];
 
   // 상태 변경 시뮬레이션
-  const result = getIdcInstallationStatus(projectId);
+  const result = getIdcInstallationStatus(targetSourceId);
 
   if (result.data) {
     // IN_PROGRESS -> COMPLETED 진행 (30% 확률)
@@ -126,7 +128,7 @@ export const checkIdcInstallation = (
     }
 
     result.data.lastCheckedAt = new Date().toISOString();
-    idcStore.installationStatus[projectId] = result.data;
+    idcStore.installationStatus[targetSourceId] = result.data;
   }
 
   return result;
@@ -136,9 +138,9 @@ export const checkIdcInstallation = (
  * 방화벽 오픈 확인 (서비스 담당자가 방화벽 오픈 후 호출)
  */
 export const confirmFirewall = (
-  projectId: string
+  targetSourceId: number
 ): { data?: ConfirmFirewallResponse; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: IDC_ERROR_CODES.NOT_FOUND };
@@ -149,16 +151,16 @@ export const confirmFirewall = (
   }
 
   // 설치 상태 업데이트
-  const currentStatus = idcStore.installationStatus[projectId] || {
+  const currentStatus = idcStore.installationStatus[targetSourceId] || {
     provider: 'IDC' as const,
-    bdcTf: generateTfStatus(projectId),
+    bdcTf: generateTfStatus(project.id),
     firewallOpened: false,
     lastCheckedAt: new Date().toISOString(),
   };
 
   currentStatus.firewallOpened = true;
   currentStatus.lastCheckedAt = new Date().toISOString();
-  idcStore.installationStatus[projectId] = currentStatus;
+  idcStore.installationStatus[targetSourceId] = currentStatus;
 
   return {
     data: {
@@ -250,9 +252,9 @@ export const updateIdcServiceSettings = (
  * IDC 리소스 목록 조회
  */
 export const getIdcResources = (
-  projectId: string
+  targetSourceId: number
 ): { data?: IdcResourceInput[]; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: IDC_ERROR_CODES.NOT_FOUND };
@@ -262,7 +264,7 @@ export const getIdcResources = (
     return { error: IDC_ERROR_CODES.NOT_IDC_PROJECT };
   }
 
-  const resources = idcStore.resources[projectId] || [];
+  const resources = idcStore.resources[targetSourceId] || [];
   return { data: resources };
 };
 
@@ -270,10 +272,10 @@ export const getIdcResources = (
  * IDC 리소스 전체 저장 (임시 저장용 - 프로젝트에 반영 안 함)
  */
 export const updateIdcResources = (
-  projectId: string,
+  targetSourceId: number,
   resources: IdcResourceInput[]
 ): { data?: IdcResourceInput[]; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: IDC_ERROR_CODES.NOT_FOUND };
@@ -288,7 +290,7 @@ export const updateIdcResources = (
   }
 
   // 임시 저장만 (프로젝트 리소스에는 반영하지 않음)
-  idcStore.resources[projectId] = resources;
+  idcStore.resources[targetSourceId] = resources;
 
   return { data: resources };
 };
@@ -297,10 +299,10 @@ export const updateIdcResources = (
  * IDC 연동 대상 확정 - 리소스를 프로젝트에 추가하고 단계 전이
  */
 export const confirmIdcTargets = (
-  projectId: string,
+  targetSourceId: number,
   resources: IdcResourceInput[]
 ): { data?: { confirmed: boolean; confirmedAt: string; project: Project }; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return { error: IDC_ERROR_CODES.NOT_FOUND };
@@ -332,13 +334,13 @@ export const confirmIdcTargets = (
   });
 
   // 프로젝트 리소스 추가 및 단계 전이 (INSTALLING으로)
-  const updatedProject = updateProject(projectId, {
+  const updatedProject = updateProject(project.id, {
     resources: convertedResources,
     processStatus: ProcessStatus.INSTALLING,
   });
 
   // IDC 설치 상태 초기화
-  idcStore.installationStatus[projectId] = {
+  idcStore.installationStatus[targetSourceId] = {
     provider: 'IDC',
     bdcTf: 'PENDING',
     firewallOpened: false,

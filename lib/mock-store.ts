@@ -15,8 +15,8 @@ type Store = {
     projectHistory: ProjectHistory[];
     // Test Connection 비동기 작업
     testConnectionJobs: TestConnectionJob[];
-    // AWS 설치 상태 (projectId → status)
-    awsInstallations: Map<string, LegacyAwsInstallationStatus>;
+    // AWS 설치 상태 (targetSourceId → status)
+    awsInstallations: Map<number, LegacyAwsInstallationStatus>;
     // AWS 서비스 설정 (serviceCode → settings)
     awsServiceSettings: Map<string, LegacyAwsServiceSettings>;
 };

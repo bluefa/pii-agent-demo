@@ -23,7 +23,7 @@ const APPROVAL_TYPES: ProjectHistoryType[] = [
 ];
 
 export interface GetProjectHistoryOptions {
-  projectId: string;
+  targetSourceId: number;
   type?: HistoryFilterType;
   limit?: number;
   offset?: number;
@@ -35,10 +35,10 @@ export interface GetProjectHistoryResult {
 }
 
 export const getProjectHistory = (options: GetProjectHistoryOptions): GetProjectHistoryResult => {
-  const { projectId, type = 'all', limit = 50, offset = 0 } = options;
+  const { targetSourceId, type = 'all', limit = 50, offset = 0 } = options;
   const store = getStore();
 
-  let filtered = store.projectHistory.filter((h) => h.projectId === projectId);
+  let filtered = store.projectHistory.filter((h) => h.targetSourceId === targetSourceId);
 
   // 타입 필터링 (현재는 all과 approval이 동일 - 모든 타입이 approval 관련)
   if (type === 'approval') {
@@ -57,7 +57,7 @@ export const getProjectHistory = (options: GetProjectHistoryOptions): GetProject
 // ===== History Creation =====
 
 export interface AddHistoryOptions {
-  projectId: string;
+  targetSourceId: number;
   type: ProjectHistoryType;
   actor: ProjectHistoryActor;
   details?: {
@@ -69,12 +69,12 @@ export interface AddHistoryOptions {
 }
 
 export const addProjectHistory = (options: AddHistoryOptions): ProjectHistory => {
-  const { projectId, type, actor, details = {} } = options;
+  const { targetSourceId, type, actor, details = {} } = options;
   const store = getStore();
 
   const history: ProjectHistory = {
     id: generateId('ph'),
-    projectId,
+    targetSourceId,
     type,
     actor,
     timestamp: new Date().toISOString(),
@@ -89,14 +89,14 @@ export const addProjectHistory = (options: AddHistoryOptions): ProjectHistory =>
 
 /** 연동 대상 확정 */
 export const addTargetConfirmedHistory = (
-  projectId: string,
+  targetSourceId: number,
   actor: ProjectHistoryActor,
   resourceCount: number,
   excludedResourceCount: number,
   inputData?: ApprovalRequestInputSnapshot,
 ): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'TARGET_CONFIRMED',
     actor,
     details: { resourceCount, excludedResourceCount, inputData },
@@ -104,18 +104,18 @@ export const addTargetConfirmedHistory = (
 };
 
 /** 자동 승인 (시스템) */
-export const addAutoApprovedHistory = (projectId: string): ProjectHistory => {
+export const addAutoApprovedHistory = (targetSourceId: number): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'AUTO_APPROVED',
     actor: { id: 'system', name: '시스템' },
   });
 };
 
 /** 승인 (수동) */
-export const addApprovalHistory = (projectId: string, actor: ProjectHistoryActor): ProjectHistory => {
+export const addApprovalHistory = (targetSourceId: number, actor: ProjectHistoryActor): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'APPROVAL',
     actor,
   });
@@ -123,12 +123,12 @@ export const addApprovalHistory = (projectId: string, actor: ProjectHistoryActor
 
 /** 반려 */
 export const addRejectionHistory = (
-  projectId: string,
+  targetSourceId: number,
   actor: ProjectHistoryActor,
   reason: string
 ): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'REJECTION',
     actor,
     details: { reason },
@@ -137,11 +137,11 @@ export const addRejectionHistory = (
 
 /** 승인 요청 취소 */
 export const addApprovalCancelledHistory = (
-  projectId: string,
+  targetSourceId: number,
   actor: ProjectHistoryActor
 ): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'APPROVAL_CANCELLED',
     actor,
   });
@@ -149,12 +149,12 @@ export const addApprovalCancelledHistory = (
 
 /** 폐기 요청 */
 export const addDecommissionRequestHistory = (
-  projectId: string,
+  targetSourceId: number,
   actor: ProjectHistoryActor,
   reason: string
 ): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'DECOMMISSION_REQUEST',
     actor,
     details: { reason },
@@ -163,11 +163,11 @@ export const addDecommissionRequestHistory = (
 
 /** 폐기 승인 */
 export const addDecommissionApprovedHistory = (
-  projectId: string,
+  targetSourceId: number,
   actor: ProjectHistoryActor
 ): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'DECOMMISSION_APPROVED',
     actor,
   });
@@ -175,12 +175,12 @@ export const addDecommissionApprovedHistory = (
 
 /** 폐기 반려 */
 export const addDecommissionRejectedHistory = (
-  projectId: string,
+  targetSourceId: number,
   actor: ProjectHistoryActor,
   reason: string
 ): ProjectHistory => {
   return addProjectHistory({
-    projectId,
+    targetSourceId,
     type: 'DECOMMISSION_REJECTED',
     actor,
     details: { reason },

@@ -23,7 +23,6 @@ interface ResourceScheduleItem {
 
 export interface TestConnectionJob {
   id: string;
-  projectId: string;
   target_source_id: number;
   status: TestConnectionStatus;
   requested_at: string;
@@ -82,7 +81,6 @@ export const createTestConnectionJob = (
 
   const job: InternalTestConnectionJob = {
     id: generateId(),
-    projectId: project.id,
     target_source_id: targetSourceId,
     status: 'PENDING',
     requested_at: now.toISOString(),
@@ -99,10 +97,10 @@ export const createTestConnectionJob = (
   return job;
 };
 
-export const getLatestJob = (projectId: string): TestConnectionJob | undefined => {
+export const getLatestJob = (targetSourceId: number): TestConnectionJob | undefined => {
   const store = getStore();
   const jobs = store.testConnectionJobs
-    .filter((j) => j.projectId === projectId)
+    .filter((j) => j.target_source_id === targetSourceId)
     .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
 
   if (jobs.length === 0) return undefined;
@@ -110,13 +108,13 @@ export const getLatestJob = (projectId: string): TestConnectionJob | undefined =
 };
 
 export const getJobHistory = (
-  projectId: string,
+  targetSourceId: number,
   page: number,
   size: number,
 ): { content: TestConnectionJob[]; total: number } => {
   const store = getStore();
   const allJobs = store.testConnectionJobs
-    .filter((j) => j.projectId === projectId)
+    .filter((j) => j.target_source_id === targetSourceId)
     .map(calculateJobStatus)
     .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
 
@@ -128,10 +126,10 @@ export const getJobHistory = (
   };
 };
 
-export const hasPendingJob = (projectId: string): boolean => {
+export const hasPendingJob = (targetSourceId: number): boolean => {
   const store = getStore();
   return store.testConnectionJobs.some((j) => {
-    if (j.projectId !== projectId) return false;
+    if (j.target_source_id !== targetSourceId) return false;
     const updated = calculateJobStatus(j);
     return updated.status === 'PENDING';
   });
@@ -147,7 +145,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   const internal = job as InternalTestConnectionJob;
   const now = Date.now();
   const store = getStore();
-  const project = store.projects.find((p) => p.id === job.projectId);
+  const project = store.projects.find((p) => p.targetSourceId === job.target_source_id);
 
   if (!project) {
     const failed: TestConnectionJob = {
@@ -263,9 +261,9 @@ const updateJobInStore = (job: TestConnectionJob): void => {
 // ===== Job Cleanup =====
 
 /** 프로세스 재시작 시 기존 연결 테스트 내역 전체 삭제 */
-export const clearJobHistory = (projectId: string): void => {
+export const clearJobHistory = (targetSourceId: number): void => {
   const store = getStore();
-  store.testConnectionJobs = store.testConnectionJobs.filter((j) => j.projectId !== projectId);
+  store.testConnectionJobs = store.testConnectionJobs.filter((j) => j.target_source_id !== targetSourceId);
 };
 
 // ===== Public Response Helpers =====

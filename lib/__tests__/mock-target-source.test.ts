@@ -3,8 +3,6 @@ import {
   mockProjects,
   getProjectById,
   getProjectByTargetSourceId,
-  getTargetSourceIdByProjectId,
-  getProjectIdByTargetSourceId,
   generateTargetSourceId,
   addProject,
 } from '@/lib/mock-data';
@@ -53,42 +51,6 @@ describe('targetSourceId — 매핑 함수', () => {
 
   it('getProjectByTargetSourceId: 존재하지 않는 ID는 undefined를 반환한다', () => {
     expect(getProjectByTargetSourceId(9999)).toBeUndefined();
-  });
-
-  it('getTargetSourceIdByProjectId: projectId로 targetSourceId를 반환한다', () => {
-    expect(getTargetSourceIdByProjectId('proj-1')).toBe(1006);
-  });
-
-  it('getTargetSourceIdByProjectId: 존재하지 않는 projectId는 undefined를 반환한다', () => {
-    expect(getTargetSourceIdByProjectId('nonexistent')).toBeUndefined();
-  });
-
-  it('getProjectIdByTargetSourceId: targetSourceId로 projectId를 반환한다', () => {
-    expect(getProjectIdByTargetSourceId(1006)).toBe('proj-1');
-  });
-
-  it('getProjectIdByTargetSourceId: 존재하지 않는 targetSourceId는 undefined를 반환한다', () => {
-    expect(getProjectIdByTargetSourceId(9999)).toBeUndefined();
-  });
-
-  it('왕복 검증: projectId → targetSourceId → projectId', () => {
-    const store = getStore();
-    for (const project of store.projects) {
-      const tsId = getTargetSourceIdByProjectId(project.id);
-      expect(tsId).toBeDefined();
-      const backToProjectId = getProjectIdByTargetSourceId(tsId!);
-      expect(backToProjectId).toBe(project.id);
-    }
-  });
-
-  it('왕복 검증: targetSourceId → projectId → targetSourceId', () => {
-    const store = getStore();
-    for (const project of store.projects) {
-      const projectId = getProjectIdByTargetSourceId(project.targetSourceId);
-      expect(projectId).toBeDefined();
-      const backToTsId = getTargetSourceIdByProjectId(projectId!);
-      expect(backToTsId).toBe(project.targetSourceId);
-    }
   });
 });
 

@@ -1,4 +1,4 @@
-import { getProjectById } from '@/lib/mock-data';
+import { getProjectByTargetSourceId } from '@/lib/mock-data';
 import { Project, Resource, isInstallIneligible } from '@/lib/types';
 import {
   AzureInstallationStatus,
@@ -18,8 +18,8 @@ import {
 // ===== 내부 상태 저장소 (개발용) =====
 
 interface AzureStore {
-  installationStatus: Record<string, AzureInstallationStatus>;
-  vmInstallationStatus: Record<string, AzureVmInstallationStatus>;
+  installationStatus: Record<number, AzureInstallationStatus>;
+  vmInstallationStatus: Record<number, AzureVmInstallationStatus>;
   serviceSettings: Record<string, AzureServiceSettings>;
 }
 
@@ -57,9 +57,9 @@ const generatePrivateEndpointStatus = (resourceId: string): PrivateEndpointStatu
  * Azure 설치 상태 조회 (DB 리소스)
  */
 export const getAzureInstallationStatus = (
-  projectId: string
+  targetSourceId: number
 ): { data?: AzureInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -74,8 +74,8 @@ export const getAzureInstallationStatus = (
   }
 
   // 캐시된 상태가 있으면 반환
-  if (azureStore.installationStatus[projectId]) {
-    return { data: azureStore.installationStatus[projectId] };
+  if (azureStore.installationStatus[targetSourceId]) {
+    return { data: azureStore.installationStatus[targetSourceId] };
   }
 
   // DB 리소스만 필터링
@@ -114,7 +114,7 @@ export const getAzureInstallationStatus = (
     lastCheckedAt: new Date().toISOString(),
   };
 
-  azureStore.installationStatus[projectId] = result;
+  azureStore.installationStatus[targetSourceId] = result;
   return { data: result };
 };
 
@@ -122,9 +122,9 @@ export const getAzureInstallationStatus = (
  * Azure 설치 상태 새로고침 (DB 리소스)
  */
 export const checkAzureInstallation = (
-  projectId: string
+  targetSourceId: number
 ): { data?: AzureInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -139,10 +139,10 @@ export const checkAzureInstallation = (
   }
 
   // 캐시 삭제 후 새로 조회
-  delete azureStore.installationStatus[projectId];
+  delete azureStore.installationStatus[targetSourceId];
 
   // 상태 변경 시뮬레이션: 일부 PENDING -> APPROVED
-  const result = getAzureInstallationStatus(projectId);
+  const result = getAzureInstallationStatus(targetSourceId);
 
   if (result.data) {
     result.data.resources = result.data.resources.map((resource) => {
@@ -168,7 +168,7 @@ export const checkAzureInstallation = (
     );
 
     result.data.lastCheckedAt = new Date().toISOString();
-    azureStore.installationStatus[projectId] = result.data;
+    azureStore.installationStatus[targetSourceId] = result.data;
   }
 
   return result;
@@ -178,9 +178,9 @@ export const checkAzureInstallation = (
  * Azure VM 설치 상태 조회
  */
 export const getAzureVmInstallationStatus = (
-  projectId: string
+  targetSourceId: number
 ): { data?: AzureVmInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -195,8 +195,8 @@ export const getAzureVmInstallationStatus = (
   }
 
   // 캐시된 상태가 있으면 반환
-  if (azureStore.vmInstallationStatus[projectId]) {
-    return { data: azureStore.vmInstallationStatus[projectId] };
+  if (azureStore.vmInstallationStatus[targetSourceId]) {
+    return { data: azureStore.vmInstallationStatus[targetSourceId] };
   }
 
   // VM 리소스만 필터링
@@ -235,7 +235,7 @@ export const getAzureVmInstallationStatus = (
     lastCheckedAt: new Date().toISOString(),
   };
 
-  azureStore.vmInstallationStatus[projectId] = result;
+  azureStore.vmInstallationStatus[targetSourceId] = result;
   return { data: result };
 };
 
@@ -243,9 +243,9 @@ export const getAzureVmInstallationStatus = (
  * Azure VM 설치 상태 새로고침
  */
 export const checkAzureVmInstallation = (
-  projectId: string
+  targetSourceId: number
 ): { data?: AzureVmInstallationStatus; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -260,9 +260,9 @@ export const checkAzureVmInstallation = (
   }
 
   // 캐시 삭제 후 새로 조회
-  delete azureStore.vmInstallationStatus[projectId];
+  delete azureStore.vmInstallationStatus[targetSourceId];
 
-  const result = getAzureVmInstallationStatus(projectId);
+  const result = getAzureVmInstallationStatus(targetSourceId);
 
   if (result.data) {
     // 상태 변경 시뮬레이션: 일부 미설치 -> 설치됨
@@ -277,7 +277,7 @@ export const checkAzureVmInstallation = (
     });
 
     result.data.lastCheckedAt = new Date().toISOString();
-    azureStore.vmInstallationStatus[projectId] = result.data;
+    azureStore.vmInstallationStatus[targetSourceId] = result.data;
   }
 
   return result;
@@ -287,9 +287,9 @@ export const checkAzureVmInstallation = (
  * Azure VM Terraform Script 조회
  */
 export const getAzureVmTerraformScript = (
-  projectId: string
+  targetSourceId: number
 ): { data?: AzureTerraformScript; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -313,8 +313,8 @@ export const getAzureVmTerraformScript = (
 
   return {
     data: {
-      downloadUrl: `/api/azure/projects/${projectId}/vm-terraform-script/download`,
-      fileName: `terraform-${projectId}-${Date.now()}.tf`,
+      downloadUrl: `/api/azure/projects/${project.id}/vm-terraform-script/download`,
+      fileName: `terraform-${project.id}-${Date.now()}.tf`,
       generatedAt: new Date().toISOString(),
     },
   };
@@ -324,9 +324,9 @@ export const getAzureVmTerraformScript = (
  * Azure Subnet 가이드 조회
  */
 export const getAzureSubnetGuide = (
-  projectId: string
+  targetSourceId: number
 ): { data?: AzureSubnetGuide; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectById(projectId);
+  const project = getProjectByTargetSourceId(targetSourceId);
 
   if (!project) {
     return {
@@ -394,14 +394,14 @@ export const resetAzureStore = (): void => {
   azureStore.serviceSettings = {};
 };
 
-export const hasVmResources = (projectId: string): boolean => {
-  const project = getProjectById(projectId);
+export const hasVmResources = (targetSourceId: number): boolean => {
+  const project = getProjectByTargetSourceId(targetSourceId);
   if (!project) return false;
   return project.resources.some(isVmResource);
 };
 
-export const hasDbResources = (projectId: string): boolean => {
-  const project = getProjectById(projectId);
+export const hasDbResources = (targetSourceId: number): boolean => {
+  const project = getProjectByTargetSourceId(targetSourceId);
   if (!project) return false;
   return project.resources.some(isDbResource);
 };

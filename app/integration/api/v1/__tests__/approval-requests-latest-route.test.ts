@@ -49,7 +49,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(bffResponse);
-    expect(mockedGetApprovalRequestLatest).toHaveBeenCalledWith('azure-proj-1');
+    expect(mockedGetApprovalRequestLatest).toHaveBeenCalledWith('1003');
   });
 
   it('BFF가 404를 반환하면 그대로 전달한다', async () => {
