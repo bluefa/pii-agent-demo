@@ -43,9 +43,9 @@ const CredentialDisplay = ({ needsCred, selectedCredentialId, availableCredentia
     ? availableCredentials.find((c) => c.name === selectedCredentialId)
     : null;
 
-  if (selectedCred) return <span className={cn('text-sm', textColors.primary)}>{selectedCred.name}</span>;
+  if (selectedCred) return <span className={cn('text-xs', textColors.primary)}>{selectedCred.name}</span>;
 
-  return <span className={cn('text-sm font-medium', statusColors.error.text)}>미선택</span>;
+  return <span className={cn('text-xs font-medium', statusColors.error.text)}>미선택</span>;
 };
 
 const WarningTriangleIcon = ({ className }: { className?: string }) => (
@@ -110,7 +110,7 @@ export const ResourceRow = ({
         onClick={handleRowClick}
       >
         {isEditMode && (
-          <td className="px-6 py-4 w-10" onClick={(e) => e.stopPropagation()}>
+          <td className="px-6 py-3 w-10" onClick={(e) => e.stopPropagation()}>
             {isCheckboxEnabled && (
               <input
                 type="checkbox"
@@ -127,13 +127,13 @@ export const ResourceRow = ({
           </td>
         )}
 
-        <td className="px-6 py-4">
+        <td className="px-6 py-3">
           <Badge variant={isSelected ? 'success' : 'pending'} size="sm">
             {isSelected ? '대상' : '비대상'}
           </Badge>
         </td>
 
-        <td className="px-6 py-4">
+        <td className="px-6 py-3">
           <div className="flex items-center gap-1.5">
             <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
             {isVm && isSelected && !hasVmConfig && (
@@ -142,7 +142,7 @@ export const ResourceRow = ({
           </div>
         </td>
 
-        <td className="px-6 py-4">
+        <td className="px-6 py-3">
           <div className="flex items-center gap-2">
             <span className={cn('font-mono text-xs', textColors.tertiary)}>{resource.resourceId}</span>
             {isVnetIneligible && (
@@ -158,28 +158,28 @@ export const ResourceRow = ({
           </div>
         </td>
 
-        <td className="px-6 py-4">
+        <td className="px-6 py-3">
           <span className={cn('font-mono text-xs', textColors.tertiary)}>
             {resource.region ?? '—'}
           </span>
         </td>
 
-        <td className="px-6 py-4">
+        <td className="px-6 py-3">
           <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
         </td>
 
-        <td className="px-6 py-4">
-          <span className={cn('text-sm', getIntegrationStatusTextClass(integrationStatus))}>
+        <td className="px-6 py-3">
+          <span className={cn('text-xs', getIntegrationStatusTextClass(integrationStatus))}>
             {integrationStatus}
           </span>
         </td>
 
-        <td className="px-6 py-4">
+        <td className="px-6 py-3">
           <ScanHistoryBadge resource={resource} />
         </td>
 
         {showCredentialColumn && (
-          <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+          <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
             {isEditMode ? (
               needsCred ? (
                 <select
