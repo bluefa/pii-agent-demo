@@ -118,6 +118,13 @@ fi
 echo "[create-worktree] Creating worktree ${worktree_path} on ${branch_name} from ${BASE_BRANCH}"
 git -C "${repo_root}" worktree add "${worktree_path}" -b "${branch_name}" "${BASE_BRANCH}" >/dev/null
 
+if [[ -f "${repo_root}/.env.local" ]]; then
+  cp "${repo_root}/.env.local" "${worktree_path}/.env.local"
+  echo "[create-worktree] Copied .env.local from ${repo_root}"
+else
+  echo "[create-worktree] WARN: ${repo_root}/.env.local not found — dev server may fail with USE_MOCK_DATA=undefined" >&2
+fi
+
 echo "[create-worktree] Done"
 echo "  worktree: ${worktree_path}"
 echo "  branch:   ${branch_name}"
