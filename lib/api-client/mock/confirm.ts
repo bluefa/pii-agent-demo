@@ -205,6 +205,27 @@ function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegratio
   };
 }
 
+/**
+ * ApprovedIntegration 의 resource_id 목록과 project.resources 를 조인해
+ * ConfirmedIntegration.resource_infos 를 만든다. 매칭이 하나도 없으면 null.
+ *
+ * getConfirmedIntegration 의 path-3 fallback 과 getProcessStatus 의
+ * APPLYING → INSTALLING 마이그레이션 훅에서 공통 사용.
+ */
+function deriveConfirmedResourceInfos(
+  approvedIntegration: BffApprovedIntegration,
+  resources: Resource[],
+): BffConfirmedIntegration['resource_infos'] | null {
+  const approvedResourceIds = new Set(
+    approvedIntegration.resource_infos
+      .map((resourceInfo) => resourceInfo.resource_id)
+      .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0),
+  );
+  const matched = resources.filter((r) => approvedResourceIds.has(r.id));
+  if (matched.length === 0) return null;
+  return matched.map(toConfirmedIntegrationResourceInfo);
+}
+
 // --- Queue Board Integration Helpers ---
 
 const getCloudInfo = (project: Project): string => {
@@ -528,20 +549,40 @@ export const mockConfirm = {
       );
     }
 
-    // 1. 변경 요청 중 보존된 이전 확정 스냅샷 확인
+    // 1. snapshot store 확인 (변경요청 이전-보존 또는 APPLYING→INSTALLING 자동 전이 채움)
     const snapshot = confirmedIntegrationSnapshotStore.get(project.id);
     if (snapshot) {
       return NextResponse.json(snapshot);
     }
 
-    // 2. 현재 프로젝트 상태에서 확정 정보 도출
-    const activeResources = project.resources.filter((r) => r.isSelected && r.connectionStatus === 'CONNECTED');
-    if (activeResources.length === 0 || project.status.installation.status !== 'COMPLETED') {
+    // 2. installation 미진행 상태(PENDING) 면 확정 정보 없음
+    if (project.status.installation.status === 'PENDING') {
+      return NextResponse.json(createEmptyConfirmedIntegration());
+    }
+
+    // 3. installation 진행 중 / 완료 상태에서 ApprovedIntegration 으로부터 derive
+    //    (snapshot 가 set 되기 전 polling 타이밍 등 fallback 경로)
+    const approvedIntegration = approvedIntegrationStore.get(project.id);
+    if (approvedIntegration) {
+      const derived = deriveConfirmedResourceInfos(approvedIntegration, project.resources);
+      if (derived) {
+        return NextResponse.json({ resource_infos: derived } satisfies BffConfirmedIntegration);
+      }
+    }
+
+    // 4. 최종 폴백: project.resources 의 selected 리소스 (connection-test 통과 후만)
+    const requiresConnection =
+      project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
+      project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+    const eligibleResources = project.resources.filter(
+      (r) => r.isSelected && (!requiresConnection || r.connectionStatus === 'CONNECTED'),
+    );
+    if (eligibleResources.length === 0) {
       return NextResponse.json(createEmptyConfirmedIntegration());
     }
 
     return NextResponse.json({
-      resource_infos: activeResources.map(toConfirmedIntegrationResourceInfo),
+      resource_infos: eligibleResources.map(toConfirmedIntegrationResourceInfo),
     } satisfies BffConfirmedIntegration);
   },
 
@@ -866,6 +907,18 @@ export const mockConfirm = {
         });
 
         const updated = mockData.getProjectByTargetSourceId(Number(targetSourceId))!;
+
+        // ConfirmedIntegration 마이그레이션: APPLYING → INSTALLING 전이 시
+        // ApprovedIntegration 의 selected 리소스를 ConfirmedIntegration snapshot 으로 보존.
+        // 변경요청 이전-스냅샷 보존 (createApprovalRequest 경로) 과 충돌하지 않도록 has 가드.
+        const approvedIntegration = approvedIntegrationStore.get(updated.id);
+        if (approvedIntegration && !confirmedIntegrationSnapshotStore.has(updated.id)) {
+          const derived = deriveConfirmedResourceInfos(approvedIntegration, updated.resources);
+          if (derived) {
+            confirmedIntegrationSnapshotStore.set(updated.id, { resource_infos: derived });
+          }
+        }
+
         return NextResponse.json({
           target_source_id: updated.targetSourceId,
           process_status: computeProcessStatus(updated),
