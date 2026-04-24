@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig, Resource, VmDatabaseType } from '@/lib/types';
+import { Project, ProcessStatus, SecretKey, VmDatabaseConfig, Resource } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
@@ -10,7 +10,6 @@ import {
   getConfirmResources,
   getConfirmedIntegration,
 } from '@/app/lib/api';
-import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { DbSelectionCard } from '@/app/components/features/scan';
 import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
@@ -23,6 +22,12 @@ import { getButtonClass, cn, textColors, statusColors } from '@/lib/theme';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError } from '@/lib/errors';
+import {
+  EMPTY_CONFIRMED_INTEGRATION,
+  catalogToResources,
+  confirmedIntegrationToResources,
+  isMissingConfirmedSnapshot,
+} from '@/lib/resource-catalog';
 
 interface GcpProjectPageProps {
   project: Project;
@@ -30,113 +35,59 @@ interface GcpProjectPageProps {
   onProjectUpdate: (project: Project) => void;
 }
 
-const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
-  resource_infos: [],
-};
-
-const isMissingSnapshotError = (error: unknown): boolean =>
-  error instanceof AppError
-  && (
-    error.code === 'NOT_FOUND'
-    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
-  );
-
 export const GcpProjectPage = ({
   project,
   credentials,
   onProjectUpdate,
 }: GcpProjectPageProps) => {
   const toast = useToast();
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    project.resources.filter((r) => r.isSelected).map((r) => r.id)
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
-  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
-    const initial: Record<string, VmDatabaseConfig> = {};
-    project.resources.forEach((r) => {
-      if (r.vmDatabaseConfig) {
-        initial[r.id] = r.vmDatabaseConfig;
-      }
-    });
-    return initial;
-  });
+  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
 
-  // Resource loading state
-  const [resources, setResources] = useState<Resource[]>(project.resources);
+  // Step 별 데이터 소스: step 1 = catalog, step 4+ = confirmed-integration, step 2/3 = fetch 없음
+  const [resources, setResources] = useState<Resource[]>([]);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceError, setResourceError] = useState<string | null>(null);
 
-  const loadGcpResources = useCallback(async () => {
+  const currentStep = getProjectCurrentStep(project);
+
+  const loadResources = useCallback(async () => {
     setResourceLoading(true);
     setResourceError(null);
-
     try {
-      const [catalogResponse, confirmedIntegrationResponse] = await Promise.all([
-        getConfirmResources(project.targetSourceId),
-        getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+      if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+        const response = await getConfirmResources(project.targetSourceId);
+        setResources(catalogToResources(response.resources));
+      } else if (currentStep >= ProcessStatus.INSTALLING) {
+        const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingConfirmedSnapshot(error)) return EMPTY_CONFIRMED_INTEGRATION;
           throw error;
-        }),
-      ]);
-
-      // Convert ConfirmResourceItem[] to Resource[]
-      const convertedResources: Resource[] = catalogResponse.resources.map(resource => {
-        // Check if this resource is in confirmed integration
-        const confirmedResourceInfo = confirmedIntegrationResponse.resource_infos.find(
-          confirmedResource => confirmedResource.resource_id === resource.resourceId
-        );
-        const isConfirmed = !!confirmedResourceInfo;
-        const selectedCredentialId = confirmedResourceInfo?.credential_id ?? undefined;
-        
-        // Only create VM config for actual VM database types
-        let vmDatabaseConfig: VmDatabaseConfig | undefined;
-        if (resource.resourceType === 'AZURE_VM') {
-          const vmDatabaseTypes: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
-          if (vmDatabaseTypes.includes(resource.databaseType as VmDatabaseType) && resource.port !== null) {
-            vmDatabaseConfig = {
-              databaseType: resource.databaseType as VmDatabaseType,
-              port: resource.port ?? 0,
-              host: resource.host ?? '',
-              ...(resource.oracleServiceId ? { oracleServiceId: resource.oracleServiceId } : {}),
-              ...(resource.networkInterfaceId ? { selectedNicId: resource.networkInterfaceId } : {}),
-            };
-          }
-        }
-
-        return {
-          id: resource.id,
-          type: resource.resourceType,
-          resourceId: resource.resourceId,
-          name: resource.name,
-          databaseType: resource.databaseType,
-          integrationCategory: resource.integrationCategory,
-          isSelected: isConfirmed, // Set based on confirmed integration
-          connectionStatus: 'PENDING',
-          selectedCredentialId,
-          vmDatabaseConfig,
-        };
-      });
-
-      setResources(convertedResources);
+        });
+        const confirmedResources = confirmedIntegrationToResources(response);
+        setResources(confirmedResources);
+        setSelectedIds(confirmedResources.map((r) => r.id));
+      }
+      // step 2 / 3: 호출 없음, 기존 state 유지 (리프레시 시 []).
     } catch (error) {
-      const errorMessage = error instanceof AppError && error.isUserFacing 
-        ? error.message 
-        : error instanceof Error 
-          ? error.message 
+      const errorMessage = error instanceof AppError && error.isUserFacing
+        ? error.message
+        : error instanceof Error
+          ? error.message
           : 'GCP 리소스 정보를 불러오지 못했습니다.';
       setResourceError(errorMessage);
     } finally {
       setResourceLoading(false);
     }
-  }, [project.targetSourceId]);
+  }, [currentStep, project.targetSourceId]);
 
   useEffect(() => {
-    void loadGcpResources();
-  }, [loadGcpResources]);
+    void loadResources();
+  }, [loadResources]);
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -147,8 +98,6 @@ export const GcpProjectPage = ({
       toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
     }
   };
-
-  const currentStep = getProjectCurrentStep(project);
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
@@ -257,7 +206,6 @@ export const GcpProjectPage = ({
       {currentStep === ProcessStatus.APPLYING_APPROVED ? (
         <ResourceTransitionPanel
           targetSourceId={project.targetSourceId}
-          resources={resources}
           cloudProvider={project.cloudProvider}
           processStatus={currentStep}
         />
@@ -274,7 +222,7 @@ export const GcpProjectPage = ({
             {resourceError}
           </p>
           <button
-            onClick={() => void loadGcpResources()}
+            onClick={() => void loadResources()}
             className={getButtonClass('secondary')}
           >
             다시 시도
@@ -287,7 +235,7 @@ export const GcpProjectPage = ({
           onScanComplete={async () => {
             const [updatedProject] = await Promise.all([
               getProject(project.targetSourceId),
-              loadGcpResources(),
+              loadResources(),
             ]);
             onProjectUpdate(updatedProject);
           }}

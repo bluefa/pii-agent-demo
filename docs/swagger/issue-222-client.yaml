@@ -833,7 +833,6 @@ components:
         - cloudProvider
         - processStatus
         - status
-        - resources
         - terraformState
         - createdAt
         - updatedAt
@@ -865,6 +864,11 @@ components:
           additionalProperties: true
         resources:
           type: array
+          deprecated: true
+          description: |-
+            DEPRECATED — AWS/Azure/GCP 는 step 별 전용 API 를 사용합니다
+            (`/resources`, `/approved-integration`, `/confirmed-integration`).
+            IDC/SDU 호환을 위해 현재 스키마에는 남겨두지만 신규 consumer 가 의존해서는 안 됩니다.
           items:
             type: object
             additionalProperties: true

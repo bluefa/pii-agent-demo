@@ -98,13 +98,47 @@ const toIssue222TargetSourceDetail = (project: Project) => ({
     : {}),
 });
 
+// AWS/Azure/GCP: catalog / approved-integration / confirmed-integration API 에서 resources 를 제공.
+// IDC/SDU: 전용 catalog API 가 없어 Project.resources 를 여전히 사용 → 호환 유지 (별도 wave 에서 정리).
+const shouldEmitLegacyResources = (cloudProvider: CloudProvider): boolean =>
+  cloudProvider === 'IDC' || cloudProvider === 'SDU';
+
+// SDU 는 Issue222 enum(UNKNOWN) 으로 축소되지 않고 라운드트립을 유지해야 한다 —
+// 클라이언트가 `cloudProvider === 'SDU'` 로 페이지를 분기.
+const toTargetSourceInfoCloudProvider = (cloudProvider: CloudProvider): string =>
+  cloudProvider === 'SDU' ? 'SDU' : toIssue222CloudProvider(cloudProvider);
+
 const toIssue222TargetSourceInfo = (project: Project) => ({
+  id: project.id,
   targetSourceId: project.targetSourceId,
-  description: project.description,
-  cloudProvider: toIssue222CloudProvider(project.cloudProvider),
-  createdAt: project.createdAt,
+  projectCode: project.projectCode,
   serviceCode: project.serviceCode,
+  cloudProvider: toTargetSourceInfoCloudProvider(project.cloudProvider),
+  processStatus: project.processStatus,
+  status: project.status,
+  terraformState: project.terraformState,
+  createdAt: project.createdAt,
   updatedAt: project.updatedAt,
+  name: project.name,
+  description: project.description,
+  isRejected: project.isRejected,
+  ...(project.rejectionReason ? { rejectionReason: project.rejectionReason } : {}),
+  ...(project.rejectedAt ? { rejectedAt: project.rejectedAt } : {}),
+  ...(project.approvalComment ? { approvalComment: project.approvalComment } : {}),
+  ...(project.approvedAt ? { approvedAt: project.approvedAt } : {}),
+  ...(project.piiAgentInstalled !== undefined ? { piiAgentInstalled: project.piiAgentInstalled } : {}),
+  ...(project.piiAgentConnectedAt ? { piiAgentConnectedAt: project.piiAgentConnectedAt } : {}),
+  ...(project.completionConfirmedAt ? { completionConfirmedAt: project.completionConfirmedAt } : {}),
+  ...(project.connectionTestHistory ? { connectionTestHistory: project.connectionTestHistory } : {}),
+  ...(project.awsInstallationMode ? { awsInstallationMode: project.awsInstallationMode } : {}),
+  ...(project.awsAccountId ? { awsAccountId: project.awsAccountId } : {}),
+  ...(project.awsRegionType ? { awsRegionType: project.awsRegionType } : {}),
+  ...(project.tenantId ? { tenantId: project.tenantId } : {}),
+  ...(project.subscriptionId ? { subscriptionId: project.subscriptionId } : {}),
+  ...(project.gcpProjectId ? { gcpProjectId: project.gcpProjectId } : {}),
+  ...(shouldEmitLegacyResources(project.cloudProvider)
+    ? { resources: project.resources }
+    : {}),
   ...(Object.keys(getIssue222Metadata(project)).length > 0
     ? { metadata: getIssue222Metadata(project) }
     : {}),
@@ -142,8 +176,8 @@ export const mockTargetSources = {
   get: async (targetSourceId: string) => {
     const response = await mockProjects.get(targetSourceId);
     if (!response.ok) return response;
-    const { project } = await response.json();
-    return NextResponse.json({ targetSource: project });
+    const { project } = (await response.json()) as { project: Project };
+    return NextResponse.json({ targetSource: toIssue222TargetSourceInfo(project) });
   },
 
   create: async (body: unknown) => {

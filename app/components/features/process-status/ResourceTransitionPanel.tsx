@@ -1,72 +1,84 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getConfirmedIntegration } from '@/app/lib/api';
-import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import { useEffect, useState } from 'react';
+import { getApprovedIntegration } from '@/app/lib/api';
+import type { ApprovedIntegrationResourceItem } from '@/app/lib/api';
 import type { Resource, CloudProvider, ProcessStatus, DatabaseType, VmDatabaseType } from '@/lib/types';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { cn, statusColors, textColors, cardStyles } from '@/lib/theme';
 
 interface ResourceTransitionPanelProps {
   targetSourceId: number;
-  resources: Resource[];
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
 }
 
-/** 스냅샷 데이터를 ResourceTable이 사용하는 Resource[]로 변환 */
 const VM_DATABASE_TYPES: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
 
 const isVmDatabaseType = (databaseType: DatabaseType): databaseType is VmDatabaseType =>
   VM_DATABASE_TYPES.includes(databaseType as VmDatabaseType);
 
-function snapshotToResources(items: ConfirmedIntegrationResourceItem[]): Resource[] {
-  return items.map((item) => ({
-    id: item.resource_id,
-    resourceId: item.resource_id,
-    type: item.resource_type,
-    databaseType: (item.database_type ?? 'MYSQL') as DatabaseType,
-    connectionStatus: 'CONNECTED' as const,
-    isSelected: true,
-    integrationCategory: 'TARGET' as const,
-    selectedCredentialId: item.credential_id ?? undefined,
-    vmDatabaseConfig:
+const approvedSnapshotToResources = (
+  items: ApprovedIntegrationResourceItem[],
+): Resource[] =>
+  items.map((item) => {
+    const endpoint = item.endpoint_config;
+    const databaseType: DatabaseType = (endpoint?.db_type ?? 'MYSQL') as DatabaseType;
+    const isAzureVm =
       item.resource_type === 'AZURE_VM'
-      && item.database_type
-      && isVmDatabaseType(item.database_type)
-      && item.port !== null
+      && endpoint
+      && isVmDatabaseType(databaseType);
+    return {
+      id: item.resource_id,
+      resourceId: item.resource_id,
+      type: item.resource_type,
+      databaseType,
+      connectionStatus: 'CONNECTED' as const,
+      isSelected: true,
+      integrationCategory: 'TARGET' as const,
+      selectedCredentialId: item.credential_id ?? undefined,
+      vmDatabaseConfig: isAzureVm && endpoint
         ? {
-            databaseType: item.database_type,
-            port: item.port,
-            ...(item.host !== null ? { host: item.host } : {}),
-            ...(item.oracle_service_id ? { oracleServiceId: item.oracle_service_id } : {}),
-            ...(item.network_interface_id ? { selectedNicId: item.network_interface_id } : {}),
+            databaseType: endpoint.db_type,
+            port: endpoint.port,
+            ...(endpoint.host ? { host: endpoint.host } : {}),
+            ...(endpoint.oracleServiceId ? { oracleServiceId: endpoint.oracleServiceId } : {}),
+            ...(endpoint.selectedNicId ? { selectedNicId: endpoint.selectedNicId } : {}),
           }
         : undefined,
-  }));
-}
+    };
+  });
+
+type FetchState =
+  | { status: 'loading' }
+  | { status: 'ready'; resources: Resource[] };
 
 export const ResourceTransitionPanel = ({
   targetSourceId,
-  resources,
   cloudProvider,
   processStatus,
 }: ResourceTransitionPanelProps) => {
-  const [oldResources, setOldResources] = useState<Resource[] | null>(null);
-  const [fetched, setFetched] = useState(false);
+  const [state, setState] = useState<FetchState>({ status: 'loading' });
 
   useEffect(() => {
-    getConfirmedIntegration(targetSourceId)
-      .then((res) => {
-        const items = res.resource_infos;
-        setOldResources(items.length > 0 ? snapshotToResources(items) : null);
+    let cancelled = false;
+    getApprovedIntegration(targetSourceId)
+      .then((response) => {
+        if (cancelled) return;
+        const infos = response.approved_integration?.resource_infos ?? [];
+        setState({ status: 'ready', resources: approvedSnapshotToResources(infos) });
       })
-      .catch(() => setOldResources(null))
-      .finally(() => setFetched(true));
+      .catch(() => {
+        if (cancelled) return;
+        setState({ status: 'ready', resources: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [targetSourceId]);
 
-  const hasOld = fetched && oldResources !== null && oldResources.length > 0;
-  const newCount = resources.filter((r) => r.isSelected).length;
+  const resources = state.status === 'ready' ? state.resources : [];
 
   return (
     <div className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -74,51 +86,27 @@ export const ResourceTransitionPanel = ({
         <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
       </div>
 
-      {/* 기존 연동 리소스 (변경 요청 시에만) */}
-      {hasOld && oldResources && (
-        <>
-          <div className={cn('mx-6 mt-4 px-4 py-2 rounded-t-lg flex items-center gap-2', 'bg-gray-100')}>
-            <svg className={cn('w-4 h-4', textColors.tertiary)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-            <span className={cn('text-sm font-medium', textColors.tertiary)}>
-              기존 연동 리소스 ({oldResources.length}개)
-            </span>
-          </div>
-          <div className="opacity-50">
-            <ResourceTable
-              resources={oldResources}
-              cloudProvider={cloudProvider}
-              processStatus={processStatus}
-            />
-          </div>
-
-          {/* 전환 화살표 */}
-          <div className="flex items-center justify-center py-3">
-            <div className={cn('flex items-center gap-2 px-4 py-1.5 rounded-full', statusColors.info.bg)}>
-              <svg className={cn('w-4 h-4', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
-              <span className={cn('text-xs font-medium', statusColors.info.textDark)}>반영 중</span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 신규 연동 리소스 */}
-      <div className={cn('mx-6 px-4 py-2 flex items-center gap-2', hasOld ? 'rounded-t-lg' : 'mt-4 rounded-t-lg', statusColors.info.bg)}>
+      <div className={cn('mx-6 mt-4 px-4 py-2 flex items-center gap-2 rounded-t-lg', statusColors.info.bg)}>
         <svg className={cn('w-4 h-4', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
         <span className={cn('text-sm font-medium', statusColors.info.textDark)}>
-          {hasOld ? '신규 연동 리소스' : '연동 대상 리소스'} ({newCount}개)
+          연동 대상 리소스 ({resources.length}개)
         </span>
       </div>
-      <ResourceTable
-        resources={resources}
-        cloudProvider={cloudProvider}
-        processStatus={processStatus}
-      />
+
+      {state.status === 'loading' ? (
+        <div className="px-6 py-12 flex items-center justify-center gap-3">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>반영 중인 리소스 목록을 불러오는 중입니다.</span>
+        </div>
+      ) : (
+        <ResourceTable
+          resources={resources}
+          cloudProvider={cloudProvider}
+          processStatus={processStatus}
+        />
+      )}
     </div>
   );
 };

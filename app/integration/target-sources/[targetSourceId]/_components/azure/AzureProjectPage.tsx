@@ -1,18 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
-import type {
-  ApprovalHistoryResponse,
-  ApprovedIntegrationResponse,
-  ConfirmedIntegrationResponse,
-  ConfirmResourceItem,
-} from '@/app/lib/api';
 import {
   createApprovalRequest,
-  getApprovalHistory,
-  getApprovedIntegration,
   getConfirmResources,
   getConfirmedIntegration,
   getProject,
@@ -33,7 +25,12 @@ import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type Proje
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError } from '@/lib/errors';
-import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
+import {
+  EMPTY_CONFIRMED_INTEGRATION,
+  catalogToResources,
+  confirmedIntegrationToResources,
+  isMissingConfirmedSnapshot,
+} from '@/lib/resource-catalog';
 import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 
@@ -42,28 +39,6 @@ interface AzureProjectPageProps {
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
-
-const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
-  resource_infos: [],
-};
-
-const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
-  content: [],
-  page: {
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 1,
-  },
-};
-
-const isMissingSnapshotError = (error: unknown): boolean =>
-  error instanceof AppError
-  && (
-    error.code === 'NOT_FOUND'
-    || error.code === 'APPROVED_INTEGRATION_NOT_FOUND'
-    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
-  );
 
 const getResourceErrorMessage = (error: unknown): string => {
   if (error instanceof AppError && error.isUserFacing) return error.message;
@@ -86,10 +61,8 @@ export const AzureProjectPage = ({
 
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
 
-  const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
-  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
-  const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
-  const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
+  // Step 별 데이터 소스: step 1 = catalog, step 4+ = confirmed-integration, step 2/3 = fetch 없음
+  const [resources, setResources] = useState<Resource[]>([]);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceLoaded, setResourceLoaded] = useState(false);
   const [resourceError, setResourceError] = useState<string | null>(null);
@@ -130,84 +103,45 @@ export const AzureProjectPage = ({
 
   const currentStep = getProjectCurrentStep(project);
 
-  const loadAzureResources = useCallback(async () => {
+  const loadResources = useCallback(async () => {
     setResourceLoading(true);
     setResourceError(null);
-
     try {
-      const [
-        catalogResponse,
-        approvalHistoryResponse,
-        approvedIntegrationResponse,
-        confirmedIntegrationResponse,
-      ] = await Promise.all([
-        getConfirmResources(project.targetSourceId),
-        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
+      if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+        const response = await getConfirmResources(project.targetSourceId);
+        setResources(catalogToResources(response.resources));
+      } else if (currentStep >= ProcessStatus.INSTALLING) {
+        const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+          if (isMissingConfirmedSnapshot(error)) return EMPTY_CONFIRMED_INTEGRATION;
           throw error;
-        }),
-        getApprovedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) {
-            return { approved_integration: null } satisfies ApprovedIntegrationResponse;
-          }
-          throw error;
-        }),
-        getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-          throw error;
-        }),
-      ]);
-
-      setCatalogResources(catalogResponse.resources);
-      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
-      setApprovedIntegration(approvedIntegrationResponse.approved_integration);
-      setConfirmedIntegration(confirmedIntegrationResponse);
+        });
+        const confirmedResources = confirmedIntegrationToResources(response);
+        setResources(confirmedResources);
+        setSelectedIds(confirmedResources.map((r) => r.id));
+      }
+      // step 2 / 3: 호출 없음 — step 3 은 ResourceTransitionPanel 이 자체 fetch.
     } catch (error) {
       setResourceError(getResourceErrorMessage(error));
     } finally {
       setResourceLoading(false);
       setResourceLoaded(true);
     }
-  }, [project.targetSourceId]);
+  }, [currentStep, project.targetSourceId]);
 
   useEffect(() => {
-    void loadAzureResources();
-  }, [loadAzureResources, currentStep, project.updatedAt]);
-
-  const azureResources = useMemo(
-    () =>
-      buildAzureOwnedResources({
-        currentStep,
-        projectResources: project.resources,
-        catalog: catalogResources,
-        latestApprovalRequest,
-        approvedIntegration,
-        confirmedIntegration,
-      }).resources,
-    [approvedIntegration, catalogResources, confirmedIntegration, currentStep, latestApprovalRequest, project.resources],
-  );
-
-  const restoredSelectedIds = useMemo(
-    () => azureResources.filter((resource) => resource.isSelected).map((resource) => resource.id),
-    [azureResources],
-  );
-
-  useEffect(() => {
-    setSelectedIds(restoredSelectedIds);
-    setDraftVmConfigs({});
-    setExpandedVmId(null);
-  }, [restoredSelectedIds, project.targetSourceId]);
-
-  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+    void loadResources();
+  }, [loadResources, project.updatedAt]);
 
   const displayResources = useMemo(
     () =>
-      azureResources.map((resource) => ({
+      resources.map((resource) => ({
         ...resource,
         vmDatabaseConfig: draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig,
       })),
-    [azureResources, draftVmConfigs],
+    [resources, draftVmConfigs],
   );
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const approvalResources = useMemo(
     () =>
@@ -227,7 +161,7 @@ export const AzureProjectPage = ({
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
       const [updatedProject] = await Promise.all([
         getProject(project.targetSourceId),
-        loadAzureResources(),
+        loadResources(),
       ]);
       onProjectUpdate(updatedProject);
     } catch (error) {
@@ -300,7 +234,7 @@ export const AzureProjectPage = ({
 
       const [updatedProject] = await Promise.all([
         getProject(project.targetSourceId),
-        loadAzureResources(),
+        loadResources(),
       ]);
       onProjectUpdate(updatedProject);
       setApprovalModalOpen(false);
@@ -314,7 +248,7 @@ export const AzureProjectPage = ({
   const handleRefreshAfterProjectChange = async () => {
     const [updatedProject] = await Promise.all([
       getProject(project.targetSourceId),
-      loadAzureResources(),
+      loadResources(),
     ]);
     onProjectUpdate(updatedProject);
   };
@@ -338,13 +272,13 @@ export const AzureProjectPage = ({
           <LoadingSpinner />
           <span className={cn('text-sm', textColors.tertiary)}>Azure 리소스 정보를 불러오는 중입니다.</span>
         </div>
-      ) : resourceError && catalogResources.length === 0 ? (
+      ) : resourceError && resources.length === 0 ? (
         <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
           <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
             {resourceError}
           </p>
           <button
-            onClick={() => void loadAzureResources()}
+            onClick={() => void loadResources()}
             className={getButtonClass('secondary')}
           >
             다시 시도
@@ -372,7 +306,6 @@ export const AzureProjectPage = ({
           {currentStep === ProcessStatus.APPLYING_APPROVED ? (
             <ResourceTransitionPanel
               targetSourceId={project.targetSourceId}
-              resources={displayResources}
               cloudProvider={project.cloudProvider}
               processStatus={currentStep}
             />
