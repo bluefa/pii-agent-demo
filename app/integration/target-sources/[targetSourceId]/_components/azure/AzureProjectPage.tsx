@@ -56,7 +56,8 @@ export const AzureProjectPage = ({
       .then((response) => {
         if (!cancelled) setFallbackSettings(response);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('[AzureProjectPage] getAzureSettings fallback failed', error);
         if (!cancelled) setFallbackSettings(null);
       });
     return () => {
