@@ -36,7 +36,7 @@ export const IdcPendingResourceList = ({
         </thead>
         <tbody className="divide-y divide-gray-100">
           {resources.map((resource, index) => (
-            <tr key={index} className="hover:bg-gray-50 transition-colors">
+            <tr key={getDisplayResourceId(resource)} className="hover:bg-gray-50 transition-colors">
               <td className="px-6 py-4">
                 <div className="flex items-center gap-2">
                   <DatabaseIcon type={resource.databaseType} size="sm" />

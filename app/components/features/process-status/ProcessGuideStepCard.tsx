@@ -51,7 +51,7 @@ const PrerequisiteGuideItem = ({ guide, isOpen, onToggle }: PrerequisiteGuideIte
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">절차</span>
             <ol className="mt-1.5 space-y-1.5">
               {guide.steps.map((step, idx) => (
-                <li key={idx} className="flex gap-2.5 text-sm text-gray-800">
+                <li key={step} className="flex gap-2.5 text-sm text-gray-800">
                   <span className={cn('shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium', statusColors.info.bg, statusColors.info.textDark)}>
                     {idx + 1}
                   </span>
@@ -71,8 +71,8 @@ const PrerequisiteGuideItem = ({ guide, isOpen, onToggle }: PrerequisiteGuideIte
                 <span className={cn('text-xs font-semibold', statusColors.warning.textDark)}>주의</span>
               </div>
               <ul className={cn('list-disc list-inside space-y-1 text-sm', statusColors.warning.textDark)}>
-                {guide.warnings.map((item, idx) => (
-                  <li key={idx}>{item}</li>
+                {guide.warnings.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -88,8 +88,8 @@ const PrerequisiteGuideItem = ({ guide, isOpen, onToggle }: PrerequisiteGuideIte
                 <span className={cn('text-xs font-semibold', statusColors.info.textDark)}>참고</span>
               </div>
               <ul className={cn('list-disc list-inside space-y-1 text-sm', statusColors.info.textDark)}>
-                {guide.notes.map((item, idx) => (
-                  <li key={idx}>{item}</li>
+                {guide.notes.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -169,7 +169,7 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
               <div className="space-y-2 ml-6">
                 {step.prerequisiteGuides?.map((guide, idx) => (
                   <PrerequisiteGuideItem
-                    key={idx}
+                    key={guide.label}
                     guide={guide}
                     isOpen={openGuideIndex === idx}
                     onToggle={() => setOpenGuideIndex(openGuideIndex === idx ? null : idx)}
@@ -189,8 +189,8 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className="text-sm font-semibold text-gray-900">사전 조치</span>
               </div>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 ml-6">
-                {step.prerequisites?.map((item, idx) => (
-                  <li key={idx}>{item}</li>
+                {step.prerequisites?.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -206,8 +206,8 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className="text-sm font-semibold text-gray-900">수행 절차</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600 ml-6">
-                {step.procedures.map((item, idx) => (
-                  <li key={idx}>{item}</li>
+                {step.procedures.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
               </ol>
             </div>
@@ -223,8 +223,8 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className={cn('text-sm font-semibold', statusColors.warning.textDark)}>주의사항</span>
               </div>
               <ul className={cn('list-disc list-inside space-y-1 text-sm ml-6', statusColors.warning.textDark)}>
-                {step.warnings.map((item, idx) => (
-                  <li key={idx}>{item}</li>
+                {step.warnings.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
@@ -240,8 +240,8 @@ export const ProcessGuideStepCard = ({ step, status, defaultExpanded = false }: 
                 <span className={cn('text-sm font-semibold', statusColors.info.textDark)}>참고사항</span>
               </div>
               <ul className={cn('list-disc list-inside space-y-1 text-sm ml-6', statusColors.info.textDark)}>
-                {step.notes.map((item, idx) => (
-                  <li key={idx}>{item}</li>
+                {step.notes.map((item) => (
+                  <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>

@@ -98,8 +98,8 @@ export const ConnectionDetailModal = ({ history, onClose }: ConnectionDetailModa
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {history.results.map((result, index) => (
-                <tr key={index} className="hover:bg-gray-50">
+              {history.results.map((result) => (
+                <tr key={result.resourceId} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       {RESOURCE_TYPE_ICONS[result.resourceType] || <DefaultIcon />}

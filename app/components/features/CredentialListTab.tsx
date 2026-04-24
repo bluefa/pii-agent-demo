@@ -26,7 +26,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
               e.preventDefault();
               toast.info('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
             }}
-            className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium inline-flex items-center gap-1`}
+            className={cn(primaryColors.text, primaryColors.textHover, 'text-sm font-medium inline-flex items-center gap-1')}
           >
             Credential 등록 페이지로 이동
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +54,7 @@ export const CredentialListTab = ({ credentials }: CredentialListTabProps) => {
             e.preventDefault();
             toast.info('Credential 관리 페이지로 이동합니다. (데모에서는 미구현)');
           }}
-          className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium inline-flex items-center gap-1`}
+          className={cn(primaryColors.text, primaryColors.textHover, 'text-sm font-medium inline-flex items-center gap-1')}
         >
           Credential 등록 페이지로 이동
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { cn } from '@/lib/theme';
 
 export interface TableColumn<T> {
   /** 컬럼 키 (고유 식별자) */
@@ -94,14 +95,14 @@ export const Table = <T,>({
   }
 
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    <div className={cn('overflow-x-auto', className)}>
       <table className="w-full">
         <thead>
           <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`px-6 py-3 ${col.headerClassName || ''}`}
+                className={cn('px-6 py-3', col.headerClassName)}
               >
                 {col.header}
               </th>
@@ -123,7 +124,7 @@ export const Table = <T,>({
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={`px-6 py-4 ${col.className || ''}`}
+                  className={cn('px-6 py-4', col.className)}
                 >
                   {col.render(item, index)}
                 </td>
