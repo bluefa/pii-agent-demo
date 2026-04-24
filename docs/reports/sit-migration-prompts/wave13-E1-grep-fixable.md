@@ -2,7 +2,9 @@
 
 ## Context
 Project: pii-agent-demo.
-Audit §E1 🟡 array index as key (**19 sites**) + §E5 🟢 template-literal `className` (**57 sites**). Two grep-fixable/reviewable bulk cleanups bundled into one PR.
+Audit §E1 🟡 array index as key (**19 sites**) + §E5 🟢 template-literal `className` (**53 sites**). Two grep-fixable/reviewable bulk cleanups bundled into one PR.
+
+> **Baseline 갱신 (2026-04-24)**: 최초 spec 작성 시 E5 = 57 이었으나 `#324 (projid-w3)` / `#329 (projid-w6)` 의 `app/projects` → `_components` 재배치 + URL 경로 rename 으로 **53 으로 감소**. 일부 파일 경로도 변경됨 (아래 §3-1 참조).
 
 ## Precondition
 ```
@@ -10,7 +12,8 @@ cd /Users/study/pii-agent-demo
 git fetch origin main
 e1=$(grep -rnE "key=\{(index|i|idx)\}" app --include="*.tsx" 2>/dev/null | wc -l | tr -d ' ')
 e5=$(grep -rnE 'className=\{`[^`]*\$\{' app --include="*.tsx" 2>/dev/null | wc -l | tr -d ' ')
-echo "E1=$e1 E5=$e5 (baselines 19/57)"
+echo "E1=$e1 E5=$e5 (baselines 19/53)"
+[ "$e1" = "19" ] && [ "$e5" = "53" ] || echo "⚠️ baseline drifted — re-inventory before proceeding"
 ```
 
 ## Step 1: Worktree
@@ -41,10 +44,11 @@ cd /Users/study/pii-agent-demo-wave13-e1-grep-fixable
 **(b) Stable id 있음 — 교체 (예상 ~10 sites)**:
 | 파일:line | 제안 key |
 |-----------|---------|
-| `IdcProcessStatusCard.tsx:251` `<tr key={idx}>` | row 의 고유 id 확인 |
+| `app/integration/target-sources/[targetSourceId]/_components/idc/IdcProcessStatusCard.tsx:251` `<tr key={idx}>` | row 의 고유 id 확인 (⚠️ projid-w3 으로 경로 이동됨) |
 | `ConnectionDetailModal.tsx:102` `<tr key={index}>` | row 데이터의 id/resourceId |
 | `IdcPendingResourceList.tsx:39` `<tr key={index}>` | resourceId |
-| `IdcResourceInputPanel.tsx:209` `<div key={index}>` | IP row — wave11-B1 의 ip row action 과 연관, stable id 도입 검토 |
+| `IdcResourceInputPanel.tsx:209` `<div key={index}>` | IP row — wave11-B1(#311) merge 후에도 여전히 array index 사용 중. stable id 도입 검토 |
+| `InfraCardBody.tsx:19` `<div key={i}>` | skeleton — fixed 개수면 (a) 로 분류 |
 | `ProcessGuideStepCard.tsx:54,75,92,172,193,210,227,244` | guide item 의 content hash 또는 `${step.id}-${idx}` 조합 (static content 면 index 유지도 가능, 판단) |
 | `GuideCard.tsx:21,24,30,75` | inline part rendering — content-based key or keep if static |
 
@@ -58,7 +62,25 @@ cd /Users/study/pii-agent-demo-wave13-e1-grep-fixable
 **(c) Insertable/deletable rows (예상 ~4-7 sites)**:
 위 리스트 중 IdcResourceInputPanel 의 IP list (handleAddIp/handleRemoveIp 가능) — **필수 stable id**. `crypto.randomUUID()` 를 IP entry 생성 시 부여, state 에 `{ id, value }` 저장. 단, wave11-B1 의 FormState 구조와 연결되므로 **이 spec 은 key 만 바꾸지 않고 state 변경이 필요함을 명시하고 해당 site 는 Deferred** 로 분리.
 
-### 3-2. E5 — Template literal `className` (57 sites)
+### 3-2. E5 — Template literal `className` (53 sites, 25 files)
+
+확인된 파일 (2026-04-24 grep):
+```
+app/components/features/ConnectionHistoryTab.tsx
+app/components/features/CredentialListTab.tsx
+app/components/features/dashboard/SystemsTable.tsx
+app/components/features/history/ProjectHistoryPanel.tsx
+app/components/features/process-status/aws/AwsInstallationModeSelector.tsx
+app/components/features/process-status/MissingCredentialsTab.tsx
+app/components/features/resource-table/{ConnectionIndicator,StatusIcon,VmDatabaseConfigPanel}.tsx
+app/components/features/StepIndicator.tsx
+app/components/features/TerraformStatusModal.tsx
+app/components/ui/{Breadcrumb,Button,Card,CloudProviderIcon,DatabaseIcon,LoadingSpinner,Modal,PageHeader,PageMeta,Table}.tsx
+app/integration/api-docs/page.tsx
+app/integration/target-sources/[targetSourceId]/_components/idc/IdcProcessStatusCard.tsx
+app/integration/target-sources/[targetSourceId]/layout.tsx
+app/layout.tsx
+```
 
 순수 패턴 교체. 단, 변수 interpolation 이 없는 간단한 template 은 그대로 문자열로 바꿈.
 
@@ -92,12 +114,11 @@ className={cn('rounded border bg-white', selected && 'font-semibold')}
 3. `cn` 이 import 안 돼 있으면 `import { cn } from '@/lib/theme';` 추가
 4. 교체 후 시각적 회귀 없음 확인
 
-### 3-3. 파일 목록 예상 중복
+### 3-3. 파일 목록 예상 중복 (2026-04-24 갱신)
 
-- `AdminDashboard.tsx` — E5 가능성 높음, F1b 와 충돌 가능
-- `IdcProjectPage.tsx` / `SduProjectPage.tsx` — F1b 에서 alert 제거와 충돌 가능
-
-→ 이 spec 은 **F1b merge 후 실행** (순차)
+- ✅ wave13-F1b (#321) merged — 이전 충돌 우려 해소
+- ✅ wave13-A1 (#316) merged — `ProcessGuideStepCard.tsx` non-null 부분만 수정, key 영역은 그대로 → conflict 없음
+- ⚠️ projid-w3 (#324) / projid-w6 (#329) refactor 후 일부 파일이 `app/integration/target-sources/[targetSourceId]/_components/` 로 이동. grep 으로 path 자동 검색
 
 ## Step 4: Do NOT touch
 - JSX 구조, Tailwind 클래스 값 자체 (오타 수정 제외)
@@ -115,9 +136,9 @@ npm run build
 최종 확인:
 ```
 grep -rnE "key=\{(index|i|idx)\}" app --include="*.tsx" 2>/dev/null | wc -l
-# → 2 (skeleton 만 남음)
+# → 2-3 (skeleton 2개 + InfraCardBody fixed-skeleton, 분류 결과 따라)
 grep -rnE 'className=\{`[^`]*\$\{' app --include="*.tsx" 2>/dev/null | wc -l
-# → 0 (전체 교체)
+# → 0 (53 사이트 전부 교체)
 ```
 
 수동 회귀:
@@ -130,13 +151,13 @@ grep -rnE 'className=\{`[^`]*\$\{' app --include="*.tsx" 2>/dev/null | wc -l
 git add app/
 git commit -m "refactor(style): array index keys + template className cleanup (wave13-E1)
 
-Audit §E1 (17/19 stable-id 교체, 2/19 skeleton 유지) + §E5 (57 template
+Audit §E1 (~16/19 stable-id 교체, ~2-3/19 skeleton 유지) + §E5 (53 template
 className → cn() helper / 문자열 상수).
 
-- E1 교체: ~17 사이트 (stable id 또는 content-based key)
-- E1 유지: SystemsTable:399, KpiCardGrid:60 (fixed skeleton, 주석 추가)
+- E1 교체: ~16 사이트 (stable id 또는 content-based key)
+- E1 유지: SystemsTable:399, KpiCardGrid:60, InfraCardBody:19 (fixed skeleton, 주석 추가)
 - E1 Deferred: IdcResourceInputPanel:209 (state 구조 변경 필요 → wave13-E1b)
-- E5 교체: 57 사이트 — cn() 또는 리터럴 문자열
+- E5 교체: 53 사이트 — cn() 또는 리터럴 문자열
 
 No visual regression. Import cn where needed."
 git push -u origin refactor/wave13-e1-grep-fixable
@@ -149,8 +170,8 @@ PR body (`/tmp/pr-wave13-e1-body.md`):
 Audit §E1 (array index key) + §E5 (template className) bulk cleanup.
 
 ## Changes
-- **E1**: 19 sites → 17 replaced with stable id, 2 retained (skeleton lists)
-- **E5**: 57 sites → `cn()` helper or plain string literal
+- **E1**: 19 sites → ~16 replaced with stable id, 2-3 retained (skeleton lists)
+- **E5**: 53 sites → `cn()` helper or plain string literal
 - **Deferred**: IdcResourceInputPanel IP row (requires state-shape change with stable row id — separate spec wave13-E1b if pursued)
 
 ## Key decision matrix
@@ -180,9 +201,7 @@ Stop at `gh pr create`. Report the URL.
 6. 시각 회귀 확인한 화면 목록
 7. Deviations with rationale
 
-## Parallel coordination
-- **Depends on (merge 순서)**:
-  - wave13-F1b merged (project page 충돌 회피)
-  - wave13-A1 merged (ProcessGuideStepCard 충돌 회피)
-- **Safe parallel**: wave13-A2 (다른 파일군)
-- **권장 위치**: Wave 13 batch 3 (마지막)
+## Parallel coordination (2026-04-24 status)
+- ✅ wave13-F1a (#315), F1b (#321), A1 (#316), A2 (#317) **모두 merged**
+- ⚠️ projid-w3 (#324), projid-w6 (#329) merge 로 일부 파일 경로 변경 — `_components/` 하위 확인 필요
+- 추가 의존성 없음. **즉시 실행 가능**
