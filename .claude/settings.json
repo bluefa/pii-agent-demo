@@ -43,5 +43,10 @@
   },
   "enabledPlugins": {
     "agent-skills@addy-agent-skills": true
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash .claude/statusline.sh",
+    "padding": 1
   }
 }

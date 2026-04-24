@@ -127,8 +127,6 @@ export const PROVIDER_DESCRIPTIONS: Record<CloudProvider, string> = {
   AWS: 'Amazon Web Services 환경의 RDS, DynamoDB 등 데이터 리소스를 자동 스캔합니다.',
   Azure: 'Microsoft Azure 클라우드 환경의 데이터베이스 리소스를 스캔하고 PII Agent를 연동합니다.',
   GCP: 'Google Cloud Platform의 Cloud SQL, BigQuery 등 데이터 리소스를 관리합니다.',
-  IDC: '온프레미스 데이터센터의 데이터베이스 리소스를 수동 등록하여 관리합니다.',
-  SDU: '삼성 SDS 데이터 유니버스 환경의 데이터 리소스를 연동합니다.',
 };
 
 /**

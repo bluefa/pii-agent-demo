@@ -1,6 +1,6 @@
 'use client';
 
-import { TerraformState, TerraformStatus, FirewallStatus, CloudProvider } from '@/lib/types';
+import { TerraformState, TerraformStatus, CloudProvider } from '@/lib/types';
 import { cn } from '@/lib/theme';
 
 interface TerraformStatusModalProps {
@@ -17,16 +17,6 @@ const getTerraformStatusStyle = (status: TerraformStatus) => {
       return { bg: 'bg-red-100', text: 'text-red-700', label: '실패' };
     case 'PENDING':
       return { bg: 'bg-gray-100', text: 'text-gray-500', label: '대기' };
-  }
-};
-
-const getFirewallStatusStyle = (status?: FirewallStatus) => {
-  if (!status) return { bg: 'bg-gray-100', text: 'text-gray-500', label: '확인 전' };
-  switch (status) {
-    case 'CONNECTED':
-      return { bg: 'bg-green-100', text: 'text-green-700', label: '연결됨' };
-    case 'CONNECTION_FAIL':
-      return { bg: 'bg-red-100', text: 'text-red-700', label: '연결 실패' };
   }
 };
 
@@ -69,23 +59,14 @@ const TerraformIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// 방화벽 아이콘
-const FirewallIcon = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-  </svg>
-);
-
 const StatusRow = ({
   label,
   status,
   statusLabel,
-  icon,
 }: {
   label: string;
   status: 'completed' | 'failed' | 'pending';
   statusLabel: string;
-  icon: 'terraform' | 'firewall';
 }) => {
   const style = status === 'completed'
     ? { bg: 'bg-green-50', border: 'border-green-200', badge: 'bg-green-100 text-green-700', iconBg: 'bg-green-100', iconColor: 'text-green-600' }
@@ -97,11 +78,7 @@ const StatusRow = ({
     <div className={cn('flex items-center justify-between p-4 rounded-lg border', style.bg, style.border)}>
       <div className="flex items-center gap-3">
         <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', style.iconBg)}>
-          {icon === 'terraform' ? (
-            <TerraformIcon className={cn('w-6 h-6', style.iconColor)} />
-          ) : (
-            <FirewallIcon className={cn('w-6 h-6', style.iconColor)} />
-          )}
+          <TerraformIcon className={cn('w-6 h-6', style.iconColor)} />
         </div>
         <div className="flex flex-col">
           <span className="font-medium text-gray-900">{label}</span>
@@ -124,12 +101,6 @@ export const TerraformStatusModal = ({
     if (s === 'COMPLETED') return 'completed';
     if (s === 'FAILED') return 'failed';
     return 'pending';
-  };
-
-  const mapFirewallStatus = (s?: FirewallStatus): 'completed' | 'failed' | 'pending' => {
-    if (!s) return 'pending';
-    if (s === 'CONNECTED') return 'completed';
-    return 'failed';
   };
 
   // 진행률 계산
@@ -164,7 +135,6 @@ export const TerraformStatusModal = ({
         <div className="p-6 space-y-3">
           {cloudProvider === 'AWS' && terraformState.serviceTf && (
             <StatusRow
-              icon="terraform"
               label="Service Terraform"
               status={mapStatus(terraformState.serviceTf)}
               statusLabel={getTerraformStatusStyle(terraformState.serviceTf).label}
@@ -172,20 +142,11 @@ export const TerraformStatusModal = ({
           )}
 
           <StatusRow
-            icon="terraform"
             label="BDC Terraform"
             status={mapStatus(terraformState.bdcTf)}
             statusLabel={getTerraformStatusStyle(terraformState.bdcTf).label}
           />
 
-          {cloudProvider === 'IDC' && (
-            <StatusRow
-              icon="firewall"
-              label="방화벽 연결"
-              status={mapFirewallStatus(terraformState.firewallCheck)}
-              statusLabel={getFirewallStatusStyle(terraformState.firewallCheck).label}
-            />
-          )}
         </div>
 
         {/* Footer */}

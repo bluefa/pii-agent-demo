@@ -180,20 +180,6 @@ export const bffClient: ApiClient = {
       return proxyGet(`/user/services/page?${params.toString()}`);
     },
   },
-  sdu: {
-    checkInstallation: (targetSourceId) => proxyPost(`/sdu/target-sources/${targetSourceId}/check-installation`, {}),
-    getAthenaTables: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/athena-tables`),
-    executeConnectionTest: (targetSourceId) => proxyPost(`/sdu/target-sources/${targetSourceId}/connection-test/execute`, {}),
-    getConnectionTest: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/connection-test`),
-    issueAkSk: (targetSourceId, body) => proxyPost(`/sdu/target-sources/${targetSourceId}/iam-user/issue-aksk`, body),
-    getIamUser: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/iam-user`),
-    getInstallationStatus: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/installation-status`),
-    checkS3Upload: (targetSourceId) => proxyPost(`/sdu/target-sources/${targetSourceId}/s3-upload/check`, {}),
-    getS3Upload: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/s3-upload`),
-    confirmSourceIp: (targetSourceId, body) => proxyPost(`/sdu/target-sources/${targetSourceId}/source-ip/confirm`, body),
-    registerSourceIp: (targetSourceId, body) => proxyPost(`/sdu/target-sources/${targetSourceId}/source-ip/register`, body),
-    getSourceIpList: (targetSourceId) => proxyGet(`/sdu/target-sources/${targetSourceId}/source-ip`),
-  },
   aws: {
     checkInstallation: (targetSourceId) => proxyPost(`/aws/projects/${targetSourceId}/check-installation`, {}),
     setInstallationMode: (targetSourceId, body) => proxyPost(`/aws/projects/${targetSourceId}/installation-mode`, body),
@@ -217,17 +203,6 @@ export const bffClient: ApiClient = {
     getScanServiceAccount: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/gcp/scan-service-account`),
     getTerraformServiceAccount: (targetSourceId) => proxyGet(`/target-sources/${targetSourceId}/gcp/terraform-service-account`),
   },
-  idc: {
-    getSourceIpRecommendation: (ipType) =>
-      proxyGet(`/idc/source-ip-recommendation${ipType ? `?ipType=${ipType}` : ''}`),
-    checkInstallation: (targetSourceId) => proxyPost(`/idc/target-sources/${targetSourceId}/check-installation`, {}),
-    confirmFirewall: (targetSourceId) => proxyPost(`/idc/target-sources/${targetSourceId}/confirm-firewall`, {}),
-    confirmTargets: (targetSourceId, body) => proxyPost(`/idc/target-sources/${targetSourceId}/confirm-targets`, body),
-    getInstallationStatus: (targetSourceId) => proxyGet(`/idc/target-sources/${targetSourceId}/installation-status`),
-    getResources: (targetSourceId) => proxyGet(`/idc/target-sources/${targetSourceId}/resources`),
-    updateResources: (targetSourceId, body) => proxyPut(`/idc/target-sources/${targetSourceId}/resources`, body),
-    updateResourcesList: (targetSourceId, body) => proxyPut(`/idc/target-sources/${targetSourceId}/resources/list`, body),
-  },
   services: {
     permissions: {
       list: (serviceCode) => proxyGet(`/services/${serviceCode}/authorized-users`),
@@ -245,10 +220,6 @@ export const bffClient: ApiClient = {
       },
       azure: {
         get: (serviceCode) => proxyGet(`/services/${serviceCode}/settings/azure`),
-      },
-      idc: {
-        get: (serviceCode) => proxyGet(`/services/${serviceCode}/settings/idc`),
-        update: (serviceCode, body) => proxyPut(`/services/${serviceCode}/settings/idc`, body),
       },
     },
   },

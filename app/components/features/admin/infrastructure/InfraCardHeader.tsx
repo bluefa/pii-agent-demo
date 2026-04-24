@@ -20,8 +20,6 @@ const PROVIDER_LABEL: Record<CloudProvider, string> = {
   AWS: 'AWS',
   Azure: 'Azure',
   GCP: 'GCP',
-  IDC: 'IDC',
-  SDU: 'SDU',
 };
 
 const KvInline = ({ k, v }: { k: string; v: string }) => (

@@ -31,37 +31,6 @@ const SEED_ITEMS: ApprovalRequestQueueItem[] = [
     requestedAt: '2026-02-25T09:15:00Z',
     requestedBy: '김철수',
   },
-  // PENDING (EoS) — targetSourceId 1009 (IDC, proj-4)
-  {
-    approvalRequestId: 'ar_seed_002',
-    targetSourceId: 1009,
-    requestType: 'END_OF_SERVICE',
-    requestTypeName: 'EoS 처리',
-    status: 'PENDING',
-    serviceCode: 'SERVICE-B',
-    serviceName: '서비스 B',
-    provider: 'IDC',
-    cloudInfo: 'IDC',
-    requestedAt: '2026-02-24T16:00:00Z',
-    requestedBy: '홍길동',
-  },
-  // IN_PROGRESS — targetSourceId 1011 (SDU, sdu-proj-1)
-  {
-    approvalRequestId: 'ar_seed_003',
-    targetSourceId: 1011,
-    requestType: 'TARGET_CONFIRMATION',
-    requestTypeName: '연동 대상 확정',
-    status: 'IN_PROGRESS',
-    statusLabel: '연동내용 반영중',
-    serviceCode: 'SERVICE-C',
-    serviceName: '서비스 C',
-    provider: 'SDU',
-    cloudInfo: 'SDU',
-    requestedAt: '2026-02-21T11:00:00Z',
-    requestedBy: '김철수',
-    processedAt: '2026-02-21T15:00:00Z',
-    processedBy: '관리자',
-  },
   // APPROVED — targetSourceId 1003 (Azure, azure-proj-1)
   {
     approvalRequestId: 'ar_seed_004',
