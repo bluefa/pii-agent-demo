@@ -2,6 +2,7 @@
 
 import { ConnectionStatus } from '@/lib/types';
 import { CONNECTION_STATUS_CONFIG } from '@/lib/constants/labels';
+import { cn } from '@/lib/theme';
 
 interface ConnectionIndicatorProps {
   status: ConnectionStatus;
@@ -22,7 +23,7 @@ export const ConnectionIndicator = ({ status, hasCredentialError }: ConnectionIn
   const config = CONNECTION_STATUS_CONFIG[status];
   return (
     <div className="flex items-center gap-2">
-      <span className={`text-lg ${config.className}`}>{config.icon}</span>
+      <span className={cn('text-lg', config.className)}>{config.icon}</span>
       <span className="text-sm text-gray-600">{config.label}</span>
     </div>
   );

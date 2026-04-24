@@ -182,11 +182,12 @@ export const VmDatabaseConfigPanel = ({
                     value={databaseType ?? ''}
                     onChange={(e) => e.target.value && handleDatabaseTypeChange(e.target.value as VmDatabaseType)}
                     // TODO: focus:border-[#0064FF] — no focus:border token in theme.ts
-                    className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 ${
+                    className={cn(
+                      'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0',
                       databaseType
                         ? 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
-                        : 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                    }`}
+                        : 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500',
+                    )}
                   >
                     <option value="">선택하세요</option>
                     {VM_DATABASE_TYPES.map((type) => (
@@ -208,11 +209,12 @@ export const VmDatabaseConfigPanel = ({
                       onChange={(e) => setHost(e.target.value)}
                       disabled={!databaseType}
                       // TODO: focus:border-[#0064FF] — no focus:border token in theme.ts
-                      className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 ${
+                      className={cn(
+                        'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400',
                         databaseType && !host.trim()
                           ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                          : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
-                      }`}
+                          : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
+                      )}
                       placeholder={hasNics ? 'NIC에서 자동 설정됨' : 'ip-10-0-1-100.ec2.internal'}
                     />
                     <p className="mt-1 text-xs text-slate-400">{hasNics ? '선택한 NIC의 Private IP' : 'Private DNS Name 또는 IP'}</p>
@@ -232,11 +234,12 @@ export const VmDatabaseConfigPanel = ({
                         onChange={(e) => handlePortChange(e.target.value)}
                         disabled={!databaseType}
                         // TODO: focus:border-[#0064FF] — no focus:border token in theme.ts
-                        className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400 ${
+                        className={cn(
+                          'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 disabled:bg-slate-100 disabled:text-slate-400',
                           portError
                             ? 'border-red-300 bg-red-50 text-red-900 focus:border-red-500'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
-                        }`}
+                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
+                        )}
                         placeholder="포트"
                       />
                       {portError && (
@@ -255,11 +258,12 @@ export const VmDatabaseConfigPanel = ({
                         type="text"
                         value={oracleServiceId}
                         onChange={(e) => setOracleServiceId(e.target.value)}
-                        className={`w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0 ${
+                        className={cn(
+                          'w-full px-3 py-2.5 text-sm font-medium rounded-lg border-2 transition-all focus:outline-none focus:ring-0',
                           !oracleServiceId
                             ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-500'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]'
-                        }`}
+                            : 'border-slate-200 bg-white text-slate-900 focus:border-[#0064FF]',
+                        )}
                         placeholder="예: ORCL"
                       />
                       {!oracleServiceId && (

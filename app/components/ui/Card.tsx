@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { cn } from '@/lib/theme';
 
 export interface CardProps {
   /** 카드 제목 (선택) */
@@ -59,7 +60,7 @@ export const Card = ({
     : 'bg-white rounded-xl shadow-sm';
 
   return (
-    <div className={`${baseClasses} ${className}`}>
+    <div className={cn(baseClasses, className)}>
       {title && (
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">

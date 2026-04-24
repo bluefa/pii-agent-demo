@@ -96,7 +96,7 @@ export const ProjectHistoryPanel = ({
             <p className="text-red-500">{error}</p>
             <button
               onClick={fetchHistory}
-              className={`mt-2 text-sm ${primaryColors.text} ${primaryColors.textHover}`}
+              className={cn('mt-2 text-sm', primaryColors.text, primaryColors.textHover)}
             >
               다시 시도
             </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import { TerraformState, TerraformStatus, FirewallStatus, CloudProvider } from '@/lib/types';
+import { cn } from '@/lib/theme';
 
 interface TerraformStatusModalProps {
   terraformState: TerraformState;
@@ -93,13 +94,13 @@ const StatusRow = ({
     : { bg: 'bg-gray-50', border: 'border-gray-200', badge: 'bg-gray-100 text-gray-500', iconBg: 'bg-gray-100', iconColor: 'text-gray-400' };
 
   return (
-    <div className={`flex items-center justify-between p-4 rounded-lg border ${style.bg} ${style.border}`}>
+    <div className={cn('flex items-center justify-between p-4 rounded-lg border', style.bg, style.border)}>
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${style.iconBg}`}>
+        <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', style.iconBg)}>
           {icon === 'terraform' ? (
-            <TerraformIcon className={`w-6 h-6 ${style.iconColor}`} />
+            <TerraformIcon className={cn('w-6 h-6', style.iconColor)} />
           ) : (
-            <FirewallIcon className={`w-6 h-6 ${style.iconColor}`} />
+            <FirewallIcon className={cn('w-6 h-6', style.iconColor)} />
           )}
         </div>
         <div className="flex flex-col">
@@ -107,7 +108,7 @@ const StatusRow = ({
           <StatusIcon status={status} />
         </div>
       </div>
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${style.badge}`}>
+      <span className={cn('px-3 py-1 rounded-full text-sm font-medium', style.badge)}>
         {statusLabel}
       </span>
     </div>

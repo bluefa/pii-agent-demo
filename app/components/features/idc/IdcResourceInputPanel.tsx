@@ -205,6 +205,7 @@ export const IdcResourceInputPanel = ({
               IP 주소 <span className="text-gray-400 font-normal">(최대 {IDC_VALIDATION.MAX_IPS}개)</span>
             </label>
             <div className="space-y-2">
+              {/* IP rows lack stable ids; replacing index key requires FormState shape change */}
               {ips.map((ip, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <input

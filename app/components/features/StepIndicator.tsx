@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { statusColors, primaryColors } from '@/lib/theme';
+import { statusColors, primaryColors, cn } from '@/lib/theme';
 
 interface StepIndicatorProps {
   currentStep: ProcessStatus;
@@ -30,13 +30,14 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
               {/* Step Circle & Label */}
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                  className={cn(
+                    'w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200',
                     isCompleted
                       ? 'bg-green-500 text-white'
                       : isCurrent
-                      ? `${statusColors.info.dot} text-white ring-4 ${statusColors.info.bg}`
-                      : 'bg-gray-100 text-gray-400'
-                  }`}
+                      ? cn(statusColors.info.dot, 'text-white ring-4', statusColors.info.bg)
+                      : 'bg-gray-100 text-gray-400',
+                  )}
                 >
                   {isCompleted ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,13 +48,14 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
                   )}
                 </div>
                 <span
-                  className={`mt-2 text-xs font-medium text-center max-w-[100px] ${
+                  className={cn(
+                    'mt-2 text-xs font-medium text-center max-w-[100px]',
                     isCompleted
                       ? 'text-green-600'
                       : isCurrent
                       ? primaryColors.text
-                      : 'text-gray-400'
-                  }`}
+                      : 'text-gray-400',
+                  )}
                 >
                   {item.label}
                 </span>
@@ -63,9 +65,10 @@ export const StepIndicator = ({ currentStep }: StepIndicatorProps) => {
               {!isLast && (
                 <div className="flex-1 mx-2 mt-[-24px]">
                   <div
-                    className={`h-1 rounded-full transition-all duration-200 ${
-                      isCompleted ? 'bg-green-500' : 'bg-gray-200'
-                    }`}
+                    className={cn(
+                      'h-1 rounded-full transition-all duration-200',
+                      isCompleted ? 'bg-green-500' : 'bg-gray-200',
+                    )}
                   />
                 </div>
               )}

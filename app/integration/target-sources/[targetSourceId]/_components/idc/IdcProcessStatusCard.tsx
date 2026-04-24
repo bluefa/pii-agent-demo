@@ -36,13 +36,14 @@ const IdcStepProgressBar = ({ currentStep }: { currentStep: ProcessStatus }) => 
           <div key={item.step} className="flex items-center flex-1">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
+                className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200',
                   isCompleted
                     ? 'bg-green-500 text-white'
                     : isCurrent
-                    ? `${statusColors.info.dot} text-white ring-2 ${statusColors.info.ring}`
-                    : 'bg-gray-100 text-gray-400'
-                }`}
+                    ? cn(statusColors.info.dot, 'text-white ring-2', statusColors.info.ring)
+                    : 'bg-gray-100 text-gray-400',
+                )}
               >
                 {isCompleted ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -53,13 +54,14 @@ const IdcStepProgressBar = ({ currentStep }: { currentStep: ProcessStatus }) => 
                 )}
               </div>
               <span
-                className={`mt-1.5 text-xs text-center max-w-[70px] leading-tight ${
+                className={cn(
+                  'mt-1.5 text-xs text-center max-w-[70px] leading-tight',
                   isCompleted
                     ? 'text-green-600 font-medium'
                     : isCurrent
-                    ? `${primaryColors.text} font-medium`
-                    : 'text-gray-400'
-                }`}
+                    ? cn(primaryColors.text, 'font-medium')
+                    : 'text-gray-400',
+                )}
               >
                 {item.label}
               </span>
@@ -67,9 +69,10 @@ const IdcStepProgressBar = ({ currentStep }: { currentStep: ProcessStatus }) => 
             {!isLast && (
               <div className="flex-1 mx-1 mt-[-20px]">
                 <div
-                  className={`h-0.5 rounded-full ${
-                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
-                  }`}
+                  className={cn(
+                    'h-0.5 rounded-full',
+                    isCompleted ? 'bg-green-500' : 'bg-gray-200',
+                  )}
                 />
               </div>
             )}
@@ -101,13 +104,14 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
 
   return (
     <div className="flex items-start gap-3 mb-4">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+      <div className={cn(
+        'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0',
         currentStep === ProcessStatus.INSTALLATION_COMPLETE
           ? 'bg-green-100'
           : currentStep === ProcessStatus.INSTALLING
           ? 'bg-orange-100'
-          : statusColors.info.bg
-      }`}>
+          : statusColors.info.bg,
+      )}>
         {currentStep === ProcessStatus.INSTALLATION_COMPLETE ? (
           <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -121,11 +125,12 @@ const IdcStepGuide = ({ currentStep }: { currentStep: ProcessStatus }) => {
         )}
       </div>
       <div>
-        <p className={`font-medium ${
+        <p className={cn(
+          'font-medium',
           currentStep === ProcessStatus.INSTALLATION_COMPLETE
             ? 'text-green-700'
-            : 'text-gray-900'
-        }`}>
+            : 'text-gray-900',
+        )}>
           {guideText}
         </p>
       </div>
@@ -247,8 +252,8 @@ const FirewallGuide = ({ resources }: { resources: Resource[] }) => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-yellow-100">
-            {rules.map((rule, idx) => (
-              <tr key={idx}>
+            {rules.map((rule) => (
+              <tr key={`${rule.sourceIp}-${rule.destinationIp}-${rule.port}`}>
                 <td className="px-2 py-1.5 font-mono text-gray-700">{rule.sourceIp}</td>
                 <td className="px-1 py-1.5 text-center text-gray-400">→</td>
                 <td className="px-2 py-1.5 font-mono text-gray-700">{rule.destinationIp}</td>
@@ -283,12 +288,14 @@ const IdcInstallationStatusDisplay = ({
   return (
     <div className="space-y-3">
       {/* BDC TF 상태 */}
-      <div className={`flex items-center gap-2 p-3 rounded-lg ${
-        isBdcCompleted ? 'bg-green-50' : isBdcFailed ? 'bg-red-50' : statusColors.info.bgLight
-      }`}>
-        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-          isBdcCompleted ? 'bg-green-500' : isBdcFailed ? 'bg-red-500' : statusColors.info.dot
-        }`}>
+      <div className={cn(
+        'flex items-center gap-2 p-3 rounded-lg',
+        isBdcCompleted ? 'bg-green-50' : isBdcFailed ? 'bg-red-50' : statusColors.info.bgLight,
+      )}>
+        <div className={cn(
+          'w-6 h-6 rounded-full flex items-center justify-center',
+          isBdcCompleted ? 'bg-green-500' : isBdcFailed ? 'bg-red-500' : statusColors.info.dot,
+        )}>
           {isBdcCompleted ? (
             <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -301,9 +308,10 @@ const IdcInstallationStatusDisplay = ({
             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
           )}
         </div>
-        <span className={`text-sm font-medium ${
-          isBdcCompleted ? 'text-green-700' : isBdcFailed ? 'text-red-700' : statusColors.info.textDark
-        }`}>
+        <span className={cn(
+          'text-sm font-medium',
+          isBdcCompleted ? 'text-green-700' : isBdcFailed ? 'text-red-700' : statusColors.info.textDark,
+        )}>
           BDC 환경 구성 {isBdcCompleted ? '완료' : isBdcFailed ? '실패' : isBdcInProgress ? '진행 중' : '대기 중'}
         </span>
         {isBdcFailed && (

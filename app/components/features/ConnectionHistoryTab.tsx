@@ -5,7 +5,7 @@ import { ConnectionDetailModal } from './ConnectionDetailModal';
 import { formatDateTime } from '@/lib/utils/date';
 import { Badge } from '@/app/components/ui/Badge';
 import { useModal } from '@/app/hooks/useModal';
-import { primaryColors } from '@/lib/theme';
+import { primaryColors, cn } from '@/lib/theme';
 
 interface ConnectionHistoryTabProps {
   history: ConnectionTestHistory[];
@@ -69,7 +69,7 @@ export const ConnectionHistoryTab = ({ history }: ConnectionHistoryTabProps) => 
                 <td className="px-6 py-4">
                   <button
                     onClick={() => detailModal.open(item)}
-                    className={`${primaryColors.text} ${primaryColors.textHover} text-sm font-medium`}
+                    className={cn(primaryColors.text, primaryColors.textHover, 'text-sm font-medium')}
                   >
                     보기
                   </button>

@@ -1,3 +1,5 @@
+import { cn } from '@/lib/theme';
+
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -12,7 +14,7 @@ const sizeMap = {
 export const LoadingSpinner = ({ size = 'md', className = '' }: LoadingSpinnerProps) => {
   return (
     <svg
-      className={`${sizeMap[size]} animate-spin ${className}`}
+      className={cn(sizeMap[size], 'animate-spin', className)}
       viewBox="0 0 24 24"
     >
       <circle

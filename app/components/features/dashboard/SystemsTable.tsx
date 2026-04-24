@@ -1,6 +1,7 @@
 'use client';
 
 import type { SystemDetail, SystemDetailListResponse, DashboardFilters } from '@/app/components/features/dashboard/types';
+import { cn } from '@/lib/theme';
 
 interface SystemsTableProps {
   data: SystemDetailListResponse | null;
@@ -386,7 +387,7 @@ const SystemsTable = ({ data, loading, filters, onFiltersChange }: SystemsTableP
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${col.width} ${col.align === 'right' ? 'text-right' : 'text-left'}`}
+                  className={cn('px-5 py-3.5 text-xs font-semibold uppercase tracking-wider', col.width, col.align === 'right' ? 'text-right' : 'text-left')}
                   style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}
                 >
                   {col.label}
@@ -395,6 +396,7 @@ const SystemsTable = ({ data, loading, filters, onFiltersChange }: SystemsTableP
             </tr>
           </thead>
           <tbody>
+            {/* static skeleton — index key OK */}
             {Array.from({ length: 5 }).map((_, i) => (
               <SkeletonRow key={i} />
             ))}
@@ -433,7 +435,7 @@ const SystemsTable = ({ data, loading, filters, onFiltersChange }: SystemsTableP
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${col.width} ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.sortable ? 'cursor-pointer select-none' : ''}`}
+                  className={cn('px-5 py-3.5 text-xs font-semibold uppercase tracking-wider', col.width, col.align === 'right' ? 'text-right' : 'text-left', col.sortable && 'cursor-pointer select-none')}
                   style={{ color: '#64748b', borderBottom: '1px solid #e2e8f0' }}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   onMouseEnter={(e) => {
@@ -467,7 +469,7 @@ const SystemsTable = ({ data, loading, filters, onFiltersChange }: SystemsTableP
                 {columns.map((col) => (
                   <td
                     key={col.key}
-                    className={`px-5 py-4 ${col.align === 'right' ? 'text-right' : ''}`}
+                    className={cn('px-5 py-4', col.align === 'right' && 'text-right')}
                   >
                     {col.render(row)}
                   </td>

@@ -1,4 +1,5 @@
 import { CloudProvider } from '@/lib/types';
+import { cn } from '@/lib/theme';
 
 interface CloudProviderIconProps {
   provider: CloudProvider;
@@ -76,14 +77,14 @@ export const CloudProviderIcon = ({
 
   if (variant === 'icon') {
     return (
-      <div className={`${sizes.container} ${config.bg} rounded-lg flex items-center justify-center`}>
-        <Icon className={`${sizes.icon} ${config.text}`} />
+      <div className={cn(sizes.container, config.bg, 'rounded-lg flex items-center justify-center')}>
+        <Icon className={cn(sizes.icon, config.text)} />
       </div>
     );
   }
 
   return (
-    <span className={`inline-flex items-center gap-1.5 ${sizes.badge} rounded-lg ${config.bg} ${config.text} font-medium`}>
+    <span className={cn('inline-flex items-center gap-1.5', sizes.badge, 'rounded-lg', config.bg, config.text, 'font-medium')}>
       <Icon className={sizes.icon} />
       {showLabel && config.label}
     </span>

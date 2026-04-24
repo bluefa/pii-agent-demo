@@ -15,6 +15,7 @@ export const InfraCardBody = ({ resources, loading, error, onRetry }: InfraCardB
   if (loading) {
     return (
       <div className="border-t border-gray-100 px-4 py-4 space-y-2">
+        {/* static skeleton — index key OK */}
         {[0, 1, 2].map((i) => (
           <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />
         ))}
