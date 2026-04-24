@@ -9,16 +9,16 @@ Run the current branch's changes through Codex CLI as an independent reviewer. I
 
 ## Execution principles
 
-1. **Full access**: always pass `--dangerously-bypass-approvals-and-sandbox`. Codex must be able to read anywhere under the repo (especially `.claude/skills/**`) for skill-aware review.
+1. **Full access**: always pass `--dangerously-bypass-approvals-and-sandbox`. This is an explicit user preference — Codex must be able to read the full repo (especially `.claude/skills/**` and untracked files) for skill-aware review and uncommitted-scope reviews. The tradeoff (Codex can also write) is accepted; the SKILL.md itself prohibits auto-applying Codex's suggestions (see "Prohibitions" below).
 2. **Pinned model**: always pass `-c model="gpt-5.5" -c model_reasoning_effort="xhigh"` on the CLI. Do not rely on `~/.codex/config.toml` defaults — they can drift.
-3. **Fresh base**: run `git fetch origin main --quiet` before invoking Codex.
-4. **Foreground Bash with `timeout: 600000`** (10 min). Pipe stdout directly to the user **verbatim**, then prepend a 1–3 line Claude summary.
+3. **Fresh base**: run `git fetch origin --quiet` before invoking Codex. Do NOT use `git fetch origin main` — that form only updates `FETCH_HEAD`, leaving `refs/remotes/origin/main` stale, which breaks the default `origin/main...HEAD` diff scope.
+4. **Foreground Bash with `timeout: 600000`** (10 min) and `</dev/null` redirection — Codex otherwise blocks reading stdin even when a prompt arg is provided. Pipe stdout directly to the user **verbatim**, then prepend a 1–3 line Claude summary.
 
 ## Arg parsing
 
 | Invocation | Behavior |
 |---|---|
-| `/codex-review` | Review `origin/main..HEAD` (default) |
+| `/codex-review` | Review `origin/main...HEAD` (default, three-dot — merge-base diff) |
 | `/codex-review uncommitted` | Review staged + unstaged + untracked working tree |
 | `/codex-review commit <sha>` | Review a single commit |
 | `/codex-review base=<branch>` | Override the comparison base |
@@ -28,7 +28,7 @@ Combinable, e.g. `/codex-review uncommitted "focus on security"`.
 
 ## Command template
 
-Use generic `codex exec` (not `codex exec review`) — the built-in `review` subcommand does not accept a custom prompt, so it cannot be made skill-aware. With full access, Codex can gather the diff itself.
+Use generic `codex exec` (not `codex exec review`). In codex-cli 0.124.0, `codex exec review` rejects a custom `[PROMPT]` argument when combined with `--base`, `--uncommitted`, or `--commit` (error: `the argument '--base <BRANCH>' cannot be used with '[PROMPT]'`), which makes skill-aware review impossible through that path. With full access, Codex can gather the diff itself via shell commands inside the prompt.
 
 ```bash
 codex exec \
@@ -44,9 +44,9 @@ PROMPT
 Fill `DIFF_SCOPE` inside the prompt based on the invocation:
 
 - default → `git diff origin/main...HEAD`
-- `uncommitted` → `git diff HEAD` plus `git ls-files --others --exclude-standard` for untracked
+- `uncommitted` → `git diff HEAD`, plus for each path from `git ls-files --others --exclude-standard` Codex must `cat` the file to include its contents (otherwise untracked files are reviewed by name only)
 - `commit <sha>` → `git show <sha>`
-- `base=<branch>` → `git diff <branch>...HEAD`
+- `base=<branch>` → `git diff <branch>...HEAD` (three-dot — merge-base diff)
 
 ## Skill-aware review prompt
 
@@ -56,7 +56,7 @@ Pass this prompt to Codex **verbatim** (filling in `DIFF_SCOPE`). It instructs C
 You are an external reviewer for this repository. You are running as OpenAI Codex CLI, cross-validating changes implemented by Claude Code.
 
 === STEP 1. Gather context ===
-1. Run: DIFF_SCOPE
+1. Run: DIFF_SCOPE. If the scope is `uncommitted`, also `cat` every untracked file listed by `git ls-files --others --exclude-standard` — the diff alone only shows paths for untracked files, not contents.
 2. Collect the list of changed file paths and a summary of changes.
 3. Select relevant skill files based on paths/extensions/content. Read every selected file before reviewing.
 
