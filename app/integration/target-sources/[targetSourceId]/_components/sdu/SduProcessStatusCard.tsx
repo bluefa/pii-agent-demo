@@ -1,6 +1,6 @@
 'use client';
 
-import type { Project } from '@/lib/types';
+import type { SduTargetSource } from '@/lib/types';
 import type { SduProcessStatus, SduInstallationStatus, IamUser, SourceIpEntry } from '@/lib/types/sdu';
 import { SDU_STEP_LABELS } from '@/lib/constants/sdu';
 import { cn, getButtonClass, statusColors } from '@/lib/theme';
@@ -284,7 +284,7 @@ const SduStepGuide = ({ currentStep }: { currentStep: SduProcessStatus }) => {
 // ===== Main Component =====
 
 interface SduProcessStatusCardProps {
-  project: Project;
+  project: SduTargetSource;
   currentStep: SduProcessStatus;
   sduInstallationStatus: SduInstallationStatus | null;
   iamUser: IamUser | null;

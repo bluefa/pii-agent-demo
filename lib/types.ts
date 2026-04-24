@@ -233,63 +233,71 @@ export interface TerraformState {
   firewallCheck?: FirewallStatus;
 }
 
-export interface Project {
+export interface BaseTargetSource {
   id: string;
   targetSourceId: number;
   projectCode: string;
   serviceCode: string;
-  cloudProvider: CloudProvider;
-  processStatus: ProcessStatus;  // deprecated: status 필드에서 계산됨 (ADR-004)
-  status: ProjectStatus;         // 비즈니스 상태 데이터 (ADR-004)
-  /**
-   * @deprecated AWS/Azure/GCP 는 step 별 전용 API (getConfirmResources / getApprovedIntegration / getConfirmedIntegration) 사용.
-   *   IDC/SDU 만 이 필드를 사용. 별도 wave 에서 IDC/SDU 를 전용 타입으로 분리한 뒤 완전 제거 예정.
-   *   신규 코드에서 참조 금지.
-   */
-  resources: Resource[];
+  processStatus: ProcessStatus;
+  status: ProjectStatus;
   terraformState: TerraformState;
   createdAt: string;
   updatedAt: string;
-
   name: string;
   description: string;
 
-  // 반려 관련
   isRejected: boolean;
   rejectionReason?: string;
   rejectedAt?: string;
 
-  // 승인 관련
   approvalComment?: string;
   approvedAt?: string;
 
-  // PII Agent 설치 확정 (최초 1회)
   piiAgentInstalled?: boolean;
-
-  // PII Agent 최초 연결 성공 시간
   piiAgentConnectedAt?: string;
-
-  // 설치 완료 확정 시간 (관리자)
   completionConfirmedAt?: string;
 
-  // Connection Test 이력
   connectionTestHistory?: ConnectionTestHistory[];
+}
 
-  // AWS 전용: 설치 모드 (자동/수동)
+export interface CloudTargetSource extends BaseTargetSource {
+  cloudProvider: 'AWS' | 'Azure' | 'GCP';
+
   awsInstallationMode?: AwsInstallationMode;
-
-  // AWS 전용: Account ID (12자리)
   awsAccountId?: string;
-  // AWS 전용: 리전 타입
   awsRegionType?: 'global' | 'china';
 
-  // Azure 전용
   tenantId?: string;
   subscriptionId?: string;
 
-  // GCP 전용
   gcpProjectId?: string;
 }
+
+export interface IdcTargetSource extends BaseTargetSource {
+  cloudProvider: 'IDC';
+  resources: Resource[];
+}
+
+export interface SduTargetSource extends BaseTargetSource {
+  cloudProvider: 'SDU';
+}
+
+export type TargetSource = CloudTargetSource | IdcTargetSource | SduTargetSource;
+
+/**
+ * @deprecated TargetSource union (CloudTargetSource / IdcTargetSource / SduTargetSource) 으로 마이그레이션 중.
+ *   Mock 내부 도메인 모델 전용. 외부 응답 / 페이지 prop 에서는 TargetSource 서브타입을 사용.
+ */
+export type Project = BaseTargetSource & {
+  cloudProvider: CloudProvider;
+  resources: Resource[];
+  awsInstallationMode?: AwsInstallationMode;
+  awsAccountId?: string;
+  awsRegionType?: 'global' | 'china';
+  tenantId?: string;
+  subscriptionId?: string;
+  gcpProjectId?: string;
+};
 
 // ===== API Response Types =====
 

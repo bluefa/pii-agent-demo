@@ -7,11 +7,11 @@ import { setAwsInstallationMode } from '@/app/lib/api/aws';
 import { cn, statusColors, primaryColors, getButtonClass } from '@/lib/theme';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
-import type { AwsInstallationMode, Project } from '@/lib/types';
+import type { AwsInstallationMode, CloudTargetSource } from '@/lib/types';
 
 interface AwsInstallationModeSelectorProps {
   targetSourceId: number;
-  onModeSelected: (project: Project) => void;
+  onModeSelected: (project: CloudTargetSource) => void;
 }
 
 export const AwsInstallationModeSelector = ({
@@ -27,7 +27,7 @@ export const AwsInstallationModeSelector = ({
     setSelecting(mode);
     try {
       const data = await setAwsInstallationMode(targetSourceId, mode);
-      onModeSelected(data.project as Project);
+      onModeSelected(data.project as CloudTargetSource);
     } catch (error) {
       console.error('Failed to select installation mode:', error);
       toast.error('설치 모드 선택에 실패했습니다. 다시 시도해주세요.');

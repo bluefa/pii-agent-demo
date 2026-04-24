@@ -1,6 +1,6 @@
 'use client';
 
-import { Project, ProcessStatus } from '@/lib/types';
+import { IdcTargetSource, ProcessStatus } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType } from '@/lib/types/idc';
 import { ConnectionTestPanel } from '@/app/components/features/process-status/ConnectionTestPanel';
 import {
@@ -10,7 +10,7 @@ import {
 } from './idc-process-status';
 
 interface IdcProcessStatusCardProps {
-  project: Project;
+  project: IdcTargetSource;
   idcInstallationStatus: IdcInstallationStatusType | null;
   showResourceInput: boolean;
   idcActionLoading: boolean;

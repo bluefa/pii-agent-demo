@@ -270,8 +270,8 @@ describe('app/lib/api/index', () => {
       processStatus: ProcessStatus.CONNECTION_VERIFIED,
       tenantId: 'tenant-1',
       subscriptionId: 'subscription-1',
-      resources: [],
     }));
+    expect(project).not.toHaveProperty('resources');
     expect(project.status).toEqual(expect.objectContaining({
       targets: expect.objectContaining({ confirmed: true }),
       installation: expect.objectContaining({ status: 'COMPLETED' }),

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { ProcessStatus, Project, TerraformStatus, Resource } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus, TerraformStatus, Resource } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { getProjectCurrentStep } from '@/lib/process';
@@ -33,9 +33,9 @@ const TABS: { id: ProcessTabType; label: string }[] = [
 ];
 
 interface ProcessStatusCardProps {
-  project: Project;
+  project: CloudTargetSource;
   resources: Resource[];
-  onProjectUpdate?: (project: Project) => void;
+  onProjectUpdate?: (project: CloudTargetSource) => void;
   approvalModalOpen?: boolean;
   onApprovalModalClose?: () => void;
   onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
@@ -44,7 +44,7 @@ interface ProcessStatusCardProps {
   approvalResources?: Resource[];
 }
 
-const getProgress = (project: Project) => {
+const getProgress = (project: CloudTargetSource) => {
   const items: TerraformStatus[] = [project.terraformState.bdcTf];
   if (project.cloudProvider === 'AWS' && project.terraformState.serviceTf) {
     items.unshift(project.terraformState.serviceTf);
@@ -75,7 +75,7 @@ export const ProcessStatusCard = ({
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableOnProjectUpdate = useCallback(
-    (p: Project) => onProjectUpdate?.(p),
+    (p: CloudTargetSource) => onProjectUpdate?.(p),
     [onProjectUpdate],
   );
 
@@ -102,7 +102,7 @@ export const ProcessStatusCard = ({
         const status = await getProcessStatus(project.targetSourceId);
         if (status.process_status !== expectedBff) {
           const updated = await getProject(project.targetSourceId);
-          stableOnProjectUpdate(updated);
+          stableOnProjectUpdate(updated as CloudTargetSource);
         }
       } catch {
         // polling failure ignored
@@ -126,7 +126,7 @@ export const ProcessStatusCard = ({
     try {
       const updatedProject = await getProject(project.targetSourceId);
       if (updatedProject) {
-        onProjectUpdate?.(updatedProject);
+        onProjectUpdate?.(updatedProject as CloudTargetSource);
       }
     } catch (err) {
       console.error('설치 완료 상태 갱신 실패:', err);

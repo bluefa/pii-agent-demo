@@ -1,4 +1,4 @@
-import type { Project } from '@/lib/types';
+import type { TargetSource } from '@/lib/types';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
 import { integrationRoutes } from '@/lib/routes';
@@ -6,7 +6,7 @@ import { ProjectIdentityCard } from './ProjectIdentityCard';
 import type { ProjectIdentity } from './ProjectIdentityCard';
 
 interface ProjectPageMetaProps {
-  project: Project;
+  project: TargetSource;
   providerLabel: string;
   identity: ProjectIdentity;
   action?: React.ReactNode;

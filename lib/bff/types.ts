@@ -1,4 +1,4 @@
-import type { Project, SecretKey } from '@/lib/types';
+import type { TargetSource, SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 
 /**
@@ -10,7 +10,7 @@ import type { CurrentUser } from '@/app/lib/api';
  */
 export interface BffClient {
   targetSources: {
-    get: (id: number) => Promise<Project>;
+    get: (id: number) => Promise<TargetSource>;
     secrets: (id: number) => Promise<SecretKey[]>;
   };
   users: {

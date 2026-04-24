@@ -1,8 +1,8 @@
-import { Project } from '@/lib/types';
+import { TargetSource } from '@/lib/types';
 import { cn, statusColors } from '@/lib/theme';
 
 interface RejectionAlertProps {
-  project: Project;
+  project: TargetSource;
 }
 
 export const RejectionAlert = ({ project }: RejectionAlertProps) => {

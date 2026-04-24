@@ -1,21 +1,28 @@
 import { createInitialProjectStatus } from '@/lib/process';
-import type { Project, ProjectStatus, TerraformState } from '@/lib/types';
+import type {
+  BaseTargetSource,
+  CloudProvider,
+  ProjectStatus,
+  Resource,
+  TargetSource,
+  TerraformState,
+} from '@/lib/types';
 import { ProcessStatus, normalizeCloudProvider } from '@/lib/types';
 
 export interface TargetSourceEnvelopeResponse {
-  targetSource: Project | Record<string, unknown>;
+  targetSource: TargetSource | Record<string, unknown>;
 }
 
 export interface TargetSourceSnakeEnvelopeResponse {
-  target_source: Project | Record<string, unknown>;
+  target_source: TargetSource | Record<string, unknown>;
 }
 
 export interface LegacyProjectEnvelopeResponse {
-  project: Project | Record<string, unknown>;
+  project: TargetSource | Record<string, unknown>;
 }
 
 export type TargetSourceDetailResponse =
-  | Project
+  | TargetSource
   | Record<string, unknown>
   | TargetSourceEnvelopeResponse
   | TargetSourceSnakeEnvelopeResponse
@@ -57,11 +64,11 @@ const isTerraformState = (value: unknown): value is TerraformState => (
   && typeof value.bdcTf === 'string'
 );
 
-const isProject = (value: unknown): value is Project => (
+const isTargetSource = (value: unknown): value is TargetSource => (
   isRecord(value)
   && typeof value.id === 'string'
   && typeof value.targetSourceId === 'number'
-  && Array.isArray(value.resources)
+  && typeof value.cloudProvider === 'string'
   && isProjectStatus(value.status)
   && isTerraformState(value.terraformState)
 );
@@ -140,7 +147,7 @@ const buildDerivedStatus = (
 };
 
 const buildTerraformState = (
-  cloudProvider: Project['cloudProvider'],
+  cloudProvider: CloudProvider,
   terraformState: unknown,
 ): TerraformState => {
   if (isTerraformState(terraformState)) return terraformState;
@@ -155,7 +162,7 @@ const buildTerraformState = (
   return { bdcTf: 'PENDING' };
 };
 
-const unwrapTargetSourcePayload = (payload: TargetSourceDetailResponse): Project | Record<string, unknown> => {
+const unwrapTargetSourcePayload = (payload: TargetSourceDetailResponse): TargetSource | Record<string, unknown> => {
   if (isRecord(payload) && 'targetSource' in payload && isRecord(payload.targetSource)) {
     return payload.targetSource;
   }
@@ -168,11 +175,11 @@ const unwrapTargetSourcePayload = (payload: TargetSourceDetailResponse): Project
     return payload.project;
   }
 
-  return payload as Project | Record<string, unknown>;
+  return payload as TargetSource | Record<string, unknown>;
 };
 
-const normalizeTargetSource = (value: Project | Record<string, unknown>): Project => {
-  if (isProject(value)) return value;
+const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): TargetSource => {
+  if (isTargetSource(value)) return value;
   if (!isRecord(value)) {
     throw new Error('target source payload must be an object');
   }
@@ -195,6 +202,46 @@ const normalizeTargetSource = (value: Project | Record<string, unknown>): Projec
   const metadata = readValue(value, 'metadata');
   const metadataRecord = isRecord(metadata) ? metadata : null;
   const projectCode = readString(value, 'projectCode', 'project_code')?.trim() ?? '';
+  const name = readString(value, 'name') ?? (projectCode || `TS-${targetSourceId}`);
+
+  const base: Omit<BaseTargetSource, 'terraformState'> = {
+    id: readString(value, 'id') ?? `target-source-${targetSourceId}`,
+    targetSourceId,
+    projectCode,
+    serviceCode: readString(value, 'serviceCode', 'service_code')?.trim() ?? '',
+    processStatus,
+    status: isProjectStatus(value.status)
+      ? value.status
+      : buildDerivedStatus(processStatus, createdAt),
+    createdAt,
+    updatedAt: readString(value, 'updatedAt', 'updated_at') ?? createdAt,
+    name,
+    description: readString(value, 'description') ?? '',
+    isRejected: Boolean(readValue(value, 'isRejected', 'is_rejected')),
+    ...(readString(value, 'rejectionReason', 'rejection_reason')
+      ? { rejectionReason: readString(value, 'rejectionReason', 'rejection_reason') }
+      : {}),
+  };
+
+  const terraformState = buildTerraformState(cloudProvider, value.terraformState);
+
+  if (cloudProvider === 'IDC') {
+    return {
+      ...base,
+      cloudProvider: 'IDC',
+      terraformState,
+      resources: Array.isArray(value.resources) ? value.resources as Resource[] : [],
+    };
+  }
+
+  if (cloudProvider === 'SDU') {
+    return {
+      ...base,
+      cloudProvider: 'SDU',
+      terraformState,
+    };
+  }
+
   const tenantId = readString(value, 'tenantId', 'tenant_id')
     ?? (metadataRecord ? readString(metadataRecord, 'tenantId', 'tenant_id') : undefined);
   const subscriptionId = readString(value, 'subscriptionId', 'subscription_id')
@@ -208,28 +255,11 @@ const normalizeTargetSource = (value: Project | Record<string, unknown>): Projec
     : undefined;
   const gcpProjectId = readString(value, 'gcpProjectId', 'gcp_project_id')
     ?? (metadataRecord ? readString(metadataRecord, 'gcpProjectId', 'gcp_project_id') : undefined);
-  const name = readString(value, 'name') ?? (projectCode || `TS-${targetSourceId}`);
 
   return {
-    id: readString(value, 'id') ?? `target-source-${targetSourceId}`,
-    targetSourceId,
-    projectCode,
-    serviceCode: readString(value, 'serviceCode', 'service_code')?.trim() ?? '',
+    ...base,
     cloudProvider,
-    processStatus,
-    status: isProjectStatus(value.status)
-      ? value.status
-      : buildDerivedStatus(processStatus, createdAt),
-    resources: Array.isArray(value.resources) ? value.resources as Project['resources'] : [],
-    terraformState: buildTerraformState(cloudProvider, value.terraformState),
-    createdAt,
-    updatedAt: readString(value, 'updatedAt', 'updated_at') ?? createdAt,
-    name,
-    description: readString(value, 'description') ?? '',
-    isRejected: Boolean(readValue(value, 'isRejected', 'is_rejected')),
-    ...(readString(value, 'rejectionReason', 'rejection_reason')
-      ? { rejectionReason: readString(value, 'rejectionReason', 'rejection_reason') }
-      : {}),
+    terraformState,
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
@@ -238,5 +268,5 @@ const normalizeTargetSource = (value: Project | Record<string, unknown>): Projec
   };
 };
 
-export const extractTargetSource = (payload: TargetSourceDetailResponse): Project =>
+export const extractTargetSource = (payload: TargetSourceDetailResponse): TargetSource =>
   normalizeTargetSource(unwrapTargetSourcePayload(payload));
