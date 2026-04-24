@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Project, SecretKey } from '@/lib/types';
+import { SduTargetSource, SecretKey } from '@/lib/types';
 import type {
   SduProjectStatus,
   SduProcessStatus,
@@ -40,9 +40,9 @@ import { useToast } from '@/app/components/ui/toast';
 import { TIMINGS } from '@/lib/constants/timings';
 
 interface SduProjectPageProps {
-  project: Project;
+  project: SduTargetSource;
   credentials: SecretKey[];
-  onProjectUpdate: (project: Project) => void;
+  onProjectUpdate: (project: SduTargetSource) => void;
 }
 
 export const SduProjectPage = ({
@@ -185,7 +185,7 @@ export const SduProjectPage = ({
       await executeSduConnectionTest(project.targetSourceId);
 
       const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as SduTargetSource);
 
       toast.success('연결 테스트가 성공했습니다.');
     } catch (err) {

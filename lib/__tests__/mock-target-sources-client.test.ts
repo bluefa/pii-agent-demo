@@ -95,7 +95,7 @@ describe('mockClient.targetSources', () => {
       }));
     });
 
-    it('SDU target-source 응답은 cloudProvider 를 SDU 로 라운드트립한다 (UNKNOWN 으로 축소 금지)', async () => {
+    it('SDU target-source 응답은 cloudProvider 를 SDU 로 라운드트립하고 resources 를 노출하지 않는다', async () => {
       const response = await mockClient.targetSources.get('1001');
       expect(response.status).toBe(200);
 
@@ -103,8 +103,8 @@ describe('mockClient.targetSources', () => {
       expect(payload.targetSource).toEqual(expect.objectContaining({
         targetSourceId: 1001,
         cloudProvider: 'SDU',
-        resources: expect.any(Array),
       }));
+      expect(payload.targetSource).not.toHaveProperty('resources');
     });
   });
 });

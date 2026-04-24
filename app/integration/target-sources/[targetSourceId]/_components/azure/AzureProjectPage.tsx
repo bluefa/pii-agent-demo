@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
@@ -34,9 +34,9 @@ import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 
 interface AzureProjectPageProps {
-  project: Project;
+  project: CloudTargetSource;
   credentials: SecretKey[];
-  onProjectUpdate: (project: Project) => void;
+  onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
 const getResourceErrorMessage = (error: unknown): string => {
@@ -168,7 +168,7 @@ export const AzureProjectPage = ({
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
       const updatedProject = await getProject(project.targetSourceId);
       reloadResources();
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as CloudTargetSource);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Credential 변경에 실패했습니다.');
     }
@@ -239,7 +239,7 @@ export const AzureProjectPage = ({
 
       const updatedProject = await getProject(project.targetSourceId);
       reloadResources();
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as CloudTargetSource);
       setApprovalModalOpen(false);
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : '승인 요청에 실패했습니다.');
@@ -251,7 +251,7 @@ export const AzureProjectPage = ({
   const handleRefreshAfterProjectChange = async () => {
     const updatedProject = await getProject(project.targetSourceId);
     reloadResources();
-    onProjectUpdate(updatedProject);
+    onProjectUpdate(updatedProject as CloudTargetSource);
   };
 
   const identity: ProjectIdentity = {

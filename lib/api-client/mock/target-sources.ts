@@ -98,10 +98,10 @@ const toIssue222TargetSourceDetail = (project: Project) => ({
     : {}),
 });
 
-// AWS/Azure/GCP: catalog / approved-integration / confirmed-integration API 에서 resources 를 제공.
-// IDC/SDU: 전용 catalog API 가 없어 Project.resources 를 여전히 사용 → 호환 유지 (별도 wave 에서 정리).
+// IDC 만 전용 catalog API 가 없어 수동 입력 resources 를 외부 응답에 포함한다.
+// AWS/Azure/GCP/SDU 는 step 별 API (resources/approved-integration/confirmed-integration) 사용.
 const shouldEmitLegacyResources = (cloudProvider: CloudProvider): boolean =>
-  cloudProvider === 'IDC' || cloudProvider === 'SDU';
+  cloudProvider === 'IDC';
 
 // SDU 는 Issue222 enum(UNKNOWN) 으로 축소되지 않고 라운드트립을 유지해야 한다 —
 // 클라이언트가 `cloudProvider === 'SDU'` 로 페이지를 분기.
