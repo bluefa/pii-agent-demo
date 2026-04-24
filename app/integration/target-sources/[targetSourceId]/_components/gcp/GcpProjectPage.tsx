@@ -10,7 +10,6 @@ import {
   getConfirmResources,
   getConfirmedIntegration,
 } from '@/app/lib/api';
-import { getProjectCurrentStep } from '@/lib/process';
 import { DbSelectionCard } from '@/app/components/features/scan';
 import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -53,7 +52,7 @@ export const GcpProjectPage = ({
   const [resourceError, setResourceError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  const currentStep = getProjectCurrentStep(project);
+  const currentStep = project.processStatus;
 
   useEffect(() => {
     let cancelled = false;

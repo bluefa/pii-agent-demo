@@ -103,8 +103,6 @@ const toIssue222TargetSourceInfo = (project: Project) => ({
   serviceCode: project.serviceCode,
   cloudProvider: toTargetSourceInfoCloudProvider(project.cloudProvider),
   processStatus: project.processStatus,
-  status: project.status,
-  terraformState: project.terraformState,
   createdAt: project.createdAt,
   updatedAt: project.updatedAt,
   name: project.name,

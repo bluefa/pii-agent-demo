@@ -272,14 +272,8 @@ describe('app/lib/api/index', () => {
       subscriptionId: 'subscription-1',
     }));
     expect(project).not.toHaveProperty('resources');
-    expect(project.status).toEqual(expect.objectContaining({
-      targets: expect.objectContaining({ confirmed: true }),
-      installation: expect.objectContaining({ status: 'COMPLETED' }),
-      connectionTest: expect.objectContaining({
-        status: 'PASSED',
-        passedAt: '2026-03-29T00:00:00Z',
-      }),
-    }));
+    expect(project).not.toHaveProperty('status');
+    expect(project).not.toHaveProperty('terraformState');
   });
 
   it('createApprovalRequest는 legacy input_data를 Issue #222 flat payload로 변환한다', async () => {

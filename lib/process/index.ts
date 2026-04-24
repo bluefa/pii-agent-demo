@@ -6,6 +6,5 @@
 
 export {
   getCurrentStep,
-  getProjectCurrentStep,
   createInitialProjectStatus,
 } from './calculator';
