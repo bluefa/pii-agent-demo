@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { CloudTargetSource } from '@/lib/types';
-import type { ConfirmedResource } from '@/lib/types/resources';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
@@ -20,14 +19,10 @@ interface AwsProjectPageProps {
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
-const EMPTY_CONFIRMED: ConfirmedResource[] = [];
-
 export const AwsProjectPage = ({
   project,
   onProjectUpdate,
 }: AwsProjectPageProps) => {
-  const [confirmed, setConfirmed] = useState<readonly ConfirmedResource[]>(EMPTY_CONFIRMED);
-
   const refreshProject = useCallback(async () => {
     const updated = await getProject(project.targetSourceId);
     onProjectUpdate(updated as CloudTargetSource);
@@ -63,7 +58,6 @@ export const AwsProjectPage = ({
 
       <ProcessStatusCard
         project={project}
-        confirmed={confirmed}
         onProjectUpdate={onProjectUpdate}
       />
 
@@ -76,8 +70,8 @@ export const AwsProjectPage = ({
       <ResourceSection
         step={project.processStatus}
         targetSourceId={project.targetSourceId}
+        cloudProvider={project.cloudProvider}
         refreshProject={refreshProject}
-        onConfirmedLoaded={setConfirmed}
       />
 
       <RejectionAlert project={project} />

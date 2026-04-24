@@ -1,7 +1,6 @@
 'use client';
 
-import { ProcessStatus } from '@/lib/types';
-import type { ConfirmedResource } from '@/lib/types/resources';
+import { ProcessStatus, type CloudProvider } from '@/lib/types';
 import { CandidateResourceSection } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate';
 import { ApprovedIntegrationSection } from '@/app/integration/target-sources/[targetSourceId]/_components/approved';
 import { ConfirmedIntegrationSection } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed';
@@ -9,15 +8,15 @@ import { ConfirmedIntegrationSection } from '@/app/integration/target-sources/[t
 interface ResourceSectionProps {
   step: ProcessStatus;
   targetSourceId: number;
+  cloudProvider: CloudProvider;
   refreshProject: () => Promise<void>;
-  onConfirmedLoaded?: (confirmed: readonly ConfirmedResource[]) => void;
 }
 
 export const ResourceSection = ({
   step,
   targetSourceId,
+  cloudProvider,
   refreshProject,
-  onConfirmedLoaded,
 }: ResourceSectionProps) => {
   switch (step) {
     case ProcessStatus.WAITING_TARGET_CONFIRMATION:
@@ -38,7 +37,9 @@ export const ResourceSection = ({
       return (
         <ConfirmedIntegrationSection
           targetSourceId={targetSourceId}
-          onConfirmedLoaded={onConfirmedLoaded}
+          step={step}
+          cloudProvider={cloudProvider}
+          refreshProject={refreshProject}
         />
       );
     default:

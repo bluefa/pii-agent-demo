@@ -294,7 +294,12 @@ paths:
         - Approval Process
       summary: 연동 확정 정보 조회 (현재 실제 상태)
       operationId: getConfirmedIntegration
-      description: 현재 Terraform이 관리 중이며 실제 인프라에 반영 완료되어 구동 중인 정보입니다.
+      x-client-cancellable: true
+      description: |
+        현재 Terraform이 관리 중이며 실제 인프라에 반영 완료되어 구동 중인 정보입니다.
+
+        클라이언트는 `AbortSignal`로 요청을 취소할 수 있다 (ConfirmedIntegrationSection
+        unmount 시 네트워크 비용 회수). 서버 계약 자체는 변하지 않는다.
       responses:
         '200':
           description: 조회 성공
@@ -316,7 +321,12 @@ paths:
         - Approval Process
       summary: 승인 완료 정보 조회 (반영 중 상태)
       operationId: getApprovedIntegration
-      description: 관리자 승인이 완료되어 인프라에 반영 중인 과도기적 스냅샷 정보입니다.
+      x-client-cancellable: true
+      description: |
+        관리자 승인이 완료되어 인프라에 반영 중인 과도기적 스냅샷 정보입니다.
+
+        클라이언트는 `AbortSignal`로 요청을 취소할 수 있다 (ApprovedIntegrationSection
+        unmount 시 네트워크 비용 회수). 서버 계약 자체는 변하지 않는다.
       responses:
         '200':
           description: 조회 성공

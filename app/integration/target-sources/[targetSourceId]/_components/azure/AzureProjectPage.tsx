@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CloudTargetSource } from '@/lib/types';
-import type { ConfirmedResource } from '@/lib/types/resources';
 import { getProject } from '@/app/lib/api';
 import {
   getAzureSettings,
@@ -24,21 +23,18 @@ interface AzureProjectPageProps {
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
-const EMPTY_CONFIRMED: ConfirmedResource[] = [];
-
 export const AzureProjectPage = ({
   project,
   onProjectUpdate,
 }: AzureProjectPageProps) => {
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
-  const [confirmed, setConfirmed] = useState<readonly ConfirmedResource[]>(EMPTY_CONFIRMED);
 
   useEffect(() => {
     const needsIdentifierFallback = !project.tenantId || !project.subscriptionId;
     if (!needsIdentifierFallback) return;
 
     const controller = new AbortController();
-    void getAzureSettings(project.targetSourceId)
+    void getAzureSettings(project.targetSourceId, { signal: controller.signal })
       .then((response) => {
         if (!controller.signal.aborted) setFallbackSettings(response);
       })
@@ -82,7 +78,6 @@ export const AzureProjectPage = ({
 
       <ProcessStatusCard
         project={project}
-        confirmed={confirmed}
         onProjectUpdate={onProjectUpdate}
       />
 
@@ -94,8 +89,8 @@ export const AzureProjectPage = ({
       <ResourceSection
         step={project.processStatus}
         targetSourceId={project.targetSourceId}
+        cloudProvider={project.cloudProvider}
         refreshProject={refreshProject}
-        onConfirmedLoaded={setConfirmed}
       />
 
       <RejectionAlert project={project} />

@@ -2,15 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CloudTargetSource, ProcessStatus } from '@/lib/types';
-import type { ConfirmedResource } from '@/lib/types/resources';
 import { getProcessStatus, getProject } from '@/app/lib/api';
-import {
-  StepProgressBar,
-  ConnectionTestPanel,
-} from './process-status';
-import { AzureInstallationInline } from './process-status/azure';
-import { AwsInstallationInline } from './process-status/aws';
-import { GcpInstallationInline } from './process-status/gcp';
+import { StepProgressBar } from './process-status';
 import { ProjectHistoryPanel } from './history';
 import { TIMINGS } from '@/lib/constants/timings';
 import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
@@ -26,13 +19,11 @@ const TABS: { id: ProcessTabType; label: string }[] = [
 
 interface ProcessStatusCardProps {
   project: CloudTargetSource;
-  confirmed: readonly ConfirmedResource[];
   onProjectUpdate?: (project: CloudTargetSource) => void;
 }
 
 export const ProcessStatusCard = ({
   project,
-  confirmed,
   onProjectUpdate,
 }: ProcessStatusCardProps) => {
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
@@ -163,45 +154,6 @@ export const ProcessStatusCard = ({
                   <ApprovalApplyingBanner
                     targetSourceId={project.targetSourceId}
                   />
-                )}
-
-                {currentStep === ProcessStatus.INSTALLING && (
-                  project.cloudProvider === 'Azure' ? (
-                    <AzureInstallationInline
-                      targetSourceId={project.targetSourceId}
-                      confirmed={confirmed}
-                      onInstallComplete={refreshProject}
-                    />
-                  ) : project.cloudProvider === 'AWS' ? (
-                    <AwsInstallationInline
-                      targetSourceId={project.targetSourceId}
-                      onInstallComplete={refreshProject}
-                    />
-                  ) : (
-                    <GcpInstallationInline
-                      targetSourceId={project.targetSourceId}
-                      onInstallComplete={refreshProject}
-                    />
-                  )
-                )}
-
-                {currentStep === ProcessStatus.WAITING_CONNECTION_TEST && (
-                  <ConnectionTestPanel
-                    targetSourceId={project.targetSourceId}
-                    confirmed={confirmed}
-                    onResourceUpdate={refreshProject}
-                  />
-                )}
-
-                {(currentStep === ProcessStatus.CONNECTION_VERIFIED ||
-                  currentStep === ProcessStatus.INSTALLATION_COMPLETE) && (
-                  <div className="grid grid-cols-1 gap-4">
-                    <ConnectionTestPanel
-                      targetSourceId={project.targetSourceId}
-                      confirmed={confirmed}
-                      onResourceUpdate={refreshProject}
-                    />
-                  </div>
                 )}
               </div>
             </div>
