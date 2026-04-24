@@ -233,9 +233,13 @@ export interface ConfirmResourcesResponse {
 }
 
 export const getConfirmResources = async (
-  targetSourceId: number
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
 ): Promise<ConfirmResourcesResponse> =>
-  fetchInfraCamelJson<ConfirmResourcesResponse>(`${CONFIRM_BASE}/${targetSourceId}/resources`);
+  fetchInfraCamelJson<ConfirmResourcesResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/resources`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
 
 export interface ApprovalResourceInputData {
   credential_id?: string;
