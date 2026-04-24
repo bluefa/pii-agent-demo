@@ -1,28 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { useMemo, useState } from 'react';
+import { Project, ProcessStatus, SecretKey } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
-import type {
-  ApprovalHistoryResponse,
-  ApprovedIntegrationResponse,
-  ConfirmedIntegrationResponse,
-  ConfirmResourceItem,
-} from '@/app/lib/api';
-import {
-  createApprovalRequest,
-  getApprovalHistory,
-  getApprovedIntegration,
-  getConfirmResources,
-  getConfirmedIntegration,
-  getProject,
-  updateResourceCredential,
-} from '@/app/lib/api';
-import {
-  getAzureSettings,
-  resolveAzureProjectIdentifiers,
-} from '@/app/lib/api/azure';
-import type { AzureV1Settings } from '@/lib/types/azure';
+import { createApprovalRequest, getProject, updateResourceCredential } from '@/app/lib/api';
+import { resolveAzureProjectIdentifiers } from '@/app/lib/api/azure';
 import { DbSelectionCard } from '@/app/components/features/scan';
 import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -32,10 +14,12 @@ import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { AppError } from '@/lib/errors';
 import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
 import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import { useAzureProjectData } from './useAzureProjectData';
+import { useVmConfigForm } from './useVmConfigForm';
+import { buildApprovalResourceInputs } from './buildApprovalPayload';
 
 interface AzureProjectPageProps {
   project: Project;
@@ -43,33 +27,10 @@ interface AzureProjectPageProps {
   onProjectUpdate: (project: Project) => void;
 }
 
-const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
-  resource_infos: [],
-};
-
-const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
-  content: [],
-  page: {
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 1,
-  },
-};
-
-const isMissingSnapshotError = (error: unknown): boolean =>
-  error instanceof AppError
-  && (
-    error.code === 'NOT_FOUND'
-    || error.code === 'APPROVED_INTEGRATION_NOT_FOUND'
-    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
-  );
-
-const getResourceErrorMessage = (error: unknown): string => {
-  if (error instanceof AppError && error.isUserFacing) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Azure 리소스 정보를 불러오지 못했습니다.';
-};
+type ApprovalFlow =
+  | { kind: 'closed' }
+  | { kind: 'open' }
+  | { kind: 'submitting' };
 
 export const AzureProjectPage = ({
   project,
@@ -77,45 +38,31 @@ export const AzureProjectPage = ({
   onProjectUpdate,
 }: AzureProjectPageProps) => {
   const toast = useToast();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [draftVmConfigs, setDraftVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+  const [approvalFlow, setApprovalFlow] = useState<ApprovalFlow>({ kind: 'closed' });
   const [approvalError, setApprovalError] = useState<string | null>(null);
-  const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
 
-  const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
+  const submitting = approvalFlow.kind === 'submitting';
+  const approvalModalOpen = approvalFlow.kind !== 'closed';
 
-  const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
-  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
-  const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
-  const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
-  const [resourceLoading, setResourceLoading] = useState(true);
-  const [resourceLoaded, setResourceLoaded] = useState(false);
-  const [resourceError, setResourceError] = useState<string | null>(null);
+  const currentStep = getProjectCurrentStep(project);
 
-  useEffect(() => {
-    let cancelled = false;
-    const needsIdentifierFallback = !project.tenantId || !project.subscriptionId;
-
-    setFallbackSettings(null);
-
-    if (needsIdentifierFallback) {
-      void getAzureSettings(project.targetSourceId)
-        .then((response) => {
-          if (cancelled) return;
-          setFallbackSettings(response);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setFallbackSettings(null);
-        });
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [project.subscriptionId, project.targetSourceId, project.tenantId]);
+  const {
+    settings: fallbackSettings,
+    catalogResources,
+    latestApprovalRequest,
+    approvedIntegration,
+    confirmedIntegration,
+    loading: resourceLoading,
+    loaded: resourceLoaded,
+    error: resourceError,
+    refresh: loadAzureResources,
+  } = useAzureProjectData({
+    targetSourceId: project.targetSourceId,
+    tenantId: project.tenantId,
+    subscriptionId: project.subscriptionId,
+    currentStep,
+    updatedAt: project.updatedAt,
+  });
 
   const azureIdentifiers = useMemo(
     () => resolveAzureProjectIdentifiers(
@@ -127,52 +74,6 @@ export const AzureProjectPage = ({
     ),
     [fallbackSettings, project.subscriptionId, project.tenantId],
   );
-
-  const currentStep = getProjectCurrentStep(project);
-
-  const loadAzureResources = useCallback(async () => {
-    setResourceLoading(true);
-    setResourceError(null);
-
-    try {
-      const [
-        catalogResponse,
-        approvalHistoryResponse,
-        approvedIntegrationResponse,
-        confirmedIntegrationResponse,
-      ] = await Promise.all([
-        getConfirmResources(project.targetSourceId),
-        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
-          throw error;
-        }),
-        getApprovedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) {
-            return { approved_integration: null } satisfies ApprovedIntegrationResponse;
-          }
-          throw error;
-        }),
-        getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-          throw error;
-        }),
-      ]);
-
-      setCatalogResources(catalogResponse.resources);
-      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
-      setApprovedIntegration(approvedIntegrationResponse.approved_integration);
-      setConfirmedIntegration(confirmedIntegrationResponse);
-    } catch (error) {
-      setResourceError(getResourceErrorMessage(error));
-    } finally {
-      setResourceLoading(false);
-      setResourceLoaded(true);
-    }
-  }, [project.targetSourceId]);
-
-  useEffect(() => {
-    void loadAzureResources();
-  }, [loadAzureResources, currentStep, project.updatedAt]);
 
   const azureResources = useMemo(
     () =>
@@ -192,11 +93,17 @@ export const AzureProjectPage = ({
     [azureResources],
   );
 
-  useEffect(() => {
-    setSelectedIds(restoredSelectedIds);
-    setDraftVmConfigs({});
-    setExpandedVmId(null);
-  }, [restoredSelectedIds, project.targetSourceId]);
+  const {
+    selectedIds,
+    draftVmConfigs,
+    expandedVmId,
+    setSelectedIds,
+    setExpandedVmId,
+    saveVmConfig,
+  } = useVmConfigForm({
+    restoredSelectedIds,
+    targetSourceId: project.targetSourceId,
+  });
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -217,10 +124,6 @@ export const AzureProjectPage = ({
       })),
     [displayResources, selectedIdSet],
   );
-
-  const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
-    setDraftVmConfigs((previous) => ({ ...previous, [resourceId]: config }));
-  };
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
@@ -248,50 +151,19 @@ export const AzureProjectPage = ({
       return;
     }
 
-    setApprovalModalOpen(true);
+    setApprovalFlow({ kind: 'open' });
   };
 
   const handleApprovalSubmit = async (formData: ApprovalRequestFormData) => {
     try {
-      setSubmitting(true);
+      setApprovalFlow({ kind: 'submitting' });
       setApprovalError(null);
 
-      const resourceInputs = displayResources.map((resource) => {
-        if (selectedIdSet.has(resource.id)) {
-          const vmConfig = draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig;
-
-          if (vmConfig) {
-            return {
-              resource_id: resource.id,
-              selected: true as const,
-              resource_input: {
-                resource_id: resource.id,
-                resource_type: resource.type,
-                database_type: vmConfig.databaseType,
-                port: vmConfig.port,
-                host: vmConfig.host ?? '',
-                ...(vmConfig.oracleServiceId ? { oracle_service_id: vmConfig.oracleServiceId } : {}),
-                ...(vmConfig.selectedNicId ? { network_interface_id: vmConfig.selectedNicId } : {}),
-              },
-            };
-          }
-
-          return {
-            resource_id: resource.id,
-            selected: true as const,
-            resource_input: {
-              resource_id: resource.id,
-              resource_type: resource.type,
-              credential_id: resource.selectedCredentialId ?? '',
-            },
-          };
-        }
-
-        return {
-          resource_id: resource.id,
-          selected: false as const,
-          ...(formData.exclusion_reason_default ? { exclusion_reason: formData.exclusion_reason_default } : {}),
-        };
+      const resourceInputs = buildApprovalResourceInputs({
+        displayResources,
+        selectedIdSet,
+        draftVmConfigs,
+        exclusionReasonDefault: formData.exclusion_reason_default,
       });
 
       await createApprovalRequest(project.targetSourceId, {
@@ -303,11 +175,10 @@ export const AzureProjectPage = ({
         loadAzureResources(),
       ]);
       onProjectUpdate(updatedProject);
-      setApprovalModalOpen(false);
+      setApprovalFlow({ kind: 'closed' });
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : '승인 요청에 실패했습니다.');
-    } finally {
-      setSubmitting(false);
+      setApprovalFlow({ kind: 'open' });
     }
   };
 
@@ -357,7 +228,7 @@ export const AzureProjectPage = ({
             resources={displayResources}
             onProjectUpdate={onProjectUpdate}
             approvalModalOpen={approvalModalOpen}
-            onApprovalModalClose={() => setApprovalModalOpen(false)}
+            onApprovalModalClose={() => setApprovalFlow({ kind: 'closed' })}
             onApprovalSubmit={handleApprovalSubmit}
             approvalLoading={submitting}
             approvalError={approvalError ?? resourceError}
@@ -391,7 +262,7 @@ export const AzureProjectPage = ({
               onCredentialChange={handleCredentialChange}
               expandedVmId={expandedVmId}
               onVmConfigToggle={setExpandedVmId}
-              onVmConfigSave={handleVmConfigSave}
+              onVmConfigSave={saveVmConfig}
               onRequestApproval={handleConfirmTargets}
               approvalSubmitting={submitting || resourceLoading}
             />
