@@ -21,7 +21,7 @@
 
 | # | 결정 | 근거 |
 |---|---|---|
-| D1 | 단일 URL `/admin/guides` (path 기반 네비 X) | 전환 편의 |
+| D1 | 단일 URL `/integration/admin/guides` (path 기반 네비 X) | 전환 편의 |
 | D2 | Provider 탭 → Step 목록 → Editor+Preview 3-pane | 위치 가시성 |
 | D3 | AWS 탭 1개 (내부 AUTO/MANUAL 분기) | Step 4 외 공유 |
 | D4 | IDC/SDU 스코프 제외 | Step 미확정 |
@@ -39,31 +39,50 @@
 
 ## 2. 아키텍처 요약
 
-```
-┌─────────────────────────────┐             ┌────────────────────────────┐
-│ Admin UI (/admin/guides)    │ ──GET/PUT── │ /integration/api/v1/       │
-│  - Provider tabs            │             │ admin/guides/{name}        │
-│  - Step list                │             │                            │
-│  - Tiptap editor (ko/en)    │             │ - name ∈ GUIDE_NAMES 검증 │
-│  - GuideCard preview        │             │ - ko/en non-empty 검증    │
-└────────────┬────────────────┘             │ - validateGuideHtml() 검증│
-             │                              └────────────┬───────────────┘
-             │                                           │
-             │ resolveSlot(key) → name                   │
-             ▼                                           ▼
-┌─────────────────────────────┐             ┌────────────────────────────┐
-│ lib/constants/              │             │ lib/mocks/guide-store.ts   │
-│ guide-registry.ts (code)    │             │ (서버 저장소)                │
-│  - GUIDE_NAMES (22)         │             │  - name → contents(ko,en)  │
-│  - GUIDE_SLOTS (28)         │             │  - updatedAt               │
-│  - GuidePlacement union     │             │                            │
-└─────────────────────────────┘             └────────────────────────────┘
+ADR-007 기준 CSR pipeline 준수:
 
-Provider 페이지 (AwsProjectPage 등):
+```
+┌──────────────────────────────────┐
+│ Admin UI                          │
+│ /integration/admin/guides         │
+│  - Provider tabs                  │
+│  - Step list                      │
+│  - Tiptap editor (ko/en)          │
+│  - GuideCard preview              │
+└────────────┬─────────────────────┘
+             │ fetchJson('/integration/api/v1/admin/guides/...')
+             ▼
+┌──────────────────────────────────┐
+│ Next.js route handler             │
+│ app/integration/api/v1/admin/     │
+│   guides/[name]/route.ts          │
+│  → client.guides.get/put          │
+└────────────┬─────────────────────┘
+             │
+       USE_MOCK_DATA? ──Yes──→ mockClient (lib/api-client/mock/index.ts)
+             │                  └─→ mockGuides (lib/api-client/mock/guides.ts)
+             │                        └─→ in-memory store + validateGuideHtml()
+             │
+             └──No──→ bffClient (lib/api-client/bff-client.ts)
+                      └─→ client.guides.get/put (HTTP proxy to upstream BFF /install/v1)
+
+Frontend registry (synchronous, source of truth for identity/placement):
+  lib/constants/guide-registry.ts
+    - GUIDE_NAMES (22)
+    - GUIDE_SLOTS (28)
+    - GuidePlacement union
+    - resolveSlot(key) / findSlotsForGuide(name)
+
+Provider 페이지:
   <GuideCardContainer slotKey="process.aws.auto.3" />
-  → 내부에서 resolveSlot → useGuide(name) → <GuideCard content={html} />
+  → resolveSlot → name → useGuide(name) → <GuideCard content={html} />
   → validateGuideHtml(html) → renderGuideAst() (React.createElement, no innerHTML)
 ```
+
+**핵심 경계**:
+- Mock 비즈니스 로직 위치: `lib/api-client/mock/guides.ts` (ADR-007 준수)
+- Route handler 는 `client.method()` 디스패치만 수행 (mock 분기 X)
+- `lib/bff/client.ts` (server-only `bff` export) 와 **혼동 금지** — CSR pipeline 은 `lib/api-client/*` 경유
 
 ---
 
@@ -90,32 +109,47 @@ W5 (QA)                              ████
 
 ---
 
-### W1 — Foundation (AI 독립)
+### W0 — 의존성 추가 (사용자 승인 필요)
 
-**목표**: 디자인 없이 가능한 모든 기반 완료.
+| ID | 내용 | 검증 |
+|---|---|---|
+| 0-A | `npm install @tiptap/core @tiptap/react @tiptap/starter-kit @tiptap/extension-link` | `package.json` dependencies 에 4개 추가 |
+| 0-B | 번들 사이즈 측정 | Admin 라우트 lazy-load 기준 증가분 확인 (<200KB gzip 목표) |
+| 0-C | DOM 검증용 서버 shim 검토 | `linkedom` 또는 `jsdom` — `validateGuideHtml()` 동형 구현. 선택 후 0-A 와 동일 PR 에 추가 |
+
+→ 의존성 추가는 CLAUDE.md 상 **사용자 승인 요구**. W1 착수 전 확정.
+
+---
+
+### W1 — Foundation (AI 독립, W0 이후)
+
+**목표**: 디자인 없이 가능한 모든 기반 완료. **ADR-007 API client pattern 준수**.
 
 | ID | 내용 | 파일 / 산출물 | 의존 |
 |---|---|---|---|
 | 1-A | 타입 정의 | `lib/types/guide.ts` — `GuideName`, `GuideContents`, `GuideDetail`, `GuideUpdateInput`, `GuidePlacement`, `GuideSlot` | — |
 | 1-B | Registry + resolver | `lib/constants/guide-registry.ts` — `GUIDE_NAMES` (22) · `GUIDE_SLOTS` (28) · `resolveSlot()` · `findSlotsForGuide()` | 1-A |
-| 1-C | HTML validator | `lib/utils/validate-guide-html.ts` — `validateGuideHtml(html): ValidationResult` · unit tests (허용/차단/구조/URL scheme) | 1-A |
+| 1-C | HTML validator (동형) | `lib/utils/validate-guide-html.ts` — `validateGuideHtml(html): ValidationResult` · server/client 양쪽에서 동작 · unit tests (허용/차단/구조/URL scheme/protocol-relative) | 1-A, 0-C |
 | 1-D | AST 렌더러 | `app/components/features/process-status/GuideCard/render-guide-ast.tsx` — `renderGuideAst(ast): ReactNode` | 1-C |
-| 1-E | Mock store | `lib/mocks/guide-store.ts` — in-memory `Record<GuideName, GuideDetail>` + reset helper | 1-A, 1-B |
-| 1-F | API routes | `app/integration/api/v1/admin/guides/[name]/route.ts` — GET · PUT · error codes (`GUIDE_NOT_FOUND`, `GUIDE_CONTENT_INVALID`) | 1-C, 1-E |
-| 1-G | BFF client 네임스페이스 | `lib/bff/client.ts` 확장 — `client.guides.get(name)` · `client.guides.put(name, body)` | 1-F |
-| 1-H | `useGuide` 훅 | `app/hooks/useGuide.ts` — 프로젝트 기존 `useApi*` 패턴 재사용 (SWR 미사용) | 1-G |
-| 1-I | Swagger | `docs/swagger/guides.yaml` — OpenAPI 3.0 + `GuideName` enum + 예시 | 1-A, 1-F |
-| 1-J | Seed migration | `scripts/migrate-guides-to-html.ts` — 기존 `DEFAULT_STEP_GUIDES` → HTML 변환 → store 초기값 | 1-B, 1-C |
-| 1-K | Drift CI 테스트 | `__tests__/guide-registry.test.ts` — `GUIDE_NAMES === mock store keys`, `GUIDE_SLOTS[*].guideName ⊂ GUIDE_NAMES` | 1-B, 1-E |
-| 1-L | Error catalog 업데이트 | `app/api/_lib/problem.ts` — `GUIDE_NOT_FOUND`, `GUIDE_CONTENT_INVALID` 추가 | — |
+| 1-E | Mock namespace (`client.guides`) | `lib/api-client/mock/guides.ts` — `mockGuides = { get, put }` · in-memory `Record<GuideName, GuideDetail>` · server validation (ko/en non-empty + `validateGuideHtml()`) · seed 주입 · drift 처리 (§4.5) | 1-A, 1-B, 1-C |
+| 1-F | ApiClient 타입 확장 | `lib/api-client/types.ts` — `ApiClient.guides: { get, put }` 추가 | 1-A |
+| 1-G | Mock aggregation | `lib/api-client/mock/index.ts` — `mockClient.guides = mockGuides` | 1-E, 1-F |
+| 1-H | BFF client 확장 | `lib/api-client/bff-client.ts` — `bffClient.guides` HTTP 프록시 (`/install/v1/admin/guides/:name`) | 1-F |
+| 1-I | Route handler | `app/integration/api/v1/admin/guides/[name]/route.ts` — `client.guides.get/put` 디스패치만 · ProblemDetails 반환 | 1-G, 1-H |
+| 1-J | CSR wrapper | `app/lib/api/guides.ts` — `fetchJson` 기반 CSR 헬퍼 (선택적) | 1-I |
+| 1-K | `useGuide` 훅 | `app/hooks/useGuide.ts` — 프로젝트 기존 `useApi*` 패턴 재사용 (SWR 미사용) | 1-J |
+| 1-L | Swagger | `docs/swagger/guides.yaml` — OpenAPI 3.0 + `GuideName` enum + ProblemDetails + 예시 | 1-A, 1-I |
+| 1-M | Seed migration 스크립트 | `scripts/migrate-guides-to-html.ts` — 기존 `DEFAULT_STEP_GUIDES` → HTML 변환 → mock store 초기값 | 1-B, 1-C |
+| 1-N | Drift CI 테스트 | `__tests__/guide-registry.test.ts` — `GUIDE_NAMES === mock store keys`, `GUIDE_SLOTS[*].guideName ⊂ GUIDE_NAMES`, resolver 6 케이스 (spec §8.1) | 1-B, 1-E |
+| 1-O | Error catalog 업데이트 | `app/api/_lib/problem.ts` `ERROR_CATALOG` — `GUIDE_NOT_FOUND`, `GUIDE_CONTENT_INVALID` 추가 | — |
 
 **PR 분할 권장**:
-- **W1-a**: 1-A, 1-B, 1-L (타입 + registry + error code)
+- **W1-a**: 1-A, 1-B, 1-O (타입 + registry + error code)
 - **W1-b**: 1-C, 1-D (validator + AST renderer)
-- **W1-c**: 1-E, 1-F, 1-G, 1-H, 1-I, 1-J (API 레이어 + seed)
-- **W1-d**: 1-K (CI drift 테스트)
+- **W1-c**: 1-E, 1-F, 1-G, 1-H, 1-I, 1-J, 1-K, 1-L, 1-M (API pipeline + swagger + seed)
+- **W1-d**: 1-N (CI drift 테스트)
 
-**예상 LOC**: ~1000 (PR 당 ~250)
+**예상 LOC**: ~1100 (PR 당 ~250-350)
 
 ---
 
@@ -125,7 +159,7 @@ W5 (QA)                              ████
 
 | ID | 시안 대상 | 참조 |
 |---|---|---|
-| 2-A | `/admin/guides` 레이아웃 (provider tabs + step list + editor + preview) | spec §6.1 |
+| 2-A | `/integration/admin/guides` 레이아웃 (provider tabs + step list + editor + preview) | spec §6.1 |
 | 2-B | Provider 탭 + 비활성 "준비 중" 스타일 (IDC/SDU) | spec §6.2 |
 | 2-C | Step 목록 패널 — AWS 의 step 4 AUTO/MANUAL 2행 분기 | spec §6.3 |
 | 2-D | Tiptap 에디터 + 툴바 (7개 버튼) | spec §6.4.4 |
@@ -151,7 +185,7 @@ W5 (QA)                              ████
 | 3-F | Preview panel — GuideCard(pure) 재사용 + 타임라인 + ko/en 토글 | 2-G, 4-A |
 | 3-G | "N곳에 표시됩니다" — `findSlotsForGuide(name)` 렌더 | 2-F, 1-B |
 | 3-H | 저장 버튼 상태머신 — disabled gate, loading, success, error | 2-E, 1-H |
-| 3-I | 미저장 confirm — `beforeunload` + in-app 가드 | 2-H |
+| 3-I | 미저장 confirm — in-app 은 `useModal()` + 프로젝트 Modal 컴포넌트 / browser nav 만 `beforeunload` | 2-H |
 | 3-J | 에러 상태 컴포넌트 — `<ErrorState>`, `<GuideCardInvalidState>` | 2-I |
 | 3-K | a11y — `role="tablist"`, `aria-live`, 키보드 네비 | spec §10 |
 
@@ -193,7 +227,7 @@ W5 (QA)                              ████
 | ID | 내용 | 의존 |
 |---|---|---|
 | 5-A | 통합 테스트 — 목록 → 편집 → 저장 → 재조회 (API + UI) | W3, W4 |
-| 5-B | HTML validation 매트릭스 테스트 — 허용/차단 케이스 전수 | 1-C |
+| 5-B | HTML validation 매트릭스 테스트 (spec §8.1) — 허용/차단/scheme/protocol-relative/구조 위반 전수 | 1-C |
 | 5-C | A11y 스모크 — tab/list role, aria-live, 키보드 네비 | 3-K |
 | 5-D | Drift CI green | 1-K |
 | 5-E | Docs 업데이트 — README, ADR 링크, "새 Provider 추가 절차" 섹션 | 전부 |

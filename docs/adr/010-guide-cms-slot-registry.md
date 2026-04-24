@@ -27,7 +27,7 @@ Name encodes placement (`AWS_AUTO_TARGET_CONFIRM`). Simple and type-safe, but fa
 - Breaks compile-time safety (`GuideName` cannot be a union type).
 - Resolver must be async → components need loading states just to decide what to render.
 - A new UI surface still requires frontend code — the "dynamic catalog" saves nothing.
-- User contract already states: "guide_name은 constant 형태로 다뤄져야 한다 — admin은 생성·삭제·변경 불가".
+- User contract already fixes guide names as constants that the admin cannot create, delete, or rename — only edit content.
 
 **C. Frontend slot registry + server content store (chosen).** Separate identity (`GuideName`, 22 fixed) from placement (`GuideSlot`, 28 entries, many-to-one to names). Server stores only `name → contents`.
 
@@ -125,8 +125,9 @@ If any layer rejects, the content does not render. We never pass raw HTML to `da
 
 - `app/components/features/process-status/GuideCard.tsx` splits into `GuideCard` (pure, takes `content: string`) and `GuideCardContainer` (takes `slotKey` and handles data fetching). Five provider pages migrate from `<GuideCard currentStep={} provider={} installationMode={} />` to `<GuideCardContainer slotKey="process.aws.auto.3" />`.
 - `lib/constants/process-guides.ts` retains `procedures` / `warnings` / `notes` / `prerequisiteGuides` for `ProcessGuideModal`. Only the `guide` field (now redundant with the new CMS) is removed.
-- `app/api/_lib/problem.ts` gains two error codes: `GUIDE_NOT_FOUND`, `GUIDE_CONTENT_INVALID`.
-- No change to BFF upstream contract yet — this iteration ships against mock store, with the swagger (`docs/swagger/guides.yaml`) defining the upstream contract for eventual backend implementation.
+- `app/api/_lib/problem.ts` gains two error codes in `ERROR_CATALOG`: `GUIDE_NOT_FOUND`, `GUIDE_CONTENT_INVALID`. Error responses use the existing `ProblemDetails` (`application/problem+json`) envelope — no new error format.
+- CSR pipeline (ADR-007) is followed strictly: `lib/api-client/mock/guides.ts` holds mock business logic, `lib/api-client/bff-client.ts` extends with `guides` namespace, and `app/integration/api/v1/admin/guides/[name]/route.ts` dispatches via `client.guides.*` only. The server-only `lib/bff/client.ts` (`bff` export) is NOT used for this CSR feature.
+- No change to BFF upstream contract is shipped yet — this iteration ships against the mock namespace, while the swagger (`docs/swagger/guides.yaml`) documents the Next.js internal CSR route (`/integration/api/v1/...`). Upstream BFF integration (`/install/v1/...`) is a follow-up wave.
 
 ## References
 
