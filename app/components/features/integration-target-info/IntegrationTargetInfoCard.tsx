@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import type { ConfirmedIntegrationResourceItem } from '@/app/lib/api';
-import { AppError } from '@/lib/errors';
+import { isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { bgColors, cardStyles, cn, getButtonClass, statusColors, tableStyles, textColors } from '@/lib/theme';
 
@@ -16,20 +16,9 @@ type FetchState =
   | { status: 'error'; message: string }
   | { status: 'ready'; resources: ConfirmedIntegrationResourceItem[] };
 
-const isMissingSnapshotError = (error: unknown): boolean =>
-  error instanceof AppError
-  && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND');
-
 export const IntegrationTargetInfoCard = ({ targetSourceId }: IntegrationTargetInfoCardProps) => {
   const [state, setState] = useState<FetchState>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
-
-  // targetSourceId 변경 시 loading 으로 reset (react-hooks/set-state-in-effect 회피).
-  const [trackedId, setTrackedId] = useState(targetSourceId);
-  if (trackedId !== targetSourceId) {
-    setTrackedId(targetSourceId);
-    setState({ status: 'loading' });
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +30,7 @@ export const IntegrationTargetInfoCard = ({ targetSourceId }: IntegrationTargetI
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        if (isMissingSnapshotError(error)) {
+        if (isMissingConfirmedIntegrationError(error)) {
           setState({ status: 'ready', resources: [] });
           return;
         }

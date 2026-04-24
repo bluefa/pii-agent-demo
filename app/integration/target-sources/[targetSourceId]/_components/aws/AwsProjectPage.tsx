@@ -197,7 +197,7 @@ export const AwsProjectPage = ({
           processStatus={currentStep}
         />
       ) : currentStep >= ProcessStatus.INSTALLING ? (
-        <IntegrationTargetInfoCard targetSourceId={project.targetSourceId} />
+        <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />
       ) : (
         <DbSelectionCard
           targetSourceId={project.targetSourceId}
