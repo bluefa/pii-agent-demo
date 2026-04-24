@@ -5,6 +5,7 @@ import { getApprovedIntegration } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
 import { approvedIntegrationToApproved } from '@/lib/resource-catalog';
 import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { PlusIcon } from '@/app/components/ui/icons';
 import type { ApprovedResource } from '@/lib/types/resources';
 import type { AsyncState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state';
 import { ErrorRow, LoadingRow } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state-views';
@@ -53,9 +54,7 @@ export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrati
       </div>
 
       <div className={cn('mx-6 mt-4 px-4 py-2 flex items-center gap-2 rounded-t-lg', statusColors.info.bg)}>
-        <svg className={cn('w-4 h-4', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
+        <PlusIcon className={cn('w-4 h-4', statusColors.info.textDark)} />
         <span className={cn('text-sm font-medium', statusColors.info.textDark)}>
           연동 대상 리소스 ({approved.length}개)
         </span>
