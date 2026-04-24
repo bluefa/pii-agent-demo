@@ -9,6 +9,7 @@ import { cn, inputStyles, primaryColors, statusColors } from '@/lib/theme';
 import {
   type FormErrors,
   type FormState,
+  type IpEntry,
   validateAll,
 } from './validation';
 
@@ -27,8 +28,8 @@ type FormAction =
   | { type: 'SET_NAME'; value: string }
   | { type: 'SET_INPUT_FORMAT'; value: IdcInputFormat }
   | { type: 'ADD_IP' }
-  | { type: 'REMOVE_IP'; index: number }
-  | { type: 'SET_IP'; index: number; value: string }
+  | { type: 'REMOVE_IP'; id: string }
+  | { type: 'SET_IP'; id: string; value: string }
   | { type: 'SET_HOST'; value: string }
   /** Also resets port to the type's default and clears serviceId for non-ORACLE values. */
   | { type: 'SET_DATABASE_TYPE'; value: IdcDatabaseType }
@@ -36,6 +37,8 @@ type FormAction =
   | { type: 'SET_SERVICE_ID'; value: string }
   | { type: 'SET_CREDENTIAL_ID'; value: string }
   | { type: 'SET_ERRORS'; errors: FormErrors };
+
+const newIpEntry = (value = ''): IpEntry => ({ id: crypto.randomUUID(), value });
 
 const clearErrors = (errors: FormErrors, ...keys: string[]): FormErrors => {
   if (keys.every((k) => !(k in errors))) return errors;
@@ -47,7 +50,7 @@ const clearErrors = (errors: FormErrors, ...keys: string[]): FormErrors => {
 const buildInitialState = (initialData?: IdcResourceInput): FormState => ({
   name: initialData?.name ?? '',
   inputFormat: initialData?.inputFormat ?? 'IP',
-  ips: initialData?.ips ?? [''],
+  ips: (initialData?.ips ?? ['']).map((value) => newIpEntry(value)),
   host: initialData?.host ?? '',
   databaseType: initialData?.databaseType ?? 'MYSQL',
   port: initialData?.port ?? IDC_DEFAULT_PORTS.MYSQL,
@@ -64,17 +67,20 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
       return { ...state, inputFormat: action.value };
     case 'ADD_IP':
       return state.ips.length < IDC_VALIDATION.MAX_IPS
-        ? { ...state, ips: [...state.ips, ''] }
+        ? { ...state, ips: [...state.ips, newIpEntry()] }
         : state;
     case 'REMOVE_IP':
       return state.ips.length > 1
-        ? { ...state, ips: state.ips.filter((_, i) => i !== action.index) }
+        ? { ...state, ips: state.ips.filter((entry) => entry.id !== action.id) }
         : state;
-    case 'SET_IP': {
-      const next = [...state.ips];
-      next[action.index] = action.value;
-      return { ...state, ips: next, errors: clearErrors(state.errors, `ip_${action.index}`) };
-    }
+    case 'SET_IP':
+      return {
+        ...state,
+        ips: state.ips.map((entry) =>
+          entry.id === action.id ? { ...entry, value: action.value } : entry,
+        ),
+        errors: clearErrors(state.errors, `ip_${action.id}`),
+      };
     case 'SET_HOST':
       return { ...state, host: action.value, errors: clearErrors(state.errors, 'host') };
     case 'SET_DATABASE_TYPE': {
@@ -120,7 +126,9 @@ export const IdcResourceInputPanel = ({
     };
 
     if (state.inputFormat === 'IP') {
-      data.ips = state.ips.filter((ip) => ip.trim()).map((ip) => ip.trim());
+      data.ips = state.ips
+        .map((entry) => entry.value.trim())
+        .filter((value) => value);
     } else {
       data.host = state.host.trim();
     }
@@ -136,7 +144,7 @@ export const IdcResourceInputPanel = ({
     onSave(data);
   }, [state, onSave]);
 
-  const showClusterWarning = inputFormat === 'IP' && ips.filter((ip) => ip.trim()).length >= 2;
+  const showClusterWarning = inputFormat === 'IP' && ips.filter((entry) => entry.value.trim()).length >= 2;
 
   return (
     <div className={isModal ? '' : 'bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden'}>
@@ -205,20 +213,19 @@ export const IdcResourceInputPanel = ({
               IP 주소 <span className="text-gray-400 font-normal">(최대 {IDC_VALIDATION.MAX_IPS}개)</span>
             </label>
             <div className="space-y-2">
-              {/* IP rows lack stable ids; replacing index key requires FormState shape change */}
-              {ips.map((ip, index) => (
-                <div key={index} className="flex items-center gap-2">
+              {ips.map((entry) => (
+                <div key={entry.id} className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={ip}
-                    onChange={(e) => dispatch({ type: 'SET_IP', index, value: e.target.value })}
-                    className={cn(inputStyles.base, errors[`ip_${index}`] && inputStyles.error)}
+                    value={entry.value}
+                    onChange={(e) => dispatch({ type: 'SET_IP', id: entry.id, value: e.target.value })}
+                    className={cn(inputStyles.base, errors[`ip_${entry.id}`] && inputStyles.error)}
                     placeholder="예: 192.168.1.100"
                   />
                   {ips.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => dispatch({ type: 'REMOVE_IP', index })}
+                      onClick={() => dispatch({ type: 'REMOVE_IP', id: entry.id })}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,8 +236,8 @@ export const IdcResourceInputPanel = ({
                 </div>
               ))}
               {errors.ips && <p className="text-sm text-red-600">{errors.ips}</p>}
-              {ips.map((_, index) =>
-                errors[`ip_${index}`] && <p key={`err_${index}`} className="text-sm text-red-600">{errors[`ip_${index}`]}</p>
+              {ips.map((entry) =>
+                errors[`ip_${entry.id}`] && <p key={`err_${entry.id}`} className="text-sm text-red-600">{errors[`ip_${entry.id}`]}</p>
               )}
             </div>
             {ips.length < IDC_VALIDATION.MAX_IPS && (
