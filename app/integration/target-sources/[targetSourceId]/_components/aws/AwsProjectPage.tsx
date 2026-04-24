@@ -10,6 +10,7 @@ import {
 } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { DbSelectionCard } from '@/app/components/features/scan';
+import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { useToast } from '@/app/components/ui/toast';
@@ -195,6 +196,8 @@ export const AwsProjectPage = ({
           cloudProvider={project.cloudProvider}
           processStatus={currentStep}
         />
+      ) : currentStep >= ProcessStatus.INSTALLING ? (
+        <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />
       ) : (
         <DbSelectionCard
           targetSourceId={project.targetSourceId}
