@@ -1,23 +1,33 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Project, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
   updateResourceCredential,
   getProject,
+  getConfirmResources,
+  getConfirmedIntegration,
 } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { DbSelectionCard } from '@/app/components/features/scan';
 import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
+import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
+import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
+import {
+  EMPTY_CONFIRMED_INTEGRATION,
+  catalogToResources,
+  confirmedIntegrationToResources,
+} from '@/lib/resource-catalog';
 
 interface AwsProjectPageProps {
   project: Project;
@@ -31,24 +41,61 @@ export const AwsProjectPage = ({
   onProjectUpdate,
 }: AwsProjectPageProps) => {
   const toast = useToast();
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    project.resources.filter((r) => r.isSelected).map((r) => r.id)
-  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalError, setApprovalError] = useState<string | null>(null);
 
   // VM 설정 상태
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
-  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>(() => {
-    const initial: Record<string, VmDatabaseConfig> = {};
-    project.resources.forEach((r) => {
-      if (r.vmDatabaseConfig) {
-        initial[r.id] = r.vmDatabaseConfig;
+  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
+
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [resourceLoading, setResourceLoading] = useState(true);
+  const [resourceError, setResourceError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
+
+  const currentStep = getProjectCurrentStep(project);
+
+  useEffect(() => {
+    if (!project.awsInstallationMode) return;
+    let cancelled = false;
+    setResourceLoading(true);
+    setResourceError(null);
+    (async () => {
+      try {
+        if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+          const response = await getConfirmResources(project.targetSourceId);
+          if (cancelled) return;
+          setResources(catalogToResources(response.resources));
+        } else if (currentStep >= ProcessStatus.INSTALLING) {
+          const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+            if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+            throw error;
+          });
+          if (cancelled) return;
+          const confirmedResources = confirmedIntegrationToResources(response);
+          setResources(confirmedResources);
+          setSelectedIds(confirmedResources.map((r) => r.id));
+        }
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof AppError && error.isUserFacing
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : 'AWS 리소스 정보를 불러오지 못했습니다.';
+        setResourceError(message);
+      } finally {
+        if (!cancelled) setResourceLoading(false);
       }
-    });
-    return initial;
-  });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, project.awsInstallationMode, project.targetSourceId, retryNonce]);
+
+  const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
 
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
@@ -56,8 +103,8 @@ export const AwsProjectPage = ({
 
   // 모달에 전달할 리소스: selectedIds 기준으로 isSelected 반영
   const approvalResources = useMemo(
-    () => project.resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
-    [project.resources, selectedIds],
+    () => resources.map((r) => ({ ...r, isSelected: selectedIds.includes(r.id) })),
+    [resources, selectedIds],
   );
 
   const identity: ProjectIdentity = {
@@ -95,8 +142,6 @@ export const AwsProjectPage = ({
     }
   };
 
-  const currentStep = getProjectCurrentStep(project);
-
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
     setVmConfigs((prev) => ({ ...prev, [resourceId]: config }));
   };
@@ -105,7 +150,7 @@ export const AwsProjectPage = ({
     if (selectedIds.length === 0) return;
 
     // VM 리소스 중 설정되지 않은 것 체크
-    const selectedVmResources = project.resources.filter(
+    const selectedVmResources = resources.filter(
       (r) => selectedIds.includes(r.id) && isVmResource(r)
     );
     const unconfiguredVms = selectedVmResources.filter((r) => !vmConfigs[r.id] && !r.vmDatabaseConfig);
@@ -123,7 +168,7 @@ export const AwsProjectPage = ({
       setSubmitting(true);
       setApprovalError(null);
       // Build resource_inputs per confirm.yaml SelectedResourceInput/ExcludedResourceInput
-      const resourceInputs = project.resources.map(r => {
+      const resourceInputs = resources.map(r => {
         if (selectedIds.includes(r.id)) {
           const vmConfig = vmConfigs[r.id] ?? r.vmDatabaseConfig;
           let resourceInput: Record<string, unknown>;
@@ -167,13 +212,73 @@ export const AwsProjectPage = ({
     }
   };
 
+  const renderStepCard = () => {
+    if (currentStep === ProcessStatus.APPLYING_APPROVED) {
+      return (
+        <ResourceTransitionPanel
+          targetSourceId={project.targetSourceId}
+          cloudProvider={project.cloudProvider}
+          processStatus={currentStep}
+        />
+      );
+    }
+    if (currentStep >= ProcessStatus.INSTALLING) {
+      return <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />;
+    }
+    if (resourceLoading) {
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>AWS 리소스 정보를 불러오는 중입니다.</span>
+        </div>
+      );
+    }
+    if (resourceError) {
+      return (
+        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+            {resourceError}
+          </p>
+          <button onClick={reloadResources} className={getButtonClass('secondary')}>
+            다시 시도
+          </button>
+        </div>
+      );
+    }
+    return (
+      <DbSelectionCard
+        targetSourceId={project.targetSourceId}
+        cloudProvider={project.cloudProvider}
+        onScanComplete={async () => {
+          const updatedProject = await getProject(project.targetSourceId);
+          reloadResources();
+          onProjectUpdate(updatedProject);
+        }}
+        resources={resources.map((r) => ({
+          ...r,
+          vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+        }))}
+        processStatus={currentStep}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        credentials={credentials}
+        onCredentialChange={handleCredentialChange}
+        expandedVmId={expandedVmId}
+        onVmConfigToggle={setExpandedVmId}
+        onVmConfigSave={handleVmConfigSave}
+        onRequestApproval={handleConfirmTargets}
+        approvalSubmitting={submitting}
+      />
+    );
+  };
+
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
       <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
 
       <ProcessStatusCard
         project={project}
-        resources={project.resources}
+        resources={resources}
         onProjectUpdate={onProjectUpdate}
         approvalModalOpen={approvalModalOpen}
         onApprovalModalClose={() => setApprovalModalOpen(false)}
@@ -189,39 +294,7 @@ export const AwsProjectPage = ({
         installationMode={project.awsInstallationMode}
       />
 
-      {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-        <ResourceTransitionPanel
-          targetSourceId={project.targetSourceId}
-          resources={project.resources}
-          cloudProvider={project.cloudProvider}
-          processStatus={currentStep}
-        />
-      ) : currentStep >= ProcessStatus.INSTALLING ? (
-        <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />
-      ) : (
-        <DbSelectionCard
-          targetSourceId={project.targetSourceId}
-          cloudProvider={project.cloudProvider}
-          onScanComplete={async () => {
-            const updatedProject = await getProject(project.targetSourceId);
-            onProjectUpdate(updatedProject);
-          }}
-          resources={project.resources.map((r) => ({
-            ...r,
-            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-          }))}
-          processStatus={currentStep}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          credentials={credentials}
-          onCredentialChange={handleCredentialChange}
-          expandedVmId={expandedVmId}
-          onVmConfigToggle={setExpandedVmId}
-          onVmConfigSave={handleVmConfigSave}
-          onRequestApproval={handleConfirmTargets}
-          approvalSubmitting={submitting}
-        />
-      )}
+      {renderStepCard()}
 
       <RejectionAlert project={project} />
     </main>

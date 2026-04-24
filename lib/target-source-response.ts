@@ -199,6 +199,15 @@ const normalizeTargetSource = (value: Project | Record<string, unknown>): Projec
     ?? (metadataRecord ? readString(metadataRecord, 'tenantId', 'tenant_id') : undefined);
   const subscriptionId = readString(value, 'subscriptionId', 'subscription_id')
     ?? (metadataRecord ? readString(metadataRecord, 'subscriptionId', 'subscription_id') : undefined);
+  const awsAccountId = readString(value, 'awsAccountId', 'aws_account_id')
+    ?? (metadataRecord ? readString(metadataRecord, 'awsAccountId', 'aws_account_id') : undefined);
+  const awsRegionTypeRaw = readString(value, 'awsRegionType', 'aws_region_type')
+    ?? (metadataRecord ? readString(metadataRecord, 'awsRegionType', 'aws_region_type') : undefined);
+  const awsRegionType = awsRegionTypeRaw === 'china' || awsRegionTypeRaw === 'global'
+    ? awsRegionTypeRaw
+    : undefined;
+  const gcpProjectId = readString(value, 'gcpProjectId', 'gcp_project_id')
+    ?? (metadataRecord ? readString(metadataRecord, 'gcpProjectId', 'gcp_project_id') : undefined);
   const name = readString(value, 'name') ?? (projectCode || `TS-${targetSourceId}`);
 
   return {
@@ -223,6 +232,9 @@ const normalizeTargetSource = (value: Project | Record<string, unknown>): Projec
       : {}),
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
+    ...(awsAccountId ? { awsAccountId } : {}),
+    ...(awsRegionType ? { awsRegionType } : {}),
+    ...(gcpProjectId ? { gcpProjectId } : {}),
   };
 };
 
