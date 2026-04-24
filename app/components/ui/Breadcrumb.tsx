@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { textColors } from '@/lib/theme';
+import { textColors, cn } from '@/lib/theme';
 
 interface BreadcrumbItem {
   label: string;
@@ -13,7 +13,7 @@ interface BreadcrumbProps {
 
 export const Breadcrumb = ({ crumbs }: BreadcrumbProps) => {
   return (
-    <nav aria-label="breadcrumb" className={`text-xs ${textColors.tertiary}`}>
+    <nav aria-label="breadcrumb" className={cn('text-xs', textColors.tertiary)}>
       <ol className="flex flex-wrap items-center">
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
@@ -29,7 +29,7 @@ export const Breadcrumb = ({ crumbs }: BreadcrumbProps) => {
                 </span>
               )}
               {!isLast && (
-                <span aria-hidden="true" className={`mx-1.5 ${textColors.quaternary}`}>
+                <span aria-hidden="true" className={cn('mx-1.5', textColors.quaternary)}>
                   ›
                 </span>
               )}

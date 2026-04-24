@@ -16,18 +16,25 @@ const resolveVariant = (provider: CloudProvider, installationMode?: AwsInstallat
   return installationMode === 'MANUAL' ? 'manual' : 'auto';
 };
 
+const getInlineKey = (part: GuideInline): string => {
+  if (typeof part === 'string') return `s:${part}`;
+  if ('strong' in part) return `b:${part.strong}`;
+  return `l:${part.href}`;
+};
+
 const renderInline = (parts: GuideInline[]): React.ReactNode =>
-  parts.map((part, idx) => {
-    if (typeof part === 'string') return <span key={idx}>{part}</span>;
+  parts.map((part) => {
+    const key = getInlineKey(part);
+    if (typeof part === 'string') return <span key={key}>{part}</span>;
     if ('strong' in part) {
       return (
-        <strong key={idx} className="font-semibold text-gray-900">
+        <strong key={key} className="font-semibold text-gray-900">
           {part.strong}
         </strong>
       );
     }
     return (
-      <a key={idx} href={part.href} className={cn('font-medium hover:underline', primaryColors.text)}>
+      <a key={key} href={part.href} className={cn('font-medium hover:underline', primaryColors.text)}>
         {part.link}
       </a>
     );
@@ -71,8 +78,8 @@ export const GuideCard = ({ currentStep, provider, installationMode }: GuideCard
             <p className="mb-2">{renderInline(content.summary)}</p>
             {content.bullets.length > 0 && (
               <ul className={cn('list-disc pl-5 space-y-0.5', primaryColors.marker)}>
-                {content.bullets.map((bullet, idx) => (
-                  <li key={idx} className="text-gray-600">
+                {content.bullets.map((bullet) => (
+                  <li key={bullet.map(getInlineKey).join('|')} className="text-gray-600">
                     {renderInline(bullet)}
                   </li>
                 ))}

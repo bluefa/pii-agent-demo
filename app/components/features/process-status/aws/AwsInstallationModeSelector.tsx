@@ -84,7 +84,7 @@ export const AwsInstallationModeSelector = ({
                 <button
                   type="button"
                   onClick={() => roleGuideModal.open()}
-                  className={`text-sm ${primaryColors.text} ${primaryColors.textHover} hover:underline`}
+                  className={cn('text-sm', primaryColors.text, primaryColors.textHover, 'hover:underline')}
                 >
                   Role 등록 가이드
                 </button>

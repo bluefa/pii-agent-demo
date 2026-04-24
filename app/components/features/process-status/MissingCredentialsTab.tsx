@@ -3,6 +3,7 @@
 import { Resource, SecretKey } from '@/lib/types';
 import { DatabaseIcon, getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { AwsServiceIcon } from '@/app/components/ui/AwsServiceIcon';
+import { cn } from '@/lib/theme';
 
 interface MissingCredentialsTabProps {
   resources: Resource[];
@@ -61,11 +62,12 @@ export const MissingCredentialsTab = ({ resources, credentials, onCredentialChan
                   <select
                     value={resource.selectedCredentialId || ''}
                     onChange={(e) => onCredentialChange?.(resource.id, e.target.value || null)}
-                    className={`w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 ${
+                    className={cn(
+                      'w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2',
                       resource.selectedCredentialId
                         ? 'border-green-300 bg-green-50 text-gray-900 focus:ring-green-500'
-                        : 'border-red-300 bg-red-50 text-gray-700 focus:ring-red-500'
-                    }`}
+                        : 'border-red-300 bg-red-50 text-gray-700 focus:ring-red-500',
+                    )}
                   >
                     <option value="">선택하세요</option>
                     {availableCredentials.map((cred) => (

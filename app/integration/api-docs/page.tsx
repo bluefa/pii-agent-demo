@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { SWAGGER_SPEC_NAMES, resolveSwaggerSpecName } from '@/lib/swagger/specs';
+import { cn } from '@/lib/theme';
 
 interface PageProps {
   searchParams: Promise<{ spec?: string }>;
@@ -19,7 +20,7 @@ export default async function IntegrationApiDocsPage({ searchParams }: PageProps
               <Link
                 key={name}
                 href={`/integration/api-docs?spec=${name}`}
-                className={`rounded border bg-white px-3 py-2 text-sm text-slate-900 ${selectedSpec === name ? 'font-semibold' : ''}`}
+                className={cn('rounded border bg-white px-3 py-2 text-sm text-slate-900', selectedSpec === name && 'font-semibold')}
               >
                 {name}.yaml
               </Link>

@@ -56,6 +56,7 @@ const KpiCardGrid = ({ data, loading }: KpiCardGridProps) => {
   if (loading || !data) {
     return (
       <div className="grid grid-cols-2 gap-5">
+        {/* static skeleton — index key OK */}
         {Array.from({ length: 2 }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
