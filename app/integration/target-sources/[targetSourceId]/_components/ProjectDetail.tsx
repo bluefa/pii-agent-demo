@@ -6,8 +6,6 @@ import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_c
 import { AwsProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/azure';
 import { GcpProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/gcp';
-import { IdcProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/idc';
-import { SduProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/sdu';
 
 interface ProjectDetailProps {
   initialProject: TargetSource;
@@ -28,10 +26,6 @@ export const ProjectDetail = ({
       return <AzureProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     case 'GCP':
       return <GcpProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
-    case 'IDC':
-      return <IdcProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
-    case 'SDU':
-      return <SduProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     default:
       return <ErrorState error="지원하지 않는 클라우드 프로바이더입니다." />;
   }

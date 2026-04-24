@@ -5,7 +5,6 @@ export type ProviderChipKey =
   | 'aws-china'
   | 'azure'
   | 'gcp'
-  | 'idc'
   | 'other'
   | 'saas';
 
@@ -24,8 +23,7 @@ export const PROVIDER_CHIPS: ProviderChipDef[] = [
   { key: 'aws-china', label: 'AWS', sublabel: '(China)', enabled: true, cloudProvider: 'AWS', awsRegionType: 'china', communicationModule: 'AWS Agent' },
   { key: 'azure', label: 'Azure', enabled: true, cloudProvider: 'Azure', communicationModule: 'Azure Agent' },
   { key: 'gcp', label: 'GCP', enabled: true, cloudProvider: 'GCP', communicationModule: 'GCP Agent' },
-  { key: 'idc', label: 'IDC /', sublabel: 'On-prem', enabled: false },
-  { key: 'other', label: 'Other', sublabel: 'Cloud / IDC', enabled: false },
+  { key: 'other', label: 'Other', sublabel: 'Cloud / On-prem', enabled: false },
   { key: 'saas', label: 'SaaS', enabled: false },
 ];
 

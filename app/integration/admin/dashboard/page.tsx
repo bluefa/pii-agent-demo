@@ -55,7 +55,7 @@ const MOCK_SYSTEMS: SystemDetailListResponse = {
       manager: { name: '박준혁', email: 'junhyuk.park@example.com' },
       nirp_codes: ['N-104'],
       sw_plm_codes: ['PLM-203', 'PLM-204'],
-      integration_methods: ['GCP', 'IDC'], svc_installed: true,
+      integration_methods: ['GCP'], svc_installed: true,
       db_status: { target_db_count: 20, healthy_db_count: 18, unhealthy_db_count: 2, active_db_count: 19 },
     },
     {
@@ -73,7 +73,7 @@ const MOCK_SYSTEMS: SystemDetailListResponse = {
       manager: { name: '최도윤', email: 'doyun.choi@example.com' },
       nirp_codes: [],
       sw_plm_codes: ['PLM-205'],
-      integration_methods: ['SDU'], svc_installed: false,
+      integration_methods: ['수동조사'], svc_installed: false,
       db_status: { target_db_count: 15, healthy_db_count: 12, unhealthy_db_count: 3, active_db_count: 14 },
     },
     {
@@ -91,7 +91,7 @@ const MOCK_SYSTEMS: SystemDetailListResponse = {
       manager: { name: '윤재원', email: 'jaewon.yun@example.com' },
       nirp_codes: ['N-107', 'N-108'],
       sw_plm_codes: ['PLM-207'],
-      integration_methods: ['Azure', 'IDC'], svc_installed: true,
+      integration_methods: ['Azure'], svc_installed: true,
       db_status: { target_db_count: 30, healthy_db_count: 25, unhealthy_db_count: 5, active_db_count: 28 },
     },
     {
@@ -118,7 +118,7 @@ const MOCK_SYSTEMS: SystemDetailListResponse = {
       manager: { name: '임태우', email: 'taewoo.lim@example.com' },
       nirp_codes: ['N-110'],
       sw_plm_codes: ['PLM-209', 'PLM-210'],
-      integration_methods: ['IDC'], svc_installed: false,
+      integration_methods: ['수동조사'], svc_installed: false,
       db_status: { target_db_count: 18, healthy_db_count: 12, unhealthy_db_count: 6, active_db_count: 16 },
     },
   ],

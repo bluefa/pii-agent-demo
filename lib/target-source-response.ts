@@ -3,7 +3,6 @@ import type {
   BaseTargetSource,
   CloudProvider,
   ProjectStatus,
-  Resource,
   TargetSource,
   TerraformState,
 } from '@/lib/types';
@@ -224,23 +223,6 @@ const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): T
   };
 
   const terraformState = buildTerraformState(cloudProvider, value.terraformState);
-
-  if (cloudProvider === 'IDC') {
-    return {
-      ...base,
-      cloudProvider: 'IDC',
-      terraformState,
-      resources: Array.isArray(value.resources) ? value.resources as Resource[] : [],
-    };
-  }
-
-  if (cloudProvider === 'SDU') {
-    return {
-      ...base,
-      cloudProvider: 'SDU',
-      terraformState,
-    };
-  }
 
   const tenantId = readString(value, 'tenantId', 'tenant_id')
     ?? (metadataRecord ? readString(metadataRecord, 'tenantId', 'tenant_id') : undefined);

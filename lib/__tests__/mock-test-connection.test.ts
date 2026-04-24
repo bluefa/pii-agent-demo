@@ -14,8 +14,8 @@ import type { Project } from '@/lib/types';
 
 const AWS_PROJECT_ID = 'proj-1';
 const AWS_TARGET_SOURCE_ID = 1006;
-const SDU_PROJECT_ID = 'proj-sdu-001';
-const SDU_TARGET_SOURCE_ID = 1001;
+const GCP_PROJECT_ID = 'gcp-proj-1';
+const GCP_TARGET_SOURCE_ID = 1002;
 const NONEXISTENT_TARGET_SOURCE_ID = 99999;
 
 const FIXED_DATE = new Date('2026-04-23T00:00:00.000Z');
@@ -37,10 +37,10 @@ const getAwsProjectWithSelectedResources = (): Project => {
   return cloned;
 };
 
-const getSduProjectClone = (): Project => {
+const getGcpProjectClone = (): Project => {
   const store = getStore();
-  const idx = store.projects.findIndex((p) => p.id === SDU_PROJECT_ID);
-  if (idx === -1) throw new Error(`${SDU_PROJECT_ID} not found`);
+  const idx = store.projects.findIndex((p) => p.id === GCP_PROJECT_ID);
+  if (idx === -1) throw new Error(`${GCP_PROJECT_ID} not found`);
   const cloned = structuredClone(store.projects[idx]);
   store.projects[idx] = cloned;
   return cloned;
@@ -121,7 +121,7 @@ describe('mock-test-connection behavior lock-in', () => {
       const awsProject = getAwsProjectWithSelectedResources();
       createTestConnectionJob(awsProject, AWS_TARGET_SOURCE_ID, 'a@example.com');
 
-      expect(getLatestJob(SDU_TARGET_SOURCE_ID)).toBeUndefined();
+      expect(getLatestJob(GCP_TARGET_SOURCE_ID)).toBeUndefined();
     });
 
     it('PENDING job 은 시간 진행 시 SUCCESS 로 전환 (Math.random=0)', () => {
@@ -210,7 +210,7 @@ describe('mock-test-connection behavior lock-in', () => {
       const project = getAwsProjectWithSelectedResources();
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
 
-      const sduHistory = getJobHistory(SDU_TARGET_SOURCE_ID, 0, 10);
+      const sduHistory = getJobHistory(GCP_TARGET_SOURCE_ID, 0, 10);
       expect(sduHistory).toEqual({ content: [], total: 0 });
     });
   });
@@ -244,23 +244,23 @@ describe('mock-test-connection behavior lock-in', () => {
       const project = getAwsProjectWithSelectedResources();
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
 
-      expect(hasPendingJob(SDU_TARGET_SOURCE_ID)).toBe(false);
+      expect(hasPendingJob(GCP_TARGET_SOURCE_ID)).toBe(false);
     });
   });
 
   describe('clearJobHistory', () => {
     it('해당 project 의 jobs 만 삭제', () => {
       const awsProject = getAwsProjectWithSelectedResources();
-      const sduProject = getSduProjectClone();
+      const sduProject = getGcpProjectClone();
 
       createTestConnectionJob(awsProject, AWS_TARGET_SOURCE_ID, 'a@example.com');
-      createTestConnectionJob(sduProject, SDU_TARGET_SOURCE_ID, 'b@example.com');
+      createTestConnectionJob(sduProject, GCP_TARGET_SOURCE_ID, 'b@example.com');
 
       clearJobHistory(AWS_TARGET_SOURCE_ID);
 
       const store = getStore();
       expect(store.testConnectionJobs).toHaveLength(1);
-      expect(store.testConnectionJobs[0].target_source_id).toBe(SDU_TARGET_SOURCE_ID);
+      expect(store.testConnectionJobs[0].target_source_id).toBe(GCP_TARGET_SOURCE_ID);
     });
 
     it('job 없는 project → no-op', () => {

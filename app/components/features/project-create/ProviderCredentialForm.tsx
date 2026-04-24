@@ -64,7 +64,7 @@ interface ProviderCredentialFormProps {
 }
 
 export const ProviderCredentialForm = ({ chipKey, values, onChange }: ProviderCredentialFormProps) => {
-  if (chipKey === 'idc' || chipKey === 'other' || chipKey === 'saas') return null;
+  if (chipKey === 'other' || chipKey === 'saas') return null;
 
   const fields = CREDENTIAL_FIELDS[chipKey];
 
@@ -104,7 +104,7 @@ export const validateCredentials = (
   chipKey: ProviderChipKey,
   values: Record<string, string>,
 ): string | null => {
-  if (chipKey === 'idc' || chipKey === 'other' || chipKey === 'saas') return '지원하지 않는 Provider입니다';
+  if (chipKey === 'other' || chipKey === 'saas') return '지원하지 않는 Provider입니다';
   const fields = CREDENTIAL_FIELDS[chipKey];
   for (const field of fields) {
     const v = values[field.name] ?? '';

@@ -37,16 +37,16 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 11개 프로젝트를 포함한다', () => {
-    expect(mockProjects).toHaveLength(11);
+  it('seed 데이터는 8개 프로젝트를 포함한다', () => {
+    expect(mockProjects).toHaveLength(8);
   });
 });
 
 describe('targetSourceId — 매핑 함수', () => {
   it('getProjectByTargetSourceId: 존재하는 ID로 Project를 반환한다', () => {
-    const project = getProjectByTargetSourceId(1001);
+    const project = getProjectByTargetSourceId(1002);
     expect(project).toBeDefined();
-    expect(project!.id).toBe('proj-sdu-001');
+    expect(project!.id).toBe('gcp-proj-1');
   });
 
   it('getProjectByTargetSourceId: 존재하지 않는 ID는 undefined를 반환한다', () => {
