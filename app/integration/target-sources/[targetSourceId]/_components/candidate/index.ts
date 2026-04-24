@@ -1,0 +1,1 @@
+export { CandidateResourceSection } from './CandidateResourceSection';

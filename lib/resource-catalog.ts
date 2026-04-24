@@ -1,13 +1,22 @@
-import type {
-  BffConfirmedIntegration,
-  ConfirmResourceMetadata,
-  DatabaseType,
-  IntegrationCategory,
-  Resource,
-  ResourceSnapshot,
-  VmDatabaseConfig,
-  VmDatabaseType,
+import {
+  needsCredential,
+  type BffConfirmedIntegration,
+  type ConfirmResourceMetadata,
+  type DatabaseType,
+  type IntegrationCategory,
+  type Resource,
+  type ResourceSnapshot,
+  type VmDatabaseConfig,
+  type VmDatabaseType,
 } from '@/lib/types';
+import type {
+  ApprovedResource,
+  CandidateBehaviorKey,
+  CandidateConfigKind,
+  CandidateResource,
+  ConfirmedResource,
+  EndpointConfigDraft,
+} from '@/lib/types/resources';
 
 export const EMPTY_CONFIRMED_INTEGRATION: BffConfirmedIntegration = {
   resource_infos: [],
@@ -134,3 +143,71 @@ export const approvedIntegrationToResources = (
         : undefined,
     };
   });
+
+// ===== Separated resource transformers =====
+// Emit Candidate / Approved / Confirmed shapes instead of the legacy Resource union.
+
+const toEndpointConfigDraft = (item: CatalogItem): EndpointConfigDraft | undefined =>
+  toVmDatabaseConfigFromCatalog(item);
+
+const classifyCandidate = (
+  item: CatalogItem,
+): { configKind: CandidateConfigKind; behaviorKey: CandidateBehaviorKey } => {
+  if (VM_RESOURCE_TYPES.has(item.resourceType)) {
+    return { configKind: 'endpoint', behaviorKey: 'endpoint' };
+  }
+  if (needsCredential(item.databaseType)) {
+    return { configKind: 'credential', behaviorKey: 'credential' };
+  }
+  return { configKind: 'none', behaviorKey: 'default' };
+};
+
+export const catalogToCandidates = (
+  catalog: readonly CatalogItem[],
+): CandidateResource[] =>
+  catalog.map((item) => {
+    const { configKind, behaviorKey } = classifyCandidate(item);
+    const endpointConfig = toEndpointConfigDraft(item);
+    return {
+      id: item.id,
+      resourceId: item.resourceId,
+      type: item.resourceType,
+      databaseType: item.databaseType,
+      integrationCategory: item.integrationCategory,
+      configKind,
+      behaviorKey,
+      ...(endpointConfig ? { endpointConfig } : {}),
+      metadata: item.metadata,
+      connectionStatus: 'PENDING',
+    };
+  });
+
+export const approvedIntegrationToApproved = (
+  items: readonly ResourceSnapshot[],
+): ApprovedResource[] =>
+  items.map((item) => {
+    const endpoint = item.endpoint_config;
+    return {
+      resourceId: item.resource_id,
+      type: item.resource_type,
+      databaseType: (endpoint?.db_type ?? null) as DatabaseType | null,
+      endpointConfig: endpoint,
+      credentialId: item.credential_id ?? null,
+    };
+  });
+
+export const confirmedIntegrationToConfirmed = (
+  confirmedIntegration: BffConfirmedIntegration,
+): ConfirmedResource[] =>
+  confirmedIntegration.resource_infos.map((info) => ({
+    resourceId: info.resource_id,
+    type: info.resource_type,
+    databaseType: info.database_type,
+    host: info.host,
+    port: info.port,
+    oracleServiceId: info.oracle_service_id,
+    networkInterfaceId: info.network_interface_id,
+    ipConfigurationName: info.ip_configuration_name,
+    credentialId: info.credential_id,
+    connectionStatus: 'CONNECTED',
+  }));
