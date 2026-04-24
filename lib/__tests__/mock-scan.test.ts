@@ -65,21 +65,6 @@ describe('mock-scan', () => {
         expect(result.valid).toBe(true);
       });
 
-      it('IDC 프로젝트는 스캔 불가 (SCAN_NOT_SUPPORTED)', () => {
-        const project = createTestProject({ cloudProvider: 'IDC' });
-        const result = validateScanRequest(project);
-        expect(result.valid).toBe(false);
-        expect(result.errorCode).toBe('SCAN_NOT_SUPPORTED');
-        expect(result.httpStatus).toBe(400);
-      });
-
-      it('SDU 프로젝트는 스캔 불가 (SCAN_NOT_SUPPORTED)', () => {
-        const project = createTestProject({ cloudProvider: 'SDU' });
-        const result = validateScanRequest(project);
-        expect(result.valid).toBe(false);
-        expect(result.errorCode).toBe('SCAN_NOT_SUPPORTED');
-        expect(result.httpStatus).toBe(400);
-      });
     });
 
     describe('리소스 최대 개수 검증', () => {
@@ -299,13 +284,6 @@ describe('mock-scan', () => {
       const result = canScan(project);
       expect(result.canScan).toBe(true);
       expect(result.reason).toBeUndefined();
-    });
-
-    it('IDC 프로젝트는 스캔 불가', () => {
-      const project = createTestProject({ cloudProvider: 'IDC' });
-      const result = canScan(project);
-      expect(result.canScan).toBe(false);
-      expect(result.reason).toContain('IDC');
     });
 
     it('리소스 최대 개수 도달 시 스캔 불가', () => {

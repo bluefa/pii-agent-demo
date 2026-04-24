@@ -799,13 +799,6 @@ export const mockProjects = {
       );
     }
 
-    if (project.cloudProvider === 'IDC') {
-      return NextResponse.json(
-        { error: 'NOT_SUPPORTED', message: 'IDC 환경에서는 스캔 기능을 지원하지 않습니다.' },
-        { status: 400 }
-      );
-    }
-
     const shouldAddNew = Math.random() > 0.5;
     let newResourcesFound = 0;
     const updatedResources = [...project.resources];

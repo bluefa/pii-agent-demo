@@ -84,12 +84,10 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const toIssue222CloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN' => {
+const toIssue222CloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' => {
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
-    case 'SDU':
-      return 'UNKNOWN';
     default:
       return cloudProvider;
   }
@@ -646,9 +644,6 @@ export * from './azure';
 
 // ===== AWS API =====
 export * from './aws';
-
-// ===== SDU API =====
-export * from './sdu';
 
 // ===== GCP API =====
 export * from './gcp';

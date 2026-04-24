@@ -26,14 +26,6 @@ export const SCAN_POLICY: Record<CloudProvider, ScanPolicy> = {
     enabled: true,
     resourceTypes: ['CLOUD_SQL', 'BIGQUERY'],
   },
-  IDC: {
-    enabled: false,
-    reason: 'IDC는 스캔을 지원하지 않습니다. 리소스를 직접 입력하세요.',
-  },
-  SDU: {
-    enabled: false,
-    reason: 'SDU는 Crawler를 통해 리소스가 수집됩니다.',
-  },
 };
 
 // Provider별 리소스 타입 가져오기

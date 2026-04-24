@@ -1,7 +1,7 @@
 // ===== Admin Dashboard Types (Swagger 기반) =====
 
 /** 연동 방식 */
-export type IntegrationMethod = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU' | '수동조사';
+export type IntegrationMethod = 'AWS' | 'Azure' | 'GCP' | '수동조사';
 
 /** 시스템 담당자 */
 export interface SystemManager {

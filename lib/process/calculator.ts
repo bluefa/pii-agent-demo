@@ -13,7 +13,6 @@ import {
   ProcessStatus,
   ProjectStatus,
 } from '@/lib/types';
-import type { SduProjectStatus, SduProcessStatus } from '@/lib/types/sdu';
 
 /**
  * 현재 프로세스 단계를 계산합니다.
@@ -23,14 +22,9 @@ import type { SduProjectStatus, SduProcessStatus } from '@/lib/types/sdu';
  * @returns 계산된 ProcessStatus
  */
 export const getCurrentStep = (
-  cloudProvider: CloudProvider,
+  _cloudProvider: CloudProvider,
   status: ProjectStatus
 ): ProcessStatus => {
-  // IDC는 승인 단계가 없음
-  if (cloudProvider === 'IDC') {
-    return getCurrentStepWithoutApproval(status);
-  }
-
   // AWS, Azure, GCP는 승인 단계 포함
   return getCurrentStepWithApproval(status);
 };
@@ -72,46 +66,6 @@ const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
 
   // 7. 설치 완료
   return ProcessStatus.INSTALLATION_COMPLETE;
-};
-
-/**
- * 승인 단계가 없는 Provider용 (IDC)
- */
-const getCurrentStepWithoutApproval = (status: ProjectStatus): ProcessStatus => {
-  // 1. 연동 대상 확정 대기
-  if (!status.targets.confirmed) {
-    return ProcessStatus.WAITING_TARGET_CONFIRMATION;
-  }
-
-  // 2. 설치 진행 중 (승인 단계 스킵)
-  if (status.installation.status !== 'COMPLETED') {
-    return ProcessStatus.INSTALLING;
-  }
-
-  // 3. 연결 테스트 — 한번이라도 성공(passedAt 존재)하면 연결 확인으로 이동
-  if (!status.connectionTest.passedAt) {
-    return ProcessStatus.WAITING_CONNECTION_TEST;
-  }
-
-  // 4. 연결 확인 완료 (운영 확인 대기)
-  if (!status.connectionTest.operationConfirmed) {
-    return ProcessStatus.CONNECTION_VERIFIED;
-  }
-
-  return ProcessStatus.INSTALLATION_COMPLETE;
-};
-
-/**
- * SDU 전용 현재 단계 계산
- *
- * @param sduStatus - SDU 프로젝트 상태
- * @returns 계산된 SduProcessStatus
- */
-export const getSduCurrentStep = (sduStatus: SduProjectStatus): SduProcessStatus => {
-  if (sduStatus.s3Upload.status !== 'CONFIRMED') return 'S3_UPLOAD_PENDING';
-  if (sduStatus.installation.athenaSetup.status !== 'COMPLETED') return 'INSTALLING';
-  if (sduStatus.connectionTest.status !== 'PASSED') return 'WAITING_CONNECTION_TEST';
-  return 'INSTALLATION_COMPLETE';
 };
 
 /**

@@ -36,20 +36,6 @@ export interface ApiClient {
     getServices: () => Promise<NextResponse>;
     getServicesPage: (page: number, size: number, query?: string) => Promise<NextResponse>;
   };
-  sdu: {
-    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
-    getAthenaTables: (targetSourceId: string) => Promise<NextResponse>;
-    executeConnectionTest: (targetSourceId: string) => Promise<NextResponse>;
-    getConnectionTest: (targetSourceId: string) => Promise<NextResponse>;
-    issueAkSk: (targetSourceId: string, body: { issuedBy: string }) => Promise<NextResponse>;
-    getIamUser: (targetSourceId: string) => Promise<NextResponse>;
-    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
-    checkS3Upload: (targetSourceId: string) => Promise<NextResponse>;
-    getS3Upload: (targetSourceId: string) => Promise<NextResponse>;
-    confirmSourceIp: (targetSourceId: string, body: { cidr: string }) => Promise<NextResponse>;
-    registerSourceIp: (targetSourceId: string, body: { cidr: string }) => Promise<NextResponse>;
-    getSourceIpList: (targetSourceId: string) => Promise<NextResponse>;
-  };
   aws: {
     checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
     setInstallationMode: (targetSourceId: string, body: SetInstallationModeBody) => Promise<NextResponse>;
@@ -73,16 +59,6 @@ export interface ApiClient {
     getScanServiceAccount: (targetSourceId: string) => Promise<NextResponse>;
     getTerraformServiceAccount: (targetSourceId: string) => Promise<NextResponse>;
   };
-  idc: {
-    getSourceIpRecommendation: (ipType: string | null) => Promise<NextResponse>;
-    checkInstallation: (targetSourceId: string) => Promise<NextResponse>;
-    confirmFirewall: (targetSourceId: string) => Promise<NextResponse>;
-    confirmTargets: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
-    getInstallationStatus: (targetSourceId: string) => Promise<NextResponse>;
-    getResources: (targetSourceId: string) => Promise<NextResponse>;
-    updateResources: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
-    updateResourcesList: (targetSourceId: string, body: unknown) => Promise<NextResponse>;
-  };
   services: {
     permissions: {
       list: (serviceCode: string) => Promise<NextResponse>;
@@ -100,10 +76,6 @@ export interface ApiClient {
       };
       azure: {
         get: (serviceCode: string) => Promise<NextResponse>;
-      };
-      idc: {
-        get: (serviceCode: string) => Promise<NextResponse>;
-        update: (serviceCode: string, body: unknown) => Promise<NextResponse>;
       };
     };
   };

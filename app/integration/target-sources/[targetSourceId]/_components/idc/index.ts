@@ -1,1 +1,0 @@
-export { IdcProjectPage } from './IdcProjectPage';
