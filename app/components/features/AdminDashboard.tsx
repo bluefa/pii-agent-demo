@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useReducer } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { useToast } from '@/app/components/ui/toast';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
@@ -27,42 +27,86 @@ import {
 } from './admin';
 import { InfrastructureList } from './admin/infrastructure';
 
+interface ServiceListState {
+  services: ServiceCode[];
+  selectedService: string | null;
+  query: string;
+  pageNum: number;
+  pageInfo: ServicePageResponse['page'];
+}
+
+type ServiceListAction =
+  | { type: 'SET_SERVICES'; services: ServiceCode[]; pageInfo: ServicePageResponse['page'] }
+  | { type: 'SET_SELECTED'; serviceCode: string | null }
+  | { type: 'SET_QUERY'; query: string }
+  | { type: 'SET_PAGE'; pageNum: number };
+
+const buildInitialServiceListState = (): ServiceListState => ({
+  services: [],
+  selectedService: null,
+  query: '',
+  pageNum: 0,
+  pageInfo: { totalElements: 0, totalPages: 0, number: 0, size: 10 },
+});
+
+const serviceListReducer = (
+  state: ServiceListState,
+  action: ServiceListAction,
+): ServiceListState => {
+  switch (action.type) {
+    case 'SET_SERVICES':
+      return { ...state, services: action.services, pageInfo: action.pageInfo };
+    case 'SET_SELECTED':
+      return { ...state, selectedService: action.serviceCode };
+    case 'SET_QUERY':
+      return { ...state, query: action.query };
+    case 'SET_PAGE':
+      return { ...state, pageNum: action.pageNum };
+  }
+};
+
+type ApprovalDetail = {
+  project: ProjectSummary;
+  approvalRequest: {
+    id: string;
+    requested_at: string;
+    requested_by: string;
+    input_data: {
+      resource_inputs: ApprovalResourceInput[];
+      exclusion_reason_default?: string;
+    };
+  };
+};
+
+type ApprovalModalState =
+  | { status: 'closed' }
+  | { status: 'create' }
+  | { status: 'view'; detail: ApprovalDetail }
+  | { status: 'submitting'; detail: ApprovalDetail };
+
 export const AdminDashboard = () => {
   const router = useRouter();
   const toast = useToast();
-  const [services, setServices] = useState<ServiceCode[]>([]);
-  const [selectedService, setSelectedService] = useState<string | null>(null);
+
+  const [serviceList, dispatch] = useReducer(
+    serviceListReducer,
+    undefined,
+    buildInitialServiceListState,
+  );
+  const { services, selectedService, query: serviceQuery, pageInfo: servicePageInfo } = serviceList;
+
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [approvalDetail, setApprovalDetail] = useState<{
-    project: ProjectSummary;
-    approvalRequest: {
-      id: string;
-      requested_at: string;
-      requested_by: string;
-      input_data: {
-        resource_inputs: ApprovalResourceInput[];
-        exclusion_reason_default?: string;
-      };
-    };
-  } | null>(null);
-  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [approvalModal, setApprovalModal] = useState<ApprovalModalState>({ status: 'closed' });
 
-  const [serviceQuery, setServiceQuery] = useState('');
-  const [servicePageNum, setServicePageNum] = useState(0);
-  const [servicePageInfo, setServicePageInfo] = useState<ServicePageResponse['page']>({
-    totalElements: 0, totalPages: 0, number: 0, size: 10,
-  });
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const fetchServicesPage = useCallback(async (page: number, query?: string) => {
-    const data = await getServicesPage(page, 10, query || undefined);
-    setServices(data.content);
-    setServicePageInfo(data.page);
+  const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
+    const data = await getServicesPage(page, 10, searchQuery || undefined);
+    dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
     if (page === 0 && data.content.length > 0) {
-      setSelectedService(data.content[0].code);
+      dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
     }
   }, []);
 
@@ -70,17 +114,21 @@ export const AdminDashboard = () => {
     fetchServicesPage(0);
   }, [fetchServicesPage]);
 
-  const handleSearchChange = useCallback((query: string) => {
-    setServiceQuery(query);
+  const handleSelectService = useCallback((code: string) => {
+    dispatch({ type: 'SET_SELECTED', serviceCode: code });
+  }, []);
+
+  const handleSearchChange = useCallback((newQuery: string) => {
+    dispatch({ type: 'SET_QUERY', query: newQuery });
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setServicePageNum(0);
-      fetchServicesPage(0, query);
+      dispatch({ type: 'SET_PAGE', pageNum: 0 });
+      fetchServicesPage(0, newQuery);
     }, 300);
   }, [fetchServicesPage]);
 
   const handlePageChange = useCallback((page: number) => {
-    setServicePageNum(page);
+    dispatch({ type: 'SET_PAGE', pageNum: page });
     fetchServicesPage(page, serviceQuery);
   }, [fetchServicesPage, serviceQuery]);
 
@@ -112,37 +160,40 @@ export const AdminDashboard = () => {
         toast.info('승인 요청 이력이 없습니다.');
         return;
       }
-      setApprovalDetail({ project, approvalRequest: latest.request });
+      setApprovalModal({
+        status: 'view',
+        detail: { project, approvalRequest: latest.request },
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '승인 요청 조회 실패');
     }
   };
 
   const handleApprove = async () => {
-    if (!approvalDetail) return;
+    if (approvalModal.status !== 'view') return;
+    const currentDetail = approvalModal.detail;
     try {
-      setApprovalLoading(true);
-      await approveApprovalRequestV1(approvalDetail.project.targetSourceId);
-      setApprovalDetail(null);
+      setApprovalModal({ status: 'submitting', detail: currentDetail });
+      await approveApprovalRequestV1(currentDetail.project.targetSourceId);
+      setApprovalModal({ status: 'closed' });
       await refreshProjects();
     } catch (err) {
+      setApprovalModal({ status: 'view', detail: currentDetail });
       toast.error(err instanceof Error ? err.message : '승인 처리 실패');
-    } finally {
-      setApprovalLoading(false);
     }
   };
 
   const handleReject = async (reason: string) => {
-    if (!approvalDetail) return;
+    if (approvalModal.status !== 'view') return;
+    const currentDetail = approvalModal.detail;
     try {
-      setApprovalLoading(true);
-      await rejectApprovalRequestV1(approvalDetail.project.targetSourceId, reason);
-      setApprovalDetail(null);
+      setApprovalModal({ status: 'submitting', detail: currentDetail });
+      await rejectApprovalRequestV1(currentDetail.project.targetSourceId, reason);
+      setApprovalModal({ status: 'closed' });
       await refreshProjects();
     } catch (err) {
+      setApprovalModal({ status: 'view', detail: currentDetail });
       toast.error(err instanceof Error ? err.message : '반려 처리 실패');
-    } finally {
-      setApprovalLoading(false);
     }
   };
 
@@ -171,7 +222,19 @@ export const AdminDashboard = () => {
     toast.info('삭제 미구현');
   }, [router, toast]);
 
+  const openCreateModal = useCallback(() => {
+    setApprovalModal({ status: 'create' });
+  }, []);
+
+  const closeAnyModal = useCallback(() => {
+    setApprovalModal({ status: 'closed' });
+  }, []);
+
   const selectedServiceObj = services.find((s) => s.code === selectedService);
+  const approvalDetail =
+    approvalModal.status === 'view' || approvalModal.status === 'submitting'
+      ? approvalModal.detail
+      : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -179,7 +242,7 @@ export const AdminDashboard = () => {
         <ServiceSidebar
           services={services}
           selectedService={selectedService}
-          onSelectService={setSelectedService}
+          onSelectService={handleSelectService}
           projectCount={projects.length}
           searchQuery={serviceQuery}
           onSearchChange={handleSearchChange}
@@ -217,7 +280,7 @@ export const AdminDashboard = () => {
                         갱신 중
                       </span>
                     )}
-                    <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
+                    <Button onClick={openCreateModal} className="flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
@@ -240,7 +303,7 @@ export const AdminDashboard = () => {
                 projects={projects}
                 loading={loading}
                 actionLoading={actionLoading}
-                onAddInfra={() => setShowCreateModal(true)}
+                onAddInfra={openCreateModal}
                 onOpenDetail={handleOpenDetail}
                 onManageAction={handleManageAction}
                 onConfirmCompletion={handleConfirmCompletion}
@@ -253,21 +316,21 @@ export const AdminDashboard = () => {
 
       {approvalDetail && (
         <ApprovalDetailModal
-          isOpen={!!approvalDetail}
-          onClose={() => setApprovalDetail(null)}
+          isOpen
+          onClose={closeAnyModal}
           project={approvalDetail.project}
           approvalRequest={approvalDetail.approvalRequest}
           onApprove={handleApprove}
           onReject={handleReject}
-          loading={approvalLoading}
+          loading={approvalModal.status === 'submitting'}
         />
       )}
 
-      {showCreateModal && selectedService && (
+      {approvalModal.status === 'create' && selectedService && (
         <ProjectCreateModal
           selectedServiceCode={selectedService}
           serviceName={selectedServiceObj?.name || ''}
-          onClose={() => setShowCreateModal(false)}
+          onClose={closeAnyModal}
           onCreated={refreshProjects}
         />
       )}
