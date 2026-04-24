@@ -17,6 +17,30 @@ Step 4-7 (INSTALLING / WAITING_CONNECTION_TEST / CONNECTION_VERIFIED / INSTALLAT
 
 기존 `DbSelectionCard` 는 step 1-2 에서만 사용하도록 좁힘. step 3 은 `ResourceTransitionPanel` 유지 (Phase 2 범위 밖, Phase 4 또는 별도 wave 에서 데이터 소스 교체).
 
+## 알려진 과도기 상태 (Phase 2 머지 직후 ~ Phase 4 머지 전)
+
+**step 4-7 에서 confirmed-integration 이 중복 호출됨**:
+
+- 신규 `IntegrationTargetInfoCard` — 마운트 시 1회 (본 PR 에서 추가)
+- `loadAzureResources` / `loadGcpResources` — 페이지 마운트 시 1회 (Phase 4 까지 유지)
+
+즉 Azure/GCP step 4-7 진입 시 **동일 API 가 2회** 호출됨. AWS 는 `loadAws*` 가 없어 신규 카드의 1회만 호출됨.
+
+이 중복은 **의도된 과도기**:
+- Phase 2 에서 `loadAzureResources` / `loadGcpResources` 를 건드리지 않는 이유는 — 이들은 step 1-3 의 `buildAzureOwnedResources` / catalog-confirmed merge 에도 쓰이기 때문. Phase 4 가 `project.resources` 폐기 + builder 해체와 함께 묶어야 안전.
+- Phase 4 머지 후에는 load 함수가 step ≤ 3 한정 catalog-only 로 재편되면서 step 4-7 에서는 신규 카드의 1회만 남음 → "single-source" 달성.
+
+Phase 2 PR description 에 이 과도기를 명시하고, 네트워크 탭 스크린샷으로 Phase 2 머지 직후 Azure/GCP 에 2회 호출이 보이는 것을 문서화 (검증 기준이 "0 중복" 이 아니라 "신규 카드가 자체 fetch 하는가" 임을 분명히 함).
+
+## "Single-source" 달성 기준 정의 (acceptance)
+
+| Phase 머지 후 | step 4-7 의 confirmed-integration 호출 횟수 | 단일 소스? |
+|---|---|---|
+| Phase 2 (본 PR) | AWS 1 / Azure 2 / GCP 2 | ❌ 과도기 |
+| Phase 4 | AWS 1 / Azure 1 / GCP 1 | ✅ 완료 |
+
+Phase 2 의 성공 조건은 "신규 카드가 자체 fetch 한다" + "`IntegrationTargetInfoCard` 가 step 4-7 에서 렌더된다" 까지. **중복 제거는 Phase 4 의 성공 조건**.
+
 ## Precondition
 
 ```bash

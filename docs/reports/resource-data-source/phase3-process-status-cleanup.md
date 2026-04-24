@@ -119,9 +119,26 @@ grep -rn "ConfirmedIntegrationCollapse\|hasConfirmedIntegration\|shouldShowConfi
 
 수동:
 1. `bash scripts/dev.sh /Users/study/pii-agent-demo-process-status-confirmed-cleanup`
-2. step 2 (WAITING_APPROVAL) TS 진입 → DevTools Network → `/confirmed-integration` 호출 0 회 확인
-3. step 3 (APPLYING_APPROVED) TS 진입 → DevTools Network → `/confirmed-integration` 호출 0 회 확인
-4. (참고) step 3 의 `ResourceTransitionPanel` 은 여전히 confirmed-integration 호출 — Phase 4 에서 approved-integration 으로 교체 예정. 이 단계에서는 그대로 유지.
+2. step 2 (WAITING_APPROVAL) TS 진입 → DevTools Network → `/confirmed-integration` 호출:
+   - Phase 3 의 책임 범위 (`ProcessStatusCard` 의 `hasConfirmedIntegration` useEffect) 에 의한 호출 **0 회**
+   - Azure/GCP 의 경우 `loadAzureResources` / `loadGcpResources` 가 여전히 호출 (Phase 4 범위) → 총 호출 수는 AWS 0 / Azure 1 / GCP 1 예상
+3. step 3 (APPLYING_APPROVED) TS 진입 → DevTools Network → `/confirmed-integration` 호출:
+   - `ProcessStatusCard` 의 호출 **0 회** (본 phase 의 acceptance)
+   - `ResourceTransitionPanel` 은 마운트 시 1회 호출 (Phase 4 에서 approved-integration 으로 교체 예정)
+   - Azure/GCP 는 추가로 `loadAzureResources` / `loadGcpResources` 의 1회 (Phase 4 범위)
+   - 총 호출 수: AWS 1 / Azure 2 / GCP 2 예상
+
+⚠️ **이 단계의 acceptance** 는 "step 2/3 에서 `/confirmed-integration` 총 호출이 0" 이 아니라, **"`ProcessStatusCard` 가 더 이상 `/confirmed-integration` 을 호출하지 않는다"** 임. `ResourceTransitionPanel` 과 `loadAzureResources` / `loadGcpResources` 의 호출 제거는 Phase 4 의 책임.
+
+검증 방법:
+- DevTools Network 에서 호출된 `/confirmed-integration` 요청의 call stack 을 확인해 `ProcessStatusCard` / `ApprovalWaitingCard` / `ApprovalApplyingBanner` / `ConfirmedIntegrationCollapse` 에서 유래한 게 0 건인지 확인
+- 또는 `getConfirmedIntegration` import 를 grep 해 Phase 3 in-scope 파일에서 사라졌는지 확인:
+```bash
+grep -rn "getConfirmedIntegration" app/components/features/ProcessStatusCard.tsx \
+  app/components/features/process-status/ApprovalWaitingCard.tsx \
+  app/components/features/process-status/ApprovalApplyingBanner.tsx
+# → 기대: 0 hit
+```
 
 ## Step 6 — Commit / push / PR
 

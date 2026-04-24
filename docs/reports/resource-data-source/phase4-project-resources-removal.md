@@ -7,12 +7,48 @@
 
 ## Goal
 
-1. `Project.resources: Resource[]` 타입 필드 제거
-2. `lib/target-source-response.ts:214` normalize 제거
-3. AWS / Azure / GCP provider 페이지에서 `project.resources` 의존 제거 — step 1 (DbSelectionCard) 데이터를 `getConfirmResources` (catalog) 호출로 직접 fetch
-4. `loadAzureResources` 의 4-API 병합 / `buildAzureOwnedResources` 의 4-source fallback 폐기 (step 1 catalog 호출만 남김 또는 단순화)
-5. `loadGcpResources` 의 2-API 병합 폐기 (step 1 catalog 단독)
-6. (Phase 2 에서 처리하지 않은 경우) `ResourceTransitionPanel` 의 데이터 소스를 `getApprovedIntegration` 으로 교체
+**본 phase 의 확정된 Done 정의** — `Project.resources` 필드는 **제거하지 않음 (유지, deprecated 마킹)**. AWS/Azure/GCP 코드에서만 의존을 제거. IDC/SDU 는 별도 wave 에서 정리. 타입 제거는 IDC/SDU wave 머지 후 별도 "final removal" wave 에서.
+
+### 확정 정책: 단계적 폐기 — 이번 phase 의 범위
+
+| 항목 | 본 phase 에서 처리 | 나중 wave 에서 처리 |
+|---|---|---|
+| `Project.resources` 타입 필드 | `@deprecated` JSDoc 마킹 | IDC/SDU wave 후 final removal wave 에서 실제 삭제 |
+| `lib/target-source-response.ts:214` normalize | 유지 (IDC/SDU 가 여전히 사용) | 최종 wave 에서 삭제 |
+| AWS/Azure/GCP provider 페이지의 `project.resources` 사용 | **모두 제거** (catalog 직접 fetch 로 전환) | — |
+| IDC / SDU 의 `project.resources` 사용 | 건드리지 않음 | 별도 IDC/SDU wave |
+| `loadAzureResources` 4-API 병합 | **폐기 or step 1 catalog 단독으로 단순화** | — |
+| `loadGcpResources` 2-API 병합 | **폐기 or step 1 catalog 단독으로 단순화** | — |
+| `buildAzureOwnedResources` 4-source fallback | **폐기 또는 catalog-only mapper 로 단순화** | — |
+| `ResourceTransitionPanel` 데이터 소스 | `getApprovedIntegration` 으로 교체 | — |
+| `mockTargetSources.get` 의 Project 누설 차단 | Phase 1 에서 이동됨 → **본 phase 에서 처리** | — |
+
+### 왜 "필드 제거" 가 아니라 "deprecated 마킹" 인가
+
+감사 문서 초안에서는 "제거" 로 표현했지만 실행 시점에 재평가 결과:
+
+1. IDC / SDU 는 catalog API 가 없고 (`lib/issue-222-approval.ts` / `lib/issue-222-target-source.ts` 에도 IDC/SDU 라우트 없음), `project.resources` 외에 대체 데이터 소스가 바로 없음.
+2. 본 phase 에서 IDC/SDU 까지 강제로 같이 다루면 범위가 커지고, 사용자 정책 ("IDC/SDU 는 범위 밖") 에도 어긋남.
+3. 타입 필드를 남기되 "구버전 호환" 용도로 제한함을 `@deprecated` + 주석으로 명시. Type-level safety 는 소실되지만, linter / IDE hint 로 점진적 마이그레이션 유도.
+4. IDC/SDU 가 정리된 뒤 별도 final removal wave 에서 타입 / normalizer / mock get 의 resources 필드를 함께 삭제. PR description 에 명시 + follow-up issue 생성 권장.
+
+`Project` 인터페이스에 다음 형태로 남김:
+
+```ts
+export interface Project {
+  ...
+  /**
+   * @deprecated AWS/Azure/GCP 는 step 별 전용 API 사용. IDC/SDU 만 사용.
+   *   별도 wave 에서 IDC/SDU 를 전용 타입으로 분리한 뒤 완전 제거.
+   *   신규 코드에서 참조 금지.
+   */
+  resources: Resource[];
+  ...
+}
+```
+
+`target-source-response.ts:214` 의 normalize 도 동일 이유로 유지.
+`mockTargetSources.get` 누설 차단은 본 phase 의 필수 항목으로 이동 (Phase 1 에서 swagger contract 이슈로 deferred 된 부분).
 
 ## Precondition
 
@@ -101,35 +137,50 @@ npx tsc --noEmit 2>&1 | grep "Property 'resources' does not exist on type 'Proje
 
 ### 3-6. Mock `mockTargetSources.get` — 잔여 정리
 
-Phase 1 에서 이미 `toIssue222TargetSourceInfo` 통과하도록 수정됨. 본 phase 에서는 변경 없음. 단 정합성 검사:
+Phase 1 의 `fix/resource-mock-fix` PR 에서 분석 결과 `mockTargetSources.get` 누설 차단은 Phase 4 에서 처리하기로 확정됨 (이유: swagger `ClientTargetSourceDetail` 가 `resources` 를 required 로 정의하고 있고, `toIssue222TargetSourceInfo` 가 AWS/GCP 식별자 필드 (`awsAccountId` / `gcpProjectId`) 및 `id` / `status` / `terraformState` / `isRejected` 누락). 본 phase 에서:
+
+1. `lib/api-client/mock/target-sources.ts` 의 `toIssue222TargetSourceInfo` 확장 — AWS/GCP 식별자 + `status` + `terraformState` + `isRejected` + `id` 포함. `resources` 만 제외.
+2. `mockTargetSources.get` 을 이 확장된 변환기로 통과시킴.
+3. `lib/target-source-response.ts` 의 normalizer 에 AWS/GCP 식별자 읽기 로직 추가 (metadata 에서도 읽도록).
+4. `docs/swagger/issue-222-client.yaml` 의 `ClientTargetSourceDetail` 에서 `resources` 를 `required` 에서 제거하고 "deprecated" 명시. 단 삭제는 하지 않음 (IDC/SDU 가 여전히 사용).
+
+정합성 검사:
 ```bash
-grep -n "targetSource.*resources\|targetSource\[.resources.\]" lib/ app/ \
-  --include="*.ts" --include="*.tsx" -r | grep -v ".test."
-# → 기대: 0 hit
+grep -rn "targetSource.*resources\|targetSource\[.resources.\]" lib/ app/ \
+  --include="*.ts" --include="*.tsx" | grep -v ".test."
+# → 기대: IDC/SDU 관련 사이트만 hit (normalizer fallback path 로 넘겨지는 경로)
 ```
 
-### 3-7. IDC / SDU — 손대지 않음
+### 3-7. IDC / SDU — 손대지 않음 (본 phase 범위 밖)
 
-`IdcProjectPage` / `IdcProcessStatusCard` 의 `project.resources` 사용은 **본 phase 범위 밖**. 이들은 별도 wave 에서 처리.
+`IdcProjectPage.tsx:202-204` / `IdcProcessStatusCard.tsx:359,385` 는 본 phase 에서 변경하지 않음. 이들은 별도 IDC/SDU wave 에서 정리.
 
-→ Phase 4 가 `Project.resources` 필드를 제거하면 IDC 코드도 컴파일 에러. 옵션:
+**본 phase 의 IDC/SDU 호환성 유지 방식** (§ Goal 의 "단계적 폐기" 참고):
 
-- (A) `Project` 가 아닌 `IdcProject` 같은 별도 타입을 정의하고 IDC 만 그 타입 사용
-- (B) `Project` 에 `resources` 를 deprecated 로 남기고 본 phase 는 cloud provider (AWS/Azure/GCP) 만 cleanup
-- (C) IDC 도 같은 wave 에 포함
+- `Project.resources` 타입 필드는 **삭제하지 않음**. `@deprecated` JSDoc 만 추가:
+  ```ts
+  export interface Project {
+    ...
+    /**
+     * @deprecated AWS/Azure/GCP 는 step 별 전용 API 사용. IDC/SDU 만 사용.
+     *   별도 wave 에서 IDC/SDU 를 전용 타입으로 분리한 뒤 완전 제거.
+     *   신규 코드에서 참조 금지.
+     */
+    resources: Resource[];
+    ...
+  }
+  ```
 
-**권장: (B)**. 타입 시그니처를 deprecated comment 로 표시하되 필드는 남기고, AWS/Azure/GCP 코드의 의존만 제거. 별도 IDC wave 후 (B) → (A) 전환.
+- `lib/target-source-response.ts` 의 normalize 에서도 `resources` 라인 유지 (IDC/SDU normalize 호환).
 
-```ts
-export interface Project {
-  ...
-  /** @deprecated IDC/SDU 만 사용. AWS/Azure/GCP 는 catalog API 로 fetch. 별도 wave 에서 IDC 도 분리 예정. */
-  resources: Resource[];
-  ...
-}
-```
+- 단, AWS/Azure/GCP 코드에서는 `project.resources` 호출이 모두 제거됨 (3-1~3-5 에 의거).
 
-이 절충은 spec 외 의사결정이므로 PR description 에 명시. 반대로 (A)/(C) 를 선택하면 spec 자체 갱신 후 진행.
+### 후속 wave (본 PR 범위 밖)
+
+1. **IDC/SDU 전용 타입 분리 wave**: `IdcProject` / `SduProject` 타입 정의 + IDC/SDU 라우트에서 사용. `Project.resources` 의존을 IDC/SDU 에서도 제거.
+2. **Final removal wave** (위 1 머지 후): `Project.resources` 필드 / normalizer 라인 / swagger `resources` 필드 실제 삭제. `mockTargetSources.get` / `mockProjects.get` 의 내부 구현도 정비.
+
+PR description 에 follow-up issue 링크 명시 권장.
 
 ## Step 4 — Do NOT touch
 
@@ -168,20 +219,26 @@ grep -rn "project\.resources\b" app/ --include="*.ts" --include="*.tsx" | grep -
 ## Step 6 — Commit / push / PR
 
 ```
-refactor(target-sources): Project.resources 폐기 + provider 페이지 catalog 호출 전환 (project-resources-removal)
+refactor(target-sources): AWS/Azure/GCP 의 project.resources 의존 제거 + step 별 API 분리 (project-resources-removal)
 
 근거: docs/reports/resource-data-source-audit-2026-04-23.md §2.1-§2.5, §4.3, §4.5.
 
-- AWS / Azure / GCP provider 페이지: project.resources 의존 제거, getConfirmResources(catalog) 자체 fetch
-- loadAzureResources 4-API 병합 폐기, buildAzureOwnedResources 단순화 (또는 제거)
-- loadGcpResources 2-API 병합 폐기
-- (Phase 2 미처리 시) ResourceTransitionPanel 데이터 소스 → getApprovedIntegration
-- Project.resources 필드: deprecated 마킹 후 IDC/SDU 만 사용 (또는 완전 제거 — 의사결정 PR description)
-- target-source-response.ts normalizer 의 resources 필드 제거
+Done 정의:
+- AWS / Azure / GCP provider 페이지: project.resources 의존 전부 제거,
+  getConfirmResources(catalog) 자체 fetch 로 전환
+- loadAzureResources 4-API 병합 폐기 또는 step 1 catalog 단독으로 단순화
+- buildAzureOwnedResources: catalog-only mapper 로 단순화 (4-source fallback 폐기)
+- loadGcpResources 2-API 병합 폐기 또는 step 1 catalog 단독
+- ResourceTransitionPanel 데이터 소스를 getApprovedIntegration 으로 교체
+- mockTargetSources.get 의 Project 누설 차단 (toIssue222TargetSourceInfo 확장 +
+  AWS/GCP 식별자 / status / terraformState / id 포함, resources 만 제외)
+- target-source-response.ts normalizer 에 AWS/GCP 식별자 읽기 로직 추가
+- swagger ClientTargetSourceDetail 의 resources 를 required 에서 제거 (deprecated)
+- Project.resources 타입 필드: @deprecated JSDoc 마킹 (IDC/SDU 호환 유지 위해 삭제 X)
 
-Out of scope:
-- IDC / SDU 페이지 정리 (별도 wave)
-- Project.resources 완전 삭제 (IDC/SDU 분리 후 별도 wave)
+Out of scope — 별도 wave:
+- IDC / SDU 페이지의 project.resources 사용 제거 → 별도 IDC/SDU wave
+- Project.resources 완전 삭제 → 위 wave 머지 후 final removal wave
 ```
 
 ## Step 7 — Self-review
