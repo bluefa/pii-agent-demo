@@ -262,7 +262,7 @@ export const GcpProjectPage = ({
           processStatus={currentStep}
         />
       ) : currentStep >= ProcessStatus.INSTALLING ? (
-        <IntegrationTargetInfoCard targetSourceId={project.targetSourceId} />
+        <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />
       ) : resourceLoading ? (
         <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
           <LoadingSpinner />
