@@ -23,7 +23,7 @@
 - **Step**: 7단계 공통 구조
 - **배치**: `GuideCard` (`kind: 'process-step'`) — 각 provider 페이지의 프로세스 Step 에 노출
 - **언어**: 한국어 (`ko`) + 영어 (`en`), 둘 다 작성 필수
-- **Admin UI**: `/admin/guides` 단일 페이지 (path 기반 네비 없음)
+- **Admin UI**: `/integration/admin/guides` 단일 페이지 (path 기반 네비 없음)
 
 ### 1.3 Out of scope (향후 wave)
 
@@ -56,9 +56,11 @@
    - 저장 시 둘 다 non-empty (strip 후) 필수
    - 클라이언트·서버 양쪽에서 검증
 
-5. **허용 외 HTML = 렌더 거부**
-   - 저장 단계에서 `validateGuideHtml()` 통과 못하면 400
+5. **허용 외 HTML = 렌더 거부 (silent sanitize 금지)**
+   - 저장 단계 `validateGuideHtml()` 통과 못하면 400 (서버 측 raw input 검증)
+   - 클라이언트 UI 편의 수준에서 Tiptap 의 paste 정리는 **편의 기능** 일 뿐, 보안 계층으로 취급 안 함
    - 렌더 단계에서도 재검증 → 실패 시 에러 상태 표시 (절대 `dangerouslySetInnerHTML` 사용 안 함)
+   - GET 응답도 동일 allow-list 를 통과해야 정상 렌더. Drift 로 invalid 콘텐츠가 read path 에 있으면 `<GuideCardInvalidState>` 로 명시적 실패.
 
 ---
 
@@ -201,7 +203,13 @@ export interface GuideUpdateInput {
 
 ## 4. API 계약
 
-### 4.1 엔드포인트 (2개)
+### 4.1 경로 규약
+
+- 내부 CSR 라우트: `INTERNAL_INFRA_API_PREFIX = '/integration/api/v1'` (`lib/infra-api.ts`)
+- 상류 BFF: `UPSTREAM_INFRA_API_PREFIX = '/install/v1'` — 이번 스코프는 Mock 모드만. 실 BFF 연동은 향후 wave.
+- **본 명세의 모든 경로는 내부 CSR 기준**.
+
+### 4.2 엔드포인트 (2개)
 
 #### GET `/integration/api/v1/admin/guides/{name}`
 
@@ -209,8 +217,8 @@ export interface GuideUpdateInput {
 
 - **Path**: `name ∈ GUIDE_NAMES` (enum)
 - **Response**:
-  - `200 OK` — `GuideDetail`
-  - `404 GUIDE_NOT_FOUND` — `name` 이 `GUIDE_NAMES` 에 없음
+  - `200 OK` — `GuideDetail` (stored contents 반환. Drift 상태면 서버가 빈 콘텐츠로 seed 한 후 반환 — §4.5 참조)
+  - `404 GUIDE_NOT_FOUND` (`application/problem+json`) — `name` 이 `GUIDE_NAMES` 에 없음 (**invalid identifier**)
 
 ```json
 // 200 예시
@@ -231,38 +239,81 @@ export interface GuideUpdateInput {
 - **Body**: `GuideUpdateInput`
 - **Response**:
   - `200 OK` — `GuideDetail` (저장된 상태)
-  - `400 GUIDE_CONTENT_INVALID` — ko/en 중 비어있거나 HTML 검증 실패. `details` 에 구체 에러 위치
-  - `404 GUIDE_NOT_FOUND`
+  - `400 GUIDE_CONTENT_INVALID` (`application/problem+json`) — ko/en 중 비어있거나 HTML 검증 실패. `errors` 필드에 언어별 상세
+  - `404 GUIDE_NOT_FOUND` — invalid identifier
+
+### 4.3 에러 envelope — RFC 9457 `ProblemDetails`
+
+프로젝트 표준 (`app/api/_lib/problem.ts`) 을 그대로 사용:
+
+```ts
+// app/api/_lib/problem.ts 기존 타입
+interface ProblemDetails {
+  type: string;        // "https://pii-agent.dev/problems/GUIDE_NOT_FOUND"
+  title: string;       // "Guide Not Found"
+  status: number;      // 404
+  detail: string;      // 사용자 대상 설명
+  code: KnownErrorCode; // "GUIDE_NOT_FOUND"
+  retriable: boolean;
+  retryAfterMs?: number;
+  requestId: string;
+}
+
+// GUIDE_CONTENT_INVALID 는 ProblemDetails 확장 — errors 필드 추가
+interface GuideContentInvalidProblem extends ProblemDetails {
+  code: 'GUIDE_CONTENT_INVALID';
+  errors: {
+    ko?: ValidationError[];
+    en?: ValidationError[];
+  };
+}
+```
+
+Content-Type: `application/problem+json`.
 
 ```json
 // 400 예시
 {
-  "error": {
-    "code": "GUIDE_CONTENT_INVALID",
-    "message": "ko, en 모두 작성되어야 하며 허용된 HTML 태그만 사용할 수 있습니다.",
-    "details": {
-      "ko": ["허용되지 않은 태그: <script>"],
-      "en": ["빈 콘텐츠"]
-    }
+  "type": "https://pii-agent.dev/problems/GUIDE_CONTENT_INVALID",
+  "title": "Guide Content Invalid",
+  "status": 400,
+  "detail": "ko, en 모두 작성되어야 하며 허용된 HTML 태그만 사용할 수 있습니다.",
+  "code": "GUIDE_CONTENT_INVALID",
+  "retriable": false,
+  "requestId": "req_abc123",
+  "errors": {
+    "ko": [{ "code": "DISALLOWED_TAG", "message": "허용되지 않은 태그: <script>", "path": "div[0] > script[0]" }],
+    "en": [{ "code": "EMPTY_CONTENT", "message": "빈 콘텐츠" }]
   }
 }
 ```
 
-### 4.2 검증 규칙 (서버)
+### 4.4 검증 규칙 (서버)
 
-1. **Path 검증**: `name ∈ GUIDE_NAMES` → 404 if not
-2. **Body 스키마**: `contents.ko`, `contents.en` 모두 `string` 타입
-3. **Non-empty**: `stripHtmlText(contents.ko).trim().length > 0` AND `en` 동일
-4. **HTML validation**: `validateGuideHtml(contents.ko)` 와 `en` 모두 `valid: true`
+1. **Path 검증**: `name ∈ GUIDE_NAMES` → 아니면 `404 GUIDE_NOT_FOUND`
+2. **Body 스키마**: `contents.ko`, `contents.en` 모두 `string` 타입 → 아니면 `400 VALIDATION_FAILED`
+3. **Non-empty**: `stripHtmlText(contents.ko).trim().length > 0` AND `en` 동일 → 아니면 `400 GUIDE_CONTENT_INVALID` (+ `errors.<lang>: EMPTY_CONTENT`)
+4. **HTML validation**: `validateGuideHtml(contents.ko)` 와 `en` 모두 `valid: true` → 아니면 `400 GUIDE_CONTENT_INVALID` (+ 언어별 `errors[]`)
 
-### 4.3 List API 부재에 대한 결정
+### 4.5 GUIDE_NOT_FOUND 의미 경계 (중요)
+
+"가이드 없음" 은 **두 가지 상황** 으로 나뉜다:
+
+| 상황 | 서버 동작 | 근거 |
+|---|---|---|
+| **Invalid identifier** — `name ∉ GUIDE_NAMES` | `404 GUIDE_NOT_FOUND` | 오타·비정상 요청 |
+| **Drift** — `name ∈ GUIDE_NAMES` 지만 store 에 값 없음 | `200` + 빈 콘텐츠 (`{ ko: "", en: "" }`) + `updatedAt = null` + server log warn | Edit-first 정책. Admin 이 최초 작성 가능해야 함 |
+
+이로써 Admin UI 는 drift 상태에서도 빈 에디터를 바로 열 수 있다.
+
+### 4.6 List API 부재에 대한 결정
 
 **의도적으로 제공하지 않음**:
 - 가이드 이름 목록은 프론트 상수 (`GUIDE_NAMES`) 가 source of truth
-- 작성 현황 뱃지 UX 를 도입하지 않기로 결정 (이번 스코프 불필요)
-- 필요 시 향후 `GET /admin/guides/statuses` 등으로 추가 (한 번도 호출 안 되는 API 우선 제공 안 함)
+- 작성 현황 뱃지 UX 도입 안 함 (이번 스코프 불필요)
+- 필요 시 향후 `GET /integration/api/v1/admin/guides/statuses` 등으로 추가
 
-### 4.4 에러 코드 카탈로그 추가
+### 4.7 에러 코드 카탈로그 추가
 
 `app/api/_lib/problem.ts` `ERROR_CATALOG` 에 다음 추가:
 
@@ -286,7 +337,7 @@ GUIDE_CONTENT_INVALID:  { status: 400, title: 'Guide Content Invalid',  retriabl
 | 목록 항목 | `li` | — | `ul` / `ol` 내부만 가능 |
 | 강조 | `strong`, `em` | — | 인라인 |
 | 코드 | `code` | — | 인라인 (`pre` 불허) |
-| 링크 | `a` | `href`, `target`, `rel` | `href` 는 `https?://` \| `mailto:` \| `/`로 시작 |
+| 링크 | `a` | `href`, `target`, `rel` | `href` regex: `^(https?:\/\/|mailto:|\/(?!\/))` — protocol-relative `//host` **차단**, 내부 경로는 `/` 시작만 허용 |
 
 **명시적 차단**:
 - 모든 `<script>`, `<iframe>`, `<style>`, `<img>`, `<video>`, `<form>`, `<input>`
@@ -328,26 +379,34 @@ export function validateGuideHtml(html: string): ValidationResult;
 3. 각 노드마다 allow-list 대조 → 실패 시 `errors` 추가
 4. 모든 노드가 통과해야 `valid: true` + AST 반환
 
-### 5.3 3-Layer 방어
+### 5.3 방어 계층
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Layer 1 — Tiptap 에디터                                   │
-│  - allow-list 에 대응하는 extension 만 등록              │
-│  - 툴바에 허용 작업만 노출 (H4, B, I, Code, List, Link)  │
-│  - 붙여넣기 시 unknown 태그 자동 제거 (Tiptap 기본 동작) │
-├─────────────────────────────────────────────────────────┤
-│ Layer 2 — validateGuideHtml() (클라 + 서버 공통)         │
-│  - 저장 클릭 시 클라가 먼저 검증 → 실패면 인라인 경고    │
-│  - 서버가 PUT 핸들러에서 재검증 → 실패면 400             │
-├─────────────────────────────────────────────────────────┤
-│ Layer 3 — AST 기반 렌더러                                 │
-│  - renderGuideAst(ast) 가 React.createElement 로 트리 생성│
-│  - 허용 노드 타입 외에는 절대 렌더 안 됨                 │
-│  - dangerouslySetInnerHTML 사용 안 함                    │
-│  - 렌더 시점 재검증 실패 시 <GuideCardInvalidState />    │
-└─────────────────────────────────────────────────────────┘
-```
+┌─────────────────────────────────────────────────────────────┐
+│ [편의] Tiptap 에디터                                         │
+│  - allow-list 대응 extension 만 등록 (보안 보장 아님)        │
+│  - 툴바에 허용 작업만 노출 (H4, B, I, Code, List, Link)      │
+│  - paste 시 unknown 태그 제거는 편의 기능일 뿐,              │
+│    **보안 계층으로 취급 안 함** (우회 가능성 존재)           │
+├─────────────────────────────────────────────────────────────┤
+│ Layer A — validateGuideHtml() — 저장 경로 (서버 우선)       │
+│  - 서버 PUT 핸들러가 raw body 를 직접 검증 → 실패 시 400    │
+│  - 클라이언트도 동일 유틸로 사전 검증 (UX 용)                │
+│  - 서버가 **최종 권위** — 클라 검증 우회해도 저장 안 됨     │
+├─────────────────────────────────────────────────────────────┤
+│ Layer B — validateGuideHtml() — 렌더 경로                    │
+│  - GET 응답 및 Preview 의 draft HTML 도 렌더 전 재검증       │
+│  - 실패 시 <GuideCardInvalidState /> — 절대 raw 렌더 안 함  │
+├─────────────────────────────────────────────────────────────┤
+│ Layer C — renderGuideAst(ast) — AST 기반 React tree          │
+│  - React.createElement 로 트리 생성                         │
+│  - 허용 노드 타입 외에는 절대 렌더 안 됨                    │
+│  - dangerouslySetInnerHTML 사용 안 함 (구조적 XSS 불가)    │
+└─────────────────────────────────────────────────────────────┘
+
+→ 서버와 클라 **동일한** validator 를 사용 (`lib/utils/validate-guide-html.ts`).
+  server/client 양쪽에서 import 가능하도록 순수 DOM 비의존 구현
+  (DOMParser 는 서버에서 `linkedom` 또는 `jsdom` 동형 shim 으로 대체 가능).
 
 ### 5.4 Tiptap Extension 구성
 
@@ -377,7 +436,8 @@ export const guideExtensions = [
   Link.configure({
     openOnClick: false,
     HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
-    validate: (href: string) => /^(https?:\/\/|mailto:|\/)/.test(href),
+    // 주의: protocol-relative `//host` 차단을 위해 `\/(?!\/)` — `/` 뒤 `/` 가 오면 reject
+    validate: (href: string) => /^(https?:\/\/|mailto:|\/(?!\/))/.test(href),
   }),
 ];
 ```
@@ -388,7 +448,7 @@ export const guideExtensions = [
 
 ### 6.1 페이지 구조
 
-단일 URL: `/integration/admin/guides`
+단일 URL: `/integration/admin/guides` (Next.js 파일 기준 `app/integration/admin/guides/page.tsx`)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -502,17 +562,33 @@ error                 → toast "{error.message}" + idle 로 (입력값 유지)
 
 ### 6.6 미저장 변경 confirm
 
-#### 6.6.1 트리거
+#### 6.6.1 트리거 (2 종)
+
+**In-app navigation** (같은 SPA 내 이동):
 - Provider 탭 전환
 - Step 목록 행 클릭 (다른 slot 선택)
 - 언어 탭 전환 (편집 중 언어만 dirty 이어도)
-- 페이지 이탈 (`beforeunload`)
+
+**Browser navigation** (페이지 이탈):
+- 탭 닫기 / 다른 URL 이동 / 뒤로가기 — `beforeunload` event
 
 #### 6.6.2 동작
-- Browser-native `confirm()` 사용 (간단)
-- "저장되지 않은 변경사항이 있습니다. 이동하시겠습니까?"
-- OK → 변경 폐기 후 이동. Cancel → 현재 위치 유지.
-- `localStorage` 자동 저장·복구는 **하지 않음** (이번 스코프)
+
+| 트리거 | 다이얼로그 |
+|---|---|
+| In-app navigation (dirty 상태) | **프로젝트 Modal 컴포넌트** 사용 (`@/app/components/ui/Modal` + `useModal()` 훅. coding-standards §4 준수) |
+| Browser navigation (dirty 상태) | Browser-native `beforeunload` (브라우저가 자체 다이얼로그 표시, 커스터마이징 불가) |
+
+In-app Modal 내용:
+- 제목: "저장되지 않은 변경사항"
+- 본문: "현재 편집 중인 내용이 저장되지 않았습니다. 이동하시겠습니까?"
+- 버튼: `[취소]` (기본) / `[변경 폐기 후 이동]`
+
+Native `confirm()` 은 **사용 안 함** — 프로젝트 패턴과 디자인 시스템 위반.
+
+#### 6.6.3 Non-goals
+- `localStorage` 자동 저장·복구는 이번 스코프 제외
+- Undo/Redo 는 Tiptap 내장 history 로 한정 (에디터 세션 내 한정)
 
 ### 6.7 초기 상태 (선택 없음)
 
@@ -529,7 +605,7 @@ error                 → toast "{error.message}" + idle 로 (입력값 유지)
 | 네트워크 에러 (GET 실패) | `<ErrorState>` — "가이드를 불러올 수 없습니다. 다시 시도" 버튼 |
 | 네트워크 에러 (PUT 실패) | Toast 에러 + 입력값 유지 |
 | 렌더 검증 실패 (AST) | 미리보기에 `<GuideCardInvalidState>` — 에러 목록 표시 |
-| 404 GUIDE_NOT_FOUND | Registry ↔ store drift. 빈 콘텐츠로 초기화 후 편집 가능. 콘솔 warn |
+| 404 GUIDE_NOT_FOUND | **Invalid identifier** (registry 에 없음) — 이 경우는 라우팅 오류이므로 `<ErrorState>` 표시. Drift 는 §4.5 에 따라 서버가 200 + 빈 콘텐츠로 응답하므로 여기 해당 안 됨. |
 
 ---
 
@@ -575,12 +651,34 @@ Script 검증 항목:
 
 ### 8.1 Unit
 
-| 대상 | 테스트 |
-|---|---|
-| `validateGuideHtml()` | 허용 태그 pass · 금지 태그 reject · URL scheme 검증 · 구조 위반 · 빈 콘텐츠 |
-| `renderGuideAst()` | 각 노드 타입별 React element 생성 |
-| `resolveSlot()`, `findSlotsForGuide()` | registry 조회 정확성 |
-| Seed migration | 기존 상수 → HTML 변환 결과가 validator 통과 |
+#### `validateGuideHtml()` — 보안 핵심
+- 허용 태그 전수 pass (h4, p, br, ul, ol, li, strong, em, code, a)
+- 금지 태그 reject: `<script>`, `<iframe>`, `<style>`, `<img>`, `<form>`, `<input>`, `<video>`, `<object>`, `<h1>`~`<h6>` (h4 외)
+- 금지 속성 reject: `style`, `class`, `id`, `onclick`, `onerror`, 기타 `on*`
+- URL scheme 검증:
+  - ✅ `https://foo.com`, `http://foo.com`, `mailto:a@b.com`, `/path`
+  - ❌ `javascript:alert(1)`, `data:text/html,…`, `//evil.com` (protocol-relative), `vbscript:…`
+- 구조 위반 reject: `<ul>` 안에 `<li>` 외 노드, top-level `<li>`, 중첩 `<a>`
+- 빈 콘텐츠: `<p></p>` 만 있는 경우 `EMPTY_CONTENT`
+- Malformed HTML parse error → `PARSE_ERROR`
+
+#### `renderGuideAst()`
+- 각 노드 타입별 React element 생성 (h4 / p / br / ul / ol / li / strong / em / code / a / text)
+- `a` 의 `target`/`rel` 속성 전달 확인
+- innerHTML 미사용 확인 (snapshot 검사)
+
+#### Registry resolver — 6 케이스
+- **process-step slot**: `resolveSlot('process.aws.auto.3')` → 올바른 `guideName` + placement
+- **공유 slot (many-to-one)**: `process.aws.auto.1` 과 `process.aws.manual.1` 이 같은 `AWS_TARGET_CONFIRM` 참조
+- **Missing slot key**: `resolveSlot('invalid.key' as any)` → `undefined` 또는 throw (구현 선택, 일관성만 확인)
+- **Duplicate 방어**: `GUIDE_SLOTS` 컴파일 타임 중복 slot key 존재 시 TypeScript error (타입 시스템 검증)
+- **Placement kind 분기**: `process-step` 외 kind(`side-panel` 등)는 이번 스코프에서 사용 안 됨 — 타입 체크만 + 시험용 slot 추가 시 컴파일 통과 확인
+- **findSlotsForGuide()**: 단일 slot 참조 · 다중 slot 참조 · 참조 없는 name 모두 검증
+
+#### Seed migration
+- 22 guide names 모두 시드 콘텐츠 있음
+- 각 시드가 `validateGuideHtml()` 통과 (PARSE_ERROR 및 DISALLOWED_TAG 없음)
+- 시드의 `ko` 는 기존 상수 변환 결과, `en` 은 빈 문자열
 
 ### 8.2 Drift CI 테스트
 
@@ -611,7 +709,7 @@ it('GUIDE_SLOTS 의 guideName 은 모두 GUIDE_NAMES 에 존재한다', () => {
 
 ### 8.4 E2E (수동 / Playwright 선택)
 
-1. /admin/guides 진입 → AWS 탭 선택 → step 3 선택 → 에디터 로드 확인
+1. /integration/admin/guides 진입 → AWS 탭 선택 → step 3 선택 → 에디터 로드 확인
 2. ko 편집 → 저장 버튼 disabled 유지 (en 비어있음)
 3. en 작성 → 저장 활성화 → 저장 → toast 성공
 4. 다른 slot 이동 → 미저장 변경 confirm 뜨지 않음

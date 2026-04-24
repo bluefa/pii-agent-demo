@@ -17,17 +17,24 @@ info:
     * **ko/en 동시 작성 필수** — 저장 시 둘 다 non-empty + HTML 검증 통과해야 200.
     * **허용 외 HTML = 렌더 거부** — `validateGuideHtml()` 3-layer 방어 (Tiptap → 서버 검증 → AST 렌더러).
 
-    ### 에러 코드
-    * `GUIDE_NOT_FOUND` (404) — path 의 `name` 이 `GUIDE_NAMES` 에 없음
-    * `GUIDE_CONTENT_INVALID` (400) — ko/en 중 비어있거나 허용 외 HTML 포함
+    ### 에러 코드 (ERROR_CATALOG 추가 항목)
+    * `GUIDE_NOT_FOUND` (404) — path 의 `name` 이 `GUIDE_NAMES` 상수 enum 에 없음 (invalid identifier)
+    * `GUIDE_CONTENT_INVALID` (400) — ko/en 중 비어있거나 허용 외 HTML 포함. `errors` 필드에 언어별 상세 에러.
+
+    > `GUIDE_NOT_FOUND` 는 **invalid identifier** 용이다. `name ∈ GUIDE_NAMES` 이지만 store 에 값이 없는 **drift 상태** 에서는 서버가 빈 콘텐츠를 seed 해 200 을 반환한다 (edit-first 정책). 이 경우 server log 에 warn 기록.
 
     ### 관련 문서
     * [기능 명세](../reports/guide-cms/spec.md)
     * [구현 계획](../reports/guide-cms/implementation-plan.md)
     * [ADR-010 Slot Registry](../adr/010-guide-cms-slot-registry.md)
+
+    ### 경로 규약
+    * 본 명세는 **Next.js 내부 CSR 엔드포인트** (`INTERNAL_INFRA_API_PREFIX = '/integration/api/v1'`) 를 기준으로 한다.
+    * 상류 BFF 엔드포인트는 별도 (`UPSTREAM_INFRA_API_PREFIX = '/install/v1'`) — 이번 스코프는 Mock 모드로만 구현, 실 BFF 연동은 향후 wave.
+    * 에러 응답 포맷은 RFC 9457 `application/problem+json` (`app/api/_lib/problem.ts` 참조).
 servers:
-  - url: /api/infra/v1
-    description: v1 Base Path (BFF 업스트림)
+  - url: /integration/api/v1
+    description: Next.js 내부 CSR 라우트 (INTERNAL_INFRA_API_PREFIX)
 tags:
   - name: Guides
     description: 가이드 콘텐츠 조회·편집
@@ -67,15 +74,19 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
-          description: name 이 GUIDE_NAMES 에 없음
+          description: name 이 GUIDE_NAMES 에 없음 (invalid identifier)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
               example:
-                error:
-                  code: GUIDE_NOT_FOUND
-                  message: 해당 가이드 이름을 찾을 수 없습니다.
+                type: 'https://pii-agent.dev/problems/GUIDE_NOT_FOUND'
+                title: 'Guide Not Found'
+                status: 404
+                detail: '해당 가이드 이름을 찾을 수 없습니다.'
+                code: GUIDE_NOT_FOUND
+                retriable: false
+                requestId: 'req_abc123'
 
     put:
       tags:
@@ -112,35 +123,43 @@ paths:
         '400':
           description: 콘텐츠 검증 실패 (빈 값 또는 허용 외 HTML)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/GuideContentInvalidError'
+                $ref: '#/components/schemas/GuideContentInvalidProblem'
               example:
-                error:
-                  code: GUIDE_CONTENT_INVALID
-                  message: "ko, en 모두 작성되어야 하며 허용된 HTML 태그만 사용할 수 있습니다."
-                  details:
-                    ko:
-                      - code: DISALLOWED_TAG
-                        message: "허용되지 않은 태그: <script>"
-                        path: "div[0] > script[0]"
-                    en:
-                      - code: EMPTY_CONTENT
-                        message: "빈 콘텐츠"
+                type: 'https://pii-agent.dev/problems/GUIDE_CONTENT_INVALID'
+                title: 'Guide Content Invalid'
+                status: 400
+                detail: 'ko, en 모두 작성되어야 하며 허용된 HTML 태그만 사용할 수 있습니다.'
+                code: GUIDE_CONTENT_INVALID
+                retriable: false
+                requestId: 'req_abc123'
+                errors:
+                  ko:
+                    - code: DISALLOWED_TAG
+                      message: "허용되지 않은 태그: <script>"
+                      path: "div[0] > script[0]"
+                  en:
+                    - code: EMPTY_CONTENT
+                      message: "빈 콘텐츠"
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
-          description: name 이 GUIDE_NAMES 에 없음
+          description: name 이 GUIDE_NAMES 에 없음 (invalid identifier)
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ProblemDetails'
               example:
-                error:
-                  code: GUIDE_NOT_FOUND
-                  message: 해당 가이드 이름을 찾을 수 없습니다.
+                type: 'https://pii-agent.dev/problems/GUIDE_NOT_FOUND'
+                title: 'Guide Not Found'
+                status: 404
+                detail: '해당 가이드 이름을 찾을 수 없습니다.'
+                code: GUIDE_NOT_FOUND
+                retriable: false
+                requestId: 'req_abc123'
 
 components:
   parameters:
@@ -252,23 +271,57 @@ components:
           type: string
           description: 위반 위치 경로 (예 'ul[0] > li[2]')
 
-    GuideContentInvalidError:
+    ProblemDetails:
       type: object
       required:
-        - error
+        - type
+        - title
+        - status
+        - detail
+        - code
+        - retriable
+        - requestId
+      description: |
+        RFC 9457 Problem Details. `app/api/_lib/problem.ts` 의 `ProblemDetails` 타입과 1:1 매칭.
+        Content-Type 은 `application/problem+json`.
       properties:
-        error:
-          type: object
-          required:
-            - code
-            - message
+        type:
+          type: string
+          format: uri
+          description: 에러 유형 URI (예 'https://pii-agent.dev/problems/GUIDE_NOT_FOUND')
+        title:
+          type: string
+          description: ERROR_CATALOG 의 title (예 'Guide Not Found')
+        status:
+          type: integer
+          description: HTTP status code
+        detail:
+          type: string
+          description: 사용자 대상 상세 메시지
+        code:
+          type: string
+          description: 프로젝트 에러 코드 (KnownErrorCode)
+        retriable:
+          type: boolean
+        retryAfterMs:
+          type: integer
+          description: 재시도 권장 지연 (retriable = true 일 때만)
+        requestId:
+          type: string
+          description: 추적용 요청 ID
+
+    GuideContentInvalidProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          description: |
+            `GUIDE_CONTENT_INVALID` 확장 — `ProblemDetails` 에 `errors` 필드 추가.
+            언어별 검증 에러 상세 제공.
           properties:
             code:
               type: string
               enum: [GUIDE_CONTENT_INVALID]
-            message:
-              type: string
-            details:
+            errors:
               type: object
               description: 언어별 검증 에러 상세
               properties:
@@ -281,41 +334,32 @@ components:
                   items:
                     $ref: '#/components/schemas/GuideValidationError'
 
-    ErrorResponse:
-      type: object
-      required:
-        - error
-      properties:
-        error:
-          type: object
-          required:
-            - code
-            - message
-          properties:
-            code:
-              type: string
-              description: 에러 코드 (ERROR_CATALOG 참조)
-            message:
-              type: string
-
   responses:
     Unauthorized:
       description: 인증 실패
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: '#/components/schemas/ProblemDetails'
           example:
-            error:
-              code: UNAUTHORIZED
-              message: 인증이 필요합니다.
+            type: 'https://pii-agent.dev/problems/UNAUTHORIZED'
+            title: 'Unauthorized'
+            status: 401
+            detail: '인증이 필요합니다.'
+            code: UNAUTHORIZED
+            retriable: false
+            requestId: 'req_abc123'
     PermissionDenied:
       description: 권한 없음 (Admin 역할 필요)
       content:
-        application/json:
+        application/problem+json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: '#/components/schemas/ProblemDetails'
           example:
-            error:
-              code: FORBIDDEN
-              message: 관리자 권한이 필요합니다.
+            type: 'https://pii-agent.dev/problems/FORBIDDEN'
+            title: 'Forbidden'
+            status: 403
+            detail: '관리자 권한이 필요합니다.'
+            code: FORBIDDEN
+            retriable: false
+            requestId: 'req_abc123'
