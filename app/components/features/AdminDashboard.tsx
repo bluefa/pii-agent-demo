@@ -175,10 +175,14 @@ export const AdminDashboard = () => {
     try {
       setApprovalModal({ status: 'submitting', detail: currentDetail });
       await approveApprovalRequestV1(currentDetail.project.targetSourceId);
-      setApprovalModal({ status: 'closed' });
+      setApprovalModal((prev) =>
+        prev.status === 'submitting' ? { status: 'closed' } : prev,
+      );
       await refreshProjects();
     } catch (err) {
-      setApprovalModal({ status: 'view', detail: currentDetail });
+      setApprovalModal((prev) =>
+        prev.status === 'submitting' ? { status: 'view', detail: currentDetail } : prev,
+      );
       toast.error(err instanceof Error ? err.message : '승인 처리 실패');
     }
   };
@@ -189,10 +193,14 @@ export const AdminDashboard = () => {
     try {
       setApprovalModal({ status: 'submitting', detail: currentDetail });
       await rejectApprovalRequestV1(currentDetail.project.targetSourceId, reason);
-      setApprovalModal({ status: 'closed' });
+      setApprovalModal((prev) =>
+        prev.status === 'submitting' ? { status: 'closed' } : prev,
+      );
       await refreshProjects();
     } catch (err) {
-      setApprovalModal({ status: 'view', detail: currentDetail });
+      setApprovalModal((prev) =>
+        prev.status === 'submitting' ? { status: 'view', detail: currentDetail } : prev,
+      );
       toast.error(err instanceof Error ? err.message : '반려 처리 실패');
     }
   };
