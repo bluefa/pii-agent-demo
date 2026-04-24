@@ -27,7 +27,6 @@ import {
   EMPTY_CONFIRMED_INTEGRATION,
   confirmedIntegrationToResources,
 } from '@/lib/resource-catalog';
-import { getProjectCurrentStep } from '@/lib/process';
 
 interface AzureProjectPageProps {
   project: CloudTargetSource;
@@ -43,7 +42,7 @@ export const AzureProjectPage = ({
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
   const [fetchedResources, setFetchedResources] = useState<Resource[]>(EMPTY_RESOURCES);
 
-  const currentStep = getProjectCurrentStep(project);
+  const currentStep = project.processStatus;
   const needsConfirmedFetch = currentStep >= ProcessStatus.INSTALLING;
   const resources = needsConfirmedFetch ? fetchedResources : EMPTY_RESOURCES;
 

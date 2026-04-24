@@ -832,8 +832,6 @@ components:
         - serviceCode
         - cloudProvider
         - processStatus
-        - status
-        - terraformState
         - createdAt
         - updatedAt
         - name
@@ -859,12 +857,6 @@ components:
             - SDU
         processStatus:
           type: integer
-        status:
-          type: object
-          additionalProperties: true
-        terraformState:
-          type: object
-          additionalProperties: true
         createdAt:
           type: string
           format: date-time

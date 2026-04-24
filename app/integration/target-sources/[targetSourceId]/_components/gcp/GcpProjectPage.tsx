@@ -6,7 +6,6 @@ import {
   getProject,
   getConfirmedIntegration,
 } from '@/app/lib/api';
-import { getProjectCurrentStep } from '@/lib/process';
 import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
@@ -37,7 +36,7 @@ export const GcpProjectPage = ({
 }: GcpProjectPageProps) => {
   const [fetchedResources, setFetchedResources] = useState<Resource[]>(EMPTY_RESOURCES);
 
-  const currentStep = getProjectCurrentStep(project);
+  const currentStep = project.processStatus;
   const needsConfirmedFetch = currentStep >= ProcessStatus.INSTALLING;
   const resources = needsConfirmedFetch ? fetchedResources : EMPTY_RESOURCES;
 
