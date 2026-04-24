@@ -32,9 +32,7 @@ const defaultBehavior: CandidateResourceBehavior = {
 const credentialBehavior: CandidateResourceBehavior = {
   configKind: 'credential',
   isConfigured: () => true,
-  buildApprovalInput: (resource) => ({
-    credential_id: resource.selectedCredentialId ?? '',
-  }),
+  buildApprovalInput: () => undefined,
 };
 
 const endpointBehavior: CandidateResourceBehavior = {

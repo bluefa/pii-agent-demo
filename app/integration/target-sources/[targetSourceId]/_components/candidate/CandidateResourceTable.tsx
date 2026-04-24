@@ -5,16 +5,25 @@ import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { VmDatabaseConfigPanel } from '@/app/components/features/resource-table';
 import { VnetIntegrationGuideModal } from '@/app/components/features/resource-table/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
-import { cn, bgColors, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { getResourceDisplayName } from '@/lib/resource';
+import {
+  borderColors,
+  cn,
+  primaryColors,
+  statusColors,
+  tableStyles,
+  textColors,
+} from '@/lib/theme';
 import type {
   CandidateDraftState,
   CandidateResource,
   EndpointConfigDraft,
 } from '@/lib/types/resources';
-import { getCandidateBehavior } from './candidate-resource-behavior';
-import { CandidateEndpointConfigPanel } from './CandidateEndpointConfigPanel';
+import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 interface CandidateResourceTableProps {
   candidates: CandidateResource[];
@@ -28,21 +37,6 @@ interface CandidateResourceTableProps {
   onEndpointSave: (resourceId: string, draft: EndpointConfigDraft) => void;
   onRequestApproval: () => void;
 }
-
-const WarningTriangleIcon = ({ className }: { className?: string }) => (
-  <svg className={cn('w-3.5 h-3.5', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-  </svg>
-);
-
-const getDisplayName = (resourceId: string): string => {
-  if (!resourceId) return '—';
-  const lastSlash = resourceId.lastIndexOf('/');
-  if (lastSlash >= 0 && lastSlash < resourceId.length - 1) return resourceId.slice(lastSlash + 1);
-  const lastColon = resourceId.lastIndexOf(':');
-  if (lastColon >= 0 && lastColon < resourceId.length - 1) return resourceId.slice(lastColon + 1);
-  return resourceId;
-};
 
 export const CandidateResourceTable = ({
   candidates,
@@ -62,7 +56,7 @@ export const CandidateResourceTable = ({
 
   if (totalCount === 0) {
     return (
-      <div className={cn('rounded-lg border border-gray-200 bg-white px-6 py-10 text-center text-sm', textColors.tertiary)}>
+      <div className={cn('rounded-lg border bg-white px-6 py-10 text-center text-sm', borderColors.default, textColors.tertiary)}>
         발견된 리소스가 없습니다
       </div>
     );
@@ -70,11 +64,11 @@ export const CandidateResourceTable = ({
 
   return (
     <div>
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className={cn('rounded-lg border bg-white shadow-sm overflow-hidden', borderColors.default)}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className={cn('text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap', textColors.tertiary, bgColors.muted)}>
+              <tr className={cn('whitespace-nowrap', tableStyles.header)}>
                 {showCheckboxColumn && <th className="px-6 py-3 w-10" />}
                 <th className="px-6 py-3">연동 대상 여부</th>
                 <th className="px-6 py-3">DB Type</th>
@@ -85,7 +79,7 @@ export const CandidateResourceTable = ({
                 <th className="px-6 py-3">스캔 이력</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className={tableStyles.body}>
               {candidates.map((candidate) => (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -151,13 +145,13 @@ const CandidateResourceRow = ({
 }: CandidateResourceRowProps) => {
   const vnetModal = useModal();
   const behavior = getCandidateBehavior(candidate);
+  const requiresEndpointConfig = behavior.configKind === 'endpoint';
   const isIneligible = candidate.integrationCategory === 'INSTALL_INELIGIBLE';
   const hasEndpointConfig = behavior.isConfigured(candidate, drafts);
-  const requiresEndpointConfig = candidate.configKind === 'endpoint';
   const showConfigNeeded = requiresEndpointConfig && isSelected && !hasEndpointConfig;
   const canExpand = requiresEndpointConfig && isSelected && !readonly;
   const region = candidate.metadata.region ?? '—';
-  const displayName = getDisplayName(candidate.resourceId);
+  const displayName = getResourceDisplayName(candidate);
   const effectiveDbType = drafts.endpointDrafts[candidate.id]?.databaseType
     ?? candidate.endpointConfig?.databaseType
     ?? candidate.databaseType;
@@ -180,8 +174,7 @@ const CandidateResourceRow = ({
     <>
       <tr
         className={cn(
-          'transition-colors',
-          `hover:${bgColors.muted}`,
+          tableStyles.row,
           canExpand && 'cursor-pointer',
           isExpanded && statusColors.info.bg,
           showConfigNeeded && !isExpanded && statusColors.warning.bg,
@@ -190,7 +183,7 @@ const CandidateResourceRow = ({
         onClick={handleRowClick}
       >
         {showCheckboxColumn && (
-          <td className="px-6 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+          <td className="px-6 py-3 w-10" onClick={(event) => event.stopPropagation()}>
             <input
               type="checkbox"
               checked={isSelected}
@@ -202,9 +195,9 @@ const CandidateResourceRow = ({
         )}
 
         <td className="px-6 py-3">
-          <Badge variant={isIneligible ? 'pending' : 'success'} size="sm">
-            {isIneligible ? '비대상' : '대상'}
-          </Badge>
+          {isIneligible
+            ? <Badge variant="pending" size="sm">비대상</Badge>
+            : <Badge variant="success" size="sm">대상</Badge>}
         </td>
 
         <td className="px-6 py-3">
@@ -225,7 +218,7 @@ const CandidateResourceRow = ({
                 className={cn('flex-shrink-0 inline-flex items-center gap-1', statusColors.warning.text, 'hover:underline transition-opacity')}
                 aria-label="VNet Integration으로 인해 설치 불가 - 클릭하여 상세 안내 보기"
               >
-                <WarningTriangleIcon />
+                <StatusWarningIcon className="w-3.5 h-3.5" />
                 <span className={cn('text-xs font-medium', statusColors.warning.textDark)}>설치 불가</span>
               </button>
             )}
@@ -250,10 +243,9 @@ const CandidateResourceRow = ({
       </tr>
 
       {isExpanded && (
-        <CandidateEndpointConfigPanel
+        <VmDatabaseConfigPanel
           resourceId={candidate.id}
-          initial={drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig}
-          networkInterfaces={candidate.networkInterfaces}
+          initialConfig={drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig}
           onSave={handleEndpointSave}
           onCancel={() => onExpandToggle(null)}
         />

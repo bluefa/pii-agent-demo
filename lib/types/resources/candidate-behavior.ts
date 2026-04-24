@@ -3,7 +3,7 @@ import type {
   CandidateConfigKind,
   CandidateResource,
   EndpointConfigDraft,
-} from './candidate';
+} from '@/lib/types/resources/candidate';
 
 export interface CandidateDraftState {
   endpointDrafts: Record<string, EndpointConfigDraft>;

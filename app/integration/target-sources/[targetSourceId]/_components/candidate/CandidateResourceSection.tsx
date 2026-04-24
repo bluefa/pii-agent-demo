@@ -12,7 +12,9 @@ import { AppError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { ClockIcon, PlayIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
+import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
 import { ScanController } from '@/app/components/features/scan/ScanPanel';
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
@@ -33,9 +35,9 @@ import type {
 } from '@/lib/types/resources';
 import type { Resource } from '@/lib/types';
 import type { AsyncState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state';
-import { getCandidateBehavior } from './candidate-resource-behavior';
-import { getCandidateErrorMessage } from './errors';
-import { CandidateResourceTable } from './CandidateResourceTable';
+import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { getCandidateErrorMessage } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/errors';
+import { CandidateResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 
 const ApprovalRequestModal = dynamic(
   () =>
@@ -43,37 +45,6 @@ const ApprovalRequestModal = dynamic(
       (module) => ({ default: module.ApprovalRequestModal }),
     ),
   { ssr: false },
-);
-
-const clockIcon = (
-  <svg
-    className="w-3 h-3"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-const playIcon = (
-  <svg
-    className="w-3.5 h-3.5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2.2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <polygon points="5 3 19 12 5 21 5 3" />
-  </svg>
 );
 
 interface CandidateResourceSectionProps {
@@ -84,6 +55,7 @@ interface CandidateResourceSectionProps {
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 const EMPTY_CANDIDATES: CandidateResource[] = [];
+const EMPTY_MODAL_RESOURCES: Resource[] = [];
 
 const toModalResources = (
   candidates: readonly CandidateResource[],
@@ -110,13 +82,13 @@ export const CandidateResourceSection = ({
   refreshProject,
 }: CandidateResourceSectionProps) => {
   const toast = useToast();
+  const approvalModal = useModal();
   const [state, setState] = useState<AsyncState<CandidateResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [drafts, setDrafts] = useState<CandidateDraftState>(EMPTY_DRAFTS);
   const [expandedResourceId, setExpandedResourceId] = useState<string | null>(null);
-  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -156,7 +128,7 @@ export const CandidateResourceSection = ({
     },
     {
       onSuccess: () => {
-        setApprovalModalOpen(false);
+        approvalModal.close();
         setExpandedResourceId(null);
       },
       suppressAlert: true,
@@ -201,8 +173,8 @@ export const CandidateResourceSection = ({
       return;
     }
     approval.reset();
-    setApprovalModalOpen(true);
-  }, [approval, candidates, drafts, selectedIds, toast]);
+    approvalModal.open();
+  }, [approval, approvalModal, candidates, drafts, selectedIds, toast]);
 
   const handleScanComplete = useCallback(async () => {
     setSelectedIds(new Set());
@@ -217,26 +189,69 @@ export const CandidateResourceSection = ({
   }, [approval]);
 
   const modalResources = useMemo(
-    () => toModalResources(candidates, selectedIds, drafts),
-    [candidates, drafts, selectedIds],
+    () =>
+      approvalModal.isOpen
+        ? toModalResources(candidates, selectedIds, drafts)
+        : EMPTY_MODAL_RESOURCES,
+    [approvalModal.isOpen, candidates, drafts, selectedIds],
   );
+
+  const renderBody = (scanState: 'EMPTY' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILED', progress: number, startScan: () => void) => {
+    if (state.status === 'loading') {
+      return (
+        <div className="flex items-center justify-center gap-3 py-10">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>리소스 정보를 불러오는 중입니다.</span>
+        </div>
+      );
+    }
+    if (state.status === 'error') {
+      return (
+        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{state.message}</p>
+          <button onClick={refetch} className={getButtonClass('secondary')}>
+            다시 시도
+          </button>
+        </div>
+      );
+    }
+    if (candidates.length > 0) {
+      return (
+        <CandidateResourceTable
+          candidates={candidates}
+          selectedIds={selectedIds}
+          drafts={drafts}
+          expandedResourceId={expandedResourceId}
+          readonly={readonly}
+          approvalSubmitting={approval.loading}
+          onToggleSelected={handleToggleSelected}
+          onExpandToggle={handleExpandToggle}
+          onEndpointSave={handleEndpointSave}
+          onRequestApproval={handleRequestApproval}
+        />
+      );
+    }
+    if (scanState === 'IN_PROGRESS') return <ScanRunningState progress={progress} />;
+    if (scanState === 'FAILED') return <ScanErrorState onRetry={startScan} />;
+    return <ScanEmptyState />;
+  };
 
   return (
     <>
       <ScanController targetSourceId={targetSourceId} onScanComplete={handleScanComplete}>
         {({ state: scanState, lastScanAt, progress, starting, canStart, startScan }) => (
           <section className={cn(cardStyles.base, 'overflow-hidden')}>
-            <header className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 border-b border-gray-100">
+            <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
               <div className="flex-shrink-0">
-                <h2 className="text-[15px] font-semibold text-gray-900 whitespace-nowrap">연동 대상 DB 선택</h2>
-                <p className="mt-1 text-xs text-gray-500">
+                <h2 className={cn('text-[15px] font-semibold whitespace-nowrap', textColors.primary)}>연동 대상 DB 선택</h2>
+                <p className={cn('mt-1 text-xs', textColors.tertiary)}>
                   Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
                 </p>
               </div>
               <div className="flex items-center gap-3 flex-wrap justify-end">
                 {lastScanAt && (
                   <span className={cn('inline-flex items-center gap-1 text-[11.5px] whitespace-nowrap', textColors.tertiary)}>
-                    {clockIcon}
+                    <ClockIcon className="w-3 h-3" />
                     Last Scan: {formatDate(lastScanAt, 'datetime')}
                   </span>
                 )}
@@ -253,7 +268,7 @@ export const CandidateResourceSection = ({
                     </>
                   ) : (
                     <>
-                      {playIcon}
+                      <PlayIcon className="w-3.5 h-3.5" />
                       Run Infra Scan
                     </>
                   )}
@@ -261,48 +276,15 @@ export const CandidateResourceSection = ({
               </div>
             </header>
 
-            <div className="px-6 py-6">
-              {state.status === 'loading' ? (
-                <div className="flex items-center justify-center gap-3 py-10">
-                  <LoadingSpinner />
-                  <span className={cn('text-sm', textColors.tertiary)}>리소스 정보를 불러오는 중입니다.</span>
-                </div>
-              ) : state.status === 'error' ? (
-                <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-                  <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{state.message}</p>
-                  <button onClick={refetch} className={getButtonClass('secondary')}>
-                    다시 시도
-                  </button>
-                </div>
-              ) : candidates.length > 0 ? (
-                <CandidateResourceTable
-                  candidates={candidates}
-                  selectedIds={selectedIds}
-                  drafts={drafts}
-                  expandedResourceId={expandedResourceId}
-                  readonly={readonly}
-                  approvalSubmitting={approval.loading}
-                  onToggleSelected={handleToggleSelected}
-                  onExpandToggle={handleExpandToggle}
-                  onEndpointSave={handleEndpointSave}
-                  onRequestApproval={handleRequestApproval}
-                />
-              ) : scanState === 'IN_PROGRESS' ? (
-                <ScanRunningState progress={progress} />
-              ) : scanState === 'FAILED' ? (
-                <ScanErrorState onRetry={startScan} />
-              ) : (
-                <ScanEmptyState />
-              )}
-            </div>
+            <div className="px-6 py-6">{renderBody(scanState, progress, startScan)}</div>
           </section>
         )}
       </ScanController>
 
       {!readonly && (
         <ApprovalRequestModal
-          isOpen={approvalModalOpen}
-          onClose={() => setApprovalModalOpen(false)}
+          isOpen={approvalModal.isOpen}
+          onClose={approvalModal.close}
           onSubmit={handleApprovalSubmit}
           resources={modalResources}
           loading={approval.loading}

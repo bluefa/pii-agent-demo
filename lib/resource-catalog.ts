@@ -12,7 +12,6 @@ import {
 import type {
   ApprovedResource,
   CandidateBehaviorKey,
-  CandidateConfigKind,
   CandidateResource,
   ConfirmedResource,
   EndpointConfigDraft,
@@ -144,29 +143,22 @@ export const approvedIntegrationToResources = (
     };
   });
 
-// ===== Separated resource transformers =====
-// Emit Candidate / Approved / Confirmed shapes instead of the legacy Resource union.
+// Transformers for each resource phase; the behavior registry owns candidate
+// type-specific approval payload assembly so raw type strings stay out of the UI.
 
 const toEndpointConfigDraft = (item: CatalogItem): EndpointConfigDraft | undefined =>
   toVmDatabaseConfigFromCatalog(item);
 
-const classifyCandidate = (
-  item: CatalogItem,
-): { configKind: CandidateConfigKind; behaviorKey: CandidateBehaviorKey } => {
-  if (VM_RESOURCE_TYPES.has(item.resourceType)) {
-    return { configKind: 'endpoint', behaviorKey: 'endpoint' };
-  }
-  if (needsCredential(item.databaseType)) {
-    return { configKind: 'credential', behaviorKey: 'credential' };
-  }
-  return { configKind: 'none', behaviorKey: 'default' };
+const pickBehaviorKey = (item: CatalogItem): CandidateBehaviorKey => {
+  if (VM_RESOURCE_TYPES.has(item.resourceType)) return 'endpoint';
+  if (needsCredential(item.databaseType)) return 'credential';
+  return 'default';
 };
 
 export const catalogToCandidates = (
   catalog: readonly CatalogItem[],
 ): CandidateResource[] =>
   catalog.map((item) => {
-    const { configKind, behaviorKey } = classifyCandidate(item);
     const endpointConfig = toEndpointConfigDraft(item);
     return {
       id: item.id,
@@ -174,11 +166,9 @@ export const catalogToCandidates = (
       type: item.resourceType,
       databaseType: item.databaseType,
       integrationCategory: item.integrationCategory,
-      configKind,
-      behaviorKey,
+      behaviorKey: pickBehaviorKey(item),
       ...(endpointConfig ? { endpointConfig } : {}),
       metadata: item.metadata,
-      connectionStatus: 'PENDING',
     };
   });
 

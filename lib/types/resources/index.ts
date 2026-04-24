@@ -3,12 +3,12 @@ export type {
   CandidateConfigKind,
   CandidateResource,
   EndpointConfigDraft,
-} from './candidate';
+} from '@/lib/types/resources/candidate';
 
 export type {
   CandidateDraftState,
   CandidateResourceBehavior,
-} from './candidate-behavior';
+} from '@/lib/types/resources/candidate-behavior';
 
-export type { ApprovedResource } from './approved';
-export type { ConfirmedResource } from './confirmed';
+export type { ApprovedResource } from '@/lib/types/resources/approved';
+export type { ConfirmedResource } from '@/lib/types/resources/confirmed';

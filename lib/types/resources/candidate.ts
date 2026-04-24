@@ -4,7 +4,6 @@ import type {
   IntegrationCategory,
   VmDatabaseConfig,
 } from '@/lib/types';
-import type { AzureVmNic } from '@/lib/types/azure';
 
 export type CandidateConfigKind = 'none' | 'credential' | 'endpoint';
 export type CandidateBehaviorKey = 'default' | 'credential' | 'endpoint';
@@ -17,11 +16,7 @@ export interface CandidateResource {
   type: string;
   databaseType: DatabaseType;
   integrationCategory: IntegrationCategory;
-  selectedCredentialId?: string;
-  configKind: CandidateConfigKind;
   behaviorKey: CandidateBehaviorKey;
   endpointConfig?: EndpointConfigDraft;
-  networkInterfaces?: AzureVmNic[];
   metadata: ConfirmResourceMetadata;
-  connectionStatus: 'PENDING';
 }
