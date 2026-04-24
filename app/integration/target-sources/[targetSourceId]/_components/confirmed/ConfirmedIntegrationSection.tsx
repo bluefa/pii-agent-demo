@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getConfirmedIntegration } from '@/app/lib/api';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { confirmedIntegrationToConfirmed } from '@/lib/resource-catalog';
@@ -23,6 +23,13 @@ export const ConfirmedIntegrationSection = ({
   const [state, setState] = useState<AsyncState<ConfirmedResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
 
+  // Keep callback identity out of effect deps so a non-memoized caller cannot
+  // re-trigger the fetch effect.
+  const onLoadedRef = useRef(onConfirmedLoaded);
+  useEffect(() => {
+    onLoadedRef.current = onConfirmedLoaded;
+  }, [onConfirmedLoaded]);
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -30,20 +37,20 @@ export const ConfirmedIntegrationSection = ({
       .then((response) => {
         const data = confirmedIntegrationToConfirmed(response);
         setState({ status: 'ready', data });
-        onConfirmedLoaded?.(data);
+        onLoadedRef.current?.(data);
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
         if (isMissingConfirmedIntegrationError(error)) {
           setState({ status: 'ready', data: [] });
-          onConfirmedLoaded?.([]);
+          onLoadedRef.current?.([]);
           return;
         }
         setState({ status: 'error', message: getConfirmedErrorMessage(error) });
       });
 
     return () => controller.abort();
-  }, [targetSourceId, retryNonce, onConfirmedLoaded]);
+  }, [targetSourceId, retryNonce]);
 
   const handleRetry = useCallback(() => {
     setState({ status: 'loading' });
