@@ -17,9 +17,9 @@ import { ResourceTransitionPanel } from '@/app/components/features/process-statu
 import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
 import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
-import { useAzureProjectData } from './useAzureProjectData';
-import { useVmConfigForm } from './useVmConfigForm';
-import { buildApprovalResourceInputs } from './buildApprovalPayload';
+import { useAzureProjectData } from '@/app/integration/target-sources/[targetSourceId]/_components/azure/useAzureProjectData';
+import { useVmConfigForm } from '@/app/integration/target-sources/[targetSourceId]/_components/azure/useVmConfigForm';
+import { buildApprovalResourceInputs } from '@/app/integration/target-sources/[targetSourceId]/_components/azure/buildApprovalPayload';
 
 interface AzureProjectPageProps {
   project: Project;

@@ -1,8 +1,5 @@
 import type { Resource, VmDatabaseConfig } from '@/lib/types';
-
-export type ApprovalResourceInput =
-  | { resource_id: string; selected: true; resource_input: Record<string, unknown> }
-  | { resource_id: string; selected: false; exclusion_reason?: string };
+import type { ApprovalResourceInput, ApprovalResourceInputData } from '@/app/lib/api';
 
 interface BuildApprovalPayloadInput {
   displayResources: Resource[];
@@ -11,7 +8,7 @@ interface BuildApprovalPayloadInput {
   exclusionReasonDefault?: string;
 }
 
-const buildVmInput = (resource: Resource, vmConfig: VmDatabaseConfig) => ({
+const buildVmInput = (resource: Resource, vmConfig: VmDatabaseConfig): ApprovalResourceInputData => ({
   resource_id: resource.id,
   resource_type: resource.type,
   database_type: vmConfig.databaseType,
@@ -37,9 +34,13 @@ export const buildApprovalResourceInputs = ({
     }
 
     const vmConfig = draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig;
-    const resourceInput = vmConfig
+    const resourceInput: ApprovalResourceInputData = vmConfig
       ? buildVmInput(resource, vmConfig)
-      : { resource_id: resource.id, resource_type: resource.type, credential_id: resource.selectedCredentialId ?? '' };
+      : {
+        resource_id: resource.id,
+        resource_type: resource.type,
+        credential_id: resource.selectedCredentialId ?? '',
+      };
 
     return { resource_id: resource.id, selected: true, resource_input: resourceInput };
   });
