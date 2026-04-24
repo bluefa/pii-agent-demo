@@ -63,11 +63,16 @@ const isTerraformState = (value: unknown): value is TerraformState => (
   && typeof value.bdcTf === 'string'
 );
 
+const isCloudProvider = (value: unknown): value is CloudProvider =>
+  value === 'AWS'
+  || value === 'Azure'
+  || value === 'GCP';
+
 const isTargetSource = (value: unknown): value is TargetSource => (
   isRecord(value)
   && typeof value.id === 'string'
   && typeof value.targetSourceId === 'number'
-  && typeof value.cloudProvider === 'string'
+  && isCloudProvider(value.cloudProvider)
   && isProjectStatus(value.status)
   && isTerraformState(value.terraformState)
 );
