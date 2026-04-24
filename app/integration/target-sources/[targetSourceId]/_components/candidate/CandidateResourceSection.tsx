@@ -19,7 +19,10 @@ import { ScanController } from '@/app/components/features/scan/ScanPanel';
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
-import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
+import type {
+  ApprovalRequestFormData,
+  ApprovalRequestResource,
+} from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   cardStyles,
   cn,
@@ -32,7 +35,6 @@ import type {
   CandidateResource,
   EndpointConfigDraft,
 } from '@/lib/types/resources';
-import type { Resource } from '@/lib/types';
 import type { AsyncState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { getCandidateErrorMessage } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/errors';
@@ -58,7 +60,7 @@ interface CandidateResourceSectionProps {
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 const EMPTY_CANDIDATES: CandidateResource[] = [];
-const EMPTY_MODAL_RESOURCES: Resource[] = [];
+const EMPTY_MODAL_RESOURCES: ApprovalRequestResource[] = [];
 
 export const CandidateResourceSection = ({
   targetSourceId,

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Resource, SecretKey } from '@/lib/types';
+import type { SecretKey } from '@/lib/types';
+import type { ConfirmedResource } from '@/lib/types/resources';
 import { updateResourceCredential } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
@@ -12,7 +13,7 @@ import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 interface CredentialSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  missingResources: Resource[];
+  missingResources: readonly ConfirmedResource[];
   credentials: SecretKey[];
   targetSourceId: number;
   onComplete: () => void;
@@ -38,7 +39,7 @@ export const CredentialSetupModal = ({
     if (reviewMode) {
       const initial: Record<string, string> = {};
       missingResources.forEach((r) => {
-        if (r.selectedCredentialId) initial[r.id] = r.selectedCredentialId;
+        if (r.credentialId) initial[r.resourceId] = r.credentialId;
       });
       setSelections(initial);
     } else {
@@ -46,15 +47,15 @@ export const CredentialSetupModal = ({
     }
   }, [isOpen, reviewMode, missingResources]);
 
-  const allSelected = missingResources.every((r) => selections[r.id]);
+  const allSelected = missingResources.every((r) => selections[r.resourceId]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
       for (const resource of missingResources) {
-        const credentialId = selections[resource.id];
+        const credentialId = selections[resource.resourceId];
         if (credentialId) {
-          await updateResourceCredential(targetSourceId, resource.id, credentialId);
+          await updateResourceCredential(targetSourceId, resource.resourceId, credentialId);
         }
       }
       onComplete();
@@ -132,9 +133,9 @@ export const CredentialSetupModal = ({
           </thead>
           <tbody>
             {missingResources.map((resource) => {
-              const isSelected = !!selections[resource.id];
+              const isSelected = !!selections[resource.resourceId];
               return (
-                <tr key={resource.id} className="border-b border-gray-100 last:border-b-0">
+                <tr key={resource.resourceId} className="border-b border-gray-100 last:border-b-0">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className={cn('text-xs font-medium uppercase', textColors.quaternary)}>{resource.type}</span>
@@ -142,13 +143,13 @@ export const CredentialSetupModal = ({
                     </div>
                   </td>
                   <td className={cn('px-4 py-3 text-sm', textColors.secondary)}>
-                    {getDatabaseLabel(resource.databaseType)}
+                    {resource.databaseType ? getDatabaseLabel(resource.databaseType) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <select
-                      value={selections[resource.id] || ''}
+                      value={selections[resource.resourceId] || ''}
                       onChange={(e) =>
-                        setSelections((prev) => ({ ...prev, [resource.id]: e.target.value }))
+                        setSelections((prev) => ({ ...prev, [resource.resourceId]: e.target.value }))
                       }
                       className={cn(
                         'w-full px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2',

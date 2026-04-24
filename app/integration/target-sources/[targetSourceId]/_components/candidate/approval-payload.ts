@@ -1,6 +1,5 @@
-import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
+import type { ApprovalRequestFormData, ApprovalRequestResource } from '@/app/components/features/process-status/ApprovalRequestModal';
 import type { ApprovalResourceInput } from '@/app/lib/api';
-import type { Resource } from '@/lib/types';
 import type {
   CandidateDraftState,
   CandidateResource,
@@ -11,18 +10,24 @@ export const toModalResources = (
   candidates: readonly CandidateResource[],
   selectedIds: ReadonlySet<string>,
   drafts: CandidateDraftState,
-): Resource[] =>
+): ApprovalRequestResource[] =>
   candidates.map((candidate) => {
     const endpoint = drafts.endpointDrafts[candidate.id] ?? candidate.endpointConfig;
     return {
       id: candidate.id,
       resourceId: candidate.resourceId,
       type: candidate.type,
-      connectionStatus: 'PENDING',
       isSelected: selectedIds.has(candidate.id),
-      databaseType: candidate.databaseType,
       integrationCategory: candidate.integrationCategory,
-      ...(endpoint ? { vmDatabaseConfig: endpoint } : {}),
+      ...(endpoint
+        ? {
+            endpoint: {
+              databaseType: endpoint.databaseType,
+              port: endpoint.port,
+              ...(endpoint.host ? { host: endpoint.host } : {}),
+            },
+          }
+        : {}),
     };
   });
 

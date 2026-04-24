@@ -18,14 +18,14 @@ import {
 import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
-import type { Project, Resource } from '@/lib/types';
+import type { Project, MockResource } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 
 const TEST_PROJECT_ID = 'test-confirm-step4-proj';
 const TEST_TARGET_SOURCE_ID = 9998;
 const TEST_TARGET_SOURCE_ID_STR = String(TEST_TARGET_SOURCE_ID);
 
-const buildResource = (id: string, overrides?: Partial<Resource>): Resource => ({
+const buildResource = (id: string, overrides?: Partial<MockResource>): MockResource => ({
   id,
   type: 'RDS',
   resourceId: `rds-${id}`,

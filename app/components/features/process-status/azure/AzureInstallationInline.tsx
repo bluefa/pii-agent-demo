@@ -12,7 +12,7 @@ import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/ap
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { formatDateTime } from '@/lib/utils/date';
 import { statusColors, cn, textColors } from '@/lib/theme';
-import type { Resource } from '@/lib/types';
+import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
 import { toInternalInfraApiPath } from '@/lib/infra-api';
@@ -37,7 +37,7 @@ export interface UnifiedInstallResource {
 
 interface AzureInstallationInlineProps {
   targetSourceId: number;
-  resources: Resource[];
+  confirmed: readonly ConfirmedResource[];
   onInstallComplete?: () => void;
 }
 
@@ -81,7 +81,7 @@ const getLastCheckedLabel = (checkedAt?: string): string | null =>
 
 export const AzureInstallationInline = ({
   targetSourceId,
-  resources,
+  confirmed,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
   const { status, loading, refreshing, error, fetchStatus, refresh } =
@@ -93,20 +93,18 @@ export const AzureInstallationInline = ({
   const [showSubnetGuide, setShowSubnetGuide] = useState(false);
   const [showPeGuide, setShowPeGuide] = useState<{ show: boolean; peId?: string }>({ show: false });
 
-  const selectedResources = resources.filter(r => r.isSelected);
-
   const unifiedResources: UnifiedInstallResource[] = useMemo(() => {
     const v1ResourceMap = new Map(
       (status?.resources ?? []).map(r => [r.resourceId, r]),
     );
 
-    return selectedResources.map(resource => {
+    return confirmed.map(resource => {
       const v1 = v1ResourceMap.get(resource.resourceId);
       const isVm = resource.type === 'AZURE_VM';
 
       if (!v1) {
         return {
-          id: resource.id,
+          id: resource.resourceId,
           name: resource.resourceId,
           resourceType: resource.type,
           isVm,
@@ -117,7 +115,7 @@ export const AzureInstallationInline = ({
 
       const step = toInstallStep(v1);
       return {
-        id: resource.id,
+        id: resource.resourceId,
         name: resource.resourceId,
         resourceType: resource.type,
         isVm: v1.resourceType === 'AZURE_VM',
@@ -126,7 +124,7 @@ export const AzureInstallationInline = ({
         isCompleted: step === 'COMPLETED',
       };
     });
-  }, [selectedResources, status]);
+  }, [confirmed, status]);
 
   const completedCount = unifiedResources.filter(r => r.isCompleted).length;
   const totalCount = unifiedResources.length;

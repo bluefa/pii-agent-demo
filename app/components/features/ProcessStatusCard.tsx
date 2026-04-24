@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import dynamic from 'next/dynamic';
-import { CloudTargetSource, ProcessStatus, Resource } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus } from '@/lib/types';
+import type { ConfirmedResource } from '@/lib/types/resources';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import {
   StepProgressBar,
@@ -14,16 +14,11 @@ import { GcpInstallationInline } from './process-status/gcp';
 import { ProjectHistoryPanel } from './history';
 import { TIMINGS } from '@/lib/constants/timings';
 import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
-import type { ApprovalRequestFormData } from './process-status/ApprovalRequestModal';
 import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
 import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
 
-// bundle-dynamic-imports: 모달은 열릴 때만 필요 → 지연 로딩
-const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
-
 type ProcessTabType = 'status' | 'history';
 
-// rendering-hoist-jsx: 정적 탭 정의를 컴포넌트 밖으로 호이스팅
 const TABS: { id: ProcessTabType; label: string }[] = [
   { id: 'status', label: '프로세스 진행 상태' },
   { id: 'history', label: '진행 내역' },
@@ -31,34 +26,19 @@ const TABS: { id: ProcessTabType; label: string }[] = [
 
 interface ProcessStatusCardProps {
   project: CloudTargetSource;
-  resources: Resource[];
+  confirmed: readonly ConfirmedResource[];
   onProjectUpdate?: (project: CloudTargetSource) => void;
-  approvalModalOpen?: boolean;
-  onApprovalModalClose?: () => void;
-  onApprovalSubmit?: (data: ApprovalRequestFormData) => void;
-  approvalLoading?: boolean;
-  approvalError?: string | null;
-  approvalResources?: Resource[];
 }
 
 export const ProcessStatusCard = ({
   project,
-  resources,
+  confirmed,
   onProjectUpdate,
-  approvalModalOpen = false,
-  onApprovalModalClose,
-  onApprovalSubmit,
-  approvalLoading = false,
-  approvalError,
-  approvalResources,
 }: ProcessStatusCardProps) => {
-  // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
 
   const currentStep = project.processStatus;
-  const selectedResources = resources.filter((r) => r.isSelected);
 
-  // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableOnProjectUpdate = useCallback(
     (p: CloudTargetSource) => onProjectUpdate?.(p),
@@ -95,7 +75,6 @@ export const ProcessStatusCard = ({
       }
     };
 
-    // 마운트 시 즉시 1회 조회
     poll();
 
     pollRef.current = setInterval(poll, TIMINGS.PROCESS_STATUS_POLL_MS);
@@ -107,7 +86,6 @@ export const ProcessStatusCard = ({
     };
   }, [currentStep, project.targetSourceId, stableOnProjectUpdate]);
 
-  // 프로젝트 상태 갱신 — 설치 완료, credential 변경 등 서버 데이터 변경 후 호출
   const refreshProject = useCallback(async () => {
     try {
       const updatedProject = await getProject(project.targetSourceId);
@@ -121,7 +99,6 @@ export const ProcessStatusCard = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
-      {/* 탭 헤더 */}
       <div className="border-b border-gray-200">
         <nav className="flex">
           {TABS.map((tab) => (
@@ -141,7 +118,6 @@ export const ProcessStatusCard = ({
         </nav>
       </div>
 
-      {/* 탭 콘텐츠 */}
       <div className="p-6 flex-1 flex flex-col">
         {activeTab === 'status' && (
           <>
@@ -150,7 +126,6 @@ export const ProcessStatusCard = ({
             <div className="border-t border-gray-100 my-4" />
 
             <div className="flex-1 flex flex-col">
-              {/* Action Buttons */}
               <div className="mt-auto pt-4">
                 {currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
                   <div className={cn('w-full p-4 rounded-lg space-y-2', statusColors.info.bg, statusColors.info.border, 'border')}>
@@ -194,7 +169,7 @@ export const ProcessStatusCard = ({
                   project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
-                      resources={resources}
+                      confirmed={confirmed}
                       onInstallComplete={refreshProject}
                     />
                   ) : project.cloudProvider === 'AWS' ? (
@@ -213,7 +188,7 @@ export const ProcessStatusCard = ({
                 {currentStep === ProcessStatus.WAITING_CONNECTION_TEST && (
                   <ConnectionTestPanel
                     targetSourceId={project.targetSourceId}
-                    selectedResources={selectedResources}
+                    confirmed={confirmed}
                     onResourceUpdate={refreshProject}
                   />
                 )}
@@ -223,7 +198,7 @@ export const ProcessStatusCard = ({
                   <div className="grid grid-cols-1 gap-4">
                     <ConnectionTestPanel
                       targetSourceId={project.targetSourceId}
-                      selectedResources={selectedResources}
+                      confirmed={confirmed}
                       onResourceUpdate={refreshProject}
                     />
                   </div>
@@ -237,18 +212,6 @@ export const ProcessStatusCard = ({
           <ProjectHistoryPanel targetSourceId={project.targetSourceId} embedded />
         )}
       </div>
-
-      {/* Approval Request Modal */}
-      {onApprovalSubmit && onApprovalModalClose && (
-        <ApprovalRequestModal
-          isOpen={approvalModalOpen}
-          onClose={onApprovalModalClose}
-          onSubmit={onApprovalSubmit}
-          resources={approvalResources ?? resources}
-          loading={approvalLoading}
-          error={approvalError}
-        />
-      )}
     </div>
   );
 };

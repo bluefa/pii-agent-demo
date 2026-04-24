@@ -1,5 +1,5 @@
 import { getProjectByTargetSourceId } from '@/lib/mock-data';
-import { Project, Resource, isInstallIneligible } from '@/lib/types';
+import { Project, MockResource, isInstallIneligible } from '@/lib/types';
 import {
   AzureInstallationStatus,
   AzureResourceStatus,
@@ -35,11 +35,11 @@ const isAzureProject = (project: Project): boolean => {
   return project.cloudProvider === 'Azure';
 };
 
-const isDbResource = (resource: Resource): boolean => {
+const isDbResource = (resource: MockResource): boolean => {
   return AZURE_RESOURCE_TYPES.DB.includes(resource.type as typeof AZURE_RESOURCE_TYPES.DB[number]);
 };
 
-const isVmResource = (resource: Resource): boolean => {
+const isVmResource = (resource: MockResource): boolean => {
   return AZURE_RESOURCE_TYPES.VM.includes(resource.type as typeof AZURE_RESOURCE_TYPES.VM[number]);
 };
 

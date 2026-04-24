@@ -14,7 +14,7 @@ import type {
   ProjectStatus,
   CloudProvider,
   Project,
-  Resource,
+  MockResource,
   ResourceExclusion,
   ConnectionStatus,
   ConnectionTestResult,
@@ -426,7 +426,7 @@ export const mockProjects = {
 
     const vmConfigMap = new Map(vmConfigs.map(vc => [vc.resourceId, vc.config]));
 
-    const updatedResources: Resource[] = project.resources.map((r) => {
+    const updatedResources: MockResource[] = project.resources.map((r) => {
       const isSelected = selectedSet.has(r.id);
 
       let exclusion: ResourceExclusion | undefined = r.exclusion;
