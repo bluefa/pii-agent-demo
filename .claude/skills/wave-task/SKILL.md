@@ -130,6 +130,18 @@ Only auto-merge when `--skip-merge-wait` is passed.
 
 On user merge instruction → `/pr-merge` → `/worktree-cleanup`.
 
+## Phase 9 — Final Report
+
+Always emit a single final line before ending the turn, in this exact format:
+
+```
+wave-task done: PR #<number> <state> — <url>
+```
+
+- `<state>`: `OPEN` (Phase 6 finished, awaiting merge), `MERGED` (Phase 8 ran), or `CLOSED` if user aborted.
+- Derive via `gh pr view <number> --json number,state,url -q '"#\(.number) \(.state) — \(.url)"'`.
+- Print this line even when stopping early (review cap hit, user halt, error) — always include the PR number.
+
 ## Prohibited
 
 - Skipping Phase 0 (no implementation without a located spec).
