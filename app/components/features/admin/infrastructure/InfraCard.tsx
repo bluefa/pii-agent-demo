@@ -33,8 +33,6 @@ export const InfraCard = ({
   const [fetchState, setFetchState] = useState<FetchState>('idle');
 
   const canExpand =
-    project.cloudProvider !== 'IDC' &&
-    project.cloudProvider !== 'SDU' &&
     project.processStatus >= ProcessStatus.INSTALLING;
 
   const fetchResources = async () => {

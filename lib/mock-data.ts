@@ -147,25 +147,6 @@ export const mockServiceCodes: ServiceCode[] = [
 
 // ===== Mock Projects (각 단계별 1개씩) =====
 export const mockProjects: Project[] = [
-  // ===== SDU 프로젝트 =====
-  {
-    id: 'proj-sdu-001',
-    targetSourceId: 1001,
-    projectCode: 'SDU-2026-001',
-    name: 'SDU 연동 테스트 프로젝트',
-    description: 'SDU Athena 데이터베이스 연동을 위한 PII Agent 설치',
-    serviceCode: 'SERVICE-A',
-    cloudProvider: 'SDU',
-    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
-    resources: [],
-    terraformState: {
-      bdcTf: 'PENDING',
-    },
-    createdAt: '2026-01-15T09:00:00Z',
-    updatedAt: '2026-01-15T09:00:00Z',
-    isRejected: false,
-  },
   // ===== GCP 프로젝트 =====
   {
     id: 'gcp-proj-1',
@@ -654,61 +635,6 @@ export const mockProjects: Project[] = [
     isRejected: false,
   },
   {
-    id: 'proj-4',
-    targetSourceId: 1009,
-    projectCode: 'N-IRP-004',
-    name: 'PII Agent 설치 - IDC 운영 DB',
-    description: 'IDC 환경: 스캔 기능 없이 연동 대상 확정부터 진행합니다.',
-    serviceCode: 'SERVICE-B',
-    cloudProvider: 'IDC',
-    processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
-    resources: [
-      {
-        id: 'res-7',
-        type: 'MySQL',
-        resourceId: 'mysql-001',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
-        isSelected: true,
-        integrationCategory: 'TARGET',
-        note: 'NEW',
-      },
-      {
-        id: 'res-8',
-        type: 'PostgreSQL',
-        resourceId: 'pg-001',
-        databaseType: 'POSTGRESQL',
-        connectionStatus: 'PENDING',
-        isSelected: true,
-        integrationCategory: 'TARGET',
-        note: 'NEW',
-      },
-      {
-        id: 'res-excluded-1',
-        type: 'Oracle',
-        resourceId: 'oracle-legacy-001',
-        databaseType: 'ORACLE',
-        connectionStatus: 'PENDING',
-        isSelected: false,
-        integrationCategory: 'TARGET',
-        note: '제외됨',
-        exclusion: {
-          reason: '레거시 시스템 - 현재 지원되지 않음',
-          excludedAt: '2026-01-15T10:00:00Z',
-          excludedBy: { id: 'admin-1', name: '관리자' },
-        },
-      },
-    ],
-    terraformState: {
-      bdcTf: 'PENDING',
-      // IDC: firewallCheck는 설치 진행 후 확인
-    },
-    createdAt: '2024-01-20T10:00:00Z',
-    updatedAt: '2024-01-20T10:00:00Z',
-    isRejected: false,
-  },
-  {
     id: 'proj-5',
     targetSourceId: 1010,
     projectCode: 'DATA-005',
@@ -767,44 +693,6 @@ export const mockProjects: Project[] = [
     },
     createdAt: '2024-01-21T11:00:00Z',
     updatedAt: '2024-01-21T15:00:00Z',
-    isRejected: false,
-  },
-  // ===== SDU 프로젝트 =====
-  {
-    id: 'sdu-proj-1',
-    targetSourceId: 1011,
-    projectCode: 'SDU-001',
-    name: 'SDU PII Agent - 온프레미스 DB 연동',
-    description: 'SDU 환경 데이터베이스에 PII Agent 설치',
-    serviceCode: 'SERVICE-C',
-    cloudProvider: 'SDU',
-    processStatus: ProcessStatus.WAITING_APPROVAL,
-    status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { selectedCount: 2, excludedCount: 0 }),
-    resources: [
-      {
-        id: 'sdu-res-1',
-        type: 'IDC',
-        resourceId: 'sdu-mysql-001',
-        databaseType: 'MYSQL',
-        connectionStatus: 'PENDING',
-        isSelected: true,
-        integrationCategory: 'TARGET',
-      },
-      {
-        id: 'sdu-res-2',
-        type: 'IDC',
-        resourceId: 'sdu-oracle-001',
-        databaseType: 'ORACLE',
-        connectionStatus: 'PENDING',
-        isSelected: true,
-        integrationCategory: 'TARGET',
-      },
-    ],
-    terraformState: {
-      bdcTf: 'PENDING',
-    },
-    createdAt: '2026-01-28T10:00:00Z',
-    updatedAt: '2026-01-28T11:00:00Z',
     isRejected: false,
   },
 ];

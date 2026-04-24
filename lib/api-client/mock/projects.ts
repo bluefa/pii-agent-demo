@@ -151,7 +151,7 @@ export const mockProjects = {
       installation: { status: 'PENDING' },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -299,7 +299,7 @@ export const mockProjects = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -353,7 +353,7 @@ export const mockProjects = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -471,7 +471,7 @@ export const mockProjects = {
       installation: { status: 'PENDING' },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = await mockData.updateProject(project.id, {
       resources: updatedResources,
@@ -631,7 +631,7 @@ export const mockProjects = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = await mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -796,13 +796,6 @@ export const mockProjects = {
       return NextResponse.json(
         { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
         { status: 403 }
-      );
-    }
-
-    if (project.cloudProvider === 'IDC') {
-      return NextResponse.json(
-        { error: 'NOT_SUPPORTED', message: 'IDC 환경에서는 스캔 기능을 지원하지 않습니다.' },
-        { status: 400 }
       );
     }
 
@@ -1013,7 +1006,7 @@ export const mockProjects = {
           },
         };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = await mockData.updateProject(project.id, {
       resources: updatedResources,

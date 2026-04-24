@@ -4,7 +4,7 @@ import { ReactNode } from 'react';
 import { statusColors, badgeStyles, cn } from '@/lib/theme';
 import type { StatusType } from '@/lib/theme';
 
-export type BadgeVariant = StatusType | 'neutral' | 'aws' | 'idc';
+export type BadgeVariant = StatusType | 'neutral' | 'aws';
 export type BadgeSize = 'sm' | 'md';
 
 export interface BadgeProps {
@@ -29,7 +29,6 @@ const COLORS: Record<BadgeVariant, { bg: string; text: string; dot: string }> = 
   info: fromStatus('info'),
   neutral: { ...fromStatus('pending'), text: 'text-gray-800' },
   aws: fromStatus('warning'),
-  idc: { ...fromStatus('pending'), text: 'text-gray-700' },
 };
 
 export const Badge = ({ variant = 'neutral', size = 'sm', dot = false, children, className }: BadgeProps) => {

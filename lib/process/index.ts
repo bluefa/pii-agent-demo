@@ -8,7 +8,4 @@ export {
   getCurrentStep,
   getProjectCurrentStep,
   createInitialProjectStatus,
-  getSduCurrentStep,
 } from './calculator';
-
-export { mapSduStatusToProcessStatus } from './sdu-guide-bridge';

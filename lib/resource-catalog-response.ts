@@ -122,10 +122,9 @@ const normalizeIntegrationCategory = (value: unknown): IntegrationCategory => {
 
 const inferProviderFromResourceType = (resourceType: string): CloudProvider => {
   if (resourceType.startsWith('AZURE_')) return 'Azure';
-  if (resourceType === 'IDC') return 'IDC';
   if (resourceType.startsWith('AWS_') || AWS_RESOURCE_TYPES.has(resourceType)) return 'AWS';
   if (resourceType.startsWith('GCP_') || GCP_RESOURCE_TYPES.has(resourceType)) return 'GCP';
-  return 'IDC';
+  return 'AWS';
 };
 
 const normalizeMetadata = (
@@ -172,7 +171,7 @@ const normalizeResourceCatalogItem = (
   const rawResourceType = resource.resource_type
     ?? resource.resourceType
     ?? (metadataRecord ? readString(metadataRecord, 'resourceType') : undefined)
-    ?? 'IDC';
+    ?? 'UNKNOWN';
   const resourceType = normalizeResourceType(rawResourceType) ?? rawResourceType;
   const resourceId = resource.resource_id
     ?? resource.resourceId

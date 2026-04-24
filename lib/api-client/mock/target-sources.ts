@@ -12,7 +12,7 @@ import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
 
-type Issue222CloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
+type Issue222CloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'UNKNOWN';
 type Issue222ProcessStatus =
   | 'IDLE'
   | 'PENDING'
@@ -37,8 +37,6 @@ const toIssue222CloudProvider = (cloudProvider: CloudProvider): Issue222CloudPro
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
-    case 'SDU':
-      return 'UNKNOWN';
     default:
       return cloudProvider;
   }
@@ -52,11 +50,8 @@ const toInternalCloudProvider = (cloudProvider?: string): CloudProvider | null =
       return 'GCP';
     case 'AZURE':
       return 'Azure';
-    case 'IDC':
     case 'UNKNOWN':
-      return 'IDC';
-    case 'SDU':
-      return 'SDU';
+      return 'AWS';
     default:
       return null;
   }
@@ -98,15 +93,8 @@ const toIssue222TargetSourceDetail = (project: Project) => ({
     : {}),
 });
 
-// IDC 만 전용 catalog API 가 없어 수동 입력 resources 를 외부 응답에 포함한다.
-// AWS/Azure/GCP/SDU 는 step 별 API (resources/approved-integration/confirmed-integration) 사용.
-const shouldEmitLegacyResources = (cloudProvider: CloudProvider): boolean =>
-  cloudProvider === 'IDC';
-
-// SDU 는 Issue222 enum(UNKNOWN) 으로 축소되지 않고 라운드트립을 유지해야 한다 —
-// 클라이언트가 `cloudProvider === 'SDU'` 로 페이지를 분기.
 const toTargetSourceInfoCloudProvider = (cloudProvider: CloudProvider): string =>
-  cloudProvider === 'SDU' ? 'SDU' : toIssue222CloudProvider(cloudProvider);
+  toIssue222CloudProvider(cloudProvider);
 
 const toIssue222TargetSourceInfo = (project: Project) => ({
   id: project.id,
@@ -136,9 +124,6 @@ const toIssue222TargetSourceInfo = (project: Project) => ({
   ...(project.tenantId ? { tenantId: project.tenantId } : {}),
   ...(project.subscriptionId ? { subscriptionId: project.subscriptionId } : {}),
   ...(project.gcpProjectId ? { gcpProjectId: project.gcpProjectId } : {}),
-  ...(shouldEmitLegacyResources(project.cloudProvider)
-    ? { resources: project.resources }
-    : {}),
   ...(Object.keys(getIssue222Metadata(project)).length > 0
     ? { metadata: getIssue222Metadata(project) }
     : {}),

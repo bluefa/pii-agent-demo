@@ -18,8 +18,6 @@ const providerConfig: Record<CloudProvider, { bg: string; text: string; label: s
   AWS: { bg: 'bg-[#FF9900]/10', text: 'text-[#FF9900]', label: 'AWS' },
   Azure: { bg: 'bg-[#0078D4]/10', text: 'text-[#0078D4]', label: 'Azure' },
   GCP: { bg: 'bg-[#4285F4]/10', text: 'text-[#4285F4]', label: 'GCP' },
-  IDC: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'IDC' },
-  SDU: { bg: 'bg-purple-100', text: 'text-purple-600', label: 'SDU' },
 };
 
 // Simple Icons - Amazon AWS (https://simpleicons.org/)
@@ -43,27 +41,13 @@ const GcpIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const IdcIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-  </svg>
-);
-
-const SduIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-  </svg>
-);
-
 const IconMap: Record<CloudProvider, React.FC<{ className?: string }>> = {
   AWS: AwsIcon,
   Azure: AzureIcon,
   GCP: GcpIcon,
-  IDC: IdcIcon,
-  SDU: SduIcon,
 };
 
-export { AwsIcon, AzureIcon, GcpIcon, IdcIcon, SduIcon };
+export { AwsIcon, AzureIcon, GcpIcon };
 
 export const CloudProviderIcon = ({
   provider,
