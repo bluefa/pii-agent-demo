@@ -231,8 +231,6 @@ export interface BaseTargetSource {
   projectCode: string;
   serviceCode: string;
   processStatus: ProcessStatus;
-  status: ProjectStatus;
-  terraformState: TerraformState;
   createdAt: string;
   updatedAt: string;
   name: string;
@@ -273,6 +271,8 @@ export type TargetSource = CloudTargetSource;
  */
 export type Project = BaseTargetSource & {
   cloudProvider: CloudProvider;
+  status: ProjectStatus;
+  terraformState: TerraformState;
   resources: Resource[];
   awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;

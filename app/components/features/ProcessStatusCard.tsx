@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { CloudTargetSource, ProcessStatus, TerraformStatus, Resource } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus, Resource } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
-import { useModal } from '@/app/hooks/useModal';
-import { getProjectCurrentStep } from '@/lib/process';
 import {
   StepProgressBar,
   ConnectionTestPanel,
@@ -21,7 +19,6 @@ import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
 import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
 
 // bundle-dynamic-imports: 모달은 열릴 때만 필요 → 지연 로딩
-const TerraformStatusModal = dynamic(() => import('./TerraformStatusModal').then(m => ({ default: m.TerraformStatusModal })));
 const ApprovalRequestModal = dynamic(() => import('./process-status/ApprovalRequestModal').then(m => ({ default: m.ApprovalRequestModal })));
 
 type ProcessTabType = 'status' | 'history';
@@ -44,15 +41,6 @@ interface ProcessStatusCardProps {
   approvalResources?: Resource[];
 }
 
-const getProgress = (project: CloudTargetSource) => {
-  const items: TerraformStatus[] = [project.terraformState.bdcTf];
-  if (project.cloudProvider === 'AWS' && project.terraformState.serviceTf) {
-    items.unshift(project.terraformState.serviceTf);
-  }
-  const completed = items.filter(s => s === 'COMPLETED').length;
-  return { completed, total: items.length };
-};
-
 export const ProcessStatusCard = ({
   project,
   resources,
@@ -67,9 +55,7 @@ export const ProcessStatusCard = ({
   // Tab state
   const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
 
-  const terraformModal = useModal();
-  const currentStep = getProjectCurrentStep(project);
-  const progress = getProgress(project);
+  const currentStep = project.processStatus;
   const selectedResources = resources.filter((r) => r.isSelected);
 
   // Process-status polling for WAITING_APPROVAL and APPLYING_APPROVED
@@ -205,8 +191,7 @@ export const ProcessStatusCard = ({
                 )}
 
                 {currentStep === ProcessStatus.INSTALLING && (
-                  <>
-                  {project.cloudProvider === 'Azure' ? (
+                  project.cloudProvider === 'Azure' ? (
                     <AzureInstallationInline
                       targetSourceId={project.targetSourceId}
                       resources={resources}
@@ -217,26 +202,12 @@ export const ProcessStatusCard = ({
                       targetSourceId={project.targetSourceId}
                       onInstallComplete={refreshProject}
                     />
-                  ) : project.cloudProvider === 'GCP' ? (
+                  ) : (
                     <GcpInstallationInline
                       targetSourceId={project.targetSourceId}
                       onInstallComplete={refreshProject}
                     />
-                  ) : (
-                    <button
-                      onClick={() => terraformModal.open()}
-                      className={cn('w-full flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors border', statusColors.warning.bg, statusColors.warning.border, 'hover:bg-orange-100')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                        <span className={cn('font-medium', statusColors.warning.text)}>설치 상태 확인</span>
-                      </div>
-                      <span className={cn('px-2 py-0.5 text-sm font-medium rounded-full', statusColors.warning.bg, statusColors.warning.text)}>
-                        {progress.completed}/{progress.total}
-                      </span>
-                    </button>
-                  )}
-                  </>
+                  )
                 )}
 
                 {currentStep === ProcessStatus.WAITING_CONNECTION_TEST && (
@@ -266,15 +237,6 @@ export const ProcessStatusCard = ({
           <ProjectHistoryPanel targetSourceId={project.targetSourceId} embedded />
         )}
       </div>
-
-      {/* Terraform Status Modal (AWS/GCP only) */}
-      {terraformModal.isOpen && project.cloudProvider !== 'Azure' && (
-        <TerraformStatusModal
-          terraformState={project.terraformState}
-          cloudProvider={project.cloudProvider}
-          onClose={() => terraformModal.close()}
-        />
-      )}
 
       {/* Approval Request Modal */}
       {onApprovalSubmit && onApprovalModalClose && (
