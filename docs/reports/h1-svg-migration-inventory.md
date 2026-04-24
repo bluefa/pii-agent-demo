@@ -169,6 +169,7 @@ Recurring across many files; H1a–H1g 동안 점진 추가:
 ## Excluded — IDC/SDU (14 files, 35 SVGs) — deprecated
 
 ```
+app/integration/target-sources/[targetSourceId]/_components/sdu/SduProcessStatusCard.tsx (6)
 app/components/features/idc/IdcResourceInputPanel.tsx (5)
 app/components/features/idc/IdcResourceTable.tsx (1)
 app/components/features/idc/IdcPendingResourceList.tsx (1)
