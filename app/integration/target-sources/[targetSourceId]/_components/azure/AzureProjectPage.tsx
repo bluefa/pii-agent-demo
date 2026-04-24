@@ -1,18 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, ProcessStatus, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { Project, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
-import type {
-  ApprovalHistoryResponse,
-  ApprovedIntegrationResponse,
-  ConfirmedIntegrationResponse,
-  ConfirmResourceItem,
-} from '@/app/lib/api';
 import {
   createApprovalRequest,
-  getApprovalHistory,
-  getApprovedIntegration,
   getConfirmResources,
   getConfirmedIntegration,
   getProject,
@@ -32,8 +24,12 @@ import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { AppError } from '@/lib/errors';
-import { buildAzureOwnedResources } from '@/lib/azure-resource-ownership';
+import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
+import {
+  EMPTY_CONFIRMED_INTEGRATION,
+  catalogToResources,
+  confirmedIntegrationToResources,
+} from '@/lib/resource-catalog';
 import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 
@@ -42,28 +38,6 @@ interface AzureProjectPageProps {
   credentials: SecretKey[];
   onProjectUpdate: (project: Project) => void;
 }
-
-const EMPTY_CONFIRMED_INTEGRATION: ConfirmedIntegrationResponse = {
-  resource_infos: [],
-};
-
-const EMPTY_APPROVAL_HISTORY_PAGE: ApprovalHistoryResponse = {
-  content: [],
-  page: {
-    totalElements: 0,
-    totalPages: 0,
-    number: 0,
-    size: 1,
-  },
-};
-
-const isMissingSnapshotError = (error: unknown): boolean =>
-  error instanceof AppError
-  && (
-    error.code === 'NOT_FOUND'
-    || error.code === 'APPROVED_INTEGRATION_NOT_FOUND'
-    || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND'
-  );
 
 const getResourceErrorMessage = (error: unknown): string => {
   if (error instanceof AppError && error.isUserFacing) return error.message;
@@ -86,13 +60,11 @@ export const AzureProjectPage = ({
 
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
 
-  const [catalogResources, setCatalogResources] = useState<ConfirmResourceItem[]>([]);
-  const [latestApprovalRequest, setLatestApprovalRequest] = useState<ApprovalHistoryResponse['content'][number] | null>(null);
-  const [approvedIntegration, setApprovedIntegration] = useState<ApprovedIntegrationResponse['approved_integration'] | null>(null);
-  const [confirmedIntegration, setConfirmedIntegration] = useState<ConfirmedIntegrationResponse>(EMPTY_CONFIRMED_INTEGRATION);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceLoaded, setResourceLoaded] = useState(false);
   const [resourceError, setResourceError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,84 +102,53 @@ export const AzureProjectPage = ({
 
   const currentStep = getProjectCurrentStep(project);
 
-  const loadAzureResources = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
     setResourceLoading(true);
     setResourceError(null);
+    (async () => {
+      try {
+        if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+          const response = await getConfirmResources(project.targetSourceId);
+          if (cancelled) return;
+          setResources(catalogToResources(response.resources));
+        } else if (currentStep >= ProcessStatus.INSTALLING) {
+          const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+            if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+            throw error;
+          });
+          if (cancelled) return;
+          const confirmedResources = confirmedIntegrationToResources(response);
+          setResources(confirmedResources);
+          setSelectedIds(confirmedResources.map((r) => r.id));
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setResourceError(getResourceErrorMessage(error));
+      } finally {
+        if (!cancelled) {
+          setResourceLoading(false);
+          setResourceLoaded(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, project.targetSourceId, retryNonce]);
 
-    try {
-      const [
-        catalogResponse,
-        approvalHistoryResponse,
-        approvedIntegrationResponse,
-        confirmedIntegrationResponse,
-      ] = await Promise.all([
-        getConfirmResources(project.targetSourceId),
-        getApprovalHistory(project.targetSourceId, 0, 1).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_APPROVAL_HISTORY_PAGE;
-          throw error;
-        }),
-        getApprovedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) {
-            return { approved_integration: null } satisfies ApprovedIntegrationResponse;
-          }
-          throw error;
-        }),
-        getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingSnapshotError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-          throw error;
-        }),
-      ]);
-
-      setCatalogResources(catalogResponse.resources);
-      setLatestApprovalRequest(approvalHistoryResponse.content[0] ?? null);
-      setApprovedIntegration(approvedIntegrationResponse.approved_integration);
-      setConfirmedIntegration(confirmedIntegrationResponse);
-    } catch (error) {
-      setResourceError(getResourceErrorMessage(error));
-    } finally {
-      setResourceLoading(false);
-      setResourceLoaded(true);
-    }
-  }, [project.targetSourceId]);
-
-  useEffect(() => {
-    void loadAzureResources();
-  }, [loadAzureResources, currentStep, project.updatedAt]);
-
-  const azureResources = useMemo(
-    () =>
-      buildAzureOwnedResources({
-        currentStep,
-        projectResources: project.resources,
-        catalog: catalogResources,
-        latestApprovalRequest,
-        approvedIntegration,
-        confirmedIntegration,
-      }).resources,
-    [approvedIntegration, catalogResources, confirmedIntegration, currentStep, latestApprovalRequest, project.resources],
-  );
-
-  const restoredSelectedIds = useMemo(
-    () => azureResources.filter((resource) => resource.isSelected).map((resource) => resource.id),
-    [azureResources],
-  );
-
-  useEffect(() => {
-    setSelectedIds(restoredSelectedIds);
-    setDraftVmConfigs({});
-    setExpandedVmId(null);
-  }, [restoredSelectedIds, project.targetSourceId]);
-
-  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
 
   const displayResources = useMemo(
     () =>
-      azureResources.map((resource) => ({
+      resources.map((resource) => ({
         ...resource,
         vmDatabaseConfig: draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig,
       })),
-    [azureResources, draftVmConfigs],
+    [resources, draftVmConfigs],
   );
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const approvalResources = useMemo(
     () =>
@@ -225,10 +166,8 @@ export const AzureProjectPage = ({
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
-      const [updatedProject] = await Promise.all([
-        getProject(project.targetSourceId),
-        loadAzureResources(),
-      ]);
+      const updatedProject = await getProject(project.targetSourceId);
+      reloadResources();
       onProjectUpdate(updatedProject);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Credential 변경에 실패했습니다.');
@@ -298,10 +237,8 @@ export const AzureProjectPage = ({
         resource_inputs: resourceInputs,
       });
 
-      const [updatedProject] = await Promise.all([
-        getProject(project.targetSourceId),
-        loadAzureResources(),
-      ]);
+      const updatedProject = await getProject(project.targetSourceId);
+      reloadResources();
       onProjectUpdate(updatedProject);
       setApprovalModalOpen(false);
     } catch (error) {
@@ -312,10 +249,8 @@ export const AzureProjectPage = ({
   };
 
   const handleRefreshAfterProjectChange = async () => {
-    const [updatedProject] = await Promise.all([
-      getProject(project.targetSourceId),
-      loadAzureResources(),
-    ]);
+    const updatedProject = await getProject(project.targetSourceId);
+    reloadResources();
     onProjectUpdate(updatedProject);
   };
 
@@ -338,13 +273,13 @@ export const AzureProjectPage = ({
           <LoadingSpinner />
           <span className={cn('text-sm', textColors.tertiary)}>Azure 리소스 정보를 불러오는 중입니다.</span>
         </div>
-      ) : resourceError && catalogResources.length === 0 ? (
+      ) : resourceError && resources.length === 0 ? (
         <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
           <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
             {resourceError}
           </p>
           <button
-            onClick={() => void loadAzureResources()}
+            onClick={reloadResources}
             className={getButtonClass('secondary')}
           >
             다시 시도
@@ -372,7 +307,6 @@ export const AzureProjectPage = ({
           {currentStep === ProcessStatus.APPLYING_APPROVED ? (
             <ResourceTransitionPanel
               targetSourceId={project.targetSourceId}
-              resources={displayResources}
               cloudProvider={project.cloudProvider}
               processStatus={currentStep}
             />

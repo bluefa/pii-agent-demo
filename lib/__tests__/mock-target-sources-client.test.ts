@@ -43,4 +43,68 @@ describe('mockClient.targetSources', () => {
       },
     });
   });
+
+  describe('get', () => {
+    it('AWS target-source 응답은 awsAccountId 등 AWS 식별자를 노출하고 resources 필드는 누락한다', async () => {
+      const response = await mockClient.targetSources.get('1006');
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as { targetSource: Record<string, unknown> };
+      expect(payload.targetSource).toEqual(expect.objectContaining({
+        targetSourceId: 1006,
+        cloudProvider: 'AWS',
+        awsAccountId: expect.any(String),
+      }));
+      expect(payload.targetSource).not.toHaveProperty('resources');
+    });
+
+    it('GCP target-source 응답은 gcpProjectId 를 노출하고 resources 필드는 누락한다', async () => {
+      const response = await mockClient.targetSources.get('1002');
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as { targetSource: Record<string, unknown> };
+      expect(payload.targetSource).toEqual(expect.objectContaining({
+        targetSourceId: 1002,
+        cloudProvider: 'GCP',
+        gcpProjectId: expect.any(String),
+      }));
+      expect(payload.targetSource).not.toHaveProperty('resources');
+    });
+
+    it('Azure target-source 응답은 tenantId/subscriptionId 를 노출하고 resources 필드는 누락한다', async () => {
+      const response = await mockClient.targetSources.get('1003');
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as { targetSource: Record<string, unknown> };
+      expect(payload.targetSource).toEqual(expect.objectContaining({
+        targetSourceId: 1003,
+        cloudProvider: 'AZURE',
+      }));
+      expect(payload.targetSource).not.toHaveProperty('resources');
+    });
+
+    it('IDC target-source 응답은 호환 유지를 위해 resources 필드를 유지한다', async () => {
+      const response = await mockClient.targetSources.get('1009');
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as { targetSource: Record<string, unknown> };
+      expect(payload.targetSource).toEqual(expect.objectContaining({
+        targetSourceId: 1009,
+        cloudProvider: 'IDC',
+        resources: expect.any(Array),
+      }));
+    });
+
+    it('SDU target-source 응답은 cloudProvider 를 SDU 로 라운드트립한다 (UNKNOWN 으로 축소 금지)', async () => {
+      const response = await mockClient.targetSources.get('1001');
+      expect(response.status).toBe(200);
+
+      const payload = (await response.json()) as { targetSource: Record<string, unknown> };
+      expect(payload.targetSource).toEqual(expect.objectContaining({
+        targetSourceId: 1001,
+        cloudProvider: 'SDU',
+        resources: expect.any(Array),
+      }));
+    });
+  });
 });

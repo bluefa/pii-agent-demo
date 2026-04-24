@@ -241,6 +241,11 @@ export interface Project {
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;  // deprecated: status 필드에서 계산됨 (ADR-004)
   status: ProjectStatus;         // 비즈니스 상태 데이터 (ADR-004)
+  /**
+   * @deprecated AWS/Azure/GCP 는 step 별 전용 API (getConfirmResources / getApprovedIntegration / getConfirmedIntegration) 사용.
+   *   IDC/SDU 만 이 필드를 사용. 별도 wave 에서 IDC/SDU 를 전용 타입으로 분리한 뒤 완전 제거 예정.
+   *   신규 코드에서 참조 금지.
+   */
   resources: Resource[];
   terraformState: TerraformState;
   createdAt: string;

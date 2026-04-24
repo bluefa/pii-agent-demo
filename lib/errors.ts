@@ -89,3 +89,11 @@ export class AppError extends Error {
 export const isMissingConfirmedIntegrationError = (error: unknown): boolean =>
   error instanceof AppError
   && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND');
+
+/**
+ * approved-integration 스냅샷 부재 여부.
+ * step 3 진입 직후 스냅샷이 아직 작성되지 않은 상태의 공통 폴백 조건.
+ */
+export const isMissingApprovedIntegrationError = (error: unknown): boolean =>
+  error instanceof AppError
+  && (error.code === 'NOT_FOUND' || error.code === 'APPROVED_INTEGRATION_NOT_FOUND');
