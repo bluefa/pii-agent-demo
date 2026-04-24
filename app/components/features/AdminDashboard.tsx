@@ -16,73 +16,19 @@ import {
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
 } from '@/app/lib/api';
-import type { ServicePageResponse } from '@/app/lib/api';
-import type { ApprovalResourceInput } from '@/app/lib/api';
-import { ServiceCode, ProjectSummary } from '@/lib/types';
+import { ProjectSummary } from '@/lib/types';
 import { integrationRoutes } from '@/lib/routes';
-import { statusColors, textColors } from '@/lib/theme';
+import { cn, statusColors, textColors } from '@/lib/theme';
 import {
   ServiceSidebar,
   ApprovalDetailModal,
 } from './admin';
 import { InfrastructureList } from './admin/infrastructure';
-
-interface ServiceListState {
-  services: ServiceCode[];
-  selectedService: string | null;
-  query: string;
-  pageNum: number;
-  pageInfo: ServicePageResponse['page'];
-}
-
-type ServiceListAction =
-  | { type: 'SET_SERVICES'; services: ServiceCode[]; pageInfo: ServicePageResponse['page'] }
-  | { type: 'SET_SELECTED'; serviceCode: string | null }
-  | { type: 'SET_QUERY'; query: string }
-  | { type: 'SET_PAGE'; pageNum: number };
-
-const buildInitialServiceListState = (): ServiceListState => ({
-  services: [],
-  selectedService: null,
-  query: '',
-  pageNum: 0,
-  pageInfo: { totalElements: 0, totalPages: 0, number: 0, size: 10 },
-});
-
-const serviceListReducer = (
-  state: ServiceListState,
-  action: ServiceListAction,
-): ServiceListState => {
-  switch (action.type) {
-    case 'SET_SERVICES':
-      return { ...state, services: action.services, pageInfo: action.pageInfo };
-    case 'SET_SELECTED':
-      return { ...state, selectedService: action.serviceCode };
-    case 'SET_QUERY':
-      return { ...state, query: action.query };
-    case 'SET_PAGE':
-      return { ...state, pageNum: action.pageNum };
-  }
-};
-
-type ApprovalDetail = {
-  project: ProjectSummary;
-  approvalRequest: {
-    id: string;
-    requested_at: string;
-    requested_by: string;
-    input_data: {
-      resource_inputs: ApprovalResourceInput[];
-      exclusion_reason_default?: string;
-    };
-  };
-};
-
-type ApprovalModalState =
-  | { status: 'closed' }
-  | { status: 'create' }
-  | { status: 'view'; detail: ApprovalDetail }
-  | { status: 'submitting'; detail: ApprovalDetail };
+import {
+  serviceListReducer,
+  buildInitialServiceListState,
+  type ApprovalModalState,
+} from './admin-dashboard';
 
 export const AdminDashboard = () => {
   const router = useRouter();
@@ -283,8 +229,8 @@ export const AdminDashboard = () => {
                 action={
                   <>
                     {loading && projects.length > 0 && (
-                      <span className={`inline-flex items-center gap-1.5 text-xs ${textColors.tertiary}`}>
-                        <span className={`w-3 h-3 border-2 ${statusColors.pending.border} border-t-transparent rounded-full animate-spin`} />
+                      <span className={cn('inline-flex items-center gap-1.5 text-xs', textColors.tertiary)}>
+                        <span className={cn('w-3 h-3 border-2 border-t-transparent rounded-full animate-spin', statusColors.pending.border)} />
                         갱신 중
                       </span>
                     )}
