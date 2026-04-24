@@ -4,36 +4,26 @@ Baseline: `main@508b966` after PR358 merge.
 
 Source plan: `docs/reports/resource-model-separation-plan.md`
 
-This wave converts the PR358 plan into `/wave-task`-ready specs. Each spec must end with a build-green PR. Because `/wave-task` requires `tsc` and lint to pass per PR, this plan intentionally avoids the PR358 D0-b boundary that would delete runtime files before UI/type consumers are removed.
+This is the Opus MAX execution pack for Claude Code `/wave-task`.
+
+The original PR358 plan has many small D0-D4 steps. That is useful for low-risk incremental PRs, but it is too fragmented for a high-effort single-agent session. This pack compresses the work into three coherent specs. Each spec is still build-green and reviewable, but avoids unnecessary handoff overhead and transitional states.
 
 ## Execution Order
 
-Run sequentially unless a spec explicitly says otherwise.
+Run sequentially. Do not parallelize these specs because each one depends on the previous spec's type and file-removal surface.
 
 | Key | Spec | Goal |
 |---|---|---|
-| `wave16-D0a` | `wave16-D0a-idc-sdu-entry-cutoff.md` | Block IDC/SDU entry and detach ProjectDetail from IDC/SDU UI |
-| `wave16-D0b` | `wave16-D0b-idc-sdu-ui-removal.md` | Delete IDC/SDU UI trees after ProjectDetail no longer imports them |
-| `wave16-D0c` | `wave16-D0c-idc-sdu-runtime-removal.md` | Delete IDC/SDU API routes, API wrappers, mock clients, and mock seeds |
-| `wave16-D0d` | `wave16-D0d-idc-sdu-type-process-cleanup.md` | Shrink provider types/process/constants to AWS/Azure/GCP |
-| `wave16-D0e` | `wave16-D0e-idc-sdu-docs-cleanup.md` | Remove active IDC/SDU docs and update current-state docs |
-| `wave16-D1` | `wave16-D1-resource-types-behavior-scaffold.md` | Add Candidate/Approved/Confirmed types and behavior scaffold without breaking legacy consumers |
-| `wave16-D2` | `wave16-D2-candidate-section-migration.md` | Move Step1 candidate fetch/selection/approval into component-level section |
-| `wave16-D3` | `wave16-D3-approved-confirmed-section-migration.md` | Move approved/confirmed fetch and presentation into component-level sections |
-| `wave16-D4` | `wave16-D4-resource-section-cleanup.md` | Introduce shared ResourceSection switch and delete legacy Resource remnants |
+| `wave16-01` | `wave16-01-idc-sdu-removal.md` | Remove IDC/SDU code, routes, mocks, types, and active docs in one coherent cleanup PR |
+| `wave16-02` | `wave16-02-candidate-resource-section.md` | Add separated resource types and move Step1 candidate select/API/approval to `CandidateResourceSection` |
+| `wave16-03` | `wave16-03-approved-confirmed-cleanup.md` | Move approved/confirmed sections to component level, add shared `ResourceSection`, and delete legacy `Resource` remnants |
 
 ## Invocation
 
 ```bash
-/wave-task docs/reports/sit-migration-prompts/wave16-D0a-idc-sdu-entry-cutoff.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D0b-idc-sdu-ui-removal.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D0c-idc-sdu-runtime-removal.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D0d-idc-sdu-type-process-cleanup.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D0e-idc-sdu-docs-cleanup.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D1-resource-types-behavior-scaffold.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D2-candidate-section-migration.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D3-approved-confirmed-section-migration.md
-/wave-task docs/reports/sit-migration-prompts/wave16-D4-resource-section-cleanup.md
+/wave-task docs/reports/sit-migration-prompts/wave16-01-idc-sdu-removal.md
+/wave-task docs/reports/sit-migration-prompts/wave16-02-candidate-resource-section.md
+/wave-task docs/reports/sit-migration-prompts/wave16-03-approved-confirmed-cleanup.md
 ```
 
 ## Global Rules
@@ -45,14 +35,15 @@ Run sequentially unless a spec explicitly says otherwise.
 - Resource-type special behavior must go through candidate behavior registry. VM endpoint setup is the first behavior implementation, not a page-level branch.
 - Component-level sections own API calls, loading, error, retry, and cancellation. ProjectPage should only choose which section is visible.
 
-## Build-Green Decomposition Notes
+## Why Only Three Specs
 
-PR358 D1 originally says deleting `Resource` in D1 can break existing consumers until D2. That is not suitable for `/wave-task`. In this wave plan:
+Opus MAX can hold the cross-file context needed for each coherent migration. Smaller specs would create extra PRs without reducing conceptual difficulty.
 
-- D1 is additive: new types, transformers, and behavior contracts are introduced while legacy `Resource` exports remain.
-- D2 migrates candidate/Step1 behavior to the new model.
-- D3 migrates approved/confirmed behavior to the new model.
-- D4 removes transitional legacy types, converters, and switch duplication.
+- `wave16-01` is a deletion/ref-surface cleanup. Splitting it into entry/UI/runtime/types/docs creates temporary states that are harder to review.
+- `wave16-02` must combine type scaffold and Step1 migration. Adding types without migrating consumers leaves noise; migrating Step1 without types repeats the current `Resource` problem.
+- `wave16-03` must combine approved/confirmed migration and legacy cleanup. Otherwise the codebase keeps both the old and new resource paths.
+
+If a session cannot finish a spec while keeping `tsc` green, it should stop and report the exact blocker instead of inventing a fourth wave.
 
 ## Expected End State
 
