@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Project, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
@@ -19,6 +19,8 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
+import { useProjectPageFormState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/useProjectPageFormState';
+import { useProjectResources } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/useProjectResources';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
@@ -35,67 +37,61 @@ interface AwsProjectPageProps {
   onProjectUpdate: (project: Project) => void;
 }
 
+const getResourceErrorMessage = (error: unknown): string => {
+  if (error instanceof AppError && error.isUserFacing) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'AWS 리소스 정보를 불러오지 못했습니다.';
+};
+
 export const AwsProjectPage = ({
   project,
   credentials,
   onProjectUpdate,
 }: AwsProjectPageProps) => {
   const toast = useToast();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
-  const [approvalError, setApprovalError] = useState<string | null>(null);
-
-  // VM 설정 상태
-  const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
-  const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
-
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [resourceLoading, setResourceLoading] = useState(true);
-  const [resourceError, setResourceError] = useState<string | null>(null);
-  const [retryNonce, setRetryNonce] = useState(0);
+  const {
+    selectedIds, setSelectedIds,
+    vmConfigs, setVmConfigs,
+    submitting, setSubmitting,
+    approvalModalOpen, openApprovalModal, closeApprovalModal,
+    approvalError, setApprovalError,
+    expandedVmId, setExpandedVmId,
+  } = useProjectPageFormState();
 
   const currentStep = getProjectCurrentStep(project);
 
-  useEffect(() => {
-    if (!project.awsInstallationMode) return;
-    let cancelled = false;
-    setResourceLoading(true);
-    setResourceError(null);
-    (async () => {
-      try {
-        if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
-          const response = await getConfirmResources(project.targetSourceId);
-          if (cancelled) return;
-          setResources(catalogToResources(response.resources));
-        } else if (currentStep >= ProcessStatus.INSTALLING) {
-          const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
-            if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-            throw error;
-          });
-          if (cancelled) return;
-          const confirmedResources = confirmedIntegrationToResources(response);
-          setResources(confirmedResources);
-          setSelectedIds(confirmedResources.map((r) => r.id));
-        }
-      } catch (error) {
-        if (cancelled) return;
-        const message = error instanceof AppError && error.isUserFacing
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : 'AWS 리소스 정보를 불러오지 못했습니다.';
-        setResourceError(message);
-      } finally {
-        if (!cancelled) setResourceLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentStep, project.awsInstallationMode, project.targetSourceId, retryNonce]);
+  const loadResources = useCallback(async (): Promise<Resource[]> => {
+    if (!project.awsInstallationMode) return [];
+    if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+      const response = await getConfirmResources(project.targetSourceId);
+      return catalogToResources(response.resources);
+    }
+    if (currentStep >= ProcessStatus.INSTALLING) {
+      const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+        if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+        throw error;
+      });
+      return confirmedIntegrationToResources(response);
+    }
+    return [];
+  }, [project.awsInstallationMode, currentStep, project.targetSourceId]);
 
-  const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
+  const handleResourcesLoaded = useCallback((loaded: Resource[]) => {
+    if (currentStep >= ProcessStatus.INSTALLING) {
+      setSelectedIds(loaded.map((r) => r.id));
+    }
+  }, [currentStep, setSelectedIds]);
+
+  const {
+    resources,
+    loading: resourceLoading,
+    error: resourceError,
+    reload: reloadResources,
+  } = useProjectResources({
+    loadResources,
+    getErrorMessage: getResourceErrorMessage,
+    onLoaded: handleResourcesLoaded,
+  });
 
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
@@ -160,7 +156,7 @@ export const AwsProjectPage = ({
       return;
     }
 
-    setApprovalModalOpen(true);
+    openApprovalModal();
   };
 
   const handleApprovalSubmit = async (formData: ApprovalRequestFormData) => {
@@ -204,7 +200,7 @@ export const AwsProjectPage = ({
       const updatedProject = await getProject(project.targetSourceId);
       onProjectUpdate(updatedProject);
       setExpandedVmId(null);
-      setApprovalModalOpen(false);
+      closeApprovalModal();
     } catch (err) {
       setApprovalError(err instanceof Error ? err.message : '승인 요청에 실패했습니다.');
     } finally {
@@ -281,7 +277,7 @@ export const AwsProjectPage = ({
         resources={resources}
         onProjectUpdate={onProjectUpdate}
         approvalModalOpen={approvalModalOpen}
-        onApprovalModalClose={() => setApprovalModalOpen(false)}
+        onApprovalModalClose={closeApprovalModal}
         onApprovalSubmit={handleApprovalSubmit}
         approvalLoading={submitting}
         approvalError={approvalError}
