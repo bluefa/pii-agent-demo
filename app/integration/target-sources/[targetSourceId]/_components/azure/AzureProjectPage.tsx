@@ -30,7 +30,6 @@ import {
   catalogToResources,
   confirmedIntegrationToResources,
 } from '@/lib/resource-catalog';
-import { getProjectCurrentStep } from '@/lib/process';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 
 interface AzureProjectPageProps {
@@ -100,7 +99,7 @@ export const AzureProjectPage = ({
     [fallbackSettings, project.subscriptionId, project.tenantId],
   );
 
-  const currentStep = getProjectCurrentStep(project);
+  const currentStep = project.processStatus;
 
   useEffect(() => {
     let cancelled = false;

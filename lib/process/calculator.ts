@@ -60,16 +60,6 @@ const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
 };
 
 /**
- * Project 객체에서 현재 단계를 계산합니다.
- * 컴포넌트에서 간편하게 사용할 수 있는 헬퍼 함수입니다.
- */
-export const getProjectCurrentStep = (project: {
-  status: ProjectStatus;
-}): ProcessStatus => {
-  return getCurrentStep(project.status);
-};
-
-/**
  * 초기 ProjectStatus를 생성합니다.
  * 새 프로젝트 생성 시 사용합니다.
  */
