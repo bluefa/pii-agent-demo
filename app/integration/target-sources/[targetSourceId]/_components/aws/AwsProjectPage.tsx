@@ -21,13 +21,12 @@ import { AwsInstallationModeSelector } from '@/app/components/features/process-s
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
-import { AppError } from '@/lib/errors';
+import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
 import { cn, getButtonClass, statusColors, textColors } from '@/lib/theme';
 import {
   EMPTY_CONFIRMED_INTEGRATION,
   catalogToResources,
   confirmedIntegrationToResources,
-  isMissingConfirmedSnapshot,
 } from '@/lib/resource-catalog';
 
 interface AwsProjectPageProps {
@@ -67,7 +66,7 @@ export const AwsProjectPage = ({
         setResources(catalogToResources(response.resources));
       } else if (currentStep >= ProcessStatus.INSTALLING) {
         const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingConfirmedSnapshot(error)) return EMPTY_CONFIRMED_INTEGRATION;
+          if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
           throw error;
         });
         const confirmedResources = confirmedIntegrationToResources(response);

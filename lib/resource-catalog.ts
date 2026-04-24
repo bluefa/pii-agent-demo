@@ -1,4 +1,3 @@
-import { AppError } from '@/lib/errors';
 import type {
   BffConfirmedIntegration,
   ConfirmResourceMetadata,
@@ -12,12 +11,6 @@ import type {
 export const EMPTY_CONFIRMED_INTEGRATION: BffConfirmedIntegration = {
   resource_infos: [],
 };
-
-// step 4 진입 직후 confirmed-integration 이 아직 비어 있을 수 있음 —
-// 비어 있음을 빈 배열로 바꿔 UI 에 전달해 404 루프를 피한다.
-export const isMissingConfirmedSnapshot = (error: unknown): boolean =>
-  error instanceof AppError
-  && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND');
 
 // `getConfirmResources` 응답의 단일 아이템.
 // `app/lib/api` 의 `ConfirmResourceItem` 과 동일 shape 이지만, 레이어링 준수를 위해 재정의.

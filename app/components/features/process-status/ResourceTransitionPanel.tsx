@@ -6,7 +6,8 @@ import type { ApprovedIntegrationResourceItem } from '@/app/lib/api';
 import type { Resource, CloudProvider, ProcessStatus, DatabaseType, VmDatabaseType } from '@/lib/types';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { cn, statusColors, textColors, cardStyles } from '@/lib/theme';
+import { isMissingApprovedIntegrationError } from '@/lib/errors';
+import { cn, getButtonClass, statusColors, textColors, cardStyles } from '@/lib/theme';
 
 interface ResourceTransitionPanelProps {
   targetSourceId: number;
@@ -52,6 +53,7 @@ const approvedSnapshotToResources = (
 
 type FetchState =
   | { status: 'loading' }
+  | { status: 'error'; message: string }
   | { status: 'ready'; resources: Resource[] };
 
 export const ResourceTransitionPanel = ({
@@ -60,6 +62,7 @@ export const ResourceTransitionPanel = ({
   processStatus,
 }: ResourceTransitionPanelProps) => {
   const [state, setState] = useState<FetchState>({ status: 'loading' });
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,14 +72,27 @@ export const ResourceTransitionPanel = ({
         const infos = response.approved_integration?.resource_infos ?? [];
         setState({ status: 'ready', resources: approvedSnapshotToResources(infos) });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (cancelled) return;
-        setState({ status: 'ready', resources: [] });
+        if (isMissingApprovedIntegrationError(error)) {
+          // 스냅샷 미생성은 정상 — 빈 목록으로 처리.
+          setState({ status: 'ready', resources: [] });
+          return;
+        }
+        const message = error instanceof Error
+          ? error.message
+          : '반영 중인 리소스 목록을 불러오지 못했습니다.';
+        setState({ status: 'error', message });
       });
     return () => {
       cancelled = true;
     };
-  }, [targetSourceId]);
+  }, [targetSourceId, retryNonce]);
+
+  const handleRetry = () => {
+    setState({ status: 'loading' });
+    setRetryNonce((n) => n + 1);
+  };
 
   const resources = state.status === 'ready' ? state.resources : [];
 
@@ -99,6 +115,13 @@ export const ResourceTransitionPanel = ({
         <div className="px-6 py-12 flex items-center justify-center gap-3">
           <LoadingSpinner />
           <span className={cn('text-sm', textColors.tertiary)}>반영 중인 리소스 목록을 불러오는 중입니다.</span>
+        </div>
+      ) : state.status === 'error' ? (
+        <div className={cn('px-6 py-6 space-y-3', statusColors.error.bg)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{state.message}</p>
+          <button onClick={handleRetry} className={getButtonClass('secondary', 'sm')}>
+            다시 시도
+          </button>
         </div>
       ) : (
         <ResourceTable
