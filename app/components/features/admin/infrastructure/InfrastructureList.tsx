@@ -26,7 +26,7 @@ export const InfrastructureList = ({
   onConfirmCompletion,
   onViewApproval,
 }: InfrastructureListProps) => {
-  if (loading) {
+  if (loading && projects.length === 0) {
     return (
       <div className="p-12 text-center">
         <div
@@ -45,7 +45,7 @@ export const InfrastructureList = ({
   }
 
   return (
-    <div>
+    <div aria-busy={loading}>
       {projects.map((project) => (
         <InfraCard
           key={project.id}
