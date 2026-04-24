@@ -5,7 +5,6 @@ import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import { normalizeIssue222ProcessStatusResponse, type Issue222ProcessStatus } from '@/lib/issue-222-approval';
 import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
-import { getProjectCurrentStep } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 
 const toIssue222ProcessStatus = (processStatus: ProcessStatus): Issue222ProcessStatus => {
@@ -44,13 +43,9 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   }
 
   const project = extractTargetSource(await projectResponse.json() as TargetSourceDetailResponse);
-  const currentStep =
-    typeof project.processStatus === 'number' && ProcessStatus[project.processStatus] !== undefined
-      ? project.processStatus
-      : getProjectCurrentStep(project);
 
   return NextResponse.json({
     ...rawStatus,
-    process_status: toIssue222ProcessStatus(currentStep),
+    process_status: toIssue222ProcessStatus(project.processStatus),
   });
 });
