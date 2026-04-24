@@ -51,8 +51,9 @@ export const GcpProjectPage = ({
           throw error;
         });
         if (!cancelled) setFetchedResources(confirmedIntegrationToResources(response));
-      } catch {
-        // IntegrationTargetInfoCard handles its own error UI; ProcessStatusCard just sees empty resources
+      } catch (error) {
+        console.error('[GcpProjectPage] getConfirmedIntegration failed', error);
+        // IntegrationTargetInfoCard does its own fetch and surfaces the user-facing error.
       }
     })();
     return () => {
