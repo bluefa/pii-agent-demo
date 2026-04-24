@@ -5,17 +5,14 @@ import { getApprovalRequestLatest } from '@/app/lib/api';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
-import { ConfirmedIntegrationCollapse } from './ConfirmedIntegrationCollapse';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
 interface ApprovalApplyingBannerProps {
   targetSourceId?: number;
-  hasConfirmedIntegration?: boolean;
 }
 
 export const ApprovalApplyingBanner = ({
   targetSourceId,
-  hasConfirmedIntegration,
 }: ApprovalApplyingBannerProps) => {
   const detailModal = useModal();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
@@ -51,9 +48,7 @@ export const ApprovalApplyingBanner = ({
               승인이 완료되어 연동을 반영하고 있습니다
             </p>
             <p className={cn('text-sm mt-1', statusColors.info.text)}>
-              {hasConfirmedIntegration
-                ? '기존 연동 대상이 신규 연동 대상으로 전환됩니다. 반영은 최대 하루 소요될 수 있습니다.'
-                : '반영은 최대 하루 소요될 수 있습니다. 완료 시 알림을 보내드립니다.'}
+              반영은 최대 하루 소요될 수 있습니다. 완료 시 알림을 보내드립니다.
             </p>
             <div className="flex gap-2 mt-3">
               <button
@@ -64,12 +59,6 @@ export const ApprovalApplyingBanner = ({
                 승인 요약 보기
               </button>
             </div>
-            {hasConfirmedIntegration && targetSourceId && (
-              <ConfirmedIntegrationCollapse
-                targetSourceId={targetSourceId}
-                label="이전 연동 정보 보기"
-              />
-            )}
           </div>
         </div>
       </div>
