@@ -86,4 +86,23 @@ describe('extractTargetSource', () => {
       subscriptionId: 'subscription-1',
     });
   });
+
+  it('normalizes AZURE to Azure when a camelCase TargetSource-shaped payload carries the Issue #222 enum', () => {
+    const result = extractTargetSource({
+      id: 'proj-1',
+      targetSourceId: 1003,
+      projectCode: 'N-IRP-001',
+      serviceCode: 'SERVICE-A',
+      cloudProvider: 'AZURE',
+      processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+      status: createInitialProjectStatus(),
+      terraformState: { bdcTf: 'PENDING' },
+      createdAt: '2026-02-16T10:00:00Z',
+      updatedAt: '2026-02-16T10:10:00Z',
+      name: 'proj-1',
+      description: '',
+      isRejected: false,
+    });
+    expect(result.cloudProvider).toBe('Azure');
+  });
 });
