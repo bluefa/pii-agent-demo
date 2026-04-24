@@ -1,6 +1,6 @@
 import type { DashboardFilters } from '@/app/components/features/dashboard/types';
 
-export const INTEGRATION_OPTIONS = ['AWS', 'Azure', 'GCP', 'IDC', 'SDU', '수동조사'];
+export const INTEGRATION_OPTIONS = ['AWS', 'Azure', 'GCP', '수동조사'];
 
 export const STATUS_OPTIONS: { label: string; value: DashboardFilters['connection_status'] }[] = [
   { label: '전체', value: 'all' },

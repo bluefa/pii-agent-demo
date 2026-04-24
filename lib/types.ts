@@ -16,27 +16,21 @@ export type ConnectionStatus = 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
 
 export type TerraformStatus = 'COMPLETED' | 'FAILED' | 'PENDING';
 
-export type FirewallStatus = 'CONNECTED' | 'CONNECTION_FAIL';
-
 export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
 export type AwsInstallationMode = 'AUTO' | 'MANUAL';
 
-export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC' | 'SDU';
-export type Issue222CloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
+export type CloudProvider = 'AWS' | 'Azure' | 'GCP';
 
 const CLOUD_PROVIDER_ALIASES: Record<string, CloudProvider> = {
   AWS: 'AWS',
   AZURE: 'Azure',
   GCP: 'GCP',
-  IDC: 'IDC',
-  SDU: 'SDU',
-  UNKNOWN: 'IDC',
 };
 
 export const normalizeCloudProvider = (value: unknown): CloudProvider => {
-  if (typeof value !== 'string') return 'IDC';
-  return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'IDC';
+  if (typeof value !== 'string') return 'AWS';
+  return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'AWS';
 };
 
 export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'MONGODB' | 'ORACLE';
@@ -110,7 +104,7 @@ export type AzureNetworkingMode = 'PUBLIC_ACCESS' | 'VNET_INTEGRATION';
 
 export type GcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
 
-export type ResourceType = AwsResourceType | AzureResourceType | GcpResourceType | 'IDC';
+export type ResourceType = AwsResourceType | AzureResourceType | GcpResourceType;
 
 const RESOURCE_TYPE_ALIASES = {
   AWS_ATHENA: 'ATHENA',
@@ -229,8 +223,6 @@ export interface TerraformState {
   serviceTf?: TerraformStatus;
   // 공통: BDC 측 Terraform
   bdcTf: TerraformStatus;
-  // IDC 전용: 방화벽 연결 확인
-  firewallCheck?: FirewallStatus;
 }
 
 export interface BaseTargetSource {
@@ -273,20 +265,11 @@ export interface CloudTargetSource extends BaseTargetSource {
   gcpProjectId?: string;
 }
 
-export interface IdcTargetSource extends BaseTargetSource {
-  cloudProvider: 'IDC';
-  resources: Resource[];
-}
-
-export interface SduTargetSource extends BaseTargetSource {
-  cloudProvider: 'SDU';
-}
-
-export type TargetSource = CloudTargetSource | IdcTargetSource | SduTargetSource;
+export type TargetSource = CloudTargetSource;
 
 /**
- * @deprecated TargetSource union (CloudTargetSource / IdcTargetSource / SduTargetSource) 으로 마이그레이션 중.
- *   Mock 내부 도메인 모델 전용. 외부 응답 / 페이지 prop 에서는 TargetSource 서브타입을 사용.
+ * @deprecated TargetSource (CloudTargetSource) 으로 마이그레이션 중.
+ *   Mock 내부 도메인 모델 전용. 외부 응답 / 페이지 prop 에서는 TargetSource 를 사용.
  */
 export type Project = BaseTargetSource & {
   cloudProvider: CloudProvider;
@@ -323,7 +306,7 @@ export interface ErrorResponse {
 
 // ===== Connection Test Types =====
 
-// Credential이 필요한 DB 타입 (RDS, IDC)
+// Credential이 필요한 DB 타입
 export type CredentialRequiredDBType = 'MYSQL' | 'POSTGRESQL' | 'REDSHIFT';
 
 // DB Credential

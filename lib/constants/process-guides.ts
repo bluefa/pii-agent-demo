@@ -485,29 +485,11 @@ export const GCP_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
   'GCP Service Account 인증으로 Agent를 설치합니다. Project ID와 권한 부여 여부를 확인해 주세요.',
 );
 
-export const IDC_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
-  'IDC',
-  'IDC 연동',
-  '온프레미스 환경의 DB 정보를 직접 입력하여 연동 대상을 등록합니다. 자동 스캔은 제공되지 않습니다.',
-  'Agent 설치',
-  '관리자가 안내한 설치 패키지를 IDC 환경에 직접 배포합니다. 방화벽(443/8443) 및 N-IRP 통신을 확인해 주세요.',
-);
-
-export const SDU_GUIDE: ProviderProcessGuide = buildSimpleProviderGuide(
-  'SDU',
-  'SDU 연동',
-  'IAM User 발급 및 Source IP 등록 후, S3에 스키마 파일을 업로드하여 연동 대상을 확정합니다.',
-  'Athena 환경 구성',
-  'Glue Crawler 실행 및 Athena Table 생성을 통해 SDU 모듈을 설치합니다.',
-);
-
 const ALL_GUIDES: ProviderProcessGuide[] = [
   AWS_AUTO_GUIDE,
   AWS_MANUAL_GUIDE,
   AZURE_GUIDE,
   GCP_GUIDE,
-  IDC_GUIDE,
-  SDU_GUIDE,
 ];
 
 /**

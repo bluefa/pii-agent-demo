@@ -207,7 +207,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
         lastTestedAt: completedAt,
       };
     }
-    project.processStatus = getCurrentStep(project.cloudProvider, project.status);
+    project.processStatus = getCurrentStep(project.status);
 
     return completed;
   }

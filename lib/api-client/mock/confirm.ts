@@ -415,7 +415,7 @@ export const mockConfirm = {
     // 기존 연결 테스트 내역 삭제
     tcFns.clearJobHistory(Number(targetSourceId));
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
     const actor = { id: user.id, name: user.name };
     const terraformState = project.cloudProvider === 'AWS'
       ? { serviceTf: 'PENDING' as const, bdcTf: 'PENDING' as const }
@@ -900,7 +900,7 @@ export const mockConfirm = {
           ...project.status,
           installation: { status: 'IN_PROGRESS' },
         };
-        const calcStatus = getCurrentStep(project.cloudProvider, progressedStatus);
+        const calcStatus = getCurrentStep(progressedStatus);
         mockData.updateProject(project.id, {
           processStatus: calcStatus,
           status: progressedStatus,
@@ -1003,7 +1003,7 @@ export const mockConfirm = {
       installation: { status: 'PENDING' },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -1096,7 +1096,7 @@ export const mockConfirm = {
       approval: { status: 'REJECTED', rejectedAt: now, rejectionReason: reason },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -1198,7 +1198,7 @@ export const mockConfirm = {
           approval: { status: 'CANCELLED' },
         };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -1232,7 +1232,7 @@ export const mockConfirm = {
       );
     }
 
-    const currentStep = getCurrentStep(project.cloudProvider, project.status);
+    const currentStep = getCurrentStep(project.status);
     if (currentStep !== ProcessStatus.CONNECTION_VERIFIED) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_FAILED', message: '설치 확정 가능한 상태가 아닙니다.' } },
@@ -1265,7 +1265,7 @@ export const mockConfirm = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,

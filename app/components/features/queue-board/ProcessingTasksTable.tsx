@@ -66,7 +66,7 @@ export const ProcessingTasksTable = ({ items, loading, onDetail }: ProcessingTas
                 {item.serviceName}
               </td>
               <td className={tableStyles.cell}>
-                <Badge variant={item.provider === 'AWS' ? 'aws' : item.provider === 'IDC' ? 'idc' : 'neutral'} size="sm">
+                <Badge variant={item.provider === 'AWS' ? 'aws' : 'neutral'} size="sm">
                   {item.provider}
                 </Badge>
               </td>

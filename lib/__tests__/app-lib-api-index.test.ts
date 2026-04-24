@@ -558,8 +558,8 @@ describe('app/lib/api/index', () => {
 
     await createProject({
       serviceCode: 'SERVICE-A',
-      cloudProvider: 'SDU',
-      description: 'legacy sdu source',
+      cloudProvider: 'GCP',
+      gcpProjectId: 'gcp-proj-12345',
     });
 
     const [firstCallUrl, firstCallInit] = fetchSpy.mock.calls[0] ?? [];
@@ -575,8 +575,8 @@ describe('app/lib/api/index', () => {
     expect(secondCallUrl).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
     expect(secondCallInit?.method).toBe('POST');
     expect(secondCallInit?.body).toBe(JSON.stringify({
-      description: 'legacy sdu source',
-      cloudProvider: 'UNKNOWN',
+      cloudProvider: 'GCP',
+      gcpProjectId: 'gcp-proj-12345',
     }));
   });
 });
