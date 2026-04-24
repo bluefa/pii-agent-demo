@@ -13,6 +13,7 @@
 | [ADR-007](./007-api-client-pattern.md) | API Client 패턴 도입 | 승인됨 | 2026-02-14 |
 | [ADR-008](./008-error-handling-strategy.md) | CSR 에러 처리 전략 | 승인됨 | 2026-02-15 |
 | [ADR-009](./009-process-status-terminology.md) | processStatus 용어 체계 확정 및 BFF 계산 모델 | 승인됨 | 2026-02-16 |
+| [ADR-010](./010-guide-cms-slot-registry.md) | Guide CMS — Frontend Slot Registry + Server Content Store | 제안됨 | 2026-04-25 |
 
 ## ADR 작성 규칙
 
