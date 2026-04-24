@@ -93,8 +93,6 @@ const toIssue222TargetSourceDetail = (project: Project) => ({
     : {}),
 });
 
-const shouldEmitLegacyResources = (): boolean => false;
-
 const toTargetSourceInfoCloudProvider = (cloudProvider: CloudProvider): string =>
   toIssue222CloudProvider(cloudProvider);
 
@@ -126,9 +124,6 @@ const toIssue222TargetSourceInfo = (project: Project) => ({
   ...(project.tenantId ? { tenantId: project.tenantId } : {}),
   ...(project.subscriptionId ? { subscriptionId: project.subscriptionId } : {}),
   ...(project.gcpProjectId ? { gcpProjectId: project.gcpProjectId } : {}),
-  ...(shouldEmitLegacyResources()
-    ? { resources: project.resources }
-    : {}),
   ...(Object.keys(getIssue222Metadata(project)).length > 0
     ? { metadata: getIssue222Metadata(project) }
     : {}),

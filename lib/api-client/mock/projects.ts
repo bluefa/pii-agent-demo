@@ -151,7 +151,7 @@ export const mockProjects = {
       installation: { status: 'PENDING' },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -299,7 +299,7 @@ export const mockProjects = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -353,7 +353,7 @@ export const mockProjects = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -471,7 +471,7 @@ export const mockProjects = {
       installation: { status: 'PENDING' },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = await mockData.updateProject(project.id, {
       resources: updatedResources,
@@ -631,7 +631,7 @@ export const mockProjects = {
       },
     };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = await mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
@@ -1006,7 +1006,7 @@ export const mockProjects = {
           },
         };
 
-    const calculatedProcessStatus = getCurrentStep(project.cloudProvider, updatedStatus);
+    const calculatedProcessStatus = getCurrentStep(updatedStatus);
 
     const updatedProject = await mockData.updateProject(project.id, {
       resources: updatedResources,

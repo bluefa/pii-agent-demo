@@ -9,7 +9,6 @@
  */
 
 import {
-  CloudProvider,
   ProcessStatus,
   ProjectStatus,
 } from '@/lib/types';
@@ -17,21 +16,13 @@ import {
 /**
  * 현재 프로세스 단계를 계산합니다.
  *
- * @param cloudProvider - 클라우드 제공자
  * @param status - 프로젝트 상태 데이터
  * @returns 계산된 ProcessStatus
  */
-export const getCurrentStep = (
-  _cloudProvider: CloudProvider,
-  status: ProjectStatus
-): ProcessStatus => {
-  // AWS, Azure, GCP는 승인 단계 포함
+export const getCurrentStep = (status: ProjectStatus): ProcessStatus => {
   return getCurrentStepWithApproval(status);
 };
 
-/**
- * 승인 단계가 있는 Provider용 (AWS, Azure, GCP)
- */
 const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
   // 1. 연동 대상 확정 대기
   if (!status.targets.confirmed) {
@@ -73,10 +64,9 @@ const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
  * 컴포넌트에서 간편하게 사용할 수 있는 헬퍼 함수입니다.
  */
 export const getProjectCurrentStep = (project: {
-  cloudProvider: CloudProvider;
   status: ProjectStatus;
 }): ProcessStatus => {
-  return getCurrentStep(project.cloudProvider, project.status);
+  return getCurrentStep(project.status);
 };
 
 /**

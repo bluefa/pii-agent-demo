@@ -138,7 +138,7 @@ export const mockServices = {
           id: p.id,
           targetSourceId: p.targetSourceId,
           projectCode: p.projectCode,
-          processStatus: getCurrentStep(p.cloudProvider, p.status),
+          processStatus: getCurrentStep(p.status),
           cloudProvider: p.cloudProvider,
           resourceCount: p.resources.length,
           hasDisconnected,
