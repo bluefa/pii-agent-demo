@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Project, ProcessStatus, SecretKey } from '@/lib/types';
+import { IdcTargetSource, ProcessStatus, SecretKey } from '@/lib/types';
 import { IdcInstallationStatus as IdcInstallationStatusType, IdcResourceInput } from '@/lib/types/idc';
 import {
   updateResourceCredential,
@@ -22,9 +22,9 @@ import { IdcProcessStatusCard } from '@/app/integration/target-sources/[targetSo
 import { cn, getButtonClass } from '@/lib/theme';
 
 interface IdcProjectPageProps {
-  project: Project;
+  project: IdcTargetSource;
   credentials: SecretKey[];
-  onProjectUpdate: (project: Project) => void;
+  onProjectUpdate: (project: IdcTargetSource) => void;
 }
 
 export const IdcProjectPage = ({
@@ -53,7 +53,7 @@ export const IdcProjectPage = ({
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
       const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as IdcTargetSource);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
     }
@@ -76,7 +76,7 @@ export const IdcProjectPage = ({
       setIdcInstallationStatus(statusData);
 
       const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as IdcTargetSource);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '방화벽 확인에 실패했습니다.');
     }
@@ -104,10 +104,10 @@ export const IdcProjectPage = ({
       const data = await confirmIdcTargets(project.targetSourceId, pendingResources);
 
       if (data.project) {
-        onProjectUpdate(data.project as Project);
+        onProjectUpdate(data.project as IdcTargetSource);
       } else {
         const updatedProject = await getProject(project.targetSourceId);
-        onProjectUpdate(updatedProject);
+        onProjectUpdate(updatedProject as IdcTargetSource);
       }
 
       setPendingResources([]);
@@ -147,7 +147,7 @@ export const IdcProjectPage = ({
         onRetry={handleIdcRetry}
         onResourceUpdate={async () => {
           const updated = await getProject(project.targetSourceId);
-          onProjectUpdate(updated);
+          onProjectUpdate(updated as IdcTargetSource);
         }}
       />
 

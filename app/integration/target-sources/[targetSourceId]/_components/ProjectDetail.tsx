@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Project, SecretKey } from '@/lib/types';
+import type { SecretKey, TargetSource } from '@/lib/types';
 import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { AwsProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/azure';
@@ -10,7 +10,7 @@ import { IdcProjectPage } from '@/app/integration/target-sources/[targetSourceId
 import { SduProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/sdu';
 
 interface ProjectDetailProps {
-  initialProject: Project;
+  initialProject: TargetSource;
   initialCredentials: SecretKey[];
 }
 
@@ -18,27 +18,21 @@ export const ProjectDetail = ({
   initialProject,
   initialCredentials,
 }: ProjectDetailProps) => {
-  const [project, setProject] = useState(initialProject);
+  const [project, setProject] = useState<TargetSource>(initialProject);
   const [credentials] = useState(initialCredentials);
-
-  const pageProps = {
-    project,
-    credentials,
-    onProjectUpdate: setProject,
-  };
 
   switch (project.cloudProvider) {
     case 'AWS':
-      return <AwsProjectPage {...pageProps} />;
+      return <AwsProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     case 'Azure':
-      return <AzureProjectPage {...pageProps} />;
+      return <AzureProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     case 'GCP':
-      return <GcpProjectPage {...pageProps} />;
+      return <GcpProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     case 'IDC':
-      return <IdcProjectPage {...pageProps} />;
+      return <IdcProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     case 'SDU':
-      return <SduProjectPage {...pageProps} />;
+      return <SduProjectPage project={project} credentials={credentials} onProjectUpdate={setProject} />;
     default:
-      return <ErrorState error={`지원하지 않는 클라우드 프로바이더입니다: ${project.cloudProvider}`} />;
+      return <ErrorState error="지원하지 않는 클라우드 프로바이더입니다." />;
   }
 };

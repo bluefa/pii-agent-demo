@@ -3,7 +3,7 @@ import {
   ProjectSummary,
   User,
   CloudProvider,
-  Project,
+  TargetSource,
   ProcessStatus,
   DatabaseType,
   IntegrationCategory,
@@ -181,7 +181,7 @@ export const deletePermission = async (serviceCode: string, userId: string): Pro
   });
 };
 
-export const getProject = async (targetSourceId: number): Promise<Project> => {
+export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
   const data = await fetchInfraCamelJson<TargetSourceDetailResponse>(
     `/target-sources/${targetSourceId}`,
   );

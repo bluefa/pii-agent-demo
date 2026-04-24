@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Project, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus, Resource, SecretKey, VmDatabaseConfig } from '@/lib/types';
 import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   createApprovalRequest,
@@ -30,9 +30,9 @@ import {
 } from '@/lib/resource-catalog';
 
 interface AwsProjectPageProps {
-  project: Project;
+  project: CloudTargetSource;
   credentials: SecretKey[];
-  onProjectUpdate: (project: Project) => void;
+  onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
 export const AwsProjectPage = ({
@@ -97,7 +97,7 @@ export const AwsProjectPage = ({
 
   const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
 
-  const handleModeSelected = (updatedProject: Project) => {
+  const handleModeSelected = (updatedProject: CloudTargetSource) => {
     onProjectUpdate(updatedProject);
   };
 
@@ -136,7 +136,7 @@ export const AwsProjectPage = ({
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
       const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as CloudTargetSource);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
     }
@@ -202,7 +202,7 @@ export const AwsProjectPage = ({
         input_data: { resource_inputs: resourceInputs },
       });
       const updatedProject = await getProject(project.targetSourceId);
-      onProjectUpdate(updatedProject);
+      onProjectUpdate(updatedProject as CloudTargetSource);
       setExpandedVmId(null);
       setApprovalModalOpen(false);
     } catch (err) {
@@ -252,7 +252,7 @@ export const AwsProjectPage = ({
         onScanComplete={async () => {
           const updatedProject = await getProject(project.targetSourceId);
           reloadResources();
-          onProjectUpdate(updatedProject);
+          onProjectUpdate(updatedProject as CloudTargetSource);
         }}
         resources={resources.map((r) => ({
           ...r,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialProjectStatus } from '@/lib/process';
-import type { Project } from '@/lib/types';
+import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatus } from '@/lib/types';
 import { extractTargetSource } from '@/lib/target-source-response';
 
-const project = {
+const project: CloudTargetSource = {
   id: 'proj-1',
   targetSourceId: 1001,
   projectCode: 'N-IRP-001',
@@ -12,14 +12,13 @@ const project = {
   cloudProvider: 'Azure',
   processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
   status: createInitialProjectStatus(),
-  resources: [],
   terraformState: { bdcTf: 'PENDING' },
   createdAt: '2026-02-16T10:00:00Z',
   updatedAt: '2026-02-16T10:10:00Z',
   name: 'proj-1',
   description: 'PII Agent 설치 대상',
   isRejected: false,
-} as unknown as Project;
+};
 
 describe('extractTargetSource', () => {
   it('returns flat payload as-is', () => {
@@ -75,7 +74,6 @@ describe('extractTargetSource', () => {
           status: 'NOT_TESTED',
         },
       },
-      resources: [],
       terraformState: {
         bdcTf: 'PENDING',
       },
