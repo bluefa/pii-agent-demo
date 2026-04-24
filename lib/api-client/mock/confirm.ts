@@ -205,6 +205,27 @@ function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegratio
   };
 }
 
+/**
+ * ApprovedIntegration 의 resource_id 목록과 project.resources 를 조인해
+ * ConfirmedIntegration.resource_infos 를 만든다. 매칭이 하나도 없으면 null.
+ *
+ * getConfirmedIntegration 의 path-3 fallback 과 getProcessStatus 의
+ * APPLYING → INSTALLING 마이그레이션 훅에서 공통 사용.
+ */
+function deriveConfirmedResourceInfos(
+  approvedIntegration: BffApprovedIntegration,
+  resources: Resource[],
+): BffConfirmedIntegration['resource_infos'] | null {
+  const approvedResourceIds = new Set(
+    approvedIntegration.resource_infos
+      .map((resourceInfo) => resourceInfo.resource_id)
+      .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0),
+  );
+  const matched = resources.filter((r) => approvedResourceIds.has(r.id));
+  if (matched.length === 0) return null;
+  return matched.map(toConfirmedIntegrationResourceInfo);
+}
+
 // --- Queue Board Integration Helpers ---
 
 const getCloudInfo = (project: Project): string => {
@@ -543,16 +564,9 @@ export const mockConfirm = {
     //    (snapshot 가 set 되기 전 polling 타이밍 등 fallback 경로)
     const approvedIntegration = approvedIntegrationStore.get(project.id);
     if (approvedIntegration) {
-      const approvedResourceIds = new Set(
-        approvedIntegration.resource_infos
-          .map((info) => info.resource_id)
-          .filter((rid): rid is string => typeof rid === 'string' && rid.length > 0),
-      );
-      const matched = project.resources.filter((r) => approvedResourceIds.has(r.id));
-      if (matched.length > 0) {
-        return NextResponse.json({
-          resource_infos: matched.map(toConfirmedIntegrationResourceInfo),
-        } satisfies BffConfirmedIntegration);
+      const derived = deriveConfirmedResourceInfos(approvedIntegration, project.resources);
+      if (derived) {
+        return NextResponse.json({ resource_infos: derived } satisfies BffConfirmedIntegration);
       }
     }
 
@@ -899,16 +913,9 @@ export const mockConfirm = {
         // 변경요청 이전-스냅샷 보존 (createApprovalRequest 경로) 과 충돌하지 않도록 has 가드.
         const approvedIntegration = approvedIntegrationStore.get(updated.id);
         if (approvedIntegration && !confirmedIntegrationSnapshotStore.has(updated.id)) {
-          const approvedResourceIds = new Set(
-            approvedIntegration.resource_infos
-              .map((info) => info.resource_id)
-              .filter((rid): rid is string => typeof rid === 'string' && rid.length > 0),
-          );
-          const matched = updated.resources.filter((r) => approvedResourceIds.has(r.id));
-          if (matched.length > 0) {
-            confirmedIntegrationSnapshotStore.set(updated.id, {
-              resource_infos: matched.map(toConfirmedIntegrationResourceInfo),
-            });
+          const derived = deriveConfirmedResourceInfos(approvedIntegration, updated.resources);
+          if (derived) {
+            confirmedIntegrationSnapshotStore.set(updated.id, { resource_infos: derived });
           }
         }
 

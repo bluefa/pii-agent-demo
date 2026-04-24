@@ -150,4 +150,33 @@ describe('mock confirmed-integration: step 4 (INSTALLING) 진입 직후', () => 
     const body = await res.json();
     expect(body.resource_infos).toEqual([]);
   });
+
+  it('ApprovedIntegration 미설정 + installation IN_PROGRESS → path 4 (project.resources selected) 로 derive', async () => {
+    // _setApprovedIntegration 을 호출하지 않아 approvedIntegrationStore 미설정.
+    // installation.status 가 IN_PROGRESS 이므로 path 2 (PENDING 가드) 통과,
+    // path 3 (ApprovedIntegration) 미존재 → path 4 fallback 로 떨어진다.
+    seedProject({
+      processStatus: ProcessStatus.INSTALLING,
+      status: {
+        ...createInitialProjectStatus(),
+        targets: { confirmed: true, selectedCount: 2, excludedCount: 0 },
+        approval: {
+          status: 'APPROVED',
+          approvedAt: '2026-04-23T00:00:00Z',
+        },
+        installation: { status: 'IN_PROGRESS' },
+      },
+      resources: [
+        buildResource('res-1', { connectionStatus: 'PENDING', isSelected: true }),
+        buildResource('res-2', { connectionStatus: 'PENDING', isSelected: false }),
+      ],
+    });
+
+    const res = await mockConfirm.getConfirmedIntegration(TEST_TARGET_SOURCE_ID_STR);
+    const body = await res.json();
+    expect(Array.isArray(body.resource_infos)).toBe(true);
+    // isSelected=true 인 res-1 만 포함되고 res-2 는 제외
+    expect(body.resource_infos.length).toBe(1);
+    expect(body.resource_infos[0].resource_id).toBe('rds-res-1');
+  });
 });
