@@ -1,153 +1,86 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { QueueBoardHeader } from '@/app/components/features/queue-board/QueueBoardHeader';
 import { QueueBoardSummaryCards } from '@/app/components/features/queue-board/QueueBoardSummaryCards';
 import { QueueBoardTabs } from '@/app/components/features/queue-board/QueueBoardTabs';
+import { QueueBoardPagination } from '@/app/components/features/queue-board/QueueBoardPagination';
 import { PendingTasksTable } from '@/app/components/features/queue-board/PendingTasksTable';
 import { ProcessingTasksTable } from '@/app/components/features/queue-board/ProcessingTasksTable';
 import { CompletedTasksTable } from '@/app/components/features/queue-board/CompletedTasksTable';
-import { TaskRejectModal } from '@/app/components/features/queue-board/TaskRejectModal';
-import { TaskDetailModal } from '@/app/components/features/queue-board/TaskDetailModal';
-import { Modal } from '@/app/components/ui/Modal';
-import { Button } from '@/app/components/ui/Button';
-import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
+import { MODAL_CLOSED, QueueBoardModals, type ModalState } from '@/app/components/features/queue-board/QueueBoardModals';
+import { PAGE_SIZE, useQueueBoardData } from '@/app/components/features/queue-board/useQueueBoardData';
+import { fetchInfraJson } from '@/app/lib/api/infra';
 import { AppError } from '@/lib/errors';
-import { cn, textColors, primaryColors, cardStyles, statusColors } from '@/lib/theme';
-import type { ApprovalRequestQueueItem, ApprovalRequestQueueResponse } from '@/lib/types/queue-board';
-
-type TabKey = 'pending' | 'processing' | 'completed';
-
-const TAB_STATUS_MAP: Record<TabKey, string> = {
-  pending: 'PENDING',
-  processing: 'IN_PROGRESS',
-  completed: 'APPROVED,REJECTED',
-};
-
-const PAGE_SIZE = 20;
-
-type ModalState =
-  | { type: 'none' }
-  | { type: 'reject'; item: ApprovalRequestQueueItem }
-  | { type: 'detail'; item: ApprovalRequestQueueItem }
-  | { type: 'approve'; target: ApprovalRequestQueueItem };
-
-const MODAL_CLOSED: ModalState = { type: 'none' };
+import { cn, cardStyles, statusColors } from '@/lib/theme';
+import type { ApprovalRequestQueueItem } from '@/lib/types/queue-board';
 
 export const QueueBoard = () => {
-  const [activeTab, setActiveTab] = useState<TabKey>('pending');
-  const [requestType, setRequestType] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
-  const [data, setData] = useState<ApprovalRequestQueueResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    activeTab, requestType, search, page, data, loading,
+    setActiveTab, setRequestType, setSearch, setPage, reset, refresh,
+  } = useQueueBoardData();
+
   const [modal, setModal] = useState<ModalState>(MODAL_CLOSED);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async (tab: TabKey, currentPage: number, type: string | null, query: string) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        status: TAB_STATUS_MAP[tab],
-        page: String(currentPage),
-        size: String(PAGE_SIZE),
-        sort: 'requestedAt,desc',
-      });
-      if (type) params.set('requestType', type);
-      if (query) params.set('search', query);
+  const closeModal = useCallback(() => setModal(MODAL_CLOSED), []);
 
-      const result = await fetchInfraCamelJson<ApprovalRequestQueueResponse>(
-        `/task-admin/approval-requests?${params.toString()}`
-      );
-      setData(result);
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData(activeTab, page, requestType, search);
-  }, [activeTab, page, requestType, search, fetchData]);
-
-  const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
-    setPage(0);
-  };
-
-  const handleRequestTypeChange = (value: string | null) => {
-    setRequestType(value);
-    setPage(0);
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setPage(0);
-  };
-
-  const handleReset = () => {
-    setRequestType(null);
-    setSearch('');
-    setPage(0);
-  };
-
-  const handleApproveOpen = (item: ApprovalRequestQueueItem) => {
-    setError(null);
-    setModal({ type: 'approve', target: item });
-  };
-
-  const handleApproveConfirm = async () => {
+  const handleApproveConfirm = useCallback(async () => {
     if (modal.type !== 'approve') return;
-    const target = modal.target;
+    const item = modal.item;
     setError(null);
     try {
-      await fetchInfraJson(`/target-sources/${target.targetSourceId}/approval-requests/approve`, {
-        method: 'POST',
-        body: {},
-      });
+      await fetchInfraJson(
+        `/target-sources/${item.targetSourceId}/approval-requests/approve`,
+        { method: 'POST', body: {} },
+      );
       setModal(MODAL_CLOSED);
-      fetchData(activeTab, page, requestType, search);
+      refresh();
     } catch (err) {
       setModal(MODAL_CLOSED);
       if (err instanceof AppError && err.status === 409) {
         setError('다른 관리자가 이미 처리했습니다.');
-        fetchData(activeTab, page, requestType, search);
+        refresh();
       } else {
         setError('승인 처리에 실패했습니다.');
       }
     }
-  };
+  }, [modal, refresh]);
 
-  const handleRejectOpen = (item: ApprovalRequestQueueItem) => {
-    setModal({ type: 'reject', item });
-  };
-
-  const handleRejectConfirm = async (reason: string) => {
-    if (modal.type !== 'reject') return;
-    const item = modal.item;
-    setError(null);
-    try {
-      await fetchInfraJson(`/target-sources/${item.targetSourceId}/approval-requests/reject`, {
-        method: 'POST',
-        body: { reason },
-      });
-      setModal(MODAL_CLOSED);
-      fetchData(activeTab, page, requestType, search);
-    } catch (err) {
-      setModal(MODAL_CLOSED);
-      if (err instanceof AppError && err.status === 409) {
-        setError('다른 관리자가 이미 처리했습니다.');
-        fetchData(activeTab, page, requestType, search);
-      } else {
-        setError('반려 처리에 실패했습니다.');
+  const handleRejectConfirm = useCallback(
+    async (reason: string) => {
+      if (modal.type !== 'reject') return;
+      const item = modal.item;
+      setError(null);
+      try {
+        await fetchInfraJson(
+          `/target-sources/${item.targetSourceId}/approval-requests/reject`,
+          { method: 'POST', body: { reason } },
+        );
+        setModal(MODAL_CLOSED);
+        refresh();
+      } catch (err) {
+        setModal(MODAL_CLOSED);
+        if (err instanceof AppError && err.status === 409) {
+          setError('다른 관리자가 이미 처리했습니다.');
+          refresh();
+        } else {
+          setError('반려 처리에 실패했습니다.');
+        }
       }
-    }
-  };
+    },
+    [modal, refresh],
+  );
 
-  const handleDetail = (item: ApprovalRequestQueueItem) => {
-    setModal({ type: 'detail', item });
+  const handleApproveOpen = (item: ApprovalRequestQueueItem) => {
+    setError(null);
+    setModal({ type: 'approve', item });
   };
+  const handleRejectOpen = (item: ApprovalRequestQueueItem) =>
+    setModal({ type: 'reject', item });
+  const handleDetail = (item: ApprovalRequestQueueItem) =>
+    setModal({ type: 'detail', item });
 
   const items = data?.content ?? [];
   const pageInfo = data?.page;
@@ -158,22 +91,14 @@ export const QueueBoard = () => {
   const approvedCount = pageInfo?.approvedCount ?? 0;
   const rejectedCount = pageInfo?.rejectedCount ?? 0;
 
-  // Pagination: show max 5 page numbers around current page
-  const paginationStart = Math.max(0, page - 2);
-  const paginationEnd = Math.min(totalPages, paginationStart + 5);
-  const pageNumbers = Array.from({ length: paginationEnd - paginationStart }, (_, i) => paginationStart + i);
-
-  const rangeStart = totalElements === 0 ? 0 : page * PAGE_SIZE + 1;
-  const rangeEnd = Math.min((page + 1) * PAGE_SIZE, totalElements);
-
   return (
     <div className="space-y-6">
       <QueueBoardHeader
         requestType={requestType}
         search={search}
-        onRequestTypeChange={handleRequestTypeChange}
-        onSearchChange={handleSearchChange}
-        onReset={handleReset}
+        onRequestTypeChange={setRequestType}
+        onSearchChange={setSearch}
+        onReset={reset}
       />
 
       <QueueBoardSummaryCards
@@ -184,7 +109,13 @@ export const QueueBoard = () => {
       />
 
       {error && (
-        <div className={cn('flex items-center justify-between px-4 py-3 rounded-lg text-sm', statusColors.error.bg, statusColors.error.text)}>
+        <div
+          className={cn(
+            'flex items-center justify-between px-4 py-3 rounded-lg text-sm',
+            statusColors.error.bg,
+            statusColors.error.text,
+          )}
+        >
           <span>{error}</span>
           <button
             type="button"
@@ -203,7 +134,7 @@ export const QueueBoard = () => {
         <div className="px-6 pt-5 pb-3">
           <QueueBoardTabs
             activeTab={activeTab}
-            onTabChange={handleTabChange}
+            onTabChange={setActiveTab}
             pendingCount={pendingCount}
             processingCount={processingCount}
           />
@@ -219,113 +150,27 @@ export const QueueBoard = () => {
           />
         )}
         {activeTab === 'processing' && (
-          <ProcessingTasksTable
-            items={items}
-            loading={loading}
-            onDetail={handleDetail}
-          />
+          <ProcessingTasksTable items={items} loading={loading} onDetail={handleDetail} />
         )}
         {activeTab === 'completed' && (
-          <CompletedTasksTable
-            items={items}
-            loading={loading}
-            onDetail={handleDetail}
-          />
+          <CompletedTasksTable items={items} loading={loading} onDetail={handleDetail} />
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-            <p className={cn('text-sm', textColors.tertiary)}>
-              {totalElements}건 중 {rangeStart}-{rangeEnd} 표시
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className={cn(
-                  'px-3 py-1.5 text-sm rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-                  textColors.secondary,
-                  'hover:bg-gray-100',
-                )}
-              >
-                이전
-              </button>
-              {pageNumbers.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setPage(n)}
-                  className={cn(
-                    'w-8 h-8 text-sm rounded-md transition-colors flex items-center justify-center',
-                    n === page
-                      ? `${primaryColors.bg} text-white`
-                      : `${textColors.tertiary} hover:bg-gray-100`,
-                  )}
-                >
-                  {n + 1}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className={cn(
-                  'px-3 py-1.5 text-sm rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
-                  textColors.secondary,
-                  'hover:bg-gray-100',
-                )}
-              >
-                다음
-              </button>
-            </div>
-          </div>
-        )}
+        <QueueBoardPagination
+          page={page}
+          totalPages={totalPages}
+          totalElements={totalElements}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       </div>
 
-      <TaskRejectModal
-        isOpen={modal.type === 'reject'}
-        onClose={() => setModal(MODAL_CLOSED)}
-        onConfirm={handleRejectConfirm}
-        item={modal.type === 'reject' ? modal.item : null}
+      <QueueBoardModals
+        modal={modal}
+        onClose={closeModal}
+        onApproveConfirm={handleApproveConfirm}
+        onRejectConfirm={handleRejectConfirm}
       />
-
-      <TaskDetailModal
-        isOpen={modal.type === 'detail'}
-        onClose={() => setModal(MODAL_CLOSED)}
-        item={modal.type === 'detail' ? modal.item : null}
-      />
-
-      <Modal
-        isOpen={modal.type === 'approve'}
-        onClose={() => setModal(MODAL_CLOSED)}
-        title="승인 확인"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setModal(MODAL_CLOSED)}>
-              취소
-            </Button>
-            <Button onClick={handleApproveConfirm}>
-              승인
-            </Button>
-          </>
-        }
-      >
-        {modal.type === 'approve' && (
-          <p className={cn('text-sm', textColors.secondary)}>
-            <span className="font-medium">{modal.target.serviceCode}</span>
-            {' '}
-            {modal.target.serviceName}
-            <span className={cn('mx-1.5', textColors.quaternary)}>|</span>
-            {modal.target.requestTypeName}
-            <span className={cn('block mt-2', textColors.primary)}>
-              이 요청을 승인하시겠습니까?
-            </span>
-          </p>
-        )}
-      </Modal>
     </div>
   );
 };
