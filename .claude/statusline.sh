@@ -3,9 +3,14 @@
 # Two-line output:
 #   line 1: [Model . s:<id4>]  worktree/dir [ | PR #<num> link]
 #   line 2: <bar> <pct>% of <ctx-size>
-# PR indicator: queries `gh pr view` for the current branch's OPEN/DRAFT PR,
-# cached per session for 5 seconds to avoid repeated network calls.
-# Skips main/master and detached HEAD.
+#
+# PR indicator (two sources, event > query):
+#   1. Event cache at /tmp/claude-pr-event-<session_id>, written by the
+#      PostToolUse hook whenever `gh pr create` completes in this session.
+#      Survives even if the main session's cwd stays on main or detached
+#      HEAD (e.g., PR was created inside a sibling worktree).
+#   2. Fallback: `gh pr view` for the current branch's OPEN/DRAFT PR,
+#      cached 5s per session. Skips main/master and detached HEAD.
 
 set -u
 input=$(cat)
@@ -57,14 +62,14 @@ if [ "$EMPTY" -gt 0 ]; then
   BAR="${BAR}${PAD// /░}"
 fi
 
-# PR indicator: 5s per-session cache of `gh pr view` for current branch
-CACHE_FILE="/tmp/claude-pr-$SESSION_FULL"
+EVENT_CACHE="/tmp/claude-pr-event-$SESSION_FULL"
+QUERY_CACHE="/tmp/claude-pr-$SESSION_FULL"
 CACHE_TTL=5
 
 cache_stale() {
-  [ ! -f "$CACHE_FILE" ] && return 0
+  [ ! -f "$QUERY_CACHE" ] && return 0
   local mtime now
-  mtime=$(stat -f %m "$CACHE_FILE" 2>/dev/null || stat -c %Y "$CACHE_FILE" 2>/dev/null || echo 0)
+  mtime=$(stat -f %m "$QUERY_CACHE" 2>/dev/null || stat -c %Y "$QUERY_CACHE" 2>/dev/null || echo 0)
   now=$(date +%s)
   [ "$((now - mtime))" -gt "$CACHE_TTL" ]
 }
@@ -91,16 +96,25 @@ refresh_pr_cache() {
         ;;
     esac
   fi
-  printf '%s\t%s\n' "$url" "$num" > "$CACHE_FILE"
+  printf '%s\t%s\n' "$url" "$num" > "$QUERY_CACHE"
 }
 
 PR_URL=""
 PR_NUM=""
-if cache_stale; then
-  refresh_pr_cache
+
+# Priority 1: event cache (PostToolUse hook capturing `gh pr create`)
+if [ -f "$EVENT_CACHE" ]; then
+  IFS=$'\t' read -r PR_URL PR_NUM < "$EVENT_CACHE" || true
 fi
-if [ -f "$CACHE_FILE" ]; then
-  IFS=$'\t' read -r PR_URL PR_NUM < "$CACHE_FILE" || true
+
+# Priority 2: cwd-based gh pr view (skipped if event cache already filled)
+if [ -z "$PR_URL" ] || [ -z "$PR_NUM" ]; then
+  if cache_stale; then
+    refresh_pr_cache
+  fi
+  if [ -f "$QUERY_CACHE" ]; then
+    IFS=$'\t' read -r PR_URL PR_NUM < "$QUERY_CACHE" || true
+  fi
 fi
 
 PR_PART=""
