@@ -81,3 +81,11 @@ export class AppError extends Error {
     return this.status > 0 && this.code !== 'UNKNOWN';
   }
 }
+
+/**
+ * confirmed-integration 스냅샷 부재 여부.
+ * 빈 스냅샷이 404 로 매핑되는 신규 정책상 empty 폴백의 공통 조건.
+ */
+export const isMissingConfirmedIntegrationError = (error: unknown): boolean =>
+  error instanceof AppError
+  && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND');
