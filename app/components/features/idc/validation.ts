@@ -3,10 +3,15 @@ import type { IdcDatabaseType, IdcInputFormat } from '@/lib/types/idc';
 
 export type FormErrors = Record<string, string>;
 
+export interface IpEntry {
+  id: string;
+  value: string;
+}
+
 export interface FormState {
   name: string;
   inputFormat: IdcInputFormat;
-  ips: string[];
+  ips: IpEntry[];
   host: string;
   databaseType: IdcDatabaseType;
   port: number;
@@ -32,20 +37,17 @@ export const validatePort = (port: number): string | null =>
 export const validateServiceId = (serviceId: string): string | null =>
   serviceId.trim() ? null : 'Oracle DB는 Service ID가 필수입니다';
 
-export const validateIps = (ips: string[]): FormErrors => {
-  if (ips.every((ip) => !ip.trim())) {
+export const validateIps = (ips: IpEntry[]): FormErrors => {
+  if (ips.every((entry) => !entry.value.trim())) {
     return { ips: 'IP를 최소 1개 입력하세요' };
   }
   const errors: FormErrors = {};
-  // Iterate the original array so `ip_${index}` error keys line up with the
-  // JSX `ips.map((_, index) => ...)` read — extracting to filtered-index
-  // here was the pre-existing bug flagged during review of this refactor.
-  ips.forEach((ip, index) => {
-    const trimmed = ip.trim();
+  for (const entry of ips) {
+    const trimmed = entry.value.trim();
     if (trimmed && !IDC_VALIDATION.IP_REGEX.test(trimmed)) {
-      errors[`ip_${index}`] = '유효한 IPv4 형식이 아닙니다';
+      errors[`ip_${entry.id}`] = '유효한 IPv4 형식이 아닙니다';
     }
-  });
+  }
   return errors;
 };
 
