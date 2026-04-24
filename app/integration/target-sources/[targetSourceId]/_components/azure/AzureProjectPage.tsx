@@ -22,6 +22,8 @@ import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
 import { DeleteInfrastructureButton, ProjectPageMeta, RejectionAlert, type ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
+import { useProjectPageFormState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/useProjectPageFormState';
+import { useProjectResources } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/useProjectResources';
 import { isVmResource } from '@/app/components/features/resource-table';
 import { ResourceTransitionPanel } from '@/app/components/features/process-status/ResourceTransitionPanel';
 import { AppError, isMissingConfirmedIntegrationError } from '@/lib/errors';
@@ -51,20 +53,17 @@ export const AzureProjectPage = ({
   onProjectUpdate,
 }: AzureProjectPageProps) => {
   const toast = useToast();
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [draftVmConfigs, setDraftVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
-  const [approvalError, setApprovalError] = useState<string | null>(null);
-  const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
+  const {
+    selectedIds, setSelectedIds,
+    vmConfigs, setVmConfigs,
+    submitting, setSubmitting,
+    approvalModalOpen, openApprovalModal, closeApprovalModal,
+    approvalError, setApprovalError,
+    expandedVmId, setExpandedVmId,
+  } = useProjectPageFormState();
 
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
-
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceLoaded, setResourceLoaded] = useState(false);
-  const [resourceError, setResourceError] = useState<string | null>(null);
-  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,50 +101,49 @@ export const AzureProjectPage = ({
 
   const currentStep = getProjectCurrentStep(project);
 
-  useEffect(() => {
-    let cancelled = false;
-    setResourceLoading(true);
-    setResourceError(null);
-    (async () => {
-      try {
-        if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
-          const response = await getConfirmResources(project.targetSourceId);
-          if (cancelled) return;
-          setResources(catalogToResources(response.resources));
-        } else if (currentStep >= ProcessStatus.INSTALLING) {
-          const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
-            if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-            throw error;
-          });
-          if (cancelled) return;
-          const confirmedResources = confirmedIntegrationToResources(response);
-          setResources(confirmedResources);
-          setSelectedIds(confirmedResources.map((r) => r.id));
-        }
-      } catch (error) {
-        if (cancelled) return;
-        setResourceError(getResourceErrorMessage(error));
-      } finally {
-        if (!cancelled) {
-          setResourceLoading(false);
-          setResourceLoaded(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentStep, project.targetSourceId, retryNonce]);
+  const loadResources = useCallback(async (): Promise<Resource[]> => {
+    if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+      const response = await getConfirmResources(project.targetSourceId);
+      return catalogToResources(response.resources);
+    }
+    if (currentStep >= ProcessStatus.INSTALLING) {
+      const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+        if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+        throw error;
+      });
+      return confirmedIntegrationToResources(response);
+    }
+    return [];
+  }, [currentStep, project.targetSourceId]);
 
-  const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
+  const handleResourcesLoaded = useCallback((loaded: Resource[]) => {
+    if (currentStep >= ProcessStatus.INSTALLING) {
+      setSelectedIds(loaded.map((r) => r.id));
+    }
+  }, [currentStep, setSelectedIds]);
+
+  const {
+    resources,
+    loading: resourceLoading,
+    error: resourceError,
+    reload: reloadResources,
+  } = useProjectResources({
+    loadResources,
+    getErrorMessage: getResourceErrorMessage,
+    onLoaded: handleResourcesLoaded,
+  });
+
+  useEffect(() => {
+    if (!resourceLoading) setResourceLoaded(true);
+  }, [resourceLoading]);
 
   const displayResources = useMemo(
     () =>
       resources.map((resource) => ({
         ...resource,
-        vmDatabaseConfig: draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig,
+        vmDatabaseConfig: vmConfigs[resource.id] ?? resource.vmDatabaseConfig,
       })),
-    [resources, draftVmConfigs],
+    [resources, vmConfigs],
   );
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -160,7 +158,7 @@ export const AzureProjectPage = ({
   );
 
   const handleVmConfigSave = (resourceId: string, config: VmDatabaseConfig) => {
-    setDraftVmConfigs((previous) => ({ ...previous, [resourceId]: config }));
+    setVmConfigs((previous) => ({ ...previous, [resourceId]: config }));
   };
 
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
@@ -187,7 +185,7 @@ export const AzureProjectPage = ({
       return;
     }
 
-    setApprovalModalOpen(true);
+    openApprovalModal();
   };
 
   const handleApprovalSubmit = async (formData: ApprovalRequestFormData) => {
@@ -197,7 +195,7 @@ export const AzureProjectPage = ({
 
       const resourceInputs = displayResources.map((resource) => {
         if (selectedIdSet.has(resource.id)) {
-          const vmConfig = draftVmConfigs[resource.id] ?? resource.vmDatabaseConfig;
+          const vmConfig = vmConfigs[resource.id] ?? resource.vmDatabaseConfig;
 
           if (vmConfig) {
             return {
@@ -240,7 +238,7 @@ export const AzureProjectPage = ({
       const updatedProject = await getProject(project.targetSourceId);
       reloadResources();
       onProjectUpdate(updatedProject);
-      setApprovalModalOpen(false);
+      closeApprovalModal();
     } catch (error) {
       setApprovalError(error instanceof Error ? error.message : '승인 요청에 실패했습니다.');
     } finally {
@@ -292,7 +290,7 @@ export const AzureProjectPage = ({
             resources={displayResources}
             onProjectUpdate={onProjectUpdate}
             approvalModalOpen={approvalModalOpen}
-            onApprovalModalClose={() => setApprovalModalOpen(false)}
+            onApprovalModalClose={closeApprovalModal}
             onApprovalSubmit={handleApprovalSubmit}
             approvalLoading={submitting}
             approvalError={approvalError ?? resourceError}
