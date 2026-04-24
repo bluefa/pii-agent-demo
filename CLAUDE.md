@@ -62,6 +62,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 2. **any 타입 금지**
 3. **상대 경로 import 금지** — `@/` 절대 경로만
 4. **Raw 색상 클래스 직접 사용 금지** — theme.ts 토큰 또는 UI 컴포넌트를 통해서만 적용
+5. **영어 전용 경로에서는 영어로만 작성** — `.claude/skills/**`, `.claude/agents/**`, `.claude/hooks/**`, `docs/adr/**`, `docs/reports/**/(anti-pattern|audit|retrospective)*`, 모든 `CLAUDE.md`/`AGENTS.md`/`README.md`. PR description과 code comment도 영어. 사용자 대화는 한국어 유지. 한국어 허용 경로: `docs/domain/`, `docs/ux/`, UI 문자열, `memory/`
 
 ## Tech Stack
 
