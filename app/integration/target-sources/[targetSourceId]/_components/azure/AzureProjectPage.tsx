@@ -24,6 +24,7 @@ import {
 } from '@/app/lib/api/azure';
 import type { AzureV1Settings } from '@/lib/types/azure';
 import { DbSelectionCard } from '@/app/components/features/scan';
+import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -375,6 +376,8 @@ export const AzureProjectPage = ({
               cloudProvider={project.cloudProvider}
               processStatus={currentStep}
             />
+          ) : currentStep >= ProcessStatus.INSTALLING ? (
+            <IntegrationTargetInfoCard targetSourceId={project.targetSourceId} />
           ) : (
             <DbSelectionCard
               targetSourceId={project.targetSourceId}

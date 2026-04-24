@@ -1,0 +1,1 @@
+export { IntegrationTargetInfoCard } from './IntegrationTargetInfoCard';
