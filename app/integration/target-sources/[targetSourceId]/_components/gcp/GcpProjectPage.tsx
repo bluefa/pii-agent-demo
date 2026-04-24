@@ -13,6 +13,7 @@ import {
 import type { ConfirmedIntegrationResponse } from '@/app/lib/api';
 import { getProjectCurrentStep } from '@/lib/process';
 import { DbSelectionCard } from '@/app/components/features/scan';
+import { IntegrationTargetInfoCard } from '@/app/components/features/integration-target-info';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCard } from '@/app/components/features/process-status/GuideCard';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -260,6 +261,8 @@ export const GcpProjectPage = ({
           cloudProvider={project.cloudProvider}
           processStatus={currentStep}
         />
+      ) : currentStep >= ProcessStatus.INSTALLING ? (
+        <IntegrationTargetInfoCard targetSourceId={project.targetSourceId} />
       ) : resourceLoading ? (
         <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
           <LoadingSpinner />

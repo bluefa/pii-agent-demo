@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { getConfirmedIntegration, type ConfirmedIntegrationResourceItem } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 import { ProcessStatus, type ProjectSummary } from '@/lib/types';
 import { cn } from '@/lib/theme';
 import { InfraCardHeader } from './InfraCardHeader';
@@ -42,7 +43,16 @@ export const InfraCard = ({
       const res = await getConfirmedIntegration(project.targetSourceId);
       setConfirmedResources(res.resource_infos);
       setFetchState('idle');
-    } catch {
+    } catch (error: unknown) {
+      // 빈 confirmed-integration (신규 정책: empty 는 정상 상태) 도 404 로 오므로 폴백.
+      if (
+        error instanceof AppError
+        && (error.code === 'NOT_FOUND' || error.code === 'CONFIRMED_INTEGRATION_NOT_FOUND')
+      ) {
+        setConfirmedResources([]);
+        setFetchState('idle');
+        return;
+      }
       setConfirmedResources([]);
       setFetchState('error');
     }
