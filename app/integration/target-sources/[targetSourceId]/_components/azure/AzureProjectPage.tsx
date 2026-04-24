@@ -60,11 +60,11 @@ export const AzureProjectPage = ({
 
   const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
 
-  // Step 별 데이터 소스: step 1 = catalog, step 4+ = confirmed-integration, step 2/3 = fetch 없음
   const [resources, setResources] = useState<Resource[]>([]);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceLoaded, setResourceLoaded] = useState(false);
   const [resourceError, setResourceError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,34 +102,42 @@ export const AzureProjectPage = ({
 
   const currentStep = getProjectCurrentStep(project);
 
-  const loadResources = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
     setResourceLoading(true);
     setResourceError(null);
-    try {
-      if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
-        const response = await getConfirmResources(project.targetSourceId);
-        setResources(catalogToResources(response.resources));
-      } else if (currentStep >= ProcessStatus.INSTALLING) {
-        const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-          throw error;
-        });
-        const confirmedResources = confirmedIntegrationToResources(response);
-        setResources(confirmedResources);
-        setSelectedIds(confirmedResources.map((r) => r.id));
+    (async () => {
+      try {
+        if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+          const response = await getConfirmResources(project.targetSourceId);
+          if (cancelled) return;
+          setResources(catalogToResources(response.resources));
+        } else if (currentStep >= ProcessStatus.INSTALLING) {
+          const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+            if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+            throw error;
+          });
+          if (cancelled) return;
+          const confirmedResources = confirmedIntegrationToResources(response);
+          setResources(confirmedResources);
+          setSelectedIds(confirmedResources.map((r) => r.id));
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setResourceError(getResourceErrorMessage(error));
+      } finally {
+        if (!cancelled) {
+          setResourceLoading(false);
+          setResourceLoaded(true);
+        }
       }
-      // step 2 / 3: 호출 없음 — step 3 은 ResourceTransitionPanel 이 자체 fetch.
-    } catch (error) {
-      setResourceError(getResourceErrorMessage(error));
-    } finally {
-      setResourceLoading(false);
-      setResourceLoaded(true);
-    }
-  }, [currentStep, project.targetSourceId]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, project.targetSourceId, retryNonce]);
 
-  useEffect(() => {
-    void loadResources();
-  }, [loadResources, project.updatedAt]);
+  const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
 
   const displayResources = useMemo(
     () =>
@@ -158,10 +166,8 @@ export const AzureProjectPage = ({
   const handleCredentialChange = async (resourceId: string, credentialId: string | null) => {
     try {
       await updateResourceCredential(project.targetSourceId, resourceId, credentialId);
-      const [updatedProject] = await Promise.all([
-        getProject(project.targetSourceId),
-        loadResources(),
-      ]);
+      const updatedProject = await getProject(project.targetSourceId);
+      reloadResources();
       onProjectUpdate(updatedProject);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Credential 변경에 실패했습니다.');
@@ -231,10 +237,8 @@ export const AzureProjectPage = ({
         resource_inputs: resourceInputs,
       });
 
-      const [updatedProject] = await Promise.all([
-        getProject(project.targetSourceId),
-        loadResources(),
-      ]);
+      const updatedProject = await getProject(project.targetSourceId);
+      reloadResources();
       onProjectUpdate(updatedProject);
       setApprovalModalOpen(false);
     } catch (error) {
@@ -245,10 +249,8 @@ export const AzureProjectPage = ({
   };
 
   const handleRefreshAfterProjectChange = async () => {
-    const [updatedProject] = await Promise.all([
-      getProject(project.targetSourceId),
-      loadResources(),
-    ]);
+    const updatedProject = await getProject(project.targetSourceId);
+    reloadResources();
     onProjectUpdate(updatedProject);
   };
 
@@ -277,7 +279,7 @@ export const AzureProjectPage = ({
             {resourceError}
           </p>
           <button
-            onClick={() => void loadResources()}
+            onClick={reloadResources}
             className={getButtonClass('secondary')}
           >
             다시 시도

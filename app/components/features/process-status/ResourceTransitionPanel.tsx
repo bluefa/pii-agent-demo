@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { getApprovedIntegration } from '@/app/lib/api';
-import type { ApprovedIntegrationResourceItem } from '@/app/lib/api';
-import type { Resource, CloudProvider, ProcessStatus, DatabaseType, VmDatabaseType } from '@/lib/types';
+import type { Resource, CloudProvider, ProcessStatus } from '@/lib/types';
 import { ResourceTable } from '@/app/components/features/ResourceTable';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { isMissingApprovedIntegrationError } from '@/lib/errors';
+import { approvedIntegrationToResources } from '@/lib/resource-catalog';
 import { cn, getButtonClass, statusColors, textColors, cardStyles } from '@/lib/theme';
 
 interface ResourceTransitionPanelProps {
@@ -14,42 +14,6 @@ interface ResourceTransitionPanelProps {
   cloudProvider: CloudProvider;
   processStatus: ProcessStatus;
 }
-
-const VM_DATABASE_TYPES: VmDatabaseType[] = ['MYSQL', 'POSTGRESQL', 'MSSQL', 'MONGODB', 'ORACLE'];
-
-const isVmDatabaseType = (databaseType: DatabaseType): databaseType is VmDatabaseType =>
-  VM_DATABASE_TYPES.includes(databaseType as VmDatabaseType);
-
-const approvedSnapshotToResources = (
-  items: ApprovedIntegrationResourceItem[],
-): Resource[] =>
-  items.map((item) => {
-    const endpoint = item.endpoint_config;
-    const databaseType: DatabaseType = (endpoint?.db_type ?? 'MYSQL') as DatabaseType;
-    const isAzureVm =
-      item.resource_type === 'AZURE_VM'
-      && endpoint
-      && isVmDatabaseType(databaseType);
-    return {
-      id: item.resource_id,
-      resourceId: item.resource_id,
-      type: item.resource_type,
-      databaseType,
-      connectionStatus: 'CONNECTED' as const,
-      isSelected: true,
-      integrationCategory: 'TARGET' as const,
-      selectedCredentialId: item.credential_id ?? undefined,
-      vmDatabaseConfig: isAzureVm && endpoint
-        ? {
-            databaseType: endpoint.db_type,
-            port: endpoint.port,
-            ...(endpoint.host ? { host: endpoint.host } : {}),
-            ...(endpoint.oracleServiceId ? { oracleServiceId: endpoint.oracleServiceId } : {}),
-            ...(endpoint.selectedNicId ? { selectedNicId: endpoint.selectedNicId } : {}),
-          }
-        : undefined,
-    };
-  });
 
 type FetchState =
   | { status: 'loading' }
@@ -70,7 +34,7 @@ export const ResourceTransitionPanel = ({
       .then((response) => {
         if (cancelled) return;
         const infos = response.approved_integration?.resource_infos ?? [];
-        setState({ status: 'ready', resources: approvedSnapshotToResources(infos) });
+        setState({ status: 'ready', resources: approvedIntegrationToResources(infos) });
       })
       .catch((error: unknown) => {
         if (cancelled) return;

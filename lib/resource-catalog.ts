@@ -4,6 +4,7 @@ import type {
   DatabaseType,
   IntegrationCategory,
   Resource,
+  ResourceSnapshot,
   VmDatabaseConfig,
   VmDatabaseType,
 } from '@/lib/types';
@@ -72,36 +73,19 @@ const toVmDatabaseConfigFromConfirmed = (
   };
 };
 
-export interface CatalogSelectionOverlay {
-  selectedIds: ReadonlySet<string>;
-  vmConfigsByResourceId?: ReadonlyMap<string, VmDatabaseConfig>;
-  credentialsByResourceId?: ReadonlyMap<string, string>;
-}
-
-export const catalogItemToResource = (
-  item: CatalogItem,
-  overlay?: CatalogSelectionOverlay,
-): Resource => {
-  const isSelected = overlay?.selectedIds.has(item.resourceId) ?? false;
-  return {
+export const catalogToResources = (
+  catalog: readonly CatalogItem[],
+): Resource[] =>
+  catalog.map((item) => ({
     id: item.id,
     type: item.resourceType,
     resourceId: item.resourceId,
-    connectionStatus: isSelected ? 'CONNECTED' : 'PENDING',
-    isSelected,
+    connectionStatus: 'PENDING',
+    isSelected: false,
     databaseType: item.databaseType,
     integrationCategory: item.integrationCategory,
-    selectedCredentialId: overlay?.credentialsByResourceId?.get(item.resourceId),
-    vmDatabaseConfig:
-      overlay?.vmConfigsByResourceId?.get(item.resourceId)
-      ?? toVmDatabaseConfigFromCatalog(item),
-  };
-};
-
-export const catalogToResources = (
-  catalog: readonly CatalogItem[],
-  overlay?: CatalogSelectionOverlay,
-): Resource[] => catalog.map((item) => catalogItemToResource(item, overlay));
+    vmDatabaseConfig: toVmDatabaseConfigFromCatalog(item),
+  }));
 
 export const confirmedIntegrationToResources = (
   confirmedIntegration: BffConfirmedIntegration,
@@ -117,3 +101,36 @@ export const confirmedIntegrationToResources = (
     selectedCredentialId: info.credential_id ?? undefined,
     vmDatabaseConfig: toVmDatabaseConfigFromConfirmed(info),
   }));
+
+// approved-integration snapshot 은 endpoint_config 를 중첩 구조로 실음 —
+// confirmed-integration 의 flat 필드와 shape 이 달라 별도 converter 를 유지한다.
+export const approvedIntegrationToResources = (
+  items: readonly ResourceSnapshot[],
+): Resource[] =>
+  items.map((item) => {
+    const endpoint = item.endpoint_config;
+    const databaseType: DatabaseType = (endpoint?.db_type ?? 'MYSQL') as DatabaseType;
+    const isAzureVm =
+      item.resource_type === 'AZURE_VM'
+      && endpoint
+      && isVmDatabaseType(databaseType);
+    return {
+      id: item.resource_id,
+      resourceId: item.resource_id,
+      type: item.resource_type,
+      databaseType,
+      connectionStatus: 'CONNECTED',
+      isSelected: true,
+      integrationCategory: 'TARGET',
+      selectedCredentialId: item.credential_id ?? undefined,
+      vmDatabaseConfig: isAzureVm && endpoint
+        ? {
+            databaseType: endpoint.db_type,
+            port: endpoint.port,
+            ...(endpoint.host ? { host: endpoint.host } : {}),
+            ...(endpoint.oracleServiceId ? { oracleServiceId: endpoint.oracleServiceId } : {}),
+            ...(endpoint.selectedNicId ? { selectedNicId: endpoint.selectedNicId } : {}),
+          }
+        : undefined,
+    };
+  });

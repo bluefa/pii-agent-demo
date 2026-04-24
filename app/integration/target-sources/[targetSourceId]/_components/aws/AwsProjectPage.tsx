@@ -50,45 +50,52 @@ export const AwsProjectPage = ({
   const [expandedVmId, setExpandedVmId] = useState<string | null>(null);
   const [vmConfigs, setVmConfigs] = useState<Record<string, VmDatabaseConfig>>({});
 
-  // Step 별 데이터 소스: step 1 = catalog, step 4+ = confirmed-integration, step 2/3 = fetch 없음
   const [resources, setResources] = useState<Resource[]>([]);
   const [resourceLoading, setResourceLoading] = useState(true);
   const [resourceError, setResourceError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const currentStep = getProjectCurrentStep(project);
 
-  const loadResources = useCallback(async () => {
-    setResourceLoading(true);
-    setResourceError(null);
-    try {
-      if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
-        const response = await getConfirmResources(project.targetSourceId);
-        setResources(catalogToResources(response.resources));
-      } else if (currentStep >= ProcessStatus.INSTALLING) {
-        const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
-          if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
-          throw error;
-        });
-        const confirmedResources = confirmedIntegrationToResources(response);
-        setResources(confirmedResources);
-        setSelectedIds(confirmedResources.map((r) => r.id));
-      }
-    } catch (error) {
-      const message = error instanceof AppError && error.isUserFacing
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : 'AWS 리소스 정보를 불러오지 못했습니다.';
-      setResourceError(message);
-    } finally {
-      setResourceLoading(false);
-    }
-  }, [currentStep, project.targetSourceId]);
-
   useEffect(() => {
     if (!project.awsInstallationMode) return;
-    void loadResources();
-  }, [loadResources, project.awsInstallationMode]);
+    let cancelled = false;
+    setResourceLoading(true);
+    setResourceError(null);
+    (async () => {
+      try {
+        if (currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION) {
+          const response = await getConfirmResources(project.targetSourceId);
+          if (cancelled) return;
+          setResources(catalogToResources(response.resources));
+        } else if (currentStep >= ProcessStatus.INSTALLING) {
+          const response = await getConfirmedIntegration(project.targetSourceId).catch((error) => {
+            if (isMissingConfirmedIntegrationError(error)) return EMPTY_CONFIRMED_INTEGRATION;
+            throw error;
+          });
+          if (cancelled) return;
+          const confirmedResources = confirmedIntegrationToResources(response);
+          setResources(confirmedResources);
+          setSelectedIds(confirmedResources.map((r) => r.id));
+        }
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof AppError && error.isUserFacing
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : 'AWS 리소스 정보를 불러오지 못했습니다.';
+        setResourceError(message);
+      } finally {
+        if (!cancelled) setResourceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentStep, project.awsInstallationMode, project.targetSourceId, retryNonce]);
+
+  const reloadResources = useCallback(() => setRetryNonce((n) => n + 1), []);
 
   const handleModeSelected = (updatedProject: Project) => {
     onProjectUpdate(updatedProject);
@@ -205,6 +212,66 @@ export const AwsProjectPage = ({
     }
   };
 
+  const renderStepCard = () => {
+    if (currentStep === ProcessStatus.APPLYING_APPROVED) {
+      return (
+        <ResourceTransitionPanel
+          targetSourceId={project.targetSourceId}
+          cloudProvider={project.cloudProvider}
+          processStatus={currentStep}
+        />
+      );
+    }
+    if (currentStep >= ProcessStatus.INSTALLING) {
+      return <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />;
+    }
+    if (resourceLoading) {
+      return (
+        <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
+          <LoadingSpinner />
+          <span className={cn('text-sm', textColors.tertiary)}>AWS 리소스 정보를 불러오는 중입니다.</span>
+        </div>
+      );
+    }
+    if (resourceError) {
+      return (
+        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
+            {resourceError}
+          </p>
+          <button onClick={reloadResources} className={getButtonClass('secondary')}>
+            다시 시도
+          </button>
+        </div>
+      );
+    }
+    return (
+      <DbSelectionCard
+        targetSourceId={project.targetSourceId}
+        cloudProvider={project.cloudProvider}
+        onScanComplete={async () => {
+          const updatedProject = await getProject(project.targetSourceId);
+          reloadResources();
+          onProjectUpdate(updatedProject);
+        }}
+        resources={resources.map((r) => ({
+          ...r,
+          vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
+        }))}
+        processStatus={currentStep}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        credentials={credentials}
+        onCredentialChange={handleCredentialChange}
+        expandedVmId={expandedVmId}
+        onVmConfigToggle={setExpandedVmId}
+        onVmConfigSave={handleVmConfigSave}
+        onRequestApproval={handleConfirmTargets}
+        approvalSubmitting={submitting}
+      />
+    );
+  };
+
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
       <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
@@ -227,58 +294,7 @@ export const AwsProjectPage = ({
         installationMode={project.awsInstallationMode}
       />
 
-      {currentStep === ProcessStatus.APPLYING_APPROVED ? (
-        <ResourceTransitionPanel
-          targetSourceId={project.targetSourceId}
-          cloudProvider={project.cloudProvider}
-          processStatus={currentStep}
-        />
-      ) : currentStep >= ProcessStatus.INSTALLING ? (
-        <IntegrationTargetInfoCard key={project.targetSourceId} targetSourceId={project.targetSourceId} />
-      ) : resourceLoading ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 flex items-center justify-center gap-3">
-          <LoadingSpinner />
-          <span className={cn('text-sm', textColors.tertiary)}>AWS 리소스 정보를 불러오는 중입니다.</span>
-        </div>
-      ) : resourceError ? (
-        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>
-            {resourceError}
-          </p>
-          <button
-            onClick={() => void loadResources()}
-            className={getButtonClass('secondary')}
-          >
-            다시 시도
-          </button>
-        </div>
-      ) : (
-        <DbSelectionCard
-          targetSourceId={project.targetSourceId}
-          cloudProvider={project.cloudProvider}
-          onScanComplete={async () => {
-            const [updatedProject] = await Promise.all([
-              getProject(project.targetSourceId),
-              loadResources(),
-            ]);
-            onProjectUpdate(updatedProject);
-          }}
-          resources={resources.map((r) => ({
-            ...r,
-            vmDatabaseConfig: vmConfigs[r.id] || r.vmDatabaseConfig,
-          }))}
-          processStatus={currentStep}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          credentials={credentials}
-          onCredentialChange={handleCredentialChange}
-          expandedVmId={expandedVmId}
-          onVmConfigToggle={setExpandedVmId}
-          onVmConfigSave={handleVmConfigSave}
-          onRequestApproval={handleConfirmTargets}
-          approvalSubmitting={submitting}
-        />
-      )}
+      {renderStepCard()}
 
       <RejectionAlert project={project} />
     </main>
