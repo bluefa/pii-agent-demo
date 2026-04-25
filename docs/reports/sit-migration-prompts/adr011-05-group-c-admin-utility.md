@@ -137,7 +137,12 @@ curl -s http://localhost:3001/integration/api/v1/target-sources/1003/scanJob/lat
 - [ ] All route handlers under Group C scope use `bff` not `client`.
 - [ ] `dashboard.systemsExport` streams correctly (verify content type matches pre-PR).
 - [ ] Standard `tsc/lint/test/build` pass.
-- [ ] Smoke tests match pre-PR.
+- [ ] **I-1, I-2, I-3, I-4 invariants** (`adr011-README.md` §"Observable Behavior Invariants") all pass:
+  - I-1: `httpBff.{services,dashboard,dev,scan,taskAdmin}` paths byte-for-byte equal to current `bff-client.ts`.
+  - I-2: route file layout unchanged.
+  - I-3: smoke framework — `admin/dashboard/{summary,systems}`, `services/{code}/{authorized-users,projects,settings/aws,settings/azure}`, `task-admin/approval-requests`, `target-sources/{id}/{scan,scanJob/latest,scan/history}` — zero diff.
+  - I-4: error paths preserved.
+- [ ] If `dashboard.systemsExport` is non-JSON, the `Content-Type` and body bytes match pre-PR exactly.
 
 ## Out of scope
 

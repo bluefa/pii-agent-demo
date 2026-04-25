@@ -272,6 +272,10 @@ Compare each output to the *original* pre-ADR-011 baseline (use `git stash` on a
 - [ ] `app/lib/api/index.ts` reduced by 100-150 lines from current state.
 - [ ] `npx tsc --noEmit`, `npm run lint`, `npm run test:run`, `npm run build` all pass.
 - [ ] Smoke test outputs match pre-ADR-011 baseline.
+- [ ] **I-1, I-2, I-3, I-4 invariants** (`adr011-README.md` §"Observable Behavior Invariants") still hold after cleanup:
+  - The Issue222 rename does NOT change wire shape (only TypeScript identifier names change). Verify by smoke-diffing every endpoint touched in this PR.
+  - Removing residual `normalizeIssue222*` callers from `app/lib/api/index.ts` (Step 8) does NOT change the data CSR consumers receive — the typed BFF return already provides the same fields. If a removal causes a UI shape change, revert that single removal and document why in PR description.
+  - The `docs/swagger/issue-222-client.yaml` rename is a file-system change only — the Swagger spec content is identical, only the file path changes.
 
 ## Out of scope
 

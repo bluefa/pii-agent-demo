@@ -156,6 +156,7 @@ The existing real `httpBff.targetSources.get` and `httpBff.users.me` (current `l
 - [ ] `npm run test:run` passes — no behavior changes, only new type surface.
 - [ ] No file under `app/integration/api/v1/**` has been modified.
 - [ ] No file under `lib/api-client/**` has been modified.
+- [ ] **Typed shapes preserve current wire casing**: for every method, the typed return shape uses the SAME casing the upstream BFF returns today. Specifically: GET-method types are camelCase (matches `proxyGet` `camelCaseKeys` output); POST/PUT/DELETE-method types are snake_case (matches `proxyPost/Put/Delete` raw passthrough output). This is a prerequisite for I-3 in specs 03-06. See `adr011-README.md` §"Observable Behavior Invariants".
 
 ## Tests
 
