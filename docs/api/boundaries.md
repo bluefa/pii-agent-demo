@@ -1,10 +1,6 @@
 # API Boundaries
 
-> **Migration in progress (ADR-011)**: route handlers may import from
-> `@/lib/bff/*` in addition to `@/lib/api-client/*` during the per-domain
-> rollout. The single-pipeline rule is re-tightened in adr011-05.
-
-The app has **two parallel data-fetching pipelines**. They look similar but serve different execution contexts. Mixing them is a recurring source of confusion; this document is the single source of truth for "which import lives where."
+The app has **one typed data-access layer** (`@/lib/bff/*`) consumed via two execution contexts. ADR-011 consolidated the previous two-client architecture; this document is the single source of truth for "which import lives where."
 
 ## TL;DR
 
@@ -12,29 +8,29 @@ The app has **two parallel data-fetching pipelines**. They look similar but serv
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Where code runs      │ Uses                                          │
 ├─────────────────────────────────────────────────────────────────────┤
-│ Browser (CSR)        │ @/app/lib/api/*        ← hop 1: Next route    │
-│ Server Component     │ @/lib/bff/*            ← direct, no HTTP hop  │
-│ Next.js Route        │ @/lib/api-client/*     ← dispatches to BFF    │
+│ Browser (CSR)        │ @/app/lib/api/*       ← hop 1: Next route    │
+│ Server Component     │ @/lib/bff/client      ← direct, typed         │
+│ Next.js Route        │ @/lib/bff/client      ← typed dispatch        │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Rule:** never import across boundaries. A component doesn't reach into `lib/api-client`; a route handler doesn't call `app/lib/api/*`.
+**Rule:** never import across boundaries. A CSR component does not reach into `@/lib/bff/*`; a route handler does not call `@/app/lib/api/*`.
 
 ---
 
 ## Pipeline 1 — CSR (client-side rendering)
 
-This is the default for interactive pages under `app/integration/target-sources/**`, `app/components/**`.
+This is the default for interactive pages under `app/integration/**/_components/**`, `app/components/**`.
 
 ```
-┌──────────────┐   fetch      ┌───────────────────┐   dispatch   ┌──────────────┐    HTTP     ┌──────────────┐
-│ React client │ ───────────▶ │ Next Route        │ ───────────▶ │ api-client   │ ──────────▶ │ Upstream BFF │
-│ component    │  /integration│ /v1/*/route.ts    │   client.x.y │ (bff-client  │  ${BFF_URL} │              │
-│              │  /api/v1/... │                   │              │  or mock)    │  /install/v1│              │
-└──────────────┘              └───────────────────┘              └──────────────┘             └──────────────┘
+┌──────────────┐   fetch      ┌───────────────────┐   typed       ┌──────────────┐    HTTP     ┌──────────────┐
+│ React client │ ───────────▶ │ Next Route        │ ───────────▶  │ lib/bff      │ ──────────▶ │ Upstream BFF │
+│ component    │  /integration│ /v1/*/route.ts    │   bff.x.y     │ (httpBff or  │  ${BFF_URL} │              │
+│              │  /api/v1/... │   withV1(...)     │               │  mockBff)    │  /install/v1│              │
+└──────────────┘              └───────────────────┘               └──────────────┘             └──────────────┘
       │                              │                                   │
-      │   @/app/lib/api/*            │   @/app/api/_lib/handler          │   @/lib/api-client
-      │   fetchInfra*()              │   withV1(client.xxx.yyy)          │   client: ApiClient
+      │   @/app/lib/api/*            │   @/app/api/_lib/handler          │   @/lib/bff/client
+      │   fetchInfra*()              │   withV1(bff.xxx.yyy)             │   bff: BffClient
 ```
 
 ### Module layout
@@ -44,11 +40,11 @@ This is the default for interactive pages under `app/integration/target-sources/
 | Component DAL | `@/app/lib/api/*.ts` | `fetchInfraJson('/aws/...')` helpers — one file per domain | **CSR components only** |
 | Transport | `@/app/lib/api/infra.ts` | `fetchInfraCamelJson`, `fetchInfraJson`, `parseInfraCamelJson` | `@/app/lib/api/*` |
 | Prefix constants | `@/lib/infra-api.ts` | `INTERNAL_INFRA_API_PREFIX = '/integration/api/v1'` | anywhere |
-| Route handler | `@/app/integration/api/v1/**/route.ts` | `export const GET = withV1(req => client.x.y(...))` | Next runtime |
-| Dispatcher | `@/lib/api-client/index.ts` | `IS_MOCK ? mockClient : bffClient` | route handlers only |
-| Real impl | `@/lib/api-client/bff-client.ts` | Proxies to `${BFF_URL}/install/v1/...` | dispatcher only |
-| Mock impl | `@/lib/api-client/mock/*.ts` | In-memory fake implementations | dispatcher only |
-| Error normalization | `@/lib/fetch-json.ts` + `@/lib/errors.ts` | Throws `AppError` | anywhere on CSR |
+| Route handler | `@/app/integration/api/v1/**/route.ts` | `export const GET = withV1(req => bff.x.y(...))` | Next runtime |
+| BFF dispatcher | `@/lib/bff/client.ts` | `IS_MOCK ? mockBff : httpBff` | route handlers + Server Components |
+| Real impl | `@/lib/bff/http.ts` | Proxies to `${BFF_URL}/install/v1/...` | dispatcher only |
+| Mock impl | `@/lib/bff/mock-adapter.ts` + `@/lib/bff/mock/*` | In-memory fake implementations | dispatcher only |
+| Errors | `@/lib/bff/errors.ts` | `BffError` (route layer maps to ProblemDetails via `withV1`) | `lib/bff/*`, route handlers |
 
 ### Request flow
 
@@ -56,24 +52,23 @@ This is the default for interactive pages under `app/integration/target-sources/
 2. That helper calls `fetchInfraCamelJson('/aws/target-sources/42/settings')`
 3. `fetchInfraCamelJson` prepends `INTERNAL_INFRA_API_PREFIX` → `/integration/api/v1/aws/target-sources/42/settings`
 4. Browser issues `fetch('/integration/api/v1/...')` — **visible in Network tab** (hop 1)
-5. Next route handler at `app/integration/api/v1/aws/target-sources/[id]/settings/route.ts` dispatches to `client.aws.getSettings(42)`
-6. `client` is `bffClient` (or `mockClient` when `USE_MOCK_DATA=true`)
-7. `bffClient.aws.getSettings(42)` → `fetch('${BFF_URL}/install/v1/aws/target-sources/42/settings')` — **hop 2, server-to-server, NOT in browser Network tab**
+5. Next route handler dispatches to `bff.aws.getSettings(42)`
+6. `bff` is `httpBff` (or `mockBff` when `USE_MOCK_DATA=true`)
+7. `httpBff.aws.getSettings(42)` → `fetch('${BFF_URL}/install/v1/aws/target-sources/42/settings')` — **hop 2, server-to-server, NOT in browser Network tab**
 
 ### Why two hops?
 
 Hop 1 exists because the app is mounted under `/integration` (`next.config.ts` assetPrefix). Hop 2 is the actual BFF call; the Next route handler is a thin proxy that:
 
-- Swaps the prefix (`/integration/api/v1` → `/install/v1`)
+- Swaps the prefix (`/integration/api/v1` → `/install/v1`) via `httpBff`
 - Handles auth cookies server-side
-- Applies `camelCaseKeys` on the response
-- Switches between mock and real via `USE_MOCK_DATA`
+- Switches between mock and real via `USE_MOCK_DATA` (selected once in `lib/bff/client.ts`)
 
 ---
 
 ## Pipeline 2 — SSR (Server Component)
 
-Used only by React Server Components (currently `app/integration/target-sources/[targetSourceId]/page.tsx`).
+Used by React Server Components (e.g. `app/integration/target-sources/[targetSourceId]/page.tsx`).
 
 ```
 ┌──────────────────┐   function call   ┌────────────────────────┐    HTTP     ┌──────────────┐
@@ -83,91 +78,62 @@ Used only by React Server Components (currently `app/integration/target-sources/
                                        └────────────────────────┘
 ```
 
-### Module layout
-
-| Layer | Path | Role | Who can import |
-|-------|------|------|----------------|
-| Public surface | `@/lib/bff/client.ts` | Marked `'server-only'`. Exports `bff: BffClient` | **Server Components only** |
-| Types | `@/lib/bff/types.ts` | `BffClient` contract | Server Components, implementations |
-| Real impl | `@/lib/bff/http.ts` | HTTP to `${BFF_URL}` | `lib/bff/client.ts` only |
-| Mock impl | `@/lib/bff/mock-adapter.ts` | Local fake | `lib/bff/client.ts` only |
-| Errors | `@/lib/bff/errors.ts` | `BffError` | `lib/bff/*` |
-
-### Why a second client?
-
-Server Components can't go through a Next route handler (they'd hit their own server over HTTP). `lib/bff/*` makes one direct hop to the upstream.
+Server Components and route handlers share the same `bff` import. There is no second client.
 
 ### Marker
 
-`lib/bff/client.ts` starts with `import 'server-only'` — importing it from a client component fails the build. This is the primary guard.
+`lib/bff/client.ts` starts with `import 'server-only'` — importing it from a CSR component fails the build. This is the primary guard, supplemented by ESLint `no-restricted-imports`.
 
 ---
 
 ## Which pipeline should I use?
 
 ```
-Is the file marked "use client" or does it render interactivity? ──▶ Pipeline 1 (CSR)
-Is it a plain async function in app/ that returns JSX?           ──▶ Pipeline 2 (SSR)
-Is it a file under app/integration/api/v1/**/route.ts?           ──▶ Route handler — use @/lib/api-client
+Is the file marked "use client" or under app/**/_components/?           ──▶ Pipeline 1 (CSR)
+Is it a plain async function in app/ that returns JSX?                  ──▶ Pipeline 2 (SSR)
+Is it a file under app/integration/api/v1/**/route.ts?                  ──▶ Route handler — use @/lib/bff/client
 ```
 
 ## Forbidden imports
 
 | From | Must NOT import |
 |------|-----------------|
-| `app/components/**`, `app/integration/target-sources/**` (CSR) | `@/lib/api-client/*`, `@/lib/bff/*` |
-| `app/integration/target-sources/[targetSourceId]/page.tsx` (Server Component) | `@/app/lib/api/*`, `@/lib/api-client/*` |
-| `app/integration/api/v1/**/route.ts` (route handler) | `@/app/lib/api/*`. May import `@/lib/api-client/*` (legacy) or `@/lib/bff/*` (preferred during ADR-011 migration). |
-| `lib/api-client/*` | `@/app/lib/api/*` |
-| `lib/bff/*` | `@/app/lib/api/*`, `@/lib/api-client/*` |
+| `app/components/**` (CSR) | `@/lib/bff/*` (use `@/app/lib/api/*`) |
+| `app/integration/**/_components/**` (CSR) | `@/lib/bff/*` (use `@/app/lib/api/*`) |
+| Server Components | `@/app/lib/api/*` (use `@/lib/bff/client`) |
+| `app/integration/api/v1/**/route.ts` | `@/app/lib/api/*` (use `@/lib/bff/client`) |
+| Anywhere | `@/lib/api-client/*` (deleted in ADR-011) |
 
-### How to enforce
+### Enforcement
 
-Proposed `eslint.config.mjs` rule (not yet added):
+`eslint.config.mjs` enforces these via `no-restricted-imports`:
 
-```js
-{
-  rules: {
-    'no-restricted-imports': ['error', {
-      patterns: [
-        {
-          group: ['@/lib/api-client/*', '@/lib/bff/*'],
-          message: 'Client components must use @/app/lib/api/* — see docs/api/boundaries.md',
-        },
-      ],
-    }],
-  },
-  // Scope to client-component directories only.
-}
-```
+- Project-wide ban on `@/lib/api-client` and `@/lib/api-client/*`
+- CSR scopes (`app/components/**`, `app/integration/**/_components/**`) banned from `@/lib/bff/*`
+- Route handlers (`app/integration/api/v1/**/route.ts`) banned from `@/app/lib/api/*`
+
+The `'server-only'` directive in `lib/bff/client.ts` provides a second runtime guard.
 
 ---
 
 ## Naming conventions
 
-The two pipelines share suffixes, which is part of why this is confusing. Stick to these names:
-
-| Concept | Pipeline 1 (CSR) | Pipeline 2 (SSR) |
-|---------|------------------|------------------|
-| Public entry | `client` (from `@/lib/api-client`) | `bff` (from `@/lib/bff/client`) |
-| Type | `ApiClient` | `BffClient` |
-| Real impl | `bffClient` | `httpBff` |
-| Mock impl | `mockClient` | `mockBff` |
-| Caller helper | `fetchInfra*` in `app/lib/api/*` | direct call to `bff.xxx.yyy()` |
-
-> Yes, `bffClient` lives in Pipeline 1 and `bff` lives in Pipeline 2. This is historical. If renames happen, update both pipelines at once — do not fold one into the other without a migration plan (they serve different execution contexts).
+| Concept | Pipeline 1 (CSR) | Pipelines 2 / Route (BFF) |
+|---------|------------------|---------------------------|
+| Public entry | helper functions in `@/app/lib/api/*` | `bff` (from `@/lib/bff/client`) |
+| Type | inferred from helper return | `BffClient` |
+| Real impl | n/a (helpers wrap `fetch`) | `httpBff` |
+| Mock impl | n/a (mock lives behind the route) | `mockBff` |
 
 ---
 
 ## Related docs
 
-- [ADR-011 — Typed BFF Client Consolidation](../adr/011-typed-bff-client-consolidation.md) (current; supersedes the removed ADR-007 «API Client 패턴 도입»)
+- [ADR-011 — Typed BFF Client Consolidation](../adr/011-typed-bff-client-consolidation.md)
 - [ADR-008 — Error Handling Strategy](../adr/008-error-handling-strategy.md)
-- `.claude/skills/anti-patterns/SKILL.md` — the "API boundary anti-patterns" section
+- `.claude/skills/anti-patterns/SKILL.md` — "API boundary anti-patterns" section
 - Session memory: "BFF 2-hop architecture"
 
-## Open questions (future work)
+## Resolved by ADR-011
 
-- **`lib/bff/*` vs `lib/api-client/bff-client.ts`** — two HTTP clients targeting the same upstream. Possible consolidation: have `httpBff` reuse `bff-client` transport (needs design review).
-- **Schema validation** — both pipelines currently `as`-cast responses. Adding zod at the route-handler / `bff` boundary would close the type-safety gap (see anti-pattern A2, A3).
-- **ESLint `no-restricted-imports`** — not yet enforced; relying on convention today.
+The previous "Open questions" — two HTTP clients, schema validation gap framed against the boundary, ESLint enforcement — were addressed by ADR-011 over specs adr011-01 through adr011-05. Schema validation at routes (zod) is tracked separately as a future ADR.
