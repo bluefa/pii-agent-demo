@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CloudTargetSource } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import {
   getAzureSettings,
@@ -18,6 +18,7 @@ import {
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { ResourceSection } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceSection';
+import { CloudTargetSourceLayout } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
 
 interface AzureProjectPageProps {
   project: CloudTargetSource;
@@ -63,8 +64,6 @@ export const AzureProjectPage = ({
     onProjectUpdate(updated as CloudTargetSource);
   }, [onProjectUpdate, project.targetSourceId]);
 
-  const slotKey = resolveStepSlot('Azure', project.processStatus);
-
   const identity: ProjectIdentity = {
     cloudProvider: 'Azure',
     monitoringMethod: 'Azure Agent',
@@ -74,6 +73,20 @@ export const AzureProjectPage = ({
       { label: 'Tenant ID', value: azureIdentifiers.tenantId ?? null, mono: true },
     ],
   };
+
+  if (project.processStatus === ProcessStatus.INSTALLING) {
+    return (
+      <CloudTargetSourceLayout
+        project={project}
+        identity={identity}
+        providerLabel="Azure Infrastructure"
+        action={<DeleteInfrastructureButton />}
+        onProjectUpdate={onProjectUpdate}
+      />
+    );
+  }
+
+  const slotKey = resolveStepSlot('Azure', project.processStatus);
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
