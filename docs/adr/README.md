@@ -10,7 +10,6 @@
 | [ADR-003](./003-documentation-strategy.md) | 문서 관리 전략 | 승인됨 | 2026-02-02 |
 | [ADR-004](./004-process-status-refactoring.md) | processStatus 저장 필드 리팩토링 | 폐기됨 | 2026-02-04 |
 | [ADR-006](./006-integration-confirmation-approval-redesign.md) | 연동 확정 승인 프로세스 재설계 | 승인됨 | 2026-02-11 |
-| [ADR-007](./007-api-client-pattern.md) | API Client 패턴 도입 | 대체됨 ([ADR-011](./011-typed-bff-client-consolidation.md)) | 2026-02-14 |
 | [ADR-008](./008-error-handling-strategy.md) | CSR 에러 처리 전략 | 승인됨 | 2026-02-15 |
 | [ADR-009](./009-process-status-terminology.md) | processStatus 용어 체계 확정 및 BFF 계산 모델 | 승인됨 | 2026-02-16 |
 | [ADR-010](./010-guide-cms-slot-registry.md) | Guide CMS — Frontend Slot Registry + Server Content Store | Proposed | 2026-04-25 |
