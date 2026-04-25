@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # PostToolUse hook for Bash: capture PR URL from `gh pr create` output.
-# Stores per-session at /tmp/claude-pr-event-<session_id> so the statusline
-# can surface the PR even when the main session's cwd is on main or a
+# Appends per-session at /tmp/claude-pr-event-<session_id> so the statusline
+# can surface every PR created in a session — including subagent fan-out that
+# produces multiple PRs — even when the main session's cwd is on main or a
 # detached HEAD (e.g., PR was created inside a sibling worktree via a
 # helper script, without the main session ever changing its cwd).
 
@@ -37,6 +38,9 @@ pr_num="$(printf '%s' "$pr_url" | /usr/bin/grep -oE '[0-9]+$')"
 [ -n "$pr_num" ] || exit 0
 
 cache_file="/tmp/claude-pr-event-$session_id"
-printf '%s\t%s\n' "$pr_url" "$pr_num" > "$cache_file"
+if [ -f "$cache_file" ] && /usr/bin/grep -qE "	${pr_num}$" "$cache_file" 2>/dev/null; then
+  exit 0
+fi
+printf '%s\t%s\n' "$pr_url" "$pr_num" >> "$cache_file"
 
 exit 0
