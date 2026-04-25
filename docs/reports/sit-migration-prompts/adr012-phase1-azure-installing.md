@@ -33,21 +33,40 @@ interface Props {
 }
 ```
 
-`CloudInstallingStep` receives the same props and forwards them. It derives `slotKey` for the guide via the existing `resolveStepSlot(project.cloudProvider, ProcessStatus.INSTALLING)` helper at `app/components/features/process-status/GuideCard/resolve-step-slot.ts`. It does **not** invent its own guide rendering.
+`InstallingStep` is the gate component for the `INSTALLING` process status. In Phase 1 it is a no-op pass-through that returns `<CloudInstallingStep ... />`. The gate exists so Phase 2 can add the AWS branch without restructuring the layout. `AwsManualInstallingStep` is **not** introduced in Phase 1.
+
+```tsx
+// InstallingStep.tsx — Phase 1 (no-op gate)
+export const InstallingStep = (props: Props) => {
+  // Phase 2 will add: if (project.cloudProvider === 'AWS' && project.awsInstallationMode === 'MANUAL') return <AwsManualInstallingStep {...props} />;
+  return <CloudInstallingStep {...props} />;
+};
+```
+
+`CloudInstallingStep` receives the same props as the layout, derives `slotKey` for the guide via the existing `resolveStepSlot(project.cloudProvider, ProcessStatus.INSTALLING)` helper at `app/components/features/process-status/GuideCard/resolve-step-slot.ts`, and derives `refreshProject` (a callback that fetches the project and invokes `onProjectUpdate`) so install-completion can propagate to the parent. It does **not** invent its own guide rendering.
 
 ```tsx
 // CloudInstallingStep.tsx — render shape
+const refreshProject = useCallback(async () => {
+  const updated = await getProject(project.targetSourceId);
+  onProjectUpdate(updated as CloudTargetSource);
+}, [onProjectUpdate, project.targetSourceId]);
+
+const slotKey = resolveStepSlot(project.cloudProvider, ProcessStatus.INSTALLING);
+
 return (
   <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
     <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
     <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
     {slotKey && <GuideCardContainer slotKey={slotKey} />}
-    <InstallationStatusSlot project={project} />
+    <InstallationStatusSlot project={project} refreshProject={refreshProject} />
     <ConfirmedResourcesSlot />
     <RejectionAlert project={project} />
   </ConfirmedIntegrationDataProvider>
 );
 ```
+
+`InstallationStatusSlot` accepts `{ project, refreshProject }` and forwards `refreshProject` to the chosen provider-specific status component. `AzureInstallationStatus` reads `useConfirmedIntegration().state`, derives `confirmed: readonly ConfirmedResource[]` from the `ready` data, and renders `<AzureInstallationInline confirmed={confirmed} onInstallComplete={refreshProject} ... />` so the existing install-completion refresh path at `AzureInstallationInline.tsx:139-142` continues to fire.
 
 ### Hook contract
 
@@ -67,12 +86,13 @@ export const useConfirmedIntegration = (): ConfirmedIntegrationContextValue => {
 
 | Area | Required action |
 |---|---|
-| **Layout entry** | Add `_components/layout/CloudTargetSourceLayout.tsx`. The switch initially has one explicit case (`INSTALLING` → `<CloudInstallingStep ... />`). Other `ProcessStatus` values do not fall through; the caller (`AzureProjectPage`) must not reach `CloudTargetSourceLayout` for non-`INSTALLING` steps in Phase 1. |
-| **Default body** | Add `_components/layout/CloudInstallingStep.tsx`. Uses the render shape under Component Contract. Wraps body in `ConfirmedIntegrationDataProvider`. |
-| **Provider slot** | Add `_components/layout/InstallationStatusSlot.tsx`. Switches on `cloudProvider` and dispatches to `AzureInstallationStatus`. AWS / GCP cases return `null` until phase 2. |
+| **Layout entry** | Add `_components/layout/CloudTargetSourceLayout.tsx`. The switch initially has one explicit case (`INSTALLING` → `<InstallingStep ... />`). Other `ProcessStatus` values do not fall through; the caller (`AzureProjectPage`) must not reach `CloudTargetSourceLayout` for non-`INSTALLING` steps in Phase 1. |
+| **Step gate** | Add `_components/layout/InstallingStep.tsx`. Phase 1 is a no-op pass-through that returns `<CloudInstallingStep {...props} />`. Phase 2 will introduce the AWS branch. `AwsManualInstallingStep` is **not** introduced in this phase. |
+| **Default body** | Add `_components/layout/CloudInstallingStep.tsx`. Uses the render shape under Component Contract. Derives `refreshProject` from `onProjectUpdate`, derives `slotKey` via `resolveStepSlot`, wraps body in `ConfirmedIntegrationDataProvider`. |
+| **Provider slot** | Add `_components/layout/InstallationStatusSlot.tsx`. Accepts `{ project, refreshProject }`. Switches on `cloudProvider` and dispatches to `AzureInstallationStatus`, forwarding `refreshProject`. AWS / GCP cases return `null` until phase 2. |
 | **Confirmed slot** | Add `_components/layout/ConfirmedResourcesSlot.tsx`. Reads `useConfirmedIntegration()` and renders the existing confirmed-table presentation (extracted from `ConfirmedIntegrationSection`'s body). Calls `retry()` on the error-row retry button. |
 | **Data provider** | Add `_components/data/ConfirmedIntegrationDataProvider.tsx` exporting `ConfirmedIntegrationDataProvider`, `useConfirmedIntegration`, and the context-value type. Lifecycle exactly per ADR §Data Fetching Decoupling, with the `{ state, retry }` shape. |
-| **Azure adapter** | Add `_components/azure/AzureInstallationStatus.tsx`. Reads `useConfirmedIntegration()` and forwards `state.data` (when ready) to the existing `AzureInstallationInline` component. No new logic — pure adapter. |
+| **Azure adapter** | Add `_components/azure/AzureInstallationStatus.tsx`. Reads `useConfirmedIntegration()`, derives `confirmed` from `state.data` when ready, forwards `confirmed` and `onInstallComplete={refreshProject}` to the existing `AzureInstallationInline` component. No new logic — pure adapter. |
 | **Routing hook** | Modify `_components/azure/AzureProjectPage.tsx` so that when `processStatus === ProcessStatus.INSTALLING`, it computes `identity` / `providerLabel` / `action` (existing logic stays in this file) and returns `<CloudTargetSourceLayout project={project} identity={identity} providerLabel="Azure Infrastructure" action={<DeleteInfrastructureButton />} onProjectUpdate={onProjectUpdate} />`. All other steps keep the existing render path unchanged. |
 | **R1 test** | Add `_components/layout/CloudTargetSourceLayout.architecture.test.ts`. Use `\bcloudProvider\b` / `\bawsInstallationMode\b` regex (not bare substring) to avoid comment/import false positives. |
 | **Order test** | Add `_components/layout/CloudInstallingStep.test.tsx`. Renders with a mock Azure-installing `CloudTargetSource`, asserts `getAllByRole('region')` ordering: `installation-status` index < `confirmed-resources` index. Mock child cards as needed; do not depend on real API calls. |
@@ -94,7 +114,7 @@ Callback identity: if any non-memoized callback is accepted as a prop in the fut
 
 ### 2. Layout components (sequential after data layer)
 
-Author in order: `InstallationStatusSlot` → `ConfirmedResourcesSlot` → `AzureInstallationStatus` → `CloudInstallingStep` → `CloudTargetSourceLayout`.
+Author in order: `InstallationStatusSlot` → `ConfirmedResourcesSlot` → `AzureInstallationStatus` → `CloudInstallingStep` → `InstallingStep` → `CloudTargetSourceLayout`.
 
 `AzureInstallationStatus` is a pure adapter — it converts `useConfirmedIntegration().state` to the prop shape `AzureInstallationInline` already requires (`confirmed: readonly ConfirmedResource[]`).
 
@@ -126,7 +146,7 @@ Per `/wave-task` Phase 4-6.
 
 - **R1**: `CloudTargetSourceLayout.tsx` must not match `\bcloudProvider\b` or `\bawsInstallationMode\b`. Test enforces this.
 - **R2**: `InstallationStatusSlot.tsx` and `ConfirmedResourcesSlot.tsx` switch and dispatch only. No `useState` / `useEffect` for business state. No data fetching (the provider does that). `ConfirmedResourcesSlot` may invoke `retry()` from the hook on the error-row button; this is dispatching, not new logic. Slot files target ≤50 lines.
-- **R3**: Phase 1 introduces only `CloudInstallingStep` (default body). It does not introduce `InstallingStep` (gate), `AwsManualInstallingStep`, `AzureInstallingStep`, or `GcpInstallingStep`. The gate and override step components arrive in Phase 2 when AWS routing brings a real divergent body.
+- **R3**: Phase 1 introduces `InstallingStep` (no-op gate) and `CloudInstallingStep` (default body). It does **not** introduce any **override step component** — no `AwsManualInstallingStep`, no `AzureInstallingStep`, no `GcpInstallingStep`. R3 governs override components, not the gate; a stub override that does not change card order would violate R3. The override body arrives in Phase 2 only if AWS Manual genuinely needs a different card order; otherwise AWS Manual stays on the default `CloudInstallingStep` and the AWS-specific installation card lives inside `InstallationStatusSlot`.
 - **R4**: `ConfirmedIntegrationDataProvider` exposes confirmed-integration data only. Do not add candidate / approved / guide / permission fields.
 - **C1**: `CloudTargetSourceLayout` and the new step components must not be imported by `*ProjectPage.tsx` files in a way that surfaces `ConfirmedResource` to the page. The page receives only `CloudTargetSourceLayout` as JSX; the `ConfirmedResource` type is consumed inside the layout subtree.
 - Provider pages keep their existing C1 surface (only `CloudTargetSource`, no resource-domain types).
@@ -137,7 +157,7 @@ Per `/wave-task` Phase 4-6.
 The following land in later phases. Do **not** implement them in this PR even if convenient:
 
 - `WaitingTargetConfirmationStep`, `WaitingApprovalStep`, `ApplyingApprovedStep`, `ConnectionTestStep` step components (phases 3-4).
-- `InstallingStep` gate and `AwsManualInstallingStep` override component (phase 2).
+- `AwsManualInstallingStep` override component (phase 2, and only if AWS Manual genuinely needs a different card order).
 - `AwsInstallationStatus`, `GcpInstallationStatus` adapters (phase 2).
 - AWS / GCP routing through `CloudTargetSourceLayout` (phase 2).
 - Extracting `ApprovalWaitingCard` / `ApprovalApplyingBanner` from `ProcessStatusCard` (phase 3).
@@ -177,8 +197,8 @@ rg -nE "useState|useEffect" \
   app/integration/target-sources/\[targetSourceId\]/_components/layout/{InstallationStatusSlot,ConfirmedResourcesSlot}.tsx
 # Expected: 0 hits.
 
-# Confirm InstallingStep / AwsManualInstallingStep are NOT introduced in Phase 1 (R3):
-rg -n "InstallingStep|AwsManualInstallingStep" \
+# Confirm override step components are NOT introduced in Phase 1 (R3 guard):
+rg -nP "\b(AwsManualInstallingStep|AzureInstallingStep|GcpInstallingStep)\b" \
   app/integration/target-sources/\[targetSourceId\]/_components/layout/
 # Expected: 0 hits.
 
