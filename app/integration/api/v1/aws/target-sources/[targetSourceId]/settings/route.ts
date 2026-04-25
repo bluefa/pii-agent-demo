@@ -65,7 +65,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
     }
   } catch (e) {
     if (!(e instanceof BffError)) throw e;
-    console.warn(`[aws settings] installation status failed: ${e.code}`);
+    console.warn(`[aws settings] installation status failed: ${e.code} (${e.status}) ${e.message}`);
   }
 
   return NextResponse.json({

@@ -8,6 +8,7 @@ import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
+import { extractBffError, type BffErrorBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
 import { mockUsers } from '@/lib/api-client/mock/users';
@@ -39,19 +40,16 @@ import type {
   GcpTerraformServiceAccountResponse,
 } from '@/lib/bff/types/gcp';
 
-interface LegacyErrorPayload {
-  error?: string;
-  message?: string;
-}
-
 async function unwrap<T>(response: NextResponse): Promise<T> {
   const data = await response.json();
   if (!response.ok) {
-    const errorPayload = data as LegacyErrorPayload;
+    // Use shared extractBffError so nested { error: { code, message } } and
+    // flat shapes parity-match transformLegacyError (problem.ts).
+    const { code, message } = extractBffError(data as BffErrorBody);
     throw new BffError(
       response.status,
-      errorPayload.error ?? 'INTERNAL_ERROR',
-      errorPayload.message ?? `HTTP ${response.status}`,
+      code || 'INTERNAL_ERROR',
+      message || `HTTP ${response.status}`,
     );
   }
   return data as T;

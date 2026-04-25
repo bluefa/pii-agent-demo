@@ -88,13 +88,13 @@ export function problemResponse(problem: ProblemDetails): NextResponse {
 // --- Legacy Error Conversion ---
 
 /** BFF 에러 응답: nested { error: { code, message } } 또는 flat { error: string, message: string } */
-interface BffErrorBody {
+export interface BffErrorBody {
   error?: string | { code?: string; message?: string };
   code?: string;
   message?: string;
 }
 
-function extractBffError(body: BffErrorBody): { code: string; message: string } {
+export function extractBffError(body: BffErrorBody): { code: string; message: string } {
   // nested: { error: { code, message } }
   if (body.error && typeof body.error === 'object') {
     return {

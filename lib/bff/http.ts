@@ -6,16 +6,12 @@ import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
+import { extractBffError, type BffErrorBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
 import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
-
-interface LegacyErrorPayload {
-  error?: string;
-  message?: string;
-}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -27,11 +23,14 @@ const isCurrentUser = (value: unknown): value is CurrentUser =>
     && typeof value.email === 'string';
 
 async function throwBffError(res: Response): Promise<never> {
-  const body = await res.json().catch((): LegacyErrorPayload => ({}));
+  // Use shared extractBffError so nested { error: { code, message } } and flat
+  // shapes parity-match transformLegacyError (problem.ts).
+  const raw = await res.json().catch((): BffErrorBody => ({}));
+  const { code, message } = extractBffError(raw as BffErrorBody);
   throw new BffError(
     res.status,
-    body.error ?? 'INTERNAL_ERROR',
-    body.message ?? `HTTP ${res.status}`,
+    code || 'INTERNAL_ERROR',
+    message || `HTTP ${res.status}`,
   );
 }
 

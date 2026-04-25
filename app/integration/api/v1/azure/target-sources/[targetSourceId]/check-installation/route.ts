@@ -20,7 +20,7 @@ export const POST = withV1(async (_request, { requestId, params }) => {
     vmStatus = await bff.azure.vmCheckInstallation(parsed.value);
   } catch (e) {
     if (!(e instanceof BffError)) throw e;
-    console.warn(`[azure check-installation] vm check failed: ${e.code}`);
+    console.warn(`[azure check-installation] vm check failed: ${e.code} (${e.status}) ${e.message}`);
   }
 
   return NextResponse.json(buildV1Response(dbStatus, vmStatus));
