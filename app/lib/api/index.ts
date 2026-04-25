@@ -513,10 +513,12 @@ export interface ApprovalRequestLatestResponse {
 }
 
 export const getApprovalRequestLatest = async (
-  targetSourceId: number
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
 ): Promise<ApprovalRequestLatestResponse> =>
   fetchInfraJson<ApprovalRequestLatestResponse>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`,
+    options?.signal ? { signal: options.signal } : undefined,
   );
 
 export const cancelApprovalRequest = async (
@@ -605,13 +607,17 @@ export const getTestConnectionResults = async (
   targetSourceId: number,
   page = 0,
   size = 10,
+  options?: { signal?: AbortSignal },
 ): Promise<TestConnectionResultsResponse> => {
   const response = await fetchInfraJson<TestConnectionResultsResponse & {
     page: {
       total_elements?: number;
       total_pages?: number;
     };
-  }>(`${CONFIRM_BASE}/${targetSourceId}/test-connection/results?page=${page}&size=${size}`);
+  }>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/results?page=${page}&size=${size}`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
 
   return {
     ...response,

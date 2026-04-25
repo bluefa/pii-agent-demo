@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { getApprovalRequestLatest } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { CancelApprovalModal } from './CancelApprovalModal';
@@ -21,21 +23,17 @@ export const ApprovalWaitingCard = ({
   const cancelModal = useModal();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchLatest = async () => {
-      try {
-        const response = await getApprovalRequestLatest(targetSourceId);
-        if (!cancelled) {
-          setLatestResponse(response);
-        }
-      } catch {
-        // 조회 실패 시 무시 — 요청 내용 확인 버튼만 비활성화
-      }
-    };
-    fetchLatest();
-    return () => { cancelled = true; };
-  }, [targetSourceId]);
+  useAbortableEffect((signal) =>
+    getApprovalRequestLatest(targetSourceId, { signal })
+      .then((response) => {
+        if (signal.aborted) return;
+        setLatestResponse(response);
+      })
+      .catch((err) => {
+        if (err instanceof AppError && err.code === 'ABORTED') throw err;
+        // Intentional silent ignore — failure only disables the detail button.
+      }),
+  [targetSourceId]);
 
   return (
     <>
