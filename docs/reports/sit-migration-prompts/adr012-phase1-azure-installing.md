@@ -137,13 +137,14 @@ export const useConfirmedIntegration = (): ConfirmedIntegrationContextValue => {
 | **Step gate** | Add `_components/layout/InstallingStep.tsx`. Phase 1 is a no-op pass-through that returns `<CloudInstallingStep {...props} />`. Phase 2 will introduce the AWS branch. `AwsManualInstallingStep` is **not** introduced in this phase. |
 | **Default body** | Add `_components/layout/CloudInstallingStep.tsx`. Uses the render shape under Component Contract. Derives `refreshProject` from `onProjectUpdate`, derives `slotKey` via `resolveStepSlot`, wraps body in `ConfirmedIntegrationDataProvider`. |
 | **Provider slot** | Add `_components/layout/InstallationStatusSlot.tsx`. Accepts `{ project, refreshProject }`. Switches on `cloudProvider` and dispatches to `AzureInstallationStatus`, forwarding `refreshProject`. AWS / GCP cases return `null` until phase 2. |
-| **Confirmed slot** | Add `_components/layout/ConfirmedResourcesSlot.tsx`. Reads `useConfirmedIntegration()` and renders the existing confirmed-table presentation (extracted from `ConfirmedIntegrationSection`'s body). Calls `retry()` on the error-row retry button. |
+| **Confirmed slot** | Add `_components/layout/ConfirmedResourcesSlot.tsx`. Reads `useConfirmedIntegration()` and renders a presentation **copied/adapted** from `ConfirmedIntegrationSection`'s body. Do **not** modify `ConfirmedIntegrationSection.tsx` — the legacy section continues to serve non-INSTALLING confirmed steps until phase 2. Calls `retry()` on the error-row retry button. |
 | **Data provider** | Add `_components/data/ConfirmedIntegrationDataProvider.tsx` exporting `ConfirmedIntegrationDataProvider`, `useConfirmedIntegration`, and the context-value type. Lifecycle exactly per ADR §Data Fetching Decoupling, with the `{ state, retry }` shape. |
 | **Azure adapter** | Add `_components/azure/AzureInstallationStatus.tsx`. Reads `useConfirmedIntegration()`, derives `confirmed` from `state.data` when ready, forwards `confirmed` and `onInstallComplete={refreshProject}` to the existing `AzureInstallationInline` component. No new logic — pure adapter. |
 | **Routing hook** | Modify `_components/azure/AzureProjectPage.tsx` so that when `processStatus === ProcessStatus.INSTALLING`, it computes `identity` / `providerLabel` / `action` (existing logic stays in this file) and returns `<CloudTargetSourceLayout project={project} identity={identity} providerLabel="Azure Infrastructure" action={<DeleteInfrastructureButton />} onProjectUpdate={onProjectUpdate} />`. All other steps keep the existing render path unchanged. |
 | **R1 test** | Add `_components/layout/CloudTargetSourceLayout.architecture.test.ts`. Use `\bcloudProvider\b` / `\bawsInstallationMode\b` regex (not bare substring) to avoid comment/import false positives. |
 | **Order test** | Add `_components/layout/CloudInstallingStep.test.tsx`. Renders with a mock Azure-installing `CloudTargetSource` and asserts the `installation-status` element appears before `confirmed-resources` in DOM order. See test sketch below the table. The test must mock `AzureInstallationInline` (or the `azure/AzureInstallationInline` module) so the order test does not transitively trigger `useInstallationStatus()` and other mount-time fetches. The data provider is also mocked to a `ready` state. |
 | **Lifecycle tests** | Add `_components/data/ConfirmedIntegrationDataProvider.test.tsx`. Cover: mount triggers fetch with abort signal; unmount aborts in-flight; `targetSourceId` change aborts old and refetches; `retry()` aborts in-flight and refetches; `isMissingConfirmedIntegrationError` is normalized to `ready` with empty array. |
+| **Routing test** | Add `_components/azure/AzureProjectPage.test.tsx` (or extend the existing test). Assert `<CloudTargetSourceLayout>` mounts when `processStatus === INSTALLING`, and does NOT mount for at least one non-INSTALLING Azure step (e.g. `WAITING_TARGET_CONFIRMATION` per fixture 1005). Mock `CloudTargetSourceLayout` to a sentinel so the test exercises only the routing decision. |
 
 ## Implementation Steps
 
@@ -239,27 +240,27 @@ If implementation requires touching anything in this list to keep `tsc` green, s
 ## Verification Commands
 
 ```bash
+# Each negative grep is wrapped with `!` so the command exits 0 (success) when
+# rg finds zero matches. Without the bang, rg's exit code 1 on no-match would
+# fail a strict `set -e` script even though we want pass-on-no-match.
+
 # R1 source-text guard (sanity check before relying on the test):
-rg -nP "\bcloudProvider\b|\bawsInstallationMode\b" \
+! rg -nP "\bcloudProvider\b|\bawsInstallationMode\b" \
   app/integration/target-sources/\[targetSourceId\]/_components/layout/CloudTargetSourceLayout.tsx
-# Expected: 0 hits.
 
 # Provider page resource-type guard (C1 from #371):
-rg -nP "from\s+['\"]@/lib/types/resources['\"]" \
+! rg -nP "from\s+['\"]@/lib/types/resources['\"]" \
   app/integration/target-sources/\[targetSourceId\]/_components/{aws,azure,gcp}/*ProjectPage.tsx
-# Expected: 0 hits.
 
 # Slot purity (R2):
-rg -nE "useState|useEffect" \
+! rg -nE "useState|useEffect" \
   app/integration/target-sources/\[targetSourceId\]/_components/layout/{InstallationStatusSlot,ConfirmedResourcesSlot}.tsx
-# Expected: 0 hits.
 
-# Confirm override step components are NOT introduced in Phase 1 (R3 guard):
+# Confirm override step components are NOT introduced in Phase 1 (R3 guard).
 # Search the entire target-source _components subtree, not just layout/, so an
 # override file accidentally landed under aws/, azure/, or gcp/ is also caught.
-rg -nP "\b(AwsManualInstallingStep|AzureInstallingStep|GcpInstallingStep)\b" \
+! rg -nP "\b(AwsManualInstallingStep|AzureInstallingStep|GcpInstallingStep)\b" \
   app/integration/target-sources/\[targetSourceId\]/_components/
-# Expected: 0 hits.
 
 # Test + type + lint + build:
 npx tsc --noEmit
@@ -278,7 +279,7 @@ When this spec lands as a PR, the description must include:
 
 - Spec path + commit SHA: `docs/reports/sit-migration-prompts/adr012-phase1-azure-installing.md @ <SHA>`
 - ADR reference: ADR-012 §Migration Plan Phase 1
-- Files added (with LOC) and the single file modified (`AzureProjectPage.tsx`)
+- Files added (with LOC) and the single file modified (`AzureProjectPage.tsx`). `ConfirmedIntegrationSection.tsx` must remain untouched.
 - Visual confirmation: before/after screenshot of `/integration/target-sources/1003`
 - Test additions: R1 architecture test + Azure order test + lifecycle tests
 - `tsc` / `lint` / `test` / `build` results
