@@ -30,7 +30,8 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Service List',
     href: integrationRoutes.admin,
     isActive: (pathname) =>
-      pathname.startsWith('/integration/admin') ||
+      (pathname.startsWith('/integration/admin') &&
+        !pathname.startsWith('/integration/admin/guides')) ||
       pathname.startsWith('/integration/target-sources'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -40,6 +41,17 @@ const NAV_ITEMS: NavItem[] = [
         <line x1="3" y1="6" x2="3.01" y2="6" />
         <line x1="3" y1="12" x2="3.01" y2="12" />
         <line x1="3" y1="18" x2="3.01" y2="18" />
+      </svg>
+    ),
+  },
+  {
+    label: '가이드 관리',
+    href: integrationRoutes.adminGuides,
+    isActive: (pathname) => pathname.startsWith('/integration/admin/guides'),
+    icon: (
+      <svg {...iconProps} aria-hidden="true">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
   },
