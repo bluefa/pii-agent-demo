@@ -3,7 +3,8 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { problemResponse, createProblem } from '@/app/api/_lib/problem';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { client } from '@/lib/api-client';
-import type { LegacyAwsInstallationStatus } from '@/lib/types';
+import { bff } from '@/lib/bff/client';
+import { BffError } from '@/lib/bff/errors';
 
 interface LegacyRoleInfo {
   registered: boolean;
@@ -55,13 +56,17 @@ export const GET = withV1(async (_request, { requestId, params }) => {
     status: 'UNVERIFIED',
   };
 
-  // 설치 상태에서 executionRoleArn을 읽어 settings 응답에 보강한다.
-  const installationResponse = await client.aws.getInstallationStatus(String(parsed.value));
-  if (installationResponse.ok) {
-    const installation = await installationResponse.json() as LegacyAwsInstallationStatus;
+  // Augment settings with executionRoleArn from installation status.
+  // Installation lookup failure falls back to UNVERIFIED — installation
+  // is auxiliary info, not a hard dependency for settings.
+  try {
+    const installation = await bff.aws.getInstallationStatus(parsed.value);
     if (installation.tfExecutionRoleArn) {
       executionRole = { roleArn: installation.tfExecutionRoleArn, status: 'VALID' };
     }
+  } catch (e) {
+    if (!(e instanceof BffError)) throw e;
+    console.warn(`[aws settings] installation status failed: ${e.code} (${e.status}) ${e.message}`);
   }
 
   return NextResponse.json({

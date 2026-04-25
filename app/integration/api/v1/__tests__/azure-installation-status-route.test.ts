@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     azure: {
       getInstallationStatus: vi.fn(),
     },
@@ -10,9 +9,9 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { GET } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/installation-status/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
-const mockedGetInstallationStatus = vi.mocked(client.azure.getInstallationStatus);
+const mockedGetInstallationStatus = vi.mocked(bff.azure.getInstallationStatus);
 
 describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installation-status', () => {
   beforeEach(() => {
@@ -20,7 +19,7 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
   });
 
   it('Issue #222 계약에 맞게 snake_case Azure 설치 상태를 반환한다', async () => {
-    mockedGetInstallationStatus.mockResolvedValue(NextResponse.json({
+    mockedGetInstallationStatus.mockResolvedValue({
       provider: 'Azure',
       installed: false,
       lastCheckedAt: '2026-03-30T00:00:00Z',
@@ -46,7 +45,7 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
           },
         },
       ],
-    }));
+    });
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/azure/target-sources/1003/installation-status'),

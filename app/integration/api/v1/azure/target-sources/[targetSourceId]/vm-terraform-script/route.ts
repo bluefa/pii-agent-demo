@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import type { AzureTerraformScript } from '@/lib/types/azure';
 
 /** Build a minimal ZIP archive containing a single file using only Buffer (no dependencies). */
 const buildZip = (fileName: string, content: Buffer): Buffer => {
@@ -79,10 +78,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const response = await client.azure.vmGetTerraformScript(String(parsed.value));
-  if (!response.ok) return response;
-
-  const data: AzureTerraformScript = await response.json();
+  const data = await bff.azure.vmGetTerraformScript(parsed.value);
 
   const tfContent = Buffer.from(
     `# Auto-generated Terraform script\n` +

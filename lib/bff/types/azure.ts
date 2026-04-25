@@ -1,20 +1,14 @@
 /**
- * Typed shapes for `bff.azure` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.azure` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
- *
- * `LegacyAzureSettings`, `LegacyInstallationStatus`, and
- * `LegacyVmInstallationStatus` are duplicated from the route-handler
- * `_lib/*` files. Spec adr011-03 (cloud-providers) will migrate the route
- * handlers to import from this file and remove the local definitions; this
- * setup spec only declares the shapes here.
+ * Casing convention (per ADR-011 I-3):
+ *   - GET responses are camelCase (httpBff.get runs camelCaseKeys).
+ *   - POST/PUT/DELETE responses are snake_case raw passthrough.
+ *   - getScanApp is a documented exception: snake_case raw per Issue #222.
  */
 
 import type {
   AzureSubnetGuide,
-  AzureScanApp,
   AzureTerraformScript,
 } from '@/lib/types/azure';
 
@@ -85,32 +79,41 @@ export interface LegacyVmInstallationStatus {
   error?: { code: string; message: string };
 }
 
-/** POST /target-sources/{id}/azure/check-installation (snake_case raw passthrough). */
-export interface AzureCheckInstallationResult {
-  success?: boolean;
-  installed?: boolean;
-}
+/**
+ * POST /target-sources/{id}/azure/check-installation.
+ * Upstream returns the full DB installation status (camelCase) — composite
+ * route merges with vmCheckInstallation via buildV1Response.
+ */
+export type AzureCheckInstallationResult = LegacyInstallationStatus;
 
 /** GET /target-sources/{id}/azure/installation-status (camelCase). */
 export type AzureInstallationStatusResponse = LegacyInstallationStatus;
 
-/** GET /target-sources/{id}/azure/settings (camelCase). */
-export interface AzureSettingsResponse {
-  scanApp: AzureScanApp;
-  tenantId?: string;
-  subscriptionId?: string;
-}
+/** GET /target-sources/{id}/azure/settings — legacy raw shape (route normalizes camelCase + snake_case). */
+export type AzureSettingsResponse = LegacyAzureSettings;
 
 /** GET /target-sources/{id}/azure/subnet-guide (camelCase). */
 export type AzureSubnetGuideResponse = AzureSubnetGuide;
 
-/** GET /target-sources/{id}/azure/scan-app (camelCase). */
-export type AzureScanAppResponse = AzureScanApp;
-
-/** POST /target-sources/{id}/azure/vm/check-installation (snake_case raw passthrough). */
-export interface AzureVmCheckInstallationResult {
-  success?: boolean;
+/**
+ * GET /target-sources/{id}/azure/scan-app.
+ * Issue #222 contract: snake_case raw passthrough (route returns the upstream
+ * payload verbatim). Exception to the GET-camelCase rule because the upstream
+ * BFF returns snake_case for this endpoint.
+ */
+export interface AzureScanAppResponse {
+  app_id: string | null;
+  status: string;
+  fail_reason?: string | null;
+  fail_message?: string | null;
+  last_verified_at?: string | null;
 }
+
+/**
+ * POST /target-sources/{id}/azure/vm/check-installation.
+ * Upstream returns the full VM installation status (camelCase).
+ */
+export type AzureVmCheckInstallationResult = LegacyVmInstallationStatus;
 
 /** GET /target-sources/{id}/azure/vm/installation-status (camelCase). */
 export type AzureVmInstallationStatusResponse = LegacyVmInstallationStatus;

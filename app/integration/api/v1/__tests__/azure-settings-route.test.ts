@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     azure: {
       getSettings: vi.fn(),
     },
@@ -10,9 +9,9 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { GET } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/settings/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
-const mockedGetSettings = vi.mocked(client.azure.getSettings);
+const mockedGetSettings = vi.mocked(bff.azure.getSettings);
 
 describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/settings', () => {
   beforeEach(() => {
@@ -21,14 +20,14 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/settings
   });
 
   it('mock store의 Azure 식별자를 settings 응답으로 합성한다', async () => {
-    mockedGetSettings.mockResolvedValue(NextResponse.json({
+    mockedGetSettings.mockResolvedValue({
       scanApp: {
         registered: true,
         appId: 'scan-app-123',
         status: 'VALID',
         lastVerifiedAt: '2026-03-24T00:00:00Z',
       },
-    }));
+    });
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/azure/target-sources/1003/settings'),
@@ -48,7 +47,7 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/settings
   });
 
   it('snake_case settings payload를 camelCase 응답으로 정규화한다', async () => {
-    mockedGetSettings.mockResolvedValue(NextResponse.json({
+    mockedGetSettings.mockResolvedValue({
       tenant_id: 'tenant-from-settings',
       subscription_id: 'subscription-from-settings',
       scan_app: {
@@ -56,7 +55,7 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/settings
         status: 'INVALID',
         last_verified_at: '2026-03-25T00:00:00Z',
       },
-    }));
+    });
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/azure/target-sources/1003/settings'),
