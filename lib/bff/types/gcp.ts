@@ -43,10 +43,12 @@ export interface LegacyGcpInstallationStatus {
   error?: { code: string; message: string };
 }
 
-/** POST /target-sources/{id}/gcp/check-installation (snake_case raw passthrough). */
-export interface GcpCheckInstallationResult {
-  success?: boolean;
-}
+/**
+ * POST /target-sources/{id}/gcp/check-installation.
+ * Upstream returns the full installation status (camelCase) — route transforms
+ * it via `transformInstallationStatus`.
+ */
+export type GcpCheckInstallationResult = LegacyGcpInstallationStatus;
 
 /** GET /target-sources/{id}/gcp/installation-status (camelCase). */
 export type GcpInstallationStatusResponse = LegacyGcpInstallationStatus;

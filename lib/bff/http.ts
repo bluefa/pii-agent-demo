@@ -26,6 +26,15 @@ const isCurrentUser = (value: unknown): value is CurrentUser =>
     && typeof value.name === 'string'
     && typeof value.email === 'string';
 
+async function throwBffError(res: Response): Promise<never> {
+  const body = await res.json().catch((): LegacyErrorPayload => ({}));
+  throw new BffError(
+    res.status,
+    body.error ?? 'INTERNAL_ERROR',
+    body.message ?? `HTTP ${res.status}`,
+  );
+}
+
 async function get<T>(path: string): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
@@ -33,16 +42,33 @@ async function get<T>(path: string): Promise<T> {
     headers: { Accept: 'application/json' },
   });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
-  if (!res.ok) {
-    const body = await res.json().catch((): LegacyErrorPayload => ({}));
-    throw new BffError(
-      res.status,
-      body.error ?? 'INTERNAL_ERROR',
-      body.message ?? `HTTP ${res.status}`,
-    );
-  }
+  if (!res.ok) await throwBffError(res);
   const data = await res.json();
   return camelCaseKeys(data) as T;
+}
+
+async function getRaw<T>(path: string): Promise<T> {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] → GET ${fullPath}`);
+  const res = await fetch(fullPath, {
+    headers: { Accept: 'application/json' },
+  });
+  console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
+  if (!res.ok) await throwBffError(res);
+  return await res.json() as T;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] → POST ${fullPath}`);
+  const res = await fetch(fullPath, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  console.log(`[BFF] ← POST ${fullPath} (${res.status})`);
+  if (!res.ok) await throwBffError(res);
+  return await res.json() as T;
 }
 
 export const httpBff: BffClient = {
@@ -70,5 +96,32 @@ export const httpBff: BffClient = {
       }
       return candidate;
     },
+  },
+
+  aws: {
+    checkInstallation: (id) => post(`/aws/projects/${id}/check-installation`, {}),
+    setInstallationMode: (id, body) => post(`/aws/projects/${id}/installation-mode`, body),
+    getInstallationStatus: (id) => get(`/aws/projects/${id}/installation-status`),
+    getTerraformScript: (id) => get(`/aws/projects/${id}/terraform-script`),
+    verifyTfRole: (_id, body) => post('/aws/verify-tf-role', body ?? {}),
+  },
+
+  azure: {
+    checkInstallation: (id) => post(`/target-sources/${id}/azure/check-installation`, {}),
+    getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
+    getSettings: (id) => get(`/target-sources/${id}/azure/settings`),
+    getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
+    // Issue #222: bypass camelCaseKeys to preserve snake_case payload.
+    getScanApp: (id) => getRaw(`/target-sources/${id}/azure/scan-app`),
+    vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
+    vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
+    vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),
+  },
+
+  gcp: {
+    checkInstallation: (id) => post(`/target-sources/${id}/gcp/check-installation`, {}),
+    getInstallationStatus: (id) => get(`/target-sources/${id}/gcp/installation-status`),
+    getScanServiceAccount: (id) => get(`/target-sources/${id}/gcp/scan-service-account`),
+    getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 };

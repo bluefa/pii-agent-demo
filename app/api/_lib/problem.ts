@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { BffError } from '@/lib/bff/errors';
 
 // --- Error Code Catalog ---
 
@@ -162,6 +163,19 @@ export async function transformLegacyError(
       requestId,
     ));
   }
+}
+
+/**
+ * Convert a thrown BffError to ProblemDetails byte-identical to
+ * `transformLegacyError({ error: code, message }, status)` output.
+ * Shared by `withV1` for ADR-011 typed BFF clients.
+ */
+export function transformBffError(
+  error: BffError,
+  requestId: string,
+): NextResponse {
+  const code = mapLegacyCode(error.code, error.status);
+  return problemResponse(createProblem(code, error.message, requestId));
 }
 
 // --- Uncaught Error Handler ---
