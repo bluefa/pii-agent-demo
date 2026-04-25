@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { NextResponse } from 'next/server';
 import {
   createProblem,
+  extractBffError,
   problemResponse,
   handleUnexpectedError,
   transformBffError,
@@ -58,8 +59,30 @@ describe('handleUnexpectedError', () => {
   });
 });
 
+describe('extractBffError', () => {
+  it('flat shape { error: "CODE", message } 를 추출한다', () => {
+    expect(extractBffError({ error: 'NOT_FOUND', message: 'not found' }))
+      .toEqual({ code: 'NOT_FOUND', message: 'not found' });
+  });
+
+  it('nested shape { error: { code, message } } 를 추출한다', () => {
+    expect(extractBffError({ error: { code: 'FORBIDDEN', message: '권한 없음' } }))
+      .toEqual({ code: 'FORBIDDEN', message: '권한 없음' });
+  });
+
+  it('flat shape { code, message } 를 추출한다', () => {
+    expect(extractBffError({ code: 'INTERNAL_ERROR', message: '오류' }))
+      .toEqual({ code: 'INTERNAL_ERROR', message: '오류' });
+  });
+
+  it('빈 body는 빈 code/message로 fallback', () => {
+    expect(extractBffError({})).toEqual({ code: '', message: '' });
+  });
+});
+
 describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () => {
-  const cases: Array<{ status: number; code: string; message: string }> = [
+  // Status × code matrix — verifies KnownErrorCode mapping is identical.
+  const statusCases: Array<{ status: number; code: string; message: string }> = [
     { status: 401, code: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
     { status: 403, code: 'FORBIDDEN', message: '권한이 없습니다.' },
     { status: 404, code: 'NOT_FOUND', message: '리소스를 찾을 수 없습니다.' },
@@ -68,7 +91,7 @@ describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () 
     { status: 500, code: 'INTERNAL_ERROR', message: '서버 오류' },
   ];
 
-  for (const { status, code, message } of cases) {
+  for (const { status, code, message } of statusCases) {
     it(`${status} ${code} produces a body byte-identical to transformLegacyError`, async () => {
       const requestId = 'req-parity';
 
@@ -81,6 +104,31 @@ describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () 
       expect(fromBff.status).toBe(fromLegacy.status);
       expect(fromBff.headers.get('content-type')).toBe(fromLegacy.headers.get('content-type'));
       await expect(fromBff.json()).resolves.toEqual(await fromLegacy.json());
+    });
+  }
+
+  // Body-shape matrix — verifies extraction across nested / flat / unknown.
+  const shapeCases = [
+    { name: 'flat code', body: { error: 'NOT_FOUND', message: 'foo' }, status: 404 },
+    { name: 'nested code', body: { error: { code: 'FORBIDDEN', message: '권한 없음' } }, status: 403 },
+    { name: 'flat key', body: { code: 'VALIDATION_FAILED', message: 'bad input' }, status: 400 },
+    { name: 'unknown code → status fallback', body: { error: 'XYZ', message: 'huh' }, status: 409 },
+  ];
+
+  for (const tc of shapeCases) {
+    it(`${tc.name} (${tc.status}) — old vs new path produce identical body`, async () => {
+      const legacyResp = NextResponse.json(tc.body, { status: tc.status });
+      const oldOut = await transformLegacyError(legacyResp, 'req-x');
+      const oldBody = await oldOut.json();
+
+      const { code, message } = extractBffError(tc.body);
+      const bffErr = new BffError(tc.status, code || 'INTERNAL_ERROR', message || `HTTP ${tc.status}`);
+      const newOut = transformBffError(bffErr, 'req-x');
+      const newBody = await newOut.json();
+
+      expect(newBody).toEqual(oldBody);
+      expect(newOut.status).toBe(oldOut.status);
+      expect(newOut.headers.get('content-type')).toBe(oldOut.headers.get('content-type'));
     });
   }
 });

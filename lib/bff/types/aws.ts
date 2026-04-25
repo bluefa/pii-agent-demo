@@ -32,3 +32,14 @@ export type AwsTerraformScriptResponse = TerraformScriptResponse;
 
 /** POST /aws/verify-tf-role (snake_case raw passthrough). */
 export type AwsVerifyTfRoleResult = VerifyTfRoleResponse;
+
+/** POST /aws/projects/{id}/installation-mode request body. */
+export interface AwsSetInstallationModeBody {
+  mode: 'AUTO' | 'MANUAL';
+}
+
+/** POST /aws/verify-tf-role request body. */
+export interface AwsVerifyTfRoleBody {
+  roleArn?: string;
+  accountId?: string;
+}

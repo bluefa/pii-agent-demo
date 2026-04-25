@@ -1,21 +1,15 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId, resolveProject } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import {
-  mapScanApp,
-  type LegacyAzureSettings,
-} from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/settings-transform';
+import { mapScanApp } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/settings-transform';
 
 export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const response = await client.azure.getSettings(String(parsed.value));
-  if (!response.ok) return response;
-
-  const legacy = await response.json() as LegacyAzureSettings;
+  const legacy = await bff.azure.getSettings(parsed.value);
   const resolvedProject = resolveProject(parsed.value, requestId);
   const tenantId = legacy.tenantId
     ?? legacy.tenant_id

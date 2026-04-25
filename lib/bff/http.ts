@@ -8,8 +8,7 @@
  */
 import type { BffClient } from '@/lib/bff/types';
 import type { CreateTargetSourceResult } from '@/lib/bff/types/target-sources';
-import type { LegacyErrorBody } from '@/lib/bff/errors';
-import { BffError, extractLegacyError } from '@/lib/bff/errors';
+import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
 
@@ -19,23 +18,18 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
 async function throwBffError(res: Response): Promise<never> {
-  const body = await res.json().catch((): LegacyErrorBody => ({}));
-  const { code, message } = extractLegacyError(body);
-  throw new BffError(
-    res.status,
-    code || 'INTERNAL_ERROR',
-    message || `HTTP ${res.status}`,
-  );
+  const body = await res.json().catch(() => ({}));
+  throw bffErrorFromBody(res.status, body);
 }
 
-async function get<T>(path: string): Promise<T> {
+async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
   const res = await fetch(fullPath, { headers: { Accept: 'application/json' } });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   const data = await res.json();
-  return camelCaseKeys(data) as T;
+  return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
 
 async function getRaw(path: string): Promise<Response> {
@@ -180,5 +174,32 @@ export const httpBff: BffClient = {
       if (params.sort) searchParams.set('sort', params.sort);
       return get(`/task-admin/approval-requests?${searchParams.toString()}`);
     },
+  },
+
+  aws: {
+    checkInstallation: (id) => post(`/aws/projects/${id}/check-installation`, {}),
+    setInstallationMode: (id, body) => post(`/aws/projects/${id}/installation-mode`, body),
+    getInstallationStatus: (id) => get(`/aws/projects/${id}/installation-status`),
+    getTerraformScript: (id) => get(`/aws/projects/${id}/terraform-script`),
+    verifyTfRole: (_id, body) => post('/aws/verify-tf-role', body ?? {}),
+  },
+
+  azure: {
+    checkInstallation: (id) => post(`/target-sources/${id}/azure/check-installation`, {}),
+    getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
+    getSettings: (id) => get(`/target-sources/${id}/azure/settings`),
+    getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
+    // Issue #222: snake_case raw passthrough — bypass camelCaseKeys.
+    getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`, { raw: true }),
+    vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
+    vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
+    vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),
+  },
+
+  gcp: {
+    checkInstallation: (id) => post(`/target-sources/${id}/gcp/check-installation`, {}),
+    getInstallationStatus: (id) => get(`/target-sources/${id}/gcp/installation-status`),
+    getScanServiceAccount: (id) => get(`/target-sources/${id}/gcp/scan-service-account`),
+    getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 };

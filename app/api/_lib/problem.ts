@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { BffError, LegacyErrorBody } from '@/lib/bff/errors';
-import { extractLegacyError } from '@/lib/bff/errors';
+import { BffError } from '@/lib/bff/errors';
 
 // --- Error Code Catalog ---
 
@@ -88,6 +87,29 @@ export function problemResponse(problem: ProblemDetails): NextResponse {
 
 // --- Legacy Error Conversion ---
 
+/** Upstream BFF error body — nested `{error: {code, message}}` or flat `{error, message}`. */
+export interface BffErrorBody {
+  error?: string | { code?: string; message?: string };
+  code?: string;
+  message?: string;
+}
+
+export function extractBffError(body: BffErrorBody): { code: string; message: string } {
+  // nested: { error: { code, message } }
+  if (body.error && typeof body.error === 'object') {
+    return {
+      code: body.error.code ?? '',
+      message: body.error.message ?? '',
+    };
+  }
+  // flat legacy: { error: "CODE", message: "..." }
+  if (typeof body.error === 'string') {
+    return { code: body.error, message: body.message ?? '' };
+  }
+  // flat: { code: "...", message: "..." }
+  return { code: body.code ?? '', message: body.message ?? '' };
+}
+
 const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   // 정규화된 코드 (KnownErrorCode와 동일)
   UNAUTHORIZED: 'UNAUTHORIZED',
@@ -131,7 +153,7 @@ export async function transformLegacyError(
 ): Promise<NextResponse> {
   try {
     const raw = await response.json();
-    const { code: errorCode, message } = extractLegacyError(raw as LegacyErrorBody);
+    const { code: errorCode, message } = extractBffError(raw as BffErrorBody);
     const code = mapLegacyCode(errorCode, response.status);
     return problemResponse(createProblem(code, message, requestId));
   } catch {
@@ -154,6 +176,21 @@ export function transformBffError(
 ): NextResponse {
   const code = mapLegacyCode(error.code, error.status);
   return problemResponse(createProblem(code, error.message, requestId));
+}
+
+/**
+ * Construct a BffError from an upstream error body, applying the same
+ * shape extraction (nested `{error: {code, message}}` or flat) and
+ * fallback codes used by `transformLegacyError`. Single source of truth
+ * for both `httpBff` and `mockBff` adapters.
+ */
+export function bffErrorFromBody(status: number, body: unknown): BffError {
+  const { code, message } = extractBffError(body as BffErrorBody);
+  return new BffError(
+    status,
+    code || 'INTERNAL_ERROR',
+    message || `HTTP ${status}`,
+  );
 }
 
 // --- Uncaught Error Handler ---
