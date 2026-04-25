@@ -39,6 +39,7 @@ import {
   bgColors,
   borderColors,
   cardStyles,
+  chipStyles,
   cn,
   primaryColors,
   textColors,
@@ -83,13 +84,35 @@ interface GuideEditorPanelProps {
   onLoad: (contents: GuideContents) => void;
 }
 
-const renderHeaderMeta = (slot: GuideSlot): { label: string; variant: 'AUTO' | 'MANUAL' | null } => {
+interface HeaderMeta {
+  /** Human-readable single line (used in scope-notice list). */
+  fullLabel: string;
+  provider: string | null;
+  step: number | null;
+  /** Step label — rendered as the h2 title in the editor header. */
+  stepLabel: string;
+  variant: 'AUTO' | 'MANUAL' | null;
+}
+
+const buildHeaderMeta = (slot: GuideSlot): HeaderMeta => {
   if (slot.placement.kind !== 'process-step') {
-    return { label: slot.guideName, variant: null };
+    return {
+      fullLabel: slot.guideName,
+      provider: null,
+      step: null,
+      stepLabel: slot.guideName,
+      variant: null,
+    };
   }
   const variant = 'variant' in slot.placement ? slot.placement.variant ?? null : null;
   const { provider, step, stepLabel } = slot.placement;
-  return { label: `${provider} · Step ${step} · ${stepLabel}`, variant };
+  return {
+    fullLabel: `${provider}${variant ? ` · ${variant}` : ''} · Step ${step} ${stepLabel}`,
+    provider,
+    step,
+    stepLabel,
+    variant,
+  };
 };
 
 /**
@@ -218,7 +241,7 @@ export const GuideEditorPanel = ({
       ? '한국어와 영어 모두 작성해야 저장할 수 있습니다'
       : null;
 
-  const headerMeta = renderHeaderMeta(slot);
+  const headerMeta = buildHeaderMeta(slot);
 
   return (
     <section
@@ -240,10 +263,28 @@ export const GuideEditorPanel = ({
                 textColors.tertiary,
               )}
             >
-              <span>{headerMeta.label}</span>
+              {headerMeta.provider && <span>{headerMeta.provider}</span>}
+              {headerMeta.variant && (
+                <span
+                  className={cn(
+                    chipStyles.base,
+                    headerMeta.variant === 'AUTO'
+                      ? chipStyles.variant.auto
+                      : chipStyles.variant.manual,
+                  )}
+                >
+                  {headerMeta.variant}
+                </span>
+              )}
+              {headerMeta.step !== null && (
+                <>
+                  <span aria-hidden="true" className={textColors.quaternary}>·</span>
+                  <span>Step {headerMeta.step}</span>
+                </>
+              )}
             </div>
             <h2 className={cn('text-[14px] font-semibold leading-snug', textColors.primary)}>
-              {slot.guideName}
+              {headerMeta.stepLabel}
             </h2>
           </div>
           <span
@@ -289,7 +330,7 @@ export const GuideEditorPanel = ({
             </div>
             <ul className={cn('pl-4 space-y-0.5 text-[12px] font-mono', primaryColors.text700)}>
               {sharedSlots.map((shared) => (
-                <li key={slotReactKey(shared)}>· {renderHeaderMeta(shared).label}</li>
+                <li key={slotReactKey(shared)}>· {buildHeaderMeta(shared).fullLabel}</li>
               ))}
             </ul>
             <div className={cn('text-[12px]', primaryColors.text700)}>
