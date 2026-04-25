@@ -97,6 +97,7 @@ import type {
   BffConfirmedIntegration,
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
+import type { GuideGetResponse, GuidePutResult } from '@/lib/bff/types/guides';
 
 export interface BffClient {
   targetSources: {
@@ -169,6 +170,11 @@ export interface BffClient {
 
   taskAdmin: {
     getApprovalRequestQueue: (params: QueueBoardQueryParams) => Promise<TaskAdminApprovalRequestsResponse>;
+  };
+
+  guides: {
+    get: (name: string) => Promise<GuideGetResponse>;
+    put: (name: string, body: unknown) => Promise<GuidePutResult>;
   };
 
   aws: {

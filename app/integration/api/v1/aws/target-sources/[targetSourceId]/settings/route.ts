@@ -2,24 +2,11 @@ import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { problemResponse, createProblem } from '@/app/api/_lib/problem';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
-import { client } from '@/lib/api-client';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
+import type { ServiceSettingsAwsResponse } from '@/lib/bff/types/services';
 
-interface LegacyRoleInfo {
-  registered: boolean;
-  roleArn?: string;
-  lastVerifiedAt?: string;
-  status?: string;
-}
-
-interface LegacyAwsSettings {
-  accountId?: string;
-  scanRole: LegacyRoleInfo;
-  guide?: unknown;
-}
-
-function toAwsRoleInfo(role: LegacyRoleInfo) {
+function toAwsRoleInfo(role: ServiceSettingsAwsResponse['scanRole']) {
   if (role.registered && role.roleArn) {
     return {
       roleArn: role.roleArn,
@@ -34,11 +21,9 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const projectResponse = await client.projects.get(String(parsed.value));
-  if (!projectResponse.ok) return projectResponse;
-
-  const project = await projectResponse.json() as { serviceCode?: string };
-  if (!project.serviceCode) {
+  const projectResponse = await bff.projects.get(parsed.value);
+  const serviceCode = projectResponse.project?.serviceCode;
+  if (!serviceCode) {
     return problemResponse(createProblem(
       'INTERNAL_ERROR',
       '프로젝트 serviceCode를 확인할 수 없습니다.',
@@ -46,10 +31,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
     ));
   }
 
-  const settingsResponse = await client.services.settings.aws.get(project.serviceCode);
-  if (!settingsResponse.ok) return settingsResponse;
-
-  const legacy = await settingsResponse.json() as LegacyAwsSettings;
+  const settings = await bff.services.settings.aws.get(serviceCode);
 
   let executionRole: { roleArn: string | null; status: 'VALID' | 'UNVERIFIED' } = {
     roleArn: null,
@@ -71,6 +53,6 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   return NextResponse.json({
     executionRole,
-    scanRole: toAwsRoleInfo(legacy.scanRole),
+    scanRole: toAwsRoleInfo(settings.scanRole),
   });
 }, { expectedDuration: '150ms' });

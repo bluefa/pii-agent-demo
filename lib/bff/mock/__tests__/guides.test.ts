@@ -18,7 +18,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { __resetMockGuideStore, mockGuides } from '@/lib/api-client/mock/guides';
+import { __resetMockGuideStore, mockGuides } from '@/lib/bff/mock/guides';
 import type { GuideDetail } from '@/lib/types/guide';
 import type { ValidationError } from '@/lib/utils/validate-guide-html';
 
@@ -111,8 +111,8 @@ describe('mockGuides.get', () => {
     // unreachable in steady state. We still assert the branch here by
     // temporarily mocking the seed to omit one name.
     vi.resetModules();
-    vi.doMock('@/lib/api-client/mock/guides-seed', () => ({ guidesSeed: {} }));
-    const fresh = await import('@/lib/api-client/mock/guides');
+    vi.doMock('@/lib/bff/mock/guides-seed', () => ({ guidesSeed: {} }));
+    const fresh = await import('@/lib/bff/mock/guides');
     fresh.__resetMockGuideStore();
     const res = await fresh.mockGuides.get('AWS_TARGET_CONFIRM');
     expect(res.status).toBe(200);
@@ -120,7 +120,7 @@ describe('mockGuides.get', () => {
     expect(body.contents).toEqual({ ko: '', en: '' });
     expect(body.updatedAt).toBe('1970-01-01T00:00:00Z');
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('drift'));
-    vi.doUnmock('@/lib/api-client/mock/guides-seed');
+    vi.doUnmock('@/lib/bff/mock/guides-seed');
   });
 });
 

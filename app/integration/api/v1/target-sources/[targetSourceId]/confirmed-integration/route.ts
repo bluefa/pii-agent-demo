@@ -3,7 +3,7 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import { normalizeIssue222ConfirmedIntegration } from '@/lib/issue-222-approval';
+import { normalizeConfirmedIntegration } from '@/lib/approval-bff';
 
 const createNotFoundProblem = (requestId: string): NextResponse =>
   NextResponse.json({
@@ -24,7 +24,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   if (!parsed.ok) return problemResponse(parsed.problem);
 
   const data = await bff.confirm.getConfirmedIntegration(parsed.value);
-  const payload = normalizeIssue222ConfirmedIntegration(data);
+  const payload = normalizeConfirmedIntegration(data);
   if (payload.resource_infos.length === 0) {
     return createNotFoundProblem(requestId);
   }

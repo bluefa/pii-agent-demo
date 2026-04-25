@@ -262,4 +262,9 @@ export const httpBff: BffClient = {
     getTestConnectionLatest: (id) =>
       get<unknown>(`/target-sources/${id}/test-connection/latest`),
   },
+
+  guides: {
+    get: (name) => get(`/admin/guides/${encodeURIComponent(name)}`),
+    put: (name, body) => put(`/admin/guides/${encodeURIComponent(name)}`, body),
+  },
 };

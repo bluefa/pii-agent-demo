@@ -1078,13 +1078,13 @@ components:
           type: integer
           format: int64
         process_status:
-          $ref: '#/components/schemas/Issue222ProcessStatus'
+          $ref: '#/components/schemas/BffApprovalProcessStatus'
         healthy:
-          $ref: '#/components/schemas/Issue222HealthStatus'
+          $ref: '#/components/schemas/ApprovalHealthStatus'
         evaluated_at:
           type: string
           format: date-time
-    Issue222ProcessStatus:
+    BffApprovalProcessStatus:
       type: string
       enum:
         - IDLE
@@ -1094,7 +1094,7 @@ components:
         - INSTALLED
         - CONNECTED
         - COMPLETED
-    Issue222HealthStatus:
+    ApprovalHealthStatus:
       type: string
       enum:
         - UNKNOWN

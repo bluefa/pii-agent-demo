@@ -135,13 +135,12 @@ rules/G8-inconsistent-sibling-naming.md
 
 Confusion about BFF / CSR / SSR API boundaries is covered in `docs/api/boundaries.md`.
 
-Core rules:
-1. **CSR components** import only from `@/app/lib/api/*` (never `@/lib/api-client/*`)
-2. **Server Components** import only from `@/lib/bff/*`
-3. **Next.js Route Handlers** use only `@/lib/api-client/*`
-4. Never mix two boundaries in a single file
-
-> Route handlers may use `@/lib/bff/*` during the ADR-011 migration window. See `docs/reports/sit-migration-prompts/adr011-README.md`.
+Core rules (post ADR-011, single pipeline):
+1. **CSR components** import only from `@/app/lib/api/*` (never `@/lib/bff/*`)
+2. **Server Components** import only from `@/lib/bff/client`
+3. **Next.js Route Handlers** dispatch to `bff.method()` from `@/lib/bff/client`
+4. **Never** import `@/lib/api-client/*` — that path was deleted in ADR-011 (`eslint.config.mjs` enforces this)
+5. Never mix two boundaries in a single file
 
 ## Classic anti-pattern mapping
 
