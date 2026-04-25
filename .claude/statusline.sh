@@ -1,16 +1,20 @@
 #!/bin/bash
 # Claude Code statusline for pii-agent-demo
 # Two-line output:
-#   line 1: [Model . s:<id4>]  worktree/dir [ | PR #<num> link]
+#   line 1: [Model . s:<id4>]  worktree/dir [ | PR link(s)]
 #   line 2: <bar> <pct>% of <ctx-size>
 #
 # PR indicator (two sources, event > query):
-#   1. Event cache at /tmp/claude-pr-event-<session_id>, written by the
-#      PostToolUse hook whenever `gh pr create` completes in this session.
-#      Survives even if the main session's cwd stays on main or detached
-#      HEAD (e.g., PR was created inside a sibling worktree).
+#   1. Event cache at /tmp/claude-pr-event-<session_id>, appended by the
+#      PostToolUse hook on every `gh pr create` in this session — collects
+#      every PR a session produces (including subagent fan-out), even when
+#      the main session's cwd stays on main or detached HEAD.
+#      Each entry is rechecked via `gh pr view --repo` and only OPEN/DRAFT
+#      PRs are rendered. Per-PR state is cached at
+#      /tmp/claude-pr-state-<session_id> with a 30s TTL.
 #   2. Fallback: `gh pr view` for the current branch's OPEN/DRAFT PR,
-#      cached 5s per session. Skips main/master and detached HEAD.
+#      cached 5s per session. Skips main/master and detached HEAD. Used
+#      only when the event cache yields no OPEN PR.
 
 set -u
 input=$(cat)
@@ -63,8 +67,11 @@ if [ "$EMPTY" -gt 0 ]; then
 fi
 
 EVENT_CACHE="/tmp/claude-pr-event-$SESSION_FULL"
+STATE_CACHE="/tmp/claude-pr-state-$SESSION_FULL"
 QUERY_CACHE="/tmp/claude-pr-$SESSION_FULL"
 CACHE_TTL=5
+STATE_TTL=30
+MAX_DISPLAY=3
 
 cache_stale() {
   [ ! -f "$QUERY_CACHE" ] && return 0
@@ -99,28 +106,114 @@ refresh_pr_cache() {
   printf '%s\t%s\n' "$url" "$num" > "$QUERY_CACHE"
 }
 
-PR_URL=""
-PR_NUM=""
+# Lookup cached state for a PR number. Echoes "STATE\tURL" on fresh hit.
+state_cache_lookup() {
+  local num="$1" line state url epoch now
+  [ -f "$STATE_CACHE" ] || return 1
+  line=$(grep -E "^${num}"$'\t' "$STATE_CACHE" 2>/dev/null | tail -1)
+  [ -z "$line" ] && return 1
+  IFS=$'\t' read -r _ state url epoch <<< "$line"
+  [ -z "$epoch" ] && return 1
+  now=$(date +%s)
+  [ "$((now - epoch))" -gt "$STATE_TTL" ] && return 1
+  printf '%s\t%s\n' "$state" "$url"
+}
 
-# Priority 1: event cache (PostToolUse hook capturing `gh pr create`)
+# Replace any existing entry for $1 with $1\t$2\t$3\t<now>.
+state_cache_write() {
+  local num="$1" state="$2" url="$3" now tmp
+  now=$(date +%s)
+  tmp="${STATE_CACHE}.$$"
+  if [ -f "$STATE_CACHE" ]; then
+    grep -vE "^${num}"$'\t' "$STATE_CACHE" > "$tmp" 2>/dev/null || : > "$tmp"
+  else
+    : > "$tmp"
+  fi
+  printf '%s\t%s\t%s\t%s\n' "$num" "$state" "$url" "$now" >> "$tmp"
+  mv -f "$tmp" "$STATE_CACHE"
+}
+
+# Query gh for the current state of $1 (number) using the repo from $2 (url).
+# Echoes "STATE\tURL" on success; writes through to the state cache.
+fetch_pr_state() {
+  local num="$1" url="$2" repo json state new_url
+  repo=$(printf '%s' "$url" | sed -nE 's#https://github\.com/([^/]+/[^/]+)/pull/.*#\1#p')
+  [ -z "$repo" ] && return 1
+  json=$(gh pr view "$num" --repo "$repo" --json state,url 2>/dev/null)
+  [ -z "$json" ] && return 1
+  state=$(printf '%s' "$json" | jq -r '.state // ""')
+  new_url=$(printf '%s' "$json" | jq -r '.url // ""')
+  [ -z "$state" ] && return 1
+  [ -n "$new_url" ] && url="$new_url"
+  state_cache_write "$num" "$state" "$url"
+  printf '%s\t%s\n' "$state" "$url"
+}
+
+OPEN_NUMS=()
+OPEN_URLS=()
+
+# Priority 1: event cache — collect every captured PR that is still OPEN/DRAFT.
 if [ -f "$EVENT_CACHE" ]; then
-  IFS=$'\t' read -r PR_URL PR_NUM < "$EVENT_CACHE" || true
+  while IFS=$'\t' read -r ev_url ev_num || [ -n "$ev_num" ]; do
+    [ -z "$ev_num" ] && continue
+    cached=$(state_cache_lookup "$ev_num") || cached=""
+    if [ -n "$cached" ]; then
+      IFS=$'\t' read -r ev_state ev_final_url <<< "$cached"
+    else
+      fresh=$(fetch_pr_state "$ev_num" "$ev_url") || fresh=""
+      if [ -n "$fresh" ]; then
+        IFS=$'\t' read -r ev_state ev_final_url <<< "$fresh"
+      else
+        ev_state=""
+        ev_final_url="$ev_url"
+      fi
+    fi
+    case "$ev_state" in
+      OPEN|DRAFT)
+        OPEN_NUMS+=("$ev_num")
+        OPEN_URLS+=("$ev_final_url")
+        ;;
+    esac
+  done < "$EVENT_CACHE"
 fi
 
-# Priority 2: cwd-based gh pr view (skipped if event cache already filled)
-if [ -z "$PR_URL" ] || [ -z "$PR_NUM" ]; then
+# Priority 2: cwd-based gh pr view (only when event cache yielded no OPEN PR).
+if [ "${#OPEN_NUMS[@]}" -eq 0 ]; then
   if cache_stale; then
     refresh_pr_cache
   fi
   if [ -f "$QUERY_CACHE" ]; then
-    IFS=$'\t' read -r PR_URL PR_NUM < "$QUERY_CACHE" || true
+    IFS=$'\t' read -r FB_URL FB_NUM < "$QUERY_CACHE" || true
+    if [ -n "${FB_URL:-}" ] && [ -n "${FB_NUM:-}" ]; then
+      OPEN_NUMS+=("$FB_NUM")
+      OPEN_URLS+=("$FB_URL")
+    fi
   fi
 fi
 
 PR_PART=""
-if [ -n "$PR_URL" ] && [ -n "$PR_NUM" ]; then
-  PR_LINK="${ESC}]8;;${PR_URL}${BEL}🔗 PR #${PR_NUM}${ESC}]8;;${BEL}"
+PR_COUNT=${#OPEN_NUMS[@]}
+if [ "$PR_COUNT" -eq 1 ]; then
+  PR_LINK="${ESC}]8;;${OPEN_URLS[0]}${BEL}🔗 PR #${OPEN_NUMS[0]}${ESC}]8;;${BEL}"
   PR_PART=" ${DIM}|${RESET} ${PR_LINK}"
+elif [ "$PR_COUNT" -gt 1 ]; then
+  shown=$PR_COUNT
+  [ "$shown" -gt "$MAX_DISPLAY" ] && shown=$MAX_DISPLAY
+  parts=""
+  i=0
+  while [ "$i" -lt "$shown" ]; do
+    link="${ESC}]8;;${OPEN_URLS[$i]}${BEL}#${OPEN_NUMS[$i]}${ESC}]8;;${BEL}"
+    if [ -z "$parts" ]; then
+      parts="$link"
+    else
+      parts="$parts $link"
+    fi
+    i=$((i + 1))
+  done
+  if [ "$PR_COUNT" -gt "$MAX_DISPLAY" ]; then
+    parts="$parts ${DIM}+$((PR_COUNT - MAX_DISPLAY))${RESET}"
+  fi
+  PR_PART=" ${DIM}|${RESET} 🔗 ${parts}"
 fi
 
 if [ -n "$WORKTREE" ]; then
