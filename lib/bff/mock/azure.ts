@@ -76,13 +76,6 @@ export const mockAzure = {
     return handleResult(azureFns.getAzureVmInstallationStatus(Number(projectId)));
   },
 
-  getSettings: async (projectId: string) => {
-    const auth = await authorize(projectId);
-    if (auth.error) return auth.error;
-
-    return handleResult(azureFns.getAzureServiceSettings(auth.project!.serviceCode));
-  },
-
   getScanApp: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;

@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import * as mockServiceSettings from '@/lib/mock-service-settings';
-import * as azureFns from '@/lib/mock-azure';
 
 import { getCurrentStep } from '@/lib/process';
-import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 import type { UpdateAwsSettingsRequest } from '@/lib/types';
 
 export const mockServices = {
@@ -229,44 +227,5 @@ export const mockServices = {
         }
       },
     },
-
-    azure: {
-      get: async (serviceCode: string) => {
-        const user = await mockData.getCurrentUser();
-        if (!user) {
-          return NextResponse.json(
-            { error: AZURE_ERROR_CODES.UNAUTHORIZED.code, message: AZURE_ERROR_CODES.UNAUTHORIZED.message },
-            { status: AZURE_ERROR_CODES.UNAUTHORIZED.status }
-          );
-        }
-
-        const service = mockData.mockServiceCodes.find((s) => s.code === serviceCode);
-        if (!service) {
-          return NextResponse.json(
-            { error: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.code, message: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.message },
-            { status: AZURE_ERROR_CODES.SERVICE_NOT_FOUND.status }
-          );
-        }
-
-        if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(serviceCode)) {
-          return NextResponse.json(
-            { error: AZURE_ERROR_CODES.FORBIDDEN.code, message: AZURE_ERROR_CODES.FORBIDDEN.message },
-            { status: AZURE_ERROR_CODES.FORBIDDEN.status }
-          );
-        }
-
-        const result = await azureFns.getAzureServiceSettings(serviceCode);
-
-        if (result.error) {
-          return NextResponse.json(
-            { error: result.error.code, message: result.error.message },
-            { status: result.error.status }
-          );
-        }
-
-        return NextResponse.json(result.data);
-      },
-    },
-
   },
 };

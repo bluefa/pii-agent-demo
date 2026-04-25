@@ -26,7 +26,6 @@ import type {
   AzureCheckInstallationResult,
   AzureInstallationStatusResponse,
   AzureScanAppResponse,
-  AzureSettingsResponse,
   AzureSubnetGuideResponse,
   AzureVmCheckInstallationResult,
   AzureVmInstallationStatusResponse,
@@ -74,7 +73,6 @@ import type {
   ServiceSettingsAwsResponse,
   ServiceSettingsAwsUpdateResult,
   ServiceSettingsAwsVerifyScanRoleResult,
-  ServiceSettingsAzureResponse,
 } from '@/lib/bff/types/services';
 import type {
   DashboardSummaryResponse,
@@ -144,9 +142,6 @@ export interface BffClient {
         update: (serviceCode: string, body: unknown) => Promise<ServiceSettingsAwsUpdateResult>;
         verifyScanRole: (serviceCode: string) => Promise<ServiceSettingsAwsVerifyScanRoleResult>;
       };
-      azure: {
-        get: (serviceCode: string) => Promise<ServiceSettingsAzureResponse>;
-      };
     };
   };
 
@@ -188,7 +183,6 @@ export interface BffClient {
   azure: {
     checkInstallation: (id: number) => Promise<AzureCheckInstallationResult>;
     getInstallationStatus: (id: number) => Promise<AzureInstallationStatusResponse>;
-    getSettings: (id: number) => Promise<AzureSettingsResponse>;
     getSubnetGuide: (id: number) => Promise<AzureSubnetGuideResponse>;
     getScanApp: (id: number) => Promise<AzureScanAppResponse>;
     vmCheckInstallation: (id: number) => Promise<AzureVmCheckInstallationResult>;
