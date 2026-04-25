@@ -192,7 +192,10 @@ function renderNode(node: GuideNode): React.ReactNode {
 - `""`, `"   "`, `<p></p>`, `<p> </p>`, `<ul><li></li></ul>` (text 없음)
 
 **Parse error (PARSE_ERROR)**:
-- `<p>unclosed`, `<<>>` 등
+- HTML DOMParser 는 **관대함(lenient)** — 대부분의 malformed input 을 자동 복구한다. (예: `<p>unclosed` 는 브라우저 DOMParser 가 조용히 닫아버린다.)
+- PARSE_ERROR 는 선택한 파서가 실제로 리포트하는 케이스에 한해서만 예약. `linkedom` 이 어떤 입력에서 warning 을 내는지 브라우저 DOMParser 와 다를 수 있음.
+- 구체적 지침: `<p>unclosed` 는 PARSE_ERROR 케이스에서 제거. 대신 `linkedom` 을 사용한다면 **smoke test** 로 어떤 입력이 실제 PARSE_ERROR 를 트리거하는지 실측 확인할 것. 브라우저 DOMParser 는 대부분의 malformed HTML 을 복구한다.
+- Follow-up: 실측 확인 후 어떤 현실적 입력도 PARSE_ERROR 를 트리거하지 않으면, 이 code variant 는 union 에서 생략해도 됨.
 
 **AST shape verification**:
 - 통과 케이스가 정확한 AST 트리 반환 (snapshot 권장)
@@ -211,11 +214,13 @@ function renderNode(node: GuideNode): React.ReactNode {
 npx tsc --noEmit
 npm run lint -- lib/utils/validate-guide-html.ts app/components/features/process-status/GuideCard/render-guide-ast.tsx
 npm run test:run -- validate-guide-html render-guide-ast
+npm run build
 ```
 
 - tsc exit 0
 - 새 lint warning 0
 - 30+ test cases pass
+- `npm run build` 성공 — validator / renderer 신규 파일이 build 에 포함됨
 
 ## Out of scope
 
@@ -233,3 +238,24 @@ npm run test:run -- validate-guide-html render-guide-ast
 - [ ] `grep -r "dangerouslySetInnerHTML" app/components/features/process-status/GuideCard/` 결과 0
 - [ ] tsc 0, lint 0
 - [ ] 서버 / 클라 동형 동작 확인 (Vitest 환경에서 둘 다 통과)
+
+## PR body template
+
+```markdown
+## Summary
+- Spec: `docs/reports/guide-cms/wave-tasks/W1-b-html-validator-renderer.md` @ <SHA>
+- Wave: W1-b (HTML allow-list validator + AST renderer)
+- 의존: W1-a (merged)
+
+## Verification
+- [ ] tsc exit 0
+- [ ] npm run lint — 0 new warnings
+- [ ] npm run test — validator / renderer tests pass (30+ cases)
+- [ ] npm run build 성공
+
+## Deviations from spec
+<없으면 "None">
+
+## Deferred to later waves
+<없으면 "None">
+```
