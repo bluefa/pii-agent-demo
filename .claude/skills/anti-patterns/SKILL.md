@@ -141,6 +141,8 @@ Core rules:
 3. **Next.js Route Handlers** use only `@/lib/api-client/*`
 4. Never mix two boundaries in a single file
 
+> Route handlers may use `@/lib/bff/*` during the ADR-011 migration window. See `docs/reports/sit-migration-prompts/adr011-README.md`.
+
 ## Classic anti-pattern mapping
 
 | Classic name | This catalog |
