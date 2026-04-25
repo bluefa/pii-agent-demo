@@ -83,6 +83,16 @@ export class AppError extends Error {
 }
 
 /**
+ * Swallow `AppError(code: 'ABORTED')` and re-throw everything else.
+ * A successful cancellation (e.g. cleanup of an in-flight fetch) is not a real error,
+ * so consumers chaining `.catch(ignoreAborted)` only see genuine failures.
+ */
+export const ignoreAborted = (error: unknown): void => {
+  if (error instanceof AppError && error.code === 'ABORTED') return;
+  throw error;
+};
+
+/**
  * confirmed-integration 스냅샷 부재 여부.
  * 빈 스냅샷이 404 로 매핑되는 신규 정책상 empty 폴백의 공통 조건.
  */

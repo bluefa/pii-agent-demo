@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { TestConnectionJob } from '@/app/lib/api';
 import { getTestConnectionResults } from '@/app/lib/api';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { AppError } from '@/lib/errors';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
 import { statusColors, getButtonClass, cn } from '@/lib/theme';
@@ -25,26 +27,22 @@ export const TestConnectionHistoryModal = ({
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 5;
 
-  useEffect(() => {
-    if (!isOpen) return;
-    let cancelled = false;
-
-    const fetch = async () => {
-      setLoading(true);
-      try {
-        const res = await getTestConnectionResults(targetSourceId, page, PAGE_SIZE);
-        if (cancelled) return;
+  useAbortableEffect((signal) => {
+    if (!isOpen) return undefined;
+    setLoading(true);
+    return getTestConnectionResults(targetSourceId, page, PAGE_SIZE, { signal })
+      .then((res) => {
+        if (signal.aborted) return;
         setJobs(res.content);
         setTotal(res.page.totalElements);
-      } catch {
-        if (!cancelled) setJobs([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetch();
-    return () => { cancelled = true; };
+      })
+      .catch((err) => {
+        if (err instanceof AppError && err.code === 'ABORTED') throw err;
+        setJobs([]);
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false);
+      });
   }, [isOpen, targetSourceId, page]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
