@@ -61,16 +61,19 @@ export interface GuideContents { ko: string; en: string }
 export interface GuideDetail {
   name: GuideName;
   contents: GuideContents;
-  updatedAt: string;  // ISO 8601, drift 케이스에선 null 가능 (§4.5)
+  updatedAt: string;  // ISO 8601, non-null. drift 케이스 = epoch ISO ('1970-01-01T00:00:00Z'), NOT null — Swagger contract 은 non-null date-time
 }
 export interface GuideUpdateInput { contents: GuideContents }
 ```
 
 ### `lib/constants/guide-registry.ts` (~150 LOC)
 
-spec §3.3 의 `GUIDE_SLOTS` 28개를 그대로 const 객체로. 추가:
+spec §3.3 의 `GUIDE_SLOTS` 28개를 그대로 const 객체로. 추가로 `GUIDE_NAMES` / `GuideName` 을 `lib/types/guide.ts` 에서 재-export (W1-c 가 `@/lib/constants/guide-registry` 경로로 import 하므로 두 경로 모두 지원 필요):
 
 ```ts
+// lib/constants/guide-registry.ts
+export { GUIDE_NAMES, type GuideName } from '@/lib/types/guide';
+
 export const GUIDE_SLOTS = { /* 28 entries — spec §3.3 */ } as const;
 export type GuideSlotKey = keyof typeof GUIDE_SLOTS;
 
@@ -150,3 +153,24 @@ npm run test:run -- guide-registry guide
 - [ ] 28 GUIDE_SLOTS 모두 spec §3.3 와 1:1 일치 (slot key 명명, stepLabel)
 - [ ] 2 신규 error code `ERROR_CATALOG` 등록
 - [ ] tsc 0, lint 0, tests 8 pass
+
+## PR body template
+
+```markdown
+## Summary
+- Spec: `docs/reports/guide-cms/wave-tasks/W1-a-foundation-types-registry.md` @ <SHA>
+- Wave: W1-a (foundation: types + registry + error catalog)
+- 의존: 없음 (PR #372 머지 후 main 기준)
+
+## Verification
+- [ ] tsc exit 0
+- [ ] npm run lint — 0 new warnings
+- [ ] npm run test — registry/types tests pass
+- (npm run build 불필요 — 타입과 상수만, no UI/API)
+
+## Deviations from spec
+<없으면 "None">
+
+## Deferred to later waves
+<없으면 "None">
+```

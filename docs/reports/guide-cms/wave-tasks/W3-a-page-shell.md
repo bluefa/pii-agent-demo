@@ -42,11 +42,11 @@ bash scripts/create-worktree.sh --topic guide-cms-w3a-page-shell --prefix feat
 ```tsx
 'use client';
 import { useState } from 'react';
-import { ProviderTabs } from './components/ProviderTabs';
-import { StepListPanel } from './components/StepListPanel';
-import { GuidePlaceholder } from './components/GuidePlaceholder';
+import { ProviderTabs } from '@/app/integration/admin/guides/components/ProviderTabs';
+import { StepListPanel } from '@/app/integration/admin/guides/components/StepListPanel';
+import { GuidePlaceholder } from '@/app/integration/admin/guides/components/GuidePlaceholder';
 import type { GuideSlotKey } from '@/lib/types/guide';
-import type { ProviderTab } from './types';
+import type { ProviderTab } from '@/app/integration/admin/guides/types';
 
 export default function GuidesPage() {
   const [provider, setProvider] = useState<ProviderTab>('aws');
@@ -109,7 +109,7 @@ function listSlotsForProvider(provider: ProviderTab) {
 }
 ```
 
-`dirty` 상태에서 다른 행 클릭 시 `UnsavedChangesModal` 띄우는 로직은 W3-d 에서 통합. 이번 wave 는 prop hook 자리만 노출 (`onSelect: (key: GuideSlotKey) => void`).
+`dirty` 상태에서 다른 행 클릭 시 `UnsavedChangesModal` 띄우는 로직은 W3-b 에서 통합 (구 W3-d 병합). 이번 wave 는 prop hook 자리만 노출 (`onSelect: (key: GuideSlotKey) => void`).
 
 ## Step 5: GuidePlaceholder
 
@@ -132,6 +132,7 @@ export const DISABLED_PROVIDERS: ProviderTab[] = ['idc', 'sdu'];
 ```bash
 npx tsc --noEmit
 npm run lint -- app/integration/admin/guides/
+npm run build   # route 추가 — build exit 0 확인
 bash scripts/dev.sh   # mock 모드
 # 브라우저: /integration/admin/guides
 # - AWS / AZURE / GCP 탭 클릭 — step list 갱신
@@ -144,7 +145,8 @@ bash scripts/dev.sh   # mock 모드
 
 - Editor (Tiptap) → W3-b
 - Preview (GuideCard 재사용) → W3-c
-- Confirm modal · 에러 상태 · a11y polish → W3-d
+- Confirm modal (dirty nav guard + UnsavedChangesModal) → W3-b (구 W3-d 병합)
+- 에러 상태 (GET 실패 시 invalid state) → W4-a
 - GuideCard 분리 → W4-a
 
 ## PR body checklist
@@ -155,3 +157,26 @@ bash scripts/dev.sh   # mock 모드
 - [ ] IDC / SDU 클릭 시 toast (제목 정확)
 - [ ] 키보드 좌우 / 위아래 / Home / End 모두 동작
 - [ ] tsc 0, lint 0
+
+## PR body template
+
+## Summary
+- Spec: `docs/reports/guide-cms/wave-tasks/W3-a-page-shell.md` @ <SHA>
+- Wave: W3-a
+- 의존: W1-a
+
+## Changed files (net LOC)
+<git diff --stat>
+
+## Verification
+- [ ] tsc exit 0
+- [ ] npm run lint — 0 new warnings
+- [ ] npm run test — relevant tests pass
+- [ ] npm run build — exit 0 (UI/route 영향)
+- [ ] Dev smoke — /integration/admin/guides 진입, provider tabs + step list 키보드/클릭 동작
+
+## Deviations from spec
+<없으면 "None">
+
+## Deferred to later waves
+<없으면 "None">
