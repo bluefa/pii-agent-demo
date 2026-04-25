@@ -14,6 +14,7 @@
 | [ADR-009](./009-process-status-terminology.md) | processStatus 용어 체계 확정 및 BFF 계산 모델 | 승인됨 | 2026-02-16 |
 | [ADR-010](./010-guide-cms-slot-registry.md) | Guide CMS — Frontend Slot Registry + Server Content Store | Proposed | 2026-04-25 |
 | [ADR-011](./011-typed-bff-client-consolidation.md) | Typed BFF Client Consolidation | 승인됨 | 2026-04-25 |
+| [ADR-012](./012-target-source-page-layout.md) | Target Source Page Layout Registry | Proposed | 2026-04-25 |
 
 ## ADR 작성 규칙
 
