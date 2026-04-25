@@ -153,47 +153,51 @@ W5 (QA)                              ████
 
 ---
 
-### W2 — 디자인 시안 (사용자 주도)
+### W2 — 디자인 시안 ✅ 완료 (2026-04-25)
 
-**목표**: UI 비주얼 확정. 사용자가 Claude Design 에 요청.
+**산출물 위치**: `design/guide-cms/`
 
-| ID | 시안 대상 | 참조 |
-|---|---|---|
-| 2-A | `/integration/admin/guides` 레이아웃 (provider tabs + step list + editor + preview) | spec §6.1 |
-| 2-B | Provider 탭 + 비활성 "준비 중" 스타일 (IDC/SDU) | spec §6.2 |
-| 2-C | Step 목록 패널 — AWS 의 step 4 AUTO/MANUAL 2행 분기 | spec §6.3 |
-| 2-D | Tiptap 에디터 + 툴바 (7개 버튼) | spec §6.4.4 |
-| 2-E | 언어 탭 [ko] [en] · 저장 비활성 상태 · 인라인 에러 | spec §6.4.3, §6.4.5 |
-| 2-F | "N곳에 표시됩니다" 정보 패널 레이아웃 | spec §6.4.2 |
-| 2-G | Preview 영역 — 타임라인 + GuideCard + ko/en 토글 | spec §6.5 |
-| 2-H | Confirm 다이얼로그 UX | spec §6.6 |
-| 2-I | 초기·에러·invalid 상태 | spec §6.7, §6.8 |
+| 파일 | 내용 |
+|---|---|
+| `design/guide-cms/guide-cms.html` | 1318 LOC HTML 모크업 — 모든 상태 (initial / editing / shared / save 4종 / error 3종 / confirm modal / disabled provider) 한 페이지 안에 토글로 |
+| `design/guide-cms/components.md` | 페이지 트리, 신규 컴포넌트 8종, 재사용 컴포넌트 매핑, Tiptap 툴바 구조, 상태머신 |
+| `design/guide-cms/interactions.md` | 키보드 네비, 호버·포커스, 트랜지션 (250ms preview debounce 등), 특수 플로우 6종, a11y 체크리스트 |
 
-**블로커 아님**: W2 진행 중에도 W1 / W4 는 계속 진행 가능.
+**주요 디자인 결정** (시안에서 확정 — W3 구현 시 그대로 따른다):
+- Top nav 다크 (`#0F172A`) + brand pill primary 그라디언트 (`#0064FF` → `#4F46E5`)
+- Step 행 selected: `primary-50` 배경 + 3px 좌측 primary 엣지 + `◉` 마커
+- 미리보기 debounce **250ms** (타이핑 burst 동안 과잉 렌더 방지)
+- Save 버튼 disabled 시에도 포커스 받음 (`aria-disabled`) + tooltip
+- Toolbar `role="toolbar"` + roving tabindex (Tab 1번만 진입)
+- IDC/SDU 비활성 탭 클릭 시 toast 중복 방지 (최근 toast id 동일하면 skip)
+
+**구현 시 components.md / interactions.md 절대 준수**: W3 구현은 이 두 문서를 spec 으로 취급.
 
 ---
 
-### W3 — Admin UI (AI, W2 완료 후)
+### W3 — Admin UI (AI, W2 완료 — 시안 기준 구현)
 
-| ID | 내용 | 의존 |
-|---|---|---|
-| 3-A | 페이지 shell — `app/integration/admin/guides/page.tsx` + `layout.tsx` | 2-A |
-| 3-B | Provider tabs 컴포넌트 | 2-B |
-| 3-C | Step list panel — slot registry 조회로 행 생성 | 2-C, 1-B |
-| 3-D | Tiptap 에디터 컴포넌트 — `next/dynamic` lazy load | 2-D, 2-E |
-| 3-E | Editor 언어 탭 상태머신 (ko/en 독립 입력 유지) | 2-E |
-| 3-F | Preview panel — GuideCard(pure) 재사용 + 타임라인 + ko/en 토글 | 2-G, 4-A |
-| 3-G | "N곳에 표시됩니다" — `findSlotsForGuide(name)` 렌더 | 2-F, 1-B |
-| 3-H | 저장 버튼 상태머신 — disabled gate, loading, success, error | 2-E, 1-H |
-| 3-I | 미저장 confirm — in-app 은 `useModal()` + 프로젝트 Modal 컴포넌트 / browser nav 만 `beforeunload` | 2-H |
-| 3-J | 에러 상태 컴포넌트 — `<ErrorState>`, `<GuideCardInvalidState>` | 2-I |
-| 3-K | a11y — `role="tablist"`, `aria-live`, 키보드 네비 | spec §10 |
+**입력 spec**: `design/guide-cms/{guide-cms.html, components.md, interactions.md}`
 
-**PR 분할 권장**:
-- **W3-a**: 3-A, 3-B, 3-C (shell + tabs + step list)
-- **W3-b**: 3-D, 3-E, 3-G, 3-H (editor + save flow)
-- **W3-c**: 3-F (preview)
-- **W3-d**: 3-I, 3-J, 3-K (confirm + error + a11y)
+| ID | 내용 | 의존 | 시안 참조 |
+|---|---|---|---|
+| 3-A | 페이지 shell — `app/integration/admin/guides/page.tsx` (layout 재사용) | — | components.md §1 페이지 트리 |
+| 3-B | `<ProviderTabs />` — IDC/SDU disabled toast | — | components.md §2 ProviderTabs · interactions.md §4.6 |
+| 3-C | `<StepListPanel />` — slot registry 조회, AWS step 4 분기, dirty guard | 1-B | components.md §2 StepListPanel · interactions.md §4.1 |
+| 3-D | `<TiptapEditor />` — `next/dynamic` lazy + 7-button toolbar + `<LinkPromptModal>` | 0-A, 1-C | components.md §2 TiptapEditor + §4 툴바 · interactions.md §4.4 |
+| 3-E | `<LanguageTabs />` 상태머신 — ko/en 독립 + `filled/empty` dot | — | components.md §2 ③ |
+| 3-F | `<GuidePreviewPanel />` — `<ProcessTimelineCompact />` + GuideCard 재사용 + 250ms debounce | 4-A, 1-D | components.md §2 GuidePreviewPanel · interactions.md §3 |
+| 3-G | `<ScopeNotice />` — `findSlotsForGuide(name)` 결과, N≥2 노출 | 1-B | components.md §2 ② |
+| 3-H | `<SaveButton />` 상태머신 — disabled / enabled / loading / error | 1-K | components.md §2 ④ + §5 |
+| 3-I | `<UnsavedChangesModal />` — `useModal()` + dirty guard + focus trap | — | components.md §2 UnsavedChangesModal · interactions.md §4.1 |
+| 3-J | 에러 상태 — `<ErrorState>` (GET 실패), `<GuideCardInvalidState>` (렌더 검증 실패) | — | components.md §2 |
+| 3-K | a11y — roving toolbar tabindex, `aria-live`, focus-visible, prefers-reduced-motion | — | interactions.md §1 + §5 |
+
+**PR 분할 권장** (각각 wave-task 1개):
+- **W3-a** (`wave-task/W3-a-page-shell.md`): 3-A, 3-B, 3-C — shell + tabs + step list
+- **W3-b** (`wave-task/W3-b-editor.md`): 3-D, 3-E, 3-G, 3-H — Tiptap + 언어 탭 + 영향 범위 + 저장
+- **W3-c** (`wave-task/W3-c-preview.md`): 3-F — preview panel + timeline + debounce (W4-a 의존)
+- **W3-d** (`wave-task/W3-d-confirm-error-a11y.md`): 3-I, 3-J, 3-K — confirm + 에러 상태 + a11y
 
 **예상 LOC**: ~1500 (PR 당 ~300-400)
 
