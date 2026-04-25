@@ -83,7 +83,7 @@ export type AzureResourceType =
   | 'AZURE_VIRTUAL_SUBNET'
   | 'AZURE_NETWORK_INTERFACE'
   | 'AZURE_SERVICE_PRINCIPAL';
-export type Issue222AzureResourceType =
+export type BffAzureResourceType =
   | 'AZURE_SQL_SERVER'
   | 'AZURE_SQL_SERVER_MANAGED_INSTANCE'
   | 'AZURE_MYSQL_FLEXIBLE_SERVER'

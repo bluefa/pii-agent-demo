@@ -9,7 +9,7 @@ interface LegacyConfirmedIntegration {
   resource_infos: ResourceSnapshot[];
 }
 
-interface Issue222ConfirmedIntegrationResourceInfo extends Omit<ConfirmedIntegrationResourceInfo, 'ip_configuration_name'> {
+interface ConfirmedIntegrationResourceInfoPayload extends Omit<ConfirmedIntegrationResourceInfo, 'ip_configuration_name'> {
   ip_configuration?: string | null;
 }
 
@@ -19,7 +19,7 @@ export interface ConfirmedIntegrationEnvelopeResponse {
 
 export type ConfirmedIntegrationResponsePayload =
   | BffConfirmedIntegration
-  | { resource_infos: Issue222ConfirmedIntegrationResourceInfo[] }
+  | { resource_infos: ConfirmedIntegrationResourceInfoPayload[] }
   | LegacyConfirmedIntegration
   | ConfirmedIntegrationEnvelopeResponse;
 
@@ -44,11 +44,11 @@ const DATABASE_TYPE_BY_RESOURCE_TYPE: Partial<Record<string, DatabaseType>> = {
 };
 
 const isLegacyConfirmedResourceInfo = (
-  resourceInfo: ConfirmedIntegrationResourceInfo | Issue222ConfirmedIntegrationResourceInfo | ResourceSnapshot,
+  resourceInfo: ConfirmedIntegrationResourceInfo | ConfirmedIntegrationResourceInfoPayload | ResourceSnapshot,
 ): resourceInfo is ResourceSnapshot => 'endpoint_config' in resourceInfo;
 
 const normalizeConfirmedResourceInfo = (
-  resourceInfo: ConfirmedIntegrationResourceInfo | Issue222ConfirmedIntegrationResourceInfo | ResourceSnapshot,
+  resourceInfo: ConfirmedIntegrationResourceInfo | ConfirmedIntegrationResourceInfoPayload | ResourceSnapshot,
 ): ConfirmedIntegrationResourceInfo => {
   if (isLegacyConfirmedResourceInfo(resourceInfo)) {
     const endpointConfig = resourceInfo.endpoint_config;
@@ -83,7 +83,7 @@ const normalizeConfirmedResourceInfo = (
 };
 
 const normalizeConfirmedIntegration = (
-  integration: BffConfirmedIntegration | LegacyConfirmedIntegration | { resource_infos: Issue222ConfirmedIntegrationResourceInfo[] },
+  integration: BffConfirmedIntegration | LegacyConfirmedIntegration | { resource_infos: ConfirmedIntegrationResourceInfoPayload[] },
 ): BffConfirmedIntegration => ({
   resource_infos: integration.resource_infos.map(normalizeConfirmedResourceInfo),
 });

@@ -3,7 +3,7 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import { normalizeIssue222ApprovalHistoryPage } from '@/lib/issue-222-approval';
+import { normalizeApprovalHistoryPage } from '@/lib/approval-bff';
 
 export const GET = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
@@ -15,6 +15,6 @@ export const GET = withV1(async (request, { requestId, params }) => {
 
   const data = await bff.confirm.getApprovalHistory(parsed.value, page, size);
   return NextResponse.json(
-    normalizeIssue222ApprovalHistoryPage(data, parsed.value),
+    normalizeApprovalHistoryPage(data, parsed.value),
   );
 });

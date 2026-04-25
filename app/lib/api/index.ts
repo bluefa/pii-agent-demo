@@ -23,15 +23,15 @@ import {
 } from '@/lib/target-source-response';
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
 import {
-  normalizeIssue222ApprovalActionResponse,
-  normalizeIssue222ApprovalHistoryPage,
-  normalizeIssue222ApprovalRequestBody,
-  normalizeIssue222ApprovalRequestSummary,
-  normalizeIssue222ApprovedIntegration,
-  normalizeIssue222ProcessStatusResponse,
-  type Issue222ApprovalStatus,
-  type Issue222ResourceConfigDto,
-} from '@/lib/issue-222-approval';
+  normalizeApprovalActionResponse,
+  normalizeApprovalHistoryPage,
+  normalizeApprovalRequestBody,
+  normalizeApprovalRequestSummary,
+  normalizeApprovedIntegration,
+  normalizeProcessStatusResponse,
+  type ApprovalStatus,
+  type ResourceConfigDto,
+} from '@/lib/approval-bff';
 
 
 export interface CurrentUser {
@@ -84,7 +84,7 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const toIssue222CloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' => {
+const toBffCloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' => {
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
@@ -145,7 +145,7 @@ export const createProject = async (payload: {
 }): Promise<void> => {
   const body = {
     ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
-    cloudProvider: toIssue222CloudProvider(payload.cloudProvider),
+    cloudProvider: toBffCloudProvider(payload.cloudProvider),
     ...(payload.awsAccountId ? { awsAccountId: payload.awsAccountId } : {}),
     ...(payload.awsRegionType ? { awsRegionType: payload.awsRegionType } : {}),
     ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
@@ -273,14 +273,14 @@ interface LegacyApprovalRequestInput {
 export interface ApprovalRequestResult {
   id: string;
   targetSourceId: number;
-  status: Issue222ApprovalStatus;
+  status: ApprovalStatus;
   requestedAt: string;
   requestedBy: string;
   resourceTotalCount: number;
   resourceSelectedCount: number;
 }
 
-const toEndpointConfigSnapshot = (resource: Issue222ResourceConfigDto): ResourceSnapshot['endpoint_config'] => {
+const toEndpointConfigSnapshot = (resource: ResourceConfigDto): ResourceSnapshot['endpoint_config'] => {
   if (!resource.database_type || resource.port === undefined || !resource.host) {
     return null;
   }
@@ -296,7 +296,7 @@ const toEndpointConfigSnapshot = (resource: Issue222ResourceConfigDto): Resource
 };
 
 const toApprovedIntegrationResourceSnapshot = (
-  resource: Issue222ResourceConfigDto,
+  resource: ResourceConfigDto,
 ): ApprovedIntegrationResourceItem => ({
   resource_id: resource.resource_id ?? '',
   resource_type: resource.resource_type ?? '',
@@ -308,10 +308,10 @@ export const createApprovalRequest = async (
   targetSourceId: number,
   input: ApprovalRequestInput | LegacyApprovalRequestInput,
 ): Promise<ApprovalRequestResult> => {
-  const payload = normalizeIssue222ApprovalRequestSummary(
+  const payload = normalizeApprovalRequestSummary(
     await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
       method: 'POST',
-      body: normalizeIssue222ApprovalRequestBody(input),
+      body: normalizeApprovalRequestBody(input),
     }),
     { targetSourceId },
   );
@@ -358,7 +358,7 @@ export const getApprovedIntegration = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
 ): Promise<ApprovedIntegrationResponse> => {
-  const payload = normalizeIssue222ApprovedIntegration(
+  const payload = normalizeApprovedIntegration(
     await fetchInfraJson<unknown>(
       `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
       options?.signal ? { signal: options.signal } : undefined,
@@ -388,7 +388,7 @@ export interface ApprovalHistoryResponse {
       id: string;
       requested_at: string;
       requested_by: string;
-      status?: Issue222ApprovalStatus;
+      status?: ApprovalStatus;
       resource_total_count: number;
       resource_selected_count: number;
       input_data: {
@@ -412,7 +412,7 @@ export const getApprovalHistory = async (
   page = 0,
   size = 10
 ): Promise<ApprovalHistoryResponse> => {
-  const payload = normalizeIssue222ApprovalHistoryPage(
+  const payload = normalizeApprovalHistoryPage(
     await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`),
     targetSourceId,
   );
@@ -458,7 +458,7 @@ export const approveApprovalRequestV1 = async (
   targetSourceId: number,
   comment?: string
 ): Promise<{ success: boolean; result: string; processed_at: string }> => {
-  const payload = normalizeIssue222ApprovalActionResponse(
+  const payload = normalizeApprovalActionResponse(
     await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
       method: 'POST',
       body: { comment },
@@ -476,7 +476,7 @@ export const rejectApprovalRequestV1 = async (
   targetSourceId: number,
   reason: string
 ): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> => {
-  const payload = normalizeIssue222ApprovalActionResponse(
+  const payload = normalizeApprovalActionResponse(
     await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
       method: 'POST',
       body: { reason },
@@ -544,7 +544,7 @@ export interface ProcessStatusResponse {
 export const getProcessStatus = async (
   targetSourceId: number
 ): Promise<ProcessStatusResponse> =>
-  normalizeIssue222ProcessStatusResponse(
+  normalizeProcessStatusResponse(
     await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/process-status`),
   );
 
