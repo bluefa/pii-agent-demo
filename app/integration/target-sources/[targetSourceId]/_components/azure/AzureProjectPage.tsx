@@ -74,7 +74,13 @@ export const AzureProjectPage = ({
     ],
   };
 
-  if (project.processStatus === ProcessStatus.INSTALLING) {
+  const isConfirmedDataStep =
+    project.processStatus === ProcessStatus.INSTALLING ||
+    project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+    project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
+    project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+
+  if (isConfirmedDataStep) {
     return (
       <CloudTargetSourceLayout
         project={project}
