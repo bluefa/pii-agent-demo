@@ -1,17 +1,8 @@
 'use client';
 
-/**
- * Guide CMS — legacy facade.
- *
- * Spec: docs/reports/guide-cms/wave-tasks/W4-a-guidecard-split.md §Step 6.
- *
- * Preserves the `{ currentStep, provider, installationMode }` prop
- * surface that the 3 provider pages (AWS / Azure / GCP) still use.
- * Internally delegates via `resolveStepSlot` → `GuideCardContainer`.
- * W4-b replaces the call sites and removes this file; until then, do
- * not inline data fetching or rendering here — new consumers should
- * import `GuideCardContainer` directly.
- */
+// Legacy facade — provider pages still pass (currentStep, provider,
+// installationMode). New consumers import GuideCardContainer directly.
+// Removed by W4-b once the 3 provider pages migrate.
 
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';

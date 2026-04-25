@@ -127,7 +127,7 @@ body {
 
 .prose-guide a {
   font-weight: 500;
-  color: #0064FF;
+  color: var(--color-primary);
 }
 
 .prose-guide a:hover {
@@ -157,7 +157,7 @@ body {
 
 .prose-guide ul::marker,
 .prose-guide ul > li::marker {
-  color: #0064FF;             /* primaryColors.marker */
+  color: var(--color-primary);
 }
 
 .prose-guide code {

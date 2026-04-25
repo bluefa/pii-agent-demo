@@ -196,6 +196,8 @@ export const cardStyles = {
     icon: 'bg-amber-500 text-white',
     titleText: 'text-amber-900',
     body: 'text-gray-600',
+    skeletonHeader: 'bg-amber-200/40 border-b border-amber-200/40',
+    skeletonBar: 'bg-amber-200/60',
   },
 } as const;
 
