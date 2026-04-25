@@ -4,7 +4,7 @@ import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import { normalizeIssue222ApprovedIntegration } from '@/lib/issue-222-approval';
+import { normalizeApprovedIntegration } from '@/lib/approval-bff';
 
 const createNotFoundProblem = (requestId: string): NextResponse =>
   NextResponse.json({
@@ -26,7 +26,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   try {
     const data = await bff.confirm.getApprovedIntegration(parsed.value);
-    return NextResponse.json(normalizeIssue222ApprovedIntegration(data));
+    return NextResponse.json(normalizeApprovedIntegration(data));
   } catch (error) {
     if (error instanceof BffError && error.status === 404) {
       return createNotFoundProblem(requestId);

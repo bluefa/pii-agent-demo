@@ -9,7 +9,7 @@ import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
-import { normalizeIssue222ApprovalRequestBody } from '@/lib/issue-222-approval';
+import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
 import type {
   MockResource,
   Project,
@@ -313,7 +313,7 @@ export const mockConfirm = {
       }
     }
 
-    const { resource_inputs, exclusion_reason_default } = normalizeIssue222ApprovalRequestBody(body);
+    const { resource_inputs, exclusion_reason_default } = normalizeApprovalRequestBody(body);
 
     const selectedInputs = resource_inputs.filter(
       (ri): ri is Extract<typeof ri, { selected: true }> => ri.selected === true,

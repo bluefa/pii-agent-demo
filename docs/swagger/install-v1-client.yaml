@@ -80,7 +80,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Issue222TargetSourceDetail'
+                  $ref: '#/components/schemas/BffTargetSourceDetail'
         '401':
           $ref: './user.yaml#/components/responses/Unauthorized'
         '403':
@@ -98,14 +98,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Issue222CreateTargetSourceRequest'
+              $ref: '#/components/schemas/CreateTargetSourceRequest'
       responses:
         '201':
           description: 생성 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Issue222CreatedTargetSourceInfo'
+                $ref: '#/components/schemas/CreatedTargetSourceInfo'
         '400':
           $ref: './user.yaml#/components/responses/BadRequest'
         '401':
@@ -733,7 +733,7 @@ paths:
           $ref: './user.yaml#/components/responses/TargetSourceNotFound'
 components:
   schemas:
-    Issue222CreateTargetSourceRequest:
+    CreateTargetSourceRequest:
       type: object
       properties:
         description:
@@ -756,14 +756,14 @@ components:
           type: string
         gcpProjectId:
           type: string
-    Issue222TargetSourceMetadata:
+    BffTargetSourceMetadata:
       type: object
       properties:
         tenant_id:
           type: string
         subscription_id:
           type: string
-    Issue222TargetSourceDetail:
+    BffTargetSourceDetail:
       type: object
       properties:
         description:
@@ -793,8 +793,8 @@ components:
           type: string
           format: date-time
         metadata:
-          $ref: '#/components/schemas/Issue222TargetSourceMetadata'
-    Issue222CreatedTargetSourceInfo:
+          $ref: '#/components/schemas/BffTargetSourceMetadata'
+    CreatedTargetSourceInfo:
       type: object
       properties:
         targetSourceId:
@@ -819,7 +819,7 @@ components:
           type: string
           format: date-time
         metadata:
-          $ref: '#/components/schemas/Issue222TargetSourceMetadata'
+          $ref: '#/components/schemas/BffTargetSourceMetadata'
     ClientTargetSourceDetail:
       type: object
       description: |-

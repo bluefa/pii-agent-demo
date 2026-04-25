@@ -5,9 +5,9 @@ import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import {
-  normalizeIssue222ApprovalActionResponse,
-  normalizeIssue222ApprovalHistoryPage,
-} from '@/lib/issue-222-approval';
+  normalizeApprovalActionResponse,
+  normalizeApprovalHistoryPage,
+} from '@/lib/approval-bff';
 
 export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
@@ -16,7 +16,7 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   const payload = await bff.confirm.cancelApprovalRequest(parsed.value);
 
   try {
-    const history = normalizeIssue222ApprovalHistoryPage(
+    const history = normalizeApprovalHistoryPage(
       await bff.confirm.getApprovalHistory(parsed.value, 0, 1),
       parsed.value,
     );
@@ -30,6 +30,6 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   }
 
   return NextResponse.json(
-    normalizeIssue222ApprovalActionResponse(payload, { fallbackStatus: 'CANCELLED' }),
+    normalizeApprovalActionResponse(payload, { fallbackStatus: 'CANCELLED' }),
   );
 });

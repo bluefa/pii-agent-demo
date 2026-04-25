@@ -5,17 +5,17 @@ import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import {
-  normalizeIssue222ApprovalRequestBody,
-  normalizeIssue222ApprovalRequestSummary,
-  normalizeIssue222ProcessStatusResponse,
-} from '@/lib/issue-222-approval';
+  normalizeApprovalRequestBody,
+  normalizeApprovalRequestSummary,
+  normalizeProcessStatusResponse,
+} from '@/lib/approval-bff';
 
 export const POST = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
   const rawBody = await request.json().catch(() => ({}));
-  const body = normalizeIssue222ApprovalRequestBody(rawBody);
+  const body = normalizeApprovalRequestBody(rawBody);
   const payload = await bff.confirm.createApprovalRequest(parsed.value, body);
 
   const resourceInputs = Array.isArray(body.resource_inputs) ? body.resource_inputs : [];
@@ -30,7 +30,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
 
   let fallbackStatus: 'PENDING' | 'AUTO_APPROVED' = 'PENDING';
   try {
-    const issueStatus = normalizeIssue222ProcessStatusResponse(
+    const issueStatus = normalizeProcessStatusResponse(
       await bff.confirm.getProcessStatus(parsed.value),
       { target_source_id: parsed.value },
     );
@@ -42,7 +42,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
     // best-effort: on upstream failure, fall back to PENDING
   }
 
-  const finalPayload = normalizeIssue222ApprovalRequestSummary(payload, {
+  const finalPayload = normalizeApprovalRequestSummary(payload, {
     targetSourceId: parsed.value,
     fallbackStatus,
     fallbackTotalCount: resourceTotalCount,

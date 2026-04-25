@@ -24,7 +24,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 실행형 Swagger는 아래 경로에서 확인합니다.
 
-- `/integration/api-docs?spec=issue-222-client`
+- `/integration/api-docs?spec=install-v1-client`
 
 이 페이지의 `Try it out`은 브라우저가 BFF를 직접 호출하는 방식이 아니라, 먼저 Next.js API를 호출한 뒤 서버에서 BFF로 프록시합니다.
 
@@ -45,7 +45,7 @@ BFF_API_URL=http://localhost:8080 \
 npm run dev
 ```
 
-그 다음 [http://localhost:3000/integration/api-docs?spec=issue-222-client](http://localhost:3000/integration/api-docs?spec=issue-222-client) 에서 확인하면 됩니다.
+그 다음 [http://localhost:3000/integration/api-docs?spec=install-v1-client](http://localhost:3000/integration/api-docs?spec=install-v1-client) 에서 확인하면 됩니다.
 
 참고:
 
