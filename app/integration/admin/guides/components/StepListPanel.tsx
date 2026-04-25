@@ -1,11 +1,17 @@
 'use client';
 
-import { useRef, useCallback, useMemo } from 'react';
-import { cn, primaryColors, textColors, borderColors, bgColors } from '@/lib/theme';
-import { GUIDE_SLOTS, findSlotsForGuide } from '@/lib/constants/guide-registry';
-import type { GuideSlotKey } from '@/lib/constants/guide-registry';
-import type { GuideSlot, GuideName } from '@/lib/types/guide';
+import { useCallback, useMemo, useRef } from 'react';
+
+import {
+  ENABLED_PROVIDERS,
+  PLACEMENT_PROVIDER_BY_TAB,
+} from '@/app/integration/admin/guides/types';
+import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
+import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
+
 import type { ProviderTab } from '@/app/integration/admin/guides/types';
+import type { GuideSlotKey } from '@/lib/constants/guide-registry';
+import type { GuideName, GuideSlot } from '@/lib/types/guide';
 
 interface StepListPanelProps {
   provider: ProviderTab;
@@ -20,31 +26,42 @@ interface StepRow {
   isShared: boolean;
 }
 
-/** Builds the ordered row list for a given provider. Disabled providers yield empty. */
+// Precompute slot count per guide name once at module load — used to
+// flag shared guides ("공유" badge) and to drop duplicate AUTO/MANUAL
+// rows where a guide isn't actually forked.
+const SLOT_COUNT_BY_NAME = ((): ReadonlyMap<GuideName, number> => {
+  const map = new Map<GuideName, number>();
+  for (const slot of Object.values(GUIDE_SLOTS)) {
+    map.set(slot.guideName, (map.get(slot.guideName) ?? 0) + 1);
+  }
+  return map;
+})();
+
+type EnabledProvider = (typeof ENABLED_PROVIDERS)[number];
+
+const isEnabledProvider = (tab: ProviderTab): tab is EnabledProvider =>
+  (ENABLED_PROVIDERS as readonly ProviderTab[]).includes(tab);
+
 const buildRows = (provider: ProviderTab): StepRow[] => {
-  const providerUpper = provider.toUpperCase();
+  if (!isEnabledProvider(provider)) return [];
+  const placementProvider = PLACEMENT_PROVIDER_BY_TAB[provider];
   const rows: StepRow[] = [];
 
   for (const [rawKey, slot] of Object.entries(GUIDE_SLOTS)) {
     if (slot.placement.kind !== 'process-step') continue;
-    if (slot.placement.provider !== providerUpper) continue;
+    if (slot.placement.provider !== placementProvider) continue;
 
-    const key = rawKey as GuideSlotKey;
     const variant = 'variant' in slot.placement ? slot.placement.variant ?? null : null;
-    const sharedCount = findSlotsForGuide(slot.guideName as GuideName).length;
+    const sharedCount = SLOT_COUNT_BY_NAME.get(slot.guideName) ?? 0;
 
-    // AWS step 4 is the only step where AUTO/MANUAL diverge — render both.
-    // Other AWS steps (1-3, 5-7) share one guideName across AUTO/MANUAL, so
-    // we keep only AUTO to avoid duplicate rows.
-    if (providerUpper === 'AWS' && slot.placement.step !== 4 && variant === 'MANUAL') {
-      continue;
-    }
+    // Drop the MANUAL row when the guide isn't actually forked at this
+    // step (sharedCount < 2 means AUTO and MANUAL collapse to one entry).
+    if (variant === 'MANUAL' && sharedCount < 2) continue;
 
     rows.push({
-      key,
+      key: rawKey as GuideSlotKey,
       slot,
-      variantLabel:
-        providerUpper === 'AWS' && slot.placement.step === 4 ? variant : null,
+      variantLabel: sharedCount >= 2 ? variant : null,
       isShared: sharedCount >= 2,
     });
   }
@@ -55,14 +72,12 @@ const buildRows = (provider: ProviderTab): StepRow[] => {
     }
     const stepDiff = a.slot.placement.step - b.slot.placement.step;
     if (stepDiff !== 0) return stepDiff;
-    // Same step → AUTO before MANUAL (AWS step 4).
     const aVar = 'variant' in a.slot.placement ? a.slot.placement.variant ?? '' : '';
     const bVar = 'variant' in b.slot.placement ? b.slot.placement.variant ?? '' : '';
     return aVar.localeCompare(bVar);
   });
 };
 
-/** Builds the accessible label for a step row. */
 const rowAriaLabel = (row: StepRow): string => {
   if (row.slot.placement.kind !== 'process-step') return '';
   const { provider, step, stepLabel } = row.slot.placement;
@@ -86,12 +101,10 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        const next = rows[Math.min(currentIndex + 1, rows.length - 1)];
-        focusRow(next.key);
+        focusRow(rows[Math.min(currentIndex + 1, rows.length - 1)].key);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        const prev = rows[Math.max(currentIndex - 1, 0)];
-        focusRow(prev.key);
+        focusRow(rows[Math.max(currentIndex - 1, 0)].key);
       } else if (e.key === 'Home') {
         e.preventDefault();
         focusRow(rows[0].key);
@@ -122,7 +135,9 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
             key={row.key}
             role="button"
             tabIndex={0}
-            ref={(el) => { rowRefs.current[row.key] = el; }}
+            ref={(el) => {
+              rowRefs.current[row.key] = el;
+            }}
             aria-label={rowAriaLabel(row)}
             aria-pressed={isSelected}
             onClick={() => onSelect(row.key)}

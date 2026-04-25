@@ -1,9 +1,22 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
-import { cn, primaryColors, textColors, borderColors, interactiveColors } from '@/lib/theme';
+import { useCallback, useRef } from 'react';
+
 import { useToast } from '@/app/components/ui/toast/useToast';
-import { ENABLED_PROVIDERS, DISABLED_PROVIDERS, PROVIDER_LABELS } from '@/app/integration/admin/guides/types';
+import {
+  ALL_PROVIDER_TABS,
+  ENABLED_PROVIDERS,
+  PROVIDER_LABELS,
+  isDisabledProvider,
+} from '@/app/integration/admin/guides/types';
+import {
+  borderColors,
+  cn,
+  interactiveColors,
+  primaryColors,
+  textColors,
+} from '@/lib/theme';
+
 import type { ProviderTab } from '@/app/integration/admin/guides/types';
 
 interface ProviderTabsProps {
@@ -11,69 +24,63 @@ interface ProviderTabsProps {
   onChange: (provider: ProviderTab) => void;
 }
 
-/** Returns the toast message for a disabled provider tab. */
 const disabledToastMessage = (provider: ProviderTab): string =>
   `${PROVIDER_LABELS[provider]} 가이드는 Step 구조 확정 후 별도 wave 에서 지원됩니다.`;
 
 export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
   const toast = useToast();
-  // Track last shown toast id per disabled provider to prevent duplicates.
+  // Last toast id per disabled provider — refs mutate in place; no spread.
   const activeDisabledToastRef = useRef<Partial<Record<ProviderTab, string>>>({});
   const tabRefs = useRef<Partial<Record<ProviderTab, HTMLButtonElement | null>>>({});
-
-  const allTabs: ProviderTab[] = [...ENABLED_PROVIDERS, ...DISABLED_PROVIDERS];
 
   const focusTab = useCallback((provider: ProviderTab) => {
     tabRefs.current[provider]?.focus();
   }, []);
 
+  const handleDisabledClick = useCallback(
+    (provider: ProviderTab) => {
+      const existingId = activeDisabledToastRef.current[provider];
+      if (existingId) toast.dismiss(existingId);
+      const id = toast.info(disabledToastMessage(provider), { durationMs: 4200 });
+      activeDisabledToastRef.current[provider] = id;
+    },
+    [toast],
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>, current: ProviderTab) => {
-      const enabledList = ENABLED_PROVIDERS;
-
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
-        const currentIndex = enabledList.indexOf(current);
+        const currentIndex = ENABLED_PROVIDERS.indexOf(current as never);
         if (currentIndex === -1) {
-          // Disabled tab: move to nearest enabled
-          focusTab(enabledList[0]);
+          focusTab(ENABLED_PROVIDERS[0]);
           return;
         }
         const direction = e.key === 'ArrowRight' ? 1 : -1;
-        const nextIndex = (currentIndex + direction + enabledList.length) % enabledList.length;
-        const nextProvider = enabledList[nextIndex];
-        onChange(nextProvider);
-        focusTab(nextProvider);
+        const nextIndex = (currentIndex + direction + ENABLED_PROVIDERS.length) % ENABLED_PROVIDERS.length;
+        const next = ENABLED_PROVIDERS[nextIndex];
+        onChange(next);
+        focusTab(next);
       } else if (e.key === 'Home') {
         e.preventDefault();
-        onChange(enabledList[0]);
-        focusTab(enabledList[0]);
+        onChange(ENABLED_PROVIDERS[0]);
+        focusTab(ENABLED_PROVIDERS[0]);
       } else if (e.key === 'End') {
         e.preventDefault();
-        onChange(enabledList[enabledList.length - 1]);
-        focusTab(enabledList[enabledList.length - 1]);
+        const last = ENABLED_PROVIDERS[ENABLED_PROVIDERS.length - 1];
+        onChange(last);
+        focusTab(last);
       } else if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        if (DISABLED_PROVIDERS.includes(current)) {
+        if (isDisabledProvider(current)) {
           handleDisabledClick(current);
         } else {
           onChange(current);
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onChange, focusTab],
+    [onChange, focusTab, handleDisabledClick],
   );
-
-  const handleDisabledClick = (provider: ProviderTab) => {
-    const existingId = activeDisabledToastRef.current[provider];
-    // Dismiss previous toast for this provider before showing new one (dedupe).
-    if (existingId) {
-      toast.dismiss(existingId);
-    }
-    const id = toast.info(disabledToastMessage(provider), { durationMs: 4200 });
-    activeDisabledToastRef.current = { ...activeDisabledToastRef.current, [provider]: id };
-  };
 
   return (
     <div
@@ -81,20 +88,21 @@ export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
       aria-label="클라우드 프로바이더"
       className={cn('flex border-b', borderColors.default)}
     >
-      {allTabs.map((provider) => {
-        const isDisabled = DISABLED_PROVIDERS.includes(provider);
+      {ALL_PROVIDER_TABS.map((provider) => {
+        const isDisabled = isDisabledProvider(provider);
         const isSelected = value === provider;
-        const label = PROVIDER_LABELS[provider];
 
         return (
           <button
             key={provider}
             role="tab"
             type="button"
-            ref={(el) => { tabRefs.current[provider] = el; }}
+            ref={(el) => {
+              tabRefs.current[provider] = el;
+            }}
             aria-selected={isSelected}
             aria-disabled={isDisabled ? 'true' : undefined}
-            tabIndex={isSelected || (!ENABLED_PROVIDERS.includes(value) && provider === ENABLED_PROVIDERS[0]) ? 0 : -1}
+            tabIndex={isSelected ? 0 : -1}
             onClick={() => {
               if (isDisabled) {
                 handleDisabledClick(provider);
@@ -114,7 +122,7 @@ export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
                   : interactiveColors.inactiveTab,
             )}
           >
-            {label}
+            {PROVIDER_LABELS[provider]}
           </button>
         );
       })}
