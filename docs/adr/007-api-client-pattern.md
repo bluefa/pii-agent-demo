@@ -1,7 +1,7 @@
 # ADR-007: API Client 패턴 도입
 
 ## 상태
-제안됨
+대체됨 ([ADR-011](./011-typed-bff-client-consolidation.md))
 
 ## 맥락
 
@@ -110,3 +110,16 @@ lib/api-client/
 - `lib/api-client/` — 신규 디렉토리
 - `lib/adapters/` — 기존 (mockClient 내부에서 계속 사용)
 - `app/api/` — route.ts 파일들 (client 호출로 전환)
+
+## Retrospective (2026-04-25)
+
+After ~2.5 months of production use (accepted 2026-02-14; ~61 routes migrated across Phases 1-2), this ADR is superseded by [ADR-011](./011-typed-bff-client-consolidation.md). The limitations that drove the supersession:
+
+- The `Promise<NextResponse>` return type placed the abstraction boundary on HTTP transport rather than on domain data, so `mockClient` and `bffClient` agree only at the NextResponse body level. That body shape is not enforced by TypeScript, which allowed snake/camel and pagination-shape drift to reach runtime (PR #253 `mockScan.getHistory`/`create`/`getStatus`).
+- The two-client question (`lib/api-client/bff-client.ts` vs `lib/bff/http.ts`) from `docs/api/boundaries.md:167` was never resolved. `lib/bff/*` stalled at 2 of 13 domains while `lib/api-client/*` grew to cover all of them, creating two parallel typed contracts targeting the same upstream.
+- The "thin dispatcher" route model did not match reality: 13 of 59 route handlers use `response.json() as ...` casts and 27 perform further transformation via `_lib/transform.ts`, `extractConfirmedIntegration`, or `lib/issue-222-approval.ts` (529 lines).
+- Issue #222 follow-up work (#234 #235 #237 #240 #253) repeatedly modified the same three layers in lock-step — a Shotgun Surgery signal that the abstraction line was drawn at the wrong layer.
+
+The review that preceded ADR-011 is documented in [`docs/reports/api-client-pattern-review.md`](../reports/api-client-pattern-review.md) and was cross-validated by two rounds of Codex review.
+
+ADR-007 is preserved here unchanged (apart from this retrospective and the status line) as the historical record of the original decision.
