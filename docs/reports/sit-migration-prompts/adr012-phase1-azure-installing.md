@@ -71,14 +71,13 @@ return (
 
 Slot-wrapper testability: `InstallationStatusSlot` returns its child wrapped in `<div data-testid="installation-status">`. `ConfirmedResourcesSlot` returns its child wrapped in `<div data-testid="confirmed-resources">`. These wrappers are the order-test selectors.
 
-### Order test sketch
+### Order test sketch (illustrative)
 
-Implementer copies this verbatim. Note: `AzureInstallationInline` is mocked to a stub component so the order test does not trigger `useInstallationStatus()` or any other mount-time fetch.
+Treat this as an illustrative sketch, not a copy-verbatim template. The implementer is responsible for defining `azureInstallingFixture` and `identityFixture` (typed `CloudTargetSource` and `ProjectIdentity` respectively, derived from `lib/mock-data.ts:170-218` for project 1003) and trimming any unused imports. The non-negotiable parts are: mock `AzureInstallationInline`, mock the data provider to a `ready` state, and assert order via `compareDocumentPosition`.
 
 ```tsx
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { ProcessStatus } from '@/lib/types';
 import { CloudInstallingStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudInstallingStep';
 
 vi.mock('@/app/components/features/process-status/azure/AzureInstallationInline', () => ({
@@ -244,7 +243,7 @@ rg -nP "\bcloudProvider\b|\bawsInstallationMode\b" \
 # Expected: 0 hits.
 
 # Provider page resource-type guard (C1 from #371):
-rg -n "from '@/lib/types/resources'" \
+rg -nP "from\s+['\"]@/lib/types/resources['\"]" \
   app/integration/target-sources/\[targetSourceId\]/_components/{aws,azure,gcp}/*ProjectPage.tsx
 # Expected: 0 hits.
 
@@ -254,8 +253,10 @@ rg -nE "useState|useEffect" \
 # Expected: 0 hits.
 
 # Confirm override step components are NOT introduced in Phase 1 (R3 guard):
+# Search the entire target-source _components subtree, not just layout/, so an
+# override file accidentally landed under aws/, azure/, or gcp/ is also caught.
 rg -nP "\b(AwsManualInstallingStep|AzureInstallingStep|GcpInstallingStep)\b" \
-  app/integration/target-sources/\[targetSourceId\]/_components/layout/
+  app/integration/target-sources/\[targetSourceId\]/_components/
 # Expected: 0 hits.
 
 # Test + type + lint + build:

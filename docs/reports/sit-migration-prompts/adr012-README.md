@@ -1,6 +1,6 @@
 # ADR-012 — Target Source Page Layout Migration
 
-Baseline: `main@f1a23b4` (after PR #390 merge — ADR-012 hardened with R1-R4).
+ADR commit: `main@f1a23b4` (PR #390 merge — ADR-012 hardened with R1-R4). The ADR reference SHA is fixed; the **implementation baseline** is whatever `origin/main` resolves to when `/wave-task` runs. Each phase rebases on `origin/main` per the wave-task pipeline before implementation.
 
 Source ADR: [`docs/adr/012-target-source-page-layout.md`](../../adr/012-target-source-page-layout.md)
 
