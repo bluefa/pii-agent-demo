@@ -1,21 +1,12 @@
-/**
- * Guide CMS — pure presentational card.
- *
- * Spec: docs/reports/guide-cms/wave-tasks/W4-a-guidecard-split.md §Step 3
- * and docs/reports/guide-cms/spec.md §6.5.
- *
- * Accepts a raw HTML string, validates via `validateGuideHtml`, and
- * either renders the resulting AST through `renderGuideAst` (the only
- * path that reaches the DOM — never `dangerouslySetInnerHTML`) or
- * delegates to `GuideCardInvalidState`. The admin preview surface
- * passes `invalidVariant="admin"` to surface diagnostic detail; every
- * other caller falls through to the generic `'enduser'` default.
- */
+'use client';
 
-import { cardStyles, cn } from '@/lib/theme';
+import { useMemo } from 'react';
+
+import { GuideCardChrome } from '@/app/components/features/process-status/GuideCard/GuideCardChrome';
 import { GuideCardInvalidState } from '@/app/components/features/process-status/GuideCard/GuideCardInvalidState';
 import { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
 import { GuideIcon } from '@/app/components/ui/icons';
+import { cardStyles, cn } from '@/lib/theme';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 interface Props {
@@ -50,18 +41,20 @@ export const GuideCardPure = ({
   showHeader = true,
   invalidVariant = 'enduser',
 }: Props) => {
-  const result = validateGuideHtml(content);
+  // Provider pages re-render on status polls; memo keeps DOM parsing
+  // and AST allocation off the hot path while content is unchanged.
+  const result = useMemo(() => validateGuideHtml(content), [content]);
+  const rendered = useMemo(
+    () => (result.valid ? renderGuideAst(result.ast) : null),
+    [result],
+  );
+
   if (!result.valid) {
     return <GuideCardInvalidState errors={result.errors} variant={invalidVariant} />;
   }
 
   return (
-    <div
-      className={cn(
-        'rounded-xl border shadow-sm overflow-hidden',
-        cardStyles.warmVariant.container,
-      )}
-    >
+    <GuideCardChrome>
       {showHeader && <CardHeader />}
       <div
         className={cn(
@@ -69,8 +62,8 @@ export const GuideCardPure = ({
           cardStyles.warmVariant.body,
         )}
       >
-        {renderGuideAst(result.ast)}
+        {rendered}
       </div>
-    </div>
+    </GuideCardChrome>
   );
 };

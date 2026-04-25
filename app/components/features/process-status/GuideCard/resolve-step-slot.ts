@@ -1,20 +1,7 @@
-/**
- * Guide CMS — legacy facade helper.
- *
- * Spec: docs/reports/guide-cms/wave-tasks/W4-a-guidecard-split.md §Step 6.
- *
- * Maps the legacy `(provider, currentStep, installationMode)` shape
- * that 3 provider pages still pass into `GuideCard.tsx` onto a concrete
- * `GuideSlotKey` from `GUIDE_SLOTS`. Used only by the facade — new
- * call sites (W4-b onward) pass a `slotKey` to `GuideCardContainer`
- * directly.
- *
- * `CloudProvider` is title-case (`'Azure'`). The registry stores the
- * internal provider tag as upper-case, but slot keys themselves are
- * lower-case, so we normalise at this boundary without re-introducing
- * the upper-case comparison. Out-of-range step values fall through to
- * `null` rather than a silent registry lookup.
- */
+// `CloudProvider` is title-case (`'Azure'`); slot keys are lower-case.
+// Normalise at this boundary so the rest of the registry stays
+// case-consistent. Out-of-range steps return null instead of falling
+// through to a silent registry miss.
 
 import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
 
