@@ -15,7 +15,7 @@ import { ClockIcon, PlayIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
-import { ScanController } from '@/app/components/features/scan/ScanPanel';
+import { ScanController, type ScanUiState } from '@/app/components/features/scan/ScanPanel';
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
@@ -39,6 +39,7 @@ import type { AsyncState } from '@/app/integration/target-sources/[targetSourceI
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 import { getCandidateErrorMessage } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/errors';
 import { CandidateResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
+import { selectPhase } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/phase';
 import {
   buildResourceInputs,
   toModalResources,
@@ -182,44 +183,56 @@ export const CandidateResourceSection = ({
     [approvalModal.isOpen, candidates, drafts, selectedIds],
   );
 
-  const renderBody = (scanState: 'EMPTY' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILED', progress: number, startScan: () => void) => {
-    if (state.status === 'loading') {
-      return (
-        <div className="flex items-center justify-center gap-3 py-10">
-          <LoadingSpinner />
-          <span className={cn('text-sm', textColors.tertiary)}>리소스 정보를 불러오는 중입니다.</span>
-        </div>
-      );
+  const renderBody = (scanState: ScanUiState, progress: number, startScan: () => void) => {
+    const phase = selectPhase({
+      fetchStatus: state.status,
+      scanState,
+      hasCandidates: candidates.length > 0,
+    });
+    const errorMessage = state.status === 'error' ? state.message : '';
+
+    switch (phase) {
+      case 'fetching':
+        return (
+          <div className="flex items-center justify-center gap-3 py-10">
+            <LoadingSpinner />
+            <span className={cn('text-sm', textColors.tertiary)}>리소스 정보를 불러오는 중입니다.</span>
+          </div>
+        );
+      case 'fetchError':
+        return (
+          <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
+            <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{errorMessage}</p>
+            <button onClick={refetch} className={getButtonClass('secondary')}>
+              다시 시도
+            </button>
+          </div>
+        );
+      case 'scanning':
+        return <ScanRunningState progress={progress} />;
+      case 'scanFailed':
+        return <ScanErrorState onRetry={startScan} />;
+      case 'list':
+        return (
+          <CandidateResourceTable
+            candidates={candidates}
+            selectedIds={selectedIds}
+            drafts={drafts}
+            expandedResourceId={expandedResourceId}
+            readonly={readonly}
+            approvalSubmitting={approval.loading}
+            onToggleSelected={handleToggleSelected}
+            onExpandToggle={handleExpandToggle}
+            onEndpointSave={handleEndpointSave}
+            onRequestApproval={handleRequestApproval}
+          />
+        );
+      case 'empty':
+        return <ScanEmptyState />;
+      default:
+        phase satisfies never;
+        return null;
     }
-    if (state.status === 'error') {
-      return (
-        <div className={cn('rounded-xl border p-6 space-y-3', statusColors.error.bg, statusColors.error.border)}>
-          <p className={cn('text-sm font-medium', statusColors.error.textDark)}>{state.message}</p>
-          <button onClick={refetch} className={getButtonClass('secondary')}>
-            다시 시도
-          </button>
-        </div>
-      );
-    }
-    if (candidates.length > 0) {
-      return (
-        <CandidateResourceTable
-          candidates={candidates}
-          selectedIds={selectedIds}
-          drafts={drafts}
-          expandedResourceId={expandedResourceId}
-          readonly={readonly}
-          approvalSubmitting={approval.loading}
-          onToggleSelected={handleToggleSelected}
-          onExpandToggle={handleExpandToggle}
-          onEndpointSave={handleEndpointSave}
-          onRequestApproval={handleRequestApproval}
-        />
-      );
-    }
-    if (scanState === 'IN_PROGRESS') return <ScanRunningState progress={progress} />;
-    if (scanState === 'FAILED') return <ScanErrorState onRetry={startScan} />;
-    return <ScanEmptyState />;
   };
 
   return (
