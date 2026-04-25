@@ -16,7 +16,7 @@
 - `idc.yaml`
 - `sdu.yaml`
 - `logical-db-status.yaml`
-- `issue-222-client.yaml`
+- `install-v1-client.yaml`
 
 ## 반영 원칙
 
@@ -34,12 +34,12 @@
   예: `http://localhost:3001/integration/swagger/aws`
 - 기존 Swagger UI(개별): `/{spec}`  
   예: `http://localhost:3001/aws`
-- Issue #222 실행형 미러: `/integration/api-docs?spec=issue-222-client`  
-  예: `http://localhost:3001/integration/api-docs?spec=issue-222-client`
+- Issue #222 실행형 미러: `/integration/api-docs?spec=install-v1-client`  
+  예: `http://localhost:3001/integration/api-docs?spec=install-v1-client`
 
 ## 실제 BFF 연동
 
-`/integration/api-docs?spec=issue-222-client` 의 `Try it out`은 브라우저가 BFF를 직접 호출하지 않습니다.
+`/integration/api-docs?spec=install-v1-client` 의 `Try it out`은 브라우저가 BFF를 직접 호출하지 않습니다.
 
 호출 경로는 아래와 같습니다.
 

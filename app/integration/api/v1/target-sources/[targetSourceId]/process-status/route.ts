@@ -4,11 +4,11 @@ import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import { normalizeIssue222ProcessStatusResponse, type Issue222ProcessStatus } from '@/lib/issue-222-approval';
+import { normalizeProcessStatusResponse, type BffApprovalProcessStatus } from '@/lib/approval-bff';
 import { extractTargetSource } from '@/lib/target-source-response';
 import { ProcessStatus } from '@/lib/types';
 
-const toIssue222ProcessStatus = (processStatus: ProcessStatus): Issue222ProcessStatus => {
+const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApprovalProcessStatus => {
   switch (processStatus) {
     case ProcessStatus.WAITING_APPROVAL:
       return 'PENDING';
@@ -32,7 +32,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const rawStatus = normalizeIssue222ProcessStatusResponse(
+  const rawStatus = normalizeProcessStatusResponse(
     await bff.confirm.getProcessStatus(parsed.value),
     { target_source_id: parsed.value },
   );
@@ -52,6 +52,6 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   return NextResponse.json({
     ...rawStatus,
-    process_status: toIssue222ProcessStatus(projectStatus),
+    process_status: toBffApprovalProcessStatus(projectStatus),
   });
 });
