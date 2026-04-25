@@ -151,11 +151,17 @@ fetch_pr_state() {
 
 OPEN_NUMS=()
 OPEN_URLS=()
+SEEN_NUMS=""
 
 # Priority 1: event cache — collect every captured PR that is still OPEN/DRAFT.
 if [ -f "$EVENT_CACHE" ]; then
   while IFS=$'\t' read -r ev_url ev_num || [ -n "$ev_num" ]; do
     [ -z "$ev_num" ] && continue
+    # Defensive dedup — the PostToolUse capture hook's check-then-append is
+    # racy under parallel `gh pr create` (subagent fan-out), so the same PR
+    # number can land twice in the event cache.
+    case " $SEEN_NUMS " in *" $ev_num "*) continue ;; esac
+    SEEN_NUMS="$SEEN_NUMS $ev_num"
     cached=$(state_cache_lookup "$ev_num") || cached=""
     if [ -n "$cached" ]; then
       IFS=$'\t' read -r ev_state ev_final_url <<< "$cached"
