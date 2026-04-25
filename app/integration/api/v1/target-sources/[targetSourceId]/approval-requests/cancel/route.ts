@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
+import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import {
@@ -12,17 +13,20 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const response = await client.confirm.cancelApprovalRequest(String(parsed.value));
-  if (!response.ok) return response;
+  const payload = await bff.confirm.cancelApprovalRequest(parsed.value);
 
-  const payload = await response.json();
-  const historyResponse = await client.confirm.getApprovalHistory(String(parsed.value), 0, 1);
-  if (historyResponse.ok) {
-    const history = normalizeIssue222ApprovalHistoryPage(await historyResponse.json(), parsed.value);
+  try {
+    const history = normalizeIssue222ApprovalHistoryPage(
+      await bff.confirm.getApprovalHistory(parsed.value, 0, 1),
+      parsed.value,
+    );
     const latestResult = history.content[0]?.result;
     if (latestResult) {
       return NextResponse.json(latestResult);
     }
+  } catch (error) {
+    if (!(error instanceof BffError)) throw error;
+    // best-effort: on upstream failure, fall back to the action response with fallbackStatus=CANCELLED
   }
 
   return NextResponse.json(

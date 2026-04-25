@@ -62,6 +62,8 @@ export function withV1(
 
       return addV1Headers(response, requestId, options?.expectedDuration);
     } catch (error) {
+      // BffError thrown from `bff.<domain>.<method>` (typed BFF client) —
+      // map to the same ProblemDetails shape as legacy `transformLegacyError`.
       if (error instanceof BffError) {
         const problem = transformBffError(error, requestId);
         return addV1Headers(problem, requestId, options?.expectedDuration);

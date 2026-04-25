@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
+import { BffError } from '@/lib/bff/errors';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     confirm: {
       getApprovalRequestLatest: vi.fn(),
     },
@@ -10,9 +10,9 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { GET } from '@/app/integration/api/v1/target-sources/[targetSourceId]/approval-requests/latest/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
-const mockedGetApprovalRequestLatest = vi.mocked(client.confirm.getApprovalRequestLatest);
+const mockedGetApprovalRequestLatest = vi.mocked(bff.confirm.getApprovalRequestLatest);
 
 describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-requests/latest', () => {
   beforeEach(() => {
@@ -38,9 +38,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
         reason: null,
       },
     };
-    mockedGetApprovalRequestLatest.mockResolvedValue(
-      NextResponse.json(bffResponse),
-    );
+    mockedGetApprovalRequestLatest.mockResolvedValue(bffResponse);
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/target-sources/1003/approval-requests/latest'),
@@ -49,15 +47,12 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(bffResponse);
-    expect(mockedGetApprovalRequestLatest).toHaveBeenCalledWith('1003');
+    expect(mockedGetApprovalRequestLatest).toHaveBeenCalledWith(1003);
   });
 
-  it('BFF가 404를 반환하면 그대로 전달한다', async () => {
-    mockedGetApprovalRequestLatest.mockResolvedValue(
-      NextResponse.json(
-        { error: 'NOT_FOUND', message: '승인 요청 이력이 없습니다.' },
-        { status: 404 },
-      ),
+  it('BFF가 404를 반환하면 ProblemDetails로 변환한다', async () => {
+    mockedGetApprovalRequestLatest.mockRejectedValue(
+      new BffError(404, 'NOT_FOUND', '승인 요청 이력이 없습니다.'),
     );
 
     const response = await GET(
@@ -66,5 +61,6 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
     );
 
     expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toContain('application/problem+json');
   });
 });

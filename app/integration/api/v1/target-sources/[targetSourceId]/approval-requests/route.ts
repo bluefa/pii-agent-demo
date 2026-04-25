@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
+import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import {
@@ -15,8 +16,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
 
   const rawBody = await request.json().catch(() => ({}));
   const body = normalizeIssue222ApprovalRequestBody(rawBody);
-  const response = await client.confirm.createApprovalRequest(String(parsed.value), body);
-  if (!response.ok) return response;
+  const payload = await bff.confirm.createApprovalRequest(parsed.value, body);
 
   const resourceInputs = Array.isArray(body.resource_inputs) ? body.resource_inputs : [];
   const resourceTotalCount = resourceInputs.length;
@@ -29,22 +29,25 @@ export const POST = withV1(async (request, { requestId, params }) => {
   ).length;
 
   let fallbackStatus: 'PENDING' | 'AUTO_APPROVED' = 'PENDING';
-  const statusResponse = await client.confirm.getProcessStatus(String(parsed.value));
-  if (statusResponse.ok) {
-    const issueStatus = normalizeIssue222ProcessStatusResponse(await statusResponse.json(), {
-      target_source_id: parsed.value,
-    });
+  try {
+    const issueStatus = normalizeIssue222ProcessStatusResponse(
+      await bff.confirm.getProcessStatus(parsed.value),
+      { target_source_id: parsed.value },
+    );
     if (issueStatus.process_status === 'CONFIRMING') {
       fallbackStatus = 'AUTO_APPROVED';
     }
+  } catch (error) {
+    if (!(error instanceof BffError)) throw error;
+    // best-effort: on upstream failure, fall back to PENDING
   }
 
-  const payload = normalizeIssue222ApprovalRequestSummary(await response.json(), {
+  const finalPayload = normalizeIssue222ApprovalRequestSummary(payload, {
     targetSourceId: parsed.value,
     fallbackStatus,
     fallbackTotalCount: resourceTotalCount,
     fallbackSelectedCount: resourceSelectedCount,
   });
 
-  return NextResponse.json(payload, { status: 200 });
+  return NextResponse.json(finalPayload, { status: 200 });
 });

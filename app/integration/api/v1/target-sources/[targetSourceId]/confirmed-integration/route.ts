@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import { normalizeIssue222ConfirmedIntegration } from '@/lib/issue-222-approval';
@@ -23,10 +23,8 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const response = await client.confirm.getConfirmedIntegration(String(parsed.value));
-  if (!response.ok) return response;
-
-  const payload = normalizeIssue222ConfirmedIntegration(await response.json());
+  const data = await bff.confirm.getConfirmedIntegration(parsed.value);
+  const payload = normalizeIssue222ConfirmedIntegration(data);
   if (payload.resource_infos.length === 0) {
     return createNotFoundProblem(requestId);
   }
