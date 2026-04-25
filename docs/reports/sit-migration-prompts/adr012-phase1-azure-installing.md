@@ -38,20 +38,18 @@ interface Props {
 ```tsx
 // InstallingStep.tsx — Phase 1 (no-op gate)
 export const InstallingStep = (props: Props) => {
-  // Phase 2 will add: if (project.cloudProvider === 'AWS' && project.awsInstallationMode === 'MANUAL') return <AwsManualInstallingStep {...props} />;
   return <CloudInstallingStep {...props} />;
 };
 ```
 
+Phase 2 will add a provider-axis branch inside this component when AWS routing arrives. Do not encode the future branch in a comment in this file — `AwsManualInstallingStep` must not appear as a literal token in Phase 1 source so the R3 verification grep can pass cleanly.
+
 `CloudInstallingStep` receives the same props as the layout, derives `slotKey` for the guide via the existing `resolveStepSlot(project.cloudProvider, ProcessStatus.INSTALLING)` helper at `app/components/features/process-status/GuideCard/resolve-step-slot.ts`, and derives `refreshProject` (a callback that fetches the project and invokes `onProjectUpdate`) so install-completion can propagate to the parent. It does **not** invent its own guide rendering.
 
-```tsx
-// CloudInstallingStep.tsx — render shape
-const refreshProject = useCallback(async () => {
-  const updated = await getProject(project.targetSourceId);
-  onProjectUpdate(updated as CloudTargetSource);
-}, [onProjectUpdate, project.targetSourceId]);
+`refreshProject` is derived via `useCallback` mirroring the existing pattern at `AzureProjectPage.tsx:60-63`. The implementation should avoid an unnecessary `as CloudTargetSource` cast unless the current `TargetSource` / `CloudTargetSource` alias requires it; if a runtime narrowing is needed, document it inline with one short reason. The spec does not prescribe the cast.
 
+```tsx
+// CloudInstallingStep.tsx — render shape (cast omitted intentionally)
 const slotKey = resolveStepSlot(project.cloudProvider, ProcessStatus.INSTALLING);
 
 return (
@@ -66,7 +64,12 @@ return (
 );
 ```
 
-`InstallationStatusSlot` accepts `{ project, refreshProject }` and forwards `refreshProject` to the chosen provider-specific status component. `AzureInstallationStatus` reads `useConfirmedIntegration().state`, derives `confirmed: readonly ConfirmedResource[]` from the `ready` data, and renders `<AzureInstallationInline confirmed={confirmed} onInstallComplete={refreshProject} ... />` so the existing install-completion refresh path at `AzureInstallationInline.tsx:139-142` continues to fire.
+`InstallationStatusSlot` accepts `{ project, refreshProject }` and forwards `refreshProject` to the chosen provider-specific status component. `AzureInstallationStatus` reads `useConfirmedIntegration().state` and behaves as follows:
+
+- `state.status === 'ready'`: render `<AzureInstallationInline confirmed={state.data} onInstallComplete={refreshProject} ... />` so the existing install-completion refresh path at `AzureInstallationInline.tsx:139-142` continues to fire.
+- `state.status === 'loading' | 'error'`: return `null`. This mirrors the existing gating in `ConfirmedIntegrationSection.tsx:88-96`, where `ConfirmedActions` is mounted only when state is ready. The loading and error UI for the integration data lives in `ConfirmedResourcesSlot` below it; the installation card simply does not appear until confirmed integration is loaded. The Azure adapter must **not** pass `[]` to `AzureInstallationInline` during loading.
+
+Slot-wrapper testability: `InstallationStatusSlot` returns its child wrapped in `<div data-testid="installation-status">`. `ConfirmedResourcesSlot` returns its child wrapped in `<div data-testid="confirmed-resources">`. These wrappers are the order-test selectors.
 
 ### Hook contract
 
@@ -95,7 +98,7 @@ export const useConfirmedIntegration = (): ConfirmedIntegrationContextValue => {
 | **Azure adapter** | Add `_components/azure/AzureInstallationStatus.tsx`. Reads `useConfirmedIntegration()`, derives `confirmed` from `state.data` when ready, forwards `confirmed` and `onInstallComplete={refreshProject}` to the existing `AzureInstallationInline` component. No new logic — pure adapter. |
 | **Routing hook** | Modify `_components/azure/AzureProjectPage.tsx` so that when `processStatus === ProcessStatus.INSTALLING`, it computes `identity` / `providerLabel` / `action` (existing logic stays in this file) and returns `<CloudTargetSourceLayout project={project} identity={identity} providerLabel="Azure Infrastructure" action={<DeleteInfrastructureButton />} onProjectUpdate={onProjectUpdate} />`. All other steps keep the existing render path unchanged. |
 | **R1 test** | Add `_components/layout/CloudTargetSourceLayout.architecture.test.ts`. Use `\bcloudProvider\b` / `\bawsInstallationMode\b` regex (not bare substring) to avoid comment/import false positives. |
-| **Order test** | Add `_components/layout/CloudInstallingStep.test.tsx`. Renders with a mock Azure-installing `CloudTargetSource`, asserts `getAllByRole('region')` ordering: `installation-status` index < `confirmed-resources` index. Mock child cards as needed; do not depend on real API calls. |
+| **Order test** | Add `_components/layout/CloudInstallingStep.test.tsx`. Renders with a mock Azure-installing `CloudTargetSource`, queries `screen.getAllByTestId(/^(installation-status\|confirmed-resources)$/)`, and asserts the `installation-status` element appears before `confirmed-resources` in DOM order. Mock the data provider so `state.status === 'ready'`; do not depend on real API calls. |
 | **Lifecycle tests** | Add `_components/data/ConfirmedIntegrationDataProvider.test.tsx`. Cover: mount triggers fetch with abort signal; unmount aborts in-flight; `targetSourceId` change aborts old and refetches; `retry()` aborts in-flight and refetches; `isMissingConfirmedIntegrationError` is normalized to `ready` with empty array. |
 
 ## Implementation Steps
@@ -169,7 +172,11 @@ If implementation requires touching anything in this list to keep `tsc` green, s
 ## Acceptance Criteria
 
 - `/integration/target-sources/1003` renders installation-status card above integration table (manually verified, screenshot in PR description).
-- All other target-source URLs render identically to before this PR (smoke-checked: at least one AWS, one GCP, and one non-INSTALLING Azure target source).
+- All other target-source URLs render identically to before this PR. Concrete smoke-check fixtures (from `lib/mock-data.ts`):
+  - `/integration/target-sources/1008` (AWS `INSTALLING`) — must stay on legacy path; bottom-card regression must persist for AWS until phase 2.
+  - `/integration/target-sources/1010` (AWS `WAITING_CONNECTION_TEST`) — legacy path.
+  - `/integration/target-sources/1002` (GCP `WAITING_TARGET_CONFIRMATION`) — legacy path.
+  - `/integration/target-sources/1005` (Azure `WAITING_TARGET_CONFIRMATION`) — legacy path; only Azure `INSTALLING` switches to the new path.
 - R1 architecture test exists and passes.
 - Azure `CloudInstallingStep` DOM-order test exists and passes.
 - `ConfirmedIntegrationDataProvider` lifecycle tests exist and pass (mount, unmount abort, id-change, retry, missing-integration).
