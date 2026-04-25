@@ -1,21 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { StepProgressBar } from './process-status';
-import { ProjectHistoryPanel } from './history';
 import { TIMINGS } from '@/lib/constants/timings';
-import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
+import { cn, statusColors } from '@/lib/theme';
 import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
 import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
-
-type ProcessTabType = 'status' | 'history';
-
-const TABS: { id: ProcessTabType; label: string }[] = [
-  { id: 'status', label: '프로세스 진행 상태' },
-  { id: 'history', label: '진행 내역' },
-];
 
 interface ProcessStatusCardProps {
   project: CloudTargetSource;
@@ -26,8 +18,6 @@ export const ProcessStatusCard = ({
   project,
   onProjectUpdate,
 }: ProcessStatusCardProps) => {
-  const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
-
   const currentStep = project.processStatus;
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -90,79 +80,52 @@ export const ProcessStatusCard = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
-      <div className="border-b border-gray-200">
-        <nav className="flex">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab.id
-                  ? `${primaryColors.border} ${primaryColors.text}`
-                  : interactiveColors.inactiveTab
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
       <div className="p-6 flex-1 flex flex-col">
-        {activeTab === 'status' && (
-          <>
-            <StepProgressBar currentStep={currentStep} />
+        <StepProgressBar currentStep={currentStep} />
 
-            <div className="border-t border-gray-100 my-4" />
+        <div className="border-t border-gray-100 my-4" />
 
-            <div className="flex-1 flex flex-col">
-              <div className="mt-auto pt-4">
-                {currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
-                  <div className={cn('w-full p-4 rounded-lg space-y-2', statusColors.info.bg, statusColors.info.border, 'border')}>
-                    <p className={cn('text-sm font-medium', statusColors.info.textDark)}>
-                      {project.cloudProvider === 'AWS' ? '수행 절차' : '안내'}
-                    </p>
-                    <ol className={cn('text-sm list-decimal list-inside space-y-1', statusColors.info.textDark)}>
-                      {project.cloudProvider === 'AWS' ? (
-                        <>
-                          <li>[리소스 스캔] 버튼을 클릭하여 AWS 계정의 RDS, S3 등 리소스를 조회하세요</li>
-                          <li>스캔 결과에서 PII Agent를 연동할 리소스를 선택하세요</li>
-                          <li>EC2(VM) 포함이 필요한 경우 필터에서 VM 포함을 선택하세요</li>
-                          <li>선택 완료 후 [연동 대상 확정] 버튼을 클릭하세요</li>
-                        </>
-                      ) : (
-                        <li>리소스를 스캔하고 연동할 대상을 선택한 뒤 확정해주세요</li>
-                      )}
-                    </ol>
-                    {project.cloudProvider === 'AWS' && (
-                      <p className={cn('text-xs mt-2', statusColors.info.text)}>
-                        리소스가 조회되지 않으면 AWS Console &gt; IAM에서 스캔 Role이 등록되어 있는지 확인해주세요
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
-                  <ApprovalWaitingCard
-                    targetSourceId={project.targetSourceId}
-                    onCancelSuccess={refreshProject}
-                  />
-                )}
-
-                {currentStep === ProcessStatus.APPLYING_APPROVED && (
-                  <ApprovalApplyingBanner
-                    targetSourceId={project.targetSourceId}
-                  />
+        <div className="flex-1 flex flex-col">
+          <div className="mt-auto pt-4">
+            {currentStep === ProcessStatus.WAITING_TARGET_CONFIRMATION && (
+              <div className={cn('w-full p-4 rounded-lg space-y-2', statusColors.info.bg, statusColors.info.border, 'border')}>
+                <p className={cn('text-sm font-medium', statusColors.info.textDark)}>
+                  {project.cloudProvider === 'AWS' ? '수행 절차' : '안내'}
+                </p>
+                <ol className={cn('text-sm list-decimal list-inside space-y-1', statusColors.info.textDark)}>
+                  {project.cloudProvider === 'AWS' ? (
+                    <>
+                      <li>[리소스 스캔] 버튼을 클릭하여 AWS 계정의 RDS, S3 등 리소스를 조회하세요</li>
+                      <li>스캔 결과에서 PII Agent를 연동할 리소스를 선택하세요</li>
+                      <li>EC2(VM) 포함이 필요한 경우 필터에서 VM 포함을 선택하세요</li>
+                      <li>선택 완료 후 [연동 대상 확정] 버튼을 클릭하세요</li>
+                    </>
+                  ) : (
+                    <li>리소스를 스캔하고 연동할 대상을 선택한 뒤 확정해주세요</li>
+                  )}
+                </ol>
+                {project.cloudProvider === 'AWS' && (
+                  <p className={cn('text-xs mt-2', statusColors.info.text)}>
+                    리소스가 조회되지 않으면 AWS Console &gt; IAM에서 스캔 Role이 등록되어 있는지 확인해주세요
+                  </p>
                 )}
               </div>
-            </div>
-          </>
-        )}
+            )}
 
-        {activeTab === 'history' && (
-          <ProjectHistoryPanel targetSourceId={project.targetSourceId} embedded />
-        )}
+            {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
+              <ApprovalWaitingCard
+                targetSourceId={project.targetSourceId}
+                onCancelSuccess={refreshProject}
+              />
+            )}
+
+            {currentStep === ProcessStatus.APPLYING_APPROVED && (
+              <ApprovalApplyingBanner
+                targetSourceId={project.targetSourceId}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
