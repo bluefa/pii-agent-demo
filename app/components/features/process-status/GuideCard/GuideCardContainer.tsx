@@ -20,9 +20,7 @@ export const GuideCardContainer = ({ slotKey, lang = 'ko' }: Props) => {
 
   if (loading) return <GuideCardSkeleton />;
   if (error) return <GuideCardError onRetry={() => void refresh()} />;
-  // useGuide initialises loading=false but data=null on first render
-  // before the effect kicks off — show the skeleton instead of a blank.
-  if (!data) return <GuideCardSkeleton />;
+  if (!data) return null;
 
   const html = data.contents[lang];
   if (!html.trim()) return <GuideCardEmptyLang lang={lang} />;
