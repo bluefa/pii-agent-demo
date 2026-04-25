@@ -92,6 +92,11 @@ import type {
 } from '@/lib/bff/types/scan';
 import type { TaskAdminApprovalRequestsResponse } from '@/lib/bff/types/task-admin';
 import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
+import type {
+  ApprovalRequestCreateBody,
+  BffConfirmedIntegration,
+  ResourceCatalogResponse,
+} from '@/lib/bff/types/confirm';
 
 export interface BffClient {
   targetSources: {
@@ -190,5 +195,22 @@ export interface BffClient {
     getInstallationStatus: (id: number) => Promise<GcpInstallationStatusResponse>;
     getScanServiceAccount: (id: number) => Promise<GcpScanServiceAccountResponse>;
     getTerraformServiceAccount: (id: number) => Promise<GcpTerraformServiceAccountResponse>;
+  };
+  confirm: {
+    getResources: (id: number) => Promise<ResourceCatalogResponse>;
+    createApprovalRequest: (id: number, body: ApprovalRequestCreateBody) => Promise<unknown>;
+    getConfirmedIntegration: (id: number) => Promise<BffConfirmedIntegration>;
+    getApprovedIntegration: (id: number) => Promise<unknown>;
+    getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;
+    getApprovalRequestLatest: (id: number) => Promise<unknown>;
+    getProcessStatus: (id: number) => Promise<unknown>;
+    approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
+    rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
+    cancelApprovalRequest: (id: number) => Promise<unknown>;
+    confirmInstallation: (id: number) => Promise<unknown>;
+    updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
+    testConnection: (id: number, body: unknown) => Promise<{ id?: string }>;
+    getTestConnectionResults: (id: number, page: number, size: number) => Promise<unknown>;
+    getTestConnectionLatest: (id: number) => Promise<unknown>;
   };
 }

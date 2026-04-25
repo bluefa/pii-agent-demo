@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
+import { bff } from '@/lib/bff/client';
 import { client } from '@/lib/api-client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
@@ -31,12 +32,12 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const statusResponse = await client.confirm.getProcessStatus(String(parsed.value));
-  if (!statusResponse.ok) return statusResponse;
+  const rawStatus = normalizeIssue222ProcessStatusResponse(
+    await bff.confirm.getProcessStatus(parsed.value),
+    { target_source_id: parsed.value },
+  );
 
-  const rawStatus = normalizeIssue222ProcessStatusResponse(await statusResponse.json(), {
-    target_source_id: parsed.value,
-  });
+  // targetSources.get migration is in adr011-02 scope — keep legacy client here.
   const projectResponse = await client.targetSources.get(String(parsed.value));
   if (!projectResponse.ok) {
     return NextResponse.json(rawStatus);
