@@ -7,7 +7,7 @@ import {
   getProjectsByServiceCode,
   mockServiceCodes,
 } from '@/lib/mock-data';
-import { mockProjects } from '@/lib/api-client/mock/projects';
+import { mockProjects } from '@/lib/bff/mock/projects';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';

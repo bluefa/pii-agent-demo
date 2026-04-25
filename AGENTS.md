@@ -69,10 +69,11 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 
 - `app/api/**` routes must follow `docs/api/**` specs.
 - ADR-011 required (supersedes the removed ADR-007 «API Client 패턴 도입»):
-  - See `docs/adr/011-typed-bff-client-consolidation.md` §"Migration Plan" for the per-domain transition state.
-  - Until a domain has migrated under ADR-011, routes continue to dispatch to `client.method()` from `lib/api-client/*` and mock business logic stays in `lib/api-client/mock/*.ts`.
-  - For domains migrated under ADR-011, routes use `bff.method()` from `lib/bff/*` and mock logic lives alongside `lib/bff/mock-adapter.ts`.
-  - Track per-domain migration status in PR titles (`refactor/adr011-NN-*`).
+  - Routes dispatch to `bff.method()` from `@/lib/bff/client`.
+  - Server Components also use `bff` directly (server-only).
+  - Mock business logic lives in `@/lib/bff/mock-adapter.ts` + `@/lib/bff/mock/*`.
+  - `@/lib/api-client/*` was deleted; ESLint enforces the boundary.
+  - See `docs/api/boundaries.md` for the single-pipeline diagram.
 - ADR-006 required when touching approval/install/confirmation flows:
   - `docs/adr/006-integration-confirmation-approval-redesign.md`
   - `docs/cloud-provider-states.md`

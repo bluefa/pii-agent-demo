@@ -5,7 +5,7 @@
  * 테스트 대상: lib/api-client/mock/confirm.ts
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval, _setApprovedIntegration } from '@/lib/api-client/mock/confirm';
+import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval, _setApprovedIntegration } from '@/lib/bff/mock/confirm';
 import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';

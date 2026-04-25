@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { mockConfirm, _resetApprovedIntegrationStore } from '@/lib/api-client/mock/confirm';
+import { mockConfirm, _resetApprovedIntegrationStore } from '@/lib/bff/mock/confirm';
 import { setCurrentUser } from '@/lib/mock-data';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process/calculator';

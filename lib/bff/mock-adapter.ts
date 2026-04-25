@@ -17,19 +17,19 @@ import type {
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
-import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
-import { mockProjects } from '@/lib/api-client/mock/projects';
-import { mockUsers } from '@/lib/api-client/mock/users';
-import { mockServices } from '@/lib/api-client/mock/services';
-import { mockDashboard } from '@/lib/api-client/mock/dashboard';
-import { mockDev } from '@/lib/api-client/mock/dev';
-import { mockScan } from '@/lib/api-client/mock/scan';
-import { mockQueueBoard } from '@/lib/api-client/mock/queue-board';
-import { mockAws } from '@/lib/api-client/mock/aws';
-import { mockAzure } from '@/lib/api-client/mock/azure';
-import { mockGcp } from '@/lib/api-client/mock/gcp';
-import { mockConfirm } from '@/lib/api-client/mock/confirm';
-import { mockGuides } from '@/lib/api-client/mock/guides';
+import { mockTargetSources } from '@/lib/bff/mock/target-sources';
+import { mockProjects } from '@/lib/bff/mock/projects';
+import { mockUsers } from '@/lib/bff/mock/users';
+import { mockServices } from '@/lib/bff/mock/services';
+import { mockDashboard } from '@/lib/bff/mock/dashboard';
+import { mockDev } from '@/lib/bff/mock/dev';
+import { mockScan } from '@/lib/bff/mock/scan';
+import { mockQueueBoard } from '@/lib/bff/mock/queue-board';
+import { mockAws } from '@/lib/bff/mock/aws';
+import { mockAzure } from '@/lib/bff/mock/azure';
+import { mockGcp } from '@/lib/bff/mock/gcp';
+import { mockConfirm } from '@/lib/bff/mock/confirm';
+import { mockGuides } from '@/lib/bff/mock/guides';
 import type {
   AwsCheckInstallationResult,
   AwsInstallationStatusResponse,
