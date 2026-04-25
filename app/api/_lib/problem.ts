@@ -16,7 +16,9 @@ export type KnownErrorCode =
   | 'CONFLICT_APPLYING_IN_PROGRESS'
   | 'CONFLICT_REQUEST_PENDING'
   | 'RATE_LIMITED'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | 'GUIDE_NOT_FOUND'
+  | 'GUIDE_CONTENT_INVALID';
 
 interface ErrorMeta {
   status: number;
@@ -39,6 +41,8 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
   CONFLICT_REQUEST_PENDING: { status: 409, title: 'Request Pending', retriable: false },
   RATE_LIMITED: { status: 429, title: 'Rate Limited', retriable: true },
   INTERNAL_ERROR: { status: 500, title: 'Internal Server Error', retriable: false },
+  GUIDE_NOT_FOUND: { status: 404, title: 'Guide Not Found', retriable: false },
+  GUIDE_CONTENT_INVALID: { status: 400, title: 'Guide Content Invalid', retriable: false },
 };
 
 // --- ProblemDetails (RFC 9457) ---
