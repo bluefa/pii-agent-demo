@@ -5,7 +5,7 @@ import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 import { buildV1Response } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/transform';
-import type { LegacyVmInstallationStatus } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/transform';
+import type { AzureVmCheckInstallationResult } from '@/lib/bff/types/azure';
 
 export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
@@ -16,7 +16,7 @@ export const POST = withV1(async (_request, { requestId, params }) => {
 
   // VM check is best-effort: swallow BffError (return DB-only result),
   // propagate non-BffError so unexpected failures still surface as 500.
-  let vmStatus: LegacyVmInstallationStatus | null = null;
+  let vmStatus: AzureVmCheckInstallationResult | null = null;
   try {
     vmStatus = await bff.azure.vmCheckInstallation(parsed.value);
   } catch (e) {

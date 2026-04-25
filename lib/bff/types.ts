@@ -3,8 +3,10 @@ import type { CurrentUser } from '@/app/lib/api';
 import type {
   AwsCheckInstallationResult,
   AwsInstallationStatusResponse,
+  AwsSetInstallationModeBody,
   AwsSetInstallationModeResult,
   AwsTerraformScriptResponse,
+  AwsVerifyTfRoleBody,
   AwsVerifyTfRoleResult,
 } from '@/lib/bff/types/aws';
 import type {
@@ -24,21 +26,11 @@ import type {
   GcpTerraformServiceAccountResponse,
 } from '@/lib/bff/types/gcp';
 
-interface AwsSetInstallationModeBody {
-  mode: 'AUTO' | 'MANUAL';
-}
-
-interface AwsVerifyTfRoleBody {
-  roleArn?: string;
-  accountId?: string;
-}
-
 /**
- * BFF 데이터 접근 인터페이스.
- * 순수 도메인 데이터를 반환한다 (NextResponse 아님).
+ * BFF data access interface — returns typed domain data (not NextResponse).
  *
- * - mock: 기존 mock 핸들러를 래핑하여 데이터 추출
- * - http : 실제 BFF API 호출
+ * - mock: wraps existing mock handlers and unwraps payloads to domain data
+ * - http: real upstream BFF call
  */
 export interface BffClient {
   targetSources: {

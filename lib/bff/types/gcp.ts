@@ -1,14 +1,9 @@
 /**
- * Typed shapes for `bff.gcp` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.gcp` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
- *
- * `LegacyGcpInstallationStatus` is duplicated from the route-handler
- * `_lib/transform.ts`. Spec adr011-03 (cloud-providers) will migrate the
- * route handler to import from this file and remove the local definition;
- * this setup spec only declares the shape here.
+ * Casing convention (per ADR-011 I-3):
+ *   - GET responses are camelCase (httpBff.get runs camelCaseKeys).
+ *   - POST/PUT/DELETE responses are snake_case raw passthrough.
  */
 
 import type { GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { BffError } from '@/lib/bff/errors';
+import { BffError } from '@/lib/bff/errors';
 
 // --- Error Code Catalog ---
 
@@ -87,7 +87,7 @@ export function problemResponse(problem: ProblemDetails): NextResponse {
 
 // --- Legacy Error Conversion ---
 
-/** BFF 에러 응답: nested { error: { code, message } } 또는 flat { error: string, message: string } */
+/** Upstream BFF error body — nested `{error: {code, message}}` or flat `{error, message}`. */
 export interface BffErrorBody {
   error?: string | { code?: string; message?: string };
   code?: string;
@@ -176,6 +176,21 @@ export function transformBffError(
 ): NextResponse {
   const code = mapLegacyCode(error.code, error.status);
   return problemResponse(createProblem(code, error.message, requestId));
+}
+
+/**
+ * Construct a BffError from an upstream error body, applying the same
+ * shape extraction (nested `{error: {code, message}}` or flat) and
+ * fallback codes used by `transformLegacyError`. Single source of truth
+ * for both `httpBff` and `mockBff` adapters.
+ */
+export function bffErrorFromBody(status: number, body: unknown): BffError {
+  const { code, message } = extractBffError(body as BffErrorBody);
+  return new BffError(
+    status,
+    code || 'INTERNAL_ERROR',
+    message || `HTTP ${status}`,
+  );
 }
 
 // --- Uncaught Error Handler ---

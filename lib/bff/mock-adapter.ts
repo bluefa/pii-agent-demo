@@ -1,14 +1,14 @@
 /**
- * 기존 mock 핸들러(NextResponse 반환)를 BffClient 인터페이스로 래핑한다.
- * mock 비즈니스 로직(인증, 상태 전이, 검증)을 그대로 재사용하면서
- * NextResponse → 순수 데이터로 변환만 수행한다.
+ * Wraps existing mock handlers (which return NextResponse) into the
+ * BffClient interface. Reuses mock business logic (auth, state transitions,
+ * validation) and converts NextResponse → typed domain data, throwing
+ * BffError for non-2xx mock responses.
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
-import { BffError } from '@/lib/bff/errors';
-import { extractBffError, type BffErrorBody } from '@/app/api/_lib/problem';
+import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
 import { mockUsers } from '@/lib/api-client/mock/users';
@@ -42,16 +42,7 @@ import type {
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   const data = await response.json();
-  if (!response.ok) {
-    // Use shared extractBffError so nested { error: { code, message } } and
-    // flat shapes parity-match transformLegacyError (problem.ts).
-    const { code, message } = extractBffError(data as BffErrorBody);
-    throw new BffError(
-      response.status,
-      code || 'INTERNAL_ERROR',
-      message || `HTTP ${response.status}`,
-    );
-  }
+  if (!response.ok) throw bffErrorFromBody(response.status, data);
   return data as T;
 }
 

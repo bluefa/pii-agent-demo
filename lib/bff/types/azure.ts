@@ -1,15 +1,10 @@
 /**
- * Typed shapes for `bff.azure` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.azure` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
- *
- * `LegacyAzureSettings`, `LegacyInstallationStatus`, and
- * `LegacyVmInstallationStatus` are duplicated from the route-handler
- * `_lib/*` files. Spec adr011-03 (cloud-providers) will migrate the route
- * handlers to import from this file and remove the local definitions; this
- * setup spec only declares the shapes here.
+ * Casing convention (per ADR-011 I-3):
+ *   - GET responses are camelCase (httpBff.get runs camelCaseKeys).
+ *   - POST/PUT/DELETE responses are snake_case raw passthrough.
+ *   - getScanApp is a documented exception: snake_case raw per Issue #222.
  */
 
 import type {

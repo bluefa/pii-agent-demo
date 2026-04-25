@@ -81,8 +81,8 @@ describe('extractBffError', () => {
 });
 
 describe('transformBffError parity with transformLegacyError', () => {
-  // adr011-03 cross-cutting: shared `extractBffError` ensures both paths produce
-  // byte-identical ProblemDetails for the same upstream error body.
+  // Both error paths must produce byte-identical ProblemDetails for the
+  // same upstream error body, regardless of nested vs flat shape.
   const cases = [
     { name: 'flat code', body: { error: 'NOT_FOUND', message: 'foo' }, status: 404 },
     { name: 'nested code', body: { error: { code: 'FORBIDDEN', message: '권한 없음' } }, status: 403 },

@@ -1,12 +1,11 @@
 /**
- * 실제 BFF API HTTP 클라이언트.
- * USE_MOCK_DATA=false 일 때 사용된다.
+ * Real HTTP BFF client (used when USE_MOCK_DATA=false).
  */
 import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
 import { BffError } from '@/lib/bff/errors';
-import { extractBffError, type BffErrorBody } from '@/app/api/_lib/problem';
+import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
 import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
@@ -23,18 +22,11 @@ const isCurrentUser = (value: unknown): value is CurrentUser =>
     && typeof value.email === 'string';
 
 async function throwBffError(res: Response): Promise<never> {
-  // Use shared extractBffError so nested { error: { code, message } } and flat
-  // shapes parity-match transformLegacyError (problem.ts).
-  const raw = await res.json().catch((): BffErrorBody => ({}));
-  const { code, message } = extractBffError(raw as BffErrorBody);
-  throw new BffError(
-    res.status,
-    code || 'INTERNAL_ERROR',
-    message || `HTTP ${res.status}`,
-  );
+  const raw = await res.json().catch(() => ({}));
+  throw bffErrorFromBody(res.status, raw);
 }
 
-async function get<T>(path: string): Promise<T> {
+async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
   const res = await fetch(fullPath, {
@@ -43,18 +35,7 @@ async function get<T>(path: string): Promise<T> {
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   const data = await res.json();
-  return camelCaseKeys(data) as T;
-}
-
-async function getRaw<T>(path: string): Promise<T> {
-  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
-  console.log(`[BFF] → GET ${fullPath}`);
-  const res = await fetch(fullPath, {
-    headers: { Accept: 'application/json' },
-  });
-  console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
-  if (!res.ok) await throwBffError(res);
-  return await res.json() as T;
+  return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -110,8 +91,8 @@ export const httpBff: BffClient = {
     getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
     getSettings: (id) => get(`/target-sources/${id}/azure/settings`),
     getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
-    // Issue #222: bypass camelCaseKeys to preserve snake_case payload.
-    getScanApp: (id) => getRaw(`/target-sources/${id}/azure/scan-app`),
+    // Issue #222: snake_case raw passthrough — bypass camelCaseKeys.
+    getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`, { raw: true }),
     vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
     vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
     vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),
