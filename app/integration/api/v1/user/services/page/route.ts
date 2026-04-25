@@ -1,35 +1,10 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import type { UserService } from '@/app/api/_lib/v1-types';
+import { resolveUserService } from '@/app/api/_lib/user-service';
 import { bff } from '@/lib/bff/client';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const normalizeServiceItem = (value: unknown): UserService => {
-  if (!isRecord(value)) {
-    throw new Error('Invalid service item');
-  }
-
-  const serviceCode =
-    typeof value.serviceCode === 'string'
-      ? value.serviceCode
-      : typeof value.service_code === 'string'
-        ? value.service_code
-        : null;
-  const serviceName =
-    typeof value.serviceName === 'string'
-      ? value.serviceName
-      : typeof value.service_name === 'string'
-        ? value.service_name
-        : null;
-
-  if (!serviceCode || !serviceName) {
-    throw new Error('Invalid service item');
-  }
-
-  return { serviceCode, serviceName };
-};
 
 export const GET = withV1(async (request) => {
   const { searchParams } = new URL(request.url);
@@ -44,7 +19,7 @@ export const GET = withV1(async (request) => {
   }
 
   return NextResponse.json({
-    content: data.content.map(normalizeServiceItem),
+    content: data.content.map(resolveUserService),
     page: {
       totalElements: Number(data.page?.totalElements ?? 0),
       totalPages: Number(data.page?.totalPages ?? 0),

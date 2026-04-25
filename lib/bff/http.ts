@@ -69,20 +69,13 @@ const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
 const put = <T>(path: string, body?: unknown) => send<T>('PUT', path, body);
 const del = <T>(path: string) => send<T>('DELETE', path);
 
-const buildHistoryQuery = (query: { type?: string; limit?: string; offset?: string }): string => {
-  const params = new URLSearchParams();
-  if (query.type) params.set('type', query.type);
-  if (query.limit) params.set('limit', query.limit);
-  if (query.offset) params.set('offset', query.offset);
-  const qs = params.toString();
-  return qs ? `?${qs}` : '';
-};
-
-const buildScanHistoryQuery = (query: { limit: number; offset: number }): string => {
-  const params = new URLSearchParams();
-  if (query.limit) params.set('limit', String(query.limit));
-  if (query.offset) params.set('offset', String(query.offset));
-  const qs = params.toString();
+const buildQuery = (params: Record<string, string | number | undefined>): string => {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') continue;
+    search.set(key, String(value));
+  }
+  const qs = search.toString();
   return qs ? `?${qs}` : '';
 };
 
@@ -109,7 +102,7 @@ export const httpBff: BffClient = {
     completeInstallation: (id) => post(`/projects/${id}/complete-installation`, {}),
     confirmCompletion: (id) => post(`/projects/${id}/confirm-completion`, {}),
     credentials: (id) => get(`/target-sources/${id}/secrets`),
-    history: (id, query) => get(`/projects/${id}/history${buildHistoryQuery(query)}`),
+    history: (id, query) => get(`/projects/${id}/history${buildQuery(query)}`),
     resourceCredential: (id, body) => put(`/target-sources/${id}/resources/credential`, body),
     resourceExclusions: (id) => get(`/projects/${id}/resources/exclusions`),
     resources: (id) => get(`/projects/${id}/resources`),
@@ -174,7 +167,7 @@ export const httpBff: BffClient = {
 
   scan: {
     get: (id, scanId) => get(`/target-sources/${id}/scans/${scanId}`),
-    getHistory: (id, query) => get(`/target-sources/${id}/scan/history${buildScanHistoryQuery(query)}`),
+    getHistory: (id, query) => get(`/target-sources/${id}/scan/history${buildQuery(query)}`),
     create: (id, body) => post(`/target-sources/${id}/scan`, body),
     getStatus: (id) => get(`/target-sources/${id}/scanJob/latest`),
   },
