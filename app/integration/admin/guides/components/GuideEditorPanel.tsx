@@ -24,7 +24,7 @@
  * regular import — both modules already share the same lazy chunk.
  */
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -35,7 +35,6 @@ import { useGuide } from '@/app/hooks/useGuide';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast/useToast';
 import { findSlotsForGuide, resolveSlot } from '@/lib/constants/guide-registry';
-import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 import {
   bgColors,
   borderColors,
@@ -160,45 +159,74 @@ export const GuideEditorPanel = ({
   const toast = useToast();
   const linkModal = useModal();
 
+  // Per-language "user has actually typed" flags. We cannot rely on
+  // `draft !== data.contents` alone because:
+  //   1. Tiptap may emit subtle HTML normalization between mount and
+  //      the first sync (attribute reordering, whitespace), giving a
+  //      false-positive "dirty" before any keystroke happens.
+  //   2. The user sees the modal pop up on a step they never edited.
+  // The flag flips inside `handleChange`, which only runs from
+  // Tiptap's `onUpdate`. setContent() with `emitUpdate: false` does
+  // not trigger it, so the initial sync stays silent.
+  const [touchedKo, setTouchedKo] = useState(false);
+  const [touchedEn, setTouchedEn] = useState(false);
+
   // Once the GET resolves, hand the canonical contents up so the parent
   // can seed (or reset) `draftKo / draftEn`. The parent owns the draft
-  // because the dirty guard hook lives there.
+  // because the dirty guard hook lives there. Touch flags reset
+  // naturally — `key={selected}` on the panel remounts on slot change,
+  // and `handleSave` clears them after a successful PUT.
   useEffect(() => {
     if (data) {
       onLoad(data.contents);
     }
   }, [data, onLoad]);
 
-  const koValid = useMemo(() => validateGuideHtml(draftKo).valid, [draftKo]);
-  const enValid = useMemo(() => validateGuideHtml(draftEn).valid, [draftEn]);
   const koFilled = draftKo.trim().length > 0;
   const enFilled = draftEn.trim().length > 0;
 
-  const dirty = data
-    ? draftKo !== data.contents.ko || draftEn !== data.contents.en
-    : false;
+  // Real edit detection: the user must have produced an `onUpdate` AND
+  // the resulting draft must differ from the persisted server value.
+  // Reverting via undo collapses `editedKo` back to false.
+  const editedKo = touchedKo && data ? draftKo !== data.contents.ko : false;
+  const editedEn = touchedEn && data ? draftEn !== data.contents.en : false;
+  const dirty = editedKo || editedEn;
 
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
 
-  const canSave = koValid && enValid && dirty && !saving && !loading;
-
   const handleChange = useCallback(
     (html: string) => {
-      if (activeLang === 'ko') onChangeKo(html);
-      else onChangeEn(html);
+      if (activeLang === 'ko') {
+        // Skip the no-op echoes that Tiptap occasionally emits during
+        // normalization — they would otherwise flip touchedKo on
+        // mount, making `dirty` true before the user touches anything.
+        if (html === draftKo) return;
+        onChangeKo(html);
+        setTouchedKo(true);
+      } else {
+        if (html === draftEn) return;
+        onChangeEn(html);
+        setTouchedEn(true);
+      }
     },
-    [activeLang, onChangeKo, onChangeEn],
+    [activeLang, draftKo, draftEn, onChangeKo, onChangeEn],
   );
 
   const handleSave = useCallback(async (): Promise<void> => {
-    if (!canSave) return;
+    if (!dirty) return;
     const result = await save({ contents: { ko: draftKo, en: draftEn } });
     if (result) {
       toast.success('저장되었습니다');
+      // After a successful save the freshly-saved drafts are the new
+      // baseline — drop the touch flags so the next nav is clean.
+      setTouchedKo(false);
+      setTouchedEn(false);
     }
-  }, [canSave, save, draftKo, draftEn, toast]);
+  }, [dirty, save, draftKo, draftEn, toast]);
+
+  const canSave = dirty && !saving && !loading;
 
   const editor = useEditor({
     extensions: TIPTAP_EXTENSIONS,
@@ -301,11 +329,7 @@ export const GuideEditorPanel = ({
 
   const showScopeNotice = sharedSlots.length >= 2;
   const saveLabel = saving ? '저장 중…' : '저장';
-  const saveDisabledReason = !dirty
-    ? '변경사항이 없습니다'
-    : !koValid || !enValid
-      ? '한국어와 영어 모두 작성해야 저장할 수 있습니다'
-      : null;
+  const saveDisabledReason = !dirty ? '수정된 내용이 없습니다' : null;
 
   const headerMeta = buildHeaderMeta(slot);
 
