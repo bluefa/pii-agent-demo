@@ -21,22 +21,25 @@ W1 Foundation
                                      ← W1-a, W1-b 의존
             │
             ▼
-W4-a guidecard-split  (split + GuideCardInvalidState + ErrorState — W3-d 일부 통합)
+W4-a guidecard-split  (split + GuideCardInvalidState + ErrorState — old W3-d 일부 통합)
             │              ← W1-b, W1-c 의존
             ▼
 W3 Admin UI (sequential)         W4-b providers-migrate
 ├── W3-a page-shell                (W3-c 머지 후 — facade 제거)
 ├── W3-b editor + dirty nav guard
-│      (UnsavedChangesModal — W3-d 통합)
-└── W3-c preview (uses GuideCardPure)
+│      (UnsavedChangesModal — old W3-d 통합)
+├── W3-c preview (uses GuideCardPure)
+└── W3-d design-polish              (W3-c 머지 후 — 시각 시안 정합성, 행동 변경 X)
 
 W5 QA — 통합 테스트, a11y 스모크, drift CI green
 ```
 
 > **구조 변경 (2026-04-24)**: Codex 외부 리뷰 반영.
 > - W1-d 는 W1-c 에 통합 (drift CI + resolver 6-case 테스트를 API pipeline 과 같은 PR 에서)
-> - W3-d 는 폐지 → 3-I (UnsavedChangesModal + dirty nav guard) 는 W3-b 로, 3-J (`<ErrorState>`, `<GuideCardInvalidState>`) 는 W4-a 로, 3-K (a11y polish) 는 각 W3 wave 와 W5 로 분산
+> - **old W3-d** (a11y polish 분산용 placeholder) 는 폐지 → 3-I (UnsavedChangesModal + dirty nav guard) 는 W3-b 로, 3-J (`<ErrorState>`, `<GuideCardInvalidState>`) 는 W4-a 로, 3-K (a11y polish) 는 각 W3 wave 와 W5 로 분산
 > - W4-b 는 W3-c 와 **병렬 금지** — W3-c 머지 후 순차 실행 (facade 제거가 W3-c 의존성을 깨지 않도록)
+>
+> **신규 (2026-04-25)**: W3-c (#389) 머지 후 디자인 시안이 업데이트됨 (`design/guide-cms/guide-cms.html` 1318→1575 LOC, embedded token system 추가). 갭을 좁히기 위해 **새 W3-d** (design-polish) 추가. 기존 폐지된 W3-d 와 **별개 wave** (이름만 재사용).
 
 ## 2. 실행 순서
 
@@ -47,7 +50,8 @@ W5 QA — 통합 테스트, a11y 스모크, drift CI green
 4. W4-a 머지 후:
    - W3 track: W3-a → W3-b → W3-c (sequential, GuideCardPure 사용)
    - W4 track: W3-c 머지 이후에만 W4-b 착수 (facade 제거가 W3-c 를 깨지 않도록)
-5. W5 QA — 모든 PR merge 후
+5. (W3-c merge 후) W3-d design-polish — 시안 정합성 폴리시 (visual only)
+6. W5 QA — 모든 PR merge 후
 ```
 
 ## 3. 모델 효율 가이드 (Opus 4.7 MAX vs Sonnet 4.6)
@@ -62,10 +66,11 @@ W5 QA — 통합 테스트, a11y 스모크, drift CI green
 | **W3-a** page-shell | Sonnet 4.6 | 시안 기반 layout + Provider tabs (간단) |
 | **W3-b** editor | **Opus 4.7 MAX** | Tiptap + 7-button toolbar + ko/en 상태머신 + dirty nav guard + UnsavedChangesModal (~900 LOC) |
 | **W3-c** preview | **Opus 4.7 MAX** | GuideCardPure 통합 + ProcessTimelineCompact + 250ms debounce + invalid state 와이어링 |
+| **W3-d** design-polish | Sonnet 4.6 | 시안 HTML 의 token system 매핑 + 9 컴포넌트 클래스 교체 (행동 변경 없음, ~300 LOC) |
 | **W4-a** guidecard-split | **Opus 4.7 MAX** | GuideCard 분리 + GuideCardInvalidState + ErrorState + 안정 contract |
 | **W4-b** providers-migrate | Sonnet 4.6 | 3 페이지 (AWS/Azure/GCP) 호출부 교체 + dead code 제거 (W3-c 후) |
 
-→ MAX 5건 / Sonnet 3건. 병렬 가능 시 MAX 1+1, Sonnet 1+1 식 분산. (이전 5/5 에서 변경)
+→ MAX 5건 / Sonnet 4건. 병렬 가능 시 MAX 1+1, Sonnet 1+1 식 분산.
 
 ## 4. PR 분리 원칙
 
@@ -83,6 +88,7 @@ W5 QA — 통합 테스트, a11y 스모크, drift CI green
 | `W3-a` | [`W3-a-page-shell.md`](./W3-a-page-shell.md) |
 | `W3-b` | [`W3-b-editor.md`](./W3-b-editor.md) |
 | `W3-c` | [`W3-c-preview.md`](./W3-c-preview.md) |
+| `W3-d` | [`W3-d-design-polish.md`](./W3-d-design-polish.md) |
 | `W4-a` | [`W4-a-guidecard-split.md`](./W4-a-guidecard-split.md) |
 | `W4-b` | [`W4-b-providers-migrate.md`](./W4-b-providers-migrate.md) |
 
