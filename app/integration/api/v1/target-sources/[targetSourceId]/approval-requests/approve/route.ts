@@ -27,7 +27,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
     }
   } catch (error) {
     if (!(error instanceof BffError)) throw error;
-    // best-effort: fall back to normalizing the action response below
+    // best-effort: on upstream failure, fall back to the action response with fallbackStatus=APPROVED
   }
 
   return NextResponse.json(
