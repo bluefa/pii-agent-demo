@@ -40,9 +40,9 @@ bash scripts/bootstrap-worktree.sh "$(pwd)"
 
 ### 탐색 범위/서브에이전트 규칙 (필수)
 - 변경 대상 파일 중심으로만 탐색한다 (대량 Read/Grep 금지).
-- 기본은 메인 세션 단독 구현이다.
-- 구현 subagent를 여러 개로 분할해 동시에 계약 구현을 진행하지 않는다.
-- subagent를 사용하더라도 각 단계 시작 시 계약 문서를 다시 확인한다.
+- **계약(swagger endpoint) 단위 분할 금지**: 동일 endpoint의 mock + route.ts + FE 타입을 여러 subagent로 분할해 동시에 구현하지 않는다 (필드명 drift 방지).
+- 그 외 **독립 레이어**(types-only 추가, 무관한 helper, 격리된 UI 컴포넌트, 검증·검사 작업)는 subagent fan-out을 적극 활용한다.
+- subagent를 사용할 때 각 subagent는 시작 시 해당 endpoint의 swagger 스키마를 다시 Read한다.
 
 ### API Spec 변경 사전 확인 (필수)
 - Swagger 신규/수정 시 사용자 확인을 반드시 먼저 받는다.
