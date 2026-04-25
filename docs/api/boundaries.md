@@ -1,5 +1,9 @@
 # API Boundaries
 
+> **Migration in progress (ADR-011)**: route handlers may import from
+> `@/lib/bff/*` in addition to `@/lib/api-client/*` during the per-domain
+> rollout. The single-pipeline rule is re-tightened in adr011-05.
+
 The app has **two parallel data-fetching pipelines**. They look similar but serve different execution contexts. Mixing them is a recurring source of confusion; this document is the single source of truth for "which import lives where."
 
 ## TL;DR
@@ -113,7 +117,7 @@ Is it a file under app/integration/api/v1/**/route.ts?           ──▶ Route
 |------|-----------------|
 | `app/components/**`, `app/integration/target-sources/**` (CSR) | `@/lib/api-client/*`, `@/lib/bff/*` |
 | `app/integration/target-sources/[targetSourceId]/page.tsx` (Server Component) | `@/app/lib/api/*`, `@/lib/api-client/*` |
-| `app/integration/api/v1/**/route.ts` (route handler) | `@/app/lib/api/*`, `@/lib/bff/*` |
+| `app/integration/api/v1/**/route.ts` (route handler) | `@/app/lib/api/*`. May import `@/lib/api-client/*` (legacy) or `@/lib/bff/*` (preferred during ADR-011 migration). |
 | `lib/api-client/*` | `@/app/lib/api/*` |
 | `lib/bff/*` | `@/app/lib/api/*`, `@/lib/api-client/*` |
 
