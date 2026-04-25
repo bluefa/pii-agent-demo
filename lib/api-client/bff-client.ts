@@ -273,4 +273,8 @@ export const bffClient: ApiClient = {
     getTestConnectionLatest: (targetSourceId) =>
       proxyGet(`/target-sources/${targetSourceId}/test-connection/latest`),
   },
+  guides: {
+    get: (name) => proxyGet(`/admin/guides/${encodeURIComponent(name)}`),
+    put: (name, body) => proxyPut(`/admin/guides/${encodeURIComponent(name)}`, body),
+  },
 };
