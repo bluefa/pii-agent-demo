@@ -17,13 +17,19 @@ export const primaryColors = {
   bg: 'bg-[#0064FF]',
   bgHover: 'hover:bg-[#0050D6]',
   bgLight: 'bg-[#E8F1FF]',
+  bg50: 'bg-blue-50',
+  bg100: 'bg-blue-100',
   text: 'text-[#0064FF]',
   textHover: 'hover:text-[#0050D6]',
   textHoverBase: 'hover:text-[#0064FF]',
+  text700: 'text-blue-700',
+  textDark: 'text-blue-900',
   border: 'border-[#0064FF]',
+  border100: 'border-blue-200',
+  borderLight: 'border-blue-100',
   borderHoverBase: 'hover:border-[#0064FF]',
   focusRing: 'focus:ring-[#0064FF]',
-  haloRing: 'shadow-[0_0_0_4px_rgba(0,100,255,0.15)]',
+  haloRing: 'shadow-[0_0_0_4px_rgba(0,100,255,0.18)]',
   marker: 'marker:text-[#0064FF]',
 } as const;
 
@@ -137,13 +143,17 @@ export const bgColors = {
   primary: 'bg-[#0064FF]',
   surface: 'bg-white',
   surfaceHover: 'hover:bg-white',
+  divider: 'bg-gray-200',
+  strong: 'bg-gray-300',
 } as const;
 
 /**
  * 보더 색상
  */
 export const borderColors = {
+  light: 'border-gray-100',
   default: 'border-gray-200',
+  strong: 'border-gray-300',
 } as const;
 
 /**
@@ -152,6 +162,8 @@ export const borderColors = {
 export const interactiveColors = {
   closeButton: 'text-gray-400 hover:text-gray-600 hover:bg-gray-100',
   inactiveTab: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+  /** Underline tab without hover-border (Guide CMS provider tabs) */
+  underlineTab: 'border-transparent text-gray-500 hover:text-gray-900',
   unselectedBorder: 'border-gray-200 hover:border-gray-300',
   unselectedText: 'text-gray-600 hover:border-gray-300',
 } as const;
@@ -192,6 +204,15 @@ export const cardStyles = {
   },
   header: 'px-6 py-4 border-b border-gray-100',
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
+  /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
+  editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
+  /** Toolbar surface — muted bg sitting above the Tiptap area */
+  toolbarSurface: 'flex items-center gap-1 bg-gray-50 border-b border-gray-200 px-2 py-1.5',
+  /** 30×30 toolbar button (idle) — paired with toolbarBtnActive when pressed */
+  toolbarBtn:
+    'inline-flex items-center justify-center w-[30px] h-[30px] rounded-md text-gray-600 transition-colors hover:bg-white hover:text-gray-900',
+  /** Active toolbar button — white card + soft pill shadow */
+  toolbarBtnActive: 'bg-white text-[#0064FF] shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
   /** GuideCard 용 warm(amber) variant — SIT 프로토타입 */
   warmVariant: {
     container: 'bg-amber-50/40 border-amber-200',
@@ -202,6 +223,44 @@ export const cardStyles = {
     skeletonHeader: 'bg-amber-200/40 border-b border-amber-200/40',
     skeletonBar: 'bg-amber-200/60',
   },
+} as const;
+
+/**
+ * Variant chip — small label inline with row text (AUTO / MANUAL / 준비 중).
+ */
+export const chipStyles = {
+  base: 'inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-semibold',
+  variant: {
+    auto: 'bg-blue-50 text-blue-700 border border-blue-200',
+    manual: 'bg-amber-50 text-amber-800 border border-amber-200',
+    prep: 'bg-gray-100 text-gray-500 border border-gray-200',
+  },
+} as const;
+
+/**
+ * Pill segmented control — shared by editor lang tabs and preview lang toggle.
+ */
+export const segmentedControlStyles = {
+  container: 'inline-flex bg-gray-50 border border-gray-200 rounded-lg p-0.5 gap-0.5',
+  item:
+    'inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-gray-500 rounded-md transition-colors hover:text-gray-700',
+  itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+} as const;
+
+/**
+ * Page chrome — breadcrumb / title / subtitle stack above ProviderTabs.
+ */
+export const pageChromeStyles = {
+  breadcrumb: 'text-[12.5px] text-gray-500 px-6 pt-5',
+  title: 'text-[24px] font-semibold tracking-[-0.02em] text-gray-900 px-6 mt-1',
+  subtitle: 'text-[13.5px] text-gray-500 px-6 mt-1 mb-5',
+} as const;
+
+/**
+ * OpenType numeric features — tabular alignment for step numbers, etc.
+ */
+export const numericFeatures = {
+  tabular: 'tabular-nums',
 } as const;
 
 /**
@@ -324,6 +383,8 @@ export const shadows = {
   card: 'shadow-sm',
   modal: 'shadow-xl',
   button: 'shadow-sm hover:shadow',
+  /** Soft pill shadow for active toolbar button / segmented control item */
+  pill: 'shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
 } as const;
 
 // =============================================================================

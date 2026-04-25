@@ -13,7 +13,12 @@
 
 import { useCallback, useRef } from 'react';
 
-import { borderColors, cn, interactiveColors, primaryColors, textColors } from '@/lib/theme';
+import {
+  bgColors,
+  cn,
+  primaryColors,
+  segmentedControlStyles,
+} from '@/lib/theme';
 
 export type EditorLanguage = 'ko' | 'en';
 
@@ -63,7 +68,7 @@ export const EditLanguageTabs = ({
     <div
       role="tablist"
       aria-label="가이드 언어"
-      className={cn('flex gap-1 border-b px-4', borderColors.default)}
+      className={cn(segmentedControlStyles.container)}
     >
       {LANG_ORDER.map((lang) => {
         const isSelected = value === lang;
@@ -81,25 +86,21 @@ export const EditLanguageTabs = ({
             onClick={() => onChange(lang)}
             onKeyDown={(event) => handleKeyDown(event, lang)}
             className={cn(
-              'flex items-center gap-2 px-3 py-2 text-sm font-medium border-b-2 transition-colors duration-[120ms]',
-              'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline',
+              segmentedControlStyles.item,
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline',
               primaryColors.focusRing,
-              isSelected
-                ? cn(primaryColors.border, primaryColors.text)
-                : interactiveColors.inactiveTab,
+              isSelected && segmentedControlStyles.itemActive,
             )}
+            aria-label={`${LANG_LABEL[lang]} ${isFilled ? '작성됨' : '미작성'}`}
           >
+            <span>{LANG_LABEL[lang]}</span>
             <span
               aria-hidden="true"
               className={cn(
-                'w-2 h-2 rounded-full',
-                isFilled ? primaryColors.bg : cn('border', borderColors.default),
+                'inline-block w-1.5 h-1.5 rounded-full',
+                isFilled ? primaryColors.bg : bgColors.strong,
               )}
             />
-            <span>{LANG_LABEL[lang]}</span>
-            <span className={cn('text-xs', textColors.quaternary)}>
-              {isFilled ? '작성됨' : '미작성'}
-            </span>
           </button>
         );
       })}
