@@ -133,6 +133,7 @@ export const textColors = {
  */
 export const bgColors = {
   muted: 'bg-gray-50',
+  mutedHover: 'hover:bg-gray-50',
   primary: 'bg-[#0064FF]',
 } as const;
 
