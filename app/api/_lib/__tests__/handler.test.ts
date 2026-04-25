@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
+import { BffError } from '@/lib/bff/errors';
 
 const makeRequest = () => new Request('http://localhost/test');
 const makeParams = (params: Record<string, string> = {}) =>
@@ -51,6 +52,38 @@ describe('withV1', () => {
     const body = await response.json();
     expect(body.code).toBe('TARGET_SOURCE_NOT_FOUND');
     expect(body.type).toContain('https://pii-agent.dev/problems/');
+  });
+
+  it('throw된 BffError를 ProblemDetails로 변환한다 (transformLegacyError와 동일 매핑)', async () => {
+    const handler = vi.fn().mockRejectedValue(
+      new BffError(404, 'NOT_FOUND', 'target source missing'),
+    );
+    const wrapped = withV1(handler);
+
+    const response = await wrapped(makeRequest(), makeParams());
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toContain('application/problem+json');
+    expect(response.headers.get('x-request-id')).toBeTruthy();
+    const body = await response.json();
+    expect(body.code).toBe('TARGET_SOURCE_NOT_FOUND');
+    expect(body.detail).toBe('target source missing');
+    expect(body.status).toBe(404);
+    expect(body.type).toBe('https://pii-agent.dev/problems/TARGET_SOURCE_NOT_FOUND');
+  });
+
+  it('throw된 BffError(403)는 FORBIDDEN ProblemDetails로 변환한다', async () => {
+    const handler = vi.fn().mockRejectedValue(
+      new BffError(403, 'FORBIDDEN', '권한 없음'),
+    );
+    const wrapped = withV1(handler);
+
+    const response = await wrapped(makeRequest(), makeParams());
+
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.code).toBe('FORBIDDEN');
+    expect(body.detail).toBe('권한 없음');
   });
 
   it('이미 problem+json인 응답은 재변환하지 않고 헤더만 추가한다', async () => {
