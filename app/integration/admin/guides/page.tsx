@@ -8,6 +8,7 @@ import { GuidePreviewPanel } from '@/app/integration/admin/guides/components/Gui
 import { ProviderTabs } from '@/app/integration/admin/guides/components/ProviderTabs';
 import { StepListPanel } from '@/app/integration/admin/guides/components/StepListPanel';
 import { UnsavedChangesModal } from '@/app/integration/admin/guides/components/UnsavedChangesModal';
+import type { EditorLanguage } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import { useUnsavedChangesGuard } from '@/app/hooks/useUnsavedChangesGuard';
 import {
   bgColors,
@@ -49,6 +50,10 @@ export default function GuidesPage() {
   const [selected, setSelected] = useState<GuideSlotKey | null>(null);
   const [draftKo, setDraftKo] = useState('');
   const [draftEn, setDraftEn] = useState('');
+  // Single source of truth for "which language am I working in?".
+  // Editor lang tabs and preview lang toggle both bind to this so the
+  // preview follows the editor automatically (and vice versa).
+  const [activeLang, setActiveLang] = useState<EditorLanguage>('ko');
 
   const guard = useUnsavedChangesGuard<PendingNav>();
 
@@ -117,6 +122,8 @@ export default function GuidesPage() {
               slotKey={selected}
               draftKo={draftKo}
               draftEn={draftEn}
+              activeLang={activeLang}
+              onChangeLang={setActiveLang}
               onChangeKo={setDraftKo}
               onChangeEn={setDraftEn}
               onDirtyChange={guard.setDirty}
@@ -127,7 +134,13 @@ export default function GuidesPage() {
               편집할 단계를 선택해주세요
             </GuidePlaceholder>
           )}
-          <GuidePreviewPanel slotKey={selected} draftKo={draftKo} draftEn={draftEn} />
+          <GuidePreviewPanel
+            slotKey={selected}
+            draftKo={draftKo}
+            draftEn={draftEn}
+            activeLang={activeLang}
+            onChangeLang={setActiveLang}
+          />
         </div>
       </div>
       <UnsavedChangesModal

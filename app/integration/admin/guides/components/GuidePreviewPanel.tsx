@@ -18,8 +18,6 @@
  * editing en while previewing ko is a normal workflow.
  */
 
-import { useState } from 'react';
-
 import { GuideCardInvalidState } from '@/app/components/features/process-status/GuideCard/GuideCardInvalidState';
 import { GuideCardPure } from '@/app/components/features/process-status/GuideCard/GuideCardPure';
 import { ProcessTimelineCompact } from '@/app/components/features/process-status/ProcessTimelineCompact';
@@ -41,14 +39,22 @@ interface Props {
   slotKey: GuideSlotKey | null;
   draftKo: string;
   draftEn: string;
+  /** Active language — shared with the editor so toggling on either side
+   *  keeps the surfaces in sync. */
+  activeLang: PreviewLanguage;
+  onChangeLang: (next: PreviewLanguage) => void;
 }
 
-export const GuidePreviewPanel = ({ slotKey, draftKo, draftEn }: Props) => {
-  const [previewLang, setPreviewLang] = useState<PreviewLanguage>('ko');
-
+export const GuidePreviewPanel = ({
+  slotKey,
+  draftKo,
+  draftEn,
+  activeLang,
+  onChangeLang,
+}: Props) => {
   const debouncedKo = useDebounce(draftKo, PREVIEW_DEBOUNCE_MS);
   const debouncedEn = useDebounce(draftEn, PREVIEW_DEBOUNCE_MS);
-  const previewHtml = previewLang === 'ko' ? debouncedKo : debouncedEn;
+  const previewHtml = activeLang === 'ko' ? debouncedKo : debouncedEn;
 
   if (!slotKey) {
     return (
@@ -86,7 +92,7 @@ export const GuidePreviewPanel = ({ slotKey, draftKo, draftEn }: Props) => {
       aria-live="polite"
       className={cn('flex flex-col h-full border-l overflow-hidden', borderColors.default)}
     >
-      <PreviewLanguageToggle value={previewLang} onChange={setPreviewLang} />
+      <PreviewLanguageToggle value={activeLang} onChange={onChangeLang} />
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {slot.placement.kind === 'process-step' && (
           <ProcessTimelineCompact
@@ -95,7 +101,7 @@ export const GuidePreviewPanel = ({ slotKey, draftKo, draftEn }: Props) => {
           />
         )}
         {isEmpty ? (
-          <PreviewEmptyLang lang={previewLang} />
+          <PreviewEmptyLang lang={activeLang} />
         ) : validation && !validation.valid ? (
           <GuideCardInvalidState errors={validation.errors} variant="admin" />
         ) : (

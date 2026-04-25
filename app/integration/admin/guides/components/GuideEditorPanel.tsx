@@ -24,7 +24,7 @@
  * regular import — both modules already share the same lazy chunk.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -76,6 +76,9 @@ interface GuideEditorPanelProps {
   slotKey: GuideSlotKey;
   draftKo: string;
   draftEn: string;
+  /** Active language — controlled by the parent so preview can stay in sync. */
+  activeLang: EditorLanguage;
+  onChangeLang: (next: EditorLanguage) => void;
   onChangeKo: (next: string) => void;
   onChangeEn: (next: string) => void;
   /** Pushes "is the draft different from the persisted guide?" upwards. */
@@ -138,6 +141,8 @@ export const GuideEditorPanel = ({
   slotKey,
   draftKo,
   draftEn,
+  activeLang,
+  onChangeLang,
   onChangeKo,
   onChangeEn,
   onDirtyChange,
@@ -148,8 +153,6 @@ export const GuideEditorPanel = ({
 
   const { data, loading, save, saving } = useGuide(slot.guideName);
   const toast = useToast();
-
-  const [activeLang, setActiveLang] = useState<EditorLanguage>('ko');
 
   // Once the GET resolves, hand the canonical contents up so the parent
   // can seed (or reset) `draftKo / draftEn`. The parent owns the draft
@@ -342,7 +345,7 @@ export const GuideEditorPanel = ({
         <div className="flex items-center justify-between">
           <EditLanguageTabs
             value={activeLang}
-            onChange={setActiveLang}
+            onChange={onChangeLang}
             koFilled={koFilled}
             enFilled={enFilled}
           />
@@ -378,7 +381,7 @@ export const GuideEditorPanel = ({
         )}
       >
         <span className={cn('text-[11.5px]', textColors.tertiary)} aria-live="polite">
-          {saveDisabledReason ?? '⌘S 로 저장할 수 있습니다'}
+          {saveDisabledReason ?? ''}
         </span>
         <Button variant="primary" disabled={!canSave} onClick={() => void handleSave()}>
           {saveLabel}

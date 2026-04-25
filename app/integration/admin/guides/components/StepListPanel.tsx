@@ -51,41 +51,68 @@ type EnabledProvider = (typeof ENABLED_PROVIDERS)[number];
 const isEnabledProvider = (tab: ProviderTab): tab is EnabledProvider =>
   (ENABLED_PROVIDERS as readonly ProviderTab[]).includes(tab);
 
+// Group slots for a step by guideName. When AUTO and MANUAL resolve to
+// the same guide (steps 1/2/3/5/6/7 in AWS), collapse to a single row;
+// the variant chip and the row split only appear when the step has
+// genuinely divergent guides (step 4 — AUTO_INSTALLING vs MANUAL_INSTALLING).
 const buildRows = (provider: ProviderTab): StepRow[] => {
   if (!isEnabledProvider(provider)) return [];
   const placementProvider = PLACEMENT_PROVIDER_BY_TAB[provider];
-  const rows: StepRow[] = [];
 
+  const slotsByStep = new Map<number, Array<{ key: GuideSlotKey; slot: GuideSlot }>>();
   for (const [rawKey, slot] of Object.entries(GUIDE_SLOTS)) {
     if (slot.placement.kind !== 'process-step') continue;
     if (slot.placement.provider !== placementProvider) continue;
-
-    const variant = 'variant' in slot.placement ? slot.placement.variant ?? null : null;
-    const sharedCount = SLOT_COUNT_BY_NAME.get(slot.guideName) ?? 0;
-
-    // Drop the MANUAL row when the guide isn't actually forked at this
-    // step (sharedCount < 2 means AUTO and MANUAL collapse to one entry).
-    if (variant === 'MANUAL' && sharedCount < 2) continue;
-
-    rows.push({
-      key: rawKey as GuideSlotKey,
-      slot,
-      variantLabel: sharedCount >= 2 ? variant : null,
-      isShared: sharedCount >= 2,
-      sharedCount,
-    });
+    const step = slot.placement.step;
+    const bucket = slotsByStep.get(step) ?? [];
+    bucket.push({ key: rawKey as GuideSlotKey, slot });
+    slotsByStep.set(step, bucket);
   }
 
-  return rows.sort((a, b) => {
-    if (a.slot.placement.kind !== 'process-step' || b.slot.placement.kind !== 'process-step') {
-      return 0;
+  const rows: StepRow[] = [];
+  for (const [, bucket] of [...slotsByStep.entries()].sort(([a], [b]) => a - b)) {
+    const uniqueGuideNames = new Set(bucket.map((entry) => entry.slot.guideName));
+    const isDivergent = uniqueGuideNames.size > 1;
+
+    if (!isDivergent) {
+      // Same guide for AUTO and MANUAL — emit one row, no variant chip.
+      // Prefer the AUTO entry as the canonical row when present.
+      const autoEntry = bucket.find(
+        (e) => 'variant' in e.slot.placement && e.slot.placement.variant === 'AUTO',
+      );
+      const repr = autoEntry ?? bucket[0];
+      const sharedCount = SLOT_COUNT_BY_NAME.get(repr.slot.guideName) ?? bucket.length;
+      rows.push({
+        key: repr.key,
+        slot: repr.slot,
+        variantLabel: null,
+        isShared: sharedCount >= 2,
+        sharedCount,
+      });
+      continue;
     }
-    const stepDiff = a.slot.placement.step - b.slot.placement.step;
-    if (stepDiff !== 0) return stepDiff;
-    const aVar = 'variant' in a.slot.placement ? a.slot.placement.variant ?? '' : '';
-    const bVar = 'variant' in b.slot.placement ? b.slot.placement.variant ?? '' : '';
-    return aVar.localeCompare(bVar);
-  });
+
+    // Divergent step (e.g. AWS step 4) — emit one row per slot with chip.
+    const sortedBucket = [...bucket].sort((a, b) => {
+      const aVar = 'variant' in a.slot.placement ? a.slot.placement.variant ?? '' : '';
+      const bVar = 'variant' in b.slot.placement ? b.slot.placement.variant ?? '' : '';
+      return aVar.localeCompare(bVar);
+    });
+    for (const entry of sortedBucket) {
+      const variant =
+        'variant' in entry.slot.placement ? entry.slot.placement.variant ?? null : null;
+      const sharedCount = SLOT_COUNT_BY_NAME.get(entry.slot.guideName) ?? 1;
+      rows.push({
+        key: entry.key,
+        slot: entry.slot,
+        variantLabel: variant,
+        isShared: sharedCount >= 2,
+        sharedCount,
+      });
+    }
+  }
+
+  return rows;
 };
 
 const rowAriaLabel = (row: StepRow): string => {
