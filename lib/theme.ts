@@ -135,6 +135,8 @@ export const bgColors = {
   muted: 'bg-gray-50',
   mutedHover: 'hover:bg-gray-50',
   primary: 'bg-[#0064FF]',
+  surface: 'bg-white',
+  surfaceHover: 'hover:bg-white',
 } as const;
 
 /**
