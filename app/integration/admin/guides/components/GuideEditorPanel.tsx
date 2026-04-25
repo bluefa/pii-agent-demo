@@ -42,6 +42,7 @@ import {
   chipStyles,
   cn,
   primaryColors,
+  statusColors,
   textColors,
 } from '@/lib/theme';
 
@@ -329,7 +330,19 @@ export const GuideEditorPanel = ({
 
   const showScopeNotice = sharedSlots.length >= 2;
   const saveLabel = saving ? '저장 중…' : '저장';
-  const saveDisabledReason = !dirty ? '수정된 내용이 없습니다' : null;
+
+  // Save-state messaging:
+  //  - Neither side edited → save disabled, neutral hint.
+  //  - Only one side edited → save enabled, amber warning that the
+  //    untouched language will keep its existing content.
+  //  - Both sides edited → save enabled, no message.
+  const saveStateMessage: { kind: 'disabled' | 'warning'; text: string } | null = !dirty
+    ? { kind: 'disabled', text: '한국어 / 영어 수정이 발생하지 않았습니다' }
+    : editedKo && !editedEn
+      ? { kind: 'warning', text: '영어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
+      : !editedKo && editedEn
+        ? { kind: 'warning', text: '한국어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
+        : null;
 
   const headerMeta = buildHeaderMeta(slot);
 
@@ -466,13 +479,21 @@ export const GuideEditorPanel = ({
 
       <footer
         className={cn(
-          'flex items-center justify-between px-5 py-3 border-t',
+          'flex items-center justify-between gap-3 px-5 py-3 border-t',
           borderColors.default,
           bgColors.muted,
         )}
       >
-        <span className={cn('text-[11.5px]', textColors.tertiary)} aria-live="polite">
-          {saveDisabledReason ?? ''}
+        <span
+          className={cn(
+            'text-[11.5px] leading-snug',
+            saveStateMessage?.kind === 'warning'
+              ? statusColors.warning.textDark
+              : textColors.tertiary,
+          )}
+          aria-live="polite"
+        >
+          {saveStateMessage?.text ?? ''}
         </span>
         <Button variant="primary" disabled={!canSave} onClick={() => void handleSave()}>
           {saveLabel}
