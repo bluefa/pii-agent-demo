@@ -96,6 +96,75 @@ body {
   outline-offset: 2px;
 }
 
+/* =============================================================================
+   Guide CMS — prose-guide (no @tailwindcss/typography dependency)
+   Guide CMS content rendered by renderGuideAst() lands inside a bare
+   <h4>/<p>/<ul>/<ol>/<li>/<strong>/<em>/<code>/<a> tree with no class names.
+   The rules below recreate the visual of the legacy GuideCard body
+   (text-sm bold h4, mb-2 paragraphs, primary-colored bullet markers, etc.)
+   using design tokens declared in :root above.
+   ============================================================================= */
+
+.prose-guide h4 {
+  font-size: 0.875rem;       /* text-sm */
+  font-weight: 700;           /* font-bold */
+  color: var(--color-text-primary);
+  margin-bottom: 0.375rem;    /* mb-1.5 */
+}
+
+.prose-guide p {
+  margin-bottom: 0.5rem;      /* mb-2 */
+}
+
+.prose-guide p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-guide strong {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.prose-guide a {
+  font-weight: 500;
+  color: #0064FF;
+}
+
+.prose-guide a:hover {
+  text-decoration: underline;
+}
+
+.prose-guide ul,
+.prose-guide ol {
+  padding-left: 1.25rem;      /* pl-5 */
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.prose-guide ul {
+  list-style-type: disc;
+}
+
+.prose-guide ol {
+  list-style-type: decimal;
+}
+
+.prose-guide ul > li,
+.prose-guide ol > li {
+  margin-top: 0.125rem;       /* space-y-0.5 */
+  margin-bottom: 0.125rem;
+}
+
+.prose-guide ul::marker,
+.prose-guide ul > li::marker {
+  color: #0064FF;             /* primaryColors.marker */
+}
+
+.prose-guide code {
+  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  font-size: 0.8125rem;
+}
+
 /* Scrollbar Styling (스크롤바) */
 ::-webkit-scrollbar {
   width: 8px;

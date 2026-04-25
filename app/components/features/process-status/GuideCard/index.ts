@@ -1,0 +1,16 @@
+/**
+ * Guide CMS — GuideCard barrel.
+ *
+ * Stable export surface consumed by W3-c (admin preview) and W4-b
+ * (provider page migration). See spec §6.5 and Step 6.5 of the W4-a
+ * wave task for the contract table.
+ */
+
+export { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
+export { GuideCardEmptyLang } from '@/app/components/features/process-status/GuideCard/GuideCardEmptyLang';
+export { GuideCardError } from '@/app/components/features/process-status/GuideCard/GuideCardError';
+export { GuideCardInvalidState } from '@/app/components/features/process-status/GuideCard/GuideCardInvalidState';
+export { GuideCardPure } from '@/app/components/features/process-status/GuideCard/GuideCardPure';
+export { GuideCardSkeleton } from '@/app/components/features/process-status/GuideCard/GuideCardSkeleton';
+export { renderGuideAst } from '@/app/components/features/process-status/GuideCard/render-guide-ast';
+export { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';

@@ -195,6 +195,7 @@ export const cardStyles = {
     header: 'bg-gradient-to-b from-amber-100/50 to-amber-50/30 border-b border-amber-200',
     icon: 'bg-amber-500 text-white',
     titleText: 'text-amber-900',
+    body: 'text-gray-600',
   },
 } as const;
 
