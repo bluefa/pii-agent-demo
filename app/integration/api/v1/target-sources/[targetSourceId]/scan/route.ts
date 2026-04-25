@@ -16,11 +16,11 @@ export const POST = withV1(async (request, { requestId, params }) => {
     scanStatus: data.scan_status,
     targetSourceId: data.target_source_id,
     createdAt: data.created_at,
-    updatedAt: data.created_at,
-    scanVersion: 1,
-    scanProgress: null,
-    durationSeconds: 0,
-    resourceCountByResourceType: {},
-    scanError: null,
+    updatedAt: data.updated_at,
+    scanVersion: data.scan_version || 1,
+    scanProgress: data.scan_progress,
+    durationSeconds: data.duration_seconds,
+    resourceCountByResourceType: data.resource_count_by_resource_type || {},
+    scanError: data.scan_error,
   }, { status: 202 });
 }, { expectedDuration: '30000ms' });

@@ -29,6 +29,12 @@ export interface ScanCreateResult {
   scan_status: string;
   target_source_id: number;
   created_at: string;
+  updated_at: string;
+  scan_version: number | null;
+  scan_progress: number | null;
+  duration_seconds: number;
+  resource_count_by_resource_type: Record<string, number> | null;
+  scan_error: string | null;
 }
 
 /** GET /target-sources/{id}/scanJob/latest (camelCase). */
