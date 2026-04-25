@@ -5,6 +5,7 @@ import { getApprovalRequestLatest } from '@/app/lib/api';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { AppError } from '@/lib/errors';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
@@ -19,13 +20,16 @@ export const ApprovalApplyingBanner = ({
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
   useAbortableEffect((signal) => {
-    if (!targetSourceId) return;
-    void getApprovalRequestLatest(targetSourceId, { signal })
+    if (!targetSourceId) return undefined;
+    return getApprovalRequestLatest(targetSourceId, { signal })
       .then((response) => {
         if (signal.aborted) return;
         setLatestResponse(response);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (err instanceof AppError && err.code === 'ABORTED') throw err;
+        // Intentional silent ignore — failure here only disables the summary button.
+      });
   }, [targetSourceId]);
 
   return (

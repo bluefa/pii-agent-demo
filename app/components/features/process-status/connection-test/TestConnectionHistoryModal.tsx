@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { TestConnectionJob } from '@/app/lib/api';
 import { getTestConnectionResults } from '@/app/lib/api';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
+import { AppError } from '@/lib/errors';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
 import { statusColors, getButtonClass, cn } from '@/lib/theme';
@@ -27,16 +28,17 @@ export const TestConnectionHistoryModal = ({
   const PAGE_SIZE = 5;
 
   useAbortableEffect((signal) => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
     setLoading(true);
-    void getTestConnectionResults(targetSourceId, page, PAGE_SIZE, { signal })
+    return getTestConnectionResults(targetSourceId, page, PAGE_SIZE, { signal })
       .then((res) => {
         if (signal.aborted) return;
         setJobs(res.content);
         setTotal(res.page.totalElements);
       })
-      .catch(() => {
-        if (!signal.aborted) setJobs([]);
+      .catch((err) => {
+        if (err instanceof AppError && err.code === 'ABORTED') throw err;
+        setJobs([]);
       })
       .finally(() => {
         if (!signal.aborted) setLoading(false);

@@ -83,8 +83,9 @@ export class AppError extends Error {
 }
 
 /**
- * AbortController로 취소된 요청 에러는 "성공적인 취소"이므로 silent하게 무시한다.
- * useAbortableEffect 등 cancel-on-deps-change 패턴의 .catch() 핸들러로 사용.
+ * Swallow `AppError(code: 'ABORTED')` and re-throw everything else.
+ * A successful cancellation (e.g. cleanup of an in-flight fetch) is not a real error,
+ * so consumers chaining `.catch(ignoreAborted)` only see genuine failures.
  */
 export const ignoreAborted = (error: unknown): void => {
   if (error instanceof AppError && error.code === 'ABORTED') return;
