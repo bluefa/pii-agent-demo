@@ -1,19 +1,143 @@
-import type { TargetSource, SecretKey } from '@/lib/types';
-import type { CurrentUser } from '@/app/lib/api';
-
 /**
- * BFF 데이터 접근 인터페이스.
- * 순수 도메인 데이터를 반환한다 (NextResponse 아님).
+ * BFF data-access interface (ADR-011).
  *
- * - mock: 기존 mock 핸들러를 래핑하여 데이터 추출
- * - http : 실제 BFF API 호출
+ * Implementations:
+ *   - mockBff: wraps the in-memory `lib/api-client/mock/*` handlers
+ *   - httpBff: calls the upstream BFF over HTTP
+ *
+ * Per ADR-011 §"Cross-cutting decisions" #1 (B-1): v1 transforms
+ * (`extractTargetSource`, `normalizeUserMeResponse`, etc.) stay in the
+ * route layer. BFF methods return the raw upstream wire shape.
+ *
+ * Casing per ADR-011 README §"Observable Behavior Invariants" I-3:
+ *   - GET responses are camelCase (proxyGet runs camelCaseKeys)
+ *   - POST/PUT/DELETE responses are raw passthrough (snake_case)
  */
+import type {
+  CreateTargetSourceResult,
+  ServicesTargetSourcesResponse,
+  TargetSourceDetailResponse,
+} from '@/lib/bff/types/target-sources';
+import type {
+  ProjectApprovalResult,
+  ProjectCompleteInstallationResult,
+  ProjectConfirmCompletionResult,
+  ProjectConfirmTargetsResult,
+  ProjectCreateResult,
+  ProjectCredentialsResponse,
+  ProjectGetResponse,
+  ProjectHistoryResponse,
+  ProjectMutationResult,
+  ProjectRejectionResult,
+  ProjectResourceCredentialResult,
+  ProjectResourceExclusionsResponse,
+  ProjectResourcesResponse,
+  ProjectScanTriggerResult,
+  ProjectTerraformStatusResponse,
+  ProjectTestConnectionResult,
+} from '@/lib/bff/types/projects';
+import type {
+  UserMeResponse,
+  UserSearchResponse,
+  UserServicesPageResponse,
+  UserServicesResponse,
+} from '@/lib/bff/types/users';
+import type {
+  ServiceAuthorizedUsersResponse,
+  ServicePermissionAddResult,
+  ServicePermissionRemoveResult,
+  ServiceSettingsAwsResponse,
+  ServiceSettingsAwsUpdateResult,
+  ServiceSettingsAwsVerifyScanRoleResult,
+  ServiceSettingsAzureResponse,
+} from '@/lib/bff/types/services';
+import type {
+  DashboardSummaryResponse,
+  DashboardSystemsResponse,
+} from '@/lib/bff/types/dashboard';
+import type {
+  DevGetUsersResponse,
+  DevSwitchUserResult,
+} from '@/lib/bff/types/dev';
+import type {
+  ScanCreateResult,
+  ScanGetResponse,
+  ScanHistoryPageResponse,
+  ScanLatestStatusResponse,
+} from '@/lib/bff/types/scan';
+import type { TaskAdminApprovalRequestsResponse } from '@/lib/bff/types/task-admin';
+import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
+
 export interface BffClient {
   targetSources: {
-    get: (id: number) => Promise<TargetSource>;
-    secrets: (id: number) => Promise<SecretKey[]>;
+    get: (id: number) => Promise<TargetSourceDetailResponse>;
+    list: (serviceCode: string) => Promise<ServicesTargetSourcesResponse>;
+    create: (body: { serviceCode?: string; [key: string]: unknown }) => Promise<CreateTargetSourceResult>;
   };
+
+  projects: {
+    get: (id: number) => Promise<ProjectGetResponse>;
+    delete: (id: number) => Promise<ProjectMutationResult>;
+    create: (body: unknown) => Promise<ProjectCreateResult>;
+    approve: (id: number, body: unknown) => Promise<ProjectApprovalResult>;
+    reject: (id: number, body: unknown) => Promise<ProjectRejectionResult>;
+    confirmTargets: (id: number, body: unknown) => Promise<ProjectConfirmTargetsResult>;
+    completeInstallation: (id: number) => Promise<ProjectCompleteInstallationResult>;
+    confirmCompletion: (id: number) => Promise<ProjectConfirmCompletionResult>;
+    credentials: (id: number) => Promise<ProjectCredentialsResponse>;
+    history: (id: number, query: { type?: string; limit?: string; offset?: string }) => Promise<ProjectHistoryResponse>;
+    resourceCredential: (id: number, body: unknown) => Promise<ProjectResourceCredentialResult>;
+    resourceExclusions: (id: number) => Promise<ProjectResourceExclusionsResponse>;
+    resources: (id: number) => Promise<ProjectResourcesResponse>;
+    scan: (id: number) => Promise<ProjectScanTriggerResult>;
+    terraformStatus: (id: number) => Promise<ProjectTerraformStatusResponse>;
+    testConnection: (id: number, body: unknown) => Promise<ProjectTestConnectionResult>;
+  };
+
   users: {
-    me: () => Promise<CurrentUser>;
+    search: (query: string, excludeIds: string[]) => Promise<UserSearchResponse>;
+    me: () => Promise<UserMeResponse>;
+    getServices: () => Promise<UserServicesResponse>;
+    getServicesPage: (page: number, size: number, query?: string) => Promise<UserServicesPageResponse>;
+  };
+
+  services: {
+    permissions: {
+      list: (serviceCode: string) => Promise<ServiceAuthorizedUsersResponse>;
+      add: (serviceCode: string, body: unknown) => Promise<ServicePermissionAddResult>;
+      remove: (serviceCode: string, userId: string) => Promise<ServicePermissionRemoveResult>;
+    };
+    settings: {
+      aws: {
+        get: (serviceCode: string) => Promise<ServiceSettingsAwsResponse>;
+        update: (serviceCode: string, body: unknown) => Promise<ServiceSettingsAwsUpdateResult>;
+        verifyScanRole: (serviceCode: string) => Promise<ServiceSettingsAwsVerifyScanRoleResult>;
+      };
+      azure: {
+        get: (serviceCode: string) => Promise<ServiceSettingsAzureResponse>;
+      };
+    };
+  };
+
+  dashboard: {
+    summary: () => Promise<DashboardSummaryResponse>;
+    systems: (params: URLSearchParams) => Promise<DashboardSystemsResponse>;
+    systemsExport: (params: URLSearchParams) => Promise<Response>;
+  };
+
+  dev: {
+    getUsers: () => Promise<DevGetUsersResponse>;
+    switchUser: (body: unknown) => Promise<DevSwitchUserResult>;
+  };
+
+  scan: {
+    get: (id: number, scanId: string) => Promise<ScanGetResponse>;
+    getHistory: (id: number, query: { limit: number; offset: number }) => Promise<ScanHistoryPageResponse>;
+    create: (id: number, body: unknown) => Promise<ScanCreateResult>;
+    getStatus: (id: number) => Promise<ScanLatestStatusResponse>;
+  };
+
+  taskAdmin: {
+    getApprovalRequestQueue: (params: QueueBoardQueryParams) => Promise<TaskAdminApprovalRequestsResponse>;
   };
 }

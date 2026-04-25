@@ -1,7 +1,9 @@
+import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
 export const DELETE = withV1(async (_request, { params }) => {
   const { serviceCode, userId } = params;
-  return client.services.permissions.remove(serviceCode, userId);
+  const data = await bff.services.permissions.remove(serviceCode, userId);
+  return NextResponse.json(data);
 }, { expectedDuration: '100ms ~ 400ms' });

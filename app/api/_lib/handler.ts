@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getRequestId } from '@/app/api/_lib/request-id';
-import { handleUnexpectedError, transformLegacyError } from '@/app/api/_lib/problem';
+import { handleUnexpectedError, transformBffError, transformLegacyError } from '@/app/api/_lib/problem';
+import { BffError } from '@/lib/bff/errors';
 
 const PROBLEM_JSON = 'application/problem+json';
 
@@ -61,6 +62,10 @@ export function withV1(
 
       return addV1Headers(response, requestId, options?.expectedDuration);
     } catch (error) {
+      if (error instanceof BffError) {
+        const problem = transformBffError(error, requestId);
+        return addV1Headers(problem, requestId, options?.expectedDuration);
+      }
       return handleUnexpectedError(error, requestId);
     }
   };

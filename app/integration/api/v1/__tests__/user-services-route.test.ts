@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     users: {
       getServices: vi.fn(),
     },
@@ -10,9 +9,10 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { GET } from '@/app/integration/api/v1/user/services/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
+import { BffError } from '@/lib/bff/errors';
 
-const mockedGetServices = vi.mocked(client.users.getServices);
+const mockedGetServices = vi.mocked(bff.users.getServices);
 
 describe('GET /integration/api/v1/user/services', () => {
   beforeEach(() => {
@@ -20,14 +20,12 @@ describe('GET /integration/api/v1/user/services', () => {
   });
 
   it('returns the Issue #222 camelCase service list as-is', async () => {
-    mockedGetServices.mockResolvedValue(
-      NextResponse.json({
-        services: [
-          { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
-          { serviceCode: 'SERVICE-B', serviceName: '서비스 B' },
-        ],
-      }),
-    );
+    mockedGetServices.mockResolvedValue({
+      services: [
+        { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
+        { serviceCode: 'SERVICE-B', serviceName: '서비스 B' },
+      ],
+    });
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/services'), {
       params: Promise.resolve({}),
@@ -43,14 +41,12 @@ describe('GET /integration/api/v1/user/services', () => {
   });
 
   it('normalizes legacy code/name items into the Issue #222 schema', async () => {
-    mockedGetServices.mockResolvedValue(
-      NextResponse.json({
-        services: [
-          { code: 'SERVICE-A', name: '서비스 A' },
-          { service_code: 'SERVICE-B', service_name: '서비스 B' },
-        ],
-      }),
-    );
+    mockedGetServices.mockResolvedValue({
+      services: [
+        { code: 'SERVICE-A', name: '서비스 A' },
+        { service_code: 'SERVICE-B', service_name: '서비스 B' },
+      ],
+    } as never);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/services'), {
       params: Promise.resolve({}),
@@ -64,12 +60,9 @@ describe('GET /integration/api/v1/user/services', () => {
     });
   });
 
-  it('normalizes legacy error payloads into problem+json', async () => {
-    mockedGetServices.mockResolvedValue(
-      NextResponse.json(
-        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
-        { status: 401 },
-      ),
+  it('BffError가 throw되면 problem+json으로 변환한다', async () => {
+    mockedGetServices.mockRejectedValueOnce(
+      new BffError(401, 'UNAUTHORIZED', '로그인이 필요합니다.'),
     );
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/services'), {

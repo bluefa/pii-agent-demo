@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     users: {
-      getMe: vi.fn(),
+      me: vi.fn(),
     },
   },
 }));
 
 import { GET } from '@/app/integration/api/v1/user/me/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
+import { BffError } from '@/lib/bff/errors';
 
-const mockedGetMe = vi.mocked(client.users.getMe);
+const mockedMe = vi.mocked(bff.users.me);
 
 describe('GET /integration/api/v1/user/me', () => {
   beforeEach(() => {
@@ -20,13 +20,11 @@ describe('GET /integration/api/v1/user/me', () => {
   });
 
   it('returns the flat Issue #222 payload as-is', async () => {
-    mockedGetMe.mockResolvedValue(
-      NextResponse.json({
-        id: 'user-1',
-        name: '홍길동',
-        email: 'hong@company.com',
-      }),
-    );
+    mockedMe.mockResolvedValue({
+      id: 'user-1',
+      name: '홍길동',
+      email: 'hong@company.com',
+    } as never);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
       params: Promise.resolve({}),
@@ -41,17 +39,15 @@ describe('GET /integration/api/v1/user/me', () => {
   });
 
   it('unwraps legacy nested payloads and trims extra fields', async () => {
-    mockedGetMe.mockResolvedValue(
-      NextResponse.json({
-        user: {
-          id: 'user-1',
-          name: '홍길동',
-          email: 'hong@company.com',
-          role: 'ADMIN',
-          serviceCodePermissions: ['SERVICE-A'],
-        },
-      }),
-    );
+    mockedMe.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        name: '홍길동',
+        email: 'hong@company.com',
+        role: 'ADMIN',
+        serviceCodePermissions: ['SERVICE-A'],
+      },
+    } as never);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
       params: Promise.resolve({}),
@@ -64,12 +60,9 @@ describe('GET /integration/api/v1/user/me', () => {
     });
   });
 
-  it('normalizes legacy error payloads into problem+json', async () => {
-    mockedGetMe.mockResolvedValue(
-      NextResponse.json(
-        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
-        { status: 401 },
-      ),
+  it('BffError가 throw되면 problem+json으로 변환한다', async () => {
+    mockedMe.mockRejectedValueOnce(
+      new BffError(401, 'UNAUTHORIZED', '로그인이 필요합니다.'),
     );
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {

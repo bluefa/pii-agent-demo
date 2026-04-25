@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
+import { BffError } from '@/lib/bff/errors';
 
 const makeRequest = () => new Request('http://localhost/test');
 const makeParams = (params: Record<string, string> = {}) =>
@@ -51,6 +52,22 @@ describe('withV1', () => {
     const body = await response.json();
     expect(body.code).toBe('TARGET_SOURCE_NOT_FOUND');
     expect(body.type).toContain('https://pii-agent.dev/problems/');
+  });
+
+  it('BffError가 throw되면 ProblemDetails로 변환한다', async () => {
+    const handler = vi.fn().mockRejectedValue(
+      new BffError(404, 'TARGET_SOURCE_NOT_FOUND', '과제를 찾을 수 없습니다.'),
+    );
+    const wrapped = withV1(handler);
+
+    const response = await wrapped(makeRequest(), makeParams());
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toContain('application/problem+json');
+    expect(response.headers.get('x-request-id')).toBeTruthy();
+    const body = await response.json();
+    expect(body.code).toBe('TARGET_SOURCE_NOT_FOUND');
+    expect(body.detail).toBe('과제를 찾을 수 없습니다.');
   });
 
   it('이미 problem+json인 응답은 재변환하지 않고 헤더만 추가한다', async () => {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import type { UserService } from '@/app/api/_lib/v1-types';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -37,22 +37,19 @@ export const GET = withV1(async (request) => {
   const size = Number(searchParams.get('size') ?? '10');
   const query = searchParams.get('query') ?? undefined;
 
-  const response = await client.users.getServicesPage(page, size, query);
-  if (!response.ok) return response;
+  const data = await bff.users.getServicesPage(page, size, query);
 
-  const raw = await response.json();
-
-  if (!isRecord(raw) || !Array.isArray(raw.content)) {
+  if (!isRecord(data) || !Array.isArray(data.content)) {
     throw new Error('Invalid services/page response payload');
   }
 
   return NextResponse.json({
-    content: raw.content.map(normalizeServiceItem),
+    content: data.content.map(normalizeServiceItem),
     page: {
-      totalElements: Number(raw.totalElements ?? 0),
-      totalPages: Number(raw.totalPages ?? 0),
-      number: Number(raw.number ?? 0),
-      size: Number(raw.size ?? 10),
+      totalElements: Number(data.page?.totalElements ?? 0),
+      totalPages: Number(data.page?.totalPages ?? 0),
+      number: Number(data.page?.number ?? 0),
+      size: Number(data.page?.size ?? 10),
     },
   });
 }, { expectedDuration: '50ms ~ 300ms' });

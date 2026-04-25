@@ -1,40 +1,14 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
-import { createProblem, problemResponse } from '@/app/api/_lib/problem';
-import type { ScanStatus, ScanResult, ResourceType } from '@/lib/types';
-
-function extractResourceCounts(result: unknown): Record<string, number> {
-  const counts: Record<string, number> = {};
-  const r = result as ScanResult | null;
-  if (r?.byResourceType) {
-    for (const { resourceType, count } of r.byResourceType) {
-      counts[resourceType as ResourceType] = count;
-    }
-  }
-  return counts;
-}
+import { problemResponse } from '@/app/api/_lib/problem';
 
 export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const response = await client.scan.getStatus(String(parsed.value));
-  if (!response.ok) return response;
-
-  const data = await response.json() as {
-    id: number;
-    scanStatus: string;
-    targetSourceId: number;
-    createdAt: string;
-    updatedAt: string;
-    scanVersion: number | null;
-    scanProgress: number | null;
-    durationSeconds: number;
-    resourceCountByResourceType: Record<string, number> | null;
-    scanError: string | null;
-  };
+  const data = await bff.scan.getStatus(parsed.value);
 
   return NextResponse.json({
     id: data.id,

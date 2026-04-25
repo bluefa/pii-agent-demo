@@ -14,8 +14,14 @@ export type { V1ScanJob, ScanHistoryResponse, ScanJob };
 /** GET /target-sources/{id}/scans/{scanId} (camelCase). */
 export type ScanGetResponse = V1ScanJob;
 
-/** GET /target-sources/{id}/scan/history (camelCase). */
-export type ScanHistoryPageResponse = ScanHistoryResponse;
+/**
+ * GET /target-sources/{id}/scan/history (camelCase, upstream wire shape).
+ * The route handler wraps `totalElements` into a v1 `page` envelope.
+ */
+export interface ScanHistoryPageResponse {
+  content: ScanJob[];
+  totalElements: number;
+}
 
 /** POST /target-sources/{id}/scan (snake_case raw passthrough). */
 export interface ScanCreateResult {

@@ -1,4 +1,5 @@
 import { bff } from '@/lib/bff/client';
+import { extractTargetSource } from '@/lib/target-source-response';
 import { ProjectDetail } from '@/app/integration/target-sources/[targetSourceId]/_components/ProjectDetail';
 import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 
@@ -13,7 +14,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     return <ErrorState error="유효하지 않은 과제 식별자입니다." />;
   }
 
-  const project = await bff.targetSources.get(targetSourceId);
+  const data = await bff.targetSources.get(targetSourceId);
+  const project = extractTargetSource(data);
 
   return <ProjectDetail initialProject={project} />;
 }
