@@ -106,7 +106,9 @@ const CloudTargetSourceLayout = ({ project }) => {
 
 This component must remain provider-axis agnostic: no `cloudProvider`, `awsInstallationMode`, or equivalent provider-specific branch belongs in `CloudTargetSourceLayout`.
 
-The initial component set is seven step components: `WaitingTargetConfirmationStep`, `WaitingApprovalStep`, `ApplyingApprovedStep`, `InstallingStep`, `ConnectionTestStep`, `CloudInstallingStep`, and `AwsManualInstallingStep`. `InstallingStep` is the override gate; `CloudInstallingStep` is the default shared installing body.
+The full component set is seven step components: `WaitingTargetConfirmationStep`, `WaitingApprovalStep`, `ApplyingApprovedStep`, `InstallingStep`, `ConnectionTestStep`, `CloudInstallingStep`, and `AwsManualInstallingStep`. `InstallingStep` is the override gate; `CloudInstallingStep` is the default shared installing body.
+
+The component set grows incrementally. Phase 1 introduces only the components required for Azure `INSTALLING`. Other step components are introduced when their render paths are migrated.
 
 Most steps are plain common JSX. For example:
 
@@ -263,7 +265,7 @@ IDC and SDU are not active `CloudProvider` values in the current TypeScript cont
 
 ## Migration Plan
 
-1. **Phase 1: Azure `INSTALLING` proof of concept.** Add `CloudTargetSourceLayout` and the seven step components alongside existing code. Route only Azure `INSTALLING` through the new path as the visible-value PR. Add the R1 source-text enforcement test in the same phase so provider-axis branches cannot enter `CloudTargetSourceLayout`. This fixes `/integration/target-sources/1003` by rendering installation status before confirmed resources. Effort: medium.
+1. **Phase 1: Azure `INSTALLING` proof of concept.** Add `CloudTargetSourceLayout` and only the components required for Azure `INSTALLING` (`InstallingStep`, `CloudInstallingStep`, the two slots, and `ConfirmedIntegrationDataProvider`) alongside existing code. Other step components are deferred to later phases. Route only Azure `INSTALLING` through the new path as the visible-value PR. Add the R1 source-text enforcement test in the same phase so provider-axis branches cannot enter `CloudTargetSourceLayout`. This fixes `/integration/target-sources/1003` by rendering installation status before confirmed resources. Effort: medium.
 
 2. **Phase 2: Remaining confirmed-data steps.** Migrate AWS/GCP `INSTALLING` and steps 5-7 into their step components. At the end of this phase, step 4 and connection-test flows no longer depend on `ConfirmedIntegrationSection` owning action placement. Effort: medium.
 
