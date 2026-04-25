@@ -49,6 +49,32 @@ Candidate options considered:
 | D. Step Components with Slots | Chosen | It makes screen order readable as JSX, keeps common steps deduplicated, and isolates provider exceptions. |
 | E. Server-driven layout descriptor | Rejected | It moves a UI-only layout concern into the API contract without removing frontend component mapping. |
 
+## Architectural Rules
+
+### R1 — `CloudTargetSourceLayout` sees only `processStatus`
+
+`CloudTargetSourceLayout` owns only the top-level process-status switch. It must not reference `cloudProvider`, `awsInstallationMode`, or any other provider-axis property. Provider-specific routing happens inside the selected step component, using the gate pattern in `InstallingStep`, or inside slots; it never happens at the layout level.
+
+**Enforcement:** Automatic source-text test. The Phase 1 implementation must add a Vitest test that reads `CloudTargetSourceLayout.tsx` and asserts that the file does not contain `cloudProvider` or `awsInstallationMode`.
+
+### R2 — Slots only choose
+
+A slot component, such as `InstallationStatusSlot`, `ConfirmedResourcesSlot`, or future slots, is a selection boundary. It may switch on one dimension, typically `cloudProvider`, and return one of N provider-specific components. Alternatively, it may read exactly one hook such as `useConfirmedIntegration` and dispatch to a presentation component. Slots must not contain data fetching, permission checks, CTA branching, provider business logic, or error handling beyond skeletal `loading` / `error` / `ready` rendering. Slot files should stay small, with a soft cap of about 50 lines, and should not use `useState` or `useEffect` for business state.
+
+**Enforcement:** Code review checklist. Automatic enforcement is intentionally not required because this rule depends on semantic review of what counts as business logic.
+
+### R3 — Override step components are reserved for order changes
+
+Provider-specific step components such as `AwsManualInstallingStep` are allowed only when the card order itself changes. If only one card's contents differ, the default step component, such as `CloudInstallingStep`, keeps the common order and uses a slot for the provider-specific card contents.
+
+**Enforcement:** Code review checklist. If a reviewer sees an override step with the same card sequence as the default step and only one swapped card, the reviewer must reject it and ask for a slot.
+
+### R4 — `TargetSourcePageDataProvider` is renamed to `ConfirmedIntegrationDataProvider`
+
+The page data provider is named `ConfirmedIntegrationDataProvider`, and the hook is named `useConfirmedIntegration`. Its file path is `app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider.tsx`. The provider may expose confirmed-integration data only; adding `candidate`, `approved`, guide, permission, or Terraform-status fields to this provider is not permitted. If candidate or approved data eventually needs sharing across slots, a future ADR or ADR amendment introduces a parallel provider such as `CandidateIntegrationDataProvider`.
+
+**Enforcement:** Rename and review checklist. The narrow name creates productive friction when a future feature wants non-confirmed data.
+
 ## Detailed Design
 
 ### Component Ownership
@@ -78,6 +104,8 @@ const CloudTargetSourceLayout = ({ project }) => {
 };
 ```
 
+This component must remain provider-axis agnostic: no `cloudProvider`, `awsInstallationMode`, or equivalent provider-specific branch belongs in `CloudTargetSourceLayout`.
+
 The initial component set is seven step components: `WaitingTargetConfirmationStep`, `WaitingApprovalStep`, `ApplyingApprovedStep`, `InstallingStep`, `ConnectionTestStep`, `CloudInstallingStep`, and `AwsManualInstallingStep`. `InstallingStep` is the override gate; `CloudInstallingStep` is the default shared installing body.
 
 Most steps are plain common JSX. For example:
@@ -103,14 +131,14 @@ Do not split every provider into a separate installing step by default. That dup
 
 ```tsx
 const CloudInstallingStep = ({ project }) => (
-  <TargetSourcePageDataProvider targetSourceId={project.targetSourceId}>
+  <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
     <ProjectPageMeta project={project} />
     <ProcessStatusCard project={project} />
     <GuideCard project={project} />
     <InstallationStatusSlot project={project} />
     <ConfirmedResourcesSlot project={project} />
     <RejectionAlert project={project} />
-  </TargetSourcePageDataProvider>
+  </ConfirmedIntegrationDataProvider>
 );
 
 const InstallationStatusSlot = ({ project }) => {
@@ -123,6 +151,8 @@ const InstallationStatusSlot = ({ project }) => {
 ```
 
 This is the balance the reviewer recommended: common order is readable in one step component, while provider-specific content lives in a narrow slot. It fixes the Azure `INSTALLING` ordering problem because `InstallationStatusSlot` appears before `ConfirmedResourcesSlot` in `CloudInstallingStep`.
+
+Slots must stay selection-only. `InstallationStatusSlot` may choose `AwsInstallationStatus`, `AzureInstallationStatus`, or `GcpInstallationStatus`; `ConfirmedResourcesSlot` may read `useConfirmedIntegration` and hand the resulting state to a confirmed-resource presentation component. Permission logic, CTA branching, provider-specific status calculations, and business-state effects belong in the provider-specific component the slot dispatches to, not in the slot.
 
 Provider-specific step overrides are reserved for cases where the order itself changes. For example:
 
@@ -141,7 +171,7 @@ AWS without `awsInstallationMode` remains a pre-process case, as it is today in 
 
 The key data problem remains confirmed-integration data. Today, `ConfirmedIntegrationSection` owns the fetch and passes `confirmed[]` to its child actions. If `InstallationStatusSlot`, `ConfirmedResourcesSlot`, and later connection-test content become siblings, the data must be shared without pushing `ConfirmedResource` back into provider pages.
 
-`TargetSourcePageDataProvider` is page-scoped but mounted only by step components that need confirmed data, starting with `CloudInstallingStep`. It fetches on mount of the wrapping step component. It also refetches when `targetSourceId` changes.
+`ConfirmedIntegrationDataProvider` is confirmed-data-scoped and mounted only by step components that need confirmed data, starting with `CloudInstallingStep`. It fetches on mount of the wrapping step component. It also refetches when `targetSourceId` changes. Its narrow scope is intentional: non-confirmed data such as candidate resources, approved resources, guides, permissions, or Terraform status must not be added to this provider.
 
 The provider uses the existing cancellable API shape: `getConfirmedIntegration(targetSourceId, { signal })` accepts `AbortSignal` at `app/lib/api/index.ts:335-344`. Its lifecycle requirements are:
 
@@ -156,8 +186,8 @@ Callback identity must not re-trigger the fetch effect. If the provider accepts 
 The provider exposes a typed hook:
 
 ```tsx
-export const useConfirmed = (): AsyncState<readonly ConfirmedResource[]> => {
-  // Read from TargetSourcePageDataProvider context.
+export const useConfirmedIntegration = (): AsyncState<readonly ConfirmedResource[]> => {
+  // Read from ConfirmedIntegrationDataProvider context.
 };
 ```
 
@@ -175,6 +205,28 @@ The C1 guard is preserved by the layering:
 ### Test Strategy
 
 The old registry-exhaustiveness test is removed. The new tests assert render order per step component with Vitest and Testing Library.
+
+The R1 architecture guard is an automatic source-text test. It should live next to the new layout component, for example at `app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.architecture.test.ts`, and it reads `app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.tsx`:
+
+```tsx
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+describe('CloudTargetSourceLayout architecture', () => {
+  it('does not branch on provider-axis properties', () => {
+    const sourcePath = join(
+      process.cwd(),
+      'app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.tsx',
+    );
+    const source = readFileSync(sourcePath, 'utf8');
+
+    expect(source).not.toContain('cloudProvider');
+    expect(source).not.toContain('awsInstallationMode');
+  });
+});
+```
 
 Preferred assertions use `getAllByRole('region')` when the rendered cards already have accessible regions. If the card components do not expose stable region names yet, tests may use `data-testid` on the step-level wrappers. The test should mock child cards enough to isolate layout order; it should not depend on real API calls.
 
@@ -195,6 +247,12 @@ it('renders Azure installation status before confirmed resources', () => {
 
 The proof-of-concept test should cover `/integration/target-sources/1003` behavior because that seed is Azure `INSTALLING` in `lib/mock-data.ts:170-182`.
 
+PR review checklist guidance:
+
+- R2: Slot files only choose or dispatch. They do not fetch data, own permission checks, branch CTAs, or hold business state in `useState` / `useEffect`.
+- R3: Provider-specific step components change card order. If an override step preserves the default card sequence and swaps only card contents, reject it and ask for a slot.
+- R4: `ConfirmedIntegrationDataProvider` exposes confirmed-integration data only. Non-confirmed shared data requires a separate provider and an ADR amendment.
+
 ### Edge Cases
 
 `RejectionAlert` remains explicit in every step component and continues to return `null` when the project is not rejected, as it does at `app/integration/target-sources/[targetSourceId]/_components/common/RejectionAlert.tsx:8-10`. Keeping it in every step pins its relative position even though rejection is orthogonal to process step.
@@ -205,7 +263,7 @@ IDC and SDU are not active `CloudProvider` values in the current TypeScript cont
 
 ## Migration Plan
 
-1. **Phase 1: Azure `INSTALLING` proof of concept.** Add `CloudTargetSourceLayout` and the seven step components alongside existing code. Route only Azure `INSTALLING` through the new path as the visible-value PR. This fixes `/integration/target-sources/1003` by rendering installation status before confirmed resources. Effort: medium.
+1. **Phase 1: Azure `INSTALLING` proof of concept.** Add `CloudTargetSourceLayout` and the seven step components alongside existing code. Route only Azure `INSTALLING` through the new path as the visible-value PR. Add the R1 source-text enforcement test in the same phase so provider-axis branches cannot enter `CloudTargetSourceLayout`. This fixes `/integration/target-sources/1003` by rendering installation status before confirmed resources. Effort: medium.
 
 2. **Phase 2: Remaining confirmed-data steps.** Migrate AWS/GCP `INSTALLING` and steps 5-7 into their step components. At the end of this phase, step 4 and connection-test flows no longer depend on `ConfirmedIntegrationSection` owning action placement. Effort: medium.
 
@@ -235,6 +293,7 @@ Every phase is independently testable with `npm run test:run`. Phases that chang
 - If every provider starts diverging in multiple steps, step components may accumulate duplication. That is the point where a registry can be reconsidered.
 - During migration, old and new render paths coexist. That temporarily increases the chance that a fix lands in only one path.
 - `ProcessStatusCard` cleanup may require small visual adjustments because step-specific content currently lives inside its card chrome.
+- R2 slot purity and R3 override-step eligibility are review-time rules. They are deliberately documented in the PR checklist path, but there is residual risk because automatic enforcement would require semantic analysis that is not worth introducing yet.
 
 ### What This Does Not Solve
 
@@ -284,4 +343,4 @@ The BFF could return a layout descriptor with card IDs. This is unnecessary for 
 ## Open Questions
 
 1. Should the first baseline be a DOM-order test using mocked slots, or should the project add browser screenshot tooling for the target-source page?
-2. Should `CloudInstallingStep` be the default and provider-specific overrides be additive, or should each provider have its own `InstallingStep` with `CloudInstallingStep` as a shared body?
+2. Should R2 and R3 eventually receive partial lint support after the step/slot file structure stabilizes, or is code review sufficient?
