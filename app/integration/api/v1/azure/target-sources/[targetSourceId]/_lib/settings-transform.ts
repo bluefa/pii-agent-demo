@@ -56,7 +56,7 @@ export interface AzureScanAppResponse {
   last_verified_at?: string;
 }
 
-export const mapIssue222AzureScanApp = (legacy: LegacyAzureSettings): AzureScanAppResponse => {
+export const mapBffAzureScanApp = (legacy: LegacyAzureSettings): AzureScanAppResponse => {
   const scanApp = getLegacyScanApp(legacy);
   const normalized = mapScanApp(legacy);
   const failReason = scanApp?.failReason ?? scanApp?.fail_reason;
