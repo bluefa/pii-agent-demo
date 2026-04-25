@@ -1,6 +1,6 @@
 import { getStore } from '@/lib/mock-store';
 import { getCurrentStep } from '@/lib/process';
-import type { Project, Resource, ConnectionErrorType } from '@/lib/types';
+import type { Project, MockResource, ConnectionErrorType } from '@/lib/types';
 
 // ===== Types =====
 
@@ -221,7 +221,7 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
   return updated;
 };
 
-const simulateResourceResult = (resource: Resource): TestConnectionResourceResult => {
+const simulateResourceResult = (resource: MockResource): TestConnectionResourceResult => {
   const rand = Math.random();
 
   // 80% 성공

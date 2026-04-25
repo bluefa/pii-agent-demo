@@ -4,7 +4,7 @@ import { setCurrentUser } from '@/lib/mock-data';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 import { ProcessStatus } from '@/lib/types';
-import type { Project, Resource } from '@/lib/types';
+import type { Project, MockResource } from '@/lib/types';
 
 interface MockResourceCatalogResponse {
   resources: Array<{
@@ -36,7 +36,7 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
-const createTestResource = (id: string, overrides: Partial<Resource> = {}): Resource => ({
+const createTestResource = (id: string, overrides: Partial<MockResource> = {}): MockResource => ({
   id,
   type: 'AZURE_POSTGRESQL',
   resourceId: `resource-${id}`,
@@ -81,7 +81,7 @@ const createTestProject = (overrides: Partial<Project> = {}): Project => ({
   terraformState: { bdcTf: 'PENDING' },
   createdAt: '2026-03-01T00:00:00Z',
   updatedAt: '2026-03-01T00:00:00Z',
-  name: 'Azure Resource Catalog Test',
+  name: 'Azure MockResource Catalog Test',
   description: 'Expanded /resources contract test',
   isRejected: false,
   ...overrides,

@@ -1,5 +1,5 @@
 import { getProjectByTargetSourceId } from '@/lib/mock-data';
-import type { Project, Resource } from '@/lib/types';
+import type { Project, MockResource } from '@/lib/types';
 
 // ===== Step 상태 타입 (내부용) =====
 
@@ -49,7 +49,7 @@ const isGcpProject = (project: Project): boolean =>
 const hashString = (str: string): number =>
   str.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-const determineResourceSubType = (resource: Resource): ResourceSubType | null => {
+const determineResourceSubType = (resource: MockResource): ResourceSubType | null => {
   if (resource.type === 'BIGQUERY') return null;
   const hash = hashString(resource.resourceId);
   const subTypes: ResourceSubType[] = ['PRIVATE_IP_MODE', 'BDC_PRIVATE_HOST_MODE', 'PSC_MODE'];
@@ -90,7 +90,7 @@ const buildStep = (active: boolean, resourceId: string, offset: number, failGuid
   return { status, guide: status === 'FAIL' ? failGuide : null };
 };
 
-const buildInstallResource = (resource: Resource): GcpInstallResource => {
+const buildInstallResource = (resource: MockResource): GcpInstallResource => {
   const resourceSubType = determineResourceSubType(resource);
   const key = `${resource.type}:${resourceSubType ?? ''}`;
   const [subnetActive, svcActive, bdcActive] = STEP_MATRIX[key] ?? [false, false, false];

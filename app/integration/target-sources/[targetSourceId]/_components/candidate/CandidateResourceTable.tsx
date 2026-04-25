@@ -6,8 +6,8 @@ import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
-import { VmDatabaseConfigPanel } from '@/app/components/features/resource-table';
-import { VnetIntegrationGuideModal } from '@/app/components/features/resource-table/VnetIntegrationGuideModal';
+import { VmDatabaseConfigPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
+import { VnetIntegrationGuideModal } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
 import { getResourceDisplayName } from '@/lib/resource';
 import {

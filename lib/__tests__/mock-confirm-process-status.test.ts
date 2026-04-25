@@ -9,7 +9,7 @@ import { mockConfirm, _resetApprovedIntegrationStore, _fastForwardApproval, _set
 import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
-import type { Project, ProjectStatus, Resource } from '@/lib/types';
+import type { Project, ProjectStatus, MockResource } from '@/lib/types';
 import type { LegacyAwsInstallationStatus } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 
@@ -23,7 +23,7 @@ const TEST_PROJECT_ID = 'test-confirm-proj';
 const TEST_TARGET_SOURCE_ID = 9999;
 const TEST_TARGET_SOURCE_ID_STR = String(TEST_TARGET_SOURCE_ID);
 
-const createTestResource = (id: string, overrides?: Partial<Resource>): Resource => ({
+const createTestResource = (id: string, overrides?: Partial<MockResource>): MockResource => ({
   id,
   type: 'RDS',
   resourceId: `rds-${id}`,

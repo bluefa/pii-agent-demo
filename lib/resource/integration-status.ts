@@ -1,10 +1,10 @@
-import { ProcessStatus, type Resource } from '@/lib/types';
+import { ProcessStatus, type MockResource } from '@/lib/types';
 import { statusColors, textColors } from '@/lib/theme';
 
 export type ResourceIntegrationStatus = '연동 완료' | '연동 진행중' | '—';
 
 export const getResourceIntegrationStatus = (
-  resource: Resource,
+  resource: MockResource,
   processStatus: ProcessStatus,
 ): ResourceIntegrationStatus => {
   if (!resource.isSelected) return '—';

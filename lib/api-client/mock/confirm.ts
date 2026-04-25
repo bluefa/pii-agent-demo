@@ -11,7 +11,7 @@ import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import { normalizeIssue222ApprovalRequestBody } from '@/lib/issue-222-approval';
 import type {
-  Resource,
+  MockResource,
   Project,
   ProjectStatus,
   ConnectionStatus,
@@ -122,7 +122,7 @@ const computeLastApprovalResult = (project: Project): LastApprovalResult => {
   return 'NONE';
 };
 
-function buildMetadata(resource: Resource, project: Project): ConfirmResourceMetadata {
+function buildMetadata(resource: MockResource, project: Project): ConfirmResourceMetadata {
   const base: ConfirmResourceMetadata = {
     provider: project.cloudProvider,
     resourceType: resource.type,
@@ -150,7 +150,7 @@ function buildMetadata(resource: Resource, project: Project): ConfirmResourceMet
   }
 }
 
-function toResourceCatalogItem(resource: Resource, project: Project): ResourceCatalogItem {
+function toResourceCatalogItem(resource: MockResource, project: Project): ResourceCatalogItem {
   return {
     id: resource.resourceId,
     resource_id: resource.resourceId,
@@ -167,7 +167,7 @@ function toResourceCatalogItem(resource: Resource, project: Project): ResourceCa
   };
 }
 
-function toResourceSnapshot(r: Resource) {
+function toResourceSnapshot(r: MockResource) {
   let endpoint_config = null;
   if (r.vmDatabaseConfig) {
     endpoint_config = {
@@ -191,7 +191,7 @@ function toResourceSnapshot(r: Resource) {
   };
 }
 
-function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegration['resource_infos'][number] {
+function toConfirmedIntegrationResourceInfo(r: MockResource): BffConfirmedIntegration['resource_infos'][number] {
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
@@ -214,7 +214,7 @@ function toConfirmedIntegrationResourceInfo(r: Resource): BffConfirmedIntegratio
  */
 function deriveConfirmedResourceInfos(
   approvedIntegration: BffApprovedIntegration,
-  resources: Resource[],
+  resources: MockResource[],
 ): BffConfirmedIntegration['resource_infos'] | null {
   const approvedResourceIds = new Set(
     approvedIntegration.resource_infos
@@ -377,7 +377,7 @@ export const mockConfirm = {
     const now = new Date().toISOString();
     const excludedBy = { id: user.id, name: user.name };
 
-    const updatedResources: Resource[] = project.resources.map((r) => {
+    const updatedResources: MockResource[] = project.resources.map((r) => {
       const isSelected = selectedSet.has(r.id);
 
       let exclusion: ResourceExclusion | undefined = r.exclusion;

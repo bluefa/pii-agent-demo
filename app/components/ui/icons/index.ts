@@ -11,6 +11,7 @@ export { FilterIcon } from './FilterIcon';
 export { GuideIcon } from './GuideIcon';
 export { OpenExternalIcon } from './OpenExternalIcon';
 export { PlayIcon } from './PlayIcon';
+export { PlusIcon } from './PlusIcon';
 export { SearchIcon } from './SearchIcon';
 export { StatusErrorIcon } from './StatusErrorIcon';
 export { StatusInfoIcon } from './StatusInfoIcon';

@@ -333,10 +333,14 @@ export type ApprovedIntegrationResourceItem = ResourceSnapshot;
 export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 
 export const getConfirmedIntegration = async (
-  targetSourceId: number
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
 ): Promise<ConfirmedIntegrationResponse> =>
   extractConfirmedIntegration(
-    await fetchInfraJson<ConfirmedIntegrationResponsePayload>(`${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`),
+    await fetchInfraJson<ConfirmedIntegrationResponsePayload>(
+      `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`,
+      options?.signal ? { signal: options.signal } : undefined,
+    ),
   );
 
 export interface ApprovedIntegrationResponse {
@@ -351,10 +355,14 @@ export interface ApprovedIntegrationResponse {
 }
 
 export const getApprovedIntegration = async (
-  targetSourceId: number
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
 ): Promise<ApprovedIntegrationResponse> => {
   const payload = normalizeIssue222ApprovedIntegration(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approved-integration`),
+    await fetchInfraJson<unknown>(
+      `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
+      options?.signal ? { signal: options.signal } : undefined,
+    ),
   );
 
   return {

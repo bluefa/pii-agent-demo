@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateAutoApproval, AutoApprovalContext } from '@/lib/policies';
-import { Resource } from '@/lib/types';
+import { MockResource } from '@/lib/types';
 
-const createResource = (id: string, hasExclusion: boolean = false): Resource => ({
+const createResource = (id: string, hasExclusion: boolean = false): MockResource => ({
   id,
   type: 'RDS',
   resourceId: `rds-${id}`,

@@ -5,7 +5,7 @@ import {
   resetGcpStore,
 } from '@/lib/mock-gcp';
 import { resetStore, getStore } from '@/lib/mock-store';
-import type { Resource } from '@/lib/types';
+import type { MockResource } from '@/lib/types';
 
 // ===== Fixtures =====
 
@@ -22,14 +22,14 @@ const CLOUD_SQL_RESOURCE_ID = 'cloud-sql-test-01';
 // Hash-chosen 고정: BIGQUERY → subType null, subnet SKIP, svcTf/bdcTf COMPLETED.
 const BIGQUERY_RESOURCE_ID = 'bq-dataset-1';
 
-const injectGcpResources = (resources: Resource[]): void => {
+const injectGcpResources = (resources: MockResource[]): void => {
   const store = getStore();
   const project = store.projects.find((p) => p.targetSourceId === GCP_TARGET_SOURCE_ID);
   if (!project) throw new Error(`GCP project (targetSourceId=${GCP_TARGET_SOURCE_ID}) not found in store`);
   project.resources = resources;
 };
 
-const cloudSqlResource = (): Resource => ({
+const cloudSqlResource = (): MockResource => ({
   id: 'gcp-res-cloud-sql',
   type: 'CLOUD_SQL',
   resourceId: CLOUD_SQL_RESOURCE_ID,
@@ -39,7 +39,7 @@ const cloudSqlResource = (): Resource => ({
   integrationCategory: 'TARGET',
 });
 
-const bigqueryResource = (): Resource => ({
+const bigqueryResource = (): MockResource => ({
   id: 'gcp-res-bigquery',
   type: 'BIGQUERY',
   resourceId: BIGQUERY_RESOURCE_ID,

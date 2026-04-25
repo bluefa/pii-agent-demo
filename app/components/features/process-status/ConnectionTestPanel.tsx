@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Resource, SecretKey, needsCredential } from '@/lib/types';
+import { SecretKey, needsCredential } from '@/lib/types';
+import type { ConfirmedResource } from '@/lib/types/resources';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { getSecrets } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
@@ -26,14 +27,14 @@ const TestConnectionHistoryModal = dynamic(
 
 interface ConnectionTestPanelProps {
   targetSourceId: number;
-  selectedResources: Resource[];
+  confirmed: readonly ConfirmedResource[];
   /** Credential 변경 후 부모가 프로젝트를 재조회하도록 알림 */
   onResourceUpdate?: () => void;
 }
 
 export const ConnectionTestPanel = ({
   targetSourceId,
-  selectedResources,
+  confirmed,
   onResourceUpdate,
 }: ConnectionTestPanelProps) => {
   const {
@@ -65,7 +66,7 @@ export const ConnectionTestPanel = ({
   const [credModalOpen, setCredModalOpen] = useState(false);
   const [credReviewMode, setCredReviewMode] = useState(false);
   const [credentials, setCredentials] = useState<SecretKey[]>([]);
-  const [missingCredResources, setMissingCredResources] = useState<Resource[]>([]);
+  const [missingCredResources, setMissingCredResources] = useState<ConfirmedResource[]>([]);
 
   // 모달 상태
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -74,12 +75,14 @@ export const ConnectionTestPanel = ({
   const handleTriggerClick = useCallback(async () => {
     // 마지막 테스트 실패 시: credential 확인 모달 (review mode)
     if (latestJob?.status === 'FAIL') {
-      const credResources = selectedResources.filter((r) => needsCredential(r.databaseType));
+      const credResources = confirmed.filter(
+        (r) => r.databaseType !== null && needsCredential(r.databaseType),
+      );
       if (credResources.length > 0) {
         try {
           const creds = await getSecrets(targetSourceId);
           setCredentials(creds);
-          setMissingCredResources(credResources);
+          setMissingCredResources([...credResources]);
           setCredReviewMode(true);
           setCredModalOpen(true);
         } catch {
@@ -90,15 +93,15 @@ export const ConnectionTestPanel = ({
     }
 
     // 미설정 credential 확인
-    const missing = selectedResources.filter(
-      (r) => needsCredential(r.databaseType) && !r.selectedCredentialId,
+    const missing = confirmed.filter(
+      (r) => r.databaseType !== null && needsCredential(r.databaseType) && !r.credentialId,
     );
 
     if (missing.length > 0) {
       try {
         const creds = await getSecrets(targetSourceId);
         setCredentials(creds);
-        setMissingCredResources(missing);
+        setMissingCredResources([...missing]);
         setCredReviewMode(false);
         setCredModalOpen(true);
       } catch {
@@ -108,7 +111,7 @@ export const ConnectionTestPanel = ({
     }
 
     trigger();
-  }, [selectedResources, targetSourceId, trigger, latestJob]);
+  }, [confirmed, targetSourceId, trigger, latestJob]);
 
   const handleCredentialComplete = useCallback(() => {
     setCredModalOpen(false);
@@ -169,7 +172,7 @@ export const ConnectionTestPanel = ({
         )}
 
         {isPending && latestJob && (
-          <ProgressBar job={latestJob} totalResources={selectedResources.length} />
+          <ProgressBar job={latestJob} totalResources={confirmed.length} />
         )}
 
         {isCompleted && latestJob && (

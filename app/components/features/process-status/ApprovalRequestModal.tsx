@@ -5,7 +5,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
-import type { Resource, IntegrationCategory } from '@/lib/types';
+import type { IntegrationCategory, VmDatabaseType } from '@/lib/types';
 
 // ===== Types =====
 
@@ -13,11 +13,20 @@ export interface ApprovalRequestFormData {
   exclusion_reason_default?: string;
 }
 
+export interface ApprovalRequestResource {
+  id: string;
+  resourceId: string;
+  type: string;
+  isSelected: boolean;
+  integrationCategory: IntegrationCategory;
+  endpoint?: { databaseType: VmDatabaseType; host?: string; port: number };
+}
+
 interface ApprovalRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: ApprovalRequestFormData) => void;
-  resources: Resource[];
+  resources: ApprovalRequestResource[];
   loading: boolean;
   error?: string | null;
 }
@@ -44,9 +53,9 @@ const isReasonRequired = (category: IntegrationCategory): boolean =>
   category === 'TARGET';
 
 
-const getEndpointSummary = (resource: Resource): string => {
-  if (resource.vmDatabaseConfig) {
-    const { host, port, databaseType } = resource.vmDatabaseConfig;
+const getEndpointSummary = (resource: ApprovalRequestResource): string => {
+  if (resource.endpoint) {
+    const { host, port, databaseType } = resource.endpoint;
     return `${databaseType} ${host ?? ''}:${port}`;
   }
   return '-';

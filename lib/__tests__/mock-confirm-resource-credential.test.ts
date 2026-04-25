@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { mockConfirm, _resetApprovedIntegrationStore, _setApprovedIntegration } from '@/lib/api-client/mock/confirm';
 import { setCurrentUser } from '@/lib/mock-data';
 import { getStore } from '@/lib/mock-store';
-import { ProcessStatus, type Project, type Resource } from '@/lib/types';
+import { ProcessStatus, type Project, type MockResource } from '@/lib/types';
 import { createInitialProjectStatus } from '@/lib/process/calculator';
 
 const TEST_PROJECT_ID = 'test-confirm-credential-sync';
 const TEST_TARGET_SOURCE_ID = 9999;
 const TEST_TARGET_SOURCE_ID_STR = String(TEST_TARGET_SOURCE_ID);
 
-const createTestResource = (overrides?: Partial<Resource>): Resource => ({
+const createTestResource = (overrides?: Partial<MockResource>): MockResource => ({
   id: 'res-1',
   type: 'AZURE_MSSQL',
   resourceId: 'azure-sql-1',

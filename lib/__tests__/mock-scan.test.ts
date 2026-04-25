@@ -349,7 +349,7 @@ describe('mock-scan', () => {
     });
   });
 
-  describe('Provider-specific Resource Generation', () => {
+  describe('Provider-specific MockResource Generation', () => {
     const AWS_TYPES = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
     const AZURE_TYPES = ['AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL', 'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM'];
     const GCP_TYPES = ['CLOUD_SQL', 'BIGQUERY'];
