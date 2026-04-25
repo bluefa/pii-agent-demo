@@ -4,7 +4,7 @@ ADR commit: `main@f1a23b4` (PR #390 merge — ADR-012 hardened with R1-R4). The 
 
 Source ADR: [`docs/adr/012-target-source-page-layout.md`](../../adr/012-target-source-page-layout.md)
 
-This pack drives the incremental migration from the current four-layer step-branching sprawl to the step-component + slot architecture decided in ADR-012. The full migration runs in five phases. Each phase ships as one PR via `/wave-task` and keeps `tsc` / `lint` / `test` / `build` green at every commit.
+This pack drives the incremental migration from the current four-layer step-branching sprawl to the step-component + slot architecture decided in ADR-012. The full migration runs in five specs. Each spec ships as one PR via `/wave-task` and keeps `tsc` / `lint` / `test` / `build` green at every commit.
 
 ## Why incremental
 
@@ -17,18 +17,70 @@ Phases must run sequentially. Each phase narrows the surface owned by the legacy
 | Key | Spec | Goal | Effort |
 |---|---|---|---|
 | `adr012-phase1` | `adr012-phase1-azure-installing.md` | Add `CloudTargetSourceLayout` and the components for Azure `INSTALLING`. Route only Azure `INSTALLING` through the new path. Land R1 source-text test. Fixes `/integration/target-sources/1003`. | Medium |
-| `adr012-phase2` | (TBD) | Migrate AWS/GCP `INSTALLING` and steps 5-7 (`WAITING_CONNECTION_TEST`, `CONNECTION_VERIFIED`, `INSTALLATION_COMPLETE`) into their step components. Stop using `ConfirmedActions` for new paths. | Medium |
-| `adr012-phase3` | (TBD) | Move `ApprovalWaitingCard` and `ApprovalApplyingBanner` out of `ProcessStatusCard` into `WaitingApprovalStep` and `ApplyingApprovedStep`. | Medium |
-| `adr012-phase4` | (TBD) | Migrate steps 1-3 (candidate / approved). Delete `ResourceSection.tsx` after no render path imports it. | Medium |
-| `adr012-phase5` | (TBD) | Cleanup: remove dead branches in `ProcessStatusCard` and `ConfirmedIntegrationSection`. Add lint/grep rule preventing `*ProjectPage.tsx` from importing `@/lib/types/resources`. | Low |
+| `adr012-phase2` | `adr012-phase2-confirmed-steps.md` | Migrate AWS/GCP `INSTALLING` and steps 5-7 (`WAITING_CONNECTION_TEST`, `CONNECTION_VERIFIED`, `INSTALLATION_COMPLETE`) into their step components. Stop using `ConfirmedActions` for new paths. | Medium-large |
+| `adr012-phase3` | `adr012-phase3-approval-applying.md` | Move `ApprovalWaitingCard` and `ApprovalApplyingBanner` out of `ProcessStatusCard` into `WaitingApprovalStep` and `ApplyingApprovedStep`. | Medium |
+| `adr012-phase4` | `adr012-phase4-candidate-approved.md` | Migrate the remaining candidate / approved paths, route all cloud process statuses through `CloudTargetSourceLayout`, and delete `ResourceSection.tsx`. | Medium-large |
+| `adr012-phase5` | `adr012-phase5-cleanup-boundary-lock.md` | Remove confirmed-action legacy residue, add boundary-lock tests, and document the final ADR-012 ownership model. | Medium |
 
-Specs for phases 2-5 are written when phase 1 lands. Drafting them upfront would freeze details that depend on what phase 1 actually exposes (slot interfaces, data provider lifecycle in practice).
+Phase 2-5 specs are intentionally explicit even though later implementation details may shift after earlier PRs land. `/wave-task` implementers must re-read the current `origin/main` shape at Phase 0 and preserve the intent if file names or signatures have drifted.
 
 ## Invocation
+
+Run each command from a fresh Claude Code session with Opus 4.7. Do not start the next command until the previous `/wave-task` PR is merged into `main`; every command rebases on the current `origin/main`.
+
+### Session 1
 
 ```bash
 /wave-task docs/reports/sit-migration-prompts/adr012-phase1-azure-installing.md
 ```
+
+After the Phase 1 PR is merged:
+
+```bash
+/wave-task docs/reports/sit-migration-prompts/adr012-phase2-confirmed-steps.md
+```
+
+### Session 2
+
+```bash
+/wave-task docs/reports/sit-migration-prompts/adr012-phase3-approval-applying.md
+```
+
+After the Phase 3 PR is merged:
+
+```bash
+/wave-task docs/reports/sit-migration-prompts/adr012-phase4-candidate-approved.md
+```
+
+### Session 3
+
+```bash
+/wave-task docs/reports/sit-migration-prompts/adr012-phase5-cleanup-boundary-lock.md
+```
+
+## Direct Prompt List
+
+Use this list when launching each wave individually:
+
+```bash
+/wave-task docs/reports/sit-migration-prompts/adr012-phase1-azure-installing.md
+/wave-task docs/reports/sit-migration-prompts/adr012-phase2-confirmed-steps.md
+/wave-task docs/reports/sit-migration-prompts/adr012-phase3-approval-applying.md
+/wave-task docs/reports/sit-migration-prompts/adr012-phase4-candidate-approved.md
+/wave-task docs/reports/sit-migration-prompts/adr012-phase5-cleanup-boundary-lock.md
+```
+
+## Model Guidance
+
+All specs are suitable for Opus 4.7. Phase 2 and Phase 4 intentionally contain larger cross-file migrations so the implementer can keep the layout contracts, routing changes, and tests in one mental model.
+
+| Spec | Recommended model | Reason |
+|---|---|---|
+| Phase 1 | Opus 4.7 | First architectural slice, data provider lifecycle, order tests. |
+| Phase 2 | Opus 4.7 | Three providers plus confirmed-data step migration and routing tests. |
+| Phase 3 | Opus 4.7 | UI ownership extraction from `ProcessStatusCard` with polling behavior preserved. |
+| Phase 4 | Opus 4.7 | Final provider-page routing cutover and `ResourceSection` removal. |
+| Phase 5 | Opus 4.7 | Cleanup plus architecture guards that must not overfit to transitional code. |
 
 ## Global Rules (apply to every phase)
 
@@ -39,6 +91,17 @@ These derive from ADR-012's Architectural Rules section. Every phase PR must res
 - **R3** — Provider-specific override step components (`AwsManualInstallingStep`, etc.) are reserved for card-order changes. Card-content differences use slots inside the default step.
 - **R4** — `ConfirmedIntegrationDataProvider` exposes confirmed-integration data only. Adding `candidate`, `approved`, guide, permission, or terraform-status fields is forbidden. Future shared data needs a parallel provider and an ADR amendment.
 - **C1 (preserved from #371)** — provider `ProjectPage` components must not import `@/lib/types/resources` (`CandidateResource`, `ApprovedResource`, `ConfirmedResource`). Phase 5 adds an automated lint/grep rule.
+
+## Cross-Phase Ownership Target
+
+By the end of Phase 5:
+
+- Provider pages (`AwsProjectPage`, `AzureProjectPage`, `GcpProjectPage`) own provider identity metadata and provider-specific pre-process guards only.
+- `CloudTargetSourceLayout` owns the `ProcessStatus` switch and remains provider-axis agnostic.
+- Step components own card order as JSX.
+- Slots choose provider-specific card bodies or bridge a single data provider to a presentation component.
+- `ProcessStatusCard` owns only status progress, polling, and history tab chrome; it no longer owns step-specific cards.
+- Confirmed, candidate, and approved resource sections own their own data and UI below the step layer.
 
 ## What Each Phase Does Not Solve
 
