@@ -29,6 +29,7 @@ import { mockAws } from '@/lib/api-client/mock/aws';
 import { mockAzure } from '@/lib/api-client/mock/azure';
 import { mockGcp } from '@/lib/api-client/mock/gcp';
 import { mockConfirm } from '@/lib/api-client/mock/confirm';
+import { mockGuides } from '@/lib/api-client/mock/guides';
 import type {
   AwsCheckInstallationResult,
   AwsInstallationStatusResponse,
@@ -227,5 +228,10 @@ export const mockBff: BffClient = {
 
     getTestConnectionLatest: async (id) =>
       unwrap<unknown>(await mockConfirm.getTestConnectionLatest(String(id))),
+  },
+
+  guides: {
+    get: async (name) => unwrap(await mockGuides.get(name)),
+    put: async (name, body) => unwrap(await mockGuides.put(name, body)),
   },
 };
