@@ -11,10 +11,11 @@ export const POST = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  // DB: check (새로고침), VM: check (새로고침)
+  // DB + VM check (refresh both). Composite route merges via buildV1Response.
   const dbStatus = await bff.azure.checkInstallation(parsed.value);
 
-  // VM 상태 새로고침 — BffError만 무시 (DB 결과만 반환). 비BffError는 propagate.
+  // VM check is best-effort: swallow BffError (return DB-only result),
+  // propagate non-BffError so unexpected failures still surface as 500.
   let vmStatus: LegacyVmInstallationStatus | null = null;
   try {
     vmStatus = await bff.azure.vmCheckInstallation(parsed.value);

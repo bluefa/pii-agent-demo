@@ -56,8 +56,9 @@ export const GET = withV1(async (_request, { requestId, params }) => {
     status: 'UNVERIFIED',
   };
 
-  // 설치 상태에서 executionRoleArn을 읽어 settings 응답에 보강한다.
-  // 설치 조회 실패 시 기본값(UNVERIFIED) 유지 — 설치는 settings의 부수 정보.
+  // Augment settings with executionRoleArn from installation status.
+  // Installation lookup failure falls back to UNVERIFIED — installation
+  // is auxiliary info, not a hard dependency for settings.
   try {
     const installation = await bff.aws.getInstallationStatus(parsed.value);
     if (installation.tfExecutionRoleArn) {
