@@ -142,6 +142,19 @@ wave-task done: PR #<number> <state> — <url>
 - Derive via `gh pr view <number> --json number,state,url -q '"#\(.number) \(.state) — \(.url)"'`.
 - Print this line even when stopping early (review cap hit, user halt, error) — always include the PR number.
 
+## Subagent Usage (must follow)
+
+Default is main-session-only, but the points below MUST fan out to subagents (user preference: prefer parallel work over sequential).
+
+| Phase | Fan-out target | Constraint |
+|---|---|---|
+| 2 (Implement) | Spec-declared independent layers (e.g. types-only, an unrelated helper, an isolated UI component) | ⛔ Never split a single swagger endpoint (mock + route + FE types) across subagents — see `feature-development` contract guard |
+| 3 (1st pass only) | `sit-recurring-checks` / `simplify` / `vercel-react-best-practices` run concurrently as detection-only | First pass only. After any fix, the spec's "fix → rerun previous step" rule forces sequential reruns |
+| 4 (Verify) | `tsc --noEmit` and `npm run lint` as parallel Bash calls in one message | None |
+| 7 (Auto-Fix) | Findings grouped by independent area (theme tokens / orphan imports / a11y / type fixes) | ⛔ Same file or same swagger endpoint must not be edited by two subagents concurrently |
+
+When fanning out, brief each subagent with: spec path, scope boundary, the contract files to re-read (swagger path), and the verification command to run before returning. Main session merges results, resolves conflicts, and runs Phase 4 after.
+
 ## Prohibited
 
 - Skipping Phase 0 (no implementation without a located spec).
@@ -149,6 +162,7 @@ wave-task done: PR #<number> <state> — <url>
 - Entering Phase 8 with unresolved BLOCKING findings.
 - Refactoring outside spec scope inside the auto-fix loop.
 - Auto-fixing P3 findings just to clear the comment.
+- Splitting a single swagger endpoint's contract implementation across subagents (Phase 2).
 
 ## Origin of this pipeline
 
