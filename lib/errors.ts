@@ -83,6 +83,15 @@ export class AppError extends Error {
 }
 
 /**
+ * AbortController로 취소된 요청 에러는 "성공적인 취소"이므로 silent하게 무시한다.
+ * useAbortableEffect 등 cancel-on-deps-change 패턴의 .catch() 핸들러로 사용.
+ */
+export const ignoreAborted = (error: unknown): void => {
+  if (error instanceof AppError && error.code === 'ABORTED') return;
+  throw error;
+};
+
+/**
  * confirmed-integration 스냅샷 부재 여부.
  * 빈 스냅샷이 404 로 매핑되는 신규 정책상 empty 폴백의 공통 조건.
  */

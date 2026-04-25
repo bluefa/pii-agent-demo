@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getApprovalRequestLatest } from '@/app/lib/api';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
+import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
@@ -17,17 +18,14 @@ export const ApprovalApplyingBanner = ({
   const detailModal = useModal();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
-  useEffect(() => {
+  useAbortableEffect((signal) => {
     if (!targetSourceId) return;
-    let cancelled = false;
-    getApprovalRequestLatest(targetSourceId)
+    void getApprovalRequestLatest(targetSourceId, { signal })
       .then((response) => {
-        if (!cancelled) {
-          setLatestResponse(response);
-        }
+        if (signal.aborted) return;
+        setLatestResponse(response);
       })
       .catch(() => {});
-    return () => { cancelled = true; };
   }, [targetSourceId]);
 
   return (
