@@ -39,7 +39,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
     }
   } catch (error) {
     if (!(error instanceof BffError)) throw error;
-    // best-effort: preserve "skip on upstream failure" semantics — fall back to PENDING
+    // best-effort: on upstream failure, fall back to PENDING
   }
 
   const finalPayload = normalizeIssue222ApprovalRequestSummary(payload, {
