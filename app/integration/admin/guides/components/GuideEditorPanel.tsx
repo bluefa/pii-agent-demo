@@ -18,8 +18,10 @@
  * navigation. The panel itself is stateless apart from the active
  * language tab (a UI concern only).
  *
- * Tiptap is loaded via `dynamic(..., { ssr: false })` so the editor
- * bundle stays out of every page that imports the admin shell.
+ * The route mounts this panel via `dynamic({ ssr: false })` from
+ * `page.tsx`, so the Tiptap bundle (StarterKit + Link extension) loads
+ * only once a step is selected. Within this file the toolbar is a
+ * regular import — both modules already share the same lazy chunk.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,6 +30,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import type { Editor } from '@tiptap/core';
 
+import { Button } from '@/app/components/ui/Button';
 import { useGuide } from '@/app/hooks/useGuide';
 import { useToast } from '@/app/components/ui/toast/useToast';
 import { findSlotsForGuide, resolveSlot } from '@/lib/constants/guide-registry';
@@ -243,26 +246,12 @@ export const GuideEditorPanel = ({
       </div>
 
       <footer className={cn('flex items-center justify-between px-5 py-3 border-t', borderColors.default, bgColors.muted)}>
-        <span className={cn('text-xs', textColors.tertiary)}>
+        <span className={cn('text-xs', textColors.tertiary)} aria-live="polite">
           {saveDisabledReason ?? '⌘S 로 저장할 수 있습니다'}
         </span>
-        <button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={!canSave}
-          aria-disabled={!canSave}
-          aria-label={saving ? '저장 중' : '저장'}
-          className={cn(
-            'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 text-white',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline',
-            primaryColors.focusRing,
-            primaryColors.bg,
-            primaryColors.bgHover,
-            'disabled:opacity-50 disabled:cursor-not-allowed',
-          )}
-        >
+        <Button variant="primary" disabled={!canSave} onClick={() => void handleSave()}>
           {saveLabel}
-        </button>
+        </Button>
       </footer>
     </section>
   );
