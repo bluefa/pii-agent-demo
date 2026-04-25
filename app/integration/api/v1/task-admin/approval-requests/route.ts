@@ -1,5 +1,6 @@
+import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import type { ApprovalRequestType, QueueBoardQueryParams } from '@/lib/types/queue-board';
 
 export const GET = withV1(async (request) => {
@@ -21,5 +22,6 @@ export const GET = withV1(async (request) => {
     ...(search && { search }),
   };
 
-  return client.taskAdmin.getApprovalRequestQueue(params);
+  const data = await bff.taskAdmin.getApprovalRequestQueue(params);
+  return NextResponse.json(data);
 }, { expectedDuration: '500ms ~ 2s' });

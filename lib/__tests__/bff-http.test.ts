@@ -7,7 +7,7 @@ describe('httpBff.users.me', () => {
     delete process.env.BFF_API_URL;
   });
 
-  it('reads the flat Issue #222 user payload from /install/v1/user/me', async () => {
+  it('returns the flat Issue #222 payload as-is (route layer extracts)', async () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -39,7 +39,7 @@ describe('httpBff.users.me', () => {
     );
   });
 
-  it('keeps compatibility with legacy nested user payloads', async () => {
+  it('returns wrapped { user } payloads as-is (route layer extracts)', async () => {
     process.env.BFF_API_URL = 'https://bff.example.com';
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -63,11 +63,13 @@ describe('httpBff.users.me', () => {
     const { httpBff } = await import('@/lib/bff/http');
 
     await expect(httpBff.users.me()).resolves.toEqual({
-      id: 'user-1',
-      name: '홍길동',
-      email: 'hong@company.com',
-      role: 'ADMIN',
-      serviceCodePermissions: ['SERVICE-A'],
+      user: {
+        id: 'user-1',
+        name: '홍길동',
+        email: 'hong@company.com',
+        role: 'ADMIN',
+        serviceCodePermissions: ['SERVICE-A'],
+      },
     });
   });
 });

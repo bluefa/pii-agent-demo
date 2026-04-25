@@ -1,6 +1,8 @@
+import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
 export const GET = withV1(async () => {
-  return client.dashboard.summary();
+  const data = await bff.dashboard.summary();
+  return NextResponse.json(data);
 }, { expectedDuration: '100ms ~ 500ms' });

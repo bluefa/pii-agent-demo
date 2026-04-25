@@ -166,9 +166,9 @@ export async function transformLegacyError(
 }
 
 /**
- * Convert a thrown BffError to ProblemDetails byte-identical to
- * `transformLegacyError({ error: code, message }, status)` output.
- * Shared by `withV1` for ADR-011 typed BFF clients.
+ * Convert a thrown `BffError` from a typed BFF call into a ProblemDetails
+ * response. Output is byte-identical to `transformLegacyError` applied to
+ * `NextResponse.json({ error: code, message }, { status })`.
  */
 export function transformBffError(
   error: BffError,

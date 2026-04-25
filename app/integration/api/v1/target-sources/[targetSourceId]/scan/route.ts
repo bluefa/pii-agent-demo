@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 
@@ -9,21 +9,7 @@ export const POST = withV1(async (request, { requestId, params }) => {
   if (!parsed.ok) return problemResponse(parsed.problem);
 
   const body: unknown = await request.json().catch(() => ({}));
-  const response = await client.scan.create(String(parsed.value), body);
-  if (!response.ok) return response;
-
-  const data = await response.json() as {
-    id: number;
-    scan_status: string;
-    target_source_id: number;
-    created_at: string;
-    updated_at: string;
-    scan_version: number | null;
-    scan_progress: number | null;
-    duration_seconds: number;
-    resource_count_by_resource_type: Record<string, number> | null;
-    scan_error: string | null;
-  };
+  const data = await bff.scan.create(parsed.value, body);
 
   return NextResponse.json({
     id: data.id,

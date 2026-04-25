@@ -80,24 +80,47 @@ describe('extractBffError', () => {
   });
 });
 
-describe('transformBffError parity with transformLegacyError', () => {
-  // Both error paths must produce byte-identical ProblemDetails for the
-  // same upstream error body, regardless of nested vs flat shape.
-  const cases = [
+describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () => {
+  // Status × code matrix — verifies KnownErrorCode mapping is identical.
+  const statusCases: Array<{ status: number; code: string; message: string }> = [
+    { status: 401, code: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+    { status: 403, code: 'FORBIDDEN', message: '권한이 없습니다.' },
+    { status: 404, code: 'NOT_FOUND', message: '리소스를 찾을 수 없습니다.' },
+    { status: 400, code: 'VALIDATION_FAILED', message: '필수 필드가 누락되었습니다.' },
+    { status: 409, code: 'CONFLICT_IN_PROGRESS', message: '진행 중입니다.' },
+    { status: 500, code: 'INTERNAL_ERROR', message: '서버 오류' },
+  ];
+
+  for (const { status, code, message } of statusCases) {
+    it(`${status} ${code} produces a body byte-identical to transformLegacyError`, async () => {
+      const requestId = 'req-parity';
+
+      const fromBff = transformBffError(new BffError(status, code, message), requestId);
+      const fromLegacy = await transformLegacyError(
+        NextResponse.json({ error: code, message }, { status }),
+        requestId,
+      );
+
+      expect(fromBff.status).toBe(fromLegacy.status);
+      expect(fromBff.headers.get('content-type')).toBe(fromLegacy.headers.get('content-type'));
+      await expect(fromBff.json()).resolves.toEqual(await fromLegacy.json());
+    });
+  }
+
+  // Body-shape matrix — verifies extraction across nested / flat / unknown.
+  const shapeCases = [
     { name: 'flat code', body: { error: 'NOT_FOUND', message: 'foo' }, status: 404 },
     { name: 'nested code', body: { error: { code: 'FORBIDDEN', message: '권한 없음' } }, status: 403 },
     { name: 'flat key', body: { code: 'VALIDATION_FAILED', message: 'bad input' }, status: 400 },
     { name: 'unknown code → status fallback', body: { error: 'XYZ', message: 'huh' }, status: 409 },
   ];
 
-  for (const tc of cases) {
+  for (const tc of shapeCases) {
     it(`${tc.name} (${tc.status}) — old vs new path produce identical body`, async () => {
-      // Old path: NextResponse → transformLegacyError
       const legacyResp = NextResponse.json(tc.body, { status: tc.status });
       const oldOut = await transformLegacyError(legacyResp, 'req-x');
       const oldBody = await oldOut.json();
 
-      // New path: BffError → transformBffError (same body extracted via shared helper)
       const { code, message } = extractBffError(tc.body);
       const bffErr = new BffError(tc.status, code || 'INTERNAL_ERROR', message || `HTTP ${tc.status}`);
       const newOut = transformBffError(bffErr, 'req-x');

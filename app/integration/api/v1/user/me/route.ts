@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import type { UserMeResponse } from '@/app/api/_lib/v1-types';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -26,8 +26,6 @@ const normalizeUserMeResponse = (value: unknown): UserMeResponse => {
 };
 
 export const GET = withV1(async () => {
-  const response = await client.users.getMe();
-  if (!response.ok) return response;
-
-  return NextResponse.json(normalizeUserMeResponse(await response.json()));
+  const data = await bff.users.me();
+  return NextResponse.json(normalizeUserMeResponse(data));
 }, { expectedDuration: '50ms ~ 200ms' });

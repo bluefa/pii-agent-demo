@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     users: {
       search: vi.fn(),
     },
@@ -10,14 +9,15 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { GET } from '@/app/integration/api/v1/users/search/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
+import { BffError } from '@/lib/bff/errors';
 
-const mockedSearch = vi.mocked(client.users.search);
+const mockedSearch = vi.mocked(bff.users.search);
 
 describe('GET /integration/api/v1/users/search', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedSearch.mockResolvedValue(NextResponse.json({ users: [] }));
+    mockedSearch.mockResolvedValue({ users: [] });
   });
 
   it('excludeIds 반복 쿼리를 배열로 파싱한다', async () => {
@@ -38,5 +38,23 @@ describe('GET /integration/api/v1/users/search', () => {
 
     expect(response.status).toBe(200);
     expect(mockedSearch).toHaveBeenCalledWith('', []);
+  });
+
+  it('BffError가 throw되면 ProblemDetails로 변환한다', async () => {
+    mockedSearch.mockRejectedValueOnce(
+      new BffError(401, 'UNAUTHORIZED', '로그인이 필요합니다.'),
+    );
+
+    const response = await GET(
+      new Request('http://localhost/integration/api/v1/users/search'),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get('content-type')).toContain('application/problem+json');
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'UNAUTHORIZED',
+      detail: '로그인이 필요합니다.',
+    });
   });
 });
