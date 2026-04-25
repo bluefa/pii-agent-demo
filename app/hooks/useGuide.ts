@@ -34,7 +34,9 @@ export interface UseGuideResult {
 
 export const useGuide = (name: GuideName | null): UseGuideResult => {
   const [data, setData] = useState<GuideDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start loading=true when a name is provided so the first render shows the
+  // skeleton immediately — no blank flash before the mount effect fires.
+  const [loading, setLoading] = useState(name !== null);
   const [error, setError] = useState<Error | null>(null);
 
   const refresh = useCallback(async (): Promise<void> => {
