@@ -1,6 +1,5 @@
 import type { GcpInstallationStatusResponse, GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
 import { fetchInfraCamelJson } from '@/app/lib/api/infra';
-import { client } from '@/lib/api-client';
 
 // GCP installation status uses existing endpoint structure
 export const getGcpInstallationStatus = async (

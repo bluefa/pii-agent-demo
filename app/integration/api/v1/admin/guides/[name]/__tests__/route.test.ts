@@ -1,50 +1,48 @@
-/**
- * Route dispatch tests.
- *
- * Asserts the handler behaves as a thin dispatcher:
- *  - GET invokes `client.guides.get(name)`
- *  - PUT parses JSON and invokes `client.guides.put(name, body)`
- *  - `withV1` adds the `x-expected-duration` metadata header
- */
-
-import { NextResponse } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const guidesGet = vi.fn();
-const guidesPut = vi.fn();
-
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     guides: {
-      get: (name: string) => guidesGet(name),
-      put: (name: string, body: unknown) => guidesPut(name, body),
+      get: vi.fn(),
+      put: vi.fn(),
     },
   },
 }));
 
+import { GET, PUT } from '@/app/integration/api/v1/admin/guides/[name]/route';
+import { bff } from '@/lib/bff/client';
+
+const mockedGet = vi.mocked(bff.guides.get);
+const mockedPut = vi.mocked(bff.guides.put);
+
 describe('admin/guides/[name] route', () => {
   beforeEach(() => {
-    guidesGet.mockReset();
-    guidesPut.mockReset();
+    vi.clearAllMocks();
   });
 
-  it('GET dispatches to client.guides.get with the resolved name', async () => {
-    guidesGet.mockResolvedValue(NextResponse.json({ ok: true }));
-    const mod = await import('@/app/integration/api/v1/admin/guides/[name]/route');
+  it('GET dispatches to bff.guides.get with the resolved name', async () => {
+    mockedGet.mockResolvedValue({
+      name: 'AZURE_APPLYING',
+      contents: { ko: '', en: '' },
+      updatedAt: '1970-01-01T00:00:00Z',
+    });
     const req = new Request(
       'http://localhost/integration/api/v1/admin/guides/AZURE_APPLYING',
       { headers: { 'x-request-id': 'req-test-1' } },
     );
-    const res = await mod.GET(req, { params: Promise.resolve({ name: 'AZURE_APPLYING' }) });
-    expect(guidesGet).toHaveBeenCalledWith('AZURE_APPLYING');
-    expect(guidesPut).not.toHaveBeenCalled();
+    const res = await GET(req, { params: Promise.resolve({ name: 'AZURE_APPLYING' }) });
+    expect(mockedGet).toHaveBeenCalledWith('AZURE_APPLYING');
+    expect(mockedPut).not.toHaveBeenCalled();
     expect(res.headers.get('x-expected-duration')).toBe('100ms ~ 500ms');
     expect(res.headers.get('x-request-id')).toBe('req-test-1');
   });
 
-  it('PUT dispatches to client.guides.put with the parsed body', async () => {
-    guidesPut.mockResolvedValue(NextResponse.json({ ok: true }));
-    const mod = await import('@/app/integration/api/v1/admin/guides/[name]/route');
+  it('PUT dispatches to bff.guides.put with the parsed body', async () => {
+    mockedPut.mockResolvedValue({
+      name: 'AWS_APPLYING',
+      contents: { ko: '<p>k</p>', en: '<p>e</p>' },
+      updated_at: '2026-04-25T00:00:00Z',
+    });
     const req = new Request(
       'http://localhost/integration/api/v1/admin/guides/AWS_APPLYING',
       {
@@ -53,8 +51,8 @@ describe('admin/guides/[name] route', () => {
         body: JSON.stringify({ contents: { ko: '<p>k</p>', en: '<p>e</p>' } }),
       },
     );
-    const res = await mod.PUT(req, { params: Promise.resolve({ name: 'AWS_APPLYING' }) });
-    expect(guidesPut).toHaveBeenCalledWith('AWS_APPLYING', {
+    const res = await PUT(req, { params: Promise.resolve({ name: 'AWS_APPLYING' }) });
+    expect(mockedPut).toHaveBeenCalledWith('AWS_APPLYING', {
       contents: { ko: '<p>k</p>', en: '<p>e</p>' },
     });
     expect(res.headers.get('x-expected-duration')).toBe('200ms ~ 1s');
@@ -62,8 +60,11 @@ describe('admin/guides/[name] route', () => {
   });
 
   it('PUT forwards null when the body is not JSON (thin dispatch — mock layer validates)', async () => {
-    guidesPut.mockResolvedValue(NextResponse.json({ ok: true }));
-    const mod = await import('@/app/integration/api/v1/admin/guides/[name]/route');
+    mockedPut.mockResolvedValue({
+      name: 'AWS_APPLYING',
+      contents: { ko: '', en: '' },
+      updated_at: '2026-04-25T00:00:00Z',
+    });
     const req = new Request(
       'http://localhost/integration/api/v1/admin/guides/AWS_APPLYING',
       {
@@ -72,7 +73,7 @@ describe('admin/guides/[name] route', () => {
         body: 'not-json',
       },
     );
-    await mod.PUT(req, { params: Promise.resolve({ name: 'AWS_APPLYING' }) });
-    expect(guidesPut).toHaveBeenCalledWith('AWS_APPLYING', null);
+    await PUT(req, { params: Promise.resolve({ name: 'AWS_APPLYING' }) });
+    expect(mockedPut).toHaveBeenCalledWith('AWS_APPLYING', null);
   });
 });
