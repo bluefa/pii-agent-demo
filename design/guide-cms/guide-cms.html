@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440" />
+<title>가이드 CMS — PII Agent Admin</title>
+<link rel="stylesheet" href="../globals.css" />
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: var(--font-sans);
+    background: var(--bg-muted);
+    color: var(--fg-1);
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; padding: 0; color: inherit; }
+  input, select, textarea { font-family: inherit; font-size: inherit; }
+  a { color: var(--color-primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ================= APP SHELL ================= */
+  .app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* Top nav — same visual as SIT prototype */
+  .topnav {
+    height: 56px;
+    background: #0F172A;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    color: #fff;
+    gap: 32px;
+    flex-shrink: 0;
+  }
+  .topnav .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #0064FF 0%, #4F46E5 100%);
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .topnav .brand .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+  .topnav .brand small { font-weight: 400; opacity: 0.85; font-size: 12px; margin-left: 4px; }
+  .topnav nav { display: flex; gap: 4px; }
+  .topnav nav a {
+    color: #CBD5E1;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .topnav nav a:hover { background: rgba(255,255,255,0.06); color: #fff; text-decoration: none; }
+  .topnav nav a.active { color: #fff; background: rgba(255,255,255,0.08); }
+  .topnav nav .section-divider {
+    width: 1px; height: 20px; background: rgba(255,255,255,0.12); margin: 0 6px; align-self: center;
+  }
+  .topnav nav .admin-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 7px; border-radius: 4px;
+    background: rgba(99, 102, 241, 0.22);
+    color: #C7D2FE;
+    letter-spacing: 0.06em; margin-right: 4px;
+  }
+  .topnav .spacer { flex: 1; }
+  .topnav .user {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #CBD5E1;
+  }
+  .topnav .user .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #334155;
+    display: grid; place-items: center;
+    font-weight: 600; color: #fff; font-size: 12px;
+  }
+
+  /* ================= PAGE ================= */
+  .page {
+    flex: 1;
+    padding: 28px 36px 100px;
+    max-width: 1440px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .breadcrumb { font-size: 12px; color: var(--fg-3); margin-bottom: 12px; }
+  .breadcrumb .sep { margin: 0 6px; color: var(--fg-4); }
+  .breadcrumb .current { color: var(--fg-2); }
+
+  .page-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 22px; }
+  .page-title { font-size: 24px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .page-subtitle { font-size: 13px; color: var(--fg-3); margin: 0; }
+  .page-hint {
+    font-size: 12px; color: var(--fg-3);
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px;
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+  }
+  .page-hint kbd {
+    font-family: var(--font-mono); font-size: 10.5px;
+    padding: 1px 5px; border-radius: 3px;
+    background: var(--bg-muted); border: 1px solid var(--border-default);
+    color: var(--fg-2);
+  }
+
+  /* ================= Provider tabs ================= */
+  .provider-tabs {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--border-default);
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .ptab {
+    padding: 12px 20px 14px;
+    font-size: 13.5px; font-weight: 500;
+    color: var(--fg-3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: color 0.12s, border-color 0.12s;
+    position: relative;
+  }
+  .ptab:hover { color: var(--fg-1); }
+  .ptab.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    font-weight: 600;
+  }
+  .ptab .dot-prov {
+    width: 8px; height: 8px; border-radius: 2px; background: var(--color-provider-aws);
+    display: inline-block;
+  }
+  .ptab[data-provider="azure"] .dot-prov { background: var(--color-provider-azure); }
+  .ptab[data-provider="gcp"]   .dot-prov { background: var(--color-provider-gcp); }
+  .ptab[data-provider="idc"]   .dot-prov { background: var(--color-provider-idc); }
+  .ptab[data-provider="sdu"]   .dot-prov { background: var(--color-provider-sdu); }
+  .ptab[disabled], .ptab.disabled {
+    color: var(--fg-4);
+    cursor: not-allowed;
+  }
+  .ptab[disabled] .dot-prov, .ptab.disabled .dot-prov { opacity: 0.35; }
+  .ptab .prep-chip {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em;
+    padding: 1px 6px; border-radius: 3px;
+    background: var(--gray-100); color: var(--fg-3);
+  }
+
+  /* ================= 3-pane ================= */
+  .three-pane {
+    display: grid;
+    grid-template-columns: 25% 35% 40%;
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    min-height: 640px;
+  }
+  .pane { display: flex; flex-direction: column; min-width: 0; }
+  .pane + .pane { border-left: 1px solid var(--border-default); }
+  .pane-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex; justify-content: space-between; align-items: center;
+    min-height: 52px;
+  }
+  .pane-header h2 {
+    margin: 0; font-size: 13.5px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .pane-header h2 .count {
+    font-size: 11.5px; color: var(--fg-3);
+    background: var(--bg-muted); padding: 2px 7px; border-radius: 10px;
+    font-weight: 500;
+  }
+  .pane-body { flex: 1; padding: 14px 18px 18px; overflow: auto; }
+  .pane-body.compact { padding: 8px 10px 14px; }
+
+  /* ================= Step list (left) ================= */
+  .step-list { display: flex; flex-direction: column; gap: 2px; }
+  .step-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    border: 1px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .step-row:hover { background: var(--bg-muted); }
+  .step-row.selected {
+    background: var(--color-primary-50);
+    border-color: var(--color-primary-100);
+  }
+  .step-row.selected::before {
+    content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 3px; border-radius: 2px; background: var(--color-primary);
+  }
+  .step-row .step-no {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid var(--border-default);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 600; color: var(--fg-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-row.selected .step-no {
+    background: var(--color-primary); border-color: var(--color-primary); color: #fff;
+  }
+  .step-row .step-label {
+    font-size: 13px; color: var(--fg-1); font-weight: 500;
+    line-height: 1.35;
+    min-width: 0;
+  }
+  .step-row.selected .step-label { color: var(--color-primary); font-weight: 600; }
+  .step-row .step-sub {
+    font-size: 11px; color: var(--fg-3); margin-top: 2px;
+  }
+  .variant-chip {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    letter-spacing: 0.04em;
+    background: var(--gray-100); color: var(--fg-2);
+  }
+  .variant-chip.auto   { background: #DBEAFE; color: #1E40AF; }
+  .variant-chip.manual { background: #FEF3C7; color: #92400E; }
+
+  .step-list .step-shared-hint {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10.5px; color: var(--fg-3);
+  }
+  .step-list .step-shared-hint svg { flex-shrink: 0; }
+
+  /* ================= Editor (center) ================= */
+  .edit-body { display: flex; flex-direction: column; gap: 14px; }
+  .edit-header-card {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+  }
+  .edit-header-card .eh-meta { font-size: 11px; color: var(--fg-3); font-weight: 500; margin-bottom: 4px; letter-spacing: 0.02em; }
+  .edit-header-card .eh-title { font-size: 14px; font-weight: 600; color: var(--fg-1); line-height: 1.35; }
+  .edit-header-card .eh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+  .constant-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 600;
+    padding: 3px 8px; border-radius: 4px;
+    background: #fff; border: 1px solid var(--border-default);
+    color: var(--fg-2); font-family: var(--font-mono);
+  }
+  .constant-badge svg { color: var(--fg-3); }
+
+  .scope-notice {
+    display: flex; gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #BFDBFE;
+    background: #EFF6FF;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #1E3A8A;
+  }
+  .scope-notice .icon { flex-shrink: 0; color: var(--color-primary); margin-top: 1px; }
+  .scope-notice h4 { margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: #1E3A8A; }
+  .scope-notice ul { margin: 0 0 6px; padding-left: 16px; }
+  .scope-notice ul li { margin-bottom: 2px; font-family: var(--font-mono); font-size: 12px; color: #1E40AF; }
+  .scope-notice p { margin: 0; font-size: 12px; color: #1E40AF; }
+
+  /* Language tabs */
+  .lang-tabs {
+    display: inline-flex; gap: 0;
+    background: var(--bg-muted);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .lang-tabs button {
+    padding: 6px 14px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--fg-3);
+    border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+    min-width: 72px; justify-content: center;
+  }
+  .lang-tabs button.active {
+    background: #fff;
+    color: var(--fg-1); font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .lang-tabs button .bullet {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .lang-tabs button .bullet.filled { background: var(--color-success); }
+  .lang-tabs button .bullet.empty  { background: var(--gray-300); }
+
+  /* Editor frame */
+  .editor-frame {
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .editor-toolbar {
+    display: flex; align-items: center; gap: 1px;
+    padding: 6px;
+    background: var(--bg-muted);
+    border-bottom: 1px solid var(--border-default);
+  }
+  .tb-btn {
+    width: 30px; height: 30px;
+    display: inline-grid; place-items: center;
+    border-radius: 5px;
+    color: var(--fg-2);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .tb-btn:hover { background: #fff; color: var(--fg-1); }
+  .tb-btn.active { background: #fff; color: var(--color-primary); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .tb-btn svg { width: 14px; height: 14px; }
+  .tb-divider { width: 1px; height: 18px; background: var(--border-default); margin: 0 4px; }
+
+  .editor-area {
+    padding: 14px 16px;
+    min-height: 260px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--fg-1);
+    outline: none;
+  }
+  .editor-area h4 { font-size: 13.5px; font-weight: 700; margin: 10px 0 4px; }
+  .editor-area h4:first-child { margin-top: 0; }
+  .editor-area p  { margin: 0 0 8px; }
+  .editor-area ul { padding-left: 20px; margin: 0 0 10px; }
+  .editor-area ul li::marker { color: var(--color-primary); }
+  .editor-area code {
+    font-family: var(--font-mono); font-size: 12px;
+    background: var(--gray-100); padding: 1px 5px; border-radius: 4px;
+  }
+  .editor-area.empty-placeholder {
+    color: var(--fg-4);
+    font-style: italic;
+  }
+  .editor-area .caret {
+    display: inline-block; width: 1.5px; height: 1em;
+    background: var(--color-primary);
+    margin-left: 1px;
+    vertical-align: -2px;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .editor-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 14px;
+    border-top: 1px solid var(--border-light);
+    font-size: 11.5px;
+    color: var(--fg-3);
+    background: var(--bg-muted);
+  }
+  .editor-footer .validity.ok { color: var(--color-success-dark); }
+  .editor-footer .validity.warn { color: var(--color-warning-dark); }
+
+  /* Action row */
+  .action-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 4px;
+    gap: 10px;
+  }
+  .action-row .action-hint { font-size: 11.5px; color: var(--fg-3); }
+
+  /* Save button states */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 16px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    transition: background 0.12s, border-color 0.12s;
+    white-space: nowrap;
+  }
+  .btn.sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 6px; }
+  .btn.primary { background: var(--color-primary); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: var(--color-primary-hover); }
+  .btn.primary[disabled] {
+    background: var(--gray-200); color: var(--fg-4); cursor: not-allowed;
+    font-weight: 500;
+  }
+  .btn.primary.loading {
+    background: var(--color-primary); color: #fff; opacity: 0.9; cursor: progress;
+  }
+  .btn.outline { border: 1px solid var(--border-default); color: var(--fg-1); background: #fff; }
+  .btn.outline:hover { background: var(--bg-muted); }
+  .btn.ghost { color: var(--color-primary); font-weight: 600; }
+  .btn.ghost:hover { background: var(--color-primary-50); }
+  .btn.destructive { background: var(--gray-700); color: #fff; }
+  .btn.destructive:hover { background: var(--gray-800); }
+
+  .spinner {
+    width: 13px; height: 13px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tooltip */
+  .tt-wrap { position: relative; display: inline-flex; }
+  .tt-wrap .tt {
+    position: absolute; bottom: calc(100% + 6px); right: 0;
+    background: #0F172A; color: #fff;
+    font-size: 11.5px; font-weight: 500;
+    padding: 6px 10px; border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.12s;
+  }
+  .tt-wrap .tt::after {
+    content: ''; position: absolute; top: 100%; right: 16px;
+    border: 5px solid transparent; border-top-color: #0F172A;
+  }
+  .tt-wrap:hover .tt, .tt-wrap.shown .tt { opacity: 1; }
+
+  /* ================= Preview (right) ================= */
+  .preview-lang { display: inline-flex; gap: 2px; background: var(--bg-muted); border-radius: 6px; padding: 2px; }
+  .preview-lang button {
+    padding: 4px 12px;
+    font-size: 11.5px; font-weight: 500;
+    color: var(--fg-3);
+    border-radius: 5px;
+    min-width: 50px;
+  }
+  .preview-lang button.active { background: #fff; color: var(--fg-1); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+
+  /* Timeline */
+  .mini-timeline {
+    padding: 12px 4px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 14px;
+  }
+  .mt-track {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    align-items: center;
+    position: relative;
+  }
+  .mt-step { display: grid; place-items: center; position: relative; }
+  .mt-step .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--border-strong);
+    z-index: 2;
+  }
+  .mt-step.done .dot { background: var(--color-primary); border-color: var(--color-primary); }
+  .mt-step.current .dot {
+    background: var(--color-primary); border-color: var(--color-primary);
+    box-shadow: 0 0 0 4px rgba(0,100,255,0.18);
+  }
+  .mt-step:not(:last-child)::after {
+    content: ''; position: absolute; top: 50%; left: 50%; right: -50%;
+    height: 2px; background: var(--border-default); z-index: 1; transform: translateY(-1px);
+  }
+  .mt-step.done:not(:last-child)::after { background: var(--color-primary); }
+  .mt-labels {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    font-size: 10.5px; color: var(--fg-3); text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .mt-labels span.current { color: var(--color-primary); font-weight: 600; }
+
+  /* GuideCard — warm tone per SIT prototype */
+  .guide-card {
+    background: #FFFDF5;
+    border: 1px solid #F3E8B8;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(140,110,0,0.04), 0 6px 18px -10px rgba(140,110,0,0.12);
+    overflow: hidden;
+  }
+  .guide-card .gc-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 14px 18px;
+    background: linear-gradient(180deg, #FFF8E1 0%, #FFFCEE 100%);
+    border-bottom: 1px solid #F3E8B8;
+    color: #78350F;
+    font-size: 14px; font-weight: 600;
+  }
+  .gc-head-icon {
+    width: 24px; height: 24px;
+    background: #F59E0B; color: #fff;
+    border-radius: 50%;
+    display: inline-grid; place-items: center;
+    box-shadow: 0 2px 5px -1px rgba(245,158,11,0.45);
+    flex-shrink: 0;
+  }
+  .guide-card .gc-body { padding: 16px 18px 18px; font-size: 13px; color: var(--fg-2); line-height: 1.72; }
+  .guide-card .gc-body h1,
+  .guide-card .gc-body h2,
+  .guide-card .gc-body h3,
+  .guide-card .gc-body h4 {
+    color: var(--fg-1); font-weight: 700; margin: 14px 0 6px;
+  }
+  .guide-card .gc-body h4:first-child { margin-top: 0; }
+  .guide-card .gc-body h4 { font-size: 13.5px; }
+  .guide-card .gc-body p { margin: 0 0 8px; }
+  .guide-card .gc-body ul, .guide-card .gc-body ol { margin: 0 0 10px; padding-left: 20px; }
+  .guide-card .gc-body ul li::marker { color: var(--color-primary); }
+  .guide-card .gc-body strong { color: var(--fg-1); font-weight: 600; }
+  .guide-card .gc-body code {
+    font-family: var(--font-mono); font-size: 12px;
+    background: #F1F5F9; padding: 1.5px 6px; border-radius: 4px; color: #0F172A;
+  }
+  .guide-card .gc-body a { color: var(--color-primary); font-weight: 500; }
+
+  /* Preview empty placeholder for missing ko/en */
+  .preview-empty-lang {
+    padding: 28px 18px;
+    text-align: center;
+    color: var(--fg-3);
+    font-size: 12.5px;
+    background: var(--bg-muted);
+    border-radius: 8px;
+    border: 1px dashed var(--border-default);
+  }
+  .preview-empty-lang strong { color: var(--fg-2); font-weight: 600; }
+
+  /* ================= Empty / states ================= */
+  .empty-pane {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; padding: 60px 24px; text-align: center;
+  }
+  .empty-pane .illus {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: var(--bg-muted);
+    display: grid; place-items: center;
+    color: var(--fg-4);
+    margin-bottom: 16px;
+  }
+  .empty-pane h3 { font-size: 14px; color: var(--fg-1); margin: 0 0 6px; font-weight: 600; }
+  .empty-pane p { font-size: 12.5px; color: var(--fg-3); margin: 0; max-width: 280px; line-height: 1.5; }
+
+  .error-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1; padding: 60px 24px; text-align: center;
+  }
+  .error-state .illus {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: #FEF2F2; color: var(--color-error);
+    display: grid; place-items: center; margin-bottom: 16px;
+  }
+  .error-state h3 { font-size: 14px; color: var(--fg-1); margin: 0 0 6px; font-weight: 600; }
+  .error-state p { font-size: 12.5px; color: var(--fg-3); margin: 0 0 16px; max-width: 300px; line-height: 1.5; }
+
+  .validation-list {
+    text-align: left;
+    margin: 12px 0 16px;
+    padding: 10px 12px;
+    background: var(--bg-muted);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    font-size: 11.5px;
+    color: var(--fg-2);
+    font-family: var(--font-mono);
+    max-width: 340px;
+  }
+  .validation-list li { margin-bottom: 4px; }
+  .validation-list li::marker { color: var(--color-error); }
+
+  /* ================= Toast ================= */
+  .toast-container {
+    position: fixed; top: 76px; right: 24px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 150;
+  }
+  .toast {
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-left: 3px solid var(--color-primary);
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.1);
+    display: flex; gap: 10px; align-items: flex-start;
+    min-width: 300px;
+    max-width: 380px;
+  }
+  .toast.error { border-left-color: var(--color-error); }
+  .toast.info  { border-left-color: var(--color-info); }
+  .toast .t-icon { flex-shrink: 0; margin-top: 1px; }
+  .toast.error .t-icon { color: var(--color-error); }
+  .toast.info  .t-icon { color: var(--color-info); }
+  .toast h4 { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; color: var(--fg-1); }
+  .toast p  { margin: 0; font-size: 12px; color: var(--fg-2); line-height: 1.45; }
+  .toast .t-close {
+    color: var(--fg-4); padding: 2px; margin-left: auto;
+    display: inline-grid; place-items: center;
+  }
+  .toast .t-close:hover { color: var(--fg-2); }
+
+  /* ================= Modal ================= */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    display: grid; place-items: center;
+    z-index: 200;
+  }
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    width: 440px;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.24);
+  }
+  .modal-header { padding: 22px 24px 6px; }
+  .modal-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; color: var(--fg-1); letter-spacing: -0.01em; }
+  .modal-body { padding: 6px 24px 18px; font-size: 13.5px; color: var(--fg-2); line-height: 1.55; }
+  .modal-footer {
+    padding: 14px 24px 18px;
+    display: flex; justify-content: flex-end; gap: 8px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-muted);
+    border-radius: 0 0 14px 14px;
+  }
+
+  /* ================= Proto nav ================= */
+  .proto-nav {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: #0F172A;
+    border-radius: 100px;
+    padding: 6px;
+    display: flex; gap: 2px; flex-wrap: wrap;
+    z-index: 300;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+    max-width: calc(100% - 48px);
+    justify-content: center;
+  }
+  .proto-nav button {
+    color: #94A3B8;
+    font-size: 11.5px; font-weight: 500;
+    padding: 7px 12px;
+    border-radius: 100px;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .proto-nav button:hover { color: #fff; }
+  .proto-nav button.active { background: var(--color-primary); color: #fff; }
+  .proto-nav .label {
+    color: #CBD5E1; font-size: 10.5px; letter-spacing: 0.04em;
+    padding: 7px 10px 7px 14px; text-transform: uppercase; font-weight: 600;
+    display: inline-flex; align-items: center;
+  }
+
+  /* ================= helpers ================= */
+  .hidden { display: none !important; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .mono { font-family: var(--font-mono); }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ======================= TOP NAV ======================= -->
+  <header class="topnav">
+    <div class="brand">
+      <span class="dot"></span>
+      <span>PII Agent</span>
+      <small>Admin</small>
+    </div>
+    <nav>
+      <a href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        대시보드
+      </a>
+      <a href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        서비스 목록
+      </a>
+      <span class="section-divider"></span>
+      <span class="admin-pill">ADMIN</span>
+      <a href="#" class="active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        가이드 관리
+      </a>
+      <a href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        사용자 관리
+      </a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="user">
+      <span>cyongj2.park@samsung.com</span>
+      <div class="avatar">CP</div>
+    </div>
+  </header>
+
+  <!-- ======================= PAGE ======================= -->
+  <div class="page">
+    <div class="breadcrumb">
+      관리자 <span class="sep">›</span>
+      <span class="current">가이드 관리</span>
+    </div>
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">프로세스 가이드 관리</h1>
+        <p class="page-subtitle">Cloud Provider 별 7단계 프로세스 가이드(<span class="mono">GuideCard</span>) 본문을 편집합니다. 저장 시 한국어·영어 둘 다 필수입니다.</p>
+      </div>
+    </div>
+
+    <!-- Provider tabs -->
+    <div class="provider-tabs" role="tablist" aria-label="Cloud Provider 선택">
+      <button class="ptab active" role="tab" data-provider="aws" aria-selected="true">
+        <span class="dot-prov"></span> AWS
+      </button>
+      <button class="ptab" role="tab" data-provider="azure" aria-selected="false">
+        <span class="dot-prov"></span> Azure
+      </button>
+      <button class="ptab" role="tab" data-provider="gcp" aria-selected="false">
+        <span class="dot-prov"></span> GCP
+      </button>
+      <button class="ptab disabled" role="tab" data-provider="idc" aria-selected="false" aria-disabled="true" onclick="showDisabledToast('IDC')">
+        <span class="dot-prov"></span> IDC <span class="prep-chip">준비 중</span>
+      </button>
+      <button class="ptab disabled" role="tab" data-provider="sdu" aria-selected="false" aria-disabled="true" onclick="showDisabledToast('SDU')">
+        <span class="dot-prov"></span> SDU <span class="prep-chip">준비 중</span>
+      </button>
+    </div>
+
+    <!-- 3-pane shell — only content swaps per screen -->
+    <div class="three-pane" id="panes">
+
+      <!-- ============ LEFT: Step list (always visible) ============ -->
+      <section class="pane" aria-label="Step 목록">
+        <div class="pane-header">
+          <h2>Step 목록 <span class="count" id="stepCount">8</span></h2>
+        </div>
+        <div class="pane-body compact">
+          <div class="step-list" id="stepList" role="list">
+            <!-- rows injected by JS based on active provider + selected step -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CENTER: Editor ============ -->
+      <section class="pane" aria-label="가이드 편집">
+        <div class="pane-header">
+          <h2>편집</h2>
+          <span id="editHeaderMeta" style="font-size: 11.5px; color: var(--fg-3);"></span>
+        </div>
+
+        <!-- center body slots swap per screen -->
+        <div class="pane-body" id="centerBody">
+          <!-- default: empty -->
+          <div class="empty-pane" id="centerEmpty">
+            <div class="illus">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+            </div>
+            <h3>편집할 단계를 선택해주세요</h3>
+            <p>왼쪽 목록에서 편집할 단계를 선택하면 이곳에 가이드 편집 영역이 표시됩니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ RIGHT: Preview ============ -->
+      <section class="pane" aria-label="미리보기" aria-live="polite">
+        <div class="pane-header">
+          <h2>미리보기</h2>
+          <div class="preview-lang" id="previewLang">
+            <button class="active" data-lang="ko">KO</button>
+            <button data-lang="en">EN</button>
+          </div>
+        </div>
+        <div class="pane-body" id="rightBody">
+          <div class="empty-pane" id="rightEmpty">
+            <div class="illus">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <h3>미리보기</h3>
+            <p>편집 중인 가이드의 실제 <span class="mono">GuideCard</span> 렌더링 결과를 이곳에서 확인할 수 있어요.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Confirm modal -->
+  <div class="modal-backdrop hidden" id="confirmModal" onclick="if(event.target===this)closeConfirm()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirmTitle">저장되지 않은 변경사항</h2>
+      </div>
+      <div class="modal-body">
+        현재 편집 중인 내용이 저장되지 않았습니다.<br/>
+        이동하시겠습니까? 지금 이동하면 변경사항은 사라집니다.
+      </div>
+      <div class="modal-footer">
+        <button class="btn outline" id="cancelBtn" onclick="closeConfirm()" autofocus>취소</button>
+        <button class="btn destructive" onclick="closeConfirm()">변경 폐기 후 이동</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Proto nav -->
+  <nav class="proto-nav" aria-label="시안 전환">
+    <span class="label">시안</span>
+    <button data-screen="A" class="active" onclick="goScreen('A')">5-A 빈 상태</button>
+    <button data-screen="D" onclick="goScreen('D')">5-D 편집 중</button>
+    <button data-screen="C" onclick="goScreen('C')">5-C 공유 가이드</button>
+    <button data-screen="E1" onclick="goScreen('E1')">5-E ①disabled</button>
+    <button data-screen="E2" onclick="goScreen('E2')">5-E ②enabled</button>
+    <button data-screen="E3" onclick="goScreen('E3')">5-E ③loading</button>
+    <button data-screen="E4" onclick="goScreen('E4')">5-E ④error</button>
+    <button data-screen="H1" onclick="goScreen('H1')">5-H GET 실패</button>
+    <button data-screen="H3" onclick="goScreen('H3')">5-H 렌더 검증</button>
+    <button data-screen="G" onclick="goScreen('G')">5-G Confirm</button>
+    <button data-screen="I" onclick="goScreen('I')">5-I 비활성 탭</button>
+  </nav>
+</div>
+
+<!-- ======================= SCRIPT ======================= -->
+<script>
+  // ============ DATA ============
+  const STEPS = {
+    aws: [
+      { no: 1, label: '연동 대상 확정' },
+      { no: 2, label: '승인 대기' },
+      { no: 3, label: '연동 대상 반영 중', shared: true },
+      { no: 4, label: '설치 진행', variant: 'AUTO', sharedWithOther: true },
+      { no: 4, label: 'TF Script 수동 설치', variant: 'MANUAL', sharedWithOther: true },
+      { no: 5, label: '연결 테스트' },
+      { no: 6, label: '관리자 승인 대기' },
+      { no: 7, label: '완료' },
+    ],
+    azure: [
+      { no: 1, label: '연동 대상 확정' },
+      { no: 2, label: '승인 대기' },
+      { no: 3, label: '연동 대상 반영 중' },
+      { no: 4, label: '설치 진행' },
+      { no: 5, label: '연결 테스트' },
+      { no: 6, label: '관리자 승인 대기' },
+      { no: 7, label: '완료' },
+    ],
+    gcp: [
+      { no: 1, label: '연동 대상 확정' },
+      { no: 2, label: '승인 대기' },
+      { no: 3, label: '연동 대상 반영 중' },
+      { no: 4, label: '설치 진행' },
+      { no: 5, label: '연결 테스트' },
+      { no: 6, label: '관리자 승인 대기' },
+      { no: 7, label: '완료' },
+    ],
+  };
+
+  // Fake saved contents (so preview has something to show on load)
+  const SAMPLE_KO_STEP3 = `<h4>연동 대상 DB 반영이 진행 중입니다</h4>
+<p>선택하신 DB 리스트가 N-IRP 시스템에 반영되고 있어요. 보통 <strong>약 10분 내</strong>에 완료됩니다.</p>
+<ul>
+  <li>반영이 끝나기 전까지는 Agent 설치 단계로 이동할 수 없어요.</li>
+  <li>상태가 장시간 변하지 않을 경우 <code>support@pii-agent</code> 로 문의해 주세요.</li>
+</ul>`;
+  const SAMPLE_EN_STEP3 = `<h4>Applying the selected databases</h4>
+<p>Your selection is being pushed to N-IRP. This typically takes <strong>under 10 minutes</strong>.</p>
+<ul>
+  <li>You cannot proceed to Agent installation until this completes.</li>
+  <li>If the state does not change for a while, contact <code>support@pii-agent</code>.</li>
+</ul>`;
+
+  // ============ RENDER: step list ============
+  function renderStepList(provider, selected) {
+    const list = document.getElementById('stepList');
+    const steps = STEPS[provider] || STEPS.aws;
+    document.getElementById('stepCount').textContent = steps.length;
+    list.innerHTML = steps.map((s, i) => {
+      const key = `${s.no}-${s.variant || ''}`;
+      const isSel = selected === key;
+      return `
+        <div class="step-row ${isSel ? 'selected' : ''}" role="button" tabindex="0" data-key="${key}" onclick="selectStep('${key}')">
+          <div class="step-no">${String(s.no).padStart(2,'0')}</div>
+          <div>
+            <div class="step-label">${s.label}</div>
+            ${s.sharedWithOther ? '<div class="step-sub"><span style="display:inline-flex;align-items:center;gap:3px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12h8M16 12l-3-3M16 12l-3 3"/></svg>2곳 공유</span></div>' : ''}
+          </div>
+          ${s.variant ? `<span class="variant-chip ${s.variant.toLowerCase()}">${s.variant}</span>` : '<span></span>'}
+        </div>`;
+    }).join('');
+  }
+
+  // ============ STATE ============
+  let state = {
+    provider: 'aws',
+    selected: null,     // e.g. '3-' or '4-AUTO'
+    previewLang: 'ko',
+    screen: 'A',
+  };
+
+  function selectStep(key) {
+    state.selected = key;
+    renderStepList(state.provider, key);
+    // When user manually selects, default to editing screen on step 3
+    if (state.screen === 'A') {
+      const shared = key === '3-';
+      goScreen(shared ? 'C' : 'D');
+    }
+  }
+
+  // ============ PROVIDER TABS ============
+  document.querySelectorAll('.ptab').forEach(t => {
+    if (t.classList.contains('disabled')) return;
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.ptab').forEach(x => {
+        x.classList.remove('active');
+        x.setAttribute('aria-selected','false');
+      });
+      t.classList.add('active'); t.setAttribute('aria-selected','true');
+      state.provider = t.dataset.provider;
+      state.selected = null;
+      renderStepList(state.provider, null);
+      goScreen('A');
+    });
+  });
+
+  // ============ PREVIEW LANG ============
+  document.getElementById('previewLang').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('#previewLang button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.previewLang = b.dataset.lang;
+    renderPreviewForCurrentScreen();
+  });
+
+  // ============ TOAST ============
+  function toast({title, message, kind='info', duration=4200}) {
+    const c = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = 'toast ' + kind;
+    const iconSvg = kind === 'error'
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    el.innerHTML = `
+      <span class="t-icon">${iconSvg}</span>
+      <div>
+        <h4>${title}</h4>
+        <p>${message}</p>
+      </div>
+      <button class="t-close" aria-label="닫기"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
+    el.querySelector('.t-close').addEventListener('click', () => el.remove());
+    c.appendChild(el);
+    setTimeout(() => el.remove(), duration);
+  }
+
+  function showDisabledToast(name) {
+    toast({
+      kind: 'info',
+      title: `${name} 가이드는 아직 지원되지 않습니다`,
+      message: `${name} 가이드는 Step 구조 확정 후 별도 wave 에서 지원됩니다.`,
+    });
+  }
+
+  // ============ MODAL ============
+  function openConfirm() { document.getElementById('confirmModal').classList.remove('hidden'); document.getElementById('cancelBtn').focus(); }
+  function closeConfirm() { document.getElementById('confirmModal').classList.add('hidden'); }
+
+  // ============ SCREENS ============
+  // Each screen assembles center + right pane contents.
+  function goScreen(id) {
+    state.screen = id;
+    // proto-nav active
+    document.querySelectorAll('.proto-nav button').forEach(b => b.classList.toggle('active', b.dataset.screen === id));
+
+    const center = document.getElementById('centerBody');
+    const right  = document.getElementById('rightBody');
+    const meta   = document.getElementById('editHeaderMeta');
+    meta.textContent = '';
+
+    // Close any open modal except when the screen is G
+    if (id !== 'G') closeConfirm();
+
+    switch (id) {
+      case 'A':
+        state.selected = null;
+        renderStepList(state.provider, null);
+        center.innerHTML = emptyCenter();
+        right.innerHTML = emptyRight();
+        break;
+      case 'D':
+        state.selected = '4-AUTO';
+        renderStepList(state.provider, state.selected);
+        meta.textContent = 'AWS · AUTO · 4단계';
+        center.innerHTML = editor({
+          header: { provider: 'AWS', variant: 'AUTO', stepNo: 4, title: '설치 진행 (자동)', constant: 'AWS_APPLYING_AUTO' },
+          shared: false,
+          koHasContent: true,
+          enHasContent: false,
+          saveState: 'disabled', // en empty → disabled
+        });
+        right.innerHTML = previewPane({ stepNo: 4, lang: state.previewLang });
+        break;
+      case 'C':
+        state.selected = '3-';
+        renderStepList(state.provider, state.selected);
+        meta.textContent = 'AWS · 3단계 · 공유';
+        center.innerHTML = editor({
+          header: { provider: 'AWS', variant: null, stepNo: 3, title: '연동 대상 반영 중', constant: 'AWS_APPLYING' },
+          shared: true,
+          koHasContent: true,
+          enHasContent: true,
+          saveState: 'enabled',
+        });
+        right.innerHTML = previewPane({ stepNo: 3, lang: state.previewLang });
+        break;
+      case 'E1': case 'E2': case 'E3': case 'E4': {
+        state.selected = '3-';
+        renderStepList(state.provider, state.selected);
+        meta.textContent = 'AWS · 3단계';
+        const map = { E1:'disabled', E2:'enabled', E3:'loading', E4:'error' };
+        const ssKey = map[id];
+        const koFilled = id !== 'E1'; // disabled demo: en missing
+        center.innerHTML = editor({
+          header: { provider: 'AWS', variant: null, stepNo: 3, title: '연동 대상 반영 중', constant: 'AWS_APPLYING' },
+          shared: true,
+          koHasContent: true,
+          enHasContent: id !== 'E1',
+          saveState: ssKey,
+        });
+        right.innerHTML = previewPane({ stepNo: 3, lang: state.previewLang });
+        if (id === 'E4') {
+          toast({ kind: 'error', title: '저장에 실패했어요', message: '네트워크 오류로 저장에 실패하였습니다. 잠시 후 다시 시도해 주세요. (입력 내용은 유지됩니다.)' });
+        }
+        break;
+      }
+      case 'H1':
+        state.selected = '3-';
+        renderStepList(state.provider, state.selected);
+        meta.textContent = 'AWS · 3단계';
+        center.innerHTML = errorCenter();
+        right.innerHTML = previewPane({ stepNo: 3, lang: state.previewLang });
+        break;
+      case 'H3':
+        state.selected = '3-';
+        renderStepList(state.provider, state.selected);
+        meta.textContent = 'AWS · 3단계';
+        center.innerHTML = editor({
+          header: { provider: 'AWS', variant: null, stepNo: 3, title: '연동 대상 반영 중', constant: 'AWS_APPLYING' },
+          shared: true,
+          koHasContent: true,
+          enHasContent: true,
+          saveState: 'enabled',
+        });
+        right.innerHTML = invalidPreview();
+        break;
+      case 'G':
+        // Keep D-like state + open confirm modal
+        state.selected = '4-AUTO';
+        renderStepList(state.provider, state.selected);
+        meta.textContent = 'AWS · AUTO · 4단계';
+        center.innerHTML = editor({
+          header: { provider: 'AWS', variant: 'AUTO', stepNo: 4, title: '설치 진행 (자동)', constant: 'AWS_APPLYING_AUTO' },
+          shared: false,
+          koHasContent: true,
+          enHasContent: false,
+          saveState: 'disabled',
+        });
+        right.innerHTML = previewPane({ stepNo: 4, lang: state.previewLang });
+        openConfirm();
+        break;
+      case 'I':
+        state.selected = null;
+        renderStepList(state.provider, null);
+        center.innerHTML = emptyCenter();
+        right.innerHTML = emptyRight();
+        showDisabledToast('IDC');
+        break;
+    }
+  }
+
+  function renderPreviewForCurrentScreen() {
+    // rebuild right pane if it's showing preview
+    if (['D','C','E1','E2','E3','E4','H1','G'].includes(state.screen)) {
+      const stepNo = state.selected === '3-' ? 3 : (state.selected === '4-AUTO' ? 4 : 3);
+      document.getElementById('rightBody').innerHTML = previewPane({ stepNo, lang: state.previewLang });
+    } else if (state.screen === 'H3') {
+      document.getElementById('rightBody').innerHTML = invalidPreview();
+    }
+  }
+
+  // ============ TEMPLATES ============
+  function emptyCenter() {
+    return `
+      <div class="empty-pane">
+        <div class="illus">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+        </div>
+        <h3>편집할 단계를 선택해주세요</h3>
+        <p>왼쪽 목록에서 편집할 단계를 선택하면 이곳에 가이드 편집 영역이 표시됩니다.</p>
+      </div>`;
+  }
+  function emptyRight() {
+    return `
+      <div class="empty-pane">
+        <div class="illus">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h3>미리보기</h3>
+        <p>편집 중인 가이드의 실제 <span class="mono">GuideCard</span> 렌더링 결과를 이곳에서 확인할 수 있어요.</p>
+      </div>`;
+  }
+  function errorCenter() {
+    return `
+      <div class="error-state">
+        <div class="illus">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3>가이드를 불러올 수 없습니다</h3>
+        <p>네트워크 또는 서버 오류로 가이드 콘텐츠를 가져오지 못했어요.</p>
+        <button class="btn primary sm" onclick="goScreen('C'); toast({kind:'info', title:'다시 불러왔습니다', message:'가이드 콘텐츠를 성공적으로 불러왔어요.'});">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15A9 9 0 1 1 19 6.5L23 10"/></svg>
+          다시 시도
+        </button>
+      </div>`;
+  }
+
+  function editor({ header, shared, koHasContent, enHasContent, saveState }) {
+    const variantChip = header.variant
+      ? `<span class="variant-chip ${header.variant.toLowerCase()}">${header.variant}</span>`
+      : '';
+    const headerMeta = `AWS · ${header.variant ? header.variant + ' · ' : ''}${header.stepNo}단계`;
+
+    const scope = shared ? `
+      <div class="scope-notice" role="note">
+        <span class="icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </span>
+        <div>
+          <h4>이 가이드는 2곳에 표시됩니다</h4>
+          <ul>
+            <li>AWS · AUTO · 3단계</li>
+            <li>AWS · MANUAL · 3단계</li>
+          </ul>
+          <p>저장 시 두 위치에 모두 반영됩니다.</p>
+        </div>
+      </div>` : '';
+
+    // which lang tab is "active" in editor — default ko
+    const koClass = 'active';
+    const koBullet = koHasContent ? 'filled' : 'empty';
+    const enBullet = enHasContent ? 'filled' : 'empty';
+    const editorBody = koHasContent
+      ? `<div class="editor-area" contenteditable="false" spellcheck="false">${SAMPLE_KO_STEP3}<span class="caret"></span></div>`
+      : `<div class="editor-area empty-placeholder">한국어 가이드 본문을 입력해주세요…<span class="caret"></span></div>`;
+
+    const saveBtn = renderSaveBtn(saveState);
+    const actionHint = (saveState === 'disabled')
+      ? `ko, en 모두 작성해야 저장할 수 있습니다.`
+      : (saveState === 'error')
+        ? `<span style="color: var(--color-error-dark);">저장에 실패했습니다. 다시 시도해주세요.</span>`
+        : `저장 단축키: <kbd style="font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; border-radius: 3px; background: var(--bg-muted); border: 1px solid var(--border-default);">⌘S</kbd>`;
+
+    return `
+      <div class="edit-body">
+        <!-- Header -->
+        <div class="edit-header-card">
+          <div>
+            <div class="eh-meta">${headerMeta}</div>
+            <div class="eh-title">${header.title} ${variantChip}</div>
+          </div>
+          <div class="eh-right">
+            <span class="constant-badge" title="변경 불가한 식별자">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              ${header.constant}
+            </span>
+          </div>
+        </div>
+
+        ${scope}
+
+        <!-- Language tabs -->
+        <div class="row" style="justify-content: space-between;">
+          <div class="lang-tabs" role="tablist" aria-label="언어 선택">
+            <button class="${koClass}" role="tab" aria-selected="true">
+              <span class="bullet ${koBullet}"></span> 한국어
+            </button>
+            <button role="tab" aria-selected="false">
+              <span class="bullet ${enBullet}"></span> English
+            </button>
+          </div>
+          <span style="font-size: 11.5px; color: var(--fg-3);">
+            ${koHasContent && enHasContent
+              ? '<span style="color: var(--color-success-dark); font-weight: 600;">● ko, en 모두 작성됨</span>'
+              : (koHasContent
+                ? '<span style="color: var(--color-warning-dark); font-weight: 600;">● en 미작성</span>'
+                : 'ko, en 모두 미작성')}
+          </span>
+        </div>
+
+        <!-- Editor -->
+        <div class="editor-frame">
+          <div class="editor-toolbar" role="toolbar" aria-label="서식 도구">
+            <button class="tb-btn" title="Heading 4">H4</button>
+            <div class="tb-divider"></div>
+            <button class="tb-btn" title="굵게 (⌘B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
+            <button class="tb-btn" title="기울임 (⌘I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+            <button class="tb-btn" title="인라인 코드"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+            <div class="tb-divider"></div>
+            <button class="tb-btn" title="Bullet List"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></button>
+            <button class="tb-btn" title="Ordered List"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
+            <div class="tb-divider"></div>
+            <button class="tb-btn" title="링크"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+          </div>
+          ${editorBody}
+          <div class="editor-footer">
+            <span class="validity ${koHasContent ? 'ok' : ''}">${koHasContent ? '유효한 HTML' : '본문이 비어있습니다'}</span>
+            <span>허용된 태그: H4 · B · I · Code · UL · OL · Link</span>
+          </div>
+        </div>
+
+        <!-- Action row -->
+        <div class="action-row">
+          <span class="action-hint">${actionHint}</span>
+          ${saveBtn}
+        </div>
+      </div>`;
+  }
+
+  function renderSaveBtn(state) {
+    switch (state) {
+      case 'disabled':
+        return `
+          <span class="tt-wrap">
+            <button class="btn primary" disabled aria-disabled="true">저장</button>
+            <span class="tt">ko, en 모두 작성해야 저장할 수 있습니다</span>
+          </span>`;
+      case 'enabled':
+        return `<button class="btn primary">저장</button>`;
+      case 'loading':
+        return `<button class="btn primary loading" disabled><span class="spinner"></span> 저장 중…</button>`;
+      case 'error':
+        return `<button class="btn primary">다시 저장</button>`;
+      default:
+        return `<button class="btn primary">저장</button>`;
+    }
+  }
+
+  function previewPane({ stepNo, lang }) {
+    const content = lang === 'ko' ? SAMPLE_KO_STEP3 : SAMPLE_EN_STEP3;
+    const langLabel = lang === 'ko' ? '한국어' : 'English';
+    return `
+      <div class="mini-timeline" aria-label="프로세스 타임라인">
+        <div class="mt-track">
+          ${[1,2,3,4,5,6,7].map(n => {
+            const cls = n < stepNo ? 'done' : (n === stepNo ? 'current' : '');
+            return `<div class="mt-step ${cls}"><div class="dot"></div></div>`;
+          }).join('')}
+        </div>
+        <div class="mt-labels">
+          ${[1,2,3,4,5,6,7].map(n => `<span class="${n===stepNo?'current':''}">${n}</span>`).join('')}
+        </div>
+      </div>
+
+      <div class="guide-card" role="region" aria-label="GuideCard 미리보기 (${langLabel})">
+        <div class="gc-head">
+          <span class="gc-head-icon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2V17a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-.3c0-.7.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>
+          </span>
+          가이드
+        </div>
+        <div class="gc-body">${content}</div>
+      </div>
+
+      <p style="font-size: 11px; color: var(--fg-3); margin: 10px 2px 0; text-align: right;">
+        실제 <span class="mono">GuideCard.tsx</span> 컴포넌트로 렌더링됩니다.
+      </p>
+    `;
+  }
+
+  function invalidPreview() {
+    return `
+      <div class="mini-timeline" aria-label="프로세스 타임라인">
+        <div class="mt-track">
+          ${[1,2,3,4,5,6,7].map(n => {
+            const cls = n < 3 ? 'done' : (n === 3 ? 'current' : '');
+            return `<div class="mt-step ${cls}"><div class="dot"></div></div>`;
+          }).join('')}
+        </div>
+        <div class="mt-labels">${[1,2,3,4,5,6,7].map(n => `<span class="${n===3?'current':''}">${n}</span>`).join('')}</div>
+      </div>
+      <div class="error-state" style="padding: 30px 12px;">
+        <div class="illus">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3>가이드를 불러올 수 없습니다</h3>
+        <p>콘텐츠 형식이 올바르지 않습니다. 관리자에게 아래 검증 에러를 전달해주세요.</p>
+        <ul class="validation-list">
+          <li>허용되지 않은 태그: &lt;script&gt;</li>
+          <li>닫히지 않은 태그: &lt;ul&gt;</li>
+          <li>빈 링크: &lt;a href=""&gt;</li>
+        </ul>
+      </div>
+    `;
+  }
+
+  // ============ INIT ============
+  renderStepList(state.provider, null);
+  goScreen('A');
+</script>
+</body>
+</html>
