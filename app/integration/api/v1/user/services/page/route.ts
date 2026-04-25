@@ -1,35 +1,17 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import type { UserService } from '@/app/api/_lib/v1-types';
-import { client } from '@/lib/api-client';
+import { resolveUserService } from '@/app/api/_lib/user-service';
+import { bff } from '@/lib/bff/client';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const normalizeServiceItem = (value: unknown): UserService => {
-  if (!isRecord(value)) {
-    throw new Error('Invalid service item');
-  }
-
-  const serviceCode =
-    typeof value.serviceCode === 'string'
-      ? value.serviceCode
-      : typeof value.service_code === 'string'
-        ? value.service_code
-        : null;
-  const serviceName =
-    typeof value.serviceName === 'string'
-      ? value.serviceName
-      : typeof value.service_name === 'string'
-        ? value.service_name
-        : null;
-
-  if (!serviceCode || !serviceName) {
-    throw new Error('Invalid service item');
-  }
-
-  return { serviceCode, serviceName };
-};
+interface FlatPageMetadata {
+  totalElements?: number;
+  totalPages?: number;
+  number?: number;
+  size?: number;
+}
 
 export const GET = withV1(async (request) => {
   const { searchParams } = new URL(request.url);
@@ -37,22 +19,24 @@ export const GET = withV1(async (request) => {
   const size = Number(searchParams.get('size') ?? '10');
   const query = searchParams.get('query') ?? undefined;
 
-  const response = await client.users.getServicesPage(page, size, query);
-  if (!response.ok) return response;
+  const data = await bff.users.getServicesPage(page, size, query);
 
-  const raw = await response.json();
-
-  if (!isRecord(raw) || !Array.isArray(raw.content)) {
+  if (!isRecord(data) || !Array.isArray(data.content)) {
     throw new Error('Invalid services/page response payload');
   }
 
+  // Wire-shape: route reads flat top-level page metadata to preserve
+  // the pre-ADR-011 output exactly (I-3). The upstream may instead
+  // expose these under `data.page`; reconciling is a follow-up.
+  const flat = data as unknown as FlatPageMetadata;
+
   return NextResponse.json({
-    content: raw.content.map(normalizeServiceItem),
+    content: data.content.map(resolveUserService),
     page: {
-      totalElements: Number(raw.totalElements ?? 0),
-      totalPages: Number(raw.totalPages ?? 0),
-      number: Number(raw.number ?? 0),
-      size: Number(raw.size ?? 10),
+      totalElements: Number(flat.totalElements ?? 0),
+      totalPages: Number(flat.totalPages ?? 0),
+      number: Number(flat.number ?? 0),
+      size: Number(flat.size ?? 10),
     },
   });
 }, { expectedDuration: '50ms ~ 300ms' });
