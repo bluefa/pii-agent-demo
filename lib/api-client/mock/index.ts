@@ -11,6 +11,7 @@ import { mockDev } from '@/lib/api-client/mock/dev';
 import { mockScan } from '@/lib/api-client/mock/scan';
 import { mockConfirm } from '@/lib/api-client/mock/confirm';
 import { mockQueueBoard } from '@/lib/api-client/mock/queue-board';
+import { mockGuides } from '@/lib/api-client/mock/guides';
 
 export const mockClient: ApiClient = {
   dashboard: mockDashboard,
@@ -25,4 +26,5 @@ export const mockClient: ApiClient = {
   scan: mockScan,
   taskAdmin: mockQueueBoard,
   confirm: mockConfirm,
+  guides: mockGuides,
 };
