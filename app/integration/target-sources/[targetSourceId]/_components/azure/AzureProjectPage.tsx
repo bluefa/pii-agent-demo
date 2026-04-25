@@ -1,13 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
-import {
-  getAzureSettings,
-  resolveAzureProjectIdentifiers,
-} from '@/app/lib/api/azure';
-import type { AzureV1Settings } from '@/lib/types/azure';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -29,36 +24,6 @@ export const AzureProjectPage = ({
   project,
   onProjectUpdate,
 }: AzureProjectPageProps) => {
-  const [fallbackSettings, setFallbackSettings] = useState<AzureV1Settings | null>(null);
-
-  useEffect(() => {
-    const needsIdentifierFallback = !project.tenantId || !project.subscriptionId;
-    if (!needsIdentifierFallback) return;
-
-    const controller = new AbortController();
-    void getAzureSettings(project.targetSourceId, { signal: controller.signal })
-      .then((response) => {
-        if (!controller.signal.aborted) setFallbackSettings(response);
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        console.error('[AzureProjectPage] getAzureSettings fallback failed', error);
-        setFallbackSettings(null);
-      });
-    return () => controller.abort();
-  }, [project.subscriptionId, project.targetSourceId, project.tenantId]);
-
-  const azureIdentifiers = useMemo(
-    () => resolveAzureProjectIdentifiers(
-      {
-        tenantId: project.tenantId,
-        subscriptionId: project.subscriptionId,
-      },
-      fallbackSettings,
-    ),
-    [fallbackSettings, project.subscriptionId, project.tenantId],
-  );
-
   const refreshProject = useCallback(async () => {
     const updated = await getProject(project.targetSourceId);
     onProjectUpdate(updated as CloudTargetSource);
@@ -69,8 +34,8 @@ export const AzureProjectPage = ({
     monitoringMethod: 'Azure Agent',
     jiraLink: null,
     identifiers: [
-      { label: 'Subscription ID', value: azureIdentifiers.subscriptionId ?? null, mono: true },
-      { label: 'Tenant ID', value: azureIdentifiers.tenantId ?? null, mono: true },
+      { label: 'Subscription ID', value: project.subscriptionId ?? null, mono: true },
+      { label: 'Tenant ID', value: project.tenantId ?? null, mono: true },
     ],
   };
 

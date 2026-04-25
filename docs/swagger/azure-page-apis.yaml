@@ -316,27 +316,6 @@ paths:
               schema:
                 $ref: './credential.yaml#/components/schemas/ErrorResponse'
 
-  /azure/target-sources/{targetSourceId}/settings:
-    get:
-      tags:
-        - Azure Page Bootstrap
-      summary: Azure 설정 조회
-      operationId: getAzureJourneySettings
-      x-expected-duration: 50ms ~ 200ms
-      parameters:
-        - $ref: '#/components/parameters/TargetSourceId'
-      responses:
-        '200':
-          description: Azure 설정 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: './azure.yaml#/components/schemas/AzureSettings'
-        '403':
-          $ref: './azure.yaml#/components/responses/PermissionDenied'
-        '404':
-          $ref: './azure.yaml#/components/responses/TargetSourceNotFound'
-
   /target-sources/{targetSourceId}/scan:
     post:
       tags:

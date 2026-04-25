@@ -14,16 +14,6 @@ vi.mock('@/app/lib/api', () => ({
   getProject: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/app/lib/api/azure', async () => {
-  const actual = await vi.importActual<typeof import('@/app/lib/api/azure')>(
-    '@/app/lib/api/azure',
-  );
-  return {
-    ...actual,
-    getAzureSettings: vi.fn().mockResolvedValue(null),
-  };
-});
-
 vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));

@@ -41,7 +41,6 @@ import type {
   AzureCheckInstallationResult,
   AzureInstallationStatusResponse,
   AzureScanAppResponse,
-  AzureSettingsResponse,
   AzureSubnetGuideResponse,
   AzureVmCheckInstallationResult,
   AzureVmInstallationStatusResponse,
@@ -111,9 +110,6 @@ export const mockBff: BffClient = {
         update: async (serviceCode, body) => unwrap(await mockServices.settings.aws.update(serviceCode, body)),
         verifyScanRole: async (serviceCode) => unwrap(await mockServices.settings.aws.verifyScanRole(serviceCode)),
       },
-      azure: {
-        get: async (serviceCode) => unwrap(await mockServices.settings.azure.get(serviceCode)),
-      },
     },
   },
 
@@ -157,8 +153,6 @@ export const mockBff: BffClient = {
       unwrap<AzureCheckInstallationResult>(await mockAzure.checkInstallation(String(id))),
     getInstallationStatus: async (id) =>
       unwrap<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
-    getSettings: async (id) =>
-      unwrap<AzureSettingsResponse>(await mockAzure.getSettings(String(id))),
     getSubnetGuide: async (id) =>
       unwrap<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
     getScanApp: async (id) =>
