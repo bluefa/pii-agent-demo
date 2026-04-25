@@ -1,7 +1,9 @@
 'use client';
 
 import type { CloudTargetSource } from '@/lib/types';
+import { AwsInstallationStatus } from '@/app/integration/target-sources/[targetSourceId]/_components/aws/AwsInstallationStatus';
 import { AzureInstallationStatus } from '@/app/integration/target-sources/[targetSourceId]/_components/azure/AzureInstallationStatus';
+import { GcpInstallationStatus } from '@/app/integration/target-sources/[targetSourceId]/_components/gcp/GcpInstallationStatus';
 
 interface InstallationStatusSlotProps {
   project: CloudTargetSource;
@@ -14,6 +16,13 @@ export const InstallationStatusSlot = ({
 }: InstallationStatusSlotProps) => {
   const inner = (() => {
     switch (project.cloudProvider) {
+      case 'AWS':
+        return (
+          <AwsInstallationStatus
+            targetSourceId={project.targetSourceId}
+            refreshProject={refreshProject}
+          />
+        );
       case 'Azure':
         return (
           <AzureInstallationStatus
@@ -21,9 +30,13 @@ export const InstallationStatusSlot = ({
             refreshProject={refreshProject}
           />
         );
-      case 'AWS':
       case 'GCP':
-        return null;
+        return (
+          <GcpInstallationStatus
+            targetSourceId={project.targetSourceId}
+            refreshProject={refreshProject}
+          />
+        );
     }
   })();
 

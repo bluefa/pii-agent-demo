@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { CloudTargetSource } from '@/lib/types';
+import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -13,6 +13,7 @@ import {
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { ResourceSection } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceSection';
+import { CloudTargetSourceLayout } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
 
 interface GcpProjectPageProps {
   project: CloudTargetSource;
@@ -28,8 +29,6 @@ export const GcpProjectPage = ({
     onProjectUpdate(updated as CloudTargetSource);
   }, [onProjectUpdate, project.targetSourceId]);
 
-  const slotKey = resolveStepSlot('GCP', project.processStatus);
-
   const identity: ProjectIdentity = {
     cloudProvider: 'GCP',
     monitoringMethod: 'GCP Agent',
@@ -38,6 +37,26 @@ export const GcpProjectPage = ({
       { label: 'GCP Project ID', value: project.gcpProjectId ?? null, mono: true },
     ],
   };
+
+  const isConfirmedDataStep =
+    project.processStatus === ProcessStatus.INSTALLING ||
+    project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
+    project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
+    project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
+
+  if (isConfirmedDataStep) {
+    return (
+      <CloudTargetSourceLayout
+        project={project}
+        identity={identity}
+        providerLabel="GCP Infrastructure"
+        action={<DeleteInfrastructureButton />}
+        onProjectUpdate={onProjectUpdate}
+      />
+    );
+  }
+
+  const slotKey = resolveStepSlot('GCP', project.processStatus);
 
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
