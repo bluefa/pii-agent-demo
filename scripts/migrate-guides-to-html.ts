@@ -1,19 +1,15 @@
 /**
- * Guide CMS — seed generator.
+ * Guide CMS — seed scaffold generator.
  *
  * Spec: docs/reports/guide-cms/spec.md §7.
  *
- * One-shot script that transcribes `DEFAULT_STEP_GUIDES` (+ provider
- * overrides) from `lib/constants/process-guides.ts` into the HTML shape
- * consumed by the mock seed. Each generated HTML is validated with
- * `validateGuideHtml()` before emission; a failure exits non-zero.
+ * Generates a scaffold seed from step labels in process-guides.ts.
+ * HTML content is authored directly in the CMS admin UI; the committed
+ * seed (`lib/api-client/mock/guides-seed.ts`) is hand-reviewed and
+ * the drift CI test asserts its shape stays in sync with GUIDE_NAMES.
  *
  * Run:
  *   npx tsx scripts/migrate-guides-to-html.ts > lib/api-client/mock/guides-seed.generated.ts
- *
- * The committed seed (`lib/api-client/mock/guides-seed.ts`) is the
- * hand-reviewed variant of this output; the drift CI test asserts the
- * shape stays in sync.
  */
 
 import { AWS_AUTO_GUIDE, AWS_MANUAL_GUIDE, AZURE_GUIDE, GCP_GUIDE } from '@/lib/constants/process-guides';
@@ -21,46 +17,15 @@ import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import type { GuideName } from '@/lib/types/guide';
-import type { GuideInline, ProviderProcessGuide, StepGuideContent } from '@/lib/types/process-guide';
+import type { ProviderProcessGuide } from '@/lib/types/process-guide';
 
 const SEEDED_AT = '2026-04-25T00:00:00Z';
 
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-const escapeAttr = (value: string): string => escapeHtml(value);
-
-const inlineToHtml = (parts: GuideInline[]): string =>
-  parts
-    .map((part) => {
-      if (typeof part === 'string') return escapeHtml(part);
-      if ('strong' in part) return `<strong>${escapeHtml(part.strong)}</strong>`;
-      // External `#` anchors in the source constants are not valid per
-      // the URL scheme rule — rewrite to a deterministic internal path.
-      const href = part.href === '#' ? '/docs' : part.href;
-      return `<a href="${escapeAttr(href)}">${escapeHtml(part.link)}</a>`;
-    })
-    .join('');
-
-const stepContentToHtml = (content: StepGuideContent): string => {
-  const heading = `<h4>${escapeHtml(content.heading)}</h4>`;
-  const summary = `<p>${inlineToHtml(content.summary)}</p>`;
-  const bullets = content.bullets.length > 0
-    ? `<ul>${content.bullets.map((b) => `<li>${inlineToHtml(b)}</li>`).join('')}</ul>`
-    : '';
-  return heading + summary + bullets;
-};
-
-/** Resolve the StepGuideContent for a (provider, variant, step) tuple. */
-const findStepGuide = (
+/** Resolve the step label for a (provider, variant, step) tuple. */
+const findStepLabel = (
   guide: ProviderProcessGuide,
   step: number,
-): StepGuideContent | undefined => guide.steps.find((s) => s.stepNumber === step)?.guide;
+): string | undefined => guide.steps.find((s) => s.stepNumber === step)?.label;
 
 interface SeedEntry {
   name: GuideName;
@@ -83,20 +48,23 @@ const collect = (): SeedEntry[] => {
       source = GCP_GUIDE;
     }
 
-    const content = source && findStepGuide(source, step);
-    if (!content) {
-      console.error(`Missing StepGuideContent for ${provider}/${variant ?? '-'}/step ${step}`);
-      process.exit(1);
-    }
-    const ko = stepContentToHtml(content);
-    const result = validateGuideHtml(ko);
-    if (!result.valid) {
-      console.error(`validateGuideHtml failed for ${slot.guideName}:`, result.errors);
+    // Step labels remain available for reference; HTML content is now
+    // authored directly in the CMS and seeded in guides-seed.ts.
+    const label = source ? findStepLabel(source, step) : undefined;
+    if (!label) {
+      console.error(`Missing step label for ${provider}/${variant ?? '-'}/step ${step}`);
       process.exit(1);
     }
     // De-dupe — shared names (e.g. AWS_TARGET_CONFIRM across AUTO+MANUAL)
     // emit identical HTML; keep the first.
     if (entries.some((e) => e.name === slot.guideName)) continue;
+    // Placeholder HTML — real content is authored in the CMS admin UI.
+    const ko = `<h4>${label}</h4>`;
+    const result = validateGuideHtml(ko);
+    if (!result.valid) {
+      console.error(`validateGuideHtml failed for ${slot.guideName}:`, result.errors);
+      process.exit(1);
+    }
     entries.push({ name: slot.guideName, ko });
   }
   return entries;

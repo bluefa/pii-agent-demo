@@ -1,107 +1,5 @@
 import type { CloudProvider } from '@/lib/types';
-import type { PrerequisiteGuide, ProviderProcessGuide, StepGuideContent } from '@/lib/types/process-guide';
-
-/**
- * GuideCard 기본 콘텐츠 (프로토타입 L1453-1518 GUIDES)
- *
- * stepNumber / `ProcessStatus` 값(1-7)을 키로 사용한다.
- * provider/variant 별 차이가 없으므로 공통으로 재사용한다.
- */
-const DEFAULT_STEP_GUIDES: Record<number, StepGuideContent> = {
-  1: {
-    heading: '연동 대상 DB를 선택해 주세요',
-    summary: [
-      'Run Infra Scan을 통해 조회된 DB 리스트에서 PII 모니터링이 필요한 DB를 체크하고, 하단의 ',
-      { strong: '연동 대상 승인 요청' },
-      ' 버튼을 눌러 주세요.',
-    ],
-    bullets: [
-      ['Scan은 평균 3~5분 내외 소요되며, 대상 리소스가 많을 경우 더 길어질 수 있습니다.'],
-      [
-        '보안 설정 또는 권한 문제로 스캔이 실패했다면 ',
-        { link: '가이드 문서', href: '#' },
-        '를 확인해 주세요.',
-      ],
-    ],
-  },
-  2: {
-    heading: '승인자의 검토를 기다리고 있어요',
-    summary: [
-      '요청하신 DB 연동 대상 목록은 보안팀 및 데이터 관리자의 검토를 받고 있습니다. 승인 결과는 메일과 Slack으로 안내됩니다.',
-    ],
-    bullets: [
-      ['평균 1영업일 이내 검토가 완료됩니다.'],
-      [
-        '3영업일 이상 지연 시 ',
-        { link: '담당자에게 문의', href: '#' },
-        '해 주세요.',
-      ],
-    ],
-  },
-  3: {
-    heading: '승인된 DB를 시스템에 반영하고 있어요',
-    summary: [
-      '승인된 DB에 대한 메타 정보가 PII Agent 관리 시스템에 동기화되는 중입니다. 이 과정은 자동으로 진행되며 별도 조치가 필요하지 않습니다.',
-    ],
-    bullets: [
-      ['반영 완료까지 최대 10분가량 소요될 수 있습니다.'],
-      ['이 단계에서는 실제 데이터가 전송되지 않으며, 메타데이터만 동기화됩니다.'],
-    ],
-  },
-  4: {
-    heading: 'PII Agent를 설치해 주세요',
-    summary: [
-      '발급된 Credential과 설치 스크립트를 사용해 대상 인프라에 PII Agent를 배포합니다. Agent 설치 후 자동으로 다음 단계로 넘어갑니다.',
-    ],
-    bullets: [
-      [
-        'Credential은 ',
-        { link: 'Credentials 메뉴', href: '#' },
-        '에서 확인할 수 있습니다.',
-      ],
-      [
-        'Docker / Helm / Binary 설치 방식은 ',
-        { link: '설치 가이드', href: '#' },
-        '를 참고해 주세요.',
-      ],
-      ['Agent는 설치 환경의 최소 사양(2 vCPU / 4GB RAM) 이상을 권장합니다.'],
-    ],
-  },
-  5: {
-    heading: 'Agent와 N-IRP 간 통신을 확인하고 있어요',
-    summary: [
-      '설치된 Agent가 N-IRP(개인정보 리스크 플랫폼)와 정상적으로 통신하는지 자동으로 점검합니다. 네트워크 ACL과 방화벽 정책이 올바른지 확인해 주세요.',
-    ],
-    bullets: [
-      ['테스트 실패 시 네트워크 구간(443, 8443 포트)을 우선 점검해 주세요.'],
-      ['재시도는 최대 5회까지 자동 수행됩니다.'],
-    ],
-  },
-  6: {
-    heading: '최종 관리자 승인을 기다리고 있어요',
-    summary: [
-      'PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다. 승인 결과는 메일로 전달됩니다.',
-    ],
-    bullets: [
-      [
-        '긴급 건은 ',
-        { link: '#pii-agent-support', href: '#' },
-        ' 채널로 공유해 주세요.',
-      ],
-      ['승인 취소 또는 설정 변경이 필요하다면 이 단계에서 요청 가능합니다.'],
-    ],
-  },
-  7: {
-    heading: '모든 연동이 완료되었습니다',
-    summary: [
-      'PII Agent가 정상 동작 중이며, 탐지 결과는 PII Map 및 대시보드에서 확인할 수 있습니다.',
-    ],
-    bullets: [
-      ['탐지 리포트는 매일 09:00에 자동 발송됩니다.'],
-      ['인프라 변경 발생 시 다시 이 화면에서 재연동을 진행해 주세요.'],
-    ],
-  },
-};
+import type { PrerequisiteGuide, ProviderProcessGuide } from '@/lib/types/process-guide';
 
 /** 공통 사전 조치 가이드 */
 const SCAN_ROLE_GUIDE: PrerequisiteGuide = {
@@ -207,7 +105,6 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
         '전체 리소스를 선택하고 제외된 리소스가 없으면 관리자 승인 없이 자동 확정됩니다',
         '확정 후에는 선택한 리소스를 변경할 수 없으므로 신중하게 선택해주세요',
       ],
-      guide: DEFAULT_STEP_GUIDES[1],
     },
     {
       stepNumber: 2,
@@ -221,13 +118,11 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
         '전체 리소스 선택 + 미선택 리소스가 모두 제외 확정 → 자동 승인',
         '반려 시 History 탭에서 반려 사유 확인 가능',
       ],
-      guide: DEFAULT_STEP_GUIDES[2],
     },
     {
       stepNumber: 3,
       label: '연동 대상 반영 중',
       description: '승인된 DB 메타데이터가 PII Agent 관리 시스템에 동기화되는 중입니다. 별도 조치가 필요하지 않습니다.',
-      guide: DEFAULT_STEP_GUIDES[3],
     },
     {
       stepNumber: 4,
@@ -242,7 +137,6 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
         'Role 미등록 시 [Role 등록 가이드]에서 등록 방법을 확인하세요',
         '설치에 최대 10분이 소요될 수 있습니다',
       ],
-      guide: DEFAULT_STEP_GUIDES[4],
     },
     {
       stepNumber: 5,
@@ -254,7 +148,6 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
         '실패 시 Credential 확인 또는 네트워크 점검',
       ],
       warnings: ['DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다'],
-      guide: DEFAULT_STEP_GUIDES[5],
     },
     {
       stepNumber: 6,
@@ -264,7 +157,6 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
         '관리자가 최종 승인하면 연동이 완료됩니다',
         '이 단계에서도 재테스트가 가능합니다',
       ],
-      guide: DEFAULT_STEP_GUIDES[6],
     },
     {
       stepNumber: 7,
@@ -274,7 +166,6 @@ export const AWS_AUTO_GUIDE: ProviderProcessGuide = {
         '언제든 재테스트 가능',
         '신규 리소스 발견 시 프로세스가 재시작됩니다',
       ],
-      guide: DEFAULT_STEP_GUIDES[7],
     },
   ],
 };
@@ -308,7 +199,6 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
         '전체 리소스를 선택하고 제외된 리소스가 없으면 관리자 승인 없이 자동 확정됩니다',
         '확정 후에는 선택한 리소스를 변경할 수 없으므로 신중하게 선택해주세요',
       ],
-      guide: DEFAULT_STEP_GUIDES[1],
     },
     {
       stepNumber: 2,
@@ -322,13 +212,11 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
         '전체 리소스 선택 + 미선택 리소스가 모두 제외 확정 → 자동 승인',
         '반려 시 History 탭에서 반려 사유 확인 가능',
       ],
-      guide: DEFAULT_STEP_GUIDES[2],
     },
     {
       stepNumber: 3,
       label: '연동 대상 반영 중',
       description: '승인된 DB 메타데이터가 PII Agent 관리 시스템에 동기화되는 중입니다. 별도 조치가 필요하지 않습니다.',
-      guide: DEFAULT_STEP_GUIDES[3],
     },
     {
       stepNumber: 4,
@@ -371,7 +259,6 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
         'AWS CLI 인증이 완료되어 있어야 합니다 (잘못된 계정 주의)',
         '담당자와 설치 일정을 조율하세요',
       ],
-      guide: DEFAULT_STEP_GUIDES[4],
     },
     {
       stepNumber: 5,
@@ -383,7 +270,6 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
         '실패 시 Credential 확인 또는 네트워크 점검',
       ],
       warnings: ['DB Credential이 미설정된 리소스는 테스트 전 설정이 필요합니다'],
-      guide: DEFAULT_STEP_GUIDES[5],
     },
     {
       stepNumber: 6,
@@ -393,7 +279,6 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
         '관리자가 최종 승인하면 연동이 완료됩니다',
         '이 단계에서도 재테스트가 가능합니다',
       ],
-      guide: DEFAULT_STEP_GUIDES[6],
     },
     {
       stepNumber: 7,
@@ -403,16 +288,10 @@ export const AWS_MANUAL_GUIDE: ProviderProcessGuide = {
         '언제든 재테스트 가능',
         '신규 리소스 발견 시 프로세스가 재시작됩니다',
       ],
-      guide: DEFAULT_STEP_GUIDES[7],
     },
   ],
 };
 
-/**
- * 비-AWS Provider 공통 7단계 가이드를 생성한다.
- * AWS와 절차/체크리스트 항목은 다르지만, GuideCard 본문(`StepGuideContent`)은
- * 단계별 의미가 동일하므로 `DEFAULT_STEP_GUIDES`를 그대로 재사용한다.
- */
 const buildSimpleProviderGuide = (
   provider: CloudProvider,
   title: string,
@@ -428,43 +307,36 @@ const buildSimpleProviderGuide = (
       stepNumber: 1,
       label: '연동 대상 확정',
       description: step1Description,
-      guide: DEFAULT_STEP_GUIDES[1],
     },
     {
       stepNumber: 2,
       label: '승인 대기',
       description: '관리자의 승인을 기다리는 중입니다.',
-      guide: DEFAULT_STEP_GUIDES[2],
     },
     {
       stepNumber: 3,
       label: '연동 대상 반영 중',
       description: '승인된 DB 메타데이터가 PII Agent 관리 시스템에 동기화되는 중입니다.',
-      guide: DEFAULT_STEP_GUIDES[3],
     },
     {
       stepNumber: 4,
       label: step4Label,
       description: step4Description,
-      guide: DEFAULT_STEP_GUIDES[4],
     },
     {
       stepNumber: 5,
       label: '연결 테스트',
       description: '설치가 완료되었습니다. DB 연결을 테스트하세요.',
-      guide: DEFAULT_STEP_GUIDES[5],
     },
     {
       stepNumber: 6,
       label: '관리자 승인 대기',
       description: 'PII Agent 연결이 확인되었습니다. 운영팀의 최종 승인을 기다리는 중입니다.',
-      guide: DEFAULT_STEP_GUIDES[6],
     },
     {
       stepNumber: 7,
       label: '완료',
       description: 'PII Agent 연동이 완료되었습니다.',
-      guide: DEFAULT_STEP_GUIDES[7],
     },
   ],
 });
