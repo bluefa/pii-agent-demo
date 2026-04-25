@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { GUIDE_NAMES, GUIDE_SLOTS } from '@/lib/constants/guide-registry';
-import { guidesSeed } from '@/lib/api-client/mock/guides-seed';
+import { guidesSeed } from '@/lib/bff/mock/guides-seed';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 describe('Guide registry ↔ seed drift', () => {

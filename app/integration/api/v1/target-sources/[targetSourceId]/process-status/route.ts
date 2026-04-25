@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
-import { client } from '@/lib/api-client';
+import { BffError } from '@/lib/bff/errors';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
-import { normalizeIssue222ProcessStatusResponse, type Issue222ProcessStatus } from '@/lib/issue-222-approval';
-import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
+import { normalizeProcessStatusResponse, type BffApprovalProcessStatus } from '@/lib/approval-bff';
+import { extractTargetSource } from '@/lib/target-source-response';
 import { ProcessStatus } from '@/lib/types';
 
-const toIssue222ProcessStatus = (processStatus: ProcessStatus): Issue222ProcessStatus => {
+const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApprovalProcessStatus => {
   switch (processStatus) {
     case ProcessStatus.WAITING_APPROVAL:
       return 'PENDING';
@@ -32,21 +32,26 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const rawStatus = normalizeIssue222ProcessStatusResponse(
+  const rawStatus = normalizeProcessStatusResponse(
     await bff.confirm.getProcessStatus(parsed.value),
     { target_source_id: parsed.value },
   );
 
-  // targetSources.get migration is in adr011-02 scope — keep legacy client here.
-  const projectResponse = await client.targetSources.get(String(parsed.value));
-  if (!projectResponse.ok) {
+  let projectStatus: ProcessStatus | null = null;
+  try {
+    const data = await bff.targetSources.get(parsed.value);
+    projectStatus = extractTargetSource(data).processStatus;
+  } catch (e) {
+    if (!(e instanceof BffError)) throw e;
+    // Project lookup is auxiliary — fall back to rawStatus from process-status BFF.
+  }
+
+  if (projectStatus === null) {
     return NextResponse.json(rawStatus);
   }
 
-  const project = extractTargetSource(await projectResponse.json() as TargetSourceDetailResponse);
-
   return NextResponse.json({
     ...rawStatus,
-    process_status: toIssue222ProcessStatus(project.processStatus),
+    process_status: toBffApprovalProcessStatus(projectStatus),
   });
 });

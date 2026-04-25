@@ -7,13 +7,13 @@ import {
   getProjectsByServiceCode,
   mockServiceCodes,
 } from '@/lib/mock-data';
-import { mockProjects } from '@/lib/api-client/mock/projects';
+import { mockProjects } from '@/lib/bff/mock/projects';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
 
-type Issue222CloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'UNKNOWN';
-type Issue222ProcessStatus =
+type BffCloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'UNKNOWN';
+type BffApprovalProcessStatus =
   | 'IDLE'
   | 'PENDING'
   | 'CONFIRMING'
@@ -22,7 +22,7 @@ type Issue222ProcessStatus =
   | 'CONNECTED'
   | 'COMPLETED';
 
-interface Issue222CreateTargetSourceBody {
+interface CreateTargetSourceBody {
   serviceCode?: string;
   description?: string;
   cloudProvider?: string;
@@ -33,7 +33,7 @@ interface Issue222CreateTargetSourceBody {
   gcpProjectId?: string;
 }
 
-const toIssue222CloudProvider = (cloudProvider: CloudProvider): Issue222CloudProvider => {
+const toBffCloudProvider = (cloudProvider: CloudProvider): BffCloudProvider => {
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
@@ -57,7 +57,7 @@ const toInternalCloudProvider = (cloudProvider?: string): CloudProvider | null =
   }
 };
 
-const toIssue222ProcessStatus = (processStatus: ProcessStatus): Issue222ProcessStatus => {
+const toBffApprovalProcessStatus = (processStatus: ProcessStatus): BffApprovalProcessStatus => {
   switch (processStatus) {
     case ProcessStatus.WAITING_APPROVAL:
       return 'PENDING';
@@ -77,26 +77,26 @@ const toIssue222ProcessStatus = (processStatus: ProcessStatus): Issue222ProcessS
   }
 };
 
-const getIssue222Metadata = (project: Project) => ({
+const getBffMetadata = (project: Project) => ({
   ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
   ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
 });
 
-const toIssue222TargetSourceDetail = (project: Project) => ({
+const toBffTargetSourceDetail = (project: Project) => ({
   description: project.description,
   target_source_id: project.targetSourceId,
-  process_status: toIssue222ProcessStatus(project.processStatus),
-  cloud_provider: toIssue222CloudProvider(project.cloudProvider),
+  process_status: toBffApprovalProcessStatus(project.processStatus),
+  cloud_provider: toBffCloudProvider(project.cloudProvider),
   created_at: project.createdAt,
-  ...(Object.keys(getIssue222Metadata(project)).length > 0
-    ? { metadata: getIssue222Metadata(project) }
+  ...(Object.keys(getBffMetadata(project)).length > 0
+    ? { metadata: getBffMetadata(project) }
     : {}),
 });
 
 const toTargetSourceInfoCloudProvider = (cloudProvider: CloudProvider): string =>
-  toIssue222CloudProvider(cloudProvider);
+  toBffCloudProvider(cloudProvider);
 
-const toIssue222TargetSourceInfo = (project: Project) => ({
+const toBffTargetSourceInfo = (project: Project) => ({
   id: project.id,
   targetSourceId: project.targetSourceId,
   projectCode: project.projectCode,
@@ -122,8 +122,8 @@ const toIssue222TargetSourceInfo = (project: Project) => ({
   ...(project.tenantId ? { tenantId: project.tenantId } : {}),
   ...(project.subscriptionId ? { subscriptionId: project.subscriptionId } : {}),
   ...(project.gcpProjectId ? { gcpProjectId: project.gcpProjectId } : {}),
-  ...(Object.keys(getIssue222Metadata(project)).length > 0
-    ? { metadata: getIssue222Metadata(project) }
+  ...(Object.keys(getBffMetadata(project)).length > 0
+    ? { metadata: getBffMetadata(project) }
     : {}),
 });
 
@@ -152,7 +152,7 @@ export const mockTargetSources = {
     }
 
     return NextResponse.json(
-      getProjectsByServiceCode(serviceCode).map(toIssue222TargetSourceDetail),
+      getProjectsByServiceCode(serviceCode).map(toBffTargetSourceDetail),
     );
   },
 
@@ -160,7 +160,7 @@ export const mockTargetSources = {
     const response = await mockProjects.get(targetSourceId);
     if (!response.ok) return response;
     const { project } = (await response.json()) as { project: Project };
-    return NextResponse.json({ targetSource: toIssue222TargetSourceInfo(project) });
+    return NextResponse.json({ targetSource: toBffTargetSourceInfo(project) });
   },
 
   create: async (body: unknown) => {
@@ -181,7 +181,7 @@ export const mockTargetSources = {
       tenantId,
       subscriptionId,
       gcpProjectId,
-    } = (body ?? {}) as Issue222CreateTargetSourceBody;
+    } = (body ?? {}) as CreateTargetSourceBody;
 
     const normalizedProvider = toInternalCloudProvider(cloudProvider);
 
@@ -242,6 +242,6 @@ export const mockTargetSources = {
 
     addProject(project);
 
-    return NextResponse.json(toIssue222TargetSourceInfo(project), { status: 201 });
+    return NextResponse.json(toBffTargetSourceInfo(project), { status: 201 });
   },
 };
