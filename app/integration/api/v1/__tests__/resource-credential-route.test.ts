@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { NextResponse } from 'next/server';
 
-vi.mock('@/lib/api-client', () => ({
-  client: {
+vi.mock('@/lib/bff/client', () => ({
+  bff: {
     confirm: {
       updateResourceCredential: vi.fn(),
     },
@@ -10,9 +9,9 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { PUT } from '@/app/integration/api/v1/target-sources/[targetSourceId]/resources/credential/route';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 
-const mockedUpdateResourceCredential = vi.mocked(client.confirm.updateResourceCredential);
+const mockedUpdateResourceCredential = vi.mocked(bff.confirm.updateResourceCredential);
 
 describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/credential', () => {
   beforeEach(() => {
@@ -20,9 +19,7 @@ describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/cred
   });
 
   it('Issue #222 PUT 계약으로 credential update를 프록시한다', async () => {
-    mockedUpdateResourceCredential.mockResolvedValue(
-      NextResponse.json({ success: true }, { status: 200 }),
-    );
+    mockedUpdateResourceCredential.mockResolvedValue({ success: true });
 
     const response = await PUT(
       new Request('http://localhost/integration/api/v1/target-sources/1003/resources/credential', {
@@ -37,7 +34,7 @@ describe('PUT /integration/api/v1/target-sources/[targetSourceId]/resources/cred
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(mockedUpdateResourceCredential).toHaveBeenCalledWith('1003', {
+    expect(mockedUpdateResourceCredential).toHaveBeenCalledWith(1003, {
       resourceId: 'res-1',
       credentialId: 'cred-1',
     });

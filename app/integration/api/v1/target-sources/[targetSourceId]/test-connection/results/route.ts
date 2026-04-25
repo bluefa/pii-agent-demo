@@ -1,5 +1,6 @@
+import { NextResponse } from 'next/server';
 import { withV1 } from '@/app/api/_lib/handler';
-import { client } from '@/lib/api-client';
+import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 
@@ -11,11 +12,6 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const page = Number(searchParams.get('page') ?? '0');
   const size = Number(searchParams.get('size') ?? '10');
 
-  const response = await client.confirm.getTestConnectionResults(
-    String(parsed.value),
-    page,
-    size,
-  );
-
-  return response;
+  const data = await bff.confirm.getTestConnectionResults(parsed.value, page, size);
+  return NextResponse.json(data);
 }, { expectedDuration: '50ms' });
