@@ -4,152 +4,175 @@
 > Analysis: [docs/reports/api-client-pattern-review.md](../api-client-pattern-review.md)
 > Strategy: Option B-1 (typed legacy upstream shape)
 
+This plan was simplified after a Codex over-engineering review (PR #387). 7 specs collapsed to 5; redundant inventory artifacts and runtime stubs dropped; group structure reduced to 3 implementation tiers based on actual risk.
+
+---
+
+## What actually changes (abstract overview)
+
+The migration touches three layers per domain. **Architecture before**:
+
+```
+                    │ client (lib/api-client/index.ts)
+                    │   = mockClient OR bffClient (env var picks)
+Component ──────────┤   returns Promise<NextResponse>
+  fetch /int/api/v1/x ↓
+                Route handler
+                    │ const r = await client.x.y(id);
+                    │ if (!r.ok) return r;
+                    │ const data = await r.json() as Shape;  ← cast, not typed
+                    │ return NextResponse.json(transform(data));
+                    ↓
+                bff-client.ts → upstream BFF
+                                OR
+                mock-client/x.ts (in-memory)
+```
+
+**Architecture after**:
+
+```
+                    │ bff (lib/bff/client.ts)
+                    │   = mockBff OR httpBff (same env var)
+Component ──────────┤   returns Promise<TypedShape>
+  fetch /int/api/v1/x ↓
+                Route handler
+                    │ const data = await bff.x.y(id);  ← typed, no cast
+                    │ return NextResponse.json(transform(data));
+                    ↓
+                lib/bff/http.ts → upstream BFF
+                                OR
+                lib/bff/mock-adapter.ts (in-memory)
+```
+
+The route handler shrinks by 4-5 lines per call site, the `as Shape` cast disappears, and mock + HTTP impls share the same TypeScript contract — so a missing method or a snake/camel drift becomes a compile error instead of a runtime surprise.
+
+### Worked example: `GET /target-sources/{id}`
+
+**Files touched (one PR)**:
+1. `lib/bff/types/target-sources.ts` — declare `TargetSourceDetailResponse` (already exists in `lib/target-source-response.ts`; just re-export)
+2. `lib/bff/types.ts` — extend `BffClient` with `targetSources.get`
+3. `lib/bff/http.ts` — add real `httpBff.targetSources.get` impl using existing `get<T>(path)` helper
+4. `lib/bff/mock-adapter.ts` — add real `mockBff.targetSources.get` impl reading from `lib/mock-data.ts`
+5. `app/integration/api/v1/target-sources/[targetSourceId]/route.ts` — switch `client.targetSources.get(...)` → `bff.targetSources.get(...)`, drop the `as` cast
+
+**Diff sketch** (route handler):
+
+```diff
+-import { client } from '@/lib/api-client';
++import { bff } from '@/lib/bff/client';
+
+ export const GET = withV1(async (_request, { requestId, params }) => {
+   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
+   if (!parsed.ok) return problemResponse(parsed.problem);
+
+-  const response = await client.targetSources.get(String(parsed.value));
+-  if (!response.ok) return response;
+-  const data = await response.json();
+-  return NextResponse.json(extractTargetSource(data));
++  const data = await bff.targetSources.get(parsed.value);
++  return NextResponse.json(extractTargetSource(data));
+ });
+```
+
+The route's external contract is identical: same URL, same response body, same status codes. Only the *internal* dispatch is typed.
+
+Per ADR-011 B-1 the v1 transform (`extractTargetSource`) **stays in the route**. Transforms are NOT moved into `httpBff` (that's B-2, deferred). A composite route like Azure `check-installation` keeps its DB+VM merge logic in the handler.
+
+---
+
+## ⛔ Observable Behavior Invariants (DO NOT change)
+
+Four non-negotiable invariants. Every implementation spec checks them.
+
+| ID | Invariant | Verification |
+|---|---|---|
+| **I-1** | Upstream BFF call paths/methods/queries/bodies preserved | Codex review compares removed `bff-client.ts` lines to added `lib/bff/http.ts` lines (1:1) |
+| **I-2** | Next.js public route URLs and `route.ts` file locations preserved | `find app/integration/api/v1 -name route.ts \| sort` identical pre/post |
+| **I-3** | Route response wire shape preserved — including the existing GET-camelCase / POST-passthrough asymmetry | Route integration tests + smoke `curl` baseline diff (representative endpoints) |
+| **I-4** | HTTP status codes + ProblemDetails error body shape preserved | `BffError` thrown from `bff.x.y()` is converted by `withV1` to the same ProblemDetails fields `transformLegacyError` produces today |
+
+### Why I-3 says "preserve the asymmetry"
+
+Current `proxyGet` runs `camelCaseKeys`; current `proxyPost/Put` is raw passthrough (snake_case). CSR helpers like `normalizeIssue222ApprovalRequestSummary` read `target_source_id` from POST responses. **Changing POST behavior to camelCase would silently break those normalizers.** This migration consolidates clients only — it does NOT fix the asymmetry. Resolving it is a separate post-migration ADR.
+
+### Verification: integration tests, not theatre
+
+Per Codex review: behavior preservation is enforced by **route-level integration tests** that run in `npm run test:run` (existing `app/integration/api/v1/__tests__/*.test.ts` suite), not by manual curl ceremonies. Each implementation spec adds or updates tests for its domains.
+
+Manual `curl` smoke is allowed as optional debugging during implementation, not as a merge gate.
+
+---
+
 ## Spec inventory
 
 | Key | Phase | Title | Effort | Depends on | Parallelizable with |
 |---|---|---|---|---|---|
-| `adr011-01` | 0 + 1 | Inventory + boundary rule update | M | — | — |
-| `adr011-02` | 2 | BffClient types expanded for all domains | L | 01 | — |
-| `adr011-03` | 3 + 4 + 5 | Group A: targetSources + projects + users | XL | 02 | 04, 05, 06 |
-| `adr011-04` | 3 + 4 + 5 | Group B: aws + azure + gcp (composite-route heavy) | XL | 02 | 03, 05, 06 |
-| `adr011-05` | 3 + 4 + 5 | Group C: services + dashboard + dev + scan + taskAdmin | L | 02 | 03, 04, 06 |
-| `adr011-06` | 3 + 4 + 5 | Group D: confirm (Issue #222 surface) | XL | 02 | 03, 04, 05 |
-| `adr011-07` | 6 | Final cleanup + naming + ESLint lock | L | 03, 04, 05, 06 | — |
+| `adr011-01` | 1+2 | Setup: boundary rule update + per-domain typed shapes | M-L | — | — |
+| `adr011-02` | 3-5 | Simple/core domains: targetSources + projects + users + services + dashboard + dev + scan + taskAdmin | XL | 01 | 03, 04 |
+| `adr011-03` | 3-5 | Cloud providers: aws + azure (composite) + gcp | L | 01 | 02, 04 |
+| `adr011-04` | 3-5 | Confirm domain: migrate only, preserve normalize | L | 01 | 02, 03 |
+| `adr011-05` | 6 | Cleanup: delete `lib/api-client/*`, ESLint lock, boundary docs final. Issue222 rename optional appendix. | M | 02, 03, 04 | — |
 
 ## Dependency graph
 
 ```
-                   ┌────────────────────────────┐
-                   │ adr011-01: Inventory+Rules │
-                   │   (Phase 0+1)              │
-                   └──────────────┬─────────────┘
-                                  │
-                   ┌──────────────▼─────────────┐
-                   │ adr011-02: BffClient types │
-                   │   (Phase 2)                │
-                   └──────────────┬─────────────┘
-                                  │
-        ┌─────────────┬───────────┼───────────┬─────────────┐
-        ▼             ▼           ▼           ▼             ▼
-  ┌──────────┐  ┌──────────┐ ┌─────────┐ ┌──────────┐
-  │ adr011-03│  │ adr011-04│ │adr011-05│ │ adr011-06│   (parallel — 4 sessions)
-  │ Group A  │  │ Group B  │ │ Group C │ │ Group D  │
-  │          │  │ +composite│ │         │ │ +Issue#222│
-  └──────────┘  └──────────┘ └─────────┘ └──────────┘
-        └─────────────┴───────────┬───────────┴─────────────┘
-                                  ▼
-                   ┌────────────────────────────┐
-                   │ adr011-07: Cleanup +       │
-                   │ naming + ESLint lock       │
-                   │   (Phase 6)                │
-                   └────────────────────────────┘
+              ┌──────────────────────┐
+              │ adr011-01 — setup    │
+              │ (boundary + types)   │
+              └──────────┬───────────┘
+                         │
+       ┌─────────────────┼─────────────────┐
+       ▼                 ▼                 ▼
+  ┌──────────┐    ┌──────────┐    ┌──────────┐    (3 parallel sessions)
+  │ adr011-02│    │ adr011-03│    │ adr011-04│
+  │ simple   │    │ cloud    │    │ confirm  │
+  └─────┬────┘    └─────┬────┘    └─────┬────┘
+        └───────────────┼───────────────┘
+                        ▼
+              ┌──────────────────────┐
+              │ adr011-05 — cleanup  │
+              └──────────────────────┘
 ```
 
 ## Wave plan (suggested session distribution)
 
 | Wave | Specs | Sessions | Notes |
 |---|---|---|---|
-| **W1 — Foundation** | 01, 02 | 1 sequential session for each | 01 produces the inventory the Wave 3 implementers need |
-| **W2 — Implementation** | 03, 04, 05, 06 | 4 parallel sessions | One session per group; do NOT serialize |
-| **W3 — Cleanup** | 07 | 1 session | Runs only after all four W2 PRs merge |
+| **W1 — Setup** | 01 | 1 sequential | Adds typed shapes (no httpBff/mockBff method changes) |
+| **W2 — Implementation** | 02, 03, 04 | 3 parallel sessions | Independent domains; do NOT serialize |
+| **W3 — Cleanup** | 05 | 1 session | After all three W2 PRs merge |
 
-Total: 6 sessions across 3 waves. W2 wall-clock = max of the 4 group sessions, not their sum.
-
-## Conventions for all specs
-
-- Every spec follows the [`/wave-task`](../../../.claude/skills/wave-task/SKILL.md) pipeline. Invoke as `/wave-task adr011-NN`.
-- Worktree branch prefix: `refactor/adr011-NN-<short-name>`. ADR-011 work is refactor across the board.
-- Each PR description must reference ADR-011 + the specific spec.
-- `/codex-review` is **mandatory** for specs 02, 04, 06, 07 (the highest-risk ones). Optional but recommended elsewhere.
-- All work happens after the boundary rule update in spec 01 ships — otherwise the first route migration would violate the documented import rules.
-
-## ⛔ Observable Behavior Invariants (DO NOT change during ADR-011 migration)
-
-These four invariants are **non-negotiable** across specs 01-07. Every spec's acceptance criteria reference them. If the implementer cannot satisfy an invariant, the work stops and the spec is revised — *not* the invariant.
-
-### I-1 — Upstream BFF call paths are unchanged
-
-`${BFF_URL}/install/v1/...` URL strings, HTTP methods, query parameters, and request body shapes remain identical to what `lib/api-client/bff-client.ts` produces today. `httpBff.<domain>.<method>` is a **typed wrapper around the same wire request**.
-
-Verification: `git diff` of removed `lib/api-client/bff-client.ts` lines vs added `lib/bff/http.ts` lines must show 1:1 path equivalence. Codex review (mandatory for specs 03-06) explicitly checks this.
-
-### I-2 — Next.js public route URLs are unchanged
-
-`/integration/api/v1/...` URLs, file locations of route handlers (`app/integration/api/v1/**/route.ts`), HTTP methods, and route handler exports (`GET`, `POST`, etc.) remain identical. **No route file is moved, renamed, deleted, or has its exported method names changed**.
-
-Verification: `find app/integration/api/v1 -name "route.ts" | sort` produces identical output before and after each spec.
-
-### I-3 — Route response wire shapes are unchanged (preserve GET/POST casing asymmetry)
-
-The exact JSON body returned by each Next.js route handler — field names (snake_case vs camelCase), field presence, nested structure, array order — is preserved byte-for-byte.
-
-This **explicitly preserves the current asymmetry**: `proxyGet` runs `camelCaseKeys`, `proxyPost/Put` is raw passthrough. CSR helpers in `app/lib/api/index.ts` depend on this asymmetry (e.g. `normalizeIssue222ApprovalRequestSummary` reads `target_source_id` from POST responses). Specs 03-06 MUST preserve it.
-
-Resolving the asymmetry is a separate, post-migration concern. Do NOT attempt it here.
-
-Verification: each group spec runs smoke tests that diff `curl` output pre-PR vs post-PR for representative endpoints. A field shift in any direction (snake↔camel, missing/extra field, value change) blocks merge.
-
-### I-4 — HTTP status codes and error response shapes are unchanged
-
-- 2xx responses: status code preserved.
-- 4xx/5xx responses: status code AND ProblemDetails body shape preserved.
-- The `withV1` middleware currently transforms legacy errors via `transformLegacyError`. Under ADR-011, `BffError` thrown from `bff.x.y()` is caught and transformed by an **equivalent** path that produces the same ProblemDetails fields (`type`, `title`, `status`, `detail`, `instance`, `requestId`, etc.).
-
-Verification: error-path smoke tests using deliberately-failing requests (e.g. invalid targetSourceId, 404 path) produce identical ProblemDetails bodies pre/post-PR.
-
-### Smoke test framework (shared across specs 03-06)
-
-Each group spec's "Smoke tests" step uses the same baseline-comparison pattern:
-
-```bash
-# Capture baseline from origin/main in a separate worktree
-git worktree add /tmp/baseline-main origin/main
-(cd /tmp/baseline-main && USE_MOCK_DATA=true PORT=3091 npm run dev) &
-BASELINE_PID=$!
-sleep 5
-for endpoint in <group endpoints>; do
-  curl -s "http://localhost:3091${endpoint}" | jq -S . > "/tmp/baseline_$(echo $endpoint | tr '/' '_').json"
-done
-kill $BASELINE_PID
-
-# Capture current branch on a different port
-USE_MOCK_DATA=true PORT=3092 npm run dev &
-CURRENT_PID=$!
-sleep 5
-for endpoint in <group endpoints>; do
-  curl -s "http://localhost:3092${endpoint}" | jq -S . > "/tmp/current_$(echo $endpoint | tr '/' '_').json"
-  diff "/tmp/baseline_$(echo $endpoint | tr '/' '_').json" \
-       "/tmp/current_$(echo $endpoint | tr '/' '_').json" \
-    || { echo "✗ shape drift on ${endpoint}"; exit 1; }
-done
-kill $CURRENT_PID
-git worktree remove /tmp/baseline-main
-```
-
-`jq -S` sorts keys for stable diff output. **Any non-empty diff blocks merge.**
+Total: 4 sessions across 3 waves. W2 wall-clock = max of three groups, not their sum.
 
 ---
 
-## Cross-cutting decisions (locked at spec 01 time)
+## Cross-cutting decisions (locked)
 
-These are decided once in spec 01 and re-applied identically in all later specs. Do not relitigate:
+Decided once here. Implementers don't relitigate.
 
-1. **Canonical contract**: B-1 (typed legacy upstream shape). `BffClient` methods return the same shape that `_lib/transform.ts` and `extractConfirmedIntegration` currently consume. v1 transform stays in route handlers.
-2. **mockBff vs mockClient coexistence**: Old `mockClient` stays operational until spec 07 deletes it. Per-group specs add `mockBff.<domain>` *alongside* the existing mock, then point routes to `bff.x.y()`. The old mock entries become dead but compile-clean code.
-3. **mock-only auth/permission logic**: `lib/api-client/mock/*.ts`'s `authorize()` helpers (current user check, role check, project ownership) do **not** move into `mockBff`. The BFF doesn't do auth; mockBff matches that contract. If a test scenario relied on mock-side auth, it must use a separate test helper. This is captured per group in each spec's "Open decisions" section so each group resolves it for its own domains.
-4. **Naming**: keep `Issue222*` prefix in `lib/bff/types.ts` initially (re-export from `lib/issue-222-approval.ts` if convenient). The rename to clean domain names happens in spec 07.
-5. **Composite routes**: under B-1, composite routes (e.g. Azure check-installation calling DB + VM) keep their composition in `route.ts`. Do NOT push composition into `httpBff` — that's B-2, deferred.
+1. **Canonical contract: B-1** (typed legacy upstream shape). v1 transforms (e.g. `_lib/transform.ts buildV1Response`, `extractTargetSource`, `extractConfirmedIntegration`) stay in route handlers.
+2. **Coexistence**: old `lib/api-client/*` stays operational until spec 05 deletes it. Per-domain specs add `bff.<domain>` and migrate routes; old `client.<domain>` entries become dead but compile-clean.
+3. **Mock-only auth (`authorize()` in `lib/api-client/mock/*.ts`)**: **per-domain decision, default = preserve.** If existing route tests assert mock 401/403 behavior, that behavior is part of the contract for this migration. Drop it only if the implementer can show no test depends on it AND no UI flow depends on it. (Stricter than the prior global-removal policy — Codex called that one out as risky.)
+4. **Issue222\* naming**: **deferred.** Re-export from `lib/bff/types/confirm.ts` if convenient. The project-wide rename is an optional appendix in spec 05; it can be skipped or split into a separate small PR if execution risk is high.
+5. **Composite routes**: composition stays in route layer (B-2 deferred indefinitely).
+6. **Normalize cleanup in confirm domain**: spec 04 migrates `client.confirm.*` → `bff.confirm.*` while **preserving** all current `normalizeIssue222*` calls. Removing them is a separate follow-up — not bundled with the migration.
 
-## Audit gates
+---
 
-Each spec must pass before merge:
+## Conventions
+
+- Every spec follows `/wave-task` pipeline. Invoke as `/wave-task adr011-NN`.
+- Branch prefix: `refactor/adr011-NN-<short-name>`.
+- `/codex-review` mandatory for **specs 03 (cloud composite) and 04 (confirm)** only — these are the high-risk surfaces. Optional elsewhere.
+- Each PR description references ADR-011 + the specific spec.
+
+## Audit gates (every spec)
 
 - `npx tsc --noEmit`
 - `npm run lint`
-- `npm run test:run` (existing tests must continue to pass; new tests added per spec)
+- `npm run test:run` — route integration tests must pass and cover the migrated domains
 - `npm run build`
 - `bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD`
-- `/codex-review` (mandatory for 02/04/06/07)
 
 ## How to start
 
@@ -157,12 +180,8 @@ Each spec must pass before merge:
 /wave-task adr011-01
 ```
 
-After 01 merges:
-```
-/wave-task adr011-02
-```
+After 01 merges, distribute 02/03/04 across 3 sessions (sequential or parallel). After all three merge:
 
-After 02 merges, distribute 03-06 across 4 sessions (can be sequential if only one developer/agent available; can be parallel if multiple). After all four merge:
 ```
-/wave-task adr011-07
+/wave-task adr011-05
 ```
