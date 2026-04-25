@@ -25,7 +25,7 @@ export interface ApprovalRequestCreateBody {
   exclusion_reason_default?: string;
 }
 
-export type Issue222ApprovalStatus =
+export type ApprovalStatus =
   | 'PENDING'
   | 'APPROVED'
   | 'AUTO_APPROVED'
@@ -34,7 +34,7 @@ export type Issue222ApprovalStatus =
   | 'UNAVAILABLE'
   | 'CONFIRMED';
 
-export type Issue222ProcessStatus =
+export type BffApprovalProcessStatus =
   | 'IDLE'
   | 'PENDING'
   | 'CONFIRMING'
@@ -43,13 +43,13 @@ export type Issue222ProcessStatus =
   | 'CONNECTED'
   | 'COMPLETED';
 
-export type Issue222HealthStatus = 'UNKNOWN' | 'HEALTHY' | 'UNHEALTHY' | 'DEGRADED';
+export type ApprovalHealthStatus = 'UNKNOWN' | 'HEALTHY' | 'UNHEALTHY' | 'DEGRADED';
 
-export interface Issue222ActorDto {
+export interface ApprovalActorDto {
   user_id?: string;
 }
 
-export interface Issue222ResourceConfigDto {
+export interface ResourceConfigDto {
   resource_id?: string;
   resource_type?: string;
   database_type?: string;
@@ -61,35 +61,35 @@ export interface Issue222ResourceConfigDto {
   credential_id?: string;
 }
 
-export interface Issue222ExcludedResourceInfo {
+export interface ExcludedResourceInfoDto {
   resource_id?: string;
   exclusion_reason?: string;
 }
 
-export interface Issue222ApprovalRequestSummaryDto {
+export interface ApprovalRequestSummaryDto {
   id?: number;
   target_source_id?: number;
-  status?: Issue222ApprovalStatus;
-  requested_by?: Issue222ActorDto;
+  status?: ApprovalStatus;
+  requested_by?: ApprovalActorDto;
   requested_at?: string;
   resource_total_count?: number;
   resource_selected_count?: number;
 }
 
-export interface Issue222ApprovalActionResponseDto {
+export interface ApprovalActionResponseDto {
   request_id?: number;
-  status?: Issue222ApprovalStatus;
-  processed_by?: Issue222ActorDto;
+  status?: ApprovalStatus;
+  processed_by?: ApprovalActorDto;
   processed_at?: string;
   reason?: string;
 }
 
-export interface Issue222ApprovalHistoryItemDto {
-  request: Issue222ApprovalRequestSummaryDto;
-  result?: Issue222ApprovalActionResponseDto;
+export interface ApprovalHistoryItemDto {
+  request: ApprovalRequestSummaryDto;
+  result?: ApprovalActionResponseDto;
 }
 
-export interface Issue222ApprovalHistoryPageDto {
+export interface ApprovalHistoryPageDto {
   totalPages: number;
   totalElements: number;
   pageable: {
@@ -103,30 +103,30 @@ export interface Issue222ApprovalHistoryPageDto {
   first: boolean;
   last: boolean;
   size: number;
-  content: Issue222ApprovalHistoryItemDto[];
+  content: ApprovalHistoryItemDto[];
   number: number;
   sort: [];
   numberOfElements: number;
   empty: boolean;
 }
 
-export interface Issue222ApprovedIntegrationResponseDto {
+export interface ApprovedIntegrationResponseDto {
   id?: number;
   request_id?: number;
   approved_at?: string;
-  approved_by?: Issue222ActorDto;
-  resource_infos: Issue222ResourceConfigDto[];
-  excluded_resource_infos?: Issue222ExcludedResourceInfo[];
+  approved_by?: ApprovalActorDto;
+  resource_infos: ResourceConfigDto[];
+  excluded_resource_infos?: ExcludedResourceInfoDto[];
 }
 
-export interface Issue222ConfirmedIntegrationResponse {
-  resource_infos: Issue222ResourceConfigDto[];
+export interface ConfirmedIntegrationApprovalResponse {
+  resource_infos: ResourceConfigDto[];
 }
 
-export interface Issue222ProcessStatusResponseDto {
+export interface ProcessStatusResponseDto {
   target_source_id: number;
-  process_status: Issue222ProcessStatus;
-  healthy: Issue222HealthStatus;
+  process_status: BffApprovalProcessStatus;
+  healthy: ApprovalHealthStatus;
   evaluated_at: string;
 }
 
@@ -147,7 +147,7 @@ const toNumberOrUndefined = (value: unknown): number | undefined => {
 
 const toBoolean = (value: unknown): boolean => value === true;
 
-const toActorDto = (value: unknown): Issue222ActorDto | undefined => {
+const toActorDto = (value: unknown): ApprovalActorDto | undefined => {
   if (typeof value === 'string' && value.length > 0) {
     return { user_id: value };
   }
@@ -158,7 +158,7 @@ const toActorDto = (value: unknown): Issue222ActorDto | undefined => {
   return userId ? { user_id: userId } : undefined;
 };
 
-const mapApprovalStatus = (value: unknown): Issue222ApprovalStatus | undefined => {
+const mapApprovalStatus = (value: unknown): ApprovalStatus | undefined => {
   switch (String(value).toUpperCase()) {
     case 'PENDING':
       return 'PENDING';
@@ -180,7 +180,7 @@ const mapApprovalStatus = (value: unknown): Issue222ApprovalStatus | undefined =
   }
 };
 
-const mapProcessStatus = (value: unknown): Issue222ProcessStatus | undefined => {
+const mapProcessStatus = (value: unknown): BffApprovalProcessStatus | undefined => {
   switch (String(value).toUpperCase()) {
     case 'IDLE':
     case 'REQUEST_REQUIRED':
@@ -205,7 +205,7 @@ const mapProcessStatus = (value: unknown): Issue222ProcessStatus | undefined => 
   }
 };
 
-const mapHealthStatus = (value: unknown): Issue222HealthStatus => {
+const mapHealthStatus = (value: unknown): ApprovalHealthStatus => {
   switch (String(value).toUpperCase()) {
     case 'HEALTHY':
       return 'HEALTHY';
@@ -238,7 +238,7 @@ const countLegacyResourceInputs = (value: unknown): {
   };
 };
 
-const toIssue222ResourceConfigDto = (value: unknown): Issue222ResourceConfigDto => {
+const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
   if (!isRecord(value)) return {};
 
   const endpointConfig = isRecord(value.endpoint_config) ? value.endpoint_config : null;
@@ -268,7 +268,7 @@ const toIssue222ResourceConfigDto = (value: unknown): Issue222ResourceConfigDto 
   };
 };
 
-const toIssue222ExcludedResourceInfos = (value: unknown): Issue222ExcludedResourceInfo[] | undefined => {
+const toExcludedResourceInfos = (value: unknown): ExcludedResourceInfoDto[] | undefined => {
   if (!isRecord(value)) return undefined;
 
   const excludedResourceInfos = Array.isArray(value.excluded_resource_infos)
@@ -304,7 +304,7 @@ const toApprovalRequestResourceInput = (item: JsonRecord): ApprovalRequestResour
 
   if (toBoolean(item.selected)) {
     const legacyResourceInput = isRecord(item.resource_input) ? item.resource_input : null;
-    const normalized = legacyResourceInput ? toIssue222ResourceConfigDto(legacyResourceInput) : null;
+    const normalized = legacyResourceInput ? toResourceConfigDto(legacyResourceInput) : null;
     type SelectedResourceInput = Extract<ApprovalRequestResourceInput, { selected: true }>['resource_input'];
     const resourceInput: SelectedResourceInput = normalized
       ? {
@@ -333,7 +333,7 @@ const toApprovalRequestResourceInput = (item: JsonRecord): ApprovalRequestResour
   };
 };
 
-export const normalizeIssue222ApprovalRequestBody = (body: unknown): ApprovalRequestCreateBody => {
+export const normalizeApprovalRequestBody = (body: unknown): ApprovalRequestCreateBody => {
   const input = getLegacyApprovalInput(body);
   const resourceInputs = Array.isArray(input?.resource_inputs)
     ? input.resource_inputs
@@ -350,15 +350,15 @@ export const normalizeIssue222ApprovalRequestBody = (body: unknown): ApprovalReq
   };
 };
 
-export const normalizeIssue222ApprovalRequestSummary = (
+export const normalizeApprovalRequestSummary = (
   value: unknown,
   options: {
     targetSourceId?: number;
-    fallbackStatus?: Issue222ApprovalStatus;
+    fallbackStatus?: ApprovalStatus;
     fallbackTotalCount?: number;
     fallbackSelectedCount?: number;
   } = {},
-): Issue222ApprovalRequestSummaryDto => {
+): ApprovalRequestSummaryDto => {
   const payload = isRecord(value) && isRecord(value.approval_request) ? value.approval_request : value;
   const record = isRecord(payload) ? payload : {};
   const counts = countLegacyResourceInputs(record);
@@ -383,13 +383,13 @@ export const normalizeIssue222ApprovalRequestSummary = (
   };
 };
 
-export const normalizeIssue222ApprovalActionResponse = (
+export const normalizeApprovalActionResponse = (
   value: unknown,
   options: {
     fallbackRequestId?: number;
-    fallbackStatus?: Issue222ApprovalStatus;
+    fallbackStatus?: ApprovalStatus;
   } = {},
-): Issue222ApprovalActionResponseDto => {
+): ApprovalActionResponseDto => {
   const record = isRecord(value) ? value : {};
   const processInfo = isRecord(record.process_info) ? record.process_info : null;
   const requestId = toNumberOrUndefined(record.request_id) ?? options.fallbackRequestId;
@@ -407,10 +407,10 @@ export const normalizeIssue222ApprovalActionResponse = (
   };
 };
 
-export const buildIssue222ApprovalHistoryPage = (
-  content: Issue222ApprovalHistoryItemDto[],
+export const buildApprovalHistoryPage = (
+  content: ApprovalHistoryItemDto[],
   value: unknown,
-): Issue222ApprovalHistoryPageDto => {
+): ApprovalHistoryPageDto => {
   const source = isRecord(value) ? value : {};
   const page = isRecord(source.page) ? source.page : source;
   const number = toNumberOrUndefined(page.number) ?? 0;
@@ -440,19 +440,19 @@ export const buildIssue222ApprovalHistoryPage = (
   };
 };
 
-export const normalizeIssue222ApprovalHistoryPage = (
+export const normalizeApprovalHistoryPage = (
   value: unknown,
   targetSourceId: number,
-): Issue222ApprovalHistoryPageDto => {
+): ApprovalHistoryPageDto => {
   const record = isRecord(value) ? value : {};
   const rawContent = Array.isArray(record.content) ? record.content : [];
   const content = rawContent
     .filter(isRecord)
     .map((item) => {
       const result = isRecord(item.result)
-        ? normalizeIssue222ApprovalActionResponse(item.result)
+        ? normalizeApprovalActionResponse(item.result)
         : undefined;
-      const request = normalizeIssue222ApprovalRequestSummary(item.request, {
+      const request = normalizeApprovalRequestSummary(item.request, {
         targetSourceId,
         fallbackStatus: result?.status ?? 'PENDING',
       });
@@ -463,22 +463,22 @@ export const normalizeIssue222ApprovalHistoryPage = (
       };
     });
 
-  return buildIssue222ApprovalHistoryPage(content, record);
+  return buildApprovalHistoryPage(content, record);
 };
 
-export const normalizeIssue222ApprovedIntegration = (
+export const normalizeApprovedIntegration = (
   value: unknown,
-): Issue222ApprovedIntegrationResponseDto => {
+): ApprovedIntegrationResponseDto => {
   const payload = isRecord(value) && isRecord(value.approved_integration) ? value.approved_integration : value;
   const record = isRecord(payload) ? payload : {};
   const resourceInfos = Array.isArray(record.resource_infos)
-    ? record.resource_infos.map(toIssue222ResourceConfigDto)
+    ? record.resource_infos.map(toResourceConfigDto)
     : [];
   const id = toNumberOrUndefined(record.id);
   const requestId = toNumberOrUndefined(record.request_id);
   const approvedAt = toStringOrUndefined(record.approved_at);
   const approvedBy = toActorDto(record.approved_by);
-  const excludedResourceInfos = toIssue222ExcludedResourceInfos(record);
+  const excludedResourceInfos = toExcludedResourceInfos(record);
 
   return {
     ...(id !== undefined ? { id } : {}),
@@ -490,9 +490,9 @@ export const normalizeIssue222ApprovedIntegration = (
   };
 };
 
-export const normalizeIssue222ConfirmedIntegration = (
+export const normalizeConfirmedIntegration = (
   value: unknown,
-): Issue222ConfirmedIntegrationResponse => {
+): ConfirmedIntegrationApprovalResponse => {
   const confirmedIntegration = extractConfirmedIntegration(value as ConfirmedIntegrationResponsePayload);
 
   return {
@@ -510,10 +510,10 @@ export const normalizeIssue222ConfirmedIntegration = (
   };
 };
 
-export const normalizeIssue222ProcessStatusResponse = (
+export const normalizeProcessStatusResponse = (
   value: unknown,
-  fallback: Partial<Issue222ProcessStatusResponseDto> = {},
-): Issue222ProcessStatusResponseDto => {
+  fallback: Partial<ProcessStatusResponseDto> = {},
+): ProcessStatusResponseDto => {
   const record = isRecord(value) ? value : {};
 
   return {
