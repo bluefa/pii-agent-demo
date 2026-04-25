@@ -165,6 +165,16 @@ body {
   font-size: 0.8125rem;
 }
 
+/* Guide CMS admin editor — Tiptap renders <.ProseMirror> inside the
+   <EditorContent> wrapper. Without an explicit min-height on the inner
+   contenteditable, clicking the wrapper's padding region misses the
+   editable surface and focus is not given to the editor. */
+.guide-editor-surface .ProseMirror {
+  min-height: 240px;
+  outline: none;
+  cursor: text;
+}
+
 /* Scrollbar Styling (스크롤바) */
 ::-webkit-scrollbar {
   width: 8px;

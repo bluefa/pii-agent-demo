@@ -32,6 +32,7 @@ import type { Editor } from '@tiptap/core';
 
 import { Button } from '@/app/components/ui/Button';
 import { useGuide } from '@/app/hooks/useGuide';
+import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast/useToast';
 import { findSlotsForGuide, resolveSlot } from '@/lib/constants/guide-registry';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
@@ -48,7 +49,11 @@ import {
 import { EditLanguageTabs } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import type { EditorLanguage } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import { EditorToolbar } from '@/app/integration/admin/guides/components/EditorToolbar';
-import { isAllowedLinkHref } from '@/app/integration/admin/guides/components/editor-link';
+import { LinkPromptModal } from '@/app/integration/admin/guides/components/LinkPromptModal';
+import {
+  getSelectedLinkHref,
+  isAllowedLinkHref,
+} from '@/app/integration/admin/guides/components/editor-link';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 import type { GuideContents, GuidePlacement, GuideSlot } from '@/lib/types/guide';
@@ -153,6 +158,7 @@ export const GuideEditorPanel = ({
 
   const { data, loading, save, saving } = useGuide(slot.guideName);
   const toast = useToast();
+  const linkModal = useModal();
 
   // Once the GET resolves, hand the canonical contents up so the parent
   // can seed (or reset) `draftKo / draftEn`. The parent owns the draft
@@ -222,9 +228,9 @@ export const GuideEditorPanel = ({
     }
   }, [activeLang, draftKo, draftEn, editor]);
 
-  // ⌘S → save when the form is in a savable state. Wired here so the
-  // shortcut works whether focus is in the editor body, the toolbar,
-  // or the surrounding panel.
+  // ⌘S / Ctrl+S → save when the form is in a savable state. Wired here
+  // so the shortcut works whether focus is in the editor body, the
+  // toolbar, or the surrounding panel.
   useEffect(() => {
     const handler = (event: KeyboardEvent): void => {
       const isMod = event.metaKey || event.ctrlKey;
@@ -235,6 +241,63 @@ export const GuideEditorPanel = ({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [handleSave]);
+
+  // ⌘K / Ctrl+K → open the link prompt modal when focus is in the
+  // editor body. Suppressed while loading / saving so a write cannot be
+  // staged on a frozen surface.
+  useEffect(() => {
+    if (!editor || loading || saving) return;
+    const root = editor.view.dom;
+    const handler = (event: KeyboardEvent): void => {
+      const isMod = event.metaKey || event.ctrlKey;
+      if (!isMod) return;
+      if (event.key.toLowerCase() !== 'k') return;
+      event.preventDefault();
+      linkModal.open();
+    };
+    root.addEventListener('keydown', handler);
+    return () => root.removeEventListener('keydown', handler);
+  }, [editor, loading, saving, linkModal]);
+
+  // Clicking an <a> inside the editor should open the prompt modal
+  // (pre-filled via getSelectedLinkHref) instead of navigating —
+  // even though the Link extension already disables openOnClick, the
+  // raw anchor click default still bubbles in some browsers.
+  useEffect(() => {
+    if (!editor) return;
+    const root = editor.view.dom;
+    const handler = (event: MouseEvent): void => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const anchor = target.closest('a');
+      if (!anchor || !root.contains(anchor)) return;
+      event.preventDefault();
+      if (loading || saving) return;
+      // Move the selection into the clicked link so getSelectedLinkHref()
+      // resolves to its href when the modal opens.
+      const view = editor.view;
+      const pos = view.posAtDOM(anchor, 0);
+      if (pos != null) {
+        editor.chain().focus().setTextSelection(pos).run();
+      }
+      linkModal.open();
+    };
+    root.addEventListener('click', handler);
+    return () => root.removeEventListener('click', handler);
+  }, [editor, loading, saving, linkModal]);
+
+  const submitLink = useCallback(
+    (href: string) => {
+      if (!editor) return;
+      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+    },
+    [editor],
+  );
+
+  const unsetLink = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+  }, [editor]);
 
   const showScopeNotice = sharedSlots.length >= 2;
   const saveLabel = saving ? '저장 중…' : '저장';
@@ -354,21 +417,25 @@ export const GuideEditorPanel = ({
 
       <div className="flex-1 overflow-y-auto px-5 pt-3.5 pb-4">
         <div className={cardStyles.editorFrame}>
-          <EditorToolbar editor={editor} disabled={loading || saving} />
-          <EditorContent
+          <EditorToolbar
             editor={editor}
-            aria-label={`${activeLang === 'ko' ? '한국어' : 'English'} 가이드 본문`}
-            className={cn('prose-guide min-h-[260px] focus:outline-none px-4 py-3.5 text-[13px]')}
+            disabled={loading || saving}
+            onOpenLink={linkModal.open}
           />
           <div
-            className={cn(
-              'flex items-center justify-between px-3.5 py-1.5 border-t text-[11.5px]',
-              borderColors.light,
-              textColors.tertiary,
-              bgColors.muted,
-            )}
+            className="guide-editor-surface px-4 py-3.5"
+            // Clicking the padding region around the contenteditable would
+            // otherwise miss the editor entirely. Focus on direct hits so
+            // users get a caret no matter where they click in the surface.
+            onClick={(e) => {
+              if (e.target === e.currentTarget) editor?.chain().focus().run();
+            }}
           >
-            <span>Markdown 단축키: ⌘B / ⌘I / ⌘E / ⌘K</span>
+            <EditorContent
+              editor={editor}
+              aria-label={`${activeLang === 'ko' ? '한국어' : 'English'} 가이드 본문`}
+              className={cn('prose-guide text-[13px]')}
+            />
           </div>
         </div>
       </div>
@@ -387,6 +454,14 @@ export const GuideEditorPanel = ({
           {saveLabel}
         </Button>
       </footer>
+      {linkModal.isOpen && (
+        <LinkPromptModal
+          initialHref={getSelectedLinkHref(editor)}
+          onSubmit={submitLink}
+          onUnset={unsetLink}
+          onClose={linkModal.close}
+        />
+      )}
     </section>
   );
 };

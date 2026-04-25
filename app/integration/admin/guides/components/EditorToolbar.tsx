@@ -18,16 +18,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/core';
 
-import { useModal } from '@/app/hooks/useModal';
 import { bgColors, cardStyles, cn, primaryColors } from '@/lib/theme';
-
-import { LinkPromptModal } from '@/app/integration/admin/guides/components/LinkPromptModal';
-import { getSelectedLinkHref } from '@/app/integration/admin/guides/components/editor-link';
 
 interface EditorToolbarProps {
   editor: Editor | null;
   /** Disabled when GET is loading or PUT is in flight. */
   disabled: boolean;
+  /** Open the parent-owned link prompt modal. */
+  onOpenLink: () => void;
 }
 
 interface ToolbarButtonSpec {
@@ -118,9 +116,8 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
 // [H4] | [B I </>] | [• 1.] | [🔗]).
 const DIVIDER_BEFORE = new Set<number>([1, 4, 6]);
 
-export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
+export const EditorToolbar = ({ editor, disabled, onOpenLink }: EditorToolbarProps) => {
   const [focusIdx, setFocusIdx] = useState(0);
-  const linkModal = useModal();
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Re-render on selection / transaction so `isActive(...)` stays fresh.
@@ -161,53 +158,21 @@ export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
       const spec = TOOLBAR_BUTTONS[idx];
       setFocusIdx(idx);
       if (spec.id === 'link') {
-        linkModal.open();
+        onOpenLink();
         return;
       }
       spec.apply?.(editor);
     },
-    [editor, disabled, linkModal],
+    [editor, disabled, onOpenLink],
   );
-
-  // ⌘K → open link modal even when focus is inside the editor body.
-  // Suppressed when disabled so loading / saving cannot stage a write.
-  useEffect(() => {
-    if (!editor || disabled) return;
-    const handler = (event: KeyboardEvent): void => {
-      const isMod = event.metaKey || event.ctrlKey;
-      if (!isMod) return;
-      const key = event.key.toLowerCase();
-      if (key === 'k') {
-        event.preventDefault();
-        linkModal.open();
-      }
-    };
-    const root = editor.view.dom;
-    root.addEventListener('keydown', handler);
-    return () => root.removeEventListener('keydown', handler);
-  }, [editor, disabled, linkModal]);
-
-  const submitLink = useCallback(
-    (href: string) => {
-      if (!editor) return;
-      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
-    },
-    [editor],
-  );
-
-  const unsetLink = useCallback(() => {
-    if (!editor) return;
-    editor.chain().focus().extendMarkRange('link').unsetLink().run();
-  }, [editor]);
 
   return (
-    <>
-      <div
-        role="toolbar"
-        aria-label="가이드 편집 툴바"
-        aria-disabled={disabled || !editor ? 'true' : undefined}
-        className={cardStyles.toolbarSurface}
-      >
+    <div
+      role="toolbar"
+      aria-label="가이드 편집 툴바"
+      aria-disabled={disabled || !editor ? 'true' : undefined}
+      className={cardStyles.toolbarSurface}
+    >
         {TOOLBAR_BUTTONS.map((spec, idx) => {
           const active = editor ? spec.isActive(editor) : false;
           const isCurrent = idx === focusIdx;
@@ -243,15 +208,6 @@ export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
             </span>
           );
         })}
-      </div>
-      {linkModal.isOpen && (
-        <LinkPromptModal
-          initialHref={getSelectedLinkHref(editor)}
-          onSubmit={submitLink}
-          onUnset={unsetLink}
-          onClose={linkModal.close}
-        />
-      )}
-    </>
+    </div>
   );
 };

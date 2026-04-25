@@ -26,7 +26,7 @@ import { GuidePlaceholder } from '@/app/integration/admin/guides/components/Guid
 import { PreviewEmptyLang } from '@/app/integration/admin/guides/components/PreviewEmptyLang';
 import { PreviewLanguageToggle } from '@/app/integration/admin/guides/components/PreviewLanguageToggle';
 import { resolveSlot } from '@/lib/constants/guide-registry';
-import { borderColors, cn } from '@/lib/theme';
+import { borderColors, cn, textColors } from '@/lib/theme';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
 import type { PreviewLanguage } from '@/app/integration/admin/guides/components/PreviewLanguageToggle';
@@ -92,7 +92,15 @@ export const GuidePreviewPanel = ({
       aria-live="polite"
       className={cn('flex flex-col h-full border-l overflow-hidden', borderColors.default)}
     >
-      <PreviewLanguageToggle value={activeLang} onChange={onChangeLang} />
+      <header
+        className={cn(
+          'flex items-center justify-between px-5 h-[52px] border-b shrink-0',
+          borderColors.light,
+        )}
+      >
+        <h2 className={cn('text-[13.5px] font-semibold', textColors.primary)}>미리보기</h2>
+        <PreviewLanguageToggle value={activeLang} onChange={onChangeLang} />
+      </header>
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {slot.placement.kind === 'process-step' && (
           <ProcessTimelineCompact

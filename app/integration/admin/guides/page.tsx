@@ -96,7 +96,13 @@ export default function GuidesPage() {
   }, []);
 
   return (
-    <div className={cn('flex flex-col min-h-[calc(100vh-56px)]', bgColors.muted)}>
+    <div
+      className={cn(
+        'flex flex-col min-h-[calc(100vh-56px)]',
+        bgColors.muted,
+        textColors.primary,
+      )}
+    >
       <nav aria-label="breadcrumb" className={pageChromeStyles.breadcrumb}>
         <span>관리자</span>
         <span className={cn('mx-1.5', textColors.quaternary)} aria-hidden="true">›</span>
