@@ -137,16 +137,6 @@ export interface AzureInstallationStatusResponse {
   resources?: AzureResourceStatus[];
 }
 
-export interface AzureSettingsResponse {
-  tenantId?: string;
-  subscriptionId?: string;
-  scanApp: {
-    appId: string;
-    status: RoleStatus;
-    lastVerifiedAt?: string;
-  };
-}
-
 // --- GCP API ---
 
 export type GcpStepStatusValue = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'SKIP';

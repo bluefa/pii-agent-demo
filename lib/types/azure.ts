@@ -140,13 +140,3 @@ export interface AzureV1InstallationStatus {
   lastCheck: AzureV1LastCheck;
   resources?: AzureV1Resource[];
 }
-
-export interface AzureV1Settings {
-  tenantId?: string;
-  subscriptionId?: string;
-  scanApp: {
-    appId: string;
-    status: 'VALID' | 'INVALID' | 'UNVERIFIED';
-    lastVerifiedAt?: string;
-  };
-}

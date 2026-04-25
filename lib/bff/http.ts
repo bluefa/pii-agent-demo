@@ -142,9 +142,6 @@ export const httpBff: BffClient = {
         update: (serviceCode, body) => put(`/services/${serviceCode}/settings/aws`, body),
         verifyScanRole: (serviceCode) => post(`/services/${serviceCode}/settings/aws/verify-scan-role`, {}),
       },
-      azure: {
-        get: (serviceCode) => get(`/services/${serviceCode}/settings/azure`),
-      },
     },
   },
 
@@ -196,7 +193,6 @@ export const httpBff: BffClient = {
   azure: {
     checkInstallation: (id) => post(`/target-sources/${id}/azure/check-installation`, {}),
     getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
-    getSettings: (id) => get(`/target-sources/${id}/azure/settings`),
     getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
     // Issue #222: snake_case raw passthrough — bypass camelCaseKeys.
     getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`, { raw: true }),
