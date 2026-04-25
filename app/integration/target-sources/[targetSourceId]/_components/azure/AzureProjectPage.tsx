@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { CloudTargetSource, ProcessStatus } from '@/lib/types';
+import { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -14,6 +14,7 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { ResourceSection } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceSection';
 import { CloudTargetSourceLayout } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout';
+import { isLayoutRoutedStatus } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/route-step';
 
 interface AzureProjectPageProps {
   project: CloudTargetSource;
@@ -39,13 +40,7 @@ export const AzureProjectPage = ({
     ],
   };
 
-  const isConfirmedDataStep =
-    project.processStatus === ProcessStatus.INSTALLING ||
-    project.processStatus === ProcessStatus.WAITING_CONNECTION_TEST ||
-    project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-    project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
-
-  if (isConfirmedDataStep) {
+  if (isLayoutRoutedStatus(project.processStatus)) {
     return (
       <CloudTargetSourceLayout
         project={project}

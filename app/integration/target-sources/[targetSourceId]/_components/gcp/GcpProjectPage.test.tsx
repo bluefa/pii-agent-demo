@@ -94,4 +94,26 @@ describe('GcpProjectPage routing', () => {
     expect(screen.getByTestId('legacy-resource-section')).toBeTruthy();
     expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
   });
+
+  it('mounts CloudTargetSourceLayout on WAITING_APPROVAL', () => {
+    render(
+      <GcpProjectPage
+        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.WAITING_APPROVAL }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+  });
+
+  it('mounts CloudTargetSourceLayout on APPLYING_APPROVED', () => {
+    render(
+      <GcpProjectPage
+        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.APPLYING_APPROVED }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+  });
 });

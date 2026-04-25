@@ -110,4 +110,26 @@ describe('AzureProjectPage routing', () => {
     );
     expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
   });
+
+  it('mounts CloudTargetSourceLayout on WAITING_APPROVAL', async () => {
+    render(
+      <AzureProjectPage
+        project={{ ...azureInstallingFixture, processStatus: ProcessStatus.WAITING_APPROVAL }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(await screen.findByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+  });
+
+  it('mounts CloudTargetSourceLayout on APPLYING_APPROVED', async () => {
+    render(
+      <AzureProjectPage
+        project={{ ...azureInstallingFixture, processStatus: ProcessStatus.APPLYING_APPROVED }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(await screen.findByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+  });
 });
