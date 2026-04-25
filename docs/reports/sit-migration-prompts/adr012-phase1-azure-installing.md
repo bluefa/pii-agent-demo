@@ -71,6 +71,51 @@ return (
 
 Slot-wrapper testability: `InstallationStatusSlot` returns its child wrapped in `<div data-testid="installation-status">`. `ConfirmedResourcesSlot` returns its child wrapped in `<div data-testid="confirmed-resources">`. These wrappers are the order-test selectors.
 
+### Order test sketch
+
+Implementer copies this verbatim. Note: `AzureInstallationInline` is mocked to a stub component so the order test does not trigger `useInstallationStatus()` or any other mount-time fetch.
+
+```tsx
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { ProcessStatus } from '@/lib/types';
+import { CloudInstallingStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudInstallingStep';
+
+vi.mock('@/app/components/features/process-status/azure/AzureInstallationInline', () => ({
+  AzureInstallationInline: () => <div data-testid="azure-install-stub" />,
+}));
+vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider', async () => {
+  // Stub provider that yields a ready empty array; replaces the real fetch path entirely.
+  return {
+    ConfirmedIntegrationDataProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useConfirmedIntegration: () => ({ state: { status: 'ready' as const, data: [] }, retry: () => {} }),
+  };
+});
+
+describe('CloudInstallingStep DOM order', () => {
+  it('renders installation-status before confirmed-resources', () => {
+    render(
+      <CloudInstallingStep
+        project={azureInstallingFixture}
+        identity={identityFixture}
+        providerLabel="Azure Infrastructure"
+        action={null}
+        onProjectUpdate={() => {}}
+      />,
+    );
+
+    const install = screen.getByTestId('installation-status');
+    const confirmed = screen.getByTestId('confirmed-resources');
+    const ordering = install.compareDocumentPosition(confirmed);
+
+    // Bit DOCUMENT_POSITION_FOLLOWING (4) means `confirmed` follows `install`.
+    expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+```
+
+Mocking `AzureInstallationInline` is required by the test mock-scope rule: the order test concerns slot ordering, not Azure inline behavior.
+
 ### Hook contract
 
 ```tsx
@@ -98,14 +143,16 @@ export const useConfirmedIntegration = (): ConfirmedIntegrationContextValue => {
 | **Azure adapter** | Add `_components/azure/AzureInstallationStatus.tsx`. Reads `useConfirmedIntegration()`, derives `confirmed` from `state.data` when ready, forwards `confirmed` and `onInstallComplete={refreshProject}` to the existing `AzureInstallationInline` component. No new logic — pure adapter. |
 | **Routing hook** | Modify `_components/azure/AzureProjectPage.tsx` so that when `processStatus === ProcessStatus.INSTALLING`, it computes `identity` / `providerLabel` / `action` (existing logic stays in this file) and returns `<CloudTargetSourceLayout project={project} identity={identity} providerLabel="Azure Infrastructure" action={<DeleteInfrastructureButton />} onProjectUpdate={onProjectUpdate} />`. All other steps keep the existing render path unchanged. |
 | **R1 test** | Add `_components/layout/CloudTargetSourceLayout.architecture.test.ts`. Use `\bcloudProvider\b` / `\bawsInstallationMode\b` regex (not bare substring) to avoid comment/import false positives. |
-| **Order test** | Add `_components/layout/CloudInstallingStep.test.tsx`. Renders with a mock Azure-installing `CloudTargetSource`, queries `screen.getAllByTestId(/^(installation-status\|confirmed-resources)$/)`, and asserts the `installation-status` element appears before `confirmed-resources` in DOM order. Mock the data provider so `state.status === 'ready'`; do not depend on real API calls. |
+| **Order test** | Add `_components/layout/CloudInstallingStep.test.tsx`. Renders with a mock Azure-installing `CloudTargetSource` and asserts the `installation-status` element appears before `confirmed-resources` in DOM order. See test sketch below the table. The test must mock `AzureInstallationInline` (or the `azure/AzureInstallationInline` module) so the order test does not transitively trigger `useInstallationStatus()` and other mount-time fetches. The data provider is also mocked to a `ready` state. |
 | **Lifecycle tests** | Add `_components/data/ConfirmedIntegrationDataProvider.test.tsx`. Cover: mount triggers fetch with abort signal; unmount aborts in-flight; `targetSourceId` change aborts old and refetches; `retry()` aborts in-flight and refetches; `isMissingConfirmedIntegrationError` is normalized to `ready` with empty array. |
 
 ## Implementation Steps
 
 ### 1. Data layer (independent, fan-out target)
 
-Author `ConfirmedIntegrationDataProvider`, `useConfirmedIntegration`, and the lifecycle test file. Lifecycle:
+Author `ConfirmedIntegrationDataProvider`, `useConfirmedIntegration`, and the lifecycle test file. Prefer the existing `app/hooks/useAbortableEffect.ts` helper for the fetch effect — it already centralizes `AbortController` creation, cleanup-time abort, and aborted-error handling. If the helper does not fit (e.g. retry semantics require keeping the controller across renders), document the reason inline in the provider source.
+
+Lifecycle:
 
 1. On mount, create `AbortController`, set `state` to `{ status: 'loading' }`, call `getConfirmedIntegration(targetSourceId, { signal })`.
 2. On unmount, abort.
@@ -159,7 +206,9 @@ Per `/wave-task` Phase 4-6.
 
 The following land in later phases. Do **not** implement them in this PR even if convenient:
 
-- `WaitingTargetConfirmationStep`, `WaitingApprovalStep`, `ApplyingApprovedStep`, `ConnectionTestStep` step components (phases 3-4).
+- `ConnectionTestStep` step component (phase 2 — covers steps 5-7 per ADR-012 Migration Plan §Phase 2).
+- `WaitingApprovalStep` and `ApplyingApprovedStep` (phase 3 — approval/applying extraction from `ProcessStatusCard`).
+- `WaitingTargetConfirmationStep` (phase 4 — candidate/approved migration).
 - `AwsManualInstallingStep` override component (phase 2, and only if AWS Manual genuinely needs a different card order).
 - `AwsInstallationStatus`, `GcpInstallationStatus` adapters (phase 2).
 - AWS / GCP routing through `CloudTargetSourceLayout` (phase 2).
