@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useState } from 'react';
 
 import { GuidePlaceholder } from '@/app/integration/admin/guides/components/GuidePlaceholder';
+import { GuidePreviewPanel } from '@/app/integration/admin/guides/components/GuidePreviewPanel';
 import { ProviderTabs } from '@/app/integration/admin/guides/components/ProviderTabs';
 import { StepListPanel } from '@/app/integration/admin/guides/components/StepListPanel';
 import { UnsavedChangesModal } from '@/app/integration/admin/guides/components/UnsavedChangesModal';
@@ -102,7 +103,7 @@ export default function GuidesPage() {
         ) : (
           <GuidePlaceholder>편집할 단계를 선택해주세요</GuidePlaceholder>
         )}
-        <GuidePlaceholder>미리보기 영역</GuidePlaceholder>
+        <GuidePreviewPanel slotKey={selected} draftKo={draftKo} draftEn={draftEn} />
       </div>
       <UnsavedChangesModal
         isOpen={guard.isModalOpen}
