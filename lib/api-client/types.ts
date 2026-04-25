@@ -114,4 +114,8 @@ export interface ApiClient {
     getTestConnectionResults: (targetSourceId: string, page: number, size: number) => Promise<NextResponse>;
     getTestConnectionLatest: (targetSourceId: string) => Promise<NextResponse>;
   };
+  guides: {
+    get: (name: string) => Promise<NextResponse>;
+    put: (name: string, body: unknown) => Promise<NextResponse>;
+  };
 }
