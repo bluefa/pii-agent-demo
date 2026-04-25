@@ -12,5 +12,5 @@ export const POST = withV1(async (request, { params }) => {
   const { serviceCode } = params;
   const body = await request.json().catch(() => ({}));
   const data = await bff.targetSources.create({ ...body, serviceCode });
-  return NextResponse.json(data);
+  return NextResponse.json(data, { status: 201 });
 }, { expectedDuration: '300ms ~ 1s' });

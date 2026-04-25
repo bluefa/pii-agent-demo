@@ -11,6 +11,7 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET } from '@/app/integration/api/v1/user/me/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
+import type { UserMeResponse } from '@/lib/bff/types/users';
 
 const mockedMe = vi.mocked(bff.users.me);
 
@@ -24,7 +25,7 @@ describe('GET /integration/api/v1/user/me', () => {
       id: 'user-1',
       name: '홍길동',
       email: 'hong@company.com',
-    } as never);
+    } as unknown as UserMeResponse);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
       params: Promise.resolve({}),
@@ -47,7 +48,7 @@ describe('GET /integration/api/v1/user/me', () => {
         role: 'ADMIN',
         serviceCodePermissions: ['SERVICE-A'],
       },
-    } as never);
+    } as unknown as UserMeResponse);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
       params: Promise.resolve({}),

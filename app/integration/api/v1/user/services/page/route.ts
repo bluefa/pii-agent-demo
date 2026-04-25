@@ -6,6 +6,13 @@ import { bff } from '@/lib/bff/client';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+interface FlatPageMetadata {
+  totalElements?: number;
+  totalPages?: number;
+  number?: number;
+  size?: number;
+}
+
 export const GET = withV1(async (request) => {
   const { searchParams } = new URL(request.url);
   const page = Number(searchParams.get('page') ?? '0');
@@ -18,13 +25,18 @@ export const GET = withV1(async (request) => {
     throw new Error('Invalid services/page response payload');
   }
 
+  // Wire-shape: route reads flat top-level page metadata to preserve
+  // the pre-ADR-011 output exactly (I-3). The upstream may instead
+  // expose these under `data.page`; reconciling is a follow-up.
+  const flat = data as unknown as FlatPageMetadata;
+
   return NextResponse.json({
     content: data.content.map(resolveUserService),
     page: {
-      totalElements: Number(data.page?.totalElements ?? 0),
-      totalPages: Number(data.page?.totalPages ?? 0),
-      number: Number(data.page?.number ?? 0),
-      size: Number(data.page?.size ?? 10),
+      totalElements: Number(flat.totalElements ?? 0),
+      totalPages: Number(flat.totalPages ?? 0),
+      number: Number(flat.number ?? 0),
+      size: Number(flat.size ?? 10),
     },
   });
 }, { expectedDuration: '50ms ~ 300ms' });

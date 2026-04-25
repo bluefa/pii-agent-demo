@@ -29,7 +29,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
         projectCode: 'TS-1001',
         serviceCode: 'SERVICE-A',
       },
-    } as never);
+    } as unknown as Awaited<ReturnType<typeof bff.targetSources.get>>);
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/target-sources/1001'),

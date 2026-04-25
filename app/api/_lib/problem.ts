@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import type { BffError } from '@/lib/bff/errors';
+import type { BffError, LegacyErrorBody } from '@/lib/bff/errors';
+import { extractLegacyError } from '@/lib/bff/errors';
 
 // --- Error Code Catalog ---
 
@@ -87,29 +88,6 @@ export function problemResponse(problem: ProblemDetails): NextResponse {
 
 // --- Legacy Error Conversion ---
 
-/** BFF 에러 응답: nested { error: { code, message } } 또는 flat { error: string, message: string } */
-interface BffErrorBody {
-  error?: string | { code?: string; message?: string };
-  code?: string;
-  message?: string;
-}
-
-function extractBffError(body: BffErrorBody): { code: string; message: string } {
-  // nested: { error: { code, message } }
-  if (body.error && typeof body.error === 'object') {
-    return {
-      code: body.error.code ?? '',
-      message: body.error.message ?? '',
-    };
-  }
-  // flat legacy: { error: "CODE", message: "..." }
-  if (typeof body.error === 'string') {
-    return { code: body.error, message: body.message ?? '' };
-  }
-  // flat: { code: "...", message: "..." }
-  return { code: body.code ?? '', message: body.message ?? '' };
-}
-
 const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
   // 정규화된 코드 (KnownErrorCode와 동일)
   UNAUTHORIZED: 'UNAUTHORIZED',
@@ -153,7 +131,7 @@ export async function transformLegacyError(
 ): Promise<NextResponse> {
   try {
     const raw = await response.json();
-    const { code: errorCode, message } = extractBffError(raw as BffErrorBody);
+    const { code: errorCode, message } = extractLegacyError(raw as LegacyErrorBody);
     const code = mapLegacyCode(errorCode, response.status);
     return problemResponse(createProblem(code, message, requestId));
   } catch {

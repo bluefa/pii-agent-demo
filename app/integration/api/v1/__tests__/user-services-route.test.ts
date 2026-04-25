@@ -46,7 +46,7 @@ describe('GET /integration/api/v1/user/services', () => {
         { code: 'SERVICE-A', name: '서비스 A' },
         { service_code: 'SERVICE-B', service_name: '서비스 B' },
       ],
-    } as never);
+    } as unknown as Awaited<ReturnType<typeof bff.users.getServices>>);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/services'), {
       params: Promise.resolve({}),

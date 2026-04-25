@@ -11,7 +11,8 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
-import { BffError } from '@/lib/bff/errors';
+import type { LegacyErrorBody } from '@/lib/bff/errors';
+import { BffError, extractLegacyError } from '@/lib/bff/errors';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
 import { mockUsers } from '@/lib/api-client/mock/users';
@@ -21,18 +22,14 @@ import { mockDev } from '@/lib/api-client/mock/dev';
 import { mockScan } from '@/lib/api-client/mock/scan';
 import { mockQueueBoard } from '@/lib/api-client/mock/queue-board';
 
-interface LegacyErrorPayload {
-  error?: string;
-  message?: string;
-}
-
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
-    const body = await response.json().catch((): LegacyErrorPayload => ({}));
+    const body = await response.json().catch((): LegacyErrorBody => ({}));
+    const { code, message } = extractLegacyError(body);
     throw new BffError(
       response.status,
-      body.error ?? 'INTERNAL_ERROR',
-      body.message ?? `HTTP ${response.status}`,
+      code || 'INTERNAL_ERROR',
+      message || `HTTP ${response.status}`,
     );
   }
   return await response.json() as T;

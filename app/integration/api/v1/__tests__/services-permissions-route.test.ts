@@ -29,7 +29,7 @@ describe('services permissions routes', () => {
   it('GET authorized-users는 user 목록을 반환한다', async () => {
     mockedList.mockResolvedValue({
       users: [{ id: 'u-1', name: 'Alice', email: 'alice@example.com' }],
-    } as never);
+    } as unknown as Awaited<ReturnType<typeof bff.services.permissions.list>>);
 
     const response = await GET(
       new Request('http://localhost'),

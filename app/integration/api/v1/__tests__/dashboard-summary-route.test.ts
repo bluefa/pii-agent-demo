@@ -25,7 +25,7 @@ describe('GET /integration/api/v1/admin/dashboard/summary', () => {
       activeProjects: 5,
       pendingApprovals: 2,
     };
-    mockedSummary.mockResolvedValue(summary as never);
+    mockedSummary.mockResolvedValue(summary as unknown as Awaited<ReturnType<typeof bff.dashboard.summary>>);
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/admin/dashboard/summary'),

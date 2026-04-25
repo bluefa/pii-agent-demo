@@ -8,26 +8,23 @@
  */
 import type { BffClient } from '@/lib/bff/types';
 import type { CreateTargetSourceResult } from '@/lib/bff/types/target-sources';
-import { BffError } from '@/lib/bff/errors';
+import type { LegacyErrorBody } from '@/lib/bff/errors';
+import { BffError, extractLegacyError } from '@/lib/bff/errors';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
-interface LegacyErrorPayload {
-  error?: string;
-  message?: string;
-}
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
 async function throwBffError(res: Response): Promise<never> {
-  const body = await res.json().catch((): LegacyErrorPayload => ({}));
+  const body = await res.json().catch((): LegacyErrorBody => ({}));
+  const { code, message } = extractLegacyError(body);
   throw new BffError(
     res.status,
-    body.error ?? 'INTERNAL_ERROR',
-    body.message ?? `HTTP ${res.status}`,
+    code || 'INTERNAL_ERROR',
+    message || `HTTP ${res.status}`,
   );
 }
 
