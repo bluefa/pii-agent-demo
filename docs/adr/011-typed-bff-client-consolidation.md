@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (2026-04-25) — supersedes [ADR-007](./007-api-client-pattern.md)
+Accepted (2026-04-25) — supersedes ADR-007 «API Client 패턴 도입» (file removed; see git history at commit `3e88b08` and prior).
 
 ## Context
 
@@ -101,12 +101,12 @@ Phases 2-4 can run in the background concurrently with other BFF wave work. Phas
 
 ### Fallback
 
-If, during Phase 0 inventory, the per-domain cost estimate is deemed unacceptable, this ADR-011 is withdrawn by a separate supersession ADR-012 «Mock-BFF Schema Validation» that adopts Option D (shared zod schemas) as a minimum-protection measure. ADR-012 would in turn explicitly supersede this ADR-011, and separately decide whether to restore ADR-007 to Accepted status or keep it superseded. This fallback is recorded here so that a future withdrawal does not require rediscovering the alternative; the lifecycle transition itself must still be enacted by that follow-up ADR.
+If, during Phase 0 inventory, the per-domain cost estimate is deemed unacceptable, this ADR-011 is withdrawn by a separate supersession ADR-012 «Mock-BFF Schema Validation» that adopts Option D (shared zod schemas) as a minimum-protection measure. ADR-012 would in turn explicitly supersede this ADR-011, and separately decide whether to author a fresh policy document at the next free ADR ID (ADR-007's content is preserved only in git history). This fallback is recorded here so that a future withdrawal does not require rediscovering the alternative; the lifecycle transition itself must still be enacted by that follow-up ADR.
 
 ## Related Files
 
 - `docs/reports/api-client-pattern-review.md` — analysis that motivated this ADR, including two rounds of Codex cross-review
-- `docs/adr/007-api-client-pattern.md` — superseded
+- ADR-007 «API Client 패턴 도입» — superseded and removed; the file existed at `docs/adr/007-api-client-pattern.md` until commit following the present one. See git history.
 - `docs/api/boundaries.md` — current two-pipeline documentation; will be rewritten in Phase 6
 - `lib/api-client/*` — pipeline to be removed in Phase 6
 - `lib/bff/*` — canonical client to be expanded

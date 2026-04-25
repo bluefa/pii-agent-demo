@@ -157,7 +157,7 @@ The two pipelines share suffixes, which is part of why this is confusing. Stick 
 
 ## Related docs
 
-- [ADR-007 — API Client Pattern](../adr/007-api-client-pattern.md)
+- [ADR-011 — Typed BFF Client Consolidation](../adr/011-typed-bff-client-consolidation.md) (current; supersedes the removed ADR-007 «API Client 패턴 도입»)
 - [ADR-008 — Error Handling Strategy](../adr/008-error-handling-strategy.md)
 - `.claude/skills/anti-patterns/SKILL.md` — the "API boundary anti-patterns" section
 - Session memory: "BFF 2-hop architecture"
