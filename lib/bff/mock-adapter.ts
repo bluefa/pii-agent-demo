@@ -8,6 +8,11 @@ import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
+import type {
+  ApprovalRequestCreateBody,
+  BffConfirmedIntegration,
+  ResourceCatalogResponse,
+} from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/api-client/mock/target-sources';
 import { mockProjects } from '@/lib/api-client/mock/projects';
@@ -15,6 +20,7 @@ import { mockUsers } from '@/lib/api-client/mock/users';
 import { mockAws } from '@/lib/api-client/mock/aws';
 import { mockAzure } from '@/lib/api-client/mock/azure';
 import { mockGcp } from '@/lib/api-client/mock/gcp';
+import { mockConfirm } from '@/lib/api-client/mock/confirm';
 import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
 import type {
   AwsCheckInstallationResult,
@@ -115,5 +121,53 @@ export const mockBff: BffClient = {
       unwrap<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
     getTerraformServiceAccount: async (id) =>
       unwrap<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
+  },
+
+  confirm: {
+    getResources: async (id) =>
+      unwrap<ResourceCatalogResponse>(await mockConfirm.getResources(String(id))),
+
+    createApprovalRequest: async (id, body: ApprovalRequestCreateBody) =>
+      unwrap<unknown>(await mockConfirm.createApprovalRequest(String(id), body)),
+
+    getConfirmedIntegration: async (id): Promise<BffConfirmedIntegration> =>
+      // Mock returns the flat shape; httpBff owns envelope unwrapping.
+      unwrap<BffConfirmedIntegration>(await mockConfirm.getConfirmedIntegration(String(id))),
+
+    getApprovedIntegration: async (id) =>
+      unwrap<unknown>(await mockConfirm.getApprovedIntegration(String(id))),
+
+    getApprovalHistory: async (id, page, size) =>
+      unwrap<unknown>(await mockConfirm.getApprovalHistory(String(id), page, size)),
+
+    getApprovalRequestLatest: async (id) =>
+      unwrap<unknown>(await mockConfirm.getApprovalRequestLatest(String(id))),
+
+    getProcessStatus: async (id) =>
+      unwrap<unknown>(await mockConfirm.getProcessStatus(String(id))),
+
+    approveApprovalRequest: async (id, body) =>
+      unwrap<unknown>(await mockConfirm.approveApprovalRequest(String(id), body)),
+
+    rejectApprovalRequest: async (id, body) =>
+      unwrap<unknown>(await mockConfirm.rejectApprovalRequest(String(id), body)),
+
+    cancelApprovalRequest: async (id) =>
+      unwrap<unknown>(await mockConfirm.cancelApprovalRequest(String(id))),
+
+    confirmInstallation: async (id) =>
+      unwrap<unknown>(await mockConfirm.confirmInstallation(String(id))),
+
+    updateResourceCredential: async (id, body) =>
+      unwrap<unknown>(await mockConfirm.updateResourceCredential(String(id), body)),
+
+    testConnection: async (id, body) =>
+      unwrap<{ id?: string }>(await mockConfirm.testConnection(String(id), body)),
+
+    getTestConnectionResults: async (id, page, size) =>
+      unwrap<unknown>(await mockConfirm.getTestConnectionResults(String(id), page, size)),
+
+    getTestConnectionLatest: async (id) =>
+      unwrap<unknown>(await mockConfirm.getTestConnectionLatest(String(id))),
   },
 };

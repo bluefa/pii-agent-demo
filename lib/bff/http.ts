@@ -4,11 +4,19 @@
 import type { BffClient } from '@/lib/bff/types';
 import type { SecretKey } from '@/lib/types';
 import type { CurrentUser } from '@/app/lib/api';
+import type {
+  ApprovalRequestCreateBody,
+  BffConfirmedIntegration,
+  ConfirmedIntegrationResponsePayload,
+  ResourceCatalogResponsePayload,
+} from '@/lib/bff/types/confirm';
 import { BffError } from '@/lib/bff/errors';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
 import { extractTargetSource, type TargetSourceDetailResponse } from '@/lib/target-source-response';
+import { extractConfirmedIntegration } from '@/lib/confirmed-integration-response';
+import { extractResourceCatalog } from '@/lib/resource-catalog-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
@@ -47,6 +55,20 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   console.log(`[BFF] ← POST ${fullPath} (${res.status})`);
+  if (!res.ok) await throwBffError(res);
+  // I-3 invariant: POST/PUT bodies are raw passthrough (snake_case), no camelCase.
+  return await res.json() as T;
+}
+
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] → PUT ${fullPath}`);
+  const res = await fetch(fullPath, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  console.log(`[BFF] ← PUT ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   return await res.json() as T;
 }
@@ -103,5 +125,56 @@ export const httpBff: BffClient = {
     getInstallationStatus: (id) => get(`/target-sources/${id}/gcp/installation-status`),
     getScanServiceAccount: (id) => get(`/target-sources/${id}/gcp/scan-service-account`),
     getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
+  },
+
+  confirm: {
+    getResources: async (id) => {
+      const payload = await get<ResourceCatalogResponsePayload>(`/target-sources/${id}/resources`);
+      return extractResourceCatalog(payload);
+    },
+
+    createApprovalRequest: (id, body: ApprovalRequestCreateBody) =>
+      post<unknown>(`/target-sources/${id}/approval-requests`, body),
+
+    getConfirmedIntegration: async (id): Promise<BffConfirmedIntegration> => {
+      const payload = await get<ConfirmedIntegrationResponsePayload>(`/target-sources/${id}/confirmed-integration`);
+      return extractConfirmedIntegration(payload);
+    },
+
+    getApprovedIntegration: (id) =>
+      get<unknown>(`/target-sources/${id}/approved-integration`),
+
+    getApprovalHistory: (id, page, size) =>
+      get<unknown>(`/target-sources/${id}/approval-history?page=${page}&size=${size}`),
+
+    getApprovalRequestLatest: (id) =>
+      get<unknown>(`/target-sources/${id}/approval-requests/latest`),
+
+    getProcessStatus: (id) =>
+      get<unknown>(`/target-sources/${id}/process-status`),
+
+    approveApprovalRequest: (id, body) =>
+      post<unknown>(`/target-sources/${id}/approval-requests/approve`, body),
+
+    rejectApprovalRequest: (id, body) =>
+      post<unknown>(`/target-sources/${id}/approval-requests/reject`, body),
+
+    cancelApprovalRequest: (id) =>
+      post<unknown>(`/target-sources/${id}/approval-requests/cancel`, {}),
+
+    confirmInstallation: (id) =>
+      post<unknown>(`/target-sources/${id}/pii-agent-installation/confirm`, {}),
+
+    updateResourceCredential: (id, body) =>
+      put<unknown>(`/target-sources/${id}/resources/credential`, body),
+
+    testConnection: (id, body) =>
+      post<{ id?: string }>(`/target-sources/${id}/test-connection`, body),
+
+    getTestConnectionResults: (id, page, size) =>
+      get<unknown>(`/target-sources/${id}/test-connection/results?page=${page}&size=${size}`),
+
+    getTestConnectionLatest: (id) =>
+      get<unknown>(`/target-sources/${id}/test-connection/latest`),
   },
 };
