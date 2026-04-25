@@ -11,9 +11,11 @@ import {
 } from '@/app/integration/admin/guides/types';
 import {
   borderColors,
+  chipStyles,
   cn,
   interactiveColors,
   primaryColors,
+  providerColors,
   textColors,
 } from '@/lib/theme';
 
@@ -26,6 +28,14 @@ interface ProviderTabsProps {
 
 const disabledToastMessage = (provider: ProviderTab): string =>
   `${PROVIDER_LABELS[provider]} 가이드는 Step 구조 확정 후 별도 wave 에서 지원됩니다.`;
+
+const PROVIDER_DOT: Record<ProviderTab, string> = {
+  aws: providerColors.AWS.bar,
+  azure: providerColors.Azure.bar,
+  gcp: providerColors.GCP.bar,
+  idc: providerColors.IDC.bar,
+  sdu: providerColors.SDU.bar,
+};
 
 export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
   const toast = useToast();
@@ -86,7 +96,7 @@ export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
     <div
       role="tablist"
       aria-label="클라우드 프로바이더"
-      className={cn('flex border-b', borderColors.default)}
+      className={cn('flex border-b px-6 gap-0.5', borderColors.default)}
     >
       {ALL_PROVIDER_TABS.map((provider) => {
         const isDisabled = isDisabledProvider(provider);
@@ -112,17 +122,28 @@ export const ProviderTabs = ({ value, onChange }: ProviderTabsProps) => {
             }}
             onKeyDown={(e) => handleKeyDown(e, provider)}
             className={cn(
-              'px-5 py-3 text-sm font-medium border-b-2 transition-all duration-[120ms] focus-visible:outline-2 focus-visible:outline-offset-2',
+              'inline-flex items-center gap-2 px-5 pt-3 pb-3.5 text-[13.5px] font-medium border-b-2 -mb-px transition-colors duration-[120ms] focus-visible:outline-2 focus-visible:outline-offset-2',
               primaryColors.focusRing,
               'focus-visible:outline',
               isSelected
-                ? cn(primaryColors.border, primaryColors.text)
+                ? cn(primaryColors.border, primaryColors.text, 'font-semibold')
                 : isDisabled
                   ? cn('border-transparent cursor-not-allowed', textColors.quaternary)
-                  : interactiveColors.inactiveTab,
+                  : interactiveColors.underlineTab,
             )}
           >
-            {PROVIDER_LABELS[provider]}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'w-2 h-2 rounded-sm shrink-0',
+                PROVIDER_DOT[provider],
+                isDisabled && 'opacity-40',
+              )}
+            />
+            <span>{PROVIDER_LABELS[provider]}</span>
+            {isDisabled && (
+              <span className={cn(chipStyles.base, chipStyles.variant.prep)}>준비 중</span>
+            )}
           </button>
         );
       })}

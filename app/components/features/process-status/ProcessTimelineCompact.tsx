@@ -4,16 +4,23 @@
  * Guide CMS — admin preview compact timeline.
  *
  * Spec: docs/reports/guide-cms/wave-tasks/W3-c-preview.md §Step 2 +
- * design/guide-cms/components.md §2 ProcessTimelineCompact.
+ * design/guide-cms/components.md §2 ProcessTimelineCompact +
+ * W3-d-design-polish.md §Step 9.
  *
- * One-line, 7-dot indicator that mirrors the full provider timeline
- * but in a slot small enough to sit above the GuideCard preview. The
- * existing `ProcessGuideTimeline` is a vertical, click-to-navigate
- * stepper — different concerns, different shape, so a separate file
- * is the simpler choice.
+ * 7-column grid with a horizontal connector through the dot centers.
+ * Done / current dots are filled with the primary color; current
+ * additionally gets a soft halo. Labels sit beneath each column with
+ * tabular-nums alignment.
  */
 
-import { borderColors, cn, primaryColors, textColors } from '@/lib/theme';
+import {
+  bgColors,
+  borderColors,
+  cn,
+  numericFeatures,
+  primaryColors,
+  textColors,
+} from '@/lib/theme';
 
 interface Props {
   currentStep: number;
@@ -24,43 +31,70 @@ export const ProcessTimelineCompact = ({ currentStep, totalSteps }: Props) => {
   const steps = Array.from({ length: totalSteps }, (_, idx) => idx + 1);
 
   return (
-    <ol
-      aria-label="단계 표시"
-      className="flex items-center gap-2 py-2"
+    <div
+      role="img"
+      aria-label={`${currentStep}단계 / 총 ${totalSteps}단계`}
+      className={cn(
+        'flex flex-col gap-2 px-1 pt-3 pb-4 mb-3.5 border-b',
+        borderColors.light,
+      )}
     >
-      {steps.map((stepNumber, idx) => {
-        const isCurrent = stepNumber === currentStep;
-        const isCompleted = stepNumber < currentStep;
-        const isLast = idx === steps.length - 1;
-
-        return (
-          <li key={stepNumber} className="flex items-center gap-2">
+      <div
+        className="relative grid items-center"
+        style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}
+      >
+        {/* Connector line — sits behind dots, ends at the center of the
+            first and last column (1/(2N) on each side). */}
+        <span
+          aria-hidden="true"
+          className={cn('absolute top-1/2 h-px -translate-y-1/2', bgColors.divider)}
+          style={{
+            left: `calc(100% / ${totalSteps * 2})`,
+            right: `calc(100% / ${totalSteps * 2})`,
+          }}
+        />
+        {steps.map((stepNumber) => {
+          const isCurrent = stepNumber === currentStep;
+          const isCompleted = stepNumber < currentStep;
+          return (
+            <span key={stepNumber} className="relative z-10 flex items-center justify-center">
+              <span
+                aria-current={isCurrent ? 'step' : undefined}
+                className={cn(
+                  'block w-3.5 h-3.5 rounded-full border-2 transition-colors',
+                  'motion-reduce:transition-none',
+                  isCurrent || isCompleted
+                    ? cn(primaryColors.bg, primaryColors.border)
+                    : cn(bgColors.surface, borderColors.strong),
+                  isCurrent && primaryColors.haloRing,
+                )}
+              />
+            </span>
+          );
+        })}
+      </div>
+      <div
+        className="grid text-center"
+        style={{ gridTemplateColumns: `repeat(${totalSteps}, minmax(0, 1fr))` }}
+      >
+        {steps.map((stepNumber) => {
+          const isCurrent = stepNumber === currentStep;
+          return (
             <span
-              aria-current={isCurrent ? 'step' : undefined}
+              key={stepNumber}
               className={cn(
-                'flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold transition-colors',
-                'motion-reduce:transition-none',
+                'text-[10.5px]',
+                numericFeatures.tabular,
                 isCurrent
-                  ? cn(primaryColors.bg, textColors.inverse)
-                  : isCompleted
-                    ? cn(primaryColors.bgLight, primaryColors.text)
-                    : cn('border', borderColors.default, textColors.quaternary),
+                  ? cn(primaryColors.text, 'font-semibold')
+                  : textColors.tertiary,
               )}
             >
               {stepNumber}
             </span>
-            {!isLast && (
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'w-4 h-px',
-                  isCompleted ? primaryColors.bg : 'bg-gray-200',
-                )}
-              />
-            )}
-          </li>
-        );
-      })}
-    </ol>
+          );
+        })}
+      </div>
+    </div>
   );
 };

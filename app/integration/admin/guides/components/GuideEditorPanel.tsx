@@ -38,6 +38,7 @@ import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 import {
   bgColors,
   borderColors,
+  cardStyles,
   cn,
   primaryColors,
   textColors,
@@ -82,12 +83,13 @@ interface GuideEditorPanelProps {
   onLoad: (contents: GuideContents) => void;
 }
 
-const renderLockedBadge = (slot: GuideSlot): string => {
-  if (slot.placement.kind !== 'process-step') return slot.guideName;
-  const variant = 'variant' in slot.placement ? slot.placement.variant : undefined;
-  const variantText = variant ? ` · ${variant}` : '';
+const renderHeaderMeta = (slot: GuideSlot): { label: string; variant: 'AUTO' | 'MANUAL' | null } => {
+  if (slot.placement.kind !== 'process-step') {
+    return { label: slot.guideName, variant: null };
+  }
+  const variant = 'variant' in slot.placement ? slot.placement.variant ?? null : null;
   const { provider, step, stepLabel } = slot.placement;
-  return `${provider}${variantText} · ${step}단계 ${stepLabel}`;
+  return { label: `${provider} · Step ${step} · ${stepLabel}`, variant };
 };
 
 /**
@@ -216,69 +218,125 @@ export const GuideEditorPanel = ({
       ? '한국어와 영어 모두 작성해야 저장할 수 있습니다'
       : null;
 
+  const headerMeta = renderHeaderMeta(slot);
+
   return (
     <section
       aria-label="가이드 편집"
       className={cn('flex flex-col h-full border-l overflow-hidden', borderColors.default)}
     >
-      <header className={cn('px-5 py-3 border-b', borderColors.default)}>
-        <div className={cn('text-xs font-semibold uppercase tracking-wide', textColors.tertiary)}>
-          편집 중
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          <span className={cn('text-sm font-medium', textColors.primary)}>
-            {renderLockedBadge(slot)}
-          </span>
-          <span
-            className={cn('font-mono text-[11px] px-1.5 py-0.5 rounded', bgColors.muted, textColors.tertiary)}
-            aria-label={`가이드 식별자 ${slot.guideName}`}
-          >
-            🔒 {slot.guideName}
-          </span>
-        </div>
-      </header>
-
-      {showScopeNotice && (
+      <div className="flex flex-col gap-3.5 px-5 pt-4">
         <div
-          role="status"
           className={cn(
-            'px-5 py-3 border-b text-xs space-y-1',
-            borderColors.default,
-            primaryColors.bgLight,
-            primaryColors.text,
+            'flex items-start justify-between gap-2.5 px-3.5 py-3 rounded-lg border',
+            bgColors.muted,
+            borderColors.light,
           )}
         >
-          <div className="font-medium">
-            ⓘ 이 가이드는 {sharedSlots.length}곳에 표시됩니다
+          <div className="flex flex-col gap-1 min-w-0">
+            <div
+              className={cn(
+                'flex items-center gap-1.5 text-[11px] font-medium tracking-[0.02em]',
+                textColors.tertiary,
+              )}
+            >
+              <span>{headerMeta.label}</span>
+            </div>
+            <h2 className={cn('text-[14px] font-semibold leading-snug', textColors.primary)}>
+              {slot.guideName}
+            </h2>
           </div>
-          <ul className={cn('pl-4 space-y-0.5', textColors.secondary)}>
-            {sharedSlots.map((shared) => (
-              <li key={slotReactKey(shared)}>· {renderLockedBadge(shared)}</li>
-            ))}
-          </ul>
-          <div className={textColors.tertiary}>저장 시 모든 곳에 반영됩니다.</div>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-1 rounded-md border font-mono text-[10.5px] font-semibold shrink-0',
+              bgColors.surface,
+              borderColors.default,
+              textColors.secondary,
+            )}
+            aria-label={`가이드 식별자 ${slot.guideName}`}
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              className={textColors.tertiary}
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            {slot.guideName}
+          </span>
         </div>
-      )}
 
-      <EditLanguageTabs
-        value={activeLang}
-        onChange={setActiveLang}
-        koFilled={koFilled}
-        enFilled={enFilled}
-      />
+        {showScopeNotice && (
+          <div
+            role="status"
+            className={cn(
+              'flex flex-col gap-1.5 px-3.5 py-3 rounded-lg border text-[12.5px]',
+              primaryColors.bg50,
+              primaryColors.border100,
+              primaryColors.textDark,
+            )}
+          >
+            <div className="font-semibold">
+              ⓘ 이 가이드는 {sharedSlots.length}곳에서 사용됩니다
+            </div>
+            <ul className={cn('pl-4 space-y-0.5 text-[12px] font-mono', primaryColors.text700)}>
+              {sharedSlots.map((shared) => (
+                <li key={slotReactKey(shared)}>· {renderHeaderMeta(shared).label}</li>
+              ))}
+            </ul>
+            <div className={cn('text-[12px]', primaryColors.text700)}>
+              저장 시 모든 곳에 반영됩니다.
+            </div>
+          </div>
+        )}
 
-      <EditorToolbar editor={editor} disabled={loading || saving} />
-
-      <div className="flex-1 overflow-y-auto px-5 py-4">
-        <EditorContent
-          editor={editor}
-          aria-label={`${activeLang === 'ko' ? '한국어' : 'English'} 가이드 본문`}
-          className={cn('prose-guide min-h-[200px] focus:outline-none')}
-        />
+        <div className="flex items-center justify-between">
+          <EditLanguageTabs
+            value={activeLang}
+            onChange={setActiveLang}
+            koFilled={koFilled}
+            enFilled={enFilled}
+          />
+        </div>
       </div>
 
-      <footer className={cn('flex items-center justify-between px-5 py-3 border-t', borderColors.default, bgColors.muted)}>
-        <span className={cn('text-xs', textColors.tertiary)} aria-live="polite">
+      <div className="flex-1 overflow-y-auto px-5 pt-3.5 pb-4">
+        <div className={cardStyles.editorFrame}>
+          <EditorToolbar editor={editor} disabled={loading || saving} />
+          <EditorContent
+            editor={editor}
+            aria-label={`${activeLang === 'ko' ? '한국어' : 'English'} 가이드 본문`}
+            className={cn('prose-guide min-h-[260px] focus:outline-none px-4 py-3.5 text-[13px]')}
+          />
+          <div
+            className={cn(
+              'flex items-center justify-between px-3.5 py-1.5 border-t text-[11.5px]',
+              borderColors.light,
+              textColors.tertiary,
+              bgColors.muted,
+            )}
+          >
+            <span>Markdown 단축키: ⌘B / ⌘I / ⌘E / ⌘K</span>
+          </div>
+        </div>
+      </div>
+
+      <footer
+        className={cn(
+          'flex items-center justify-between px-5 py-3 border-t',
+          borderColors.default,
+          bgColors.muted,
+        )}
+      >
+        <span className={cn('text-[11.5px]', textColors.tertiary)} aria-live="polite">
           {saveDisabledReason ?? '⌘S 로 저장할 수 있습니다'}
         </span>
         <Button variant="primary" disabled={!canSave} onClick={() => void handleSave()}>

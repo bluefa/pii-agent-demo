@@ -9,7 +9,7 @@ import { ProviderTabs } from '@/app/integration/admin/guides/components/Provider
 import { StepListPanel } from '@/app/integration/admin/guides/components/StepListPanel';
 import { UnsavedChangesModal } from '@/app/integration/admin/guides/components/UnsavedChangesModal';
 import { useUnsavedChangesGuard } from '@/app/hooks/useUnsavedChangesGuard';
-import { borderColors, cn } from '@/lib/theme';
+import { borderColors, cn, pageChromeStyles, textColors } from '@/lib/theme';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 import type { GuideContents } from '@/lib/types/guide';
@@ -86,6 +86,15 @@ export default function GuidesPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
+      <nav aria-label="breadcrumb" className={pageChromeStyles.breadcrumb}>
+        <span>관리자</span>
+        <span className={cn('mx-1.5', textColors.quaternary)} aria-hidden="true">›</span>
+        <span>가이드 관리</span>
+      </nav>
+      <h1 className={pageChromeStyles.title}>프로세스 가이드 관리</h1>
+      <p className={pageChromeStyles.subtitle}>
+        Cloud Provider 별 7단계 프로세스 가이드 본문을 편집합니다. 저장 시 한국어·영어 둘 다 필수입니다.
+      </p>
       <ProviderTabs value={provider} onChange={handleSwitchProvider} />
       <div className="grid grid-cols-[25%_35%_40%] flex-1 overflow-hidden">
         <StepListPanel provider={provider} selectedKey={selected} onSelect={handleSelectStep} />
@@ -101,7 +110,9 @@ export default function GuidesPage() {
             onLoad={handleLoad}
           />
         ) : (
-          <GuidePlaceholder>편집할 단계를 선택해주세요</GuidePlaceholder>
+          <GuidePlaceholder subtitle="왼쪽 목록에서 편집할 단계를 선택하면 이곳에 가이드 편집 영역이 표시됩니다.">
+            편집할 단계를 선택해주세요
+          </GuidePlaceholder>
         )}
         <GuidePreviewPanel slotKey={selected} draftKo={draftKo} draftEn={draftEn} />
       </div>

@@ -51,7 +51,29 @@ export const GuidePreviewPanel = ({ slotKey, draftKo, draftEn }: Props) => {
   const previewHtml = previewLang === 'ko' ? debouncedKo : debouncedEn;
 
   if (!slotKey) {
-    return <GuidePlaceholder>미리보기 영역</GuidePlaceholder>;
+    return (
+      <GuidePlaceholder
+        icon={
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        }
+        subtitle="편집 중인 가이드의 실제 GuideCard 렌더링 결과가 이곳에 표시됩니다."
+      >
+        미리보기 영역
+      </GuidePlaceholder>
+    );
   }
 
   const slot = resolveSlot(slotKey);

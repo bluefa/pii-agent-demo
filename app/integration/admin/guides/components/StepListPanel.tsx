@@ -7,7 +7,15 @@ import {
   PLACEMENT_PROVIDER_BY_TAB,
 } from '@/app/integration/admin/guides/types';
 import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
-import { bgColors, borderColors, cn, primaryColors, textColors } from '@/lib/theme';
+import {
+  bgColors,
+  borderColors,
+  chipStyles,
+  cn,
+  numericFeatures,
+  primaryColors,
+  textColors,
+} from '@/lib/theme';
 
 import type { ProviderTab } from '@/app/integration/admin/guides/types';
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
@@ -22,8 +30,9 @@ interface StepListPanelProps {
 interface StepRow {
   key: GuideSlotKey;
   slot: GuideSlot;
-  variantLabel: string | null;
+  variantLabel: 'AUTO' | 'MANUAL' | null;
   isShared: boolean;
+  sharedCount: number;
 }
 
 // Precompute slot count per guide name once at module load — used to
@@ -63,6 +72,7 @@ const buildRows = (provider: ProviderTab): StepRow[] => {
       slot,
       variantLabel: sharedCount >= 2 ? variant : null,
       isShared: sharedCount >= 2,
+      sharedCount,
     });
   }
 
@@ -123,7 +133,10 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
     <div
       role="list"
       aria-label="단계 목록"
-      className={cn('h-full overflow-y-auto border-r', borderColors.default)}
+      className={cn(
+        'h-full overflow-y-auto border-r flex flex-col gap-0.5 px-2 py-2',
+        borderColors.default,
+      )}
     >
       {rows.map((row) => {
         const isSelected = selectedKey === row.key;
@@ -143,55 +156,84 @@ export const StepListPanel = ({ provider, selectedKey, onSelect }: StepListPanel
             onClick={() => onSelect(row.key)}
             onKeyDown={(e) => handleKeyDown(e, row.key)}
             className={cn(
-              'relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-[100ms] border-b',
-              borderColors.default,
+              'relative grid grid-cols-[28px_1fr_auto] items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer border transition-colors duration-[100ms]',
               'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline',
               primaryColors.focusRing,
               isSelected
-                ? cn(primaryColors.bgLight, primaryColors.text)
-                : cn(textColors.secondary, bgColors.mutedHover),
+                ? cn(primaryColors.bg50, primaryColors.border100)
+                : cn('border-transparent', bgColors.mutedHover),
             )}
           >
             {isSelected && (
               <span
                 aria-hidden="true"
-                className={cn('absolute left-0 top-0 bottom-0 w-[3px]', primaryColors.bg)}
+                className={cn(
+                  'absolute left-0 top-2 bottom-2 w-[3px] rounded-full',
+                  primaryColors.bg,
+                )}
               />
             )}
             <span
               aria-hidden="true"
               className={cn(
-                'flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold shrink-0',
+                'flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-semibold shrink-0 transition-colors',
+                numericFeatures.tabular,
                 isSelected
-                  ? cn(primaryColors.bg, 'text-white')
-                  : cn(bgColors.muted, textColors.tertiary),
+                  ? cn(primaryColors.bg, primaryColors.border, 'text-white')
+                  : cn(bgColors.surface, 'border-[1.5px]', borderColors.strong, textColors.tertiary),
               )}
             >
-              {isSelected ? '◉' : step}
+              {step}
             </span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className={cn('text-sm font-medium truncate', isSelected ? primaryColors.text : textColors.primary)}>
-                  {stepLabel}
-                </span>
-                {row.variantLabel && (
-                  <span
-                    className={cn(
-                      'text-[10px] font-semibold px-1.5 py-0.5 rounded',
-                      bgColors.muted,
-                      textColors.tertiary,
-                    )}
-                  >
-                    {row.variantLabel}
-                  </span>
+            <div className="flex-1 min-w-0 flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'text-[13px] truncate font-medium',
+                  isSelected ? cn(primaryColors.text, 'font-semibold') : textColors.primary,
                 )}
-              </div>
-              {row.isShared && (
-                <span className={cn('text-[11px] mt-0.5 inline-block', textColors.quaternary)}>
-                  공유
+              >
+                {stepLabel}
+              </span>
+              {row.variantLabel && (
+                <span
+                  className={cn(
+                    chipStyles.base,
+                    row.variantLabel === 'AUTO'
+                      ? chipStyles.variant.auto
+                      : chipStyles.variant.manual,
+                  )}
+                >
+                  {row.variantLabel}
                 </span>
               )}
             </div>
+            {row.isShared && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 text-[10.5px]',
+                  textColors.tertiary,
+                )}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                {row.sharedCount}곳 공유
+              </span>
+            )}
           </div>
         );
       })}
