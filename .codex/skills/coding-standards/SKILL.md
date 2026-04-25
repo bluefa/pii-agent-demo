@@ -128,9 +128,9 @@ return (
 import { getProjectById } from '@/lib/mock-data';
 const project = getProjectById(id);
 
-// ✅ Good — client 디스패치
-import { client } from '@/lib/api-client';
-const project = await client.projects.get(id);
+// ✅ Good — typed bff 디스패치 (ADR-011)
+import { bff } from '@/lib/bff/client';
+const { project } = await bff.projects.get(id);
 ```
 
 ## 9. 금지 패턴

@@ -14,7 +14,7 @@ import {
   _resetApprovedIntegrationStore,
   _fastForwardApproval,
   _setApprovedIntegration,
-} from '@/lib/api-client/mock/confirm';
+} from '@/lib/bff/mock/confirm';
 import { getStore } from '@/lib/mock-store';
 import { setCurrentUser } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';

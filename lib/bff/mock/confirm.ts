@@ -7,7 +7,7 @@ import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { evaluateAutoApproval } from '@/lib/policies';
-import { addQueueItem, updateQueueItemStatus } from '@/lib/api-client/mock/queue-board';
+import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import { normalizeIssue222ApprovalRequestBody } from '@/lib/issue-222-approval';
 import type {
