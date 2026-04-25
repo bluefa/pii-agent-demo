@@ -4,7 +4,8 @@ import { useCallback } from 'react';
 import { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCard } from '@/app/components/features/process-status/GuideCard';
+import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
+import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   DeleteInfrastructureButton,
   ProjectPageMeta,
@@ -27,6 +28,8 @@ export const GcpProjectPage = ({
     onProjectUpdate(updated as CloudTargetSource);
   }, [onProjectUpdate, project.targetSourceId]);
 
+  const slotKey = resolveStepSlot('GCP', project.processStatus);
+
   const identity: ProjectIdentity = {
     cloudProvider: 'GCP',
     monitoringMethod: 'GCP Agent',
@@ -45,10 +48,7 @@ export const GcpProjectPage = ({
         onProjectUpdate={onProjectUpdate}
       />
 
-      <GuideCard
-        currentStep={project.processStatus}
-        provider={project.cloudProvider}
-      />
+      {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <ResourceSection
         step={project.processStatus}
