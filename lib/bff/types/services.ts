@@ -7,7 +7,7 @@
  */
 
 import type { ProjectSummary, User } from '@/lib/types';
-import type { LegacyAzureSettings } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/settings-transform';
+import type { LegacyAzureSettings } from '@/lib/bff/types/azure';
 
 /** GET /services/{code}/authorized-users (camelCase). */
 export interface ServiceAuthorizedUsersResponse {

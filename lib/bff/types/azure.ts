@@ -5,10 +5,11 @@
  *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
  *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
  *
- * `LegacyInstallationStatus` and `LegacyVmInstallationStatus` currently live
- * in `app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/transform.ts`
- * (route-local). The cloud-providers spec (adr011-03) decides whether to move
- * them here or keep the route-local definition while the BFF method imports.
+ * `LegacyAzureSettings`, `LegacyInstallationStatus`, and
+ * `LegacyVmInstallationStatus` are duplicated from the route-handler
+ * `_lib/*` files. Spec adr011-03 (cloud-providers) will migrate the route
+ * handlers to import from this file and remove the local definitions; this
+ * setup spec only declares the shapes here.
  */
 
 import type {
@@ -17,11 +18,72 @@ import type {
   AzureTerraformScript,
 } from '@/lib/types/azure';
 
-export type { LegacyAzureSettings } from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/settings-transform';
-export type {
-  LegacyInstallationStatus,
-  LegacyVmInstallationStatus,
-} from '@/app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/transform';
+export type AzureScanAppStatus = 'VALID' | 'INVALID' | 'UNVERIFIED' | string;
+
+export interface LegacyScanApp {
+  registered?: boolean;
+  appId?: string;
+  app_id?: string;
+  status?: AzureScanAppStatus;
+  lastVerifiedAt?: string;
+  last_verified_at?: string;
+  failReason?: string;
+  fail_reason?: string;
+  failMessage?: string;
+  fail_message?: string;
+}
+
+export interface LegacyAzureSettings {
+  scanApp?: LegacyScanApp;
+  scan_app?: LegacyScanApp;
+  tenantId?: string;
+  tenant_id?: string;
+  subscriptionId?: string;
+  subscription_id?: string;
+}
+
+export interface LegacyPrivateEndpoint {
+  id: string | null;
+  name: string | null;
+  status: string;
+  requestedAt?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+}
+
+export interface LegacyAzureResource {
+  resourceId: string;
+  resourceName: string;
+  resourceType: string;
+  privateEndpoint: LegacyPrivateEndpoint | null;
+}
+
+export interface LegacyInstallationStatus {
+  provider: string;
+  installed: boolean;
+  resources: LegacyAzureResource[];
+  lastCheckedAt?: string;
+  error?: { code: string; message: string };
+}
+
+export interface LegacyLoadBalancer {
+  installed: boolean;
+  name: string;
+}
+
+export interface LegacyAzureVmStatus {
+  vmId: string;
+  vmName: string;
+  subnetExists: boolean;
+  loadBalancer: LegacyLoadBalancer;
+  privateEndpoint?: LegacyPrivateEndpoint;
+}
+
+export interface LegacyVmInstallationStatus {
+  vms: LegacyAzureVmStatus[];
+  lastCheckedAt?: string;
+  error?: { code: string; message: string };
+}
 
 /** POST /target-sources/{id}/azure/check-installation (snake_case raw passthrough). */
 export interface AzureCheckInstallationResult {
@@ -30,13 +92,7 @@ export interface AzureCheckInstallationResult {
 }
 
 /** GET /target-sources/{id}/azure/installation-status (camelCase). */
-export interface AzureInstallationStatusResponse {
-  provider: 'Azure';
-  installed: boolean;
-  resources: Array<Record<string, unknown>>;
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
-}
+export type AzureInstallationStatusResponse = LegacyInstallationStatus;
 
 /** GET /target-sources/{id}/azure/settings (camelCase). */
 export interface AzureSettingsResponse {
@@ -57,17 +113,7 @@ export interface AzureVmCheckInstallationResult {
 }
 
 /** GET /target-sources/{id}/azure/vm/installation-status (camelCase). */
-export interface AzureVmInstallationStatusResponse {
-  vms: Array<{
-    vmId: string;
-    vmName: string;
-    subnetExists: boolean;
-    loadBalancer: { installed: boolean; name: string };
-    privateEndpoint?: { id: string | null; name: string | null; status: string };
-  }>;
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
-}
+export type AzureVmInstallationStatusResponse = LegacyVmInstallationStatus;
 
 /** GET /target-sources/{id}/azure/vm/terraform-script (camelCase). */
 export type AzureVmTerraformScriptResponse = AzureTerraformScript;
