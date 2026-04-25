@@ -4,7 +4,8 @@ import { useCallback } from 'react';
 import { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCard } from '@/app/components/features/process-status/GuideCard';
+import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
+import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import { AwsInstallationModeSelector } from '@/app/components/features/process-status/aws/AwsInstallationModeSelector';
 import {
   DeleteInfrastructureButton,
@@ -52,6 +53,8 @@ export const AwsProjectPage = ({
     );
   }
 
+  const slotKey = resolveStepSlot('AWS', project.processStatus, project.awsInstallationMode);
+
   return (
     <main className="max-w-[1200px] mx-auto p-7 space-y-6">
       <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
@@ -61,11 +64,7 @@ export const AwsProjectPage = ({
         onProjectUpdate={onProjectUpdate}
       />
 
-      <GuideCard
-        currentStep={project.processStatus}
-        provider={project.cloudProvider}
-        installationMode={project.awsInstallationMode}
-      />
+      {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <ResourceSection
         step={project.processStatus}

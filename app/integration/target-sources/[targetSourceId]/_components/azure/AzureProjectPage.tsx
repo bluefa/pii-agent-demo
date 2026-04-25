@@ -9,7 +9,8 @@ import {
 } from '@/app/lib/api/azure';
 import type { AzureV1Settings } from '@/lib/types/azure';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCard } from '@/app/components/features/process-status/GuideCard';
+import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
+import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   DeleteInfrastructureButton,
   ProjectPageMeta,
@@ -62,6 +63,8 @@ export const AzureProjectPage = ({
     onProjectUpdate(updated as CloudTargetSource);
   }, [onProjectUpdate, project.targetSourceId]);
 
+  const slotKey = resolveStepSlot('Azure', project.processStatus);
+
   const identity: ProjectIdentity = {
     cloudProvider: 'Azure',
     monitoringMethod: 'Azure Agent',
@@ -81,10 +84,7 @@ export const AzureProjectPage = ({
         onProjectUpdate={onProjectUpdate}
       />
 
-      <GuideCard
-        currentStep={project.processStatus}
-        provider={project.cloudProvider}
-      />
+      {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <ResourceSection
         step={project.processStatus}
