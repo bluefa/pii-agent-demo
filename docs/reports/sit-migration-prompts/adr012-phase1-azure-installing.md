@@ -20,7 +20,7 @@ After this PR is merged:
 
 ## Component Contract (Critical: must match existing repo APIs)
 
-`CloudTargetSourceLayout` and `CloudInstallingStep` must use the existing `ProjectPageMeta` and `GuideCardContainer` APIs as they exist on `main@f1a23b4`. Do not invent shorter aliases.
+`CloudTargetSourceLayout` and `CloudInstallingStep` must use the existing `ProjectPageMeta` and `GuideCardContainer` APIs as they exist on the **current `origin/main`** at the time `/wave-task` runs (after the standard Phase 0/rebase). Do not invent shorter aliases. The ADR commit `f1a23b4` is referenced only for the architectural rules, not for component APIs — those evolve on main.
 
 ```tsx
 // CloudTargetSourceLayout.tsx — Phase 1 props
@@ -159,6 +159,8 @@ Lifecycle:
 4. On `retry()`, abort in-flight, refetch (no `targetSourceId` change).
 5. Treat `isMissingConfirmedIntegrationError` as `ready` with empty array, matching `ConfirmedIntegrationSection.tsx:49-55`.
 
+The provider must convert the raw BFF response through `confirmedIntegrationToConfirmed` from `@/lib/resource-catalog` before storing it in `state.data`. Do not store the raw BFF shape and do not duplicate mapping logic. The provider's exposed `state.data` type is `readonly ConfirmedResource[]`; lifecycle tests must assert this shape.
+
 Callback identity: if any non-memoized callback is accepted as a prop in the future, store it in a ref following the pattern in `ConfirmedIntegrationSection.tsx:35-40`. Phase 1's provider does not accept such callbacks.
 
 ### 2. Layout components (sequential after data layer)
@@ -178,9 +180,9 @@ Add an early-return for `processStatus === INSTALLING` that returns `<CloudTarge
 - `ConfirmedIntegrationDataProvider` lifecycle tests.
 - All existing tests must stay green.
 
-### 5. Verify, commit, push, PR
+### 5. Self-audit, verify, commit, push, PR
 
-Per `/wave-task` Phase 4-6.
+Per `/wave-task` Phase 3-6. Phase 3 self-audit (`/sit-recurring-checks` → `/simplify` → `/vercel-react-best-practices`) is required before Phase 4 verify and must not be skipped.
 
 ## Subagent Fan-out (per `/wave-task` Subagent Usage)
 
@@ -230,7 +232,7 @@ If implementation requires touching anything in this list to keep `tsc` green, s
 - `ConfirmedIntegrationDataProvider` lifecycle tests exist and pass (mount, unmount abort, id-change, retry, missing-integration).
 - `npx tsc --noEmit`: 0 errors.
 - `npm run lint`: 0 new warnings introduced.
-- `npm run test:run`: all existing tests (baseline 326 at `main@f1a23b4`) plus new tests are green.
+- `npm run test:run`: all current baseline tests plus the new tests added by this PR are green. Do not pin a hard-coded count.
 - `npm run build`: clean.
 - `*ProjectPage.tsx` files do not import `@/lib/types/resources` (already true on `main@f1a23b4`; this PR must not regress it).
 
