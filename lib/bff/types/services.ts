@@ -7,7 +7,6 @@
  */
 
 import type { ProjectSummary, User } from '@/lib/types';
-import type { LegacyAzureSettings } from '@/lib/bff/types/azure';
 
 /** GET /services/{code}/authorized-users (camelCase). */
 export interface ServiceAuthorizedUsersResponse {
@@ -62,6 +61,3 @@ export interface ServiceSettingsAwsVerifyScanRoleResult {
   error_code?: string;
   error_message?: string;
 }
-
-/** GET /services/{code}/settings/azure (camelCase). */
-export type ServiceSettingsAzureResponse = LegacyAzureSettings;

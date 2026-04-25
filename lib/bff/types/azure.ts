@@ -12,30 +12,6 @@ import type {
   AzureTerraformScript,
 } from '@/lib/types/azure';
 
-export type AzureScanAppStatus = 'VALID' | 'INVALID' | 'UNVERIFIED' | string;
-
-export interface LegacyScanApp {
-  registered?: boolean;
-  appId?: string;
-  app_id?: string;
-  status?: AzureScanAppStatus;
-  lastVerifiedAt?: string;
-  last_verified_at?: string;
-  failReason?: string;
-  fail_reason?: string;
-  failMessage?: string;
-  fail_message?: string;
-}
-
-export interface LegacyAzureSettings {
-  scanApp?: LegacyScanApp;
-  scan_app?: LegacyScanApp;
-  tenantId?: string;
-  tenant_id?: string;
-  subscriptionId?: string;
-  subscription_id?: string;
-}
-
 export interface LegacyPrivateEndpoint {
   id: string | null;
   name: string | null;
@@ -88,9 +64,6 @@ export type AzureCheckInstallationResult = LegacyInstallationStatus;
 
 /** GET /target-sources/{id}/azure/installation-status (camelCase). */
 export type AzureInstallationStatusResponse = LegacyInstallationStatus;
-
-/** GET /target-sources/{id}/azure/settings — legacy raw shape (route normalizes camelCase + snake_case). */
-export type AzureSettingsResponse = LegacyAzureSettings;
 
 /** GET /target-sources/{id}/azure/subnet-guide (camelCase). */
 export type AzureSubnetGuideResponse = AzureSubnetGuide;

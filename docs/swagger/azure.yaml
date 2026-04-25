@@ -91,32 +91,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /azure/target-sources/{targetSourceId}/settings:
-    parameters:
-      - name: targetSourceId
-        in: path
-        required: true
-        description: 연동 대상 소스 고유 ID
-        schema:
-          type: integer
-    get:
-      summary: 대상 소스별 Azure 설정 조회
-      operationId: getAzureTargetSourceSettings
-      tags:
-        - Settings
-      x-expected-duration: 50ms ~ 200ms
-      description: Azure App 등록 상태 및 Client ID를 조회합니다.
-      responses:
-        '200':
-          description: 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AzureSettings'
-        '403':
-          $ref: '#/components/responses/PermissionDenied'
-        '404':
-          $ref: '#/components/responses/TargetSourceNotFound'
 components:
   schemas:
     AzureInstallationStatus:
@@ -211,41 +185,6 @@ components:
             - APPROVED
             - REJECTED
           description: 승인 상태
-    AzureSettings:
-      type: object
-      description: Azure 대상 소스 설정 정보
-      required:
-        - scan_app
-      properties:
-        tenant_id:
-          type: string
-          format: uuid
-          description: Azure Tenant ID
-        subscription_id:
-          type: string
-          format: uuid
-          description: Azure Subscription ID
-        scan_app:
-          type: object
-          description: Scan App (Service Principal) 정보
-          required:
-            - app_id
-            - status
-          properties:
-            app_id:
-              type: string
-              description: Azure Application ID
-            status:
-              type: string
-              enum:
-                - VALID
-                - INVALID
-                - UNVERIFIED
-              description: 신분증 유효성 상태
-            last_verified_at:
-              type: string
-              format: date-time
-              description: 마지막 검증 시각
     ErrorResponse:
       type: object
       description: 에러 응답 공통 모델
