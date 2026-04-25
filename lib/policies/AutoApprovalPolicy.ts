@@ -7,11 +7,11 @@
  * @see docs/cloud-provider-states.md - "자동 승인 조건" 섹션
  */
 
-import { Resource } from '@/lib/types';
+import { MockResource } from '@/lib/types';
 
 export interface AutoApprovalContext {
   /** 프로젝트의 전체 리소스 목록 */
-  resources: Resource[];
+  resources: MockResource[];
   /** 이번에 연동 대상으로 선택된 리소스 ID 목록 */
   selectedResourceIds: string[];
 }

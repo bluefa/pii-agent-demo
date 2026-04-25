@@ -18,7 +18,7 @@ import type {
   ServiceTfScriptResource,
   TfScriptStatus,
   ApiGuide,
-  Resource,
+  MockResource,
 } from '@/lib/types';
 
 // ===== Internal type =====
@@ -140,7 +140,7 @@ export const verifyTfRole = (request: VerifyTfRoleRequest): VerifyTfRoleResponse
 
 const VPC_RESOURCE_TYPES: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DOCUMENTDB', 'REDSHIFT', 'EC2'];
 
-const toScriptResource = (r: Resource): ServiceTfScriptResource => ({
+const toScriptResource = (r: MockResource): ServiceTfScriptResource => ({
   resourceId: r.resourceId,
   type: r.awsType!,
   name: r.resourceId,
@@ -158,13 +158,13 @@ const toAthenaScriptName = (region?: string): string =>
 const toDynamoDbScriptName = (region?: string): string =>
   `dynamodb_${toScriptSegment(region)}`;
 
-const generateServiceTfScripts = (resources: Resource[]): ServiceTfScript[] => {
+const generateServiceTfScripts = (resources: MockResource[]): ServiceTfScript[] => {
   const selected = resources.filter(r => r.isSelected && r.awsType);
   const scripts: ServiceTfScript[] = [];
 
   // VPC_ENDPOINT scripts: group by (vpcId, region)
   const vpcResources = selected.filter(r => VPC_RESOURCE_TYPES.includes(r.awsType!));
-  const vpcGroups = new Map<string, Resource[]>();
+  const vpcGroups = new Map<string, MockResource[]>();
   vpcResources.forEach(r => {
     const key = `${r.vpcId ?? 'unknown'}|${r.region ?? 'unknown'}`;
     const group = vpcGroups.get(key) ?? [];
@@ -190,7 +190,7 @@ const generateServiceTfScripts = (resources: Resource[]): ServiceTfScript[] => {
 
   // DYNAMODB_ROLE scripts: group by region
   const dynamoResources = selected.filter(r => r.awsType === 'DYNAMODB');
-  const dynamoGroups = new Map<string, Resource[]>();
+  const dynamoGroups = new Map<string, MockResource[]>();
   dynamoResources.forEach(r => {
     const key = r.region ?? 'unknown';
     const group = dynamoGroups.get(key) ?? [];
@@ -213,7 +213,7 @@ const generateServiceTfScripts = (resources: Resource[]): ServiceTfScript[] => {
 
   // ATHENA_GLUE scripts: group by region
   const athenaResources = selected.filter(r => r.awsType === 'ATHENA');
-  const athenaGroups = new Map<string, Resource[]>();
+  const athenaGroups = new Map<string, MockResource[]>();
   athenaResources.forEach(r => {
     const key = r.region ?? 'unknown';
     const group = athenaGroups.get(key) ?? [];

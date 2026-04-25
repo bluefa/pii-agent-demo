@@ -2,7 +2,7 @@ import { getStore } from '@/lib/mock-store';
 import {
   CloudProvider,
   Project,
-  Resource,
+  MockResource,
   ScanJob,
   ScanHistory,
   ScanResult,
@@ -321,17 +321,17 @@ const addScanHistory = (
   store.scanHistory.push(history);
 };
 
-// ===== Resource Generation =====
+// ===== MockResource Generation =====
 
 interface ResourceChanges {
-  newResources: Resource[];
+  newResources: MockResource[];
   result: ScanResult;
   addedIds: string[];
 }
 
 const generateResourceChanges = (
   provider: CloudProvider,
-  existingResources: Resource[]
+  existingResources: MockResource[]
 ): ResourceChanges => {
   const currentCount = existingResources.length;
   const availableSlots = MAX_RESOURCES - currentCount;
@@ -352,7 +352,7 @@ const generateResourceChanges = (
   return { newResources, result, addedIds };
 };
 
-const buildScanResult = (resources: Resource[]): ScanResult => {
+const buildScanResult = (resources: MockResource[]): ScanResult => {
   const typeCount = new Map<string, number>();
   resources.forEach((r) => {
     const type = r.awsType || r.type;
@@ -368,9 +368,9 @@ const buildScanResult = (resources: Resource[]): ScanResult => {
   };
 };
 
-// ===== Provider-specific Resource Generation =====
+// ===== Provider-specific MockResource Generation =====
 
-const generateRandomResource = (provider: CloudProvider): Resource => {
+const generateRandomResource = (provider: CloudProvider): MockResource => {
   switch (provider) {
     case 'AWS':
       return generateAwsResource();
@@ -391,7 +391,7 @@ const DEFAULT_PORTS: Record<string, number> = {
   ORACLE: 1521,
 };
 
-export const generateAwsResource = (): Resource => {
+export const generateAwsResource = (): MockResource => {
   const awsTypes: AwsResourceType[] = ['RDS', 'RDS_CLUSTER', 'DYNAMODB', 'ATHENA', 'REDSHIFT', 'EC2'];
   const awsType = pickRandom(awsTypes);
   const region = pickRandom(AWS_REGIONS);
@@ -451,7 +451,7 @@ export const generateAwsResource = (): Resource => {
   };
 };
 
-export const generateAzureResource = (): Resource => {
+export const generateAzureResource = (): MockResource => {
   const azureTypes: AzureResourceType[] = ['AZURE_MSSQL', 'AZURE_POSTGRESQL', 'AZURE_MYSQL', 'AZURE_MARIADB', 'AZURE_COSMOS_NOSQL', 'AZURE_SYNAPSE', 'AZURE_VM'];
   const azureType = pickRandom(azureTypes);
   const region = pickRandom(AZURE_REGIONS);
@@ -520,7 +520,7 @@ export const generateAzureResource = (): Resource => {
   };
 };
 
-export const generateGcpResource = (): Resource => {
+export const generateGcpResource = (): MockResource => {
   const gcpTypes: GcpResourceType[] = ['CLOUD_SQL', 'BIGQUERY'];
   const gcpType = pickRandom(gcpTypes);
   const region = pickRandom(GCP_REGIONS);

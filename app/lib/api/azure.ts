@@ -44,5 +44,9 @@ export const resolveAzureProjectIdentifiers = (
 
 export const getAzureSettings = (
   targetSourceId: number,
+  options?: { signal?: AbortSignal },
 ): Promise<AzureV1Settings> =>
-  fetchInfraCamelJson<AzureV1Settings>(`${BASE_URL}/${targetSourceId}/settings`);
+  fetchInfraCamelJson<AzureV1Settings>(
+    `${BASE_URL}/${targetSourceId}/settings`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );

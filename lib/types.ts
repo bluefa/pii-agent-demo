@@ -183,7 +183,7 @@ export interface ResourceExclusion {
 
 export type IntegrationCategory = 'TARGET' | 'NO_INSTALL_NEEDED' | 'INSTALL_INELIGIBLE';
 
-export interface Resource {
+export interface MockResource {
   id: string;
   type: string;
   resourceId: string;
@@ -273,7 +273,7 @@ export type Project = BaseTargetSource & {
   cloudProvider: CloudProvider;
   status: ProjectStatus;
   terraformState: TerraformState;
-  resources: Resource[];
+  resources: MockResource[];
   awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;
   awsRegionType?: 'global' | 'china';
@@ -369,7 +369,7 @@ export const needsCredential = (databaseType: DatabaseType): boolean => {
 };
 
 /** 설치 불가 리소스 판별 (integrationCategory 기반) */
-export const isInstallIneligible = (resource: Resource): boolean =>
+export const isInstallIneligible = (resource: MockResource): boolean =>
   resource.integrationCategory === 'INSTALL_INELIGIBLE';
 
 // ===== Project Status Types (ADR-004) =====
