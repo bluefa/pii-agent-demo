@@ -72,7 +72,15 @@ Required helpers in `lib/bff/http.ts`:
 - `get<T>(path)`: already exists
 - `post<T>(path, body)`, `put<T>(path, body)`, `del<T>(path)`: add following the same error-handling pattern as `get<T>`. All use `BffError` for non-2xx, `camelCaseKeys` for response normalization (matches current `proxyGet` behavior).
 
-⚠️ **Asymmetry note from PR #253**: current `proxyGet` runs `camelCaseKeys`, but `proxyPost/Put` is raw passthrough. The new `post<T>/put<T>` MUST also `camelCaseKeys` the response — this fixes the asymmetry that caused PR #253. Mock implementations (Step 2) must produce camelCase output to match.
+⚠️ **Preserve the current GET/POST asymmetry — DO NOT "fix" it in this migration**. Current `proxyGet` runs `camelCaseKeys`, but `proxyPost/Put` is raw passthrough. CSR-side helpers in `app/lib/api/index.ts` depend on this asymmetry — for example `createApprovalRequest` uses `fetchInfraJson<unknown>` (no camelCase) and then runs `normalizeIssue222ApprovalRequestSummary` on snake_case fields like `target_source_id`. Changing POST behavior to camelCase would silently break those normalizers.
+
+Concretely:
+- `httpBff.<x>.<y>` for GET methods: returns `camelCaseKeys(data)` — typed shape is camelCase. Matches current `proxyGet`.
+- `httpBff.<x>.<y>` for POST/PUT/DELETE methods: returns raw passthrough — typed shape uses snake_case fields exactly as the upstream BFF returns. Matches current `proxyPost/Put/Delete`.
+
+The typed shapes in `lib/bff/types/<domain>.ts` (defined in spec 02) MUST reflect this casing. If a POST shape was defined as camelCase in spec 02, fix it here to snake_case to preserve wire compatibility. Mock implementations (Step 2) must produce the same casing as their corresponding HTTP impl.
+
+> The asymmetry itself is undesirable but resolving it requires auditing every CSR consumer. That's a separate ADR/PR after the typed-client migration completes.
 
 ## Step 2 — Implement `mockBff` for Group A
 
@@ -159,8 +167,11 @@ For each migrated route handler that has tests:
 - [ ] `npm run test:run` passes — including updated route tests.
 - [ ] `npm run build` passes.
 - [ ] `bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD` passes.
-- [ ] Manual smoke: `USE_MOCK_DATA=true npm run dev` then `curl /integration/api/v1/target-sources/1003` returns the same shape as before.
-- [ ] Manual smoke: `USE_MOCK_DATA=true npm run dev` then `curl /integration/api/v1/user/me` returns `{ id, name, email }`.
+- [ ] **I-1, I-2, I-3, I-4 invariants** (`adr011-README.md` §"Observable Behavior Invariants") all pass:
+  - I-1: `httpBff` impl preserves every BFF URL/method/body byte-for-byte vs current `bff-client.ts`. Codex review confirms.
+  - I-2: `find app/integration/api/v1 -name "route.ts" | sort` is identical before/after.
+  - I-3: Smoke-test framework (README) for Group A endpoints — `target-sources/{id}`, `target-sources/{id}/secrets`, `target-sources/{id}/scan/history` (POST + GET), `services/{code}/target-sources`, `user/me`, `user/services`, `users/search` — produces zero `diff` output between baseline and current.
+  - I-4: at least one error-path smoke (e.g. `target-sources/99999` for 404) produces identical ProblemDetails body.
 
 ## Out of scope
 

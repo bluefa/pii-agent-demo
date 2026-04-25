@@ -171,7 +171,7 @@ curl -s http://localhost:3001/integration/api/v1/gcp/target-sources/1004/install
 # response shapes must be identical to pre-PR (use `git stash; curl; git stash pop` to compare).
 ```
 
-Capture output diff in PR description if any field shifts (e.g. due to camelCase symmetry fix).
+**No** field shifts are expected. Per spec 03 §"Preserve the current GET/POST asymmetry", `httpBff` GET methods return camelCase and POST/PUT/DELETE methods return raw upstream casing — matching current behavior byte-for-byte. If a smoke-test response differs from pre-PR in *any* field, treat it as a bug and fix before merge.
 
 ## Acceptance criteria
 
@@ -183,6 +183,11 @@ Capture output diff in PR description if any field shifts (e.g. due to camelCase
 - [ ] `app/integration/api/v1/azure/target-sources/[targetSourceId]/_lib/transform.ts` is unchanged (other than possibly removing the now-unused `Legacy*` exports if they moved entirely to `lib/bff/types/azure.ts`).
 - [ ] `npx tsc --noEmit`, `npm run lint`, `npm run test:run`, `npm run build` all pass.
 - [ ] Smoke test outputs (Step 6) match pre-PR responses field-for-field.
+- [ ] **I-1, I-2, I-3, I-4 invariants** (`adr011-README.md` §"Observable Behavior Invariants") all pass:
+  - I-1: `httpBff.{aws,azure,gcp}` paths byte-for-byte equal to current `bff-client.ts`. Codex (mandatory) confirms.
+  - I-2: route file layout under `app/integration/api/v1/{aws,azure,gcp}/**` unchanged.
+  - I-3: smoke framework (README) for `aws/target-sources/{id}/installation-status`, `azure/target-sources/{id}/{installation-status,check-installation,settings,scan-app}`, VM endpoints, `gcp/target-sources/{id}/installation-status` — zero diff.
+  - I-4: composite-route VM-failure path (mock `bff.azure.vmGetInstallationStatus` to throw `BffError`) returns same DB-only payload as current.
 
 ## Out of scope
 
@@ -210,7 +215,7 @@ XL. 17 methods + 19 routes + 2 composite handlers + composite test fixture rewri
 
 **Mandatory** before merge — composite route changes are the kind of subtle behavior shift Codex catches well. Focus on:
 - VM-failure tolerance behavior parity
-- camelCase symmetry for new `post<T>/put<T>` helpers
+- Wire-shape parity for POST/PUT responses (asymmetry preserved per spec 03 §"Preserve the current GET/POST asymmetry")
 - Whether `_lib/transform.ts` was correctly left untouched
 
 ## PR title

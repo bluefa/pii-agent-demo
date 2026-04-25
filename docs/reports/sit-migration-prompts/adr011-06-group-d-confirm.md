@@ -247,6 +247,12 @@ Compare each output to pre-PR (use a separate worktree on origin/main). All fiel
 - [ ] `lib/confirmed-integration-response.ts`, `lib/resource-catalog-response.ts` **NOT moved** — only their import location changes.
 - [ ] `npx tsc/lint/test/build` all pass.
 - [ ] All smoke test outputs match pre-PR exactly.
+- [ ] **I-1, I-2, I-3, I-4 invariants** (`adr011-README.md` §"Observable Behavior Invariants") all pass — this group is the highest risk for I-3 because of the `normalizeIssue222*` removals. Treat any diff in approval/integration response shape as a blocking bug.
+  - I-1: `httpBff.confirm` paths byte-for-byte equal to current.
+  - I-2: route file layout unchanged.
+  - I-3: smoke framework on ALL 11 confirm endpoints listed in Step 6 — zero diff. Run BOTH the success path AND a failure path (e.g. cancel a non-existent approval-request).
+  - I-4: ProblemDetails bodies for confirm-related 4xx/5xx are bit-identical.
+- [ ] **Removal-safety check**: for every `normalizeIssue222*` call removed, document in PR description which fields the typed BFF return now provides natively (the normalize call was redundant). If any field was being *added* by the normalize call (not just preserved), preserve that field-add at the route layer with a brief inline comment.
 
 ## Out of scope
 
