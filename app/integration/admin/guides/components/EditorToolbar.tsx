@@ -1,12 +1,10 @@
 'use client';
 
 /**
- * Guide CMS — Tiptap toolbar (7 commands) + link-prompt modal.
+ * Guide CMS — Tiptap toolbar (7 commands).
  *
  * Spec: docs/reports/guide-cms/wave-tasks/W3-b-editor.md §Step 2 +
- * design/guide-cms/components.md §4. Caller scope keeps the LinkPrompt
- * inline here rather than splitting it into its own file (one file per
- * concern was rejected to keep the toolbar surface consolidated).
+ * design/guide-cms/components.md §4.
  *
  * Roving tabindex: Tab enters the active button (or button 0 when
  * nothing has been triggered); ←/→ move focus and update the active
@@ -20,17 +18,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/core';
 
-import { Button } from '@/app/components/ui/Button';
-import { Modal } from '@/app/components/ui/Modal';
+import { useModal } from '@/app/hooks/useModal';
 import {
   bgColors,
   borderColors,
   cn,
-  inputStyles,
   primaryColors,
   shadows,
   textColors,
 } from '@/lib/theme';
+
+import { LinkPromptModal } from '@/app/integration/admin/guides/components/LinkPromptModal';
+import { getSelectedLinkHref } from '@/app/integration/admin/guides/components/editor-link';
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -121,114 +120,9 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
   },
 ];
 
-/**
- * Allowed link href schemes — mirrors the validator in
- * `lib/utils/validate-guide-html.ts`. Kept as a local literal (not
- * imported across files) so the parent's `dynamic(() =>
- * import('./EditorToolbar'))` can keep the Tiptap-prompt surface
- * code-split.
- */
-const LINK_HREF_SCHEME_RE = /^(https?:\/\/|mailto:|\/(?!\/))/;
-
-interface LinkPromptModalProps {
-  initialHref: string;
-  onSubmit: (href: string) => void;
-  onUnset: () => void;
-  onClose: () => void;
-}
-
-/**
- * Mounted only while the prompt is open (parent gates with
- * `linkOpen ? <LinkPromptModal /> : null`). That gives us a fresh
- * component instance per open, so `useState(initialHref)` seeds
- * lazily without a "reset state inside an effect" anti-pattern.
- */
-const LinkPromptModal = ({
-  initialHref,
-  onSubmit,
-  onUnset,
-  onClose,
-}: LinkPromptModalProps) => {
-  const [value, setValue] = useState(initialHref);
-  const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Focus the input on mount. Modal's enter animation can steal focus
-  // back to the dialog container — defer focus to the next macrotask.
-  useEffect(() => {
-    const id = window.setTimeout(() => inputRef.current?.focus(), 0);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  const handleSubmit = (): void => {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) {
-      onUnset();
-      onClose();
-      return;
-    }
-    if (!LINK_HREF_SCHEME_RE.test(trimmed)) {
-      setError('https://, mailto:, 또는 /로 시작해야 합니다.');
-      return;
-    }
-    onSubmit(trimmed);
-    onClose();
-  };
-
-  return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      title="링크 삽입"
-      size="sm"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>취소</Button>
-          <Button variant="primary" onClick={handleSubmit}>확인</Button>
-        </>
-      }
-    >
-      <div className="space-y-3">
-        <label className={cn('block text-sm font-medium', textColors.secondary)}>
-          URL
-          <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(event) => {
-              setValue(event.target.value);
-              setError(null);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                handleSubmit();
-              }
-            }}
-            placeholder="https://example.com"
-            className={cn('mt-1', inputStyles.base, error && inputStyles.error)}
-          />
-        </label>
-        {error && (
-          <p className={cn('text-xs', textColors.tertiary)} role="alert">{error}</p>
-        )}
-        <p className={cn('text-xs', textColors.quaternary)}>
-          빈 문자열로 저장하면 링크가 해제됩니다.
-        </p>
-      </div>
-    </Modal>
-  );
-};
-
-const getSelectedLinkHref = (editor: Editor | null): string => {
-  if (!editor) return '';
-  const attrs = editor.getAttributes('link') as { href?: unknown };
-  return typeof attrs.href === 'string' ? attrs.href : '';
-};
-
 export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
   const [focusIdx, setFocusIdx] = useState(0);
-  const [linkOpen, setLinkOpen] = useState(false);
+  const linkModal = useModal();
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Re-render on selection / transaction so `isActive(...)` stays fresh.
@@ -265,34 +159,35 @@ export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
 
   const handleClick = useCallback(
     (idx: number) => {
-      if (!editor) return;
+      if (!editor || disabled) return;
       const spec = TOOLBAR_BUTTONS[idx];
       setFocusIdx(idx);
       if (spec.id === 'link') {
-        setLinkOpen(true);
+        linkModal.open();
         return;
       }
       spec.apply?.(editor);
     },
-    [editor],
+    [editor, disabled, linkModal],
   );
 
   // ⌘K → open link modal even when focus is inside the editor body.
+  // Suppressed when disabled so loading / saving cannot stage a write.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || disabled) return;
     const handler = (event: KeyboardEvent): void => {
       const isMod = event.metaKey || event.ctrlKey;
       if (!isMod) return;
       const key = event.key.toLowerCase();
       if (key === 'k') {
         event.preventDefault();
-        setLinkOpen(true);
+        linkModal.open();
       }
     };
     const root = editor.view.dom;
     root.addEventListener('keydown', handler);
     return () => root.removeEventListener('keydown', handler);
-  }, [editor]);
+  }, [editor, disabled, linkModal]);
 
   const submitLink = useCallback(
     (href: string) => {
@@ -337,8 +232,8 @@ export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
                 primaryColors.focusRing,
                 'disabled:opacity-40 disabled:cursor-not-allowed',
                 active
-                  ? cn('bg-white', primaryColors.text, shadows.card)
-                  : cn(textColors.secondary, 'hover:bg-white'),
+                  ? cn(bgColors.surface, primaryColors.text, shadows.card)
+                  : cn(textColors.secondary, bgColors.surfaceHover),
               )}
             >
               {spec.glyph}
@@ -346,12 +241,12 @@ export const EditorToolbar = ({ editor, disabled }: EditorToolbarProps) => {
           );
         })}
       </div>
-      {linkOpen && (
+      {linkModal.isOpen && (
         <LinkPromptModal
           initialHref={getSelectedLinkHref(editor)}
           onSubmit={submitLink}
           onUnset={unsetLink}
-          onClose={() => setLinkOpen(false)}
+          onClose={linkModal.close}
         />
       )}
     </>

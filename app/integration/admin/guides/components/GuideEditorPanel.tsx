@@ -46,9 +46,29 @@ import {
 import { EditLanguageTabs } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import type { EditorLanguage } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import { EditorToolbar } from '@/app/integration/admin/guides/components/EditorToolbar';
+import { isAllowedLinkHref } from '@/app/integration/admin/guides/components/editor-link';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
-import type { GuideContents, GuideSlot } from '@/lib/types/guide';
+import type { GuideContents, GuidePlacement, GuideSlot } from '@/lib/types/guide';
+
+// Tiptap extension configs are stable across renders. Hoisting to
+// module scope avoids passing fresh non-primitive option objects into
+// `useEditor` every render, which would otherwise trigger Tiptap's
+// option-comparison path on every keystroke.
+const TIPTAP_EXTENSIONS = [
+  StarterKit.configure({
+    heading: { levels: [4] },
+    strike: false,
+    codeBlock: false,
+    blockquote: false,
+    horizontalRule: false,
+  }),
+  Link.configure({
+    openOnClick: false,
+    HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+    validate: isAllowedLinkHref,
+  }),
+];
 
 interface GuideEditorPanelProps {
   slotKey: GuideSlotKey;
@@ -68,6 +88,25 @@ const renderLockedBadge = (slot: GuideSlot): string => {
   const variantText = variant ? ` · ${variant}` : '';
   const { provider, step, stepLabel } = slot.placement;
   return `${provider}${variantText} · ${step}단계 ${stepLabel}`;
+};
+
+/**
+ * Stable React key per slot — the placement discriminator + provider
+ * variant + step is unique within a `findSlotsForGuide(...)` result so
+ * an array index is not needed (avoids AP-E1).
+ */
+const slotReactKey = (slot: GuideSlot): string => {
+  const placement: GuidePlacement = slot.placement;
+  switch (placement.kind) {
+    case 'process-step':
+      return `process-step:${placement.provider}:${placement.variant ?? 'NA'}:${placement.step}`;
+    case 'side-panel':
+      return `side-panel:${placement.surface}`;
+    case 'tooltip':
+      return `tooltip:${placement.surface}:${placement.field}`;
+    case 'faq':
+      return `faq:${placement.section}:${placement.order}`;
+  }
 };
 
 export const GuideEditorPanel = ({
@@ -128,27 +167,20 @@ export const GuideEditorPanel = ({
   }, [canSave, save, draftKo, draftEn, toast]);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [4] },
-        strike: false,
-        codeBlock: false,
-        blockquote: false,
-        horizontalRule: false,
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
-        // Mirror of `LINK_HREF_SCHEME_RE` in EditorToolbar.tsx — kept
-        // inline so dynamic import of the toolbar stays effective.
-        validate: (href: string) => /^(https?:\/\/|mailto:|\/(?!\/))/.test(href),
-      }),
-    ],
+    extensions: TIPTAP_EXTENSIONS,
     content: activeLang === 'ko' ? draftKo : draftEn,
     editable: !loading && !saving,
     immediatelyRender: false,
     onUpdate: ({ editor: nextEditor }: { editor: Editor }) => handleChange(nextEditor.getHTML()),
   });
+
+  // Tiptap only consumes `editable` at construction time. Mirror the
+  // disabled prop into the live editor so toggling loading / saving
+  // actually freezes the surface.
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!loading && !saving);
+  }, [editor, loading, saving]);
 
   // When the parent flips to a different slot or resets drafts after
   // discard, the controlled HTML may diverge from Tiptap's internal
@@ -220,8 +252,8 @@ export const GuideEditorPanel = ({
             ⓘ 이 가이드는 {sharedSlots.length}곳에 표시됩니다
           </div>
           <ul className={cn('pl-4 space-y-0.5', textColors.secondary)}>
-            {sharedSlots.map((shared, idx) => (
-              <li key={`${shared.guideName}-${idx}`}>· {renderLockedBadge(shared)}</li>
+            {sharedSlots.map((shared) => (
+              <li key={slotReactKey(shared)}>· {renderLockedBadge(shared)}</li>
             ))}
           </ul>
           <div className={textColors.tertiary}>저장 시 모든 곳에 반영됩니다.</div>

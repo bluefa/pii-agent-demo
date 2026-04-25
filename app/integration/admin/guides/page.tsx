@@ -61,16 +61,21 @@ export default function GuidesPage() {
 
   const handleSelectStep = useCallback(
     (key: GuideSlotKey) => {
+      // Re-clicking the active step must not stage a navigation —
+      // otherwise the dirty guard would prompt for a discard the user
+      // never asked for.
+      if (key === selected) return;
       guard.requestNavigation({ kind: 'select-step', key }, performNavigation);
     },
-    [guard, performNavigation],
+    [guard, performNavigation, selected],
   );
 
   const handleSwitchProvider = useCallback(
     (next: ProviderTab) => {
+      if (next === provider) return;
       guard.requestNavigation({ kind: 'switch-provider', provider: next }, performNavigation);
     },
-    [guard, performNavigation],
+    [guard, performNavigation, provider],
   );
 
   const handleLoad = useCallback((contents: GuideContents) => {

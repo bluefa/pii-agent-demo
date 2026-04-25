@@ -23,6 +23,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { useModal } from '@/app/hooks/useModal';
+
 export interface UseUnsavedChangesGuardResult<T> {
   /** Whether the editor currently holds unsaved changes. */
   dirty: boolean;
@@ -48,7 +50,7 @@ interface PendingNavigation<T> {
 
 export const useUnsavedChangesGuard = <T,>(): UseUnsavedChangesGuardResult<T> => {
   const [dirty, setDirty] = useState(false);
-  const [pending, setPending] = useState<PendingNavigation<T> | null>(null);
+  const pendingModal = useModal<PendingNavigation<T>>();
 
   const requestNavigation = useCallback(
     (payload: T, perform: (payload: T) => void): boolean => {
@@ -56,22 +58,23 @@ export const useUnsavedChangesGuard = <T,>(): UseUnsavedChangesGuardResult<T> =>
         perform(payload);
         return true;
       }
-      setPending({ payload, perform });
+      pendingModal.open({ payload, perform });
       return false;
     },
-    [dirty],
+    [dirty, pendingModal],
   );
 
   const acceptPendingNavigation = useCallback(() => {
-    if (!pending) return;
-    pending.perform(pending.payload);
+    const staged = pendingModal.data;
+    if (!staged) return;
+    staged.perform(staged.payload);
     setDirty(false);
-    setPending(null);
-  }, [pending]);
+    pendingModal.close();
+  }, [pendingModal]);
 
   const cancelPendingNavigation = useCallback(() => {
-    setPending(null);
-  }, []);
+    pendingModal.close();
+  }, [pendingModal]);
 
   // Native tab-close / reload guard — only attached while dirty so a
   // clean page does not pay the listener cost.
@@ -89,7 +92,7 @@ export const useUnsavedChangesGuard = <T,>(): UseUnsavedChangesGuardResult<T> =>
 
   return {
     dirty,
-    isModalOpen: pending !== null,
+    isModalOpen: pendingModal.isOpen,
     setDirty,
     requestNavigation,
     acceptPendingNavigation,
