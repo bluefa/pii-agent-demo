@@ -175,6 +175,29 @@ body {
   cursor: text;
 }
 
+/* Anchor display inside the editor — show the URL inline next to the
+   link label so the admin can read both at a glance (similar to
+   markdown's [label](href)). The ::after pseudo-element is not
+   interactive, so it cannot be clicked through to navigate.
+
+   Note: `pointer-events: none` is intentionally NOT set on the anchor
+   itself — the click → "open link prompt modal" handler in
+   GuideEditorPanel needs the anchor to receive the click event so it
+   can preventDefault and prevent the browser's default navigation. */
+.guide-editor-surface .ProseMirror a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.guide-editor-surface .ProseMirror a::after {
+  content: ' (' attr(href) ')';
+  color: var(--fg-3);
+  font-family: var(--font-mono), ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  text-decoration: none;
+}
+
 /* Scrollbar Styling (스크롤바) */
 ::-webkit-scrollbar {
   width: 8px;

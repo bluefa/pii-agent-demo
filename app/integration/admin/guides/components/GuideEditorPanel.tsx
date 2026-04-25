@@ -289,18 +289,28 @@ export const GuideEditorPanel = ({
   }, [editor, loading, saving, linkModal]);
 
   // Clicking an <a> inside the editor should open the prompt modal
-  // (pre-filled via getSelectedLinkHref) instead of navigating —
-  // even though the Link extension already disables openOnClick, the
-  // raw anchor click default still bubbles in some browsers.
+  // (pre-filled via getSelectedLinkHref) instead of navigating. The
+  // browser's default anchor handling — especially for target="_blank"
+  // — runs *before* a bubble-phase click handler can preventDefault,
+  // so we register at capture phase on both `mousedown` and `click`.
+  // We also intercept `auxclick` (middle button → new tab).
   useEffect(() => {
     if (!editor) return;
     const root = editor.view.dom;
-    const handler = (event: MouseEvent): void => {
+    const interceptOnly = (event: MouseEvent): void => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.closest('a')) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const clickHandler = (event: MouseEvent): void => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       const anchor = target.closest('a');
       if (!anchor || !root.contains(anchor)) return;
       event.preventDefault();
+      event.stopPropagation();
       if (loading || saving) return;
       // Move the selection into the clicked link so getSelectedLinkHref()
       // resolves to its href when the modal opens.
@@ -311,8 +321,16 @@ export const GuideEditorPanel = ({
       }
       linkModal.open();
     };
-    root.addEventListener('click', handler);
-    return () => root.removeEventListener('click', handler);
+    // Capture phase + multiple event types ensures we fire before the
+    // browser's default anchor navigation (especially target="_blank").
+    root.addEventListener('mousedown', interceptOnly, { capture: true });
+    root.addEventListener('click', clickHandler, { capture: true });
+    root.addEventListener('auxclick', interceptOnly, { capture: true });
+    return () => {
+      root.removeEventListener('mousedown', interceptOnly, { capture: true });
+      root.removeEventListener('click', clickHandler, { capture: true });
+      root.removeEventListener('auxclick', interceptOnly, { capture: true });
+    };
   }, [editor, loading, saving, linkModal]);
 
   const submitLink = useCallback(
