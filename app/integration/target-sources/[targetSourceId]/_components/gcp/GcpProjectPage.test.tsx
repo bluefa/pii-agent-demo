@@ -10,25 +10,6 @@ vi.mock(
   }),
 );
 
-vi.mock('@/app/lib/api', () => ({
-  getProject: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
-}));
-
-vi.mock(
-  '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceSection',
-  () => ({
-    ResourceSection: () => <div data-testid="legacy-resource-section" />,
-  }),
-);
-
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/common',
   async (importOriginal) => {
@@ -37,8 +18,6 @@ vi.mock(
     >();
     return {
       ...mod,
-      ProjectPageMeta: () => null,
-      RejectionAlert: () => null,
       DeleteInfrastructureButton: () => null,
     };
   },
@@ -62,58 +41,21 @@ const gcpBaseFixture: CloudTargetSource = {
 };
 
 describe('GcpProjectPage routing', () => {
-  it('mounts CloudTargetSourceLayout on INSTALLING', () => {
+  it.each([
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    ProcessStatus.WAITING_APPROVAL,
+    ProcessStatus.APPLYING_APPROVED,
+    ProcessStatus.INSTALLING,
+    ProcessStatus.WAITING_CONNECTION_TEST,
+    ProcessStatus.CONNECTION_VERIFIED,
+    ProcessStatus.INSTALLATION_COMPLETE,
+  ])('mounts CloudTargetSourceLayout for processStatus=%s', (status) => {
     render(
       <GcpProjectPage
-        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.INSTALLING }}
+        project={{ ...gcpBaseFixture, processStatus: status }}
         onProjectUpdate={() => {}}
       />,
     );
     expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on WAITING_CONNECTION_TEST', () => {
-    render(
-      <GcpProjectPage
-        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.WAITING_CONNECTION_TEST }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('keeps legacy ResourceSection on steps 1-3 (e.g. WAITING_TARGET_CONFIRMATION)', () => {
-    render(
-      <GcpProjectPage
-        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('legacy-resource-section')).toBeTruthy();
-    expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on WAITING_APPROVAL', () => {
-    render(
-      <GcpProjectPage
-        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.WAITING_APPROVAL }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on APPLYING_APPROVED', () => {
-    render(
-      <GcpProjectPage
-        project={{ ...gcpBaseFixture, processStatus: ProcessStatus.APPLYING_APPROVED }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
   });
 });

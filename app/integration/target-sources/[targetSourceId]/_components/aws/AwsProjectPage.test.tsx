@@ -14,25 +14,6 @@ vi.mock('@/app/components/features/process-status/aws/AwsInstallationModeSelecto
   AwsInstallationModeSelector: () => <div data-testid="aws-installation-mode-selector-sentinel" />,
 }));
 
-vi.mock('@/app/lib/api', () => ({
-  getProject: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
-}));
-
-vi.mock(
-  '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceSection',
-  () => ({
-    ResourceSection: () => <div data-testid="legacy-resource-section" />,
-  }),
-);
-
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/common',
   async (importOriginal) => {
@@ -42,7 +23,6 @@ vi.mock(
     return {
       ...mod,
       ProjectPageMeta: () => null,
-      RejectionAlert: () => null,
       DeleteInfrastructureButton: () => null,
     };
   },
@@ -67,22 +47,32 @@ const awsBaseFixture: CloudTargetSource = {
 };
 
 describe('AwsProjectPage routing', () => {
-  it('mounts CloudTargetSourceLayout on INSTALLING when awsInstallationMode is set', () => {
-    render(
-      <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.INSTALLING, awsInstallationMode: 'AUTO' }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-    expect(screen.queryByTestId('aws-installation-mode-selector-sentinel')).toBeNull();
-  });
+  it.each([
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    ProcessStatus.WAITING_APPROVAL,
+    ProcessStatus.APPLYING_APPROVED,
+    ProcessStatus.INSTALLING,
+    ProcessStatus.WAITING_CONNECTION_TEST,
+    ProcessStatus.CONNECTION_VERIFIED,
+    ProcessStatus.INSTALLATION_COMPLETE,
+  ])(
+    'mounts CloudTargetSourceLayout for processStatus=%s when awsInstallationMode is set',
+    (status) => {
+      render(
+        <AwsProjectPage
+          project={{ ...awsBaseFixture, processStatus: status }}
+          onProjectUpdate={() => {}}
+        />,
+      );
+      expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+      expect(screen.queryByTestId('aws-installation-mode-selector-sentinel')).toBeNull();
+    },
+  );
 
   it('mounts AwsInstallationModeSelector when awsInstallationMode is missing', () => {
     render(
       <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.INSTALLING, awsInstallationMode: undefined }}
+        project={{ ...awsBaseFixture, awsInstallationMode: undefined }}
         onProjectUpdate={() => {}}
       />,
     );
@@ -90,54 +80,14 @@ describe('AwsProjectPage routing', () => {
     expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
   });
 
-  it('mounts CloudTargetSourceLayout on WAITING_CONNECTION_TEST', () => {
+  it('keeps AwsInstallationModeSelector even on WAITING_APPROVAL when awsInstallationMode is missing (defensive)', () => {
     render(
       <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.WAITING_CONNECTION_TEST }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('keeps legacy ResourceSection on steps 1-3 (e.g. WAITING_TARGET_CONFIRMATION)', () => {
-    render(
-      <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('legacy-resource-section')).toBeTruthy();
-    expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on WAITING_APPROVAL', () => {
-    render(
-      <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.WAITING_APPROVAL }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on APPLYING_APPROVED', () => {
-    render(
-      <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.APPLYING_APPROVED }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('keeps AwsInstallationModeSelector when awsInstallationMode is missing even on WAITING_APPROVAL (defensive — should not happen in practice but the gate must win)', () => {
-    render(
-      <AwsProjectPage
-        project={{ ...awsBaseFixture, processStatus: ProcessStatus.WAITING_APPROVAL, awsInstallationMode: undefined }}
+        project={{
+          ...awsBaseFixture,
+          processStatus: ProcessStatus.WAITING_APPROVAL,
+          awsInstallationMode: undefined,
+        }}
         onProjectUpdate={() => {}}
       />,
     );

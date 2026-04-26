@@ -10,25 +10,6 @@ vi.mock(
   }),
 );
 
-vi.mock('@/app/lib/api', () => ({
-  getProject: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('@/app/components/features/ProcessStatusCard', () => ({
-  ProcessStatusCard: () => null,
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
-}));
-
-vi.mock(
-  '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceSection',
-  () => ({
-    ResourceSection: () => <div data-testid="legacy-resource-section" />,
-  }),
-);
-
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/common',
   async (importOriginal) => {
@@ -37,8 +18,6 @@ vi.mock(
     >();
     return {
       ...mod,
-      ProjectPageMeta: () => null,
-      RejectionAlert: () => null,
       DeleteInfrastructureButton: () => null,
     };
   },
@@ -46,7 +25,7 @@ vi.mock(
 
 import { AzureProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/azure/AzureProjectPage';
 
-const azureInstallingFixture: CloudTargetSource = {
+const azureBaseFixture: CloudTargetSource = {
   id: 'azure-proj-1',
   targetSourceId: 1003,
   projectCode: 'AZURE-001',
@@ -62,74 +41,22 @@ const azureInstallingFixture: CloudTargetSource = {
   isRejected: false,
 };
 
-const azureWaitingTargetConfirmationFixture: CloudTargetSource = {
-  id: 'azure-proj-3',
-  targetSourceId: 1005,
-  projectCode: 'AZURE-003',
-  name: 'Azure PII Agent - VM+MySQL 스캔 완료',
-  description: 'VM 1대 + MySQL 1대, 스캔 완료 후 연동 대상 확정 전',
-  serviceCode: 'SERVICE-A',
-  cloudProvider: 'Azure',
-  tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
-  subscriptionId: '34567890-cdef-0123-4567-89abcdef0123',
-  processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
-  createdAt: '2026-02-05T09:00:00Z',
-  updatedAt: '2026-02-09T10:00:00Z',
-  isRejected: false,
-};
-
-const azureWaitingConnectionTestFixture: CloudTargetSource = {
-  ...azureInstallingFixture,
-  id: 'azure-proj-4',
-  targetSourceId: 1011,
-  processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
-};
-
 describe('AzureProjectPage routing', () => {
-  it('mounts CloudTargetSourceLayout when processStatus === INSTALLING', async () => {
-    render(<AzureProjectPage project={azureInstallingFixture} onProjectUpdate={() => {}} />);
-    expect(await screen.findByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-  });
-
-  it('mounts CloudTargetSourceLayout on WAITING_CONNECTION_TEST', async () => {
+  it.each([
+    ProcessStatus.WAITING_TARGET_CONFIRMATION,
+    ProcessStatus.WAITING_APPROVAL,
+    ProcessStatus.APPLYING_APPROVED,
+    ProcessStatus.INSTALLING,
+    ProcessStatus.WAITING_CONNECTION_TEST,
+    ProcessStatus.CONNECTION_VERIFIED,
+    ProcessStatus.INSTALLATION_COMPLETE,
+  ])('mounts CloudTargetSourceLayout for processStatus=%s', (status) => {
     render(
       <AzureProjectPage
-        project={azureWaitingConnectionTestFixture}
+        project={{ ...azureBaseFixture, processStatus: status }}
         onProjectUpdate={() => {}}
       />,
     );
-    expect(await screen.findByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-  });
-
-  it('does not mount CloudTargetSourceLayout for steps 1-3', () => {
-    render(
-      <AzureProjectPage
-        project={azureWaitingTargetConfirmationFixture}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on WAITING_APPROVAL', async () => {
-    render(
-      <AzureProjectPage
-        project={{ ...azureInstallingFixture, processStatus: ProcessStatus.WAITING_APPROVAL }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(await screen.findByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
-  });
-
-  it('mounts CloudTargetSourceLayout on APPLYING_APPROVED', async () => {
-    render(
-      <AzureProjectPage
-        project={{ ...azureInstallingFixture, processStatus: ProcessStatus.APPLYING_APPROVED }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(await screen.findByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
   });
 });

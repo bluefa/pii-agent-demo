@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 
@@ -45,7 +45,7 @@ const baseFixture: CloudTargetSource = {
   awsAccountId: '123456789012',
 };
 
-describe('ProcessStatusCard Phase 3 extraction', () => {
+describe('ProcessStatusCard step content extraction (Phase 3 + 4)', () => {
   it('renders without mounting ApprovalWaitingCard for WAITING_APPROVAL', () => {
     expect(() =>
       render(
@@ -64,5 +64,18 @@ describe('ProcessStatusCard Phase 3 extraction', () => {
         />,
       ),
     ).not.toThrow();
+  });
+
+  it('does not render the WAITING_TARGET_CONFIRMATION instruction copy (moved to TargetConfirmationInstructionCard in Phase 4)', () => {
+    render(
+      <ProcessStatusCard
+        project={{ ...baseFixture, processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION }}
+      />,
+    );
+    expect(screen.queryByText('수행 절차')).toBeNull();
+    expect(screen.queryByText('안내')).toBeNull();
+    expect(
+      screen.queryByText(/리소스를 스캔하고 연동할 대상을 선택한 뒤 확정해주세요/),
+    ).toBeNull();
   });
 });
