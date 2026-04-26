@@ -7,8 +7,6 @@ import { StepProgressBar } from './process-status';
 import { ProjectHistoryPanel } from './history';
 import { TIMINGS } from '@/lib/constants/timings';
 import { cn, statusColors, primaryColors, interactiveColors } from '@/lib/theme';
-import { ApprovalWaitingCard } from './process-status/ApprovalWaitingCard';
-import { ApprovalApplyingBanner } from './process-status/ApprovalApplyingBanner';
 
 type ProcessTabType = 'status' | 'history';
 
@@ -77,17 +75,6 @@ export const ProcessStatusCard = ({
     };
   }, [currentStep, project.targetSourceId, stableOnProjectUpdate]);
 
-  const refreshProject = useCallback(async () => {
-    try {
-      const updatedProject = await getProject(project.targetSourceId);
-      if (updatedProject) {
-        onProjectUpdate?.(updatedProject as CloudTargetSource);
-      }
-    } catch (err) {
-      console.error('설치 완료 상태 갱신 실패:', err);
-    }
-  }, [onProjectUpdate, project.targetSourceId]);
-
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
       <div className="border-b border-gray-200">
@@ -141,19 +128,6 @@ export const ProcessStatusCard = ({
                       </p>
                     )}
                   </div>
-                )}
-
-                {currentStep === ProcessStatus.WAITING_APPROVAL && !project.isRejected && (
-                  <ApprovalWaitingCard
-                    targetSourceId={project.targetSourceId}
-                    onCancelSuccess={refreshProject}
-                  />
-                )}
-
-                {currentStep === ProcessStatus.APPLYING_APPROVED && (
-                  <ApprovalApplyingBanner
-                    targetSourceId={project.targetSourceId}
-                  />
                 )}
               </div>
             </div>
