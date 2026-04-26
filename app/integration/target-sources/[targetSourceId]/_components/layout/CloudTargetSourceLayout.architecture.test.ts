@@ -17,4 +17,12 @@ describe('CloudTargetSourceLayout architecture (R1)', () => {
   it('does not reference the awsInstallationMode token', () => {
     expect(source).not.toMatch(/\bawsInstallationMode\b/);
   });
+
+  it('does not import or reference the CloudProvider type', () => {
+    expect(source).not.toMatch(/\bCloudProvider\b/);
+  });
+
+  it('does not import or reference the AwsInstallationMode type', () => {
+    expect(source).not.toMatch(/\bAwsInstallationMode\b/);
+  });
 });
