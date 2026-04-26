@@ -111,4 +111,37 @@ describe('AwsProjectPage routing', () => {
     expect(screen.getByTestId('legacy-resource-section')).toBeTruthy();
     expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
   });
+
+  it('mounts CloudTargetSourceLayout on WAITING_APPROVAL', () => {
+    render(
+      <AwsProjectPage
+        project={{ ...awsBaseFixture, processStatus: ProcessStatus.WAITING_APPROVAL }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+  });
+
+  it('mounts CloudTargetSourceLayout on APPLYING_APPROVED', () => {
+    render(
+      <AwsProjectPage
+        project={{ ...awsBaseFixture, processStatus: ProcessStatus.APPLYING_APPROVED }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('legacy-resource-section')).toBeNull();
+  });
+
+  it('keeps AwsInstallationModeSelector when awsInstallationMode is missing even on WAITING_APPROVAL (defensive — should not happen in practice but the gate must win)', () => {
+    render(
+      <AwsProjectPage
+        project={{ ...awsBaseFixture, processStatus: ProcessStatus.WAITING_APPROVAL, awsInstallationMode: undefined }}
+        onProjectUpdate={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('aws-installation-mode-selector-sentinel')).toBeTruthy();
+    expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
+  });
 });
