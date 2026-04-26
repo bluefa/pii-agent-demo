@@ -55,6 +55,15 @@ bash scripts/bootstrap-worktree.sh "$(pwd)"
 - 필요: 데이터 모델 변경, 새 아키텍처 패턴, 선택지 결정
 - 불필요: 단순 CRUD, 명세대로 구현, 버그 수정
 
+### Mockup-based UI implementation check (before coding)
+
+When implementing UI from a design mockup (HTML / Figma / screenshot), verify the following before writing code.
+
+- Extract a list of all required text, badges, and status copy from the mockup (including header, footer, hints, count badges).
+- Map UI patterns (tabs, segmented controls, progress bars, cards, etc.) to existing components. When several components have similar names, check actual usage context and prefer the canonical one.
+- For paired data such as i18n / variants, define the state combinations up front: "one side only / both / neither edited".
+- When adding a new route, also update `lib/routes.ts`, the `TopNav` entry path, and any existing `isActive` matcher together.
+
 ## 2. 구현 순서
 
 ```
