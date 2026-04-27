@@ -381,29 +381,25 @@ export const GuideEditorPanel = ({
     return () => root.removeEventListener('keydown', handler);
   }, [editor, loading, saving]);
 
-  // Block the browser's default anchor navigation inside the editor —
-  // both left-click (target="_blank" opens a new tab before a bubble
-  // handler could preventDefault) and middle-click (auxclick).
-  //
-  // We only call `preventDefault()`, never `stopPropagation()`: Tiptap's
-  // Link extension still needs the click event to reach its
-  // ProseMirror handler so `enableClickSelection: true` can move the
-  // selection into the link's mark range and the BubbleMenu can
-  // auto-show pre-filled.
+  // Block middle-click new-tab navigation only (auxclick). Left-click is
+  // handled by Tiptap's Link extension: with `enableClickSelection: true`
+  // its ProseMirror plugin returns true from handleClick, which makes
+  // ProseMirror prevent the anchor's default. If we called preventDefault
+  // ourselves on the capture phase, ProseMirror would skip the plugin
+  // (it bails on `event.defaultPrevented`) and the selection-on-click
+  // behaviour the BubbleMenu depends on would never run.
   useEffect(() => {
     if (!editor) return;
     const root = editor.view.dom;
-    const blockNavigation = (event: MouseEvent): void => {
+    const blockMiddleClickNavigation = (event: MouseEvent): void => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       if (!target.closest('a')) return;
       event.preventDefault();
     };
-    root.addEventListener('click', blockNavigation, { capture: true });
-    root.addEventListener('auxclick', blockNavigation, { capture: true });
+    root.addEventListener('auxclick', blockMiddleClickNavigation, { capture: true });
     return () => {
-      root.removeEventListener('click', blockNavigation, { capture: true });
-      root.removeEventListener('auxclick', blockNavigation, { capture: true });
+      root.removeEventListener('auxclick', blockMiddleClickNavigation, { capture: true });
     };
   }, [editor]);
 

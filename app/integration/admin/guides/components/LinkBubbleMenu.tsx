@@ -51,6 +51,12 @@ export const LinkBubbleMenu = forwardRef<LinkBubbleMenuHandle, LinkBubbleMenuPro
   ({ editor, disabled }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
+    // True after a manual close (Esc / apply / remove) until the next
+    // user gesture inside the editor surface. Without it, `shouldShow`
+    // re-fires on the post-close focus return: the selection (or
+    // active-link state) hasn't changed, so the bubble pops back open
+    // immediately.
+    const suppressShowRef = useRef(false);
     const [value, setValue] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -71,14 +77,35 @@ export const LinkBubbleMenu = forwardRef<LinkBubbleMenuHandle, LinkBubbleMenuPro
       };
     }, [editor]);
 
+    // Re-enable shouldShow on the next user gesture inside the editor.
+    // We deliberately ignore the programmatic focus that closeAndRestoreFocus
+    // dispatches — only real input from the user clears the suppression.
+    useEffect(() => {
+      if (!editor) return;
+      const root = editor.view.dom;
+      const reenable = (): void => {
+        suppressShowRef.current = false;
+      };
+      root.addEventListener('mousedown', reenable);
+      root.addEventListener('keydown', reenable);
+      return () => {
+        root.removeEventListener('mousedown', reenable);
+        root.removeEventListener('keydown', reenable);
+      };
+    }, [editor]);
+
     const closeAndRestoreFocus = useCallback(() => {
       if (!editor) return;
+      suppressShowRef.current = true;
       editor.view.dispatch(editor.state.tr.setMeta(linkBubblePluginKey, 'hide'));
       editor.commands.focus();
     }, [editor]);
 
     const trigger = useCallback(() => {
       if (!editor || disabled) return;
+      // Toolbar 🔗 / ⌘K is itself a user gesture — clear any prior
+      // manual-close suppression so the bubble actually shows.
+      suppressShowRef.current = false;
       editor.view.dispatch(editor.state.tr.setMeta(linkBubblePluginKey, 'show'));
       // Bubble element is appended on 'show' — defer focus to next frame
       // so the input node exists in the DOM.
@@ -160,6 +187,9 @@ export const LinkBubbleMenu = forwardRef<LinkBubbleMenuHandle, LinkBubbleMenuPro
         pluginKey={linkBubblePluginKey}
         shouldShow={({ editor: e, state }) => {
           if (!e.isEditable) return false;
+          // Manual close (Esc / apply / remove) holds the bubble down
+          // until the next user gesture lands on the editor surface.
+          if (suppressShowRef.current) return false;
           if (!state.selection.empty) return true;
           // Empty selection still allowed when caret sits on a link
           // (covers click-to-edit + ⌘K / 🔗 force-show on existing links).
