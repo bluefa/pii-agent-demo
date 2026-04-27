@@ -24,7 +24,7 @@
  * regular import — both modules already share the same lazy chunk.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -32,7 +32,6 @@ import type { Editor } from '@tiptap/core';
 
 import { Button } from '@/app/components/ui/Button';
 import { useGuide } from '@/app/hooks/useGuide';
-import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast/useToast';
 import { findSlotsForGuide, resolveSlot } from '@/lib/constants/guide-registry';
 import { hasGuideContent } from '@/lib/utils/has-guide-content';
@@ -50,11 +49,9 @@ import {
 import { EditLanguageTabs } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import type { EditorLanguage } from '@/app/integration/admin/guides/components/EditLanguageTabs';
 import { EditorToolbar } from '@/app/integration/admin/guides/components/EditorToolbar';
-import { LinkPromptModal } from '@/app/integration/admin/guides/components/LinkPromptModal';
-import {
-  getSelectedLinkHref,
-  isAllowedLinkHref,
-} from '@/app/integration/admin/guides/components/editor-link';
+import { LinkBubbleMenu } from '@/app/integration/admin/guides/components/LinkBubbleMenu';
+import type { LinkBubbleMenuHandle } from '@/app/integration/admin/guides/components/LinkBubbleMenu';
+import { isAllowedLinkHref } from '@/app/integration/admin/guides/components/editor-link';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 import type { GuideContents, GuidePlacement, GuideSlot } from '@/lib/types/guide';
@@ -73,8 +70,17 @@ const TIPTAP_EXTENSIONS = [
   }),
   Link.configure({
     openOnClick: false,
+    // Click on a link → selection is set to the mark range so the
+    // BubbleMenu (which requires a non-empty selection by default)
+    // appears pre-filled with the existing href.
+    enableClickSelection: true,
+    // Plain URLs typed/pasted into the body must NOT auto-link without
+    // running through `isAllowedLinkHref`. Tiptap v3 defaults both to
+    // true, so disable explicitly.
+    autolink: false,
+    linkOnPaste: false,
     HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
-    validate: isAllowedLinkHref,
+    isAllowedUri: (url) => isAllowedLinkHref(url),
   }),
 ];
 
@@ -228,7 +234,7 @@ export const GuideEditorPanel = ({
 
   const { data, loading, save, saving } = useGuide(slot.guideName);
   const toast = useToast();
-  const linkModal = useModal();
+  const linkBubbleRef = useRef<LinkBubbleMenuHandle>(null);
 
   // Per-language "user has actually typed" flags. We cannot rely on
   // `draft !== data.contents` alone because:
@@ -358,9 +364,9 @@ export const GuideEditorPanel = ({
     return () => window.removeEventListener('keydown', handler);
   }, [handleSave]);
 
-  // ⌘K / Ctrl+K → open the link prompt modal when focus is in the
-  // editor body. Suppressed while loading / saving so a write cannot be
-  // staged on a frozen surface.
+  // ⌘K / Ctrl+K → force-show the link bubble + focus its input when
+  // focus is in the editor body. Suppressed while loading / saving so
+  // a write cannot be staged on a frozen surface.
   useEffect(() => {
     if (!editor || loading || saving) return;
     const root = editor.view.dom;
@@ -369,69 +375,37 @@ export const GuideEditorPanel = ({
       if (!isMod) return;
       if (event.key.toLowerCase() !== 'k') return;
       event.preventDefault();
-      linkModal.open();
+      linkBubbleRef.current?.trigger();
     };
     root.addEventListener('keydown', handler);
     return () => root.removeEventListener('keydown', handler);
-  }, [editor, loading, saving, linkModal]);
+  }, [editor, loading, saving]);
 
-  // Clicking an <a> inside the editor should open the prompt modal
-  // (pre-filled via getSelectedLinkHref) instead of navigating. The
-  // browser's default anchor handling — especially for target="_blank"
-  // — runs *before* a bubble-phase click handler can preventDefault,
-  // so we register at capture phase on both `mousedown` and `click`.
-  // We also intercept `auxclick` (middle button → new tab).
+  // Block middle-click new-tab navigation only (auxclick). Left-click is
+  // handled by Tiptap's Link extension: with `enableClickSelection: true`
+  // its ProseMirror plugin returns true from handleClick, which makes
+  // ProseMirror prevent the anchor's default. If we called preventDefault
+  // ourselves on the capture phase, ProseMirror would skip the plugin
+  // (it bails on `event.defaultPrevented`) and the selection-on-click
+  // behaviour the BubbleMenu depends on would never run.
   useEffect(() => {
     if (!editor) return;
     const root = editor.view.dom;
-    const interceptOnly = (event: MouseEvent): void => {
+    const blockMiddleClickNavigation = (event: MouseEvent): void => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       if (!target.closest('a')) return;
       event.preventDefault();
-      event.stopPropagation();
     };
-    const clickHandler = (event: MouseEvent): void => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const anchor = target.closest('a');
-      if (!anchor || !root.contains(anchor)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (loading || saving) return;
-      // Move the selection into the clicked link so getSelectedLinkHref()
-      // resolves to its href when the modal opens.
-      const view = editor.view;
-      const pos = view.posAtDOM(anchor, 0);
-      if (pos != null) {
-        editor.chain().focus().setTextSelection(pos).run();
-      }
-      linkModal.open();
-    };
-    // Capture phase + multiple event types ensures we fire before the
-    // browser's default anchor navigation (especially target="_blank").
-    root.addEventListener('mousedown', interceptOnly, { capture: true });
-    root.addEventListener('click', clickHandler, { capture: true });
-    root.addEventListener('auxclick', interceptOnly, { capture: true });
+    root.addEventListener('auxclick', blockMiddleClickNavigation, { capture: true });
     return () => {
-      root.removeEventListener('mousedown', interceptOnly, { capture: true });
-      root.removeEventListener('click', clickHandler, { capture: true });
-      root.removeEventListener('auxclick', interceptOnly, { capture: true });
+      root.removeEventListener('auxclick', blockMiddleClickNavigation, { capture: true });
     };
-  }, [editor, loading, saving, linkModal]);
-
-  const submitLink = useCallback(
-    (href: string) => {
-      if (!editor) return;
-      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
-    },
-    [editor],
-  );
-
-  const unsetLink = useCallback(() => {
-    if (!editor) return;
-    editor.chain().focus().extendMarkRange('link').unsetLink().run();
   }, [editor]);
+
+  const triggerLinkBubble = useCallback(() => {
+    linkBubbleRef.current?.trigger();
+  }, []);
 
   const showScopeNotice = sharedSlots.length >= 2;
   const saveLabel = saving ? '저장 중…' : '저장';
@@ -558,7 +532,7 @@ export const GuideEditorPanel = ({
           <EditorToolbar
             editor={editor}
             disabled={loading || saving}
-            onOpenLink={linkModal.open}
+            onTriggerLink={triggerLinkBubble}
           />
           <div
             className="guide-editor-surface px-4 py-3.5"
@@ -595,14 +569,11 @@ export const GuideEditorPanel = ({
           {saveLabel}
         </Button>
       </footer>
-      {linkModal.isOpen && (
-        <LinkPromptModal
-          initialHref={getSelectedLinkHref(editor)}
-          onSubmit={submitLink}
-          onUnset={unsetLink}
-          onClose={linkModal.close}
-        />
-      )}
+      <LinkBubbleMenu
+        ref={linkBubbleRef}
+        editor={editor}
+        disabled={loading || saving}
+      />
     </section>
   );
 };

@@ -24,8 +24,8 @@ interface EditorToolbarProps {
   editor: Editor | null;
   /** Disabled when GET is loading or PUT is in flight. */
   disabled: boolean;
-  /** Open the parent-owned link prompt modal. */
-  onOpenLink: () => void;
+  /** Force-show the parent-owned link bubble + focus its URL input. */
+  onTriggerLink: () => void;
 }
 
 interface ToolbarButtonSpec {
@@ -35,7 +35,7 @@ interface ToolbarButtonSpec {
   /** Visual glyph rendered inside the button. */
   glyph: React.ReactNode;
   isActive: (editor: Editor) => boolean;
-  /** Returned undefined for `link` — that one opens the modal instead. */
+  /** Returned undefined for `link` — that one force-shows the bubble instead. */
   apply?: (editor: Editor) => void;
 }
 
@@ -106,8 +106,8 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
     shortcut: '⌘K',
     glyph: <span aria-hidden="true">🔗</span>,
     isActive: (editor) => editor.isActive('link'),
-    // apply omitted — link click opens the modal so this button does not
-    // fire a direct chain command.
+    // apply omitted — link click force-shows the BubbleMenu so this
+    // button does not fire a direct chain command.
   },
 ];
 
@@ -116,7 +116,7 @@ const TOOLBAR_BUTTONS: readonly ToolbarButtonSpec[] = [
 // [H4] | [B I </>] | [• 1.] | [🔗]).
 const DIVIDER_BEFORE = new Set<number>([1, 4, 6]);
 
-export const EditorToolbar = ({ editor, disabled, onOpenLink }: EditorToolbarProps) => {
+export const EditorToolbar = ({ editor, disabled, onTriggerLink }: EditorToolbarProps) => {
   const [focusIdx, setFocusIdx] = useState(0);
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -158,12 +158,12 @@ export const EditorToolbar = ({ editor, disabled, onOpenLink }: EditorToolbarPro
       const spec = TOOLBAR_BUTTONS[idx];
       setFocusIdx(idx);
       if (spec.id === 'link') {
-        onOpenLink();
+        onTriggerLink();
         return;
       }
       spec.apply?.(editor);
     },
-    [editor, disabled, onOpenLink],
+    [editor, disabled, onTriggerLink],
   );
 
   return (
