@@ -35,6 +35,7 @@ import { useGuide } from '@/app/hooks/useGuide';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast/useToast';
 import { findSlotsForGuide, resolveSlot } from '@/lib/constants/guide-registry';
+import { hasGuideContent } from '@/lib/utils/has-guide-content';
 import {
   bgColors,
   borderColors,
@@ -185,6 +186,22 @@ export const GuideEditorPanel = ({
 
   const koFilled = draftKo.trim().length > 0;
   const enFilled = draftEn.trim().length > 0;
+  // Strict visible-text check used by the save gate. `koFilled` /
+  // `enFilled` above stay as the cheap predicate for the language tab
+  // dot indicator (which only needs "has the user started typing?").
+  const koHasContent = useMemo(() => hasGuideContent(draftKo), [draftKo]);
+  const enHasContent = useMemo(() => hasGuideContent(draftEn), [draftEn]);
+
+  // Derived "drafts are populated from the loaded server payload (or by
+  // the user)" — gates the required-field message so the empty parent
+  // draft (`''`) does not flash a false error in the render window
+  // between `data` arriving and the parent's reseed running. Becomes
+  // true the moment touched flags flip OR the draft matches the server
+  // value, both of which only hold once the panel is in a steady state.
+  const seeded =
+    data !== null &&
+    (touchedKo || draftKo === data.contents.ko) &&
+    (touchedEn || draftEn === data.contents.en);
 
   // Real edit detection: the user must have produced an `onUpdate` AND
   // the resulting draft must differ from the persisted server value.
@@ -215,8 +232,11 @@ export const GuideEditorPanel = ({
     [activeLang, draftKo, draftEn, onChangeKo, onChangeEn],
   );
 
+  const canSave =
+    dirty && !saving && !loading && koHasContent && enHasContent;
+
   const handleSave = useCallback(async (): Promise<void> => {
-    if (!dirty) return;
+    if (!canSave) return;
     const result = await save({ contents: { ko: draftKo, en: draftEn } });
     if (result) {
       toast.success('저장되었습니다');
@@ -225,9 +245,7 @@ export const GuideEditorPanel = ({
       setTouchedKo(false);
       setTouchedEn(false);
     }
-  }, [dirty, save, draftKo, draftEn, toast]);
-
-  const canSave = dirty && !saving && !loading;
+  }, [canSave, save, draftKo, draftEn, toast]);
 
   const editor = useEditor({
     extensions: TIPTAP_EXTENSIONS,
@@ -350,17 +368,34 @@ export const GuideEditorPanel = ({
   const saveLabel = saving ? '저장 중…' : '저장';
 
   // Save-state messaging:
+  //  - One or both languages empty → save blocked, red error pinpointing
+  //    which side needs content. Suppressed until `seeded` so the
+  //    pre-load empty drafts do not flash a false error.
   //  - Neither side edited → save disabled, neutral hint.
   //  - Only one side edited → save enabled, amber warning that the
   //    untouched language will keep its existing content.
   //  - Both sides edited → save enabled, no message.
-  const saveStateMessage: { kind: 'disabled' | 'warning'; text: string } | null = !dirty
-    ? { kind: 'disabled', text: '한국어 / 영어 수정이 발생하지 않았습니다' }
-    : editedKo && !editedEn
-      ? { kind: 'warning', text: '영어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
-      : !editedKo && editedEn
-        ? { kind: 'warning', text: '한국어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
-        : null;
+  const emptyContentMessage =
+    !koHasContent && !enHasContent
+      ? '한국어 / 영어 본문이 필요합니다'
+      : !koHasContent
+        ? '한국어 본문이 필요합니다'
+        : !enHasContent
+          ? '영어 본문이 필요합니다'
+          : null;
+
+  const saveStateMessage: { kind: 'disabled' | 'warning' | 'error'; text: string } | null =
+    !seeded
+      ? null
+      : emptyContentMessage
+        ? { kind: 'error', text: emptyContentMessage }
+        : !dirty
+          ? { kind: 'disabled', text: '한국어 / 영어 수정이 발생하지 않았습니다' }
+          : editedKo && !editedEn
+            ? { kind: 'warning', text: '영어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
+            : !editedKo && editedEn
+              ? { kind: 'warning', text: '한국어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
+              : null;
 
   const headerMeta = buildHeaderMeta(slot);
 
@@ -505,9 +540,11 @@ export const GuideEditorPanel = ({
         <span
           className={cn(
             'text-[11.5px] leading-snug',
-            saveStateMessage?.kind === 'warning'
-              ? statusColors.warning.textDark
-              : textColors.tertiary,
+            saveStateMessage?.kind === 'error'
+              ? statusColors.error.text
+              : saveStateMessage?.kind === 'warning'
+                ? statusColors.warning.textDark
+                : textColors.tertiary,
           )}
           aria-live="polite"
         >
