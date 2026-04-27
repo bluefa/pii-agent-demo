@@ -72,6 +72,12 @@ Conditionally read:
 
 Additional lens (no local file — apply from your own knowledge):
 - /simplify lens: Is there a reusable existing util being duplicated? Unnecessary abstractions or premature optimization? Could 50 lines do what 200 lines do here?
+- Mockup-based UI lens: For diffs implementing UI from a design mockup (HTML/Figma/screenshot), check:
+  - Required text, badges, and status copy from the mockup are not silently dropped
+  - UI patterns (pill vs underline tab, segmented control, progress bar variants) are not swapped for a similar-looking but different component
+  - New routes have an entry path (TopNav etc.) and existing active matchers do not false-match the new route
+  - Light surfaces (cards / panels / editors / modals) declare explicit bg + text tokens — no implicit dark-mode CSS variable inheritance
+  - Editor / contenteditable behaviors are verified against a real user flow (dirty detection, link-click navigation, inline URL visibility)
 
 === STEP 2. Review ===
 Apply the rules from the skill files to the diff. Classify findings:
