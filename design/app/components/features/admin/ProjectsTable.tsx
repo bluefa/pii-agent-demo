@@ -104,7 +104,7 @@ export const ProjectsTable = ({
           return (
             <tr
               key={project.id}
-              onClick={() => router.push(integrationRoutes.targetSource(project.targetSourceId))}
+              onClick={() => router.push(integrationRoutes.project(project.targetSourceId))}
               // TODO: hover:bg-blue-50/50 needs a dedicated hover token (dynamic Tailwind classes don't work)
               className="hover:bg-blue-50/50 cursor-pointer transition-colors group"
             >

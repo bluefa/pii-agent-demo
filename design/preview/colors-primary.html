@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background:#fff; }
+  .wrap { display:flex; flex-direction:column; gap:12px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .sw  { width:72px; height:56px; border-radius:8px; display:flex; align-items:flex-end; padding:6px 8px; box-sizing:border-box; color:#fff; font-size:10px; font-weight:600; font-family:'Geist Mono', monospace; }
+  .sw-light { color:#111827; }
+  .lbl { font-size:11px; color:#6B7280; text-align:center; margin-top:4px; font-family:'Geist', sans-serif; }
+  .tile { display:flex; flex-direction:column; align-items:center; }
+  .code { font-family:'Geist Mono', monospace; color:#9CA3AF; font-size:10px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div class="tile"><div class="sw" style="background:#0064FF">#0064FF</div><div class="lbl">primary</div></div>
+      <div class="tile"><div class="sw" style="background:#0050D6">#0050D6</div><div class="lbl">primary-hover</div></div>
+      <div class="tile"><div class="sw sw-light" style="background:#E8F1FF">#E8F1FF</div><div class="lbl">primary-light</div></div>
+      <div class="tile"><div class="sw sw-light" style="background:#EFF6FF">#EFF6FF</div><div class="lbl">primary-50</div></div>
+      <div class="tile"><div class="sw sw-light" style="background:#DBEAFE">#DBEAFE</div><div class="lbl">primary-100</div></div>
+    </div>
+  </div>
+</body>
+</html>
