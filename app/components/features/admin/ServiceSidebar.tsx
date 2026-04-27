@@ -70,7 +70,7 @@ export const ServiceSidebar = ({
   const pageNumbers = Array.from({ length: paginationEnd - paginationStart }, (_, i) => paginationStart + i);
 
   return (
-    <aside className="w-[280px] bg-white shadow-sm flex flex-col">
+    <aside className="w-[280px] shrink-0 bg-white shadow-sm flex flex-col">
       <div className="px-4 py-3 border-b border-gray-100">
         <h2 className={cn('text-[15px] font-semibold', textColors.primary)}>Service List</h2>
       </div>
