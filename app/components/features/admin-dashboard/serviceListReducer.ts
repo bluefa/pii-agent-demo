@@ -13,7 +13,8 @@ export type ServiceListAction =
   | { type: 'SET_SERVICES'; services: ServiceCode[]; pageInfo: ServicePageResponse['page'] }
   | { type: 'SET_SELECTED'; serviceCode: string | null }
   | { type: 'SET_QUERY'; query: string }
-  | { type: 'SET_PAGE'; pageNum: number };
+  | { type: 'SET_PAGE'; pageNum: number }
+  | { type: 'HYDRATE'; payload: { selectedService: string; searchQuery: string; pageNumber: number } };
 
 export const buildInitialServiceListState = (): ServiceListState => ({
   services: [],
@@ -36,5 +37,12 @@ export const serviceListReducer = (
       return { ...state, query: action.query };
     case 'SET_PAGE':
       return { ...state, pageNum: action.pageNum };
+    case 'HYDRATE':
+      return {
+        ...state,
+        selectedService: action.payload.selectedService,
+        query: action.payload.searchQuery,
+        pageNum: action.payload.pageNumber,
+      };
   }
 };

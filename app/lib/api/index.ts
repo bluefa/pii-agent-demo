@@ -62,13 +62,17 @@ export const getServicesPage = async (
   page = 0,
   size = 10,
   query?: string,
+  options?: { signal?: AbortSignal },
 ): Promise<ServicePageResponse> => {
   const params = new URLSearchParams({ page: String(page), size: String(size) });
   if (query) params.set('query', query);
   const data = await fetchInfraCamelJson<{
     content: Array<{ serviceCode: string; serviceName: string }>;
     page: { totalElements: number; totalPages: number; number: number; size: number };
-  }>(`/user/services/page?${params}`);
+  }>(
+    `/user/services/page?${params}`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
   return {
     content: data.content.map((s) => ({ code: s.serviceCode, name: s.serviceName })),
     page: data.page,
