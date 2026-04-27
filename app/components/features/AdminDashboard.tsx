@@ -2,6 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, useReducer } from 'react';
+import {
+  consumePendingAdminNavigation,
+  type AdminNavigationPayload,
+} from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
 import { Button } from '@/app/components/ui/Button';
 import { useToast } from '@/app/components/ui/toast';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
@@ -16,6 +20,7 @@ import {
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
 } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 import { ProjectSummary } from '@/lib/types';
 import { integrationRoutes } from '@/lib/routes';
 import { cn, statusColors, textColors } from '@/lib/theme';
@@ -47,17 +52,68 @@ export const AdminDashboard = () => {
   const [approvalModal, setApprovalModal] = useState<ApprovalModalState>({ status: 'closed' });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  // abortRef: cancels the previous in-flight service-list request when a new
+  // fetch starts. Not used on unmount — see note on the cleanup effect below.
+  const abortRef = useRef<AbortController | null>(null);
+  // skipAutoSelectRef: skip the page-0 auto-select on the next fetch so a
+  // hydrated selection is not overwritten by the first fetched item.
+  const skipAutoSelectRef = useRef(false);
+  // pendingPayloadRef: caches the consumed navigation payload across StrictMode's
+  // setup → cleanup → setup invariance check, so the second setup re-runs the
+  // hydrated fetch instead of falling back to default page-0 / no-query state.
+  const pendingPayloadRef = useRef<AdminNavigationPayload | null | undefined>(undefined);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
-    const data = await getServicesPage(page, 10, searchQuery || undefined);
-    dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
-    if (page === 0 && data.content.length > 0) {
-      dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const data = await getServicesPage(page, 10, searchQuery || undefined, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
+      if (page === 0 && data.content.length > 0 && !skipAutoSelectRef.current) {
+        dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
+      }
+      skipAutoSelectRef.current = false;
+    } catch (err) {
+      // Aborts (StrictMode cleanup, unmount mid-flight, or successive fetch) are expected.
+      if (controller.signal.aborted) return;
+      if (err instanceof AppError && err.code === 'ABORTED') return;
+      toast.error(err instanceof Error ? err.message : '서비스 목록 조회 실패');
     }
+  }, [toast]);
+
+  // Cleanup debounce on unmount. We do NOT abort the in-flight fetch here:
+  // StrictMode's invariance check would call this cleanup between two setup
+  // phases, killing the very fetch the hydration effect just started while
+  // the same instance is still alive. fetchServicesPage already aborts the
+  // previous controller on every new call, which covers the rapid-search and
+  // page-change cases. Post-unmount setState is handled by the
+  // controller.signal.aborted guard inside fetchServicesPage when the next
+  // call eventually replaces the controller.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
+  // Hydration + initial fetch. Caches the consumed payload so StrictMode's
+  // setup → cleanup → setup pattern re-runs the same hydrated fetch instead of
+  // re-consuming (which would yield null) and falling back to default state.
   useEffect(() => {
-    fetchServicesPage(0);
+    if (pendingPayloadRef.current === undefined) {
+      pendingPayloadRef.current = consumePendingAdminNavigation();
+    }
+    const payload = pendingPayloadRef.current;
+    let pageToFetch = 0;
+    let queryToFetch: string | undefined;
+    if (payload) {
+      dispatch({ type: 'HYDRATE', payload });
+      skipAutoSelectRef.current = true;
+      pageToFetch = payload.pageNumber;
+      queryToFetch = payload.searchQuery || undefined;
+    }
+    void fetchServicesPage(pageToFetch, queryToFetch);
   }, [fetchServicesPage]);
 
   const handleSelectService = useCallback((code: string) => {
