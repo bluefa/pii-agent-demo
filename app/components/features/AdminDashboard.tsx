@@ -29,6 +29,7 @@ import {
   buildInitialServiceListState,
   type ApprovalModalState,
 } from './admin-dashboard';
+import { consumePendingAdminNavigation } from './admin-dashboard/pendingAdminNavigation';
 
 export const AdminDashboard = () => {
   const router = useRouter();
@@ -47,17 +48,40 @@ export const AdminDashboard = () => {
   const [approvalModal, setApprovalModal] = useState<ApprovalModalState>({ status: 'closed' });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  // skipAutoSelectRef: skip the page-0 auto-select on the next fetch so a
+  // hydrated selection is not overwritten by the first fetched item.
+  const skipAutoSelectRef = useRef(false);
+  // hydratedRef: ensures the hydration effect runs exactly once even under
+  // React StrictMode's double-invoke in development.
+  const hydratedRef = useRef(false);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
     const data = await getServicesPage(page, 10, searchQuery || undefined);
     dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
-    if (page === 0 && data.content.length > 0) {
+    if (page === 0 && data.content.length > 0 && !skipAutoSelectRef.current) {
       dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
     }
+    skipAutoSelectRef.current = false;
   }, []);
 
+  // Hydration + initial fetch (single run). Consume any pending payload from
+  // the target-source detail page and seed the reducer before the first fetch
+  // — fetch arguments must come from the payload to avoid a race with the
+  // default page-0 / no-query fetch.
   useEffect(() => {
-    fetchServicesPage(0);
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+
+    const payload = consumePendingAdminNavigation();
+    let pageToFetch = 0;
+    let queryToFetch: string | undefined;
+    if (payload) {
+      dispatch({ type: 'HYDRATE', payload });
+      skipAutoSelectRef.current = true;
+      pageToFetch = payload.pageNumber;
+      queryToFetch = payload.searchQuery || undefined;
+    }
+    void fetchServicesPage(pageToFetch, queryToFetch);
   }, [fetchServicesPage]);
 
   const handleSelectService = useCallback((code: string) => {
