@@ -5,7 +5,6 @@ import type { CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ApprovalWaitingCard } from '@/app/components/features/process-status/ApprovalWaitingCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
@@ -57,7 +56,6 @@ export const WaitingApprovalStep = ({
           />
         </div>
       )}
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <CandidateResourceSection
         targetSourceId={project.targetSourceId}
         readonly

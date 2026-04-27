@@ -13,7 +13,6 @@ import {
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { CandidateResourceSection } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate';
-import { TargetConfirmationInstructionCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/TargetConfirmationInstructionCard';
 
 interface WaitingTargetConfirmationStepProps {
   project: CloudTargetSource;
@@ -50,9 +49,6 @@ export const WaitingTargetConfirmationStep = ({
         action={action}
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
-      <div data-testid="target-confirmation-instructions">
-        <TargetConfirmationInstructionCard project={project} />
-      </div>
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <CandidateResourceSection
         targetSourceId={project.targetSourceId}
