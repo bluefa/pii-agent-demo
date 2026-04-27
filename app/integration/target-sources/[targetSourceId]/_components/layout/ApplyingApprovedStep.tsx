@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { ApprovalApplyingBanner } from '@/app/components/features/process-status/ApprovalApplyingBanner';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
@@ -46,7 +45,6 @@ export const ApplyingApprovedStep = ({
       <div data-testid="approval-applying">
         <ApprovalApplyingBanner targetSourceId={project.targetSourceId} />
       </div>
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <ApprovedIntegrationSection targetSourceId={project.targetSourceId} />
       <RejectionAlert project={project} />
     </>

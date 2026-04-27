@@ -4,7 +4,6 @@ import { useCallback, type ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
@@ -46,7 +45,6 @@ export const CloudInstallingStep = ({
         action={action}
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
-      {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <InstallationStatusSlot project={project} refreshProject={refreshProject} />
       <ConfirmedResourcesSlot />
       <RejectionAlert project={project} />
