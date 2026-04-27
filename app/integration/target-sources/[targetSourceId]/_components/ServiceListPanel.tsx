@@ -1,22 +1,29 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { ServiceSidebar } from '@/app/components/features/admin';
+import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
+import { setPendingAdminNavigation } from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
 import {
   buildInitialServiceListState,
   serviceListReducer,
-  type ServiceListState,
   type ServiceListAction,
-} from '@/app/components/features/admin-dashboard';
-import { setPendingAdminNavigation } from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
+  type ServiceListState,
+} from '@/app/components/features/admin-dashboard/serviceListReducer';
 import { useModal } from '@/app/hooks/useModal';
 import { getServicesPage } from '@/app/lib/api';
 import { integrationRoutes } from '@/lib/routes';
-import { cn, statusColors, textColors } from '@/lib/theme';
+import { bgColors, borderColors, cn, statusColors, textColors } from '@/lib/theme';
 
-import { ServiceMoveConfirmModal } from './ServiceMoveConfirmModal';
+const ServiceMoveConfirmModal = dynamic(
+  () =>
+    import(
+      '@/app/integration/target-sources/[targetSourceId]/_components/ServiceMoveConfirmModal'
+    ).then((m) => ({ default: m.ServiceMoveConfirmModal })),
+  { ssr: false },
+);
 
 type FetchStatus = 'loading' | 'ready' | 'error';
 
@@ -67,17 +74,13 @@ export const ServiceListPanel = () => {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Last attempted fetch arguments — set on every fetch entry so retry can
+  // re-issue the failed attempt rather than the last successful pageInfo.
+  const lastAttemptedRef = useRef<{ page: number; query?: string }>({ page: 0 });
   const confirmModal = useModal<ConfirmModalData>();
 
-  // Stable ref to the latest fetcher. The out-of-range branch needs to
-  // re-call itself, but `react-hooks/immutability` disallows referencing a
-  // useCallback's name inside its own body — so we route the retry through
-  // this ref. The ref is updated by the effect below on every render.
-  const fetchServicesPageRef = useRef<(page: number, searchQuery?: string) => Promise<void>>(
-    () => Promise.resolve(),
-  );
-
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
+    lastAttemptedRef.current = { page, query: searchQuery };
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -89,10 +92,20 @@ export const ServiceListPanel = () => {
         { signal: controller.signal },
       );
       if (controller.signal.aborted) return;
-      // page out-of-range fallback: reset to page 0 and refetch.
+      // Page out-of-range fallback: reset to page 0 and refetch with the same query.
       if (page > 0 && page >= data.page.totalPages) {
         dispatch({ type: 'SET_PAGE', pageNum: 0 });
-        void fetchServicesPageRef.current(0, searchQuery);
+        lastAttemptedRef.current = { page: 0, query: searchQuery };
+        const fallbackController = new AbortController();
+        abortRef.current = fallbackController;
+        const fallback = await getServicesPage(
+          0,
+          SERVICE_PAGE_SIZE,
+          searchQuery || undefined,
+          { signal: fallbackController.signal },
+        );
+        if (fallbackController.signal.aborted) return;
+        dispatch({ type: 'SET_SERVICES', services: fallback.content, pageInfo: fallback.page });
         return;
       }
       dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
@@ -104,10 +117,6 @@ export const ServiceListPanel = () => {
       });
     }
   }, []);
-
-  useEffect(() => {
-    fetchServicesPageRef.current = fetchServicesPage;
-  }, [fetchServicesPage]);
 
   // Initial fetch on mount.
   useEffect(() => {
@@ -158,15 +167,21 @@ export const ServiceListPanel = () => {
   }, [confirmModal.data, query, pageInfo.number, router]);
 
   const handleRetry = useCallback(() => {
+    const attempted = lastAttemptedRef.current;
     dispatch({ type: 'FETCH_LOADING' });
-    void fetchServicesPage(pageInfo.number, query);
-  }, [fetchServicesPage, pageInfo.number, query]);
+    void fetchServicesPage(attempted.page, attempted.query);
+  }, [fetchServicesPage]);
 
   const isInitialLoading = fetchState.status === 'loading' && services.length === 0;
 
   if (isInitialLoading) {
     return (
-      <aside className="w-[280px] shrink-0 bg-white shadow-sm flex items-center justify-center">
+      <aside
+        className={cn(
+          'w-[280px] shrink-0 shadow-sm flex items-center justify-center',
+          bgColors.surface,
+        )}
+      >
         <span
           className={cn(
             'w-5 h-5 border-2 border-t-transparent rounded-full animate-spin',
@@ -180,7 +195,12 @@ export const ServiceListPanel = () => {
 
   if (fetchState.status === 'error') {
     return (
-      <aside className="w-[280px] shrink-0 bg-white shadow-sm flex flex-col items-center justify-center px-4 gap-3">
+      <aside
+        className={cn(
+          'w-[280px] shrink-0 shadow-sm flex flex-col items-center justify-center px-4 gap-3',
+          bgColors.surface,
+        )}
+      >
         <p className={cn('text-sm text-center', textColors.secondary)}>
           {fetchState.message ?? '서비스 목록을 불러오지 못했습니다.'}
         </p>
@@ -188,7 +208,9 @@ export const ServiceListPanel = () => {
           type="button"
           onClick={handleRetry}
           className={cn(
-            'text-xs px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors',
+            'text-xs px-3 py-1.5 rounded-md border transition-colors',
+            borderColors.strong,
+            bgColors.mutedHover,
             textColors.secondary,
           )}
         >

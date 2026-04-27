@@ -6,7 +6,7 @@ import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_c
 import { AwsProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/azure';
 import { GcpProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/gcp';
-import { ServiceListPanel } from './ServiceListPanel';
+import { ServiceListPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/ServiceListPanel';
 
 interface ProjectDetailProps {
   initialProject: TargetSource;

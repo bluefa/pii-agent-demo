@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, useReducer } from 'react';
+import { consumePendingAdminNavigation } from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
 import { Button } from '@/app/components/ui/Button';
 import { useToast } from '@/app/components/ui/toast';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
@@ -29,7 +30,6 @@ import {
   buildInitialServiceListState,
   type ApprovalModalState,
 } from './admin-dashboard';
-import { consumePendingAdminNavigation } from './admin-dashboard/pendingAdminNavigation';
 
 export const AdminDashboard = () => {
   const router = useRouter();
@@ -48,6 +48,8 @@ export const AdminDashboard = () => {
   const [approvalModal, setApprovalModal] = useState<ApprovalModalState>({ status: 'closed' });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  // abortRef: cancels in-flight service-list requests on a new fetch or unmount.
+  const abortRef = useRef<AbortController | null>(null);
   // skipAutoSelectRef: skip the page-0 auto-select on the next fetch so a
   // hydrated selection is not overwritten by the first fetched item.
   const skipAutoSelectRef = useRef(false);
@@ -56,12 +58,24 @@ export const AdminDashboard = () => {
   const hydratedRef = useRef(false);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
-    const data = await getServicesPage(page, 10, searchQuery || undefined);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const data = await getServicesPage(page, 10, searchQuery || undefined, { signal: controller.signal });
+    if (controller.signal.aborted) return;
     dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
     if (page === 0 && data.content.length > 0 && !skipAutoSelectRef.current) {
       dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
     }
     skipAutoSelectRef.current = false;
+  }, []);
+
+  // Cleanup on unmount: clear search debounce and cancel any in-flight fetch.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
+    };
   }, []);
 
   // Hydration + initial fetch (single run). Consume any pending payload from
