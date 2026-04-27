@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background:#fff; font-family:'Geist', sans-serif; }
+  .fld { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; max-width:380px; }
+  label { font-size:12px; font-weight:500; color:#374151; }
+  input { width:100%; padding:10px 14px; border:1px solid #E5E7EB; border-radius:8px; font-size:14px; color:#111827; outline:none; transition:all 120ms; font-family:inherit; box-sizing:border-box; }
+  input::placeholder { color:#9CA3AF; }
+  input:focus { border-color:transparent; box-shadow:0 0 0 2px #0064FF; }
+  .err { border-color:#FCA5A5 !important; background:#FEF2F2; color:#991B1B; }
+  .ok  { border-color:#45CB854D !important; background:#45CB850D; }
+  .hint { font-size:11px; color:#9CA3AF; }
+  .hint.err { color:#DC2626; background:transparent; border:0; }
+</style>
+</head>
+<body>
+  <div class="fld"><label>프로젝트 이름</label><input placeholder="예: pii-scanner-prod"><span class="hint">기본 입력 필드</span></div>
+  <div class="fld"><label>서비스 코드</label><input class="ok" value="SVC-0042"><span class="hint" style="color:#2A7D52">유효한 코드입니다</span></div>
+  <div class="fld"><label>엔드포인트</label><input class="err" value="invalid://"><span class="hint err">올바른 URL을 입력해 주세요</span></div>
+</body>
+</html>

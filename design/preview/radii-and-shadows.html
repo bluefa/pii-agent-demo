@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:16px; background:#F9FAFB; font-family:'Geist', sans-serif; }
+  h4 { font-size:11px; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:0.05em; margin:0 0 8px; }
+  .row { display:flex; gap:18px; flex-wrap:wrap; }
+  .rad { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .rad .sq { background:#fff; box-shadow:0 1px 3px 0 rgb(0 0 0 / 0.06); }
+  .lbl { font-family:'Geist Mono', monospace; font-size:9px; color:#6B7280; }
+  .shd { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .shd .sq { width:80px; height:52px; border-radius:12px; background:#fff; }
+  .sp-row { display:flex; align-items:center; gap:16px; margin-top:10px; }
+  .sp { height:10px; background:#0064FF; border-radius:2px; }
+</style>
+</head>
+<body>
+  <h4>RADII</h4>
+  <div class="row">
+    <div class="rad"><div class="sq" style="width:56px; height:38px; border-radius:6px"></div><div class="lbl">6 sm</div></div>
+    <div class="rad"><div class="sq" style="width:56px; height:38px; border-radius:8px"></div><div class="lbl">8 button</div></div>
+    <div class="rad"><div class="sq" style="width:56px; height:38px; border-radius:12px"></div><div class="lbl">12 card</div></div>
+    <div class="rad"><div class="sq" style="width:56px; height:38px; border-radius:16px"></div><div class="lbl">16 card-lg</div></div>
+    <div class="rad"><div class="sq" style="width:56px; height:38px; border-radius:999px"></div><div class="lbl">full pill</div></div>
+  </div>
+  <h4 style="margin-top:16px">SHADOWS</h4>
+  <div class="row">
+    <div class="shd"><div class="sq"></div><div class="lbl">none</div></div>
+    <div class="shd"><div class="sq" style="box-shadow:0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)"></div><div class="lbl">sm · card</div></div>
+    <div class="shd"><div class="sq" style="box-shadow:0 4px 12px -2px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.06)"></div><div class="lbl">card-hover</div></div>
+    <div class="shd"><div class="sq" style="box-shadow:0 20px 25px -5px rgb(0 0 0 / 0.10), 0 8px 10px -6px rgb(0 0 0 / 0.10)"></div><div class="lbl">xl · modal</div></div>
+  </div>
+</body>
+</html>
