@@ -112,3 +112,21 @@ By the end of Phase 5:
 ## Stopping Criteria
 
 If any phase cannot keep `tsc --noEmit` green, the session must stop and report the exact blocker rather than inventing a sub-phase. Spec authors fix the spec; implementers do not silently scope-creep.
+
+## Final Guard Inventory (post-Phase 5)
+
+Phase 5 lands four automated source-text guards that prevent the regressions ADR-012 was designed to fix from quietly returning. All four run in `npm run test:run` alongside the rest of the suite.
+
+| Guard | Test file | Protects |
+|---|---|---|
+| **R1** — Layout provider-axis isolation | `app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.architecture.test.ts` | Top-level layout cannot branch on `cloudProvider`, `awsInstallationMode`, `CloudProvider` type, or `AwsInstallationMode` type. |
+| **R2 (coarse)** — Slot purity | `app/integration/target-sources/[targetSourceId]/_components/layout/Slots.purity.test.ts` | `InstallationStatusSlot` / `ConfirmedResourcesSlot` / `ConnectionTestSlot` must not contain `useState`, `useEffect`, direct API helpers (`getConfirmedIntegration`, `getApprovedIntegration`, `getConfirmResources`), or raw `fetch(`. |
+| **C1** — Provider-page resource-type boundary | `app/integration/target-sources/[targetSourceId]/_components/ProjectPage.boundary.test.ts` | AWS / Azure / GCP `*ProjectPage.tsx` cannot import from `@/lib/types/resources` or reference `CandidateResource` / `ApprovedResource` / `ConfirmedResource`. |
+| **Routing coverage** — Process-status exhaustion | `app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.coverage.test.tsx` | A single `STATUS_TO_SENTINEL: Record<ProcessStatus, string>` map drives both per-status routing assertions and an enum-exhaustion check. Adding a new `ProcessStatus` member fails the suite until it is mapped to a step component. |
+
+These guards complement (do not replace) the existing per-step DOM-order tests landed by Phases 1-3 (`CloudInstallingStep.test.tsx`, `ConnectionTestStep.test.tsx`, `WaitingApprovalStep.test.tsx`, `ApplyingApprovedStep.test.tsx`, `WaitingTargetConfirmationStep.test.tsx`).
+
+Implementation deviations from the pack:
+- Phase 3 extracted a shared `isLayoutRoutedStatus` helper in `route-step.ts`; Phase 4 deleted it because the predicate became always-true once `WAITING_TARGET_CONFIRMATION` was absorbed.
+- Phase 4 lifted the single `<main>` page-shell out of the `CloudTargetSourceLayout` switch (originally repeated per case).
+- Phase 4 collapsed Azure and GCP provider pages to identity construction + a single `<CloudTargetSourceLayout>` return; AWS keeps the pre-process `AwsInstallationModeSelector` gate per spec.
