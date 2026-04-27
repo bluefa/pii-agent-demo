@@ -4,15 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { StepProgressBar } from './process-status';
-import { ProjectHistoryPanel } from './history';
 import { TIMINGS } from '@/lib/constants/timings';
 import { cn, primaryColors, interactiveColors } from '@/lib/theme';
 
-type ProcessTabType = 'status' | 'history';
+type ProcessTabType = 'status';
 
 const TABS: { id: ProcessTabType; label: string }[] = [
   { id: 'status', label: '프로세스 진행 상태' },
-  { id: 'history', label: '진행 내역' },
 ];
 
 interface ProcessStatusCardProps {
@@ -98,10 +96,6 @@ export const ProcessStatusCard = ({
 
       <div className="p-6 flex-1 flex flex-col">
         {activeTab === 'status' && <StepProgressBar currentStep={currentStep} />}
-
-        {activeTab === 'history' && (
-          <ProjectHistoryPanel targetSourceId={project.targetSourceId} embedded />
-        )}
       </div>
     </div>
   );
