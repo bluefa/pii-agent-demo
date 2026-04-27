@@ -17,6 +17,7 @@ import {
   approveApprovalRequestV1,
   rejectApprovalRequestV1,
 } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 import { ProjectSummary } from '@/lib/types';
 import { integrationRoutes } from '@/lib/routes';
 import { cn, statusColors, textColors } from '@/lib/theme';
@@ -61,14 +62,21 @@ export const AdminDashboard = () => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    const data = await getServicesPage(page, 10, searchQuery || undefined, { signal: controller.signal });
-    if (controller.signal.aborted) return;
-    dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
-    if (page === 0 && data.content.length > 0 && !skipAutoSelectRef.current) {
-      dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
+    try {
+      const data = await getServicesPage(page, 10, searchQuery || undefined, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
+      if (page === 0 && data.content.length > 0 && !skipAutoSelectRef.current) {
+        dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
+      }
+      skipAutoSelectRef.current = false;
+    } catch (err) {
+      // Aborts (StrictMode cleanup, unmount mid-flight, or successive fetch) are expected.
+      if (controller.signal.aborted) return;
+      if (err instanceof AppError && err.code === 'ABORTED') return;
+      toast.error(err instanceof Error ? err.message : '서비스 목록 조회 실패');
     }
-    skipAutoSelectRef.current = false;
-  }, []);
+  }, [toast]);
 
   // Cleanup on unmount: clear search debounce and cancel any in-flight fetch.
   useEffect(() => {
