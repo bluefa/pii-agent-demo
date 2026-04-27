@@ -2,7 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef, useReducer } from 'react';
-import { consumePendingAdminNavigation } from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
+import {
+  consumePendingAdminNavigation,
+  type AdminNavigationPayload,
+} from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
 import { Button } from '@/app/components/ui/Button';
 import { useToast } from '@/app/components/ui/toast';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
@@ -49,14 +52,16 @@ export const AdminDashboard = () => {
   const [approvalModal, setApprovalModal] = useState<ApprovalModalState>({ status: 'closed' });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-  // abortRef: cancels in-flight service-list requests on a new fetch or unmount.
+  // abortRef: cancels the previous in-flight service-list request when a new
+  // fetch starts. Not used on unmount — see note on the cleanup effect below.
   const abortRef = useRef<AbortController | null>(null);
   // skipAutoSelectRef: skip the page-0 auto-select on the next fetch so a
   // hydrated selection is not overwritten by the first fetched item.
   const skipAutoSelectRef = useRef(false);
-  // hydratedRef: ensures the hydration effect runs exactly once even under
-  // React StrictMode's double-invoke in development.
-  const hydratedRef = useRef(false);
+  // pendingPayloadRef: caches the consumed navigation payload across StrictMode's
+  // setup → cleanup → setup invariance check, so the second setup re-runs the
+  // hydrated fetch instead of falling back to default page-0 / no-query state.
+  const pendingPayloadRef = useRef<AdminNavigationPayload | null | undefined>(undefined);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
     abortRef.current?.abort();
@@ -78,23 +83,28 @@ export const AdminDashboard = () => {
     }
   }, [toast]);
 
-  // Cleanup on unmount: clear search debounce and cancel any in-flight fetch.
+  // Cleanup debounce on unmount. We do NOT abort the in-flight fetch here:
+  // StrictMode's invariance check would call this cleanup between two setup
+  // phases, killing the very fetch the hydration effect just started while
+  // the same instance is still alive. fetchServicesPage already aborts the
+  // previous controller on every new call, which covers the rapid-search and
+  // page-change cases. Post-unmount setState is handled by the
+  // controller.signal.aborted guard inside fetchServicesPage when the next
+  // call eventually replaces the controller.
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      abortRef.current?.abort();
     };
   }, []);
 
-  // Hydration + initial fetch (single run). Consume any pending payload from
-  // the target-source detail page and seed the reducer before the first fetch
-  // — fetch arguments must come from the payload to avoid a race with the
-  // default page-0 / no-query fetch.
+  // Hydration + initial fetch. Caches the consumed payload so StrictMode's
+  // setup → cleanup → setup pattern re-runs the same hydrated fetch instead of
+  // re-consuming (which would yield null) and falling back to default state.
   useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
-
-    const payload = consumePendingAdminNavigation();
+    if (pendingPayloadRef.current === undefined) {
+      pendingPayloadRef.current = consumePendingAdminNavigation();
+    }
+    const payload = pendingPayloadRef.current;
     let pageToFetch = 0;
     let queryToFetch: string | undefined;
     if (payload) {

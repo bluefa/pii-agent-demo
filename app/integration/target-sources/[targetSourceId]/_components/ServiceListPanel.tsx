@@ -123,11 +123,14 @@ export const ServiceListPanel = () => {
     void fetchServicesPage(0);
   }, [fetchServicesPage]);
 
-  // Cleanup on unmount: clear debounce and cancel any in-flight request.
+  // Cleanup debounce on unmount. We do NOT abort the in-flight fetch here —
+  // StrictMode's invariance check fires this cleanup between two setup phases
+  // and would kill the very fetch initial-mount just started, leaving the
+  // skeleton stuck. fetchServicesPage already aborts the previous controller
+  // on every new call, covering the typing/pagination races.
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      abortRef.current?.abort();
     };
   }, []);
 
