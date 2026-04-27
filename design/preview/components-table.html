@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:0; background:#fff; font-family:'Geist', sans-serif; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#F9FAFB; text-align:left; padding:12px 24px; font-size:11px; font-weight:500; color:#6B7280; text-transform:uppercase; letter-spacing:0.06em; }
+  td { padding:14px 24px; font-size:14px; color:#374151; border-top:1px solid #F3F4F6; }
+  tr:hover td { background:#F9FAFB; cursor:pointer; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:2px 10px; border-radius:999px; font-weight:500; }
+  .ok { background:#45CB851A; color:#2A7D52; }
+  .err { background:#FEE2E2; color:#991B1B; }
+  .prov { display:inline-flex; align-items:center; gap:8px; }
+  .prov img { width:18px; height:18px; }
+</style>
+</head>
+<body>
+  <table>
+    <thead><tr><th>SYSTEM</th><th>PROVIDER</th><th>STATUS</th><th>LAST SYNC</th></tr></thead>
+    <tbody>
+      <tr><td style="font-weight:500; color:#111827">prod-users-db</td><td><span class="prov"><img src="../assets/icons/aws.svg">AWS</span></td><td><span class="chip ok"><span style="width:6px; height:6px; background:#45CB85; border-radius:999px"></span>연결됨</span></td><td>04.22 14:02</td></tr>
+      <tr><td style="font-weight:500; color:#111827">analytics-warehouse</td><td><span class="prov"><img src="../assets/icons/azure.svg">Azure</span></td><td><span class="chip err"><span style="width:6px; height:6px; background:#EF4444; border-radius:999px"></span>끊김</span></td><td>04.22 09:31</td></tr>
+      <tr><td style="font-weight:500; color:#111827">staging-cache</td><td><span class="prov"><img src="../assets/icons/gcp.svg">GCP</span></td><td><span class="chip ok"><span style="width:6px; height:6px; background:#45CB85; border-radius:999px"></span>연결됨</span></td><td>04.22 14:00</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>

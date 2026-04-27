@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background:#fff; font-family:'Geist', sans-serif; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .item { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .sw { width:80px; height:52px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  .lbl { font-size:11px; color:#6B7280; font-weight:500; }
+  .hex { font-family:'Geist Mono', monospace; font-size:10px; color:#9CA3AF; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item"><div class="sw" style="background:#45CB8519"><div class="dot" style="background:#45CB85"></div></div><div class="lbl">success</div><div class="hex">#45CB85</div></div>
+    <div class="item"><div class="sw" style="background:#FEE2E2"><div class="dot" style="background:#EF4444"></div></div><div class="lbl">error</div><div class="hex">#EF4444</div></div>
+    <div class="item"><div class="sw" style="background:#FFEDD5"><div class="dot" style="background:#F97316"></div></div><div class="lbl">warning</div><div class="hex">#F97316</div></div>
+    <div class="item"><div class="sw" style="background:#F3F4F6"><div class="dot" style="background:#9CA3AF"></div></div><div class="lbl">pending</div><div class="hex">#9CA3AF</div></div>
+    <div class="item"><div class="sw" style="background:#DBEAFE"><div class="dot" style="background:#3B82F6"></div></div><div class="lbl">info</div><div class="hex">#3B82F6</div></div>
+  </div>
+</body>
+</html>

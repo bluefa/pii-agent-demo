@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin:0; padding:20px; background:#F9FAFB; font-family:'Geist', sans-serif; }
+  .row { display:flex; gap:14px; align-items:stretch; }
+  .card { background:#fff; border-radius:12px; box-shadow:0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06); overflow:hidden; flex:1; }
+  .hdr { padding:16px 24px; border-bottom:1px solid #F3F4F6; display:flex; align-items:center; justify-content:space-between; }
+  .title { font-size:12px; font-weight:600; color:#6B7280; text-transform:uppercase; letter-spacing:0.05em; }
+  .body { padding:20px 24px; color:#374151; font-size:14px; }
+  .mini { background:#fff; border-radius:12px; box-shadow:0 1px 3px 0 rgb(0 0 0 / 0.06); padding:18px; width:180px; }
+  .mini .big { font-size:24px; font-weight:700; color:#111827; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="card" style="max-width:300px">
+      <div class="hdr"><span class="title">PROJECT LIST</span><a style="color:#0064FF; font-size:12px; font-weight:500; text-decoration:none">+ 새 프로젝트</a></div>
+      <div class="body">title + header action · padding default</div>
+    </div>
+    <div class="mini">
+      <div style="font-size:13px; color:#6B7280; margin-bottom:6px">총 시스템</div>
+      <div class="big">1,482</div>
+    </div>
+    <div class="card" style="max-width:220px; border-left:4px solid #FF9900">
+      <div class="body"><div style="color:#FF9900; font-weight:600; margin-bottom:4px">AWS</div><div style="font-size:13px; color:#6B7280">provider-scoped variant</div></div>
+    </div>
+  </div>
+</body>
+</html>
