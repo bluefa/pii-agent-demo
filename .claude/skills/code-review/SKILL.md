@@ -134,6 +134,18 @@ try { await fetch(...) } catch { ... } finally { ... }
 
 ---
 
+## Mockup-based UI change — additional checks
+
+For UI changes implemented from a design mockup (HTML / Figma / screenshot):
+
+- [ ] Are all required text and status strings from the mockup present? (header / footer / hints / count badges)
+- [ ] Are any mockup UI patterns or components silently substituted with different ones?
+- [ ] Does a new route have an entry path (TopNav etc.)? Does an existing `isActive` matcher false-match the new route?
+- [ ] Could dark-mode / global CSS inheritance pollute the colors? (light surfaces declare bg / text tokens explicitly?)
+- [ ] Were editor / contenteditable / link behaviors verified against a real user flow?
+
+---
+
 ## API 코드 추가 체크
 
 API Routes 코드의 경우 추가 확인:

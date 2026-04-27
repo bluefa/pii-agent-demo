@@ -56,6 +56,12 @@ Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
 
 `Button`, `Badge`, `Modal`, `Card`, `Table`, `LoadingSpinner` 등 `app/components/ui/`의 컴포넌트를 우선 사용합니다.
 
+### Preserve mockup patterns / surface colors
+
+- Do not silently substitute a mockup's UI pattern (pill vs. underline tab, segmented control, dot vs. filled circle, etc.) with a different component. If a substitution is necessary, explain the difference in the PR.
+- Light surfaces (white-background cards, panels, editors, modals) must declare `bgColors.*` + `textColors.*` tokens at the root — do not rely on `globals.css` dark-mode variable inheritance.
+- In editor / contenteditable areas, do not infer dirty state from raw HTML string comparison; track "did the user actually type" as a separate flag. Block click-navigation on inline links and surface the URL so users can read it.
+
 ---
 
 ## Frontend Aesthetics Guidelines
