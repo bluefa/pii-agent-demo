@@ -1,0 +1,2727 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440" />
+<title>SIT — Self Installation Tool</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-muted);
+    color: var(--fg-1);
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; padding: 0; color: inherit; }
+  input, select { font-family: inherit; font-size: inherit; }
+  a { color: var(--color-primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---------- APP SHELL ---------- */
+  .app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* Top nav — SIT header */
+  .topnav {
+    height: 56px;
+    background: #0F172A;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    color: #fff;
+    gap: 32px;
+  }
+  .topnav .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #0064FF 0%, #4F46E5 100%);
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .topnav .brand .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #fff;
+  }
+  .topnav .brand small { font-weight: 400; opacity: 0.85; font-size: 12px; margin-left: 4px; }
+  .topnav nav { display: flex; gap: 4px; }
+  .topnav nav a {
+    color: #CBD5E1;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .topnav nav a:hover { background: rgba(255,255,255,0.06); color: #fff; text-decoration: none; }
+  .topnav nav a.active { color: #fff; background: rgba(255,255,255,0.08); }
+
+  .topnav .spacer { flex: 1; }
+  .topnav .user {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #CBD5E1;
+  }
+  .topnav .user .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #334155;
+    display: grid; place-items: center;
+    font-weight: 600; color: #fff; font-size: 12px;
+  }
+
+  /* ---------- BODY ---------- */
+  .body { flex: 1; display: flex; }
+
+  /* Sidebar — service list */
+  .sidebar {
+    width: 280px;
+    background: #fff;
+    border-right: 1px solid var(--border-default);
+    display: flex; flex-direction: column;
+  }
+  .sidebar .sb-header { padding: 20px 20px 12px; }
+  .sidebar .sb-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+  .sidebar .sb-search {
+    width: 100%;
+    height: 38px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-muted);
+    border-radius: 8px;
+    padding: 0 36px 0 12px;
+    font-size: 13px;
+    color: var(--fg-1);
+    outline: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+  }
+  .sidebar .sb-search:focus { border-color: var(--color-primary); background-color: #fff; }
+
+  .sidebar .sb-list { flex: 1; overflow: auto; padding: 4px 12px 16px; }
+  .svc-item {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 2px;
+    position: relative;
+  }
+  .svc-item:hover { background: var(--bg-muted); }
+  .svc-item.active {
+    background: var(--color-primary-50);
+    border: 1px solid var(--color-primary);
+    padding: 11px 13px;
+  }
+  .svc-item .svc-code { font-size: 13px; font-weight: 600; color: var(--fg-1); }
+  .svc-item.active .svc-code { color: var(--color-primary); }
+  .svc-item .svc-name { font-size: 12px; color: var(--fg-3); }
+  .svc-item .svc-badge {
+    position: absolute; right: 12px; top: 12px;
+    font-size: 10px; font-weight: 600; color: var(--color-error);
+    background: #FEE2E2; padding: 2px 6px; border-radius: 4px;
+  }
+
+  .sidebar .sb-pager {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-light);
+    display: flex; justify-content: center; gap: 6px;
+    font-size: 12px; color: var(--fg-3);
+  }
+  .sb-pager a { color: var(--fg-3); }
+  .sb-pager a.current { color: var(--color-primary); font-weight: 600; }
+
+  .sidebar .sb-footer {
+    border-top: 1px solid var(--border-light);
+    padding: 12px 20px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .sb-footer a {
+    color: var(--fg-2); font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0;
+  }
+  .sb-footer a:hover { color: var(--color-primary); text-decoration: none; }
+
+  /* Main column */
+  .main {
+    flex: 1;
+    padding: 28px 36px;
+    overflow: auto;
+  }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    font-size: 12px;
+    color: var(--fg-3);
+    margin-bottom: 12px;
+  }
+  .breadcrumb .sep { margin: 0 6px; color: var(--fg-4); }
+  .breadcrumb .current { color: var(--fg-2); }
+
+  /* Page header */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .page-title { font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+  .page-meta { display: flex; flex-wrap: wrap; gap: 28px; margin: 14px 0 24px; color: var(--fg-2); font-size: 13px; }
+  .page-meta .kv { display: flex; flex-direction: column; gap: 2px; }
+  .page-meta .k { font-size: 11px; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; white-space: nowrap; }
+  .page-meta .v { color: var(--fg-1); font-weight: 500; font-size: 13px; }
+
+  /* Section card */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 12px;
+  }
+  .card-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .card-header h2 { margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap; }
+  .card-body { padding: 20px; }
+
+  /* Primary button */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 14px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    transition: background 0.12s, border-color 0.12s;
+    white-space: nowrap;
+  }
+  .btn.primary { background: var(--color-primary); color: #fff; }
+  .btn.primary:hover { background: var(--color-primary-hover); }
+  .btn.ghost { color: var(--color-primary); font-weight: 600; }
+  .btn.ghost:hover { background: var(--color-primary-50); }
+  .btn.outline { border: 1px solid var(--border-default); color: var(--fg-1); background: #fff; }
+  .btn.outline:hover { background: var(--bg-muted); }
+  .btn.secondary { background: #1F2937; color: #fff; }
+  .btn.secondary:hover { background: #111827; }
+  .btn.warn-outline { border: 1px solid #FCD34D; color: #92400E; background: #FFFBEB; font-weight: 500; }
+  .btn.warn-outline:hover { background: #FEF3C7; border-color: #F59E0B; }
+
+  /* Tooltip (header column hint) */
+  .tooltip-trigger {
+    position: relative;
+    display: inline-flex; align-items: center;
+    color: var(--fg-4);
+    cursor: help;
+    line-height: 0;
+  }
+  .tooltip-trigger:hover, .tooltip-trigger:focus { color: var(--color-primary); outline: none; }
+  .tooltip-content {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 50;
+    width: 280px;
+    background: #111827;
+    color: #fff;
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    font-size: 11.5px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.5;
+    display: none;
+    white-space: normal;
+  }
+  .tooltip-content::before {
+    content: '';
+    position: absolute;
+    top: -6px; right: 14px;
+    width: 10px; height: 10px;
+    background: #111827;
+    transform: rotate(45deg);
+  }
+  .tooltip-trigger:hover .tooltip-content,
+  .tooltip-trigger:focus .tooltip-content { display: block; }
+  .tooltip-content strong {
+    display: block;
+    color: #fff;
+    font-size: 12px;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .tooltip-content .tt-row {
+    display: block;
+    margin-bottom: 8px;
+  }
+  .tooltip-content .tt-row:last-child { margin-bottom: 0; }
+  .tooltip-content .tt-desc {
+    display: block;
+    margin-top: 4px;
+    color: #D1D5DB;
+    font-size: 11px;
+  }
+  .btn.danger-outline { border: 1px solid #FECACA; color: var(--color-error-dark); background: #FEF2F2; font-weight: 500; }
+  .btn.danger-outline:hover { background: #FEE2E2; }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+
+  /* Empty state */
+  .empty {
+    padding: 80px 20px;
+    text-align: center;
+    color: var(--fg-3);
+  }
+  .empty .illus {
+    width: 72px; height: 72px;
+    margin: 0 auto 20px;
+    border-radius: 16px;
+    background: var(--bg-muted);
+    display: grid; place-items: center;
+    color: var(--fg-4);
+  }
+  .empty h3 { font-size: 16px; color: var(--fg-1); margin: 0 0 6px; font-weight: 600; }
+  .empty p { font-size: 13px; color: var(--fg-3); margin: 0; }
+
+  /* ---------- INFRA CARDS (Screen 3) ---------- */
+  .infra-card {
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .infra-card.expanded { border-color: #CBD5E1; }
+  .infra-head {
+    display: flex; align-items: center; gap: 24px;
+    padding: 16px 20px;
+    cursor: pointer;
+  }
+  .chev {
+    width: 16px; height: 16px;
+    transition: transform 0.15s;
+    color: var(--fg-3);
+    flex-shrink: 0;
+  }
+  .infra-card.expanded .chev { transform: rotate(90deg); }
+  .provider-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 13.5px;
+  }
+  .provider-badge::before {
+    content: ''; width: 4px; height: 18px; border-radius: 2px;
+    background: var(--color-provider-aws);
+  }
+  .provider-badge.azure::before { background: var(--color-provider-azure); }
+  .provider-badge.gcp::before { background: var(--color-provider-gcp); }
+
+  .infra-head .kv-inline {
+    display: flex; flex-direction: column; gap: 2px;
+    font-size: 12px;
+    min-width: 140px;
+  }
+  .kv-inline .k { color: var(--fg-3); font-size: 11px; }
+  .kv-inline .v { color: var(--fg-1); font-weight: 500; font-family: 'Geist Mono', monospace; }
+  .infra-head .spacer { flex: 1; }
+  .infra-head .btn.sm { height: 30px; }
+
+  .infra-body {
+    border-top: 1px solid var(--border-light);
+    padding: 4px 0 16px;
+    background: #fff;
+  }
+
+  /* Table */
+  table.db-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .db-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    background: #fff;
+  }
+  .db-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--fg-1);
+    vertical-align: middle;
+  }
+  .db-table tr:last-child td { border-bottom: none; }
+  .db-table .mono { font-family: 'Geist Mono', monospace; font-size: 12.5px; color: var(--fg-2); }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 500;
+  }
+  .tag.blue { background: #DBEAFE; color: #1E40AF; }
+  .tag.gray { background: var(--gray-100); color: var(--gray-700); }
+  .tag.green { background: #D1FAE5; color: #065F46; }
+  .tag.red { background: #FEE2E2; color: #991B1B; }
+  .tag.orange { background: #FED7AA; color: #9A3412; }
+
+  .status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 500;
+  }
+  .status .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .status.healthy { color: var(--color-success-dark); }
+  .status.healthy .dot { background: var(--color-success); }
+  .status.unhealthy { color: var(--color-error-dark); }
+  .status.unhealthy .dot { background: var(--color-error); }
+  .status.partial { color: var(--color-warning-dark); }
+  .status.partial .dot { background: var(--color-warning); }
+
+  .pager {
+    display: flex; justify-content: flex-end; gap: 4px; padding: 12px 16px;
+  }
+  .pager button {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid var(--border-default);
+    background: #fff;
+    display: grid; place-items: center;
+    color: var(--fg-2);
+    font-size: 12px;
+  }
+  .pager button:hover { background: var(--bg-muted); }
+  .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ---------- MODAL (Screen 2) ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    display: grid; place-items: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    width: 840px;
+    max-height: 92vh;
+    overflow: auto;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.18);
+    transform: translateY(12px);
+    transition: transform 0.18s;
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+  .modal-header { padding: 24px 28px 8px; }
+  .modal-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+  .modal-sub { font-size: 13px; color: var(--fg-3); margin: 0; }
+  .modal-body { padding: 20px 28px 4px; }
+  .modal-footer {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border-light);
+    display: flex; justify-content: flex-end; gap: 8px;
+    position: sticky; bottom: 0; background: #fff;
+  }
+
+  .form-section { margin-bottom: 22px; }
+  .form-section-label {
+    font-size: 13px; font-weight: 600;
+    color: var(--fg-1);
+    margin: 0 0 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .form-section-label .num {
+    display: inline-grid; place-items: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-size: 11px; font-weight: 700;
+  }
+
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+  .provider-chip {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+    padding: 14px 8px;
+    border: 1.5px solid var(--border-default);
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px; font-weight: 500;
+    color: var(--fg-1);
+    transition: border-color 0.12s, background 0.12s;
+    line-height: 1.3;
+    min-height: 78px;
+  }
+  .provider-chip:hover { border-color: var(--color-primary); }
+  .provider-chip.selected {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+  .provider-chip .small { font-size: 10.5px; color: var(--fg-3); font-weight: 400; }
+  .provider-chip.selected .small { color: var(--color-primary); opacity: 0.85; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: var(--fg-2); font-weight: 500; }
+  .field input, .field select {
+    height: 38px;
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 0 12px;
+    background: #fff;
+    color: var(--fg-1);
+    outline: none;
+  }
+  .field input:focus, .field select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(0,100,255,0.1); }
+
+  .dbtype-row { display: flex; align-items: end; gap: 10px; }
+  .dbtype-row .field { flex: 1; }
+  .dbtype-selected {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    min-height: 32px;
+    padding: 4px 0;
+  }
+  .dbtype-selected .tag {
+    padding: 4px 8px;
+    font-size: 12px;
+    gap: 6px;
+  }
+  .dbtype-selected .tag button {
+    color: currentColor; opacity: 0.6; line-height: 1;
+    font-size: 14px; margin-left: 2px;
+  }
+  .dbtype-selected .tag button:hover { opacity: 1; }
+
+  .mini-table {
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 12.5px;
+  }
+  .mini-table table { width: 100%; border-collapse: collapse; }
+  .mini-table th {
+    text-align: left; padding: 10px 14px;
+    background: var(--bg-muted);
+    font-size: 11px; font-weight: 600;
+    color: var(--fg-2);
+    text-transform: uppercase; letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--border-default);
+  }
+  .mini-table td { padding: 12px 14px; border-top: 1px solid var(--border-light); vertical-align: middle; }
+  .mini-table tr:first-child td { border-top: none; }
+
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: inline-grid; place-items: center;
+    color: var(--fg-3);
+  }
+  .icon-btn:hover { background: var(--bg-muted); color: var(--fg-1); }
+  .icon-btn.danger:hover { background: #FEE2E2; color: var(--color-error); }
+
+  /* ---------- STEPPER (Screen 4) ---------- */
+  .stepper {
+    display: flex; align-items: flex-start;
+    padding: 4px 0 0;
+    gap: 0;
+  }
+  .step { flex: 1; text-align: center; position: relative; }
+  .step .circle {
+    width: 40px; height: 40px; border-radius: 50%;
+    margin: 0 auto 10px;
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 600;
+    background: #fff;
+    border: 2px solid var(--border-default);
+    color: var(--fg-3);
+    position: relative;
+    z-index: 2;
+  }
+  .step.done .circle { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+  .step.current .circle { background: var(--color-primary); border-color: var(--color-primary); color: #fff; box-shadow: 0 0 0 4px rgba(0,100,255,0.15); }
+  .step .label { font-size: 11.5px; color: var(--fg-3); line-height: 1.4; padding: 0 6px; }
+  .step.done .label, .step.current .label { color: var(--fg-1); font-weight: 500; }
+  .step.current .label { color: var(--color-primary); font-weight: 600; }
+  .step:not(:last-child)::after {
+    content: ''; position: absolute;
+    top: 19px; left: 50%; right: -50%;
+    height: 2px; background: var(--border-default);
+    z-index: 1;
+  }
+  .step.done::after { background: var(--color-primary); }
+
+  /* ---------- scan states ---------- */
+  .scan-state {
+    padding: 60px 20px; text-align: center;
+  }
+  .scan-state h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; color: var(--fg-1); }
+  .scan-state p { font-size: 13px; color: var(--fg-3); margin: 0; }
+  .scan-state .illus {
+    width: 64px; height: 64px;
+    margin: 0 auto 20px;
+    border-radius: 16px;
+    background: var(--bg-muted);
+    display: grid; place-items: center;
+    color: var(--fg-4);
+  }
+  .scan-progress {
+    max-width: 520px; margin: 24px auto 0;
+    background: #F1F5F9;
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .scan-progress .bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary) 0%, #4F46E5 100%);
+    border-radius: 999px;
+    transition: width 0.4s;
+  }
+  .scan-progress-label {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--fg-2);
+    font-variant-numeric: tabular-nums;
+    font-family: 'Geist Mono', monospace;
+  }
+
+  .error-banner {
+    margin: 0 auto 20px; max-width: 480px;
+    background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px;
+    padding: 14px 18px;
+    display: flex; align-items: flex-start; gap: 12px;
+    text-align: left;
+  }
+  .error-banner .icon { color: var(--color-error); margin-top: 2px; flex-shrink: 0; }
+  .error-banner h4 { margin: 0 0 4px; font-size: 13.5px; color: var(--color-error-dark); font-weight: 600; }
+  .error-banner p { margin: 0; font-size: 12.5px; color: #7F1D1D; }
+
+  /* Screen switcher (prototype nav) */
+  .proto-nav {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0F172A;
+    border-radius: 100px;
+    padding: 6px;
+    display: flex; gap: 4px;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.24);
+    max-width: calc(100vw - 32px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .proto-nav::-webkit-scrollbar { display: none; }
+  .proto-nav button {
+    color: #94A3B8;
+    font-size: 12px; font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 100px;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .proto-nav button:hover { color: #fff; }
+  .proto-nav button.active { background: var(--color-primary); color: #fff; }
+
+  /* hidden helpers */
+  .hidden { display: none !important; }
+
+  /* ============ Guide content (prose inside standard card) ============ */
+  /* Guide variant: warm guide tone on the card shell */
+  .card.guide-variant {
+    background: #FFFDF5;
+    border-color: #F3E8B8;
+    box-shadow: 0 1px 2px rgba(140,110,0,0.04), 0 6px 18px -10px rgba(140,110,0,0.12);
+  }
+  .card.guide-variant > .card-header {
+    background: linear-gradient(180deg, #FFF8E1 0%, #FFFCEE 100%);
+    border-bottom: 1px solid #F3E8B8;
+  }
+  .card.guide-variant > .card-header h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: #78350F;
+  }
+  .guide-head-icon {
+    width: 26px; height: 26px;
+    background: #F59E0B;
+    color: #fff;
+    border-radius: 50%;
+    display: inline-grid; place-items: center;
+    box-shadow: 0 2px 5px -1px rgba(245,158,11,0.45);
+    flex-shrink: 0;
+  }
+
+  .guide-content {
+    font-size: 13px;
+    color: var(--fg-2);
+    line-height: 1.72;
+  }
+  .guide-content h1,
+  .guide-content h2,
+  .guide-content h3,
+  .guide-content h4 {
+    color: var(--fg-1);
+    font-weight: 700;
+    margin: 14px 0 6px;
+  }
+  .guide-content h1:first-child,
+  .guide-content h2:first-child,
+  .guide-content h3:first-child,
+  .guide-content h4:first-child { margin-top: 0; }
+  .guide-content h3 { font-size: 14px; }
+  .guide-content h4 { font-size: 13.5px; }
+  .guide-content p { margin: 0 0 8px; }
+  .guide-content ul, .guide-content ol {
+    margin: 0 0 10px; padding-left: 20px;
+  }
+  .guide-content ul li,
+  .guide-content ol li { margin-bottom: 3px; }
+  .guide-content ul li::marker { color: var(--color-primary); }
+  .guide-content a { color: var(--color-primary); font-weight: 500; }
+  .guide-content a:hover { text-decoration: underline; }
+  .guide-content strong { color: var(--fg-1); font-weight: 600; }
+  .guide-content code {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12px;
+    background: #F1F5F9;
+    padding: 1.5px 6px;
+    border-radius: 4px;
+    color: #0F172A;
+  }
+
+
+  /* step clickable */
+  .step { cursor: pointer; }
+  .step:hover .circle { border-color: var(--color-primary); color: var(--color-primary); }
+  .step.done:hover .circle, .step.current:hover .circle { color: #fff; }
+
+  /* scan 상태 sub-table */
+  .db-list-table { margin-top: 12px; border: 1px solid var(--border-default); border-radius: 10px; overflow: hidden; }
+  .db-list-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .db-list-table th { text-align: left; padding: 10px 14px; background: var(--bg-muted); font-size: 11px; font-weight: 600; color: var(--fg-2); text-transform: uppercase; letter-spacing: 0.03em; }
+  .db-list-table td { padding: 12px 14px; border-top: 1px solid var(--border-light); }
+
+  .mgmt-group {
+    display: inline-flex; align-items: stretch;
+    border-radius: 6px;
+    overflow: visible;
+    position: relative;
+  }
+  .mgmt-btn {
+    background: var(--color-primary); color: #fff;
+    padding: 7px 14px;
+    border-radius: 6px 0 0 6px;
+    font-size: 12.5px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 5px;
+    border-right: 1px solid rgba(255,255,255,0.22);
+    box-shadow: 0 1px 2px rgba(0,100,255,0.2);
+    transition: background 0.12s;
+  }
+  .mgmt-btn:hover { background: var(--color-primary-hover); }
+  .mgmt-more {
+    background: var(--color-primary); color: #fff;
+    padding: 7px 8px;
+    border-radius: 0 6px 6px 0;
+    display: inline-grid; place-items: center;
+    position: relative;
+  }
+  .mgmt-more:hover { background: #FECACA; }
+  .mgmt-menu {
+    position: absolute; top: calc(100% + 4px); right: 0;
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15,23,42,0.12);
+    padding: 4px;
+    min-width: 160px;
+    z-index: 50;
+    display: none;
+    text-align: left;
+  }
+  .mgmt-more.open .mgmt-menu { display: block; }
+  .mgmt-menu a {
+    display: block;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    color: var(--fg-1);
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .mgmt-menu a:hover { background: var(--bg-muted); text-decoration: none; }
+  .mgmt-menu a.danger { color: var(--color-error-dark); }
+  .mgmt-menu a.danger:hover { background: #FEE2E2; }
+  .menu-divider { height: 1px; background: var(--border-light); margin: 4px 0; }
+
+  /* ---------- Segmented toggle (Provider / View) ---------- */
+  .seg-toggle {
+    display: inline-flex;
+    background: var(--bg-muted);
+    border: 1px solid var(--border-default);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .seg-toggle .seg-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg-3);
+    transition: background 0.12s, color 0.12s;
+  }
+  .seg-toggle .seg-btn:hover { color: var(--fg-1); }
+  .seg-toggle .seg-btn.active {
+    background: #fff;
+    color: var(--color-primary);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+  }
+
+  /* ---------- Step-content sections ---------- */
+  .step-content { display: none; }
+  .step-content.active { display: block; }
+
+  /* Banner / hero state line at top of step-content */
+  .step-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--color-primary-light);
+    border: 1px solid #BFDBFE;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #1E3A8A;
+  }
+  .step-banner.warn { background: #FFFBEB; border-color: #FDE68A; color: #78350F; }
+  .step-banner.success { background: #ECFDF5; border-color: #A7F3D0; color: #065F46; }
+  .step-banner.error { background: #FEF2F2; border-color: #FECACA; color: #7F1D1D; }
+  .step-banner svg { flex-shrink: 0; }
+  .step-banner strong { font-weight: 600; }
+  .step-banner .ml-auto { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Install task list (Step 4) — horizontal pipeline */
+  .install-tasks {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-bottom: 18px;
+  }
+  .install-task {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: 12px;
+    padding: 22px 18px 20px;
+    border: 1px solid var(--border-default);
+    border-right: none;
+    background: #fff;
+    position: relative;
+  }
+  .install-task:first-child { border-radius: 10px 0 0 10px; }
+  .install-task:last-child { border-radius: 0 10px 10px 0; border-right: 1px solid var(--border-default); }
+  /* connector chevron between cards */
+  .install-task:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 50%; right: -7px;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-top: 1px solid var(--border-default);
+    border-right: 1px solid var(--border-default);
+    transform: translateY(-50%) rotate(45deg);
+    z-index: 2;
+  }
+  .install-task .num {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 700;
+    background: var(--bg-muted);
+    color: var(--fg-3);
+    flex-shrink: 0;
+  }
+  .install-task.done .num { background: var(--color-success); color: #fff; }
+  .install-task.running .num { background: var(--color-primary); color: #fff; box-shadow: 0 0 0 4px rgba(0, 100, 255, 0.15); }
+  .install-task .body { width: 100%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .install-task .title { font-size: 15px; font-weight: 700; color: var(--fg-1); line-height: 1.35; }
+  .install-task .sub { font-size: 12px; color: var(--fg-3); line-height: 1.55; }
+  .install-task .status-pill {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--bg-muted);
+    color: var(--fg-3);
+    margin-top: 4px;
+  }
+  .install-task.done .status-pill { background: #D1FAE5; color: #065F46; }
+  .install-task.running .status-pill { background: var(--color-primary-light); color: var(--color-primary); }
+  .install-task.failed .status-pill { background: #FEE2E2; color: #991B1B; }
+  .install-task[onclick]:hover { background: #FAFAFB; }
+  .install-task[onclick]:hover .title { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* Task detail modal tabs */
+  .task-tabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg-muted);
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+  .task-tab {
+    border: 0;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--fg-3);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .task-tab.active { background: #fff; color: var(--fg-1); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .task-tab .count {
+    display: inline-block;
+    min-width: 18px; padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--bg-muted);
+    color: var(--fg-3);
+    font-size: 11px; font-weight: 700;
+    text-align: center;
+  }
+  .task-tab.active .count { background: var(--color-primary-light); color: var(--color-primary); }
+
+  /* approve / reject buttons (Step 6 admin) */
+  .btn.approve { background: var(--color-success); color: #fff; }
+  .btn.approve:hover { background: #047857; }
+  .btn.reject { background: #fff; color: var(--color-error-dark); border: 1px solid #FECACA; }
+  .btn.reject:hover { background: #FEF2F2; }
+
+  /* Logical DB modal — sidebar tab layout */
+  .logical-modal {
+    width: 880px;
+  }
+  .logical-modal .modal-body {
+    padding: 0;
+  }
+  .logical-shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 480px;
+  }
+  .logical-side {
+    background: #FAFAFB;
+    border-right: 1px solid var(--border-light);
+    padding: 18px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .logical-side .side-label {
+    font-size: 11px; font-weight: 700; color: var(--fg-4);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0 12px 8px;
+  }
+  .logical-tab {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--fg-2);
+    text-align: left;
+  }
+  .logical-tab:hover { background: rgba(0,0,0,0.04); }
+  .logical-tab.active {
+    background: #fff;
+    color: var(--fg-1);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .logical-tab .badge {
+    min-width: 22px; padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--bg-muted);
+    color: var(--fg-3);
+    font-size: 11px; font-weight: 700;
+    text-align: center;
+  }
+  .logical-tab.active .badge { background: var(--color-primary-light); color: var(--color-primary); }
+  .logical-main {
+    padding: 18px 22px 8px;
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .logical-summary {
+    display: flex; gap: 18px;
+    padding: 12px 14px;
+    background: var(--bg-muted);
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .logical-summary .item { font-size: 12px; color: var(--fg-3); }
+  .logical-summary .item strong {
+    display: block;
+    font-size: 18px; font-weight: 700; color: var(--fg-1);
+    line-height: 1.1; margin-bottom: 2px;
+  }
+  .logical-summary .item.target strong { color: var(--color-primary); }
+  .logical-summary .item.excluded strong { color: var(--color-error-dark); }
+  .logical-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .logical-toolbar .search { position: relative; }
+  .logical-toolbar .search svg {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--fg-4);
+  }
+  .logical-toolbar .search input {
+    height: 32px; width: 220px;
+    border: 1px solid var(--border-default); border-radius: 8px;
+    padding: 0 12px 0 30px;
+    font-size: 12.5px;
+  }
+  .logical-table-wrap {
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    overflow: hidden;
+    flex: 1;
+  }
+  .logical-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .logical-table-wrap th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-default); background: var(--bg-muted); }
+  .logical-table-wrap td { padding: 10px 14px; border-bottom: 1px solid var(--border-light); }
+  .logical-table-wrap tr:last-child td { border-bottom: none; }
+  .logical-table-wrap select {
+    width: 100%; height: 30px;
+    border: 1px solid var(--border-default); border-radius: 6px;
+    padding: 0 8px; font-size: 12px;
+    background: #fff; color: var(--fg-1);
+  }
+  .logical-pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .logical-pane.active { display: flex; }
+
+  /* connection test result (Step 5) */
+  .conn-status .pulse {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    box-shadow: 0 0 0 0 rgba(0,100,255,0.5);
+    animation: pulseDot 1.4s infinite;
+  }
+  @keyframes pulseDot {
+    0%   { box-shadow: 0 0 0 0 rgba(0,100,255,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(0,100,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(0,100,255,0); }
+  }
+
+  /* PII module section (Step 7) */
+  .pii-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 18px;
+  }
+  .pii-summary .stat {
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .pii-summary .stat-label {
+    font-size: 11px; color: var(--fg-3);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    font-weight: 600; margin-bottom: 6px;
+  }
+  .pii-summary .stat-num {
+    font-size: 22px; font-weight: 700;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pii-summary .stat .delta { font-size: 11px; color: var(--fg-3); margin-left: 6px; font-weight: 500; }
+
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOP NAV -->
+  <header class="topnav">
+    <div class="brand">
+      <span class="dot"></span>
+      <span>SIT</span>
+      <small>Self Installation Tool</small>
+    </div>
+    <nav>
+      <a href="#" class="active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Service List
+      </a>
+      <a href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Credentials
+      </a>
+      <a href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        PII Tag mgmt.
+      </a>
+      <a href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        PII Map
+      </a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="user">
+      <span>cyongj2.park@samsung.com</span>
+      <div class="avatar">CP</div>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-header">
+        <h3 class="sb-title">Service List</h3>
+        <input class="sb-search" placeholder="Service name or Service Code" />
+      </div>
+      <div class="sb-list">
+        <div class="svc-item active">
+          <div class="svc-code">999</div>
+          <div class="svc-name">Big Data Platform</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2001</div>
+          <div class="svc-name">Customer Portal</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2042</div>
+          <div class="svc-name">Payment Gateway</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2118</div>
+          <div class="svc-name">Order Management</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2205</div>
+          <div class="svc-name">Inventory Sync</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2310</div>
+          <div class="svc-name">CRM Connector</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2401</div>
+          <div class="svc-name">Analytics Warehouse</div>
+        </div>
+        <div class="svc-item">
+          <div class="svc-code">S2499</div>
+          <div class="svc-name">Notification Service</div>
+        </div>
+      </div>
+      <div class="sb-pager">
+        <a href="#">&lt;</a>
+        <a href="#" class="current">1</a>
+        <a href="#">2</a>
+        <a href="#">3</a>
+        <a href="#">4</a>
+        <a href="#">5</a>
+        <a href="#">&gt;</a>
+      </div>
+      <div class="sb-footer">
+        <a href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          Notice
+        </a>
+        <a href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Guide
+        </a>
+        <a href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          FAQ
+        </a>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main" id="main">
+
+      <!-- ======== SCREEN 1: EMPTY ======== -->
+      <section id="screen-1" data-screen-label="01 Service Detail (Empty)">
+        <div class="breadcrumb">
+          SIT Home <span class="sep">›</span>
+          Service List <span class="sep">›</span>
+          <span class="current">특정 서비스 선택</span>
+        </div>
+        <div class="page-header">
+          <h1 class="page-title">Big Data Platform <span style="color:var(--fg-3); font-weight:500;">(999)</span></h1>
+        </div>
+        <div class="page-meta">
+          <div class="kv"><span class="k">부문 / 총괄</span><span class="v">DX 총괄</span></div>
+          <div class="kv"><span class="k">사업부 / 법인</span><span class="v">Data Platform 사업부</span></div>
+          <div class="kv"><span class="k">연관 시스템 코드</span><span class="v">N-IRP, SW-PLM</span></div>
+          <div class="kv"><span class="k">담당자</span><span class="v">조용준 (cyongj2.park)</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Infrastructure &amp; Databases List</h2>
+            <button class="btn ghost" onclick="openModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Infra
+            </button>
+          </div>
+          <div class="empty">
+            <div class="illus">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+            </div>
+            <h3>사용중인 인프라 정보를 입력해주세요.</h3>
+            <p>+ Add Infra 를 통해 사용 중인 인프라 정보를 추가할 수 있어요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== SCREEN 3: SERVICE DETAIL (FILLED) ======== -->
+      <section id="screen-3" data-screen-label="03 Service Detail (Filled)" class="hidden">
+        <div class="breadcrumb">
+          SIT Home <span class="sep">›</span>
+          Service List <span class="sep">›</span>
+          <span class="current">Big Data Platform (999)</span>
+        </div>
+        <div class="page-header">
+          <h1 class="page-title">Big Data Platform <span style="color:var(--fg-3); font-weight:500;">(999)</span></h1>
+        </div>
+        <div class="page-meta">
+          <div class="kv"><span class="k">부문 / 총괄</span><span class="v">DX 총괄</span></div>
+          <div class="kv"><span class="k">사업부 / 법인</span><span class="v">Data Platform 사업부</span></div>
+          <div class="kv"><span class="k">연관 시스템 코드</span><span class="v">N-IRP, SW-PLM</span></div>
+          <div class="kv"><span class="k">담당자</span><span class="v">조용준 (cyongj2.park)</span></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Infrastructure &amp; Databases List</h2>
+            <button class="btn ghost" onclick="openModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Infra
+            </button>
+          </div>
+          <div class="card-body" style="background: var(--bg-muted);">
+
+            <!-- Collapsed card -->
+            <div class="infra-card">
+              <div class="infra-head" onclick="toggleInfra(this)">
+                <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <span class="provider-badge">AWS (Global)</span>
+                <div class="kv-inline"><span class="k">Payer Account</span><span class="v">12345 6789012</span></div>
+                <div class="kv-inline"><span class="k">Linked Account</span><span class="v">9876 5432 1098</span></div>
+                <div class="kv-inline"><span class="k">모니터링 방식</span><span class="v" style="font-family:inherit;">AWS Agent</span></div>
+                <div class="spacer"></div>
+                <div class="mgmt-group">
+                  <button class="mgmt-btn" onclick="event.stopPropagation(); showScreen('screen-4');">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    관리
+                  </button>
+                  <button class="mgmt-more" onclick="event.stopPropagation(); toggleMenu(this);" aria-label="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                    <div class="mgmt-menu">
+                      <a onclick="event.stopPropagation(); showScreen('screen-4');">상세 보기</a>
+                      <div class="menu-divider"></div>
+                      <a class="danger" onclick="event.stopPropagation();">인프라 삭제</a>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expanded card -->
+            <div class="infra-card expanded">
+              <div class="infra-head" onclick="toggleInfra(this)">
+                <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <span class="provider-badge azure">Azure</span>
+                <div class="kv-inline"><span class="k">Subscription</span><span class="v">2867...659939821e</span></div>
+                <div class="kv-inline"><span class="k">Tenant</span><span class="v">9822...2f02c995</span></div>
+                <div class="kv-inline"><span class="k">모니터링 방식</span><span class="v" style="font-family:inherit;">Azure Agent</span></div>
+                <div class="spacer"></div>
+                <div class="mgmt-group">
+                  <button class="mgmt-btn" onclick="event.stopPropagation(); showScreen('screen-4');">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                    관리
+                  </button>
+                  <button class="mgmt-more" onclick="event.stopPropagation(); toggleMenu(this);" aria-label="more">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                    <div class="mgmt-menu">
+                      <a onclick="event.stopPropagation(); showScreen('screen-4');">상세 보기</a>
+                      <div class="menu-divider"></div>
+                      <a class="danger" onclick="event.stopPropagation();">인프라 삭제</a>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              <div class="infra-body">
+                <table class="db-table">
+                  <thead>
+                    <tr>
+                      <th>Database name</th>
+                      <th>DB Type</th>
+                      <th>Region</th>
+                      <th>연동 대상 여부</th>
+                      <th>연동 완료 여부</th>
+                      <th>연동 상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="mono">sea-live-space-dev</td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono">ap-northeast-1</td>
+                      <td>대상</td>
+                      <td>연동 완료</td>
+                      <td><span class="status healthy"><span class="dot"></span>Healthy</span></td>
+                    </tr>
+                    <tr>
+                      <td class="mono">sea-live-space-prod</td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono">ap-northeast-1</td>
+                      <td>대상</td>
+                      <td>연동 진행중</td>
+                      <td><span class="status partial"><span class="dot"></span>Partial Healthy</span></td>
+                    </tr>
+                    <tr>
+                      <td class="mono">sea-live-space-stg</td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono">ap-northeast-1</td>
+                      <td><span style="color: var(--fg-3);">비대상 <span style="font-size:11px;">(Stg DB)</span></span></td>
+                      <td>—</td>
+                      <td><span class="status unhealthy"><span class="dot"></span>Unhealthy</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="pager">
+                  <button>‹</button>
+                  <button>›</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== SCREEN 4: INFRA DETAIL ======== -->
+      <section id="screen-4" data-screen-label="04 Infrastructure Detail" class="hidden">
+        <div class="breadcrumb">
+          SIT Home <span class="sep">›</span>
+          Service List <span class="sep">›</span>
+          Big Data Platform (999) <span class="sep">›</span>
+          <span class="current">Azure Infrastructure</span>
+        </div>
+
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Big Data Platform <span style="color:var(--fg-3); font-weight:500;">(999)</span></h1>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <!-- Provider toggle (Step 4 분기 + 메타 변경 시연) -->
+            <div class="seg-toggle" id="providerToggle" role="group" aria-label="Cloud Provider">
+              <button class="seg-btn active" data-prov="azure" onclick="setProvider('azure')">Azure</button>
+              <button class="seg-btn" data-prov="gcp" onclick="setProvider('gcp')">GCP</button>
+            </div>
+            <button class="btn danger-outline">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              인프라 삭제
+            </button>
+          </div>
+        </div>
+        <div class="page-meta" id="pageMeta">
+          <div class="kv"><span class="k">Cloud Provider</span><span class="v" data-meta="provider">Azure</span></div>
+          <div class="kv"><span class="k" data-meta="idLabel">Subscription ID</span><span class="v" data-meta="idValue" style="font-family: 'Geist Mono', monospace; font-size: 12.5px;">28674067-0505-4776-87f2-ec659939821e</span></div>
+          <div class="kv"><span class="k">Jira Link</span><span class="v"><a href="#">https://jira.sec.samsung.net/browse/BDCDIP-1353</a></span></div>
+          <div class="kv"><span class="k">모니터링 방식</span><span class="v" data-meta="agent">Azure Agent</span></div>
+        </div>
+
+        <!-- Stepper -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <h2>프로세스 진행 상태</h2>
+          </div>
+          <div class="card-body">
+            <div class="stepper">
+              <div class="step current" data-step="1" onclick="setStep(1)">
+                <div class="circle">01</div>
+                <div class="label">연동 대상 DB 선택</div>
+              </div>
+              <div class="step" data-step="2" onclick="setStep(2)">
+                <div class="circle">02</div>
+                <div class="label">연동 대상 승인 대기</div>
+              </div>
+              <div class="step" data-step="3" onclick="setStep(3)">
+                <div class="circle">03</div>
+                <div class="label">연동 대상 반영중</div>
+              </div>
+              <div class="step" data-step="4" onclick="setStep(4)">
+                <div class="circle">04</div>
+                <div class="label">Agent 설치</div>
+              </div>
+              <div class="step" data-step="5" onclick="setStep(5)">
+                <div class="circle">05</div>
+                <div class="label">연결 테스트<br/><span style="color:var(--fg-4);font-size:10px;">(N-IRP 연동)</span></div>
+              </div>
+              <div class="step" data-step="6" onclick="setStep(6)">
+                <div class="circle">06</div>
+                <div class="label">관리자 승인 대기</div>
+              </div>
+              <div class="step" data-step="7" onclick="setStep(7)">
+                <div class="circle">07</div>
+                <div class="label">완료</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Guide card -->
+        <div class="card guide-variant" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <h2>
+              <span class="guide-head-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2V17a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-.3c0-.7.4-1.5 1-2A7 7 0 0 0 12 2z"/></svg>
+              </span>
+              가이드
+            </h2>
+          </div>
+          <div class="card-body">
+            <div class="guide-content" id="guideBody">
+              <!-- HTML content injected from API -->
+            </div>
+          </div>
+        </div>
+        <!-- DB List -->
+        <div class="card step-content active" data-stepc="1">
+          <div class="card-header">
+            <div>
+              <h2>연동 대상 DB 선택</h2>
+              <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <span style="font-size: 11.5px; color: var(--fg-3);">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-1px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Last Scan: 2026-04-21 09:30
+              </span>
+              <button class="btn primary" id="runScanBtn" onclick="runScan()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Infra Scan
+              </button>
+            </div>
+          </div>
+          <div class="card-body" id="scanStateContainer">
+
+            <!-- STATE A: Empty (before first scan) -->
+            <div id="scan-empty">
+              <div class="scan-state">
+                <div class="illus">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <h3>인프라 스캔을 진행해주세요</h3>
+                <p>'Run Infra Scan'을 통해 부위 DB를 조회할 수 있어요</p>
+              </div>
+            </div>
+
+            <!-- STATE B: Scanning -->
+            <div id="scan-running" class="hidden">
+              <div class="scan-state">
+                <div class="illus" style="background: var(--color-primary-light); color: var(--color-primary);">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                </div>
+                <h3>인프라 스캔 진행중입니다</h3>
+                <p>인프라 스캔은 약 <strong>5분</strong> 이내 소요되는 편이며, 리소스가 많을 경우 길어질 수 있어요.</p>
+                <div class="scan-progress">
+                  <div class="bar" id="progressBar" style="width: 0%;"></div>
+                </div>
+                <div class="scan-progress-label"><span id="progressText">0</span>%</div>
+              </div>
+            </div>
+
+            <!-- STATE C: Error -->
+            <div id="scan-error" class="hidden">
+              <div class="scan-state">
+                <div class="error-banner">
+                  <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <div>
+                    <h4>인프라 스캔에 실패하였어요</h4>
+                    <p>보안 설정 또는 권한 문제로 스캔에 실패하였어요. <a href="#">가이드 문서</a>를 확인 후 권한 재설정 후 다시 시도해 주세요.</p>
+                  </div>
+                </div>
+                <button class="btn outline" onclick="resetScan()">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  다시 시도
+                </button>
+              </div>
+            </div>
+
+            <!-- STATE D: Complete (table with results) -->
+            <div id="scan-complete" class="hidden">
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 36px;"><input type="checkbox" /></th>
+                      <th>연동 대상 여부</th>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th>연동 완료 여부</th>
+                      <th>스캔 이력</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><input type="checkbox" checked /></td>
+                      <td><span class="tag green">대상</span></td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-prod-01</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prod</td>
+                      <td>연동 완료</td>
+                      <td>신규</td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" checked /></td>
+                      <td><span class="tag green">대상</span></td>
+                      <td><span class="tag blue">PostgreSQL</span></td>
+                      <td class="mono" style="font-size:12px;">pg-analytics-02</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-analytics-prod</td>
+                      <td>연동 진행중</td>
+                      <td>신규</td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" /></td>
+                      <td><span class="tag gray">비대상</span></td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-stg-03</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-stg</td>
+                      <td>—</td>
+                      <td>변경</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+                <span style="font-size: 12px; color: var(--fg-3);">총 <strong style="color: var(--fg-1);">3</strong>건 · <strong style="color: var(--color-primary);">2</strong>건 선택됨</span>
+                <button class="btn primary" onclick="setStep(2)">연동 대상 승인 요청</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ====== STEP 2: 연동 대상 승인 대기 ====== -->
+        <div class="step-content" data-stepc="2">
+          <div class="card" style="margin-top: 0;">
+            <div class="card-header">
+              <div>
+                <h2>연동 대상 승인 대기</h2>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                  요청하신 DB 목록을 관리자가 확인하고 있어요.
+                </p>
+              </div>
+              <span class="status partial" style="font-size:12px;"><span class="dot"></span>승인 대기</span>
+            </div>
+            <div class="card-body">
+              <!-- 안내 banner -->
+              <div class="step-banner">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div>
+                  <strong>관리자 승인을 기다리고 있어요.</strong>
+                  &nbsp;평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다.
+                </div>
+              </div>
+
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 36px;">#</th>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th>연동 대상 여부</th>
+                      <th>스캔 이력</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">/subscriptions/2867…/mysql-prod-01</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prod</td>
+                      <td>대상</td>
+                      <td>신규</td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">/subscriptions/2867…/mysql-stg-02</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-stg</td>
+                      <td>대상</td>
+                      <td>변경</td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td><span class="tag blue">PostgreSQL</span></td>
+                      <td class="mono" style="font-size:12px;">/subscriptions/2867…/pg-analytics-03</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prd</td>
+                      <td><span style="color:var(--fg-3);">비대상 <span style="font-size:11px;">(Stg DB)</span></span></td>
+                      <td>변경</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 액션 -->
+              <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 16px;">
+                <button class="btn danger-outline">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+                  연동 대상 승인 요청 취소
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== STEP 3: 연동 대상 반영중 ====== -->
+        <div class="step-content" data-stepc="3">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>연동 대상 반영중</h2>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                  관리자 승인 후 Agent 설치를 위한 사전 작업이 자동으로 진행됩니다.
+                </p>
+              </div>
+              <span class="status partial" style="font-size:12px;"><span class="dot"></span>반영중</span>
+            </div>
+            <div class="card-body">
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th>연동 제외 사유</th>
+                      <th>스캔 이력</th>
+                      <th>연동 이력</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-prod-01</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prod</td>
+                      <td><span style="color: var(--fg-4);">—</span></td>
+                      <td>Integrated</td>
+                      <td>—</td>
+                    </tr>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-stg-02</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-stg</td>
+                      <td><span style="color: var(--fg-4);">—</span></td>
+                      <td>Integrated</td>
+                      <td>Integrated</td>
+                    </tr>
+                    <tr>
+                      <td><span class="tag blue">PostgreSQL</span></td>
+                      <td class="mono" style="font-size:12px;">pg-analytics-03</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prd</td>
+                      <td>Stg DB</td>
+                      <td>—</td>
+                      <td>—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 16px;">
+                <button class="btn primary" onclick="setStep(4)">
+                  Next
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== STEP 4: Agent 설치 — Provider별 분기 ====== -->
+        <div class="step-content" data-stepc="4">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>Agent 설치</h2>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                  승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
+                </p>
+              </div>
+              <span style="font-size: 11.5px; color: var(--fg-3);">
+                Provider: <strong data-meta="provider" style="color: var(--fg-1);">Azure</strong>
+              </span>
+            </div>
+            <div class="card-body">
+
+              <!-- Azure 분기 -->
+              <div data-prov-view="azure">
+                <div class="install-tasks">
+                  <div class="install-task done" onclick="openTaskDetailModal('서비스 측 리소스 설치 진행', 'azure')" style="cursor:pointer;">
+                    <span class="num">1</span>
+                    <div class="body">
+                      <div class="title">서비스 측 리소스 설치 진행</div>
+                      <div class="sub">담당 부서가 Subnet / NSG / Storage 등을 사전 구성하는 단계</div>
+                    </div>
+                    <span class="status-pill">완료</span>
+                  </div>
+                  <div class="install-task running">
+                    <span class="num">2</span>
+                    <div class="body">
+                      <div class="title">BDC 측 리소스 설치 진행</div>
+                      <div class="sub">PII Agent VM, IAM Role, KeyVault 연결을 자동 배포 중</div>
+                    </div>
+                    <span class="status-pill">진행중</span>
+                  </div>
+                  <div class="install-task running">
+                    <span class="num">3</span>
+                    <div class="body">
+                      <div class="title">Private Link 모듈 설치 진행</div>
+                      <div class="sub">Azure Private Link를 통한 Agent ↔ N-IRP 통신 채널 구성</div>
+                    </div>
+                    <span class="status-pill">진행중</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- GCP 분기 -->
+              <div data-prov-view="gcp" style="display:none;">
+                <div class="install-tasks">
+                  <div class="install-task done" onclick="openTaskDetailModal('Subnet 생성 진행', 'gcp')" style="cursor:pointer;">
+                    <span class="num">1</span>
+                    <div class="body">
+                      <div class="title">Subnet 생성 진행</div>
+                      <div class="sub">Project 내 모니터링용 Subnet (10.30.0.0/22) 생성</div>
+                    </div>
+                    <span class="status-pill">완료</span>
+                  </div>
+                  <div class="install-task running">
+                    <span class="num">2</span>
+                    <div class="body">
+                      <div class="title">서비스 측 리소스 설치 진행</div>
+                      <div class="sub">VPC Peering / Firewall / Service Account 권한 위임 구성</div>
+                    </div>
+                    <span class="status-pill">진행중</span>
+                  </div>
+                  <div class="install-task running">
+                    <span class="num">3</span>
+                    <div class="body">
+                      <div class="title">BDC 측 리소스 설치 진행</div>
+                      <div class="sub">PII Agent GCE 인스턴스 + Service Account + IAM Role 자동 배포</div>
+                    </div>
+                    <span class="status-pill">진행중</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 공용 DB List (대상) -->
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th data-prov-view="azure">Private Link 상태</th>
+                      <th data-prov-view="gcp" style="display:none;">서비스 리소스 상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-prod-01</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prod</td>
+                      <td><span class="tag green">완료</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-stg-02</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-stg</td>
+                      <td><span class="tag orange">진행중</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== STEP 5: 연결 테스트 (N-IRP 연동) ====== -->
+        <div class="step-content" data-stepc="5">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>연결 테스트</h2>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                  DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
+                </p>
+              </div>
+              <button class="btn primary" onclick="runConnTest()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run Test
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th>DB Credential</th>
+                      <th>Connection Status</th>
+                      <th style="width: 100px;">논리 DB 확인</th>
+                    </tr>
+                  </thead>
+                  <tbody id="connTestTbody">
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-prod-01</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prod</td>
+                      <td><a href="#" style="font-size:12.5px;">Key1</a></td>
+                      <td><span class="tag green">Success</span></td>
+                      <td><button class="btn sm ghost" onclick="openLogicalModal('sea-live-space-prod')">설정</button></td>
+                    </tr>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-stg-02</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-stg</td>
+                      <td><a href="#" style="font-size:12.5px;">Key2</a></td>
+                      <td><span class="tag orange">Pending</span></td>
+                      <td><button class="btn sm ghost" onclick="openLogicalModal('sea-live-space-stg')">설정</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+                <span style="font-size: 12px; color: var(--fg-3);">
+                  ※ 모든 DB의 Connection Status가 Success이고 논리 DB 확인 설정이 완료되어야 다음 단계로 진행할 수 있어요.
+                </span>
+                <button class="btn primary" onclick="setStep(6)">완료 승인 요청</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== STEP 6: 관리자 승인 대기 ====== -->
+        <div class="step-content" data-stepc="6">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>완료 여부 관리자 승인 대기</h2>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                  PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
+                </p>
+              </div>
+              <span class="status partial" style="font-size:12px;"><span class="dot"></span>승인 대기</span>
+            </div>
+            <div class="card-body">
+              <div class="step-banner">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <div>
+                  <strong>최종 관리자 승인을 기다리고 있어요.</strong>
+                  &nbsp;승인이 완료되면 모니터링이 즉시 시작됩니다.
+                </div>
+              </div>
+
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th>DB Credential</th>
+                      <th>Connection Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-prod-01</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-prod</td>
+                      <td style="font-size:12.5px; color: var(--fg-2);">Key1</td>
+                      <td><span class="tag green">Success</span></td>
+                    </tr>
+                    <tr>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">mysql-stg-02</td>
+                      <td class="mono" style="font-size:12px;">ap-northeast-1</td>
+                      <td class="mono" style="font-size:12px;">sea-live-space-stg</td>
+                      <td style="font-size:12.5px; color: var(--fg-2);">Key2</td>
+                      <td><span class="tag green">Success</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- 액션 -->
+              <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 16px;">
+                <button class="btn warn-outline" onclick="openConfirmStep('retest')">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  연결 테스트 재실행
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== STEP 7: 완료 — PII 모니터링 모듈 연동 ====== -->
+        <div class="step-content" data-stepc="7">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h2>PII 모니터링 모듈 연동 완료</h2>
+                <p style="margin: 4px 0 0; font-size: 12px; color: var(--fg-3);">
+                  PII가 사용되어 있을 가능성이 있어요. 사용 단어 빈도가 표시되며, 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
+                </p>
+              </div>
+              <span class="status healthy" style="font-size:12px;"><span class="dot"></span>Healthy</span>
+            </div>
+            <div class="card-body">
+
+              <!-- DB List 헤더 -->
+              <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn warn-outline" onclick="openConfirmStep('infra')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                    인프라 변경
+                  </button>
+                  <button class="btn warn-outline" onclick="openConfirmStep('retest')">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    연결 테스트 재실행
+                  </button>
+                </div>
+              </div>
+
+              <!-- DB 리스트 -->
+              <div class="db-list-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width: 32px;"><input type="checkbox" /></th>
+                      <th>DB Type</th>
+                      <th>Resource ID</th>
+                      <th>Region</th>
+                      <th>DB Name</th>
+                      <th>DB Credential</th>
+                      <th style="width: 110px;">연동 대상 논리 DB</th>
+                      <th style="width: 110px;">연동 제외 논리 DB</th>
+                      <th style="width: 130px;">
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                          Status
+                          <span class="tooltip-trigger" tabindex="0">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span class="tooltip-content">
+                              <strong>Status 안내</strong>
+                              <span class="tt-row"><span class="status healthy" style="font-size: 10.5px;"><span class="dot"></span>Healthy</span><span class="tt-desc">모든 DB가 정상이에요.</span></span>
+                              <span class="tt-row"><span class="status" style="font-size: 10.5px; background: #FEE2E2; color: #991B1B;"><span class="dot" style="background:#991B1B"></span>Unhealthy</span><span class="tt-desc">DB가 비정상이에요. Agent 또는 Credential 상태를 확인해주세요.</span></span>
+                            </span>
+                          </span>
+                        </span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><input type="checkbox" /></td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">bigquery / sea-bdp-prd</td>
+                      <td class="mono" style="font-size:12px;">asia-northeast3</td>
+                      <td class="mono" style="font-size:12px;">live · default</td>
+                      <td style="font-size:12.5px; color: var(--fg-2);">Key1</td>
+                      <td class="mono">12</td>
+                      <td class="mono">3</td>
+                      <td><span class="status healthy"><span class="dot"></span>Healthy</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" /></td>
+                      <td><span class="tag blue">MySQL</span></td>
+                      <td class="mono" style="font-size:12px;">bigquery / sea-bdp-prd</td>
+                      <td class="mono" style="font-size:12px;">asia-northeast3</td>
+                      <td class="mono" style="font-size:12px;">live · analytics</td>
+                      <td style="font-size:12.5px; color: var(--fg-2);">Key1</td>
+                      <td class="mono">8</td>
+                      <td class="mono">1</td>
+                      <td><span class="status healthy"><span class="dot"></span>Healthy</span></td>
+                    </tr>
+                    <tr>
+                      <td><input type="checkbox" /></td>
+                      <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">PostgreSQL</span></td>
+                      <td class="mono" style="font-size:12px;">cloudsql / sea-bdp-prd</td>
+                      <td class="mono" style="font-size:12px;">asia-northeast3</td>
+                      <td class="mono" style="font-size:12px;">prd · main</td>
+                      <td style="font-size:12.5px; color: var(--fg-2);">Key1</td>
+                      <td class="mono">5</td>
+                      <td class="mono">2</td>
+                      <td><span class="status" style="background:#FEE2E2; color:#991B1B;"><span class="dot" style="background:#991B1B"></span>Unhealthy</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ======== SCREEN 2: MODAL ======== -->
+  <div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">인프라 등록</h2>
+        <p class="modal-sub">PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요.<br/>각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.</p>
+      </div>
+      <div class="modal-body">
+
+        <!-- 1. Provider selection -->
+        <div class="form-section">
+          <label class="form-section-label"><span class="num">1</span>인프라 (Provider) 유형 선택</label>
+          <div class="provider-grid">
+            <button class="provider-chip selected" data-provider="aws-global" onclick="selectProvider(this)">
+              AWS
+              <span class="small">(Global)</span>
+            </button>
+            <button class="provider-chip" data-provider="aws-china" onclick="selectProvider(this)">
+              AWS
+              <span class="small">(China)</span>
+            </button>
+            <button class="provider-chip" data-provider="azure" onclick="selectProvider(this)">
+              Azure
+            </button>
+            <button class="provider-chip" data-provider="gcp" onclick="selectProvider(this)">
+              GCP
+            </button>
+            <button class="provider-chip" data-provider="idc" onclick="selectProvider(this)">
+              IDC /
+              <span class="small">On-prem</span>
+            </button>
+            <button class="provider-chip" data-provider="other" onclick="selectProvider(this)">
+              Other
+              <span class="small">Cloud / IDC</span>
+            </button>
+            <button class="provider-chip" data-provider="saas" onclick="selectProvider(this)">
+              SaaS
+            </button>
+          </div>
+          <p style="margin: 8px 0 0; font-size: 11.5px; color: var(--fg-3);">※ SCP와 관련, IDC/On-prem 부위 포함</p>
+        </div>
+
+        <!-- 2. Credentials + 3. DB Type -->
+        <div class="three-col">
+          <div class="form-section">
+            <label class="form-section-label"><span class="num">2</span>인프라 정보</label>
+            <div class="field" style="margin-bottom: 10px;">
+              <label>Payer Account</label>
+              <input placeholder="12-digit AWS account ID" />
+            </div>
+            <div class="field">
+              <label>Linked Account</label>
+              <input placeholder="12-digit AWS account ID" />
+            </div>
+          </div>
+          <div class="form-section">
+            <label class="form-section-label"><span class="num">3</span>DB Type 선택</label>
+            <div class="dbtype-row">
+              <div class="field" style="flex:1;">
+                <label>DB Type</label>
+                <select id="dbtypeSelect" onchange="addDbType(this)">
+                  <option value="">Select DB Type…</option>
+                  <option>MySQL</option>
+                  <option>PostgreSQL</option>
+                  <option>Oracle</option>
+                  <option>MSSQL</option>
+                  <option>MariaDB</option>
+                  <option>MongoDB</option>
+                  <option>Redis</option>
+                </select>
+              </div>
+            </div>
+            <div class="dbtype-selected" id="dbtypeSelected">
+              <span class="tag blue">MySQL <button onclick="this.parentElement.remove()">×</button></span>
+              <span class="tag blue">Oracle <button onclick="this.parentElement.remove()">×</button></span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+          <button class="btn ghost" onclick="addToList()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add to List
+          </button>
+        </div>
+
+        <!-- 4. 등록 List -->
+        <div class="form-section">
+          <label class="form-section-label">인프라 등록 List</label>
+          <div class="mini-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>인프라 유형</th>
+                  <th>인프라 정보</th>
+                  <th>DB Type</th>
+                  <th>커뮤니케이션 모듈</th>
+                  <th style="width: 48px;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="registerList">
+                <tr>
+                  <td><span class="provider-badge" style="font-size:12.5px;">AWS Global</span></td>
+                  <td class="mono" style="font-size:11.5px; color: var(--fg-2);">
+                    Payer: 12345-6789012<br/>
+                    Linked: 9876-5432-1098
+                  </td>
+                  <td><span class="tag blue">MySQL</span> <span class="tag blue">Oracle</span></td>
+                  <td><span class="tag gray">AWS Agent</span></td>
+                  <td><button class="icon-btn danger" onclick="this.closest('tr').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+                </tr>
+                <tr>
+                  <td><span class="provider-badge azure" style="font-size:12.5px;">Azure</span></td>
+                  <td class="mono" style="font-size:11.5px; color: var(--fg-2);">
+                    Tenant: 9822f9a9-10a1-4e44-15...<br/>
+                    Subscription: 28674067-0505-4776-...
+                  </td>
+                  <td><span class="tag blue">MSSQL</span></td>
+                  <td><span class="tag gray">Azure Agent</span></td>
+                  <td><button class="icon-btn danger" onclick="this.closest('tr').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+                </tr>
+                <tr>
+                  <td><span class="provider-badge gcp" style="font-size:12.5px;">IDC/On-prem</span></td>
+                  <td class="mono" style="font-size:11.5px; color: var(--fg-2);">Other Provider</td>
+                  <td><span class="tag blue">Oracle</span></td>
+                  <td><span class="tag gray">GCP Agent</span></td>
+                  <td><button class="icon-btn danger" onclick="this.closest('tr').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+                </tr>
+                <tr>
+                  <td><span class="provider-badge" style="font-size:12.5px;">Other Cloud/IDC</span></td>
+                  <td class="mono" style="font-size:11.5px; color: var(--fg-2);">Other Provider: Alibaba Cloud</td>
+                  <td><span class="tag blue">MySQL</span></td>
+                  <td><span class="tag gray">SDU</span></td>
+                  <td><button class="icon-btn danger" onclick="this.closest('tr').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+                </tr>
+                <tr>
+                  <td><span class="provider-badge" style="font-size:12.5px; --pc: #9333EA;"><span style="background:#9333EA !important;"></span>SaaS</span></td>
+                  <td class="mono" style="font-size:11.5px; color: var(--fg-2);">SaaS 솔루션명: SPIRAL</td>
+                  <td>—</td>
+                  <td><span class="tag gray">SDU</span></td>
+                  <td><button class="icon-btn danger" onclick="this.closest('tr').remove()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn outline" onclick="closeModal()">Cancel</button>
+        <button class="btn primary" onclick="saveInfra()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== LOGICAL DB MODAL (Step 5) ======== -->
+  <div class="modal-backdrop" id="logicalModal" onclick="if(event.target===this)closeLogicalModal()">
+    <div class="modal logical-modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="logicalModalTitle">sea-live-space-prd · 논리 DB 확인</h2>
+        <p class="modal-sub">연동 대상의 Database와 Schema를 확인하고, 제외할 항목이 있으면 설정해 주세요.</p>
+      </div>
+      <div class="modal-body">
+        <div class="logical-shell">
+          <aside class="logical-side">
+            <span class="side-label">보기</span>
+            <button class="logical-tab active" data-ltab="all" onclick="setLogicalTab('all')">
+              <span>전체 논리 DB</span><span class="badge">7</span>
+            </button>
+            <button class="logical-tab" data-ltab="excluded" onclick="setLogicalTab('excluded')">
+              <span>제외된 논리 DB</span><span class="badge">3</span>
+            </button>
+          </aside>
+          <div class="logical-main">
+            <div class="logical-summary">
+              <div class="item"><strong>7</strong>전체 항목</div>
+              <div class="item target"><strong>4</strong>연동 대상</div>
+              <div class="item excluded"><strong>3</strong>연동 제외</div>
+            </div>
+            <div class="logical-toolbar">
+              <strong id="logicalPaneTitle" style="font-size: 13.5px; color: var(--fg-1);">전체 논리 DB</strong>
+              <div class="search">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input placeholder="Database / Schema 검색" />
+              </div>
+            </div>
+            <div class="logical-pane active" data-pane="all">
+            <div class="logical-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:32px;"></th>
+                  <th style="width:96px;">Type</th>
+                  <th>Database</th>
+                  <th>Schema</th>
+                  <th style="width:130px;">연동 대상 여부</th>
+                  <th style="width:160px;">제외 사유</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" checked /></td>
+                  <td><span class="tag blue">Database</span></td>
+                  <td class="mono">live</td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked /></td>
+                  <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td>
+                  <td class="mono">live</td>
+                  <td class="mono">public</td>
+                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked /></td>
+                  <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td>
+                  <td class="mono">live</td>
+                  <td class="mono">analytics</td>
+                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked /></td>
+                  <td><span class="tag blue">Database</span></td>
+                  <td class="mono">prd</td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" /></td>
+                  <td><span class="tag blue">Database</span></td>
+                  <td class="mono">stg</td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                  <td><select><option selected>연동 제외</option><option>연동 대상</option></select></td>
+                  <td><select><option>타 시스템 사용 DB</option><option>Dev DB</option><option selected>Stg DB</option></select></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" /></td>
+                  <td><span class="tag blue">Database</span></td>
+                  <td class="mono">dev</td>
+                  <td><span style="color: var(--fg-4);">—</span></td>
+                  <td><select><option selected>연동 제외</option><option>연동 대상</option></select></td>
+                  <td><select><option>타 시스템 사용 DB</option><option selected>Dev DB</option><option>Stg DB</option></select></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" /></td>
+                  <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td>
+                  <td class="mono">prd</td>
+                  <td class="mono">temp</td>
+                  <td><select><option selected>연동 제외</option><option>연동 대상</option></select></td>
+                  <td><select><option selected>타 시스템 사용 DB</option><option>Dev DB</option><option>Stg DB</option></select></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+            </div>
+            <div class="logical-pane" data-pane="excluded">
+            <div class="logical-table-wrap">
+            <table>
+              <thead><tr><th style="width:96px;">Type</th><th>Database</th><th>Schema</th><th>제외 사유</th></tr></thead>
+              <tbody>
+                <tr><td><span class="tag blue">Database</span></td><td class="mono">stg</td><td><span style="color: var(--fg-4);">—</span></td><td>Stg DB</td></tr>
+                <tr><td><span class="tag blue">Database</span></td><td class="mono">dev</td><td><span style="color: var(--fg-4);">—</span></td><td>Dev DB</td></tr>
+                <tr><td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td><td class="mono">prd</td><td class="mono">temp</td><td>타 시스템 사용 DB</td></tr>
+              </tbody>
+            </table>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn outline" onclick="closeLogicalModal()">Cancel</button>
+        <button class="btn primary" onclick="closeLogicalModal()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== CONFIRM REWIND MODAL (Step 6/7 → 5/1) ======== -->
+  <div class="modal-backdrop" id="confirmStepModal" onclick="if(event.target===this)closeConfirmStep()">
+    <div class="modal" style="width: 440px;">
+      <div class="modal-header" style="padding: 28px 28px 12px;">
+        <div style="display: flex; gap: 14px; align-items: flex-start;">
+          <div style="flex-shrink:0; width: 38px; height: 38px; border-radius: 999px; background: #FEF3C7; color: #B45309; display: flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <h2 class="modal-title" id="confirmStepTitle" style="margin: 2px 0 6px;">정말 되돌아가시겠어요?</h2>
+            <p class="modal-sub" id="confirmStepDesc" style="margin: 0; font-size: 13px; color: var(--fg-3); line-height: 1.55;">
+              현재 단계에서 이전 단계로 이동하면 이후 진행 상태가 초기화될 수 있어요.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: 4px 28px 0;">
+        <div id="confirmStepNote" style="background: #FFFBEB; border: 1px solid #FCD34D; color: #92400E; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.55;">
+          이동 후 변경사항을 저장하면 Agent 상태가 다시 점검됩니다.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn outline" onclick="closeConfirmStep()">머무르기</button>
+        <button class="btn warn-outline" id="confirmStepGoBtn" onclick="confirmStepProceed()">되돌아가기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== TASK DETAIL MODAL (Step 4) ======== -->
+  <div class="modal-backdrop" id="taskDetailModal" onclick="if(event.target===this)closeTaskDetailModal()">
+    <div class="modal logical-modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="taskDetailTitle">서비스 측 리소스 설치 진행</h2>
+        <p class="modal-sub">리소스별 설치 진행 현황을 확인할 수 있어요.</p>
+      </div>
+      <div class="modal-body">
+        <div class="task-tabs" role="tablist">
+          <button class="task-tab active" data-tab="all" onclick="setTaskTab('all')">전체 <span class="count" id="cnt-all">5</span></button>
+          <button class="task-tab" data-tab="done" onclick="setTaskTab('done')">완료 <span class="count" id="cnt-done">2</span></button>
+          <button class="task-tab" data-tab="running" onclick="setTaskTab('running')">진행중 <span class="count" id="cnt-running">3</span></button>
+        </div>
+        <div class="db-list-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Resource ID</th>
+                <th>DB Type</th>
+                <th>Region</th>
+                <th style="width:140px;">진행 완료 여부</th>
+              </tr>
+            </thead>
+            <tbody id="taskDetailBody">
+              <!-- rows populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn primary" onclick="closeTaskDetailModal()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROTOTYPE NAV -->
+  <div class="proto-nav">
+    <button onclick="showScreen('screen-1')" data-screen="screen-1" class="active">01 빈 상태</button>
+    <button onclick="openModal()">02 인프라 등록</button>
+    <button onclick="showScreen('screen-3')" data-screen="screen-3">03 등록 후</button>
+    <button onclick="showScreen('screen-4'); setStep(1)" data-screen="screen-4">04-1 DB 선택</button>
+    <button onclick="showScreen('screen-4'); setStep(2)">04-2 승인 대기</button>
+    <button onclick="showScreen('screen-4'); setStep(3)">04-3 반영중</button>
+    <button onclick="showScreen('screen-4'); setStep(4)">04-4 Agent 설치</button>
+    <button onclick="showScreen('screen-4'); setStep(5)">04-5 연결 테스트</button>
+    <button onclick="showScreen('screen-4'); setStep(6)">04-6 최종 승인</button>
+    <button onclick="showScreen('screen-4'); setStep(7)">04-7 완료</button>
+  </div>
+
+</div>
+
+<script>
+  // ----- Screen switching -----
+  function showScreen(id) {
+    document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    document.querySelectorAll('.proto-nav button[data-screen]').forEach(b => {
+      b.classList.toggle('active', b.dataset.screen === id);
+    });
+    localStorage.setItem('sit-screen', id);
+    document.getElementById('main').scrollTop = 0;
+  }
+  // restore
+  const saved = localStorage.getItem('sit-screen');
+  if (saved) showScreen(saved);
+
+  // ----- Modal -----
+  function openModal() { document.getElementById('modal').classList.add('open'); }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+  function saveInfra() { closeModal(); showScreen('screen-3'); }
+
+  // ----- Provider select -----
+  function selectProvider(el) {
+    document.querySelectorAll('.provider-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  // ----- DB Type add -----
+  function addDbType(sel) {
+    const v = sel.value;
+    if (!v) return;
+    const container = document.getElementById('dbtypeSelected');
+    // check if already exists
+    const exists = [...container.querySelectorAll('.tag')].some(t => t.textContent.includes(v));
+    if (!exists) {
+      const tag = document.createElement('span');
+      tag.className = 'tag blue';
+      tag.innerHTML = v + ' <button onclick="this.parentElement.remove()">×</button>';
+      container.appendChild(tag);
+    }
+    sel.value = '';
+  }
+  function addToList() { /* stub */ }
+
+  // ----- Infra card toggle -----
+  function toggleInfra(head) {
+    head.closest('.infra-card').classList.toggle('expanded');
+  }
+
+  // ----- Management kebab menu -----
+  function toggleMenu(btn) {
+    const wasOpen = btn.classList.contains('open');
+    document.querySelectorAll('.mgmt-more.open').forEach(m => m.classList.remove('open'));
+    if (!wasOpen) btn.classList.add('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.mgmt-more')) {
+      document.querySelectorAll('.mgmt-more.open').forEach(m => m.classList.remove('open'));
+    }
+  });
+
+  // ----- Scan simulation -----
+  let scanInterval = null;
+  function runScan() {
+    hideAllScanStates();
+    document.getElementById('scan-running').classList.remove('hidden');
+    let pct = 0;
+    const bar = document.getElementById('progressBar');
+    const txt = document.getElementById('progressText');
+    scanInterval = setInterval(() => {
+      pct += Math.random() * 8 + 2;
+      if (pct >= 100) {
+        pct = 100;
+        bar.style.width = '100%';
+        txt.textContent = '100';
+        clearInterval(scanInterval);
+        // randomly show error or complete — bias to complete
+        setTimeout(() => {
+          hideAllScanStates();
+          if (Math.random() < 0.25) {
+            document.getElementById('scan-error').classList.remove('hidden');
+          } else {
+            document.getElementById('scan-complete').classList.remove('hidden');
+          }
+        }, 600);
+      } else {
+        bar.style.width = pct + '%';
+        txt.textContent = Math.floor(pct);
+      }
+    }, 300);
+  }
+  function hideAllScanStates() {
+    ['scan-empty','scan-running','scan-error','scan-complete'].forEach(id => {
+      document.getElementById(id).classList.add('hidden');
+    });
+  }
+  function resetScan() {
+    hideAllScanStates();
+    document.getElementById('scan-empty').classList.remove('hidden');
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '0';
+  }
+
+  // keyboard esc closes modal
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ----- Step guide data (HTML from GET API) -----
+  const GUIDES = {
+    1: {
+      name: '연동 대상 DB 선택',
+      html: `<h4>연동 대상 DB를 선택해 주세요</h4>
+<p>Run Infra Scan을 통해 조회된 DB 리스트에서 PII 모니터링이 필요한 DB를 체크하고, 하단의 <strong>연동 대상 승인 요청</strong> 버튼을 눌러 주세요.</p>
+<ul>
+  <li>Scan은 평균 3~5분 내외 소요되며, 대상 리소스가 많을 경우 더 길어질 수 있습니다.</li>
+  <li>보안 설정 또는 권한 문제로 스캔이 실패했다면 <a href="#">가이드 문서</a>를 확인해 주세요.</li>
+</ul>`
+    },
+    2: {
+      name: '연동 대상 승인 대기',
+      html: `<h4>승인자의 검토를 기다리고 있어요</h4>
+<p>요청하신 DB 연동 대상 목록은 보안팀 및 데이터 관리자의 검토를 받고 있습니다. 승인 결과는 메일과 Slack으로 안내됩니다.</p>
+<ul>
+  <li>평균 1영업일 이내 검토가 완료됩니다.</li>
+  <li>3영업일 이상 지연 시 <a href="#">담당자에게 문의</a>해 주세요.</li>
+</ul>`
+    },
+    3: {
+      name: '연동 대상 반영중',
+      html: `<h4>승인된 DB를 시스템에 반영하고 있어요</h4>
+<p>승인된 DB에 대한 메타 정보가 PII Agent 관리 시스템에 동기화되는 중입니다. 이 과정은 자동으로 진행되며 별도 조치가 필요하지 않습니다.</p>
+<ul>
+  <li>반영 완료까지 최대 10분가량 소요될 수 있습니다.</li>
+  <li>이 단계에서는 실제 데이터가 전송되지 않으며, 메타데이터만 동기화됩니다.</li>
+</ul>`
+    },
+    4: {
+      name: 'Agent 설치',
+      html: `<h4>PII Agent를 설치해 주세요</h4>
+<p>발급된 Credential과 설치 스크립트를 사용해 대상 인프라에 PII Agent를 배포합니다. Agent 설치 후 자동으로 다음 단계로 넘어갑니다.</p>
+<ul>
+  <li>Credential은 <a href="#">Credentials 메뉴</a>에서 확인할 수 있습니다.</li>
+  <li>Docker / Helm / Binary 설치 방식은 <a href="#">설치 가이드</a>를 참고해 주세요.</li>
+  <li>Agent는 설치 환경의 최소 사양(2 vCPU / 4GB RAM) 이상을 권장합니다.</li>
+</ul>`
+    },
+    5: {
+      name: '연결 테스트 (N-IRP 연동)',
+      html: `<h4>Agent와 N-IRP 간 통신을 확인하고 있어요</h4>
+<p>설치된 Agent가 N-IRP(개인정보 리스크 플랫폼)와 정상적으로 통신하는지 자동으로 점검합니다. 네트워크 ACL과 방화벽 정책이 올바른지 확인해 주세요.</p>
+<ul>
+  <li>테스트 실패 시 네트워크 구간(443, 8443 포트)을 우선 점검해 주세요.</li>
+  <li>재시도는 최대 5회까지 자동 수행됩니다.</li>
+</ul>`
+    },
+    6: {
+      name: '관리자 승인 대기',
+      html: `<h4>최종 관리자 승인을 기다리고 있어요</h4>
+<p>PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다. 승인 결과는 메일로 전달됩니다.</p>
+<ul>
+  <li>승인 결과를 기다리는 동안 연결 상태가 의심되는 항목은 <strong>연결 테스트 재실행</strong>으로 다시 확인할 수 있어요.</li>
+  <li>긴급 건은 <a href="#">#pii-agent-support</a> 채널로 공유해 주세요.</li>
+</ul>`
+    },
+    7: {
+      name: '완료',
+      html: `<h4>모든 연동이 완료되었습니다</h4>
+<p>PII Agent가 정상 동작 중이며, 탐지 결과는 PII Map 및 대시보드에서 확인할 수 있습니다.</p>
+<ul>
+  <li>탐지 리포트는 매일 09:00에 자동 발송됩니다.</li>
+  <li>인프라 변경 발생 시 다시 이 화면에서 재연동을 진행해 주세요.</li>
+</ul>`
+    }
+  };
+
+  function setStep(n) {
+    document.querySelectorAll('.stepper .step').forEach(el => {
+      const s = parseInt(el.dataset.step, 10);
+      el.classList.remove('current', 'done');
+      if (s < n) el.classList.add('done');
+      else if (s === n) el.classList.add('current');
+    });
+    // swap content sections
+    document.querySelectorAll('.step-content').forEach(el => {
+      el.classList.toggle('active', String(n) === el.dataset.stepc);
+    });
+    renderGuide(n);
+    document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ----- Provider toggle (Azure / GCP) -----
+  function setProvider(p) {
+    document.querySelectorAll('#providerToggle .seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.prov === p);
+    });
+    // page meta
+    const meta = {
+      azure: { provider: 'Azure', idLabel: 'Subscription ID', idValue: '28674067-0505-4776-87f2-ec659939821e', agent: 'Azure Agent' },
+      gcp:   { provider: 'GCP',   idLabel: 'Project ID',     idValue: 'visional-w-prd-835560',         agent: 'GCP Agent'   }
+    }[p];
+    Object.entries(meta).forEach(([k, v]) => {
+      document.querySelectorAll(`[data-meta="${k}"]`).forEach(el => el.textContent = v);
+    });
+    // step 4 sub-views
+    document.querySelectorAll('[data-prov-view]').forEach(el => {
+      const isMatch = el.dataset.provView === p;
+      // preserve display:table-cell for <th>
+      if (el.tagName === 'TH' || el.tagName === 'TD') {
+        el.style.display = isMatch ? 'table-cell' : 'none';
+      } else {
+        el.style.display = isMatch ? '' : 'none';
+      }
+    });
+  }
+
+  // ----- Logical DB modal -----
+  function setLogicalTab(tab) {
+    document.querySelectorAll('#logicalModal .logical-tab').forEach(b => b.classList.toggle('active', b.dataset.ltab === tab));
+    document.querySelectorAll('#logicalModal .logical-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
+    document.getElementById('logicalPaneTitle').textContent = tab === 'excluded' ? '제외된 논리 DB' : '전체 논리 DB';
+  }
+  function openLogicalModal(name) {
+    document.getElementById('logicalModalTitle').textContent = name + ' · 논리 DB 확인';
+    setLogicalTab('all');
+    document.getElementById('logicalModal').classList.add('open');
+  }
+  function closeLogicalModal() {
+    document.getElementById('logicalModal').classList.remove('open');
+  }
+
+  // ----- Confirm rewind modal (Step 6/7 → 5/1) -----
+  let __confirmStepTarget = null;
+  function openConfirmStep(kind) {
+    const map = {
+      retest: {
+        title: '연결 테스트를 다시 실행할까요?',
+        desc: '<strong>5단계 · 연결 테스트</strong>로 되돌아갑니다. 이후 단계의 진행 상태는 다시 시작돼요.',
+        note: '연결 테스트 결과에 따라 6 · 7단계의 상태가 초기화될 수 있어요.',
+        target: 5,
+      },
+      infra: {
+        title: '인프라를 변경하시겠어요?',
+        desc: '<strong>1단계 · 연동 대상 DB 선택</strong>으로 되돌아갑니다. 변경 후에는 전체 프로세스를 다시 진행해야 해요.',
+        note: '진행 중이던 Agent 설치·승인·연결 테스트 결과는 모두 초기화돼요.',
+        target: 1,
+      },
+    };
+    const c = map[kind];
+    if (!c) return;
+    document.getElementById('confirmStepTitle').textContent = c.title;
+    document.getElementById('confirmStepDesc').innerHTML = c.desc;
+    document.getElementById('confirmStepNote').textContent = c.note;
+    __confirmStepTarget = c.target;
+    document.getElementById('confirmStepModal').classList.add('open');
+  }
+  function closeConfirmStep() {
+    document.getElementById('confirmStepModal').classList.remove('open');
+  }
+  function confirmStepProceed() {
+    closeConfirmStep();
+    if (__confirmStepTarget) setStep(__confirmStepTarget);
+    __confirmStepTarget = null;
+  }
+
+  // ----- Task detail modal (Step 4) -----
+  const TASK_DETAIL_DATA = [
+    { resourceId: 'mysql-prod-01',     dbType: 'MySQL',      region: 'ap-northeast-1', status: 'done' },
+    { resourceId: 'mysql-stg-02',      dbType: 'MySQL',      region: 'ap-northeast-1', status: 'done' },
+    { resourceId: 'pg-analytics-03',   dbType: 'PostgreSQL', region: 'ap-northeast-1', status: 'running' },
+    { resourceId: 'mysql-payments-04', dbType: 'MySQL',      region: 'ap-northeast-2', status: 'running' },
+    { resourceId: 'pg-billing-05',     dbType: 'PostgreSQL', region: 'ap-northeast-2', status: 'running' },
+  ];
+  let _taskTab = 'all';
+
+  function openTaskDetailModal(title) {
+    document.getElementById('taskDetailTitle').textContent = title;
+    _taskTab = 'all';
+    renderTaskDetail();
+    document.getElementById('taskDetailModal').classList.add('open');
+  }
+  function closeTaskDetailModal() {
+    document.getElementById('taskDetailModal').classList.remove('open');
+  }
+  function setTaskTab(tab) {
+    _taskTab = tab;
+    document.querySelectorAll('#taskDetailModal .task-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+    renderTaskDetail();
+  }
+  function renderTaskDetail() {
+    const all = TASK_DETAIL_DATA;
+    const done = all.filter(r => r.status === 'done');
+    const running = all.filter(r => r.status === 'running');
+    document.getElementById('cnt-all').textContent = all.length;
+    document.getElementById('cnt-done').textContent = done.length;
+    document.getElementById('cnt-running').textContent = running.length;
+
+    const rows = _taskTab === 'done' ? done : _taskTab === 'running' ? running : all;
+    const body = document.getElementById('taskDetailBody');
+    body.innerHTML = rows.map(r => `
+      <tr>
+        <td class="mono" style="font-size:12px;">${r.resourceId}</td>
+        <td><span class="tag blue">${r.dbType}</span></td>
+        <td class="mono" style="font-size:12px;">${r.region}</td>
+        <td>${
+          r.status === 'done'
+            ? '<span class="tag green">완료</span>'
+            : '<span class="tag" style="background: var(--color-primary-light); color: var(--color-primary);">진행중</span>'
+        }</td>
+      </tr>
+    `).join('');
+  }
+
+  // ----- Connection test simulation -----
+  function runConnTest() {
+    const tbody = document.getElementById('connTestTbody');
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(r => {
+      const cell = r.querySelector('td:nth-child(6)');
+      cell.innerHTML = '<span class="conn-status" style="font-size:12.5px; color: var(--color-primary); font-weight:500;"><span class="pulse"></span>&nbsp;Testing…</span>';
+    });
+    setTimeout(() => {
+      rows.forEach((r, i) => {
+        const cell = r.querySelector('td:nth-child(6)');
+        cell.innerHTML = '<span class="tag green">Success</span>';
+      });
+    }, 1800);
+  }
+
+  function renderGuide(n) {
+    const g = GUIDES[n]; if (!g) return;
+    document.getElementById('guideBody').innerHTML = g.html;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => renderGuide(1));
+  if (document.readyState !== 'loading') renderGuide(1);
+
+  // ensure provider sub-views start in azure mode
+  setProvider('azure');
+
+  // ESC also closes logical modal
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeLogicalModal();
+  });
+</script>
+</body>
+</html>

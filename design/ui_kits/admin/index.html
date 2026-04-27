@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>PII Agent — Admin UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<link rel="stylesheet" href="kit.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="AdminHeader.jsx"></script>
+  <script type="text/babel" src="ServiceSidebar.jsx"></script>
+  <script type="text/babel" src="Dashboard.jsx"></script>
+  <script type="text/babel" src="ProjectDetail.jsx"></script>
+  <script type="text/babel" src="Modal.jsx"></script>
+
+  <script type="text/babel">
+    const SERVICES = [
+      { code: 'SVC-0001', name: '결제 서비스',       projectCount: 8 },
+      { code: 'SVC-0042', name: '회원 데이터 허브',  projectCount: 12 },
+      { code: 'SVC-0108', name: '로그 분석',          projectCount: 6 },
+      { code: 'SVC-0219', name: '추천 엔진',          projectCount: 4 },
+      { code: 'SVC-0304', name: '알림 게이트웨이',   projectCount: 3 },
+      { code: 'SVC-0415', name: '검색 인덱스',        projectCount: 9 },
+      { code: 'SVC-0522', name: '배송 트래킹',        projectCount: 2 },
+    ];
+
+    const SYSTEMS = [
+      { id: 1, name: 'prod-users-db',       provider: 'AWS',   status: { variant: 'success', label: '연결됨' }, activeDb: 14, totalDb: 14, lastSync: '04.22 14:02' },
+      { id: 2, name: 'analytics-warehouse', provider: 'Azure', status: { variant: 'error',   label: '끊김' },   activeDb: 0,  totalDb: 8,  lastSync: '04.22 09:31' },
+      { id: 3, name: 'staging-cache',       provider: 'GCP',   status: { variant: 'success', label: '연결됨' }, activeDb: 6,  totalDb: 6,  lastSync: '04.22 14:00' },
+      { id: 4, name: 'billing-txn-db',      provider: 'AWS',   status: { variant: 'warning', label: '진행중' }, activeDb: 3,  totalDb: 5,  lastSync: '04.22 13:58' },
+      { id: 5, name: 'idc-legacy-oracle',   provider: 'AWS',   status: { variant: 'pending', label: '대기중' }, activeDb: 0,  totalDb: 2,  lastSync: '—' },
+      { id: 6, name: 'marketing-events',    provider: 'GCP',   status: { variant: 'info',    label: '신규' },   activeDb: 0,  totalDb: 3,  lastSync: '—' },
+    ];
+
+    const PROJECT = {
+      name: 'pii-scanner-prod',
+      description: '회원 데이터 허브의 개인정보 스캔 연동',
+      serviceCode: 'SVC-0042 · 회원 데이터 허브',
+      provider: 'AWS',
+      providerColor: '#FF9900',
+      owner: '김관리 · admin@company.com',
+      createdAt: '2026.04.18 10:22',
+      currentStep: 3,
+      accountId: '1234-5678-9012',
+      region: 'ap-northeast-2',
+      roleArn: 'arn:aws:iam::123456789012:role/pii-agent-role',
+      endpoint: 'https://bff.pii-agent.internal/install/v1',
+      resources: [
+        { id:1, type:'RDS',       icon:'rds',       name:'users-rds-prod',      engine:'PostgreSQL 15', region:'ap-northeast-2', status:{variant:'success', label:'연결됨'} },
+        { id:2, type:'RDS',       icon:'rds',       name:'orders-rds-prod',     engine:'MySQL 8.0',     region:'ap-northeast-2', status:{variant:'success', label:'연결됨'} },
+        { id:3, type:'DynamoDB',  icon:'dynamodb',  name:'sessions-table',      engine:'DynamoDB',      region:'ap-northeast-2', status:{variant:'warning', label:'진행중'} },
+        { id:4, type:'Redshift',  icon:'redshift',  name:'analytics-warehouse', engine:'Redshift',      region:'ap-northeast-2', status:{variant:'pending', label:'대기중'} },
+        { id:5, type:'EC2',       icon:'ec2',       name:'etl-worker-01',       engine:'PostgreSQL 14', region:'ap-northeast-2', status:{variant:'pending', label:'대기중'} },
+      ],
+    };
+
+    const SUMMARY = {
+      serviceRate: 94.2,
+      totalSystems: 1482,
+      unhealthyServices: 3,
+      dbRate: 88.7,
+      activeDb: 3204,
+      unhealthyDb: 12,
+      checkedAt: '04.22 14:05',
+    };
+
+    const App = () => {
+      const [activeTab, setActiveTab]   = React.useState('dashboard');
+      const [view, setView]             = React.useState('dashboard'); // dashboard | project
+      const [selected, setSelected]     = React.useState('SVC-0042');
+      const [search, setSearch]         = React.useState('');
+      const [modalOpen, setModalOpen]   = React.useState(false);
+      const [project, setProject]       = React.useState(PROJECT);
+      const [toast, setToast]           = React.useState(null);
+
+      const onRowClick = (system) => {
+        setView('project');
+        setProject({ ...PROJECT, name: system.name, provider: system.provider,
+          providerColor: {AWS:'#FF9900', Azure:'#0078D4', GCP:'#4285F4'}[system.provider] || '#374151' });
+      };
+
+      const onAdvance = () => {
+        setProject(p => ({ ...p, currentStep: Math.min(6, p.currentStep + 1) }));
+      };
+
+      const onSubmit = (form) => {
+        setModalOpen(false);
+        setToast(`프로젝트 "${form.name}"이(가) 등록되었습니다`);
+        setTimeout(() => setToast(null), 2500);
+      };
+
+      const onNavigate = (tab) => {
+        setActiveTab(tab);
+        setView('dashboard');
+      };
+
+      return (
+        <div className="app">
+          <AdminHeader activeTab={activeTab} onNavigate={onNavigate} />
+          <div className="app-body">
+            <ServiceSidebar
+              services={SERVICES}
+              selected={selected}
+              onSelect={(code) => { setSelected(code); setView('dashboard'); }}
+              search={search}
+              onSearch={setSearch}
+            />
+            <main className="main">
+              {view === 'dashboard' ? (
+                <Dashboard
+                  summary={SUMMARY}
+                  systems={SYSTEMS}
+                  onRefresh={() => setToast('상태를 새로고침했습니다')}
+                  onRowClick={onRowClick}
+                />
+              ) : (
+                <ProjectDetail
+                  project={project}
+                  onOpenModal={() => setModalOpen(true)}
+                  onAdvance={onAdvance}
+                />
+              )}
+              {view === 'dashboard' && (
+                <div style={{marginTop:20, display:'flex', justifyContent:'flex-end'}}>
+                  <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ 새 프로젝트</button>
+                </div>
+              )}
+            </main>
+          </div>
+          <NewProjectModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={onSubmit} />
+          {toast && (
+            <div style={{position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)',
+                         background:'#111827', color:'#fff', padding:'10px 20px', borderRadius:8,
+                         fontSize:14, boxShadow:'0 4px 12px rgba(0,0,0,0.15)', zIndex:60}}>
+              {toast}
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
