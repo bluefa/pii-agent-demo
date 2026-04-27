@@ -143,6 +143,75 @@ const slotReactKey = (slot: GuideSlot): string => {
   }
 };
 
+type SaveStateMessage =
+  | { kind: 'disabled'; text: string }
+  | { kind: 'warning'; text: string }
+  | { kind: 'error'; text: string };
+
+type SaveStateMessageKind = SaveStateMessage['kind'];
+
+interface SaveStateInputs {
+  seeded: boolean;
+  koHasContent: boolean;
+  enHasContent: boolean;
+  dirty: boolean;
+  editedKo: boolean;
+  editedEn: boolean;
+}
+
+const getEmptyContentText = (
+  koHasContent: boolean,
+  enHasContent: boolean,
+): string | null => {
+  if (!koHasContent && !enHasContent) return '한국어 / 영어 본문이 필요합니다';
+  if (!koHasContent) return '한국어 본문이 필요합니다';
+  if (!enHasContent) return '영어 본문이 필요합니다';
+  return null;
+};
+
+/**
+ * Priority chain (top wins):
+ *  1. Pre-seed   → null         (suppress until parent draft is reseeded)
+ *  2. Empty body → error        (red, language-specific)
+ *  3. No edits   → disabled     (neutral hint)
+ *  4. Half edit  → warning      (amber, untouched-side notice)
+ *  5. Both edit  → null         (no message; just enable save)
+ */
+const computeSaveStateMessage = (
+  inputs: SaveStateInputs,
+): SaveStateMessage | null => {
+  if (!inputs.seeded) return null;
+
+  const emptyText = getEmptyContentText(inputs.koHasContent, inputs.enHasContent);
+  if (emptyText) return { kind: 'error', text: emptyText };
+
+  if (!inputs.dirty) {
+    return { kind: 'disabled', text: '한국어 / 영어 수정이 발생하지 않았습니다' };
+  }
+  if (inputs.editedKo && !inputs.editedEn) {
+    return {
+      kind: 'warning',
+      text: '영어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다',
+    };
+  }
+  if (!inputs.editedKo && inputs.editedEn) {
+    return {
+      kind: 'warning',
+      text: '한국어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다',
+    };
+  }
+  return null;
+};
+
+const SAVE_STATE_TEXT_COLOR = {
+  disabled: textColors.tertiary,
+  warning: statusColors.warning.textDark,
+  error: statusColors.error.text,
+} satisfies Record<SaveStateMessageKind, string>;
+
+const saveStateTextColor = (message: SaveStateMessage | null): string =>
+  message ? SAVE_STATE_TEXT_COLOR[message.kind] : textColors.tertiary;
+
 export const GuideEditorPanel = ({
   slotKey,
   draftKo,
@@ -367,35 +436,14 @@ export const GuideEditorPanel = ({
   const showScopeNotice = sharedSlots.length >= 2;
   const saveLabel = saving ? '저장 중…' : '저장';
 
-  // Save-state messaging:
-  //  - One or both languages empty → save blocked, red error pinpointing
-  //    which side needs content. Suppressed until `seeded` so the
-  //    pre-load empty drafts do not flash a false error.
-  //  - Neither side edited → save disabled, neutral hint.
-  //  - Only one side edited → save enabled, amber warning that the
-  //    untouched language will keep its existing content.
-  //  - Both sides edited → save enabled, no message.
-  const emptyContentMessage =
-    !koHasContent && !enHasContent
-      ? '한국어 / 영어 본문이 필요합니다'
-      : !koHasContent
-        ? '한국어 본문이 필요합니다'
-        : !enHasContent
-          ? '영어 본문이 필요합니다'
-          : null;
-
-  const saveStateMessage: { kind: 'disabled' | 'warning' | 'error'; text: string } | null =
-    !seeded
-      ? null
-      : emptyContentMessage
-        ? { kind: 'error', text: emptyContentMessage }
-        : !dirty
-          ? { kind: 'disabled', text: '한국어 / 영어 수정이 발생하지 않았습니다' }
-          : editedKo && !editedEn
-            ? { kind: 'warning', text: '영어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
-            : !editedKo && editedEn
-              ? { kind: 'warning', text: '한국어는 수정되지 않았습니다 — 기존 내용이 그대로 저장됩니다' }
-              : null;
+  const saveStateMessage = computeSaveStateMessage({
+    seeded,
+    koHasContent,
+    enHasContent,
+    dirty,
+    editedKo,
+    editedEn,
+  });
 
   const headerMeta = buildHeaderMeta(slot);
 
@@ -538,14 +586,7 @@ export const GuideEditorPanel = ({
         )}
       >
         <span
-          className={cn(
-            'text-[11.5px] leading-snug',
-            saveStateMessage?.kind === 'error'
-              ? statusColors.error.text
-              : saveStateMessage?.kind === 'warning'
-                ? statusColors.warning.textDark
-                : textColors.tertiary,
-          )}
+          className={cn('text-[11.5px] leading-snug', saveStateTextColor(saveStateMessage))}
           aria-live="polite"
         >
           {saveStateMessage?.text ?? ''}
