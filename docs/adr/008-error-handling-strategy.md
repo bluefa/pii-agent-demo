@@ -1,7 +1,13 @@
 # ADR-008: CSR 에러 처리 전략
 
 ## 상태
-승인됨
+승인됨 · **Amended 2026-04-27 by [ADR-013](./013-i18n-architecture.md)**
+
+> **Amendment 2026-04-27 (ADR-013, i18n).** The Layer 1 / Layer 2 design and the `AppError` shape stay. For i18n compatibility, three points are now binding:
+> 1. `AppError.message` and server `detail` are **diagnostics-only**. Components render `t(\`errors.${code.toLowerCase()}\`, params)` for user-facing text.
+> 2. `AppError.isUserFacing` (`lib/errors.ts:79-82`) is **deprecated** — its current definition treats server `detail` as safe to render, which conflicts with point 1. Removal/redefinition tracked as a follow-up cleanup; no new caller should rely on it.
+> 3. The client `AppErrorCode` taxonomy is **not widened**. Codes that fall through `isKnownErrorCode` map to `errors.unknown`. `rawDetail` is exposed for **dev-only** fallback when an `errors.<code>` template is missing.
+> See ADR-013 §D2 for rationale.
 
 ## 맥락
 
