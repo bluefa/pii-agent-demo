@@ -1,13 +1,14 @@
-# 5.2.3.5.5.10.1.8 Users
+# Resource Recommendations
 
+> Confluence: 5.2.3.5.5.10.1.3
 > 상태: Draft
-> API Tag: `Users`
+> API Tag: `Resource Recommendations`
 > 담당: TBD
 > 마지막 수정일: 2026-04-27
 
 ## 1. 목적
 
-현재 사용자 조회와 사용자 검색을 담당하는 BFF API Tag다.
+Target Source 기준 추천 resource 목록 조회를 담당하는 BFF API Tag다.
 
 ## 2. BFF Swagger
 
@@ -16,100 +17,37 @@
 ```yaml
 openapi: 3.0.1
 info:
-  title: BFF API - Users
+  title: BFF API - Resource Recommendations
   version: v0
 servers:
 - url: https://dip-stg.di.atlas.samsung.com
   description: Generated server url
 tags:
-- name: Users
-  description: Current user and user search APIs
+- name: Resource Recommendations
+  description: AWS/Azure/GCP resource recommendation APIs
 paths:
-  /install/v1/users/search:
+  /install/v1/target-sources/{targetSourceId}/resources:
     get:
       tags:
-      - Users
-      operationId: searchUsers
+      - Resource Recommendations
+      summary: Get recommended resources for target source
+      description: Fetches recommended cloud resources (AWS/GCP/Azure) for the specified target source ID
+      operationId: getRecommendedResources
       parameters:
-      - name: q
-        in: query
-        required: false
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
         schema:
-          type: string
-      - name: excludeIds
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
+          type: integer
+          format: int64
       responses:
         '200':
           description: OK
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/UserSearchResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/user/me:
-    get:
-      tags:
-      - Users
-      operationId: getUserMe
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/UserMeResponse'
+                $ref: '#/components/schemas/CloudResourceResponse'
         '400':
           description: Bad Request
           content:
@@ -1666,22 +1604,24 @@ components:
 
 ### 2. Response Type 변경이 필요함
 
-해당 없음.
+| Method | Path | Before | After | 변경 내역 |
+| --- | --- | --- | --- | --- |
+| GET | `/install/v1/target-sources/{targetSourceId}/resources` | `{`<br>`  "resources": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "name": "string",`<br>`      "resource_type": "string",`<br>`      "integration_category": "TARGET / NO_INSTALL_NEEDED / INSTALL_INELIGIBLE",`<br>`      "recommend_fail_reason": "string",`<br>`      "metadata": "object"`<br>`    }`<br>`  ],`<br>`  "total_count": "int"`<br>`}` | `{`<br>`  "resources": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "name": "string",`<br>`      "resource_type": "string",`<br>`      "integration_category": "TARGET / NO_INSTALL_NEEDED / INSTALL_INELIGIBLE",`<br>`      "recommend_fail_reason": "string",`<br>`      "metadata": "object",`<br>`      "exclusion_reason": "string",`<br>`      "scan_status": "ADDED / UNCHANGED / DELETED",`<br>`      "integration_status": "INTEGRATED / NOT_INTEGRATED",`<br>`      "is_integration_target": "boolean"`<br>`    }`<br>`  ],`<br>`  "total_count": "int"`<br>`}` | resource item에 `exclusion_reason`, `scan_status`, `integration_status`, `is_integration_target` 추가 필요 |
 
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| GET | `/install/v1/users/search` | 사용자 검색 | Draft |
-| GET | `/install/v1/user/me` | 현재 사용자 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/resources` | 추천 resource 조회 | Draft |
 
 ## 4. Response 설명
 
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
-| TBD | 사용자 식별자, 이름, 권한 필드의 의미를 작성 | 공통 규칙 |
+| TBD | 추천 resource의 필드 의미와 화면 표시 기준을 작성 | TBD |
 
 ## 5. 주요 동작 규칙
 
-- 현재 사용자 정보의 기준을 설명한다.
-- 사용자 검색의 검색 조건, 결과 제한, 권한 기준을 설명한다.
+- 추천 resource의 산출 기준을 설명한다.
+- provider별 resource 표시 차이를 설명한다.
+- 빈 목록이 의미하는 상태를 설명한다.

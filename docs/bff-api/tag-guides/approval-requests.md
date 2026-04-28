@@ -1,13 +1,14 @@
-# 5.2.3.5.5.10.1.3 Resource Recommendations
+# Approval Requests
 
+> Confluence: 5.2.3.5.5.10.1.4
 > 상태: Draft
-> API Tag: `Resource Recommendations`
+> API Tag: `Approval Requests`
 > 담당: TBD
 > 마지막 수정일: 2026-04-27
 
 ## 1. 목적
 
-Target Source 기준 추천 resource 목록 조회를 담당하는 BFF API Tag다.
+Approval request 생성, 승인, 반려, 취소, 조회, 이력 관리를 담당하는 BFF API Tag다.
 
 ## 2. BFF Swagger
 
@@ -16,22 +17,174 @@ Target Source 기준 추천 resource 목록 조회를 담당하는 BFF API Tag�
 ```yaml
 openapi: 3.0.1
 info:
-  title: BFF API - Resource Recommendations
+  title: BFF API - Approval Requests
   version: v0
 servers:
 - url: https://dip-stg.di.atlas.samsung.com
   description: Generated server url
 tags:
-- name: Resource Recommendations
-  description: AWS/Azure/GCP resource recommendation APIs
+- name: Approval Requests
+  description: Approval request lifecycle APIs
 paths:
-  /install/v1/target-sources/{targetSourceId}/resources:
-    get:
+  /install/v1/target-sources/{targetSourceId}/approval-requests:
+    post:
       tags:
-      - Resource Recommendations
-      summary: Get recommended resources for target source
-      description: Fetches recommended cloud resources (AWS/GCP/Azure) for the specified target source ID
-      operationId: getRecommendedResources
+      - Approval Requests
+      summary: Create approval request
+      description: Create a new approval request for resource integration
+      operationId: createApprovalRequest
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequestInputDto'
+        required: true
+      responses:
+        '200':
+          description: Approval request created successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalRequestSummaryDto'
+        '400':
+          description: Invalid input data
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Target source not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - pending request already exists
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/reject:
+    post:
+      tags:
+      - Approval Requests
+      summary: Reject approval request
+      description: Reject the latest pending approval request
+      operationId: rejectApprovalRequest
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRejectRequestDto'
+        required: true
+      responses:
+        '200':
+          description: Approval request rejected successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid input data or request status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request already processed
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/cancel:
+    post:
+      tags:
+      - Approval Requests
+      summary: Cancel approval request
+      description: Cancel the latest pending approval request
+      operationId: cancelApprovalRequest
       parameters:
       - name: targetSourceId
         in: path
@@ -42,11 +195,226 @@ paths:
           format: int64
       responses:
         '200':
-          description: OK
+          description: Approval request cancelled successfully
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/CloudResourceResponse'
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid request status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request already processed or applying in progress
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/approve:
+    post:
+      tags:
+      - Approval Requests
+      summary: Approve approval request
+      description: Approve the latest pending approval request
+      operationId: approveApprovalRequest
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalApproveRequestDto'
+      responses:
+        '200':
+          description: Approval request approved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid request status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No pending request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request already processed
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/system-reset:
+    post:
+      tags:
+      - Approval Requests
+      summary: System reset approval request
+      description: Reset approval request from REJECTED/UNAVAILABLE status to IDLE status due to system rejection
+      operationId: systemResetApprovalRequest
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Approval request system reset successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: Invalid request status or no request to reset
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No approval request found to reset
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict - request is not in REJECTED or UNAVAILABLE status
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approved-integration:
+    get:
+      tags:
+      - Approval Requests
+      summary: Get approved integration
+      description: Get the approved integration information
+      operationId: getApprovedIntegration
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Approved integration retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovedIntegrationResponseDto'
         '400':
           description: Bad Request
           content:
@@ -60,7 +428,165 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
         '404':
-          description: Not Found
+          description: No approved integration found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-requests/latest:
+    get:
+      tags:
+      - Approval Requests
+      summary: Get latest approval request
+      description: Get the latest approval request for the target source
+      operationId: getLatestApprovalRequest
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Latest approval request retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApprovalHistoryItemDto'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: No approval request found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/approval-history:
+    get:
+      tags:
+      - Approval Requests
+      summary: Get approval history
+      description: Get approval history with pagination
+      operationId: getApprovalHistory
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        description: Page number (0-based)
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+        example: 0
+      - name: size
+        in: query
+        description: Page size
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 10
+        example: 10
+      responses:
+        '200':
+          description: Approval history retrieved successfully
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Page'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Target source not found
           content:
             '*/*':
               schema:
@@ -1599,28 +2125,39 @@ components:
 
 ### 1. 현재 BFF API에 구현되지 않았음
 
-해당 없음.
+| Method | Path | Before | After | 변경 내역 |
+| --- | --- | --- | --- | --- |
+| POST | `/install/v1/target-sources/{targetSourceId}/approval-requests/system-reset` | `구현 없음` | `{`<br>`  "request_id": "long",`<br>`  "status": "PENDING / APPROVED / AUTO_APPROVED / REJECTED / CANCELLED / UNAVAILABLE / CONFIRMED",`<br>`  "processed_by": "object",`<br>`  "processed_at": "datetime",`<br>`  "reason": "string"`<br>`}` | `ApprovalActionResponseDto` 응답을 반환하는 system reset API 추가 필요 |
 
 ### 2. Response Type 변경이 필요함
 
 | Method | Path | Before | After | 변경 내역 |
 | --- | --- | --- | --- | --- |
-| GET | `/install/v1/target-sources/{targetSourceId}/resources` | `{`<br>`  "resources": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "name": "string",`<br>`      "resource_type": "string",`<br>`      "integration_category": "TARGET / NO_INSTALL_NEEDED / INSTALL_INELIGIBLE",`<br>`      "recommend_fail_reason": "string",`<br>`      "metadata": "object"`<br>`    }`<br>`  ],`<br>`  "total_count": "int"`<br>`}` | `{`<br>`  "resources": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "name": "string",`<br>`      "resource_type": "string",`<br>`      "integration_category": "TARGET / NO_INSTALL_NEEDED / INSTALL_INELIGIBLE",`<br>`      "recommend_fail_reason": "string",`<br>`      "metadata": "object",`<br>`      "exclusion_reason": "string",`<br>`      "scan_status": "ADDED / UNCHANGED / DELETED",`<br>`      "integration_status": "INTEGRATED / NOT_INTEGRATED",`<br>`      "is_integration_target": "boolean"`<br>`    }`<br>`  ],`<br>`  "total_count": "int"`<br>`}` | resource item에 `exclusion_reason`, `scan_status`, `integration_status`, `is_integration_target` 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/approval-history` | `{`<br>`  "content": ["object"],`<br>`  "totalPages": "int",`<br>`  "totalElements": "long",`<br>`  "size": "int",`<br>`  "number": "int"`<br>`}` | `{`<br>`  "content": [`<br>`    {`<br>`      "request": "ApprovalRequestSummaryDto",`<br>`      "result": "ApprovalActionResponseDto"`<br>`    }`<br>`  ],`<br>`  "totalPages": "int",`<br>`  "totalElements": "long",`<br>`  "size": "int",`<br>`  "number": "int"`<br>`}` | generic `Page`의 `content`를 `ApprovalHistoryItemDto`로 구체화 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/approved-integration` | `{`<br>`  "id": "long",`<br>`  "request_id": "long",`<br>`  "approved_at": "datetime",`<br>`  "approved_by": "object",`<br>`  "resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "resource_type": "string",`<br>`      "database_type": "string",`<br>`      "port": "int",`<br>`      "host": "string",`<br>`      "oracle_service_id": "string",`<br>`      "network_interface_id": "string",`<br>`      "ip_configuration": "string",`<br>`      "credential_id": "string",`<br>`      "database_region": "string",`<br>`      "resource_name": "string"`<br>`    }`<br>`  ],`<br>`  "excluded_resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "exclusion_reason": "string"`<br>`    }`<br>`  ]`<br>`}` | `{`<br>`  "id": "long",`<br>`  "request_id": "long",`<br>`  "approved_at": "datetime",`<br>`  "approved_by": "object",`<br>`  "resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "resource_type": "string",`<br>`      "database_type": "string",`<br>`      "port": "int",`<br>`      "host": "string",`<br>`      "oracle_service_id": "string",`<br>`      "network_interface_id": "string",`<br>`      "ip_configuration": "string",`<br>`      "credential_id": "string",`<br>`      "database_region": "string",`<br>`      "resource_name": "string",`<br>`      "scan_status": "UNCHANGED / NEW_SCAN",`<br>`      "integration_status": "INTEGRATED / NOT_INTEGRATED"`<br>`    }`<br>`  ],`<br>`  "excluded_resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "exclusion_reason": "string",`<br>`      "resource_name": "string",`<br>`      "database_type": "string",`<br>`      "database_region": "string",`<br>`      "scan_status": "UNCHANGED / NEW_SCAN",`<br>`      "integration_status": "INTEGRATED / NOT_INTEGRATED"`<br>`    }`<br>`  ]`<br>`}` | `resource_infos`에 `scan_status`, `integration_status` 추가, `excluded_resource_infos`에 `resource_name`, `database_type`, `database_region`, `scan_status`, `integration_status` 추가 필요 |
 
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| GET | `/install/v1/target-sources/{targetSourceId}/resources` | 추천 resource 조회 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/approval-requests` | approval request 생성 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/approval-requests/reject` | approval request 반려 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/approval-requests/cancel` | approval request 취소 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/approval-requests/approve` | approval request 승인 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/approval-requests/system-reset` | approval request system reset | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/approved-integration` | 승인된 integration 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/approval-requests/latest` | 최신 approval request 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/approval-history` | approval history 조회 | Draft |
 
 ## 4. Response 설명
 
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
-| TBD | 추천 resource의 필드 의미와 화면 표시 기준을 작성 | TBD |
+| `status` | approval request 상태 의미와 전이 기준을 작성 | Enum / 상태 카탈로그 |
+| TBD | 승인/반려/취소 사유의 표시 기준을 작성 | TBD |
 
 ## 5. 주요 동작 규칙
 
-- 추천 resource의 산출 기준을 설명한다.
-- provider별 resource 표시 차이를 설명한다.
-- 빈 목록이 의미하는 상태를 설명한다.
+- approval request 생성 가능 조건을 설명한다.
+- approve/reject/cancel/system-reset 상태 전이를 설명한다.
+- 승인 완료 후 confirmed/approved integration과의 관계를 설명한다.

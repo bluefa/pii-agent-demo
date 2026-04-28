@@ -1,8 +1,10 @@
-# BFF API Confluence 문서 관리 전략 (ADR Draft)
+# BFF API 문서 관리 전략
 
+> Confluence: 5.2.3.5.5.10 (전략 문서)
 > 작성일: 2026-04-27
 > 상태: Proposed
-> 대상: `5.2.3.5.5.10 BFF API` Confluence 문서 구조
+> 대상: `docs/bff-api/` 디렉터리 및 매핑되는 Confluence 트리
+> 짝 문서: 운영 워크플로우는 [management-plan.md](./management-plan.md) 참고
 
 ## 1. 배경
 

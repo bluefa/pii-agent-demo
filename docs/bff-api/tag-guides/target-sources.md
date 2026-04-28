@@ -1,13 +1,14 @@
-# 5.2.3.5.5.10.1.5 Installation Status
+# Target Sources
 
+> Confluence: 5.2.3.5.5.10.1.1
 > 상태: Draft
-> API Tag: `Installation Status`
+> API Tag: `Target Sources`
 > 담당: TBD
 > 마지막 수정일: 2026-04-27
 
 ## 1. 목적
 
-설치 상태, process status, confirmed integration, resource health, Azure Private Link health check를 담당하는 BFF API Tag다.
+Target Source 조회, 생성, 설치 확인, 설치 comment 관리를 담당하는 BFF API Tag다.
 
 ## 2. BFF Swagger
 
@@ -16,22 +17,22 @@
 ```yaml
 openapi: 3.0.1
 info:
-  title: BFF API - Installation Status
+  title: BFF API - Target Sources
   version: v0
 servers:
 - url: https://dip-stg.di.atlas.samsung.com
   description: Generated server url
 tags:
-- name: Installation Status
-  description: Installation status, process status, confirmed integration, and health check APIs
+- name: Target Sources
+  description: Target source query and management APIs
 paths:
-  /install/v1/target-sources/{targetSourceId}/process-status:
-    get:
+  /install/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm:
+    post:
       tags:
-      - Installation Status
-      summary: Get process status for target source
-      description: Fetches the process status for the specified target source ID
-      operationId: getProcessStatus
+      - Target Sources
+      summary: Confirm PII agent installation
+      description: Confirms the installation of PII agent for the specified target source ID
+      operationId: confirmPiiAgentInstallation
       parameters:
       - name: targetSourceId
         in: path
@@ -40,13 +41,19 @@ paths:
         schema:
           type: integer
           format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PiiAgentInstallationConfirmRequest'
+        required: true
       responses:
         '200':
           description: OK
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ProcessStatusResponseDto'
+                $ref: '#/components/schemas/TargetSourceResponse'
         '400':
           description: Bad Request
           content:
@@ -95,238 +102,306 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/gcp/installation-status:
-    get:
+  /install/v1/target-sources/services/{serviceCode}/target-sources:
+    post:
       tags:
-      - Installation Status
-      summary: Gcp 통합 설치 상태 조회
-      description: 대상 소스의 설치 상태를 조회합니다.
-      operationId: getGcpInstallationStatus
+      - Target Sources
+      summary: Create target source with infrastructure info
+      description: '선택 된 서비스가 사용하는 인프라/DB 정보를 등록합니다.
+
+        - Add to List를 통해 입력한 정보를 List에 추가할 수 있습니다
+
+        - List에 추가된 인프라를 일괄 등록합니다
+
+        - 선택된 Provider를 기반으로 인프라 정보 입력 필드가 동적으로 생성됩니다
+
+        - PII 모니터링 모듈 연동 방식은 입력된 provider, DB 정보 기준으로 자동 판정됩니다
+
+        - AWS Agent에 한해서 연동 방식(자동/수동) 선택 가능하고, Default값은 AWS Agent(자동)입니다
+
+        '
+      operationId: createTargetSourceWithInfra
       parameters:
-      - name: targetSourceId
+      - name: serviceCode
         in: path
         required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/GcpInstallationStatusResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/confirmed-integration:
-    get:
-      tags:
-      - Installation Status
-      summary: Get confirmed integration information
-      description: Retrieves the confirmed integration information for the specified target source ID
-      operationId: getConfirmedIntegration
-      parameters:
-      - name: targetSourceId
-        in: path
-        description: Target source ID
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ConfirmedIntegrationResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/azure/installation-status:
-    get:
-      tags:
-      - Installation Status
-      summary: Azure 통합 설치 상태 조회
-      description: 대상 소스의 설치 상태를 조회합니다.
-      operationId: getInstallationStatus
-      parameters:
-      - name: targetSourceId
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/AzureInstallationStatusResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/resource-health:
-    get:
-      tags:
-      - Installation Status
-      summary: Get resource health status
-      description: Get health status of all resources for the specified target source
-      operationId: getResourceHealth
-      parameters:
-      - name: targetSourceId
-        in: path
-        description: Target source ID
-        required: true
-        schema:
-          type: integer
-          format: int64
-      - name: status
-        in: query
-        description: Filter by health status
-        required: false
         schema:
           type: string
-          enum:
-          - HEALTHY
-          - UNHEALTHY
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTargetSourceWithInfraRequest'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TargetSourceInfo'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}:
+    get:
+      tags:
+      - Target Sources
+      summary: Get target source detail
+      description: Get detailed information of target source by ID
+      operationId: getTargetSourceDetail
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TargetSourceDetail'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment:
+    parameters:
+    - name: targetSourceId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    get:
+      tags:
+      - Target Sources
+      summary: Get PII agent installation comment
+      description: 관리자가 첨부한 PII Agent 설치 완료 여부 comment를 조회합니다.
+      operationId: getPiiAgentInstallationComment
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PiiAgentCommentDto'
+        '404':
+          description: Comment not found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+    post:
+      tags:
+      - Target Sources
+      summary: Add PII agent installation comment
+      description: 관리자가 PII Agent 설치 완료 여부에 대한 comment를 첨부합니다.
+      operationId: addPiiAgentInstallationComment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PiiAgentCommentRequestDto'
+        required: true
+      responses:
+        '200':
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PiiAgentCommentDto'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/services/{serviceCode}:
+    get:
+      tags:
+      - Target Sources
+      summary: Get target sources by service code
+      description: Get target sources list by service code (Azure type only)
+      operationId: getTargetSourcesByServiceCode
+      parameters:
+      - name: serviceCode
+        in: path
+        description: Service code
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: OK
@@ -335,77 +410,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ResourceHealthDto'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/infra/target-sources/{targetSourceId}/azure-private-link-health-check:
-    get:
-      tags:
-      - Installation Status
-      summary: Azure Private Link Health Check 조회
-      description: 지정된 Target Source ID에 대한 Azure Private Link의 건강 상태를 조회합니다
-      operationId: getAzurePrivateLinkHealthCheck
-      parameters:
-      - name: targetSourceId
-        in: path
-        description: Target source ID
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/AzureHealthCheckResult'
+                  $ref: '#/components/schemas/TargetSourceDetail'
         '400':
           description: Bad Request
           content:
@@ -1960,34 +1965,34 @@ components:
 
 | Method | Path | Before | After | 변경 내역 |
 | --- | --- | --- | --- | --- |
-| GET | `/install/v1/target-sources/{targetSourceId}/resource-health` | `구현 없음` | `[`<br>`  {`<br>`    "resource_id": "string",`<br>`    "health_status": "HEALTHY / UNHEALTHY"`<br>`  }`<br>`]` | `ResourceHealthDto[]` 응답을 반환하는 resource health 조회 API 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment` | `구현 없음` | `{`<br>`  "id": "string",`<br>`  "targetSourceId": "long",`<br>`  "comment": "string",`<br>`  "createdBy": "string",`<br>`  "createdAt": "datetime"`<br>`}` | `PiiAgentCommentDto` 응답을 반환하는 조회 API 추가 필요 |
+| POST | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment` | `구현 없음` | `{`<br>`  "id": "string",`<br>`  "targetSourceId": "long",`<br>`  "comment": "string",`<br>`  "createdBy": "string",`<br>`  "createdAt": "datetime"`<br>`}` | `PiiAgentCommentDto` 응답을 반환하는 comment 등록 API 추가 필요 |
 
 ### 2. Response Type 변경이 필요함
 
 | Method | Path | Before | After | 변경 내역 |
 | --- | --- | --- | --- | --- |
-| GET | `/install/v1/target-sources/{targetSourceId}/confirmed-integration` | `{`<br>`  "resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "resource_type": "string",`<br>`      "database_type": "string",`<br>`      "port": "int",`<br>`      "host": "string",`<br>`      "oracle_service_id": "string",`<br>`      "network_interface_id": "string",`<br>`      "ip_configuration": "string",`<br>`      "credential_id": "string",`<br>`      "database_region": "string",`<br>`      "resource_name": "string"`<br>`    }`<br>`  ]`<br>`}` | `{`<br>`  "resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "resource_type": "string",`<br>`      "database_type": "string",`<br>`      "port": "int",`<br>`      "host": "string",`<br>`      "oracle_service_id": "string",`<br>`      "network_interface_id": "string",`<br>`      "ip_configuration": "string",`<br>`      "credential_id": "string",`<br>`      "database_region": "string",`<br>`      "resource_name": "string",`<br>`      "scan_status": "UNCHANGED / NEW_SCAN",`<br>`      "integration_status": "INTEGRATED / NOT_INTEGRATED"`<br>`    }`<br>`  ]`<br>`}` | `resource_infos` item에 `scan_status`, `integration_status` 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}` | `{`<br>`  "target_source_id": "long",`<br>`  "description": "string",`<br>`  "service_code": "string",`<br>`  "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`  "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`  "created_at": "datetime",`<br>`  "metadata": "object"`<br>`}` | `{`<br>`  "target_source_id": "long",`<br>`  "description": "string",`<br>`  "service_code": "string",`<br>`  "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`  "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`  "auto_install": "boolean",`<br>`  "created_at": "datetime",`<br>`  "division": "string",`<br>`  "business_entity": "string",`<br>`  "related_systems": ["string"],`<br>`  "managers": ["string"],`<br>`  "metadata": "object"`<br>`}` | `auto_install`, `division`, `business_entity`, `related_systems`, `managers` 추가 필요 |
+| GET | `/install/v1/target-sources/services/{serviceCode}` | `[`<br>`  {`<br>`    "target_source_id": "long",`<br>`    "description": "string",`<br>`    "service_code": "string",`<br>`    "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`    "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`    "created_at": "datetime",`<br>`    "metadata": "object"`<br>`  }`<br>`]` | `[`<br>`  {`<br>`    "target_source_id": "long",`<br>`    "description": "string",`<br>`    "service_code": "string",`<br>`    "process_status": "IDLE / PENDING / CONFIRMING / CONFIRMED / INSTALLED / CONNECTED / COMPLETED",`<br>`    "cloud_provider": "AWS / GCP / AZURE / IDC / UNKNOWN",`<br>`    "auto_install": "boolean",`<br>`    "created_at": "datetime",`<br>`    "division": "string",`<br>`    "business_entity": "string",`<br>`    "related_systems": ["string"],`<br>`    "managers": ["string"],`<br>`    "metadata": "object"`<br>`  }`<br>`]` | 목록 item인 `TargetSourceDetail`에 `auto_install`, `division`, `business_entity`, `related_systems`, `managers` 추가 필요 |
 
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| GET | `/install/v1/target-sources/{targetSourceId}/process-status` | process status 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/gcp/installation-status` | GCP 설치 상태 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/confirmed-integration` | confirmed integration 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/azure/installation-status` | Azure 설치 상태 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/resource-health` | resource health 조회 | Draft |
-| GET | `/install/v1/infra/target-sources/{targetSourceId}/azure-private-link-health-check` | Azure Private Link health check 조회 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm` | PII Agent 설치 확인 | Draft |
+| POST | `/install/v1/target-sources/services/{serviceCode}/target-sources` | 서비스 기준 Target Source 생성 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}` | Target Source 상세 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment` | PII Agent 설치 comment 조회 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment` | PII Agent 설치 comment 등록 | Draft |
+| GET | `/install/v1/target-sources/services/{serviceCode}` | 서비스 기준 Target Source 목록 조회 | Draft |
 
 ## 4. Response 설명
 
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
-| `status` | 설치 또는 process 상태의 의미를 작성 | Enum / 상태 카탈로그 |
-| TBD | provider별 설치 상태 표시 기준을 작성 | TBD |
+| TBD | Swagger 확인 후 업무적 의미를 작성 | TBD |
 
 ## 5. 주요 동작 규칙
 
-- provider별 설치 상태 판단 기준을 설명한다.
-- confirmed integration과 approval 상태의 관계를 설명한다.
-- resource health, private link health check의 화면 표시 기준을 설명한다.
+- Target Source 생성, 조회, 설치 확인 흐름을 설명한다.
+- PII Agent 설치 comment의 작성/조회 권한과 표시 기준을 설명한다.
