@@ -7,7 +7,7 @@
 
 This directory tracks BFF API changes — additions, contract changes, error-code changes, deprecations, removals — as one Markdown file per change. Each file holds the proposal **and** the change-history for a single change, so we don't maintain two parallel logs.
 
-> **Note on language.** This `README.md` is English per project rules (every `README.md` is English-only). Discussion bodies are written in Korean to match the rest of `docs/bff-api/`.
+> **Note on language.** This `README.md` is English per project rules (every `README.md` is English-only). Discussion document **bodies** are written in Korean to match the rest of `docs/bff-api/`. The Korean skeleton lives in [TEMPLATE.md](./TEMPLATE.md), which is not a README and therefore is allowed to be Korean.
 
 ## 1. Filename convention
 
@@ -19,48 +19,44 @@ YYYY-MM-DD-{tag-slug}-{topic-slug}.md
 - `topic-slug` is a short identifier (`added`, `response-changed`, `deprecated`, `error-code-added`, `field-renamed`, etc.).
 - Same-day collisions get suffixed `-2`, `-3`.
 
-The Confluence page title still follows `[yy.mm.dd] {API Tag 또는 주제} 관련 논의`. The mapping is preserved in each file's `Confluence Title:` metadata line — it is **a blockquote metadata line**, not YAML frontmatter.
+The Confluence page title still follows `[yy.mm.dd] {API Tag 또는 주제} 관련 논의`. The mapping is preserved in each file's `Confluence Title:` blockquote metadata line — it is **a blockquote metadata line**, not YAML frontmatter.
 
-## 2. Document template
+## 2. Required metadata
 
-Copy the skeleton below when starting a new discussion (or run `/bff-api-docs new-discussion {tag} {topic}` once the skill ships). The blockquote metadata block at the top is required; section headers are required but their bodies can stay empty until known.
+Each discussion's blockquote metadata block at the top must contain the keys defined in [management-plan.md §3](../management-plan.md). The starter file includes all of them. Do not invent new keys here without updating §3 first.
 
-```markdown
-# {Title — e.g., Scan Jobs API 추가}
+| Key (Korean header) | Required value |
+| --- | --- |
+| `Confluence` | Confluence page number |
+| `Confluence Title` | `[yy.mm.dd] ... 관련 논의` |
+| `상태` | `Draft` / `Reviewing` / `Accepted` / `Implemented` / `Released` / `Rejected` |
+| `작성일`, `마지막 수정일` | `YYYY-MM-DD` |
+| `대상 Tag` | tag-guide slug(s) (comma-separated; or reserved `error-codes` / `multiple`) |
+| `변경 유형` | `Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` |
+| `변경 방향` | `BE-first` / `FE-first` / `Joint` (see [management-plan.md §4.5](../management-plan.md)) |
+| `담당` | Owner / team |
+| `관련 PR` | URL (required when `상태` is `Implemented` or later) |
 
-> Confluence Title: [26.04.27] Scan Jobs API 추가 관련 논의
-> Created: 2026-04-27
-> Last updated: 2026-04-27
-> Status: Draft
-> Tags: Scan Jobs
-> Change type: Added | Changed | Deprecated | Removed | Fixed
-> Direction: BE-first | FE-first | Joint
-> Related PR: TBD
+## 3. Document skeleton
 
-## 1. 논의 배경
-## 2. 논의 내용
-## 3. 관련 BFF Swagger 위치
-- Tag 가이드: ../tag-guides/scan-jobs.md
-- BFF Swagger 섹션 상태: Draft / Reviewing / Accepted / Implemented / Released
+Use [TEMPLATE.md](./TEMPLATE.md) as the starting point. The skill will eventually copy from there:
 
-## 4. 영향
-- 화면 / 사용 주체:
-- enum/state 영향:
-- error code 영향:
-
-## 5. 결정 사항
-## 6. 후속 작업
-## 7. 관련 링크
+```bash
+/bff-api-docs new-discussion {tag} {topic}
 ```
 
-The `Direction:` field captures whether the change lands in backend first (`BE-first`), in frontend first (`FE-first`), or simultaneously (`Joint`). This is what `management-plan.md` §4.6 uses to decide whether the Tag guide should temporarily diverge from production.
+That command:
 
-## 3. Status lifecycle
+- Resolves today's date and the `Confluence Title` line
+- Pre-fills the metadata block with placeholders matching §3
+- Appends a row to this README's index (§5)
+
+## 4. Status lifecycle
 
 `Draft → Reviewing → Accepted → Implemented → Released` (or `Rejected` at any point).
-A discussion at `Implemented` or later must have a `Related PR:` URL — the skill enforces this.
+A discussion at `Implemented` or later must have a `관련 PR` URL — the skill enforces this.
 
-## 4. Index
+## 5. Index
 
 | Date | Title | Tags | Status | File |
 | --- | --- | --- | --- | --- |
