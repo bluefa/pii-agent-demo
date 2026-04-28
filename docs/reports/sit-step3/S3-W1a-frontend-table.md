@@ -29,6 +29,8 @@ git fetch origin main
 [ -f app/components/ui/StepBanner.tsx ] || { echo "✗ S2-W1c 미머지"; exit 1; }
 grep -q "scan_status" lib/bff/mock/confirm.ts || { echo "✗ S2-W1b mock 미반영"; exit 1; }
 grep -q "ResourceScanStatus" lib/types.ts || { echo "✗ S2-W1a types 미반영"; exit 1; }
+# S2-W1b 의 normalizer 확장 — toApprovedIntegrationResourceSnapshot 이 scan_status 를 보존해야 함
+grep -q "scan_status:" app/lib/api/index.ts || { echo "✗ S2-W1b normalizer 미반영"; exit 1; }
 [ -f app/integration/target-sources/'[targetSourceId]'/_components/layout/ApplyingApprovedStep.tsx ] || { echo "✗ 기존 컴포넌트 부재"; exit 1; }
 ```
 
@@ -110,12 +112,12 @@ export const mergeApprovedResources = (
 
   const excluded: ApplyingApprovedRow[] = response.excluded_resource_infos.map((info) => ({
     resourceId: info.resource_id,
-    resourceType: '',           // ExcludedResourceInfo 에 type 정보 부재 — 빈값 또는 lookup
-    region: undefined,
-    databaseName: undefined,
+    resourceType: info.database_type ?? '',
+    region: info.database_region,
+    databaseName: info.resource_name,
     exclusionReason: info.exclusion_reason,
-    scanStatus: undefined,
-    integrationStatus: undefined,
+    scanStatus: info.scan_status ?? undefined,
+    integrationStatus: info.integration_status ?? undefined,
     isExcluded: true,
   }));
 
@@ -123,9 +125,9 @@ export const mergeApprovedResources = (
 };
 ```
 
-⚠️ `ExcludedResourceInfo` 가 BFF 에서 제외 리소스의 type/region/dbname 메타데이터를 제공하지 않을 수 있음. 시안 row 3 은 PostgreSQL 의 region/dbname 을 모두 표시. **현재 BFF 명세로는 채울 수 없으므로 빈셀 (`—`) 표시** + W1c 또는 별도 issue 에서 BFF 응답 확장 검토.
+✅ PR #420 의 `ExcludedResourceInfo` (line 1560–1582) 는 `resource_name` / `database_type` / `database_region` / `scan_status` / `integration_status` 를 모두 제공한다 — 시안 row 3 의 모든 컬럼을 빈셀 없이 채울 수 있음.
 
-→ Self-audit Step 8 에서 grep 으로 명세 확인 필요.
+⛔ S2-W1b 가 BFF mock 에서 위 필드들을 채우고, normalizer 가 보존하도록 미리 변경되어 있어야 함 (S3-W1a 의 precondition).
 
 ### 3.2. enum 라벨 헬퍼
 

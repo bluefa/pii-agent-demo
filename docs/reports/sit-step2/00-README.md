@@ -54,17 +54,21 @@ S2-W1c (Frontend     S2-W1d (Cancel  S2-W1e (Rejection
 
 ```
 1. S2-W1a — BFF contract  (단독, ~2일)
-2. S2-W1b — Mock + Route + bff-client  (S2-W1a 머지 후)
-3. (S2-W1b 머지 후) S2-W1c, S2-W1d, S2-W1e  병렬 가능 (3 PRs)
-4. (W1c/d/e 모두 머지 후) S2-W1f — design polish (visual only)
+2. S2-W1b — Mock + Route + BFF client  (S2-W1a 머지 후)
+3. S2-W1c — Frontend table + StepBanner + WaitingApprovalCard (S2-W1b 머지 후, 단독)
+4. (S2-W1c 머지 후) S2-W1d, S2-W1e — 병렬 가능 (2 PRs)
+5. (W1d/e 모두 머지 후) S2-W1f — design polish (visual only)
 ```
 
-병렬 진행 시 file 충돌 주의:
-- W1c는 `WaitingApprovalStep.tsx` + 신규 테이블 컴포넌트
-- W1d는 신규 `ConfirmStepModal.tsx` + `ApprovalWaitingCard.tsx` 의 취소 버튼 wiring
-- W1e는 `RejectionAlert.tsx` + neue Primary 버튼 + `app/lib/api` 의 system-reset 함수
+순서 결정 근거:
+- W1d / W1e 모두 W1c 의 `WaitingApprovalCard` (cancelSlot / reselectSlot 노출), `StepBanner` (W1c 산출) 에 의존하므로 W1c 머지 후 진입.
+- W1d 와 W1e 는 서로 다른 신규 파일을 만지므로 병렬 가능 (`ConfirmStepModal` vs `RejectionAlert` + `WaitingApprovalReselectButton`).
 
-→ `WaitingApprovalStep.tsx` 는 W1c 가 소유. W1d/W1e 가 wiring 추가 시 W1c 머지 후 rebase.
+병렬 진행 시 file 충돌 주의:
+- W1d는 신규 `ConfirmStepModal.tsx` + `WaitingApprovalCancelButton.tsx` + `WaitingApprovalStep.tsx` cancelSlot wiring
+- W1e는 `RejectionAlert.tsx` 리팩토링 + 신규 `WaitingApprovalReselectButton.tsx` + `WaitingApprovalStep.tsx` reselectSlot wiring + `app/lib/api` 의 system-reset helper
+
+→ 두 wave 모두 `WaitingApprovalStep.tsx` 의 slot 위치를 수정하므로 conflict 가능. 후행 wave 가 rebase 처리.
 
 ---
 
@@ -73,7 +77,7 @@ S2-W1c (Frontend     S2-W1d (Cancel  S2-W1e (Rejection
 | Wave | 권장 모델 | 사유 |
 |---|---|---|
 | **S2-W1a** BFF contract | Sonnet 4.6 | swagger snippet 작성 + types 추가, 결정 사항이 PR #420 에 박힘 |
-| **S2-W1b** Mock + Route + bff-client | **Opus 4.7 MAX** | mock 비즈니스 로직 + ADR-007 NextResponse 디스패치 + 반려 IA 변경 + 회귀 테스트 |
+| **S2-W1b** Mock + Route + BFF client | **Opus 4.7 MAX** | mock 비즈니스 로직 + ADR-011 typed BFF client 분산 계층 + 반려 IA 변경 (calculator + mock) + 회귀 테스트 |
 | **S2-W1c** Frontend table rewrite | Sonnet 4.6 | 시안 그대로 표 markup + Tailwind 토큰 매핑 |
 | **S2-W1d** Cancel confirm modal | Sonnet 4.6 | 신규 모달 1개 + 기존 cancel 버튼 wiring |
 | **S2-W1e** Rejection IA + CTA | **Opus 4.7 MAX** | RejectionAlert + system-reset 호출 + processStatus refetch + edge case (409 conflict) |
@@ -120,7 +124,7 @@ S2-W1c (Frontend     S2-W1d (Cancel  S2-W1e (Rejection
 - 현재 RejectionAlert: `app/integration/target-sources/[targetSourceId]/_components/common/RejectionAlert.tsx`
 - 현재 cancel 버튼: `app/components/features/process-status/ApprovalWaitingCard.tsx`
 - ⛔ 규칙: `CLAUDE.md` (raw 색상 금지 / theme.ts 토큰 사용 / `@/` 절대 경로)
-- API pattern: `docs/adr/007-api-client-pattern.md`
+- BFF client 계층 ADR: `docs/adr/011-typed-bff-client-consolidation.md` (ADR-007 대체)
 
 ---
 

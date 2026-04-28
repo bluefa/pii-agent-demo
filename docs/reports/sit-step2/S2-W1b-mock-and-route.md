@@ -1,7 +1,7 @@
-# S2-W1b — Mock + Route + bff-client (system-reset endpoint + 반려 IA 변경)
+# S2-W1b — Mock + Route + BFF client (system-reset endpoint + 반려 IA 변경)
 
-> **Recommended model**: **Opus 4.7 MAX** (mock 비즈니스 로직 + ADR-007 NextResponse 디스패치 + 반려 IA 변경 + 회귀 테스트)
-> **Estimated LOC**: ~350 (~250 src + ~100 tests)
+> **Recommended model**: **Opus 4.7 MAX** (mock 비즈니스 로직 + ADR-011 typed BFF client 분산 계층 + 반려 상태 전이 변경 + calculator 변경 + 회귀 테스트)
+> **Estimated LOC**: ~400 (~270 src + ~130 tests)
 > **Branch prefix**: `feat/sit-step2-w1b-mock-and-route`
 > **Depends on**: S2-W1a (merged)
 
@@ -9,13 +9,23 @@
 
 S2-W1a 에서 정의한 BFF contract 의 **실 구현 layer**.
 
-세 가지 작업 동시 진행:
+네 가지 작업 동시 진행:
 
-1. **system-reset endpoint** — Next.js route + bff-client 호출 + mock 비즈니스 로직.
-2. **`scan_status` / `integration_status` 필드 mock 노출** — `approval-requests/latest` / `approved-integration` 응답에서 두 필드를 정상적으로 내려보내도록.
-3. **반려 IA 변경 (가장 critical)** — 현재 mock 은 reject 시 processStatus 를 자동으로 1로 회귀시키는데, 이를 **OFF 하고 isRejected=true 만 셋팅**하도록 변경. system-reset 호출 시에만 1로 회귀.
+1. **system-reset endpoint** — Next.js route + BFF client method (typed) + mock 비즈니스 로직.
+2. **`scan_status` / `integration_status` 필드 mock 노출** — `approved-integration` 응답에서 두 필드를 정상적으로 내려보내도록 (S3-W1a 가 사용). `approval-requests/latest` 는 리소스 배열을 반환하지 않으므로 **본 endpoint 는 변경 대상 아님**.
+3. **`ExcludedResourceInfo` 확장 mock 노출** — `excluded_resource_infos[*]` 에 `resource_name` / `database_type` / `database_region` / `scan_status` / `integration_status` 필드 채우기 (S3-W1a 가 사용).
+4. **반려 IA 변경 (가장 critical, 구조적 변경)** — 현재 mock 은 reject 시 `targets: { confirmed: false }` + `getCurrentStep` 호출로 **Step 1 으로 자동 회귀**시킨다. 이를 변경하려면 단순히 processStatus 만 두는 것이 아니라:
+   - `lib/bff/mock/confirm.ts` 의 reject 로직: `targets.confirmed` 보존 + 요청 리소스 snapshot 보존, `approval.status='REJECTED'` 만 변경
+   - `lib/process/calculator.ts` 의 `getCurrentStep`: `approval.status === 'REJECTED'` 분기 추가하여 Step 2 유지 (현재는 `targets.confirmed === false` 조건으로 Step 1 강제 회귀)
+   - system-reset 호출 시에만 `targets.confirmed=false` + `approval.status='IDLE'` 로 reset → Step 1 회귀
 
 ⛔ **본 wave 가 머지되어야 W1c/d/e 가 시작 가능**. mock 응답 형태가 frontend 의존성이라 순서 엄수.
+
+⚠️ **ADR-011 기반 BFF client 계층** (ADR-007 은 ADR-011 로 대체되어 파일이 삭제됨):
+- `lib/bff/types.ts` — `BffClient` interface 에 method signature 추가
+- `lib/bff/http.ts` — HTTP impl 에 `httpBff.confirm.*` 메소드 추가
+- `lib/bff/mock-adapter.ts` — `mockBff.confirm.*` 에 mock dispatch 추가
+- `lib/bff/mock/confirm.ts` — 실제 mock 비즈니스 로직 (mutate state)
 
 ## Precondition
 
@@ -31,15 +41,19 @@ grep -q "ResourceScanStatus" lib/types.ts || { echo "✗ S2-W1a types 미반영"
 
 1. `docs/swagger/confirm.yaml` (S2-W1a 결과)
 2. `docs/bff-api/tag-guides/approval-requests.md` line 326–395 (system-reset)
-3. `lib/bff/mock/confirm.ts` 전체 — 반려/취소 mock 로직
-4. `lib/bff/mock/target-sources.ts` line 90–250 — `isRejected` / `processStatus` 매핑
-5. `app/integration/api/v1/target-sources/[targetSourceId]/approval-requests/cancel/route.ts` 전체 — route handler 패턴 reference
-6. `app/api/_lib/handler.ts` `withV1` 시그니처
-7. `app/api/_lib/problem.ts` line 1–90 — ProblemDetails / `KnownErrorCode`
-8. `lib/approval-bff.ts` `normalizeApprovalActionResponse` — UNAVAILABLE 케이스 처리 추가 필요
-9. `lib/bff/client.ts` `bff.confirm.*` namespace
-10. `docs/adr/007-api-client-pattern.md` — route 는 thin dispatch, 비즈니스 로직은 mock
-11. `lib/__tests__/mock-confirm-process-status.test.ts` — mock 회귀 테스트 reference
+3. `lib/bff/mock/confirm.ts` 전체 — 반려/취소 mock 로직 (특히 line 1083–1110 의 reject 로직 — `targets.confirmed=false` 셋팅)
+4. `lib/process/calculator.ts` 전체 — 특히 `getCurrentStep` line 27–35 (`targets.confirmed === false` → Step 1 회귀 로직 — 본 wave 에서 변경 필요)
+5. `lib/bff/mock/target-sources.ts` line 90–250 — `isRejected` / `processStatus` 매핑
+6. `app/integration/api/v1/target-sources/[targetSourceId]/approval-requests/cancel/route.ts` 전체 — route handler 패턴 reference
+7. `app/api/_lib/handler.ts` `withV1` 시그니처
+8. `app/api/_lib/problem.ts` line 1–90 — ProblemDetails / `KnownErrorCode`
+9. `lib/approval-bff.ts` `normalizeApprovalActionResponse` — UNAVAILABLE 케이스 처리 추가 필요
+10. **ADR-011** (`docs/adr/011-typed-bff-client-consolidation.md`) — typed BFF client 분산 계층 (interface vs impl)
+11. `lib/bff/types.ts` — `BffClient` interface (method signature 추가 위치)
+12. `lib/bff/http.ts` — HTTP impl (`httpBff.confirm.*` namespace, line 211–250)
+13. `lib/bff/mock-adapter.ts` — mock dispatch (`mockBff.confirm.*`, line 179–215)
+14. `lib/bff/client.ts` — dispatcher (변경 거의 없음 — `IS_MOCK ? mockBff : httpBff` 만 수행)
+15. `lib/__tests__/mock-confirm-process-status.test.ts` — mock 회귀 테스트 reference
 
 ## Step 1: Worktree
 
@@ -48,14 +62,36 @@ bash scripts/create-worktree.sh --topic sit-step2-w1b-mock-and-route --prefix fe
 cd /Users/study/pii-agent-demo-sit-step2-w1b-mock-and-route
 ```
 
-## Step 2: bff-client 메소드 추가 (`lib/bff/client.ts`)
+## Step 2: BFF Client typed 계층 method 추가 (ADR-011)
+
+ADR-011 의 typed client 패턴 — interface / http impl / mock dispatch 세 곳에 method 추가.
+
+### 2.1. `lib/bff/types.ts` — `BffClient.confirm` interface 확장
 
 ```ts
-// bff.confirm namespace 에 추가
-async systemResetApprovalRequest(targetSourceId: number): Promise<ApprovalActionResponse> {
-  return http.post(`/install/v1/target-sources/${targetSourceId}/approval-requests/system-reset`);
-}
+// confirm namespace 에 추가
+systemResetApprovalRequest: (id: number) => Promise<unknown>;
 ```
+
+### 2.2. `lib/bff/http.ts` — HTTP impl 추가
+
+기존 `cancelApprovalRequest` 등과 동일한 패턴 (line 243):
+
+```ts
+systemResetApprovalRequest: (id) =>
+  post<unknown>(`/target-sources/${id}/approval-requests/system-reset`, {}),
+```
+
+### 2.3. `lib/bff/mock-adapter.ts` — mock dispatch 추가
+
+기존 `cancelApprovalRequest` 등과 동일한 패턴 (line 208):
+
+```ts
+systemResetApprovalRequest: async (id) =>
+  unwrap<unknown>(await mockConfirm.systemResetApprovalRequest(String(id))),
+```
+
+⛔ `lib/bff/client.ts` 자체는 dispatcher 일 뿐 (`IS_MOCK ? mockBff : httpBff`) — 본 wave 에서 변경 없음.
 
 ## Step 3: Mock 구현 — `lib/bff/mock/confirm.ts`
 
@@ -64,7 +100,7 @@ async systemResetApprovalRequest(targetSourceId: number): Promise<ApprovalAction
 ```ts
 export async function systemResetApprovalRequest(
   targetSourceId: number,
-): Promise<ApprovalActionResponse> {
+): Promise<ApprovalActionResponseDto> {
   const project = getProjectOrThrow(targetSourceId);
 
   // 409 — REJECTED/UNAVAILABLE 만 허용
@@ -93,39 +129,120 @@ export async function systemResetApprovalRequest(
 }
 ```
 
-### 3.2. 반려 처리 변경 — `rejectApprovalRequest` 함수 (CRITICAL)
+### 3.2. 반려 처리 변경 — `rejectApprovalRequest` 함수 (CRITICAL — 구조적 변경)
 
-기존 mock 의 reject 로직에서 **processStatus 자동 회귀 코드 제거**.
+현재 mock reject 로직 (line 1083–1110) 은 다음을 수행:
+
+1. 선택 리소스를 모두 `isSelected=false` 로 해제
+2. `targets: { confirmed: false, selectedCount: 0, excludedCount: 0 }` 셋팅
+3. `getCurrentStep(updatedStatus)` 호출 → calculator 가 `targets.confirmed === false` 로 인해 **Step 1 강제 회귀**
+
+본 wave 의 변경:
 
 ```ts
-// ❌ 변경 전
-project.processStatus = ProcessStatus.WAITING_TARGET_CONFIRMATION;
-project.isRejected = true;
+// ✅ 변경 후 — Step 2 머무름 + REJECTED 표지
+const updatedStatus: ProjectStatus = {
+  ...project.status,
+  // ⛔ targets.confirmed 보존 — Step 1 회귀 방지
+  // targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },  // 삭제
+  approval: { status: 'REJECTED', rejectedAt: now, rejectionReason: reason },
+};
 
-// ✅ 변경 후
-// processStatus 는 WAITING_APPROVAL (2) 그대로 유지
-project.isRejected = true;
-project.rejectionReason = body.reason;
-project.rejectedAt = new Date().toISOString();
-project.lastApprovalResult = 'REJECTED';
+// 선택 리소스 snapshot 보존 (system-reset 시까지 유지) — 다시 노출 가능하도록
+// const updatedResources = project.resources.map(...isSelected=false...) // 삭제
+
+const calculatedProcessStatus = getCurrentStep(updatedStatus);
+// → 변경 후 calculator 가 approval.status === 'REJECTED' 분기 처리 (Step 3.2-bis)
+
+mockData.updateProject(project.id, {
+  processStatus: calculatedProcessStatus,
+  status: updatedStatus,
+  // resources 변경 안 함 — 원본 보존
+  isRejected: true,
+  rejectionReason: reason,
+  rejectedAt: now,
+});
 ```
 
-⛔ 이 변경은 **회귀 위험이 가장 큰 변경** — 모든 reject 관련 테스트 재실행 필수.
+### 3.2-bis. `lib/process/calculator.ts` `getCurrentStep` 변경 (CRITICAL)
 
-### 3.3. `scan_status` / `integration_status` 노출
-
-`getApprovalRequestLatest`, `getApprovedIntegration` 응답 매핑에 두 필드 추가:
+기존 line 27–35:
 
 ```ts
-// 각 ResourceConfigDto 매핑
+// ❌ 변경 전 — targets.confirmed === false 면 무조건 Step 1
+if (status.targets?.confirmed !== true) {
+  return ProcessStatus.WAITING_TARGET_CONFIRMATION;
+}
+```
+
+```ts
+// ✅ 변경 후 — REJECTED 인 경우 Step 2 유지
+if (status.targets?.confirmed !== true) {
+  // 반려 직후 사용자가 system-reset 으로 명시적 복귀할 때까지 Step 2 머무름
+  if (status.approval?.status === 'REJECTED') {
+    return ProcessStatus.WAITING_APPROVAL;
+  }
+  return ProcessStatus.WAITING_TARGET_CONFIRMATION;
+}
+```
+
+⛔ **이 변경은 회귀 위험이 가장 큰 변경**. 모든 calculator / process-status / reject 관련 테스트 재실행 필수.
+
+⛔ Step 1 회귀의 **유일한 트리거**는 system-reset (Step 3.1) 이 되어야 함. system-reset 호출 시:
+```ts
+project.status.targets.confirmed = false;
+project.status.approval.status = 'IDLE';
+```
+→ calculator 가 자연스럽게 Step 1 반환.
+
+### 3.3. `scan_status` / `integration_status` mock 노출
+
+`getApprovedIntegration` 응답 매핑에 두 필드 추가 (`approval-requests/latest` 는 리소스 배열을 반환하지 않으므로 변경 대상 아님):
+
+```ts
+// approved-integration 응답의 resource_infos[*] (ResourceConfigDto)
 {
   // ... 기존 필드
   scan_status: resource.scanStatus ?? null,
   integration_status: resource.integrationStatus ?? null,
 }
+
+// approved-integration 응답의 excluded_resource_infos[*] (ExcludedResourceInfo — PR #420 확장)
+{
+  resource_id: r.resourceId,
+  exclusion_reason: r.exclusionReason,
+  resource_name: r.resourceName ?? null,
+  database_type: r.databaseType ?? null,
+  database_region: r.databaseRegion ?? null,
+  scan_status: r.scanStatus ?? null,
+  integration_status: r.integrationStatus ?? null,
+}
 ```
 
-→ Mock seed 데이터에 두 필드를 일부 리소스에 셋팅 (전부 채울 필요 없음 — null 케이스도 demo 가치 있음).
+→ Mock seed 데이터에 두 필드를 일부 리소스에 셋팅. null 케이스도 demo 가치 있으므로 일부는 비워둠.
+
+### 3.4. `app/lib/api/index.ts` normalizer 확장 (S3-W1a 가 사용)
+
+기존 `toApprovedIntegrationResourceSnapshot` (line 302–309) 가 두 필드를 보존하지 않으므로 확장:
+
+```ts
+const toApprovedIntegrationResourceSnapshot = (
+  resource: ResourceConfigDto,
+): ApprovedIntegrationResourceItem => ({
+  resource_id: resource.resource_id ?? '',
+  resource_type: resource.resource_type ?? '',
+  endpoint_config: toEndpointConfigSnapshot(resource),
+  credential_id: resource.credential_id ?? null,
+  // ✨ 본 wave 가 추가
+  scan_status: resource.scan_status ?? null,
+  integration_status: resource.integration_status ?? null,
+  database_region: resource.database_region ?? null,
+  resource_name: resource.resource_name ?? null,
+});
+```
+
+→ `ApprovedIntegrationResourceItem` 타입도 확장 필요 (옵션 필드 4개 추가).
+→ excluded snapshot 매핑에도 동일 필드 추가.
 
 ## Step 4: Next.js Route — system-reset
 
@@ -152,7 +269,7 @@ export const POST = withV1(async (_request, { requestId, params }) => {
 });
 ```
 
-⛔ ADR-007 준수: route 는 thin dispatch, 비즈니스 로직은 mock 에서. cancel route 와 동일한 패턴 (단, history fallback 은 system-reset 에 불필요 — system 이 직접 mutate 했으므로).
+⛔ ADR-011 준수: route 는 thin dispatch, 비즈니스 로직은 mock 에서. cancel route 와 동일한 패턴 (단, history fallback 은 system-reset 에 불필요 — system 이 직접 mutate 했으므로).
 
 ## Step 5: Frontend API helper — `app/lib/api/index.ts`
 
@@ -161,7 +278,7 @@ export const POST = withV1(async (_request, { requestId, params }) => {
 ```ts
 export async function systemResetApprovalRequest(
   targetSourceId: number,
-): Promise<ApprovalActionResponse> {
+): Promise<ApprovalActionResponseDto> {
   return fetchJson(
     `/integration/api/v1/target-sources/${targetSourceId}/approval-requests/system-reset`,
     { method: 'POST' },
@@ -219,13 +336,17 @@ USE_MOCK_DATA=true npm run dev   # 수동: reject → Step 2 머무름 / system-
 - 의존: S2-W1a (merged)
 
 ## Changed files
-- lib/bff/client.ts — systemResetApprovalRequest method
-- lib/bff/mock/confirm.ts — systemReset / reject IA / scan_status & integration_status
+- lib/bff/types.ts — `BffClient.confirm.systemResetApprovalRequest` interface 추가
+- lib/bff/http.ts — httpBff.confirm.systemResetApprovalRequest 구현
+- lib/bff/mock-adapter.ts — mockBff.confirm.systemResetApprovalRequest dispatch
+- lib/bff/mock/confirm.ts — systemResetApprovalRequest 비즈니스 로직 + reject IA 변경 (targets.confirmed 보존) + scan_status / integration_status / ExcludedResourceInfo 확장 필드
+- lib/process/calculator.ts — `getCurrentStep` 에 `approval.status === 'REJECTED'` 분기 추가 (Step 2 유지)
 - lib/approval-bff.ts — UNAVAILABLE 케이스 normalize
+- app/lib/api/index.ts — `systemResetApprovalRequest` helper + `toApprovedIntegrationResourceSnapshot` 의 4개 필드 보존 확장 + `ApprovedIntegrationResourceItem` 타입 확장
 - app/integration/api/v1/target-sources/[targetSourceId]/approval-requests/system-reset/route.ts (신규)
-- app/lib/api/index.ts — systemResetApprovalRequest helper
 - lib/__tests__/mock-confirm-system-reset.test.ts (신규)
 - lib/__tests__/mock-confirm-process-status.test.ts — reject IA 회귀 케이스 수정
+- lib/__tests__/process-calculator-rejected.test.ts (신규) — calculator 의 REJECTED 분기 검증
 - app/integration/api/v1/__tests__/approval-requests.system-reset.test.ts (신규)
 
 ## Manual verification

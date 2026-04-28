@@ -5,10 +5,11 @@
 > **전제**:
 > - PR #419 (`docs/reports/design-migration-plan-step2to7.md`) 머지 완료
 > - PR #420 (`docs/bff-api/tag-guides/approval-requests.md`) 머지 완료
-> - **Step 2 의 S2-W1a 머지 완료** — `ResourceConfigDto.scan_status` / `integration_status` 타입과 swagger 정의가 본 wave 의 의존성
-> - **S2-W1b 머지 완료** — `system-reset` endpoint 와 mock 반영 (S3-W1b 의 회귀 버튼이 호출하는 endpoint)
+> - **Step 2 의 S2-W1a 머지 완료** — `ResourceConfigDto.scan_status` / `integration_status` / `ExcludedResourceInfo` 확장 필드 타입과 swagger 정의가 본 wave 의 의존성
+> - **S2-W1b 머지 완료** — `system-reset` endpoint, mock 반영, **`ApprovedIntegration` normalizer 의 scan_status / integration_status / database_region / resource_name 보존** 변경 (S3-W1a 가 사용)
 > - **S2-W1c 머지 완료** — `StepBanner` 컴포넌트 (S3-W1a/W1b 가 재사용)
-> - **S2-W1e 머지 완료** — `WaitingApprovalReselectButton` 패턴 (S3-W1b 가 동일 로직 재사용)
+> - **S2-W1d 머지 완료** — `ConfirmStepModal` 컴포넌트 (S3-W1b 가 재사용)
+> - **S2-W1e 머지 완료** — `WaitingApprovalReselectButton` 패턴 (S3-W1b 가 동일 로직 재사용) + `ArrowLeftIcon` (S2-W1e 가 신규 추가, S3-W1b 가 import)
 
 ---
 
@@ -48,9 +49,10 @@
 ```
 [Step 2 의존 — 모두 머지 필수]
 S2-W1a (BFF contract)  ──┐
-S2-W1b (Mock + system-reset)  ──┼──> S3-W1a 가능
+S2-W1b (Mock + system-reset + normalizer 확장)  ──┼──> S3-W1a 가능
 S2-W1c (StepBanner 컴포넌트)  ──┘
-S2-W1e (WaitingApprovalReselectButton 패턴) ──> S3-W1b 가능
+S2-W1d (ConfirmStepModal)  ──┐
+S2-W1e (WaitingApprovalReselectButton + ArrowLeftIcon) ──┴──> S3-W1b 가능
 
 [Step 3 본 plan]
 S3-W1a (Frontend table + Card — happy path)
@@ -62,7 +64,7 @@ S3-W1b (SYSTEM_ERROR / UNAVAILABLE alert + Step 1 회귀 버튼)
 S3-W1c (Design polish — 픽셀 정합)
 ```
 
-⛔ S2 의 W1a/W1b/W1c/W1e 가 머지된 뒤 S3 진입.
+⛔ S2 의 W1a~W1e 가 머지된 뒤 S3 진입.
 S3 내부는 W1a → W1b → W1c 순차.
 
 ---

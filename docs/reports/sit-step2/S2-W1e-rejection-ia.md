@@ -72,7 +72,7 @@ cd /Users/study/pii-agent-demo-sit-step2-w1e-rejection-ia
 ```tsx
 import type { TargetSource } from '@/lib/types';
 import { StepBanner } from '@/app/components/ui/StepBanner';
-import { AlertTriangleIcon } from '@/app/components/ui/icons';
+import { StatusErrorIcon } from '@/app/components/ui/icons';
 
 interface RejectionAlertProps {
   project: TargetSource;
@@ -82,7 +82,7 @@ export const RejectionAlert = ({ project }: RejectionAlertProps) => {
   if (!project.isRejected) return null;
 
   return (
-    <StepBanner variant="error" icon={<AlertTriangleIcon className="w-[18px] h-[18px]" />}>
+    <StepBanner variant="error" icon={<StatusErrorIcon className="w-[18px] h-[18px]" />}>
       <strong className="font-semibold">승인 요청이 반려되었어요.</strong>
       {project.rejectionReason && (
         <span className="block mt-0.5">사유: {project.rejectionReason}</span>
@@ -110,6 +110,8 @@ import { useState } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { systemResetApprovalRequest } from '@/app/lib/api';
+// ArrowLeftIcon 은 본 wave 에서 신규 추가 — `app/components/ui/icons/ArrowLeftIcon.tsx`
+// (현재 export: ChevronDownIcon, ClockIcon, DeleteIcon 등 — 좌향 화살표 없음)
 import { ArrowLeftIcon } from '@/app/components/ui/icons';
 import { buttonStyles, cn } from '@/lib/theme';
 
@@ -308,7 +310,9 @@ USE_MOCK_DATA=true npm run dev
 - 디자인 reference: `design/app/SIT Prototype v2.html` line 1535–1610 + line 197–203 (Primary 버튼)
 
 ## Changed files
-- app/integration/target-sources/[targetSourceId]/_components/common/RejectionAlert.tsx (refactor → StepBanner 패턴)
+- app/components/ui/icons/ArrowLeftIcon.tsx (신규 — 본 wave 에서 추가)
+- app/components/ui/icons/index.ts (export 추가)
+- app/integration/target-sources/[targetSourceId]/_components/common/RejectionAlert.tsx (refactor → StepBanner 패턴, 아이콘 StatusErrorIcon)
 - app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalReselectButton.tsx (신규)
 - app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard.tsx (rejectionSlot/reselectSlot 추가)
 - app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStep.tsx (분기 + slot wiring)
