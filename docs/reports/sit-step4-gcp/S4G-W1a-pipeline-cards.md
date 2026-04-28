@@ -77,6 +77,17 @@ export const GCP_STEP_PIPELINE_SUBS: Record<GcpStepKey, string> = {
 
 ### 위치: `app/components/features/process-status/install-task-pipeline/InstallTaskCard.tsx` (~120 LOC)
 
+⚠️ **현재 `lib/theme.ts` 의 `tagStyles` 는 `blue/gray/green/red/orange/amber`** 색상 키만 노출 (semantic alias 부재). 본 wave 에서는 색상 키를 직접 사용:
+
+| storyboard 의도 | 사용할 tagStyles 키 |
+|---|---|
+| 완료 (success) | `tagStyles.green` |
+| 진행중 (info / running) | `tagStyles.blue` 또는 `tagStyles.orange` (색상은 시안 line 868–869 비교 후 결정 — 시안: `var(--color-primary-light)` / `var(--color-primary)` → 파랑) → **`tagStyles.blue`** |
+| 실패 (error) | `tagStyles.red` |
+| 해당없음 (pending) | `tagStyles.gray` |
+
+→ semantic alias (success/info/error/warning) 추가는 W1c 에서 일괄 정리 (theme.ts 확장).
+
 ```tsx
 'use client';
 
@@ -107,9 +118,9 @@ const NUM_STYLES: Record<InstallTaskCardStatus, string> = {
 
 const PILL_STYLES: Record<InstallTaskCardStatus, string> = {
   pending: cn(bgColors.muted, textColors.tertiary),
-  done:    tagStyles.success,
-  running: tagStyles.info,
-  failed:  tagStyles.error,    // 본 wave 에서 tagStyles.error 가 없으면 임시 inline (W1c 가 token 화)
+  done:    tagStyles.green,    // 시안 line 868: bg #D1FAE5 / color #065F46
+  running: tagStyles.blue,     // 시안 line 869: var(--color-primary-light)
+  failed:  tagStyles.red,      // 시안 line 870: bg #FEE2E2 / color #991B1B
 };
 
 const PILL_LABEL: Record<InstallTaskCardStatus, string> = {
@@ -185,7 +196,6 @@ export const InstallTaskCard = ({
 ```
 
 ⛔ raw hex 금지 — 위 `bg-emerald-500`, `bg-blue-600` 등은 Tailwind class. `[0_0_0_4px_rgba(0,100,255,0.15)]` 같은 arbitrary value 는 W1c 에서 토큰 추출.
-⛔ `tagStyles.error` 가 S2-W1f 에 추가되지 않았다면 본 wave 에서 임시 inline (`bg-red-50 text-red-800 border border-red-200`) — W1c 가 정리.
 
 ## Step 4: `InstallTaskPipeline` 컴포넌트 신규
 
@@ -334,7 +344,14 @@ const pipelineItems = buildGcpPipelineItems(resources).map((item) => ({
 grep -rln "GcpStepSummaryRow\|GcpStepSummaryCard" app/ | grep -v __tests__
 ```
 
-→ 결과가 `GcpInstallationInline.tsx` 만이면 두 컴포넌트 + 테스트 삭제.
+→ 결과가 `GcpInstallationInline.tsx` + barrel `app/components/features/process-status/gcp/index.ts` 만이면 두 컴포넌트 + 테스트 + barrel export 라인 삭제.
+→ **`app/components/features/process-status/gcp/index.ts` 의 export 라인 제거 필수**:
+```ts
+// 제거 대상
+export { GcpStepSummaryCard } from './GcpStepSummaryCard';
+export { GcpStepSummaryRow } from './GcpStepSummaryRow';
+```
+→ `GcpInstallationInline` export 는 유지.
 → 다른 사용처 있으면 deletion 보류.
 
 ## Step 8: Tests
