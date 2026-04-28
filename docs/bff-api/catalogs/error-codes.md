@@ -1,5 +1,6 @@
-# 5.2.3.5.5.10.2.1 에러 코드 카탈로그
+# 에러 코드 카탈로그
 
+> Confluence: 5.2.3.5.5.10.2.1
 > 상태: Draft
 > 마지막 수정일: 2026-04-28
 > 대상: BFF API error code의 운영 의미, 사용자 액션, 운영자 확인 포인트
@@ -61,4 +62,4 @@ Admin Guides는 guide name catalog를 BFF에서 검증하지 않는다.
 
 | API Tag | 문서 | 관련 error code |
 | --- | --- | --- |
-| Admin Guides | [5.2.3.5.5.10.1.11 Admin Guides](<../bff-api-tag-guides/5.2.3.5.5.10.1.11 Admin Guides.md>) | `VALIDATION_FAILED`, `GUIDE_CONTENT_INVALID` |
+| Admin Guides | [admin-guides.md](../tag-guides/admin-guides.md) | `VALIDATION_FAILED`, `GUIDE_CONTENT_INVALID` |

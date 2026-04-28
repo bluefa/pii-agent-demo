@@ -1,5 +1,6 @@
-# 5.2.3.5.5.10.1.11 Admin Guides
+# Admin Guides
 
+> Confluence: 5.2.3.5.5.10.1.11
 > 상태: Implemented
 > API Tag: `Admin Guides`
 > 담당: TBD
@@ -222,7 +223,7 @@ components:
 | `contents.ko` | 한국어 guide HTML. 저장된 row가 없으면 빈 문자열이다. | HTML allow-list |
 | `contents.en` | 영어 guide HTML. 저장된 row가 없으면 빈 문자열이다. | HTML allow-list |
 | `updatedAt` | 마지막 저장 시각. 저장된 row가 없으면 `1970-01-01T00:00:00Z`이다. | 공통 time 규칙 |
-| `code` | `VALIDATION_FAILED`는 요청 구조 문제, `GUIDE_CONTENT_INVALID`는 HTML 또는 빈 본문 문제를 의미한다. | [에러 코드 카탈로그](<../bff-api-error-codes/5.2.3.5.5.10.2.1 에러 코드 카탈로그.md>) |
+| `code` | `VALIDATION_FAILED`는 요청 구조 문제, `GUIDE_CONTENT_INVALID`는 HTML 또는 빈 본문 문제를 의미한다. | [에러 코드 카탈로그](../catalogs/error-codes.md) |
 
 ## 5. 주요 동작 규칙
 
