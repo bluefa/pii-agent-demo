@@ -40,16 +40,32 @@ bash scripts/create-worktree.sh --topic sit-step4-gcp-w1c-design-polish --prefix
 
 ## Step 2: `lib/theme.ts` 토큰 추가
 
-### 2.1. `tagStyles.error` (W1a/W1b 가 임시 inline 으로 사용한 것 정리)
+### 2.1. `tagStyles` semantic alias 추가 (W1a/W1b 가 색상 키로 사용한 것을 의미 기반 alias 로 정리)
 
-S2-W1f 가 이미 추가했다면 본 wave 에서 추가 작업 없음. 없다면:
+현재 `lib/theme.ts` 의 `tagStyles` 는 **색상 키만** (`blue/gray/green/red/orange/amber`). W1a/W1b 는 색상 키를 직접 사용했으나, semantic alias 로 일괄 정리:
 
 ```ts
 export const tagStyles = {
-  // ... 기존 (info / success / neutral / warning)
-  error: 'inline-flex items-center px-2 py-0.5 rounded-md text-[11.5px] font-medium bg-red-100 text-red-800',
+  // 기존 색상 키 유지 (다른 사용처 보존)
+  blue:   'bg-blue-100 text-blue-800',
+  gray:   'bg-gray-100 text-gray-700',
+  green:  'bg-green-100 text-green-800',
+  red:    'bg-red-100 text-red-800',
+  orange: 'bg-orange-100 text-orange-800',
+  amber:  'bg-amber-100 text-amber-800',
+
+  // ✨ 본 wave 가 추가하는 semantic alias
+  success: 'bg-green-100 text-green-800',
+  info:    'bg-blue-100 text-blue-800',
+  warning: 'bg-orange-100 text-orange-800',
+  error:   'bg-red-100 text-red-800',
+  neutral: 'bg-gray-100 text-gray-700',
 } as const;
 ```
+
+→ W1a/W1b 의 `tagStyles.green` / `tagStyles.blue` 등 색상 키 호출은 그대로 유지하되, 신규 코드는 semantic alias 사용 권장. 컴파일 에러 없음 (alias 가 색상 키와 같은 string).
+
+**정리**: 본 wave 에서 W1a/W1b 컴포넌트 안의 색상 키 호출을 semantic alias 호출로 일괄 교체.
 
 ### 2.2. `tabStyles.segmented` 신규 그룹
 
@@ -122,7 +138,7 @@ export const shadows = {
 | 카드 gap (carousel) | 0 | `gap-0` |
 | `.num` 크기 | 30×30 | `w-[30px] h-[30px]` |
 | pill padding | 4px 12px | `px-3 py-1` |
-| Modal width | logical-modal (시안 별도 width 정의 — 약 680px 추정) | `w-[680px]` (확인 후 token 화) |
+| Modal width | `.logical-modal { width: 880px }` (시안 line 915–917) | `w-[880px]` |
 | Modal header padding | 28px 28px 12px | `px-7 pt-7 pb-3` (S2-W1f 의 modal token 재사용) |
 | Modal footer padding | 16px 28px 28px | S2-W1f 의 modal token 재사용 |
 | 탭 그룹 padding | 4px (outer) + 6px 14px (item) | `p-1 / px-3.5 py-1.5` |
@@ -143,7 +159,7 @@ USE_MOCK_DATA=true npm run dev
 - [ ] done 카드의 num green / running 카드의 num blue / failed 카드의 num red
 - [ ] status pill 색상 (완료=green, 진행중=blue light, 실패=red)
 - [ ] 카운트 표기 `진행중 (M/N)` 형식 (Q4G-3)
-- [ ] 카드 hover 시 약한 bg 변화 (line 873)
+- [ ] 카드 hover 시 약한 bg 변화 (line 871–872)
 - [ ] 공용 DB List 헤더 typography (uppercase / tracking)
 - [ ] 공용 DB List status 셀 색상 분기
 - [ ] mono 셀 font-size / 색상

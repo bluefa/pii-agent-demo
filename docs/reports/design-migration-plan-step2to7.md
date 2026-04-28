@@ -149,8 +149,8 @@
 | 2. 서비스 측 리소스 설치 진행 | VPC Peering / Firewall / Service Account | `service_tf_status` (PENDING / IN_PROGRESS / COMPLETED / FAILED) ✅ |
 | 3. BDC 측 리소스 설치 진행 | PII Agent GCE 인스턴스 + IAM | `bdc_tf_status` ✅ |
 
-공용 DB List GCP 컬럼: **서비스 리소스 상태** → resource별 `service_tf_status` 매핑 ✅
-(추가 신호: `psc_connection.status`, `pending_action == APPROVE_PSC_CONNECTION`)
+공용 DB List GCP 컬럼: **서비스 리소스 상태** → resource별 **`installationStatus`** (COMPLETED/IN_PROGRESS/FAIL) 매핑 ✅ (Q4G-2 결정)
+(보조 신호: `service_tf_status`, `psc_connection.status`, `pending_action == APPROVE_PSC_CONNECTION` 은 pipeline aggregate 산출 근거로만 사용. 본 컬럼 자체는 per-resource `installationStatus` 단일 source.)
 
 ### 변경/구현 포인트
 

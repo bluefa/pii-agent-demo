@@ -40,10 +40,13 @@ grep -q "GCP_STEP_PIPELINE_LABELS" lib/constants/gcp.ts || { echo "✗ S4G-W1a l
 3. `app/components/features/process-status/gcp/GcpResourceStatusTable.tsx` 전체 — 제거 대상 (시안 컬럼 다름)
 4. `app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider.tsx` — confirmed-integration 데이터 provider
 5. `app/integration/target-sources/[targetSourceId]/_components/layout/CloudInstallingStep.tsx` — provider context wrap 위치
-6. `lib/types/resources.ts` — `ApprovedResource` / `ConfirmedResource` 타입 (region / database type / dbname 필드 확인)
+6. `lib/types/resources/confirmed.ts` — `ConfirmedResource` (region / databaseName 부재 확인)
+   - `lib/types/resources/approved.ts` — `ApprovedResource` (region / databaseName 부재 확인)
+   - `lib/types/resources/index.ts` — barrel
 7. `lib/constants/gcp.ts` — W1a 가 추가한 label / pipeline builder
 8. `app/api/_lib/v1-types.ts` line 142–179 — `GcpResourceStatus` / `GcpInstallationStatusValue` / `GcpStepStatus`
-9. `app/components/ui/ConfirmStepModal.tsx` (S2-W1d 산출 — modal 기본 구조 reference)
+9. `app/components/ui/Modal.tsx` 전체 — 기존 일반 modal shell. 본 wave 의 Task Detail Modal 이 재사용 (또는 inline 으로 구성)
+   - ⚠️ S2-W1d 의 `ConfirmStepModal` 은 본 wave 가 머지될 시점에 존재하지 않을 수 있음. **Step 4 GCP 는 Step 2 wave 와 독립**이므로 `Modal.tsx` 만 reference
 10. `lib/theme.ts` — `tagStyles` / `tableStyles`
 11. `docs/reports/sit-step4-gcp/00-README.md` §9 (디자인 원칙)
 
@@ -55,19 +58,29 @@ bash scripts/create-worktree.sh --topic sit-step4-gcp-w1b-db-table-and-modal --p
 
 ## Step 2: 두 source join 헬퍼
 
-### 위치: `app/components/features/process-status/install-task-pipeline/join-installation-resources.ts` (~50 LOC)
+### 위치: `app/components/features/process-status/install-task-pipeline/join-installation-resources.ts` (~60 LOC)
+
+⚠️ **데이터 source gap 인지**: `ConfirmedResource` (`lib/types/resources/confirmed.ts`) 는 `resourceId / type / databaseType / host / port / oracleServiceId / networkInterfaceId / ipConfigurationName / credentialId / connectionStatus` 만 가지고 있고, **`region` / `databaseName` 필드는 부재**. 동일하게 `ApprovedResource` (`approved.ts`) 도 부재.
+
+→ Region / DB Name 의 source 결정:
+- (a) 본 wave 에서 두 컬럼을 `—` 로 노출 + sub-issue 로 분리 — **임시 결정 (현재 BFF/타입 으로 채울 수 없으므로)**
+- (b) `confirmedIntegrationToConfirmed` (`lib/resource-catalog`) + `ConfirmedResource` 타입 확장하여 `database_region` / `resource_name` 보존 — BFF 응답 (`ResourceConfigDto`) 에 필드 존재 (S2-W1a 가 enum 만, 메타는 별도). 본 wave 에서 ConfirmedResource 까지 손대는 것은 scope 초과.
+- (c) `getResources` catalog 를 별도 fetch 하여 메타 join — 추가 네트워크 요청 비용.
+
+본 plan **임시 결정: (a)**. Region / DB Name 은 `—` 표시. 별도 issue (예: "Step 4 DB List Region/DB Name 노출 — ConfirmedResource 확장") 로 분리하여 후속 wave 에서 (b) 진행.
 
 ```ts
 import type { GcpResourceStatus, GcpInstallationStatusValue } from '@/app/api/_lib/v1-types';
-import type { ConfirmedResource } from '@/lib/types/resources';
+import type { ConfirmedResource } from '@/lib/types/resources/confirmed';
 
 export interface Step4ResourceRow {
   resourceId: string;
   databaseType?: string;
+  /** 현재 ConfirmedResource 에 부재 — null 표시. 후속 wave 가 source 추가. */
   region?: string;
+  /** 현재 ConfirmedResource 에 부재 — fallback 으로 GcpResourceStatus.resourceName 사용. */
   databaseName?: string;
   installationStatus: GcpInstallationStatusValue;
-  /** 원본 status (Task Detail Modal 에서 사용) */
   source: GcpResourceStatus;
 }
 
@@ -87,9 +100,9 @@ export const joinGcpResources = (
     const c = confirmedById.get(r.resourceId);
     return {
       resourceId: r.resourceId,
-      databaseType: c?.databaseType,
-      region: c?.region,
-      databaseName: c?.databaseName ?? r.resourceName,
+      databaseType: c?.databaseType ?? undefined,
+      region: undefined,                            // (a) 임시 — 후속 wave 가 채움
+      databaseName: r.resourceName ?? undefined,    // GCP installation-status 의 resourceName 만 사용
       installationStatus: r.installationStatus,
       source: r,
     };
@@ -97,7 +110,7 @@ export const joinGcpResources = (
 };
 ```
 
-⚠️ `ConfirmedResource` 의 실제 필드명 (region / databaseType / databaseName) 은 `lib/types/resources.ts` 확인 필요. 다르면 매핑 수정.
+⛔ `ConfirmedResource.region` / `ConfirmedResource.databaseName` 사용 금지 (실제 부재).
 
 ## Step 3: `Step4DbListTable` 컴포넌트 신규
 
@@ -121,10 +134,11 @@ const STATUS_LABEL: Record<GcpInstallationStatusValue, string> = {
 };
 
 const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
-  COMPLETED: tagStyles.success,
-  IN_PROGRESS: tagStyles.warning,
-  FAIL: tagStyles.error,        // S2-W1f / W1c 산출 — 임시 inline 가능
+  COMPLETED: tagStyles.green,    // 시안 line 1774: tag green
+  IN_PROGRESS: tagStyles.orange, // 시안 line 1781: tag orange
+  FAIL: tagStyles.red,           // 시안 미정의 — Q4G-2 답변에 따라 FAIL 추가 케이스 대응
 };
+// ⚠️ semantic alias (success/warning/error) 는 W1c 가 theme.ts 에 추가. 본 wave 는 색상 키 직접 사용.
 
 export const Step4DbListTable = ({ rows }: Step4DbListTableProps) => {
   if (rows.length === 0) {
@@ -151,7 +165,7 @@ export const Step4DbListTable = ({ rows }: Step4DbListTableProps) => {
           {rows.map((row) => (
             <tr key={row.resourceId} className={cn(tableStyles.row, 'border-t', borderColors.light)}>
               <td className={tableStyles.cell}>
-                {row.databaseType ? <span className={tagStyles.info}>{row.databaseType}</span> : <span>—</span>}
+                {row.databaseType ? <span className={tagStyles.blue}>{row.databaseType}</span> : <span>—</span>}
               </td>
               <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary)}>
                 {row.resourceId}
@@ -258,17 +272,17 @@ const countBadgeClass = (active: boolean) => cn(
 
 #### 4.6. Modal 외곽
 
-기존 modal pattern (S2-W1d `ConfirmStepModal` 의 외곽 / backdrop / focus trap) 재사용. 단 width 는 시안의 `logical-modal` 처럼 더 넓게 (line 2330) — 약 `w-[680px]` 추정.
+기존 `app/components/ui/Modal.tsx` 의 외곽 / backdrop / focus trap 재사용. width 는 시안의 `.logical-modal` (line 915–917): **`width: 880px`** — `w-[880px]` 사용.
 
-⛔ S2-W1d 의 `ConfirmStepModal` 컴포넌트 자체를 사용하지 않는다. 본 modal 은 confirm 액션이 아니라 정보 표시. 신규 컴포넌트.
+⛔ S2-W1d 의 `ConfirmStepModal` 컴포넌트 사용하지 않음 (Step 4 는 Step 2 wave 와 독립이며, ConfirmStepModal 은 confirm 액션 전용 — 본 modal 은 정보 표시).
 
-대안: 공용 `Modal` shell 컴포넌트가 있으면 재사용. 없으면 본 wave 에서 inline.
+기존 `Modal.tsx` 가 width 를 `max-w-2xl` 같은 default 로 강제하면 본 wave 에서 width prop 노출하도록 확장하거나 inline modal 로 작성.
 
 ## Step 5: `GcpInstallationInline.tsx` 수정 — modal state + onClick wiring
 
 ```tsx
 import { useState } from 'react';
-import { useConfirmedIntegrationContext } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { joinGcpResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import { Step4DbListTable } from '@/app/components/features/process-status/install-task-pipeline/Step4DbListTable';
 import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
@@ -277,8 +291,9 @@ import type { GcpStepKey } from '@/lib/constants/gcp';
 // ... 기존 hook usage
 
 const [openStep, setOpenStep] = useState<GcpStepKey | null>(null);
-const { confirmed } = useConfirmedIntegrationContext();
-const joined = joinGcpResources(resources, confirmed);
+const { state: confirmedState } = useConfirmedIntegration();
+const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
+const joined = joinGcpResources(resources, confirmedResources);
 
 const pipelineItems = buildGcpPipelineItems(resources).map((item) => ({
   ...item,
@@ -301,7 +316,9 @@ return (
 );
 ```
 
-⛔ `useConfirmedIntegrationContext` 는 `ConfirmedIntegrationDataProvider` (CloudInstallingStep 가 wrap) 의 context. 만약 `GcpInstallationStatus.tsx` 가 provider 외부에서 호출되는 path 가 있다면 별도 처리.
+⛔ **실제 export 는 `useConfirmedIntegration`** (not `useConfirmedIntegrationContext`). 반환 shape 는 `{ state: AsyncState<readonly ConfirmedResource[]>, retry: () => void }` 이므로 `state.status === 'ready'` 분기 필요. `confirmed` 라는 직접 필드는 없음.
+
+⛔ `loading` / `error` 분기 시 빈 배열 fallback (`[]`) 으로 join 진행 — `Step4DbListTable` 자체 empty state 가 처리. 또는 별도 spinner / error banner 분기.
 
 ## Step 6: 기존 컴포넌트 정리
 
@@ -309,7 +326,12 @@ return (
 grep -rln "GcpResourceStatusTable" app/ | grep -v __tests__
 ```
 
-→ `GcpInstallationInline.tsx` 만이면 삭제.
+→ `GcpInstallationInline.tsx` + barrel `app/components/features/process-status/gcp/index.ts` 만이면 삭제.
+→ **`app/components/features/process-status/gcp/index.ts` 의 export 라인 제거 필수**:
+```ts
+// 제거 대상
+export { GcpResourceStatusTable } from './GcpResourceStatusTable';
+```
 
 ## Step 7: Tests
 

@@ -177,15 +177,17 @@ S4G-W1c (Design polish — 픽셀 정합)
 | `.install-task .num` | `bg var(--bg-muted)` / `color var(--fg-3)` | `bgColors.muted` / `textColors.tertiary` |
 | `.install-task.done .num` | `bg var(--color-success)` / `#fff` | `bg-emerald-500 text-white` (또는 `statusColors.success`) |
 | `.install-task.running .num` | `bg var(--color-primary)` / `#fff` + halo `0 0 0 4px rgba(0,100,255,0.15)` | `bg-blue-600 text-white shadow-[0_0_0_4px_rgba(0,100,255,0.15)]` |
-| `.install-task.done .status-pill` | `#D1FAE5` / `#065F46` | `tagStyles.success` (S2-W1f 산출) |
-| `.install-task.running .status-pill` | `var(--color-primary-light)` / `var(--color-primary)` | `tagStyles.info` (S2-W1f 산출) |
-| `.install-task.failed .status-pill` | `#FEE2E2` / `#991B1B` | `tagStyles.error` (신규 추가 필요) |
-| 공용 DB List `tag green` (완료) | `#ECFDF5` / `#065F46` | `tagStyles.success` |
-| 공용 DB List `tag orange` (진행중) | `#FFEDD5` / `#9A3412` | `tagStyles.warning` (S2-W1f 산출) — 또는 `tagStyles.info` |
-| Task tabs | `bg var(--bg-muted)` + active `bg #fff shadow-[0_1px_2px_rgba(0,0,0,0.06)]` | 신규 `tabStyles.segmented` |
-| Modal 외곽 | 기존 modal token 재사용 | S2-W1d 의 `ConfirmStepModal` 패턴 참고 |
+| `.install-task.done .status-pill` | `#D1FAE5` / `#065F46` | `tagStyles.green` (현재 theme 에 존재) |
+| `.install-task.running .status-pill` | `var(--color-primary-light)` / `var(--color-primary)` | `tagStyles.blue` (현재 theme 에 존재) |
+| `.install-task.failed .status-pill` | `#FEE2E2` / `#991B1B` | `tagStyles.red` (현재 theme 에 존재) |
+| 공용 DB List `tag green` (완료) | `#ECFDF5` / `#065F46` | `tagStyles.green` |
+| 공용 DB List `tag orange` (진행중) | `#FFEDD5` / `#9A3412` | `tagStyles.orange` |
+| Task tabs | `bg var(--bg-muted)` + active `bg #fff shadow-[0_1px_2px_rgba(0,0,0,0.06)]` | 신규 `tabStyles.segmented` (W1c 가 추가) |
+| Modal 외곽 | `app/components/ui/Modal.tsx` 재사용 (또는 inline 으로 width 880px 적용) | width 는 시안 `.logical-modal { 880px }` |
 
-→ 신규 토큰 1건 (`tagStyles.error`) + 1건 (`tabStyles.segmented`). 나머지는 기존/S2 산출 재사용.
+→ **신규 토큰 1건 (`tabStyles.segmented`, W1c 가 추가)**. `tagStyles` 색상 키는 모두 현재 theme 에 존재. semantic alias (success/info/error/warning) 도입은 W1c 의 추가 정리 작업.
+
+⚠️ **Modal 컴포넌트**: `app/components/ui/Modal.tsx` 가 존재 (S2-W1d 의 `ConfirmStepModal` 과 별개). Step 4 GCP 는 Step 2 wave 와 독립이므로 `Modal.tsx` 를 reference. width 미지원 시 inline modal 또는 prop 확장.
 
 ### 9.3. Spacing / Radius / Shadow
 
