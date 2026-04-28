@@ -23,7 +23,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [sit-recurring-checks](./sit-recurring-checks/SKILL.md) | `/sit-recurring-checks` | PR #274-288 리뷰에서 반복된 findings 사전 차단 | O | 전체 |
 | [anti-patterns](./anti-patterns/SKILL.md) | `/anti-patterns` | Frontend Clean Code 안티패턴 카탈로그 (40 patterns) | O | 전체 |
 | [codex-review](./codex-review/SKILL.md) | `/codex-review` | Codex (gpt-5.5 xhigh) cross-review for sign-off | - | code-implementer |
-| [bff-api-docs](./bff-api-docs/SKILL.md) | `/bff-api-docs` | Validate/author docs under docs/bff-api/ per management-plan.md | - | - |
+| [bff-api-docs](./bff-api-docs/SKILL.md) | `/bff-api-docs` | BFF API 문서 변경 시 어떤 파일을 어떤 규칙으로 건드릴지 라우팅 | O | - |
 
 ## 에이전트 (Agents)
 
