@@ -39,28 +39,40 @@
 ### 시안 요약
 
 - 안내 banner: "관리자 승인을 기다리고 있어요. 평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다."
-- DB List: `DB Type / Resource ID / Region / DB Name / 연동 대상 여부 / 스캔 이력`
-- 행별로 "비대상 (Stg DB)" 같이 제외 사유 inline 표기
-- 우측 하단 액션: **연동 대상 승인 요청 취소** (붉은 outline)
+- DB List: `# / DB Type / Resource ID / Region / DB Name / 연동 대상 여부 / 스캔 이력`
+- 우측 하단 액션: **연동 대상 승인 요청 취소** (danger-outline) → confirm modal
 
 ### BFF API 매핑
 
-| UI 요소 | 매핑 API |
+| UI 요소 | 매핑 API / 필드 |
 |---|---|
-| 요청된 리소스 목록 + 제외 사유 | `GET /target-sources/{id}/approved-integration` (요청 직후 latest approval-request snapshot) 또는 `GET /target-sources/{id}/approval-requests/latest` |
+| 요청된 리소스 목록 | `GET /target-sources/{id}/approval-requests/latest` ✅ |
+| 행별 `연동 대상 여부` 컬럼 | `ResourceInputDto.selected` (true → "대상", false → "비대상") |
+| 행별 `스캔 이력` 컬럼 | `ResourceConfigDto.scan_status` (`UNCHANGED` / `NEW_SCAN`) — null 이면 `—` |
 | 승인 요청 취소 버튼 | `POST /target-sources/{id}/approval-requests/cancel` ✅ |
-| 상단 banner 메타 (요청 일시, 요청자) | `approval-requests/latest` 응답의 metadata |
+| 반려 사유 노출 | `BaseTargetSource.rejectionReason` (이미 `bff.targetSources.get` 응답에 포함) |
+| 반려 후 "연동 대상 DB 다시 선택하기" 버튼 | `POST /target-sources/{id}/approval-requests/system-reset` ✅ (PR #420 신규) |
 
 ### 변경/구현 포인트
 
-1. 기존 `WaitingApprovalStep.tsx` 의 `CandidateResourceSection`(readonly) 사용 → 시안 시각 spec(좁은 컬럼/한국어 헤더)에 맞춰 **dedicated table**로 교체
-2. 기존 RejectionAlert 유지(반려 시 표시)
-3. 기존 `ApprovalWaitingCard`의 취소 버튼 → 시안의 "연동 대상 승인 요청 취소" 위치(우측 하단)로 재배치
+1. 기존 `WaitingApprovalStep.tsx` 의 `CandidateResourceSection`(readonly) → 시안 시각 spec(좁은 컬럼/한국어 헤더)에 맞춰 **dedicated table** 로 교체.
+2. **null 표시 규칙**: 모든 컬럼 값이 null/undefined 인 경우 `—` (em-dash) 로 통일 표시. (제외 사유 inline 미사용)
+3. **취소 버튼 → confirm modal** 신규 추가. 시안 `confirmStepModal` 패턴 재사용.
+   - 제목: `연동 대상 승인 요청을 취소할까요?`
+   - 본문: `1단계 · 연동 대상 DB 선택으로 되돌아갑니다.\n취소 후에는 다시 DB 선택부터 진행해야 해요.`
+   - Note(warning bg): `관리자에게 전달된 요청 내용은 보존되지 않으며, 취소 즉시 처리됩니다.`
+   - 버튼: `[머무르기]` (outline) / `[요청 취소]` (danger-outline)
+4. **반려 케이스 IA**: 반려 시 BFF processStatus 가 자동 회귀하지 않고 **Step 2 화면 유지** (`isRejected=true`). RejectionAlert 하단에 **`[연동 대상 DB 다시 선택하기]` Primary 버튼** 추가 → 클릭 시 `system-reset` 호출 → 응답 후 `bff.targetSources.get` refetch → processStatus=1 로 자연 라우팅.
+5. Mock 모드도 system-reset 지원 필요 (`USE_MOCK_DATA=true`).
 
-### ❓ 사용자 확인 필요
+### ❓ 남은 확인 사항
 
-- **Q2-1.** 시안의 "스캔 이력" 컬럼(`신규`/`변경`) 값은 BFF 어디에서 오나요? `getResources` 응답에는 명시적인 신규/변경 플래그가 없어 보입니다. (latest scan vs confirmed-integration diff로 프론트가 계산해야 하나요?)
-- **Q2-2.** "연동 대상 여부" 컬럼에 "비대상 (Stg DB)"처럼 제외 사유를 표시하는 부분 — 기존 `approval-payload` 의 `exclusion.reason` 그대로 표시하면 되는지?
+- **Q2-1a.** 시안 라벨 `신규` / `변경` ↔ BFF enum `NEW_SCAN` / `UNCHANGED` 매핑.
+  - `NEW_SCAN` → "신규" 는 자명.
+  - `UNCHANGED` 는 의미상 "변경 없음" 인데 시안은 "변경" 으로 라벨링되어 정반대로 읽힘.
+  - 옵션: (a) 시안 라벨을 `신규` / `기존` 으로 수정하여 enum 의미와 일치, (b) BFF 에 `MODIFIED` enum 추가, (c) 표기 자체 생략하고 모두 `—` 처리.
+  - **임시 결정**: null/undefined 인 경우 `—`. enum 값이 들어오면 해당 라벨 그대로 표기 (변경 의미 정의는 후속 합의).
+- **Q2-2a.** BFF `confirm.yaml` 의 `ResourceInputDto.exclusion_reason` 도 별도 컬럼으로 보일 필요 없는지 확인 (현재는 비대상 행에서도 사유 미표기 결정).
 
 ---
 
@@ -74,22 +86,26 @@
 
 ### BFF API 매핑
 
-| UI 요소 | 매핑 API |
+| UI 요소 | 매핑 API / 필드 |
 |---|---|
 | 반영 중 리소스 목록 | `GET /target-sources/{id}/approved-integration` ✅ |
 | processStatus 폴링 | `GET /target-sources/{id}/process-status` ✅ |
+| 행별 `연동 제외 사유` 컬럼 | `ResourceInputDto.exclusion_reason` — null 이면 `—` |
+| 행별 `스캔 이력` 컬럼 | `ResourceConfigDto.scan_status` (`UNCHANGED` / `NEW_SCAN`) — null 이면 `—` |
+| 행별 `연동 이력` 컬럼 | `ResourceConfigDto.integration_status` (`INTEGRATED` / `NOT_INTEGRATED`) — null 이면 `—` |
 | 자동 전이 (Step 3 → Step 4) | processStatus 가 `INSTALLING`(4)으로 바뀌면 `bff.targetSources.get`으로 refetch |
 
 ### 변경/구현 포인트
 
 1. 기존 `ApplyingApprovedStep.tsx` 가 폴링 메시지를 보여주고 있는데(Memory: 미구현) 시안은 "반영 중 리소스 테이블"이 메인. 카드 + 테이블 형태로 재구성.
-2. 자동 전이가 원칙이므로 **Next 버튼은 시연용**일 가능성 — 운영에서는 자동 전이.
+2. 자동 전이가 원칙이므로 **Next 버튼은 시연용** — 운영 빌드에서는 제거 또는 `data-prototype-only` 플래그로 hidden.
+3. **null 표시 규칙**: 모든 컬럼 값이 null/undefined 인 경우 `—` 통일.
 
-### ❓ 사용자 확인 필요
+### ❓ 남은 확인 사항
 
-- **Q3-1.** "연동 이력" 컬럼(`Integrated` / `—`) 값은 어떤 API/필드에서 오나요? `confirmed-integration` 의 직전 상태와 비교해야 한다면 명세가 필요합니다.
-- **Q3-2.** 시안의 **Next 버튼**은 사용자가 수동으로 Step 4로 진입시키는 버튼인가요, 아니면 시연용(prototype 전용)인가요? 운영에서는 ProcessStatus 변경에 따라 자동 전이만 있으면 충분합니다.
-- **Q3-3.** Step 3에서 시스템이 실패(SYSTEM_ERROR)로 빠질 수 있다는 것을 시안에서 다루지 않습니다. 실패 케이스의 UI 처리는 어떻게 할지 확인 필요.
+- **Q3-1a.** 시안 `Integrated` 라벨 ↔ BFF `INTEGRATED` 매핑은 자명. `NOT_INTEGRATED` 일 때 시안의 `—` 와 동일 의미인지 (즉 `NOT_INTEGRATED` 도 `—` 로 표기할지) 확인 필요.
+- **Q3-2.** Step 3 → Step 4 전이는 **자동 전이 only** (시안 Next 버튼은 prototype 전용으로 제거). 동의 여부 확인.
+- **Q3-3.** Step 3 에서 SYSTEM_ERROR 발생 시 화면 처리 — 시안 부재. 본 plan 에서는 `RejectionAlert` 동일 패턴으로 fallback 표시 권장.
 
 ---
 
@@ -252,7 +268,7 @@
 
 | Wave | 대상 | 사전조건 | 비고 |
 |---|---|---|---|
-| W1 | Step 2, 3 (시각만 정리, 큰 API gap 없음) | Q2-1, Q3-1 답변 | 빠르게 정리 가능 |
+| W1 | Step 2, 3 (시각 정리 + 반려/취소 modal + system-reset 통합) | Q2-1a, Q3-1a 답변 + system-reset mock 구현 | BFF 신규 endpoint(system-reset, PR #420) 통합 포함 |
 | W2 | Step 4 GCP | Q4-3, Q4-4 답변 | GCP는 BFF 필드(`service_tf_status`/`bdc_tf_status`/`pending_action`) 가 잘 정렬되어 있어 우선 진행 가능 |
 | W3 | Step 4 Azure | **Q4-1 답변 필수** (BFF 변경 가능성 있음) | Azure는 service_tf_status 부재로 BFF 협의 선행 |
 | W4 | Step 5 (논리 DB 모달 제외) | Q5-3, Q5-4, Q5-5 | API gap 없는 부분만 |
@@ -279,3 +295,20 @@
 5. **Q7-1** — "연동 제외 논리 DB" 카운트의 정의/source
 
 위 5개가 BFF 명세 변경(또는 추가) 가능성이 있는 항목이며, W3/W5/W6 진입 전 반드시 협의되어야 합니다.
+
+---
+
+## 📌 공통 표기 규칙
+
+- **null/undefined 값은 모두 `—` (em-dash) 로 표시.** 별도 placeholder 텍스트("없음", "정보 없음") 사용 금지.
+- BFF enum 라벨은 시안 한국어 라벨로 매핑 (예: `INTEGRATED` → "Integrated" / `NEW_SCAN` → "신규"). 매핑이 미정인 enum 값(`UNCHANGED`, `NOT_INTEGRATED` 등)은 후속 합의 전까지 `—` 로 표기.
+
+---
+
+## 📎 참조
+
+- BFF 신규 명세: `docs/bff-api/tag-guides/approval-requests.md` (PR #420)
+  - `POST /target-sources/{id}/approval-requests/system-reset` — 반려/UNAVAILABLE 상태에서 IDLE 로 명시적 reset
+  - `ResourceConfigDto.scan_status` (`UNCHANGED` / `NEW_SCAN`)
+  - `ResourceConfigDto.integration_status` (`INTEGRATED` / `NOT_INTEGRATED`)
+- 기존 swagger: `docs/swagger/confirm.yaml`, `azure.yaml`, `gcp.yaml`, `test-connection.yaml`, `logical-db-status.yaml`
