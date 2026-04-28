@@ -911,109 +911,393 @@
   .btn.reject { background: #fff; color: var(--color-error-dark); border: 1px solid #FECACA; }
   .btn.reject:hover { background: #FEF2F2; }
 
-  /* Logical DB modal — sidebar tab layout */
-  .logical-modal {
-    width: 880px;
+  /* ===== Logical DB modal — twin-panel staging layout (v3 spec) ===== */
+  .logical-modal { width: 1040px; }
+  .logical-modal .modal-header { padding: 22px 26px 6px; position: relative; }
+  .logical-modal .modal-header .close-x {
+    position: absolute; top: 18px; right: 20px;
+    width: 28px; height: 28px; border-radius: 6px;
+    display: grid; place-items: center; color: var(--fg-3);
   }
-  .logical-modal .modal-body {
-    padding: 0;
+  .logical-modal .modal-header .close-x:hover { background: var(--bg-muted); color: var(--fg-1); }
+  .logical-modal .modal-title-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 6px;
   }
-  .logical-shell {
+  .logical-modal .modal-title-row .modal-title {
+    margin: 0; font-size: 18px; font-weight: 700;
+  }
+  .logical-modal .modal-title-row .res-id {
+    color: var(--color-primary);
+    font-family: 'Geist Mono', monospace;
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .logical-modal .modal-body { padding: 14px 26px 0; }
+  .logical-twin {
     display: grid;
-    grid-template-columns: 220px 1fr;
-    min-height: 480px;
-  }
-  .logical-side {
-    background: #FAFAFB;
-    border-right: 1px solid var(--border-light);
-    padding: 18px 12px;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .logical-side .side-label {
-    font-size: 11px; font-weight: 700; color: var(--fg-4);
-    text-transform: uppercase; letter-spacing: 0.06em;
-    padding: 0 12px 8px;
-  }
-  .logical-tab {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--fg-2);
-    text-align: left;
-  }
-  .logical-tab:hover { background: rgba(0,0,0,0.04); }
-  .logical-tab.active {
-    background: #fff;
-    color: var(--fg-1);
-    font-weight: 600;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-  }
-  .logical-tab .badge {
-    min-width: 22px; padding: 2px 7px;
-    border-radius: 999px;
-    background: var(--bg-muted);
-    color: var(--fg-3);
-    font-size: 11px; font-weight: 700;
-    text-align: center;
-  }
-  .logical-tab.active .badge { background: var(--color-primary-light); color: var(--color-primary); }
-  .logical-main {
-    padding: 18px 22px 8px;
-    display: flex; flex-direction: column;
-    min-width: 0;
-  }
-  .logical-summary {
-    display: flex; gap: 18px;
-    padding: 12px 14px;
-    background: var(--bg-muted);
-    border-radius: 10px;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
     margin-bottom: 14px;
   }
-  .logical-summary .item { font-size: 12px; color: var(--fg-3); }
-  .logical-summary .item strong {
-    display: block;
-    font-size: 18px; font-weight: 700; color: var(--fg-1);
-    line-height: 1.1; margin-bottom: 2px;
-  }
-  .logical-summary .item.target strong { color: var(--color-primary); }
-  .logical-summary .item.excluded strong { color: var(--color-error-dark); }
-  .logical-toolbar {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 10px;
-  }
-  .logical-toolbar .search { position: relative; }
-  .logical-toolbar .search svg {
-    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
-    color: var(--fg-4);
-  }
-  .logical-toolbar .search input {
-    height: 32px; width: 220px;
-    border: 1px solid var(--border-default); border-radius: 8px;
-    padding: 0 12px 0 30px;
-    font-size: 12.5px;
-  }
-  .logical-table-wrap {
+  .lg-panel {
     border: 1px solid var(--border-default);
     border-radius: 10px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    min-height: 420px;
+    max-height: 460px;
     overflow: hidden;
-    flex: 1;
   }
-  .logical-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .logical-table-wrap th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-default); background: var(--bg-muted); }
-  .logical-table-wrap td { padding: 10px 14px; border-bottom: 1px solid var(--border-light); }
-  .logical-table-wrap tr:last-child td { border-bottom: none; }
-  .logical-table-wrap select {
-    width: 100%; height: 30px;
-    border: 1px solid var(--border-default); border-radius: 6px;
-    padding: 0 8px; font-size: 12px;
-    background: #fff; color: var(--fg-1);
+  .lg-panel-head {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex; flex-direction: column; gap: 8px;
+    background: #FCFCFD;
   }
-  .logical-pane { display: none; flex-direction: column; flex: 1; min-height: 0; }
-  .logical-pane.active { display: flex; }
+  .lg-panel-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700; color: var(--fg-1);
+  }
+  .lg-panel-title .count {
+    font-size: 11px; font-weight: 700;
+    background: var(--bg-tinted); color: var(--fg-2);
+    padding: 1px 7px; border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+  }
+  .lg-panel-title.deny .count { background: #FEE2E2; color: #991B1B; }
+  .lg-panel-search { position: relative; }
+  .lg-panel-search svg {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--fg-4); pointer-events: none;
+  }
+  .lg-panel-search input {
+    width: 100%; height: 32px;
+    border: 1px solid var(--border-default); border-radius: 8px;
+    padding: 0 12px 0 30px;
+    font-size: 12.5px; outline: none;
+    background: #fff;
+  }
+  .lg-panel-search input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(0,100,255,0.08); }
+
+  .lg-table-scroll { flex: 1; overflow: auto; }
+  .lg-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .lg-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    text-align: left;
+    font-size: 11px; font-weight: 600;
+    color: var(--fg-3); text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 8px 14px;
+    background: var(--bg-muted);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .lg-table tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--fg-1);
+  }
+  .lg-table tbody tr:last-child td { border-bottom: none; }
+  .lg-table tbody tr.is-child td:first-child { padding-left: 30px; }
+  .lg-table tbody tr.is-parent .toggle-tri {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 14px; height: 14px;
+    color: var(--fg-3);
+    margin-right: 4px;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .lg-table tbody tr.is-parent.collapsed .toggle-tri { transform: rotate(-90deg); }
+  .lg-table tbody tr.is-parent .toggle-spacer { display: inline-block; width: 18px; }
+
+  .name-cell {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 12.5px;
+    color: var(--fg-1);
+  }
+  .name-cell .name-prefix { color: var(--fg-4); font-family: 'Geist Mono', monospace; }
+  .name-cell .lock-icon { color: var(--fg-4); }
+
+  /* Type badges */
+  .type-pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .type-pill.db { background: #DBEAFE; color: #1E40AF; }
+  .type-pill.schema { background: #EDE9FE; color: #5B21B6; }
+
+  /* Row state backgrounds (panel A) */
+  .lg-table tbody tr.row-staged-add td { background: #ECFDF5; }
+  .lg-table tbody tr.row-already-deny td,
+  .lg-table tbody tr.row-locked td {
+    color: var(--fg-3);
+  }
+  .lg-table tbody tr.row-locked td .name-cell,
+  .lg-table tbody tr.row-already-deny td .name-cell { color: var(--fg-3); }
+
+  /* Row state backgrounds (panel B) */
+  .lg-table tbody tr.row-staged-remove td {
+    background: #FEF2F2;
+  }
+  .lg-table tbody tr.row-staged-remove td .name-cell,
+  .lg-table tbody tr.row-staged-remove td .reason-select-wrap {
+    text-decoration: line-through;
+    color: var(--color-error-dark);
+  }
+
+  /* Action buttons inside rows */
+  .row-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border-default);
+    background: #fff;
+    color: var(--fg-1);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .row-action:hover { background: var(--bg-muted); border-color: var(--border-strong); }
+  .row-action.add { color: var(--color-primary); border-color: #BFDBFE; background: #EFF6FF; }
+  .row-action.add:hover { background: #DBEAFE; }
+  .row-action.remove { color: var(--color-error-dark); border-color: #FECACA; background: #FEF2F2; }
+  .row-action.remove:hover { background: #FEE2E2; }
+  .row-action.revert { color: var(--color-success-dark); border-color: #A7F3D0; background: #ECFDF5; }
+  .row-action.revert:hover { background: #D1FAE5; }
+  .row-action.revert-red { color: var(--color-error-dark); border-color: #FECACA; background: #FEF2F2; }
+
+  .inline-flag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11.5px; font-weight: 500;
+    color: var(--fg-3);
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--bg-muted);
+    white-space: nowrap;
+  }
+  .inline-flag.locked { color: var(--fg-3); }
+  .inline-flag.already { color: var(--fg-3); }
+  .inline-flag svg { color: var(--fg-4); }
+
+  .reason-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-left: 8px;
+    font-size: 11px; font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--gray-100);
+    color: var(--fg-2);
+    white-space: nowrap;
+  }
+  .reason-tag::before {
+    content: ''; display: inline-block;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--fg-4);
+  }
+
+  .reason-select {
+    height: 28px;
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    padding: 0 26px 0 8px;
+    font-size: 12px;
+    background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") right 8px center no-repeat;
+    -webkit-appearance: none; appearance: none;
+    color: var(--fg-1);
+    max-width: 160px;
+    cursor: pointer;
+  }
+  .reason-select:focus { outline: none; border-color: var(--color-primary); }
+  .reason-select-wrap {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+
+  .row-action-cell {
+    display: flex; align-items: center; gap: 6px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+  }
+  .delete-x {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    display: inline-grid; place-items: center;
+    color: var(--fg-3);
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+  }
+  .delete-x:hover { background: #FEE2E2; color: var(--color-error); border-color: #FECACA; }
+
+  /* Reason popover */
+  .reason-pop {
+    position: absolute;
+    z-index: 200;
+    background: #fff;
+    border: 1px solid var(--border-default);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(15,23,42,0.16);
+    padding: 6px;
+    min-width: 200px;
+  }
+  .reason-pop .pop-label {
+    padding: 8px 10px 4px;
+    font-size: 11px; font-weight: 700;
+    color: var(--fg-3);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .reason-pop .pop-item {
+    display: block;
+    width: 100%; text-align: left;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12.5px; color: var(--fg-1);
+    cursor: pointer;
+    background: transparent; border: 0;
+  }
+  .reason-pop .pop-item:hover { background: var(--color-primary-light); color: var(--color-primary); }
+  .reason-pop .pop-divider { height: 1px; background: var(--border-light); margin: 4px 6px; }
+  .reason-pop .pop-cancel {
+    color: var(--fg-3);
+    font-weight: 500;
+  }
+
+  /* Pending changes stripe */
+  .pending-stripe {
+    border: 1px solid #BFDBFE;
+    background: #EFF6FF;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 12.5px;
+    color: var(--fg-1);
+  }
+  .pending-stripe.hidden { display: none; }
+  .pending-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .pending-summary {
+    display: flex; align-items: center; gap: 14px;
+    flex-wrap: wrap;
+    font-weight: 500;
+  }
+  .pending-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+  }
+  .pending-chip.add { color: var(--color-success-dark); }
+  .pending-chip.remove { color: var(--color-error-dark); }
+  .pending-chip .chip-icon {
+    display: inline-grid; place-items: center;
+    width: 16px; height: 16px; border-radius: 50%;
+    font-size: 11px; font-weight: 800;
+  }
+  .pending-chip.add .chip-icon { background: var(--color-success); color: #fff; }
+  .pending-chip.remove .chip-icon { background: var(--color-error); color: #fff; }
+  .pending-revert-all {
+    font-size: 12px; font-weight: 600;
+    color: var(--color-primary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid #BFDBFE;
+    cursor: pointer;
+  }
+  .pending-revert-all:hover { background: var(--color-primary-light); }
+  .pending-list {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #BFDBFE;
+    display: flex; flex-direction: column; gap: 4px;
+    max-height: 90px; overflow: auto;
+    font-size: 12px;
+    color: var(--fg-2);
+    font-family: 'Geist Mono', monospace;
+  }
+  .pending-list .pl-item {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pending-list .pl-item .pl-mark {
+    font-weight: 700;
+    width: 12px; text-align: center;
+    font-family: 'Geist', sans-serif;
+  }
+  .pending-list .pl-item.add .pl-mark { color: var(--color-success-dark); }
+  .pending-list .pl-item.remove .pl-mark { color: var(--color-error-dark); }
+  .pending-list .pl-reason {
+    margin-left: auto;
+    font-family: 'Geist', sans-serif;
+    font-size: 11.5px;
+    color: var(--fg-3);
+  }
+
+  /* Save button with count badge */
+  .btn.primary[disabled],
+  .btn.primary.is-disabled {
+    background: var(--gray-200); color: var(--fg-4);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .save-count-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.22);
+    font-size: 11px; font-weight: 700;
+    margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Title tooltip ⓘ */
+  .info-i {
+    position: relative;
+    display: inline-grid; place-items: center;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    color: var(--fg-3);
+    cursor: help;
+    background: var(--bg-muted);
+    font-size: 11px; font-weight: 700;
+  }
+  .info-i:hover { color: var(--color-primary); background: var(--color-primary-light); }
+  .info-i .info-tip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px); left: 0;
+    z-index: 60;
+    width: 320px;
+    background: #111827; color: #fff;
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 11.5px; font-weight: 400;
+    line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  }
+  .info-i .info-tip strong { color: #fff; }
+  .info-i:hover .info-tip { display: block; }
+
+  /* Empty body inside a panel */
+  .lg-empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--fg-3);
+    font-size: 12.5px;
+  }
+  .lg-empty .lg-empty-icon {
+    width: 44px; height: 44px;
+    margin: 0 auto 12px;
+    border-radius: 10px;
+    background: var(--bg-muted);
+    display: grid; place-items: center;
+    color: var(--fg-4);
+  }
+  .lg-empty h4 { margin: 0 0 4px; font-size: 13px; color: var(--fg-2); font-weight: 600; }
+  .lg-empty p { margin: 0; font-size: 12px; color: var(--fg-3); }
 
   /* connection test result (Step 5) */
   .conn-status .pulse {
@@ -2170,129 +2454,107 @@
     </div>
   </div>
 
-  <!-- ======== LOGICAL DB MODAL (Step 5) ======== -->
+  <!-- ======== LOGICAL DB MODAL (Step 5) — twin-panel staging ======== -->
   <div class="modal-backdrop" id="logicalModal" onclick="if(event.target===this)closeLogicalModal()">
-    <div class="modal logical-modal">
+    <div class="modal logical-modal" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h2 class="modal-title" id="logicalModalTitle">sea-live-space-prd · 논리 DB 확인</h2>
-        <p class="modal-sub">연동 대상의 Database와 Schema를 확인하고, 제외할 항목이 있으면 설정해 주세요.</p>
+        <button class="close-x" onclick="closeLogicalModal()" aria-label="close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="modal-title-row">
+          <span class="res-id" id="lgResId">sea-live-space-prd</span>
+          <h2 class="modal-title">· 논리 DB 확인</h2>
+          <span class="info-i" tabindex="0" aria-label="논리 DB란?">i
+            <span class="info-tip">
+              <strong>논리 DB란</strong> — 물리 DB 클러스터 안의 논리적 Database. MySQL은 database 단위, PostgreSQL/MSSQL은 database.schema 단위로 구분됩니다.
+            </span>
+          </span>
+        </div>
+        <p class="modal-sub">Test Connection으로 발견된 논리 DB와 제외 정책을 한 화면에서 관리해요.</p>
       </div>
       <div class="modal-body">
-        <div class="logical-shell">
-          <aside class="logical-side">
-            <span class="side-label">보기</span>
-            <button class="logical-tab active" data-ltab="all" onclick="setLogicalTab('all')">
-              <span>전체 논리 DB</span><span class="badge">7</span>
-            </button>
-            <button class="logical-tab" data-ltab="excluded" onclick="setLogicalTab('excluded')">
-              <span>제외된 논리 DB</span><span class="badge">3</span>
-            </button>
-          </aside>
-          <div class="logical-main">
-            <div class="logical-summary">
-              <div class="item"><strong>7</strong>전체 항목</div>
-              <div class="item target"><strong>4</strong>연동 대상</div>
-              <div class="item excluded"><strong>3</strong>연동 제외</div>
-            </div>
-            <div class="logical-toolbar">
-              <strong id="logicalPaneTitle" style="font-size: 13.5px; color: var(--fg-1);">전체 논리 DB</strong>
-              <div class="search">
+        <div class="logical-twin">
+          <!-- (A) Discovered -->
+          <section class="lg-panel" id="lgPanelA">
+            <div class="lg-panel-head">
+              <div class="lg-panel-title">
+                <span>조회된 논리 DB</span>
+                <span class="count" id="lgCountA">0</span>
+              </div>
+              <div class="lg-panel-search">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input placeholder="Database / Schema 검색" />
+                <input id="lgSearchA" placeholder="Database / Schema 검색" oninput="lgRender()" />
               </div>
             </div>
-            <div class="logical-pane active" data-pane="all">
-            <div class="logical-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:32px;"></th>
-                  <th style="width:96px;">Type</th>
-                  <th>Database</th>
-                  <th>Schema</th>
-                  <th style="width:130px;">연동 대상 여부</th>
-                  <th style="width:160px;">제외 사유</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><input type="checkbox" checked /></td>
-                  <td><span class="tag blue">Database</span></td>
-                  <td class="mono">live</td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" checked /></td>
-                  <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td>
-                  <td class="mono">live</td>
-                  <td class="mono">public</td>
-                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" checked /></td>
-                  <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td>
-                  <td class="mono">live</td>
-                  <td class="mono">analytics</td>
-                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" checked /></td>
-                  <td><span class="tag blue">Database</span></td>
-                  <td class="mono">prd</td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                  <td><select><option>연동 대상</option><option>연동 제외</option></select></td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" /></td>
-                  <td><span class="tag blue">Database</span></td>
-                  <td class="mono">stg</td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                  <td><select><option selected>연동 제외</option><option>연동 대상</option></select></td>
-                  <td><select><option>타 시스템 사용 DB</option><option>Dev DB</option><option selected>Stg DB</option></select></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" /></td>
-                  <td><span class="tag blue">Database</span></td>
-                  <td class="mono">dev</td>
-                  <td><span style="color: var(--fg-4);">—</span></td>
-                  <td><select><option selected>연동 제외</option><option>연동 대상</option></select></td>
-                  <td><select><option>타 시스템 사용 DB</option><option selected>Dev DB</option><option>Stg DB</option></select></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" /></td>
-                  <td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td>
-                  <td class="mono">prd</td>
-                  <td class="mono">temp</td>
-                  <td><select><option selected>연동 제외</option><option>연동 대상</option></select></td>
-                  <td><select><option selected>타 시스템 사용 DB</option><option>Dev DB</option><option>Stg DB</option></select></td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="lg-table-scroll">
+              <table class="lg-table" id="lgTableA">
+                <thead>
+                  <tr>
+                    <th style="width: 88px;">Type</th>
+                    <th>Name</th>
+                    <th style="width: 196px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
+          </section>
+
+          <!-- (B) Exclusion / Deny -->
+          <section class="lg-panel" id="lgPanelB">
+            <div class="lg-panel-head">
+              <div class="lg-panel-title deny">
+                <span>제외 목록 / Deny</span>
+                <span class="count" id="lgCountB">0</span>
+              </div>
+              <div class="lg-panel-search">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="lgSearchB" placeholder="Database / Schema 검색" oninput="lgRender()" />
+              </div>
             </div>
-            <div class="logical-pane" data-pane="excluded">
-            <div class="logical-table-wrap">
-            <table>
-              <thead><tr><th style="width:96px;">Type</th><th>Database</th><th>Schema</th><th>제외 사유</th></tr></thead>
-              <tbody>
-                <tr><td><span class="tag blue">Database</span></td><td class="mono">stg</td><td><span style="color: var(--fg-4);">—</span></td><td>Stg DB</td></tr>
-                <tr><td><span class="tag blue">Database</span></td><td class="mono">dev</td><td><span style="color: var(--fg-4);">—</span></td><td>Dev DB</td></tr>
-                <tr><td><span class="tag" style="background:#EEF2FF; color:#4338CA;">Schema</span></td><td class="mono">prd</td><td class="mono">temp</td><td>타 시스템 사용 DB</td></tr>
-              </tbody>
-            </table>
+            <div class="lg-table-scroll">
+              <table class="lg-table" id="lgTableB">
+                <thead>
+                  <tr>
+                    <th style="width: 88px;">Type</th>
+                    <th>Name</th>
+                    <th style="width: 130px;">사유</th>
+                    <th style="width: 130px;">Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
             </div>
+          </section>
+        </div>
+
+        <!-- Pending changes stripe -->
+        <div class="pending-stripe hidden" id="lgPending">
+          <div class="pending-head">
+            <div class="pending-summary">
+              <span class="pending-chip add"><span class="chip-icon">+</span><span id="lgAddCount">0</span>개 추가 예정</span>
+              <span style="color: var(--fg-4);">·</span>
+              <span class="pending-chip remove"><span class="chip-icon">−</span><span id="lgRemoveCount">0</span>개 삭제 예정</span>
             </div>
+            <button class="pending-revert-all" onclick="lgRevertAll()">모두 되돌리기</button>
           </div>
+          <div class="pending-list" id="lgPendingList"></div>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn outline" onclick="closeLogicalModal()">Cancel</button>
-        <button class="btn primary" onclick="closeLogicalModal()">Save</button>
+        <button class="btn primary is-disabled" id="lgSaveBtn" onclick="lgSave()">
+          <span id="lgSaveLabel">Save</span>
+          <span class="save-count-badge hidden" id="lgSaveBadge">0</span>
+        </button>
+      </div>
+
+      <!-- reason popover (positioned by JS) -->
+      <div class="reason-pop" id="lgReasonPop" style="display:none;">
+        <div class="pop-label">제외 사유</div>
+        <button class="pop-item" data-reason="타 시스템 사용 DB">타 시스템 사용 DB</button>
+        <button class="pop-item" data-reason="Dev DB">Dev DB</button>
+        <button class="pop-item" data-reason="Stg DB">Stg DB</button>
       </div>
     </div>
   </div>
@@ -2591,20 +2853,533 @@
     });
   }
 
-  // ----- Logical DB modal -----
-  function setLogicalTab(tab) {
-    document.querySelectorAll('#logicalModal .logical-tab').forEach(b => b.classList.toggle('active', b.dataset.ltab === tab));
-    document.querySelectorAll('#logicalModal .logical-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === tab));
-    document.getElementById('logicalPaneTitle').textContent = tab === 'excluded' ? '제외된 논리 DB' : '전체 논리 DB';
+  // ----- Logical DB modal (twin-panel staging, v3 spec) -----
+  // Domain model:
+  //   discovered: array of {id, type:'db'|'schema', dbName, schemaName?}
+  //   denyList:   array of {id, type, dbName, schemaName?, reason}
+  //   stagedAdd:  Map of id → {type, dbName, schemaName?, reason}
+  //   stagedRemove: Set of denyList ids
+  //
+  // Identity for matching: type + dbName (+ schemaName for schemas)
+
+  const REASONS = ['타 시스템 사용 DB', 'Dev DB', 'Stg DB'];
+
+  // Sample dataset per resource — resourceId → {discovered, deny}
+  const LG_DATASETS = {
+    'sea-live-space-prod': {
+      discovered: [
+        { id: 'd1', type: 'db', dbName: 'live' },
+        { id: 'd2', type: 'schema', dbName: 'live', schemaName: 'public' },
+        { id: 'd3', type: 'schema', dbName: 'live', schemaName: 'analytics' },
+        { id: 'd4', type: 'db', dbName: 'prd' },
+        { id: 'd5', type: 'schema', dbName: 'prd', schemaName: 'temp' },
+        { id: 'd6', type: 'db', dbName: 'stg' },
+        { id: 'd7', type: 'db', dbName: 'dev' },
+      ],
+      deny: [
+        { id: 'b1', type: 'db', dbName: 'stg', reason: 'Stg DB' },
+        { id: 'b2', type: 'db', dbName: 'dev', reason: 'Dev DB' },
+        { id: 'b3', type: 'schema', dbName: 'prd', schemaName: 'temp', reason: '타 시스템 사용 DB' },
+      ],
+    },
+    'sea-live-space-stg': {
+      discovered: [
+        { id: 'd1', type: 'db', dbName: 'app' },
+        { id: 'd2', type: 'schema', dbName: 'app', schemaName: 'public' },
+        { id: 'd3', type: 'db', dbName: 'reporting' },
+      ],
+      deny: [
+        // exists in (B) but not in (A) — valid normal state
+        { id: 'b1', type: 'db', dbName: 'legacy_warehouse', reason: '타 시스템 사용 DB' },
+      ],
+    },
+  };
+
+  let lgState = null; // initialized on open
+  let lgOpenDbs = new Set(); // tree expansion: set of dbNames currently expanded
+
+  function lgKey(item) {
+    return item.type === 'db' ? `db:${item.dbName}` : `sch:${item.dbName}.${item.schemaName}`;
   }
-  function openLogicalModal(name) {
-    document.getElementById('logicalModalTitle').textContent = name + ' · 논리 DB 확인';
-    setLogicalTab('all');
+
+  function openLogicalModal(resourceId) {
+    const ds = LG_DATASETS[resourceId] || LG_DATASETS['sea-live-space-prod'];
+    document.getElementById('lgResId').textContent = resourceId;
+    lgState = {
+      resourceId,
+      discovered: JSON.parse(JSON.stringify(ds.discovered)),
+      deny: JSON.parse(JSON.stringify(ds.deny)),
+      stagedAdd: new Map(),     // key (lgKey on discovered item) → reason
+      stagedRemove: new Set(),  // deny.id
+      reasonEdits: new Map(),   // deny.id → new reason (in-place edit)
+    };
+    // expand all DBs by default
+    lgOpenDbs = new Set();
+    ds.discovered.forEach(d => { if (d.type === 'db') lgOpenDbs.add(d.dbName); });
+    ds.deny.forEach(d => { if (d.type === 'db') lgOpenDbs.add(d.dbName); });
+    document.getElementById('lgSearchA').value = '';
+    document.getElementById('lgSearchB').value = '';
+    lgRender();
     document.getElementById('logicalModal').classList.add('open');
   }
   function closeLogicalModal() {
     document.getElementById('logicalModal').classList.remove('open');
+    lgHidePop();
   }
+
+  // -- Compute helpers
+  function lgDenyDbNames() {
+    // DBs covered by deny (already + staged), excluding those staged for removal
+    const set = new Set();
+    lgState.deny.forEach(d => {
+      if (d.type === 'db' && !lgState.stagedRemove.has(d.id)) set.add(d.dbName);
+    });
+    // staged-add DBs from discovered
+    lgState.stagedAdd.forEach((reason, key) => {
+      if (key.startsWith('db:')) set.add(key.slice(3));
+    });
+    return set;
+  }
+  function lgIsAlreadyDeny(item) {
+    // discovered item exactly matches an existing (non-staged-remove) deny entry
+    return lgState.deny.some(d =>
+      !lgState.stagedRemove.has(d.id) &&
+      d.type === item.type &&
+      d.dbName === item.dbName &&
+      d.schemaName === item.schemaName
+    );
+  }
+  function lgIsStagedAdd(item) {
+    return lgState.stagedAdd.has(lgKey(item));
+  }
+  function lgGetReason(item) {
+    // for discovered staged-add, return its reason
+    return lgState.stagedAdd.get(lgKey(item));
+  }
+
+  // -- Search match (parent-with-matching-child stays visible)
+  function lgFilterDiscovered(q) {
+    if (!q) return lgState.discovered;
+    const ql = q.toLowerCase();
+    const matched = new Set();
+    lgState.discovered.forEach(it => {
+      const hay = (it.dbName + ' ' + (it.schemaName || '')).toLowerCase();
+      if (hay.includes(ql)) {
+        matched.add(it.id);
+        if (it.type === 'schema') {
+          // include parent
+          const parent = lgState.discovered.find(p => p.type === 'db' && p.dbName === it.dbName);
+          if (parent) matched.add(parent.id);
+        }
+      }
+    });
+    return lgState.discovered.filter(it => matched.has(it.id));
+  }
+  function lgFilterDeny(q) {
+    // build effective deny list: existing deny (minus removed handled by render flag) + staged adds
+    const effective = [];
+    lgState.deny.forEach(d => effective.push({ ...d, _origin: 'existing' }));
+    lgState.stagedAdd.forEach((reason, key) => {
+      // synthesize a deny row from the staged add
+      const item = lgState.discovered.find(it => lgKey(it) === key);
+      if (item) effective.push({ id: '__add__' + key, type: item.type, dbName: item.dbName, schemaName: item.schemaName, reason, _origin: 'staged' });
+    });
+    if (!q) return effective;
+    const ql = q.toLowerCase();
+    const matched = new Set();
+    effective.forEach(it => {
+      const hay = (it.dbName + ' ' + (it.schemaName || '')).toLowerCase();
+      if (hay.includes(ql)) {
+        matched.add(it.id);
+        if (it.type === 'schema') {
+          const parent = effective.find(p => p.type === 'db' && p.dbName === it.dbName);
+          if (parent) matched.add(parent.id);
+        }
+      }
+    });
+    return effective.filter(it => matched.has(it.id));
+  }
+
+  // -- Render --
+  function lgRender() {
+    if (!lgState) return;
+    lgRenderPanelA();
+    lgRenderPanelB();
+    lgRenderPending();
+    lgRenderSave();
+  }
+
+  function svgChev() {
+    return `<svg class="toggle-tri" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="6 9 12 15 18 9"/></svg>`;
+  }
+
+  function lgRenderPanelA() {
+    const q = document.getElementById('lgSearchA').value.trim();
+    const items = lgFilterDiscovered(q);
+    const tbody = document.querySelector('#lgTableA tbody');
+    document.getElementById('lgCountA').textContent = lgState.discovered.length;
+
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3"><div class="lg-empty"><div class="lg-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><h4>일치하는 항목이 없어요</h4><p>다른 검색어를 입력해 주세요.</p></div></td></tr>`;
+      return;
+    }
+
+    const rows = [];
+    // group by db
+    const dbs = items.filter(i => i.type === 'db');
+    items.forEach(item => {
+      // we want to render in tree order: db then its schemas
+    });
+    // render in order of original list, but skip schemas if their db is collapsed
+    items.forEach(item => {
+      if (item.type === 'db') {
+        const hasChildren = items.some(c => c.type === 'schema' && c.dbName === item.dbName);
+        const expanded = lgOpenDbs.has(item.dbName);
+        const alreadyDeny = lgIsAlreadyDeny(item);
+        const stagedAdd = lgIsStagedAdd(item);
+
+        let rowClass = '';
+        let action = '';
+        if (stagedAdd) {
+          rowClass = 'row-staged-add is-parent ' + (expanded ? '' : 'collapsed');
+          action = `
+            <div class="row-action-cell">
+              <button class="row-action revert" onclick="lgUnstageAdd('${lgKey(item)}')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                되돌리기
+              </button>
+              <span class="reason-tag">${escapeHtml(lgGetReason(item))}</span>
+            </div>`;
+        } else if (alreadyDeny) {
+          rowClass = 'row-already-deny is-parent ' + (expanded ? '' : 'collapsed');
+          action = `<span class="inline-flag already">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            이미 제외 적용 중
+          </span>`;
+        } else {
+          rowClass = 'is-parent ' + (expanded ? '' : 'collapsed');
+          action = `<button class="row-action add" onclick="lgOpenReasonPop(event, '${lgKey(item)}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            추가
+          </button>`;
+        }
+
+        rows.push(`
+          <tr class="${rowClass}" data-db="${escapeAttr(item.dbName)}">
+            <td><span class="type-pill db">Database</span></td>
+            <td>
+              ${hasChildren
+                ? `<span onclick="lgToggleDb('${escapeAttr(item.dbName)}')" style="cursor:pointer;">${svgChev()}</span>`
+                : `<span class="toggle-spacer"></span>`}
+              <span class="name-cell">${escapeHtml(item.dbName)}</span>
+            </td>
+            <td>${action}</td>
+          </tr>`);
+      } else {
+        // schema
+        const expanded = lgOpenDbs.has(item.dbName);
+        if (!expanded) return;
+
+        // determine parent state for inheritance
+        const parent = lgState.discovered.find(p => p.type === 'db' && p.dbName === item.dbName);
+        const parentDeny = parent && (lgIsAlreadyDeny(parent) || lgIsStagedAdd(parent));
+        const alreadyDeny = lgIsAlreadyDeny(item);
+        const stagedAdd = lgIsStagedAdd(item);
+
+        let rowClass = 'is-child';
+        let action = '';
+        if (parentDeny) {
+          rowClass += ' row-locked';
+          action = `<span class="inline-flag locked">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            상위 DB에 포함됨
+          </span>`;
+        } else if (stagedAdd) {
+          rowClass += ' row-staged-add';
+          action = `
+            <div class="row-action-cell">
+              <button class="row-action revert" onclick="lgUnstageAdd('${lgKey(item)}')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                되돌리기
+              </button>
+              <span class="reason-tag">${escapeHtml(lgGetReason(item))}</span>
+            </div>`;
+        } else if (alreadyDeny) {
+          rowClass += ' row-already-deny';
+          action = `<span class="inline-flag already">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            이미 제외 적용 중
+          </span>`;
+        } else {
+          action = `<button class="row-action add" onclick="lgOpenReasonPop(event, '${lgKey(item)}')">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            추가
+          </button>`;
+        }
+
+        rows.push(`
+          <tr class="${rowClass}">
+            <td><span class="type-pill schema">Schema</span></td>
+            <td><span class="name-cell"><span class="name-prefix">${escapeHtml(item.dbName)}.</span>${escapeHtml(item.schemaName)}</span></td>
+            <td>${action}</td>
+          </tr>`);
+      }
+    });
+
+    tbody.innerHTML = rows.join('');
+  }
+
+  function lgRenderPanelB() {
+    const q = document.getElementById('lgSearchB').value.trim();
+    const items = lgFilterDeny(q);
+    const tbody = document.querySelector('#lgTableB tbody');
+
+    // (B) panel does NOT show child schemas of a deny-state Database (covered by parent policy)
+    // — so we filter out schema rows whose db is also in the effective deny list.
+    const denyDbsInList = new Set(items.filter(i => i.type === 'db').map(i => i.dbName));
+    const visible = items.filter(it => !(it.type === 'schema' && denyDbsInList.has(it.dbName)));
+
+    const totalCount = visible.length;
+    document.getElementById('lgCountB').textContent = totalCount;
+
+    if (visible.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="lg-empty"><div class="lg-empty-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/></svg></div><h4>제외된 논리 DB가 없어요</h4><p>왼쪽에서 [+ 추가]를 눌러 제외 정책을 추가할 수 있어요.</p></div></td></tr>`;
+      return;
+    }
+
+    const rows = visible.map(item => {
+      const isStagedAdd = item._origin === 'staged';
+      const isStagedRemove = item._origin === 'existing' && lgState.stagedRemove.has(item.id);
+      const currentReason = (!isStagedAdd && lgState.reasonEdits.has(item.id))
+        ? lgState.reasonEdits.get(item.id)
+        : item.reason;
+
+      let rowClass = item.type === 'db' ? 'is-parent' : 'is-child';
+      if (isStagedRemove) rowClass += ' row-staged-remove';
+      if (isStagedAdd) rowClass += ' row-staged-add';
+
+      const typePill = item.type === 'db'
+        ? '<span class="type-pill db">Database</span>'
+        : '<span class="type-pill schema">Schema</span>';
+
+      const nameCell = item.type === 'db'
+        ? `<span class="name-cell">${escapeHtml(item.dbName)}</span>`
+        : `<span class="name-cell"><span class="name-prefix">${escapeHtml(item.dbName)}.</span>${escapeHtml(item.schemaName)}</span>`;
+
+      let reasonCell;
+      if (isStagedRemove) {
+        reasonCell = `<span class="reason-select-wrap" style="font-size:12px;">${escapeHtml(currentReason)}</span>`;
+      } else if (isStagedAdd) {
+        const itemKey = lgKey(item);
+        reasonCell = `<select class="reason-select" onchange="lgUpdateAddReason('${itemKey}', this.value)">
+          ${REASONS.map(r => `<option ${r === currentReason ? 'selected' : ''}>${r}</option>`).join('')}
+        </select>`;
+      } else {
+        reasonCell = `<select class="reason-select" onchange="lgUpdateExistingReason('${item.id}', this.value)">
+          ${REASONS.map(r => `<option ${r === currentReason ? 'selected' : ''}>${r}</option>`).join('')}
+        </select>`;
+      }
+
+      let actionCell;
+      if (isStagedAdd) {
+        const itemKey = lgKey(item);
+        actionCell = `<button class="row-action revert" onclick="lgUnstageAdd('${itemKey}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          되돌리기
+        </button>`;
+      } else if (isStagedRemove) {
+        actionCell = `<button class="row-action revert" onclick="lgUnstageRemove('${item.id}')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          되돌리기
+        </button>`;
+      } else {
+        actionCell = `<button class="delete-x" onclick="lgStageRemove('${item.id}')" title="삭제">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+        </button>`;
+      }
+
+      return `<tr class="${rowClass}">
+        <td>${typePill}</td>
+        <td>${nameCell}</td>
+        <td>${reasonCell}</td>
+        <td>${actionCell}</td>
+      </tr>`;
+    });
+
+    tbody.innerHTML = rows.join('');
+  }
+
+  function lgRenderPending() {
+    const adds = Array.from(lgState.stagedAdd.entries());
+    const removes = Array.from(lgState.stagedRemove);
+    const total = adds.length + removes.length;
+    const stripe = document.getElementById('lgPending');
+    if (total === 0) { stripe.classList.add('hidden'); return; }
+    stripe.classList.remove('hidden');
+    document.getElementById('lgAddCount').textContent = adds.length;
+    document.getElementById('lgRemoveCount').textContent = removes.length;
+
+    const items = [];
+    adds.forEach(([key, reason]) => {
+      const it = lgState.discovered.find(d => lgKey(d) === key);
+      if (!it) return;
+      const name = it.type === 'db' ? it.dbName : `${it.dbName}.${it.schemaName}`;
+      const typeLabel = it.type === 'db' ? 'Database' : 'Schema';
+      items.push(`<div class="pl-item add"><span class="pl-mark">+</span><span>${escapeHtml(name)} 추가 (${typeLabel})</span><span class="pl-reason">사유: ${escapeHtml(reason)}</span></div>`);
+    });
+    removes.forEach(id => {
+      const it = lgState.deny.find(d => d.id === id);
+      if (!it) return;
+      const name = it.type === 'db' ? it.dbName : `${it.dbName}.${it.schemaName}`;
+      const typeLabel = it.type === 'db' ? 'Database' : 'Schema';
+      items.push(`<div class="pl-item remove"><span class="pl-mark">−</span><span>${escapeHtml(name)} 삭제 (${typeLabel})</span></div>`);
+    });
+    document.getElementById('lgPendingList').innerHTML = items.join('');
+  }
+
+  function lgRenderSave() {
+    const total = lgState.stagedAdd.size + lgState.stagedRemove.size;
+    const btn = document.getElementById('lgSaveBtn');
+    const label = document.getElementById('lgSaveLabel');
+    const badge = document.getElementById('lgSaveBadge');
+    if (total === 0) {
+      btn.classList.add('is-disabled');
+      label.textContent = 'Save';
+      badge.classList.add('hidden');
+    } else {
+      btn.classList.remove('is-disabled');
+      label.textContent = 'Save 변경사항';
+      badge.classList.remove('hidden');
+      badge.textContent = total;
+    }
+  }
+
+  // -- Actions --
+  function lgToggleDb(dbName) {
+    if (lgOpenDbs.has(dbName)) lgOpenDbs.delete(dbName);
+    else lgOpenDbs.add(dbName);
+    lgRender();
+  }
+
+  function lgStageAdd(key, reason) {
+    lgState.stagedAdd.set(key, reason);
+    // If we just staged a Database, drop any previously-staged child Schema adds (parent covers them)
+    if (key.startsWith('db:')) {
+      const dbName = key.slice(3);
+      Array.from(lgState.stagedAdd.keys()).forEach(k => {
+        if (k.startsWith('sch:') && k.startsWith('sch:' + dbName + '.')) {
+          lgState.stagedAdd.delete(k);
+        }
+      });
+    }
+    lgRender();
+  }
+  function lgUnstageAdd(key) {
+    lgState.stagedAdd.delete(key);
+    lgRender();
+  }
+  function lgStageRemove(id) {
+    lgState.stagedRemove.add(id);
+    lgRender();
+  }
+  function lgUnstageRemove(id) {
+    lgState.stagedRemove.delete(id);
+    lgRender();
+  }
+  function lgUpdateAddReason(key, reason) {
+    if (lgState.stagedAdd.has(key)) lgState.stagedAdd.set(key, reason);
+    lgRender();
+  }
+  function lgUpdateExistingReason(id, reason) {
+    const orig = lgState.deny.find(d => d.id === id);
+    if (!orig) return;
+    if (orig.reason === reason) lgState.reasonEdits.delete(id);
+    else lgState.reasonEdits.set(id, reason);
+    // reason edit is not counted as a staged change in the spec's add/remove counts
+    lgRender();
+  }
+
+  function lgRevertAll() {
+    lgState.stagedAdd.clear();
+    lgState.stagedRemove.clear();
+    lgRender();
+  }
+
+  function lgSave() {
+    const total = lgState.stagedAdd.size + lgState.stagedRemove.size;
+    if (total === 0) return;
+    // commit (mock): apply to local datasets
+    // remove staged-removes
+    lgState.deny = lgState.deny.filter(d => !lgState.stagedRemove.has(d.id));
+    // apply reason edits
+    lgState.deny.forEach(d => {
+      if (lgState.reasonEdits.has(d.id)) d.reason = lgState.reasonEdits.get(d.id);
+    });
+    // add staged-adds
+    let nid = 1;
+    lgState.stagedAdd.forEach((reason, key) => {
+      const it = lgState.discovered.find(d => lgKey(d) === key);
+      if (it) {
+        lgState.deny.push({ id: 'n' + (Date.now() + nid++), type: it.type, dbName: it.dbName, schemaName: it.schemaName, reason });
+      }
+    });
+    closeLogicalModal();
+  }
+
+  // -- Reason popover --
+  let _lgPopTargetKey = null;
+  function lgOpenReasonPop(evt, key) {
+    evt.stopPropagation();
+    _lgPopTargetKey = key;
+    const pop = document.getElementById('lgReasonPop');
+    pop.style.display = 'block';
+    // Find the actual button element — currentTarget can be lost if SVG child caught the click
+    const btn = (evt.target && evt.target.closest) ? evt.target.closest('.row-action.add') : null;
+    const anchor = btn || evt.currentTarget;
+    if (!anchor) return;
+    const btnRect = anchor.getBoundingClientRect();
+    const modal = document.querySelector('.logical-modal');
+    const modalRect = modal.getBoundingClientRect();
+    let top = btnRect.bottom - modalRect.top + 4;
+    let left = btnRect.left - modalRect.left;
+    // Clamp so popover stays inside modal
+    const popW = 200;
+    if (left + popW > modalRect.width - 8) left = modalRect.width - popW - 8;
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+  }
+  function lgHidePop() {
+    document.getElementById('lgReasonPop').style.display = 'none';
+    _lgPopTargetKey = null;
+  }
+  // Outside-click closes popover (and don't intercept the [+ 추가] button itself)
+  document.addEventListener('click', e => {
+    const pop = document.getElementById('lgReasonPop');
+    if (!pop || pop.style.display !== 'block') return;
+    if (e.target.closest('#lgReasonPop')) return;
+    if (e.target.closest('.row-action.add')) return;
+    lgHidePop();
+  });
+  // Pick a reason → stage immediately
+  document.addEventListener('click', e => {
+    const item = e.target.closest('#lgReasonPop .pop-item');
+    if (!item) return;
+    e.stopPropagation();
+    const reason = item.dataset.reason;
+    if (_lgPopTargetKey) lgStageAdd(_lgPopTargetKey, reason);
+    lgHidePop();
+  });
+  // ESC closes popover first, then modal
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const pop = document.getElementById('lgReasonPop');
+    if (pop && pop.style.display === 'block') { lgHidePop(); e.stopPropagation(); }
+  }, true);
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
 
   // ----- Confirm rewind modal (Step 6/7 → 5/1) -----
   let __confirmStepTarget = null;
