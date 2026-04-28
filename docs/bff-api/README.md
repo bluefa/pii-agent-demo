@@ -56,7 +56,7 @@ API additions, contract changes, error-code changes, and deprecations are tracke
 | --- | --- | --- |
 | Latest API for a Tag | the Tag guide | inline Swagger section |
 | Request/response schema | the Tag guide | inline Swagger excerpt |
-| Operational meaning of a response field | the Tag guide | "response 설명" section |
+| Operational meaning of a response field | the Tag guide | the response-meaning section (`response 설명`) |
 | What changed in a Tag, and why | the Tag guide's change-log table | linked discussion file |
 | Meaning of an error code | [catalogs/error-codes.md](./catalogs/error-codes.md) | the Tag guide that emits it |
 | Status definitions | [management-plan.md §3](./management-plan.md) | — |
