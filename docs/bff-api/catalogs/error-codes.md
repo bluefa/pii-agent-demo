@@ -62,4 +62,4 @@ Admin Guides는 guide name catalog를 BFF에서 검증하지 않는다.
 
 | API Tag | 문서 | 관련 error code |
 | --- | --- | --- |
-| Admin Guides | [5.2.3.5.5.10.1.11 Admin Guides](<../bff-api-tag-guides/5.2.3.5.5.10.1.11 Admin Guides.md>) | `VALIDATION_FAILED`, `GUIDE_CONTENT_INVALID` |
+| Admin Guides | [admin-guides.md](../tag-guides/admin-guides.md) | `VALIDATION_FAILED`, `GUIDE_CONTENT_INVALID` |

@@ -1,39 +1,41 @@
-# API 관련 논의
+# Discussions
 
 > Confluence: 5.2.3.5.5.10.3
-> 대상: BFF API의 변경 제안과 변경 이력을 함께 기록하는 공간
+> Status: Draft
+> Created: 2026-04-28
+> Last updated: 2026-04-28
 
-이 디렉터리는 BFF API의 변경, 추가, 폐기, 응답 구조 변경, 에러 코드 변경 등에 대한 논의 기록을 모은다.
-변경 제안과 변경 이력을 따로 관리하지 않고 한 문서에서 상태 전이로 관리한다.
+This directory tracks BFF API changes — additions, contract changes, error-code changes, deprecations, removals — as one Markdown file per change. Each file holds the proposal **and** the change-history for a single change, so we don't maintain two parallel logs.
 
-## 1. 파일명 규칙
+> **Note on language.** This `README.md` is English per project rules (every `README.md` is English-only). Discussion bodies are written in Korean to match the rest of `docs/bff-api/`.
+
+## 1. Filename convention
 
 ```text
 YYYY-MM-DD-{tag-slug}-{topic-slug}.md
 ```
 
-- `tag-slug`: 관련 Tag 가이드 파일명에 쓰인 슬러그 (예: `scan-jobs`, `error-codes`, `multiple` — Tag 여러 개에 걸친 경우)
-- `topic-slug`: 짧은 주제 식별자 (`added`, `response-changed`, `deprecated`, `error-code-added` 등)
-- 같은 날짜에 같은 주제가 여러 개면 끝에 `-2`, `-3`을 붙인다.
+- `tag-slug` mirrors the Tag-guide filename slug (e.g. `scan-jobs`, `approval-requests`). For changes that cross Tags use `multiple`; for error-code-only changes use `error-codes`.
+- `topic-slug` is a short identifier (`added`, `response-changed`, `deprecated`, `error-code-added`, `field-renamed`, etc.).
+- Same-day collisions get suffixed `-2`, `-3`.
 
-Confluence 페이지 제목은 별도로 `[yy.mm.dd] {API Tag 또는 주제} 관련 논의` 규칙을 따른다.
-파일 본문 frontmatter의 `confluenceTitle`로 매핑을 보존한다.
+The Confluence page title still follows `[yy.mm.dd] {API Tag 또는 주제} 관련 논의`. The mapping is preserved in each file's `Confluence Title:` metadata line — it is **a blockquote metadata line**, not YAML frontmatter.
 
-## 2. 작성 템플릿
+## 2. Document template
 
-새 논의를 시작할 때는 아래 골격을 복사해 사용한다.
-스킬을 통해 생성하는 경우 `/bff-api-docs new-discussion` 으로 자동 생성된다.
+Copy the skeleton below when starting a new discussion (or run `/bff-api-docs new-discussion {tag} {topic}` once the skill ships). The blockquote metadata block at the top is required; section headers are required but their bodies can stay empty until known.
 
 ```markdown
-# {제목 — 예: Scan Jobs API 추가}
+# {Title — e.g., Scan Jobs API 추가}
 
 > Confluence Title: [26.04.27] Scan Jobs API 추가 관련 논의
-> 작성일: 2026-04-27
-> 마지막 수정일: 2026-04-27
-> 상태: Draft
-> 대상 Tag: Scan Jobs
-> 변경 유형: Added | Changed | Deprecated | Removed | Fixed
-> 관련 PR: TBD
+> Created: 2026-04-27
+> Last updated: 2026-04-27
+> Status: Draft
+> Tags: Scan Jobs
+> Change type: Added | Changed | Deprecated | Removed | Fixed
+> Direction: BE-first | FE-first | Joint
+> Related PR: TBD
 
 ## 1. 논의 배경
 ## 2. 논의 내용
@@ -51,10 +53,17 @@ Confluence 페이지 제목은 별도로 `[yy.mm.dd] {API Tag 또는 주제} 관
 ## 7. 관련 링크
 ```
 
-## 3. 인덱스
+The `Direction:` field captures whether the change lands in backend first (`BE-first`), in frontend first (`FE-first`), or simultaneously (`Joint`). This is what `management-plan.md` §4.6 uses to decide whether the Tag guide should temporarily diverge from production.
 
-| 날짜 | 제목 | Tag | 상태 | 파일 |
+## 3. Status lifecycle
+
+`Draft → Reviewing → Accepted → Implemented → Released` (or `Rejected` at any point).
+A discussion at `Implemented` or later must have a `Related PR:` URL — the skill enforces this.
+
+## 4. Index
+
+| Date | Title | Tags | Status | File |
 | --- | --- | --- | --- | --- |
-| _아직 논의 문서 없음_ | | | | |
+| _no discussion docs yet_ | | | | |
 
-> 인덱스는 `/bff-api-docs validate` 또는 `/bff-api-docs index` 명령이 자동 갱신한다.
+> The index is rebuilt by `/bff-api-docs index` (separate from `validate`, which only reports). Do not hand-edit this section once the skill is in place.
