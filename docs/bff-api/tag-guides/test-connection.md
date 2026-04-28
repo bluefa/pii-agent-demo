@@ -1,13 +1,14 @@
-# 5.2.3.5.5.10.1.9 Services
+# Test Connection
 
+> Confluence: 5.2.3.5.5.10.1.10
 > 상태: Draft
-> API Tag: `Services`
+> API Tag: `Test Connection`
 > 담당: TBD
 > 마지막 수정일: 2026-04-27
 
 ## 1. 목적
 
-현재 사용자의 service 목록과 service authorized users 조회를 담당하는 BFF API Tag다.
+Test Connection 실행, 결과 조회, 논리 DB 목록, 완료 확인을 담당하는 BFF API Tag다.
 
 ## 2. BFF Swagger
 
@@ -16,163 +17,241 @@
 ```yaml
 openapi: 3.0.1
 info:
-  title: BFF API - Services
+  title: BFF API - Test Connection
   version: v0
 servers:
 - url: https://dip-stg.di.atlas.samsung.com
   description: Generated server url
 tags:
-- name: Services
-  description: Service access APIs
+- name: Test Connection
+  description: Test connection request, result, logical database, and confirmation APIs
 paths:
-  /install/v1/user/services/page:
+  /install/v1/target-sources/{targetSourceId}/test-connection:
+    parameters:
+    - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags:
+      - Test Connection
+      summary: 연결 테스트 실행 (비동기)
+      operationId: requestTestConnection
+      x-expected-duration: 1m ~ 10m
+      x-polling-interval: 10s
+      description: '선택된 리소스에 대해 연결 테스트를 비동기로 시작합니다.
+
+        요청 즉시 `202 Accepted`를 반환하며, 실제 테스트는 백그라운드에서 진행됩니다.
+
+
+        **polling 방식**: `GET /test-connection/latest`로 status가 `PENDING`이 아닐 때까지 조회합니다.
+
+
+        **중복 방지**: 이미 PENDING 상태의 테스트가 존재하면 `409 Conflict`를 반환합니다.
+
+        '
+      responses:
+        '202':
+          description: 연결 테스트 요청 수락됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionTriggerResponse'
+              example:
+                success: true
+                id: tc-20260218-001
+        '400':
+          description: 연결 테스트 가능한 상태가 아님
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: VALIDATION_FAILED
+                  message: 연결 테스트가 필요한 상태가 아닙니다.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+        '409':
+          description: 이미 진행 중인 연결 테스트가 존재함
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: CONFLICT_IN_PROGRESS
+                  message: 현재 연결 테스트가 진행 중입니다.
+  /install/v1/target-sources/{targetSourceId}/test-connection/results:
+    parameters:
+    - $ref: '#/components/parameters/TargetSourceId'
+    - name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+      description: 페이지 번호 (0부터 시작)
+    - name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 10
+      description: 페이지 당 항목 수
     get:
       tags:
-      - Services
-      operationId: getUserServices
-      parameters:
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          format: int32
-          default: 10
-      - name: query
-        in: query
-        required: false
-        schema:
-          type: string
+      - Test Connection
+      summary: 연결 테스트 결과 목록 조회 (Pagination)
+      operationId: getTestConnectionResults
+      x-expected-duration: 50ms
+      description: '해당 Target Source의 모든 연결 테스트 결과를 최신순으로 페이지네이션 조회합니다.
+
+        '
       responses:
         '200':
-          description: OK
+          description: 조회 성공
           content:
-            '*/*':
+            application/json:
               schema:
-                $ref: '#/components/schemas/PageServiceItem'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/TestConnectionResultsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+          $ref: '#/components/responses/PermissionDenied'
         '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/services/{serviceCode}/authorized-users:
+          $ref: '#/components/responses/TargetSourceNotFound'
+  /install/v1/target-sources/{targetSourceId}/test-connection/latest:
+    parameters:
+    - $ref: '#/components/parameters/TargetSourceId'
     get:
       tags:
-      - Services
-      summary: Get service authorized users
-      description: Retrieve users authorized to access the specified service
-      operationId: getServiceAuthorizedUsers
-      parameters:
-      - name: serviceCode
-        in: path
+      - Test Connection
+      summary: 가장 최근 결과 조회 (성공/실패 무관)
+      operationId: getLatestTestConnection
+      x-expected-duration: 50ms
+      description: '해당 Target Source의 가장 최근 연결 테스트 결과를 조회합니다 (상태 무관).
+
+        **polling 용도**: POST 후 이 엔드포인트를 주기적으로 호출하여 `status`가 `PENDING`이 아닌지 확인합니다.
+
+        테스트 이력이 없으면 `404`를 반환합니다.
+
+        '
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestConnectionJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          description: Target Source를 찾을 수 없거나, 연결 테스트 이력이 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                target_source_not_found:
+                  summary: Target Source 없음
+                  value:
+                    error:
+                      code: TARGET_SOURCE_NOT_FOUND
+                      message: 해당 ID의 Target Source가 존재하지 않습니다.
+                no_test_record:
+                  summary: 테스트 이력 없음
+                  value:
+                    error:
+                      code: TEST_CONNECTION_NOT_FOUND
+                      message: 연결 테스트 이력이 없습니다.
+  /install/v1/target-sources/{targetSourceId}/excluded-logical-databases:
+    parameters:
+    - $ref: '#/components/parameters/TargetSourceId'
+    - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags:
+      - Test Connection
+      summary: 연동 제외 논리 DB 목록 조회
+      operationId: getExcludedLogicalDatabases
+      description: '특정 리소스(resourceId)에 설정된 연동 제외 논리 DB 목록을 조회합니다.
+
+        resourceId는 Query Parameter로 전달됩니다.
+
+        '
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcludedLogicalDatabasesResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - Test Connection
+      summary: 연동 제외 논리 DB 목록 업데이트
+      operationId: updateExcludedLogicalDatabases
+      requestBody:
         required: true
-        schema:
-          type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExcludedLogicalDatabasesRequest'
       responses:
         '200':
-          description: OK
+          description: 업데이트 성공
           content:
-            '*/*':
+            application/json:
               schema:
-                $ref: '#/components/schemas/AuthorizedUsersResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/ExcludedLogicalDatabasesResponse'
         '404':
-          description: Not Found
+          $ref: '#/components/responses/NotFound'
+  /install/v1/target-sources/{targetSourceId}/tested-logical-databases:
+    parameters:
+    - $ref: '#/components/parameters/TargetSourceId'
+    - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags:
+      - Test Connection
+      summary: 마지막 Test Connection 결과 논리 DB 목록 조회
+      operationId: getTestedLogicalDatabases
+      responses:
+        '200':
+          description: 조회 성공
           content:
-            '*/*':
+            application/json:
               schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
+                $ref: '#/components/schemas/TestedLogicalDatabasesResponse'
+        '404':
+          $ref: '#/components/responses/TestedLogicalDatabaseNotFound'
+  /install/v1/target-sources/{targetSourceId}/test-connection-confirmation:
+    parameters:
+    - $ref: '#/components/parameters/TargetSourceId'
+    put:
+      tags:
+      - Test Connection
+      summary: Test Connection 완료 확인 설정/롤백
+      operationId: updateTestConnectionConfirmation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTestConnectionConfirmationRequest'
+      responses:
+        '200':
+          description: 업데이트 성공
           content:
-            '*/*':
+            application/json:
               schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
+                $ref: '#/components/schemas/TestConnectionConfirmationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   schemas:
     ErrorMessage:
@@ -1677,28 +1756,44 @@ components:
 
 ### 1. 현재 BFF API에 구현되지 않았음
 
-해당 없음.
+| Method | Path | Before | After | 변경 내역 |
+| --- | --- | --- | --- | --- |
+| POST | `/install/v1/target-sources/{targetSourceId}/test-connection` | `구현 없음` | `{`<br>`  "success": "boolean",`<br>`  "id": "string"`<br>`}` | `TestConnectionTriggerResponse` 응답을 반환하는 실행 요청 API 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/test-connection/results` | `구현 없음` | `{`<br>`  "content": [`<br>`    {`<br>`      "id": "string",`<br>`      "target_source_id": "long",`<br>`      "status": "PENDING / SUCCESS / FAIL",`<br>`      "requested_at": "datetime or null",`<br>`      "completed_at": "datetime or null",`<br>`      "requested_by": "string",`<br>`      "resource_test_results": [`<br>`        {`<br>`          "resource_id": "string",`<br>`          "test_connection_status": "PENDING / SUCCESS / FAIL"`<br>`        }`<br>`      ]`<br>`    }`<br>`  ],`<br>`  "page": {`<br>`    "totalElements": "int",`<br>`    "totalPages": "int",`<br>`    "number": "int",`<br>`    "size": "int"`<br>`  }`<br>`}` | `TestConnectionResultsResponse` 응답을 반환하는 결과 목록 조회 API 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/test-connection/latest` | `구현 없음` | `{`<br>`  "id": "string",`<br>`  "target_source_id": "long",`<br>`  "status": "PENDING / SUCCESS / FAIL",`<br>`  "requested_at": "datetime or null",`<br>`  "completed_at": "datetime or null",`<br>`  "requested_by": "string",`<br>`  "resource_test_results": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "test_connection_status": "PENDING / SUCCESS / FAIL"`<br>`    }`<br>`  ]`<br>`}` | `TestConnectionJob` 응답을 반환하는 최신 결과 조회 API 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/excluded-logical-databases` | `구현 없음` | `{`<br>`  "skip_logical_database_list": [`<br>`    {`<br>`      "database_name": "string",`<br>`      "schema_name": "string",`<br>`      "reason": "TMP / STG / DEV",`<br>`      "type": "DATABASE / SCHEMA"`<br>`    }`<br>`  ]`<br>`}` | `ExcludedLogicalDatabasesResponse` 응답을 반환하는 제외 DB 조회 API 추가 필요 |
+| PUT | `/install/v1/target-sources/{targetSourceId}/excluded-logical-databases` | `구현 없음` | `{`<br>`  "skip_logical_database_list": [`<br>`    {`<br>`      "database_name": "string",`<br>`      "schema_name": "string",`<br>`      "reason": "TMP / STG / DEV",`<br>`      "type": "DATABASE / SCHEMA"`<br>`    }`<br>`  ]`<br>`}` | `ExcludedLogicalDatabasesResponse` 응답을 반환하는 제외 DB 수정 API 추가 필요 |
+| GET | `/install/v1/target-sources/{targetSourceId}/tested-logical-databases` | `구현 없음` | `{`<br>`  "logical_database_list": [`<br>`    {`<br>`      "database_name": "string",`<br>`      "schema_name": "string",`<br>`      "type": "DATABASE / SCHEMA"`<br>`    }`<br>`  ]`<br>`}` | `TestedLogicalDatabasesResponse` 응답을 반환하는 테스트 대상 DB 조회 API 추가 필요 |
+| PUT | `/install/v1/target-sources/{targetSourceId}/test-connection-confirmation` | `구현 없음` | `{`<br>`  "target_source_id": "long",`<br>`  "confirmed": "boolean",`<br>`  "confirmed_at": "datetime or null"`<br>`}` | `TestConnectionConfirmationResponse` 응답을 반환하는 confirmation API 추가 필요 |
 
 ### 2. Response Type 변경이 필요함
 
-| Method | Path | Before | After | 변경 내역 |
-| --- | --- | --- | --- | --- |
-| GET | `/install/v1/user/services/page` | `{`<br>`  "content": [`<br>`    {`<br>`      "service_code": "string",`<br>`      "service_name": "string"`<br>`    }`<br>`  ],`<br>`  "totalPages": "int",`<br>`  "totalElements": "long",`<br>`  "size": "int",`<br>`  "number": "int"`<br>`}` | `{`<br>`  "content": [`<br>`    {`<br>`      "service_code": "string",`<br>`      "service_name": "string",`<br>`      "division": "string",`<br>`      "business_entity": "string",`<br>`      "related_systems": ["string"],`<br>`      "managers": ["string"],`<br>`      "database_type_list": ["string"]`<br>`    }`<br>`  ],`<br>`  "totalPages": "int",`<br>`  "totalElements": "long",`<br>`  "size": "int",`<br>`  "number": "int"`<br>`}` | service item에 `division`, `business_entity`, `related_systems`, `managers`, `database_type_list` 추가 필요 |
+해당 없음.
 
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| GET | `/install/v1/user/services/page` | 현재 사용자의 service 목록 조회 | Draft |
-| GET | `/install/v1/services/{serviceCode}/authorized-users` | service authorized users 조회 | Draft |
+| POST | `/install/v1/target-sources/{targetSourceId}/test-connection` | Test Connection 실행 요청 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/test-connection/results` | Test Connection 결과 목록 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/test-connection/latest` | 최신 Test Connection 결과 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/excluded-logical-databases` | 연동 제외 논리 DB 목록 조회 | Draft |
+| PUT | `/install/v1/target-sources/{targetSourceId}/excluded-logical-databases` | 연동 제외 논리 DB 목록 수정 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/tested-logical-databases` | 마지막 Test Connection 결과 논리 DB 목록 조회 | Draft |
+| PUT | `/install/v1/target-sources/{targetSourceId}/test-connection-confirmation` | Test Connection 완료 확인 설정/롤백 | Draft |
 
 ## 4. Response 설명
 
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
-| TBD | service code, service name, authorized user 필드 의미를 작성 | 공통 규칙 |
+| `status` | Test Connection 진행/성공/실패 상태 의미를 작성 | Enum / 상태 카탈로그 |
+| `errorStatus` | 실패 유형과 사용자 액션을 작성 | 에러 코드 카탈로그 |
+| `logicalDatabases` | 테스트된/제외된 논리 DB 목록 표시 기준을 작성 | 공통 규칙 |
 
 ## 5. 주요 동작 규칙
 
-- service 목록 조회 기준을 설명한다.
-- authorized user의 포함 기준과 권한 기준을 설명한다.
+- Test Connection 실행 가능 조건을 설명한다.
+- polling 기준과 종료 조건을 설명한다.
+- 이미 진행 중인 Test Connection 처리 기준을 설명한다.
+- 연동 제외 논리 DB 목록과 테스트 결과 논리 DB 목록의 관계를 설명한다.
+- 완료 확인 설정/롤백 조건을 설명한다.

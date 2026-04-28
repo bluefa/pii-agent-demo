@@ -1,13 +1,14 @@
-# 5.2.3.5.5.10.1.2 Scan Jobs
+# Services
 
+> Confluence: 5.2.3.5.5.10.1.9
 > 상태: Draft
-> API Tag: `Scan Jobs`
+> API Tag: `Services`
 > 담당: TBD
 > 마지막 수정일: 2026-04-27
 
 ## 1. 목적
 
-Cloud resource scan job 실행, 최신 상태 조회, 이력 조회를 담당하는 BFF API Tag다.
+현재 사용자의 service 목록과 service authorized users 조회를 담당하는 BFF API Tag다.
 
 ## 2. BFF Swagger
 
@@ -16,173 +17,23 @@ Cloud resource scan job 실행, 최신 상태 조회, 이력 조회를 담당하
 ```yaml
 openapi: 3.0.1
 info:
-  title: BFF API - Scan Jobs
+  title: BFF API - Services
   version: v0
 servers:
 - url: https://dip-stg.di.atlas.samsung.com
   description: Generated server url
 tags:
-- name: Scan Jobs
-  description: Cloud resource scan job APIs
+- name: Services
+  description: Service access APIs
 paths:
-  /install/v1/target-sources/{targetSourceId}/scan:
-    post:
-      tags:
-      - Scan Jobs
-      summary: Start cloud resource scan
-      description: Initiates an asynchronous scan of cloud resources for the specified target source ID
-      operationId: startScan
-      parameters:
-      - name: targetSourceId
-        in: path
-        description: Target source ID
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        '202':
-          description: Accepted
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ScanJobResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/scanJob/latest:
+  /install/v1/user/services/page:
     get:
       tags:
-      - Scan Jobs
-      summary: Get latest scan status
-      description: Retrieves the status of the most recent scan job for the specified target source ID
-      operationId: getLatestScan
+      - Services
+      operationId: getUserServices
       parameters:
-      - name: targetSourceId
-        in: path
-        description: Target source ID
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ScanJobResponse'
-        '400':
-          description: Bad Request
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '403':
-          description: Forbidden
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '404':
-          description: Not Found
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '409':
-          description: Conflict
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '500':
-          description: Internal Server Error
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '501':
-          description: Not Implemented
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '502':
-          description: Bad Gateway
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-        '503':
-          description: Service Unavailable
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/scan/history:
-    get:
-      tags:
-      - Scan Jobs
-      summary: Get scan history
-      description: Retrieves the scan history for the specified target source ID
-      operationId: getScanHistory
-      parameters:
-      - name: targetSourceId
-        in: path
-        description: Target source ID
-        required: true
-        schema:
-          type: integer
-          format: int64
       - name: page
         in: query
-        description: Page number (0-based)
         required: false
         schema:
           type: integer
@@ -190,19 +41,91 @@ paths:
           default: 0
       - name: size
         in: query
-        description: Page size
         required: false
         schema:
           type: integer
           format: int32
           default: 10
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: OK
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PageScanJobResponse'
+                $ref: '#/components/schemas/PageServiceItem'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/services/{serviceCode}/authorized-users:
+    get:
+      tags:
+      - Services
+      summary: Get service authorized users
+      description: Retrieve users authorized to access the specified service
+      operationId: getServiceAuthorizedUsers
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AuthorizedUsersResponse'
         '400':
           description: Bad Request
           content:
@@ -1759,25 +1682,24 @@ components:
 
 ### 2. Response Type 변경이 필요함
 
-해당 없음.
+| Method | Path | Before | After | 변경 내역 |
+| --- | --- | --- | --- | --- |
+| GET | `/install/v1/user/services/page` | `{`<br>`  "content": [`<br>`    {`<br>`      "service_code": "string",`<br>`      "service_name": "string"`<br>`    }`<br>`  ],`<br>`  "totalPages": "int",`<br>`  "totalElements": "long",`<br>`  "size": "int",`<br>`  "number": "int"`<br>`}` | `{`<br>`  "content": [`<br>`    {`<br>`      "service_code": "string",`<br>`      "service_name": "string",`<br>`      "division": "string",`<br>`      "business_entity": "string",`<br>`      "related_systems": ["string"],`<br>`      "managers": ["string"],`<br>`      "database_type_list": ["string"]`<br>`    }`<br>`  ],`<br>`  "totalPages": "int",`<br>`  "totalElements": "long",`<br>`  "size": "int",`<br>`  "number": "int"`<br>`}` | service item에 `division`, `business_entity`, `related_systems`, `managers`, `database_type_list` 추가 필요 |
 
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| POST | `/install/v1/target-sources/{targetSourceId}/scan` | scan job 시작 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/scanJob/latest` | 최신 scan job 상태 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/scan/history` | scan job 이력 조회 | Draft |
+| GET | `/install/v1/user/services/page` | 현재 사용자의 service 목록 조회 | Draft |
+| GET | `/install/v1/services/{serviceCode}/authorized-users` | service authorized users 조회 | Draft |
 
 ## 4. Response 설명
 
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
-| `status` | Scan job의 진행 상태 의미를 작성 | Enum / 상태 카탈로그 |
-| `history` | scan 이력 정렬, 표시 기준을 작성 | 공통 규칙 |
+| TBD | service code, service name, authorized user 필드 의미를 작성 | 공통 규칙 |
 
 ## 5. 주요 동작 규칙
 
-- scan job 시작 가능 조건을 설명한다.
-- 진행 중, 성공, 실패 상태의 화면 표시 기준을 설명한다.
-- scan history 조회 기준과 pagination 정책을 설명한다.
+- service 목록 조회 기준을 설명한다.
+- authorized user의 포함 기준과 권한 기준을 설명한다.
