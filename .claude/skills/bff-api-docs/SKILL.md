@@ -34,7 +34,7 @@ The skill still references Korean **identifiers** in backticks (metadata keys li
 | `extract-tag {slug} <swagger-source>` | plan §6 | dry-run unless `--apply` |
 | `index` | plan §5.5 | dry-run unless `--apply` |
 
-`--force` is only honored for `index` and is a no-op everywhere else.
+`--force` is honored for `index` (overwrite hand-edited region preserving non-table content under a marker) and for `update-status` (allow a transition outside the documented lifecycle). It is a no-op everywhere else.
 
 ## Output contract (every command)
 
@@ -49,7 +49,9 @@ The skill still references Korean **identifiers** in backticks (metadata keys li
 All paths are repo-root relative. Run from the repo root or a worktree root. Use Read/Edit/Write for file IO; use Bash only for `git`, `grep`, `find`, and `python3` recipes.
 
 ### Display name vs slug
-The catalog stores **display names** in its `관련 API Tag` cell (e.g. `Admin Guides`). Tag-guide files use **slugs** in filenames (`admin-guides.md`). The skill resolves slug ↔ display name by reading each tag guide's `> API Tag:` metadata. A cell may hold a comma-separated list — split on `,`, trim whitespace, resolve each.
+The catalog stores **display names** in its `관련 API Tag` cell (e.g. `Admin Guides`). Tag-guide files use **slugs** in filenames (`admin-guides.md`). The skill resolves slug ↔ display name by reading each tag guide's `> API Tag:` metadata.
+
+**Normalization rule** (apply on both sides before comparison): strip outer whitespace, strip leading/trailing backticks, collapse internal runs of whitespace to a single space. This lets `> API Tag: \`Admin Guides\`` match a catalog cell `Admin Guides`. A catalog cell may hold a comma-separated list — split on `,`, then normalize each entry, then resolve.
 
 ### Metadata parsing
 The blockquote metadata block is the consecutive `> Key: Value` lines after the H1. Use:
@@ -222,13 +224,15 @@ When invoked from another `/bff-api-docs` write command via the §9 self-test, o
 
 `{CODE}` matches `^[A-Z][A-Z0-9_]+$`. Catalog file: `docs/bff-api/catalogs/error-codes.md`, table at `## 4. Error Code 목록`, 11 columns.
 
+For discussion filenames the code is slugified (`code-slug = CODE.toLowerCase().replace(/_/g, '-')`) so the resulting filename satisfies the §5.4 filename regex. Example: `VALIDATION_FAILED` → `validation-failed`, producing `discussions/2026-05-01-error-codes-validation-failed-added.md`.
+
 | Sub | Catalog effect | Discussion effect | Affected tag guides |
 | --- | --- | --- | --- |
-| `add` | Append a row. All 11 cells non-empty (interactively prompt). `폐기 예정 여부` defaults to `아니오`. `추가일 / 변경일` defaults to today. | Create `discussions/{today}-error-codes-{code}-added.md` from TEMPLATE. `대상 Tag: error-codes`. `변경 유형: Added`. Ask user for `변경 방향`. | List the tag guides resolved from `관련 API Tag`. Advise running `sync-error-refs --apply` after. |
-| `change` | Edit specified cell(s). Bump `변경일` half of `추가일 / 변경일`. Quote previous values into the discussion. | `…-{code}-changed.md`. | Same as `add` — sync afterwards. |
+| `add` | Append a row. All 11 cells non-empty (interactively prompt). `폐기 예정 여부` defaults to `아니오`. `추가일 / 변경일` defaults to today. | Create `discussions/{today}-error-codes-{code-slug}-added.md` from TEMPLATE. `대상 Tag: error-codes`. `변경 유형: Added`. Ask user for `변경 방향`. | List the tag guides resolved from `관련 API Tag`. Advise running `sync-error-refs --apply` after. |
+| `change` | Edit specified cell(s). Bump `변경일` half of `추가일 / 변경일`. Quote previous values into the discussion. | `…-{code-slug}-changed.md`. | Same as `add` — sync afterwards. |
 | `guidance` | Edit `사용자 액션` and/or `운영자 확인 포인트` only. Bump `변경일`. | Discussion optional — ask user (default skip). | None — guidance updates do not change the contract. |
-| `deprecate` | Set `폐기 예정 여부` cell to `예 — 대체: NEW_CODE` or `예 — EOL: YYYY-MM-DD` (at least one). Bump `변경일`. | `…-{code}-deprecated.md`. | Sync afterwards. The deprecated row's row in tag-guide sentinel tables will display the deprecation marker (sync handles it). |
-| `remove` | Move the row to a `## 7. Removed codes` section (create if absent), preserving the row contents. | `…-{code}-removed.md` with the BE release-note URL. | Refuse if any tag guide still has a backtick reference to `{CODE}` outside the sentinel block; user must remove those first. Sync afterwards. |
+| `deprecate` | Set `폐기 예정 여부` cell to `예 — 대체: NEW_CODE` or `예 — EOL: YYYY-MM-DD` (at least one). Bump `변경일`. | `…-{code-slug}-deprecated.md`. | Sync afterwards. The deprecated row's row in tag-guide sentinel tables will display the deprecation marker (sync handles it). |
+| `remove` | Move the row to a `## 7. Removed codes` section (create if absent), preserving the row contents. | `…-{code-slug}-removed.md` with the BE release-note URL. | Refuse if any tag guide still has a backtick reference to `{CODE}` outside the sentinel block; user must remove those first. Sync afterwards. |
 
 Tag guide annotation propagation is the responsibility of `sync-error-refs`, not this command — the user runs sync explicitly so they see the diff.
 
