@@ -46,12 +46,16 @@
 
 | UI 요소 | 매핑 API / 필드 |
 |---|---|
-| 요청된 리소스 목록 | `GET /target-sources/{id}/approval-requests/latest` ✅ |
-| 행별 `연동 대상 여부` 컬럼 | `ResourceInputDto.selected` (true → "대상", false → "비대상") |
+| 요청된 리소스 목록 (catalog) | `GET /target-sources/{id}/resources` (= `ResourceCatalogResponse`) — 현재 `WaitingApprovalStep` 의 `CandidateResourceSection` 이 이미 이 endpoint 사용 중 |
+| 행별 `연동 대상 여부` (selected) | catalog 의 per-resource state + 진행 중 approval request snapshot. 현재 mock 은 project.resources 의 `isSelected` 필드 사용 |
 | 행별 `스캔 이력` 컬럼 | `ResourceConfigDto.scan_status` (`UNCHANGED` / `NEW_SCAN`) — null 이면 `—` |
+| 행별 메타 (Region / DB Name / DB Type) | catalog 응답의 ResourceConfigDto 필드 |
+| 요청 메타 (요청일시, 요청자, total/selected 카운트) | `GET /target-sources/{id}/approval-requests/latest` (`request/result` 요약만 — 리소스 목록은 미포함) |
 | 승인 요청 취소 버튼 | `POST /target-sources/{id}/approval-requests/cancel` ✅ |
 | 반려 사유 노출 | `BaseTargetSource.rejectionReason` (이미 `bff.targetSources.get` 응답에 포함) |
 | 반려 후 "연동 대상 DB 다시 선택하기" 버튼 | `POST /target-sources/{id}/approval-requests/system-reset` ✅ (PR #420 신규) |
+
+⚠️ **`approval-requests/latest` 는 리소스 배열을 반환하지 않습니다** (`request/result` 요약 + count 만 — confirm.yaml line 769–838). 따라서 Step 2 의 표 데이터 source 는 catalog (`getResources`) + project resources state 의 조합. 이는 기존 `CandidateResourceSection` 흐름을 그대로 재사용하는 방식.
 
 ### 변경/구현 포인트
 
@@ -277,7 +281,7 @@
 
 | Wave | 대상 | 사전조건 | 비고 |
 |---|---|---|---|
-| W1 | Step 2, 3 (시각 정리 + 반려/취소 modal + system-reset 통합) | Q2-1a, Q3-1a 답변 + system-reset mock 구현 | BFF 신규 endpoint(system-reset, PR #420) 통합 포함 |
+| W1 | Step 2, 3 (시각 정리 + 반려/취소 modal + system-reset 통합) | Q2-1a, Q3-1a 답변 + system-reset mock 구현 + **SYSTEM_ERROR detection BFF 결정** (옵션 A/B/C — 본 plan 의 [sit-step3/S3-W1b-error-state.md](./sit-step3/S3-W1b-error-state.md) Step 2 참조) | BFF 신규 endpoint(system-reset, PR #420) 통합 포함. 임시 결정: 옵션 (C) approval-history polling — long-term 은 (A) 권장 |
 | W2 | Step 4 GCP | Q4-3, Q4-4 답변 | GCP는 BFF 필드(`service_tf_status`/`bdc_tf_status`/`pending_action`) 가 잘 정렬되어 있어 우선 진행 가능 |
 | W3 | Step 4 Azure | **Q4-1 답변 필수** (BFF 변경 가능성 있음) | Azure는 service_tf_status 부재로 BFF 협의 선행 |
 | W4 | Step 5 (논리 DB 모달 제외) | Q5-3, Q5-4, Q5-5 | API gap 없는 부분만 |
@@ -318,6 +322,10 @@
 
 - BFF 신규 명세: `docs/bff-api/tag-guides/approval-requests.md` (PR #420)
   - `POST /target-sources/{id}/approval-requests/system-reset` — 반려/UNAVAILABLE 상태에서 IDLE 로 명시적 reset
+  - `ApprovalActionResponseDto.status` enum 에 `UNAVAILABLE` 포함
   - `ResourceConfigDto.scan_status` (`UNCHANGED` / `NEW_SCAN`)
   - `ResourceConfigDto.integration_status` (`INTEGRATED` / `NOT_INTEGRATED`)
+  - `ExcludedResourceInfo` 에 `resource_name` / `database_type` / `database_region` / `scan_status` / `integration_status` 포함 (Step 3 제외 행에서 사용)
 - 기존 swagger: `docs/swagger/confirm.yaml`, `azure.yaml`, `gcp.yaml`, `test-connection.yaml`, `logical-db-status.yaml`
+- BFF client 계층: ADR-011 (`docs/adr/011-typed-bff-client-consolidation.md`) — `lib/bff/types.ts` (interface) / `lib/bff/http.ts` (HTTP impl) / `lib/bff/mock-adapter.ts` (mock dispatch) / `lib/bff/mock/confirm.ts` (mock business logic)
+- ⛔ ADR-007 은 ADR-011 로 대체되어 파일이 삭제됨 — 본 plan 의 어떤 wave 도 ADR-007 을 reference 하면 안 됨

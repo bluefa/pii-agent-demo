@@ -122,7 +122,11 @@ import { useRouter } from 'next/navigation';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { cancelApprovalRequest } from '@/app/lib/api';
-import { TrashIcon } from '@/app/components/ui/icons';
+import { DeleteIcon } from '@/app/components/ui/icons';
+// 참고: 현재 export 가능 아이콘은 ChevronDownIcon, ClockIcon, CopyIcon, DeleteIcon,
+// DownloadIcon, ExpandIcon, FilterIcon, GuideIcon, OpenExternalIcon, PlayIcon,
+// PlusIcon, SearchIcon, StatusErrorIcon, StatusInfoIcon, StatusSuccessIcon,
+// StatusWarningIcon. 추가 아이콘이 필요하면 본 wave 의 changed files 에 명시.
 
 interface Props {
   targetSourceId: number;
@@ -147,7 +151,7 @@ export const WaitingApprovalCancelButton = ({ targetSourceId, onSuccess }: Props
         className={cn(buttonStyles.dangerOutline, 'inline-flex items-center gap-1.5')}
         onClick={() => setOpen(true)}
       >
-        <TrashIcon className="w-3.5 h-3.5" />
+        <DeleteIcon className="w-3.5 h-3.5" />
         연동 대상 승인 요청 취소
       </button>
 

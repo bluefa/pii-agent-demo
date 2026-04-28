@@ -72,7 +72,7 @@ cd /Users/study/pii-agent-demo-sit-step2-w1a-bff-contract
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalActionResponse'
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
         '400':
           description: 변경 불가 상태
         '403':
@@ -83,19 +83,13 @@ cd /Users/study/pii-agent-demo-sit-step2-w1a-bff-contract
           description: REJECTED 또는 UNAVAILABLE 상태가 아님
 ```
 
-### 2.2. `ApprovalActionResponse` 의 status enum 에 `UNAVAILABLE` 추가
+### 2.2. `ApprovalActionResponseDto` 의 status enum 확인 (보존)
 
-기존:
-```yaml
-status:
-  enum: [PENDING, APPROVED, AUTO_APPROVED, REJECTED, CANCELLED, CONFIRMED]
-```
+`docs/swagger/confirm.yaml` 의 **`ApprovalActionResponseDto`** (line 888) 와 `ApprovalLifecycleStatus` (line 974–983) 는 이미 `UNAVAILABLE` 을 포함하고 있음. 별도 변경 불필요.
 
-변경:
-```yaml
-status:
-  enum: [PENDING, APPROVED, AUTO_APPROVED, REJECTED, CANCELLED, UNAVAILABLE, CONFIRMED]
-```
+⚠️ **혼동 주의**: confirm.yaml line 1256 에 별개 schema `ApprovalActionResponse` (Dto 없는 이름) 가 존재하나 이는 **legacy** 로, `success/result + APPROVED/REJECTED enum` 만 가짐 (다른 endpoint 의 응답). system-reset / cancel 등 신규 응답은 `ApprovalActionResponseDto` 를 참조해야 함.
+
+본 wave 의 작업: 위 path snippet (Step 2.1) 의 `$ref` 가 정확히 `ApprovalActionResponseDto` 를 가리키는지 검증만 수행.
 
 ### 2.3. `ResourceConfigDto` 에 `scan_status` / `integration_status` 추가
 
@@ -150,21 +144,24 @@ export interface ApprovalResourceMetadata {
 
 → 본 wave 에서는 **타입만 추가**한다. `ApprovalRequestLatestResponse` 등 응답 타입 통합은 S2-W1b 에서 BFF normalize 로직과 함께 진행.
 
-### 3.3. `ApprovalActionResponse.status` enum 에 `UNAVAILABLE` 추가
+### 3.3. `ApprovalActionStatus` 타입 확인 (보존)
 
-기존 union type 확장:
+기존 union type (`lib/types.ts` 또는 `lib/approval-bff.ts`) 이 `UNAVAILABLE` 을 이미 포함하는지 grep 으로 확인:
+
+```bash
+grep -nE "ApprovalActionStatus|ApprovalLifecycleStatus" lib/types.ts lib/approval-bff.ts
+```
+
+→ 이미 포함되어 있으면 변경 없음.
+→ 누락되어 있으면 본 wave 에서 추가:
 
 ```ts
-// 변경 전
-export type ApprovalActionStatus =
-  | 'PENDING' | 'APPROVED' | 'AUTO_APPROVED' | 'REJECTED'
-  | 'CANCELLED' | 'CONFIRMED';
-
-// 변경 후
 export type ApprovalActionStatus =
   | 'PENDING' | 'APPROVED' | 'AUTO_APPROVED' | 'REJECTED'
   | 'CANCELLED' | 'UNAVAILABLE' | 'CONFIRMED';
 ```
+
+⛔ 변경 시 모든 switch / Record literal 의 exhaustive 케이스 추가 필수.
 
 ## Step 4: Self-Audit
 

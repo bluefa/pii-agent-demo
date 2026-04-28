@@ -1,9 +1,9 @@
 # S3-W1b — SYSTEM_ERROR / UNAVAILABLE Alert + Step 1 회귀 버튼
 
-> **Recommended model**: Sonnet 4.6 (S2-W1e 패턴 재사용 — 설계 결정 거의 없음)
-> **Estimated LOC**: ~150 (~80 component + ~70 tests)
+> **Recommended model**: **Opus 4.7 MAX** (BFF detection mechanism 부재 → mock 확장 + 명세 결정 + S2-W1e 패턴 재사용)
+> **Estimated LOC**: ~200 (~120 component + ~80 tests)
 > **Branch prefix**: `feat/sit-step3-w1b-error-state`
-> **Depends on**: S2-W1b (system-reset endpoint), S2-W1c (StepBanner), S2-W1e (Reselect 패턴), S3-W1a (errorSlot/reselectSlot 노출)
+> **Depends on**: S2-W1b (system-reset endpoint + mock UNAVAILABLE 시나리오), S2-W1c (StepBanner), S2-W1d (ConfirmStepModal), S2-W1e (Reselect 패턴 + ArrowLeftIcon), S3-W1a (errorSlot/reselectSlot 노출)
 
 ## Context
 
@@ -54,35 +54,54 @@ bash scripts/create-worktree.sh --topic sit-step3-w1b-error-state --prefix feat
 cd /Users/study/pii-agent-demo-sit-step3-w1b-error-state
 ```
 
-## Step 2: 상태 감지 헬퍼
+## Step 2: 상태 감지 헬퍼 (BFF gap — 명세 결정 필요)
 
-### 위치: `app/integration/target-sources/[targetSourceId]/_components/approved/applying-error.ts` (~30 LOC)
+⚠️ **BFF gap**: 현재 `GET /target-sources/{id}/process-status` 가 반환하는 `ProcessStatusResponseDto` (confirm.yaml line 1074–1100) 는 `target_source_id / process_status / healthy / evaluated_at` 만 포함하며 **`status_inputs` / `last_approval_result` 필드를 노출하지 않는다**. `ProcessStatusResponse` (line 1504+) 라는 다른 schema 가 status_inputs 를 가지나 이는 client 가 호출하는 endpoint 의 응답이 아님. 현재 app helper (`app/lib/api/index.ts:541`) 도 `ProcessStatusResponse` 인터페이스에 4개 필드만 가지고 있음.
+
+→ Step 3 에서 SYSTEM_ERROR / UNAVAILABLE 을 detect 할 source 가 **현재 public API 에 없음**. 본 wave 가 진입하기 위해 다음 중 하나가 결정되어야 함:
+
+- **(A)** BFF 명세 변경 — `ProcessStatusResponseDto` 에 `last_approval_result?: 'REJECTED' | 'UNAVAILABLE' | ...` 필드 추가. (S2-W1a 또는 별도 issue 에 추가)
+- **(B)** `GET /target-sources/{id}/approval-requests/latest` 의 `result.status` enum 에 `UNAVAILABLE` 포함 여부 확인 후 그것으로 detect. (현재 latest 응답 line 822–832 의 `result.status` enum 은 `PENDING / APPROVED / AUTO_APPROVED / REJECTED / CANCELLED` 만 있음 — `UNAVAILABLE` 부재. 추가 필요.)
+- **(C)** `GET /target-sources/{id}/approval-history` 1번째 항목의 `result.status` 검사. ApprovalHistoryItemDto 의 `result` (`ApprovalActionResponseDto`) 는 `UNAVAILABLE` 포함 — **현재 명세로 가능**.
+
+**본 plan 의 임시 결정**: 옵션 (C) — `getApprovalHistory(targetSourceId, page=0, size=1)` 의 첫 항목 `result.status === 'UNAVAILABLE'` 으로 detect. 단, 비효율적이므로 long-term 은 (A) 권장.
+
+### 위치: `app/integration/target-sources/[targetSourceId]/_components/approved/applying-error.ts` (~50 LOC)
 
 ```ts
-import type { ProcessStatusResponse } from '@/lib/types';
+import { getApprovalHistory } from '@/app/lib/api';
 
 export interface ApplyingErrorState {
   hasError: boolean;
-  reason?: string;          // 에러 사유 (있으면 banner 에 노출)
+  reason?: string;
 }
 
-export const detectApplyingError = (
-  status: ProcessStatusResponse | undefined,
-): ApplyingErrorState => {
-  if (!status) return { hasError: false };
+export const fetchApplyingErrorState = async (
+  targetSourceId: number,
+  signal: AbortSignal,
+): Promise<ApplyingErrorState> => {
+  const history = await getApprovalHistory(targetSourceId, 0, 1, { signal });
+  const latest = history.content[0]?.result;
+  if (!latest) return { hasError: false };
 
-  const result = status.status_inputs?.last_approval_result;
-  if (result === 'SYSTEM_ERROR' || result === 'UNAVAILABLE') {
+  if (latest.status === 'UNAVAILABLE' || latest.status === 'REJECTED') {
     return {
       hasError: true,
-      reason: status.status_inputs?.last_rejection_reason ?? undefined,
+      reason: latest.reason ?? undefined,
     };
   }
   return { hasError: false };
 };
 ```
 
-⛔ SYSTEM_ERROR 와 UNAVAILABLE 두 enum 값을 동일하게 처리. 추후 BFF 가 두 값을 의미적으로 분리하면 본 함수만 수정.
+⛔ `REJECTED` 도 detect 하는 이유: BFF 가 SYSTEM_ERROR 를 UNAVAILABLE 로 매핑한다는 가정 하에 안전장치. 사용자 결정으로 SYSTEM_ERROR=UNAVAILABLE 이지만 mock/실 BFF 동작 검증 후 `REJECTED` 분기는 제거 가능.
+
+⚠️ **본 wave 진입 전 BFF 팀과 명세 결정**:
+1. `ProcessStatusResponseDto` 에 last_approval_result 필드 추가할 것인지 (옵션 A)
+2. `approval-requests/latest.result.status` enum 에 UNAVAILABLE 추가할 것인지 (옵션 B)
+3. 본 plan 의 옵션 (C) approval-history polling 으로 진행할 것인지
+
+→ 결정 전까지 **W1b 는 시작 불가**.
 
 ## Step 3: `ApplyingErrorAlert` 컴포넌트
 
@@ -90,14 +109,14 @@ export const detectApplyingError = (
 
 ```tsx
 import { StepBanner } from '@/app/components/ui/StepBanner';
-import { AlertTriangleIcon } from '@/app/components/ui/icons';
+import { StatusErrorIcon } from '@/app/components/ui/icons';
 
 interface ApplyingErrorAlertProps {
   reason?: string;
 }
 
 export const ApplyingErrorAlert = ({ reason }: ApplyingErrorAlertProps) => (
-  <StepBanner variant="error" icon={<AlertTriangleIcon className="w-[18px] h-[18px]" />}>
+  <StepBanner variant="error" icon={<StatusErrorIcon className="w-[18px] h-[18px]" />}>
     <strong className="font-semibold">인프라 반영 중 오류가 발생했어요.</strong>
     {' '}다시 선택 후 재시도해 주세요.
     {reason && (
@@ -122,6 +141,7 @@ import { useState } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
 import { systemResetApprovalRequest } from '@/app/lib/api';
+// ArrowLeftIcon — S2-W1e 가 신규 추가한 아이콘 (S2-W1e 머지가 본 wave precondition)
 import { ArrowLeftIcon } from '@/app/components/ui/icons';
 import { buttonStyles, cn } from '@/lib/theme';
 
@@ -188,10 +208,9 @@ export const ApplyingReselectButton = ({ targetSourceId, onSuccess }: Props) => 
 
 ```tsx
 import { useApiQuery } from '@/app/hooks/useApiQuery';
-import { detectApplyingError } from '@/app/integration/target-sources/[targetSourceId]/_components/approved/applying-error';
+import { fetchApplyingErrorState } from '@/app/integration/target-sources/[targetSourceId]/_components/approved/applying-error';
 import { ApplyingErrorAlert } from '@/app/integration/target-sources/[targetSourceId]/_components/approved/ApplyingErrorAlert';
 import { ApplyingReselectButton } from '@/app/integration/target-sources/[targetSourceId]/_components/approved/ApplyingReselectButton';
-import { getProcessStatus } from '@/app/lib/api';
 
 export const ApplyingApprovedStep = ({ project, identity, providerLabel, action, onProjectUpdate }: Props) => {
   const refreshProject = useCallback(async () => {
@@ -199,13 +218,14 @@ export const ApplyingApprovedStep = ({ project, identity, providerLabel, action,
     onProjectUpdate(updated);
   }, [onProjectUpdate, project.targetSourceId]);
 
-  const { data: statusData } = useApiQuery({
-    queryKey: ['process-status', project.targetSourceId],
-    queryFn: ({ signal }) => getProcessStatus(project.targetSourceId, { signal }),
-    refetchInterval: 5000,
+  // approval-history 1건 polling (옵션 C — Step 2 의 BFF gap 결정 참고)
+  const { data: errorState } = useApiQuery({
+    queryKey: ['applying-error', project.targetSourceId],
+    queryFn: ({ signal }) => fetchApplyingErrorState(project.targetSourceId, signal),
+    refetchInterval: 10_000,
   });
 
-  const errorState = detectApplyingError(statusData);
+  const hasError = errorState?.hasError ?? false;
 
   return (
     <>
@@ -214,9 +234,9 @@ export const ApplyingApprovedStep = ({ project, identity, providerLabel, action,
 
       <ApplyingApprovedCard
         targetSourceId={project.targetSourceId}
-        errorSlot={errorState.hasError ? <ApplyingErrorAlert reason={errorState.reason} /> : null}
+        errorSlot={hasError ? <ApplyingErrorAlert reason={errorState?.reason} /> : null}
         reselectSlot={
-          errorState.hasError
+          hasError
             ? <ApplyingReselectButton targetSourceId={project.targetSourceId} onSuccess={refreshProject} />
             : null
         }
@@ -226,7 +246,7 @@ export const ApplyingApprovedStep = ({ project, identity, providerLabel, action,
 };
 ```
 
-⛔ `useApiQuery` 의 polling interval 은 기존 ProcessStatusCard 가 처리하는 폴링과 충돌하지 않게 조정. 기존 폴링 hook 이 별도라면 그 응답을 직접 prop drill 로 받는 것도 가능 — 본 wave 에서는 단순 별도 query 로 두되, 중복 검토는 self-audit 에서.
+⛔ `useApiQuery` 의 polling interval (10s) 은 기존 `ProcessStatusCard` 가 처리하는 폴링과 충돌하지 않게 조정. 만약 BFF 가 옵션 (A) `ProcessStatusResponseDto.last_approval_result` 를 추가하기로 결정되면 이 query 를 process-status query 로 변경하고 별도 fetch 제거.
 
 ## Step 6: Mock 시나리오 추가
 
