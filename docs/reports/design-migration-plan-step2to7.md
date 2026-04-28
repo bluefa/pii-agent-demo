@@ -98,14 +98,23 @@
 ### 변경/구현 포인트
 
 1. 기존 `ApplyingApprovedStep.tsx` 가 폴링 메시지를 보여주고 있는데(Memory: 미구현) 시안은 "반영 중 리소스 테이블"이 메인. 카드 + 테이블 형태로 재구성.
-2. 자동 전이가 원칙이므로 **Next 버튼은 시연용** — 운영 빌드에서는 제거 또는 `data-prototype-only` 플래그로 hidden.
-3. **null 표시 규칙**: 모든 컬럼 값이 null/undefined 인 경우 `—` 통일.
+2. **시연 Next 버튼 제거** — ProcessStatus 4 자동 전이만 사용. (시안 line 1669–1673 prototype 전용)
+3. **`반영중` status pill 제거** — 카드 헤더는 제목 + sub-text 만 표시. (Step 2 와 색상 구분 모호 회피)
+4. **null 표시 규칙**: 모든 컬럼 값이 null/undefined 인 경우 `—` 통일.
+5. **enum 라벨 매핑** (BFF 패스-스루):
+   - `scan_status`: `NEW_SCAN` → `신규` / `UNCHANGED` → `—` / null → `—`
+   - `integration_status`: `INTEGRATED` → `Integrated` / `NOT_INTEGRATED` → `—` / null → `—`
+6. **SYSTEM_ERROR (= BFF UNAVAILABLE)** 케이스: Step 2 와 **동일한 위치 / 동일한 패턴**으로 error banner + Primary "연동 대상 DB 다시 선택하기" 버튼 노출. 버튼은 S2-W1b 가 추가한 `system-reset` endpoint 재사용 (UNAVAILABLE → IDLE 전이).
+7. **선택 + 제외 리소스 동일 표 노출**: BFF `approved-integration` 응답의 `resource_infos` (선택) → `excluded_resource_infos` (제외) 순으로 단순 concat 후 렌더.
 
-### ❓ 남은 확인 사항
+### ✅ 확정 (Q3-1 ~ Q3-6 답변 반영)
 
-- **Q3-1a.** 시안 `Integrated` 라벨 ↔ BFF `INTEGRATED` 매핑은 자명. `NOT_INTEGRATED` 일 때 시안의 `—` 와 동일 의미인지 (즉 `NOT_INTEGRATED` 도 `—` 로 표기할지) 확인 필요.
-- **Q3-2.** Step 3 → Step 4 전이는 **자동 전이 only** (시안 Next 버튼은 prototype 전용으로 제거). 동의 여부 확인.
-- **Q3-3.** Step 3 에서 SYSTEM_ERROR 발생 시 화면 처리 — 시안 부재. 본 plan 에서는 `RejectionAlert` 동일 패턴으로 fallback 표시 권장.
+- **Q3-1**: BFF enum 패스-스루.
+- **Q3-2**: Next 버튼 제거.
+- **Q3-3**: SYSTEM_ERROR (= UNAVAILABLE) 시 Step 2 위치 / 패턴으로 error banner + 회귀 버튼.
+- **Q3-4**: `approved-integration` 응답을 그대로 사용, 선택 + 제외 concat.
+- **Q3-5**: `반영중` status pill 제거.
+- **Q3-6**: SYSTEM_ERROR 외에는 사용자가 빠져나갈 수 없음 (BFF 자동 전이 대기).
 
 ---
 
