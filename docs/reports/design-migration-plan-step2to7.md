@@ -159,6 +159,14 @@
 3. Azure는 task→리소스 매핑 정의가 필요 (Q4-1 참조).
 4. 기존 `InstallingStep.tsx` 의 polling/refresh hook 재사용 가능.
 
+### ✅ GCP 분기 확정 (Q4G 답변 반영, plan: [`sit-step4-gcp/`](./sit-step4-gcp/))
+
+- **Q4G-1**: 현재 BFF 명세로 모두 매핑 가능 — 신규 endpoint / schema 변경 없음.
+- **Q4G-2**: 공용 DB List "서비스 리소스 상태" 컬럼 → per-resource `installationStatus` 분기 (COMPLETED/IN_PROGRESS/FAIL).
+- **Q4G-3**: "Subnet 생성 진행" 카드 status pill 에 skip 제외 active 카운트 노출 (`진행중 (M/N)` 형식).
+
+GCP wave-task: [`sit-step4-gcp/00-README.md`](./sit-step4-gcp/00-README.md) — 3 waves (Pipeline cards / DB Table + Modal / Design polish).
+
 ### ❓ 사용자 확인 필요
 
 - **Q4-1. (Critical)** Azure의 task 1 "**서비스 측 리소스 설치 진행**" — 현재 `AzureInstallationStatus` 응답에는 service-side(고객 측) Terraform 상태를 직접 반환하는 필드가 없습니다. GCP/AWS와 달리 `service_tf_status`가 없는데, 시안의 Azure task 1을 어떻게 산출해야 하나요?
