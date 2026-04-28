@@ -1,13 +1,14 @@
-# 5.2.3.5.5.10.1.7 Cloud Permission
+# Installation Status
 
+> Confluence: 5.2.3.5.5.10.1.5
 > 상태: Draft
-> API Tag: `Cloud Permission`
+> API Tag: `Installation Status`
 > 담당: TBD
 > 마지막 수정일: 2026-04-27
 
 ## 1. 목적
 
-Cloud permission, Azure scan app, GCP service account 정보를 담당하는 BFF API Tag다.
+설치 상태, process status, confirmed integration, resource health, Azure Private Link health check를 담당하는 BFF API Tag다.
 
 ## 2. BFF Swagger
 
@@ -16,25 +17,26 @@ Cloud permission, Azure scan app, GCP service account 정보를 담당하는 BFF
 ```yaml
 openapi: 3.0.1
 info:
-  title: BFF API - Cloud Permission
+  title: BFF API - Installation Status
   version: v0
 servers:
 - url: https://dip-stg.di.atlas.samsung.com
   description: Generated server url
 tags:
-- name: Cloud Permission
-  description: Cloud permission and service account APIs
+- name: Installation Status
+  description: Installation status, process status, confirmed integration, and health check APIs
 paths:
-  /install/v1/target-sources/{targetSourceId}/gcp/terraform-service-account:
+  /install/v1/target-sources/{targetSourceId}/process-status:
     get:
       tags:
-      - Cloud Permission
-      summary: Terraform Execution Service Account 정보 조회
-      description: 대상 소스에 등록된 Terraform Execution Service Account의 설정 정보 및 검증 상태를 조회합니다.
-      operationId: getGcpTerraformServiceAccount
+      - Installation Status
+      summary: Get process status for target source
+      description: Fetches the process status for the specified target source ID
+      operationId: getProcessStatus
       parameters:
       - name: targetSourceId
         in: path
+        description: Target source ID
         required: true
         schema:
           type: integer
@@ -45,7 +47,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/GcpServiceAccountInfoResponse'
+                $ref: '#/components/schemas/ProcessStatusResponseDto'
         '400':
           description: Bad Request
           content:
@@ -94,13 +96,13 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/gcp/scan-service-account:
+  /install/v1/target-sources/{targetSourceId}/gcp/installation-status:
     get:
       tags:
-      - Cloud Permission
-      summary: Scan Service Account 정보 조회
-      description: 대상 소스에 등록된 Scan Service Account의 설정 정보 및 검증 상태를 조회합니다.
-      operationId: getGcpScanServiceAccount
+      - Installation Status
+      summary: Gcp 통합 설치 상태 조회
+      description: 대상 소스의 설치 상태를 조회합니다.
+      operationId: getGcpInstallationStatus
       parameters:
       - name: targetSourceId
         in: path
@@ -114,7 +116,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/GcpServiceAccountInfoResponse'
+                $ref: '#/components/schemas/GcpInstallationStatusResponse'
         '400':
           description: Bad Request
           content:
@@ -163,13 +165,83 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
-  /install/v1/target-sources/{targetSourceId}/azure/scan-app:
+  /install/v1/target-sources/{targetSourceId}/confirmed-integration:
     get:
       tags:
-      - Cloud Permission
-      summary: Azure App 스캔 정보 조회
-      description: 지정된 타겟 소스 ID에 대한 Azure App 스캔 정보를 조회합니다.
-      operationId: getAzureScanApp
+      - Installation Status
+      summary: Get confirmed integration information
+      description: Retrieves the confirmed integration information for the specified target source ID
+      operationId: getConfirmedIntegration
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConfirmedIntegrationResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/azure/installation-status:
+    get:
+      tags:
+      - Installation Status
+      summary: Azure 통합 설치 상태 조회
+      description: 대상 소스의 설치 상태를 조회합니다.
+      operationId: getInstallationStatus
       parameters:
       - name: targetSourceId
         in: path
@@ -183,7 +255,158 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/AzureServicePrincipalVerificationResponse'
+                $ref: '#/components/schemas/AzureInstallationStatusResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/{targetSourceId}/resource-health:
+    get:
+      tags:
+      - Installation Status
+      summary: Get resource health status
+      description: Get health status of all resources for the specified target source
+      operationId: getResourceHealth
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: status
+        in: query
+        description: Filter by health status
+        required: false
+        schema:
+          type: string
+          enum:
+          - HEALTHY
+          - UNHEALTHY
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceHealthDto'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '409':
+          description: Conflict
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '501':
+          description: Not Implemented
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/infra/target-sources/{targetSourceId}/azure-private-link-health-check:
+    get:
+      tags:
+      - Installation Status
+      summary: Azure Private Link Health Check 조회
+      description: 지정된 Target Source ID에 대한 Azure Private Link의 건강 상태를 조회합니다
+      operationId: getAzurePrivateLinkHealthCheck
+      parameters:
+      - name: targetSourceId
+        in: path
+        description: Target source ID
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AzureHealthCheckResult'
         '400':
           description: Bad Request
           content:
@@ -1736,28 +1959,36 @@ components:
 
 ### 1. 현재 BFF API에 구현되지 않았음
 
-해당 없음.
+| Method | Path | Before | After | 변경 내역 |
+| --- | --- | --- | --- | --- |
+| GET | `/install/v1/target-sources/{targetSourceId}/resource-health` | `구현 없음` | `[`<br>`  {`<br>`    "resource_id": "string",`<br>`    "health_status": "HEALTHY / UNHEALTHY"`<br>`  }`<br>`]` | `ResourceHealthDto[]` 응답을 반환하는 resource health 조회 API 추가 필요 |
 
 ### 2. Response Type 변경이 필요함
 
-해당 없음.
+| Method | Path | Before | After | 변경 내역 |
+| --- | --- | --- | --- | --- |
+| GET | `/install/v1/target-sources/{targetSourceId}/confirmed-integration` | `{`<br>`  "resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "resource_type": "string",`<br>`      "database_type": "string",`<br>`      "port": "int",`<br>`      "host": "string",`<br>`      "oracle_service_id": "string",`<br>`      "network_interface_id": "string",`<br>`      "ip_configuration": "string",`<br>`      "credential_id": "string",`<br>`      "database_region": "string",`<br>`      "resource_name": "string"`<br>`    }`<br>`  ]`<br>`}` | `{`<br>`  "resource_infos": [`<br>`    {`<br>`      "resource_id": "string",`<br>`      "resource_type": "string",`<br>`      "database_type": "string",`<br>`      "port": "int",`<br>`      "host": "string",`<br>`      "oracle_service_id": "string",`<br>`      "network_interface_id": "string",`<br>`      "ip_configuration": "string",`<br>`      "credential_id": "string",`<br>`      "database_region": "string",`<br>`      "resource_name": "string",`<br>`      "scan_status": "UNCHANGED / NEW_SCAN",`<br>`      "integration_status": "INTEGRATED / NOT_INTEGRATED"`<br>`    }`<br>`  ]`<br>`}` | `resource_infos` item에 `scan_status`, `integration_status` 추가 필요 |
 
 ## 3. API 목록
 
 | Method | Path | 설명 | 상태 |
 | --- | --- | --- | --- |
-| GET | `/install/v1/target-sources/{targetSourceId}/gcp/terraform-service-account` | GCP Terraform Execution Service Account 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/gcp/scan-service-account` | GCP Scan Service Account 조회 | Draft |
-| GET | `/install/v1/target-sources/{targetSourceId}/azure/scan-app` | Azure scan app 정보 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/process-status` | process status 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/gcp/installation-status` | GCP 설치 상태 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/confirmed-integration` | confirmed integration 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/azure/installation-status` | Azure 설치 상태 조회 | Draft |
+| GET | `/install/v1/target-sources/{targetSourceId}/resource-health` | resource health 조회 | Draft |
+| GET | `/install/v1/infra/target-sources/{targetSourceId}/azure-private-link-health-check` | Azure Private Link health check 조회 | Draft |
 
 ## 4. Response 설명
 
 | Response 항목 | 설명 | 관련 기준 |
 | --- | --- | --- |
-| TBD | cloud permission 검증 상태와 화면 표시 기준을 작성 | Enum / 상태 카탈로그 |
+| `status` | 설치 또는 process 상태의 의미를 작성 | Enum / 상태 카탈로그 |
+| TBD | provider별 설치 상태 표시 기준을 작성 | TBD |
 
 ## 5. 주요 동작 규칙
 
-- cloud permission 정보의 검증 상태 의미를 설명한다.
-- provider별 service account 또는 scan app의 표시 기준을 설명한다.
-- 권한 부족, 미설정, 검증 실패 상태의 사용자 액션을 설명한다.
+- provider별 설치 상태 판단 기준을 설명한다.
+- confirmed integration과 approval 상태의 관계를 설명한다.
+- resource health, private link health check의 화면 표시 기준을 설명한다.
