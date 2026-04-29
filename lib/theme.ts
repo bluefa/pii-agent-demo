@@ -332,6 +332,23 @@ export const navStyles = {
 } as const;
 
 /**
+ * Confirm step modal — 시안 SIT Prototype v3 line 2563–2587 의 단계 되돌리기 confirm
+ */
+export const confirmModalStyles = {
+  iconCircle: {
+    warn: 'bg-amber-100 text-amber-700',
+    danger: 'bg-red-100 text-red-700',
+  },
+  note: {
+    warning: 'bg-amber-50 border-amber-300 text-amber-800',
+  },
+  dangerOutlineButton:
+    'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
+  outlineButton:
+    'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
+} as const;
+
+/**
  * Step banner — 단계 본문 위 안내 배너 (시안 SIT Prototype v3 line 1832)
  */
 export const bannerStyles = {
