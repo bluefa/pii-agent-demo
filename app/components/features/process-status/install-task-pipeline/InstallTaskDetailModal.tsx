@@ -17,6 +17,7 @@ import {
   GCP_STEP_PIPELINE_LABELS,
   type GcpStepKey,
 } from '@/lib/constants/gcp';
+import { CloseIcon } from '@/app/components/ui/icons';
 import type { GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 import type { Step4ResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import {
@@ -160,9 +161,7 @@ export const InstallTaskDetailModal = ({
             )}
             aria-label="닫기"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <CloseIcon className="w-5 h-5" />
           </button>
         </div>
 
