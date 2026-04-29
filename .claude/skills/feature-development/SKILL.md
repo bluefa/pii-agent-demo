@@ -115,5 +115,4 @@ those workflows. Preserve intentionally quiet hook success behavior.
 
 - Remove only unused artifacts introduced by your own change.
 - Keep unrelated issues out of the diff; mention them instead.
-- If opening a PR, use `/pr` or `/pr-flow` rather than hand-writing a minimal
-  PR description.
+- After all work is committed and pushed, invoke `/pr` to create the PR. Do not hand-write a minimal PR description.
