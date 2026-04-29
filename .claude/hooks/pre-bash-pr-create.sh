@@ -5,12 +5,13 @@
 #
 # Steps (each runs only on files changed vs origin/main):
 #   1. eslint on changed files (exit-status driven)
-#   2. CLAUDE.md hard-rule grep on changed files
-#   3. sit-recurring-checks grep on changed files
+#   2. tsc --noEmit (env-only errors filtered: stale `.next/(dev/)?types/`, missing optional devDeps)
+#   3. CLAUDE.md hard-rule grep on changed files
+#   4. sit-recurring-checks grep on changed files
 #
-# tsc is intentionally NOT run here — the `Stop` hook (stop-verify.sh) covers it,
-# and inline tsc inside PreToolUse blocks PR creation on unrelated stale `.next/dev/types`
-# or missing devDeps state, which produces too many false-block events.
+# tsc was previously excluded because stale `.next/dev/types` and missing devDeps
+# raised PR-blocking errors that had no relation to the changes. The filter below
+# strips those env-only errors so real type errors still surface as exit 2.
 #
 # Any failure → stderr summary + exit 2. PR creation is blocked.
 # On pass → exit 0 silently.
@@ -50,17 +51,37 @@ add_section() {
 }
 
 # ─── 1. eslint on changed files ──────────────────────────
+# Build a Bash-3.2 / BSD-compatible array (no `xargs -d`, which is GNU-only).
+files=()
+while IFS= read -r line; do
+  [ -n "$line" ] && files+=("$line")
+done <<< "$changed"
 
-if [ -x ./node_modules/.bin/eslint ]; then
-  # Newline-separated `changed` → xargs (`-d '\n'` keeps brackets/spaces in pathnames intact).
-  lint_out=$(printf '%s\n' "$changed" | /usr/bin/xargs -d '\n' ./node_modules/.bin/eslint 2>&1)
+if [ -x ./node_modules/.bin/eslint ] && [ "${#files[@]}" -gt 0 ]; then
+  lint_out=$(./node_modules/.bin/eslint "${files[@]}" 2>&1)
   lint_status=$?
   if [ "$lint_status" -ne 0 ]; then
     add_section "eslint (changed files)" "$(printf '%s' "$lint_out" | tail -40)"
   fi
 fi
 
-# ─── 2. CLAUDE.md hard-rule grep ─────────────────────────
+# ─── 2. tsc --noEmit (env-only errors filtered) ──────────
+
+if [ -x ./node_modules/.bin/tsc ]; then
+  tsc_raw=$(./node_modules/.bin/tsc --noEmit --pretty false 2>&1 || true)
+  # Filter env-only errors that should not block PR creation:
+  # - Stale `.next/(dev/)?types/validator.ts` from route relocations
+  # - Missing optional devDeps not installed in this worktree (e.g. @testing-library/react)
+  tsc_filtered=$(printf '%s\n' "$tsc_raw" \
+    | /usr/bin/grep -vE '^\.next/(dev/)?types/' \
+    | /usr/bin/grep -vE "Cannot find module '@testing-library/" \
+    || true)
+  if printf '%s' "$tsc_filtered" | /usr/bin/grep -qE 'error TS[0-9]+'; then
+    add_section "tsc --noEmit (env-only errors filtered)" "$(printf '%s' "$tsc_filtered" | head -30)"
+  fi
+fi
+
+# ─── 3. CLAUDE.md hard-rule grep ─────────────────────────
 
 hard=""
 append_hard() {
@@ -85,22 +106,30 @@ while IFS= read -r f; do
       if hits=$(/usr/bin/grep -HnE '(text|bg|border|ring|divide|from|to|via|shadow)-(red|blue|green|yellow|gray|slate|zinc|neutral|stone|orange|amber|lime|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose)-[0-9]+' "$f" 2>/dev/null | head -2); [ -n "$hits" ]; then
         append_hard "CRITICAL #4 raw-color" "$hits"
       fi
+      if hits=$(/usr/bin/grep -HnE '`(hover|focus|active|sm|md|lg|xl):\$\{' "$f" 2>/dev/null | head -2); [ -n "$hits" ]; then
+        append_hard "dynamic-Tailwind" "$hits"
+      fi
+      ;;
+  esac
+  # F1 alert(): applies to .ts AND .tsx; skip test files.
+  case "$f" in
+    *.ts|*.tsx)
       case "$f" in
-        *__tests__*|*.test.tsx|*.spec.tsx) ;;
+        *__tests__*|*.test.ts|*.test.tsx|*.spec.ts|*.spec.tsx) ;;
         *)
           if hits=$(/usr/bin/grep -HnE '(^|[^.A-Za-z0-9_])(window\.)?alert\(' "$f" 2>/dev/null | head -2); [ -n "$hits" ]; then
             append_hard "F1 alert" "$hits"
           fi
           ;;
       esac
-      if hits=$(/usr/bin/grep -HnE '`(hover|focus|active|sm|md|lg|xl):\$\{' "$f" 2>/dev/null | head -2); [ -n "$hits" ]; then
-        append_hard "dynamic-Tailwind" "$hits"
-      fi
       ;;
   esac
   case "$f" in
     */route.ts)
-      if hits=$(/usr/bin/grep -HnE 'await\s+[A-Za-z_$][A-Za-z0-9_$]*\.json\s*\(\s*\)' "$f" 2>/dev/null | head -2); [ -n "$hits" ]; then
+      # Match `await <var>.json()` then exclude `request.json()` / `req.json()` (incoming body parse is allowed).
+      if hits=$(/usr/bin/grep -HnE 'await\s+[A-Za-z_$][A-Za-z0-9_$]*\.json\s*\(\s*\)' "$f" 2>/dev/null \
+                | /usr/bin/grep -vE 'await\s+(request|req)\.json' \
+                | head -2); [ -n "$hits" ]; then
         append_hard "Contract-First/ADR-011 (use bff.method())" "$hits"
       fi
       ;;
