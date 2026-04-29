@@ -1,5 +1,7 @@
 import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 
+export type InstallTaskStatus = 'done' | 'running' | 'failed' | 'pending';
+
 // ===== GCP Step Keys =====
 
 export const GCP_STEP_KEYS = [
@@ -14,6 +16,18 @@ export const GCP_STEP_LABELS: Record<GcpStepKey, string> = {
   serviceSideSubnetCreation: 'Subnet 생성',
   serviceSideTerraformApply: 'Service TF 설치',
   bdcSideTerraformApply: 'BDC TF 설치',
+} as const;
+
+export const GCP_STEP_PIPELINE_LABELS: Record<GcpStepKey, string> = {
+  serviceSideSubnetCreation: 'Subnet 생성 진행',
+  serviceSideTerraformApply: '서비스 측 리소스 설치 진행',
+  bdcSideTerraformApply: 'BDC 측 리소스 설치 진행',
+} as const;
+
+export const GCP_STEP_PIPELINE_SUBS: Record<GcpStepKey, string> = {
+  serviceSideSubnetCreation: 'Project 내 모니터링용 Subnet (10.30.0.0/22) 생성',
+  serviceSideTerraformApply: 'VPC Peering / Firewall / Service Account 권한 위임 구성',
+  bdcSideTerraformApply: 'PII Agent GCE 인스턴스 + Service Account + IAM Role 자동 배포',
 } as const;
 
 // ===== GCP Step Status Labels =====
@@ -70,6 +84,39 @@ export const getGcpStepSummary = (
 
   return { status, activeCount, completedCount };
 };
+
+// ===== GCP Pipeline Builder =====
+
+export interface GcpPipelineItem {
+  key: GcpStepKey;
+  title: string;
+  sub: string;
+  status: InstallTaskStatus;
+  completedCount: number;
+  activeCount: number;
+}
+
+const AGGREGATE_TO_CARD_STATUS: Record<GcpStepAggregateStatus, InstallTaskStatus> = {
+  COMPLETED: 'done',
+  IN_PROGRESS: 'running',
+  FAIL: 'failed',
+  PENDING: 'pending',
+};
+
+export const buildGcpPipelineItems = (
+  resources: GcpResourceStatus[]
+): GcpPipelineItem[] =>
+  GCP_STEP_KEYS.map((stepKey) => {
+    const summary = getGcpStepSummary(resources, stepKey);
+    return {
+      key: stepKey,
+      title: GCP_STEP_PIPELINE_LABELS[stepKey],
+      sub: GCP_STEP_PIPELINE_SUBS[stepKey],
+      status: AGGREGATE_TO_CARD_STATUS[summary.status],
+      completedCount: summary.completedCount,
+      activeCount: summary.activeCount,
+    };
+  });
 
 // ===== GCP 에러 코드 =====
 

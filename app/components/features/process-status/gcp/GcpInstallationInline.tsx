@@ -4,9 +4,10 @@ import { getGcpInstallationStatus, checkGcpInstallation } from '@/app/lib/api/gc
 import { statusColors, textColors, interactiveColors, cn } from '@/lib/theme';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
-import { GcpStepSummaryRow } from './GcpStepSummaryRow';
-import { GcpResourceStatusTable } from './GcpResourceStatusTable';
+import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
+import { GcpResourceStatusTable } from '@/app/components/features/process-status/gcp/GcpResourceStatusTable';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import { buildGcpPipelineItems } from '@/lib/constants/gcp';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
 
 interface GcpInstallationInlineProps {
@@ -69,7 +70,7 @@ export const GcpInstallationInline = ({
         </div>
       )}
 
-      <GcpStepSummaryRow resources={resources} />
+      <InstallTaskPipeline items={buildGcpPipelineItems(resources)} />
       <GcpResourceStatusTable resources={resources} />
     </div>
   );
