@@ -1,60 +1,50 @@
 # Project Structure Checker
 
-> 팀 개발 모드(`/team-dev`)에서는 `code-reviewer` 에이전트가 이 검사를 포함합니다.
+> In `/team-dev`, the `code-reviewer` agent includes this lens.
 
-PII Agent 프로젝트의 폴더 구조 규칙을 검사하는 리뷰어입니다.
+Review file placement, naming, and import-boundary consistency against the
+current repository layout. Use `coding-standards` as the source of truth if
+this file drifts.
 
-## 고정 폴더 구조 (CLAUDE.md 기준)
+## Current Layout
 
-```
-app/           # 페이지 (App Router)
-├── page.tsx   # 서비스 코드 목록 + 과제 목록 (2-pane)
-├── projects/[id]/  # 과제 상세
-└── admin/     # 관리자 화면
-
-components/
-├── ui/        # Button/Badge/Modal 등 기본 UI
-└── features/  # 도메인/비즈니스 컴포넌트
-
-mocks/         # MSW 사용시만
-types/         # 공용 타입
-lib/           # 유틸/데이터 접근/상태 전이 로직
-```
-
-## 검사 항목
-
-1. **파일 위치 규칙**
-   - UI 컴포넌트가 `components/ui/`에 있는지
-   - 비즈니스 컴포넌트가 `components/features/`에 있는지
-   - 타입이 `types/`에 있는지
-
-2. **파일 네이밍**
-   - 컴포넌트: PascalCase (예: `StepIndicator.tsx`)
-   - 유틸: camelCase (예: `formatDate.ts`)
-
-3. **잘못된 위치의 파일**
-   - `app/` 안에 컴포넌트 직접 정의
-   - `lib/` 안에 컴포넌트 존재
-
-## 검사 방법
-
-```bash
-# 폴더 구조 확인
-tree -L 2 -d
-
-# 컴포넌트 파일 위치 확인
-find . -name "*.tsx" -type f
+```text
+app/                                      Next.js App Router entrypoints
+app/components/ui/                       Shared UI primitives
+app/components/features/                 Reusable domain UI components
+app/hooks/                               Client hooks
+app/lib/api/                             CSR data helpers
+app/integration/                         Mounted integration app pages
+app/integration/api/v1/**/route.ts       Next route handlers
+app/api/_lib/                            Shared route helpers
+lib/bff/                                 Server-only typed BFF client and adapters
+lib/constants/                           Shared constants and labels
+lib/types/                               Shared TypeScript types
+lib/utils/                               Shared utilities
+lib/theme.ts                             Theme tokens and class helpers
 ```
 
-## 출력 형식
+## Review Items
 
-```
-파일: 경로
-심각도: 🔴 Critical / 🟡 Warning / 🟢 Suggestion
-설명: 문제점과 올바른 위치 제안
-```
+1. File placement
+   - Shared UI primitives live under `app/components/ui/`.
+   - Reusable domain components live under `app/components/features/`.
+   - Route-local UI may live near the route in an established `_components`
+     folder.
+   - Shared types live under `lib/types/`, unless an existing nearby domain
+     type location is more specific.
 
-## 심각도 기준
-- 🔴 Critical: 잘못된 폴더에 파일 존재
-- 🟡 Warning: 네이밍 규칙 위반
-- 🟢 Suggestion: 구조 개선 가능
+2. Naming
+   - Components use PascalCase file names.
+   - Hooks and utilities use camelCase file names.
+
+3. Boundary consistency
+   - CSR components use `@/app/lib/api/*` for data helpers.
+   - Server Components and route handlers use `@/lib/bff/client`.
+   - Do not introduce imports that violate `docs/api/boundaries.md`.
+
+## Output
+
+Report only concrete risks with file paths and evidence. Do not flag unrelated
+legacy structure unless the current diff depends on it unsafely or makes it
+worse.

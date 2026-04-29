@@ -1,47 +1,36 @@
 # React Pattern Checker
 
-> 팀 개발 모드(`/team-dev`)에서는 `code-reviewer` 에이전트가 이 검사를 포함합니다.
+> In `/team-dev`, the `code-reviewer` agent includes this lens.
 
-PII Agent 프로젝트의 React 패턴 규칙을 검사하는 리뷰어입니다.
+Review React behavior and component structure for concrete merge risk. Prefer
+the current `coding-standards`, `frontend-design`, and
+`vercel-react-best-practices` guidance over this helper if they disagree.
 
-## 프로젝트 규칙
-- 상태 관리: **React useState만 사용** (외부 라이브러리 금지)
-- 컴포넌트: functional component + arrow function만
+## Review Items
 
-## 검사 항목
+1. State and effects
+   - Hooks are not called conditionally or inside loops.
+   - Custom hooks use the `use` prefix.
+   - State is not duplicated when it can be derived safely.
+   - UI event flows use existing hooks such as `useModal`, `useApiMutation`,
+     `useApiAction`, polling hooks, or `useAbortableEffect` when they fit.
 
-1. **외부 상태 관리 라이브러리 사용 금지**
-   - Redux, Zustand, Jotai, Recoil 등 import 여부
-   - useContext는 허용 (React 내장)
+2. Component size and cohesion
+   - Components over roughly 300 lines deserve review, but size alone is not a
+     finding.
+   - Flag extraction only when the current diff makes behavior hard to verify
+     or likely to regress.
 
-2. **컴포넌트 크기 제한**
-   - 150줄 초과 컴포넌트 찾기
-   - 분리 필요 여부 제안
+3. External state
+   - Do not introduce Redux, Zustand, Jotai, Recoil, or similar state
+     libraries without explicit architecture approval.
+   - React Context is allowed when it matches existing local patterns.
 
-3. **Hooks 규칙 준수**
-   - 조건문/반복문 안에서 hooks 호출 금지
-   - custom hooks는 `use` prefix
+4. Next.js behavior
+   - Preserve Server Component vs Client Component boundaries.
+   - Avoid unnecessary client-side code in server-only paths.
 
-## 검사 방법
+## Output
 
-```bash
-# 외부 상태 라이브러리 import 찾기
-grep -r "from 'redux\|from 'zustand\|from 'jotai\|from 'recoil" --include="*.tsx"
-
-# 컴포넌트 파일 줄 수 확인
-wc -l **/*.tsx
-```
-
-## 출력 형식
-
-```
-파일: 경로
-라인: 번호
-심각도: 🔴 Critical / 🟡 Warning / 🟢 Suggestion
-설명: 문제점과 수정 제안
-```
-
-## 심각도 기준
-- 🔴 Critical: 외부 상태 라이브러리 사용
-- 🟡 Warning: 컴포넌트 150줄 초과
-- 🟢 Suggestion: hooks 패턴 개선 가능
+Use `P1`/`P2`/`P3` severity only when there is an actual behavioral,
+architecture, or maintenance risk. Avoid preference-only comments.
