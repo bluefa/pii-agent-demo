@@ -26,10 +26,10 @@ export const ConnectionApprovalDialog = (...) => …;
 
 ```tsx
 // ❌ Bad — spec key in component name
-import { S4GW1bModal } from './S4GW1bModal';
+import { S4GW1bModal } from '@/app/components/features/process-status/install-task-pipeline/S4GW1bModal';
 
 // ✅ Good
-import { InstallTaskDetailModal } from './InstallTaskDetailModal';
+import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
 ```
 
 **Forbidden tokens in identifiers** (types, interfaces, components, hooks, functions, exported constants, file names) — coordinates that point at delivery work, not domain entities:

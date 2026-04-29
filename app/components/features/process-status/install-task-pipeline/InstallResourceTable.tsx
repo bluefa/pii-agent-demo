@@ -48,7 +48,7 @@ export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
+    <div className={cn('overflow-hidden rounded-lg border', bgColors.surface, borderColors.default)}>
       <table className="w-full text-sm">
         <thead className={bgColors.muted}>
           <tr>
