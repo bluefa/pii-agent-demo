@@ -4,6 +4,26 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
+log_dir="${TMPDIR:-/tmp}/pii-agent-demo-pre-commit-$$"
+mkdir -p "${log_dir}"
+
+run_quiet() {
+  local label="$1"
+  shift
+  local log_file="${log_dir}/${label}.log"
+
+  printf '[pre-commit] %s... ' "${label}"
+  if "$@" >"${log_file}" 2>&1; then
+    echo "OK"
+    return 0
+  fi
+
+  echo "FAILED" >&2
+  echo "[pre-commit] Last log lines (${log_file}):" >&2
+  tail -80 "${log_file}" >&2 || true
+  exit 1
+}
+
 staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 
 # DESIGN.md and design-system routing must be checked even for markdown-only commits.
@@ -11,8 +31,7 @@ design_changed=$(printf '%s\n' "$staged_files" | grep -cE '^(DESIGN\.md|lib/them
 code_changed=$(printf '%s\n' "$staged_files" | grep -cE '\.(ts|tsx|js|jsx|mjs)$' || true)
 
 if [[ "$design_changed" -gt 0 ]]; then
-  echo "[pre-commit] Running design check..."
-  npm run design:check
+  run_quiet "design-check" npm run design:check
 fi
 
 if [[ "$code_changed" -eq 0 ]]; then
@@ -21,16 +40,9 @@ if [[ "$code_changed" -eq 0 ]]; then
   exit 0
 fi
 
-echo "[pre-commit] Running lint..."
-npm run lint --quiet 2>&1 | tail -3
-
-echo "[pre-commit] Running type-check..."
-npx tsc --noEmit --pretty false 2>&1 | tail -3
-
-echo "[pre-commit] Running tests..."
-npm run test:run
-
-echo "[pre-commit] Running build..."
-npm run build 2>&1 | tail -3
+run_quiet "lint" npm run lint --quiet
+run_quiet "type-check" npx tsc --noEmit --pretty false
+run_quiet "test-run" npm run test:run
+run_quiet "build" npm run build
 
 echo "[pre-commit] OK"
