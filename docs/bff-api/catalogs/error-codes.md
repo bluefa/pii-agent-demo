@@ -2,7 +2,7 @@
 
 > Confluence: 5.2.3.5.5.10.2.1
 > 상태: Draft
-> 마지막 수정일: 2026-04-28
+> 마지막 수정일: 2026-04-29
 > 대상: BFF API error code의 운영 의미, 사용자 액션, 운영자 확인 포인트
 
 ## 1. 목적
@@ -25,7 +25,7 @@ Admin Guides BFF는 `application/json`의 `ErrorMessage` 형식을 사용한다.
 
 ```json
 {
-  "timestamp": "2026-04-28T09:00:00",
+  "timestamp": "2026-04-29T02:27:09.123Z",
   "status": "BAD_REQUEST",
   "code": "VALIDATION_FAILED",
   "message": "contents.ko must be a string",
@@ -35,7 +35,7 @@ Admin Guides BFF는 `application/json`의 `ErrorMessage` 형식을 사용한다.
 
 | Field | 의미 |
 | --- | --- |
-| `timestamp` | BFF가 error response를 생성한 시각 |
+| `timestamp` | BFF가 error response를 생성한 시각. UTC 기준 ISO-8601 문자열이며, 화면 표시가 필요하면 클라이언트 로컬 timezone 기준으로 변환한다. |
 | `status` | HTTP status 이름 |
 | `code` | BFF error code. 일부 공통 에러에서는 null일 수 있다. |
 | `message` | 개발자/운영자가 원인 파악에 참고할 수 있는 메시지 |

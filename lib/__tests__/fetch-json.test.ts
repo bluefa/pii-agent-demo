@@ -163,6 +163,17 @@ describe('fetchJson — ProblemDetails 에러', () => {
     const err = await expectAppError('/api/v1/test');
     expect(err.requestId).toBe('body-456');
   });
+
+  it('timestamp는 UTC ISO-8601 문자열 그대로 보존한다', async () => {
+    mockFetch(500, {
+      timestamp: '2026-04-29T02:27:09.123Z',
+      code: 'INTERNAL_ERROR',
+      detail: '에러',
+    });
+
+    const err = await expectAppError('/api/v1/test');
+    expect(err.timestamp).toBe('2026-04-29T02:27:09.123Z');
+  });
 });
 
 describe('fetchJson — JSON 파싱 실패', () => {

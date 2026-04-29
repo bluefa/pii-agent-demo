@@ -4,7 +4,7 @@
 > 상태: Draft
 > API Tag: `Target Sources`
 > 담당: TBD
-> 마지막 수정일: 2026-04-27
+> 마지막 수정일: 2026-04-29
 
 ## 1. 목적
 
@@ -467,6 +467,8 @@ components:
         timestamp:
           type: string
           format: date-time
+          description: UTC 기준 ISO-8601 timestamp 문자열. 화면 표시가 필요하면 클라이언트 로컬 timezone 기준으로 변환한다.
+          example: "2026-04-29T02:27:09.123Z"
         status:
           type: string
           enum:
