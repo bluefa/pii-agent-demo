@@ -13,7 +13,7 @@ interface ButtonProps {
 
 const variantStyles = {
   primary: buttonStyles.variants.primary,
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400',
+  secondary: buttonStyles.variants.secondary,
   danger: buttonStyles.variants.danger,
 };
 
