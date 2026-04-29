@@ -1,4 +1,2 @@
-export { GcpInstallationInline } from './GcpInstallationInline';
-export { GcpStepSummaryCard } from './GcpStepSummaryCard';
-export { GcpStepSummaryRow } from './GcpStepSummaryRow';
-export { GcpResourceStatusTable } from './GcpResourceStatusTable';
+export { GcpInstallationInline } from '@/app/components/features/process-status/gcp/GcpInstallationInline';
+export { GcpResourceStatusTable } from '@/app/components/features/process-status/gcp/GcpResourceStatusTable';
