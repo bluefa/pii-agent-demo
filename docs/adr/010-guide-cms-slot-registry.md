@@ -2,7 +2,11 @@
 
 ## Status
 
-Proposed · 2026-04-25
+Accepted · 2026-04-25
+
+Implementation boundary amended by [ADR-011](./011-typed-bff-client-consolidation.md) on 2026-04-30.
+
+ADR-010 is **not superseded**. Its product/design decision remains current: the frontend owns guide identity and placement, while the server owns editable content. Only the API client boundary described in the original implementation notes became outdated after ADR-011 removed `lib/api-client/*`.
 
 ## Context
 
@@ -123,11 +127,13 @@ If any layer rejects, the content does not render. We never pass raw HTML to `da
 
 ### Impact on existing code
 
-- `app/components/features/process-status/GuideCard.tsx` splits into `GuideCard` (pure, takes `content: string`) and `GuideCardContainer` (takes `slotKey` and handles data fetching). Five provider pages migrate from `<GuideCard currentStep={} provider={} installationMode={} />` to `<GuideCardContainer slotKey="process.aws.auto.3" />`.
+- `app/components/features/process-status/GuideCard/GuideCardPure.tsx` is the pure renderer that takes validated content. `GuideCardContainer` takes a `slotKey`, resolves it through `lib/constants/guide-registry.ts`, fetches the `GuideName` content with `useGuide(name)`, and renders the selected language.
 - `lib/constants/process-guides.ts` retains `procedures` / `warnings` / `notes` / `prerequisiteGuides` for `ProcessGuideModal`. Only the `guide` field (now redundant with the new CMS) is removed.
 - `app/api/_lib/problem.ts` gains two error codes in `ERROR_CATALOG`: `GUIDE_NOT_FOUND`, `GUIDE_CONTENT_INVALID`. Error responses use the existing `ProblemDetails` (`application/problem+json`) envelope — no new error format.
-- CSR pipeline (ADR-007) is followed strictly: `lib/api-client/mock/guides.ts` holds mock business logic, `lib/api-client/bff-client.ts` extends with `guides` namespace, and `app/integration/api/v1/admin/guides/[name]/route.ts` dispatches via `client.guides.*` only. The server-only `lib/bff/client.ts` (`bff` export) is NOT used for this CSR feature.
-- No change to BFF upstream contract is shipped yet — this iteration ships against the mock namespace, while the swagger (`docs/swagger/guides.yaml`) documents the Next.js internal CSR route (`/integration/api/v1/...`). Upstream BFF integration (`/install/v1/...`) is a follow-up wave.
+- Per ADR-011, the CSR route uses the canonical typed BFF client: `app/integration/api/v1/admin/guides/[name]/route.ts` dispatches to `bff.guides.get(name)` and `bff.guides.put(name, body)` from `@/lib/bff/client`.
+- Mock business logic lives in `lib/bff/mock/guides.ts` and is exposed through `mockBff.guides` in `lib/bff/mock-adapter.ts`. Real upstream calls live in `httpBff.guides` in `lib/bff/http.ts`.
+- `lib/api-client/*` no longer exists. Any guide-CMS implementation note that mentions ADR-007, `client.guides.*`, `lib/api-client/mock/guides.ts`, or `lib/api-client/bff-client.ts` should be read as superseded by ADR-011.
+- `docs/swagger/guides.yaml` documents the BFF guide endpoint (`/admin/guides/{name}`); the Next.js internal route is the `/integration/api/v1/...` proxy used by CSR code.
 
 ## References
 
@@ -136,6 +142,6 @@ If any layer rejects, the content does not render. We never pass raw HTML to `da
 - [Swagger — guides.yaml](../swagger/guides.yaml)
 - External reviewer (Codex) feedback on slot-registry vs flat-naming, 2026-04-24
 - User requirement log: guide name as constant, admin cannot add/delete, 2026-04-23 → 04-25 session
-- Related: ADR-007 (API client pattern), ADR-008 (error handling strategy)
-- Related: `docs/api/boundaries.md` (CSR vs SSR pipelines — this feature lives in CSR pipeline)
+- Related: ADR-011 (Typed BFF Client Consolidation), ADR-008 (error handling strategy)
+- Related: `docs/api/boundaries.md` (single typed BFF data-access layer with CSR route proxy)
 - Future work: `docs/reports/i18n-support-plan.md` — registry labels will migrate to keys
