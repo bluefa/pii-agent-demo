@@ -104,7 +104,9 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 - PR 머지 요청:
   - `.codex/skills/pr-merge/SKILL.md`
 - PR 생성+머지 자동화 요청:
-  - `.codex/skills/pr-flow/SKILL.md`
+  - 기본은 `.codex/skills/pr/SKILL.md`로 PR 생성만 수행
+  - 사용자가 현재 thread에서 명시적으로 merge를 요청한 경우에만 `.codex/skills/pr-merge/SKILL.md`
+  - `.codex/skills/pr-flow/SKILL.md`는 legacy alias로만 사용
 - 머지 후 worktree 정리 요청:
   - `.codex/skills/worktree-cleanup/SKILL.md`
 - 구현/기능 추가 요청:
@@ -127,5 +129,6 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - push branch
   - create PR
 - Never merge unless the user explicitly requests merge in the current thread.
-- For merge, require explicit user command and run merge as a separate step (`/pr-merge` or `/pr-flow --merge-approved`).
-- Use `.codex/skills/pr-flow/SKILL.md` for PR creation-first execution.
+- For merge, require explicit user command and run merge as a separate step (`/pr-merge`).
+- Use `.codex/skills/pr/SKILL.md` for PR creation-first execution.
+- Keep `.codex/skills/pr-flow/SKILL.md` only as a legacy alias for older `/pr-flow` requests.
