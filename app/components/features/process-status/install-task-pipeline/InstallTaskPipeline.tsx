@@ -1,7 +1,6 @@
 'use client';
 
 import type { InstallTaskStatus } from '@/lib/constants/gcp';
-import { cn } from '@/lib/theme';
 import { InstallTaskCard } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskCard';
 
 export interface InstallTaskPipelineItem {
@@ -18,21 +17,13 @@ interface InstallTaskPipelineProps {
   items: InstallTaskPipelineItem[];
 }
 
-const GRID_COLS: Record<number, string> = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-2',
-  3: 'grid-cols-3',
-  4: 'grid-cols-4',
-};
-
 export const InstallTaskPipeline = ({ items }: InstallTaskPipelineProps) => {
   if (items.length === 0) return null;
 
   const lastIndex = items.length - 1;
-  const gridClass = GRID_COLS[items.length] ?? 'grid-cols-3';
 
   return (
-    <div className={cn('grid gap-0', gridClass)}>
+    <div className="grid grid-cols-3 gap-0">
       {items.map((item, idx) => (
         <InstallTaskCard
           key={item.key}
