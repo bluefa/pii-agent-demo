@@ -87,7 +87,29 @@ describe('mockConfirm.systemResetApprovalRequest', () => {
     expect(project?.status.targets.confirmed).toBe(false);
   });
 
-  it('REJECTED 가 아닌 상태에서 호출 → 409 APPROVAL_REQUEST_NOT_RESETTABLE', async () => {
+  it('UNAVAILABLE 상태에서 호출 → 200, processStatus=WAITING_TARGET_CONFIRMATION', async () => {
+    const status: ProjectStatus = {
+      ...createInitialProjectStatus(),
+      scan: { status: 'COMPLETED' },
+      targets: { confirmed: true, selectedCount: 1, excludedCount: 0 },
+      approval: { status: 'UNAVAILABLE' },
+    };
+    const project = createTestProject({
+      processStatus: ProcessStatus.WAITING_APPROVAL,
+      status,
+      isRejected: false,
+    });
+    getStore().projects.push(project);
+
+    const res = await mockConfirm.systemResetApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
+    expect(res.status).toBe(200);
+
+    const updated = getStore().projects.find((p) => p.id === TEST_PROJECT_ID);
+    expect(updated?.processStatus).toBe(ProcessStatus.WAITING_TARGET_CONFIRMATION);
+    expect(updated?.status.targets.confirmed).toBe(false);
+  });
+
+  it('REJECTED/UNAVAILABLE 가 아닌 상태에서 호출 → 409 APPROVAL_REQUEST_NOT_RESETTABLE', async () => {
     const status: ProjectStatus = {
       ...createInitialProjectStatus(),
       scan: { status: 'COMPLETED' },
