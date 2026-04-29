@@ -24,20 +24,21 @@ export const getCurrentStep = (status: ProjectStatus): ProcessStatus => {
 };
 
 const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
-  // 1. 연동 대상 확정 대기
-  // 반려 직후엔 targets.confirmed 가 보존되므로 자연스럽게 (2) 분기로 빠지지만,
-  // legacy mock 스냅샷처럼 confirmed=false + approval=REJECTED 조합이 들어오면
-  // 사용자가 system-reset 으로 명시적 회귀하기 전까지 Step 2 를 유지한다.
+  // Step 1: waiting for target confirmation.
+  // After a rejection (or system-error UNAVAILABLE) the mock preserves targets.confirmed=true,
+  // so this falls through to Step 2 naturally. Legacy snapshots can still carry
+  // confirmed=false + REJECTED/UNAVAILABLE; those remain on Step 2 until system-reset
+  // is explicitly invoked.
   if (!status.targets.confirmed) {
-    if (status.approval.status === 'REJECTED') {
+    if (status.approval.status === 'REJECTED' || status.approval.status === 'UNAVAILABLE') {
       return ProcessStatus.WAITING_APPROVAL;
     }
     return ProcessStatus.WAITING_TARGET_CONFIRMATION;
   }
 
-  // 2. 승인 대기 (PENDING 또는 REJECTED)
+  // Step 2: waiting for approval (PENDING / REJECTED / UNAVAILABLE).
   const approvalStatus = status.approval.status;
-  if (approvalStatus === 'PENDING' || approvalStatus === 'REJECTED') {
+  if (approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'UNAVAILABLE') {
     return ProcessStatus.WAITING_APPROVAL;
   }
 
