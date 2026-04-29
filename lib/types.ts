@@ -772,6 +772,12 @@ export type LastApprovalResultType =
   | 'SYSTEM_ERROR'
   | 'COMPLETED';
 
+/** Swagger ResourceConfigDto.scan_status — 직전 스캔 대비 본 리소스의 변화 */
+export type ResourceScanStatus = 'UNCHANGED' | 'NEW_SCAN';
+
+/** Swagger ResourceConfigDto.integration_status — confirmed-integration 등록 여부 */
+export type ResourceIntegrationStatus = 'INTEGRATED' | 'NOT_INTEGRATED';
+
 /** 리소스 스냅샷 (Swagger ResourceSnapshot) */
 export interface ResourceSnapshot {
   resource_id: string;

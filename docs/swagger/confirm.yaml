@@ -286,6 +286,51 @@ paths:
                 error:
                   code: CONFLICT_APPLYING_IN_PROGRESS
                   message: 승인된 내용이 반영 중입니다. 반영 완료 후까지 취소할 수 없습니다.
+  /target-sources/{targetSourceId}/approval-requests/system-reset:
+    parameters:
+      - $ref: '#/components/parameters/TargetSourceId'
+    post:
+      tags:
+        - Approval Process
+      summary: 승인 요청 시스템 리셋 (반려/UNAVAILABLE → IDLE)
+      operationId: systemResetApprovalRequest
+      x-expected-duration: 200ms 이내
+      description: |
+        REJECTED 또는 UNAVAILABLE 상태인 approval-request 를 IDLE 로 명시적으로 reset 합니다.
+        사용자가 "연동 대상 DB 다시 선택하기" 액션을 트리거할 때 호출되며,
+        이 호출 후 processStatus 는 WAITING_TARGET_CONFIRMATION (1) 으로 회귀합니다.
+
+        본 endpoint 도입 이유: 반려 시 BFF 가 자동으로 processStatus 를 회귀시키지 않고,
+        사용자가 반려 사유를 확인한 뒤 명시적으로 reset 을 트리거하도록 한다.
+      responses:
+        '200':
+          description: 시스템 리셋 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalActionResponseDto'
+        '400':
+          description: 변경 불가 상태
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          description: 리셋할 approval-request 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: REJECTED 또는 UNAVAILABLE 상태가 아님
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -1035,6 +1080,24 @@ components:
         credential_id:
           type: string
           nullable: true
+        database_region:
+          type: string
+          nullable: true
+        resource_name:
+          type: string
+          nullable: true
+        scan_status:
+          type: string
+          nullable: true
+          enum:
+            - UNCHANGED
+            - NEW_SCAN
+        integration_status:
+          type: string
+          nullable: true
+          enum:
+            - INTEGRATED
+            - NOT_INTEGRATED
     ConfirmedIntegrationResponse:
       type: object
       properties:
@@ -1049,6 +1112,27 @@ components:
           type: string
         exclusion_reason:
           type: string
+        resource_name:
+          type: string
+          nullable: true
+        database_type:
+          type: string
+          nullable: true
+        database_region:
+          type: string
+          nullable: true
+        scan_status:
+          type: string
+          nullable: true
+          enum:
+            - UNCHANGED
+            - NEW_SCAN
+        integration_status:
+          type: string
+          nullable: true
+          enum:
+            - INTEGRATED
+            - NOT_INTEGRATED
     ApprovedIntegrationResponseDto:
       type: object
       properties:
