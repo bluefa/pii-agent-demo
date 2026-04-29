@@ -208,6 +208,9 @@ export const mockBff: BffClient = {
     cancelApprovalRequest: async (id) =>
       unwrap<unknown>(await mockConfirm.cancelApprovalRequest(String(id))),
 
+    systemResetApprovalRequest: async (id) =>
+      unwrap<unknown>(await mockConfirm.systemResetApprovalRequest(String(id))),
+
     confirmInstallation: async (id) =>
       unwrap<unknown>(await mockConfirm.confirmInstallation(String(id))),
 

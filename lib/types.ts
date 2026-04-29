@@ -784,6 +784,22 @@ export interface ResourceSnapshot {
   resource_type: string;
   endpoint_config: EndpointConfigSnapshot | null;
   credential_id: string | null;
+  // PR #420 ResourceConfigDto extension fields — preserved through approved-integration mapping
+  database_region?: string | null;
+  resource_name?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  integration_status?: ResourceIntegrationStatus | null;
+}
+
+/** 제외 리소스 스냅샷 (Swagger ExcludedResourceInfo, PR #420 확장) */
+export interface BffExcludedResourceInfo {
+  resource_id: string;
+  exclusion_reason: string;
+  resource_name?: string | null;
+  database_type?: string | null;
+  database_region?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  integration_status?: ResourceIntegrationStatus | null;
 }
 
 /** 연동 확정 리소스 정보 (Swagger ConfirmedResourceInfo) */
@@ -827,6 +843,7 @@ export interface BffApprovedIntegration {
   approved_at: string;
   resource_infos: ResourceSnapshot[];
   excluded_resource_ids: string[];
+  excluded_resource_infos?: BffExcludedResourceInfo[];
   exclusion_reason?: string;
 }
 

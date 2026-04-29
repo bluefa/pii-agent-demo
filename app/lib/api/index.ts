@@ -30,6 +30,7 @@ import {
   normalizeApprovedIntegration,
   normalizeProcessStatusResponse,
   type ApprovalStatus,
+  type ExcludedResourceInfoDto,
   type ResourceConfigDto,
 } from '@/lib/approval-bff';
 
@@ -306,6 +307,10 @@ const toApprovedIntegrationResourceSnapshot = (
   resource_type: resource.resource_type ?? '',
   endpoint_config: toEndpointConfigSnapshot(resource),
   credential_id: resource.credential_id ?? null,
+  database_region: resource.database_region ?? null,
+  resource_name: resource.resource_name ?? null,
+  scan_status: resource.scan_status ?? null,
+  integration_status: resource.integration_status ?? null,
 });
 
 export const createApprovalRequest = async (
@@ -347,6 +352,8 @@ export const getConfirmedIntegration = async (
     ),
   );
 
+export type ApprovedIntegrationExcludedResourceItem = ExcludedResourceInfoDto;
+
 export interface ApprovedIntegrationResponse {
   approved_integration: {
     id: string;
@@ -354,6 +361,7 @@ export interface ApprovedIntegrationResponse {
     approved_at: string;
     resource_infos: ApprovedIntegrationResourceItem[];
     excluded_resource_ids: string[];
+    excluded_resource_infos: ApprovedIntegrationExcludedResourceItem[];
     exclusion_reason?: string;
   } | null;
 }
@@ -369,18 +377,20 @@ export const getApprovedIntegration = async (
     ),
   );
 
+  const excludedResourceInfos = payload.excluded_resource_infos ?? [];
+
   return {
     approved_integration: {
       id: String(payload.id ?? ''),
       request_id: String(payload.request_id ?? ''),
       approved_at: payload.approved_at ?? '',
       resource_infos: payload.resource_infos.map(toApprovedIntegrationResourceSnapshot),
-      excluded_resource_ids: payload.excluded_resource_infos
-        ?.map((item) => item.resource_id)
-        .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0)
-        ?? [],
-      exclusion_reason: payload.excluded_resource_infos
-        ?.map((item) => item.exclusion_reason)
+      excluded_resource_ids: excludedResourceInfos
+        .map((item) => item.resource_id)
+        .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0),
+      excluded_resource_infos: excludedResourceInfos,
+      exclusion_reason: excludedResourceInfos
+        .map((item) => item.exclusion_reason)
         .find((reason): reason is string => typeof reason === 'string' && reason.length > 0),
     },
   };
@@ -536,6 +546,17 @@ export const cancelApprovalRequest = async (
   };
 };
 
+export const systemResetApprovalRequest = async (
+  targetSourceId: number
+): Promise<{ success: boolean }> => {
+  await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/system-reset`, {
+    method: 'POST',
+  });
+  return {
+    success: true,
+  };
+};
+
 export type BffProcessStatus = 'IDLE' | 'PENDING' | 'CONFIRMING' | 'CONFIRMED' | 'INSTALLED' | 'CONNECTED' | 'COMPLETED';
 
 export interface ProcessStatusResponse {
@@ -662,16 +683,16 @@ export const confirmInstallation = async (
   );
 
 // ===== Azure API =====
-export * from './azure';
+export * from '@/app/lib/api/azure';
 
 // ===== AWS API =====
-export * from './aws';
+export * from '@/app/lib/api/aws';
 
 // ===== GCP API =====
-export * from './gcp';
+export * from '@/app/lib/api/gcp';
 
 // ===== Scan API =====
-export * from './scan';
+export * from '@/app/lib/api/scan';
 
 // ===== Admin Dashboard API =====
-export * from './dashboard';
+export * from '@/app/lib/api/dashboard';

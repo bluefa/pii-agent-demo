@@ -406,9 +406,19 @@ describe('app/lib/api/index', () => {
               selectedNicId: 'nic-9',
             },
             credential_id: null,
+            database_region: null,
+            resource_name: null,
+            scan_status: null,
+            integration_status: null,
           },
         ],
         excluded_resource_ids: ['sql-2'],
+        excluded_resource_infos: [
+          {
+            resource_id: 'sql-2',
+            exclusion_reason: 'skip',
+          },
+        ],
         exclusion_reason: 'skip',
       },
     });

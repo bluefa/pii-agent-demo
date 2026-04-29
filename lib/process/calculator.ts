@@ -25,7 +25,13 @@ export const getCurrentStep = (status: ProjectStatus): ProcessStatus => {
 
 const getCurrentStepWithApproval = (status: ProjectStatus): ProcessStatus => {
   // 1. 연동 대상 확정 대기
+  // 반려 직후엔 targets.confirmed 가 보존되므로 자연스럽게 (2) 분기로 빠지지만,
+  // legacy mock 스냅샷처럼 confirmed=false + approval=REJECTED 조합이 들어오면
+  // 사용자가 system-reset 으로 명시적 회귀하기 전까지 Step 2 를 유지한다.
   if (!status.targets.confirmed) {
+    if (status.approval.status === 'REJECTED') {
+      return ProcessStatus.WAITING_APPROVAL;
+    }
     return ProcessStatus.WAITING_TARGET_CONFIRMATION;
   }
 
