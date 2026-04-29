@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
 import {
-  InstallTaskDetailModal,
   countDetailTabs,
   filterRowsByDetailTab,
-} from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
+} from '@/app/components/features/process-status/install-task-pipeline/install-task-detail/filter-rows';
 import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 

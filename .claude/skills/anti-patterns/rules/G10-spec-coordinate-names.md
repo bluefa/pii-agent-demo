@@ -32,13 +32,13 @@ import { S4GW1bModal } from './S4GW1bModal';
 import { InstallTaskDetailModal } from './InstallTaskDetailModal';
 ```
 
-**Forbidden tokens in identifiers** (types, interfaces, components, hooks, functions, exported constants, file names):
+**Forbidden tokens in identifiers** (types, interfaces, components, hooks, functions, exported constants, file names) — coordinates that point at delivery work, not domain entities:
 
-- `Step\d+` / `Step\d+[A-Z]` — e.g. `Step4`, `Step4a`
-- `Wave\d+` — e.g. `Wave3`, `Wave12`
-- `Phase\d+` — e.g. `Phase2`, `PhaseTwo`
-- `Sprint\d+` — e.g. `Sprint12`
-- Spec keys like `S4G-W1b`, `W1a`, `B6`, `T17` (any all-caps short code that resolves to a spec/issue tracker entry, not a domain concept)
+- `Step` followed by a number (and optional sub-letter) — `Step4`, `Step4a`, `Step12Modal`
+- `Wave` followed by a number — `Wave3`, `Wave12Hook`
+- `Phase` followed by a number — `Phase2`, `Phase2Dialog`
+- `Sprint` followed by a number — `Sprint12`, `Sprint12Banner`
+- Spec / issue / wave keys — `S4G-W1b`, `W1a`, `B6`, `T17`, `WAVE-12`, `PROJ-247` (any short alphanumeric code that resolves to a spec doc or issue tracker entry rather than a domain concept)
 
 **Counter-examples — when "step / phase" IS legitimately part of the name**:
 

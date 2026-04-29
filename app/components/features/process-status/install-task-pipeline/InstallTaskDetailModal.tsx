@@ -1,33 +1,26 @@
 'use client';
 
+// Modal opened when a user clicks a GCP install pipeline card.
+// Shows per-resource progress for the selected install step
+// (subnet creation / service-side terraform / bdc-side terraform).
+
 import { useEffect, useRef, useState } from 'react';
 import {
-  bgColors,
-  borderColors,
   buttonStyles,
   cn,
   interactiveColors,
   modalStyles,
-  primaryColors,
-  shadows,
-  tagStyles,
   textColors,
 } from '@/lib/theme';
-import {
-  GCP_STEP_PIPELINE_LABELS,
-  type GcpStepKey,
-} from '@/lib/constants/gcp';
+import { GCP_STEP_PIPELINE_LABELS, type GcpStepKey } from '@/lib/constants/gcp';
 import { CloseIcon } from '@/app/components/ui/icons';
-import type { GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import {
-  TABLE_BODY_CELL,
-  TABLE_HEADER_CELL,
-  TABLE_MONO_CELL,
-  TABLE_TAG_PILL,
-} from '@/app/components/features/process-status/install-task-pipeline/table-styles';
-
-export type DetailTab = 'all' | 'done' | 'running';
+  filterRowsByDetailTab,
+  type DetailTab,
+} from '@/app/components/features/process-status/install-task-pipeline/install-task-detail/filter-rows';
+import { DetailStatusTabs } from '@/app/components/features/process-status/install-task-pipeline/install-task-detail/DetailStatusTabs';
+import { DetailResourceTable } from '@/app/components/features/process-status/install-task-pipeline/install-task-detail/DetailResourceTable';
 
 interface InstallTaskDetailModalProps {
   open: boolean;
@@ -35,48 +28,6 @@ interface InstallTaskDetailModalProps {
   stepKey: GcpStepKey | null;
   rows: InstallResourceRow[];
 }
-
-const TAB_LABELS: Record<DetailTab, string> = {
-  all: '전체',
-  done: '완료',
-  running: '진행중',
-};
-
-const STEP_STATUS_LABEL: Record<GcpStepStatusValue, string> = {
-  COMPLETED: '완료',
-  IN_PROGRESS: '진행중',
-  FAIL: '실패',
-  SKIP: '해당없음',
-};
-
-const STEP_STATUS_TAG: Record<GcpStepStatusValue, string> = {
-  COMPLETED: tagStyles.green,
-  IN_PROGRESS: tagStyles.orange,
-  FAIL: tagStyles.red,
-  SKIP: tagStyles.gray,
-};
-
-export const filterRowsByDetailTab = (
-  rows: InstallResourceRow[],
-  stepKey: GcpStepKey,
-  tab: DetailTab,
-): InstallResourceRow[] =>
-  rows.filter((row) => {
-    const stepStatus = row.source[stepKey].status;
-    if (stepStatus === 'SKIP') return false;
-    if (tab === 'all') return true;
-    if (tab === 'done') return stepStatus === 'COMPLETED';
-    return stepStatus === 'IN_PROGRESS' || stepStatus === 'FAIL';
-  });
-
-export const countDetailTabs = (
-  rows: InstallResourceRow[],
-  stepKey: GcpStepKey,
-): Record<DetailTab, number> => ({
-  all: filterRowsByDetailTab(rows, stepKey, 'all').length,
-  done: filterRowsByDetailTab(rows, stepKey, 'done').length,
-  running: filterRowsByDetailTab(rows, stepKey, 'running').length,
-});
 
 export const InstallTaskDetailModal = ({
   open,
@@ -116,14 +67,11 @@ export const InstallTaskDetailModal = ({
 
   if (!open || !stepKey) return null;
 
-  const counts = countDetailTabs(rows, stepKey);
   const visibleRows = filterRowsByDetailTab(rows, stepKey, tab);
 
   const handleBackdrop = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current) onClose();
   };
-
-  const title = GCP_STEP_PIPELINE_LABELS[stepKey];
 
   return (
     <div
@@ -146,7 +94,7 @@ export const InstallTaskDetailModal = ({
               id="install-task-detail-title"
               className={cn('text-lg font-bold', textColors.primary)}
             >
-              {title}
+              {GCP_STEP_PIPELINE_LABELS[stepKey]}
             </h2>
             <p className={cn('mt-1 text-sm', textColors.tertiary)}>
               리소스별 설치 진행 현황을 확인할 수 있어요.
@@ -166,49 +114,13 @@ export const InstallTaskDetailModal = ({
         </div>
 
         <div className={modalStyles.body}>
-          <div
-            role="tablist"
-            aria-label="진행 상태 필터"
-            className={cn(
-              'inline-flex gap-1 p-1 rounded-lg mb-4',
-              bgColors.muted,
-            )}
-          >
-            {(['all', 'done', 'running'] as const).map((key) => {
-              const active = tab === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setTab(key)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md',
-                    'text-[12.5px] font-semibold',
-                    active
-                      ? cn(bgColors.surface, textColors.primary, shadows.pill)
-                      : cn('bg-transparent', textColors.tertiary),
-                  )}
-                >
-                  <span>{TAB_LABELS[key]}</span>
-                  <span
-                    className={cn(
-                      'inline-flex items-center justify-center min-w-[18px] px-1.5',
-                      'rounded-full text-[11px] font-bold',
-                      active
-                        ? cn(primaryColors.bgLight, primaryColors.text)
-                        : cn(bgColors.divider, textColors.tertiary),
-                    )}
-                  >
-                    {counts[key]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <DetailTable rows={visibleRows} stepKey={stepKey} />
+          <DetailStatusTabs
+            rows={rows}
+            stepKey={stepKey}
+            value={tab}
+            onChange={setTab}
+          />
+          <DetailResourceTable rows={visibleRows} stepKey={stepKey} />
         </div>
 
         <div className={modalStyles.footer}>
@@ -221,76 +133,6 @@ export const InstallTaskDetailModal = ({
           </button>
         </div>
       </div>
-    </div>
-  );
-};
-
-interface DetailTableProps {
-  rows: InstallResourceRow[];
-  stepKey: GcpStepKey;
-}
-
-const DetailTable = ({ rows, stepKey }: DetailTableProps) => {
-  if (rows.length === 0) {
-    return (
-      <div
-        className={cn(
-          'px-4 py-3 rounded-lg border text-sm',
-          borderColors.default,
-          textColors.tertiary,
-        )}
-      >
-        해당 상태의 리소스가 없어요.
-      </div>
-    );
-  }
-
-  return (
-    <div className={cn('overflow-hidden rounded-lg border', borderColors.default)}>
-      <table className="w-full text-sm">
-        <thead className={bgColors.muted}>
-          <tr>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Type</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>진행 완료 여부</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const stepStatus = row.source[stepKey].status;
-            return (
-              <tr key={row.resourceId} className={cn('border-t', borderColors.light)}>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
-                  {row.resourceId}
-                </td>
-                <td className={TABLE_BODY_CELL}>
-                  {row.databaseType ? (
-                    <span className={cn(TABLE_TAG_PILL, tagStyles.blue)}>
-                      {row.databaseType}
-                    </span>
-                  ) : (
-                    <span className={textColors.tertiary}>—</span>
-                  )}
-                </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
-                  {row.region ?? '—'}
-                </td>
-                <td className={TABLE_BODY_CELL}>
-                  <span className={cn(TABLE_TAG_PILL, STEP_STATUS_TAG[stepStatus])}>
-                    {STEP_STATUS_LABEL[stepStatus]}
-                  </span>
-                  {row.source[stepKey].guide ? (
-                    <p className={cn('mt-0.5 text-xs', textColors.tertiary)}>
-                      {row.source[stepKey].guide}
-                    </p>
-                  ) : null}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 };
