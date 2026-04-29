@@ -1,140 +1,69 @@
 ---
 name: coding-standards
-description: 코드 작성 시 따르는 코딩 규칙과 패턴. 컴포넌트, 훅, API, 타입 작성 시 자동 적용.
+description: Repository orientation for PII Agent implementation work. Use before coding or reviewing to understand the current directory layout, import boundaries, core reference documents, and which specialized skill owns detailed coding, UI, API, or performance rules.
 ---
 
-# PII Agent 코딩 규칙
+# PII Agent Repository Orientation
 
-## 1. 파일 및 명명
+This skill is a repo map, not the source of detailed rules. Use it to decide which path, document, or specialized skill to read next. If this file disagrees with `AGENTS.md`, `CLAUDE.md`, `DESIGN.md`, ADRs, or `docs/api/boundaries.md`, the more specific document wins and this skill should be updated.
 
-- 컴포넌트: **PascalCase** (`StepIndicator.tsx`)
-- 훅/유틸: **camelCase** (`useModal.ts`)
-- 함수: **arrow function**, Props: **interface**, 상수: **UPPER_SNAKE_CASE**
+## Current Layout
 
-## 2. Import
-
-- `@/` 절대 경로만 (상대 경로 금지)
-- 순서: React/Next → 외부 → 내부(`@/`) → Types(`import type`)
-
-### 프로젝트 경로 매핑 (⛔ 반드시 준수)
-```
-@/app/components/ui/          → UI 컴포넌트 (Button, Badge, Modal, Card, Table, LoadingSpinner)
-@/app/components/features/    → 도메인 컴포넌트 (process-status/, resource-table/, admin/)
-@/hooks/                      → 커스텀 훅 (useModal, useApiMutation, useAsync)
-@/lib/                        → theme.ts, api.ts, types/, constants/, adapters/
-@/utils/                      → 유틸리티 (date.ts, credentials.ts)
-```
-> `@/components/ui/` ❌ → `@/app/components/ui/` ✅ (app 디렉토리 내 위치)
-
-## 3. 타입 안전성
-
-- `any` 금지 — 구체적 타입 또는 `unknown` + 타입 가드
-- Provider별 분기: Discriminated Union 활용
-
-## 4. 커스텀 훅
-
-- Modal → `useModal()` (useState 직접 관리 금지)
-- API mutation → `useApiMutation()` (try-catch 직접 작성 금지)
-
-## 5. 스타일링 — Design System (⛔ 핵심 규칙)
-
-### 색상 사용 원칙
-- **색상 클래스 직접 사용 금지** (`bg-blue-600`, `text-red-500` 등)
-- 반드시 `theme.ts` 토큰 경유:
-  - 상태 색상 → `statusColors.{success|error|info|warning|pending}`
-  - 버튼 → `getButtonClass(variant, size)` 또는 `<Button>` 컴포넌트
-  - 카드 → `cardStyles` 토큰
-  - 입력 → `getInputClass(state)`
-
-### 허용/금지
-```
-✅ 레이아웃 직접 사용: flex, grid, gap-*, p-*, m-*, w-*, h-*, text-{sm|base|lg}
-✅ theme.ts 헬퍼: cn(), getButtonClass(), getInputClass()
-✅ 구조 클래스: rounded-*, border, shadow-*, overflow-*
-
-❌ 색상 직접 사용: bg-{color}-*, text-{color}-*, border-{color}-*
-❌ 컴포넌트 스타일 하드코딩: 버튼/카드/모달/뱃지/테이블
+```text
+app/                                      Next.js App Router entrypoints
+app/components/ui/                       Shared UI primitives
+app/components/features/                 Reusable domain UI components
+app/hooks/                               Client hooks such as useModal and useApiMutation
+app/lib/api/                             CSR data helpers that call internal Next routes
+app/integration/                         Mounted integration app pages and v1 route tree
+app/integration/api/v1/**/route.ts       Next route handlers for the integration API
+app/api/_lib/                            Shared route helpers, ProblemDetails, withV1
+lib/bff/                                 Server-only typed BFF client, HTTP adapter, mock adapter
+lib/bff/mock/                            Mock BFF domain implementations
+lib/constants/                           Shared constants and labels
+lib/types/                               Shared TypeScript types
+lib/utils/                               Shared utilities
+lib/theme.ts                             Theme tokens and class helpers
+DESIGN.md                                Design system contract and component inventory
+docs/api/boundaries.md                   CSR, SSR, and route import boundaries
+docs/adr/                                Architecture decisions
 ```
 
-### 예시
-```tsx
-// ❌ Bad
-<button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+## Import Boundaries
 
-// ✅ Good
-<button className={getButtonClass('primary', 'md')}>
+- Use `@/` absolute imports for new cross-directory imports.
+- Existing sibling imports and local barrel exports may still use relative paths; match the local pattern only when keeping edits tightly scoped.
+- CSR components under `app/components/**` and `app/integration/**/_components/**` use `@/app/lib/api/*` and never import `@/lib/bff/*`.
+- Server Components and `app/integration/api/v1/**/route.ts` handlers use `@/lib/bff/client`.
+- Do not import `@/lib/api-client/*`; it was removed by ADR-011 and is blocked by ESLint.
 
-// ❌ Bad
-<span className="bg-green-100 text-green-800 px-2 py-1 rounded-full">완료</span>
+Read `docs/api/boundaries.md` before touching data fetching, route handlers, or BFF access.
 
-// ✅ Good
-<span className={cn(statusColors.success.bg, statusColors.success.textDark, 'px-2 py-1 rounded-full')}>완료</span>
-```
+## UI Work
 
-## 6. Code Style — Compact 원칙
+- Read `DESIGN.md` before implementing or reviewing UI. Treat it as the design system contract.
+- Use `frontend-design` for visual or layout work.
+- Use `lib/theme.ts` tokens and existing `app/components/ui` primitives. Raw Tailwind color classes are blocked for new edits; do not copy legacy raw-color patterns.
+- If `DESIGN.md`, `frontend-design`, and `lib/theme.ts` disagree, prefer `DESIGN.md` for product/design intent and update the stale skill or token source in the same PR when in scope.
 
-- 자명한 코드에 주석 금지
-- Early return 사용
-- 조건부 렌더링: `&&` 또는 삼항연산자 (if/else 블록 지양)
-- 불필요한 중간 변수 금지
-- 한 줄로 가능하면 한 줄로
-- JSDoc은 exported function에만
-- 설명적 함수명으로 주석 대체
+## API And Errors
 
-```tsx
-// ❌ Verbose
-const items = data.filter(item => item.active);
-const sortedItems = items.sort((a, b) => a.name.localeCompare(b.name));
-return (
-  <div>
-    {sortedItems.map(item => (
-      <Item key={item.id} data={item} />
-    ))}
-  </div>
-);
+- ADR-011 is the current BFF architecture: route handlers and Server Components call the typed `bff` client from `@/lib/bff/client`.
+- ADR-008 is the current CSR error handling model: browser code should go through `fetchJson` or helpers built on it, and UI branches on normalized `AppError.code`.
+- API timestamp fields stay JSON strings in DTOs. Convert to local display formats only at the rendering boundary.
 
-// ✅ Compact
-return (
-  <div>
-    {data
-      .filter(item => item.active)
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(item => <Item key={item.id} data={item} />)}
-  </div>
-);
-```
+## State And Hooks
 
-## 7. 컴포넌트 구조
+- Prefer existing hooks before adding local state machinery: `useModal`, `useApiMutation`, `useApiAction`, polling hooks, and `useAbortableEffect`.
+- Direct `try/catch` is valid inside low-level utilities, route adapters, and shared hooks that normalize errors. In UI event flows, prefer the existing mutation and fetch helpers.
+- When modal state carries data or has multiple variants, prefer a discriminated union or the existing modal hook pattern.
 
-- 300줄 초과 시 폴더 분리 (`ComponentName/index.ts`)
-- CSS 파일 생성 금지, 반응형 불필요
-- Tooltip: portal 사용 (overflow 이슈 방지)
-- UI 컴포넌트는 theme.ts 토큰 필수
+## Rule Sources
 
-## 8. API Routes
-
-- API Spec 단일 소스: Swagger(`docs/swagger/*.yaml`) 준수
-- "mock" 용어 금지 (`lib/mock-*.ts` 예외)
-- `app/api/route.ts`는 `client.method()` 디스패치만 수행 (ADR-007)
-- Mock 비즈니스 로직은 `lib/api-client/mock/*.ts`에 위치
-- `lib/adapters/`는 삭제됨 (ADR-005 → Superseded by ADR-007)
-- Swagger 신규/수정 시 사용자 확인 전 확정 반영 금지
-- 각 endpoint는 Error 코드/에러 응답 스키마를 반드시 선언
-- 각 endpoint는 실행시간 메타데이터(`x-expected-duration`)를 반드시 선언
-- Error 코드 또는 `x-expected-duration` 누락 발견 시 즉시 경고 후 보완
-
-```typescript
-// ❌ Bad — mock 직접 import
-import { getProjectById } from '@/lib/mock-data';
-const project = getProjectById(id);
-
-// ✅ Good — typed bff 디스패치 (ADR-011)
-import { bff } from '@/lib/bff/client';
-const { project } = await bff.projects.get(id);
-```
-
-## 9. 금지 패턴
-
-- CSS 파일 생성, 반응형 스타일, 불필요한 추상화
-- try-catch 직접 작성, 상대 경로 import, any 타입
-- Raw 색상 클래스 직접 사용
+- Hard repo rules: `AGENTS.md` and `CLAUDE.md`
+- UI system: `DESIGN.md`, `lib/theme.ts`, and `frontend-design`
+- Frontend anti-patterns: `anti-patterns`
+- React and Next.js performance: `vercel-react-best-practices`
+- API boundaries: `docs/api/boundaries.md` and ADR-011
+- CSR errors: ADR-008, `lib/fetch-json.ts`, and `lib/errors.ts`
+- Contract validation: `.claude/skills/shared/CONTRACT_VALIDATION.md`
