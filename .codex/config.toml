@@ -1,0 +1,25 @@
+[features]
+codex_hooks = true
+
+[hooks]
+
+[[hooks.PreToolUse]]
+matcher = "Bash"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pre-bash-main-guard.sh\""
+timeout = 5
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/pre-bash-pr-create.sh\""
+timeout = 120
+
+[[hooks.PostToolUse]]
+matcher = "apply_patch"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/post-edit-grep.sh\""
+timeout = 10
