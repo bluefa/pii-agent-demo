@@ -50,6 +50,7 @@ export interface AppErrorInit {
   code: AppErrorCode;
   message: string;
   retriable: boolean;
+  timestamp?: string;
   retryAfterMs?: number;
   requestId?: string;
 }
@@ -63,6 +64,8 @@ export class AppError extends Error {
   readonly retriable: boolean;
   /** 서버가 제공한 재시도 대기 시간(ms) */
   readonly retryAfterMs?: number;
+  /** 서버 에러 발생 시각. UTC ISO-8601 문자열이면 UI에서 로컬 timezone으로 포맷한다. */
+  readonly timestamp?: string;
   /** 요청 추적용 ID */
   readonly requestId?: string;
 
@@ -72,6 +75,7 @@ export class AppError extends Error {
     this.status = init.status;
     this.code = init.code;
     this.retriable = init.retriable;
+    this.timestamp = init.timestamp;
     this.retryAfterMs = init.retryAfterMs;
     this.requestId = init.requestId;
   }
