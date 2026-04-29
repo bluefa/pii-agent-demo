@@ -1,13 +1,17 @@
 'use client';
 
+import { useCallback, useState } from 'react';
 import { getGcpInstallationStatus, checkGcpInstallation } from '@/app/lib/api/gcp';
 import { statusColors, textColors, interactiveColors, cn } from '@/lib/theme';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import { GcpResourceStatusTable } from '@/app/components/features/process-status/gcp/GcpResourceStatusTable';
+import { Step4DbListTable } from '@/app/components/features/process-status/install-task-pipeline/Step4DbListTable';
+import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
+import { joinGcpResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
-import { buildGcpPipelineItems } from '@/lib/constants/gcp';
+import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { buildGcpPipelineItems, type GcpStepKey } from '@/lib/constants/gcp';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
 
 interface GcpInstallationInlineProps {
@@ -19,6 +23,10 @@ export const GcpInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: GcpInstallationInlineProps) => {
+  const [openStep, setOpenStep] = useState<GcpStepKey | null>(null);
+  const closeStepModal = useCallback(() => setOpenStep(null), []);
+  const { state: confirmedState } = useConfirmedIntegration();
+
   const { status, loading, refreshing, error, fetchStatus, refresh } =
     useInstallationStatus<GcpInstallationStatusResponse>({
       targetSourceId,
@@ -31,7 +39,14 @@ export const GcpInstallationInline = ({
   if (loading) return <InstallationLoadingView provider="GCP" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
 
-  const resources = status?.resources || [];
+  const resources = status?.resources ?? [];
+  const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
+  const joinedRows = joinGcpResources(resources, confirmedResources);
+  const pipelineItems = buildGcpPipelineItems(resources).map((item) => ({
+    ...item,
+    onClick: () => setOpenStep(item.key),
+  }));
+
   const lastCheck = status?.lastCheck;
   const checkedAt = lastCheck?.checkedAt
     ? new Date(lastCheck.checkedAt).toLocaleString('ko-KR')
@@ -70,8 +85,15 @@ export const GcpInstallationInline = ({
         </div>
       )}
 
-      <InstallTaskPipeline items={buildGcpPipelineItems(resources)} />
-      <GcpResourceStatusTable resources={resources} />
+      <InstallTaskPipeline items={pipelineItems} />
+      <Step4DbListTable rows={joinedRows} />
+
+      <InstallTaskDetailModal
+        open={openStep !== null}
+        onClose={closeStepModal}
+        stepKey={openStep}
+        rows={joinedRows}
+      />
     </div>
   );
 };
