@@ -49,25 +49,52 @@ Follow the spec's implementation steps in order. `/coding-standards` auto-applie
 - Never hardcode real PII (emails, names, initials) from design mockups. Use placeholders (`user@example.com`, `JD`, etc.).
 - Stay aligned with `/sit-recurring-checks` while writing.
 
-## Phase 3 — Self-Audit (sequential)
+## Phase 3 — Self-Audit (parallel detect → sequential fix)
 
-Invoke the following skills in order. Any fix in a step triggers re-running the previous step to check for regression.
+### Pass 1 — Parallel Detection (subagents, no file writes)
 
-1. `/sit-recurring-checks` — grep/rule-based detection + auto-fix for repeat offenders.
-2. `/simplify` — review the diff for reuse, quality, efficiency.
-   > ⚠️ **No dedicated `/simplify` skill file exists yet** — this step currently runs as an inline self-review.
-   > Until a skill is authored, walk through the checklist below on the diff and fix every violation before moving on:
-   >
-   > - **Reuse**: any new constant / helper duplicated across files in the diff? If yes, extract to `connection-test/constants.ts`, `lib/constants/*`, or a co-located helper.
-   > - **Discriminated-union naming (AP-C9)**: do union variants carrying the same entity use the same field name (`item` vs `target`)?
-   > - **Parameter naming (AP-G7)**: are callback / utility parameters role-named (`fetcher`, `mapper`, `validator`, `onApprove`) — not `fn` / `cb` / `data` / `val`?
-   > - **Sibling-cluster consistency (AP-G8)**: within a cluster (refs, error locals, modal states, option fields), does every member follow one convention? No `stopFnRef` among `fetchRef/updateRef/completeRef`; no `sidErr` among `nameErr/hostErr/portErr`.
-   > - **Comments (AP-G9)**: every comment describes an invariant, not history. No "this refactor" / "the fix" / "was flagged" / "PR #NNN".
-   > - **Dynamic imports**: client-only modals use `dynamic(..., { ssr: false })` when not needed server-side.
-3. `/vercel-react-best-practices` — cross-check against the 57 React/Next.js rules and fix violations.
+Launch all four reviewers concurrently in a single message. Each subagent returns findings only — **no file modifications**.
 
-Constraints:
-- A fix in step 2 or 3 must re-run step 1 (recurring checks) before moving on.
+| Subagent name | Skill | Focus |
+|---|---|---|
+| `audit-recurring` | `/sit-recurring-checks` | grep/rule-based repeat offenders |
+| `audit-simplify` | `/simplify` (inline checklist, see below) | reuse, naming, code quality |
+| `audit-react` | `/vercel-react-best-practices` | React/Next.js 57-rule cross-check |
+| `audit-review` | `/code-review` | merge risk: contracts, DESIGN.md, import boundaries, runtime correctness |
+
+Brief each subagent with:
+- spec path + spec key
+- `git diff --name-only HEAD~1` output (changed file list)
+- scope boundary declared in the spec
+- if the spec touches UI: "read DESIGN.md before reviewing"
+
+Each subagent must return findings in this format and nothing else:
+```
+FINDINGS:
+- [P1|P2|P3] file:line — description
+VERDICT: CLEAN | HAS_FINDINGS
+```
+
+> ⚠️ **No dedicated `/simplify` skill file exists yet** — `audit-simplify` runs as an inline self-review against this checklist:
+> - **Reuse**: any new constant / helper duplicated across files in the diff? Extract to `connection-test/constants.ts`, `lib/constants/*`, or a co-located helper.
+> - **Discriminated-union naming (AP-C9)**: union variants carrying the same entity use the same field name (`item` vs `target`)?
+> - **Parameter naming (AP-G7)**: callbacks / utilities role-named (`fetcher`, `mapper`, `validator`, `onApprove`) — not `fn` / `cb` / `data` / `val`?
+> - **Sibling-cluster consistency (AP-G8)**: within a cluster (refs, error locals, modal states, option fields), every member follows one convention?
+> - **Comments (AP-G9)**: every comment describes an invariant, not history. No "this refactor" / "the fix" / "was flagged" / "PR #NNN".
+> - **Dynamic imports**: client-only modals use `dynamic(..., { ssr: false })` when not needed server-side.
+
+### Pass 1 → Pass 2 Transition
+
+Main session collects all four results, then:
+1. De-duplicate findings that appear in multiple reports — keep the highest severity.
+2. Sort: P1 → P2 → P3.
+3. Decide per finding: fix in Pass 2 or defer (per Phase 2 scope rules).
+
+### Pass 2 — Sequential Fix
+
+Apply fixes in severity order (P1 first). Rules:
+- After any fix, **re-run `audit-recurring` (`/sit-recurring-checks`) alone** before continuing — not all four.
+- P3 findings: record only, do not fix (avoids diff bloat).
 - Do not expand beyond spec scope to satisfy an audit finding — record it in Phase 7 instead.
 
 ## Phase 4 — Verify
@@ -149,7 +176,7 @@ Default is main-session-only, but the points below MUST fan out to subagents (us
 | Phase | Fan-out target | Constraint |
 |---|---|---|
 | 2 (Implement) | Spec-declared independent layers (e.g. types-only, an unrelated helper, an isolated UI component) | ⛔ Never split a single swagger endpoint (mock + route + FE types) across subagents — see `feature-development` contract guard |
-| 3 (1st pass only) | `sit-recurring-checks` / `simplify` / `vercel-react-best-practices` run concurrently as detection-only | First pass only. After any fix, the spec's "fix → rerun previous step" rule forces sequential reruns |
+| 3 (Pass 1) | `audit-recurring` / `audit-simplify` / `audit-react` / `audit-review` run concurrently as detection-only — see Phase 3 for full briefing spec and output format | Pass 1 only. Pass 2 (fix) is sequential in main session; after any fix only `audit-recurring` re-runs, not all four |
 | 4 (Verify) | `tsc --noEmit` and `npm run lint` as parallel Bash calls in one message | None |
 | 7 (Auto-Fix) | Findings grouped by independent area (theme tokens / orphan imports / a11y / type fixes) | ⛔ Same file or same swagger endpoint must not be edited by two subagents concurrently |
 
