@@ -5,7 +5,7 @@ import type {
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { DatabaseType } from '@/lib/types';
 
-export interface Step4ResourceRow {
+export interface InstallResourceRow {
   resourceId: string;
   databaseType: DatabaseType | null;
   region: string | null;
@@ -17,7 +17,7 @@ export interface Step4ResourceRow {
 export const joinGcpResources = (
   installation: readonly GcpResourceStatus[],
   confirmed: readonly ConfirmedResource[],
-): Step4ResourceRow[] => {
+): InstallResourceRow[] => {
   const confirmedById = new Map<string, ConfirmedResource>(
     confirmed.map((r) => [r.resourceId, r]),
   );

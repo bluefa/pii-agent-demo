@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
-import type { Step4ResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
+import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import type { GcpResourceStatus } from '@/app/api/_lib/v1-types';
 import { tagStyles } from '@/lib/theme';
 
@@ -16,7 +16,7 @@ const stubSource: GcpResourceStatus = {
   bdcSideTerraformApply: { status: 'COMPLETED' },
 };
 
-const row = (overrides: Partial<Step4ResourceRow> = {}): Step4ResourceRow => ({
+const row = (overrides: Partial<InstallResourceRow> = {}): InstallResourceRow => ({
   resourceId: 'r1',
   databaseType: 'MYSQL',
   region: null,

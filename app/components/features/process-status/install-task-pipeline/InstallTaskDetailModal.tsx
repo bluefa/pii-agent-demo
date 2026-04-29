@@ -19,7 +19,7 @@ import {
 } from '@/lib/constants/gcp';
 import { CloseIcon } from '@/app/components/ui/icons';
 import type { GcpStepStatusValue } from '@/app/api/_lib/v1-types';
-import type { Step4ResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
+import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import {
   TABLE_BODY_CELL,
   TABLE_HEADER_CELL,
@@ -33,7 +33,7 @@ interface InstallTaskDetailModalProps {
   open: boolean;
   onClose: () => void;
   stepKey: GcpStepKey | null;
-  rows: Step4ResourceRow[];
+  rows: InstallResourceRow[];
 }
 
 const TAB_LABELS: Record<DetailTab, string> = {
@@ -57,10 +57,10 @@ const STEP_STATUS_TAG: Record<GcpStepStatusValue, string> = {
 };
 
 export const filterRowsByDetailTab = (
-  rows: Step4ResourceRow[],
+  rows: InstallResourceRow[],
   stepKey: GcpStepKey,
   tab: DetailTab,
-): Step4ResourceRow[] =>
+): InstallResourceRow[] =>
   rows.filter((row) => {
     const stepStatus = row.source[stepKey].status;
     if (stepStatus === 'SKIP') return false;
@@ -70,7 +70,7 @@ export const filterRowsByDetailTab = (
   });
 
 export const countDetailTabs = (
-  rows: Step4ResourceRow[],
+  rows: InstallResourceRow[],
   stepKey: GcpStepKey,
 ): Record<DetailTab, number> => ({
   all: filterRowsByDetailTab(rows, stepKey, 'all').length,
@@ -226,7 +226,7 @@ export const InstallTaskDetailModal = ({
 };
 
 interface DetailTableProps {
-  rows: Step4ResourceRow[];
+  rows: InstallResourceRow[];
   stepKey: GcpStepKey;
 }
 

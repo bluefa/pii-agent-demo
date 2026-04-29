@@ -6,7 +6,7 @@ import {
   countDetailTabs,
   filterRowsByDetailTab,
 } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
-import type { Step4ResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
+import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 
 const sourceWith = (
@@ -25,7 +25,7 @@ const sourceWith = (
 const row = (
   resourceId: string,
   step: { service?: GcpStepStatusValue; bdc?: GcpStepStatusValue; subnet?: GcpStepStatusValue } = {},
-): Step4ResourceRow => ({
+): InstallResourceRow => ({
   resourceId,
   databaseType: 'MYSQL',
   region: null,
@@ -35,7 +35,7 @@ const row = (
 });
 
 describe('filterRowsByDetailTab', () => {
-  const rows: Step4ResourceRow[] = [
+  const rows: InstallResourceRow[] = [
     row('a', { service: 'COMPLETED' }),
     row('b', { service: 'IN_PROGRESS' }),
     row('c', { service: 'FAIL' }),
@@ -67,7 +67,7 @@ describe('filterRowsByDetailTab', () => {
   });
 
   it('different stepKey produces independent filtering', () => {
-    const rows2: Step4ResourceRow[] = [
+    const rows2: InstallResourceRow[] = [
       row('x', { service: 'COMPLETED', bdc: 'IN_PROGRESS' }),
       row('y', { service: 'IN_PROGRESS', bdc: 'COMPLETED' }),
     ];
@@ -84,7 +84,7 @@ describe('filterRowsByDetailTab', () => {
 
 describe('countDetailTabs', () => {
   it('reports counts for all/done/running for the given step', () => {
-    const rows: Step4ResourceRow[] = [
+    const rows: InstallResourceRow[] = [
       row('a', { service: 'COMPLETED' }),
       row('b', { service: 'COMPLETED' }),
       row('c', { service: 'IN_PROGRESS' }),
@@ -99,7 +99,7 @@ describe('countDetailTabs', () => {
   });
 
   it('all-zero when every row is SKIP for the step', () => {
-    const rows: Step4ResourceRow[] = [
+    const rows: InstallResourceRow[] = [
       row('a', { service: 'SKIP' }),
       row('b', { service: 'SKIP' }),
     ];
