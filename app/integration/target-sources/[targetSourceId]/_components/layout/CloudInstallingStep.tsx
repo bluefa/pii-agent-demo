@@ -46,7 +46,7 @@ export const CloudInstallingStep = ({
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       <InstallationStatusSlot project={project} refreshProject={refreshProject} />
-      <ConfirmedResourcesSlot />
+      {project.cloudProvider !== 'GCP' && <ConfirmedResourcesSlot />}
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>
   );

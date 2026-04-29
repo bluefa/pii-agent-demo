@@ -22,7 +22,7 @@ W1a (pipeline) + W1b (DB table + modal) 머지 후 시안과 픽셀 정합 final
 cd /Users/study/pii-agent-demo
 git fetch origin main
 [ -f app/components/features/process-status/install-task-pipeline/InstallTaskCard.tsx ] || { echo "✗ S4G-W1a 미머지"; exit 1; }
-[ -f app/components/features/process-status/install-task-pipeline/Step4DbListTable.tsx ] || { echo "✗ S4G-W1b 미머지"; exit 1; }
+[ -f app/components/features/process-status/install-task-pipeline/InstallResourceTable.tsx ] || { echo "✗ S4G-W1b 미머지"; exit 1; }
 [ -f app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal.tsx ] || { echo "✗ S4G-W1b 미머지"; exit 1; }
 ```
 
@@ -117,7 +117,7 @@ export const shadows = {
 - 옵션 (b) CSS module 도입하여 `::after` 그대로 이식
 - **결정**: 본 wave 에서 (a) 유지 + 픽셀 보정. CSS module 도입은 별도 issue.
 
-### 3.3. `Step4DbListTable.tsx`
+### 3.3. `InstallResourceTable.tsx`
 
 - `tagStyles.success` (완료) / `tagStyles.warning` (진행중) / `tagStyles.error` (실패)
 - 헤더 typography → `tableStyles.headerCell` 일관 적용
@@ -181,7 +181,7 @@ USE_MOCK_DATA=true npm run dev
   ```
 - 행동 회귀 — W1a/b 의 모든 테스트 통과:
   ```bash
-  npm run test -- InstallTaskCard InstallTaskPipeline Step4DbListTable InstallTaskDetailModal join-installation-resources
+  npm run test -- InstallTaskCard InstallTaskPipeline InstallResourceTable InstallTaskDetailModal join-installation-resources
   ```
 
 ## Step 7: Verify
@@ -205,7 +205,7 @@ USE_MOCK_DATA=true npm run dev   # 시각 비교 (Step 5)
 - lib/theme.ts — `tagStyles.error` (없으면 추가) / `tabStyles.segmented` / `shadows.haloPrimary` / `radii.pipeline`
 - app/components/features/process-status/install-task-pipeline/InstallTaskCard.tsx — token 교체
 - app/components/features/process-status/install-task-pipeline/InstallTaskPipeline.tsx — connector 정합 + token
-- app/components/features/process-status/install-task-pipeline/Step4DbListTable.tsx — tag/table token
+- app/components/features/process-status/install-task-pipeline/InstallResourceTable.tsx — tag/table token
 - app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal.tsx — tab token / modal token
 
 ## Manual verification
