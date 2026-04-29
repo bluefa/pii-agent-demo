@@ -66,4 +66,4 @@ Read `docs/api/boundaries.md` before touching data fetching, route handlers, or 
 - React and Next.js performance: `vercel-react-best-practices`
 - API boundaries: `docs/api/boundaries.md` and ADR-011
 - CSR errors: ADR-008, `lib/fetch-json.ts`, and `lib/errors.ts`
-- Contract validation: `.claude/skills/shared/CONTRACT_VALIDATION.md`
+- Contract validation: `CONTRACT_CHECK.md`

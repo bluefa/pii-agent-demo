@@ -59,7 +59,7 @@ import { Button } from '@/app/components/ui/Button';
 - [ ] "빌드 통과"만 근거로 계약 준수로 결론내리지 않았는가?
 - [ ] contract check 결과를 확인했는가?
   - `bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD`
-  - 기준 문서: `.claude/skills/shared/CONTRACT_VALIDATION.md`
+  - 기준 문서: `CONTRACT_CHECK.md`
 
 ---
 

@@ -60,7 +60,7 @@ Task({
        - npm run build
     4. Run contract validation:
        - bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD
-       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
+       - Follow: CONTRACT_CHECK.md
     5. Check for commits: git log origin/main..HEAD --oneline
        - If empty: report and stop
     6. Push branch: git push origin HEAD --force-with-lease

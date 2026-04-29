@@ -54,7 +54,7 @@ Task({
     3. Re-run tests: npm run test:run
     4. Run contract validation:
        - bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD
-       - Follow: .claude/skills/shared/CONTRACT_VALIDATION.md
+       - Follow: CONTRACT_CHECK.md
     5. Execute flow: bash scripts/pr-flow.sh --strategy squid
        - Only add --merge-approved if user explicitly requested merge
     6. Report: PR URL and status

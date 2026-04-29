@@ -15,6 +15,9 @@ if [[ "$design_changed" -gt 0 ]]; then
   npm run design:check
 fi
 
+echo "[pre-commit] Running contract check..."
+bash scripts/contract-check.sh --mode staged
+
 if [[ "$code_changed" -eq 0 ]]; then
   echo "[pre-commit] No code files changed — skipping lint/tsc/build"
   echo "[pre-commit] OK"
