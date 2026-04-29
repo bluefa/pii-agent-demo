@@ -5,7 +5,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 
 # PII Agent Frontend Anti-Pattern Catalog
 
-47 anti-patterns across 8 categories. Each item has a detail file at `rules/<ID>-<slug>.md` — this file is the index.
+48 anti-patterns across 8 categories. Each item has a detail file at `rules/<ID>-<slug>.md` — this file is the index.
 
 ## When to invoke
 
@@ -22,7 +22,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 | D | Effects & Hooks | 6 |
 | E | Rendering | 5 |
 | F | Error Handling | 4 |
-| G | Naming & Constants | 9 |
+| G | Naming & Constants | 10 |
 | H | UI Composition (Icons/Assets) | 3 |
 
 Severity: 🔴 critical (block merge) · 🟡 important · 🟢 nice-to-have
@@ -88,6 +88,7 @@ Concrete evidence (file:line) from the current codebase → `docs/reports/fronte
 - **G7** 🟡 Vague parameter names (`fn`, `cb`, `data`, `val`)
 - **G8** 🟡 Inconsistent naming within a sibling cluster
 - **G9** 🟢 Comments narrating past bugs or refactor history
+- **G10** 🟡 Spec / wave / phase coordinates as identifier names (`Step4Row`, `Wave3Hook`)
 
 ### H. UI Composition
 - **H1** 🔴 Inline SVG markup in feature components
@@ -153,4 +154,4 @@ Core rules (post ADR-011, single pipeline):
 | Data Clumps | C1, C3 |
 | Feature Envy | (API boundary) |
 | Duplicate Code | D4, B3, G2, G6, H1 |
-| Vague Abstraction | G4, G7, G8, H2 |
+| Vague Abstraction | G4, G7, G8, G10, H2 |
