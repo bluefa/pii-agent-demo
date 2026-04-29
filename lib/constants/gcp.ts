@@ -39,6 +39,17 @@ export const GCP_STEP_STATUS_LABELS: Record<GcpStepStatusValue, string> = {
   SKIP: '해당없음',
 } as const;
 
+// ===== GCP Step Status Predicates =====
+
+export const isSkippedStepStatus = (s: GcpStepStatusValue): boolean => s === 'SKIP';
+
+export const isCompletedStepStatus = (s: GcpStepStatusValue): boolean => s === 'COMPLETED';
+
+// "Actionable" = IN_PROGRESS or FAIL. FAIL still needs user attention,
+// so the running/in-progress tab shows both per spec.
+export const isActionableStepStatus = (s: GcpStepStatusValue): boolean =>
+  s === 'IN_PROGRESS' || s === 'FAIL';
+
 // ===== GCP Installation Status Labels =====
 
 export const GCP_INSTALLATION_STATUS_LABELS = {

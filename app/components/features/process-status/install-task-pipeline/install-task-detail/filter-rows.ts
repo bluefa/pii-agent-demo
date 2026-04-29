@@ -1,4 +1,9 @@
-import type { GcpStepKey } from '@/lib/constants/gcp';
+import {
+  isActionableStepStatus,
+  isCompletedStepStatus,
+  isSkippedStepStatus,
+  type GcpStepKey,
+} from '@/lib/constants/gcp';
 import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 
 export type DetailTab = 'all' | 'done' | 'running';
@@ -9,11 +14,11 @@ export const filterRowsByDetailTab = (
   tab: DetailTab,
 ): InstallResourceRow[] =>
   rows.filter((row) => {
-    const stepStatus = row.source[stepKey].status;
-    if (stepStatus === 'SKIP') return false;
+    const status = row.source[stepKey].status;
+    if (isSkippedStepStatus(status)) return false;
     if (tab === 'all') return true;
-    if (tab === 'done') return stepStatus === 'COMPLETED';
-    return stepStatus === 'IN_PROGRESS' || stepStatus === 'FAIL';
+    if (tab === 'done') return isCompletedStepStatus(status);
+    return isActionableStepStatus(status);
   });
 
 export const countDetailTabs = (

@@ -52,7 +52,7 @@ describe('filterRowsByDetailTab', () => {
     expect(result.map((r) => r.resourceId)).toEqual(['a']);
   });
 
-  it('running tab includes IN_PROGRESS and FAIL (per spec note line 241)', () => {
+  it('running tab includes IN_PROGRESS and FAIL — failed resources still need attention', () => {
     const result = filterRowsByDetailTab(rows, 'serviceSideTerraformApply', 'running');
     expect(result.map((r) => r.resourceId)).toEqual(['b', 'c']);
   });
