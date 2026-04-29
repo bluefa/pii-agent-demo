@@ -11,7 +11,7 @@ const fixture: WaitingApprovalResource[] = [
     resourceId: 'mysql-prod-01',
     resourceType: 'MySQL',
     region: 'ap-northeast-1',
-    databaseName: 'sea-live-space-prod',
+    resourceName: 'sea-live-space-prod',
     selected: true,
     scanStatus: 'NEW_SCAN',
   },
@@ -19,7 +19,7 @@ const fixture: WaitingApprovalResource[] = [
     resourceId: 'mysql-stg-02',
     resourceType: 'MySQL',
     region: 'ap-northeast-1',
-    databaseName: 'sea-live-space-stg',
+    resourceName: 'sea-live-space-stg',
     selected: true,
     scanStatus: 'UNCHANGED',
   },
@@ -27,7 +27,7 @@ const fixture: WaitingApprovalResource[] = [
     resourceId: 'pg-analytics-03',
     resourceType: 'PostgreSQL',
     region: 'ap-northeast-1',
-    databaseName: 'sea-live-space-prd',
+    resourceName: 'sea-live-space-prd',
     selected: false,
     scanStatus: null,
   },
@@ -42,7 +42,7 @@ describe('WaitingApprovalTable', () => {
       'DB Type',
       'Resource ID',
       'Region',
-      'DB Name',
+      'Resource Name',
       '연동 대상 여부',
       '스캔 이력',
     ]);
@@ -79,11 +79,11 @@ describe('WaitingApprovalTable', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 
-  it('renders mono-font for ID/Region/DB Name cells', () => {
+  it('renders mono-font for ID/Region/Resource Name cells', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
     const cells = within(rows[0]).getAllByRole('cell');
-    // index 2: Resource ID, 3: Region, 4: DB Name
+    // index 2: Resource ID, 3: Region, 4: Resource Name
     expect(cells[2].className).toContain('font-mono');
     expect(cells[3].className).toContain('font-mono');
     expect(cells[4].className).toContain('font-mono');

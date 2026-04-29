@@ -8,7 +8,7 @@ export interface WaitingApprovalResource {
   resourceId: string;
   resourceType: string;
   region: string;
-  databaseName: string;
+  resourceName: string;
   selected: boolean;
   scanStatus?: ResourceScanStatus | null;
 }
@@ -30,7 +30,7 @@ const COLUMNS: readonly { label: string; widthClass?: string }[] = [
   { label: 'DB Type' },
   { label: 'Resource ID' },
   { label: 'Region' },
-  { label: 'DB Name' },
+  { label: 'Resource Name' },
   { label: '연동 대상 여부' },
   { label: '스캔 이력' },
 ];
@@ -72,7 +72,7 @@ export const WaitingApprovalTable = ({ resources }: WaitingApprovalTableProps) =
                 {resource.region || PLACEHOLDER}
               </td>
               <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                {resource.databaseName || PLACEHOLDER}
+                {resource.resourceName || PLACEHOLDER}
               </td>
               <td
                 className={cn(
