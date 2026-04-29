@@ -100,19 +100,22 @@ interface ResourceCatalogItem {
 type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPROVED' | 'TARGET_CONFIRMED';
 
 const computeProcessStatus = (project: Project): BffProcessStatus => {
-  // ADR-009 D-004: 3객체 존재 여부 기반 우선순위 계산
-  // 1. 승인 요청 활성 (PENDING) 또는 반려 직후 (REJECTED, system-reset 호출 전)
-  // → 사용자가 명시적 system-reset 으로 회귀하기 전까지 Step 2 머무름.
-  if (project.status.targets.confirmed) {
-    if (project.status.approval.status === 'PENDING' || project.status.approval.status === 'REJECTED') {
-      return 'WAITING_APPROVAL';
-    }
+  // ADR-009 D-004: priority based on the existence of the 3 objects (targets / approval / installation).
+  // PENDING / REJECTED / UNAVAILABLE all keep the project at Step 2 (WAITING_APPROVAL);
+  // only an explicit system-reset transitions back to Step 1 by clearing targets.confirmed
+  // AND approval.status. Mirror the fallback from getCurrentStep so legacy snapshots that
+  // carry confirmed=false + REJECTED/UNAVAILABLE stay on Step 2 until system-reset is invoked.
+  if (project.status.approval.status === 'REJECTED' || project.status.approval.status === 'UNAVAILABLE') {
+    return 'WAITING_APPROVAL';
   }
-  // 2. ApprovedIntegration 존재? (반영 중)
+  if (project.status.targets.confirmed && project.status.approval.status === 'PENDING') {
+    return 'WAITING_APPROVAL';
+  }
+  // ApprovedIntegration present → applying.
   if (approvedIntegrationStore.has(project.id)) {
     return 'APPLYING_APPROVED';
   }
-  // 3. ConfirmedIntegration 존재? (설치 완료 = installation COMPLETED)
+  // installation COMPLETED → confirmed.
   if (project.status.installation.status === 'COMPLETED') {
     return 'TARGET_CONFIRMED';
   }
@@ -174,8 +177,10 @@ function toResourceCatalogItem(resource: MockResource, project: Project): Resour
   };
 }
 
-// Connected 리소스는 직전 스캔 대비 변화 없음(UNCHANGED) + 이미 연동(INTEGRATED).
-// 그 외는 NEW_SCAN + NOT_INTEGRATED. 일부는 null 로 두어 UI 의 `—` 분기 데모.
+// Connected resources count as UNCHANGED + INTEGRATED relative to the prior scan;
+// everything else is NEW_SCAN + NOT_INTEGRATED. Resources whose `note` opts into the
+// `—` UI branch (no scan / no integration info) return null so the table can render the
+// missing-data state.
 const deriveScanStatus = (r: MockResource): ResourceScanStatus | null => {
   if (r.note?.includes('새 스캔')) return null;
   return r.connectionStatus === 'CONNECTED' ? 'UNCHANGED' : 'NEW_SCAN';
@@ -1275,7 +1280,8 @@ export const mockConfirm = {
       );
     }
 
-    if (!project.isRejected) {
+    const approvalStatus = project.status.approval.status;
+    if (!project.isRejected && approvalStatus !== 'UNAVAILABLE') {
       return NextResponse.json(
         {
           error: {

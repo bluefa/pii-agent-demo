@@ -143,20 +143,23 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(result.status_inputs.has_pending_approval_request).toBe(true);
     });
 
-    it('반려 후: REQUEST_REQUIRED (last_approval_result=REJECTED)', async () => {
+    it('반려 후: WAITING_APPROVAL 유지 (last_approval_result=REJECTED, system-reset 호출 전)', async () => {
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
-        targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+        targets: { confirmed: true, selectedCount: 1, excludedCount: 0 },
         approval: { status: 'REJECTED', rejectedAt: '2026-01-15T00:00:00Z', rejectionReason: '리소스 재확인 필요' },
       };
       addTestProject({
-        processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
+        processStatus: ProcessStatus.WAITING_APPROVAL,
         status,
+        isRejected: true,
+        rejectionReason: '리소스 재확인 필요',
+        rejectedAt: '2026-01-15T00:00:00Z',
       });
 
       const result = await getProcessStatus();
-      expect(result.process_status).toBe('REQUEST_REQUIRED');
+      expect(result.process_status).toBe('WAITING_APPROVAL');
       expect(result.status_inputs.last_approval_result).toBe('REJECTED');
       expect(result.status_inputs.last_rejection_reason).toBe('리소스 재확인 필요');
     });
@@ -524,12 +527,12 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
   describe('시나리오 4: 반려 후 재요청', () => {
     it('반려 → 재요청 → WAITING_APPROVAL', async () => {
-      // 반려 상태로 셋업
+      // 반려 후 system-reset 으로 Step 1 회귀한 상태에서 시작 (새 IA: targets.confirmed=false + CANCELLED)
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
         targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
-        approval: { status: 'REJECTED', rejectedAt: '2026-01-15T00:00:00Z', rejectionReason: '재검토' },
+        approval: { status: 'CANCELLED' },
       };
       addTestProject({
         processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
@@ -551,11 +554,12 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     });
 
     it('반려 → 재요청 → 승인 → APPLYING_APPROVED', async () => {
+      // 반려 후 system-reset 으로 Step 1 회귀한 상태 (새 IA: targets.confirmed=false + CANCELLED)
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
         scan: { status: 'COMPLETED' },
         targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
-        approval: { status: 'REJECTED' },
+        approval: { status: 'CANCELLED' },
       };
       addTestProject({
         processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,

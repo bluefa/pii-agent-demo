@@ -304,7 +304,10 @@ paths:
         사용자가 반려 사유를 확인한 뒤 명시적으로 reset 을 트리거하도록 한다.
       responses:
         '200':
-          description: 시스템 리셋 성공
+          description: |
+            시스템 리셋 성공.
+            응답 status 는 `CANCELLED` 로 내려가며, 이후 processStatus 는
+            `WAITING_TARGET_CONFIRMATION` (1) 로 회귀한다.
           content:
             application/json:
               schema:
@@ -326,11 +329,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: REJECTED 또는 UNAVAILABLE 상태가 아님
+          description: |
+            REJECTED 또는 UNAVAILABLE 상태가 아님 — 에러 코드 `APPROVAL_REQUEST_NOT_RESETTABLE`.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: APPROVAL_REQUEST_NOT_RESETTABLE
+                  message: REJECTED 또는 UNAVAILABLE 상태에서만 system-reset 호출 가능합니다.
   /target-sources/{targetSourceId}/confirmed-integration:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'

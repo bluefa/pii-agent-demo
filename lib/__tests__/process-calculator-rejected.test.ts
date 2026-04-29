@@ -41,6 +41,28 @@ describe('getCurrentStep — REJECTED 분기', () => {
     expect(getCurrentStep(status)).toBe(ProcessStatus.WAITING_TARGET_CONFIRMATION);
   });
 
+  it('targets.confirmed=true + approval.status=UNAVAILABLE → WAITING_APPROVAL (Step 2 유지)', () => {
+    const status: ProjectStatus = {
+      ...createInitialProjectStatus(),
+      scan: { status: 'COMPLETED' },
+      targets: { confirmed: true, selectedCount: 1, excludedCount: 0 },
+      approval: { status: 'UNAVAILABLE' },
+    };
+
+    expect(getCurrentStep(status)).toBe(ProcessStatus.WAITING_APPROVAL);
+  });
+
+  it('targets.confirmed=false + approval.status=UNAVAILABLE → WAITING_APPROVAL (defensive)', () => {
+    const status: ProjectStatus = {
+      ...createInitialProjectStatus(),
+      scan: { status: 'COMPLETED' },
+      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+      approval: { status: 'UNAVAILABLE' },
+    };
+
+    expect(getCurrentStep(status)).toBe(ProcessStatus.WAITING_APPROVAL);
+  });
+
   it('targets.confirmed=true + approval.status=PENDING → WAITING_APPROVAL (기존 동작 보존)', () => {
     const status: ProjectStatus = {
       ...createInitialProjectStatus(),
