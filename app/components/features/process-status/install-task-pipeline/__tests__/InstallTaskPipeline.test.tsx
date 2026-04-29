@@ -40,19 +40,8 @@ describe('InstallTaskPipeline', () => {
       item('c', 't3', 2),
     ];
     const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
-    const chevronMatches = html.match(/aria-hidden="true"/g) ?? [];
+    const chevronMatches = html.match(/right-\[-7px\]/g) ?? [];
     expect(chevronMatches).toHaveLength(2);
-  });
-
-  it('positions chevrons at boundary percentages', () => {
-    const items: InstallTaskPipelineItem[] = [
-      item('a', 't1', 0),
-      item('b', 't2', 1),
-      item('c', 't3', 2),
-    ];
-    const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
-    expect(html).toMatch(/left:\s*33\.\d+%/);
-    expect(html).toMatch(/left:\s*66\.\d+%/);
   });
 
   it('uses grid-cols-3 for 3 items', () => {
@@ -65,7 +54,17 @@ describe('InstallTaskPipeline', () => {
     expect(html).toContain('grid-cols-3');
   });
 
-  it('passes M/N count through to running cards (Q4G-3)', () => {
+  it('does not use inline left:% style anywhere (AP-E2)', () => {
+    const items: InstallTaskPipelineItem[] = [
+      item('a', 't1', 0),
+      item('b', 't2', 1),
+      item('c', 't3', 2),
+    ];
+    const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
+    expect(html).not.toMatch(/left:\s*\d/);
+  });
+
+  it('passes M/N count through to running cards', () => {
     const items: InstallTaskPipelineItem[] = [
       { key: 'a', title: 't1', status: 'running', completedCount: 2, activeCount: 7 },
     ];

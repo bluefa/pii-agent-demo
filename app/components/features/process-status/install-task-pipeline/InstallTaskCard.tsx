@@ -1,5 +1,6 @@
 'use client';
 
+import type { InstallTaskStatus } from '@/lib/constants/gcp';
 import {
   bgColors,
   borderColors,
@@ -10,36 +11,35 @@ import {
   textColors,
 } from '@/lib/theme';
 
-export type InstallTaskCardStatus = 'done' | 'running' | 'failed' | 'pending';
-
 export type InstallTaskCardPosition = 'first' | 'middle' | 'last';
 
 interface InstallTaskCardProps {
   num: number;
   title: string;
   sub?: string;
-  status: InstallTaskCardStatus;
+  status: InstallTaskStatus;
   completedCount?: number;
   activeCount?: number;
   onClick?: () => void;
   position: InstallTaskCardPosition;
+  showConnector?: boolean;
 }
 
-const NUM_STYLES: Record<InstallTaskCardStatus, string> = {
+const NUM_STYLES: Record<InstallTaskStatus, string> = {
   pending: cn(bgColors.muted, textColors.tertiary),
   done: cn(statusColors.success.dot, textColors.inverse),
   running: cn(primaryColors.bg, textColors.inverse, primaryColors.haloRing),
   failed: cn(statusColors.error.dot, textColors.inverse),
 };
 
-const PILL_STYLES: Record<InstallTaskCardStatus, string> = {
+const PILL_STYLES: Record<InstallTaskStatus, string> = {
   pending: tagStyles.gray,
   done: tagStyles.green,
   running: tagStyles.blue,
   failed: tagStyles.red,
 };
 
-const PILL_LABEL: Record<InstallTaskCardStatus, string> = {
+const PILL_LABEL: Record<InstallTaskStatus, string> = {
   pending: '해당없음',
   done: '완료',
   running: '진행중',
@@ -52,6 +52,12 @@ const POSITION_CLASS: Record<InstallTaskCardPosition, string> = {
   last: 'rounded-r-[10px]',
 };
 
+const CONNECTOR_CLASS = cn(
+  'absolute right-[-7px] top-1/2 w-3.5 h-3.5 rotate-45',
+  '-translate-y-1/2 pointer-events-none z-10',
+  'border-t border-r',
+);
+
 export const InstallTaskCard = ({
   num,
   title,
@@ -61,6 +67,7 @@ export const InstallTaskCard = ({
   activeCount,
   onClick,
   position,
+  showConnector,
 }: InstallTaskCardProps) => {
   const showCount = status === 'running' && typeof activeCount === 'number';
   const pillText = showCount
@@ -101,6 +108,12 @@ export const InstallTaskCard = ({
         ) : null}
         <span className={pillClass}>{pillText}</span>
       </div>
+      {showConnector ? (
+        <span
+          aria-hidden="true"
+          className={cn(CONNECTOR_CLASS, bgColors.surface, borderColors.default)}
+        />
+      ) : null}
     </>
   );
 

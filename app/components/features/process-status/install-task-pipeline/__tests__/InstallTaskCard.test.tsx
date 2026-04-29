@@ -98,6 +98,34 @@ describe('InstallTaskCard — onClick controls element type', () => {
   });
 });
 
+describe('InstallTaskCard — connector chevron', () => {
+  it('renders a chevron span when showConnector is true', () => {
+    const html = renderToStaticMarkup(
+      <InstallTaskCard {...baseProps} status="done" showConnector />,
+    );
+    expect(html).toContain('right-[-7px]');
+    expect(html).toContain('aria-hidden="true"');
+  });
+
+  it('omits chevron when showConnector is false or undefined', () => {
+    const without = renderToStaticMarkup(
+      <InstallTaskCard {...baseProps} status="done" />,
+    );
+    const explicitFalse = renderToStaticMarkup(
+      <InstallTaskCard {...baseProps} status="done" showConnector={false} />,
+    );
+    expect(without).not.toContain('right-[-7px]');
+    expect(explicitFalse).not.toContain('right-[-7px]');
+  });
+
+  it('does not use inline left-percent style anywhere (AP-E2)', () => {
+    const html = renderToStaticMarkup(
+      <InstallTaskCard {...baseProps} status="running" showConnector activeCount={3} completedCount={1} />,
+    );
+    expect(html).not.toMatch(/style="[^"]*left:\s*\d/);
+  });
+});
+
 describe('InstallTaskCard — position rounded class', () => {
   it('first position gets rounded-l-[10px]', () => {
     const html = renderToStaticMarkup(
