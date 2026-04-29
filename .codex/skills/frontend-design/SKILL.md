@@ -1,42 +1,49 @@
 ---
 name: frontend-design
-description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics.
+description: Create or review PII Agent frontend UI. Use for React components, pages, dashboards, styling, layout, mockup implementation, or visual polish. Always read DESIGN.md first and follow the repo design system before writing UI code.
 license: Complete terms in LICENSE.txt
 ---
 
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+# Frontend Design
 
-The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+Use this skill for UI implementation and UI review in this repository.
 
-## Design Thinking
+## Before Coding
 
-Before coding, understand the context and commit to a BOLD aesthetic direction:
-- **Purpose**: What problem does this interface solve? Who uses it?
-- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
-- **Constraints**: Technical requirements (framework, performance, accessibility).
-- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+1. Read `DESIGN.md`. Treat it as the design system contract for product surfaces, component inventory, token expectations, and design decisions.
+2. Read the nearest existing component in the target directory to match local structure and import style.
+3. Check `lib/theme.ts` and `app/components/ui/` for existing tokens and primitives before adding new styling.
 
-**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+If `DESIGN.md`, this skill, and `lib/theme.ts` disagree, prefer `DESIGN.md` for product/design intent. If the code tokens are stale, update them or call out the gap instead of silently inventing a local style.
 
-Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
-- Production-grade and functional
-- Visually striking and memorable
-- Cohesive with a clear aesthetic point-of-view
-- Meticulously refined in every detail
+## Project Direction
 
-## Frontend Aesthetics Guidelines
+- The app is an enterprise operations UI. Prefer a refined, utilitarian interface with clear hierarchy, dense but scannable information, predictable controls, and restrained decoration.
+- Do not build marketing-style heroes, oversized editorial sections, decorative card stacks, or generic AI-looking gradients for app workflows.
+- Desktop is the default target unless the user explicitly asks for responsive/mobile behavior.
+- Preserve mockup patterns when implementing from a reference: tabs vs segmented controls, underline vs pill, dot vs filled circle, card boundaries, status placement, and copy density all matter.
 
-Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+## Design System Rules
 
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+- Use `DESIGN.md` and `lib/theme.ts` for colors, surfaces, and component styling.
+- Use existing `app/components/ui` primitives before creating a new primitive.
+- Raw Tailwind color classes are forbidden for new feature code. Use tokens such as `statusColors`, `textColors`, `bgColors`, `borderColors`, `buttonStyles`, `cardStyles`, `modalStyles`, `getButtonClass()`, and `getInputClass()`.
+- Layout classes such as `flex`, `grid`, `gap-*`, `p-*`, `m-*`, sizing, overflow, and typography scale classes are allowed when they do not encode color decisions.
+- Light surfaces such as cards, panels, editors, and modals should declare background and text tokens at the root. Do not rely on global inheritance for visible surface colors.
+- Do not add standalone CSS files. Use Tailwind and existing tokens.
 
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+## Interaction And State
 
-**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+- Use familiar UI controls: icon buttons for tool actions, segmented controls for mutually exclusive modes, toggles or checkboxes for boolean settings, menus for option sets, tabs for views, and explicit buttons for commands.
+- Use stable dimensions for fixed-format controls, tables, board columns, counters, tiles, toolbars, and icon buttons so hover states and dynamic labels do not shift layout.
+- For editor or contenteditable surfaces, do not infer dirty state from raw HTML string comparison. Track whether the user actually typed as a separate signal.
+- Block click-navigation on inline editor links and surface the URL so users can inspect it.
 
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+## Review Checklist
+
+- `DESIGN.md` was read and the implementation follows its component/tokens direction.
+- Existing UI primitives were reused where appropriate.
+- No new raw color class was introduced in feature code.
+- Text fits its container at the expected desktop sizes.
+- States are covered: loading, empty, error, disabled, selected, hover/focus, and submitted/success where relevant.
+- Any deliberate divergence from `DESIGN.md` or a mockup is explained in the PR or final report.

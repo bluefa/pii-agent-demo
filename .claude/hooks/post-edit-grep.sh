@@ -71,6 +71,22 @@ esac
 
 # ─── Warnings (exit 0) ───────────────────────────────────
 
+# DESIGN.md reminder for frontend UI edits. Advisory only; the skill carries
+# the actual design-system workflow.
+case "$file" in
+  *.tsx)
+    case "$file" in
+      *__tests__*|*.test.tsx|*.spec.tsx) ;;
+      */app/*|app/*|*/components/*|components/*)
+        repo_root="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+        if [ -f "$repo_root/DESIGN.md" ]; then
+          warnings+=$'\n[DESIGN.md] Frontend UI edit detected - read DESIGN.md and /frontend-design before finalizing visual, layout, or token decisions.'
+        fi
+        ;;
+    esac
+    ;;
+esac
+
 # PR #328 regression: getStore() helpers need IS_MOCK guard
 case "$file" in
   *resolve*|*mock-store*|*/app/integration/api/*/route.ts)
