@@ -105,6 +105,20 @@ while IFS= read -r file; do
   esac
 
   case "$file" in
+    *.tsx)
+      case "$file" in
+        *__tests__*|*.test.tsx|*.spec.tsx) ;;
+        */app/*|app/*|*/components/*|components/*)
+          repo_root="${CODEX_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$(pwd)}}"
+          if [ -f "$repo_root/DESIGN.md" ]; then
+            append_warning "DESIGN.md frontend UI reference" "$file"$'\n'"Read DESIGN.md and frontend-design before finalizing visual, layout, or token decisions."
+          fi
+          ;;
+      esac
+      ;;
+  esac
+
+  case "$file" in
     *resolve*|*mock-store*|*/app/integration/api/*/route.ts)
       if /usr/bin/grep -qE '(getStore|mockProjects|getProjectBy|getS3UploadStatus)' "$file" 2>/dev/null \
         && ! /usr/bin/grep -qE '(IS_MOCK|USE_MOCK_DATA)' "$file" 2>/dev/null; then
