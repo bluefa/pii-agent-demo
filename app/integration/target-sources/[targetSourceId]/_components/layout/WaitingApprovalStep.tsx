@@ -1,17 +1,14 @@
 'use client';
 
-import { useCallback, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
-import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { ApprovalWaitingCard } from '@/app/components/features/process-status/ApprovalWaitingCard';
-import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
   ProjectPageMeta,
   RejectionAlert,
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
-import { CandidateResourceSection } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate';
+import { WaitingApprovalCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
 
 interface WaitingApprovalStepProps {
   project: CloudTargetSource;
@@ -28,17 +25,6 @@ export const WaitingApprovalStep = ({
   action,
   onProjectUpdate,
 }: WaitingApprovalStepProps) => {
-  const slotKey = resolveStepSlot(
-    project.cloudProvider,
-    project.processStatus,
-    project.awsInstallationMode,
-  );
-
-  const refreshProject = useCallback(async () => {
-    const updated = await getProject(project.targetSourceId);
-    onProjectUpdate(updated);
-  }, [onProjectUpdate, project.targetSourceId]);
-
   return (
     <>
       <ProjectPageMeta
@@ -48,19 +34,7 @@ export const WaitingApprovalStep = ({
         action={action}
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
-      {!project.isRejected && (
-        <div data-testid="approval-waiting">
-          <ApprovalWaitingCard
-            targetSourceId={project.targetSourceId}
-            onCancelSuccess={refreshProject}
-          />
-        </div>
-      )}
-      <CandidateResourceSection
-        targetSourceId={project.targetSourceId}
-        readonly
-        refreshProject={refreshProject}
-      />
+      <WaitingApprovalCard targetSourceId={project.targetSourceId} />
       <RejectionAlert project={project} />
     </>
   );
