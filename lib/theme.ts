@@ -332,6 +332,19 @@ export const navStyles = {
 } as const;
 
 /**
+ * Step banner — 단계 본문 위 안내 배너 (시안 SIT Prototype v3 line 1832)
+ */
+export const bannerStyles = {
+  base: 'flex items-center gap-3 px-4 py-3 mb-4 rounded-[10px] border text-[13px]',
+  variants: {
+    info: 'bg-blue-50 border-blue-200 text-blue-900',
+    warn: 'bg-amber-50 border-amber-300 text-amber-900',
+    success: 'bg-emerald-50 border-emerald-300 text-emerald-900',
+    error: 'bg-red-50 border-red-200 text-red-900',
+  },
+} as const;
+
+/**
  * 인라인 색상 태그 — DB Type, 연동 대상/비대상 등 6종
  */
 export const tagStyles = {
