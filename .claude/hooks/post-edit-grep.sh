@@ -38,10 +38,16 @@ case "$file" in
     if hits=$(/usr/bin/grep -nE '`(hover|focus|active|sm|md|lg|xl):\$\{' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
       blockers+=$'\n[BLOCK] dynamic Tailwind class — JIT cannot extract; use static strings:\n'"$hits"
     fi
-    # Anti-pattern F1: native alert(). Skip test files — XSS-payload string literals legitimately contain "alert(".
-    # Pattern excludes `dialog.alert(`, `useAlert(`, etc. by requiring no preceding word/dot character.
+    ;;
+esac
+
+# Anti-pattern F1: native alert(). Applies to .ts AND .tsx (a `.ts` utility can call window.alert too).
+# Pattern excludes `dialog.alert(`, `useAlert(`, etc. by requiring no preceding word/dot character.
+# Skip test files — XSS-payload string literals legitimately contain "alert(".
+case "$file" in
+  *.ts|*.tsx)
     case "$file" in
-      *__tests__*|*.test.tsx|*.spec.tsx) ;;
+      *__tests__*|*.test.ts|*.test.tsx|*.spec.ts|*.spec.tsx) ;;
       *)
         if hits=$(/usr/bin/grep -nE '(^|[^.A-Za-z0-9_])(window\.)?alert\(' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
           blockers+=$'\n[BLOCK F1] native alert() forbidden — use toast/modal:\n'"$hits"
@@ -51,12 +57,14 @@ case "$file" in
     ;;
 esac
 
-# Contract-First (PR #179, ADR-011): route.ts must dispatch to bff.method() and not parse upstream JSON itself.
-# Pattern matches any `await <var>.json()` since variable name varies (response, upstreamRes, etc.).
+# Contract-First (PR #179, ADR-011): route.ts must dispatch to bff.method() and not parse upstream JSON.
+# Pattern matches any `await <var>.json()` then excludes `request.json()` / `req.json()` (incoming body parse is OK).
 case "$file" in
   */route.ts)
-    if hits=$(/usr/bin/grep -nE 'await\s+[A-Za-z_$][A-Za-z0-9_$]*\.json\s*\(\s*\)' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
-      blockers+=$'\n[BLOCK Contract-First/ADR-011] route.ts must not parse upstream JSON — dispatch via `bff.method()` from `@/lib/bff/client` (see docs/api/boundaries.md):\n'"$hits"
+    if hits=$(/usr/bin/grep -nE 'await\s+[A-Za-z_$][A-Za-z0-9_$]*\.json\s*\(\s*\)' "$file" 2>/dev/null \
+              | /usr/bin/grep -vE 'await\s+(request|req)\.json' \
+              | head -3); [ -n "$hits" ]; then
+      blockers+=$'\n[BLOCK Contract-First/ADR-011] route.ts must not parse upstream JSON — dispatch via `bff.method()` from `@/lib/bff/client` (request.json() for incoming body is allowed):\n'"$hits"
     fi
     ;;
 esac
