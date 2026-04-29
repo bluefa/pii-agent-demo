@@ -1,5 +1,9 @@
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
-import type { EndpointConfigInputData } from '@/lib/types';
+import type {
+  EndpointConfigInputData,
+  ResourceScanStatus,
+  ResourceIntegrationStatus,
+} from '@/lib/types';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -59,11 +63,20 @@ export interface ResourceConfigDto {
   network_interface_id?: string;
   ip_configuration?: string;
   credential_id?: string;
+  database_region?: string | null;
+  resource_name?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  integration_status?: ResourceIntegrationStatus | null;
 }
 
 export interface ExcludedResourceInfoDto {
   resource_id?: string;
   exclusion_reason?: string;
+  resource_name?: string | null;
+  database_type?: string | null;
+  database_region?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  integration_status?: ResourceIntegrationStatus | null;
 }
 
 export interface ApprovalRequestSummaryDto {
@@ -156,6 +169,16 @@ const toActorDto = (value: unknown): ApprovalActorDto | undefined => {
 
   const userId = toStringOrUndefined(value.user_id) ?? toStringOrUndefined(value.id);
   return userId ? { user_id: userId } : undefined;
+};
+
+const toScanStatus = (value: unknown): ResourceScanStatus | undefined => {
+  if (value === 'UNCHANGED' || value === 'NEW_SCAN') return value;
+  return undefined;
+};
+
+const toIntegrationStatus = (value: unknown): ResourceIntegrationStatus | undefined => {
+  if (value === 'INTEGRATED' || value === 'NOT_INTEGRATED') return value;
+  return undefined;
 };
 
 const mapApprovalStatus = (value: unknown): ApprovalStatus | undefined => {
@@ -254,6 +277,10 @@ const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
   const ipConfiguration =
     toStringOrUndefined(value.ip_configuration) ?? toStringOrUndefined(value.ip_configuration_name);
   const credentialId = toStringOrUndefined(value.credential_id);
+  const databaseRegion = toStringOrUndefined(value.database_region);
+  const resourceName = toStringOrUndefined(value.resource_name);
+  const scanStatus = toScanStatus(value.scan_status);
+  const integrationStatus = toIntegrationStatus(value.integration_status);
 
   return {
     ...(resourceId ? { resource_id: resourceId } : {}),
@@ -265,6 +292,10 @@ const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
     ...(networkInterfaceId ? { network_interface_id: networkInterfaceId } : {}),
     ...(ipConfiguration ? { ip_configuration: ipConfiguration } : {}),
     ...(credentialId ? { credential_id: credentialId } : {}),
+    ...(databaseRegion ? { database_region: databaseRegion } : {}),
+    ...(resourceName ? { resource_name: resourceName } : {}),
+    ...(scanStatus ? { scan_status: scanStatus } : {}),
+    ...(integrationStatus ? { integration_status: integrationStatus } : {}),
   };
 };
 
@@ -274,12 +305,24 @@ const toExcludedResourceInfos = (value: unknown): ExcludedResourceInfoDto[] | un
   const excludedResourceInfos = Array.isArray(value.excluded_resource_infos)
     ? value.excluded_resource_infos
         .filter(isRecord)
-        .map((item) => ({
-          ...(toStringOrUndefined(item.resource_id) ? { resource_id: toStringOrUndefined(item.resource_id) } : {}),
-          ...(toStringOrUndefined(item.exclusion_reason)
-            ? { exclusion_reason: toStringOrUndefined(item.exclusion_reason) }
-            : {}),
-        }))
+        .map((item): ExcludedResourceInfoDto => {
+          const resourceId = toStringOrUndefined(item.resource_id);
+          const exclusionReason = toStringOrUndefined(item.exclusion_reason);
+          const resourceName = toStringOrUndefined(item.resource_name);
+          const databaseType = toStringOrUndefined(item.database_type);
+          const databaseRegion = toStringOrUndefined(item.database_region);
+          const scanStatus = toScanStatus(item.scan_status);
+          const integrationStatus = toIntegrationStatus(item.integration_status);
+          return {
+            ...(resourceId ? { resource_id: resourceId } : {}),
+            ...(exclusionReason ? { exclusion_reason: exclusionReason } : {}),
+            ...(resourceName ? { resource_name: resourceName } : {}),
+            ...(databaseType ? { database_type: databaseType } : {}),
+            ...(databaseRegion ? { database_region: databaseRegion } : {}),
+            ...(scanStatus ? { scan_status: scanStatus } : {}),
+            ...(integrationStatus ? { integration_status: integrationStatus } : {}),
+          };
+        })
     : null;
 
   if (excludedResourceInfos && excludedResourceInfos.length > 0) return excludedResourceInfos;

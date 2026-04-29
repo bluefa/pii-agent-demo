@@ -243,6 +243,9 @@ export const httpBff: BffClient = {
     cancelApprovalRequest: (id) =>
       post<unknown>(`/target-sources/${id}/approval-requests/cancel`, {}),
 
+    systemResetApprovalRequest: (id) =>
+      post<unknown>(`/target-sources/${id}/approval-requests/system-reset`, {}),
+
     confirmInstallation: (id) =>
       post<unknown>(`/target-sources/${id}/pii-agent-installation/confirm`, {}),
 

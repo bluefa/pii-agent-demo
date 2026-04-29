@@ -23,8 +23,12 @@ import type {
   ResourceExclusion,
   BffApprovedIntegration,
   BffConfirmedIntegration,
+  BffExcludedResourceInfo,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
+  ResourceIntegrationStatus,
+  ResourceScanStatus,
+  ResourceSnapshot,
 } from '@/lib/types';
 
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
@@ -97,9 +101,12 @@ type BffProcessStatus = 'REQUEST_REQUIRED' | 'WAITING_APPROVAL' | 'APPLYING_APPR
 
 const computeProcessStatus = (project: Project): BffProcessStatus => {
   // ADR-009 D-004: 3객체 존재 여부 기반 우선순위 계산
-  // 1. PENDING 승인 요청 존재?
-  if (project.status.approval.status === 'PENDING' && project.status.targets.confirmed) {
-    return 'WAITING_APPROVAL';
+  // 1. 승인 요청 활성 (PENDING) 또는 반려 직후 (REJECTED, system-reset 호출 전)
+  // → 사용자가 명시적 system-reset 으로 회귀하기 전까지 Step 2 머무름.
+  if (project.status.targets.confirmed) {
+    if (project.status.approval.status === 'PENDING' || project.status.approval.status === 'REJECTED') {
+      return 'WAITING_APPROVAL';
+    }
   }
   // 2. ApprovedIntegration 존재? (반영 중)
   if (approvedIntegrationStore.has(project.id)) {
@@ -167,7 +174,19 @@ function toResourceCatalogItem(resource: MockResource, project: Project): Resour
   };
 }
 
-function toResourceSnapshot(r: MockResource) {
+// Connected 리소스는 직전 스캔 대비 변화 없음(UNCHANGED) + 이미 연동(INTEGRATED).
+// 그 외는 NEW_SCAN + NOT_INTEGRATED. 일부는 null 로 두어 UI 의 `—` 분기 데모.
+const deriveScanStatus = (r: MockResource): ResourceScanStatus | null => {
+  if (r.note?.includes('새 스캔')) return null;
+  return r.connectionStatus === 'CONNECTED' ? 'UNCHANGED' : 'NEW_SCAN';
+};
+
+const deriveIntegrationStatus = (r: MockResource): ResourceIntegrationStatus | null => {
+  if (r.note?.includes('정보 없음')) return null;
+  return r.connectionStatus === 'CONNECTED' && r.isSelected ? 'INTEGRATED' : 'NOT_INTEGRATED';
+};
+
+function toResourceSnapshot(r: MockResource): ResourceSnapshot {
   let endpoint_config = null;
   if (r.vmDatabaseConfig) {
     endpoint_config = {
@@ -188,6 +207,22 @@ function toResourceSnapshot(r: MockResource) {
     resource_type: r.type,
     endpoint_config,
     credential_id: r.selectedCredentialId ?? null,
+    database_region: r.region ?? null,
+    resource_name: r.resourceId,
+    scan_status: deriveScanStatus(r),
+    integration_status: deriveIntegrationStatus(r),
+  };
+}
+
+function toExcludedResourceInfo(r: MockResource): BffExcludedResourceInfo {
+  return {
+    resource_id: r.resourceId,
+    exclusion_reason: r.exclusion?.reason ?? '',
+    resource_name: r.resourceId,
+    database_type: r.databaseType ?? null,
+    database_region: r.region ?? null,
+    scan_status: deriveScanStatus(r),
+    integration_status: deriveIntegrationStatus(r),
   };
 }
 
@@ -495,6 +530,7 @@ export const mockConfirm = {
         approved_at: now,
         resource_infos: selectedResources.map(toResourceSnapshot),
         excluded_resource_ids: excludedResources.map((r) => r.resourceId),
+        excluded_resource_infos: excludedResources.map(toExcludedResourceInfo),
         exclusion_reason: excludedResources[0]?.exclusion?.reason,
       });
       // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
@@ -612,7 +648,18 @@ export const mockConfirm = {
       );
     }
 
-    return NextResponse.json({ approved_integration: approved });
+    // PR #420: enrich excluded_resource_infos so Step 3 table can render full rows.
+    // Stored shape only carries IDs; resolve each against project.resources here.
+    const excludedResourceInfos: BffExcludedResourceInfo[] = approved.excluded_resource_ids.map((id) => {
+      const projectResource = project.resources.find((r) => r.resourceId === id);
+      return projectResource
+        ? toExcludedResourceInfo(projectResource)
+        : { resource_id: id, exclusion_reason: approved.exclusion_reason ?? '' };
+    });
+
+    return NextResponse.json({
+      approved_integration: { ...approved, excluded_resource_infos: excludedResourceInfos },
+    });
   },
 
   getApprovalHistory: async (targetSourceId: string, page: number, size: number) => {
@@ -1027,6 +1074,7 @@ export const mockConfirm = {
       approved_at: now,
       resource_infos: selectedResources.map(toResourceSnapshot),
       excluded_resource_ids: excludedResources.map((r) => r.resourceId),
+      excluded_resource_infos: excludedResources.map(toExcludedResourceInfo),
       exclusion_reason: excludedResources[0]?.exclusion?.reason,
     });
 
@@ -1080,19 +1128,8 @@ export const mockConfirm = {
 
     const now = new Date().toISOString();
 
-    const updatedResources = project.resources.map((r) => {
-      if (!r.isSelected) return r;
-      return {
-        ...r,
-        isSelected: false,
-        exclusion: undefined,
-        note: `반려: ${reason}`,
-      };
-    });
-
     const updatedStatus: ProjectStatus = {
       ...project.status,
-      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
       approval: { status: 'REJECTED', rejectedAt: now, rejectionReason: reason },
     };
 
@@ -1101,7 +1138,6 @@ export const mockConfirm = {
     mockData.updateProject(project.id, {
       processStatus: calculatedProcessStatus,
       status: updatedStatus,
-      resources: updatedResources,
       isRejected: true,
       rejectionReason: reason,
       rejectedAt: now,
@@ -1212,6 +1248,75 @@ export const mockConfirm = {
       success: true,
       result: 'CANCELLED',
       processed_at: now,
+    });
+  },
+
+  systemResetApprovalRequest: async (targetSourceId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
+        { status: 403 },
+      );
+    }
+
+    if (!project.isRejected) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'APPROVAL_REQUEST_NOT_RESETTABLE',
+            message: 'REJECTED 또는 UNAVAILABLE 상태에서만 system-reset 호출 가능합니다.',
+          },
+        },
+        { status: 409 },
+      );
+    }
+
+    const now = new Date().toISOString();
+
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+      approval: { status: 'CANCELLED' },
+    };
+
+    const updatedResources = project.resources.map((r) => ({
+      ...r,
+      isSelected: false,
+      exclusion: undefined,
+    }));
+
+    mockData.updateProject(project.id, {
+      processStatus: getCurrentStep(updatedStatus),
+      status: updatedStatus,
+      resources: updatedResources,
+      isRejected: false,
+      rejectionReason: undefined,
+      rejectedAt: undefined,
+    });
+
+    mockHistory.addApprovalCancelledHistory(Number(targetSourceId), { id: user.id, name: user.name });
+
+    return NextResponse.json({
+      success: true,
+      result: 'CANCELLED',
+      processed_at: now,
+      reason: 'system-reset',
     });
   },
 
@@ -1342,6 +1447,7 @@ export const mockConfirm = {
         ...approvedIntegration,
         resource_infos: selectedResources.map(toResourceSnapshot),
         excluded_resource_ids: excludedResources.map((resource) => resource.resourceId),
+        excluded_resource_infos: excludedResources.map(toExcludedResourceInfo),
       });
     }
 
