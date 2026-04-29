@@ -3,7 +3,10 @@
 set -uo pipefail
 
 input="$(cat)"
-command="$(printf '%s' "$input" | /usr/bin/node -e '
+node_bin="$(command -v node 2>/dev/null || true)"
+[ -n "$node_bin" ] || exit 0
+
+command="$(printf '%s' "$input" | "$node_bin" -e '
 const fs = require("fs");
 let data = "";
 process.stdin.on("data", chunk => { data += chunk; });

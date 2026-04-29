@@ -4,12 +4,20 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# 코드 파일(.ts/.tsx/.js/.jsx/.mjs) 변경 여부 확인
-code_changed=$(git diff --cached --name-only --diff-filter=ACMR | grep -cE '\.(ts|tsx|js|jsx|mjs)$' || true)
+# DESIGN.md and design-system routing must be checked even for markdown-only commits.
+design_changed=$(printf '%s\n' "$staged_files" | grep -cE '^(DESIGN\.md|lib/theme\.ts|app/globals\.css|\.claude/skills/|\.codex/skills/)' || true)
+code_changed=$(printf '%s\n' "$staged_files" | grep -cE '\.(ts|tsx|js|jsx|mjs)$' || true)
+
+if [[ "$design_changed" -gt 0 ]]; then
+  echo "[pre-commit] Running design check..."
+  npm run design:check
+fi
 
 if [[ "$code_changed" -eq 0 ]]; then
   echo "[pre-commit] No code files changed — skipping lint/tsc/build"
+  echo "[pre-commit] OK"
   exit 0
 fi
 
