@@ -12,7 +12,7 @@ Options:
            - diff:   git diff <base...head>
   --base   Base ref for diff mode (default: origin/main)
   --head   Head ref for diff mode (default: HEAD)
-  --rules  Regex rule file path (default: .claude/skills/shared/contract-check.rules)
+  --rules  Regex rule file path (default: contract-check.rules)
 
 Rule file format:
   - One rule per line, comment starts with '#'
@@ -25,7 +25,7 @@ EOF
 MODE="staged"
 BASE_REF="origin/main"
 HEAD_REF="HEAD"
-RULES_FILE=".claude/skills/shared/contract-check.rules"
+RULES_FILE="contract-check.rules"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -76,8 +76,9 @@ collect_changed_files() {
 is_api_runtime_path() {
   local path="$1"
   [[ "${path}" == app/api/* ]] \
+    || [[ "${path}" == app/integration/api/* ]] \
     || [[ "${path}" == app/lib/api/* ]] \
-    || [[ "${path}" == lib/api-client/* ]] \
+    || [[ "${path}" == lib/bff/* ]] \
     || [[ "${path}" == lib/types/* ]]
 }
 
