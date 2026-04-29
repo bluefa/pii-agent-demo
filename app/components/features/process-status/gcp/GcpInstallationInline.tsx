@@ -1,15 +1,21 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import {
+  borderColors,
+  cn,
+  interactiveColors,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
 import { getGcpInstallationStatus, checkGcpInstallation } from '@/app/lib/api/gcp';
-import { statusColors, textColors, interactiveColors, cn } from '@/lib/theme';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import { Step4DbListTable } from '@/app/components/features/process-status/install-task-pipeline/Step4DbListTable';
+import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
 import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
 import { joinGcpResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import { useModal } from '@/app/hooks/useModal';
 import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { buildGcpPipelineItems, type GcpStepKey } from '@/lib/constants/gcp';
 import type { GcpInstallationStatusResponse } from '@/app/api/_lib/v1-types';
@@ -23,9 +29,8 @@ export const GcpInstallationInline = ({
   targetSourceId,
   onInstallComplete,
 }: GcpInstallationInlineProps) => {
-  const [openStep, setOpenStep] = useState<GcpStepKey | null>(null);
-  const closeStepModal = useCallback(() => setOpenStep(null), []);
-  const { state: confirmedState } = useConfirmedIntegration();
+  const detailModal = useModal<GcpStepKey>();
+  const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
   const { status, loading, refreshing, error, fetchStatus, refresh } =
     useInstallationStatus<GcpInstallationStatusResponse>({
@@ -44,7 +49,7 @@ export const GcpInstallationInline = ({
   const joinedRows = joinGcpResources(resources, confirmedResources);
   const pipelineItems = buildGcpPipelineItems(resources).map((item) => ({
     ...item,
-    onClick: () => setOpenStep(item.key),
+    onClick: () => detailModal.open(item.key),
   }));
 
   const lastCheck = status?.lastCheck;
@@ -86,12 +91,43 @@ export const GcpInstallationInline = ({
       )}
 
       <InstallTaskPipeline items={pipelineItems} />
-      <Step4DbListTable rows={joinedRows} />
+
+      {confirmedState.status === 'loading' && (
+        <div
+          className={cn(
+            'px-4 py-2 rounded-lg border text-sm',
+            borderColors.default,
+            textColors.tertiary,
+          )}
+        >
+          리소스 정보 불러오는 중...
+        </div>
+      )}
+      {confirmedState.status === 'error' && (
+        <div
+          className={cn(
+            'px-4 py-2 rounded-lg border text-sm flex items-center justify-between gap-3',
+            statusColors.error.bg,
+            statusColors.error.border,
+            statusColors.error.textDark,
+          )}
+        >
+          <span>리소스 정보 불러오기 실패: {confirmedState.message}</span>
+          <button
+            type="button"
+            onClick={retryConfirmed}
+            className={cn('text-xs font-semibold underline', statusColors.error.textDark)}
+          >
+            재시도
+          </button>
+        </div>
+      )}
+      <InstallResourceTable rows={joinedRows} />
 
       <InstallTaskDetailModal
-        open={openStep !== null}
-        onClose={closeStepModal}
-        stepKey={openStep}
+        open={detailModal.isOpen}
+        onClose={detailModal.close}
+        stepKey={detailModal.data ?? null}
         rows={joinedRows}
       />
     </div>

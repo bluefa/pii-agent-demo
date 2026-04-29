@@ -16,7 +16,7 @@ import {
   TABLE_TAG_PILL,
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 
-interface Step4DbListTableProps {
+interface InstallResourceTableProps {
   rows: Step4ResourceRow[];
 }
 
@@ -32,7 +32,7 @@ const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
   FAIL: tagStyles.red,
 };
 
-export const Step4DbListTable = ({ rows }: Step4DbListTableProps) => {
+export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
   if (rows.length === 0) {
     return (
       <div
