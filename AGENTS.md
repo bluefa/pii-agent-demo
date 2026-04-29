@@ -68,6 +68,8 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
 ## 8) API + ADR Guardrails
 
 - `app/api/**` routes must follow `docs/api/**` specs.
+- API timestamp fields must stay JSON strings in TypeScript DTOs. Do not type API timestamps as `Date`; convert to local timezone only at display boundaries.
+- BFF error `timestamp` values are UTC ISO-8601 strings, for example `2026-04-29T02:27:09.123Z`. Preserve upstream values as strings when normalizing errors.
 - ADR-011 required (supersedes the removed ADR-007 «API Client 패턴 도입»):
   - Routes dispatch to `bff.method()` from `@/lib/bff/client`.
   - Server Components also use `bff` directly (server-only).

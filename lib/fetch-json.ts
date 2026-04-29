@@ -23,6 +23,7 @@ export interface FetchJsonOptions extends Omit<RequestInit, 'body'> {
 
 /** ProblemDetails (RFC 9457) 에러 응답 형태 */
 interface ErrorBody {
+  timestamp?: string;
   code?: string;
   title?: string;
   detail?: string;
@@ -50,6 +51,10 @@ function statusToCode(status: number): AppErrorCode {
   if (status === 409) return 'CONFLICT';
   if (status === 429) return 'RATE_LIMITED';
   return 'INTERNAL_ERROR';
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
 }
 
 /** 응답 body에서 AppError를 생성 */
@@ -91,6 +96,7 @@ async function parseErrorResponse(res: Response): Promise<AppError> {
     code: code ?? statusToCode(res.status),
     message,
     retriable,
+    timestamp: optionalString(body.timestamp),
     retryAfterMs: Number.isFinite(retryAfterMs) ? retryAfterMs : undefined,
     requestId: body.requestId ?? requestId,
   });

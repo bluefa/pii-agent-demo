@@ -85,6 +85,7 @@ async function fetchJson<T>(url, options): Promise<T> {
       code: body?.code ?? 'UNKNOWN',        // ProblemDetails의 code
       message: body?.detail ?? body?.title ?? 'Unknown error',
       retriable: body?.retriable ?? false,
+      timestamp: body?.timestamp,           // UTC ISO-8601 문자열. UI 표시 시 로컬 timezone 변환
       retryAfterMs: body?.retryAfterMs,
       requestId: body?.requestId,
     });
