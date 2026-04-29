@@ -1,5 +1,6 @@
 import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
-import type { InstallTaskCardStatus } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskCard';
+
+export type InstallTaskStatus = 'done' | 'running' | 'failed' | 'pending';
 
 // ===== GCP Step Keys =====
 
@@ -90,12 +91,12 @@ export interface GcpPipelineItem {
   key: GcpStepKey;
   title: string;
   sub: string;
-  status: InstallTaskCardStatus;
+  status: InstallTaskStatus;
   completedCount: number;
   activeCount: number;
 }
 
-const AGGREGATE_TO_CARD_STATUS: Record<GcpStepAggregateStatus, InstallTaskCardStatus> = {
+const AGGREGATE_TO_CARD_STATUS: Record<GcpStepAggregateStatus, InstallTaskStatus> = {
   COMPLETED: 'done',
   IN_PROGRESS: 'running',
   FAIL: 'failed',
