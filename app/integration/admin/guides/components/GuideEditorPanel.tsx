@@ -235,6 +235,12 @@ export const GuideEditorPanel = ({
   const { data, loading, save, saving } = useGuide(slot.guideName);
   const toast = useToast();
   const linkBubbleRef = useRef<LinkBubbleMenuHandle>(null);
+  // Tracks active IME composition (Hangul/CJK). The sync effect below
+  // calls `editor.commands.setContent` when `draftKo` / `draftEn`
+  // change, which tears down ProseMirror's DOM and aborts any
+  // in-flight composition — dropping the partially-composed character.
+  // Guard the sync against this window; flush once on compositionend.
+  const isComposingRef = useRef(false);
 
   // Per-language "user has actually typed" flags. We cannot rely on
   // `draft !== data.contents` alone because:
@@ -344,6 +350,7 @@ export const GuideEditorPanel = ({
   // user's selection on every keystroke.
   useEffect(() => {
     if (!editor) return;
+    if (isComposingRef.current) return;
     const target = activeLang === 'ko' ? draftKo : draftEn;
     if (editor.getHTML() !== target) {
       editor.commands.setContent(target, { emitUpdate: false });
@@ -541,6 +548,13 @@ export const GuideEditorPanel = ({
             // users get a caret no matter where they click in the surface.
             onClick={(e) => {
               if (e.target === e.currentTarget) editor?.chain().focus().run();
+            }}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              isComposingRef.current = false;
+              if (editor) handleChange(editor.getHTML());
             }}
           >
             <EditorContent
