@@ -13,9 +13,9 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [dev-server](./dev-server/SKILL.md) | `/dev-server` | Worktree dev 서버 실행 | - | team-lead |
 | [mock-dev-server](./mock-dev-server/SKILL.md) | `/mock-dev-server` | Mock 모드(USE_MOCK_DATA=true) dev 서버 실행 + .env.local 가드 | - | - |
 | [worktree](./worktree/SKILL.md) | `/worktree` | worktree + 브랜치 초기 세팅 강제 | O | code-implementer |
-| [pr](./pr/SKILL.md) | `/pr` | 검증 후 PR 생성 워크플로우 | O | code-implementer |
+| [pr](./pr/SKILL.md) | `/pr` | Canonical quiet PR creation workflow | O | code-implementer |
 | [pr-merge](./pr-merge/SKILL.md) | `/pr-merge` | PR 머지 워크플로우 (squid 지원) | O | code-implementer |
-| [pr-flow](./pr-flow/SKILL.md) | `/pr-flow` | PR 생성+머지+브랜치정리 자동화 | O | code-implementer |
+| [pr-flow](./pr-flow/SKILL.md) | `/pr-flow` | Legacy alias for `/pr` | O | code-implementer |
 | [worktree-cleanup](./worktree-cleanup/SKILL.md) | `/worktree-cleanup` | merge 후 worktree/로컬 브랜치 정리 | O | code-implementer |
 | [ux-audit](./ux-audit/SKILL.md) | `/ux-audit` | 기존 UX를 코드에서 분석하여 현황 문서 생성 | - | team-lead |
 | [ux-requirements](./ux-requirements/SKILL.md) | `/ux-requirements` | UI/UX 요구사항 도출 및 명세서 생성 | - | team-lead |
