@@ -56,6 +56,32 @@ if /usr/bin/grep -qE 'useApiMutation|useApiAction' "$file" 2>/dev/null; then
   fi
 fi
 
+# DESIGN.md edited — surface @google/design.md lint output inline (best-effort).
+# Skipped silently when the dependency is not yet installed (e.g., a fresh clone
+# before `npm install`). Hook never blocks; lint surface is advisory.
+case "$file" in
+  DESIGN.md|*/DESIGN.md)
+    repo_root="${CLAUDE_PROJECT_DIR:-$(dirname "$file")}"
+    npx_bin="$(command -v npx 2>/dev/null || true)"
+    if [ -n "$npx_bin" ] \
+       && [ -f "$repo_root/node_modules/@google/design.md/package.json" ]; then
+      lint_json="$(cd "$repo_root" && "$npx_bin" --no-install @google/design.md lint "$file" 2>&1 || true)"
+      lint_summary="$(printf '%s' "$lint_json" \
+        | /usr/bin/jq -r '.summary | "errors=\(.errors) warnings=\(.warnings) infos=\(.infos)"' 2>/dev/null \
+        || true)"
+      lint_errors="$(printf '%s' "$lint_json" \
+        | /usr/bin/jq -r '.findings[] | select(.severity=="error") | "  \(.path // "(file)"): \(.message)"' 2>/dev/null \
+        | /usr/bin/head -5 || true)"
+      if [ -n "$lint_summary" ]; then
+        warnings+=$'\n[DESIGN.md] @google/design.md lint: '"$lint_summary"
+        if [ -n "$lint_errors" ]; then
+          warnings+=$'\n'"$lint_errors"
+        fi
+      fi
+    fi
+    ;;
+esac
+
 if [ -n "$warnings" ]; then
   echo "⚠️  $file" >&2
   echo "$warnings" >&2
