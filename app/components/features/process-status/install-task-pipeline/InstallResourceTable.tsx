@@ -8,7 +8,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import type { GcpInstallationStatusValue } from '@/app/api/_lib/v1-types';
-import type { Step4ResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
+import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import {
   TABLE_BODY_CELL,
   TABLE_HEADER_CELL,
@@ -17,7 +17,7 @@ import {
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 
 interface InstallResourceTableProps {
-  rows: Step4ResourceRow[];
+  rows: InstallResourceRow[];
 }
 
 const STATUS_LABEL: Record<GcpInstallationStatusValue, string> = {
