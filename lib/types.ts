@@ -387,7 +387,13 @@ export interface ProjectTargetsStatus {
   excludedCount: number;
 }
 
-export type ApprovalStatusType = 'PENDING' | 'APPROVED' | 'REJECTED' | 'AUTO_APPROVED' | 'CANCELLED';
+export type ApprovalStatusType =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'AUTO_APPROVED'
+  | 'CANCELLED'
+  | 'UNAVAILABLE';
 
 export interface ProjectApprovalStatus {
   status: ApprovalStatusType;
@@ -784,14 +790,14 @@ export interface ResourceSnapshot {
   resource_type: string;
   endpoint_config: EndpointConfigSnapshot | null;
   credential_id: string | null;
-  // PR #420 ResourceConfigDto extension fields — preserved through approved-integration mapping
+  // ResourceConfigDto extension fields — preserved through the approved-integration mapping.
   database_region?: string | null;
   resource_name?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
 }
 
-/** 제외 리소스 스냅샷 (Swagger ExcludedResourceInfo, PR #420 확장) */
+/** Excluded resource snapshot (Swagger ExcludedResourceInfo). */
 export interface BffExcludedResourceInfo {
   resource_id: string;
   exclusion_reason: string;
