@@ -3,9 +3,9 @@
  *
  * Spec: docs/reports/guide-cms/spec.md §4 + §4.5 (drift).
  *
- * ADR-007: returns `NextResponse` from every branch so route handlers
- * stay thin (dispatch-only). All validation, ProblemDetails creation,
- * and drift seeding happen here.
+ * ADR-011: this mock namespace still returns `NextResponse` internally;
+ * `mockBff.guides` unwraps it into typed `BffClient` results so route
+ * handlers dispatch through `@/lib/bff/client`.
  *
  * Drift policy (§4.5):
  *  - Invalid identifier (`name ∉ GUIDE_NAMES`)            → 404 GUIDE_NOT_FOUND
@@ -21,7 +21,7 @@ import { createProblem, problemResponse } from '@/app/api/_lib/problem';
 import { GUIDE_NAMES } from '@/lib/constants/guide-registry';
 import { validateGuideHtml } from '@/lib/utils/validate-guide-html';
 
-import { guidesSeed } from './guides-seed';
+import { guidesSeed } from '@/lib/bff/mock/guides-seed';
 
 import type { GuideContents, GuideDetail, GuideName } from '@/lib/types/guide';
 import type { ValidationError } from '@/lib/utils/validate-guide-html';
