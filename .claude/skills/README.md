@@ -24,6 +24,7 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 | [anti-patterns](./anti-patterns/SKILL.md) | `/anti-patterns` | Frontend Clean Code 안티패턴 카탈로그 (40 patterns) | O | 전체 |
 | [codex-review](./codex-review/SKILL.md) | `/codex-review` | Codex (gpt-5.5 xhigh) cross-review for sign-off | - | code-implementer |
 | [bff-api-docs](./bff-api-docs/SKILL.md) | `/bff-api-docs` | BFF API 문서 변경 시 어떤 파일을 어떤 규칙으로 건드릴지 라우팅 | O | - |
+| [codex-simplify](./codex-simplify/SKILL.md) | `/codex-simplify` | Codex 3-lens (reuse/quality/efficiency) cleanup, mirrors `/simplify` | - | code-implementer |
 
 ## 에이전트 (Agents)
 
@@ -88,7 +89,9 @@ Claude Code에서 사용하는 프로젝트 전용 스킬 모음입니다.
 │   │   └── SKILL.md
 │   ├── anti-patterns/
 │   │   └── SKILL.md
-│   └── codex-review/
+│   ├── codex-review/
+│   │   └── SKILL.md
+│   └── codex-simplify/
 │       └── SKILL.md
 ├── agents/
 │   ├── code-reviewer.md         # 팀: 종합 코드 리뷰
