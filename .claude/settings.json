@@ -8,6 +8,16 @@
             "type": "command",
             "command": "bash .claude/hooks/pre-bash-main-guard.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-bash-pr-create.sh",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-bash-codex.sh",
+            "timeout": 30
           }
         ]
       }

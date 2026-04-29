@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# PostToolUse hook for Edit|Write: fast grep-based checks on the edited file only.
-# Emits warnings to stderr (exit 0) so Claude sees feedback but the edit is not blocked.
+# PostToolUse hook for Edit|Write: enforce CLAUDE.md hard rules and emit warnings for repeat-offender patterns.
+# Blockers (exit 2) cover CRITICAL #2/#3/#4 plus a few clear-bug patterns from past PR reviews.
+# Warnings (exit 0) cover repeat patterns; the model sees them but the edit proceeds.
 set -uo pipefail
 
 input="$(cat)"
@@ -9,51 +10,141 @@ file="$(echo "$input" | /usr/bin/jq -r '.tool_input.file_path // empty')"
 [ -z "$file" ] && exit 0
 [ ! -f "$file" ] && exit 0
 
+blockers=""
 warnings=""
 
-# TypeScript checks (.ts and .tsx)
+# ─── Blockers (exit 2) ───────────────────────────────────
+
 case "$file" in
   *.ts|*.tsx)
-    # CLAUDE.md CRITICAL #2: no `any` type
-    if /usr/bin/grep -nE ':\s*any\b|<any>|as any|any\[\]' "$file" >/dev/null 2>&1; then
-      hits="$(/usr/bin/grep -nE ':\s*any\b|<any>|as any|any\[\]' "$file" | head -3)"
-      warnings+=$'\n[CRITICAL #2] any 타입 금지:\n'"$hits"
+    # CRITICAL #2: any type — covers `: any`, `as any`, `<any>`, `any[]`, `= any`, `, any` (generic arg)
+    if hits=$(/usr/bin/grep -nE ':\s*any\b|<any>|<[^>]*\b,\s*any[\s,>]|as\s+any\b|any\[\]|=\s*any\b' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      blockers+=$'\n[BLOCK CRITICAL #2] `any` type forbidden:\n'"$hits"
     fi
-
-    # CLAUDE.md CRITICAL #3: no relative imports
-    if /usr/bin/grep -nE "from '(\.\.?/)" "$file" >/dev/null 2>&1; then
-      hits="$(/usr/bin/grep -nE "from '(\.\.?/)" "$file" | head -3)"
-      warnings+=$'\n[CRITICAL #3] 상대 경로 import 금지 (@/ 절대 경로 사용):\n'"$hits"
+    # CRITICAL #3: relative import — covers single + double quote, side-effect imports, dynamic import.
+    if hits=$(/usr/bin/grep -nE "(from|import)\s+['\"](\.\.?/)|import\(['\"](\.\.?/)" "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      blockers+=$'\n[BLOCK CRITICAL #3] relative import forbidden — use `@/` alias:\n'"$hits"
     fi
     ;;
 esac
 
-# TSX-only: raw Tailwind color classes (CLAUDE.md CRITICAL #4)
 case "$file" in
   *.tsx)
-    if /usr/bin/grep -nE '(text|bg|border|ring|divide|from|to|via|shadow)-(red|blue|green|yellow|gray|slate|zinc|neutral|stone|orange|amber|lime|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose)-[0-9]+' "$file" >/dev/null 2>&1; then
-      hits="$(/usr/bin/grep -nE '(text|bg|border|ring|divide|from|to|via|shadow)-(red|blue|green|yellow|gray|slate|zinc|neutral|stone|orange|amber|lime|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose)-[0-9]+' "$file" | head -3)"
-      warnings+=$'\n[CRITICAL #4] raw Tailwind 색상 클래스 금지 (lib/theme.ts 토큰 사용):\n'"$hits"
+    # CRITICAL #4: raw Tailwind color
+    if hits=$(/usr/bin/grep -nE '(text|bg|border|ring|divide|from|to|via|shadow)-(red|blue|green|yellow|gray|slate|zinc|neutral|stone|orange|amber|lime|emerald|teal|cyan|sky|indigo|violet|purple|fuchsia|pink|rose)-[0-9]+' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      blockers+=$'\n[BLOCK CRITICAL #4] raw Tailwind color forbidden — use `lib/theme.ts` token:\n'"$hits"
+    fi
+    # Dynamic Tailwind class — JIT cannot extract this; produces silent style failure
+    if hits=$(/usr/bin/grep -nE '`(hover|focus|active|sm|md|lg|xl):\$\{' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      blockers+=$'\n[BLOCK] dynamic Tailwind class — JIT cannot extract; use static strings:\n'"$hits"
     fi
     ;;
 esac
 
-# Regression pattern: BFF resolver/mock-store helpers require IS_MOCK guard (PR #328 P1)
+# Anti-pattern F1: native alert(). Applies to .ts AND .tsx (a `.ts` utility can call window.alert too).
+# Pattern excludes `dialog.alert(`, `useAlert(`, etc. by requiring no preceding word/dot character.
+# Skip test files — XSS-payload string literals legitimately contain "alert(".
+case "$file" in
+  *.ts|*.tsx)
+    case "$file" in
+      *__tests__*|*.test.ts|*.test.tsx|*.spec.ts|*.spec.tsx) ;;
+      *)
+        if hits=$(/usr/bin/grep -nE '(^|[^.A-Za-z0-9_])(window\.)?alert\(' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+          blockers+=$'\n[BLOCK F1] native alert() forbidden — use toast/modal:\n'"$hits"
+        fi
+        ;;
+    esac
+    ;;
+esac
+
+# Contract-First (PR #179, ADR-011): route.ts must dispatch to bff.method() and not parse upstream JSON.
+# Pattern matches any `await <var>.json()` then excludes `request.json()` / `req.json()` (incoming body parse is OK).
+case "$file" in
+  */route.ts)
+    if hits=$(/usr/bin/grep -nE 'await\s+[A-Za-z_$][A-Za-z0-9_$]*\.json\s*\(\s*\)' "$file" 2>/dev/null \
+              | /usr/bin/grep -vE 'await\s+(request|req)\.json' \
+              | head -3); [ -n "$hits" ]; then
+      blockers+=$'\n[BLOCK Contract-First/ADR-011] route.ts must not parse upstream JSON — dispatch via `bff.method()` from `@/lib/bff/client` (request.json() for incoming body is allowed):\n'"$hits"
+    fi
+    ;;
+esac
+
+# ─── Warnings (exit 0) ───────────────────────────────────
+
+# PR #328 regression: getStore() helpers need IS_MOCK guard
 case "$file" in
   *resolve*|*mock-store*|*/app/integration/api/*/route.ts)
     if /usr/bin/grep -qE '(getStore|mockProjects|getProjectBy|getS3UploadStatus)' "$file" \
        && ! /usr/bin/grep -qE '(IS_MOCK|USE_MOCK_DATA)' "$file"; then
-      warnings+=$'\n[Regression PR #328] mock helper 호출 — IS_MOCK 가드 없음. BFF 모드에 mock 누설 가능.'
+      warnings+=$'\n[Regression PR #328] mock helper without IS_MOCK guard — risk of mock leak in BFF mode.'
     fi
     ;;
 esac
 
-# useApiMutation onSuccess fire-and-forget pattern (PR #296)
-if /usr/bin/grep -qE 'useApiMutation|useApiAction' "$file" 2>/dev/null; then
-  if /usr/bin/grep -A4 'onSuccess[:]\?\s*[:=({]' "$file" 2>/dev/null \
-     | /usr/bin/grep -E '\b(refresh|refetch|startPolling|mutate)\(' >/dev/null 2>&1; then
-    warnings+=$'\n[PR #296] useApiMutation onSuccess 는 fire-and-forget — 후속 비동기는 action 본문에서 await.'
+# Code-only checks below: gate on .ts/.tsx so this hook does not flag its own grep
+# patterns when the user edits a .sh / .md / settings.json file.
+case "$file" in
+  *.ts|*.tsx)
+    # PR #296: useApiMutation onSuccess fire-and-forget
+    if /usr/bin/grep -qE 'useApiMutation|useApiAction' "$file" 2>/dev/null; then
+      if /usr/bin/grep -A4 'onSuccess[:]\?\s*[:=({]' "$file" 2>/dev/null \
+         | /usr/bin/grep -E '\b(refresh|refetch|startPolling|mutate)\(' >/dev/null 2>&1; then
+        warnings+=$'\n[PR #296] useApiMutation onSuccess is fire-and-forget — `await` follow-up async work in the action body instead.'
+      fi
+    fi
+
+    # PR #311: "preserves original behavior" rationalization for hidden bugs
+    if hits=$(/usr/bin/grep -nE 'preserves? (original|pre-existing) behavior|preserve the bug' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      warnings+=$'\n[PR #311] "preserves original behavior" comment — re-evaluate (in-scope pure extraction = fix; out-of-scope JSX/style = defer):\n'"$hits"
+    fi
+    ;;
+esac
+
+# Anti-pattern H1: inline SVG in feature components.
+# Match `/app/` or `/components/` anywhere in the path (works for absolute paths Claude Code passes).
+case "$file" in
+  *.tsx)
+    case "$file" in
+      */app/*|*/components/*)
+        if hits=$(/usr/bin/grep -nE '^\s*<svg' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+          warnings+=$'\n[H1] inline <svg> — extract to shared icon module (components/icons):\n'"$hits"
+        fi
+        ;;
+    esac
+    ;;
+esac
+
+# Anti-pattern G9: history-narrating comments
+case "$file" in
+  *.ts|*.tsx)
+    if hits=$(/usr/bin/grep -nE '//.*\b(this fix|this refactor|was flagged|removed for|PR #[0-9]+)' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      warnings+=$'\n[G9] history-narrating comment — describe current invariant only:\n'"$hits"
+    fi
+    ;;
+esac
+
+# Mockup PII (sit-recurring-checks #6 extended): real Samsung domain placeholders.
+# Gate on code/markup files only — .sh/.md may legitimately reference these strings as documentation.
+case "$file" in
+  *.ts|*.tsx|*.js|*.jsx|*.html)
+    if hits=$(/usr/bin/grep -nE '@samsung\.com|cyongj2\.park|cyongj2' "$file" 2>/dev/null | head -3); [ -n "$hits" ]; then
+      warnings+=$'\n[sit-checks#6] real Samsung PII placeholder — anonymize (user@example.com / JD) or drop the block:\n'"$hits"
+    fi
+    ;;
+esac
+
+# ─── Output ──────────────────────────────────────────────
+
+if [ -n "$blockers" ]; then
+  echo "⛔  $file" >&2
+  echo "BLOCKED — CLAUDE.md hard rule violation. Fix before continuing." >&2
+  echo "$blockers" >&2
+  if [ -n "$warnings" ]; then
+    printf '\n' >&2
+    echo "Additional warnings:" >&2
+    echo "$warnings" >&2
   fi
+  exit 2
 fi
 
 # DESIGN.md edited — surface @google/design.md lint output inline (best-effort).
