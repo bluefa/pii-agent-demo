@@ -5,7 +5,10 @@ set -uo pipefail
 input="$(cat)"
 
 extract_files() {
-  INPUT_JSON="$input" /usr/bin/node <<'NODE'
+  node_bin="$(command -v node 2>/dev/null || true)"
+  [ -n "$node_bin" ] || return 0
+
+  INPUT_JSON="$input" "$node_bin" <<'NODE'
 const data = process.env.INPUT_JSON || "";
 let parsed;
 
