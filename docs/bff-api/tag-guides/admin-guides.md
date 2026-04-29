@@ -4,7 +4,7 @@
 > 상태: Implemented
 > API Tag: `Admin Guides`
 > 담당: TBD
-> 마지막 수정일: 2026-04-28
+> 마지막 수정일: 2026-04-29
 > 관련 PR: https://github.sec.samsung.net/bdp/data-integration-platform/pull/8126
 
 ## 1. 목적
@@ -122,7 +122,7 @@ paths:
                 validation_failed:
                   summary: 요청 구조 검증 실패
                   value:
-                    timestamp: "2026-04-28T09:00:00"
+                    timestamp: "2026-04-29T02:27:09.123Z"
                     status: BAD_REQUEST
                     code: VALIDATION_FAILED
                     message: "contents.ko must be a string"
@@ -130,7 +130,7 @@ paths:
                 guide_content_invalid:
                   summary: HTML allow-list 또는 빈 본문 검증 실패
                   value:
-                    timestamp: "2026-04-28T09:00:00"
+                    timestamp: "2026-04-29T02:27:09.123Z"
                     status: BAD_REQUEST
                     code: GUIDE_CONTENT_INVALID
                     message: "Guide content contains disallowed HTML or empty text."
@@ -193,6 +193,8 @@ components:
         timestamp:
           type: string
           format: date-time
+          description: UTC 기준 ISO-8601 timestamp 문자열. 화면 표시가 필요하면 클라이언트 로컬 timezone 기준으로 변환한다.
+          example: "2026-04-29T02:27:09.123Z"
         status:
           type: string
           example: BAD_REQUEST

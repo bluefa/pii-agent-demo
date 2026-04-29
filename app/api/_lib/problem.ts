@@ -49,6 +49,7 @@ const ERROR_CATALOG: Record<KnownErrorCode, ErrorMeta> = {
 // --- ProblemDetails (RFC 9457) ---
 
 export interface ProblemDetails {
+  timestamp: string;
   type: string;
   title: string;
   status: number;
@@ -64,9 +65,11 @@ export function createProblem(
   detail: string,
   requestId: string,
   retryAfterMs?: number,
+  timestamp = new Date().toISOString(),
 ): ProblemDetails {
   const meta = ERROR_CATALOG[code];
   return {
+    timestamp,
     type: `https://pii-agent.dev/problems/${code}`,
     title: meta.title,
     status: meta.status,
@@ -92,6 +95,7 @@ export interface BffErrorBody {
   error?: string | { code?: string; message?: string };
   code?: string;
   message?: string;
+  timestamp?: unknown;
 }
 
 export function extractBffError(body: BffErrorBody): { code: string; message: string } {
@@ -108,6 +112,15 @@ export function extractBffError(body: BffErrorBody): { code: string; message: st
   }
   // flat: { code: "...", message: "..." }
   return { code: body.code ?? '', message: body.message ?? '' };
+}
+
+function extractBffTimestamp(body: unknown): string | undefined {
+  return typeof body === 'object'
+    && body !== null
+    && 'timestamp' in body
+    && typeof body.timestamp === 'string'
+    ? body.timestamp
+    : undefined;
 }
 
 const LEGACY_CODE_MAP: Record<string, KnownErrorCode> = {
@@ -155,7 +168,7 @@ export async function transformLegacyError(
     const raw = await response.json();
     const { code: errorCode, message } = extractBffError(raw as BffErrorBody);
     const code = mapLegacyCode(errorCode, response.status);
-    return problemResponse(createProblem(code, message, requestId));
+    return problemResponse(createProblem(code, message, requestId, undefined, extractBffTimestamp(raw)));
   } catch {
     return problemResponse(createProblem(
       'INTERNAL_ERROR',
@@ -175,7 +188,7 @@ export function transformBffError(
   requestId: string,
 ): NextResponse {
   const code = mapLegacyCode(error.code, error.status);
-  return problemResponse(createProblem(code, error.message, requestId));
+  return problemResponse(createProblem(code, error.message, requestId, undefined, error.timestamp));
 }
 
 /**
@@ -190,6 +203,7 @@ export function bffErrorFromBody(status: number, body: unknown): BffError {
     status,
     code || 'INTERNAL_ERROR',
     message || `HTTP ${status}`,
+    extractBffTimestamp(body),
   );
 }
 

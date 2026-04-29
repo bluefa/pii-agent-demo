@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { NextResponse } from 'next/server';
 import {
   createProblem,
   extractBffError,
+  bffErrorFromBody,
   problemResponse,
   handleUnexpectedError,
   transformBffError,
@@ -15,6 +16,7 @@ describe('createProblem', () => {
     const problem = createProblem('UNAUTHORIZED', 'msg', 'req-1');
 
     expect(problem).toEqual({
+      timestamp: expect.any(String),
       type: 'https://pii-agent.dev/problems/UNAUTHORIZED',
       title: 'Unauthorized',
       status: 401,
@@ -30,6 +32,18 @@ describe('createProblem', () => {
 
     expect(problem.retriable).toBe(true);
     expect(problem.status).toBe(429);
+  });
+
+  it('upstream timestamp를 문자열 그대로 보존한다', () => {
+    const problem = createProblem(
+      'INTERNAL_ERROR',
+      'boom',
+      'req-ts',
+      undefined,
+      '2026-04-29T02:27:09.123Z',
+    );
+
+    expect(problem.timestamp).toBe('2026-04-29T02:27:09.123Z');
   });
 });
 
@@ -81,6 +95,15 @@ describe('extractBffError', () => {
 });
 
 describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-29T02:27:09.123Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // Status × code matrix — verifies KnownErrorCode mapping is identical.
   const statusCases: Array<{ status: number; code: string; message: string }> = [
     { status: 401, code: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
@@ -112,6 +135,15 @@ describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () 
     { name: 'flat code', body: { error: 'NOT_FOUND', message: 'foo' }, status: 404 },
     { name: 'nested code', body: { error: { code: 'FORBIDDEN', message: '권한 없음' } }, status: 403 },
     { name: 'flat key', body: { code: 'VALIDATION_FAILED', message: 'bad input' }, status: 400 },
+    {
+      name: 'flat key with timestamp',
+      body: {
+        timestamp: '2026-04-29T02:27:09.123Z',
+        code: 'INTERNAL_ERROR',
+        message: 'server error',
+      },
+      status: 500,
+    },
     { name: 'unknown code → status fallback', body: { error: 'XYZ', message: 'huh' }, status: 409 },
   ];
 
@@ -121,9 +153,7 @@ describe('transformBffError parity with transformLegacyError (ADR-011 I-4)', () 
       const oldOut = await transformLegacyError(legacyResp, 'req-x');
       const oldBody = await oldOut.json();
 
-      const { code, message } = extractBffError(tc.body);
-      const bffErr = new BffError(tc.status, code || 'INTERNAL_ERROR', message || `HTTP ${tc.status}`);
-      const newOut = transformBffError(bffErr, 'req-x');
+      const newOut = transformBffError(bffErrorFromBody(tc.status, tc.body), 'req-x');
       const newBody = await newOut.json();
 
       expect(newBody).toEqual(oldBody);
