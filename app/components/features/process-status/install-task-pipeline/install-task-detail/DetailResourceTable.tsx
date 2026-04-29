@@ -58,7 +58,7 @@ export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps)
                 </td>
                 <td className={TABLE_BODY_CELL}>
                   {row.databaseType ? (
-                    <span className={cn(TABLE_TAG_PILL, tagStyles.blue)}>
+                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>
                       {row.databaseType}
                     </span>
                   ) : (

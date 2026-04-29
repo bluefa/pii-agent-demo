@@ -345,7 +345,9 @@ export const bannerStyles = {
 } as const;
 
 /**
- * 인라인 색상 태그 — DB Type, 연동 대상/비대상 등 6종
+ * 인라인 색상 태그 — DB Type, 연동 대상/비대상 등.
+ * Color keys (blue/green/...) preserved for legacy callers.
+ * Prefer semantic aliases (success/info/warning/error/neutral) in new code.
  */
 export const tagStyles = {
   blue: 'bg-blue-100 text-blue-800',
@@ -354,6 +356,26 @@ export const tagStyles = {
   red: 'bg-red-100 text-red-800',
   orange: 'bg-orange-100 text-orange-800',
   amber: 'bg-amber-100 text-amber-800',
+  success: 'bg-green-100 text-green-800',
+  info: 'bg-blue-100 text-blue-800',
+  warning: 'bg-orange-100 text-orange-800',
+  error: 'bg-red-100 text-red-800',
+  neutral: 'bg-gray-100 text-gray-700',
+} as const;
+
+/**
+ * Segmented tab control — modal task-detail filter tabs.
+ * One nested group keeps related classes co-located.
+ */
+export const tabStyles = {
+  segmented: {
+    container: 'inline-flex gap-1 p-1 rounded-lg',
+    containerBg: 'bg-gray-50',
+    item: 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12.5px] font-semibold cursor-pointer text-gray-500',
+    itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+    countBadge: 'inline-block min-w-[18px] px-1.5 py-px rounded-full text-[11px] font-bold text-center bg-gray-100 text-gray-500',
+    countBadgeActive: 'bg-blue-50 text-blue-600',
+  },
 } as const;
 
 /**
