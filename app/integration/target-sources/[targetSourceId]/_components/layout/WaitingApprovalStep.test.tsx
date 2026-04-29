@@ -4,25 +4,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 
-vi.mock('@/app/components/features/process-status/ApprovalWaitingCard', () => ({
-  ApprovalWaitingCard: () => <div data-testid="approval-waiting-stub" />,
-}));
-
 vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));
 
-vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
-}));
-
-vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => null,
-}));
-
-vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/candidate', () => ({
-  CandidateResourceSection: () => <div data-testid="candidate-resource-section" />,
-}));
+vi.mock(
+  '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard',
+  () => ({
+    WaitingApprovalCard: ({ targetSourceId }: { targetSourceId: number }) => (
+      <div data-testid="waiting-approval-card">{targetSourceId}</div>
+    ),
+  }),
+);
 
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/common',
@@ -33,14 +26,11 @@ vi.mock(
     return {
       ...mod,
       ProjectPageMeta: () => null,
-      RejectionAlert: () => null,
+      RejectionAlert: ({ project }: { project: { isRejected: boolean } }) =>
+        project.isRejected ? <div data-testid="rejection-alert" /> : null,
     };
   },
 );
-
-vi.mock('@/app/lib/api', () => ({
-  getProject: vi.fn().mockResolvedValue(undefined),
-}));
 
 import { WaitingApprovalStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStep';
 
@@ -67,8 +57,8 @@ const identityFixture: ProjectIdentity = {
   identifiers: [],
 };
 
-describe('WaitingApprovalStep DOM order', () => {
-  it('renders approval-waiting before candidate-resource-section', () => {
+describe('WaitingApprovalStep', () => {
+  it('renders WaitingApprovalCard with the project targetSourceId', () => {
     render(
       <WaitingApprovalStep
         project={azureWaitingApprovalFixture}
@@ -79,13 +69,11 @@ describe('WaitingApprovalStep DOM order', () => {
       />,
     );
 
-    const approval = screen.getByTestId('approval-waiting');
-    const candidate = screen.getByTestId('candidate-resource-section');
-    const ordering = approval.compareDocumentPosition(candidate);
-    expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const card = screen.getByTestId('waiting-approval-card');
+    expect(card.textContent).toBe('1003');
   });
 
-  it('does not render approval-waiting when project.isRejected is true', () => {
+  it('still renders WaitingApprovalCard alongside RejectionAlert when project.isRejected', () => {
     render(
       <WaitingApprovalStep
         project={{ ...azureWaitingApprovalFixture, isRejected: true }}
@@ -96,6 +84,7 @@ describe('WaitingApprovalStep DOM order', () => {
       />,
     );
 
-    expect(screen.queryByTestId('approval-waiting')).toBeNull();
+    expect(screen.getByTestId('waiting-approval-card')).toBeTruthy();
+    expect(screen.getByTestId('rejection-alert')).toBeTruthy();
   });
 });
