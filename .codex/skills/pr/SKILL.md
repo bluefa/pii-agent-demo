@@ -1,71 +1,109 @@
 ---
 name: pr
-description: 기능 완료 후 Pull Request 생성 워크플로우. 동일 브랜치 검증, 빌드/타입 체크, 사람 리뷰어가 이해 가능한 상세 PR description 작성, URL 보고가 필요할 때 사용.
+description: Canonical Pull Request creation workflow. Runs quiet validation, rebases on latest main, pushes, creates a reviewable PR description, and reports only the useful result.
 user_invocable: true
 ---
 
 # /pr - Create Pull Request
 
-기능 완료 후 PR을 생성합니다.
+Create a Pull Request after implementation is complete. This is the canonical PR creation skill.
 
-## 실행 절차
+## Responsibility Split
 
-1. 현재 브랜치가 feature 브랜치인지 확인합니다.
-2. 변경사항이 모두 같은 브랜치에 있는지 확인합니다.
-3. 검증 명령을 실행합니다.
+- `/pr`: validates, rebases on latest `origin/main`, pushes, and creates the PR.
+- `/pr-merge`: merges only when the user explicitly requests merge in the current thread.
+- `/worktree-cleanup`: cleans up the local worktree/branch after merge.
+- `/pr-flow`: legacy alias. New PR creation requests should follow this skill.
+
+## Token Policy
+
+- Do not paste full successful validation logs into the main session.
+- On success, report only the PR URL, commit count, and validation PASS summary.
+- On failure, inspect only the failed step and the script-provided tail log.
+- The PR description must include the template sections below. Never submit a one-line body.
+
+## Script And Hook Behavior
+
+- Canonical PR creation uses `bash scripts/pr-flow.sh --strategy squid`.
+- `scripts/pr-flow.sh` calls `scripts/pr-check.sh`, then pushes and creates or finds the PR.
+- `scripts/pr-check.sh` runs validation with logs redirected to a temp directory.
+- `scripts/pr-check.sh` also runs the lightweight policy grep that used to live directly in the PR hook.
+- Direct `gh pr create` is guarded by `.codex/hooks/pre-bash-pr-create.sh`.
+- The hook calls `scripts/pr-check.sh --base main --quiet` only when the current `HEAD` has not already passed the PR gate.
+- Hook success must produce no output. Hook failure should print only the failed step and the tail log emitted by `scripts/pr-check.sh`.
+
+## Procedure
+
+1. Verify that the current directory is a feature worktree/branch.
 
 ```bash
 bash scripts/guard-worktree.sh
-npm run lint
-npx tsc --noEmit
-npm run build
 ```
 
-4. 커밋이 없다면 중단하고 사용자에게 알립니다.
-5. 브랜치를 origin으로 push합니다.
-6. PR을 생성합니다.
-  - 제목: 브랜치명 기반 요약
-  - 본문: 사람이 검토 가능한 상세 설명(아래 템플릿 필수)
-7. 생성된 PR URL을 사용자에게 보고합니다.
-8. PR 머지는 `/pr-merge` 스킬로 진행합니다.
-9. 생성+머지를 한 번에 자동화하려면 `/pr-flow` 스킬을 사용합니다.
+2. If there are uncommitted changes, commit only the files intended for this PR.
+3. Run the mechanical PR pipeline with one quiet script.
 
-## PR Description 템플릿 (필수)
+```bash
+bash scripts/pr-flow.sh --strategy squid
+```
 
-본문은 아래 섹션을 모두 포함합니다.
+The script performs:
+
+- `origin/main` fetch and rebase
+- Lightweight policy grep for project rules
+- `npm run lint`
+- `npx tsc --noEmit --pretty false`
+- `npm run test:run`
+- `npm run build`
+- `bash scripts/contract-check.sh --mode diff --base origin/main --head HEAD`
+- `git push --force-with-lease`
+- PR description generation through `scripts/build-pr-body.sh`
+- `gh pr create`, or lookup of an existing open PR for the branch
+
+4. If the script succeeds, report only the PR URL and validation summary.
+5. If the script fails, report the failed step and the relevant tail log. Do not summarize unrelated successful logs.
+
+## Required PR Description Template
+
+The PR body must include all sections below.
 
 ```md
 ## Summary
-- 무엇을 왜 바꿨는지 핵심 요약
+- What changed and why
 
 ## What Changed
-- 주요 변경 파일/모듈
-- 동작 변경 포인트
+- Main files/modules touched
+- Behavior changes
 
 ## Validation
-- 실행한 검증 명령과 결과
+- Commands/checks executed and their results
+
+## Contract Validation
+- Use `No API/Swagger changes detected` when applicable
+- For API/Swagger changes, include `contract-check` PASS/FAIL and follow-up actions
 
 ## Risks
-- 잠재 영향 범위
-- 롤백 방법
+- Potential impact areas
+- Rollback plan
 
 ## Notes For Reviewer
-- 리뷰어가 집중해서 볼 체크포인트
+- Specific reviewer focus areas
 ```
 
-## 권장 생성 방법
+## Main Session Context Budget
 
-아래 명령으로 기본 본문을 생성한 후 필요 내용을 보강합니다.
+Only read small context when the PR body needs human refinement.
 
 ```bash
-PR_BODY="$(bash scripts/build-pr-body.sh --base main)"
-gh pr create --base main --head "$(git rev-parse --abbrev-ref HEAD)" --title "<title>" --body "${PR_BODY}"
+git log origin/main..HEAD --format="%h %s"
+git diff origin/main...HEAD --stat
 ```
 
-## 규칙
+## Rules
 
-- `main`에 직접 push하지 않습니다.
-- 브랜치는 최신 `origin/main`으로 동기화된 로컬 `main`에서 시작해야 합니다.
-- 변경사항을 여러 브랜치로 분산하지 않습니다.
-- 검증 실패 상태로 PR을 만들지 않습니다.
-- PR description은 생략하거나 한 줄 요약으로 제출하지 않습니다.
+- Never push directly to `main`.
+- The branch must originate from local `main` synced to latest `origin/main`.
+- Do not split one change across multiple branches.
+- Do not create a PR when validation fails.
+- Do not omit the PR description or submit a one-line body.
+- Never use `--merge-approved` in this skill. Use `/pr-merge` for merge.
