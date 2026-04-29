@@ -207,6 +207,7 @@ export interface BffClient {
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;
+    systemResetApprovalRequest: (id: number) => Promise<unknown>;
     confirmInstallation: (id: number) => Promise<unknown>;
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
     testConnection: (id: number, body: unknown) => Promise<{ id?: string }>;

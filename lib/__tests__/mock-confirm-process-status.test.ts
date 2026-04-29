@@ -467,7 +467,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
   });
 
   describe('시나리오 3: 반려', () => {
-    it('승인 대기 → 반려 → REQUEST_REQUIRED', async () => {
+    it('승인 대기 → 반려 → WAITING_APPROVAL 유지 + isRejected=true (system-reset 호출 전까지 Step 2)', async () => {
       // 수동 승인 상태로 셋업
       const status: ProjectStatus = {
         ...createInitialProjectStatus(),
@@ -492,11 +492,17 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const rejectData = await parseResponse(rejectRes);
       expect(rejectData.result).toBe('REJECTED');
 
-      // 상태 확인
+      // 상태 확인 — 반려 직후엔 Step 2 (WAITING_APPROVAL) 머무름, isRejected 플래그로 표지
       const processStatus = await getProcessStatus();
-      expect(processStatus.process_status).toBe('REQUEST_REQUIRED');
+      expect(processStatus.process_status).toBe('WAITING_APPROVAL');
       expect(processStatus.status_inputs.last_approval_result).toBe('REJECTED');
       expect(processStatus.status_inputs.last_rejection_reason).toBe('리소스 구성 재검토 필요');
+
+      // 리소스 선택 상태와 targets.confirmed 보존 — system-reset 호출 전까지 유지
+      const project = getStore().projects.find((p) => p.id === TEST_PROJECT_ID);
+      expect(project?.isRejected).toBe(true);
+      expect(project?.status.targets.confirmed).toBe(true);
+      expect(project?.resources.filter((r) => r.isSelected)).toHaveLength(2);
     });
 
     it('반려 사유 없으면 400 에러', async () => {
