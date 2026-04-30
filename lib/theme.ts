@@ -332,7 +332,7 @@ export const navStyles = {
 } as const;
 
 /**
- * Confirm step modal — 시안 SIT Prototype v3 line 2563–2587 의 단계 되돌리기 confirm
+ * Confirm step modal — design source: SIT Prototype v3 line 2563–2587 (rewind-confirm dialog).
  */
 export const confirmModalStyles = {
   iconCircle: {

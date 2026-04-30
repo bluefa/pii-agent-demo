@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
 import { DeleteIcon } from '@/app/components/ui/icons';
 import { useApiMutation } from '@/app/hooks/useApiMutation';
+import { useModal } from '@/app/hooks/useModal';
 import { cancelApprovalRequest } from '@/app/lib/api';
 import { cn, confirmModalStyles } from '@/lib/theme';
 
@@ -16,35 +16,38 @@ export const WaitingApprovalCancelButton = ({
   targetSourceId,
   onSuccess,
 }: WaitingApprovalCancelButtonProps) => {
-  const [open, setOpen] = useState(false);
+  const modal = useModal();
 
   const { mutate, loading } = useApiMutation<void, { success: boolean }>(
     () => cancelApprovalRequest(targetSourceId),
     {
       errorMessage: '승인 요청 취소에 실패했습니다. 다시 시도해주세요.',
-      onSuccess: async () => {
-        setOpen(false);
-        await onSuccess();
-      },
     },
   );
+
+  const handleConfirm = async () => {
+    const result = await mutate();
+    if (!result?.success) return;
+    modal.close();
+    await onSuccess();
+  };
 
   return (
     <>
       <button
         type="button"
         className={cn(confirmModalStyles.dangerOutlineButton, 'gap-1.5 text-[13px]')}
-        onClick={() => setOpen(true)}
+        onClick={() => modal.open()}
       >
         <DeleteIcon className="w-3.5 h-3.5" />
         연동 대상 승인 요청 취소
       </button>
 
       <ConfirmStepModal
-        open={open}
-        onClose={() => setOpen(false)}
+        open={modal.isOpen}
+        onClose={modal.close}
         onConfirm={() => {
-          void mutate();
+          void handleConfirm();
         }}
         title="연동 대상 승인 요청을 취소할까요?"
         description={

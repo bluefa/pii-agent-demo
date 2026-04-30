@@ -97,7 +97,7 @@ export const ConfirmStepModal = ({
         aria-modal="true"
         aria-labelledby="confirm-step-modal-title"
         aria-describedby="confirm-step-modal-desc"
-        className="bg-white rounded-xl shadow-xl w-[440px] max-w-[calc(100vw-2rem)] overflow-hidden"
+        className={cn(modalStyles.container, 'w-[440px] max-w-[calc(100vw-2rem)]')}
       >
         <div className="flex items-start gap-3.5 px-7 pt-7 pb-3">
           <div
