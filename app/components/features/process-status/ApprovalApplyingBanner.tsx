@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { getApprovalRequestLatest } from '@/app/lib/api';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
+import { useIsHydrated } from '@/app/hooks/useIsHydrated';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { AppError } from '@/lib/errors';
 import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
@@ -17,6 +18,7 @@ export const ApprovalApplyingBanner = ({
   targetSourceId,
 }: ApprovalApplyingBannerProps) => {
   const detailModal = useModal();
+  const isHydrated = useIsHydrated();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
   useAbortableEffect((signal) => {
@@ -31,6 +33,8 @@ export const ApprovalApplyingBanner = ({
         // Intentional silent ignore — failure here only disables the summary button.
       });
   }, [targetSourceId]);
+
+  const summaryDisabled = !isHydrated || !latestResponse;
 
   return (
     <>
@@ -55,7 +59,7 @@ export const ApprovalApplyingBanner = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestResponse}
+                disabled={summaryDisabled}
                 className={getButtonClass('ghost', 'sm')}
               >
                 승인 요약 보기
