@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
+import { useIsHydrated } from '@/app/hooks/useIsHydrated';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { getApprovalRequestLatest } from '@/app/lib/api';
 import { AppError } from '@/lib/errors';
@@ -21,6 +22,7 @@ export const ApprovalWaitingCard = ({
 }: ApprovalWaitingCardProps) => {
   const detailModal = useModal();
   const cancelModal = useModal();
+  const isHydrated = useIsHydrated();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
 
   useAbortableEffect((signal) =>
@@ -34,6 +36,8 @@ export const ApprovalWaitingCard = ({
         // Intentional silent ignore — failure only disables the detail button.
       }),
   [targetSourceId]);
+
+  const summaryDisabled = !isHydrated || !latestResponse;
 
   return (
     <>
@@ -58,7 +62,7 @@ export const ApprovalWaitingCard = ({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => detailModal.open()}
-                disabled={!latestResponse}
+                disabled={summaryDisabled}
                 className={getButtonClass('ghost', 'sm')}
               >
                 요청 요약 보기
