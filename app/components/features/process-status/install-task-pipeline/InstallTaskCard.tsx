@@ -33,10 +33,10 @@ const NUM_STYLES: Record<InstallTaskStatus, string> = {
 };
 
 const PILL_STYLES: Record<InstallTaskStatus, string> = {
-  pending: tagStyles.gray,
-  done: tagStyles.green,
-  running: tagStyles.blue,
-  failed: tagStyles.red,
+  pending: tagStyles.neutral,
+  done: tagStyles.success,
+  running: tagStyles.info,
+  failed: tagStyles.error,
 };
 
 const PILL_LABEL: Record<InstallTaskStatus, string> = {
