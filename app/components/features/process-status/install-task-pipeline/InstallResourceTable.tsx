@@ -27,9 +27,9 @@ const STATUS_LABEL: Record<GcpInstallationStatusValue, string> = {
 };
 
 const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
-  COMPLETED: tagStyles.green,
-  IN_PROGRESS: tagStyles.orange,
-  FAIL: tagStyles.red,
+  COMPLETED: tagStyles.success,
+  IN_PROGRESS: tagStyles.warning,
+  FAIL: tagStyles.error,
 };
 
 export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
@@ -67,7 +67,7 @@ export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
             >
               <td className={TABLE_BODY_CELL}>
                 {row.databaseType ? (
-                  <span className={cn(TABLE_TAG_PILL, tagStyles.blue)}>{row.databaseType}</span>
+                  <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>{row.databaseType}</span>
                 ) : (
                   <span className={textColors.tertiary}>—</span>
                 )}
