@@ -243,6 +243,39 @@ describe('fetchJson — 네트워크/타임아웃', () => {
     const err = await expectAppError('/api/v1/test', { signal: controller.signal });
     expect(err.code).toBe('ABORTED');
   });
+
+  // Chrome 실제 동작: abort(reason) 의 reason 이 문자열이면 fetch 가
+  // DOMException 이 아닌 그 문자열을 그대로 reject 한다. 이 케이스를
+  // 놓치면 UNKNOWN 으로 떨어져 빨간 카드에 "알 수 없는 오류가 발생했습니다."
+  // 가 노출된다. (회귀 방지)
+  it('fetch가 string reason으로 reject되어도 ABORTED로 매핑된다', async () => {
+    const controller = new AbortController();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((_, reject) => {
+        // 외부 signal abort → 내부 controller 도 abort('ABORTED') 됨
+        // → fetch 가 string 'ABORTED' 로 reject (Chrome 실제 동작)
+        setTimeout(() => reject('ABORTED'), 50);
+      }),
+    );
+
+    setTimeout(() => controller.abort(), 10);
+
+    const err = await expectAppError('/api/v1/test', { signal: controller.signal });
+    expect(err.code).toBe('ABORTED');
+    expect(err.message).not.toContain('알 수 없는');
+  });
+
+  it('타임아웃 시 fetch가 string reason으로 reject되어도 TIMEOUT으로 매핑된다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise((_, reject) => {
+        setTimeout(() => reject('TIMEOUT'), 100);
+      }),
+    );
+
+    const err = await expectAppError('/api/v1/test', { timeout: 50 });
+    expect(err.code).toBe('TIMEOUT');
+    expect(err.retriable).toBe(true);
+  });
 });
 
 describe('fetchJson — status 매핑', () => {

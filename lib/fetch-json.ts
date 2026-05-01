@@ -166,10 +166,18 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
   } catch (err) {
     if (err instanceof AppError) throw err;
 
-    // AbortError (타임아웃 or 사용자 취소)
-    if (err instanceof DOMException && err.name === 'AbortError') {
+    // Abort 감지: signal.aborted 가 우선 — Chrome은 abort(reason) 의 reason 이
+    // 문자열이면 fetch 가 DOMException 이 아니라 그 문자열을 그대로 reject 하므로
+    // `err instanceof DOMException` 체크만으로는 abort 를 놓친다.
+    // 호출자(ignoreAborted, error.code === 'ABORTED' 가드)가 이 에러를 무시하도록
+    // 설계됐으므로 정상 흐름이며, 사용자에게 노출되지 않는다.
+    if (controller.signal.aborted) {
       const reason = controller.signal.reason;
       const isTimeout = reason === 'TIMEOUT';
+      if (process.env.NODE_ENV !== 'production' && !isTimeout) {
+        // Dev only: race를 진단하기 위한 신호. 사용자에게는 안 보이므로 production에서는 제거.
+        console.debug('[fetchJson] aborted (caller superseded):', url);
+      }
       throw new AppError({
         status: 0,
         code: isTimeout ? 'TIMEOUT' : 'ABORTED',
@@ -188,7 +196,6 @@ export async function fetchJson<T>(url: string, options: FetchJsonOptions = {}):
       });
     }
 
-    // 그 외
     throw new AppError({
       status: 0,
       code: 'UNKNOWN',
