@@ -4,6 +4,7 @@ import type {
   ResourceScanStatus,
   ResourceIntegrationStatus,
 } from '@/lib/types';
+import { snakeCaseKeys } from '@/lib/object-case';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -394,7 +395,7 @@ export const normalizeApprovalRequestBody = (body: unknown): ApprovalRequestCrea
 };
 
 export const normalizeApprovalRequestSummary = (
-  value: unknown,
+  rawValue: unknown,
   options: {
     targetSourceId?: number;
     fallbackStatus?: ApprovalStatus;
@@ -402,6 +403,7 @@ export const normalizeApprovalRequestSummary = (
     fallbackSelectedCount?: number;
   } = {},
 ): ApprovalRequestSummaryDto => {
+  const value = snakeCaseKeys(rawValue);
   const payload = isRecord(value) && isRecord(value.approval_request) ? value.approval_request : value;
   const record = isRecord(payload) ? payload : {};
   const counts = countLegacyResourceInputs(record);
@@ -427,12 +429,13 @@ export const normalizeApprovalRequestSummary = (
 };
 
 export const normalizeApprovalActionResponse = (
-  value: unknown,
+  rawValue: unknown,
   options: {
     fallbackRequestId?: number;
     fallbackStatus?: ApprovalStatus;
   } = {},
 ): ApprovalActionResponseDto => {
+  const value = snakeCaseKeys(rawValue);
   const record = isRecord(value) ? value : {};
   const processInfo = isRecord(record.process_info) ? record.process_info : null;
   const requestId = toNumberOrUndefined(record.request_id) ?? options.fallbackRequestId;
@@ -452,14 +455,15 @@ export const normalizeApprovalActionResponse = (
 
 export const buildApprovalHistoryPage = (
   content: ApprovalHistoryItemDto[],
-  value: unknown,
+  rawValue: unknown,
 ): ApprovalHistoryPageDto => {
+  const value = snakeCaseKeys(rawValue);
   const source = isRecord(value) ? value : {};
   const page = isRecord(source.page) ? source.page : source;
   const number = toNumberOrUndefined(page.number) ?? 0;
   const size = toNumberOrUndefined(page.size) ?? content.length;
-  const totalElements = toNumberOrUndefined(page.totalElements) ?? toNumberOrUndefined(page.total_elements) ?? content.length;
-  const totalPages = toNumberOrUndefined(page.totalPages) ?? toNumberOrUndefined(page.total_pages) ?? (size > 0 ? Math.ceil(totalElements / size) : 1);
+  const totalElements = toNumberOrUndefined(page.total_elements) ?? content.length;
+  const totalPages = toNumberOrUndefined(page.total_pages) ?? (size > 0 ? Math.ceil(totalElements / size) : 1);
 
   return {
     totalPages,
@@ -484,9 +488,10 @@ export const buildApprovalHistoryPage = (
 };
 
 export const normalizeApprovalHistoryPage = (
-  value: unknown,
+  rawValue: unknown,
   targetSourceId: number,
 ): ApprovalHistoryPageDto => {
+  const value = snakeCaseKeys(rawValue);
   const record = isRecord(value) ? value : {};
   const rawContent = Array.isArray(record.content) ? record.content : [];
   const content = rawContent
@@ -510,8 +515,9 @@ export const normalizeApprovalHistoryPage = (
 };
 
 export const normalizeApprovedIntegration = (
-  value: unknown,
+  rawValue: unknown,
 ): ApprovedIntegrationResponseDto => {
+  const value = snakeCaseKeys(rawValue);
   const payload = isRecord(value) && isRecord(value.approved_integration) ? value.approved_integration : value;
   const record = isRecord(payload) ? payload : {};
   const resourceInfos = Array.isArray(record.resource_infos)
@@ -554,15 +560,15 @@ export const normalizeConfirmedIntegration = (
 };
 
 export const normalizeProcessStatusResponse = (
-  value: unknown,
+  rawValue: unknown,
   fallback: Partial<ProcessStatusResponseDto> = {},
 ): ProcessStatusResponseDto => {
+  const value = snakeCaseKeys(rawValue);
   const record = isRecord(value) ? value : {};
 
   return {
     target_source_id:
       toNumberOrUndefined(record.target_source_id)
-      ?? toNumberOrUndefined(record.targetSourceId)
       ?? fallback.target_source_id
       ?? 0,
     process_status: mapProcessStatus(record.process_status) ?? fallback.process_status ?? 'IDLE',
