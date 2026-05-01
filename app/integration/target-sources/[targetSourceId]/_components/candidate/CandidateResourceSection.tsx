@@ -238,46 +238,54 @@ export const CandidateResourceSection = ({
   return (
     <>
       <ScanController targetSourceId={targetSourceId} onScanComplete={handleScanComplete}>
-        {({ state: scanState, lastScanAt, progress, starting, canStart, startScan }) => (
-          <section className={cn(cardStyles.base, 'overflow-hidden')}>
-            <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
-              <div className="flex-shrink-0">
-                <h2 className={cn('text-[15px] font-semibold whitespace-nowrap', textColors.primary)}>연동 대상 DB 선택</h2>
-                <p className={cn('mt-1 text-xs', textColors.tertiary)}>
-                  Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
-                </p>
-              </div>
-              <div className="flex items-center gap-3 flex-wrap justify-end">
-                {lastScanAt && (
-                  <span className={cn('inline-flex items-center gap-1 text-[11.5px] whitespace-nowrap', textColors.tertiary)}>
-                    <ClockIcon className="w-3 h-3" />
-                    Last Scan: {formatDate(lastScanAt, 'datetime')}
-                  </span>
-                )}
-                <Button
-                  variant={candidates.length > 0 ? 'secondary' : 'primary'}
-                  disabled={!canStart || readonly}
-                  onClick={startScan}
-                  className="inline-flex items-center gap-1.5 text-sm py-1.5"
-                >
-                  {starting ? (
-                    <>
-                      <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      시작 중...
-                    </>
-                  ) : (
-                    <>
-                      <PlayIcon className="w-3.5 h-3.5" />
-                      Run Infra Scan
-                    </>
+        {({ state: scanState, lastScanAt, progress, starting, canStart, loading: scanLoading, startScan }) => {
+          const initialLoading = scanLoading || state.status === 'loading';
+          return (
+            <section className={cn(cardStyles.base, 'overflow-hidden')}>
+              <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
+                <div className="flex-shrink-0">
+                  <h2 className={cn('text-[15px] font-semibold whitespace-nowrap', textColors.primary)}>연동 대상 DB 선택</h2>
+                  <p className={cn('mt-1 text-xs', textColors.tertiary)}>
+                    Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {lastScanAt && (
+                    <span className={cn('inline-flex items-center gap-1 text-[11.5px] whitespace-nowrap', textColors.tertiary)}>
+                      <ClockIcon className="w-3 h-3" />
+                      Last Scan: {formatDate(lastScanAt, 'datetime')}
+                    </span>
                   )}
-                </Button>
-              </div>
-            </header>
+                  <Button
+                    variant={initialLoading ? 'secondary' : candidates.length > 0 ? 'secondary' : 'primary'}
+                    disabled={initialLoading || !canStart || readonly}
+                    onClick={startScan}
+                    className="inline-flex items-center gap-1.5 text-sm py-1.5"
+                  >
+                    {initialLoading ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        불러오는 중...
+                      </>
+                    ) : starting ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        시작 중...
+                      </>
+                    ) : (
+                      <>
+                        <PlayIcon className="w-3.5 h-3.5" />
+                        Run Infra Scan
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </header>
 
-            <div className="px-6 py-6">{renderBody(scanState, progress, startScan)}</div>
-          </section>
-        )}
+              <div className="px-6 py-6">{renderBody(scanState, progress, startScan)}</div>
+            </section>
+          );
+        }}
       </ScanController>
 
       {!readonly && (
