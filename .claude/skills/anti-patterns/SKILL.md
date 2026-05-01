@@ -5,7 +5,7 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 
 # PII Agent Frontend Anti-Pattern Catalog
 
-48 anti-patterns across 8 categories. Each item has a detail file at `rules/<ID>-<slug>.md` — this file is the index.
+50 anti-patterns across 9 categories. Each item has a detail file at `rules/<ID>-<slug>.md` — this file is the index.
 
 ## When to invoke
 
@@ -21,9 +21,10 @@ description: Frontend Clean Code anti-pattern catalog. Auto-applied during code 
 | C | State Management | 9 |
 | D | Effects & Hooks | 6 |
 | E | Rendering | 5 |
-| F | Error Handling | 4 |
+| F | Error Handling | 5 |
 | G | Naming & Constants | 10 |
 | H | UI Composition (Icons/Assets) | 3 |
+| T | Testing | 1 |
 
 Severity: 🔴 critical (block merge) · 🟡 important · 🟢 nice-to-have
 
@@ -77,6 +78,7 @@ Concrete evidence (file:line) from the current codebase → `docs/reports/fronte
 - **F2** 🟡 `try/catch` silent swallow
 - **F3** 🟡 Returning `null` instead of throwing
 - **F4** 🟡 Manual `try/catch` (use `useApiMutation` / `fetchJson`)
+- **F5** 🔴 Abort detection via `instanceof DOMException` — use `signal.aborted`
 
 ### G. Naming & Constants
 - **G1** 🟡 Magic numbers
@@ -94,6 +96,9 @@ Concrete evidence (file:line) from the current codebase → `docs/reports/fronte
 - **H1** 🔴 Inline SVG markup in feature components
 - **H2** 🟡 Visual-based icon names
 - **H3** 🟡 No shared icon barrel
+
+### T. Testing
+- **T1** 🔴 Exception-handling tests must cover atypical reject values
 
 ## How to use
 
