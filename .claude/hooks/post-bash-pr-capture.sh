@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# PostToolUse hook for Bash: capture PR URL from `gh pr create` output.
+# PostToolUse hook for Bash: capture PR URL from PR-creation output.
 # Appends per-session at /tmp/claude-pr-event-<session_id> so the statusline
 # can surface every PR created in a session — including subagent fan-out that
 # produces multiple PRs — even when the main session's cwd is on main or a
 # detached HEAD (e.g., PR was created inside a sibling worktree via a
 # helper script, without the main session ever changing its cwd).
+#
+# Matches both direct `gh pr create` and the canonical `scripts/pr-flow.sh`
+# wrapper, which calls `gh pr create` internally and prints the resulting URL
+# via `[pr-flow] PR ready: <url>` on stdout.
 
 set -uo pipefail
 
@@ -18,7 +22,7 @@ session_id="$(echo "$input" | /usr/bin/jq -r '.session_id // empty')"
 
 command="$(echo "$input" | /usr/bin/jq -r '.tool_input.command // empty')"
 case "$command" in
-  *"gh pr create"*) ;;
+  *"gh pr create"*|*"pr-flow.sh"*) ;;
   *) exit 0 ;;
 esac
 
