@@ -139,6 +139,24 @@ case "$file" in
     ;;
 esac
 
+# Anti-pattern F5: abort detection via instanceof DOMException.
+# Trigger only when both `instanceof DOMException` and the AbortError literal
+# co-occur in the same file — keeps false positives low for unrelated DOMException uses.
+case "$file" in
+  *.ts|*.tsx)
+    case "$file" in
+      *__tests__*|*.test.ts|*.test.tsx|*.spec.ts|*.spec.tsx) ;;
+      *)
+        if /usr/bin/grep -qE 'instanceof[[:space:]]+DOMException' "$file" 2>/dev/null \
+           && /usr/bin/grep -qE "['\"]AbortError['\"]" "$file" 2>/dev/null; then
+          hits=$(/usr/bin/grep -nE 'instanceof[[:space:]]+DOMException' "$file" 2>/dev/null | head -3)
+          warnings+=$'\n[F5] abort detection via `instanceof DOMException` — use `controller.signal.aborted` (string-reason aborts reject with the string verbatim, not a DOMException). See AP-F5:\n'"$hits"
+        fi
+        ;;
+    esac
+    ;;
+esac
+
 # Mockup PII (sit-recurring-checks #6 extended): real Samsung domain placeholders.
 # Gate on code/markup files only — .sh/.md may legitimately reference these strings as documentation.
 case "$file" in
