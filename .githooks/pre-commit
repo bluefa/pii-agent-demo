@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
@@ -35,14 +35,70 @@ if [[ "$design_changed" -gt 0 ]]; then
 fi
 
 if [[ "$code_changed" -eq 0 ]]; then
-  echo "[pre-commit] No code files changed — skipping lint/tsc/build"
+  echo "[pre-commit] No code files changed — skipping lint/tsc/test/build"
   echo "[pre-commit] OK"
+  # Mark tree as validated for downstream hooks (gh pr create / stop-verify).
+  marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
+  [ -n "$marker" ] && {
+    {
+      printf 'tree=%s\n' "$(git write-tree 2>/dev/null || echo "")"
+      printf 'parent=%s\n' "$(git rev-parse HEAD 2>/dev/null || echo "")"
+      printf 'validatedAt=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    } >"$marker"
+  }
   exit 0
 fi
 
-run_quiet "lint" npm run lint --quiet
-run_quiet "type-check" npx tsc --noEmit --pretty false
-run_quiet "test-run" npm run test:run
-run_quiet "build" npm run build
+LABELS=(lint type-check test-run build)
 
-echo "[pre-commit] OK"
+run_bg() {
+  local label="$1"
+  shift
+  local log_file="${log_dir}/${label}.log"
+  ("$@") >"${log_file}" 2>&1 &
+  eval "PID_${label//-/_}=$!"
+}
+
+echo "[pre-commit] running ${LABELS[*]} in parallel (logs: ${log_dir})"
+SECONDS=0
+
+run_bg lint        npm run lint -- --quiet
+run_bg type-check  npx tsc --noEmit --pretty false
+run_bg test-run    npm run test:run
+run_bg build       npm run build
+
+failed=()
+for label in "${LABELS[@]}"; do
+  pid_var="PID_${label//-/_}"
+  pid="${!pid_var}"
+  if wait "${pid}"; then
+    printf '[pre-commit] %s OK\n' "${label}"
+  else
+    printf '[pre-commit] %s FAILED\n' "${label}" >&2
+    failed+=("${label}")
+  fi
+done
+
+if (( ${#failed[@]} > 0 )); then
+  for label in "${failed[@]}"; do
+    echo "[pre-commit] ----- ${label} log tail -----" >&2
+    tail -80 "${log_dir}/${label}.log" >&2 || true
+  done
+  exit 1
+fi
+
+# Record successful pre-commit validation against the staged tree.
+# Downstream hooks (pre-bash-pr-create, stop-verify) and pr-check.sh can use
+# this to skip duplicate work when HEAD/tree still matches.
+marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
+if [ -n "$marker" ]; then
+  staged_tree="$(git write-tree 2>/dev/null || echo "")"
+  parent_sha="$(git rev-parse HEAD 2>/dev/null || echo "")"
+  {
+    printf 'tree=%s\n' "${staged_tree}"
+    printf 'parent=%s\n' "${parent_sha}"
+    printf 'validatedAt=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+  } >"$marker"
+fi
+
+echo "[pre-commit] OK (${SECONDS}s)"

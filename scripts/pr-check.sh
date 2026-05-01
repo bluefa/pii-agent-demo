@@ -160,11 +160,64 @@ if [[ "${commit_count}" == "0" ]]; then
   exit 1
 fi
 
+# Reuse pre-commit validation if HEAD has not moved since the last commit's
+# validation. Both pre-commit and pr-check run the same lint/tsc/test/build set
+# so re-running them on the unchanged tree is pure waste.
+skip_heavy_checks=0
+precommit_marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
+current_head="$(git rev-parse HEAD 2>/dev/null || true)"
+if [ -n "${precommit_marker}" ] && [ -f "${precommit_marker}" ] && [ -n "${current_head}" ]; then
+  if /usr/bin/grep -qx "head=${current_head}" "${precommit_marker}" 2>/dev/null; then
+    skip_heavy_checks=1
+  fi
+fi
+
 run_step "policy-grep" run_policy_grep
-run_step "lint" npm run lint
-run_step "type-check" npx tsc --noEmit --pretty false
-run_step "test:run" npm run test:run
-run_step "build" npm run build
+
+run_parallel_heavy_checks() {
+  local parallel_log_dir="${LOG_DIR}/parallel"
+  mkdir -p "${parallel_log_dir}"
+  local labels=(lint type-check test build)
+
+  npm run lint                    >"${parallel_log_dir}/lint.log"       2>&1 & local pid_lint=$!
+  npx tsc --noEmit --pretty false >"${parallel_log_dir}/type-check.log" 2>&1 & local pid_tsc=$!
+  npm run test:run                >"${parallel_log_dir}/test.log"       2>&1 & local pid_test=$!
+  npm run build                   >"${parallel_log_dir}/build.log"      2>&1 & local pid_build=$!
+
+  local pids=("${pid_lint}" "${pid_tsc}" "${pid_test}" "${pid_build}")
+  local rc=0
+  local failed=()
+  local i
+  for i in "${!labels[@]}"; do
+    if wait "${pids[$i]}"; then
+      VALIDATION_RESULTS+=("- ${labels[$i]}: PASS")
+    else
+      failed+=("${labels[$i]}")
+      rc=1
+    fi
+  done
+
+  if (( rc != 0 )); then
+    echo "[pr-check] heavy checks FAILED: ${failed[*]}" >&2
+    for label in "${failed[@]}"; do
+      echo "[pr-check] ----- ${label} log tail -----" >&2
+      tail -80 "${parallel_log_dir}/${label}.log" >&2 || true
+    done
+    exit 1
+  fi
+}
+
+if (( skip_heavy_checks == 1 )); then
+  for label in lint type-check test build; do
+    VALIDATION_RESULTS+=("- ${label}: PASS (cached from pre-commit @ ${current_head:0:12})")
+  done
+  if [[ "${QUIET}" != "1" ]]; then
+    echo "[pr-check] reusing pre-commit validation @ ${current_head:0:12}"
+  fi
+else
+  run_parallel_heavy_checks
+fi
+
 run_step "contract-check" bash scripts/contract-check.sh --mode diff --base "origin/${BASE_BRANCH}" --head HEAD
 
 summary_file="$(git rev-parse --git-path pii-pr-validation-summary.md)"
