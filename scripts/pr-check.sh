@@ -179,17 +179,45 @@ run_parallel_heavy_checks() {
   mkdir -p "${parallel_log_dir}"
   local labels=(lint type-check test build)
 
-  npm run lint                    >"${parallel_log_dir}/lint.log"       2>&1 & local pid_lint=$!
-  npx tsc --noEmit --pretty false >"${parallel_log_dir}/type-check.log" 2>&1 & local pid_tsc=$!
-  npm run test:run                >"${parallel_log_dir}/test.log"       2>&1 & local pid_test=$!
-  npm run build                   >"${parallel_log_dir}/build.log"      2>&1 & local pid_build=$!
+  # Track child pids so an interrupt (SIGINT/SIGTERM) or unexpected exit kills
+  # the whole process tree instead of leaving orphan npm/tsc/build processes
+  # running after the parent script dies. Without this, Ctrl+C during a slow
+  # `next build` leaves the build running for minutes, still writing to logs.
+  # Each `&`-spawned subshell launches `npm run X` -> `node` -> tool, so we
+  # have to walk descendants (pgrep -P) recursively rather than just killing
+  # the captured subshell pid.
+  local -a CHILD_PIDS=()
+  kill_tree() {
+    local pid="$1"
+    local sig="$2"
+    local kid
+    for kid in $(pgrep -P "$pid" 2>/dev/null); do
+      kill_tree "$kid" "$sig"
+    done
+    kill "-${sig}" "$pid" 2>/dev/null || true
+  }
+  cleanup_children() {
+    local pid
+    for pid in "${CHILD_PIDS[@]:-}"; do
+      [ -n "${pid}" ] && kill_tree "$pid" TERM
+    done
+    sleep 1 2>/dev/null || true
+    for pid in "${CHILD_PIDS[@]:-}"; do
+      [ -n "${pid}" ] && kill_tree "$pid" KILL
+    done
+  }
+  trap 'cleanup_children; echo "[pr-check] interrupted; logs preserved at ${parallel_log_dir}" >&2; exit 130' INT TERM
 
-  local pids=("${pid_lint}" "${pid_tsc}" "${pid_test}" "${pid_build}")
+  npm run lint                    >"${parallel_log_dir}/lint.log"       2>&1 & CHILD_PIDS+=($!)
+  npx tsc --noEmit --pretty false >"${parallel_log_dir}/type-check.log" 2>&1 & CHILD_PIDS+=($!)
+  npm run test:run                >"${parallel_log_dir}/test.log"       2>&1 & CHILD_PIDS+=($!)
+  npm run build                   >"${parallel_log_dir}/build.log"      2>&1 & CHILD_PIDS+=($!)
+
   local rc=0
   local failed=()
   local i
   for i in "${!labels[@]}"; do
-    if wait "${pids[$i]}"; then
+    if wait "${CHILD_PIDS[$i]}"; then
       VALIDATION_RESULTS+=("- ${labels[$i]}: PASS")
     else
       failed+=("${labels[$i]}")
@@ -197,11 +225,14 @@ run_parallel_heavy_checks() {
     fi
   done
 
+  trap - INT TERM
+
   if (( rc != 0 )); then
     echo "[pr-check] heavy checks FAILED: ${failed[*]}" >&2
+    echo "[pr-check] full logs preserved at ${parallel_log_dir}" >&2
     for label in "${failed[@]}"; do
       echo "[pr-check] ----- ${label} log tail -----" >&2
-      tail -80 "${parallel_log_dir}/${label}.log" >&2 || true
+      tail -80 "${parallel_log_dir}/${label}.log" 2>/dev/null >&2 || echo "(log unavailable)" >&2
     done
     exit 1
   fi

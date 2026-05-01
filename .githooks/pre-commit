@@ -50,12 +50,41 @@ if [[ "$code_changed" -eq 0 ]]; then
 fi
 
 LABELS=(lint type-check test-run build)
+CHILD_PIDS=()
+
+# On Ctrl+C / kill, terminate every backgrounded child *and* its descendants
+# so a slow `next build` does not keep running orphaned after the user aborts
+# the commit. Each `&` spawns a bash subshell that re-execs `npm run X` ->
+# `node` -> tool, so we walk the descendant tree via pgrep rather than just
+# killing the captured subshell pid (the subshell does not propagate signals
+# to its children by default).
+kill_tree() {
+  local pid="$1"
+  local sig="$2"
+  local kid
+  for kid in $(pgrep -P "$pid" 2>/dev/null); do
+    kill_tree "$kid" "$sig"
+  done
+  kill "-${sig}" "$pid" 2>/dev/null || true
+}
+cleanup_children() {
+  local pid
+  for pid in "${CHILD_PIDS[@]:-}"; do
+    [ -n "${pid}" ] && kill_tree "$pid" TERM
+  done
+  sleep 1 2>/dev/null || true
+  for pid in "${CHILD_PIDS[@]:-}"; do
+    [ -n "${pid}" ] && kill_tree "$pid" KILL
+  done
+}
+trap 'cleanup_children; echo "[pre-commit] interrupted; logs preserved at ${log_dir}" >&2; exit 130' INT TERM
 
 run_bg() {
   local label="$1"
   shift
   local log_file="${log_dir}/${label}.log"
   ("$@") >"${log_file}" 2>&1 &
+  CHILD_PIDS+=($!)
   eval "PID_${label//-/_}=$!"
 }
 
@@ -79,10 +108,13 @@ for label in "${LABELS[@]}"; do
   fi
 done
 
+trap - INT TERM
+
 if (( ${#failed[@]} > 0 )); then
+  echo "[pre-commit] full logs preserved at ${log_dir}" >&2
   for label in "${failed[@]}"; do
     echo "[pre-commit] ----- ${label} log tail -----" >&2
-    tail -80 "${log_dir}/${label}.log" >&2 || true
+    tail -80 "${log_dir}/${label}.log" 2>/dev/null >&2 || echo "(log unavailable)" >&2
   done
   exit 1
 fi
