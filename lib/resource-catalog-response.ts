@@ -1,4 +1,4 @@
-import { camelCaseKeys } from '@/lib/object-case';
+import { camelCaseKeys, snakeCaseKeys } from '@/lib/object-case';
 import type {
   CloudProvider,
   ConfirmResourceMetadata,
@@ -211,11 +211,15 @@ const normalizeResourceCatalogItem = (
 };
 
 export const extractResourceCatalog = (
-  payload: ResourceCatalogResponsePayload,
-): ResourceCatalogResponse => ({
-  resources: payload.resources.map(normalizeResourceCatalogItem),
-  total_count:
-    payload.total_count
-    ?? ('totalCount' in payload ? payload.totalCount : undefined)
-    ?? payload.resources.length,
-});
+  rawPayload: ResourceCatalogResponsePayload,
+): ResourceCatalogResponse => {
+  // Tolerate any input casing (snake / camel / mixed). httpBff GET camelCases
+  // every response, while upstream BFF may emit either form for individual
+  // fields. Normalizing once at entry lets the rest of the function rely on
+  // a single shape.
+  const payload = snakeCaseKeys(rawPayload) as ResourceCatalogResponsePayload;
+  return {
+    resources: payload.resources.map(normalizeResourceCatalogItem),
+    total_count: payload.total_count ?? payload.resources.length,
+  };
+};

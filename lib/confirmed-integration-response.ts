@@ -4,6 +4,7 @@ import type {
   DatabaseType,
   ResourceSnapshot,
 } from '@/lib/types';
+import { snakeCaseKeys } from '@/lib/object-case';
 
 interface LegacyConfirmedIntegration {
   resource_infos: ResourceSnapshot[];
@@ -47,6 +48,19 @@ const isLegacyConfirmedResourceInfo = (
   resourceInfo: ConfirmedIntegrationResourceInfo | ConfirmedIntegrationResourceInfoPayload | ResourceSnapshot,
 ): resourceInfo is ResourceSnapshot => 'endpoint_config' in resourceInfo;
 
+const pickStringField = (
+  source: unknown,
+  ...keys: string[]
+): string | null => {
+  if (source === null || typeof source !== 'object') return null;
+  const record = source as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string') return value;
+  }
+  return null;
+};
+
 const normalizeConfirmedResourceInfo = (
   resourceInfo: ConfirmedIntegrationResourceInfo | ConfirmedIntegrationResourceInfoPayload | ResourceSnapshot,
 ): ConfirmedIntegrationResourceInfo => {
@@ -60,8 +74,8 @@ const normalizeConfirmedResourceInfo = (
         endpointConfig?.db_type ?? DATABASE_TYPE_BY_RESOURCE_TYPE[resourceInfo.resource_type] ?? null,
       port: endpointConfig?.port ?? null,
       host: endpointConfig?.host ?? null,
-      oracle_service_id: endpointConfig?.oracleServiceId ?? null,
-      network_interface_id: endpointConfig?.selectedNicId ?? null,
+      oracle_service_id: pickStringField(endpointConfig, 'oracle_service_id', 'oracleServiceId'),
+      network_interface_id: pickStringField(endpointConfig, 'selected_nic_id', 'selectedNicId'),
       ip_configuration_name: null,
       credential_id: resourceInfo.credential_id ?? null,
     };
@@ -95,7 +109,11 @@ export const createEmptyConfirmedIntegration = (): BffConfirmedIntegration => ({
 export const extractConfirmedIntegration = (
   payload: ConfirmedIntegrationResponsePayload,
 ): BffConfirmedIntegration => {
-  const integration = 'confirmed_integration' in payload ? payload.confirmed_integration : payload;
+  // Upstream BFF and httpBff GET (which camelCases) produce inputs in any
+  // casing. Normalize to snake_case once so the extractor can rely on a
+  // single shape regardless of input.
+  const normalized = snakeCaseKeys(payload) as ConfirmedIntegrationResponsePayload;
+  const integration = 'confirmed_integration' in normalized ? normalized.confirmed_integration : normalized;
   if (!integration) return createEmptyConfirmedIntegration();
 
   return normalizeConfirmedIntegration(integration);
