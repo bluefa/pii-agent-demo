@@ -182,7 +182,11 @@ ADR 초안엔 `raw: true` 옵트아웃을 유지하려 했지만 (Issue #222 호
 ### Stage 5 — Contract 테스트
 - `lib/bff/__tests__/casing-contract.test.ts` 신설 (D5)
 
-### Stage 6 — 문서
+### Stage 6 — 문서 (프로젝트 규약 반영)
+- `CLAUDE.md` "⛔ CRITICAL" 섹션에 신규 항목 추가:
+  > **BFF 응답은 항상 snake_case** — `bff.*` 메서드 반환값과 `lib/bff/types/*` 타입은 모두 snake_case. camelCase 변환/dual-read 금지. 근거: ADR-014
+- `AGENTS.md` BFF 섹션에 동일 규약 한 줄 추가
+- `.claude/skills/coding-standards/SKILL.md`의 "Import Boundaries" 또는 BFF 관련 섹션에 contract 명시
 - ADR-011 §"Scope of the type guarantee"에 본 ADR 링크 footnote
 - `lib/bff/types/*.ts`의 "GET responses use camelCase" 주석 모두 제거
 
