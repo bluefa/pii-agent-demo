@@ -23,10 +23,10 @@ describe('GET /integration/api/v1/user/services/page', () => {
   it('returns content normalized through resolveUserService', async () => {
     mockedGetServicesPage.mockResolvedValue({
       content: [
-        { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
-        { code: 'SERVICE-B', name: '서비스 B' } as unknown as { serviceCode: string; serviceName: string },
+        { service_code: 'SERVICE-A', service_name: '서비스 A' },
+        { code: 'SERVICE-B', name: '서비스 B' } as unknown as { service_code: string; service_name: string },
       ],
-      page: { size: 10, totalElements: 2, totalPages: 1 },
+      page: { size: 10, total_elements: 2, total_pages: 1 },
     });
 
     const response = await GET(

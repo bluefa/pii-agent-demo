@@ -1,13 +1,7 @@
 /**
- * Typed shapes for `bff.dashboard` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.dashboard` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *
- * Dashboard responses retain snake_case fields (the wire shape consumed
- * directly by `app/lib/api/dashboard.ts`). `proxyGet`'s `camelCaseKeys`
- * is bypassed for these payloads in the legacy implementation; preserving
- * that asymmetry is part of I-3.
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 import type {

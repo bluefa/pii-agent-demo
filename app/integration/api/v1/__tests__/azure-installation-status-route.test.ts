@@ -22,23 +22,23 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
     mockedGetInstallationStatus.mockResolvedValue({
       provider: 'Azure',
       installed: false,
-      lastCheckedAt: '2026-03-30T00:00:00Z',
+      last_checked_at: '2026-03-30T00:00:00Z',
       resources: [
         {
-          resourceId: 'vm-001',
-          resourceName: 'vm-001',
-          resourceType: 'AZURE_VM',
-          privateEndpoint: {
+          resource_id: 'vm-001',
+          resource_name: 'vm-001',
+          resource_type: 'AZURE_VM',
+          private_endpoint: {
             id: 'pe-vm-001',
             name: 'pe-vm-001',
             status: 'APPROVED',
           },
         },
         {
-          resourceId: 'mysql-001',
-          resourceName: 'mysql-001',
-          resourceType: 'AZURE_MYSQL',
-          privateEndpoint: {
+          resource_id: 'mysql-001',
+          resource_name: 'mysql-001',
+          resource_type: 'AZURE_MYSQL',
+          private_endpoint: {
             id: 'pe-mysql-001',
             name: 'pe-mysql-001',
             status: 'NOT_REQUESTED',

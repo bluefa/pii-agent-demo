@@ -11,6 +11,7 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
+import { snakeCaseKeys } from '@/lib/object-case';
 import type {
   ApprovalRequestCreateBody,
   BffConfirmedIntegration,
@@ -58,7 +59,7 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
     const body = await response.json().catch(() => ({}));
     throw bffErrorFromBody(response.status, body);
   }
-  return await response.json() as T;
+  return snakeCaseKeys(await response.json()) as T;
 }
 
 export const mockBff: BffClient = {

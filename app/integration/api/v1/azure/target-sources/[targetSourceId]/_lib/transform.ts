@@ -5,61 +5,23 @@
  * 레거시 DB/VM 응답을 Swagger v1 통합 스키마로 변환한다.
  */
 
-// ===== Legacy 타입 (BFF 응답 형태) =====
+import type {
+  LegacyInstallationStatus,
+  LegacyVmInstallationStatus,
+} from '@/lib/bff/types/azure';
 
-export interface LegacyPrivateEndpoint {
-  id: string | null;
-  name: string | null;
-  status: string;
-  requestedAt?: string;
-  approvedAt?: string;
-  rejectedAt?: string;
-}
-
-export interface LegacyResource {
-  resourceId: string;
-  resourceName: string;
-  resourceType: string;
-  privateEndpoint: LegacyPrivateEndpoint | null;
-}
-
-export interface LegacyInstallationStatus {
-  provider: string;
-  installed: boolean;
-  resources: LegacyResource[];
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
-}
-
-interface LegacyLoadBalancer {
-  installed: boolean;
-  name: string;
-}
-
-interface LegacyVmStatus {
-  vmId: string;
-  vmName: string;
-  subnetExists: boolean;
-  loadBalancer: LegacyLoadBalancer;
-  privateEndpoint?: LegacyPrivateEndpoint;
-}
-
-export interface LegacyVmInstallationStatus {
-  vms: LegacyVmStatus[];
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
-}
+export type { LegacyInstallationStatus, LegacyVmInstallationStatus };
 
 // ===== 변환 함수 =====
 
-export const buildLastCheck = (lastCheckedAt?: string, error?: { code: string; message: string }) => {
+export const buildLastCheck = (last_checked_at?: string, error?: { code: string; message: string }) => {
   if (error) {
-    return { status: 'FAILED' as const, checkedAt: lastCheckedAt, failReason: error.message };
+    return { status: 'FAILED' as const, checkedAt: last_checked_at, failReason: error.message };
   }
-  return { 
-    status: 'IN_PROGRESS' as const, 
-    checkedAt: lastCheckedAt,
-    failReason: null 
+  return {
+    status: 'IN_PROGRESS' as const,
+    checkedAt: last_checked_at,
+    failReason: null
   };
 };
 
@@ -72,22 +34,22 @@ export const buildV1Response = (
   vmStatus: LegacyVmInstallationStatus | null,
 ) => {
   const vmMap = new Map(
-    (vmStatus?.vms ?? []).map(vm => [vm.vmId, vm]),
+    (vmStatus?.vms ?? []).map(vm => [vm.vm_id, vm]),
   );
 
   const resources = dbStatus.resources.map(r => {
-    const isVm = r.resourceType === 'AZURE_VM';
-    const vm = isVm ? vmMap.get(r.resourceId) : undefined;
+    const isVm = r.resource_type === 'AZURE_VM';
+    const vm = isVm ? vmMap.get(r.resource_id) : undefined;
 
     const base = {
-      resourceId: r.resourceId,
-      resourceName: r.resourceName,
-      resourceType: r.resourceType,
-      privateEndpoint: r.privateEndpoint
+      resourceId: r.resource_id,
+      resourceName: r.resource_name,
+      resourceType: r.resource_type,
+      privateEndpoint: r.private_endpoint
         ? {
-            id: r.privateEndpoint.id,
-            name: r.privateEndpoint.name,
-            status: r.privateEndpoint.status,
+            id: r.private_endpoint.id,
+            name: r.private_endpoint.name,
+            status: r.private_endpoint.status,
           }
         : {
             id: null,
@@ -102,25 +64,25 @@ export const buildV1Response = (
     // VM: PE 정보를 VM 쪽에서 가져오고, vmInstallation 추가
     return {
       ...base,
-      privateEndpoint: vm.privateEndpoint
-        ? { 
-            id: vm.privateEndpoint.id, 
-            name: vm.privateEndpoint.name, 
-            status: vm.privateEndpoint.status 
+      privateEndpoint: vm.private_endpoint
+        ? {
+            id: vm.private_endpoint.id,
+            name: vm.private_endpoint.name,
+            status: vm.private_endpoint.status
           }
         : base.privateEndpoint,
       vmInstallation: {
-        subnetExists: vm.subnetExists,
+        subnetExists: vm.subnet_exists,
         loadBalancer: {
-          installed: vm.loadBalancer.installed,
-          name: vm.loadBalancer.name || undefined,
+          installed: vm.load_balancer.installed,
+          name: vm.load_balancer.name || undefined,
         },
       },
     };
   });
 
   return {
-    lastCheck: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
+    lastCheck: buildLastCheck(dbStatus.last_checked_at, dbStatus.error),
     resources,
   };
 };

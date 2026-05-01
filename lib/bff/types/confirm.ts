@@ -1,9 +1,7 @@
 /**
  * Typed shapes for `bff.confirm` methods (ADR-011).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 export type {

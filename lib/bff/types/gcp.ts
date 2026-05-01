@@ -1,8 +1,7 @@
 /**
  * Typed shapes for `bff.gcp` methods.
  *
- * Casing convention (per ADR-011 I-3):
- *   - GET responses are camelCase (httpBff.get runs camelCaseKeys).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  *   - POST/PUT/DELETE responses are snake_case raw passthrough.
  */
 
@@ -21,35 +20,35 @@ export interface LegacyGcpStepStatus {
 }
 
 export interface LegacyGcpResource {
-  resourceId: string;
-  resourceName?: string;
-  resourceType: LegacyGcpResourceType;
-  resourceSubType?: LegacyGcpResourceSubType | null;
-  installationStatus: LegacyGcpInstallationStatusValue;
-  serviceSideSubnetCreation: LegacyGcpStepStatus;
-  serviceSideTerraformApply: LegacyGcpStepStatus;
-  bdcSideTerraformApply: LegacyGcpStepStatus;
+  resource_id: string;
+  resource_name?: string;
+  resource_type: LegacyGcpResourceType;
+  resource_sub_type?: LegacyGcpResourceSubType | null;
+  installation_status: LegacyGcpInstallationStatusValue;
+  service_side_subnet_creation: LegacyGcpStepStatus;
+  service_side_terraform_apply: LegacyGcpStepStatus;
+  bdc_side_terraform_apply: LegacyGcpStepStatus;
 }
 
 export interface LegacyGcpInstallationStatus {
   provider: 'GCP';
   resources: LegacyGcpResource[];
-  lastCheckedAt?: string;
+  last_checked_at?: string;
   error?: { code: string; message: string };
 }
 
 /**
  * POST /target-sources/{id}/gcp/check-installation.
- * Upstream returns the full installation status (camelCase) — route transforms
+ * Upstream returns the full installation status (snake_case) — route transforms
  * it via `transformInstallationStatus`.
  */
 export type GcpCheckInstallationResult = LegacyGcpInstallationStatus;
 
-/** GET /target-sources/{id}/gcp/installation-status (camelCase). */
+/** GET /target-sources/{id}/gcp/installation-status. */
 export type GcpInstallationStatusResponse = LegacyGcpInstallationStatus;
 
-/** GET /target-sources/{id}/gcp/scan-service-account (camelCase). */
+/** GET /target-sources/{id}/gcp/scan-service-account. */
 export type GcpScanServiceAccountResponse = GcpServiceAccountInfo;
 
-/** GET /target-sources/{id}/gcp/terraform-service-account (camelCase). */
+/** GET /target-sources/{id}/gcp/terraform-service-account. */
 export type GcpTerraformServiceAccountResponse = GcpServiceAccountInfo;

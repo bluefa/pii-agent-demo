@@ -14,7 +14,7 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const offset = page * size;
 
   const data = await bff.scan.getHistory(parsed.value, { limit: size, offset });
-  const totalElements = data.totalElements;
+  const totalElements = data.total_elements;
   const totalPages = Math.ceil(totalElements / size);
 
   const content = data.content.map((item) => ({

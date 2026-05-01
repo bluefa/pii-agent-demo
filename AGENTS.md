@@ -76,6 +76,7 @@ Allowed branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `chore/`, `test/
   - Mock business logic lives in `@/lib/bff/mock-adapter.ts` + `@/lib/bff/mock/*`.
   - `@/lib/api-client/*` was deleted; ESLint enforces the boundary.
   - See `docs/api/boundaries.md` for the single-pipeline diagram.
+- ADR-014 required: BFF responses are always snake_case at the boundary (`httpBff` GET/POST/PUT/DELETE and `mockBff` `unwrap`). Type definitions in `lib/bff/types/*` and `bff.*` return values are snake_case. Do not introduce camelCase reads, dual-key fallbacks, or per-call normalization in consumers. Request body shapes are out of scope and may stay camelCase per upstream contract.
 - ADR-006 required when touching approval/install/confirmation flows:
   - `docs/adr/006-integration-confirmation-approval-redesign.md`
   - `docs/cloud-provider-states.md`
