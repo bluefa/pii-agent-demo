@@ -1,8 +1,7 @@
 /**
  * Typed shapes for `bff.azure` methods.
  *
- * Casing convention (per ADR-011 I-3):
- *   - GET responses are camelCase (httpBff.get runs camelCaseKeys).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  *   - POST/PUT/DELETE responses are snake_case raw passthrough.
  *   - getScanApp is a documented exception: snake_case raw per Issue #222.
  */
@@ -16,23 +15,23 @@ export interface LegacyPrivateEndpoint {
   id: string | null;
   name: string | null;
   status: string;
-  requestedAt?: string;
-  approvedAt?: string;
-  rejectedAt?: string;
+  requested_at?: string;
+  approved_at?: string;
+  rejected_at?: string;
 }
 
 export interface LegacyAzureResource {
-  resourceId: string;
-  resourceName: string;
-  resourceType: string;
-  privateEndpoint: LegacyPrivateEndpoint | null;
+  resource_id: string;
+  resource_name: string;
+  resource_type: string;
+  private_endpoint: LegacyPrivateEndpoint | null;
 }
 
 export interface LegacyInstallationStatus {
   provider: string;
   installed: boolean;
   resources: LegacyAzureResource[];
-  lastCheckedAt?: string;
+  last_checked_at?: string;
   error?: { code: string; message: string };
 }
 
@@ -42,37 +41,37 @@ export interface LegacyLoadBalancer {
 }
 
 export interface LegacyAzureVmStatus {
-  vmId: string;
-  vmName: string;
-  subnetExists: boolean;
-  loadBalancer: LegacyLoadBalancer;
-  privateEndpoint?: LegacyPrivateEndpoint;
+  vm_id: string;
+  vm_name: string;
+  subnet_exists: boolean;
+  load_balancer: LegacyLoadBalancer;
+  private_endpoint?: LegacyPrivateEndpoint;
 }
 
 export interface LegacyVmInstallationStatus {
   vms: LegacyAzureVmStatus[];
-  lastCheckedAt?: string;
+  last_checked_at?: string;
   error?: { code: string; message: string };
 }
 
 /**
  * POST /target-sources/{id}/azure/check-installation.
- * Upstream returns the full DB installation status (camelCase) — composite
+ * Upstream returns the full DB installation status (snake_case) — composite
  * route merges with vmCheckInstallation via buildV1Response.
  */
 export type AzureCheckInstallationResult = LegacyInstallationStatus;
 
-/** GET /target-sources/{id}/azure/installation-status (camelCase). */
+/** GET /target-sources/{id}/azure/installation-status. */
 export type AzureInstallationStatusResponse = LegacyInstallationStatus;
 
-/** GET /target-sources/{id}/azure/subnet-guide (camelCase). */
+/** GET /target-sources/{id}/azure/subnet-guide. */
 export type AzureSubnetGuideResponse = AzureSubnetGuide;
 
 /**
  * GET /target-sources/{id}/azure/scan-app.
- * Issue #222 contract: snake_case raw passthrough (route returns the upstream
- * payload verbatim). Exception to the GET-camelCase rule because the upstream
- * BFF returns snake_case for this endpoint.
+ * Issue #222 contract: route returns the upstream payload verbatim.
+ * (Boundary already produces snake_case per ADR-014, so this is the same
+ * shape as everything else.)
  */
 export interface AzureScanAppResponse {
   app_id: string | null;
@@ -84,12 +83,12 @@ export interface AzureScanAppResponse {
 
 /**
  * POST /target-sources/{id}/azure/vm/check-installation.
- * Upstream returns the full VM installation status (camelCase).
+ * Upstream returns the full VM installation status (snake_case).
  */
 export type AzureVmCheckInstallationResult = LegacyVmInstallationStatus;
 
-/** GET /target-sources/{id}/azure/vm/installation-status (camelCase). */
+/** GET /target-sources/{id}/azure/vm/installation-status. */
 export type AzureVmInstallationStatusResponse = LegacyVmInstallationStatus;
 
-/** GET /target-sources/{id}/azure/vm/terraform-script (camelCase). */
+/** GET /target-sources/{id}/azure/vm/terraform-script. */
 export type AzureVmTerraformScriptResponse = AzureTerraformScript;

@@ -1,9 +1,7 @@
 /**
  * Typed shapes for `bff.scan` methods (ADR-011 setup spec adr011-01).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 import type { V1ScanJob } from '@/lib/types';
@@ -11,16 +9,16 @@ import type { ScanHistoryResponse, ScanJob } from '@/app/api/_lib/v1-types';
 
 export type { V1ScanJob, ScanHistoryResponse, ScanJob };
 
-/** GET /target-sources/{id}/scans/{scanId} (camelCase). */
+/** GET /target-sources/{id}/scans/{scanId}. */
 export type ScanGetResponse = V1ScanJob;
 
 /**
- * GET /target-sources/{id}/scan/history (camelCase, upstream wire shape).
- * The route handler wraps `totalElements` into a v1 `page` envelope.
+ * GET /target-sources/{id}/scan/history (upstream wire shape).
+ * The route handler wraps `total_elements` into a v1 `page` envelope.
  */
 export interface ScanHistoryPageResponse {
   content: ScanJob[];
-  totalElements: number;
+  total_elements: number;
 }
 
 /** POST /target-sources/{id}/scan (snake_case raw passthrough). */
@@ -37,5 +35,5 @@ export interface ScanCreateResult {
   scan_error: string | null;
 }
 
-/** GET /target-sources/{id}/scanJob/latest (camelCase). */
+/** GET /target-sources/{id}/scanJob/latest. */
 export type ScanLatestStatusResponse = V1ScanJob;

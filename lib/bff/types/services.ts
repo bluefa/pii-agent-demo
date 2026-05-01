@@ -1,14 +1,12 @@
 /**
  * Typed shapes for `bff.services` methods (ADR-011 setup spec adr011-01).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 import type { ProjectSummary, User } from '@/lib/types';
 
-/** GET /services/{code}/authorized-users (camelCase). */
+/** GET /services/{code}/authorized-users. */
 export interface ServiceAuthorizedUsersResponse {
   users: User[];
 }
@@ -23,18 +21,18 @@ export interface ServicePermissionRemoveResult {
   success: boolean;
 }
 
-/** GET /services/{code}/projects (camelCase). */
+/** GET /services/{code}/projects. */
 export interface ServiceProjectsResponse {
   projects: ProjectSummary[];
 }
 
-/** GET /services/{code}/settings/aws (camelCase) — legacy passthrough w/ scanRole. */
+/** GET /services/{code}/settings/aws — legacy passthrough w/ scanRole. */
 export interface LegacyAwsServiceSettings {
-  accountId?: string;
-  scanRole: {
+  account_id?: string;
+  scan_role: {
     registered: boolean;
-    roleArn?: string;
-    lastVerifiedAt?: string;
+    role_arn?: string;
+    last_verified_at?: string;
     status?: string;
   };
   guide?: unknown;

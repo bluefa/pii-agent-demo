@@ -1,9 +1,7 @@
 /**
  * Typed shapes for `bff.aws` methods (ADR-011 setup spec adr011-01).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 import type {
@@ -24,10 +22,10 @@ export interface AwsSetInstallationModeResult {
   mode?: 'AUTO' | 'MANUAL';
 }
 
-/** GET /aws/projects/{id}/installation-status (camelCase). */
+/** GET /aws/projects/{id}/installation-status. */
 export type AwsInstallationStatusResponse = LegacyAwsInstallationStatus;
 
-/** GET /aws/projects/{id}/terraform-script (camelCase). */
+/** GET /aws/projects/{id}/terraform-script. */
 export type AwsTerraformScriptResponse = TerraformScriptResponse;
 
 /** POST /aws/verify-tf-role (snake_case raw passthrough). */
@@ -38,7 +36,12 @@ export interface AwsSetInstallationModeBody {
   mode: 'AUTO' | 'MANUAL';
 }
 
-/** POST /aws/verify-tf-role request body. */
+/**
+ * POST /aws/verify-tf-role request body.
+ *
+ * Request bodies are out of ADR-014 scope (see §"미해결 사항 O2"); fields
+ * remain camelCase to match the upstream BFF wire format and the frontend.
+ */
 export interface AwsVerifyTfRoleBody {
   roleArn?: string;
   accountId?: string;

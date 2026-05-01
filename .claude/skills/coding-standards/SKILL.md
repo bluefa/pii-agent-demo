@@ -49,6 +49,7 @@ Read `docs/api/boundaries.md` before touching data fetching, route handlers, or 
 ## API And Errors
 
 - ADR-011 is the current BFF architecture: route handlers and Server Components call the typed `bff` client from `@/lib/bff/client`.
+- ADR-014 enforces snake_case at the BFF client boundary: every `bff.*` method returns snake_case keys at runtime. `httpBff` (`get`/`send`) and `mockBff` (`unwrap`) both run `snakeCaseKeys` on responses, and `lib/bff/types/*` reflect snake_case shapes. Do not introduce camelCase reads, dual-key fallbacks, or per-call normalization in consumers. Request body shapes are explicitly out of scope and remain camelCase where the upstream contract requires.
 - ADR-008 is the current CSR error handling model: browser code should go through `fetchJson` or helpers built on it, and UI branches on normalized `AppError.code`.
 - API timestamp fields stay JSON strings in DTOs. Convert to local display formats only at the rendering boundary.
 

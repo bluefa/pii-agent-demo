@@ -57,6 +57,8 @@ B-2 is left as an optional, per-domain follow-up to be performed selectively aft
 
 B-1 guarantees that `mockBff` and `httpBff` share identical method signatures and typed return types. This catches mock completeness gaps and snake/camel drift at compile time. It does **not** prove that the real upstream BFF actually conforms to those typed shapes at runtime — `httpBff` still uses `camelCaseKeys(data) as T` (`lib/bff/http.ts:44-45`). Upstream runtime validation (zod or type guards) remains a separate concern. The analysis report Option D (shared zod schemas) becomes an optional complement to this ADR, not an alternative.
 
+> **Update (2026-05-01):** The casing portion of this deferral is closed by [ADR-014](./014-bff-snake-case-boundary.md), which enforces snake_case at the BFF client boundary in both `httpBff` and `mockBff`. Field-level shape validation (zod/type guards) is still future work.
+
 ### Rejected alternatives
 
 - **Option A — status quo + ESLint + minor patches.** Does not solve the type-level mock-vs-BFF drift that caused Issue #222.

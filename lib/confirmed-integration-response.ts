@@ -60,8 +60,12 @@ const normalizeConfirmedResourceInfo = (
         endpointConfig?.db_type ?? DATABASE_TYPE_BY_RESOURCE_TYPE[resourceInfo.resource_type] ?? null,
       port: endpointConfig?.port ?? null,
       host: endpointConfig?.host ?? null,
-      oracle_service_id: endpointConfig?.oracleServiceId ?? null,
-      network_interface_id: endpointConfig?.selectedNicId ?? null,
+      // Runtime data here is snake_case (ADR-014 boundary). The static type
+      // `EndpointConfigInputData` is camelCase because it doubles as the
+      // frontend form-input shape; until that split is refactored, read the
+      // snake fields via a Record cast.
+      oracle_service_id: (endpointConfig as Record<string, unknown> | null)?.oracle_service_id as string ?? null,
+      network_interface_id: (endpointConfig as Record<string, unknown> | null)?.selected_nic_id as string ?? null,
       ip_configuration_name: null,
       credential_id: resourceInfo.credential_id ?? null,
     };

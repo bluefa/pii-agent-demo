@@ -9,8 +9,7 @@
  * (`extractTargetSource`, `normalizeUserMeResponse`, etc.) stay in the
  * route layer. BFF methods return the raw upstream wire shape.
  *
- * Casing per ADR-011 README §"Observable Behavior Invariants" I-3:
- *   - GET responses are camelCase (proxyGet runs camelCaseKeys)
+ * // Responses are snake_case at the BFF boundary (see ADR-014).
  *   - POST/PUT/DELETE responses are raw passthrough (snake_case)
  */
 import type {

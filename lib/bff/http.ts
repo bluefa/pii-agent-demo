@@ -1,10 +1,9 @@
 /**
  * Real BFF API HTTP client. Used when USE_MOCK_DATA=false.
  *
- * Per ADR-011 README §"Observable Behavior Invariants" I-3, GET responses
- * are camelCased (matches legacy `proxyGet` behavior); POST/PUT/DELETE
- * responses are raw passthrough (matches legacy `proxyPost/Put/Delete`).
- * Resolving the asymmetry is a separate post-migration ADR.
+ * Per ADR-014, all BFF responses (GET and POST/PUT/DELETE) are normalised to
+ * snake_case keys at this boundary. Consumers receive snake_case throughout;
+ * camelCase conversion is no longer performed here.
  */
 import type { BffClient } from '@/lib/bff/types';
 import type { CreateTargetSourceResult } from '@/lib/bff/types/target-sources';
@@ -16,7 +15,7 @@ import type {
 } from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
-import { camelCaseKeys } from '@/lib/object-case';
+import { snakeCaseKeys } from '@/lib/object-case';
 import { extractConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import { extractResourceCatalog } from '@/lib/resource-catalog-response';
 
@@ -30,14 +29,14 @@ async function throwBffError(res: Response): Promise<never> {
   throw bffErrorFromBody(res.status, body);
 }
 
-async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
+async function get<T>(path: string): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
   const res = await fetch(fullPath, { headers: { Accept: 'application/json' } });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   const data = await res.json();
-  return (opts?.raw ? data : camelCaseKeys(data)) as T;
+  return snakeCaseKeys(data) as T;
 }
 
 async function getRaw(path: string): Promise<Response> {
@@ -61,8 +60,7 @@ async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: u
   console.log(`[BFF] ← ${method} ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   if (res.status === 204) return undefined as T;
-  // I-3 invariant: POST/PUT bodies are raw passthrough (snake_case), no camelCase.
-  return await res.json() as T;
+  return snakeCaseKeys(await res.json()) as T;
 }
 
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
@@ -194,8 +192,7 @@ export const httpBff: BffClient = {
     checkInstallation: (id) => post(`/target-sources/${id}/azure/check-installation`, {}),
     getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
     getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
-    // Issue #222: snake_case raw passthrough — bypass camelCaseKeys.
-    getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`, { raw: true }),
+    getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`),
     vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
     vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
     vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),

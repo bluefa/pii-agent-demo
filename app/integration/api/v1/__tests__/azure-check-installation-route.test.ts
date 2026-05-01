@@ -19,13 +19,13 @@ const mockedVm = vi.mocked(bff.azure.vmCheckInstallation);
 const dbFixture = {
   provider: 'Azure',
   installed: false,
-  lastCheckedAt: '2026-04-10T00:00:00Z',
+  last_checked_at: '2026-04-10T00:00:00Z',
   resources: [
     {
-      resourceId: 'vm-001',
-      resourceName: 'vm-001',
-      resourceType: 'AZURE_VM',
-      privateEndpoint: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'APPROVED' },
+      resource_id: 'vm-001',
+      resource_name: 'vm-001',
+      resource_type: 'AZURE_VM',
+      private_endpoint: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'APPROVED' },
     },
   ],
 };
@@ -33,13 +33,13 @@ const dbFixture = {
 const vmFixture = {
   vms: [
     {
-      vmId: 'vm-001',
-      vmName: 'vm-001',
-      subnetExists: true,
-      loadBalancer: { installed: true, name: 'lb-001' },
+      vm_id: 'vm-001',
+      vm_name: 'vm-001',
+      subnet_exists: true,
+      load_balancer: { installed: true, name: 'lb-001' },
     },
   ],
-  lastCheckedAt: '2026-04-10T00:00:00Z',
+  last_checked_at: '2026-04-10T00:00:00Z',
 };
 
 describe('POST /integration/api/v1/azure/target-sources/[targetSourceId]/check-installation', () => {
