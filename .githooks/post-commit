@@ -4,6 +4,22 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
 
+# Promote the pre-commit validation marker to the freshly-created HEAD SHA, so
+# downstream tooling (pre-bash-pr-create hook, stop-verify hook, pr-check.sh)
+# can recognize the new commit as already validated and skip duplicate work.
+marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
+if [ -n "$marker" ] && [ -f "$marker" ]; then
+  head_sha="$(git rev-parse HEAD 2>/dev/null || echo "")"
+  if [ -n "$head_sha" ]; then
+    tmp="${marker}.tmp"
+    {
+      grep -v '^head=' "$marker" 2>/dev/null || true
+      printf 'head=%s\n' "$head_sha"
+    } >"$tmp"
+    mv "$tmp" "$marker"
+  fi
+fi
+
 # bash scripts/sync-claude-skills-to-codex.sh || {
 #   echo "[post-commit] skill mirror failed (non-blocking)" >&2
 # }
