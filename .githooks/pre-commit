@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "${repo_root}"
@@ -35,14 +35,102 @@ if [[ "$design_changed" -gt 0 ]]; then
 fi
 
 if [[ "$code_changed" -eq 0 ]]; then
-  echo "[pre-commit] No code files changed — skipping lint/tsc/build"
+  echo "[pre-commit] No code files changed — skipping lint/tsc/test/build"
   echo "[pre-commit] OK"
+  # Mark tree as validated for downstream hooks (gh pr create / stop-verify).
+  marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
+  [ -n "$marker" ] && {
+    {
+      printf 'tree=%s\n' "$(git write-tree 2>/dev/null || echo "")"
+      printf 'parent=%s\n' "$(git rev-parse HEAD 2>/dev/null || echo "")"
+      printf 'validatedAt=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+    } >"$marker"
+  }
   exit 0
 fi
 
-run_quiet "lint" npm run lint --quiet
-run_quiet "type-check" npx tsc --noEmit --pretty false
-run_quiet "test-run" npm run test:run
-run_quiet "build" npm run build
+LABELS=(lint type-check test-run build)
+CHILD_PIDS=()
 
-echo "[pre-commit] OK"
+# On Ctrl+C / kill, terminate every backgrounded child *and* its descendants
+# so a slow `next build` does not keep running orphaned after the user aborts
+# the commit. Each `&` spawns a bash subshell that re-execs `npm run X` ->
+# `node` -> tool, so we walk the descendant tree via pgrep rather than just
+# killing the captured subshell pid (the subshell does not propagate signals
+# to its children by default).
+kill_tree() {
+  local pid="$1"
+  local sig="$2"
+  local kid
+  for kid in $(pgrep -P "$pid" 2>/dev/null); do
+    kill_tree "$kid" "$sig"
+  done
+  kill "-${sig}" "$pid" 2>/dev/null || true
+}
+cleanup_children() {
+  local pid
+  for pid in "${CHILD_PIDS[@]:-}"; do
+    [ -n "${pid}" ] && kill_tree "$pid" TERM
+  done
+  sleep 1 2>/dev/null || true
+  for pid in "${CHILD_PIDS[@]:-}"; do
+    [ -n "${pid}" ] && kill_tree "$pid" KILL
+  done
+}
+trap 'cleanup_children; echo "[pre-commit] interrupted; logs preserved at ${log_dir}" >&2; exit 130' INT TERM
+
+run_bg() {
+  local label="$1"
+  shift
+  local log_file="${log_dir}/${label}.log"
+  ("$@") >"${log_file}" 2>&1 &
+  CHILD_PIDS+=($!)
+  eval "PID_${label//-/_}=$!"
+}
+
+echo "[pre-commit] running ${LABELS[*]} in parallel (logs: ${log_dir})"
+SECONDS=0
+
+run_bg lint        npm run lint -- --quiet
+run_bg type-check  npx tsc --noEmit --pretty false
+run_bg test-run    npm run test:run
+run_bg build       npm run build
+
+failed=()
+for label in "${LABELS[@]}"; do
+  pid_var="PID_${label//-/_}"
+  pid="${!pid_var}"
+  if wait "${pid}"; then
+    printf '[pre-commit] %s OK\n' "${label}"
+  else
+    printf '[pre-commit] %s FAILED\n' "${label}" >&2
+    failed+=("${label}")
+  fi
+done
+
+trap - INT TERM
+
+if (( ${#failed[@]} > 0 )); then
+  echo "[pre-commit] full logs preserved at ${log_dir}" >&2
+  for label in "${failed[@]}"; do
+    echo "[pre-commit] ----- ${label} log tail -----" >&2
+    tail -80 "${log_dir}/${label}.log" 2>/dev/null >&2 || echo "(log unavailable)" >&2
+  done
+  exit 1
+fi
+
+# Record successful pre-commit validation against the staged tree.
+# Downstream hooks (pre-bash-pr-create, stop-verify) and pr-check.sh can use
+# this to skip duplicate work when HEAD/tree still matches.
+marker="$(git rev-parse --git-path pii-pre-commit-validated.env 2>/dev/null || true)"
+if [ -n "$marker" ]; then
+  staged_tree="$(git write-tree 2>/dev/null || echo "")"
+  parent_sha="$(git rev-parse HEAD 2>/dev/null || echo "")"
+  {
+    printf 'tree=%s\n' "${staged_tree}"
+    printf 'parent=%s\n' "${parent_sha}"
+    printf 'validatedAt=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+  } >"$marker"
+fi
+
+echo "[pre-commit] OK (${SECONDS}s)"
