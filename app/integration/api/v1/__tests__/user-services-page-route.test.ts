@@ -11,8 +11,6 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET } from '@/app/integration/api/v1/user/services/page/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
-import type { UserServicesPageResponse } from '@/lib/bff/types/users';
-
 const mockedGetServicesPage = vi.mocked(bff.users.getServicesPage);
 
 describe('GET /integration/api/v1/user/services/page', () => {
@@ -44,15 +42,11 @@ describe('GET /integration/api/v1/user/services/page', () => {
     expect(mockedGetServicesPage).toHaveBeenCalledWith(0, 10, undefined);
   });
 
-  it('preserves flat top-level page metadata access for I-3 compatibility', async () => {
-    // Upstream that exposes flat top-level pagination — pre-ADR-011 wire shape.
+  it('exposes pagination from the snake_case page envelope (ADR-014)', async () => {
     mockedGetServicesPage.mockResolvedValue({
-      content: [{ serviceCode: 'SERVICE-A', serviceName: '서비스 A' }],
-      totalElements: 42,
-      totalPages: 5,
-      number: 1,
-      size: 10,
-    } as unknown as UserServicesPageResponse);
+      content: [{ service_code: 'SERVICE-A', service_name: '서비스 A' }],
+      page: { number: 1, size: 10, total_elements: 42, total_pages: 5 },
+    });
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/user/services/page?page=1&size=10'),

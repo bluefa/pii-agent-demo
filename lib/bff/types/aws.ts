@@ -1,29 +1,56 @@
 /**
- * Typed shapes for `bff.aws` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.aws` methods.
  *
- * Responses are snake_case at the BFF boundary (see ADR-014).
+ * Responses are snake_case at the BFF boundary (see ADR-014). The route
+ * layer maps these into the camelCase v1 public API via `installation-transform.ts`.
  */
 
 import type {
-  LegacyAwsInstallationStatus,
-  LegacyCheckInstallationResponse,
+  ServiceTfScript,
   TerraformScriptResponse,
+  TfScriptError,
+  TfScriptStatus,
   VerifyTfRoleResponse,
 } from '@/lib/types';
 
-export type { LegacyAwsInstallationStatus, LegacyCheckInstallationResponse };
+/**
+ * BFF wire shape for AWS installation status (snake_case). Built from the
+ * legacy `LegacyAwsInstallationStatus` (camelCase, lib/types.ts) which mocks
+ * still produce internally — `mockBff.unwrap` snake_cases the keys at the
+ * boundary to match this contract.
+ */
+export interface BffAwsInstallationStatus {
+  provider: 'AWS';
+  has_tf_permission: boolean;
+  tf_execution_role_arn?: string;
+  service_tf_scripts: ServiceTfScript[];
+  bdc_tf: {
+    status: TfScriptStatus;
+    completed_at?: string;
+    error?: TfScriptError;
+  };
+  service_tf_completed: boolean;
+  bdc_tf_completed: boolean;
+  completed_at?: string;
+  last_checked_at?: string;
+}
 
-/** POST /aws/projects/{id}/check-installation (snake_case raw passthrough). */
-export type AwsCheckInstallationResult = LegacyCheckInstallationResponse;
+export interface BffAwsCheckInstallationResponse extends BffAwsInstallationStatus {
+  last_checked_at: string;
+  error?: TfScriptError;
+}
 
-/** POST /aws/projects/{id}/installation-mode (snake_case raw passthrough). */
+/** POST /aws/projects/{id}/check-installation. */
+export type AwsCheckInstallationResult = BffAwsCheckInstallationResponse;
+
+/** POST /aws/projects/{id}/installation-mode. */
 export interface AwsSetInstallationModeResult {
   success: boolean;
   mode?: 'AUTO' | 'MANUAL';
 }
 
 /** GET /aws/projects/{id}/installation-status. */
-export type AwsInstallationStatusResponse = LegacyAwsInstallationStatus;
+export type AwsInstallationStatusResponse = BffAwsInstallationStatus;
 
 /** GET /aws/projects/{id}/terraform-script. */
 export type AwsTerraformScriptResponse = TerraformScriptResponse;

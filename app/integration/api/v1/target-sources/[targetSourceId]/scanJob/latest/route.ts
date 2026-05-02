@@ -12,14 +12,14 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   return NextResponse.json({
     id: data.id,
-    scanStatus: data.scanStatus,
-    targetSourceId: data.targetSourceId,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-    scanVersion: data.scanVersion || 1,
-    scanProgress: data.scanProgress,
-    durationSeconds: data.durationSeconds,
-    resourceCountByResourceType: data.resourceCountByResourceType || {},
-    scanError: data.scanError,
+    scanStatus: data.scan_status,
+    targetSourceId: data.target_source_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+    scanVersion: data.scan_version || 1,
+    scanProgress: data.scan_progress,
+    durationSeconds: data.duration_seconds,
+    resourceCountByResourceType: data.resource_count_by_resource_type || {},
+    scanError: data.scan_error,
   });
 }, { expectedDuration: '50ms' });
