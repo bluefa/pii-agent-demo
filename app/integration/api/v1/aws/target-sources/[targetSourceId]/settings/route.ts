@@ -43,8 +43,8 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   // is auxiliary info, not a hard dependency for settings.
   try {
     const installation = await bff.aws.getInstallationStatus(parsed.value);
-    if (installation.tfExecutionRoleArn) {
-      executionRole = { roleArn: installation.tfExecutionRoleArn, status: 'VALID' };
+    if (installation.tf_execution_role_arn) {
+      executionRole = { roleArn: installation.tf_execution_role_arn, status: 'VALID' };
     }
   } catch (e) {
     if (!(e instanceof BffError)) throw e;

@@ -2,15 +2,17 @@ import type {
   AwsInstallationActionSummary,
   AwsInstallationStatus,
   InstallationDisplayStatus,
-  LegacyAwsInstallationStatus,
-  LegacyCheckInstallationResponse,
   ServiceTfScript,
   TfScriptStatus,
   V1ScriptStatus,
   V1ServiceScript,
 } from '@/lib/types';
+import type {
+  BffAwsCheckInstallationResponse,
+  BffAwsInstallationStatus,
+} from '@/lib/bff/types/aws';
 
-type TransformSource = LegacyAwsInstallationStatus | LegacyCheckInstallationResponse;
+type TransformSource = BffAwsInstallationStatus | BffAwsCheckInstallationResponse;
 
 const toScriptStatus = (status: TfScriptStatus): V1ScriptStatus =>
   status === 'IN_PROGRESS' ? 'INSTALLING' : status;
@@ -55,20 +57,20 @@ const transformServiceScript = (
 };
 
 export const transformAwsInstallationStatus = (
-  legacy: TransformSource,
+  source: TransformSource,
 ): AwsInstallationStatus => {
-  const bdcStatus = toScriptStatus(legacy.bdcTf.status);
-  const serviceScripts = legacy.serviceTfScripts.map(script => transformServiceScript(script, bdcStatus));
-  const hasCheckError = 'error' in legacy && Boolean(legacy.error);
+  const bdcStatus = toScriptStatus(source.bdc_tf.status);
+  const serviceScripts = source.service_tf_scripts.map(script => transformServiceScript(script, bdcStatus));
+  const hasCheckError = 'error' in source && Boolean(source.error);
   const lastCheck = hasCheckError
-    ? { status: 'FAILED' as const, checkedAt: legacy.lastCheckedAt, failReason: legacy.error?.message }
-    : legacy.lastCheckedAt
-      ? { status: 'SUCCESS' as const, checkedAt: legacy.lastCheckedAt }
+    ? { status: 'FAILED' as const, checkedAt: source.last_checked_at, failReason: source.error?.message }
+    : source.last_checked_at
+      ? { status: 'SUCCESS' as const, checkedAt: source.last_checked_at }
       : { status: 'SUCCESS' as const };
 
   return {
-    hasExecutionPermission: legacy.hasTfPermission,
-    ...(legacy.tfExecutionRoleArn && { executionRoleArn: legacy.tfExecutionRoleArn }),
+    hasExecutionPermission: source.has_tf_permission,
+    ...(source.tf_execution_role_arn && { executionRoleArn: source.tf_execution_role_arn }),
     serviceScripts,
     bdcStatus: { status: bdcStatus },
     lastCheck,

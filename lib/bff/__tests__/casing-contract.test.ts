@@ -122,6 +122,69 @@ describe('ADR-014 boundary contract: snake_case recursive', () => {
     });
   });
 
+    it('aws.checkInstallation — nested camelCase scripts/resources are snake_cased', async () => {
+      global.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            provider: 'AWS',
+            hasTfPermission: true,
+            tfExecutionRoleArn: 'arn:aws:iam::1:role/x',
+            serviceTfScripts: [{
+              id: 's1',
+              status: 'COMPLETED',
+              resources: [{ resourceId: 'r1', type: 'RDS', name: 'demo' }],
+            }],
+            bdcTf: { status: 'PENDING' },
+            serviceTfCompleted: false,
+            bdcTfCompleted: false,
+            lastCheckedAt: '2026-05-01T00:00:00Z',
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+      const { httpBff } = await import('@/lib/bff/http');
+      const result = await httpBff.aws.checkInstallation(1001);
+      assertAllKeysSnakeCase(result, 'aws.checkInstallation');
+    });
+
+    it('scan.getStatus — V1ScanJob fields are snake_cased', async () => {
+      global.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: 1,
+            scanStatus: 'COMPLETED',
+            targetSourceId: 1001,
+            createdAt: '2026-05-01T00:00:00Z',
+            updatedAt: '2026-05-01T00:00:00Z',
+            scanVersion: 2,
+            scanProgress: 100,
+            durationSeconds: 42,
+            resourceCountByResourceType: { RDS: 3 },
+            scanError: null,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+      const { httpBff } = await import('@/lib/bff/http');
+      const result = await httpBff.scan.getStatus(1001);
+      assertAllKeysSnakeCase(result, 'scan.getStatus');
+    });
+
+    it('users.getServicesPage — nested page envelope keys are snake_cased', async () => {
+      global.fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            content: [{ serviceCode: 'A', serviceName: 'A name' }],
+            page: { totalElements: 5, totalPages: 1, number: 0, size: 10 },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+      const { httpBff } = await import('@/lib/bff/http');
+      const result = await httpBff.users.getServicesPage(0, 10);
+      assertAllKeysSnakeCase(result, 'users.getServicesPage');
+    });
+
   describe('mockBff (in-memory) — unwrap() enforces snake_case', () => {
     it('users.me', async () => {
       const { mockBff } = await import('@/lib/bff/mock-adapter');
@@ -133,6 +196,21 @@ describe('ADR-014 boundary contract: snake_case recursive', () => {
       const { mockBff } = await import('@/lib/bff/mock-adapter');
       const result = await mockBff.dashboard.summary();
       assertAllKeysSnakeCase(result, 'mockBff.dashboard.summary');
+    });
+
+    it('aws.getInstallationStatus — mock-generated camelCase is snake_cased at unwrap', async () => {
+      // 1008 is the seeded AWS project (lib/mock-data.ts) — picks up the
+      // legacy camelCase fields from mock generation, which unwrap()
+      // must convert to snake_case at the boundary.
+      const { mockBff } = await import('@/lib/bff/mock-adapter');
+      const result = await mockBff.aws.getInstallationStatus(1008);
+      assertAllKeysSnakeCase(result, 'mockBff.aws.getInstallationStatus');
+    });
+
+    it('users.getServicesPage', async () => {
+      const { mockBff } = await import('@/lib/bff/mock-adapter');
+      const result = await mockBff.users.getServicesPage(0, 10);
+      assertAllKeysSnakeCase(result, 'mockBff.users.getServicesPage');
     });
   });
 });
