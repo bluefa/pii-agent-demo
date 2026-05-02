@@ -68,7 +68,7 @@ describe('httpBff.users.me', () => {
         name: '홍길동',
         email: 'hong@company.com',
         role: 'ADMIN',
-        serviceCodePermissions: ['SERVICE-A'],
+        service_code_permissions: ['SERVICE-A'],
       },
     });
   });

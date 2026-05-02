@@ -1,9 +1,7 @@
 /**
  * Typed shapes for `bff.projects` methods (ADR-011 setup spec adr011-01).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 import type {
@@ -15,7 +13,7 @@ import type {
   ConnectionTestHistory,
 } from '@/lib/types';
 
-/** GET /projects/{id} (camelCase) — mock currently wraps as `{ project }`. */
+/** GET /projects/{id} — mock currently wraps as `{ project }`. */
 export interface ProjectGetResponse {
   project: Project;
 }
@@ -47,7 +45,7 @@ export interface ProjectRejectionResult {
 export interface ProjectConfirmTargetsResult {
   success: boolean;
   project?: Project;
-  autoApproval?: { shouldAutoApprove: boolean; reason?: string };
+  auto_approval?: { should_auto_approve: boolean; reason?: string };
 }
 
 /** POST /projects/{id}/complete-installation (snake_case raw passthrough). */
@@ -61,12 +59,12 @@ export interface ProjectConfirmCompletionResult {
   project: Project;
 }
 
-/** GET /target-sources/{id}/secrets (camelCase) — list of credentials. */
+/** GET /target-sources/{id}/secrets — list of credentials. */
 export type ProjectCredentialsResponse =
   | SecretKey[]
   | { credentials: SecretKey[] };
 
-/** GET /projects/{id}/history (camelCase). */
+/** GET /projects/{id}/history. */
 export interface ProjectHistoryResponse {
   history: ProjectHistory[];
   total: number;
@@ -78,19 +76,19 @@ export interface ProjectResourceCredentialResult {
   project?: Project;
 }
 
-/** GET /projects/{id}/resources/exclusions (camelCase). */
+/** GET /projects/{id}/resources/exclusions. */
 export interface ProjectResourceExclusionsResponse {
   exclusions: Array<
     {
-      resourceId: string;
-      resourceName: string;
-      resourceType: string;
+      resource_id: string;
+      resource_name: string;
+      resource_type: string;
     } & Pick<ResourceExclusion, 'reason' | 'excludedAt' | 'excludedBy'>
   >;
   total: number;
 }
 
-/** GET /projects/{id}/resources (camelCase). */
+/** GET /projects/{id}/resources. */
 export interface ProjectResourcesResponse {
   resources: Project['resources'];
 }
@@ -98,13 +96,13 @@ export interface ProjectResourcesResponse {
 /** POST /projects/{id}/scan (snake_case raw passthrough). */
 export interface ProjectScanTriggerResult {
   success: boolean;
-  newResourcesFound?: number;
+  new_resources_found?: number;
   resources?: Project['resources'];
 }
 
-/** GET /projects/{id}/terraform-status (camelCase). */
+/** GET /projects/{id}/terraform-status. */
 export interface ProjectTerraformStatusResponse {
-  terraformState: TerraformState;
+  terraform_state: TerraformState;
 }
 
 /** POST /projects/{id}/test-connection (snake_case raw passthrough). */

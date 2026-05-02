@@ -1,8 +1,7 @@
 /**
  * Typed shapes for `bff.taskAdmin` methods (ADR-011 setup spec adr011-01).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
+ * Responses are snake_case at the BFF boundary (see ADR-014).
  */
 
 import type {
@@ -17,5 +16,5 @@ export type {
   PageInfoWithCounts,
 };
 
-/** GET /task-admin/approval-requests (camelCase). */
+/** GET /task-admin/approval-requests. */
 export type TaskAdminApprovalRequestsResponse = ApprovalRequestQueueResponse;

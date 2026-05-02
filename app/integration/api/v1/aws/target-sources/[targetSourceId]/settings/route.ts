@@ -6,12 +6,12 @@ import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
 import type { ServiceSettingsAwsResponse } from '@/lib/bff/types/services';
 
-function toAwsRoleInfo(role: ServiceSettingsAwsResponse['scanRole']) {
-  if (role.registered && role.roleArn) {
+function toAwsRoleInfo(role: ServiceSettingsAwsResponse['scan_role']) {
+  if (role.registered && role.role_arn) {
     return {
-      roleArn: role.roleArn,
+      roleArn: role.role_arn,
       status: role.status === 'NOT_VERIFIED' ? 'UNVERIFIED' : (role.status ?? 'UNVERIFIED'),
-      ...(role.lastVerifiedAt && { lastVerifiedAt: role.lastVerifiedAt }),
+      ...(role.last_verified_at && { lastVerifiedAt: role.last_verified_at }),
     };
   }
   return { roleArn: null, status: 'UNVERIFIED' as const };
@@ -43,8 +43,8 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   // is auxiliary info, not a hard dependency for settings.
   try {
     const installation = await bff.aws.getInstallationStatus(parsed.value);
-    if (installation.tfExecutionRoleArn) {
-      executionRole = { roleArn: installation.tfExecutionRoleArn, status: 'VALID' };
+    if (installation.tf_execution_role_arn) {
+      executionRole = { roleArn: installation.tf_execution_role_arn, status: 'VALID' };
     }
   } catch (e) {
     if (!(e instanceof BffError)) throw e;
@@ -53,6 +53,6 @@ export const GET = withV1(async (_request, { requestId, params }) => {
 
   return NextResponse.json({
     executionRole,
-    scanRole: toAwsRoleInfo(settings.scanRole),
+    scanRole: toAwsRoleInfo(settings.scan_role),
   });
 }, { expectedDuration: '150ms' });

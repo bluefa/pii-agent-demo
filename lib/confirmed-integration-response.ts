@@ -47,6 +47,22 @@ const isLegacyConfirmedResourceInfo = (
   resourceInfo: ConfirmedIntegrationResourceInfo | ConfirmedIntegrationResourceInfoPayload | ResourceSnapshot,
 ): resourceInfo is ResourceSnapshot => 'endpoint_config' in resourceInfo;
 
+/**
+ * The runtime endpoint snapshot arrives in snake_case (ADR-014 boundary), but
+ * `EndpointConfigInputData` (lib/types.ts) is declared camelCase because it
+ * doubles as the frontend form-input shape. Splitting that type is a separate
+ * refactor; until then, read the post-boundary snake_case fields through a
+ * narrow type guard rather than scattering `Record` casts at call sites.
+ */
+const readSnakeString = (
+  source: unknown,
+  key: string,
+): string | null => {
+  if (source === null || typeof source !== 'object') return null;
+  const value = (source as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : null;
+};
+
 const normalizeConfirmedResourceInfo = (
   resourceInfo: ConfirmedIntegrationResourceInfo | ConfirmedIntegrationResourceInfoPayload | ResourceSnapshot,
 ): ConfirmedIntegrationResourceInfo => {
@@ -60,8 +76,8 @@ const normalizeConfirmedResourceInfo = (
         endpointConfig?.db_type ?? DATABASE_TYPE_BY_RESOURCE_TYPE[resourceInfo.resource_type] ?? null,
       port: endpointConfig?.port ?? null,
       host: endpointConfig?.host ?? null,
-      oracle_service_id: endpointConfig?.oracleServiceId ?? null,
-      network_interface_id: endpointConfig?.selectedNicId ?? null,
+      oracle_service_id: readSnakeString(endpointConfig, 'oracle_service_id'),
+      network_interface_id: readSnakeString(endpointConfig, 'selected_nic_id'),
       ip_configuration_name: null,
       credential_id: resourceInfo.credential_id ?? null,
     };

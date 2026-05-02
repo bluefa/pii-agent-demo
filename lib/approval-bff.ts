@@ -458,8 +458,8 @@ export const buildApprovalHistoryPage = (
   const page = isRecord(source.page) ? source.page : source;
   const number = toNumberOrUndefined(page.number) ?? 0;
   const size = toNumberOrUndefined(page.size) ?? content.length;
-  const totalElements = toNumberOrUndefined(page.totalElements) ?? toNumberOrUndefined(page.total_elements) ?? content.length;
-  const totalPages = toNumberOrUndefined(page.totalPages) ?? toNumberOrUndefined(page.total_pages) ?? (size > 0 ? Math.ceil(totalElements / size) : 1);
+  const totalElements = toNumberOrUndefined(page.total_elements) ?? content.length;
+  const totalPages = toNumberOrUndefined(page.total_pages) ?? (size > 0 ? Math.ceil(totalElements / size) : 1);
 
   return {
     totalPages,

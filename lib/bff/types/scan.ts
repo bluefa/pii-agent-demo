@@ -1,32 +1,22 @@
 /**
- * Typed shapes for `bff.scan` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.scan` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Responses are snake_case at the BFF boundary (see ADR-014). Route handlers
+ * map snake → camelCase when emitting v1 public responses.
  */
 
-import type { V1ScanJob } from '@/lib/types';
+import type { V1ScanJob, ScanStatus } from '@/lib/types';
 import type { ScanHistoryResponse, ScanJob } from '@/app/api/_lib/v1-types';
 
 export type { V1ScanJob, ScanHistoryResponse, ScanJob };
 
-/** GET /target-sources/{id}/scans/{scanId} (camelCase). */
-export type ScanGetResponse = V1ScanJob;
-
 /**
- * GET /target-sources/{id}/scan/history (camelCase, upstream wire shape).
- * The route handler wraps `totalElements` into a v1 `page` envelope.
+ * BFF wire shape for a scan job (snake_case). The v1 camelCase
+ * `V1ScanJob` is built from this in route handlers.
  */
-export interface ScanHistoryPageResponse {
-  content: ScanJob[];
-  totalElements: number;
-}
-
-/** POST /target-sources/{id}/scan (snake_case raw passthrough). */
-export interface ScanCreateResult {
+export interface BffScanJob {
   id: number;
-  scan_status: string;
+  scan_status: ScanStatus;
   target_source_id: number;
   created_at: string;
   updated_at: string;
@@ -37,5 +27,20 @@ export interface ScanCreateResult {
   scan_error: string | null;
 }
 
-/** GET /target-sources/{id}/scanJob/latest (camelCase). */
-export type ScanLatestStatusResponse = V1ScanJob;
+/** GET /target-sources/{id}/scans/{scanId}. */
+export type ScanGetResponse = BffScanJob;
+
+/**
+ * GET /target-sources/{id}/scan/history (upstream wire shape).
+ * The route handler wraps `total_elements` into a v1 `page` envelope.
+ */
+export interface ScanHistoryPageResponse {
+  content: ScanJob[];
+  total_elements: number;
+}
+
+/** POST /target-sources/{id}/scan. */
+export type ScanCreateResult = BffScanJob;
+
+/** GET /target-sources/{id}/scanJob/latest. */
+export type ScanLatestStatusResponse = BffScanJob;

@@ -42,14 +42,18 @@ describe('extractConfirmedIntegration', () => {
             {
               resource_id: 'res-1',
               resource_type: 'AZURE_VM',
+              // Post-ADR-014 boundary shape: BFF response keys arrive snake_case
+              // including the inner endpoint_config snapshot. Cast to bypass
+              // the EndpointConfigSnapshot static type (which doubles as a
+              // frontend form-input shape and stays camelCase for now).
               endpoint_config: {
                 resource_id: 'res-1',
                 db_type: 'ORACLE',
                 host: 'db.internal',
                 port: 1521,
-                oracleServiceId: 'ORCL',
-                selectedNicId: 'nic-1',
-              },
+                oracle_service_id: 'ORCL',
+                selected_nic_id: 'nic-1',
+              } as never,
               credential_id: 'cred-1',
             },
           ],

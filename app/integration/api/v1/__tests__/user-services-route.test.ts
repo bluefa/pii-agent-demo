@@ -22,8 +22,8 @@ describe('GET /integration/api/v1/user/services', () => {
   it('returns the Issue #222 camelCase service list as-is', async () => {
     mockedGetServices.mockResolvedValue({
       services: [
-        { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
-        { serviceCode: 'SERVICE-B', serviceName: '서비스 B' },
+        { service_code: 'SERVICE-A', service_name: '서비스 A' },
+        { service_code: 'SERVICE-B', service_name: '서비스 B' },
       ],
     });
 
