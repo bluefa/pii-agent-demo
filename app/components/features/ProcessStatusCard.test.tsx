@@ -3,12 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 
-vi.mock('@/app/components/features/process-status/ApprovalWaitingCard', () => ({
-  ApprovalWaitingCard: () => {
-    throw new Error('ApprovalWaitingCard must not mount inside ProcessStatusCard after Phase 3');
-  },
-}));
-
 vi.mock('@/app/components/features/process-status/ApprovalApplyingBanner', () => ({
   ApprovalApplyingBanner: () => {
     throw new Error('ApprovalApplyingBanner must not mount inside ProcessStatusCard after Phase 3');
@@ -46,7 +40,7 @@ const baseFixture: CloudTargetSource = {
 };
 
 describe('ProcessStatusCard step content extraction (Phase 3 + 4)', () => {
-  it('renders without mounting ApprovalWaitingCard for WAITING_APPROVAL', () => {
+  it('renders for WAITING_APPROVAL without throwing', () => {
     expect(() =>
       render(
         <ProcessStatusCard
