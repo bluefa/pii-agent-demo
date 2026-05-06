@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
@@ -8,11 +9,32 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));
 
+vi.mock('@/app/lib/api', () => ({
+  getProject: vi.fn().mockResolvedValue(undefined),
+  cancelApprovalRequest: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock(
+  '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton',
+  () => ({
+    WaitingApprovalCancelButton: () => <div data-testid="waiting-approval-cancel-button" />,
+  }),
+);
+
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard',
   () => ({
-    WaitingApprovalCard: ({ targetSourceId }: { targetSourceId: number }) => (
-      <div data-testid="waiting-approval-card">{targetSourceId}</div>
+    WaitingApprovalCard: ({
+      targetSourceId,
+      cancelSlot,
+    }: {
+      targetSourceId: number;
+      cancelSlot?: ReactNode;
+    }) => (
+      <div data-testid="waiting-approval-card">
+        {targetSourceId}
+        <div data-testid="cancel-slot">{cancelSlot}</div>
+      </div>
     ),
   }),
 );
@@ -58,7 +80,7 @@ const identityFixture: ProjectIdentity = {
 };
 
 describe('WaitingApprovalStep', () => {
-  it('renders WaitingApprovalCard with the project targetSourceId', () => {
+  it('renders WaitingApprovalCard with the project targetSourceId and a cancel button slot', () => {
     render(
       <WaitingApprovalStep
         project={azureWaitingApprovalFixture}
@@ -70,10 +92,11 @@ describe('WaitingApprovalStep', () => {
     );
 
     const card = screen.getByTestId('waiting-approval-card');
-    expect(card.textContent).toBe('1003');
+    expect(card.textContent).toContain('1003');
+    expect(screen.getByTestId('waiting-approval-cancel-button')).toBeTruthy();
   });
 
-  it('still renders WaitingApprovalCard alongside RejectionAlert when project.isRejected', () => {
+  it('omits the cancel button slot when project.isRejected and still renders RejectionAlert', () => {
     render(
       <WaitingApprovalStep
         project={{ ...azureWaitingApprovalFixture, isRejected: true }}
@@ -86,5 +109,6 @@ describe('WaitingApprovalStep', () => {
 
     expect(screen.getByTestId('waiting-approval-card')).toBeTruthy();
     expect(screen.getByTestId('rejection-alert')).toBeTruthy();
+    expect(screen.queryByTestId('waiting-approval-cancel-button')).toBeNull();
   });
 });
