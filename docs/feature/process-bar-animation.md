@@ -6,7 +6,26 @@
 
 ---
 
-## 0. v2 변경 요약 (vs v1)
+## 0. v3 (post Codex re-review) 변경 사항
+
+v2가 외부 리뷰(Codex)에서 Critical 1 / Major 5 / Minor 5 결함이 발견되어 다음을 정정:
+
+| 영역 | v2 결함 | v3 수정 |
+|---|---|---|
+| 역방향 connector | `transformOrigin: 'right'` + `scaleX(1-local)` 으로 좌→우로 비워짐(반대) | `transformOrigin: 'left'` 통일 + `scaleX(1-local)` → 우→좌 wave drain 정상 |
+| Backward source step | `dir > 0` 분기만 처리 (역행 시 source 원이 snap) | `srcIdx = fromIndex` 통합, 양방향 처리 |
+| Cleanup 미정리 | RAF cancel만, inline style 잔존 | cleanup이 `finalize()` 호출 |
+| Snapshot diff | state 배열 비교만 (length 변경 미감지) | `ids.length` + `ids[]` + `states[]` 모두 비교 |
+| `motion.colors` 중복 | hex 직접 정의로 기존 토큰과 분리 | `colorRaw` SSOT 추가 + `motion.colors`는 참조 |
+| 상대 경로 import | 코드 스케치에 상대 경로 사용 (CLAUDE.md ⛔ 위반) | 모두 `@/` 절대 경로 |
+| handoff 수치 | `invEaseOutQuart(0.98) ≈ 0.526` (잘못된 계산) | `≈ 0.624` → 262ms 정확값 |
+| ariaLabel | optional + Korean default → i18n leak | required prop, 도메인이 부여 |
+| SSR | useLayoutEffect 직접 사용 → React 경고 | `useIsomorphicLayoutEffect` 도입 |
+| RAF 테스트 셋업 | "vi.useFakeTimers + 수동 mock" 만 언급 | 구체 stubs 제공 (§Step 2) |
+| 루트 spacing | `mb-6` 누락 | `<nav className="mb-6">` 으로 보존 |
+| `-1` edge case | edges 배열에 `-1` 들어갈 수 있음 | RAF 시작 전 edges에서 `< 0` 또는 `>= len-1` 인덱스 필터링 |
+
+## 0a. v2 변경 요약 (vs v1)
 
 v1(CSS transition + delay 수식)은 Codex 외부 리뷰에서 Critical 1 / Major 4 / Minor 3 결함이 발견됨. v2는 다음으로 전면 전환:
 
@@ -137,40 +156,62 @@ lib/theme.ts                            # motion 토큰 추가 (motion.colors, m
 
 ## 3. 시간 / 색 토큰
 
-### 3.1 motion 토큰 (lib/theme.ts에 추가)
+### 3.1 raw 색 상수 (lib/theme.ts에 추가)
+
+기존 `primaryColors.bg`, `statusColors.success.dot` 등은 모두 **Tailwind 클래스 문자열** (`'bg-[#0064FF]'`)이다. RAF 색 보간에서는 hex 값이 필요하므로, **단일 진실 공급원(SSOT) raw 상수**를 추가하고 기존 토큰은 이를 참조해 클래스를 생성하도록 정리한다.
 
 ```ts
+// 기존 토큰의 hex 값 일괄 명시 (SSOT)
+export const colorRaw = {
+  primary: '#0064FF',
+  primaryDark: '#0050D6',
+  success: '#45CB85',
+  pendingBg: '#F3F4F6',  // gray-100
+  pendingText: '#9CA3AF', // gray-400
+  white: '#FFFFFF',
+} as const;
+
+// 기존 primaryColors / statusColors 는 이 raw 값을 참조하도록 리팩토 (보존성)
+// 예: bg: `bg-[${colorRaw.primary}]` (Tailwind 4 동적 인라인 가능 여부 확인 필요)
+// 동적 조합이 어려우면 raw는 추가만 하고 기존 토큰은 그대로 둔다 (중복 허용 + 주석으로 동기화 명시).
+```
+
+> **주의**: Tailwind 4의 동적 클래스 조합은 빌드 시점 정적 분석에 의존한다. `bg-[${colorRaw.primary}]` 형태가 인식되지 않을 수 있음. **구현 시 검증 필요** — 인식 안 되면 raw 상수만 추가하고 기존 Tailwind 토큰 문자열은 그대로 보존, 두 곳에서 동일 hex를 사용한다는 사실을 `theme.ts` 상단 주석으로 명시.
+
+### 3.2 motion 토큰 (lib/theme.ts에 추가)
+
+```ts
+import { colorRaw } from '@/lib/theme';
+
 export const motion = {
   // 시간 (ms) — distance-scaled, 아래 §4.2 참조
-  fillMsMin: 420,    // 초소형 N=2 최소
-  fillMsMax: 1200,   // 최장 점프 cap
-  fillMsCapAbs: 1400, // 비상 절대 한계 (디버그용)
-  circleMs: 180,     // 한 개 circle 색 전환
+  fillMsMin: 420,
+  fillMsMax: 1200,
+  circleMs: 180,
   iconCrossfadeMs: 220,
 
   // Visual handoff threshold (0..1)
   visualHandoff: 0.98,
 
-  // Easing
-  fillEasing: 'cubic-bezier(0.22, 1, 0.36, 1)',     // ease-out-quart, brand fill
-  circleEasing: 'cubic-bezier(0.2, 0, 0, 1)',       // 트리거 느낌
-  crossfadeEasing: 'cubic-bezier(0.33, 1, 0.68, 1)', // 잔상 없이 빠른 정리
+  // Easing (string — for future CSS use; RAF는 자체 easing 함수 사용)
+  fillEasing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+  circleEasing: 'cubic-bezier(0.2, 0, 0, 1)',
+  crossfadeEasing: 'cubic-bezier(0.33, 1, 0.68, 1)',
 
-  // 색 (hex, RGB 보간용)
-  // 토큰 raw 값을 motion에서만 노출 — Tailwind 직접 사용 금지
+  // RAF 색 보간용 — raw 상수 재사용 (중복 정의 금지)
   colors: {
-    pendingBg: '#F3F4F6',  // gray-100
-    currentBg: '#0064FF',  // primary
-    completedBg: '#45CB85', // success
-    pendingText: '#9CA3AF', // gray-400
-    activeText: '#FFFFFF',
+    pendingBg: colorRaw.pendingBg,
+    currentBg: colorRaw.primary,
+    completedBg: colorRaw.success,
+    pendingText: colorRaw.pendingText,
+    activeText: colorRaw.white,
   },
 } as const;
 ```
 
-### 3.2 왜 RGB 보간 색을 토큰화하는가
+### 3.3 왜 RGB 보간 색을 토큰화하는가
 
-CSS transition은 `transition-property: background-color` 만 지정하면 알아서 보간하지만, RAF 방식은 JS에서 직접 `style.backgroundColor = mix(from, to, t)` 를 설정해야 한다. 따라서 **raw hex 값**이 필요. Tailwind 클래스(`bg-[#0064FF]`)는 정적이라 사용 불가. 이 raw 값을 feature 코드에 흩어놓지 않고 `motion.colors`에 모아둠 → 변경 시 단일 지점.
+CSS transition은 `transition-property: background-color` 만 지정하면 알아서 보간하지만, RAF 방식은 JS에서 직접 `style.backgroundColor = mix(from, to, t)` 를 설정해야 한다. 따라서 **hex 값**이 필요. Tailwind 클래스(`bg-[#0064FF]`)는 정적이라 사용 불가. **`colorRaw` 가 SSOT**이고 `motion.colors`는 이를 참조 — 디자인 토큰 중복 0.
 
 ---
 
@@ -230,7 +271,10 @@ export const runStepperMotion = (run: MotionRun): (() => void) => {
   // Edges actually traveled (forward: fromIndex..toIndex-1, backward: fromIndex-1..toIndex)
   const edgeCount = Math.abs(toIndex - fromIndex);
   const firstEdge = dir > 0 ? fromIndex : fromIndex - 1;
-  const edges = Array.from({ length: edgeCount }, (_, k) => firstEdge + k * dir);
+  const rawEdges = Array.from({ length: edgeCount }, (_, k) => firstEdge + k * dir);
+  // 가상 endpoint 제거: connector는 [0, len-2] 범위 내에서만 존재.
+  // -1 또는 len-1 같은 가상 edge는 RAF 처리에서 skip.
+  const edges = rawEdges.filter(e => e >= 0 && e < fillRefs.length);
 
   // Measure each connector's actual width (layout-aware → adapts to responsive)
   const lengths = edges.map(e => {
@@ -263,9 +307,10 @@ export const runStepperMotion = (run: MotionRun): (() => void) => {
       const local = clamp01((front - starts[order]) / lengths[order]);
 
       // 1) Connector fill — transform: scaleX (compositor)
+      // 항상 origin 'left'. forward는 0→1 채움, backward는 1→0 으로 우→좌 wave drain.
       const fill = fillRefs[edge];
       if (fill) {
-        fill.style.transformOrigin = dir > 0 ? 'left center' : 'right center';
+        fill.style.transformOrigin = 'left center';
         fill.style.transform = `scaleX(${dir > 0 ? local : 1 - local})`;
       }
 
@@ -312,25 +357,32 @@ export const runStepperMotion = (run: MotionRun): (() => void) => {
       }
     });
 
-    // Source step (the one we're leaving in forward, or arriving in backward)
-    // also needs immediate state transition starting at t=0
-    if (dir > 0 && fromStates[fromIndex] !== toStates[fromIndex]) {
-      const srcCircle = circleRefs[fromIndex];
+    // Source step animation (immediate, no handoff delay).
+    // Forward: source는 fromIndex (떠나는 step) — current → completed
+    // Backward: source는 fromIndex (떠나는 step) — completed/current → pending
+    // 두 방향 모두 t=0부터 즉시 색·아이콘 전환 시작.
+    const srcIdx = fromIndex;
+    if (
+      srcIdx >= 0 && srcIdx < toStates.length &&
+      fromStates[srcIdx] !== toStates[srcIdx]
+    ) {
+      const srcCircle = circleRefs[srcIdx];
       const tail = easeOutCubic(clamp01(elapsed / motion.circleMs));
       if (srcCircle) {
         srcCircle.style.backgroundColor = mixHex(
-          stateColor(fromStates[fromIndex]), stateColor(toStates[fromIndex]), tail,
+          stateColor(fromStates[srcIdx]), stateColor(toStates[srcIdx]), tail,
         );
         srcCircle.style.color = mixHex(
-          stateTextColor(fromStates[fromIndex]), stateTextColor(toStates[fromIndex]), tail,
+          stateTextColor(fromStates[srcIdx]), stateTextColor(toStates[srcIdx]), tail,
         );
       }
-      const numEl = iconNumberRefs[fromIndex];
-      const chkEl = iconCheckRefs[fromIndex];
-      if (numEl && chkEl &&
-          (fromStates[fromIndex] === 'completed') !== (toStates[fromIndex] === 'completed')) {
+      const numEl = iconNumberRefs[srcIdx];
+      const chkEl = iconCheckRefs[srcIdx];
+      const wasCheck = fromStates[srcIdx] === 'completed';
+      const willCheck = toStates[srcIdx] === 'completed';
+      if (numEl && chkEl && wasCheck !== willCheck) {
         const fade = clamp01(elapsed / motion.iconCrossfadeMs);
-        if (toStates[fromIndex] === 'completed') {
+        if (willCheck) {
           numEl.style.opacity = String(1 - fade);
           chkEl.style.opacity = String(fade);
         } else {
@@ -343,7 +395,7 @@ export const runStepperMotion = (run: MotionRun): (() => void) => {
     if (elapsed < duration + motion.circleMs) {
       frame = requestAnimationFrame(draw);
     } else {
-      // Snap to final state and clear inline styles so CSS hover/focus work normally
+      // Natural completion: snap to final state and clear inline styles so CSS hover/focus work normally
       finalize(run);
       onDone?.();
     }
@@ -352,8 +404,12 @@ export const runStepperMotion = (run: MotionRun): (() => void) => {
   frame = requestAnimationFrame(draw);
 
   return () => {
+    if (cancelled) return;
     cancelled = true;
     cancelAnimationFrame(frame);
+    // CRITICAL: cleanup도 inline style을 비워 CSS final state가 즉시 적용되도록.
+    // 인터럽트 시 partial fill이 남으면 다음 RAF 시작 전 시각 잔상 발생 가능.
+    finalize(run);
   };
 };
 
@@ -395,30 +451,56 @@ duration = clamp(distance / 1.6 + (edgeCount - 1) * 36, fillMsMin, fillMsMax)
 
 `VISUAL_HANDOFF = 0.98` 의미: wave-front가 한 connector 길이의 **98% 지점**에 도달하면 그 끝의 circle이 색 전환을 시작.
 
-ease-out-quart 곡선 위에서 progress 0.98에 도달하는 elapsed 비율은 `invEaseOutQuart(0.98) ≈ 0.526` → 약 절반 시간. 즉 fill 시작 후 **~210ms** (420ms 기준)에 circle이 반응 시작 → 이때 wave-tip은 시각적으로 거의 도착.
+ease-out-quart 곡선 위에서 progress 0.98에 도달하는 elapsed 비율은 `invEaseOutQuart(0.98) = 1 - 0.02^(1/4) ≈ 0.624` → 약 60% 시간. 즉 fill 시작 후 **~262ms** (420ms 기준)에 circle이 반응 시작 → 이때 wave-tip은 시각적으로 거의 도착.
+
+> Step1→Step3 같은 multi-edge 점프에서는 distance가 누적되므로 두 번째 connector의 handoff는 더 늦게 발동. 예: 두 connector 길이가 같고 총 fill duration이 420ms일 때, connector 0의 handoff ≈ `invEaseOutQuart(0.5 * 0.98) = 1 - 0.51^(1/4) ≈ 0.155` × 420ms ≈ **65ms**, connector 1의 handoff ≈ `invEaseOutQuart(0.5 + 0.5 * 0.98) ≈ 0.683` × 420ms ≈ **287ms**. 두 단계 사이 cascade가 자연스럽게 느려진다.
 
 이는 v1의 시간 기반 300ms 보다 정확. **wave가 직접 측정한 위치**로 트리거하기 때문에 fill duration이 변해도(distance scaling) 자동으로 따라감.
 
 ### 4.4 First-mount snap pattern
 
 ```tsx
+import { useIsomorphicLayoutEffect } from '@/lib/hooks/useIsomorphicLayoutEffect';
+
 const hasMountedRef = useRef(false);
 
-useLayoutEffect(() => {
+useIsomorphicLayoutEffect(() => {
   if (!hasMountedRef.current) {
     hasMountedRef.current = true;
     // 첫 paint: 모든 inline style 비워서 props state대로 CSS 클래스가 적용되게
     return; // RAF 없음
   }
-  // 이후 props 변경 시에만 RAF 실행
+  // 이후 semantic 변경 시에만 RAF 실행 (snapshot diff §4.4.1)
   const cleanup = runStepperMotion({ ... });
   return cleanup;
-}, [activeIndex, JSON.stringify(stepStates)]);
+}, [activeIndex, snapshotKey]);
 ```
 
-`useLayoutEffect` 사용 이유: paint 전에 visual state를 결정해 첫 프레임 깜빡임 방지.
+#### Snapshot key 정의
 
-`hasMountedRef`로 "첫 마운트 vs 후속 변경"을 명시적으로 구분 → 같은 인덱스 내 state 변경(예: 라벨만 바뀜)이 잘못 RAF를 트리거하지 않음.
+```ts
+const snapshotKey = useMemo(() => {
+  // 동일 step list 길이 / id 순서 / state 모두 동일하면 같은 key
+  return steps.map(s => `${s.id}:${s.state}`).join('|') + `:${steps.length}`;
+}, [steps]);
+```
+
+라벨 변경은 RAF를 트리거하지 않음 (key에 포함 안 함). step 추가/삭제·id 변경·state 변경만 트리거.
+
+#### 왜 isomorphic?
+
+`useLayoutEffect` 는 SSR 시 React가 경고를 띄운다. Next.js App Router는 client component를 SSR로 prerender 하므로 영향 받음. 표준 회피 패턴:
+
+```ts
+// lib/hooks/useIsomorphicLayoutEffect.ts
+import { useEffect, useLayoutEffect } from 'react';
+export const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+```
+
+#### 왜 `hasMountedRef`?
+
+`prevIndex === currentIndex` 같은 우회는 같은 인덱스 내 state 배열 변경(예: customSteps에서 다른 step의 state만 바뀜)을 감지하지 못한다. 명시적인 mount flag가 정직하다.
 
 ### 4.5 Circle micro-motion (scale pulse)
 
@@ -498,9 +580,23 @@ useLayoutEffect(() => {
 
 ## 5. 코드 스케치
 
-### 5.1 `useReducedMotion` 훅
+### 5.1 hooks
+
+#### 5.1.1 `useReducedMotion`
 
 §4.7 참조.
+
+#### 5.1.2 `useIsomorphicLayoutEffect`
+
+```ts
+// lib/hooks/useIsomorphicLayoutEffect.ts
+import { useEffect, useLayoutEffect } from 'react';
+
+export const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+```
+
+SSR(prerender) 환경에서 `useLayoutEffect` 의 React 경고를 회피.
 
 ### 5.2 `colorMix.ts`
 
@@ -557,11 +653,15 @@ export const CheckIcon = ({ className, ...rest }: IconProps) => (
 ```tsx
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { CheckIcon } from '@/app/components/ui/icons';
+import { useIsomorphicLayoutEffect } from '@/lib/hooks/useIsomorphicLayoutEffect';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 import { cn, primaryColors, statusColors } from '@/lib/theme';
-import { runStepperMotion, type StepState } from './motion/stepperMotionEngine';
+import {
+  runStepperMotion,
+  type StepState,
+} from '@/app/components/features/process-status/motion/stepperMotionEngine';
 
 export interface ProgressBarStep {
   id: string;
@@ -571,7 +671,7 @@ export interface ProgressBarStep {
 
 interface Props {
   steps: ProgressBarStep[];
-  ariaLabel?: string;
+  ariaLabel: string; // 필수 — 도메인이 의미를 부여 (i18n leakage 방지)
 }
 
 const findActiveIndex = (items: ProgressBarStep[]): number => {
@@ -591,25 +691,30 @@ export const ProcessProgressBar = ({ steps, ariaLabel }: Props) => {
   const iconNumberRefs = useRef<Array<HTMLElement | null>>([]);
   const iconCheckRefs = useRef<Array<HTMLElement | null>>([]);
 
-  const prevSnapshotRef = useRef<{ idx: number; states: StepState[] }>({
+  const prevSnapshotRef = useRef<{ idx: number; ids: string[]; states: StepState[] }>({
     idx: activeIndex,
+    ids: steps.map(s => s.id),
     states: steps.map(s => s.state),
   });
   const hasMountedRef = useRef(false);
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
+    const currentIds = steps.map(s => s.id);
     const currentStates = steps.map(s => s.state);
 
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
-      prevSnapshotRef.current = { idx: activeIndex, states: currentStates };
+      prevSnapshotRef.current = { idx: activeIndex, ids: currentIds, states: currentStates };
       return;
     }
 
     const prev = prevSnapshotRef.current;
-    if (prev.idx === activeIndex && prev.states.every((s, i) => s === currentStates[i])) {
-      return; // no semantic change
+    const samelen = prev.ids.length === currentIds.length;
+    const sameIds = samelen && prev.ids.every((id, i) => id === currentIds[i]);
+    const sameStates = samelen && prev.states.every((s, i) => s === currentStates[i]);
+    if (prev.idx === activeIndex && sameIds && sameStates) {
+      return; // no semantic change (라벨만 변경된 경우 등)
     }
 
     // Cancel any in-flight animation before starting new one
@@ -634,16 +739,21 @@ export const ProcessProgressBar = ({ steps, ariaLabel }: Props) => {
       },
     });
 
-    prevSnapshotRef.current = { idx: activeIndex, states: currentStates };
+    prevSnapshotRef.current = { idx: activeIndex, ids: currentIds, states: currentStates };
 
     return () => {
       cleanupRef.current?.();
       cleanupRef.current = null;
     };
-  }, [activeIndex, steps, reduced]);
+  }, [activeIndex, snapshotKey, reduced]);
+
+  const snapshotKey = useMemo(
+    () => steps.map(s => `${s.id}:${s.state}`).join('|') + `:${steps.length}`,
+    [steps],
+  );
 
   return (
-    <nav aria-label={ariaLabel ?? '진행 단계'}>
+    <nav aria-label={ariaLabel} className="mb-6">
       <ol
         className="grid items-start"
         style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
@@ -734,7 +844,10 @@ export const ProcessProgressBar = ({ steps, ariaLabel }: Props) => {
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { ProcessProgressBar, type ProgressBarStep } from './ProcessProgressBar';
+import {
+  ProcessProgressBar,
+  type ProgressBarStep,
+} from '@/app/components/features/process-status/ProcessProgressBar';
 
 const INSTALL_STEPS = [
   { step: ProcessStatus.WAITING_TARGET_CONFIRMATION, label: '연동 대상 DB 선택' },
@@ -763,7 +876,10 @@ interface Props {
 }
 
 export const InstallationProcessProgressBar = ({ currentStep }: Props) => (
-  <ProcessProgressBar steps={toSteps(currentStep)} ariaLabel="설치 진행 단계" />
+  <ProcessProgressBar
+    steps={toSteps(currentStep)}
+    ariaLabel="설치 진행 단계"
+  />
 );
 ```
 
@@ -827,13 +943,55 @@ export const InstallationProcessProgressBar = ({ currentStep }: Props) => (
 ### Step 2 — RAF Engine
 - `motion/stepperMotionEngine.ts` 작성
 - `runStepperMotion` 시그니처/cleanup 패턴 확정
+- **cleanup이 `finalize()` 호출** — 인터럽트 시 inline style 정리
+- **`transformOrigin` 항상 `'left center'`** — backward는 scale을 1→0으로 줄여 우→좌 wave drain 구현
+- **backward source step도 RAF 처리** (`dir < 0` 일 때 `fromIndex` circle도 즉시 색 전환)
 - 단위 테스트:
   - `dir === 0` → onDone 즉시 호출
-  - `dir > 0` 단순 케이스 → fill scaleX 1까지 도달
-  - `dir < 0` → fill scaleX 0까지 빠짐
-  - reduced-motion 분기 → RAF 미실행
+  - `dir > 0` 단순 케이스 → fill scaleX 1까지 도달, transformOrigin = 'left center'
+  - `dir < 0` → fill scaleX 0까지 빠짐, transformOrigin = 'left center'
+  - **Step1→Step3 forward**: connector 0의 handoff < connector 1의 handoff
+  - **Step3→Step1 backward**: source step (Step3)의 색 즉시 전환 시작
+  - cleanup 호출 시 모든 inline style 비워짐
   - distance 계산 = sum(lengths) 정확
-- jsdom에서 `requestAnimationFrame` polyfill 필요 → 시뮬레이션은 `vi.useFakeTimers` + 수동 RAF mock
+
+#### RAF/timer mocking 셋업
+
+vitest 기본 환경(`node`)은 `requestAnimationFrame` / `performance.now`를 제공하지 않음. 엔진 테스트용 셋업:
+
+```ts
+// app/components/features/process-status/motion/stepperMotionEngine.test.ts
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+let now = 0;
+const rafCallbacks: Array<(t: number) => void> = [];
+
+beforeEach(() => {
+  now = 0;
+  rafCallbacks.length = 0;
+  vi.stubGlobal('requestAnimationFrame', (cb: (t: number) => void) => {
+    rafCallbacks.push(cb);
+    return rafCallbacks.length;
+  });
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+    rafCallbacks[id - 1] = () => undefined;
+  });
+  vi.stubGlobal('performance', { now: () => now });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const tick = (deltaMs: number) => {
+  now += deltaMs;
+  const cbs = rafCallbacks.splice(0);
+  cbs.forEach(cb => cb(now));
+};
+```
+
+DOM ref에는 `document.createElement('div')` mock 사용. `getBoundingClientRect()` 는 jsdom에서 zero를 반환하므로 spy로 length 주입.
+
 - **검증**: 엔진 테스트 모두 통과
 
 ### Step 3 — Generic ProcessProgressBar
