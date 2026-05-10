@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import {
@@ -64,6 +65,26 @@ describe('ProcessProgressBar', () => {
     expect(callArg.fromIndex).toBe(0);
     expect(callArg.toIndex).toBe(2);
     expect(callArg.fromStates).toEqual(Array(7).fill('pending'));
+  });
+
+  it('re-triggers entry animation under StrictMode (effect double-invoke)', () => {
+    // React 18 StrictMode dev runs setup -> cleanup -> setup on mount. The
+    // first setup's animation gets cancelled by cleanup; the second setup
+    // must restart entry from the synthesized "all pending" snapshot
+    // (entryDoneRef stays false until the animation completes naturally).
+    // Without the entryDoneRef gate, setup2 would treat entry as already
+    // done and snap to the final state — exactly the "fully loaded"
+    // symptom seen on Next.js App Router client navigation.
+    render(
+      <StrictMode>
+        <ProcessProgressBar steps={buildSteps(7, 2)} ariaLabel="install" />
+      </StrictMode>,
+    );
+    expect(runStepperMotionMock).toHaveBeenCalledTimes(2);
+    const secondArg = runStepperMotionMock.mock.calls[1][0];
+    expect(secondArg.fromIndex).toBe(0);
+    expect(secondArg.toIndex).toBe(2);
+    expect(secondArg.fromStates).toEqual(Array(7).fill('pending'));
   });
 
   it('does not animate on first mount when active index is 0', () => {
