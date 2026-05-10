@@ -87,9 +87,6 @@ app/components/ui/icons/
 ├── CheckIcon.tsx
 └── index.ts                                # add export
 
-app/playground/process-bar/
-└── page.tsx                                # 시각 검증 데모 (NEW)
-
 lib/hooks/
 ├── useReducedMotion.ts
 └── useIsomorphicLayoutEffect.ts
@@ -805,20 +802,7 @@ export const InstallationProcessProgressBar = ({ currentStep }: Props) => (
 );
 ```
 
-### 5.3 데모 페이지 (`app/playground/process-bar/page.tsx`)
-
-prototype 의 controls 를 React 로 옮긴 검증용 페이지. 시각 회귀 / 시나리오 빠른 확인.
-
-요구사항:
-- N 개수 조절 (2~15)
-- 현재 step 버튼 (1..N)
-- 시나리오: +1 forward / 1→3 jump / 3→1 backward / 1→N (전체) / Reset
-- Reduced motion 토글
-- Distance / Duration / Direction 메타 표시
-
-세부 구현은 designer 에이전트가 prototype 의 controls 를 참고해 작성. (프로토타입은 vanilla JS, 데모 페이지는 React.)
-
-### 5.4 supporting modules
+### 5.3 supporting modules
 
 #### `motion/easing.ts`
 
@@ -913,7 +897,6 @@ export const CheckIcon = ({ className, ...rest }: IconProps) => (
 | AC16 | 라벨 색은 CSS `transition-colors duration-220` (RAF는 라벨 색 미관여) | 수동 |
 | AC17 | `transitionend` / `setTimeout` 의존 0건 (RAF 단일 driver) | 코드 리뷰 |
 | AC18 | **prototype Slow Version 시각·속도와 일치** — `design/ProcessBar Motion Prototype.html` 의 "Slow-mo (×3)" 토글 ON 상태와 비교했을 때 차이 인지 불가 | 수동 (split-screen 비교) |
-| AC19 | 데모 페이지 `/playground/process-bar` 접근 가능, 모든 시나리오 버튼 동작 | 수동 |
 
 ---
 
@@ -991,19 +974,15 @@ DOM ref 는 `document.createElement('div')` mock. `getBoundingClientRect()` 는 
   export const StepProgressBar = InstallationProcessProgressBar;
   ```
 
-### Step 6 — 데모 페이지
-- `app/playground/process-bar/page.tsx`
-- prototype 의 controls 를 React 로 이식
-- 시나리오 버튼, N 조절, reduced-motion 토글, 메타 표시
-- 인증 게이팅 우회 필요 시 middleware 확인
+### Step 6 — 시각 검증
+- `npm run dev`
+- 실제 consumer (`ProcessStatusCard`, `GuidePreviewPanel`) 페이지에서 시나리오 확인
+  - mock seed 또는 dev 도구로 `currentStep` 변경: 단일 진행 / 1→3 / 3→1 / 1→7
+- `design/ProcessBar Motion Prototype.html` Slow-mo ON 상태와 split-screen 비교 (AC18)
+- macOS "동작 줄이기" ON 상태 검증
+- 회귀 없음 확인
 
-### Step 7 — 시각 검증
-- `npm run dev` → `/playground/process-bar`
-- prototype Slow ON 상태와 split-screen 비교 (AC18)
-- 모든 시나리오 버튼 동작 확인 (AC19)
-- `ProcessStatusCard`, `GuidePreviewPanel` 회귀 없음
-
-### Step 8 — 정리
+### Step 7 — 정리
 - `StepIndicator.tsx` 통합 follow-up 메모
 - 단위 테스트 전체 green
 - lint / tsc 통과
@@ -1022,7 +1001,6 @@ DOM ref 는 `document.createElement('div')` mock. `getBoundingClientRect()` 는 
 - `lib/theme.ts` 의 `colorRaw`, `motion`
 - `app/components/features/process-status/motion/*`
 - `ProcessProgressBar`, `InstallationProcessProgressBar`
-- `app/playground/process-bar/page.tsx`
 
 ### Deprecate
 - `StepProgressBar` → alias 1 cycle 후 제거
@@ -1045,9 +1023,7 @@ DOM ref 는 `document.createElement('div')` mock. `getBoundingClientRect()` 는 
 
 1. **Tailwind 4 동적 hex class**: `bg-[${colorRaw.success}]` 가 정적 분석으로 인식되는지 구현 시 검증. 안 되면 globals.css 의 CSS variable 또는 modular CSS 사용.
 2. **Slow N=15 점프 3.6초**: 사용자가 답답함 느끼면 fillMsMax 를 3000 정도로 조정 가능 (한 줄 변경).
-3. **`/playground/*` 라우트가 production build 에 포함될지**: middleware 또는 build-time exclude 가 필요한지 확인. dev 전용 페이지로 두고 production 에서 404 가 나도록 하는 옵션도 있음.
-4. **데모 페이지 i18n**: 한국어 UI 권장 (CLAUDE.md UI 룰), 영어 페이지는 추후.
-5. **prototype CSS 가 Tailwind 토큰과 어긋날 때**: prototype = source of truth (사용자 결정). theme 토큰이 부족하면 `colorRaw` 에 추가.
+3. **prototype CSS 가 Tailwind 토큰과 어긋날 때**: prototype = source of truth (사용자 결정). theme 토큰이 부족하면 `colorRaw` 에 추가.
 
 ---
 
@@ -1071,4 +1047,6 @@ DOM ref 는 `document.createElement('div')` mock. `getBoundingClientRect()` 는 
 
 `design/ProcessBar Motion Prototype.html` 의 **Slow-mo (×3) 토글 ON 상태**가 본 구현의 시각·속도 spec.
 
-prototype 을 브라우저에서 열고 "Slow-mo" 체크 → 시나리오 버튼 클릭으로 모든 패턴 확인 가능. 구현 결과물(`/playground/process-bar`)은 prototype 과 시각 인지 차이 없음을 목표.
+prototype 을 브라우저에서 열고 "Slow-mo" 체크 → 시나리오 버튼으로 모든 패턴 확인 가능. 구현 결과물(`ProcessStatusCard`, `GuidePreviewPanel` 등 실제 consumer)은 prototype 과 시각 인지 차이 없음을 목표.
+
+별도 데모 페이지는 만들지 않는다 — prototype HTML 로 시각 검증 충분.
