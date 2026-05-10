@@ -71,17 +71,32 @@ export const ProcessProgressBar = ({
     const currentIds = steps.map((s) => s.id);
     const currentStates = steps.map((s) => s.state);
 
-    if (!hasMountedRef.current) {
+    const isFirstMount = !hasMountedRef.current;
+    if (isFirstMount) {
       hasMountedRef.current = true;
-      prevSnapshotRef.current = {
-        idx: activeIndex,
-        ids: currentIds,
-        states: currentStates,
-      };
-      return;
     }
 
-    const prev = prevSnapshotRef.current;
+    let prev: { idx: number; ids: string[]; states: StepState[] };
+    if (isFirstMount) {
+      if (activeIndex < 1 || reduced) {
+        prevSnapshotRef.current = {
+          idx: activeIndex,
+          ids: currentIds,
+          states: currentStates,
+        };
+        return;
+      }
+      // Synthesize a "before-entry" snapshot so the wave fills from step 1
+      // up to the actual current step on first paint.
+      prev = {
+        idx: 0,
+        ids: currentIds,
+        states: currentIds.map(() => 'pending' as StepState),
+      };
+    } else {
+      prev = prevSnapshotRef.current;
+    }
+
     const sameLen = prev.ids.length === currentIds.length;
     const sameIds = sameLen && prev.ids.every((id, i) => id === currentIds[i]);
     const sameStates =
