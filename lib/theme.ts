@@ -3,7 +3,27 @@
  *
  * 이 파일은 UI 스타일을 중앙에서 관리합니다.
  * Look & Feel 변경 시 이 파일만 수정하면 됩니다.
+ *
+ * `colorRaw` (below) holds raw hex values; the Tailwind class strings
+ * (primaryColors, statusColors, ...) reuse the same hex literals. Keep them
+ * in sync — the class strings cannot be derived from `colorRaw` because
+ * Tailwind's class extraction is static.
  */
+
+// =============================================================================
+// Raw color SSOT — used by RAF color interpolation (motion.colors)
+// =============================================================================
+
+export const colorRaw = {
+  primary: '#0064FF',
+  primaryDark: '#0050D6',
+  success: '#45CB85',
+  successDark: '#2A7D52',
+  pendingBg: '#F3F4F6',
+  pendingText: '#9CA3AF',
+  connectorTrack: '#E5E7EB',
+  white: '#FFFFFF',
+} as const;
 
 // =============================================================================
 // 색상 (Colors)
@@ -468,6 +488,36 @@ export const getInputClass = (state?: 'error' | 'success'): string => {
   if (state === 'success') return cn(inputStyles.base, inputStyles.success);
   return inputStyles.base;
 };
+
+// =============================================================================
+// Motion tokens (RAF wave-front animation — see process-bar-animation.md)
+// Slow Version is the production default (3x prototype's normal speed).
+// =============================================================================
+
+export const motion = {
+  fillMsMin: 1260,
+  fillMsMax: 3600,
+  circleMs: 540,
+  iconCrossfadeMs: 660,
+
+  baseSpeed: 0.53,
+  stepBonus: 108,
+
+  visualHandoff: 0.98,
+  pulseAmplitude: 0.06,
+
+  fillEasing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+  circleEasing: 'cubic-bezier(0.2, 0, 0, 1)',
+  crossfadeEasing: 'cubic-bezier(0.33, 1, 0.68, 1)',
+
+  colors: {
+    pendingBg: colorRaw.pendingBg,
+    currentBg: colorRaw.primary,
+    completedBg: colorRaw.success,
+    pendingText: colorRaw.pendingText,
+    activeText: colorRaw.white,
+  },
+} as const;
 
 // =============================================================================
 // 타입 내보내기 (Type Exports)
