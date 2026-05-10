@@ -20,7 +20,7 @@
 
 import { GuideCardInvalidState } from '@/app/components/features/process-status/GuideCard/GuideCardInvalidState';
 import { GuideCardPure } from '@/app/components/features/process-status/GuideCard/GuideCardPure';
-import { StepProgressBar } from '@/app/components/features/process-status/StepProgressBar';
+import { InstallationProcessProgressBar } from '@/app/components/features/process-status/InstallationProcessProgressBar';
 import { useDebounce } from '@/app/hooks/useDebounce';
 import { ProcessStatus } from '@/lib/types';
 import { GuidePlaceholder } from '@/app/integration/admin/guides/components/GuidePlaceholder';
@@ -104,9 +104,11 @@ export const GuidePreviewPanel = ({
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {slot.placement.kind === 'process-step' && (
           // Mirror the user-facing process modal — use the same
-          // StepProgressBar so admins see the exact widget the end
+          // installation widget so admins see the exact widget the end
           // user sees, with the canonical 7-step labels.
-          <StepProgressBar currentStep={slot.placement.step as ProcessStatus} />
+          <InstallationProcessProgressBar
+            currentStep={slot.placement.step as ProcessStatus}
+          />
         )}
         {isEmpty ? (
           <PreviewEmptyLang lang={activeLang} />

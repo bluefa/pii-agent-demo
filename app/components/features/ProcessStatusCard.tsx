@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
-import { StepProgressBar } from './process-status';
+import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
 import { TIMINGS } from '@/lib/constants/timings';
-import { cn, primaryColors, interactiveColors } from '@/lib/theme';
+import { borderColors, cn, primaryColors, interactiveColors } from '@/lib/theme';
 
 type ProcessTabType = 'status';
 
@@ -75,7 +75,7 @@ export const ProcessStatusCard = ({
 
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
-      <div className="border-b border-gray-200">
+      <div className={cn('border-b', borderColors.default)}>
         <nav className="flex">
           {TABS.map((tab) => (
             <button
@@ -95,7 +95,9 @@ export const ProcessStatusCard = ({
       </div>
 
       <div className="p-6 flex-1 flex flex-col">
-        {activeTab === 'status' && <StepProgressBar currentStep={currentStep} />}
+        {activeTab === 'status' && (
+          <InstallationProcessProgressBar currentStep={currentStep} />
+        )}
       </div>
     </div>
   );

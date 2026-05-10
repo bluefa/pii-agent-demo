@@ -1,6 +1,7 @@
 export type { IconProps } from '@/app/components/ui/icons/types';
 
 // sorted alphabetically; group by concern if the list grows
+export { CheckIcon } from '@/app/components/ui/icons/CheckIcon';
 export { ChevronDownIcon } from '@/app/components/ui/icons/ChevronDownIcon';
 export { ClockIcon } from '@/app/components/ui/icons/ClockIcon';
 export { CloseIcon } from '@/app/components/ui/icons/CloseIcon';
