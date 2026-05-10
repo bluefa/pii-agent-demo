@@ -4,7 +4,13 @@ import { useMemo, useRef } from 'react';
 import { CheckIcon } from '@/app/components/ui/icons';
 import { useIsomorphicLayoutEffect } from '@/lib/hooks/useIsomorphicLayoutEffect';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
-import { cn } from '@/lib/theme';
+import {
+  bgColors,
+  cn,
+  primaryColors,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
 import {
   runStepperMotion,
   type StepState,
@@ -150,9 +156,16 @@ export const ProcessProgressBar = ({
                     'relative w-10 h-10 rounded-full grid place-items-center font-mono text-xs font-semibold',
                     'transition-shadow duration-200 ease-out',
                     isCurrent &&
-                      'bg-[#0064FF] text-white shadow-[0_0_0_6px_rgba(0,100,255,0.10)]',
-                    isCompleted && 'bg-[#45CB85] text-white',
-                    !isCurrent && !isCompleted && 'bg-[#F3F4F6] text-[#9CA3AF]',
+                      cn(
+                        primaryColors.bg,
+                        textColors.inverse,
+                        primaryColors.haloRingSoft,
+                      ),
+                    isCompleted &&
+                      cn(statusColors.success.dot, textColors.inverse),
+                    !isCurrent &&
+                      !isCompleted &&
+                      cn(statusColors.pending.bg, statusColors.pending.text),
                   )}
                   style={{ willChange: 'transform, background-color' }}
                 >
@@ -181,9 +194,9 @@ export const ProcessProgressBar = ({
                   className={cn(
                     'mt-2.5 text-xs font-medium text-center max-w-[130px] leading-[1.35]',
                     'transition-colors duration-[220ms] ease-out motion-reduce:transition-none',
-                    isCurrent && 'text-[#0064FF] font-semibold',
-                    isCompleted && 'text-[#2A7D52]',
-                    !isCurrent && !isCompleted && 'text-[#9CA3AF]',
+                    isCurrent && cn(primaryColors.text, 'font-semibold'),
+                    isCompleted && statusColors.success.textDark,
+                    !isCurrent && !isCompleted && statusColors.pending.text,
                   )}
                   style={{ wordBreak: 'keep-all' }}
                 >
@@ -192,7 +205,10 @@ export const ProcessProgressBar = ({
               </div>
               {!isLast && (
                 <div
-                  className="absolute h-[2px] bg-[#E5E7EB] rounded-[2px] overflow-hidden z-[1]"
+                  className={cn(
+                    'absolute h-[2px] rounded-full overflow-hidden z-[1]',
+                    bgColors.divider,
+                  )}
                   style={{
                     top: '19px',
                     left: 'calc(50% + 24px)',
@@ -203,7 +219,10 @@ export const ProcessProgressBar = ({
                     ref={(el) => {
                       fillRefs.current[index] = el;
                     }}
-                    className="absolute inset-0 bg-[#45CB85] rounded-[2px]"
+                    className={cn(
+                      'absolute inset-0 rounded-full',
+                      statusColors.success.dot,
+                    )}
                     style={{
                       transform: isCompleted ? 'scaleX(1)' : 'scaleX(0)',
                       transformOrigin: 'left center',
