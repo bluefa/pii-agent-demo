@@ -15,7 +15,7 @@ vi.mock('@/app/lib/api', () => ({
 }));
 
 vi.mock('@/app/components/features/process-status', () => ({
-  StepProgressBar: () => null,
+  InstallationProcessProgressBar: () => null,
 }));
 
 vi.mock('@/app/components/features/history', () => ({
