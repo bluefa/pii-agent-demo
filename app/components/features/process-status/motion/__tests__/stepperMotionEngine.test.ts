@@ -63,34 +63,49 @@ const makeEl = (width = 200): HTMLElement => {
   return fill;
 };
 
+interface BuiltRun {
+  fromIndex: number;
+  toIndex: number;
+  fromStates: StepState[];
+  toStates: StepState[];
+  fillRefs: HTMLElement[];
+  circleRefs: HTMLElement[];
+  iconNumberRefs: HTMLElement[];
+  iconCheckRefs: HTMLElement[];
+}
+
 const buildRun = (
   fromIndex: number,
   toIndex: number,
   fromStates: StepState[],
   toStates: StepState[],
   options: { connectorWidth?: number } = {},
-) => {
+): BuiltRun => {
   const n = fromStates.length;
-  const fillRefs = Array.from({ length: n - 1 }, () =>
-    makeEl(options.connectorWidth ?? 200),
-  );
-  const circleRefs = Array.from({ length: n }, () => document.createElement('div'));
-  const iconNumberRefs = Array.from({ length: n }, () =>
-    document.createElement('span'),
-  );
-  const iconCheckRefs = Array.from({ length: n }, () =>
-    document.createElement('span'),
-  );
   return {
     fromIndex,
     toIndex,
     fromStates,
     toStates,
-    fillRefs,
-    circleRefs,
-    iconNumberRefs,
-    iconCheckRefs,
+    fillRefs: Array.from({ length: n - 1 }, () =>
+      makeEl(options.connectorWidth ?? 200),
+    ),
+    circleRefs: Array.from({ length: n }, () =>
+      document.createElement('div'),
+    ),
+    iconNumberRefs: Array.from({ length: n }, () =>
+      document.createElement('span'),
+    ),
+    iconCheckRefs: Array.from({ length: n }, () =>
+      document.createElement('span'),
+    ),
   };
+};
+
+const extractScaleX = (transform: string): number => {
+  const m = transform.match(/scaleX\(([\d.]+)\)/);
+  expect(m).not.toBeNull();
+  return Number(m ? m[1] : '0');
 };
 
 describe('runStepperMotion', () => {
@@ -116,7 +131,7 @@ describe('runStepperMotion', () => {
     runStepperMotion(run);
     tickUntilEmpty();
 
-    const fill = run.fillRefs[0]!;
+    const fill = run.fillRefs[0];
     expect(fill.style.transformOrigin).toBe('left center');
     // After completion, finalize() clears inline transform.
     expect(fill.style.transform).toBe('');
@@ -132,14 +147,12 @@ describe('runStepperMotion', () => {
     runStepperMotion(run);
     // single tick (no time advance) yields t=0
     tick(0);
-    expect(run.fillRefs[0]!.style.transform).toBe('scaleX(0)');
+    expect(run.fillRefs[0].style.transform).toBe('scaleX(0)');
 
     // advance to mid duration
     const mid = motion.fillMsMin / 2;
     tick(mid);
-    const transform = run.fillRefs[0]!.style.transform;
-    expect(transform).toMatch(/scaleX\(([\d.]+)\)/);
-    const value = Number(transform.match(/scaleX\(([\d.]+)\)/)![1]);
+    const value = extractScaleX(run.fillRefs[0].style.transform);
     expect(value).toBeGreaterThan(0);
     expect(value).toBeLessThan(1);
   });
@@ -153,7 +166,7 @@ describe('runStepperMotion', () => {
     );
     runStepperMotion(run);
     tick(0);
-    const fill = run.fillRefs[0]!;
+    const fill = run.fillRefs[0];
     expect(fill.style.transformOrigin).toBe('left center');
     expect(fill.style.transform).toBe('scaleX(1)');
 
@@ -172,17 +185,13 @@ describe('runStepperMotion', () => {
     tick(0);
 
     // Initial frame both fills should be at 0
-    expect(run.fillRefs[0]!.style.transform).toBe('scaleX(0)');
-    expect(run.fillRefs[1]!.style.transform).toBe('scaleX(0)');
+    expect(run.fillRefs[0].style.transform).toBe('scaleX(0)');
+    expect(run.fillRefs[1].style.transform).toBe('scaleX(0)');
 
     // Advance partway. wave-front travels left -> right.
     tick(200);
-    const f0 = Number(
-      run.fillRefs[0]!.style.transform.match(/scaleX\(([\d.]+)\)/)![1],
-    );
-    const f1 = Number(
-      run.fillRefs[1]!.style.transform.match(/scaleX\(([\d.]+)\)/)![1],
-    );
+    const f0 = extractScaleX(run.fillRefs[0].style.transform);
+    const f1 = extractScaleX(run.fillRefs[1].style.transform);
     expect(f0).toBeGreaterThan(f1);
   });
 
@@ -196,16 +205,12 @@ describe('runStepperMotion', () => {
     runStepperMotion(run);
     tick(0);
 
-    expect(run.fillRefs[0]!.style.transform).toBe('scaleX(1)');
-    expect(run.fillRefs[1]!.style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[0].style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[1].style.transform).toBe('scaleX(1)');
 
     tick(300);
-    const f0 = Number(
-      run.fillRefs[0]!.style.transform.match(/scaleX\(([\d.]+)\)/)![1],
-    );
-    const f1 = Number(
-      run.fillRefs[1]!.style.transform.match(/scaleX\(([\d.]+)\)/)![1],
-    );
+    const f0 = extractScaleX(run.fillRefs[0].style.transform);
+    const f1 = extractScaleX(run.fillRefs[1].style.transform);
     // connector 1 (right) drains first -> smaller scale than connector 0
     expect(f1).toBeLessThan(f0);
   });
@@ -219,8 +224,7 @@ describe('runStepperMotion', () => {
     );
     runStepperMotion(run);
     tick(50);
-    const src = run.circleRefs[0]!;
-    expect(src.style.backgroundColor).not.toBe('');
+    expect(run.circleRefs[0].style.backgroundColor).not.toBe('');
   });
 
   it('source step transitions from t=0 in backward direction', () => {
@@ -232,8 +236,7 @@ describe('runStepperMotion', () => {
     );
     runStepperMotion(run);
     tick(50);
-    const src = run.circleRefs[1]!;
-    expect(src.style.backgroundColor).not.toBe('');
+    expect(run.circleRefs[1].style.backgroundColor).not.toBe('');
   });
 
   it('cleanup() clears inline styles even mid-flight', () => {
@@ -247,19 +250,19 @@ describe('runStepperMotion', () => {
     tick(100);
 
     // Mid-flight there should be inline styles set
-    expect(run.fillRefs[0]!.style.transform).not.toBe('');
+    expect(run.fillRefs[0].style.transform).not.toBe('');
 
     cleanup();
 
     // After cleanup all inline styles cleared
-    run.fillRefs.forEach((el) => expect(el!.style.transform).toBe(''));
+    run.fillRefs.forEach((el) => expect(el.style.transform).toBe(''));
     run.circleRefs.forEach((el) => {
-      expect(el!.style.transform).toBe('');
-      expect(el!.style.backgroundColor).toBe('');
-      expect(el!.style.color).toBe('');
+      expect(el.style.transform).toBe('');
+      expect(el.style.backgroundColor).toBe('');
+      expect(el.style.color).toBe('');
     });
-    run.iconNumberRefs.forEach((el) => expect(el!.style.opacity).toBe(''));
-    run.iconCheckRefs.forEach((el) => expect(el!.style.opacity).toBe(''));
+    run.iconNumberRefs.forEach((el) => expect(el.style.opacity).toBe(''));
+    run.iconCheckRefs.forEach((el) => expect(el.style.opacity).toBe(''));
   });
 
   it('virtual edges (negative or beyond fillRefs.length) are filtered', () => {
@@ -285,10 +288,8 @@ describe('runStepperMotion', () => {
     runStepperMotion(run);
     // tick to pass the handoff threshold
     tick(motion.fillMsMin * 0.7);
-    const num = run.iconNumberRefs[0]!;
-    const chk = run.iconCheckRefs[0]!;
-    const numOp = Number(num.style.opacity);
-    const chkOp = Number(chk.style.opacity);
+    const numOp = Number(run.iconNumberRefs[0].style.opacity);
+    const chkOp = Number(run.iconCheckRefs[0].style.opacity);
     expect(numOp + chkOp).toBeGreaterThan(0.95);
     expect(numOp + chkOp).toBeLessThanOrEqual(1.05);
   });
