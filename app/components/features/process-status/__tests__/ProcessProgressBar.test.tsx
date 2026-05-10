@@ -55,7 +55,26 @@ const buildSteps = (n: number, currentIdx: number): ProgressBarStep[] =>
   }));
 
 describe('ProcessProgressBar', () => {
-  it('does not call runStepperMotion on first mount', () => {
+  it('animates entry from step 1 on first mount when active index >= 1', () => {
+    render(
+      <ProcessProgressBar steps={buildSteps(7, 2)} ariaLabel="install" />,
+    );
+    expect(runStepperMotionMock).toHaveBeenCalledOnce();
+    const callArg = runStepperMotionMock.mock.calls[0][0];
+    expect(callArg.fromIndex).toBe(0);
+    expect(callArg.toIndex).toBe(2);
+    expect(callArg.fromStates).toEqual(Array(7).fill('pending'));
+  });
+
+  it('does not animate on first mount when active index is 0', () => {
+    render(
+      <ProcessProgressBar steps={buildSteps(7, 0)} ariaLabel="install" />,
+    );
+    expect(runStepperMotionMock).not.toHaveBeenCalled();
+  });
+
+  it('does not animate entry when prefers-reduced-motion is reduce', () => {
+    matches = true;
     render(
       <ProcessProgressBar steps={buildSteps(7, 2)} ariaLabel="install" />,
     );
@@ -81,6 +100,7 @@ describe('ProcessProgressBar', () => {
     const { rerender } = render(
       <ProcessProgressBar steps={initial} ariaLabel="install" />,
     );
+    runStepperMotionMock.mockClear();
     const labelOnly = initial.map((s) => ({ ...s, label: `${s.label}!` }));
     rerender(<ProcessProgressBar steps={labelOnly} ariaLabel="install" />);
     expect(runStepperMotionMock).not.toHaveBeenCalled();
