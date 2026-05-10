@@ -203,7 +203,12 @@ export const runStepperMotion = (run: MotionRun): (() => void) => {
     }
   };
 
-  frame = requestAnimationFrame(draw);
+  // Apply the t=0 frame synchronously so the very next browser paint already
+  // shows the "from" state (e.g. all-pending on first mount). RAF callbacks
+  // inside React 18 transitions are not guaranteed to fire before the first
+  // paint after commit, which would otherwise leak the final-state Tailwind
+  // classes through for one frame. draw() self-schedules subsequent frames.
+  draw(startTime);
 
   return () => {
     if (cancelled) return;
