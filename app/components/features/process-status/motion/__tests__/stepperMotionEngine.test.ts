@@ -121,6 +121,25 @@ describe('runStepperMotion', () => {
     expect(rafCallbacks.size).toBe(0);
   });
 
+  it('applies t=0 frame synchronously before any RAF tick', () => {
+    // Guards against regressions in transition-deferred layout effects:
+    // Next.js App Router navigation runs inside startTransition, where the
+    // useLayoutEffect → RAF chain is not guaranteed to fire before the first
+    // paint. The engine must lock in the "from" visual state synchronously so
+    // entry animation looks the same regardless of mount path.
+    const run = buildRun(
+      0,
+      2,
+      ['pending', 'pending', 'pending'],
+      ['completed', 'completed', 'current'],
+    );
+    runStepperMotion(run);
+    // No tick — styles must already reflect the t=0 (all-pending) frame.
+    expect(run.fillRefs[0].style.transform).toBe('scaleX(0)');
+    expect(run.fillRefs[0].style.transformOrigin).toBe('left center');
+    expect(run.circleRefs[0].style.backgroundColor).not.toBe('');
+  });
+
   it('forward: fill ends at scaleX(1), origin left center', () => {
     const run = buildRun(
       0,

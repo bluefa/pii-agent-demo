@@ -58,7 +58,12 @@ export const ProcessProgressBar = ({
     ids: steps.map((s) => s.id),
     states: steps.map((s) => s.state),
   });
-  const hasMountedRef = useRef(false);
+  // Flips to true only when the entry animation has run to completion (or was
+  // legitimately skipped). Stays false if the animation was cancelled by an
+  // effect cleanup — which happens on every mount under React 18 StrictMode
+  // dev (setup → cleanup → setup). That ensures the next setup re-triggers
+  // the entry animation instead of treating the cancelled run as "done".
+  const entryDoneRef = useRef(false);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   const snapshotKey = useMemo(
@@ -71,14 +76,11 @@ export const ProcessProgressBar = ({
     const currentIds = steps.map((s) => s.id);
     const currentStates = steps.map((s) => s.state);
 
-    const isFirstMount = !hasMountedRef.current;
-    if (isFirstMount) {
-      hasMountedRef.current = true;
-    }
-
     let prev: { idx: number; ids: string[]; states: StepState[] };
-    if (isFirstMount) {
+    let isEntry = false;
+    if (!entryDoneRef.current) {
       if (activeIndex < 1 || reduced) {
+        entryDoneRef.current = true;
         prevSnapshotRef.current = {
           idx: activeIndex,
           ids: currentIds,
@@ -88,6 +90,7 @@ export const ProcessProgressBar = ({
       }
       // Synthesize a "before-entry" snapshot so the wave fills from step 1
       // up to the actual current step on first paint.
+      isEntry = true;
       prev = {
         idx: 0,
         ids: currentIds,
@@ -108,6 +111,7 @@ export const ProcessProgressBar = ({
     cleanupRef.current?.();
 
     if (reduced) {
+      if (isEntry) entryDoneRef.current = true;
       prevSnapshotRef.current = {
         idx: activeIndex,
         ids: currentIds,
@@ -127,6 +131,7 @@ export const ProcessProgressBar = ({
       iconNumberRefs: iconNumberRefs.current,
       iconCheckRefs: iconCheckRefs.current,
       onDone: () => {
+        if (isEntry) entryDoneRef.current = true;
         cleanupRef.current = null;
       },
     });
