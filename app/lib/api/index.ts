@@ -89,10 +89,12 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const toBffCloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' => {
+const toBffCloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' | 'IDC' => {
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
+    case 'IDC':
+      return 'IDC';
     default:
       return cloudProvider;
   }

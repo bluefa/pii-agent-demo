@@ -22,6 +22,7 @@ import {
 import type { DbType } from '@/lib/constants/db-types';
 import {
   PROVIDER_CHIP_BY_KEY,
+  type ApiProvider,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
 import type { CloudProvider } from '@/lib/types';
@@ -32,8 +33,12 @@ import {
   validateCredentials,
 } from '@/app/components/features/project-create';
 import {
+  AwsRegionToggle,
+  InstallModeToggle,
   RegistrationPreviewCardList,
   RegistrationProgressList,
+  type AwsRegion,
+  type InstallMode,
   type PreviewRow,
   type ProgressRow,
   type ProgressRowStatus,
@@ -48,71 +53,92 @@ interface ProjectCreateModalProps {
 
 type Phase = 'input' | 'preview' | 'progress';
 
-interface CreateDtoInput {
+interface FormState {
   chipKey: ProviderChipKey;
-  cloudProvider: CloudProvider;
-  awsRegionType?: 'global' | 'china';
-  credentials: Record<string, string>;
+  apiProvider: ApiProvider;
+  awsRegion: AwsRegion;
+  installMode: InstallMode;
+  fields: Record<string, string>;
 }
 
-const buildPreviewRequest = (
-  input: CreateDtoInput,
-  dbTypes: DbType[],
-): RegistrationPreviewRequest => {
-  if (input.cloudProvider === 'AWS') {
-    return {
-      cloudProvider: 'AWS',
-      awsAccountId: input.credentials.payerAccount,
-      ...(input.credentials.linkedAccount
-        ? { awsLinkedAccountId: input.credentials.linkedAccount }
-        : {}),
-      isChinaRegion: input.awsRegionType === 'china',
-      dbTypes,
-    };
+const apiToCloudProvider = (api: ApiProvider): CloudProvider => api;
+
+const buildPreviewRequest = (form: FormState, dbTypes: DbType[]): RegistrationPreviewRequest => {
+  const { fields } = form;
+  const description = fields.description?.trim();
+  switch (form.apiProvider) {
+    case 'AWS':
+      return {
+        cloudProvider: 'AWS',
+        awsAccountId: fields.payerAccount,
+        ...(fields.linkedAccount ? { awsLinkedAccountId: fields.linkedAccount } : {}),
+        isChinaRegion: form.awsRegion === 'china',
+        isTerraformExecutionGranted: form.installMode === 'auto',
+        ...(description ? { description } : {}),
+        dbTypes,
+      };
+    case 'Azure':
+      return {
+        cloudProvider: 'Azure',
+        tenantId: fields.tenantId,
+        subscriptionId: fields.subscriptionId,
+        ...(description ? { description } : {}),
+        dbTypes,
+      };
+    case 'GCP':
+      return {
+        cloudProvider: 'GCP',
+        gcpProjectId: fields.projectId,
+        ...(description ? { description } : {}),
+        dbTypes,
+      };
+    case 'IDC':
+      return {
+        cloudProvider: 'IDC',
+        description: description ?? '',
+        dbTypes,
+      };
   }
-  if (input.cloudProvider === 'Azure') {
-    return {
-      cloudProvider: 'Azure',
-      tenantId: input.credentials.tenantId,
-      subscriptionId: input.credentials.subscriptionId,
-      dbTypes,
-    };
-  }
-  return {
-    cloudProvider: 'GCP',
-    gcpProjectId: input.credentials.projectId,
-    dbTypes,
-  };
 };
 
 const buildCreateDto = (
-  input: CreateDtoInput,
+  form: FormState,
   dbType: DbType,
   serviceCode: string,
 ): Parameters<typeof createProject>[0] => {
-  const base = { serviceCode, cloudProvider: input.cloudProvider, dbType };
-  if (input.cloudProvider === 'AWS') {
-    return {
-      ...base,
-      awsAccountId: input.credentials.payerAccount,
-      ...(input.credentials.linkedAccount
-        ? { awsLinkedAccountId: input.credentials.linkedAccount }
-        : {}),
-      awsRegionType: input.awsRegionType,
-      isChinaRegion: input.awsRegionType === 'china',
-    };
-  }
-  if (input.cloudProvider === 'Azure') {
-    return {
-      ...base,
-      tenantId: input.credentials.tenantId,
-      subscriptionId: input.credentials.subscriptionId,
-    };
-  }
-  return {
-    ...base,
-    gcpProjectId: input.credentials.projectId,
+  const cloudProvider = apiToCloudProvider(form.apiProvider);
+  const { fields } = form;
+  const description = fields.description?.trim();
+  const base = {
+    serviceCode,
+    cloudProvider,
+    dbType,
+    ...(description ? { description } : {}),
   };
+  switch (form.apiProvider) {
+    case 'AWS':
+      return {
+        ...base,
+        awsAccountId: fields.payerAccount,
+        ...(fields.linkedAccount ? { awsLinkedAccountId: fields.linkedAccount } : {}),
+        awsRegionType: form.awsRegion,
+        isChinaRegion: form.awsRegion === 'china',
+        isTerraformExecutionGranted: form.installMode === 'auto',
+      };
+    case 'Azure':
+      return {
+        ...base,
+        tenantId: fields.tenantId,
+        subscriptionId: fields.subscriptionId,
+      };
+    case 'GCP':
+      return {
+        ...base,
+        gcpProjectId: fields.projectId,
+      };
+    case 'IDC':
+      return base;
+  }
 };
 
 const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
@@ -120,6 +146,7 @@ const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
   AZURE: 'Azure',
   Azure: 'Azure',
   GCP: 'GCP',
+  IDC: 'IDC',
 };
 
 const toCloudProvider = (raw: string): CloudProvider => PROVIDER_FROM_RAW[raw] ?? 'AWS';
@@ -147,7 +174,9 @@ export const ProjectCreateModal = ({
 }: ProjectCreateModalProps) => {
   const toast = useToast();
   const [phase, setPhase] = useState<Phase>('input');
-  const [chipKey, setChipKey] = useState<ProviderChipKey>('aws-global');
+  const [chipKey, setChipKey] = useState<ProviderChipKey>('aws');
+  const [awsRegion, setAwsRegion] = useState<AwsRegion>('global');
+  const [installMode, setInstallMode] = useState<InstallMode>('auto');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [dbTypes, setDbTypes] = useState<DbType[]>([]);
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
@@ -155,7 +184,8 @@ export const ProjectCreateModal = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const activeChip = PROVIDER_CHIP_BY_KEY[chipKey];
+  const chipDef = PROVIDER_CHIP_BY_KEY[chipKey];
+  const isAws = chipDef.apiProvider === 'AWS';
 
   const handleChipChange = (key: ProviderChipKey) => {
     setChipKey(key);
@@ -163,22 +193,16 @@ export const ProjectCreateModal = ({
     setSubmitError(null);
   };
 
-  const buildInput = (): CreateDtoInput | null => {
-    if (!activeChip.enabled || !activeChip.cloudProvider) return null;
-    return {
-      chipKey,
-      cloudProvider: activeChip.cloudProvider,
-      awsRegionType: activeChip.awsRegionType,
-      credentials: fields,
-    };
-  };
+  const buildForm = (): FormState => ({
+    chipKey,
+    apiProvider: chipDef.apiProvider,
+    awsRegion,
+    installMode,
+    fields,
+  });
 
   const handleNext = async () => {
     if (busy) return;
-    if (!activeChip.enabled || !activeChip.cloudProvider) {
-      setSubmitError('활성화된 Provider를 선택하세요');
-      return;
-    }
     const validationError = validateCredentials(chipKey, fields);
     if (validationError) {
       setSubmitError(validationError);
@@ -188,15 +212,13 @@ export const ProjectCreateModal = ({
       setSubmitError('DB Type을 1개 이상 선택하세요');
       return;
     }
-    const input = buildInput();
-    if (!input) return;
 
     setSubmitError(null);
     setBusy(true);
     try {
       const response = await previewTargetSourceRegistration(
         selectedServiceCode,
-        buildPreviewRequest(input, dbTypes),
+        buildPreviewRequest(buildForm(), dbTypes),
       );
       const rows: PreviewRow[] = response.items.map((item, idx) => ({
         item,
@@ -217,8 +239,8 @@ export const ProjectCreateModal = ({
   };
 
   const handleRegister = async () => {
-    const input = buildInput();
-    if (!input || busy) return;
+    if (busy) return;
+    const form = buildForm();
     const addRows = previewRows.filter((row) => row.item.type === 'ADD');
     if (addRows.length === 0) {
       toast.info('신규 등록 대상이 없습니다.');
@@ -247,7 +269,7 @@ export const ProjectCreateModal = ({
       addRows.map(async (row, idx) => {
         const key = `row-${idx}`;
         try {
-          await createProject(buildCreateDto(input, row.dbType as DbType, selectedServiceCode));
+          await createProject(buildCreateDto(form, row.dbType as DbType, selectedServiceCode));
           updateRow(key, 'done');
         } catch (err) {
           updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
@@ -259,14 +281,9 @@ export const ProjectCreateModal = ({
     onCreated();
   };
 
-  const phase1Valid =
-    activeChip.enabled &&
-    dbTypes.length > 0 &&
-    validateCredentials(chipKey, fields) === null;
-
+  const phase1Valid = dbTypes.length > 0 && validateCredentials(chipKey, fields) === null;
   const addRowCount = previewRows.filter((row) => row.item.type === 'ADD').length;
   const duplicateCount = previewRows.length - addRowCount;
-
   const progressDone = progressRows.filter((r) => r.status === 'done').length;
   const progressFailed = progressRows.filter((r) => r.status === 'failed').length;
   const progressComplete =
@@ -350,6 +367,11 @@ export const ProjectCreateModal = ({
                   인프라 (Provider) 유형 선택
                 </h3>
                 <ProviderChipGrid value={chipKey} onChange={handleChipChange} />
+                {isAws && (
+                  <div className="mt-3">
+                    <AwsRegionToggle value={awsRegion} onChange={setAwsRegion} />
+                  </div>
+                )}
               </section>
 
               <div className="grid grid-cols-2 gap-5">
@@ -358,17 +380,19 @@ export const ProjectCreateModal = ({
                     <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
                     인프라 정보
                   </h3>
-                  {activeChip.enabled ? (
-                    <ProviderCredentialForm
-                      chipKey={chipKey}
-                      values={fields}
-                      onChange={setFields}
-                    />
-                  ) : (
-                    <p className={cn('text-sm', textColors.tertiary)}>
-                      해당 Provider는 추후 지원 예정입니다.
-                    </p>
+                  {isAws && (
+                    <div className="mb-3">
+                      <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
+                        설치 모드
+                      </label>
+                      <InstallModeToggle value={installMode} onChange={setInstallMode} />
+                    </div>
                   )}
+                  <ProviderCredentialForm
+                    chipKey={chipKey}
+                    values={fields}
+                    onChange={setFields}
+                  />
                 </section>
                 <section>
                   <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>

@@ -1,36 +1,33 @@
-import type { CloudProvider } from '@/lib/types';
+/**
+ * Provider chip taxonomy for the inf-registration modal (v7).
+ *
+ * The chip key is a UI concept; `apiProvider` is the value sent to the
+ * BFF preview/create endpoints (swagger `CloudProvider` enum).
+ *
+ * `other` shares IDC's API path — the swagger enum does not distinguish
+ * an "Other" category, so we route it through IDC's description-based
+ * identifier.
+ */
 
-export type ProviderChipKey =
-  | 'aws-global'
-  | 'aws-china'
-  | 'azure'
-  | 'gcp'
-  | 'other'
-  | 'saas';
+export type ProviderChipKey = 'aws' | 'azure' | 'gcp' | 'idc' | 'other';
+
+export type ApiProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC';
 
 export interface ProviderChipDef {
   key: ProviderChipKey;
   label: string;
-  sublabel?: string;
-  enabled: boolean;
-  cloudProvider?: CloudProvider;
-  awsRegionType?: 'global' | 'china';
-  communicationModule?: 'AWS Agent' | 'Azure Agent' | 'GCP Agent';
+  apiProvider: ApiProvider;
 }
 
 export const PROVIDER_CHIPS: ProviderChipDef[] = [
-  { key: 'aws-global', label: 'AWS', sublabel: '(Global)', enabled: true, cloudProvider: 'AWS', awsRegionType: 'global', communicationModule: 'AWS Agent' },
-  { key: 'aws-china', label: 'AWS', sublabel: '(China)', enabled: true, cloudProvider: 'AWS', awsRegionType: 'china', communicationModule: 'AWS Agent' },
-  { key: 'azure', label: 'Azure', enabled: true, cloudProvider: 'Azure', communicationModule: 'Azure Agent' },
-  { key: 'gcp', label: 'GCP', enabled: true, cloudProvider: 'GCP', communicationModule: 'GCP Agent' },
-  { key: 'other', label: 'Other', sublabel: 'Cloud / On-prem', enabled: false },
-  { key: 'saas', label: 'SaaS', enabled: false },
+  { key: 'aws', label: 'AWS', apiProvider: 'AWS' },
+  { key: 'azure', label: 'Azure', apiProvider: 'Azure' },
+  { key: 'gcp', label: 'GCP', apiProvider: 'GCP' },
+  { key: 'idc', label: 'IDC', apiProvider: 'IDC' },
+  { key: 'other', label: 'Other', apiProvider: 'IDC' },
 ];
 
 export const PROVIDER_CHIP_BY_KEY: Record<ProviderChipKey, ProviderChipDef> = PROVIDER_CHIPS.reduce(
   (acc, chip) => ({ ...acc, [chip.key]: chip }),
   {} as Record<ProviderChipKey, ProviderChipDef>,
 );
-
-export const getProviderChipDisplayLabel = (chip: ProviderChipDef): string =>
-  chip.sublabel ? `${chip.label} ${chip.sublabel}` : chip.label;
