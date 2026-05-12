@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   cn,
   bgColors,
@@ -7,11 +8,11 @@ import {
   statusColors,
   textColors,
   providerColors,
+  primaryColors,
 } from '@/lib/theme';
-import type {
-  RegistrationPreviewItem,
-} from '@/app/lib/api';
+import type { RegistrationPreviewItem } from '@/app/lib/api';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
+import { integrationRoutes } from '@/lib/routes';
 import type { CloudProvider } from '@/lib/types';
 
 const PROVIDER_CANONICAL: Record<string, CloudProvider> = {
@@ -19,6 +20,7 @@ const PROVIDER_CANONICAL: Record<string, CloudProvider> = {
   Azure: 'Azure',
   AZURE: 'Azure',
   GCP: 'GCP',
+  IDC: 'IDC',
 };
 
 const toCloudProvider = (raw: string): CloudProvider => PROVIDER_CANONICAL[raw] ?? 'AWS';
@@ -60,15 +62,24 @@ interface RegistrationPreviewCardListProps {
 const StatusBadge = ({ item }: { item: RegistrationPreviewItem }) => {
   if (item.type === 'DUPLICATE') {
     return (
-      <span
-        className={cn(
-          'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
-          statusColors.warning.bg,
-          statusColors.warning.textDark,
-        )}
-      >
-        이미 등록된 인프라
-      </span>
+      <div className="flex flex-col items-end gap-1">
+        <span
+          className={cn(
+            'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
+            statusColors.warning.bg,
+            statusColors.warning.textDark,
+          )}
+        >
+          이미 등록된 인프라
+        </span>
+        <Link
+          href={integrationRoutes.targetSource(item.existing_target_source_id)}
+          className={cn('text-[11px] font-medium underline', primaryColors.text)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          기존 항목 열기 →
+        </Link>
+      </div>
     );
   }
   return (

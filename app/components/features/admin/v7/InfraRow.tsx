@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  buttonStyles,
   cn,
   statusColors,
   textColors,
@@ -57,8 +58,10 @@ const StatusCta = ({
             onViewApproval(project, e);
           }}
           className={cn(
-            'px-3 py-1.5 text-white text-xs font-medium rounded-lg',
-            'transition-colors bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]',
+            buttonStyles.base,
+            buttonStyles.variants.primary,
+            buttonStyles.sizes.sm,
+            'text-xs',
           )}
         >
           승인 요청 확인
@@ -75,13 +78,14 @@ const StatusCta = ({
           }}
           disabled={busy}
           className={cn(
-            'px-3 py-1.5 text-white text-xs font-medium rounded-lg',
-            'transition-colors flex items-center gap-1.5',
-            'bg-[#45CB85] hover:bg-[#2A7D52] disabled:opacity-50 disabled:cursor-not-allowed',
+            buttonStyles.base,
+            buttonStyles.variants.success,
+            buttonStyles.sizes.sm,
+            'text-xs flex items-center gap-1.5',
           )}
         >
           {busy && (
-            <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
           )}
           설치 완료 확정
         </button>
