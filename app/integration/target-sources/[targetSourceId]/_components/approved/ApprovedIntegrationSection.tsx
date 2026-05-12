@@ -5,6 +5,7 @@ import { getApprovedIntegration } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
 import { approvedIntegrationToApproved } from '@/lib/resource-catalog';
 import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { formatDate } from '@/lib/utils/date';
 import { PlusIcon } from '@/app/components/ui/icons';
 import type { ApprovedResource } from '@/lib/types/resources';
 import type { AsyncState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state';
@@ -16,8 +17,15 @@ interface ApprovedIntegrationSectionProps {
   targetSourceId: number;
 }
 
+interface ApprovedView {
+  resources: ApprovedResource[];
+  approvedAt: string | null;
+}
+
+const EMPTY_VIEW: ApprovedView = { resources: [], approvedAt: null };
+
 export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrationSectionProps) => {
-  const [state, setState] = useState<AsyncState<ApprovedResource[]>>({ status: 'loading' });
+  const [state, setState] = useState<AsyncState<ApprovedView>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
@@ -25,13 +33,23 @@ export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrati
 
     void getApprovedIntegration(targetSourceId, { signal: controller.signal })
       .then((response) => {
-        const infos = response.approved_integration?.resource_infos ?? [];
-        setState({ status: 'ready', data: approvedIntegrationToApproved(infos) });
+        const approved = response.approved_integration;
+        if (!approved) {
+          setState({ status: 'ready', data: EMPTY_VIEW });
+          return;
+        }
+        setState({
+          status: 'ready',
+          data: {
+            resources: approvedIntegrationToApproved(approved.resource_infos),
+            approvedAt: approved.approved_at || null,
+          },
+        });
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
         if (isMissingApprovedIntegrationError(error)) {
-          setState({ status: 'ready', data: [] });
+          setState({ status: 'ready', data: EMPTY_VIEW });
           return;
         }
         setState({ status: 'error', message: getApprovedErrorMessage(error) });
@@ -45,12 +63,21 @@ export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrati
     setRetryNonce((n) => n + 1);
   }, []);
 
-  const approved = state.status === 'ready' ? state.data : [];
+  const view = state.status === 'ready' ? state.data : EMPTY_VIEW;
+  const approved = view.resources;
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <div className="px-6 pt-6">
         <h2 className={cn('text-lg font-semibold', textColors.primary)}>Cloud 리소스</h2>
+        {view.approvedAt && (
+          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            승인일시{' '}
+            <strong className={cn('font-semibold', textColors.secondary)}>
+              {formatDate(view.approvedAt, 'datetime')}
+            </strong>
+          </p>
+        )}
       </div>
 
       <div className={cn('mx-6 mt-4 px-4 py-2 flex items-center gap-2 rounded-t-lg', statusColors.info.bg)}>

@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
+  getApprovalRequestLatest,
   getApprovedIntegration,
+  type ApprovalRequestLatestResponse,
   type ApprovedIntegrationExcludedResourceItem,
   type ApprovedIntegrationResourceItem,
 } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
+import { formatDate } from '@/lib/utils/date';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { StepBanner } from '@/app/components/ui/StepBanner';
@@ -56,7 +59,20 @@ const toExcludedRow = (
   resourceName: item.resource_name ?? '',
   selected: false,
   scanStatus: item.scan_status ?? null,
+  exclusionReason: item.exclusion_reason ?? undefined,
 });
+
+interface RequestSummary {
+  requestedAt: string;
+  requestedBy: string;
+}
+
+const toRequestSummary = (response: ApprovalRequestLatestResponse): RequestSummary | null => {
+  const requestedAt = response.request?.requested_at;
+  const requestedBy = response.request?.requested_by?.user_id;
+  if (!requestedAt || !requestedBy) return null;
+  return { requestedAt, requestedBy };
+};
 
 const collectOptions = (
   resources: readonly WaitingApprovalResource[],
@@ -79,6 +95,7 @@ export const WaitingApprovalCard = ({
 }: WaitingApprovalCardProps) => {
   const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
+  const [requestSummary, setRequestSummary] = useState<RequestSummary | null>(null);
 
   const [searchValue, setSearchValue] = useState('');
   const [filter, setFilter] = useState<ApprovalFilter>('all');
@@ -108,6 +125,15 @@ export const WaitingApprovalCard = ({
           return;
         }
         setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
+      });
+
+    void getApprovalRequestLatest(targetSourceId, { signal: controller.signal })
+      .then((response) => {
+        setRequestSummary(toRequestSummary(response));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof AppError && error.code === 'ABORTED') return;
+        setRequestSummary(null);
       });
 
     return () => controller.abort();
@@ -204,6 +230,18 @@ export const WaitingApprovalCard = ({
           </h2>
           <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
             요청하신 DB 목록을 관리자가 확인하고 있어요.
+            {requestSummary && (
+              <>
+                {' · '}요청일시{' '}
+                <strong className={cn('font-semibold', textColors.secondary)}>
+                  {formatDate(requestSummary.requestedAt, 'datetime')}
+                </strong>
+                {' · '}요청자{' '}
+                <strong className={cn('font-semibold', textColors.secondary)}>
+                  {requestSummary.requestedBy}
+                </strong>
+              </>
+            )}
           </p>
         </div>
         <span
