@@ -132,7 +132,14 @@ export const RegistrationProgressList = ({
         </div>
       </div>
 
-      <div className={cn('h-1.5 rounded-full overflow-hidden', bgColors.muted)}>
+      <div
+        role="progressbar"
+        aria-valuenow={progressPct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="인프라 등록 진행률"
+        className={cn('h-1.5 rounded-full overflow-hidden', bgColors.muted)}
+      >
         <div
           className={cn('h-full transition-[width] duration-300', bannerPalette.dot)}
           style={{ width: `${progressPct}%` }}
