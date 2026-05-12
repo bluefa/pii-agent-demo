@@ -160,7 +160,7 @@ import { useMemo, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { SearchIcon } from '@/app/components/ui/icons';
-import { cn, textColors } from '@/lib/theme';
+import { cn, primaryColors, textColors } from '@/lib/theme';
 import type { LogicalDbModalProps, LogicalDbModalDraft } from './logical-db-types';
 
 const EMPTY_DRAFT: LogicalDbModalDraft = { excludedIds: new Set(), reasons: {} };
@@ -213,7 +213,7 @@ export const LogicalDbModal = ({
   };
 
   return (
-    <Modal open={open} onClose={onClose} size="lg" title={`논리 DB 확인 · ${resourceName}`}>
+    <Modal isOpen={open} onClose={onClose} size="lg" title={`논리 DB 확인 · ${resourceName}`}>
       <div className="grid grid-cols-2 gap-3">
         <Panel
           label="연동 대상 후보"
@@ -238,7 +238,7 @@ export const LogicalDbModal = ({
       <footer className="flex items-center justify-between gap-2 border-t border-gray-100 mt-4 pt-4">
         <span className={cn('text-[12px]', textColors.tertiary)}>
           변경사항 <strong className={cn(textColors.primary, 'tabular-nums')}>{pendingCount}</strong>건
-          {' · '}추가 <strong className="text-[#0064FF] tabular-nums">{addedCount}</strong>
+          {' · '}추가 <strong className={cn(primaryColors.text, 'tabular-nums')}>{addedCount}</strong>
           {' · '}제거 <strong className="text-gray-700 tabular-nums">{removedCount}</strong>
         </span>
         <div className="flex gap-2">
@@ -287,7 +287,7 @@ const Panel = ({ label, count, searchValue, onSearchChange, items, onItemClick, 
           <button
             type="button"
             onClick={() => onItemClick(it.id)}
-            className="text-[11.5px] text-[#0064FF] hover:underline"
+            className={cn('text-[11.5px] hover:underline', primaryColors.text)}
           >
             {actionLabel}
           </button>
@@ -342,11 +342,13 @@ Notes:
 Add to `WaitingConnectionTestStep.tsx`:
 
 ```typescript
-import { useState } from 'react';
+import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
 import { LogicalDbModal } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModal';
 import { useLogicalDatabases } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/useLogicalDatabases';
 ```
+
+`AGENTS.md:57` mandates "For modal state, use `useModal()`." The hook supports a typed payload, so the resource being inspected travels through `data` rather than a parallel `useState`.
 
 The per-row "논리 DB 확인" button lives inside the connection-test panel. The cleanest insertion point depends on how `ConnectionTestPanel` exposes row CTAs. Two options:
 
@@ -359,24 +361,30 @@ Choose **Option A** unless `ConnectionTestPanel` proves expensive to extend. Rea
 State holder lives in `WaitingConnectionTestStep`:
 
 ```typescript
-const [openResource, setOpenResource] = useState<{ id: string; name: string } | null>(null);
+const logicalDbModal = useModal<{ id: string; name: string }>();
 const toast = useToast();
 
-const onSave = () => {
+const handleSave = () => {
   toast.info('논리 DB 정보 저장은 BFF 연동 후 활성화됩니다.');
-  setOpenResource(null);
+  logicalDbModal.close();
 };
 
 // inside JSX
-{openResource && (
+{logicalDbModal.data && (
   <LogicalDbModalLoader
-    resourceId={openResource.id}
-    resourceName={openResource.name}
-    onSave={onSave}
-    onClose={() => setOpenResource(null)}
+    open={logicalDbModal.isOpen}
+    resourceId={logicalDbModal.data.id}
+    resourceName={logicalDbModal.data.name}
+    onSave={handleSave}
+    onClose={logicalDbModal.close}
   />
 )}
+
+// from the per-row CTA:
+// onClick={() => logicalDbModal.open({ id: resource.resourceId, name: resource.name })}
 ```
+
+Confirm `app/hooks/useModal.ts` exposes `isOpen`, `data`, `open(payload)`, and `close()` before relying on this shape — if the project's `useModal` API differs, adapt the destructuring and update the spec.
 
 Where `LogicalDbModalLoader` is a tiny wrapper that calls `useLogicalDatabases` and feeds the result into `LogicalDbModal`. Loading state shows a thin "불러오는 중…" inside the modal frame.
 
@@ -429,7 +437,12 @@ Browser:
 
 Stepper guard:
 ```bash
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|InstallationProcessProgressBar|stepperMotion" && echo "✗" || echo "✓"
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper modified: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR

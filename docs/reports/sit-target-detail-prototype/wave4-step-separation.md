@@ -39,7 +39,7 @@ cd /Users/study/pii-agent-demo-sit-detail-wave4-step-split
 
 ## Step 2: Required reading
 
-1. `docs/adr/012-target-source-page-layout.md` — section R1–R5 (Step Components with Slots pattern).
+1. `docs/adr/012-target-source-page-layout.md` — section R1–R4 (Step Components with Slots pattern).
 2. `app/integration/target-sources/[targetSourceId]/_components/layout/CloudTargetSourceLayout.tsx` — current switch.
 3. `app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestStep.tsx` — current single-step component for 5/6/7.
 4. `app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestSlot.tsx`, `ConfirmedResourcesSlot.tsx` — the two slot children.
@@ -153,7 +153,7 @@ Create `app/integration/target-sources/[targetSourceId]/_components/layout/Insta
 import type { ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, textColors } from '@/lib/theme';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -282,7 +282,12 @@ Browser:
 
 Stepper guard:
 ```bash
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|InstallationProcessProgressBar|stepperMotion" && echo "✗" || echo "✓"
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper modified: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR

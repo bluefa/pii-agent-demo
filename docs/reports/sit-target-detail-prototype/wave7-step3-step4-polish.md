@@ -6,21 +6,17 @@ Two visual gaps remain after Waves 1-6:
 
 ### Step 3 — 연동 대상 반영중
 
-`ApplyingApprovedStep` shows resources but does not surface per-row integration progress. The prototype's `screen-4` Step 3 table has a "연동 이력" column rendered as `class="scan-pill integrated"` / `class="scan-pill none"`. Semantics:
+`ApplyingApprovedStep` shows resources but does not surface per-row integration progress. The prototype's `screen-4` Step 3 table has a "연동 이력" column rendered as `class="scan-pill integrated"` / `class="scan-pill pending"`. Semantics for the shared `ScanPill` primitive (since Wave 4/Step 4 also reuses it):
 
 | Pill | Condition |
 |---|---|
 | Integrated (green) | resource has been provisioned for monitoring |
 | Pending (orange) | resource is mid-flight |
-| — (dash) | excluded resource (`selected === false`) — no integration occurs |
+| — (dash) | row that is not an integration target (see "Reality at Step 3" below) |
 
-No new BFF field exists for "Integrated/Pending" — the only adjacent signal is the same response's `resource_infos` array having or not having terraform/installation results. Decision: this wave **does not invent a new state field**. Instead, the column is added with a derive helper that returns `'integrated' | 'pending' | 'none'` from existing data. The mapping is:
+**Reality at Step 3.** The current Step 3 table is fed by `ApprovedIntegrationSection` → `ApprovedIntegrationTable`, which only contains approved resources. `ApprovedResource` (`lib/types/resources/approved.ts:3-9`) has no `selected` field — excluded resources are surfaced elsewhere (Wave 3 reason chip on the WAITING_APPROVAL surface), not on this table. Therefore every Step 3 row corresponds to an approved-and-integration-targeted resource; the column shows either Integrated (when a signal is available) or Pending.
 
-- excluded row (`selected === false`) → `'none'`
-- selected row with a terraform-status side fetch indicating completion → `'integrated'`
-- selected row otherwise → `'pending'`
-
-If `terraform-status` is not callable in the current Step 3 step (it might not be), the fall-back rule is `selected → 'pending'` and `excluded → 'none'`. The `'integrated'` state ships as a visual but only fires once we have a signal source.
+No new BFF field exists for "Integrated/Pending" — the only adjacent signal would be a terraform-status side fetch. Decision: this wave **does not invent a new state field and does not add a side fetch**. Instead, the column ships with a derive helper that defaults to `'pending'` for every row, and the helper is the hook point a future wave plugs the signal into. The `'none'` state stays in the `ScanPill` primitive because Step 4 may need it; Step 3 never emits it.
 
 ### Step 4 — Agent 설치
 
@@ -70,7 +66,7 @@ cd /Users/study/pii-agent-demo-sit-detail-wave7-step3-step4-polish
 Create `app/components/ui/ScanPill.tsx`:
 
 ```typescript
-import { cn, statusColors, textColors } from '@/lib/theme';
+import { cn, statusColors } from '@/lib/theme';
 
 export type ScanPillState = 'integrated' | 'pending' | 'none';
 
@@ -119,21 +115,24 @@ Tests:
 Create `app/integration/target-sources/[targetSourceId]/_components/approved/scan-pill-derive.ts`:
 
 ```typescript
-import type { ApprovedIntegrationResourceItem } from '@/app/lib/api';
+import type { ApprovedResource } from '@/lib/types/resources';
 import type { ScanPillState } from '@/app/components/ui/ScanPill';
 
 /**
- * Decide which scan-pill to show for a selected resource at Step 3.
+ * Decide which scan-pill to show for a row at Step 3.
  *
- * Excluded rows never show a pill (caller passes the row through this
- * helper only when `selected === true`). For selected rows, the BFF
- * response does not yet carry a per-resource 'integrated' bit, so we
- * default to 'pending' and let a follow-up wave plug terraform-status
- * data in.
+ * `ApprovedIntegrationTable` only receives approved (= selected) resources —
+ * `ApprovedResource` carries no `selected` field, and excluded resources are
+ * not included in this table. The "none / dash" state is therefore unused at
+ * Step 3 and only exists for the shared ScanPill primitive (the future Step 4
+ * status column may need it).
+ *
+ * Default is 'pending'. The hook point for 'integrated' is a future signal
+ * source (terraform-status per resource, or a new `integrated_at` field on
+ * the response). This wave does NOT add that field; it adds the derive seam.
  */
-export const deriveScanPill = (resource: ApprovedIntegrationResourceItem): ScanPillState => {
-  // Hook for future enrichment: if the response gains an `integrated_at`
-  // or terraform-status reference, branch here.
+export const deriveScanPill = (resource: ApprovedResource): ScanPillState => {
+  // Hook for future enrichment.
   return 'pending';
 };
 ```
@@ -143,9 +142,9 @@ export const deriveScanPill = (resource: ApprovedIntegrationResourceItem): ScanP
 In `ApprovedIntegrationTable.tsx`:
 
 - Append the "연동 이력" column header.
-- Per row:
-  - If `selected === false`: render `<ScanPill state="none" />` (or `—` directly).
-  - If `selected === true`: render `<ScanPill state={deriveScanPill(resource)} />`.
+- For every row (every entry in this table is an approved resource), render `<ScanPill state={deriveScanPill(resource)} />`.
+
+Excluded rows are **not** present in this table (`ApprovedIntegrationSection` already filters them out — verify `app/integration/target-sources/[targetSourceId]/_components/approved/ApprovedIntegrationSection.tsx` before committing).
 
 Keep the column at the right end of the table.
 
@@ -214,8 +213,8 @@ State holders in `InstallResourceTable` (`useState` for `page` and `pageSize` wi
 
 `ApprovedIntegrationTable.test.tsx`:
 - "연동 이력" column renders for each row.
-- Selected rows show `ScanPill state="pending"`.
-- Excluded rows show `state="none"` (the dash).
+- Every approved row shows `ScanPill state="pending"`.
+- (No excluded-row case — `ApprovedResource[]` carries only approved resources.)
 
 `InstallResourceTable.test.tsx`:
 - Pagination component mounts.
@@ -256,7 +255,12 @@ Browser:
 
 Stepper guard:
 ```bash
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|InstallationProcessProgressBar|stepperMotion" && echo "✗" || echo "✓"
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper modified: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR
