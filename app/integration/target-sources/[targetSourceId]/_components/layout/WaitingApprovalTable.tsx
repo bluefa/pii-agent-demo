@@ -15,7 +15,11 @@ export interface WaitingApprovalResource {
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
+  /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
+  emptyMessage?: string;
 }
+
+const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
 
@@ -35,11 +39,11 @@ const COLUMNS: readonly { label: string; widthClass?: string }[] = [
   { label: '스캔 이력' },
 ];
 
-export const WaitingApprovalTable = ({ resources }: WaitingApprovalTableProps) => {
+export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprovalTableProps) => {
   if (resources.length === 0) {
     return (
       <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-        표시할 리소스가 없습니다.
+        {emptyMessage ?? DEFAULT_EMPTY_MESSAGE}
       </div>
     );
   }

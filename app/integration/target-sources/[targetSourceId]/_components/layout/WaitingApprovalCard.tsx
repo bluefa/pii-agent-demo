@@ -251,13 +251,10 @@ export const WaitingApprovalCard = ({
               visibleEnd={visibleEnd}
               totalCount={filteredCount}
             />
-            {showFilterEmpty ? (
-              <div className={cn('px-6 py-8 text-center text-sm', textColors.tertiary)}>
-                {FILTER_EMPTY_MESSAGE}
-              </div>
-            ) : (
-              <WaitingApprovalTable resources={visibleResources} />
-            )}
+            <WaitingApprovalTable
+              resources={visibleResources}
+              emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
+            />
             {filteredCount > 0 && (
               <Pagination
                 page={safePage}
