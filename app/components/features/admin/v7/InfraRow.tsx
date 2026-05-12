@@ -20,6 +20,7 @@ const MONITORING_LABEL: Record<CloudProvider, string> = {
   AWS: 'AWS Agent',
   Azure: 'Azure Agent',
   GCP: 'GCP Agent',
+  IDC: 'IDC Agent',
 };
 
 const BAR_TONE_BY_HEALTH: Record<HealthStatus, keyof typeof statusColors> = {

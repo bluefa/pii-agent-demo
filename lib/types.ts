@@ -20,12 +20,13 @@ export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
 export type AwsInstallationMode = 'AUTO' | 'MANUAL';
 
-export type CloudProvider = 'AWS' | 'Azure' | 'GCP';
+export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC';
 
 const CLOUD_PROVIDER_ALIASES: Record<string, CloudProvider> = {
   AWS: 'AWS',
   AZURE: 'Azure',
   GCP: 'GCP',
+  IDC: 'IDC',
 };
 
 export const normalizeCloudProvider = (value: unknown): CloudProvider => {
@@ -251,7 +252,7 @@ export interface BaseTargetSource {
 }
 
 export interface CloudTargetSource extends BaseTargetSource {
-  cloudProvider: 'AWS' | 'Azure' | 'GCP';
+  cloudProvider: CloudProvider;
 
   awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;

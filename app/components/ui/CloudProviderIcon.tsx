@@ -18,6 +18,7 @@ const providerConfig: Record<CloudProvider, { bg: string; text: string; label: s
   AWS: { bg: 'bg-[#FF9900]/10', text: 'text-[#FF9900]', label: 'AWS' },
   Azure: { bg: 'bg-[#0078D4]/10', text: 'text-[#0078D4]', label: 'Azure' },
   GCP: { bg: 'bg-[#4285F4]/10', text: 'text-[#4285F4]', label: 'GCP' },
+  IDC: { bg: 'bg-[#374151]/10', text: 'text-[#374151]', label: 'IDC' },
 };
 
 // Simple Icons - Amazon AWS (https://simpleicons.org/)
@@ -41,13 +42,32 @@ const GcpIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// IDC default icon — server-rack glyph (no brand). Used when CloudProvider=IDC.
+const IdcIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="6" rx="1.5" />
+    <rect x="3" y="14" width="18" height="6" rx="1.5" />
+    <line x1="7" y1="7" x2="7.01" y2="7" />
+    <line x1="7" y1="17" x2="7.01" y2="17" />
+  </svg>
+);
+
 const IconMap: Record<CloudProvider, React.FC<{ className?: string }>> = {
   AWS: AwsIcon,
   Azure: AzureIcon,
   GCP: GcpIcon,
+  IDC: IdcIcon,
 };
 
-export { AwsIcon, AzureIcon, GcpIcon };
+export { AwsIcon, AzureIcon, GcpIcon, IdcIcon };
 
 export const CloudProviderIcon = ({
   provider,

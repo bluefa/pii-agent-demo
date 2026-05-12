@@ -17,7 +17,7 @@ import type {
   RegistrationPreviewRequest,
 } from '@/lib/bff/types/target-sources';
 
-type BffCloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'UNKNOWN';
+type BffCloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
 type BffApprovalProcessStatus =
   | 'IDLE'
   | 'PENDING'
@@ -33,6 +33,8 @@ const toBffCloudProvider = (cloudProvider: CloudProvider): BffCloudProvider => {
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
+    case 'IDC':
+      return 'IDC';
     default:
       return cloudProvider;
   }
@@ -46,6 +48,8 @@ const toInternalCloudProvider = (cloudProvider?: string): CloudProvider | null =
       return 'GCP';
     case 'AZURE':
       return 'Azure';
+    case 'IDC':
+      return 'IDC';
     case 'UNKNOWN':
       return 'AWS';
     default:
