@@ -242,6 +242,71 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /services/{serviceCode}/target-sources/registration-preview:
+    parameters:
+      - $ref: '#/components/parameters/ServiceCode'
+    post:
+      tags:
+        - Target Source
+      summary: 인프라 등록 미리보기
+      operationId: previewServiceTargetSourceRegistration
+      x-expected-duration: 100ms ~ 400ms
+      description: |-
+        SIT v7 인프라 등록 모달의 Phase 1 → Phase 2 전이에 사용한다. 본 엔드포인트는
+        "타겟소스 생성 추천(creation recommendation)" 로직이며, 사용자가 입력한
+        `(provider + 식별자 + dbTypes[])` 을 **N 개의 미래 타겟소스 후보** 로 전개해 반환한다.
+        Phase 3 에서는 `type=ADD` 행마다 `POST /services/{serviceCode}/target-sources` 를
+        1회씩(N회) 호출하여 실제로 타겟소스를 생성한다.
+
+        **인덱스 매칭**: 응답의 `items[i]` 는 요청의 `dbTypes[i]` 와 1:1 대응하며,
+        `items.length === dbTypes.length` 가 보장된다. 응답에는 `db_type` 을 echo 하지
+        않으므로 클라이언트는 요청 시점의 `dbTypes` 배열 순서를 보존한 상태에서
+        인덱스로 참조해야 한다. 정렬·필터·재시도 등으로 순서가 흐트러지면 매핑이 깨진다.
+
+        **Duplicate 판정 키** (동일 서비스 스코프 내):
+        - AWS: `(cloud_provider, aws_account_id, is_china_region, db_type)` 가 모두 동일하면 DUPLICATE.
+          `aws_linked_account_id` 와 `is_terraform_execution_granted` 는 identity 에 포함되지 않는다.
+        - Azure: `(cloud_provider, subscription_id, db_type)` 동일.
+          `tenant_id` 는 식별자가 아니라 부가 정보로만 본다.
+        - GCP: `(cloud_provider, gcp_project_id, db_type)` 동일.
+        - IDC: `(cloud_provider, description_trimmed, db_type)` 동일.
+          IDC 의 `description` 은 trim 후 빈 문자열이면 400.
+        - SDU: 본 엔드포인트의 직접 입력은 지원하지 않는다 (BFF 가 다른 입력으로부터
+          `is_sdu_type=true` 를 판정할 수 있다).
+
+        **정규화 규칙**:
+        - `dbType` 은 대소문자 구분 없이 비교한다. 정식 enum 은 도메인 결정 후 별도 ADR 에서 확정.
+        - 식별자 (account/subscription/project id) 는 trim 후 그대로 사용 (대소문자·하이픈 보존).
+
+        **Conditional required** (BFF 가 400 으로 검증):
+        - cloudProvider=AWS → awsAccountId, isChinaRegion 필수
+        - cloudProvider=Azure → tenantId, subscriptionId 필수
+        - cloudProvider=GCP → gcpProjectId 필수
+        - cloudProvider=IDC → description 필수 (trim 후 비어있으면 400)
+
+        본 엔드포인트는 부수효과가 없는 dry-run 이며, 실제 생성은 후속
+        `POST /services/{serviceCode}/target-sources` 호출에서 이뤄진다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationPreviewRequest'
+      responses:
+        '200':
+          description: 미리보기 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ServiceNotFound'
   /target-sources/{targetSourceId}:
     parameters:
       - $ref: '#/components/parameters/TargetSourceId'
@@ -550,6 +615,19 @@ components:
           $ref: '#/components/schemas/TargetSourceDetail'
     CreateTargetSourceRequest:
       type: object
+      description: |-
+        타겟소스 1건 생성 요청. SIT v7 인프라 등록 모달은 Phase 2 의 preview 결과 중
+        `type=ADD` 행마다 본 엔드포인트를 1회 호출한다 (N개 ADD → N회).
+
+        Field naming policy (SIT v7 기준):
+        - 카테고리/모드는 boolean (`isChinaRegion`, `isTerraformExecutionGranted`).
+        - `dbType` 는 **싱귤러** 만 받는다. 복수형 `dbTypes` 는 preview API 전용.
+
+        Conditional required (BFF 측 400 검증):
+        - cloudProvider=AWS → awsAccountId 필수
+        - cloudProvider=Azure → tenantId, subscriptionId 필수
+        - cloudProvider=GCP → gcpProjectId 필수
+        - cloudProvider=IDC → description 을 식별자로 사용 (필수)
       required:
         - projectCode
         - cloudProvider
@@ -564,22 +642,208 @@ components:
           $ref: '#/components/schemas/CloudProvider'
         awsAccountId:
           type: string
-          description: AWS 전용 12자리 계정 ID
+          description: AWS Payer Account ID (12자리). cloudProvider=AWS 시 필수.
           example: '123456789012'
+        awsLinkedAccountId:
+          type: string
+          description: AWS Linked Account ID (12자리). 미입력 시 Payer = Linked 로 간주.
+          example: '987654321098'
+        isChinaRegion:
+          type: boolean
+          default: false
+          description: |-
+            AWS China 파티션 여부. cloudProvider=AWS 시 사용.
+            non-AWS 입력에서는 무시한다.
+        isTerraformExecutionGranted:
+          type: boolean
+          default: false
+          description: |-
+            cloudProvider=AWS 한정. Terraform 실행 권한을 BDC 에 부여하기로 결정되었는지를 표시.
+            `true` 면 BDC 가 자동 배포(CloudFormation), `false` 면 사용자가 직접 가이드를 따라
+            권한·Agent 를 설치한다.
         awsRegionType:
+          deprecated: true
           type: string
           enum:
             - global
             - china
+          description: |-
+            **Deprecated.** SIT v7 부터 `isChinaRegion` boolean 으로 대체.
+            기존 클라이언트 호환을 위해 한시적으로 유지한다.
         tenantId:
           type: string
-          description: Azure 전용 tenant id (GUID)
+          description: Azure 전용 tenant id (GUID). cloudProvider=Azure 시 필수.
         subscriptionId:
           type: string
-          description: Azure 전용 subscription id (GUID)
+          description: Azure 전용 subscription id (GUID). cloudProvider=Azure 시 필수.
         gcpProjectId:
           type: string
-          description: GCP 전용 project id
+          description: GCP 전용 project id. cloudProvider=GCP 시 필수.
+        dbType:
+          type: string
+          example: MYSQL
+          description: |-
+            본 타겟소스가 담당하는 DB Type 1개. 싱귤러로만 받는다.
+            Preview API 의 `dbTypes[i]` 1건과 대응한다.
+    RegistrationPreviewRequest:
+      type: object
+      description: |-
+        인프라 등록 모달 Phase 1 입력값. `dbTypes` 배열은 1+개 항목이어야 하며,
+        BFF는 입력 1건을 dbTypes 길이만큼의 preview 행으로 전개한다.
+
+        Naming policy:
+        - 카테고리/모드는 **boolean flag** 로 표현 (`isChinaRegion`,
+          `isTerraformExecutionGranted`). 기존 enum (`awsRegionType`,
+          `awsInstallationMode`) 패턴은 사용하지 않는다.
+        - SDU 여부는 입력으로 받지 않고 BFF 가 결정하여 응답에 `is_sdu_type` 으로 표시한다.
+      required:
+        - cloudProvider
+        - dbTypes
+      properties:
+        cloudProvider:
+          $ref: '#/components/schemas/CloudProvider'
+        awsAccountId:
+          type: string
+          description: AWS Payer Account ID (12자리). cloudProvider=AWS 시 필수.
+          example: '123456789012'
+        awsLinkedAccountId:
+          type: string
+          description: AWS Linked Account ID (12자리). 미입력 시 Payer = Linked로 간주.
+          example: '987654321098'
+        isChinaRegion:
+          type: boolean
+          default: false
+          description: |-
+            cloudProvider=AWS 시 사용. `true` 면 AWS China 파티션, `false`(기본) 면 Global.
+            non-AWS 입력에서는 무시한다.
+        isTerraformExecutionGranted:
+          type: boolean
+          default: false
+          description: |-
+            cloudProvider=AWS 시 사용. Terraform 실행 권한을 BDC 에 부여하기로 결정되었는지를 표시한다.
+            `true` 면 BDC 가 자동 배포(CloudFormation), `false` 면 사용자가 직접 가이드를 따라 권한·Agent 를 설치한다.
+        tenantId:
+          type: string
+          description: cloudProvider=Azure 시 필수.
+        subscriptionId:
+          type: string
+          description: cloudProvider=Azure 시 필수.
+        gcpProjectId:
+          type: string
+          description: cloudProvider=GCP 시 필수.
+        description:
+          type: string
+          description: 인프라 설명 (선택). IDC는 본 필드를 식별자로 사용.
+        dbTypes:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            example: MYSQL
+          description: 등록 대상 DB Type 목록. 응답 행 개수와 동일.
+    RegistrationPreviewItemType:
+      type: string
+      enum:
+        - ADD
+        - DUPLICATE
+      description: |-
+        - `ADD`: 동일 서비스 내에 같은 duplicate key 의 타겟소스가 없어 신규 생성 대상이다.
+        - `DUPLICATE`: 이미 같은 키를 가진 타겟소스가 존재한다.
+          `existing_target_source_id` 가 반드시 함께 반환된다.
+    RegistrationPreviewItemCommon:
+      type: object
+      description: |-
+        Preview 행의 공통 필드. ADD/DUPLICATE 변형이 공유한다.
+        응답은 snake_case (POST raw passthrough, BFF I-3 invariant).
+
+        **인덱스 매칭**: `items[i]` 는 요청 `dbTypes[i]` 와 1:1 대응한다.
+        본 응답에는 `db_type` 을 echo 하지 않으며, 클라이언트는 요청 배열을 인덱스로 참조한다.
+
+        UI 렌더링 규칙 요약:
+        - `is_china_region=true` → AWS China 칩, false → Global 칩 (AWS 한정)
+        - `is_sdu_type=true` → provider 로고 자리에 SDU 아이콘 표시 (이 응답 한정 단일 권위)
+        - `is_terraform_execution_granted=true` → 자동 설치 배지, false → 수동 설치 배지 (AWS 한정)
+      required:
+        - cloud_provider
+        - is_china_region
+        - is_sdu_type
+        - is_terraform_execution_granted
+      properties:
+        cloud_provider:
+          $ref: '#/components/schemas/CloudProvider'
+        aws_account_id:
+          type: string
+        aws_linked_account_id:
+          type: string
+        is_china_region:
+          type: boolean
+          description: AWS China 파티션 여부. AWS 외 provider 에서는 항상 false.
+        is_sdu_type:
+          type: boolean
+          description: |-
+            BFF 가 SDU 모듈로 처리할 대상이라고 판단했는지 여부. UI 는 본 플래그가 true 일 때
+            provider 로고 자리에 SDU 아이콘을 표시한다. 본 응답 스코프 한정 — 다른 BFF 응답의
+            `monitoring_module` 등과 별개 표현이다.
+        is_terraform_execution_granted:
+          type: boolean
+          description: |-
+            AWS 한정 — Terraform 실행 권한을 BDC 에 부여하기로 결정되었는지 여부.
+            AWS 외 provider 에서는 항상 false.
+        tenant_id:
+          type: string
+        subscription_id:
+          type: string
+        gcp_project_id:
+          type: string
+        description:
+          type: string
+    RegistrationPreviewItemAdd:
+      allOf:
+        - $ref: '#/components/schemas/RegistrationPreviewItemCommon'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - ADD
+              description: 신규 생성 대상.
+    RegistrationPreviewItemDuplicate:
+      allOf:
+        - $ref: '#/components/schemas/RegistrationPreviewItemCommon'
+        - type: object
+          required:
+            - type
+            - existing_target_source_id
+          properties:
+            type:
+              type: string
+              enum:
+                - DUPLICATE
+              description: 이미 동일 키의 타겟소스가 존재. `existing_target_source_id` 필수.
+            existing_target_source_id:
+              type: integer
+              format: int64
+              description: 중복으로 판단된 기존 타겟소스 ID.
+    RegistrationPreviewItem:
+      oneOf:
+        - $ref: '#/components/schemas/RegistrationPreviewItemAdd'
+        - $ref: '#/components/schemas/RegistrationPreviewItemDuplicate'
+      discriminator:
+        propertyName: type
+        mapping:
+          ADD: '#/components/schemas/RegistrationPreviewItemAdd'
+          DUPLICATE: '#/components/schemas/RegistrationPreviewItemDuplicate'
+    RegistrationPreviewResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegistrationPreviewItem'
     PermissionUser:
       type: object
       required:
