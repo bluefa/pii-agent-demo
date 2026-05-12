@@ -224,7 +224,14 @@ export const cardStyles = {
     lg: 'p-8',
   },
   header: 'px-6 py-4 border-b border-gray-100',
+  /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
+  /** Small uppercase header above a card display title (ADR-014 card-eyebrow). */
+  eyebrow: 'text-[12px] font-bold text-[#0064FF] tracking-[0.02em]',
+  /** Large display heading inside a card header (ADR-014 card-display-title). */
+  displayTitle: 'text-[26px] font-extrabold text-gray-900 tracking-[-0.045em] leading-[1.2]',
+  /** Paragraph beneath a display title (ADR-014 card-subtitle). */
+  subtitle: 'text-[13.5px] font-medium text-gray-500 leading-[1.55]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
   editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
   /** Toolbar surface — muted bg sitting above the Tiptap area */
@@ -270,11 +277,24 @@ export const segmentedControlStyles = {
 
 /**
  * Page chrome — breadcrumb / title / subtitle stack above ProviderTabs.
+ * Values track DESIGN.md page-title / page-breadcrumb / page-subtitle (ADR-014).
  */
 export const pageChromeStyles = {
-  breadcrumb: 'text-[12.5px] text-gray-500 px-6 pt-5',
-  title: 'text-[24px] font-semibold tracking-[-0.02em] text-gray-900 px-6 mt-1',
+  breadcrumb: 'text-[13px] text-gray-500 px-6 pt-5 font-medium',
+  title: 'text-[30px] font-extrabold tracking-[-0.03em] text-gray-900 px-6 mt-1 leading-[1.2]',
   subtitle: 'text-[13.5px] text-gray-500 px-6 mt-1 mb-5',
+} as const;
+
+/**
+ * Page-meta horizontal kv strip (Toss display variant).
+ * See ADR-014 D1; consumer rollout starts in Wave 1.
+ */
+export const pageMetaStyles = {
+  container: 'flex flex-wrap gap-9',
+  item: 'flex flex-col gap-1',
+  key: 'text-[13px] font-medium text-gray-500',
+  value: 'text-[15px] font-semibold tracking-[-0.01em] text-gray-900',
+  mono: 'font-mono',
 } as const;
 
 /**
@@ -529,3 +549,4 @@ export type ButtonVariant = keyof typeof buttonStyles.variants;
 export type ButtonSize = keyof typeof buttonStyles.sizes;
 export type CardPadding = keyof typeof cardStyles.padding;
 export type ModalSize = keyof typeof modalStyles.sizes;
+export type PageMetaItemKey = keyof typeof pageMetaStyles;

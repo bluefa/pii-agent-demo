@@ -30,31 +30,78 @@ colors:
   provider-gcp:          "#4285F4"
   provider-idc:          "#374151"
   provider-sdu:          "#9333EA"
+  surface-page:          "#F2F4F6"
+  text-strong-toss:      "#191F28"
+  text-medium-toss:      "#4E5968"
+  text-weak-toss:        "#8B95A1"
+  text-faint-toss:       "#B0B8C1"
 typography:
   page-title:
-    fontFamily: system-ui
-    fontSize: 24px
-    fontWeight: 600
-    letterSpacing: -0.02em
+    fontFamily: Geist
+    fontSize: 30px
+    fontWeight: 800
+    letterSpacing: -0.03em
+    lineHeight: 1.2
   page-subtitle:
-    fontFamily: system-ui
+    fontFamily: Geist
     fontSize: 13.5px
     fontWeight: 400
   page-breadcrumb:
-    fontFamily: system-ui
-    fontSize: 12.5px
-    fontWeight: 400
+    fontFamily: Geist
+    fontSize: 13px
+    fontWeight: 500
   card-title:
-    fontFamily: system-ui
+    deprecated: true
+    migrate-to: card-eyebrow
+    fontFamily: Geist
     fontSize: 14px
     fontWeight: 600
     letterSpacing: 0.05em
+  card-eyebrow:
+    fontFamily: Geist
+    fontSize: 12px
+    fontWeight: 700
+    letterSpacing: 0.02em
+    role: small uppercase header above a card display title
+  card-display-title:
+    fontFamily: Geist
+    fontSize: 26px
+    fontWeight: 800
+    letterSpacing: -0.045em
+    lineHeight: 1.2
+  card-subtitle:
+    fontFamily: Geist
+    fontSize: 13.5px
+    fontWeight: 500
+    lineHeight: 1.55
+    color: text-tertiary
+  page-meta-key:
+    fontFamily: Geist
+    fontSize: 13px
+    fontWeight: 500
+    color: text-tertiary
+  page-meta-value:
+    fontFamily: Geist
+    fontSize: 15px
+    fontWeight: 600
+    letterSpacing: -0.01em
+    color: text-primary
+  type-display:    28px
+  type-h1:         22px
+  type-h2:         20px
+  type-h3:         18px
+  type-body:       15px
+  type-body-sm:    14px
+  type-caption:    13px
+  type-label:      12px
+  type-micro:      11px
 rounded:
-  sm:   6px
-  md:   8px
-  lg:   12px
-  xl:   12px
-  full: 9999px
+  sm:           6px
+  md:           8px
+  lg:           12px
+  xl:           12px
+  card-display: 20px
+  full:         9999px
 spacing:
   card-padding: 24px
   section-gap:  24px
@@ -123,11 +170,16 @@ Each cloud provider has a single brand colour used in icons, the left border of 
 
 ## Typography
 
-Typography is intentionally minimal:
+Typography spans page chrome, card surfaces, page-meta strips, and a global 9-stop type scale (`type-display`, `type-h1`, `type-h2`, `type-h3`, `type-body`, `type-body-sm`, `type-caption`, `type-label`, `type-micro`).
 
-- The page-chrome scale (`page-title`, `page-subtitle`, `page-breadcrumb`, `card-title`) is the only set of named display tokens.
-- Body text rides on Tailwind's default `text-{xs|sm|base|lg|xl}` scale via the system font stack declared in `app/globals.css`. **Do not introduce a custom font face per component**; if a screen needs a new typographic role, add a token here first.
+- The page-chrome scale (`page-title`, `page-subtitle`, `page-breadcrumb`) and the card-surface scale (`card-eyebrow`, `card-display-title`, `card-subtitle`) are the named display tokens. `card-title` remains as a deprecated alias for `card-eyebrow` for one wave.
+- The page-meta strip (`page-meta-key`, `page-meta-value`) is the horizontal kv pair used in page headers.
+- `fontFamily` is `Geist`, loaded via `next/font/google` in `app/layout.tsx` and aliased to `--font-geist-sans`. The system stack (`-apple-system`, `BlinkMacSystemFont`, `'Apple SD Gothic Neo'`, `'Pretendard'`, `'Malgun Gothic'`, `system-ui`, `sans-serif`) is the fallback.
+- Body text consumes the type scale via `lib/theme.ts` class-string exports (`pageMetaStyles.value`, `cardStyles.subtitle`, …) when the page uses Toss-flavored surfaces. Tailwind's default `text-{xs|sm|base|lg|xl}` scale remains valid for non-Toss pages.
+- `letter-spacing: -0.018em` is **not** a global body default in this phase — it appears only in `pageMetaStyles.value` (-0.01em) and display headings (`page-title` -0.03em, `card-display-title` -0.045em).
 - Numerals in tables use `tabular-nums` (see `numericFeatures` in `lib/theme.ts`) to keep step numbers and counts aligned.
+
+The stepper component (`app/components/features/process-status/ProcessProgressBar.tsx` and the `motion/` directory beside it) is intentionally excluded from this token set. Its current visual is preferred over the prototype's static stepper.
 
 ## Layout
 
