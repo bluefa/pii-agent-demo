@@ -22,20 +22,21 @@ import {
 import type { DbType } from '@/lib/constants/db-types';
 import {
   PROVIDER_CHIP_BY_KEY,
-  getProviderChipDisplayLabel,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
+import type { CloudProvider } from '@/lib/types';
 import {
   DbTypeMultiSelect,
   ProviderChipGrid,
   ProviderCredentialForm,
-  StagedInfraTable,
   validateCredentials,
-  type StagedInfra,
 } from '@/app/components/features/project-create';
 import {
   RegistrationPreviewCardList,
+  RegistrationProgressList,
   type PreviewRow,
+  type ProgressRow,
+  type ProgressRowStatus,
 } from '@/app/components/features/admin/v7';
 
 interface ProjectCreateModalProps {
@@ -45,73 +46,98 @@ interface ProjectCreateModalProps {
   onCreated: () => void;
 }
 
-type Phase = 'input' | 'preview' | 'submitting';
+type Phase = 'input' | 'preview' | 'progress';
 
-const makeTempId = () =>
-  (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-    ? crypto.randomUUID()
-    : `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+interface CreateDtoInput {
+  chipKey: ProviderChipKey;
+  cloudProvider: CloudProvider;
+  awsRegionType?: 'global' | 'china';
+  credentials: Record<string, string>;
+}
 
-const toPreviewRequest = (infra: StagedInfra): RegistrationPreviewRequest => {
-  if (infra.cloudProvider === 'AWS') {
+const buildPreviewRequest = (
+  input: CreateDtoInput,
+  dbTypes: DbType[],
+): RegistrationPreviewRequest => {
+  if (input.cloudProvider === 'AWS') {
     return {
       cloudProvider: 'AWS',
-      awsAccountId: infra.credentials.payerAccount,
-      ...(infra.credentials.linkedAccount
-        ? { awsLinkedAccountId: infra.credentials.linkedAccount }
+      awsAccountId: input.credentials.payerAccount,
+      ...(input.credentials.linkedAccount
+        ? { awsLinkedAccountId: input.credentials.linkedAccount }
         : {}),
-      isChinaRegion: infra.awsRegionType === 'china',
-      dbTypes: infra.dbTypes,
+      isChinaRegion: input.awsRegionType === 'china',
+      dbTypes,
     };
   }
-  if (infra.cloudProvider === 'Azure') {
+  if (input.cloudProvider === 'Azure') {
     return {
       cloudProvider: 'Azure',
-      tenantId: infra.credentials.tenantId,
-      subscriptionId: infra.credentials.subscriptionId,
-      dbTypes: infra.dbTypes,
+      tenantId: input.credentials.tenantId,
+      subscriptionId: input.credentials.subscriptionId,
+      dbTypes,
     };
   }
   return {
     cloudProvider: 'GCP',
-    gcpProjectId: infra.credentials.projectId,
-    dbTypes: infra.dbTypes,
+    gcpProjectId: input.credentials.projectId,
+    dbTypes,
   };
 };
 
-const toCreateDto = (
-  infra: StagedInfra,
+const buildCreateDto = (
+  input: CreateDtoInput,
   dbType: DbType,
   serviceCode: string,
 ): Parameters<typeof createProject>[0] => {
-  const base = { serviceCode, cloudProvider: infra.cloudProvider, dbType };
-  if (infra.cloudProvider === 'AWS') {
+  const base = { serviceCode, cloudProvider: input.cloudProvider, dbType };
+  if (input.cloudProvider === 'AWS') {
     return {
       ...base,
-      awsAccountId: infra.credentials.payerAccount,
-      ...(infra.credentials.linkedAccount
-        ? { awsLinkedAccountId: infra.credentials.linkedAccount }
+      awsAccountId: input.credentials.payerAccount,
+      ...(input.credentials.linkedAccount
+        ? { awsLinkedAccountId: input.credentials.linkedAccount }
         : {}),
-      awsRegionType: infra.awsRegionType,
-      isChinaRegion: infra.awsRegionType === 'china',
+      awsRegionType: input.awsRegionType,
+      isChinaRegion: input.awsRegionType === 'china',
     };
   }
-  if (infra.cloudProvider === 'Azure') {
+  if (input.cloudProvider === 'Azure') {
     return {
       ...base,
-      tenantId: infra.credentials.tenantId,
-      subscriptionId: infra.credentials.subscriptionId,
+      tenantId: input.credentials.tenantId,
+      subscriptionId: input.credentials.subscriptionId,
     };
   }
   return {
     ...base,
-    gcpProjectId: infra.credentials.projectId,
+    gcpProjectId: input.credentials.projectId,
   };
 };
 
-interface PendingPreviewRow extends PreviewRow {
-  stagedTempId: string;
-}
+const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
+  AWS: 'AWS',
+  AZURE: 'Azure',
+  Azure: 'Azure',
+  GCP: 'GCP',
+};
+
+const toCloudProvider = (raw: string): CloudProvider => PROVIDER_FROM_RAW[raw] ?? 'AWS';
+
+const identifierLabel = (item: RegistrationPreviewItem): string => {
+  switch (item.cloud_provider.toUpperCase()) {
+    case 'AWS':
+      return item.aws_account_id ? `Payer ${item.aws_account_id}` : '—';
+    case 'AZURE':
+      return item.subscription_id ? `Sub ${item.subscription_id}` : '—';
+    case 'GCP':
+      return item.gcp_project_id ? `Project ${item.gcp_project_id}` : '—';
+    case 'IDC':
+      return item.description || '—';
+    default:
+      return '—';
+  }
+};
 
 export const ProjectCreateModal = ({
   selectedServiceCode,
@@ -121,84 +147,67 @@ export const ProjectCreateModal = ({
 }: ProjectCreateModalProps) => {
   const toast = useToast();
   const [phase, setPhase] = useState<Phase>('input');
-  const [currentChip, setCurrentChip] = useState<ProviderChipKey>('aws-global');
-  const [currentFields, setCurrentFields] = useState<Record<string, string>>({});
-  const [currentDbTypes, setCurrentDbTypes] = useState<DbType[]>([]);
-  const [staged, setStaged] = useState<StagedInfra[]>([]);
-  const [previewRows, setPreviewRows] = useState<PendingPreviewRow[]>([]);
-  const [addError, setAddError] = useState<string | null>(null);
+  const [chipKey, setChipKey] = useState<ProviderChipKey>('aws-global');
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [dbTypes, setDbTypes] = useState<DbType[]>([]);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const activeChip = PROVIDER_CHIP_BY_KEY[currentChip];
-
-  const resetInputs = () => {
-    setCurrentFields({});
-    setCurrentDbTypes([]);
-    setAddError(null);
-  };
+  const activeChip = PROVIDER_CHIP_BY_KEY[chipKey];
 
   const handleChipChange = (key: ProviderChipKey) => {
-    setCurrentChip(key);
-    resetInputs();
+    setChipKey(key);
+    setFields({});
+    setSubmitError(null);
   };
 
-  const handleAddToList = () => {
-    if (!activeChip.enabled || !activeChip.cloudProvider || !activeChip.communicationModule) {
-      setAddError('활성화된 Provider를 선택하세요');
-      return;
-    }
-    const validationError = validateCredentials(currentChip, currentFields);
-    if (validationError) {
-      setAddError(validationError);
-      return;
-    }
-    if (currentDbTypes.length === 0) {
-      setAddError('DB Type을 1개 이상 선택하세요');
-      return;
-    }
-
-    const item: StagedInfra = {
-      tempId: makeTempId(),
-      chipKey: currentChip,
-      providerLabel: getProviderChipDisplayLabel(activeChip),
+  const buildInput = (): CreateDtoInput | null => {
+    if (!activeChip.enabled || !activeChip.cloudProvider) return null;
+    return {
+      chipKey,
       cloudProvider: activeChip.cloudProvider,
       awsRegionType: activeChip.awsRegionType,
-      credentials: { ...currentFields },
-      dbTypes: [...currentDbTypes],
-      communicationModule: activeChip.communicationModule,
+      credentials: fields,
     };
-    setStaged((prev) => [...prev, item]);
-    resetInputs();
-  };
-
-  const handleRemove = (tempId: string) => {
-    setStaged((prev) => prev.filter((x) => x.tempId !== tempId));
   };
 
   const handleNext = async () => {
-    if (staged.length === 0 || phase !== 'input') return;
-    setPhase('submitting');
+    if (busy) return;
+    if (!activeChip.enabled || !activeChip.cloudProvider) {
+      setSubmitError('활성화된 Provider를 선택하세요');
+      return;
+    }
+    const validationError = validateCredentials(chipKey, fields);
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+    if (dbTypes.length === 0) {
+      setSubmitError('DB Type을 1개 이상 선택하세요');
+      return;
+    }
+    const input = buildInput();
+    if (!input) return;
+
+    setSubmitError(null);
+    setBusy(true);
     try {
-      const responses = await Promise.all(
-        staged.map((infra) =>
-          previewTargetSourceRegistration(selectedServiceCode, toPreviewRequest(infra)),
-        ),
+      const response = await previewTargetSourceRegistration(
+        selectedServiceCode,
+        buildPreviewRequest(input, dbTypes),
       );
-      const rows: PendingPreviewRow[] = [];
-      responses.forEach((response, infraIdx) => {
-        const infra = staged[infraIdx];
-        response.items.forEach((item: RegistrationPreviewItem, dbIdx: number) => {
-          rows.push({
-            stagedTempId: infra.tempId,
-            dbType: infra.dbTypes[dbIdx],
-            item,
-          });
-        });
-      });
+      const rows: PreviewRow[] = response.items.map((item, idx) => ({
+        item,
+        dbType: dbTypes[idx],
+      }));
       setPreviewRows(rows);
       setPhase('preview');
     } catch (err) {
-      setPhase('input');
       toast.error(err instanceof Error ? err.message : '등록 미리보기 실패');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -207,49 +216,76 @@ export const ProjectCreateModal = ({
     setPreviewRows([]);
   };
 
-  const handleConfirmRegister = async () => {
-    if (phase !== 'preview') return;
+  const handleRegister = async () => {
+    const input = buildInput();
+    if (!input || busy) return;
     const addRows = previewRows.filter((row) => row.item.type === 'ADD');
     if (addRows.length === 0) {
       toast.info('신규 등록 대상이 없습니다.');
       return;
     }
-    setPhase('submitting');
-    const stagedById = new Map(staged.map((s) => [s.tempId, s]));
 
-    const results = await Promise.allSettled(
-      addRows.map((row) => {
-        const infra = stagedById.get(row.stagedTempId);
-        if (!infra) throw new Error('등록 대상 정보를 찾을 수 없습니다.');
-        return createProject(toCreateDto(infra, row.dbType as DbType, selectedServiceCode));
+    const initial: ProgressRow[] = addRows.map((row, idx) => ({
+      key: `row-${idx}`,
+      cloudProvider: toCloudProvider(row.item.cloud_provider),
+      isSdu: row.item.is_sdu_type,
+      primaryLabel: `${row.item.cloud_provider} · ${row.dbType}`,
+      secondaryLabel: identifierLabel(row.item),
+      status: 'in-progress',
+    }));
+    setProgressRows(initial);
+    setPhase('progress');
+    setBusy(true);
+
+    const updateRow = (key: string, status: ProgressRowStatus, error?: string) => {
+      setProgressRows((prev) =>
+        prev.map((r) => (r.key === key ? { ...r, status, ...(error ? { error } : {}) } : r)),
+      );
+    };
+
+    await Promise.allSettled(
+      addRows.map(async (row, idx) => {
+        const key = `row-${idx}`;
+        try {
+          await createProject(buildCreateDto(input, row.dbType as DbType, selectedServiceCode));
+          updateRow(key, 'done');
+        } catch (err) {
+          updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
+        }
       }),
     );
 
-    const failedCount = results.filter((r) => r.status === 'rejected').length;
-    if (failedCount > 0) {
-      const firstFailure = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
-      const message = firstFailure?.reason instanceof Error
-        ? firstFailure.reason.message
-        : '일부 인프라 등록에 실패했습니다.';
-      toast.error(`${failedCount}건 실패: ${message}`);
-      onCreated();
-      setPhase('preview');
-      return;
-    }
-
+    setBusy(false);
     onCreated();
-    onClose();
   };
 
-  const canAdd =
+  const phase1Valid =
     activeChip.enabled &&
-    currentDbTypes.length > 0 &&
-    validateCredentials(currentChip, currentFields) === null;
+    dbTypes.length > 0 &&
+    validateCredentials(chipKey, fields) === null;
 
   const addRowCount = previewRows.filter((row) => row.item.type === 'ADD').length;
   const duplicateCount = previewRows.length - addRowCount;
-  const submitting = phase === 'submitting';
-  const showInput = phase === 'input' || (phase === 'submitting' && previewRows.length === 0);
+
+  const progressDone = progressRows.filter((r) => r.status === 'done').length;
+  const progressFailed = progressRows.filter((r) => r.status === 'failed').length;
+  const progressComplete =
+    progressRows.length > 0 && progressDone + progressFailed === progressRows.length;
+  const progressTone: 'running' | 'success' | 'error' = !progressComplete
+    ? 'running'
+    : progressFailed === 0
+      ? 'success'
+      : 'error';
+  const progressTitle = !progressComplete
+    ? '인프라를 등록하고 있어요'
+    : progressFailed === 0
+      ? `${progressDone}건 등록 완료`
+      : `${progressDone}건 완료 · ${progressFailed}건 실패`;
+  const progressSubtitle = !progressComplete
+    ? '각 인프라에 대해 Agent/SDU 할당과 자격증명 검증을 진행해요.'
+    : progressFailed === 0
+      ? '모든 인프라가 등록됐어요.'
+      : '일부 인프라 등록에 실패했어요. 닫고 다시 시도해주세요.';
 
   return (
     <div className={modalStyles.overlay} onClick={onClose}>
@@ -260,17 +296,25 @@ export const ProjectCreateModal = ({
         <div className={modalStyles.header}>
           <div>
             <h2 className={cn('text-lg font-bold', textColors.primary)}>
-              {showInput ? '인프라 등록' : '등록 내용 확인'}
+              {phase === 'input' && '인프라 등록'}
+              {phase === 'preview' && '등록 내용 확인'}
+              {phase === 'progress' && (progressComplete ? '등록 결과' : '인프라 등록 진행 중')}
             </h2>
             <p className={cn('mt-0.5 text-sm', textColors.tertiary)}>
-              {showInput
-                ? 'PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.'
-                : '아래 항목이 등록됩니다. 내용을 확인하고 등록을 진행해주세요.'}
+              {phase === 'input' &&
+                'PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.'}
+              {phase === 'preview' &&
+                '입력한 정보를 기준으로 아래 인프라가 등록됩니다. 내용을 확인하고 등록을 진행해주세요.'}
+              {phase === 'progress' && progressSubtitle}
             </p>
           </div>
           <button
             onClick={onClose}
-            className={cn('p-2 rounded-lg transition-colors', interactiveColors.closeButton)}
+            disabled={phase === 'progress' && !progressComplete}
+            className={cn(
+              'p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+              interactiveColors.closeButton,
+            )}
             aria-label="닫기"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -280,7 +324,7 @@ export const ProjectCreateModal = ({
         </div>
 
         <div className="p-6 space-y-5 overflow-y-auto">
-          {showInput ? (
+          {phase === 'input' && (
             <>
               <div
                 className={cn(
@@ -305,7 +349,7 @@ export const ProjectCreateModal = ({
                   <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
                   인프라 (Provider) 유형 선택
                 </h3>
-                <ProviderChipGrid value={currentChip} onChange={handleChipChange} />
+                <ProviderChipGrid value={chipKey} onChange={handleChipChange} />
               </section>
 
               <div className="grid grid-cols-2 gap-5">
@@ -316,9 +360,9 @@ export const ProjectCreateModal = ({
                   </h3>
                   {activeChip.enabled ? (
                     <ProviderCredentialForm
-                      chipKey={currentChip}
-                      values={currentFields}
-                      onChange={setCurrentFields}
+                      chipKey={chipKey}
+                      values={fields}
+                      onChange={setFields}
                     />
                   ) : (
                     <p className={cn('text-sm', textColors.tertiary)}>
@@ -331,33 +375,17 @@ export const ProjectCreateModal = ({
                     <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>3</span>
                     DB Type 선택
                   </h3>
-                  <DbTypeMultiSelect values={currentDbTypes} onChange={setCurrentDbTypes} />
+                  <DbTypeMultiSelect values={dbTypes} onChange={setDbTypes} />
                 </section>
               </div>
 
-              {addError && (
-                <p className={cn('text-sm', statusColors.error.text)}>{addError}</p>
+              {submitError && (
+                <p className={cn('text-sm', statusColors.error.text)}>{submitError}</p>
               )}
-
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleAddToList}
-                  disabled={!canAdd}
-                >
-                  + Add to List
-                </Button>
-              </div>
-
-              <section>
-                <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                  인프라 등록 List
-                </h3>
-                <StagedInfraTable items={staged} onRemove={handleRemove} />
-              </section>
             </>
-          ) : (
+          )}
+
+          {phase === 'preview' && (
             <>
               <div
                 className={cn(
@@ -366,11 +394,10 @@ export const ProjectCreateModal = ({
                   bgColors.muted,
                 )}
               >
-                <span className={cn('font-semibold', textColors.primary)}>아래</span>
                 <span className={cn('font-bold text-base', textColors.primary)}>
                   {previewRows.length}
                 </span>
-                <span className={textColors.secondary}>개 인프라가 등록됩니다.</span>
+                <span className={textColors.secondary}>개 인프라 후보가 생성됐어요.</span>
                 {duplicateCount > 0 && (
                   <span className={cn('ml-auto text-xs', statusColors.warning.text)}>
                     중복 {duplicateCount}건은 등록에서 제외됩니다.
@@ -380,10 +407,19 @@ export const ProjectCreateModal = ({
               <RegistrationPreviewCardList rows={previewRows} />
             </>
           )}
+
+          {phase === 'progress' && (
+            <RegistrationProgressList
+              rows={progressRows}
+              title={progressTitle}
+              subtitle={progressSubtitle}
+              tone={progressTone}
+            />
+          )}
         </div>
 
         <div className={modalStyles.footer}>
-          {showInput ? (
+          {phase === 'input' && (
             <>
               <Button variant="secondary" onClick={onClose} type="button">
                 취소
@@ -391,38 +427,46 @@ export const ProjectCreateModal = ({
               <Button
                 type="button"
                 onClick={handleNext}
-                disabled={submitting || staged.length === 0}
+                disabled={busy || !phase1Valid}
               >
-                {submitting ? (
+                {busy ? (
                   <span className="flex items-center gap-2">
                     <LoadingSpinner />
                     확인 중...
                   </span>
                 ) : (
-                  `다음${staged.length > 0 ? ` (${staged.length})` : ''}`
+                  '다음'
                 )}
               </Button>
             </>
-          ) : (
+          )}
+          {phase === 'preview' && (
             <>
-              <Button variant="secondary" onClick={handleBackToInput} type="button" disabled={submitting}>
+              <Button
+                variant="secondary"
+                onClick={handleBackToInput}
+                type="button"
+                disabled={busy}
+              >
                 이전
               </Button>
               <Button
                 type="button"
-                onClick={handleConfirmRegister}
-                disabled={submitting || addRowCount === 0}
+                onClick={handleRegister}
+                disabled={busy || addRowCount === 0}
               >
-                {submitting ? (
-                  <span className="flex items-center gap-2">
-                    <LoadingSpinner />
-                    등록 중...
-                  </span>
-                ) : (
-                  `등록하기${addRowCount > 0 ? ` (${addRowCount})` : ''}`
-                )}
+                {`등록하기${addRowCount > 0 ? ` (${addRowCount})` : ''}`}
               </Button>
             </>
+          )}
+          {phase === 'progress' && (
+            <Button
+              type="button"
+              onClick={onClose}
+              disabled={!progressComplete}
+            >
+              {progressComplete ? '닫기' : '진행 중...'}
+            </Button>
           )}
         </div>
       </div>
