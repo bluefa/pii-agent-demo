@@ -1,14 +1,14 @@
 import type { CloudProvider } from '@/lib/types';
 
 /**
- * 하나의 식별자 레코드. "TargetSource"가 가리키는 클라우드 계정을 고유하게
- * 지정하는 공개 정보 — AWS Account ID, Azure Subscription/Tenant ID, GCP
- * Project ID 등. 비밀키(SecretKey)와는 별개의 개념이다.
+ * One public identifier record for the cloud account that a TargetSource
+ * points to — AWS Account ID, Azure Subscription/Tenant ID, GCP Project ID,
+ * etc. Distinct from the SecretKey credential.
  */
 export interface TargetSourceIdentifier {
   label: string;
   value: string | null;
-  /** true면 mono font + hover 시 복사 버튼 노출 */
+  /** When true, render the value with mono font and reveal a copy button on hover. */
   mono?: boolean;
 }
 
@@ -16,8 +16,8 @@ export interface ProjectIdentity {
   cloudProvider: CloudProvider;
   /** e.g. "AWS Agent", "Azure Agent", "SDU" */
   monitoringMethod: string;
-  /** Jira 티켓 URL. null/undefined면 chip 렌더하지 않음 */
+  /** Jira ticket URL. The chip is not rendered when null or undefined. */
   jiraLink?: string | null;
-  /** provider별 공개 식별자들 (account id, subscription id, tenant id, project id 등) */
+  /** Provider-specific public identifiers (account id, subscription id, tenant id, project id, ...). */
   identifiers: TargetSourceIdentifier[];
 }
