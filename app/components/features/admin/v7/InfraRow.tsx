@@ -109,17 +109,13 @@ export const InfraRow = ({
 
   const handleRowClick = () => onOpenDetail(project.targetSourceId);
 
+  // The row is a click target but not a focusable button — WAI-ARIA forbids
+  // interactive descendants (StatusCta + ManagementSplitButton) inside a
+  // role="button" wrapper. Keyboard activation of "open detail" lives on the
+  // ManagementSplitButton primary action so tab-order users can still reach it.
   return (
     <div
-      role="button"
-      tabIndex={0}
       onClick={handleRowClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleRowClick();
-        }
-      }}
       className={cn(
         'group relative grid items-center gap-4 cursor-pointer',
         'grid-cols-[6px_minmax(160px,1fr)_minmax(180px,1.4fr)_minmax(120px,1fr)_120px_88px]',

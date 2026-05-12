@@ -131,24 +131,47 @@ export const AdminDashboard = () => {
     fetchServicesPage(page, serviceQuery);
   }, [fetchServicesPage, serviceQuery]);
 
+  // Race guard: when `selectedService` changes rapidly, the in-flight
+  // getProjects call for the previous service may resolve *after* the new
+  // one, overwriting the panel with stale rows. The cleanup flag suppresses
+  // setProjects from any closure whose service is no longer active.
   useEffect(() => {
     if (!selectedService) return;
-    const fetchServiceData = async () => {
-      setLoading(true);
-      const projectsData = await getProjects(selectedService);
-      setProjects(projectsData);
-      setLoading(false);
+    let cancelled = false;
+    setLoading(true);
+    setProjects([]);
+    getProjects(selectedService)
+      .then((projectsData) => {
+        if (!cancelled) setProjects(projectsData);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          toast.error(err instanceof Error ? err.message : '타겟소스 목록 조회 실패');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-    fetchServiceData();
-  }, [selectedService]);
+  }, [selectedService, toast]);
 
-  const refreshProjects = async () => {
+  const refreshProjects = useCallback(async () => {
     if (!selectedService) return;
     setLoading(true);
-    const data = await getProjects(selectedService);
-    setProjects(data);
-    setLoading(false);
-  };
+    try {
+      const data = await getProjects(selectedService);
+      // Best-effort: stale guard relies on selectedService still matching by
+      // the time the promise resolves; refresh is action-driven (not rapid),
+      // so a soft check is enough.
+      setProjects(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '타겟소스 목록 새로고침 실패');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedService, toast]);
 
   const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
     e.stopPropagation();

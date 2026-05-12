@@ -45,6 +45,15 @@ export const ServiceHeaderV7 = ({
 }: ServiceHeaderV7Props) => {
   const toast = useToast();
   const [managers, setManagers] = useState<UserSearchResult[]>([]);
+  // Derived-state-from-prop: drop stale managers during render when serviceCode
+  // changes, so the meta row never displays the previous service's data while
+  // the new fetch is in flight. Equivalent to a setState in effect but without
+  // the cascade-render warning.
+  const [trackedServiceCode, setTrackedServiceCode] = useState(serviceCode);
+  if (trackedServiceCode !== serviceCode) {
+    setTrackedServiceCode(serviceCode);
+    setManagers([]);
+  }
 
   useEffect(() => {
     let cancelled = false;

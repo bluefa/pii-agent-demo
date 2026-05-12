@@ -80,7 +80,7 @@ interface ProviderChipGridProps {
 }
 
 export const ProviderChipGrid = ({ value, onChange }: ProviderChipGridProps) => (
-  <div className="grid grid-cols-5 gap-2">
+  <div role="radiogroup" aria-label="Provider 선택" className="grid grid-cols-5 gap-2">
     {PROVIDER_CHIPS.map((chip) => {
       const Icon = CHIP_ICON[chip.key];
       const isSelected = value === chip.key;
@@ -88,6 +88,8 @@ export const ProviderChipGrid = ({ value, onChange }: ProviderChipGridProps) => 
         <button
           key={chip.key}
           type="button"
+          role="radio"
+          aria-checked={isSelected}
           onClick={() => onChange(chip.key)}
           className={cn(
             'flex flex-col items-center justify-center gap-1 rounded-lg border-2 px-2 py-3 text-sm font-medium transition-all',
@@ -95,7 +97,6 @@ export const ProviderChipGrid = ({ value, onChange }: ProviderChipGridProps) => 
               ? selectedClass(chip.key)
               : cn(borderColors.default, bgColors.surface, textColors.secondary, interactiveColors.unselectedBorder),
           )}
-          aria-pressed={isSelected}
         >
           <Icon className="w-5 h-5" />
           <span className="leading-tight">{chip.label}</span>

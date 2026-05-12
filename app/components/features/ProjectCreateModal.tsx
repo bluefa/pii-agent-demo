@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
@@ -183,6 +183,27 @@ export const ProjectCreateModal = ({
   const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // mountedRef gates async setState after unmount — handleRegister fans out N
+  // createProject calls in parallel, and the modal can close mid-batch.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Escape closes the modal — but not during Phase 3 in-flight register, so
+  // users cannot cancel a batch that is still hitting the BFF.
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (phase === 'progress' && busy) return;
+      onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [phase, busy, onClose]);
 
   const chipDef = PROVIDER_CHIP_BY_KEY[chipKey];
   const isAws = chipDef.apiProvider === 'AWS';
@@ -220,6 +241,7 @@ export const ProjectCreateModal = ({
         selectedServiceCode,
         buildPreviewRequest(buildForm(), dbTypes),
       );
+      if (!mountedRef.current) return;
       const rows: PreviewRow[] = response.items.map((item, idx) => ({
         item,
         dbType: dbTypes[idx],
@@ -227,9 +249,11 @@ export const ProjectCreateModal = ({
       setPreviewRows(rows);
       setPhase('preview');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '등록 미리보기 실패');
+      if (mountedRef.current) {
+        toast.error(err instanceof Error ? err.message : '등록 미리보기 실패');
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   };
 
@@ -260,6 +284,7 @@ export const ProjectCreateModal = ({
     setBusy(true);
 
     const updateRow = (key: string, status: ProgressRowStatus, error?: string) => {
+      if (!mountedRef.current) return;
       setProgressRows((prev) =>
         prev.map((r) => (r.key === key ? { ...r, status, ...(error ? { error } : {}) } : r)),
       );
@@ -277,6 +302,7 @@ export const ProjectCreateModal = ({
       }),
     );
 
+    if (!mountedRef.current) return;
     setBusy(false);
     onCreated();
   };
@@ -307,12 +333,15 @@ export const ProjectCreateModal = ({
   return (
     <div className={modalStyles.overlay} onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="project-create-modal-title"
         className={cn(modalStyles.container, 'w-[840px] max-h-[90vh] flex flex-col shadow-2xl')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={modalStyles.header}>
           <div>
-            <h2 className={cn('text-lg font-bold', textColors.primary)}>
+            <h2 id="project-create-modal-title" className={cn('text-lg font-bold', textColors.primary)}>
               {phase === 'input' && '인프라 등록'}
               {phase === 'preview' && '등록 내용 확인'}
               {phase === 'progress' && (progressComplete ? '등록 결과' : '인프라 등록 진행 중')}
