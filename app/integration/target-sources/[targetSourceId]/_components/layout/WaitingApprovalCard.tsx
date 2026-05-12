@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   getApprovedIntegration,
   type ApprovedIntegrationExcludedResourceItem,
@@ -8,11 +8,19 @@ import {
 } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
 import { ClockIcon } from '@/app/components/ui/icons';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { StepBanner } from '@/app/components/ui/StepBanner';
+import {
+  WaitingApprovalStats,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
+import {
+  WaitingApprovalToolbar,
+  type ApprovalFilter,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
 import {
   ErrorRow,
   LoadingRow,
@@ -27,6 +35,8 @@ interface WaitingApprovalCardProps {
 }
 
 const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
+const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
+const DEFAULT_PAGE_SIZE = 10;
 
 const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id,
@@ -48,6 +58,20 @@ const toExcludedRow = (
   scanStatus: item.scan_status ?? null,
 });
 
+const collectOptions = (
+  resources: readonly WaitingApprovalResource[],
+  accessor: (resource: WaitingApprovalResource) => string,
+): ReadonlyArray<{ value: string; label: string }> => {
+  const unique = new Set<string>();
+  for (const resource of resources) {
+    const value = accessor(resource).trim();
+    if (value) unique.add(value);
+  }
+  return Array.from(unique)
+    .sort((a, b) => a.localeCompare(b))
+    .map((value) => ({ value, label: value }));
+};
+
 export const WaitingApprovalCard = ({
   targetSourceId,
   cancelSlot,
@@ -55,6 +79,13 @@ export const WaitingApprovalCard = ({
 }: WaitingApprovalCardProps) => {
   const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
+
+  const [searchValue, setSearchValue] = useState('');
+  const [filter, setFilter] = useState<ApprovalFilter>('all');
+  const [dbType, setDbType] = useState('');
+  const [region, setRegion] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -87,6 +118,83 @@ export const WaitingApprovalCard = ({
     setRetryNonce((n) => n + 1);
   }, []);
 
+  const resources = useMemo<readonly WaitingApprovalResource[]>(
+    () => (state.status === 'ready' ? state.data : []),
+    [state],
+  );
+
+  const dbTypeOptions = useMemo(
+    () => collectOptions(resources, (resource) => resource.resourceType),
+    [resources],
+  );
+  const regionOptions = useMemo(
+    () => collectOptions(resources, (resource) => resource.region),
+    [resources],
+  );
+
+  const countsByFilter = useMemo(() => {
+    let target = 0;
+    let excluded = 0;
+    for (const resource of resources) {
+      if (resource.selected) target += 1;
+      else excluded += 1;
+    }
+    return { all: resources.length, target, excluded };
+  }, [resources]);
+
+  const filteredResources = useMemo(() => {
+    const search = searchValue.trim().toLowerCase();
+    return resources.filter((resource) => {
+      if (dbType && resource.resourceType !== dbType) return false;
+      if (region && resource.region !== region) return false;
+      if (filter === 'target' && !resource.selected) return false;
+      if (filter === 'excluded' && resource.selected) return false;
+      if (search) {
+        const hayId = resource.resourceId.toLowerCase();
+        const hayName = resource.resourceName.toLowerCase();
+        if (!hayId.includes(search) && !hayName.includes(search)) return false;
+      }
+      return true;
+    });
+  }, [resources, dbType, region, filter, searchValue]);
+
+  const filteredCount = filteredResources.length;
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const sliceStart = safePage * pageSize;
+  const sliceEnd = Math.min(filteredCount, sliceStart + pageSize);
+  const visibleResources = filteredResources.slice(sliceStart, sliceEnd);
+  const visibleStart = filteredCount === 0 ? 0 : sliceStart + 1;
+  const visibleEnd = sliceEnd;
+
+  const handleFilterChange = useCallback((next: ApprovalFilter) => {
+    setFilter(next);
+    setPage(0);
+  }, []);
+
+  const handleSearchChange = useCallback((next: string) => {
+    setSearchValue(next);
+    setPage(0);
+  }, []);
+
+  const handleDbTypeChange = useCallback((next: string) => {
+    setDbType(next);
+    setPage(0);
+  }, []);
+
+  const handleRegionChange = useCallback((next: string) => {
+    setRegion(next);
+    setPage(0);
+  }, []);
+
+  const handlePageSizeChange = useCallback((next: number) => {
+    setPageSize(next);
+    setPage(0);
+  }, []);
+
+  const showFilterEmpty =
+    state.status === 'ready' && resources.length > 0 && filteredCount === 0;
+
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
@@ -111,10 +219,7 @@ export const WaitingApprovalCard = ({
       </div>
 
       <div className="p-6">
-        <StepBanner
-          variant="info"
-          icon={<ClockIcon className="w-[18px] h-[18px]" />}
-        >
+        <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
           <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>
           {' '}평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다.
         </StepBanner>
@@ -124,7 +229,45 @@ export const WaitingApprovalCard = ({
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
-          <WaitingApprovalTable resources={state.data} />
+          <div className="mt-4 flex flex-col gap-3">
+            <WaitingApprovalStats
+              totalCount={countsByFilter.all}
+              selectedCount={countsByFilter.target}
+              excludedCount={countsByFilter.excluded}
+            />
+            <WaitingApprovalToolbar
+              searchValue={searchValue}
+              onSearchChange={handleSearchChange}
+              filter={filter}
+              onFilterChange={handleFilterChange}
+              dbType={dbType}
+              onDbTypeChange={handleDbTypeChange}
+              region={region}
+              onRegionChange={handleRegionChange}
+              dbTypeOptions={dbTypeOptions}
+              regionOptions={regionOptions}
+              countsByFilter={countsByFilter}
+              visibleStart={visibleStart}
+              visibleEnd={visibleEnd}
+              totalCount={filteredCount}
+            />
+            {showFilterEmpty ? (
+              <div className={cn('px-6 py-8 text-center text-sm', textColors.tertiary)}>
+                {FILTER_EMPTY_MESSAGE}
+              </div>
+            ) : (
+              <WaitingApprovalTable resources={visibleResources} />
+            )}
+            {filteredCount > 0 && (
+              <Pagination
+                page={safePage}
+                pageSize={pageSize}
+                totalCount={filteredCount}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            )}
+          </div>
         )}
 
         {(cancelSlot || reselectSlot) && (
