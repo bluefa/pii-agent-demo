@@ -255,12 +255,17 @@ export interface CloudTargetSource extends BaseTargetSource {
 
   awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;
+  awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
+  isChinaRegion?: boolean;
+  isTerraformExecutionGranted?: boolean;
 
   tenantId?: string;
   subscriptionId?: string;
 
   gcpProjectId?: string;
+
+  dbType?: string;
 }
 
 export type TargetSource = CloudTargetSource;
@@ -276,10 +281,14 @@ export type Project = BaseTargetSource & {
   resources: MockResource[];
   awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;
+  awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
+  isChinaRegion?: boolean;
+  isTerraformExecutionGranted?: boolean;
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;
+  dbType?: string;
 };
 
 // ===== API Response Types =====
