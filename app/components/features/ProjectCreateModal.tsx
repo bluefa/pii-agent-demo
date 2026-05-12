@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { createProject } from '@/app/lib/api';
+import { useToast } from '@/app/components/ui/toast';
+import {
+  createProject,
+  previewTargetSourceRegistration,
+  type RegistrationPreviewItem,
+  type RegistrationPreviewRequest,
+} from '@/app/lib/api';
 import {
   cn,
   modalStyles,
@@ -26,7 +32,11 @@ import {
   StagedInfraTable,
   validateCredentials,
   type StagedInfra,
-} from './project-create';
+} from '@/app/components/features/project-create';
+import {
+  RegistrationPreviewCardList,
+  type PreviewRow,
+} from '@/app/components/features/admin/v7';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -35,25 +45,55 @@ interface ProjectCreateModalProps {
   onCreated: () => void;
 }
 
+type Phase = 'input' | 'preview' | 'submitting';
+
 const makeTempId = () =>
   (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
     ? crypto.randomUUID()
     : `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const toPreviewRequest = (infra: StagedInfra): RegistrationPreviewRequest => {
+  if (infra.cloudProvider === 'AWS') {
+    return {
+      cloudProvider: 'AWS',
+      awsAccountId: infra.credentials.payerAccount,
+      ...(infra.credentials.linkedAccount
+        ? { awsLinkedAccountId: infra.credentials.linkedAccount }
+        : {}),
+      isChinaRegion: infra.awsRegionType === 'china',
+      dbTypes: infra.dbTypes,
+    };
+  }
+  if (infra.cloudProvider === 'Azure') {
+    return {
+      cloudProvider: 'Azure',
+      tenantId: infra.credentials.tenantId,
+      subscriptionId: infra.credentials.subscriptionId,
+      dbTypes: infra.dbTypes,
+    };
+  }
+  return {
+    cloudProvider: 'GCP',
+    gcpProjectId: infra.credentials.projectId,
+    dbTypes: infra.dbTypes,
+  };
+};
+
 const toCreateDto = (
   infra: StagedInfra,
+  dbType: DbType,
   serviceCode: string,
 ): Parameters<typeof createProject>[0] => {
-  const base = {
-    serviceCode,
-    cloudProvider: infra.cloudProvider,
-  } as Parameters<typeof createProject>[0];
-
+  const base = { serviceCode, cloudProvider: infra.cloudProvider, dbType };
   if (infra.cloudProvider === 'AWS') {
     return {
       ...base,
       awsAccountId: infra.credentials.payerAccount,
+      ...(infra.credentials.linkedAccount
+        ? { awsLinkedAccountId: infra.credentials.linkedAccount }
+        : {}),
       awsRegionType: infra.awsRegionType,
+      isChinaRegion: infra.awsRegionType === 'china',
     };
   }
   if (infra.cloudProvider === 'Azure') {
@@ -63,14 +103,15 @@ const toCreateDto = (
       subscriptionId: infra.credentials.subscriptionId,
     };
   }
-  if (infra.cloudProvider === 'GCP') {
-    return {
-      ...base,
-      gcpProjectId: infra.credentials.projectId,
-    };
-  }
-  return base;
+  return {
+    ...base,
+    gcpProjectId: infra.credentials.projectId,
+  };
 };
+
+interface PendingPreviewRow extends PreviewRow {
+  stagedTempId: string;
+}
 
 export const ProjectCreateModal = ({
   selectedServiceCode,
@@ -78,12 +119,14 @@ export const ProjectCreateModal = ({
   onClose,
   onCreated,
 }: ProjectCreateModalProps) => {
+  const toast = useToast();
+  const [phase, setPhase] = useState<Phase>('input');
   const [currentChip, setCurrentChip] = useState<ProviderChipKey>('aws-global');
   const [currentFields, setCurrentFields] = useState<Record<string, string>>({});
   const [currentDbTypes, setCurrentDbTypes] = useState<DbType[]>([]);
   const [staged, setStaged] = useState<StagedInfra[]>([]);
+  const [previewRows, setPreviewRows] = useState<PendingPreviewRow[]>([]);
   const [addError, setAddError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const activeChip = PROVIDER_CHIP_BY_KEY[currentChip];
 
@@ -131,33 +174,71 @@ export const ProjectCreateModal = ({
     setStaged((prev) => prev.filter((x) => x.tempId !== tempId));
   };
 
-  const handleSave = async () => {
-    if (staged.length === 0 || saving) return;
-    setSaving(true);
+  const handleNext = async () => {
+    if (staged.length === 0 || phase !== 'input') return;
+    setPhase('submitting');
+    try {
+      const responses = await Promise.all(
+        staged.map((infra) =>
+          previewTargetSourceRegistration(selectedServiceCode, toPreviewRequest(infra)),
+        ),
+      );
+      const rows: PendingPreviewRow[] = [];
+      responses.forEach((response, infraIdx) => {
+        const infra = staged[infraIdx];
+        response.items.forEach((item: RegistrationPreviewItem, dbIdx: number) => {
+          rows.push({
+            stagedTempId: infra.tempId,
+            dbType: infra.dbTypes[dbIdx],
+            item,
+          });
+        });
+      });
+      setPreviewRows(rows);
+      setPhase('preview');
+    } catch (err) {
+      setPhase('input');
+      toast.error(err instanceof Error ? err.message : '등록 미리보기 실패');
+    }
+  };
+
+  const handleBackToInput = () => {
+    setPhase('input');
+    setPreviewRows([]);
+  };
+
+  const handleConfirmRegister = async () => {
+    if (phase !== 'preview') return;
+    const addRows = previewRows.filter((row) => row.item.type === 'ADD');
+    if (addRows.length === 0) {
+      toast.info('신규 등록 대상이 없습니다.');
+      return;
+    }
+    setPhase('submitting');
+    const stagedById = new Map(staged.map((s) => [s.tempId, s]));
 
     const results = await Promise.allSettled(
-      staged.map((infra) => createProject(toCreateDto(infra, selectedServiceCode))),
+      addRows.map((row) => {
+        const infra = stagedById.get(row.stagedTempId);
+        if (!infra) throw new Error('등록 대상 정보를 찾을 수 없습니다.');
+        return createProject(toCreateDto(infra, row.dbType as DbType, selectedServiceCode));
+      }),
     );
 
-    const failed: StagedInfra[] = [];
-    results.forEach((result, idx) => {
-      if (result.status === 'rejected') {
-        const reason = result.reason;
-        const message = reason instanceof Error ? reason.message : '알 수 없는 오류';
-        failed.push({ ...staged[idx], error: message });
-      }
-    });
-
-    setSaving(false);
-
-    if (failed.length === 0) {
+    const failedCount = results.filter((r) => r.status === 'rejected').length;
+    if (failedCount > 0) {
+      const firstFailure = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+      const message = firstFailure?.reason instanceof Error
+        ? firstFailure.reason.message
+        : '일부 인프라 등록에 실패했습니다.';
+      toast.error(`${failedCount}건 실패: ${message}`);
       onCreated();
-      onClose();
+      setPhase('preview');
       return;
     }
 
-    setStaged(failed);
     onCreated();
+    onClose();
   };
 
   const canAdd =
@@ -165,18 +246,26 @@ export const ProjectCreateModal = ({
     currentDbTypes.length > 0 &&
     validateCredentials(currentChip, currentFields) === null;
 
+  const addRowCount = previewRows.filter((row) => row.item.type === 'ADD').length;
+  const duplicateCount = previewRows.length - addRowCount;
+  const submitting = phase === 'submitting';
+  const showInput = phase === 'input' || (phase === 'submitting' && previewRows.length === 0);
+
   return (
     <div className={modalStyles.overlay} onClick={onClose}>
       <div
         className={cn(modalStyles.container, 'w-[840px] max-h-[90vh] flex flex-col shadow-2xl')}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className={modalStyles.header}>
           <div>
-            <h2 className={cn('text-lg font-bold', textColors.primary)}>인프라 등록</h2>
+            <h2 className={cn('text-lg font-bold', textColors.primary)}>
+              {showInput ? '인프라 등록' : '등록 내용 확인'}
+            </h2>
             <p className={cn('mt-0.5 text-sm', textColors.tertiary)}>
-              PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.
+              {showInput
+                ? 'PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.'
+                : '아래 항목이 등록됩니다. 내용을 확인하고 등록을 진행해주세요.'}
             </p>
           </div>
           <button
@@ -190,107 +279,151 @@ export const ProjectCreateModal = ({
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-6 space-y-5 overflow-y-auto">
-          {/* 서비스 코드 (읽기 전용) */}
-          <div
-            className={cn(
-              'flex items-center gap-3 px-4 py-3 rounded-lg border',
-              borderColors.default,
-              bgColors.muted,
-            )}
-          >
-            <div className={cn('w-8 h-8 rounded-md flex items-center justify-center', bgColors.primary)}>
-              <span className={cn('text-xs font-bold', textColors.inverse)}>
-                {selectedServiceCode.charAt(0)}
-              </span>
-            </div>
-            <div>
-              <div className={cn('font-medium', textColors.primary)}>{selectedServiceCode}</div>
-              <div className={cn('text-sm', textColors.tertiary)}>{serviceName}</div>
-            </div>
-          </div>
+          {showInput ? (
+            <>
+              <div
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3 rounded-lg border',
+                  borderColors.default,
+                  bgColors.muted,
+                )}
+              >
+                <div className={cn('w-8 h-8 rounded-md flex items-center justify-center', bgColors.primary)}>
+                  <span className={cn('text-xs font-bold', textColors.inverse)}>
+                    {selectedServiceCode.charAt(0)}
+                  </span>
+                </div>
+                <div>
+                  <div className={cn('font-medium', textColors.primary)}>{selectedServiceCode}</div>
+                  <div className={cn('text-sm', textColors.tertiary)}>{serviceName}</div>
+                </div>
+              </div>
 
-          {/* 1. Provider 선택 */}
-          <section>
-            <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-              <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
-              인프라 (Provider) 유형 선택
-            </h3>
-            <ProviderChipGrid value={currentChip} onChange={handleChipChange} />
-          </section>
+              <section>
+                <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                  <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
+                  인프라 (Provider) 유형 선택
+                </h3>
+                <ProviderChipGrid value={currentChip} onChange={handleChipChange} />
+              </section>
 
-          {/* 2/3 Credentials + DB Type */}
-          <div className="grid grid-cols-2 gap-5">
-            <section>
-              <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
-                인프라 정보
-              </h3>
-              {activeChip.enabled ? (
-                <ProviderCredentialForm
-                  chipKey={currentChip}
-                  values={currentFields}
-                  onChange={setCurrentFields}
-                />
-              ) : (
-                <p className={cn('text-sm', textColors.tertiary)}>
-                  해당 Provider는 추후 지원 예정입니다.
-                </p>
+              <div className="grid grid-cols-2 gap-5">
+                <section>
+                  <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                    <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
+                    인프라 정보
+                  </h3>
+                  {activeChip.enabled ? (
+                    <ProviderCredentialForm
+                      chipKey={currentChip}
+                      values={currentFields}
+                      onChange={setCurrentFields}
+                    />
+                  ) : (
+                    <p className={cn('text-sm', textColors.tertiary)}>
+                      해당 Provider는 추후 지원 예정입니다.
+                    </p>
+                  )}
+                </section>
+                <section>
+                  <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                    <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>3</span>
+                    DB Type 선택
+                  </h3>
+                  <DbTypeMultiSelect values={currentDbTypes} onChange={setCurrentDbTypes} />
+                </section>
+              </div>
+
+              {addError && (
+                <p className={cn('text-sm', statusColors.error.text)}>{addError}</p>
               )}
-            </section>
-            <section>
-              <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>3</span>
-                DB Type 선택
-              </h3>
-              <DbTypeMultiSelect values={currentDbTypes} onChange={setCurrentDbTypes} />
-            </section>
-          </div>
 
-          {addError && (
-            <p className={cn('text-sm', statusColors.error.text)}>{addError}</p>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleAddToList}
+                  disabled={!canAdd}
+                >
+                  + Add to List
+                </Button>
+              </div>
+
+              <section>
+                <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                  인프라 등록 List
+                </h3>
+                <StagedInfraTable items={staged} onRemove={handleRemove} />
+              </section>
+            </>
+          ) : (
+            <>
+              <div
+                className={cn(
+                  'flex items-center gap-2 text-sm px-4 py-3 rounded-lg border',
+                  borderColors.default,
+                  bgColors.muted,
+                )}
+              >
+                <span className={cn('font-semibold', textColors.primary)}>아래</span>
+                <span className={cn('font-bold text-base', textColors.primary)}>
+                  {previewRows.length}
+                </span>
+                <span className={textColors.secondary}>개 인프라가 등록됩니다.</span>
+                {duplicateCount > 0 && (
+                  <span className={cn('ml-auto text-xs', statusColors.warning.text)}>
+                    중복 {duplicateCount}건은 등록에서 제외됩니다.
+                  </span>
+                )}
+              </div>
+              <RegistrationPreviewCardList rows={previewRows} />
+            </>
           )}
-
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleAddToList}
-              disabled={!canAdd}
-            >
-              + Add to List
-            </Button>
-          </div>
-
-          {/* 4. Staged list */}
-          <section>
-            <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-              인프라 등록 List
-            </h3>
-            <StagedInfraTable items={staged} onRemove={handleRemove} />
-          </section>
         </div>
 
-        {/* Footer */}
         <div className={modalStyles.footer}>
-          <Button variant="secondary" onClick={onClose} type="button">
-            취소
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || staged.length === 0}
-          >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <LoadingSpinner />
-                저장 중...
-              </span>
-            ) : (
-              `Save${staged.length > 0 ? ` (${staged.length})` : ''}`
-            )}
-          </Button>
+          {showInput ? (
+            <>
+              <Button variant="secondary" onClick={onClose} type="button">
+                취소
+              </Button>
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={submitting || staged.length === 0}
+              >
+                {submitting ? (
+                  <span className="flex items-center gap-2">
+                    <LoadingSpinner />
+                    확인 중...
+                  </span>
+                ) : (
+                  `다음${staged.length > 0 ? ` (${staged.length})` : ''}`
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={handleBackToInput} type="button" disabled={submitting}>
+                이전
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmRegister}
+                disabled={submitting || addRowCount === 0}
+              >
+                {submitting ? (
+                  <span className="flex items-center gap-2">
+                    <LoadingSpinner />
+                    등록 중...
+                  </span>
+                ) : (
+                  `등록하기${addRowCount > 0 ? ` (${addRowCount})` : ''}`
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>
