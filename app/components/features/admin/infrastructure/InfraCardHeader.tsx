@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus, type CloudProvider, type ProjectSummary } from '@/lib/types';
-import { cn, providerColors, statusColors, textColors } from '@/lib/theme';
+import { buttonStyles, cn, providerColors, statusColors, textColors } from '@/lib/theme';
 import { ManagementSplitButton } from '@/app/components/features/admin/infrastructure/ManagementSplitButton';
 
 interface InfraCardHeaderProps {
@@ -43,7 +43,7 @@ const CHECK_ICON = (
 );
 
 const CTA_SPINNER = (
-  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
 );
 
 const StatusCta = ({
@@ -62,7 +62,12 @@ const StatusCta = ({
             e.stopPropagation();
             onViewApproval(project, e);
           }}
-          className="px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]"
+          className={cn(
+            buttonStyles.base,
+            buttonStyles.variants.primary,
+            buttonStyles.sizes.sm,
+            'text-xs flex items-center gap-1.5',
+          )}
         >
           {DOCUMENT_ICON}
           승인 요청 확인
@@ -115,9 +120,10 @@ const StatusCta = ({
           }}
           disabled={busy}
           className={cn(
-            'px-3 py-1.5 text-white text-xs font-medium rounded-lg',
-            'transition-colors flex items-center gap-1.5',
-            'bg-[#45CB85] hover:bg-[#2A7D52] disabled:opacity-50 disabled:cursor-not-allowed',
+            buttonStyles.base,
+            buttonStyles.variants.success,
+            buttonStyles.sizes.sm,
+            'text-xs flex items-center gap-1.5',
           )}
         >
           {busy ? CTA_SPINNER : CHECK_ICON}
