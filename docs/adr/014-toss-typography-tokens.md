@@ -42,7 +42,14 @@ Adopt **Option B — Phased token addition with deprecation aliases.**
 
 ### D1. Token shape
 
-Add a Toss-flavored type/surface ramp to `DESIGN.md` frontmatter and a matching `pageChromeStyles.toss` / `cardStyles.tossDisplay` / `pageMetaStyles` set in `lib/theme.ts`. Keep existing tokens. Mark the conflicting names (`page-title`, `card-title`) as deprecated with a migration target.
+Add a Toss-flavored type/surface ramp to `DESIGN.md` frontmatter and matching exports to `lib/theme.ts`. The exact additions are listed in §"Token Inventory" below; the shape is:
+
+- Update existing `pageChromeStyles.title` and `pageChromeStyles.breadcrumb` values in place.
+- Add `cardStyles.eyebrow`, `cardStyles.displayTitle`, `cardStyles.subtitle` siblings of the existing `cardStyles.*` keys.
+- Add a new top-level `pageMetaStyles` export.
+- Keep existing tokens; mark `card-title` as deprecated with a migration target.
+
+No nested `.toss` namespace is introduced. The Toss flavor is the new default for these specific tokens, not a sub-tree.
 
 ### D2. fontFamily correction is a sub-decision
 
@@ -54,7 +61,7 @@ The prototype declares stepper label typography (`.step .label { font-size: 13px
 
 ### D4. Surface tokens scoped to "target-source detail" for the first migration
 
-`--toss-page-bg: #F2F4F6` (gray page background) is **declared** in `DESIGN.md` as `surface-page` but **not applied globally** in this phase. The first consumers (Wave 1 page meta, Wave 4 step split) opt in via the new `pageChromeStyles.toss.background` class. Admin dashboard, guides, and project-create stay white until a separate decision approves cross-app rollout.
+`#F2F4F6` (gray page background) is **declared** in `DESIGN.md` as `surface-page` but **not applied globally** in this phase. No `lib/theme.ts` export consumes it in Wave 0 — Wave 0 only declares the token. The first consumer that opts in does so by reading the raw value via Tailwind arbitrary syntax (`bg-[#F2F4F6]`) from a class string returned by a future helper, or — preferred — by adding a `surfaceStyles.page` export when the first consumer wave needs it. Admin dashboard, guides, and project-create stay white until a separate decision approves cross-app rollout.
 
 ### D5. Card radius adds a new value, not a replacement
 
@@ -229,7 +236,11 @@ export const pageMetaStyles = {
   value: 'text-[15px] font-semibold tracking-[-0.01em] text-gray-900',
   mono: 'font-mono',
 } as const;
+
+export type PageMetaItemKey = keyof typeof pageMetaStyles;
 ```
+
+The `PageMetaItemKey` type narrowing is part of the inventory because `pageMetaStyles` joins the existing pattern of `StatusType`, `ButtonVariant`, etc. that already export key types from `lib/theme.ts`.
 
 ### Files NOT touched by Wave 0
 

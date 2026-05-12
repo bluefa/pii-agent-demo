@@ -45,8 +45,7 @@ cd /Users/study/pii-agent-demo-sit-detail-wave3-reason-chip
 Create `app/components/ui/ReasonChipInline.tsx`:
 
 ```typescript
-import { useState } from 'react';
-import { InfoIcon } from '@/app/components/ui/icons';
+import { StatusInfoIcon } from '@/app/components/ui/icons';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, textColors } from '@/lib/theme';
 
@@ -87,7 +86,7 @@ export const ReasonChipInline = ({ reason, summary, meta }: ReasonChipInlineProp
           'cursor-default',
         )}
       >
-        <InfoIcon className="h-3 w-3 text-gray-400" />
+        <StatusInfoIcon className="h-3 w-3 text-gray-400" />
         <span className="truncate max-w-[200px]">{displaySummary}</span>
       </span>
     </Tooltip>
@@ -281,7 +280,12 @@ Browser:
 
 Stepper guard:
 ```bash
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|InstallationProcessProgressBar|stepperMotion" && echo "✗ stepper modified" || echo "✓"
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper modified: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR

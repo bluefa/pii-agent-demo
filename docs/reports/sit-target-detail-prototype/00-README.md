@@ -31,28 +31,30 @@ Two strong constraints apply to every wave:
 |---|---|---|---|---|
 | 0 | DESIGN.md + theme.ts token additions | Code | — | Stepper motion files; consumer migration |
 | 1 | Header & Page Meta | Code (UI) | Wave 0 | Stepper, GuideCard |
-| 2 | Step 2 (WAITING_APPROVAL) stats/toolbar/pagination | Code (UI) | Wave 0 | Reason chip (Wave 3), banner timestamps (Wave 3) |
+| 2 | Step 2 (WAITING_APPROVAL) stats/toolbar/pagination | Code (UI) | Wave 0, Wave 1 (`PageMeta` extension) | Reason chip (Wave 3), banner timestamps (Wave 3) |
 | 3 | Reason chip + Banner timestamps | Code (UI) | Wave 0, Wave 2 | New BFF fields |
-| 4 | Step 5/6/7 layout split | Code (refactor) | Wave 0 | Logical DB modal (Wave 6), complete-step status (Wave 5) |
+| 4 | Step 5/6/7 layout split | Code (refactor) | Wave 0, Wave 3 (`ReasonChipInline` flows into Step 5/6/7 surfaces) | Logical DB modal (Wave 6), complete-step status (Wave 5) |
 | 5 | Step 7 (INSTALLATION_COMPLETE) visual fill | Code (UI) | Wave 0, Wave 4 | Logical DB modal data (Wave 6) |
 | 6 | Step 5 logical DB modal (UI shell only) | Code (UI) | Wave 0, Wave 4 | BFF persistence — `onSave` is `toast.info` |
-| 7 | Step 3 scan-pill + Step 4 install pipeline polish | Code (UI) | Wave 0 | Stepper motion, backend semantics for `Integrated`/`Pending` |
+| 7 | Step 3 scan-pill + Step 4 install pipeline polish | Code (UI) | Wave 0, Wave 2 (`Pagination`), Wave 3 (`ReasonChipInline`), Wave 5 (`HealthBadge`) | Stepper motion, backend semantics for `Integrated`/`Pending` |
 | 8 | Provider toggle ADR (no code) | ADR | — | — |
 
 Dependency graph:
 
 ```
 Wave 0 (tokens)
-  ├── Wave 1 (header/meta)
-  ├── Wave 2 (step 2 strengthening)
-  │     └── Wave 3 (reason chip + banner)
-  ├── Wave 4 (step 5/6/7 split)
-  │     ├── Wave 5 (complete-step visual)
-  │     └── Wave 6 (logical DB modal)
-  └── Wave 7 (step 3/4 polish)
+  └── Wave 1 (header/meta)
+        └── Wave 2 (step 2 strengthening)
+              └── Wave 3 (reason chip + banner)
+                    └── Wave 4 (step 5/6/7 split)
+                          ├── Wave 5 (complete-step visual)
+                          │     └── Wave 7 (step 3/4 polish)
+                          └── Wave 6 (logical DB modal)
 
 Wave 8 (independent ADR — recorded decision)
 ```
+
+The chain is sequential because each later wave consumes UI primitives or types introduced by an earlier one. Parallel execution is possible only for Wave 5 vs Wave 6 (both depend on Wave 4 but not on each other).
 
 ## Out-of-scope acknowledgements
 
@@ -60,7 +62,7 @@ The prototype shows three concepts this migration deliberately does **not** ship
 
 1. **Provider toggle** (Azure↔GCP segmented control in the detail header) — `cloudProvider` is part of the target-source identity. Switching is a registration action, not a UI toggle. Wave 8 records the decision.
 2. **Logical DB persistence** — the prototype's `logicalModal` saves selections; this migration ships a UI shell with `toast.info("BFF 연동 예정")` on save. See Wave 6.
-3. **Per-DB Healthy/Unhealthy status field** — the prototype shows a dedicated `status` column. Wave 5 derives the badge from `connectionStatus` (`CONNECTED → Healthy`, `DISCONNECTED → Unhealthy`). When the BFF later adds `healthStatus`, the derive helper swaps.
+3. **Per-DB Healthy/Unhealthy status field** — the prototype shows a dedicated `status` column. Wave 5 derives the badge from the local `ConfirmedResource.connectionStatus` field. Today the BFF response does not carry that signal: the mapper at `lib/resource-catalog.ts:124` hardcodes every confirmed resource to `connectionStatus: 'CONNECTED'`, so every row will render `Healthy` in the browser until a real signal is wired. Wave 5 documents this gap. When the BFF later adds a per-resource `health_status` (or surfaces test-connection state on the confirmed payload), the derive helper swaps and the column comes alive.
 
 ## Pre-existing data already in BFF response
 
@@ -70,7 +72,8 @@ These confirm that several "prototype-only" items are actually backed by data th
 - `approval-requests/latest.requested_at` / `requested_by` — populates Wave 3 Step 2 banner. Type: `app/lib/api/index.ts:510-528`.
 - `approved_integration.approved_at` — populates Wave 3 Step 3 banner. Type: `app/lib/api/index.ts:361`.
 - `ResourceScanStatus` enum (`NEW_SCAN | UNCHANGED`) — populates Wave 2 "스캔 이력" column.
-- `ConfirmedResource.connectionStatus` (`CONNECTED | DISCONNECTED`) — derive source for Wave 5 health badge.
+
+`ConfirmedResource.connectionStatus` is **not** in this list — it is a local UI field hardcoded to `CONNECTED` in `lib/resource-catalog.ts:124`. Wave 5 uses it as the derive entry point so the column wiring is correct, but the visual variation requires a real data source. See Wave 5 §"connectionStatus reality check."
 
 If any field is missing in a specific mock fixture, the relevant wave includes a "Mock fixture update" sub-step rather than a BFF change.
 

@@ -47,7 +47,7 @@ cd /Users/study/pii-agent-demo-sit-detail-wave2-waiting-approval
 Create `app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats.tsx`:
 
 ```typescript
-import { cardStyles, cn, textColors } from '@/lib/theme';
+import { cn, primaryColors, textColors } from '@/lib/theme';
 
 interface WaitingApprovalStatsProps {
   totalCount: number;
@@ -83,7 +83,11 @@ interface StatTileProps {
 const StatTile = ({ label, value, unit, pct, swatch }: StatTileProps) => (
   <div className={cn('rounded-xl border border-gray-200 bg-white px-4 py-3')}>
     <div className="flex items-center gap-1.5 text-[12px] font-medium text-gray-500">
-      {swatch && <span className={cn('h-2 w-2 rounded-full', swatch === 'target' ? 'bg-[#0064FF]' : 'bg-gray-400')} />}
+      {swatch && (
+        <span
+          className={cn('h-2 w-2 rounded-full', swatch === 'target' ? primaryColors.bg : 'bg-gray-400')}
+        />
+      )}
       {label}
     </div>
     <div className={cn('mt-1 flex items-baseline gap-1.5', textColors.primary)}>
@@ -99,15 +103,7 @@ const StatTile = ({ label, value, unit, pct, swatch }: StatTileProps) => (
 
 Notes:
 - Uses `text-[22px]` for the number — Wave 0 added `--type-h1: 22px` but the token has no class-string export yet. Hardcoded `text-[22px]` is the documented escape valve until a class-string token is added. Same convention as `pageChromeStyles.title` in Wave 0.
-- `0064FF` raw hex appears for the target swatch. This is one of two documented exceptions (the other is `cardStyles.eyebrow`). Use `primaryColors.bg`/`text` from `lib/theme.ts` instead:
-
-```typescript
-import { primaryColors } from '@/lib/theme';
-// swatch === 'target'
-<span className={cn('h-2 w-2 rounded-full', primaryColors.bg)} />
-```
-
-Adjust the snippet above accordingly. Same swap for the value's raw hex if any.
+- The target swatch consumes `primaryColors.bg` (from `lib/theme.ts`). No raw `#0064FF` hex in this file.
 
 ### 3-2. Toolbar — new component
 
@@ -153,7 +149,7 @@ export const WaitingApprovalToolbar = (props: WaitingApprovalToolbarProps) => (
 
 Implementation hints:
 - `SearchBox`: 28×28 search icon + `<input>` with `min-w-[200px] h-8 px-2 text-[13px]` + clear-on-blur not required.
-- `FilterSeg`: three buttons sharing a rounded container; active state uses `primaryColors.bg` + `primaryColors.textInverse`; counts shown as a small chip.
+- `FilterSeg`: three buttons sharing a rounded container; active state uses `primaryColors.bg` for the fill plus `text-white` for the label (Tailwind utility — `primaryColors` does not export an `textInverse` key today; introduce one in `lib/theme.ts` if a second consumer materializes). Counts shown as a small chip.
 - `Select`: native `<select>` styled to match the toolbar (`h-8 rounded-md border border-gray-300 px-2 text-[13px]`).
 
 All three small components live inline in `WaitingApprovalToolbar.tsx`. No new files. Reason: each is a 10-line component with one consumer.
@@ -207,10 +203,10 @@ export const Pagination = (props: PaginationProps) => {
       <div className="ml-auto flex items-center gap-1">
         <IconBtn aria-label="처음" disabled={props.page === 0} onClick={() => props.onPageChange(0)}><ChevronFirstIcon /></IconBtn>
         <IconBtn aria-label="이전" disabled={props.page === 0} onClick={() => props.onPageChange(props.page - 1)}><ChevronLeftIcon /></IconBtn>
-        {visiblePageNums.map((p) =>
-          p === '…'
-            ? <span key={Math.random()} className="px-1 text-[12px] text-gray-400">…</span>
-            : <PageBtn key={p} active={p === props.page} onClick={() => props.onPageChange(p)}>{p + 1}</PageBtn>
+        {visiblePageNums.map((entry, index) =>
+          entry === '…'
+            ? <span key={`ellipsis-${index}`} className="px-1 text-[12px] text-gray-400">…</span>
+            : <PageBtn key={entry} active={entry === props.page} onClick={() => props.onPageChange(entry)}>{entry + 1}</PageBtn>
         )}
         <IconBtn aria-label="다음" disabled={props.page >= totalPages - 1} onClick={() => props.onPageChange(props.page + 1)}><ChevronRightIcon /></IconBtn>
         <IconBtn aria-label="끝" disabled={props.page >= totalPages - 1} onClick={() => props.onPageChange(totalPages - 1)}><ChevronLastIcon /></IconBtn>
@@ -219,7 +215,7 @@ export const Pagination = (props: PaginationProps) => {
   );
 };
 
-const buildVisiblePages = (current: number, total: number): Array<number | '…'> => {
+export const buildVisiblePages = (current: number, total: number): Array<number | '…'> => {
   // Show first, last, current ±1, with ellipses for gaps. Standard pattern.
   if (total <= 7) return Array.from({ length: total }, (_, i) => i);
   const out: Array<number | '…'> = [0];
@@ -333,10 +329,14 @@ USE_MOCK_DATA=true npm run dev
 - Find a mock target source in `WAITING_APPROVAL` state. Use the mock-store helpers to seed if necessary — check `lib/mock-store.ts`.
 - Visual check: stats render, toolbar filters work, pagination buttons respond.
 
-Stepper guard:
+Stepper guard — use explicit paths so all of `motion/` is covered, not just `stepperMotionEngine`:
 ```bash
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|stepperMotion|InstallationProcessProgressBar" \
-  && echo "✗ stepper modified" || echo "✓ stepper untouched"
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper modified: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR

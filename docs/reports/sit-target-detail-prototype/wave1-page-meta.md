@@ -155,7 +155,8 @@ import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
 import { PageMeta, type PageMetaItem } from '@/app/components/ui/PageMeta';
 import { integrationRoutes } from '@/lib/routes';
-import type { ProjectIdentity } from './ProjectIdentityCard';
+import { cn, primaryColors } from '@/lib/theme';
+import type { ProjectIdentity } from './project-identity';
 
 interface ProjectPageMetaProps {
   project: TargetSource;
@@ -187,7 +188,12 @@ const buildPageMetaItems = (identity: ProjectIdentity): PageMetaItem[] => {
     items.push({
       label: 'Jira Link',
       value: (
-        <a href={identity.jiraLink} target="_blank" rel="noopener noreferrer" className="text-[#0064FF] hover:underline">
+        <a
+          href={identity.jiraLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(primaryColors.text, 'hover:underline')}
+        >
           {extractJiraLabel(identity.jiraLink)}
         </a>
       ),
@@ -331,8 +337,13 @@ USE_MOCK_DATA=true npm run dev
 - Repeat for `/1002` (GCP) and `/1003` (AWS).
 
 ```bash
-# Confirm no stepper-related file changed
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|stepperMotion" && echo "✗ stepper edited" || echo "✓ stepper untouched"
+# Confirm no stepper-related file changed — use explicit paths so all of motion/ is covered
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper edited: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR

@@ -104,7 +104,7 @@ Add a `InfoTooltip` next to the Status column header. The tooltip body documents
 ```typescript
 // inside ConfirmedIntegrationTable
 import { Tooltip } from '@/app/components/ui/Tooltip';
-import { InfoIcon } from '@/app/components/ui/icons';
+import { StatusInfoIcon } from '@/app/components/ui/icons';
 import { HealthBadge } from './HealthBadge';
 
 const STATUS_TOOLTIP_CONTENT = (
@@ -167,15 +167,22 @@ Plumb `variant="complete"` from `InstallationCompleteStep` → `ConfirmedResourc
 
 ### 3-6. `InstallationCompleteStep` — header status badge + action row
 
-Update `InstallationCompleteStep.tsx`:
+`app/components/ui/Button.tsx` exposes only `'primary' | 'secondary' | 'danger'` variants. `app/components/ui/icons/index.ts` exports no `EditIcon` / `ReloadIcon`. This wave introduces two **NEW** icon files and uses a bare `<button>` styled inline (not the shared `Button` component) for the warning-outline look that the prototype carries.
 
+NEW icon files (12×12 stroke 2 svg, matching prototype paths):
+- `app/components/ui/icons/EditIcon.tsx` — pencil path from prototype: `<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>`
+- `app/components/ui/icons/ReloadIcon.tsx` — circular arrow paths from prototype: `<polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>`
+
+Each new icon follows the `IconProps` pattern (`app/components/ui/icons/types.ts`) and is re-exported from `icons/index.ts`.
+
+`InstallationCompleteStep.tsx` imports:
 ```typescript
 import { useToast } from '@/app/components/ui/toast';
-import { Button } from '@/app/components/ui/Button';
-import { ReloadIcon, EditIcon } from '@/app/components/ui/icons';
-import { HealthBadge } from '@/app/integration/.../confirmed/HealthBadge';
-import { aggregateHealth } from '@/app/integration/.../confirmed/health-status';
-import { useConfirmedIntegration } from '@/app/integration/.../data/ConfirmedIntegrationDataProvider';
+import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
+import { cn } from '@/lib/theme';
+import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
+import { aggregateHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
+import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 ```
 
 In the header, replace the empty placeholder slot with:
@@ -193,44 +200,75 @@ const InstallationCompleteHeaderRight = () => {
 };
 ```
 
-In the card body, before `<ConfirmedResourcesSlot variant="complete" />`, render the action row:
+In the card body, before `<ConfirmedResourcesSlot variant="complete" />`, render the action row using a bare `<button>` (the shared `Button` does not carry a warning-outline variant):
+
 ```typescript
+const WARNING_OUTLINE_CLASS = cn(
+  'inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium',
+  'border border-orange-200 bg-orange-50 text-orange-800',
+  'hover:bg-orange-100 transition-colors',
+);
+
 const InstallationCompleteActions = () => {
   const toast = useToast();
   const stub = (label: string) => () => toast.info(`${label} 기능 준비중입니다.`);
   return (
     <div className="flex justify-end gap-2 mb-3">
-      <Button variant="warning-outline" onClick={stub('인프라 변경')}>
+      <button type="button" className={WARNING_OUTLINE_CLASS} onClick={stub('인프라 변경')}>
         <EditIcon className="w-3.5 h-3.5" />
         인프라 변경
-      </Button>
-      <Button variant="warning-outline" onClick={stub('연결 테스트 재실행')}>
+      </button>
+      <button type="button" className={WARNING_OUTLINE_CLASS} onClick={stub('연결 테스트 재실행')}>
         <ReloadIcon className="w-3.5 h-3.5" />
         연결 테스트 재실행
-      </Button>
+      </button>
     </div>
   );
 };
 ```
 
 Notes:
-- If `Button` does not have a `warning-outline` variant, use `variant="secondary"` and override class with `cn(getButtonClass('secondary'), 'border-orange-200 text-orange-800 hover:bg-orange-50')` — but check `buttonStyles.variants` first; the variant may exist.
-- `EditIcon` / `ReloadIcon`: confirm presence in `app/components/ui/icons`. Reuse pencil and refresh icons already in use elsewhere (DeleteInfrastructureButton has its own delete icon; the codebase likely already has Pencil/Refresh).
+- The bare orange/200/50/800 utilities match the existing `DeleteInfrastructureButton` red analogue (`app/integration/target-sources/[targetSourceId]/_components/common/DeleteInfrastructureButton.tsx:25` — `border-red-200 bg-red-50 text-red-800`). Same pattern, different hue. Adding a `warning-outline` variant to the shared `Button` is a separate refactor; this wave does not expand the shared component.
 
 ### 3-7. Step 6 — add retest button
 
-The prototype's Step 6 also has a "연결 테스트 재실행" button. Wave 4 deferred this. Add it here so steps 6/7 share the retest action.
+The prototype's Step 6 also has a "연결 테스트 재실행" button. Wave 4 deferred this. Add it here so steps 6/7 share the retest action. Reuse `WARNING_OUTLINE_CLASS` by extracting it to a shared module:
+
+Create `app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button.ts`:
+```typescript
+import { cn } from '@/lib/theme';
+
+export const WARNING_OUTLINE_BUTTON_CLASS = cn(
+  'inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium',
+  'border border-orange-200 bg-orange-50 text-orange-800',
+  'hover:bg-orange-100 transition-colors',
+);
+```
 
 In `ConnectionVerifiedStep.tsx`, append below `<ConfirmedResourcesSlot />` (Wave 4 path) the retest button row:
 
 ```jsx
 <div className="flex justify-end mt-4">
-  <Button variant="warning-outline" onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}>
+  <button
+    type="button"
+    className={WARNING_OUTLINE_BUTTON_CLASS}
+    onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}
+  >
     <ReloadIcon className="w-3.5 h-3.5" />
     연결 테스트 재실행
-  </Button>
+  </button>
 </div>
 ```
+
+### 3-8. connectionStatus reality check (browser-visible behavior)
+
+`lib/resource-catalog.ts:124` (`confirmedIntegrationToConfirmed`) hardcodes every confirmed resource to `connectionStatus: 'CONNECTED'`. The BFF response does **not** carry a per-resource health field today. This wave does not change that mapper.
+
+Consequence: with current mock data, every Step 7 row renders `Healthy` and the aggregate badge in the header is `Healthy`. `Unhealthy` does not appear in production today. The derive helper (`deriveHealth`) is still the correct entry point for the column wiring — when the BFF later adds a `health_status` (or surfaces test-connection state on the confirmed payload), only `deriveHealth` swaps and the visual variant comes alive.
+
+For local QA of the `Unhealthy` rendering path, set `connectionStatus: 'DISCONNECTED'` directly on one row in a Vitest snapshot fixture (`__tests__` only — do not edit `lib/resource-catalog.ts`). Browser-only reviewers should treat the all-`Healthy` rendering as expected for this wave.
+
+The PR body's `Deferred` section names this exactly.
 
 ### 3-8. Tests — update + add
 
@@ -281,7 +319,12 @@ Browser:
 
 Stepper guard:
 ```bash
-git diff --name-only origin/main | grep -E "ProcessProgressBar|StepProgressBar|InstallationProcessProgressBar|stepperMotion" && echo "✗" || echo "✓"
+git diff --name-only origin/main -- \
+  app/components/features/process-status/ProcessProgressBar.tsx \
+  app/components/features/process-status/InstallationProcessProgressBar.tsx \
+  app/components/features/process-status/StepProgressBar.tsx \
+  app/components/features/process-status/motion/ \
+  | (read -r line && echo "✗ stepper modified: $line" || echo "✓ stepper untouched")
 ```
 
 ## Step 6: Commit + push + PR
