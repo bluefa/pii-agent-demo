@@ -18,6 +18,7 @@ import {
   borderColors,
   statusColors,
   interactiveColors,
+  numericFeatures,
 } from '@/lib/theme';
 import type { DbType } from '@/lib/constants/db-types';
 import {
@@ -447,7 +448,7 @@ export const ProjectCreateModal = ({
                   bgColors.muted,
                 )}
               >
-                <span className={cn('font-bold text-base', textColors.primary)}>
+                <span className={cn('font-bold text-base', textColors.primary, numericFeatures.tabular)}>
                   {previewRows.length}
                 </span>
                 <span className={textColors.secondary}>개 인프라 후보가 생성됐어요.</span>

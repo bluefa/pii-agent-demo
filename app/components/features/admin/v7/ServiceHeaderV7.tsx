@@ -4,7 +4,14 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { getPermissions, type UserSearchResult } from '@/app/lib/api';
 import { useToast } from '@/app/components/ui/toast';
-import { cn, statusColors, textColors, bgColors, borderColors } from '@/lib/theme';
+import {
+  cn,
+  statusColors,
+  textColors,
+  bgColors,
+  borderColors,
+  numericFeatures,
+} from '@/lib/theme';
 
 interface ServiceHeaderV7Props {
   serviceCode: string;
@@ -100,23 +107,43 @@ export const ServiceHeaderV7 = ({
             운영 중
           </span>
         </div>
-        <h1 className={cn('text-2xl font-bold tracking-tight', textColors.primary)}>
+        <h1
+          className={cn(
+            // DESIGN.md page-title — 30px / weight 800 / letter-spacing -0.03em / line-height 1.2
+            'text-[30px] font-extrabold tracking-[-0.03em] leading-tight',
+            textColors.primary,
+          )}
+        >
           {serviceName || serviceCode}
         </h1>
-        <div className={cn('mt-2 flex items-center gap-2 text-sm', textColors.tertiary)}>
-          <span>
-            <span className={cn('mr-1', textColors.quaternary)}>담당자</span>
-            <span className={textColors.secondary}>{renderManagers(managers)}</span>
+        <div className="mt-3 flex items-center gap-3">
+          {/* DESIGN.md page-meta-key: 13px / 500 / text-tertiary
+              DESIGN.md page-meta-value: 15px / 600 / letter-spacing -0.01em / text-primary */}
+          <span className="flex items-baseline gap-1.5">
+            <span className={cn('text-[13px] font-medium', textColors.tertiary)}>담당자</span>
+            <span className={cn('text-[15px] font-semibold tracking-[-0.01em]', textColors.primary)}>
+              {renderManagers(managers)}
+            </span>
           </span>
-          <span className={textColors.quaternary}>·</span>
-          <span>
-            <span className={cn('mr-1', textColors.quaternary)}>총 인프라</span>
-            <span className={textColors.secondary}>{totalInfraCount}</span>
+          <span className={cn('text-[15px]', textColors.quaternary)}>·</span>
+          <span className="flex items-baseline gap-1.5">
+            <span className={cn('text-[13px] font-medium', textColors.tertiary)}>총 인프라</span>
+            <span
+              className={cn(
+                'text-[15px] font-semibold tracking-[-0.01em]',
+                textColors.primary,
+                numericFeatures.tabular,
+              )}
+            >
+              {totalInfraCount}
+            </span>
           </span>
-          <span className={textColors.quaternary}>·</span>
-          <span>
-            <span className={cn('mr-1', textColors.quaternary)}>최근 업데이트</span>
-            <span className={textColors.secondary}>{formatRelativeTime(lastUpdatedAt)}</span>
+          <span className={cn('text-[15px]', textColors.quaternary)}>·</span>
+          <span className="flex items-baseline gap-1.5">
+            <span className={cn('text-[13px] font-medium', textColors.tertiary)}>최근 업데이트</span>
+            <span className={cn('text-[15px] font-semibold tracking-[-0.01em]', textColors.primary)}>
+              {formatRelativeTime(lastUpdatedAt)}
+            </span>
           </span>
         </div>
       </div>
