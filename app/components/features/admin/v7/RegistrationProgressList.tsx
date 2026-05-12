@@ -1,6 +1,13 @@
 'use client';
 
-import { cn, bgColors, borderColors, statusColors, textColors } from '@/lib/theme';
+import {
+  cn,
+  bgColors,
+  borderColors,
+  statusColors,
+  textColors,
+  numericFeatures,
+} from '@/lib/theme';
 import type { CloudProvider } from '@/lib/types';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 
@@ -126,7 +133,7 @@ export const RegistrationProgressList = ({
           <div className={cn('text-sm font-semibold', textColors.primary)}>{title}</div>
           <div className={cn('text-xs', textColors.tertiary)}>{subtitle}</div>
         </div>
-        <div className={cn('text-sm font-semibold', textColors.primary)}>
+        <div className={cn('text-sm font-semibold', textColors.primary, numericFeatures.tabular)}>
           {doneCount + failedCount}
           <span className={cn('text-xs font-normal ml-0.5', textColors.tertiary)}>/{totalCount}</span>
         </div>

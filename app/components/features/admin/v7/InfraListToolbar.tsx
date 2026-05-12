@@ -1,6 +1,13 @@
 'use client';
 
-import { cn, textColors, bgColors, borderColors, interactiveColors } from '@/lib/theme';
+import {
+  cn,
+  textColors,
+  bgColors,
+  borderColors,
+  interactiveColors,
+  numericFeatures,
+} from '@/lib/theme';
 
 interface InfraListToolbarProps {
   totalCount: number;
@@ -17,7 +24,11 @@ export const InfraListToolbar = ({
 }: InfraListToolbarProps) => (
   <div className="flex items-center justify-between mb-3">
     <div className={cn('text-sm', textColors.secondary)}>
-      전체 <strong className={cn('font-semibold', textColors.primary)}>{totalCount}</strong>개 인프라
+      전체{' '}
+      <strong className={cn('font-semibold', textColors.primary, numericFeatures.tabular)}>
+        {totalCount}
+      </strong>
+      개 인프라
     </div>
     <div className="flex items-center gap-2">
       <div
