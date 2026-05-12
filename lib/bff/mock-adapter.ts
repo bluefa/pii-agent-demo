@@ -66,6 +66,8 @@ export const mockBff: BffClient = {
     get: async (id) => unwrap(await mockTargetSources.get(String(id))),
     list: async (serviceCode) => unwrap(await mockTargetSources.list(serviceCode)),
     create: async (body) => unwrap(await mockTargetSources.create(body)),
+    previewRegistration: async (serviceCode, body) =>
+      unwrap(await mockTargetSources.previewRegistration(serviceCode, body)),
   },
 
   projects: {
