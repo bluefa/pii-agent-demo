@@ -9,6 +9,16 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));
 
+vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
+  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
+    <div data-testid="guide-card-container" data-slot-key={slotKey} />
+  ),
+}));
+
+vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
+  resolveStepSlot: vi.fn(() => 'stub-slot-key'),
+}));
+
 vi.mock('@/app/lib/api', () => ({
   getProject: vi.fn().mockResolvedValue(undefined),
   cancelApprovalRequest: vi.fn().mockResolvedValue({ success: true }),
@@ -91,9 +101,14 @@ describe('WaitingApprovalStep', () => {
       />,
     );
 
+    const guide = screen.getByTestId('guide-card-container');
+    expect(guide).toBeTruthy();
     const card = screen.getByTestId('waiting-approval-card');
     expect(card.textContent).toContain('1003');
     expect(screen.getByTestId('waiting-approval-cancel-button')).toBeTruthy();
+
+    const ordering = guide.compareDocumentPosition(card);
+    expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('omits the cancel button slot when project.isRejected and still renders RejectionAlert', () => {
