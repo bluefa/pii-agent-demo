@@ -1,13 +1,38 @@
 'use client';
 
+import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { bgColors, cn, tableStyles, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
+import { deriveHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
+
+export type ConfirmedIntegrationTableVariant = 'pre-install' | 'complete';
 
 interface ConfirmedIntegrationTableProps {
   confirmed: readonly ConfirmedResource[];
+  variant?: ConfirmedIntegrationTableVariant;
 }
 
-export const ConfirmedIntegrationTable = ({ confirmed }: ConfirmedIntegrationTableProps) => {
+const LOGICAL_DB_PLACEHOLDER = '—';
+
+const STATUS_TOOLTIP_CONTENT = (
+  <div className="space-y-2 text-[12px] leading-[1.5]">
+    <div className="font-semibold">Status 안내</div>
+    <div className="flex items-start gap-2">
+      <HealthBadge status="healthy" />
+      <span>모든 DB가 정상이에요.</span>
+    </div>
+    <div className="flex items-start gap-2">
+      <HealthBadge status="unhealthy" />
+      <span>DB가 비정상이에요. Agent 또는 Credential 상태를 확인해주세요.</span>
+    </div>
+  </div>
+);
+
+export const ConfirmedIntegrationTable = ({
+  confirmed,
+  variant = 'pre-install',
+}: ConfirmedIntegrationTableProps) => {
   if (confirmed.length === 0) {
     return (
       <div className={cn('px-6 py-12 text-sm text-center', textColors.tertiary)}>
@@ -16,39 +41,67 @@ export const ConfirmedIntegrationTable = ({ confirmed }: ConfirmedIntegrationTab
     );
   }
 
+  const headerCellClass = cn(
+    tableStyles.headerCell,
+    'text-left text-xs font-medium',
+    textColors.tertiary,
+  );
+  const cellClass = cn(tableStyles.cell, 'text-xs', textColors.tertiary);
+  const monoCellClass = cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary);
+
+  if (variant === 'complete') {
+    return (
+      <table className="w-full text-sm">
+        <thead className={bgColors.muted}>
+          <tr>
+            <th className={headerCellClass}>DB Type</th>
+            <th className={headerCellClass}>Resource ID</th>
+            <th className={headerCellClass}>DB Credential</th>
+            <th className={headerCellClass}>연동 대상 논리 DB</th>
+            <th className={headerCellClass}>연동 제외 논리 DB</th>
+            <th className={headerCellClass}>
+              <span className="inline-flex items-center gap-1">
+                Status
+                <InfoTooltip content={STATUS_TOOLTIP_CONTENT} position="top" size="md" />
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className={tableStyles.body}>
+          {confirmed.map((resource) => (
+            <tr key={resource.resourceId} className={tableStyles.row}>
+              <td className={cellClass}>{resource.databaseType ?? '-'}</td>
+              <td className={monoCellClass}>{resource.resourceId}</td>
+              <td className={cellClass}>{resource.credentialId ?? '-'}</td>
+              <td className={cellClass}>{LOGICAL_DB_PLACEHOLDER}</td>
+              <td className={cellClass}>{LOGICAL_DB_PLACEHOLDER}</td>
+              <td className={tableStyles.cell}>
+                <HealthBadge status={deriveHealth(resource)} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   return (
     <table className="w-full text-sm">
       <thead className={bgColors.muted}>
         <tr>
-          <th className={cn(tableStyles.headerCell, 'text-left text-xs font-medium', textColors.tertiary)}>
-            리소스 ID
-          </th>
-          <th className={cn(tableStyles.headerCell, 'text-left text-xs font-medium', textColors.tertiary)}>
-            유형
-          </th>
-          <th className={cn(tableStyles.headerCell, 'text-left text-xs font-medium', textColors.tertiary)}>
-            DB 타입
-          </th>
-          <th className={cn(tableStyles.headerCell, 'text-left text-xs font-medium', textColors.tertiary)}>
-            Credential
-          </th>
+          <th className={headerCellClass}>리소스 ID</th>
+          <th className={headerCellClass}>유형</th>
+          <th className={headerCellClass}>DB 타입</th>
+          <th className={headerCellClass}>Credential</th>
         </tr>
       </thead>
       <tbody className={tableStyles.body}>
         {confirmed.map((resource) => (
           <tr key={resource.resourceId} className={tableStyles.row}>
-            <td className={cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary)}>
-              {resource.resourceId}
-            </td>
-            <td className={cn(tableStyles.cell, 'text-xs', textColors.tertiary)}>
-              {resource.type}
-            </td>
-            <td className={cn(tableStyles.cell, 'text-xs', textColors.tertiary)}>
-              {resource.databaseType ?? '-'}
-            </td>
-            <td className={cn(tableStyles.cell, 'text-xs', textColors.tertiary)}>
-              {resource.credentialId ?? '-'}
-            </td>
+            <td className={monoCellClass}>{resource.resourceId}</td>
+            <td className={cellClass}>{resource.type}</td>
+            <td className={cellClass}>{resource.databaseType ?? '-'}</td>
+            <td className={cellClass}>{resource.credentialId ?? '-'}</td>
           </tr>
         ))}
       </tbody>

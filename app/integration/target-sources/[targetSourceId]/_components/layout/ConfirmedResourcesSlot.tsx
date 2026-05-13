@@ -1,11 +1,18 @@
 'use client';
 
 import { cardStyles, cn, textColors } from '@/lib/theme';
-import { ConfirmedIntegrationTable } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
+import {
+  ConfirmedIntegrationTable,
+  type ConfirmedIntegrationTableVariant,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
 import { ErrorRow, LoadingRow } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 
-export const ConfirmedResourcesSlot = () => {
+interface ConfirmedResourcesSlotProps {
+  variant?: ConfirmedIntegrationTableVariant;
+}
+
+export const ConfirmedResourcesSlot = ({ variant }: ConfirmedResourcesSlotProps = {}) => {
   const { state, retry } = useConfirmedIntegration();
 
   return (
@@ -24,7 +31,7 @@ export const ConfirmedResourcesSlot = () => {
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={retry} />
         ) : (
-          <ConfirmedIntegrationTable confirmed={state.data} />
+          <ConfirmedIntegrationTable confirmed={state.data} variant={variant} />
         )}
       </section>
     </div>
