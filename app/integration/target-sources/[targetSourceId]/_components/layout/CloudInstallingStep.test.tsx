@@ -8,6 +8,10 @@ vi.mock('@/app/components/features/process-status/azure/AzureInstallationInline'
   AzureInstallationInline: () => <div data-testid="azure-install-stub" />,
 }));
 
+vi.mock('@/app/components/features/process-status/gcp/GcpInstallationInline', () => ({
+  GcpInstallationInline: () => <div data-testid="gcp-install-stub" />,
+}));
+
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider',
   () => ({
@@ -24,11 +28,13 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
 }));
 
 vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
+  GuideCardContainer: ({ slotKey }: { slotKey: string | null }) => (
+    <div data-testid="guide-card" data-slot={slotKey ?? ''} />
+  ),
 }));
 
 vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => null,
+  resolveStepSlot: () => 'process.azure.4',
 }));
 
 vi.mock(
@@ -39,7 +45,9 @@ vi.mock(
     >();
     return {
       ...mod,
-      ProjectPageMeta: () => null,
+      ProjectPageMeta: ({ action }: { action?: React.ReactNode }) => (
+        <div data-testid="page-meta-action">{action}</div>
+      ),
       RejectionAlert: () => null,
     };
   },
@@ -70,21 +78,55 @@ const identityFixture: ProjectIdentity = {
   identifiers: [],
 };
 
+const renderStep = (
+  overrides: Partial<Parameters<typeof CloudInstallingStep>[0]> = {},
+) =>
+  render(
+    <CloudInstallingStep
+      project={azureInstallingFixture}
+      identity={identityFixture}
+      providerLabel="Azure Infrastructure"
+      action={null}
+      onProjectUpdate={() => {}}
+      {...overrides}
+    />,
+  );
+
 describe('CloudInstallingStep DOM order', () => {
   it('renders installation-status before confirmed-resources', () => {
-    render(
-      <CloudInstallingStep
-        project={azureInstallingFixture}
-        identity={identityFixture}
-        providerLabel="Azure Infrastructure"
-        action={null}
-        onProjectUpdate={() => {}}
-      />,
-    );
+    renderStep();
 
     const install = screen.getByTestId('installation-status');
     const confirmed = screen.getByTestId('confirmed-resources');
     const ordering = install.compareDocumentPosition(confirmed);
     expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('CloudInstallingStep GuideCard mount', () => {
+  it('mounts GuideCardContainer with the resolved slot key', () => {
+    renderStep();
+    const guide = screen.getByTestId('guide-card');
+    expect(guide.getAttribute('data-slot')).toBe('process.azure.4');
+  });
+});
+
+describe('CloudInstallingStep Provider tag', () => {
+  it('renders the Provider tag in the meta action slot', () => {
+    renderStep({ providerLabel: 'Azure Infrastructure' });
+    const action = screen.getByTestId('page-meta-action');
+    expect(action.textContent).toContain('Provider:');
+    expect(action.textContent).toContain('Azure Infrastructure');
+  });
+});
+
+describe('CloudInstallingStep GCP fork (gate removed)', () => {
+  it('renders confirmed-resources for GCP', () => {
+    const gcpFixture: CloudTargetSource = {
+      ...azureInstallingFixture,
+      cloudProvider: 'GCP',
+    };
+    renderStep({ project: gcpFixture });
+    expect(screen.queryByTestId('confirmed-resources')).not.toBeNull();
   });
 });
