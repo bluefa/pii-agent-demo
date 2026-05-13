@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useMemo, useState } from 'react';
 import {
   bgColors,
   borderColors,
@@ -15,10 +16,13 @@ import {
   TABLE_MONO_CELL,
   TABLE_TAG_PILL,
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
+import { Pagination } from '@/app/components/ui/Pagination';
 
 interface InstallResourceTableProps {
   rows: InstallResourceRow[];
 }
+
+const DEFAULT_PAGE_SIZE = 10;
 
 const STATUS_LABEL: Record<GcpInstallationStatusValue, string> = {
   COMPLETED: '완료',
@@ -33,6 +37,21 @@ const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
 };
 
 export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleRows = useMemo(
+    () => rows.slice(safePage * pageSize, safePage * pageSize + pageSize),
+    [rows, safePage, pageSize],
+  );
+
+  const handlePageSizeChange = useCallback((next: number) => {
+    setPageSize(next);
+    setPage(0);
+  }, []);
+
   if (rows.length === 0) {
     return (
       <div
@@ -48,48 +67,59 @@ export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
   }
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border', bgColors.surface, borderColors.default)}>
-      <table className="w-full text-sm">
-        <thead className={bgColors.muted}>
-          <tr>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Type</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Name</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>서비스 리소스 상태</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.resourceId}
-              className={cn('border-t', borderColors.light)}
-            >
-              <td className={TABLE_BODY_CELL}>
-                {row.databaseType ? (
-                  <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>{row.databaseType}</span>
-                ) : (
-                  <span className={textColors.tertiary}>—</span>
-                )}
-              </td>
-              <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
-                {row.resourceId}
-              </td>
-              <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
-                {row.region ?? '—'}
-              </td>
-              <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
-                {row.databaseName ?? '—'}
-              </td>
-              <td className={TABLE_BODY_CELL}>
-                <span className={cn(TABLE_TAG_PILL, STATUS_TAG[row.installationStatus])}>
-                  {STATUS_LABEL[row.installationStatus]}
-                </span>
-              </td>
+    <div className="flex flex-col gap-2">
+      <div className={cn('overflow-hidden rounded-lg border', bgColors.surface, borderColors.default)}>
+        <table className="w-full text-sm">
+          <thead className={bgColors.muted}>
+            <tr>
+              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Type</th>
+              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
+              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
+              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Name</th>
+              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>서비스 리소스 상태</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visibleRows.map((row) => (
+              <tr
+                key={row.resourceId}
+                className={cn('border-t', borderColors.light)}
+              >
+                <td className={TABLE_BODY_CELL}>
+                  {row.databaseType ? (
+                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>{row.databaseType}</span>
+                  ) : (
+                    <span className={textColors.tertiary}>—</span>
+                  )}
+                </td>
+                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                  {row.resourceId}
+                </td>
+                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                  {row.region ?? '—'}
+                </td>
+                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                  {row.databaseName ?? '—'}
+                </td>
+                <td className={TABLE_BODY_CELL}>
+                  <span className={cn(TABLE_TAG_PILL, STATUS_TAG[row.installationStatus])}>
+                    {STATUS_LABEL[row.installationStatus]}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length > DEFAULT_PAGE_SIZE && (
+        <Pagination
+          page={safePage}
+          pageSize={pageSize}
+          totalCount={rows.length}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      )}
     </div>
   );
 };
