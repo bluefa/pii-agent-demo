@@ -7,7 +7,10 @@
  * Resolving the asymmetry is a separate post-migration ADR.
  */
 import type { BffClient } from '@/lib/bff/types';
-import type { CreateTargetSourceResult } from '@/lib/bff/types/target-sources';
+import type {
+  CreateTargetSourceResult,
+  RegistrationPreviewResponse,
+} from '@/lib/bff/types/target-sources';
 import type {
   ApprovalRequestCreateBody,
   BffConfirmedIntegration,
@@ -90,6 +93,11 @@ export const httpBff: BffClient = {
       }
       return post<CreateTargetSourceResult>('/target-sources', body);
     },
+    previewRegistration: (serviceCode, body) =>
+      post<RegistrationPreviewResponse>(
+        `/target-sources/services/${serviceCode}/target-sources/registration-preview`,
+        body,
+      ),
   },
 
   projects: {

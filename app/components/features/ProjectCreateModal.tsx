@@ -1,9 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { createProject } from '@/app/lib/api';
+import { useToast } from '@/app/components/ui/toast';
+import {
+  createProject,
+  previewTargetSourceRegistration,
+  type RegistrationPreviewItem,
+  type RegistrationPreviewRequest,
+} from '@/app/lib/api';
 import {
   cn,
   modalStyles,
@@ -12,21 +18,32 @@ import {
   borderColors,
   statusColors,
   interactiveColors,
+  numericFeatures,
 } from '@/lib/theme';
 import type { DbType } from '@/lib/constants/db-types';
 import {
   PROVIDER_CHIP_BY_KEY,
-  getProviderChipDisplayLabel,
+  type ApiProvider,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
+import type { CloudProvider } from '@/lib/types';
 import {
   DbTypeMultiSelect,
   ProviderChipGrid,
   ProviderCredentialForm,
-  StagedInfraTable,
   validateCredentials,
-  type StagedInfra,
-} from './project-create';
+} from '@/app/components/features/project-create';
+import {
+  AwsRegionToggle,
+  InstallModeToggle,
+  RegistrationPreviewCardList,
+  RegistrationProgressList,
+  type AwsRegion,
+  type InstallMode,
+  type PreviewRow,
+  type ProgressRow,
+  type ProgressRowStatus,
+} from '@/app/components/features/admin/v7';
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
@@ -35,41 +52,119 @@ interface ProjectCreateModalProps {
   onCreated: () => void;
 }
 
-const makeTempId = () =>
-  (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-    ? crypto.randomUUID()
-    : `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+type Phase = 'input' | 'preview' | 'progress';
 
-const toCreateDto = (
-  infra: StagedInfra,
+interface FormState {
+  chipKey: ProviderChipKey;
+  apiProvider: ApiProvider;
+  awsRegion: AwsRegion;
+  installMode: InstallMode;
+  fields: Record<string, string>;
+}
+
+const apiToCloudProvider = (api: ApiProvider): CloudProvider => api;
+
+const buildPreviewRequest = (form: FormState, dbTypes: DbType[]): RegistrationPreviewRequest => {
+  const { fields } = form;
+  const description = fields.description?.trim();
+  switch (form.apiProvider) {
+    case 'AWS':
+      return {
+        cloudProvider: 'AWS',
+        awsAccountId: fields.payerAccount,
+        ...(fields.linkedAccount ? { awsLinkedAccountId: fields.linkedAccount } : {}),
+        isChinaRegion: form.awsRegion === 'china',
+        isTerraformExecutionGranted: form.installMode === 'auto',
+        ...(description ? { description } : {}),
+        dbTypes,
+      };
+    case 'Azure':
+      return {
+        cloudProvider: 'Azure',
+        tenantId: fields.tenantId,
+        subscriptionId: fields.subscriptionId,
+        ...(description ? { description } : {}),
+        dbTypes,
+      };
+    case 'GCP':
+      return {
+        cloudProvider: 'GCP',
+        gcpProjectId: fields.projectId,
+        ...(description ? { description } : {}),
+        dbTypes,
+      };
+    case 'IDC':
+      return {
+        cloudProvider: 'IDC',
+        description: description ?? '',
+        dbTypes,
+      };
+  }
+};
+
+const buildCreateDto = (
+  form: FormState,
+  dbType: DbType,
   serviceCode: string,
 ): Parameters<typeof createProject>[0] => {
+  const cloudProvider = apiToCloudProvider(form.apiProvider);
+  const { fields } = form;
+  const description = fields.description?.trim();
   const base = {
     serviceCode,
-    cloudProvider: infra.cloudProvider,
-  } as Parameters<typeof createProject>[0];
+    cloudProvider,
+    dbType,
+    ...(description ? { description } : {}),
+  };
+  switch (form.apiProvider) {
+    case 'AWS':
+      return {
+        ...base,
+        awsAccountId: fields.payerAccount,
+        ...(fields.linkedAccount ? { awsLinkedAccountId: fields.linkedAccount } : {}),
+        awsRegionType: form.awsRegion,
+        isChinaRegion: form.awsRegion === 'china',
+        isTerraformExecutionGranted: form.installMode === 'auto',
+      };
+    case 'Azure':
+      return {
+        ...base,
+        tenantId: fields.tenantId,
+        subscriptionId: fields.subscriptionId,
+      };
+    case 'GCP':
+      return {
+        ...base,
+        gcpProjectId: fields.projectId,
+      };
+    case 'IDC':
+      return base;
+  }
+};
 
-  if (infra.cloudProvider === 'AWS') {
-    return {
-      ...base,
-      awsAccountId: infra.credentials.payerAccount,
-      awsRegionType: infra.awsRegionType,
-    };
+const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
+  AWS: 'AWS',
+  AZURE: 'Azure',
+  Azure: 'Azure',
+  GCP: 'GCP',
+  IDC: 'IDC',
+};
+
+const toCloudProvider = (raw: string): CloudProvider => PROVIDER_FROM_RAW[raw] ?? 'AWS';
+
+const identifierLabel = (item: RegistrationPreviewItem): string => {
+  switch (item.cloud_provider.toUpperCase()) {
+    case 'AWS':
+      return item.aws_account_id ? `Payer ${item.aws_account_id}` : '—';
+    case 'AZURE':
+      return item.subscription_id ? `Sub ${item.subscription_id}` : '—';
+    case 'GCP':
+      return item.gcp_project_id ? `Project ${item.gcp_project_id}` : '—';
+    case 'IDC':
+      return item.description || '—';
+    default:
+      return '—';
   }
-  if (infra.cloudProvider === 'Azure') {
-    return {
-      ...base,
-      tenantId: infra.credentials.tenantId,
-      subscriptionId: infra.credentials.subscriptionId,
-    };
-  }
-  if (infra.cloudProvider === 'GCP') {
-    return {
-      ...base,
-      gcpProjectId: infra.credentials.projectId,
-    };
-  }
-  return base;
 };
 
 export const ProjectCreateModal = ({
@@ -78,110 +173,195 @@ export const ProjectCreateModal = ({
   onClose,
   onCreated,
 }: ProjectCreateModalProps) => {
-  const [currentChip, setCurrentChip] = useState<ProviderChipKey>('aws-global');
-  const [currentFields, setCurrentFields] = useState<Record<string, string>>({});
-  const [currentDbTypes, setCurrentDbTypes] = useState<DbType[]>([]);
-  const [staged, setStaged] = useState<StagedInfra[]>([]);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+  const [phase, setPhase] = useState<Phase>('input');
+  const [chipKey, setChipKey] = useState<ProviderChipKey>('aws');
+  const [awsRegion, setAwsRegion] = useState<AwsRegion>('global');
+  const [installMode, setInstallMode] = useState<InstallMode>('auto');
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [dbTypes, setDbTypes] = useState<DbType[]>([]);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // mountedRef gates async setState after unmount — handleRegister fans out N
+  // createProject calls in parallel, and the modal can close mid-batch.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-  const activeChip = PROVIDER_CHIP_BY_KEY[currentChip];
+  // Escape closes the modal — but not during Phase 3 in-flight register, so
+  // users cannot cancel a batch that is still hitting the BFF.
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (phase === 'progress' && busy) return;
+      onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [phase, busy, onClose]);
 
-  const resetInputs = () => {
-    setCurrentFields({});
-    setCurrentDbTypes([]);
-    setAddError(null);
-  };
+  const chipDef = PROVIDER_CHIP_BY_KEY[chipKey];
+  const isAws = chipDef.apiProvider === 'AWS';
 
   const handleChipChange = (key: ProviderChipKey) => {
-    setCurrentChip(key);
-    resetInputs();
+    setChipKey(key);
+    setFields({});
+    setSubmitError(null);
   };
 
-  const handleAddToList = () => {
-    if (!activeChip.enabled || !activeChip.cloudProvider || !activeChip.communicationModule) {
-      setAddError('활성화된 Provider를 선택하세요');
-      return;
-    }
-    const validationError = validateCredentials(currentChip, currentFields);
+  const buildForm = (): FormState => ({
+    chipKey,
+    apiProvider: chipDef.apiProvider,
+    awsRegion,
+    installMode,
+    fields,
+  });
+
+  const handleNext = async () => {
+    if (busy) return;
+    const validationError = validateCredentials(chipKey, fields);
     if (validationError) {
-      setAddError(validationError);
+      setSubmitError(validationError);
       return;
     }
-    if (currentDbTypes.length === 0) {
-      setAddError('DB Type을 1개 이상 선택하세요');
+    if (dbTypes.length === 0) {
+      setSubmitError('DB Type을 1개 이상 선택하세요');
       return;
     }
 
-    const item: StagedInfra = {
-      tempId: makeTempId(),
-      chipKey: currentChip,
-      providerLabel: getProviderChipDisplayLabel(activeChip),
-      cloudProvider: activeChip.cloudProvider,
-      awsRegionType: activeChip.awsRegionType,
-      credentials: { ...currentFields },
-      dbTypes: [...currentDbTypes],
-      communicationModule: activeChip.communicationModule,
+    setSubmitError(null);
+    setBusy(true);
+    try {
+      const response = await previewTargetSourceRegistration(
+        selectedServiceCode,
+        buildPreviewRequest(buildForm(), dbTypes),
+      );
+      if (!mountedRef.current) return;
+      const rows: PreviewRow[] = response.items.map((item, idx) => ({
+        item,
+        dbType: dbTypes[idx],
+      }));
+      setPreviewRows(rows);
+      setPhase('preview');
+    } catch (err) {
+      if (mountedRef.current) {
+        toast.error(err instanceof Error ? err.message : '등록 미리보기 실패');
+      }
+    } finally {
+      if (mountedRef.current) setBusy(false);
+    }
+  };
+
+  const handleBackToInput = () => {
+    setPhase('input');
+    setPreviewRows([]);
+  };
+
+  const handleRegister = async () => {
+    if (busy) return;
+    const form = buildForm();
+    const addRows = previewRows.filter((row) => row.item.type === 'ADD');
+    if (addRows.length === 0) {
+      toast.info('신규 등록 대상이 없습니다.');
+      return;
+    }
+
+    const initial: ProgressRow[] = addRows.map((row, idx) => ({
+      key: `row-${idx}`,
+      cloudProvider: toCloudProvider(row.item.cloud_provider),
+      isSdu: row.item.is_sdu_type,
+      primaryLabel: `${row.item.cloud_provider} · ${row.dbType}`,
+      secondaryLabel: identifierLabel(row.item),
+      status: 'in-progress',
+    }));
+    setProgressRows(initial);
+    setPhase('progress');
+    setBusy(true);
+
+    const updateRow = (key: string, status: ProgressRowStatus, error?: string) => {
+      if (!mountedRef.current) return;
+      setProgressRows((prev) =>
+        prev.map((r) => (r.key === key ? { ...r, status, ...(error ? { error } : {}) } : r)),
+      );
     };
-    setStaged((prev) => [...prev, item]);
-    resetInputs();
-  };
 
-  const handleRemove = (tempId: string) => {
-    setStaged((prev) => prev.filter((x) => x.tempId !== tempId));
-  };
-
-  const handleSave = async () => {
-    if (staged.length === 0 || saving) return;
-    setSaving(true);
-
-    const results = await Promise.allSettled(
-      staged.map((infra) => createProject(toCreateDto(infra, selectedServiceCode))),
+    await Promise.allSettled(
+      addRows.map(async (row, idx) => {
+        const key = `row-${idx}`;
+        try {
+          await createProject(buildCreateDto(form, row.dbType as DbType, selectedServiceCode));
+          updateRow(key, 'done');
+        } catch (err) {
+          updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
+        }
+      }),
     );
 
-    const failed: StagedInfra[] = [];
-    results.forEach((result, idx) => {
-      if (result.status === 'rejected') {
-        const reason = result.reason;
-        const message = reason instanceof Error ? reason.message : '알 수 없는 오류';
-        failed.push({ ...staged[idx], error: message });
-      }
-    });
-
-    setSaving(false);
-
-    if (failed.length === 0) {
-      onCreated();
-      onClose();
-      return;
-    }
-
-    setStaged(failed);
+    if (!mountedRef.current) return;
+    setBusy(false);
     onCreated();
   };
 
-  const canAdd =
-    activeChip.enabled &&
-    currentDbTypes.length > 0 &&
-    validateCredentials(currentChip, currentFields) === null;
+  const phase1Valid = dbTypes.length > 0 && validateCredentials(chipKey, fields) === null;
+  const addRowCount = previewRows.filter((row) => row.item.type === 'ADD').length;
+  const duplicateCount = previewRows.length - addRowCount;
+  const progressDone = progressRows.filter((r) => r.status === 'done').length;
+  const progressFailed = progressRows.filter((r) => r.status === 'failed').length;
+  const progressComplete =
+    progressRows.length > 0 && progressDone + progressFailed === progressRows.length;
+  const progressTone: 'running' | 'success' | 'error' = !progressComplete
+    ? 'running'
+    : progressFailed === 0
+      ? 'success'
+      : 'error';
+  const progressTitle = !progressComplete
+    ? '인프라를 등록하고 있어요'
+    : progressFailed === 0
+      ? `${progressDone}건 등록 완료`
+      : `${progressDone}건 완료 · ${progressFailed}건 실패`;
+  const progressSubtitle = !progressComplete
+    ? '각 인프라에 대해 Agent/SDU 할당과 자격증명 검증을 진행해요.'
+    : progressFailed === 0
+      ? '모든 인프라가 등록됐어요.'
+      : '일부 인프라 등록에 실패했어요. 닫고 다시 시도해주세요.';
 
   return (
     <div className={modalStyles.overlay} onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="project-create-modal-title"
         className={cn(modalStyles.container, 'w-[840px] max-h-[90vh] flex flex-col shadow-2xl')}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className={modalStyles.header}>
           <div>
-            <h2 className={cn('text-lg font-bold', textColors.primary)}>인프라 등록</h2>
+            <h2 id="project-create-modal-title" className={cn('text-lg font-bold', textColors.primary)}>
+              {phase === 'input' && '인프라 등록'}
+              {phase === 'preview' && '등록 내용 확인'}
+              {phase === 'progress' && (progressComplete ? '등록 결과' : '인프라 등록 진행 중')}
+            </h2>
             <p className={cn('mt-0.5 text-sm', textColors.tertiary)}>
-              PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.
+              {phase === 'input' &&
+                'PII 모니터링 모듈 연동이 필요한 운영계 인프라 정보를 입력해주세요. 각 인프라 Provider/DB Type을 기준으로 Agent/SDU를 자동 할당합니다.'}
+              {phase === 'preview' &&
+                '입력한 정보를 기준으로 아래 인프라가 등록됩니다. 내용을 확인하고 등록을 진행해주세요.'}
+              {phase === 'progress' && progressSubtitle}
             </p>
           </div>
           <button
             onClick={onClose}
-            className={cn('p-2 rounded-lg transition-colors', interactiveColors.closeButton)}
+            disabled={phase === 'progress' && !progressComplete}
+            className={cn(
+              'p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+              interactiveColors.closeButton,
+            )}
             aria-label="닫기"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,107 +370,158 @@ export const ProjectCreateModal = ({
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-6 space-y-5 overflow-y-auto">
-          {/* 서비스 코드 (읽기 전용) */}
-          <div
-            className={cn(
-              'flex items-center gap-3 px-4 py-3 rounded-lg border',
-              borderColors.default,
-              bgColors.muted,
-            )}
-          >
-            <div className={cn('w-8 h-8 rounded-md flex items-center justify-center', bgColors.primary)}>
-              <span className={cn('text-xs font-bold', textColors.inverse)}>
-                {selectedServiceCode.charAt(0)}
-              </span>
-            </div>
-            <div>
-              <div className={cn('font-medium', textColors.primary)}>{selectedServiceCode}</div>
-              <div className={cn('text-sm', textColors.tertiary)}>{serviceName}</div>
-            </div>
-          </div>
+          {phase === 'input' && (
+            <>
+              <div
+                className={cn(
+                  'flex items-center gap-3 px-4 py-3 rounded-lg border',
+                  borderColors.default,
+                  bgColors.muted,
+                )}
+              >
+                <div className={cn('w-8 h-8 rounded-md flex items-center justify-center', bgColors.primary)}>
+                  <span className={cn('text-xs font-bold', textColors.inverse)}>
+                    {selectedServiceCode.charAt(0)}
+                  </span>
+                </div>
+                <div>
+                  <div className={cn('font-medium', textColors.primary)}>{selectedServiceCode}</div>
+                  <div className={cn('text-sm', textColors.tertiary)}>{serviceName}</div>
+                </div>
+              </div>
 
-          {/* 1. Provider 선택 */}
-          <section>
-            <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-              <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
-              인프라 (Provider) 유형 선택
-            </h3>
-            <ProviderChipGrid value={currentChip} onChange={handleChipChange} />
-          </section>
+              <section>
+                <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                  <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
+                  인프라 (Provider) 유형 선택
+                </h3>
+                <ProviderChipGrid value={chipKey} onChange={handleChipChange} />
+                {isAws && (
+                  <div className="mt-3">
+                    <AwsRegionToggle value={awsRegion} onChange={setAwsRegion} />
+                  </div>
+                )}
+              </section>
 
-          {/* 2/3 Credentials + DB Type */}
-          <div className="grid grid-cols-2 gap-5">
-            <section>
-              <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
-                인프라 정보
-              </h3>
-              {activeChip.enabled ? (
-                <ProviderCredentialForm
-                  chipKey={currentChip}
-                  values={currentFields}
-                  onChange={setCurrentFields}
-                />
-              ) : (
-                <p className={cn('text-sm', textColors.tertiary)}>
-                  해당 Provider는 추후 지원 예정입니다.
-                </p>
+              <div className="grid grid-cols-2 gap-5">
+                <section>
+                  <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                    <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
+                    인프라 정보
+                  </h3>
+                  {isAws && (
+                    <div className="mb-3">
+                      <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
+                        설치 모드
+                      </label>
+                      <InstallModeToggle value={installMode} onChange={setInstallMode} />
+                    </div>
+                  )}
+                  <ProviderCredentialForm
+                    chipKey={chipKey}
+                    values={fields}
+                    onChange={setFields}
+                  />
+                </section>
+                <section>
+                  <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
+                    <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>3</span>
+                    DB Type 선택
+                  </h3>
+                  <DbTypeMultiSelect values={dbTypes} onChange={setDbTypes} />
+                </section>
+              </div>
+
+              {submitError && (
+                <p className={cn('text-sm', statusColors.error.text)}>{submitError}</p>
               )}
-            </section>
-            <section>
-              <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-                <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>3</span>
-                DB Type 선택
-              </h3>
-              <DbTypeMultiSelect values={currentDbTypes} onChange={setCurrentDbTypes} />
-            </section>
-          </div>
-
-          {addError && (
-            <p className={cn('text-sm', statusColors.error.text)}>{addError}</p>
+            </>
           )}
 
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleAddToList}
-              disabled={!canAdd}
-            >
-              + Add to List
-            </Button>
-          </div>
+          {phase === 'preview' && (
+            <>
+              <div
+                className={cn(
+                  'flex items-center gap-2 text-sm px-4 py-3 rounded-lg border',
+                  borderColors.default,
+                  bgColors.muted,
+                )}
+              >
+                <span className={cn('font-bold text-base', textColors.primary, numericFeatures.tabular)}>
+                  {previewRows.length}
+                </span>
+                <span className={textColors.secondary}>개 인프라 후보가 생성됐어요.</span>
+                {duplicateCount > 0 && (
+                  <span className={cn('ml-auto text-xs', statusColors.warning.text)}>
+                    중복 {duplicateCount}건은 등록에서 제외됩니다.
+                  </span>
+                )}
+              </div>
+              <RegistrationPreviewCardList rows={previewRows} />
+            </>
+          )}
 
-          {/* 4. Staged list */}
-          <section>
-            <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
-              인프라 등록 List
-            </h3>
-            <StagedInfraTable items={staged} onRemove={handleRemove} />
-          </section>
+          {phase === 'progress' && (
+            <RegistrationProgressList
+              rows={progressRows}
+              title={progressTitle}
+              subtitle={progressSubtitle}
+              tone={progressTone}
+            />
+          )}
         </div>
 
-        {/* Footer */}
         <div className={modalStyles.footer}>
-          <Button variant="secondary" onClick={onClose} type="button">
-            취소
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || staged.length === 0}
-          >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <LoadingSpinner />
-                저장 중...
-              </span>
-            ) : (
-              `Save${staged.length > 0 ? ` (${staged.length})` : ''}`
-            )}
-          </Button>
+          {phase === 'input' && (
+            <>
+              <Button variant="secondary" onClick={onClose} type="button">
+                취소
+              </Button>
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={busy || !phase1Valid}
+              >
+                {busy ? (
+                  <span className="flex items-center gap-2">
+                    <LoadingSpinner />
+                    확인 중...
+                  </span>
+                ) : (
+                  '다음'
+                )}
+              </Button>
+            </>
+          )}
+          {phase === 'preview' && (
+            <>
+              <Button
+                variant="secondary"
+                onClick={handleBackToInput}
+                type="button"
+                disabled={busy}
+              >
+                이전
+              </Button>
+              <Button
+                type="button"
+                onClick={handleRegister}
+                disabled={busy || addRowCount === 0}
+              >
+                {`등록하기${addRowCount > 0 ? ` (${addRowCount})` : ''}`}
+              </Button>
+            </>
+          )}
+          {phase === 'progress' && (
+            <Button
+              type="button"
+              onClick={onClose}
+              disabled={!progressComplete}
+            >
+              {progressComplete ? '닫기' : '진행 중...'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

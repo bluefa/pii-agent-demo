@@ -188,6 +188,75 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/ErrorMessage'
+  /install/v1/target-sources/services/{serviceCode}/target-sources/registration-preview:
+    post:
+      tags:
+      - Target Sources
+      summary: Preview target source registration
+      description: |
+        SIT v7 인프라 등록 모달의 Phase 1 → Phase 2 전이용. 입력 (provider + 식별자 + dbTypes[]) 을 dbTypes.length 행으로 전개하고, 각 행을 기존 타겟소스와의 중복 여부에 따라 ADD 또는 DUPLICATE 로 표시한다. 부수효과 없음 (dry-run).
+      operationId: previewServiceTargetSourceRegistration
+      parameters:
+      - name: serviceCode
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationPreviewRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/RegistrationPreviewResponse'
+        '400':
+          description: Bad Request
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '403':
+          description: Forbidden
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '404':
+          description: Not Found
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '500':
+          description: Internal Server Error
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '502':
+          description: Bad Gateway
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '503':
+          description: Service Unavailable
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
   /install/v1/target-sources/{targetSourceId}:
     get:
       tags:
@@ -816,6 +885,8 @@ components:
       description: Approval comment (optional)
     CreateTargetSourceRequest:
       type: object
+      description: |
+        SIT v7 기준 타겟소스 1건 생성 요청. boolean flag (`isChinaRegion`, `isTerraformExecutionGranted`) 가 카테고리/모드를 표현하며, 기존 `awsRegionType` enum 은 deprecated 로 한시 유지된다. `dbType` 은 싱귤러만 받고, 복수형 `dbTypes` 는 preview API 전용이다.
       properties:
         description:
           type: string
@@ -823,14 +894,145 @@ components:
           type: string
         awsAccountId:
           type: string
-        awsRegionType:
+        awsLinkedAccountId:
           type: string
+        isChinaRegion:
+          type: boolean
+          default: false
+        isTerraformExecutionGranted:
+          type: boolean
+          default: false
+        awsRegionType:
+          deprecated: true
+          type: string
+          enum:
+          - global
+          - china
         tenantId:
           type: string
         subscriptionId:
           type: string
         gcpProjectId:
           type: string
+        dbType:
+          type: string
+    RegistrationPreviewRequest:
+      type: object
+      description: |
+        인프라 등록 모달 Phase 1 입력값. `dbTypes` 1+개 필수. BFF 는 입력 1건을 dbTypes.length 행으로 전개하며, 응답 `items[i]` 는 요청 `dbTypes[i]` 와 1:1 대응한다.
+      required:
+      - cloudProvider
+      - dbTypes
+      properties:
+        cloudProvider:
+          type: string
+          enum:
+          - AWS
+          - Azure
+          - GCP
+          - IDC
+          - SDU
+        awsAccountId:
+          type: string
+        awsLinkedAccountId:
+          type: string
+        isChinaRegion:
+          type: boolean
+          default: false
+        isTerraformExecutionGranted:
+          type: boolean
+          default: false
+        tenantId:
+          type: string
+        subscriptionId:
+          type: string
+        gcpProjectId:
+          type: string
+        description:
+          type: string
+        dbTypes:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    RegistrationPreviewItemCommon:
+      type: object
+      required:
+      - cloud_provider
+      - is_china_region
+      - is_sdu_type
+      - is_terraform_execution_granted
+      properties:
+        cloud_provider:
+          type: string
+          enum:
+          - AWS
+          - Azure
+          - GCP
+          - IDC
+          - SDU
+        aws_account_id:
+          type: string
+        aws_linked_account_id:
+          type: string
+        is_china_region:
+          type: boolean
+        is_sdu_type:
+          type: boolean
+        is_terraform_execution_granted:
+          type: boolean
+        tenant_id:
+          type: string
+        subscription_id:
+          type: string
+        gcp_project_id:
+          type: string
+        description:
+          type: string
+    RegistrationPreviewItemAdd:
+      allOf:
+      - $ref: '#/components/schemas/RegistrationPreviewItemCommon'
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            type: string
+            enum:
+            - ADD
+    RegistrationPreviewItemDuplicate:
+      allOf:
+      - $ref: '#/components/schemas/RegistrationPreviewItemCommon'
+      - type: object
+        required:
+        - type
+        - existing_target_source_id
+        properties:
+          type:
+            type: string
+            enum:
+            - DUPLICATE
+          existing_target_source_id:
+            type: integer
+            format: int64
+    RegistrationPreviewItem:
+      oneOf:
+      - $ref: '#/components/schemas/RegistrationPreviewItemAdd'
+      - $ref: '#/components/schemas/RegistrationPreviewItemDuplicate'
+      discriminator:
+        propertyName: type
+        mapping:
+          ADD: '#/components/schemas/RegistrationPreviewItemAdd'
+          DUPLICATE: '#/components/schemas/RegistrationPreviewItemDuplicate'
+    RegistrationPreviewResponse:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegistrationPreviewItem'
     CreateTargetSourceWithInfraRequest:
       type: object
       properties:
@@ -1983,6 +2185,7 @@ components:
 | --- | --- | --- | --- |
 | POST | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/confirm` | PII Agent 설치 확인 | Draft |
 | POST | `/install/v1/target-sources/services/{serviceCode}/target-sources` | 서비스 기준 Target Source 생성 | Draft |
+| POST | `/install/v1/target-sources/services/{serviceCode}/target-sources/registration-preview` | 인프라 등록 미리보기 (ADD/DUPLICATE 판정) | Draft |
 | GET | `/install/v1/target-sources/{targetSourceId}` | Target Source 상세 조회 | Draft |
 | GET | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment` | PII Agent 설치 comment 조회 | Draft |
 | POST | `/install/v1/target-sources/{targetSourceId}/pii-agent-installation/comment` | PII Agent 설치 comment 등록 | Draft |

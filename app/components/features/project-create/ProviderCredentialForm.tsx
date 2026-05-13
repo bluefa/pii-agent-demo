@@ -14,17 +14,19 @@ export interface CredentialFieldDef {
   placeholder?: string;
   hint?: string;
   maxLength?: number;
+  optional?: boolean;
   sanitize?: (value: string) => string;
   validate?: (value: string) => string | null;
 }
 
-const awsAccountField = (name: string, label: string): CredentialFieldDef => ({
+const awsAccountField = (name: string, label: string, optional = false): CredentialFieldDef => ({
   name,
   label,
   placeholder: '12-digit AWS account ID',
   maxLength: 12,
+  optional,
   sanitize: (v) => sanitizeDigits(v, 12),
-  validate: validateAwsAccountId,
+  validate: (v) => (optional && !v ? null : validateAwsAccountId(v)),
 });
 
 const azureGuidField = (name: string, label: string): CredentialFieldDef => ({
@@ -34,18 +36,24 @@ const azureGuidField = (name: string, label: string): CredentialFieldDef => ({
   validate: validateGuid,
 });
 
-export const CREDENTIAL_FIELDS: Record<Extract<ProviderChipKey, 'aws-global' | 'aws-china' | 'azure' | 'gcp'>, CredentialFieldDef[]> = {
-  'aws-global': [
+const descriptionField = (optional = false): CredentialFieldDef => ({
+  name: 'description',
+  label: '인프라 설명',
+  placeholder: '이 인프라에 대한 간단한 설명',
+  optional,
+  hint: optional ? '선택 입력' : undefined,
+});
+
+export const CREDENTIAL_FIELDS: Record<ProviderChipKey, CredentialFieldDef[]> = {
+  aws: [
     awsAccountField('payerAccount', 'Payer Account'),
-    awsAccountField('linkedAccount', 'Linked Account'),
-  ],
-  'aws-china': [
-    awsAccountField('payerAccount', 'Payer Account'),
-    awsAccountField('linkedAccount', 'Linked Account'),
+    awsAccountField('linkedAccount', 'Linked Account', true),
+    descriptionField(true),
   ],
   azure: [
     azureGuidField('tenantId', 'Tenant ID'),
     azureGuidField('subscriptionId', 'Subscription ID'),
+    descriptionField(true),
   ],
   gcp: [
     {
@@ -54,7 +62,10 @@ export const CREDENTIAL_FIELDS: Record<Extract<ProviderChipKey, 'aws-global' | '
       placeholder: 'my-project-id',
       hint: 'Project Number가 아닌 Project ID를 입력하세요',
     },
+    descriptionField(true),
   ],
+  idc: [descriptionField(false)],
+  other: [descriptionField(false)],
 };
 
 interface ProviderCredentialFormProps {
@@ -64,8 +75,6 @@ interface ProviderCredentialFormProps {
 }
 
 export const ProviderCredentialForm = ({ chipKey, values, onChange }: ProviderCredentialFormProps) => {
-  if (chipKey === 'other' || chipKey === 'saas') return null;
-
   const fields = CREDENTIAL_FIELDS[chipKey];
 
   return (
@@ -77,6 +86,11 @@ export const ProviderCredentialForm = ({ chipKey, values, onChange }: ProviderCr
           <div key={field.name}>
             <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
               {field.label}
+              {field.optional && (
+                <span className={cn('ml-1.5 text-xs font-normal', textColors.tertiary)}>
+                  (선택)
+                </span>
+              )}
             </label>
             <input
               type="text"
@@ -104,11 +118,13 @@ export const validateCredentials = (
   chipKey: ProviderChipKey,
   values: Record<string, string>,
 ): string | null => {
-  if (chipKey === 'other' || chipKey === 'saas') return '지원하지 않는 Provider입니다';
   const fields = CREDENTIAL_FIELDS[chipKey];
   for (const field of fields) {
     const v = values[field.name] ?? '';
-    if (!v.trim()) return `${field.label}을(를) 입력하세요`;
+    if (!v.trim()) {
+      if (field.optional) continue;
+      return `${field.label}을(를) 입력하세요`;
+    }
     const err = field.validate?.(v);
     if (err) return `${field.label}: ${err}`;
   }

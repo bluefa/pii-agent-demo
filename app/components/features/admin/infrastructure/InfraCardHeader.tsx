@@ -1,8 +1,8 @@
 'use client';
 
 import { ProcessStatus, type CloudProvider, type ProjectSummary } from '@/lib/types';
-import { cn, providerColors, textColors } from '@/lib/theme';
-import { ManagementSplitButton } from './ManagementSplitButton';
+import { buttonStyles, cn, providerColors, statusColors, textColors } from '@/lib/theme';
+import { ManagementSplitButton } from '@/app/components/features/admin/infrastructure/ManagementSplitButton';
 
 interface InfraCardHeaderProps {
   project: ProjectSummary;
@@ -20,6 +20,7 @@ const PROVIDER_LABEL: Record<CloudProvider, string> = {
   AWS: 'AWS',
   Azure: 'Azure',
   GCP: 'GCP',
+  IDC: 'IDC',
 };
 
 const KvInline = ({ k, v }: { k: string; v: string }) => (
@@ -42,7 +43,7 @@ const CHECK_ICON = (
 );
 
 const CTA_SPINNER = (
-  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
 );
 
 const StatusCta = ({
@@ -61,7 +62,12 @@ const StatusCta = ({
             e.stopPropagation();
             onViewApproval(project, e);
           }}
-          className="px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]"
+          className={cn(
+            buttonStyles.base,
+            buttonStyles.variants.primary,
+            buttonStyles.sizes.sm,
+            'text-xs flex items-center gap-1.5',
+          )}
         >
           {DOCUMENT_ICON}
           승인 요청 확인
@@ -69,19 +75,37 @@ const StatusCta = ({
       );
     case ProcessStatus.APPLYING_APPROVED:
       return (
-        <span className="px-3 py-1.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-lg">
+        <span
+          className={cn(
+            'px-3 py-1.5 text-xs font-medium rounded-lg',
+            statusColors.warning.bg,
+            statusColors.warning.textDark,
+          )}
+        >
           연동대상 반영 중
         </span>
       );
     case ProcessStatus.INSTALLING:
       return (
-        <span className="px-3 py-1.5 bg-orange-100 text-orange-600 text-xs font-medium rounded-lg">
+        <span
+          className={cn(
+            'px-3 py-1.5 text-xs font-medium rounded-lg',
+            statusColors.warning.bg,
+            statusColors.warning.textDark,
+          )}
+        >
           설치 진행 중
         </span>
       );
     case ProcessStatus.WAITING_CONNECTION_TEST:
       return (
-        <span className="px-3 py-1.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-lg">
+        <span
+          className={cn(
+            'px-3 py-1.5 text-xs font-medium rounded-lg',
+            statusColors.pending.bg,
+            statusColors.pending.textDark,
+          )}
+        >
           연결 테스트 대기
         </span>
       );
@@ -95,7 +119,12 @@ const StatusCta = ({
             onConfirmCompletion(project.targetSourceId, e);
           }}
           disabled={busy}
-          className="px-3 py-1.5 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+          className={cn(
+            buttonStyles.base,
+            buttonStyles.variants.success,
+            buttonStyles.sizes.sm,
+            'text-xs flex items-center gap-1.5',
+          )}
         >
           {busy ? CTA_SPINNER : CHECK_ICON}
           설치 완료 확정
@@ -134,7 +163,7 @@ export const InfraCardHeader = ({
     >
       {canExpand ? (
         <svg
-          className={cn('w-4 h-4 flex-shrink-0 transition-transform text-gray-400', expanded && 'rotate-90')}
+          className={cn('w-4 h-4 flex-shrink-0 transition-transform', textColors.quaternary, expanded && 'rotate-90')}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
