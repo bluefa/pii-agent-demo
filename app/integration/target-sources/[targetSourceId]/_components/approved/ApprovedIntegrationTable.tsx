@@ -2,6 +2,7 @@
 
 import { cn, bgColors, tableStyles, textColors } from '@/lib/theme';
 import type { ApprovedResource } from '@/lib/types/resources';
+import { CopyButton } from '@/app/components/ui/CopyButton';
 import { ScanPill } from '@/app/components/ui/ScanPill';
 import { deriveScanPill } from '@/app/integration/target-sources/[targetSourceId]/_components/approved/scan-pill-derive';
 
@@ -41,9 +42,16 @@ export const ApprovedIntegrationTable = ({ approved }: ApprovedIntegrationTableP
       </thead>
       <tbody className={tableStyles.body}>
         {approved.map((resource) => (
-          <tr key={resource.resourceId} className={tableStyles.row}>
+          <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
             <td className={cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary)}>
-              {resource.resourceId}
+              <span className="inline-flex items-center gap-1">
+                <span>{resource.resourceId}</span>
+                <CopyButton
+                  value={resource.resourceId}
+                  label={`${resource.resourceId} 복사`}
+                  className="opacity-0 group-hover:opacity-100"
+                />
+              </span>
             </td>
             <td className={cn(tableStyles.cell, 'text-xs', textColors.tertiary)}>
               {resource.type}

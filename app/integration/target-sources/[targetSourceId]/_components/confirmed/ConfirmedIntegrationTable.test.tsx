@@ -2,7 +2,10 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { ConfirmedIntegrationTable } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
+import {
+  ConfirmedIntegrationTable,
+  type ConfirmedIntegrationTableVariant,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable';
 
 const makeResource = (
   overrides: Partial<ConfirmedResource> = {},
@@ -107,5 +110,20 @@ describe('ConfirmedIntegrationTable', () => {
       expect(cellTexts[3]).toBe('—');
       expect(cellTexts[4]).toBe('—');
     });
+  });
+
+  it.each<[ConfirmedIntegrationTableVariant]>([
+    ['pre-install'],
+    ['complete'],
+  ])('mounts a hover-revealed CopyButton on Resource ID in %s variant', (variant) => {
+    render(
+      <ConfirmedIntegrationTable
+        confirmed={[makeResource({ resourceId: 'conf-x' })]}
+        variant={variant}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'conf-x 복사' });
+    expect(button.className).toContain('opacity-0');
+    expect(button.className).toContain('group-hover:opacity-100');
   });
 });

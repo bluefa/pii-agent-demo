@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/app/components/ui/Badge';
+import { CopyButton } from '@/app/components/ui/CopyButton';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { tableStyles, textColors, cn } from '@/lib/theme';
 import type { ResourceScanStatus } from '@/lib/types';
@@ -54,6 +55,8 @@ export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprova
     );
   }
 
+  const MONO_CELL = cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -68,21 +71,46 @@ export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprova
         </thead>
         <tbody className={tableStyles.body}>
           {resources.map((resource, index) => (
-            <tr key={resource.resourceId} className={tableStyles.row}>
+            <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
               <td className={cn(tableStyles.cell, 'tabular-nums text-sm', textColors.secondary)}>
                 {index + 1}
               </td>
               <td className={tableStyles.cell}>
                 <Badge variant="info" size="sm">{resource.resourceType}</Badge>
               </td>
-              <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                {resource.resourceId}
+              <td className={MONO_CELL}>
+                <span className="inline-flex items-center gap-1">
+                  <span>{resource.resourceId}</span>
+                  <CopyButton
+                    value={resource.resourceId}
+                    label={`${resource.resourceId} 복사`}
+                    className="opacity-0 group-hover:opacity-100"
+                  />
+                </span>
               </td>
-              <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                {resource.region || PLACEHOLDER}
+              <td className={MONO_CELL}>
+                {resource.region ? (
+                  <span className="inline-flex items-center gap-1">
+                    <span>{resource.region}</span>
+                    <CopyButton
+                      value={resource.region}
+                      label={`${resource.region} 복사`}
+                      className="opacity-0 group-hover:opacity-100"
+                    />
+                  </span>
+                ) : PLACEHOLDER}
               </td>
-              <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                {resource.resourceName || PLACEHOLDER}
+              <td className={MONO_CELL}>
+                {resource.resourceName ? (
+                  <span className="inline-flex items-center gap-1">
+                    <span>{resource.resourceName}</span>
+                    <CopyButton
+                      value={resource.resourceName}
+                      label={`${resource.resourceName} 복사`}
+                      className="opacity-0 group-hover:opacity-100"
+                    />
+                  </span>
+                ) : PLACEHOLDER}
               </td>
               <td
                 className={cn(
