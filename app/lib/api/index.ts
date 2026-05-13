@@ -89,10 +89,12 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const toBffCloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' => {
+const toBffCloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' | 'IDC' => {
   switch (cloudProvider) {
     case 'Azure':
       return 'AZURE';
+    case 'IDC':
+      return 'IDC';
     default:
       return cloudProvider;
   }
@@ -143,19 +145,29 @@ export const createProject = async (payload: {
   cloudProvider: CloudProvider;
   description?: string;
   awsAccountId?: string;
+  awsLinkedAccountId?: string;
+  isChinaRegion?: boolean;
+  isTerraformExecutionGranted?: boolean;
   awsRegionType?: 'global' | 'china';
   tenantId?: string;
   subscriptionId?: string;
   gcpProjectId?: string;
+  dbType?: string;
 }): Promise<void> => {
   const body = {
     ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
     cloudProvider: toBffCloudProvider(payload.cloudProvider),
     ...(payload.awsAccountId ? { awsAccountId: payload.awsAccountId } : {}),
+    ...(payload.awsLinkedAccountId ? { awsLinkedAccountId: payload.awsLinkedAccountId } : {}),
+    ...(typeof payload.isChinaRegion === 'boolean' ? { isChinaRegion: payload.isChinaRegion } : {}),
+    ...(typeof payload.isTerraformExecutionGranted === 'boolean'
+      ? { isTerraformExecutionGranted: payload.isTerraformExecutionGranted }
+      : {}),
     ...(payload.awsRegionType ? { awsRegionType: payload.awsRegionType } : {}),
     ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
     ...(payload.subscriptionId ? { subscriptionId: payload.subscriptionId } : {}),
     ...(payload.gcpProjectId ? { gcpProjectId: payload.gcpProjectId } : {}),
+    ...(payload.dbType ? { dbType: payload.dbType } : {}),
   };
 
   await fetchInfraJson(`/services/${payload.serviceCode}/target-sources`, {
@@ -163,6 +175,49 @@ export const createProject = async (payload: {
     body,
   });
 };
+
+export interface RegistrationPreviewRequest {
+  cloudProvider: 'AWS' | 'Azure' | 'GCP' | 'IDC';
+  awsAccountId?: string;
+  awsLinkedAccountId?: string;
+  isChinaRegion?: boolean;
+  isTerraformExecutionGranted?: boolean;
+  tenantId?: string;
+  subscriptionId?: string;
+  gcpProjectId?: string;
+  description?: string;
+  dbTypes: string[];
+}
+
+export interface RegistrationPreviewItemCommon {
+  cloud_provider: string;
+  aws_account_id?: string;
+  aws_linked_account_id?: string;
+  is_china_region: boolean;
+  is_sdu_type: boolean;
+  is_terraform_execution_granted: boolean;
+  tenant_id?: string;
+  subscription_id?: string;
+  gcp_project_id?: string;
+  description?: string;
+}
+
+export type RegistrationPreviewItem =
+  | (RegistrationPreviewItemCommon & { type: 'ADD' })
+  | (RegistrationPreviewItemCommon & { type: 'DUPLICATE'; existing_target_source_id: number });
+
+export interface RegistrationPreviewResponse {
+  items: RegistrationPreviewItem[];
+}
+
+export const previewTargetSourceRegistration = async (
+  serviceCode: string,
+  input: RegistrationPreviewRequest,
+): Promise<RegistrationPreviewResponse> =>
+  fetchInfraJson<RegistrationPreviewResponse>(
+    `/services/${serviceCode}/target-sources/registration-preview`,
+    { method: 'POST', body: input },
+  );
 
 export const getPermissions = async (serviceCode: string): Promise<User[]> => {
   const data = await fetchInfraCamelJson<{ users: User[] }>(

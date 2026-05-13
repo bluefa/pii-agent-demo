@@ -1,66 +1,107 @@
 'use client';
 
-import { cn, textColors, bgColors, borderColors, tagStyles, providerColors } from '@/lib/theme';
+import type { FC } from 'react';
+import { AwsIcon, AzureIcon, GcpIcon } from '@/app/components/ui/CloudProviderIcon';
+import {
+  cn,
+  textColors,
+  bgColors,
+  borderColors,
+  interactiveColors,
+  providerColors,
+} from '@/lib/theme';
 import {
   PROVIDER_CHIPS,
-  type ProviderChipDef,
   type ProviderChipKey,
 } from '@/lib/constants/provider-mapping';
+
+const IdcIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="6" rx="1.5" />
+    <rect x="3" y="14" width="18" height="6" rx="1.5" />
+    <line x1="7" y1="7" x2="7.01" y2="7" />
+    <line x1="7" y1="17" x2="7.01" y2="17" />
+  </svg>
+);
+
+const OtherIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const CHIP_ICON: Record<ProviderChipKey, FC<{ className?: string }>> = {
+  aws: AwsIcon,
+  azure: AzureIcon,
+  gcp: GcpIcon,
+  idc: IdcIcon,
+  other: OtherIcon,
+};
+
+// Selected-state palette per chip. Uses the existing provider-color tokens
+// for the cloud providers; IDC/Other fall back to neutral tokens (no spec
+// brand color).
+const selectedClass = (key: ProviderChipKey): string => {
+  switch (key) {
+    case 'aws':
+      return cn(providerColors.AWS.border, providerColors.AWS.bg, providerColors.AWS.text);
+    case 'azure':
+      return cn(providerColors.Azure.border, providerColors.Azure.bg, providerColors.Azure.text);
+    case 'gcp':
+      return cn(providerColors.GCP.border, providerColors.GCP.bg, providerColors.GCP.text);
+    case 'idc':
+      return cn(providerColors.IDC.border, providerColors.IDC.bg, providerColors.IDC.text);
+    case 'other':
+      return cn(borderColors.strong, bgColors.muted, textColors.secondary);
+  }
+};
 
 interface ProviderChipGridProps {
   value: ProviderChipKey;
   onChange: (key: ProviderChipKey) => void;
 }
 
-const selectedClassName = (chip: ProviderChipDef) => {
-  if (chip.cloudProvider === 'AWS') return `${providerColors.AWS.border} ${providerColors.AWS.bg} ${providerColors.AWS.text}`;
-  if (chip.cloudProvider === 'Azure') return `${providerColors.Azure.border} ${providerColors.Azure.bg} ${providerColors.Azure.text}`;
-  if (chip.cloudProvider === 'GCP') return `${providerColors.GCP.border} ${providerColors.GCP.bg} ${providerColors.GCP.text}`;
-  return `${borderColors.default} ${bgColors.muted}`;
-};
-
-export const ProviderChipGrid = ({ value, onChange }: ProviderChipGridProps) => {
-  return (
-    <div className="grid grid-cols-7 gap-2">
-      {PROVIDER_CHIPS.map((chip) => {
-        const isSelected = chip.enabled && value === chip.key;
-        const baseClass = cn(
-          'relative flex flex-col items-center justify-center gap-0.5 rounded-lg border-2 px-2 py-3 text-center text-sm font-medium transition-all',
-          chip.enabled
-            ? isSelected
-              ? selectedClassName(chip)
-              : cn(borderColors.default, textColors.secondary, 'bg-white hover:border-gray-400')
-            : cn(borderColors.default, bgColors.muted, textColors.quaternary, 'opacity-50 cursor-not-allowed'),
-        );
-
-        return (
-          <button
-            key={chip.key}
-            type="button"
-            disabled={!chip.enabled}
-            onClick={chip.enabled ? () => onChange(chip.key) : undefined}
-            title={chip.enabled ? undefined : '추후 지원 예정'}
-            className={baseClass}
-          >
-            <span className="leading-tight">{chip.label}</span>
-            {chip.sublabel && (
-              <span className={cn('text-[11px] leading-tight', textColors.tertiary)}>
-                {chip.sublabel}
-              </span>
-            )}
-            {!chip.enabled && (
-              <span
-                className={cn(
-                  'absolute -top-2 right-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                  tagStyles.gray,
-                )}
-              >
-                준비중
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-};
+export const ProviderChipGrid = ({ value, onChange }: ProviderChipGridProps) => (
+  <div role="radiogroup" aria-label="Provider 선택" className="grid grid-cols-5 gap-2">
+    {PROVIDER_CHIPS.map((chip) => {
+      const Icon = CHIP_ICON[chip.key];
+      const isSelected = value === chip.key;
+      return (
+        <button
+          key={chip.key}
+          type="button"
+          role="radio"
+          aria-checked={isSelected}
+          onClick={() => onChange(chip.key)}
+          className={cn(
+            'flex flex-col items-center justify-center gap-1 rounded-lg border-2 px-2 py-3 text-sm font-medium transition-all',
+            isSelected
+              ? selectedClass(chip.key)
+              : cn(borderColors.default, bgColors.surface, textColors.secondary, interactiveColors.unselectedBorder),
+          )}
+        >
+          <Icon className="w-5 h-5" />
+          <span className="leading-tight">{chip.label}</span>
+        </button>
+      );
+    })}
+  </div>
+);

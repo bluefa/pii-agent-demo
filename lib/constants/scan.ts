@@ -26,6 +26,10 @@ export const SCAN_POLICY: Record<CloudProvider, ScanPolicy> = {
     enabled: true,
     resourceTypes: ['CLOUD_SQL', 'BIGQUERY'],
   },
+  IDC: {
+    enabled: false,
+    reason: 'IDC 인프라는 description 식별자 기반으로 등록되며 자동 스캔을 지원하지 않습니다.',
+  },
 };
 
 // Provider별 리소스 타입 가져오기

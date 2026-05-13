@@ -38,7 +38,10 @@ import type {
   GcpTerraformServiceAccountResponse,
 } from '@/lib/bff/types/gcp';
 import type {
+  CreateTargetSourceBody,
   CreateTargetSourceResult,
+  RegistrationPreviewRequest,
+  RegistrationPreviewResponse,
   ServicesTargetSourcesResponse,
   TargetSourceDetailResponse,
 } from '@/lib/bff/types/target-sources';
@@ -101,7 +104,11 @@ export interface BffClient {
   targetSources: {
     get: (id: number) => Promise<TargetSourceDetailResponse>;
     list: (serviceCode: string) => Promise<ServicesTargetSourcesResponse>;
-    create: (body: { serviceCode?: string; [key: string]: unknown }) => Promise<CreateTargetSourceResult>;
+    create: (body: CreateTargetSourceBody) => Promise<CreateTargetSourceResult>;
+    previewRegistration: (
+      serviceCode: string,
+      body: RegistrationPreviewRequest,
+    ) => Promise<RegistrationPreviewResponse>;
   };
 
   projects: {

@@ -6,12 +6,9 @@ import {
   consumePendingAdminNavigation,
   type AdminNavigationPayload,
 } from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
-import { Button } from '@/app/components/ui/Button';
 import { useToast } from '@/app/components/ui/toast';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
-import { PageHeader } from '@/app/components/ui/PageHeader';
-import { PageMeta } from '@/app/components/ui/PageMeta';
-import { ProjectCreateModal } from './ProjectCreateModal';
+import { ProjectCreateModal } from '@/app/components/features/ProjectCreateModal';
 import {
   getServicesPage,
   getProjects,
@@ -23,17 +20,17 @@ import {
 import { AppError } from '@/lib/errors';
 import { ProjectSummary } from '@/lib/types';
 import { integrationRoutes } from '@/lib/routes';
-import { cn, statusColors, textColors } from '@/lib/theme';
+import { cn, bgColors, textColors } from '@/lib/theme';
 import {
   ServiceSidebar,
   ApprovalDetailModal,
-} from './admin';
-import { InfrastructureList } from './admin/infrastructure';
+} from '@/app/components/features/admin';
+import { InfraRowList, ServiceHeaderV7 } from '@/app/components/features/admin/v7';
 import {
   serviceListReducer,
   buildInitialServiceListState,
   type ApprovalModalState,
-} from './admin-dashboard';
+} from '@/app/components/features/admin-dashboard';
 
 export const AdminDashboard = () => {
   const router = useRouter();
@@ -134,24 +131,47 @@ export const AdminDashboard = () => {
     fetchServicesPage(page, serviceQuery);
   }, [fetchServicesPage, serviceQuery]);
 
+  // Race guard: when `selectedService` changes rapidly, the in-flight
+  // getProjects call for the previous service may resolve *after* the new
+  // one, overwriting the panel with stale rows. The cleanup flag suppresses
+  // setProjects from any closure whose service is no longer active.
   useEffect(() => {
     if (!selectedService) return;
-    const fetchServiceData = async () => {
-      setLoading(true);
-      const projectsData = await getProjects(selectedService);
-      setProjects(projectsData);
-      setLoading(false);
+    let cancelled = false;
+    setLoading(true);
+    setProjects([]);
+    getProjects(selectedService)
+      .then((projectsData) => {
+        if (!cancelled) setProjects(projectsData);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          toast.error(err instanceof Error ? err.message : '타겟소스 목록 조회 실패');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-    fetchServiceData();
-  }, [selectedService]);
+  }, [selectedService, toast]);
 
-  const refreshProjects = async () => {
+  const refreshProjects = useCallback(async () => {
     if (!selectedService) return;
     setLoading(true);
-    const data = await getProjects(selectedService);
-    setProjects(data);
-    setLoading(false);
-  };
+    try {
+      const data = await getProjects(selectedService);
+      // Best-effort: stale guard relies on selectedService still matching by
+      // the time the promise resolves; refresh is action-driven (not rapid),
+      // so a soft check is enough.
+      setProjects(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '타겟소스 목록 새로고침 실패');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedService, toast]);
 
   const handleViewApproval = async (project: ProjectSummary, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -247,7 +267,7 @@ export const AdminDashboard = () => {
       : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={cn('min-h-screen', bgColors.muted)}>
       <div className="flex h-[calc(100vh-56px)]">
         <ServiceSidebar
           services={services}
@@ -260,56 +280,50 @@ export const AdminDashboard = () => {
           onPageChange={handlePageChange}
         />
 
-        <main className="flex-1 p-6 overflow-auto bg-gray-50/50">
+        <main className={cn('flex-1 p-6 overflow-auto', bgColors.muted)}>
           {!selectedService ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <div
+                  className={cn(
+                    'w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4',
+                    bgColors.muted,
+                  )}
+                >
+                  <svg
+                    className={cn('w-8 h-8', textColors.quaternary)}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                 </div>
-                <p className="text-gray-500">서비스를 선택하세요</p>
+                <p className={textColors.tertiary}>서비스를 선택하세요</p>
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div>
               <Breadcrumb
                 crumbs={[
                   { label: 'SIT Home', href: '/' },
                   { label: 'Service List' },
                 ]}
               />
-              <PageHeader
-                title={`${selectedService} ${selectedServiceObj?.name ?? ''}`.trim()}
-                action={
-                  <>
-                    {loading && projects.length > 0 && (
-                      <span className={cn('inline-flex items-center gap-1.5 text-xs', textColors.tertiary)}>
-                        <span className={cn('w-3 h-3 border-2 border-t-transparent rounded-full animate-spin', statusColors.pending.border)} />
-                        갱신 중
-                      </span>
-                    )}
-                    <Button onClick={openCreateModal} className="flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      타겟 소스 등록
-                    </Button>
-                  </>
-                }
-              />
-              <PageMeta
-                items={[
-                  { label: '서비스 코드', value: selectedService },
-                  { label: '서비스명', value: selectedServiceObj?.name ?? '-' },
-                  ...(selectedServiceObj?.description
-                    ? [{ label: '설명', value: selectedServiceObj.description }]
-                    : []),
-                ]}
+              <ServiceHeaderV7
+                serviceCode={selectedService}
+                serviceName={selectedServiceObj?.name ?? ''}
+                totalInfraCount={projects.length}
+                lastUpdatedAt={null}
+                onAddInfra={openCreateModal}
               />
 
-              <InfrastructureList
+              <InfraRowList
                 projects={projects}
                 loading={loading}
                 actionLoading={actionLoading}
