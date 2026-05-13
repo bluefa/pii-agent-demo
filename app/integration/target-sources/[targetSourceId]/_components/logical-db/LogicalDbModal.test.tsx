@@ -136,15 +136,19 @@ describe('LogicalDbModal', () => {
 
     // exclude db_bravo → added=1
     const panelA = getPanel('연동 대상 후보');
-    const excludeButtons = within(panelA).getAllByRole('button', { name: '제외' });
-    // db_alpha is first now (restored). Find db_bravo's row directly.
     const bravoRow = within(panelA).getByText('db_bravo').closest('li');
     if (!bravoRow) throw new Error('bravo row missing');
     fireEvent.click(within(bravoRow as HTMLElement).getByRole('button', { name: '제외' }));
-    expect(excludeButtons.length).toBeGreaterThan(0);
 
-    // Footer should report 변경사항 2 (1 added + 1 removed).
-    expect(screen.getByText(/변경사항/)).toBeTruthy();
+    // Footer should render exact literals: 변경사항 2건 · 추가 1 · 제거 1.
+    // Assert each segment explicitly so a regression to approximate
+    // set-math (e.g. |added - removed| or added * removed) cannot pass.
+    const footerText = (
+      screen.getByText(/변경사항/).textContent ?? ''
+    ).replace(/\s+/g, ' ').trim();
+    expect(footerText).toContain('변경사항 2건');
+    expect(footerText).toContain('추가 1');
+    expect(footerText).toContain('제거 1');
   });
 
   it('does not crash when databases is empty', () => {

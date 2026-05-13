@@ -164,7 +164,8 @@ const Panel = ({
 }: PanelProps) => (
   <div
     className={cn(
-      'flex flex-col rounded-lg border bg-white min-h-[280px] max-h-[400px] overflow-hidden',
+      'flex flex-col rounded-lg border min-h-[280px] max-h-[400px] overflow-hidden',
+      bgColors.surface,
       borderColors.default,
     )}
   >
@@ -184,7 +185,8 @@ const Panel = ({
     <div className={cn('border-b px-2 py-1.5', borderColors.light)}>
       <div
         className={cn(
-          'flex items-center gap-1.5 rounded-md border bg-white px-2',
+          'flex items-center gap-1.5 rounded-md border px-2',
+          bgColors.surface,
           borderColors.default,
         )}
       >
