@@ -70,6 +70,13 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSlot',
+  () => ({
+    LogicalDbSlot: () => null,
+  }),
+);
+
 import { WaitingConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
 
 const azureWaitingConnectionTestFixture: CloudTargetSource = {
