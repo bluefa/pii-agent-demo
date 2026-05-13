@@ -31,6 +31,12 @@ const stateColor = (s: StepState): string =>
 const stateTextColor = (s: StepState): string =>
   s === 'pending' ? motion.colors.pendingText : motion.colors.activeText;
 
+// Fills and icon spans have no className fallback for transform/opacity — only
+// the JSX inline style sets them. React skips re-applying an inline style prop
+// when the rendered value matches its tracked state, so clearing them here
+// would leave the DOM at CSS defaults (scaleX(1), opacity 1): every connector
+// would appear filled, and both number and check spans would render at once.
+// Circles use Tailwind classes for color, so clearing falls back cleanly.
 const finalize = (run: MotionRun): void => {
   run.circleRefs.forEach((el) => {
     if (!el) return;
@@ -38,15 +44,18 @@ const finalize = (run: MotionRun): void => {
     el.style.color = '';
     el.style.transform = '';
   });
-  run.fillRefs.forEach((el) => {
+  run.fillRefs.forEach((el, i) => {
     if (!el) return;
-    el.style.transform = '';
+    el.style.transform =
+      run.toStates[i] === 'completed' ? 'scaleX(1)' : 'scaleX(0)';
   });
-  run.iconNumberRefs.forEach((el) => {
-    if (el) el.style.opacity = '';
+  run.iconNumberRefs.forEach((el, i) => {
+    if (!el) return;
+    el.style.opacity = run.toStates[i] === 'completed' ? '0' : '1';
   });
-  run.iconCheckRefs.forEach((el) => {
-    if (el) el.style.opacity = '';
+  run.iconCheckRefs.forEach((el, i) => {
+    if (!el) return;
+    el.style.opacity = run.toStates[i] === 'completed' ? '1' : '0';
   });
 };
 
