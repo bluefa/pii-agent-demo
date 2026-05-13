@@ -54,8 +54,8 @@ export const ConfirmedIntegrationTable = ({
       <table className="w-full text-sm">
         <thead className={bgColors.muted}>
           <tr>
-            <th className={headerCellClass}>DB 타입</th>
-            <th className={headerCellClass}>리소스 ID</th>
+            <th className={headerCellClass}>DB Type</th>
+            <th className={headerCellClass}>Resource ID</th>
             <th className={headerCellClass}>DB Credential</th>
             <th className={headerCellClass}>연동 대상 논리 DB</th>
             <th className={headerCellClass}>연동 제외 논리 DB</th>

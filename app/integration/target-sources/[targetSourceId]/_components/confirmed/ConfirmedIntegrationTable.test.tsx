@@ -53,8 +53,8 @@ describe('ConfirmedIntegrationTable', () => {
           variant="complete"
         />,
       );
-      expect(screen.getByText('DB 타입')).toBeTruthy();
-      expect(screen.getByText('리소스 ID')).toBeTruthy();
+      expect(screen.getByText('DB Type')).toBeTruthy();
+      expect(screen.getByText('Resource ID')).toBeTruthy();
       expect(screen.getByText('DB Credential')).toBeTruthy();
       expect(screen.getByText('연동 대상 논리 DB')).toBeTruthy();
       expect(screen.getByText('연동 제외 논리 DB')).toBeTruthy();
@@ -99,11 +99,11 @@ describe('ConfirmedIntegrationTable', () => {
         />,
       );
       const dataRow = container.querySelector('tbody tr');
-      expect(dataRow).toBeTruthy();
-      const cellTexts = Array.from(within(dataRow as HTMLElement).getAllByRole('cell')).map(
+      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
+      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map(
         (cell) => cell.textContent,
       );
-      // cells: DB 타입 / 리소스 ID / DB Credential / 연동 대상 / 연동 제외 / Status
+      // cells: DB Type / Resource ID / DB Credential / target logical DB / excluded logical DB / Status
       expect(cellTexts[3]).toBe('—');
       expect(cellTexts[4]).toBe('—');
     });
