@@ -13,6 +13,7 @@ import {
 import { ConfirmedIntegrationDataProvider } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 import { ConnectionTestSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestSlot';
+import { LogicalDbSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSlot';
 
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
@@ -54,6 +55,7 @@ export const WaitingConnectionTestStep = ({
         targetSourceId={project.targetSourceId}
         refreshProject={refreshProject}
       />
+      <LogicalDbSlot />
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>
   );
