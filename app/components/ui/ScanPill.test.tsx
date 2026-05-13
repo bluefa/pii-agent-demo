@@ -26,4 +26,14 @@ describe('ScanPill', () => {
     const dots = container.querySelectorAll('span.rounded-full');
     expect(dots.length).toBe(0);
   });
+
+  it('renders the New label with a blue palette for state="new"', () => {
+    render(<ScanPill state="new" />);
+    expect(screen.getByText('New')).toBeTruthy();
+  });
+
+  it('renders the Changed label with the warning palette for state="changed"', () => {
+    render(<ScanPill state="changed" />);
+    expect(screen.getByText('Changed')).toBeTruthy();
+  });
 });
