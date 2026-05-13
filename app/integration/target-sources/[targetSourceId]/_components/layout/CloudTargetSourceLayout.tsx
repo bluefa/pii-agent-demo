@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
+import { bgColors, cn } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { InstallingStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/InstallingStep';
 import { WaitingConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
@@ -43,5 +44,9 @@ const renderStep = (props: CloudTargetSourceLayoutProps): ReactNode => {
 export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => {
   const step = renderStep(props);
   if (!step) return null;
-  return <main className="max-w-[1200px] mx-auto p-7 space-y-6">{step}</main>;
+  return (
+    <main className={cn(bgColors.muted, 'min-h-screen')}>
+      <div className="max-w-[1200px] mx-auto p-7 space-y-6">{step}</div>
+    </main>
+  );
 };

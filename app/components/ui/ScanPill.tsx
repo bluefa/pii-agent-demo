@@ -1,6 +1,6 @@
 import { cn, statusColors, textColors } from '@/lib/theme';
 
-export type ScanPillState = 'integrated' | 'pending' | 'none';
+export type ScanPillState = 'integrated' | 'pending' | 'new' | 'changed' | 'none';
 
 interface ScanPillProps {
   state: ScanPillState;
@@ -13,6 +13,9 @@ interface ScanPillPalette {
   label: string;
 }
 
+// 'pending' and 'changed' share the warning palette by design — prototype
+// renders both in orange. The two states are semantically distinct
+// (in-flight vs. "different from last scan"); only the label diverges.
 const PALETTE: Record<Exclude<ScanPillState, 'none'>, ScanPillPalette> = {
   integrated: {
     bg: statusColors.success.bg,
@@ -25,6 +28,18 @@ const PALETTE: Record<Exclude<ScanPillState, 'none'>, ScanPillPalette> = {
     text: statusColors.warning.textDark,
     dot: statusColors.warning.dot,
     label: 'Pending',
+  },
+  new: {
+    bg: statusColors.info.bg,
+    text: statusColors.info.textDark,
+    dot: statusColors.info.dot,
+    label: 'New',
+  },
+  changed: {
+    bg: statusColors.warning.bg,
+    text: statusColors.warning.textDark,
+    dot: statusColors.warning.dot,
+    label: 'Changed',
   },
 };
 
