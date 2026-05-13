@@ -111,7 +111,7 @@ export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
           </tbody>
         </table>
       </div>
-      {rows.length > DEFAULT_PAGE_SIZE && (
+      {rows.length > pageSize && (
         <Pagination
           page={safePage}
           pageSize={pageSize}
