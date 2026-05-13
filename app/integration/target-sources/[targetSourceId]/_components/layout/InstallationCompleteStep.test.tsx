@@ -25,6 +25,16 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => <div data-testid="process-status-card" />,
 }));
 
+vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
+  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
+    <div data-testid="guide-card-container" data-slot-key={slotKey} />
+  ),
+}));
+
+vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
+  resolveStepSlot: vi.fn(() => null),
+}));
+
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot',
   () => ({
@@ -47,6 +57,8 @@ vi.mock('@/app/components/ui/toast', () => ({
 }));
 
 import { InstallationCompleteStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/InstallationCompleteStep';
+import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
+import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 const makeResource = (
   overrides: Partial<ConfirmedResource> = {},
@@ -170,5 +182,23 @@ describe('InstallationCompleteStep', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
     expect(toastInfo).toHaveBeenCalledWith('연결 테스트 재실행 기능 준비중입니다.');
+  });
+
+  it('mounts GuideCardContainer when the resolver returns a slot key', () => {
+    providerState = { status: 'ready', data: [] };
+    const slotKey = 'process.azure.7' satisfies GuideSlotKey;
+    vi.mocked(resolveStepSlot).mockReturnValueOnce(slotKey);
+    renderStep();
+    const guide = screen.getByTestId('guide-card-container');
+    expect(guide).toBeTruthy();
+    expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
+  });
+
+  it('renders the card title with the cardTitle token (22px / font-bold)', () => {
+    providerState = { status: 'ready', data: [] };
+    renderStep();
+    const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동 완료/ });
+    expect(h2.className).toContain('text-[22px]');
+    expect(h2.className).toContain('font-bold');
   });
 });

@@ -24,11 +24,13 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
 }));
 
 vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
+  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
+    <div data-testid="guide-card-container" data-slot-key={slotKey} />
+  ),
 }));
 
 vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => null,
+  resolveStepSlot: vi.fn(() => null),
 }));
 
 vi.mock('@/app/lib/api', () => ({
@@ -78,6 +80,8 @@ vi.mock(
 );
 
 import { WaitingConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
+import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
+import type { GuideSlotKey } from '@/lib/constants/guide-registry';
 
 const azureWaitingConnectionTestFixture: CloudTargetSource = {
   id: 'proj-1',
@@ -118,5 +122,23 @@ describe('WaitingConnectionTestStep DOM order', () => {
     const connection = screen.getByTestId('connection-test');
     const ordering = confirmed.compareDocumentPosition(connection);
     expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('mounts GuideCardContainer when the resolver returns a slot key', () => {
+    const slotKey = 'process.azure.5' satisfies GuideSlotKey;
+    vi.mocked(resolveStepSlot).mockReturnValueOnce(slotKey);
+    render(
+      <WaitingConnectionTestStep
+        project={azureWaitingConnectionTestFixture}
+        identity={identityFixture}
+        providerLabel="Azure Infrastructure"
+        action={null}
+        onProjectUpdate={() => {}}
+      />,
+    );
+
+    const guide = screen.getByTestId('guide-card-container');
+    expect(guide).toBeTruthy();
+    expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
   });
 });
