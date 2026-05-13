@@ -90,4 +90,40 @@ describe('WaitingApprovalTable', () => {
     expect(cells[3].className).toContain('font-mono');
     expect(cells[4].className).toContain('font-mono');
   });
+
+  it('mounts a hover-revealed CopyButton on Resource ID, Region, and Resource Name cells', () => {
+    const resources: WaitingApprovalResource[] = [
+      {
+        resourceId: 'res-1',
+        resourceType: 'PostgreSQL',
+        region: 'us-east-1',
+        resourceName: 'orders-db',
+        selected: true,
+      },
+    ];
+    render(<WaitingApprovalTable resources={resources} />);
+    const buttons = screen.getAllByRole('button', { name: /복사$/ });
+    expect(buttons).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'res-1 복사' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'us-east-1 복사' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'orders-db 복사' })).toBeTruthy();
+    buttons.forEach((b) => {
+      expect(b.className).toContain('opacity-0');
+      expect(b.className).toContain('group-hover:opacity-100');
+    });
+  });
+
+  it('omits CopyButton when region or resourceName is empty', () => {
+    const resources: WaitingApprovalResource[] = [
+      {
+        resourceId: 'res-2',
+        resourceType: 'MySQL',
+        region: '',
+        resourceName: '',
+        selected: true,
+      },
+    ];
+    render(<WaitingApprovalTable resources={resources} />);
+    expect(screen.getAllByRole('button', { name: /복사$/ })).toHaveLength(1);
+  });
 });

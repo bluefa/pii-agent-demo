@@ -1,5 +1,6 @@
 'use client';
 
+import { CopyButton } from '@/app/components/ui/CopyButton';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { bgColors, cn, tableStyles, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
@@ -69,9 +70,18 @@ export const ConfirmedIntegrationTable = ({
         </thead>
         <tbody className={tableStyles.body}>
           {confirmed.map((resource) => (
-            <tr key={resource.resourceId} className={tableStyles.row}>
+            <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
               <td className={cellClass}>{resource.databaseType ?? '-'}</td>
-              <td className={monoCellClass}>{resource.resourceId}</td>
+              <td className={monoCellClass}>
+                <span className="inline-flex items-center gap-1">
+                  <span>{resource.resourceId}</span>
+                  <CopyButton
+                    value={resource.resourceId}
+                    label={`${resource.resourceId} 복사`}
+                    className="opacity-0 group-hover:opacity-100"
+                  />
+                </span>
+              </td>
               <td className={cellClass}>{resource.credentialId ?? '-'}</td>
               <td className={cellClass}>{LOGICAL_DB_PLACEHOLDER}</td>
               <td className={cellClass}>{LOGICAL_DB_PLACEHOLDER}</td>
@@ -97,8 +107,17 @@ export const ConfirmedIntegrationTable = ({
       </thead>
       <tbody className={tableStyles.body}>
         {confirmed.map((resource) => (
-          <tr key={resource.resourceId} className={tableStyles.row}>
-            <td className={monoCellClass}>{resource.resourceId}</td>
+          <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
+            <td className={monoCellClass}>
+              <span className="inline-flex items-center gap-1">
+                <span>{resource.resourceId}</span>
+                <CopyButton
+                  value={resource.resourceId}
+                  label={`${resource.resourceId} 복사`}
+                  className="opacity-0 group-hover:opacity-100"
+                />
+              </span>
+            </td>
             <td className={cellClass}>{resource.type}</td>
             <td className={cellClass}>{resource.databaseType ?? '-'}</td>
             <td className={cellClass}>{resource.credentialId ?? '-'}</td>

@@ -43,4 +43,23 @@ describe('ApprovedIntegrationTable', () => {
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual(['리소스 ID', '유형', 'DB 타입', 'Credential', '연동 이력']);
   });
+
+  it('mounts a hover-revealed CopyButton on each Resource ID cell', () => {
+    render(
+      <ApprovedIntegrationTable
+        approved={[
+          buildResource({ resourceId: 'app-1' }),
+          buildResource({ resourceId: 'app-2' }),
+        ]}
+      />,
+    );
+    const buttons = screen.getAllByRole('button', { name: /복사$/ });
+    expect(buttons).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'app-1 복사' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'app-2 복사' })).toBeTruthy();
+    buttons.forEach((b) => {
+      expect(b.className).toContain('opacity-0');
+      expect(b.className).toContain('group-hover:opacity-100');
+    });
+  });
 });
