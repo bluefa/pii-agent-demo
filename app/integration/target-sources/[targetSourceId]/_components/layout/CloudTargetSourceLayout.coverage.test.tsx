@@ -33,9 +33,23 @@ vi.mock(
 );
 
 vi.mock(
-  '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestStep',
+  '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep',
   () => ({
-    ConnectionTestStep: () => <div data-testid="step-connection-test" />,
+    WaitingConnectionTestStep: () => <div data-testid="step-waiting-connection-test" />,
+  }),
+);
+
+vi.mock(
+  '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep',
+  () => ({
+    ConnectionVerifiedStep: () => <div data-testid="step-connection-verified" />,
+  }),
+);
+
+vi.mock(
+  '@/app/integration/target-sources/[targetSourceId]/_components/layout/InstallationCompleteStep',
+  () => ({
+    InstallationCompleteStep: () => <div data-testid="step-installation-complete" />,
   }),
 );
 
@@ -69,9 +83,9 @@ const STATUS_TO_SENTINEL: Record<ProcessStatus, string> = {
   [ProcessStatus.WAITING_APPROVAL]: 'step-waiting-approval',
   [ProcessStatus.APPLYING_APPROVED]: 'step-applying-approved',
   [ProcessStatus.INSTALLING]: 'step-installing',
-  [ProcessStatus.WAITING_CONNECTION_TEST]: 'step-connection-test',
-  [ProcessStatus.CONNECTION_VERIFIED]: 'step-connection-test',
-  [ProcessStatus.INSTALLATION_COMPLETE]: 'step-connection-test',
+  [ProcessStatus.WAITING_CONNECTION_TEST]: 'step-waiting-connection-test',
+  [ProcessStatus.CONNECTION_VERIFIED]: 'step-connection-verified',
+  [ProcessStatus.INSTALLATION_COMPLETE]: 'step-installation-complete',
 };
 
 const renderForStatus = (status: ProcessStatus) =>
