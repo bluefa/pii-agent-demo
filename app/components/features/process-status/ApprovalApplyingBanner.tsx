@@ -6,7 +6,7 @@ import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { AppError } from '@/lib/errors';
-import { ApprovalRequestDetailModal } from './ApprovalRequestDetailModal';
+import { ApprovalRequestDetailModal } from '@/app/components/features/process-status/ApprovalRequestDetailModal';
 import { cn, statusColors, getButtonClass } from '@/lib/theme';
 
 interface ApprovalApplyingBannerProps {
@@ -18,6 +18,7 @@ export const ApprovalApplyingBanner = ({
 }: ApprovalApplyingBannerProps) => {
   const detailModal = useModal();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
+  const totalCount = latestResponse?.request?.resource_selected_count ?? 0;
 
   useAbortableEffect((signal) => {
     if (!targetSourceId) return undefined;
@@ -51,6 +52,15 @@ export const ApprovalApplyingBanner = ({
             </p>
             <p className={cn('text-sm mt-1', statusColors.info.text)}>
               반영은 최대 하루 소요될 수 있습니다. 완료 시 알림을 보내드립니다.
+              {totalCount > 0 && (
+                <>
+                  {' · '}전체{' '}
+                  <strong className={cn('font-semibold tabular-nums', statusColors.info.textDark)}>
+                    {totalCount}
+                  </strong>
+                  건
+                </>
+              )}
             </p>
             <div className="flex gap-2 mt-3">
               <button

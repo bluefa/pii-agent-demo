@@ -2,6 +2,8 @@
 
 import { cn, bgColors, tableStyles, textColors } from '@/lib/theme';
 import type { ApprovedResource } from '@/lib/types/resources';
+import { ScanPill } from '@/app/components/ui/ScanPill';
+import { deriveScanPill } from '@/app/integration/target-sources/[targetSourceId]/_components/approved/scan-pill-derive';
 
 interface ApprovedIntegrationTableProps {
   approved: readonly ApprovedResource[];
@@ -32,6 +34,9 @@ export const ApprovedIntegrationTable = ({ approved }: ApprovedIntegrationTableP
           <th className={cn(tableStyles.headerCell, 'text-left text-xs font-medium', textColors.tertiary)}>
             Credential
           </th>
+          <th className={cn(tableStyles.headerCell, 'text-left text-xs font-medium', textColors.tertiary)}>
+            연동 이력
+          </th>
         </tr>
       </thead>
       <tbody className={tableStyles.body}>
@@ -48,6 +53,9 @@ export const ApprovedIntegrationTable = ({ approved }: ApprovedIntegrationTableP
             </td>
             <td className={cn(tableStyles.cell, 'text-xs', textColors.tertiary)}>
               {resource.credentialId ?? '-'}
+            </td>
+            <td className={cn(tableStyles.cell, 'text-xs')}>
+              <ScanPill state={deriveScanPill(resource)} />
             </td>
           </tr>
         ))}
