@@ -71,6 +71,19 @@ describe('WaitingApprovalCard', () => {
     getApprovalRequestLatestMock.mockRejectedValue(new Error('not mocked'));
   });
 
+  it('renders the card title with the cardStyles.cardTitle token', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    const heading = screen.getByRole('heading', { name: '연동 대상 승인 대기' });
+    expect(heading.className).toContain('text-[22px]');
+    expect(heading.className).toContain('font-bold');
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01')).toBeTruthy();
+    });
+  });
+
   it('renders title, sub-text, status pill, and banner copy', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);

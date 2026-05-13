@@ -13,11 +13,13 @@ vi.mock('@/app/components/features/ProcessStatusCard', () => ({
 }));
 
 vi.mock('@/app/components/features/process-status/GuideCard/GuideCardContainer', () => ({
-  GuideCardContainer: () => null,
+  GuideCardContainer: ({ slotKey }: { slotKey: string }) => (
+    <div data-testid="guide-card-container" data-slot-key={slotKey} />
+  ),
 }));
 
 vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', () => ({
-  resolveStepSlot: () => null,
+  resolveStepSlot: vi.fn(() => 'stub-slot-key'),
 }));
 
 vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/approved', () => ({
@@ -68,7 +70,7 @@ const identityFixture: ProjectIdentity = {
 };
 
 describe('ApplyingApprovedStep DOM order', () => {
-  it('renders approval-applying before approved-integration-section', () => {
+  it('renders GuideCardContainer with the resolved slotKey', () => {
     render(
       <ApplyingApprovedStep
         project={azureApplyingApprovedFixture}
@@ -79,9 +81,29 @@ describe('ApplyingApprovedStep DOM order', () => {
       />,
     );
 
+    const guide = screen.getByTestId('guide-card-container');
+    expect(guide.getAttribute('data-slot-key')).toBe('stub-slot-key');
+  });
+
+  it('renders guide-card before approval-applying before approved-integration-section', () => {
+    render(
+      <ApplyingApprovedStep
+        project={azureApplyingApprovedFixture}
+        identity={identityFixture}
+        providerLabel="Azure Infrastructure"
+        action={null}
+        onProjectUpdate={() => {}}
+      />,
+    );
+
+    const guide = screen.getByTestId('guide-card-container');
     const applying = screen.getByTestId('approval-applying');
     const approved = screen.getByTestId('approved-integration-section');
-    const ordering = applying.compareDocumentPosition(approved);
-    expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const guideBeforeApplying = guide.compareDocumentPosition(applying);
+    expect(guideBeforeApplying & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const applyingBeforeApproved = applying.compareDocumentPosition(approved);
+    expect(applyingBeforeApproved & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
