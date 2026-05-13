@@ -152,8 +152,9 @@ describe('runStepperMotion', () => {
 
     const fill = run.fillRefs[0];
     expect(fill.style.transformOrigin).toBe('left center');
-    // After completion, finalize() clears inline transform.
-    expect(fill.style.transform).toBe('');
+    // finalize() pins inline transform to the target so React's same-value
+    // style prop doesn't get diff-skipped, leaving the DOM at CSS default.
+    expect(fill.style.transform).toBe('scaleX(1)');
   });
 
   it('forward: mid-flight produces partial scaleX', () => {
@@ -190,7 +191,8 @@ describe('runStepperMotion', () => {
     expect(fill.style.transform).toBe('scaleX(1)');
 
     tickUntilEmpty();
-    expect(fill.style.transform).toBe('');
+    // toStates[0] = 'current' → outgoing connector is not filled.
+    expect(fill.style.transform).toBe('scaleX(0)');
   });
 
   it('Step1 -> Step3 jump: connector 0 reaches arrival before connector 1', () => {
@@ -258,7 +260,7 @@ describe('runStepperMotion', () => {
     expect(run.circleRefs[1].style.backgroundColor).not.toBe('');
   });
 
-  it('cleanup() clears inline styles even mid-flight', () => {
+  it('cleanup() snaps inline styles to toStates even mid-flight', () => {
     const run = buildRun(
       0,
       2,
@@ -273,15 +275,24 @@ describe('runStepperMotion', () => {
 
     cleanup();
 
-    // After cleanup all inline styles cleared
-    run.fillRefs.forEach((el) => expect(el.style.transform).toBe(''));
+    // Fills pin to scaleX(1)/scaleX(0) based on toStates so React's diffing
+    // doesn't skip a re-apply that would otherwise leave CSS-default scaleX(1)
+    // showing on pending connectors.
+    expect(run.fillRefs[0].style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[1].style.transform).toBe('scaleX(1)');
+    // Circles still hand back to Tailwind className for color.
     run.circleRefs.forEach((el) => {
       expect(el.style.transform).toBe('');
       expect(el.style.backgroundColor).toBe('');
       expect(el.style.color).toBe('');
     });
-    run.iconNumberRefs.forEach((el) => expect(el.style.opacity).toBe(''));
-    run.iconCheckRefs.forEach((el) => expect(el.style.opacity).toBe(''));
+    // Icons must end up showing exactly one span per step.
+    expect(run.iconNumberRefs[0].style.opacity).toBe('0');
+    expect(run.iconCheckRefs[0].style.opacity).toBe('1');
+    expect(run.iconNumberRefs[1].style.opacity).toBe('0');
+    expect(run.iconCheckRefs[1].style.opacity).toBe('1');
+    expect(run.iconNumberRefs[2].style.opacity).toBe('1');
+    expect(run.iconCheckRefs[2].style.opacity).toBe('0');
   });
 
   it('virtual edges (negative or beyond fillRefs.length) are filtered', () => {
@@ -311,6 +322,42 @@ describe('runStepperMotion', () => {
     const chkOp = Number(run.iconCheckRefs[0].style.opacity);
     expect(numOp + chkOp).toBeGreaterThan(0.95);
     expect(numOp + chkOp).toBeLessThanOrEqual(1.05);
+  });
+
+  it('7-step entry to index 4: trailing fills pin to scaleX(0), icons split correctly', () => {
+    // Regression: previously finalize() cleared transform/opacity, exposing
+    // CSS defaults (scaleX(1), opacity 1) on fills/icons that the engine
+    // never touched. Result was a green line all the way to step 7 and
+    // every step showing number + check at the same time.
+    const fromStates: StepState[] = Array(7).fill('pending');
+    const toStates: StepState[] = [
+      'completed',
+      'completed',
+      'completed',
+      'completed',
+      'current',
+      'pending',
+      'pending',
+    ];
+    const run = buildRun(0, 4, fromStates, toStates);
+    runStepperMotion(run);
+    tickUntilEmpty();
+
+    expect(run.fillRefs[0].style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[1].style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[2].style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[3].style.transform).toBe('scaleX(1)');
+    expect(run.fillRefs[4].style.transform).toBe('scaleX(0)');
+    expect(run.fillRefs[5].style.transform).toBe('scaleX(0)');
+
+    [0, 1, 2, 3].forEach((i) => {
+      expect(run.iconNumberRefs[i].style.opacity).toBe('0');
+      expect(run.iconCheckRefs[i].style.opacity).toBe('1');
+    });
+    [4, 5, 6].forEach((i) => {
+      expect(run.iconNumberRefs[i].style.opacity).toBe('1');
+      expect(run.iconCheckRefs[i].style.opacity).toBe('0');
+    });
   });
 
   it('returns no-op cleanup when dir === 0', () => {
