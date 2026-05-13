@@ -70,7 +70,7 @@ vi.mock(
   }),
 );
 
-import { ConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestStep';
+import { WaitingConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
 
 const azureWaitingConnectionTestFixture: CloudTargetSource = {
   id: 'proj-1',
@@ -95,10 +95,10 @@ const identityFixture: ProjectIdentity = {
   identifiers: [],
 };
 
-describe('ConnectionTestStep DOM order', () => {
+describe('WaitingConnectionTestStep DOM order', () => {
   it('renders confirmed-resources before connection-test', () => {
     render(
-      <ConnectionTestStep
+      <WaitingConnectionTestStep
         project={azureWaitingConnectionTestFixture}
         identity={identityFixture}
         providerLabel="Azure Infrastructure"

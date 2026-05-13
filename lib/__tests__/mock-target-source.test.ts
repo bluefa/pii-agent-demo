@@ -37,8 +37,8 @@ describe('targetSourceId — seed 데이터', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('seed 데이터는 8개 프로젝트를 포함한다', () => {
-    expect(mockProjects).toHaveLength(8);
+  it('seed 데이터는 10개 프로젝트를 포함한다', () => {
+    expect(mockProjects).toHaveLength(10);
   });
 });
 
