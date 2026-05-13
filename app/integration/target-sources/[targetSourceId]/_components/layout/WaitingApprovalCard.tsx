@@ -225,7 +225,7 @@ export const WaitingApprovalCard = ({
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
-          <h2 className={cn('text-lg font-semibold', textColors.primary)}>
+          <h2 className={cn(cardStyles.cardTitle)}>
             연동 대상 승인 대기
           </h2>
           <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
