@@ -9,6 +9,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import type { GcpInstallationStatusValue } from '@/app/api/_lib/v1-types';
+import type { CloudProvider } from '@/lib/types';
 import type { InstallResourceRow } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import {
   TABLE_BODY_CELL,
@@ -16,10 +17,12 @@ import {
   TABLE_MONO_CELL,
   TABLE_TAG_PILL,
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
+import { CopyButton } from '@/app/components/ui/CopyButton';
 import { Pagination } from '@/app/components/ui/Pagination';
 
 interface InstallResourceTableProps {
   rows: InstallResourceRow[];
+  provider: CloudProvider;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -36,7 +39,14 @@ const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
   FAIL: tagStyles.error,
 };
 
-export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
+const RESOURCE_STATUS_COLUMN_LABEL: Record<CloudProvider, string> = {
+  AWS: 'Service 상태',
+  Azure: 'Private Link 상태',
+  GCP: '서비스 리소스 상태',
+  IDC: '서비스 리소스 상태',
+};
+
+export const InstallResourceTable = ({ rows, provider }: InstallResourceTableProps) => {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -76,14 +86,16 @@ export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
               <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
               <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
               <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Name</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>서비스 리소스 상태</th>
+              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>
+                {RESOURCE_STATUS_COLUMN_LABEL[provider]}
+              </th>
             </tr>
           </thead>
           <tbody>
             {visibleRows.map((row) => (
               <tr
                 key={row.resourceId}
-                className={cn('border-t', borderColors.light)}
+                className={cn('border-t group', borderColors.light)}
               >
                 <td className={TABLE_BODY_CELL}>
                   {row.databaseType ? (
@@ -93,7 +105,14 @@ export const InstallResourceTable = ({ rows }: InstallResourceTableProps) => {
                   )}
                 </td>
                 <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
-                  {row.resourceId}
+                  <span className="inline-flex items-center gap-1.5">
+                    <span>{row.resourceId}</span>
+                    <CopyButton
+                      value={row.resourceId}
+                      label={`${row.resourceId} 복사`}
+                      className="opacity-0 group-hover:opacity-100"
+                    />
+                  </span>
                 </td>
                 <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
                   {row.region ?? '—'}
