@@ -20,17 +20,17 @@ describe('ReasonChipInline', () => {
     expect(screen.getByText('custom short')).toBeTruthy();
   });
 
-  it('exposes the full reason + meta inside the tooltip on hover', () => {
+  it('exposes the full reason + meta inside the tooltip on hover', async () => {
     const longReason = 'A'.repeat(60);
     const { container } = render(
       <ReasonChipInline reason={longReason} meta="등록자: tester · 2026-05-08" />,
     );
     // Tooltip content mounts only while hovered. Trigger the container's
-    // onMouseEnter to make the full reason and meta visible.
+    // onMouseEnter then wait for the async positioning effect to settle.
     const trigger = container.firstElementChild;
     if (!trigger) throw new Error('expected Tooltip container');
     fireEvent.mouseEnter(trigger);
-    expect(screen.getByText(longReason)).toBeTruthy();
+    expect(await screen.findByText(longReason)).toBeTruthy();
     expect(screen.getByText('등록자: tester · 2026-05-08')).toBeTruthy();
   });
 });

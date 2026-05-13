@@ -14,7 +14,7 @@ export interface WaitingApprovalResource {
   scanStatus?: ResourceScanStatus | null;
   /** Exclusion reason text from `excluded_resource_infos[].exclusion_reason`. Only meaningful when `selected === false`. */
   exclusionReason?: string;
-  /** Optional metadata line for the reason tooltip — e.g. "등록자: 홍길동 · 2026-05-08". */
+  /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
 }
 

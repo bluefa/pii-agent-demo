@@ -7,7 +7,7 @@ interface ReasonChipInlineProps {
   reason: string;
   /** Short summary text inside the chip (≤ DEFAULT_SUMMARY_LIMIT chars). Derives from reason when omitted. */
   summary?: string;
-  /** Secondary line inside the tooltip, e.g. "등록자: 홍길동 · 2026-05-08". */
+  /** Secondary line inside the tooltip — typically the registrant and date as a single pre-formatted string. */
   meta?: string;
 }
 
