@@ -28,7 +28,7 @@ const row = (overrides: Partial<InstallResourceRow> = {}): InstallResourceRow =>
 
 describe('InstallResourceTable — empty state', () => {
   it('renders empty-state message when rows is empty', () => {
-    const html = renderToStaticMarkup(<InstallResourceTable rows={[]} />);
+    const html = renderToStaticMarkup(<InstallResourceTable rows={[]} provider="GCP" />);
     expect(html).toContain('설치 대상 리소스가 없습니다');
     expect(html).not.toContain('<table');
   });
@@ -36,7 +36,9 @@ describe('InstallResourceTable — empty state', () => {
 
 describe('InstallResourceTable — column headers', () => {
   it('renders all 5 column headers in order', () => {
-    const html = renderToStaticMarkup(<InstallResourceTable rows={[row()]} />);
+    const html = renderToStaticMarkup(
+      <InstallResourceTable rows={[row()]} provider="GCP" />,
+    );
     const dbTypeIdx = html.indexOf('DB Type');
     const resourceIdx = html.indexOf('Resource ID');
     const regionIdx = html.indexOf('Region');
@@ -53,7 +55,7 @@ describe('InstallResourceTable — column headers', () => {
 describe('InstallResourceTable — installationStatus pill', () => {
   it('COMPLETED renders 완료 with green tag classes', () => {
     const html = renderToStaticMarkup(
-      <InstallResourceTable rows={[row({ installationStatus: 'COMPLETED' })]} />,
+      <InstallResourceTable rows={[row({ installationStatus: 'COMPLETED' })]} provider="GCP" />,
     );
     expect(html).toContain('완료');
     expect(html).toContain(tagStyles.green);
@@ -61,7 +63,7 @@ describe('InstallResourceTable — installationStatus pill', () => {
 
   it('IN_PROGRESS renders 진행중 with orange tag classes', () => {
     const html = renderToStaticMarkup(
-      <InstallResourceTable rows={[row({ installationStatus: 'IN_PROGRESS' })]} />,
+      <InstallResourceTable rows={[row({ installationStatus: 'IN_PROGRESS' })]} provider="GCP" />,
     );
     expect(html).toContain('진행중');
     expect(html).toContain(tagStyles.orange);
@@ -69,7 +71,7 @@ describe('InstallResourceTable — installationStatus pill', () => {
 
   it('FAIL renders 실패 with red tag classes', () => {
     const html = renderToStaticMarkup(
-      <InstallResourceTable rows={[row({ installationStatus: 'FAIL' })]} />,
+      <InstallResourceTable rows={[row({ installationStatus: 'FAIL' })]} provider="GCP" />,
     );
     expect(html).toContain('실패');
     expect(html).toContain(tagStyles.red);
@@ -79,21 +81,21 @@ describe('InstallResourceTable — installationStatus pill', () => {
 describe('InstallResourceTable — null fallback to em-dash', () => {
   it('null databaseType renders em-dash', () => {
     const html = renderToStaticMarkup(
-      <InstallResourceTable rows={[row({ databaseType: null })]} />,
+      <InstallResourceTable rows={[row({ databaseType: null })]} provider="GCP" />,
     );
     expect(html).toContain('—');
   });
 
   it('null region renders em-dash', () => {
     const html = renderToStaticMarkup(
-      <InstallResourceTable rows={[row({ region: null })]} />,
+      <InstallResourceTable rows={[row({ region: null })]} provider="GCP" />,
     );
     expect(html).toContain('—');
   });
 
   it('null databaseName renders em-dash', () => {
     const html = renderToStaticMarkup(
-      <InstallResourceTable rows={[row({ databaseName: null })]} />,
+      <InstallResourceTable rows={[row({ databaseName: null })]} provider="GCP" />,
     );
     expect(html).toContain('—');
   });
@@ -108,6 +110,7 @@ describe('InstallResourceTable — multiple rows', () => {
           row({ resourceId: 'b' }),
           row({ resourceId: 'c' }),
         ]}
+        provider="GCP"
       />,
     );
     const trMatches = html.match(/<tr\b/g) ?? [];
@@ -118,9 +121,64 @@ describe('InstallResourceTable — multiple rows', () => {
     const html = renderToStaticMarkup(
       <InstallResourceTable
         rows={[row({ resourceId: 'gcp-r1' }), row({ resourceId: 'gcp-r2' })]}
+        provider="GCP"
       />,
     );
     expect(html).toContain('gcp-r1');
     expect(html).toContain('gcp-r2');
+  });
+});
+
+describe('InstallResourceTable — provider-aware status column label', () => {
+  it('AWS provider shows "Service 상태"', () => {
+    const html = renderToStaticMarkup(
+      <InstallResourceTable rows={[row()]} provider="AWS" />,
+    );
+    expect(html).toContain('Service 상태');
+    expect(html).not.toContain('Private Link 상태');
+    expect(html).not.toContain('서비스 리소스 상태');
+  });
+
+  it('Azure provider shows "Private Link 상태"', () => {
+    const html = renderToStaticMarkup(
+      <InstallResourceTable rows={[row()]} provider="Azure" />,
+    );
+    expect(html).toContain('Private Link 상태');
+    expect(html).not.toContain('Service 상태');
+  });
+
+  it('GCP provider shows "서비스 리소스 상태"', () => {
+    const html = renderToStaticMarkup(
+      <InstallResourceTable rows={[row()]} provider="GCP" />,
+    );
+    expect(html).toContain('서비스 리소스 상태');
+  });
+
+  it('IDC provider shows "서비스 리소스 상태" (matches GCP label)', () => {
+    const html = renderToStaticMarkup(
+      <InstallResourceTable rows={[row()]} provider="IDC" />,
+    );
+    expect(html).toContain('서비스 리소스 상태');
+  });
+});
+
+describe('InstallResourceTable — CopyButton on Resource ID', () => {
+  it('mounts a copy button next to every resourceId cell', () => {
+    const html = renderToStaticMarkup(
+      <InstallResourceTable
+        rows={[row({ resourceId: 'gcp-r1' }), row({ resourceId: 'gcp-r2' })]}
+        provider="GCP"
+      />,
+    );
+    expect(html).toContain('aria-label="gcp-r1 복사"');
+    expect(html).toContain('aria-label="gcp-r2 복사"');
+  });
+
+  it('hides the copy button by default (row-hover reveal)', () => {
+    const html = renderToStaticMarkup(
+      <InstallResourceTable rows={[row()]} provider="GCP" />,
+    );
+    expect(html).toContain('opacity-0');
+    expect(html).toContain('group-hover:opacity-100');
   });
 });

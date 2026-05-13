@@ -122,7 +122,7 @@ export const GcpInstallationInline = ({
           </button>
         </div>
       )}
-      <InstallResourceTable rows={joinedRows} />
+      <InstallResourceTable rows={joinedRows} provider="GCP" />
 
       <InstallTaskDetailModal
         open={detailModal.isOpen}
