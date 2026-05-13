@@ -3,6 +3,7 @@
 import { createPortal } from 'react-dom';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
+import { CopyButton } from '@/app/components/ui/CopyButton';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
@@ -11,6 +12,7 @@ import { VnetIntegrationGuideModal } from '@/app/integration/target-sources/[tar
 import { useModal } from '@/app/hooks/useModal';
 import { getResourceDisplayName } from '@/lib/resource';
 import {
+  bgColors,
   borderColors,
   cn,
   primaryColors,
@@ -56,7 +58,7 @@ export const CandidateResourceTable = ({
 
   if (totalCount === 0) {
     return (
-      <div className={cn('rounded-lg border bg-white px-6 py-10 text-center text-sm', borderColors.default, textColors.tertiary)}>
+      <div className={cn('rounded-lg border px-6 py-10 text-center text-sm', bgColors.surface, borderColors.default, textColors.tertiary)}>
         발견된 리소스가 없습니다
       </div>
     );
@@ -64,19 +66,18 @@ export const CandidateResourceTable = ({
 
   return (
     <div>
-      <div className={cn('rounded-lg border bg-white shadow-sm overflow-hidden', borderColors.default)}>
+      <div className={cn('rounded-lg border shadow-sm overflow-hidden', bgColors.surface, borderColors.default)}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className={cn('whitespace-nowrap', tableStyles.header)}>
                 {showCheckboxColumn && <th className="px-6 py-3 w-10" />}
                 <th className="px-6 py-3">연동 대상 여부</th>
-                <th className="px-6 py-3">DB Type</th>
+                <th className="px-6 py-3">Database Type</th>
                 <th className="px-6 py-3">Resource ID</th>
                 <th className="px-6 py-3">Region</th>
-                <th className="px-6 py-3">DB Name</th>
+                <th className="px-6 py-3">Resource Name</th>
                 <th className="px-6 py-3">연동 완료 여부</th>
-                <th className="px-6 py-3">스캔 이력</th>
               </tr>
             </thead>
             <tbody className={tableStyles.body}>
@@ -175,6 +176,7 @@ const CandidateResourceRow = ({
       <tr
         className={cn(
           tableStyles.row,
+          'group',
           canExpand && 'cursor-pointer',
           isExpanded && statusColors.info.bg,
           showConfigNeeded && !isExpanded && statusColors.warning.bg,
@@ -212,6 +214,13 @@ const CandidateResourceRow = ({
         <td className="px-6 py-3">
           <div className="flex items-center gap-2">
             <span className={cn('font-mono text-xs', textColors.tertiary)}>{candidate.resourceId}</span>
+            <span onClick={(event) => event.stopPropagation()}>
+              <CopyButton
+                value={candidate.resourceId}
+                label={`${candidate.resourceId} 복사`}
+                className="opacity-0 group-hover:opacity-100"
+              />
+            </span>
             {isIneligible && (
               <button
                 onClick={(event) => { event.stopPropagation(); vnetModal.open(); }}
@@ -231,10 +240,6 @@ const CandidateResourceRow = ({
 
         <td className="px-6 py-3">
           <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
-        </td>
-
-        <td className="px-6 py-3">
-          <span className={cn('text-xs', textColors.quaternary)}>—</span>
         </td>
 
         <td className="px-6 py-3">
