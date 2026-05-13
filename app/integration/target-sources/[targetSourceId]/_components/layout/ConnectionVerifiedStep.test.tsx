@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
@@ -25,6 +25,18 @@ vi.mock(
     ConfirmedResourcesSlot: () => <div data-testid="confirmed-resources-slot" />,
   }),
 );
+
+const toastInfo = vi.fn();
+
+vi.mock('@/app/components/ui/toast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: toastInfo,
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}));
 
 import { ConnectionVerifiedStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
 
@@ -79,5 +91,17 @@ describe('ConnectionVerifiedStep', () => {
   it('mounts the ConfirmedResourcesSlot', () => {
     renderStep();
     expect(screen.getByTestId('confirmed-resources-slot')).toBeTruthy();
+  });
+
+  it('renders the 연결 테스트 재실행 button', () => {
+    renderStep();
+    expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
+  });
+
+  it('fires toast.info when the retest button is clicked', () => {
+    toastInfo.mockClear();
+    renderStep();
+    fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
+    expect(toastInfo).toHaveBeenCalledWith('연결 테스트 재실행 기능 준비중입니다.');
   });
 });
