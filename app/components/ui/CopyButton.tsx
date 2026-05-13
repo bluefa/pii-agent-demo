@@ -20,9 +20,9 @@ export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
       setCopied(true);
       setTimeout(() => setCopied(false), TIMINGS.COPY_FEEDBACK_MS);
     } catch (error) {
-      console.warn('[CopyButton] clipboard.writeText failed', { error, value });
+      console.warn('[CopyButton] clipboard.writeText failed', { error, label });
     }
-  }, [value]);
+  }, [value, label]);
 
   return (
     <button
@@ -37,7 +37,7 @@ export const CopyButton = ({ value, label, className }: CopyButtonProps) => {
         className,
       )}
     >
-      {copied ? <CheckIcon /> : <CopyIcon />}
+      {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
     </button>
   );
 };
