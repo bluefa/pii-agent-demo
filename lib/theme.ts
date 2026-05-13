@@ -230,6 +230,8 @@ export const cardStyles = {
   eyebrow: 'text-[12px] font-bold text-[#0064FF] tracking-[0.02em]',
   /** Large display heading inside a card header (ADR-014 card-display-title). */
   displayTitle: 'text-[26px] font-extrabold text-gray-900 tracking-[-0.045em] leading-[1.2]',
+  /** In-card section title — prototype --type-h1 (22 / 700 / -0.01em). Distinct from displayTitle (page-level). */
+  cardTitle: 'text-[22px] font-bold tracking-[-0.01em] leading-[1.25] text-gray-900',
   /** Paragraph beneath a display title (ADR-014 card-subtitle). */
   subtitle: 'text-[13.5px] font-medium text-gray-500 leading-[1.55]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
