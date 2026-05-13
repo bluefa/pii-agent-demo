@@ -14,7 +14,7 @@ import { ConfirmedIntegrationDataProvider } from '@/app/integration/target-sourc
 import { ConfirmedResourcesSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 import { ConnectionTestSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestSlot';
 
-interface ConnectionTestStepProps {
+interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
   identity: ProjectIdentity;
   providerLabel: string;
@@ -22,13 +22,13 @@ interface ConnectionTestStepProps {
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
-export const ConnectionTestStep = ({
+export const WaitingConnectionTestStep = ({
   project,
   identity,
   providerLabel,
   action,
   onProjectUpdate,
-}: ConnectionTestStepProps) => {
+}: WaitingConnectionTestStepProps) => {
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     project.processStatus,

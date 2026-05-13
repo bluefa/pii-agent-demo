@@ -4,7 +4,9 @@ import type { ReactNode } from 'react';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { InstallingStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/InstallingStep';
-import { ConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestStep';
+import { WaitingConnectionTestStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingConnectionTestStep';
+import { ConnectionVerifiedStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionVerifiedStep';
+import { InstallationCompleteStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/InstallationCompleteStep';
 import { WaitingTargetConfirmationStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingTargetConfirmationStep';
 import { WaitingApprovalStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStep';
 import { ApplyingApprovedStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedStep';
@@ -28,9 +30,11 @@ const renderStep = (props: CloudTargetSourceLayoutProps): ReactNode => {
     case ProcessStatus.INSTALLING:
       return <InstallingStep {...props} />;
     case ProcessStatus.WAITING_CONNECTION_TEST:
+      return <WaitingConnectionTestStep {...props} />;
     case ProcessStatus.CONNECTION_VERIFIED:
+      return <ConnectionVerifiedStep {...props} />;
     case ProcessStatus.INSTALLATION_COMPLETE:
-      return <ConnectionTestStep {...props} />;
+      return <InstallationCompleteStep {...props} />;
     default:
       return null;
   }
