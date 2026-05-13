@@ -34,7 +34,7 @@ const fixture: WaitingApprovalResource[] = [
 ];
 
 describe('WaitingApprovalTable', () => {
-  it('renders the 7 column headers in order', () => {
+  it('renders the 8 column headers in order', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
@@ -45,6 +45,7 @@ describe('WaitingApprovalTable', () => {
       'Resource Name',
       '연동 대상 여부',
       '스캔 이력',
+      '제외 사유',
     ]);
   });
 
@@ -69,8 +70,9 @@ describe('WaitingApprovalTable', () => {
     const rows = screen.getAllByRole('row').slice(1);
     expect(within(rows[0]).getByText('신규')).toBeTruthy();
     expect(within(rows[1]).getByText('변경')).toBeTruthy();
-    // null scanStatus → em-dash placeholder
-    expect(within(rows[2]).getByText('—')).toBeTruthy();
+    // null scanStatus and missing exclusionReason both render the em-dash;
+    // row[2] is the excluded fixture row with both, so we expect 2 placeholders.
+    expect(within(rows[2]).getAllByText('—').length).toBe(2);
   });
 
   it('shows empty state when no resources', () => {

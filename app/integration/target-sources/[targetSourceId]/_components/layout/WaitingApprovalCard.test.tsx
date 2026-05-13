@@ -3,9 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const getApprovedIntegrationMock = vi.fn();
+const getApprovalRequestLatestMock = vi.fn();
 
 vi.mock('@/app/lib/api', () => ({
   getApprovedIntegration: (...args: unknown[]) => getApprovedIntegrationMock(...args),
+  getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatestMock(...args),
 }));
 
 import { WaitingApprovalCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
@@ -43,9 +45,30 @@ const buildResponse = () => ({
   },
 });
 
+const buildApprovalRequestLatest = () => ({
+  request: {
+    id: 1,
+    target_source_id: 1003,
+    status: 'PENDING',
+    requested_by: { user_id: 'tester' },
+    requested_at: '2026-04-29T05:30:00Z',
+    resource_total_count: 2,
+    resource_selected_count: 1,
+  },
+  result: {
+    request_id: null,
+    status: 'PENDING',
+    processed_by: { user_id: '' },
+    processed_at: '',
+    reason: null,
+  },
+});
+
 describe('WaitingApprovalCard', () => {
   beforeEach(() => {
     getApprovedIntegrationMock.mockReset();
+    getApprovalRequestLatestMock.mockReset();
+    getApprovalRequestLatestMock.mockRejectedValue(new Error('not mocked'));
   });
 
   it('renders title, sub-text, status pill, and banner copy', async () => {
@@ -228,6 +251,51 @@ describe('WaitingApprovalCard', () => {
     await waitFor(() => {
       expect(screen.getByText('조건에 맞는 결과가 없어요.')).toBeTruthy();
     });
+  });
+
+  it('excluded row renders the reason chip in 제외 사유 column', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('pg-analytics-03')).toBeTruthy();
+    });
+    expect(screen.getAllByText('Stg DB').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('selected row shows a dash placeholder in 제외 사유 column', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01')).toBeTruthy();
+    });
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders 요청일시 + 요청자 in the subtitle when getApprovalRequestLatest returns metadata', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockReset();
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildApprovalRequestLatest());
+
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/요청일시/)).toBeTruthy();
+    });
+    expect(screen.getByText('tester')).toBeTruthy();
+  });
+
+  it('falls back to bare subtitle when getApprovalRequestLatest rejects', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    // getApprovalRequestLatestMock is set to reject by default in beforeEach
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01')).toBeTruthy();
+    });
+    expect(screen.queryByText(/요청일시/)).toBeNull();
+    expect(screen.queryByText(/요청자/)).toBeNull();
   });
 });
 

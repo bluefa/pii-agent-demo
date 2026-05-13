@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/app/components/ui/Badge';
+import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { tableStyles, textColors, cn } from '@/lib/theme';
 import type { ResourceScanStatus } from '@/lib/types';
 
@@ -11,6 +12,10 @@ export interface WaitingApprovalResource {
   resourceName: string;
   selected: boolean;
   scanStatus?: ResourceScanStatus | null;
+  /** Exclusion reason text from `excluded_resource_infos[].exclusion_reason`. Only meaningful when `selected === false`. */
+  exclusionReason?: string;
+  /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
+  exclusionMeta?: string;
 }
 
 interface WaitingApprovalTableProps {
@@ -37,6 +42,7 @@ const COLUMNS: readonly { label: string; widthClass?: string }[] = [
   { label: 'Resource Name' },
   { label: '연동 대상 여부' },
   { label: '스캔 이력' },
+  { label: '제외 사유' },
 ];
 
 export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprovalTableProps) => {
@@ -89,6 +95,16 @@ export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprova
               </td>
               <td className={cn(tableStyles.cell, 'text-sm', textColors.secondary)}>
                 {formatScanStatus(resource.scanStatus)}
+              </td>
+              <td className={cn(tableStyles.cell, 'text-sm')}>
+                {!resource.selected && resource.exclusionReason ? (
+                  <ReasonChipInline
+                    reason={resource.exclusionReason}
+                    meta={resource.exclusionMeta}
+                  />
+                ) : (
+                  <span className={textColors.quaternary}>{PLACEHOLDER}</span>
+                )}
               </td>
             </tr>
           ))}
