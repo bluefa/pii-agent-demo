@@ -244,7 +244,7 @@ export const CandidateResourceSection = ({
             <section className={cn(cardStyles.base, 'overflow-hidden')}>
               <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
                 <div className="flex-shrink-0">
-                  <h2 className={cn('text-[15px] font-semibold whitespace-nowrap', textColors.primary)}>연동 대상 DB 선택</h2>
+                  <h2 className={cn(cardStyles.cardTitle, 'whitespace-nowrap')}>연동 대상 DB 선택</h2>
                   <p className={cn('mt-1 text-xs', textColors.tertiary)}>
                     Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
                   </p>
