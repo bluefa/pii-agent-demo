@@ -159,6 +159,7 @@ export const textColors = {
  * 배경 색상
  */
 export const bgColors = {
+  page: 'bg-[#F2F4F6]',
   muted: 'bg-gray-50',
   mutedHover: 'hover:bg-gray-50',
   primary: 'bg-[#0064FF]',
