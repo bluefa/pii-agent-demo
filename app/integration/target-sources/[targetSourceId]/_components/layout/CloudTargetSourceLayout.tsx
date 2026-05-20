@@ -45,7 +45,7 @@ export const CloudTargetSourceLayout = (props: CloudTargetSourceLayoutProps) => 
   const step = renderStep(props);
   if (!step) return null;
   return (
-    <main className={cn(bgColors.muted, 'min-h-screen')}>
+    <main className={cn(bgColors.page, 'min-h-screen')}>
       <div className="max-w-[1200px] mx-auto p-7 space-y-6">{step}</div>
     </main>
   );
