@@ -9,6 +9,10 @@ Proposed (2026-06-11)
 - Updated 2026-06-12 — execution-history & queryability requirement folded in
   (`task_check` observation log, history/query API, history UI in D8);
   architecture overview diagram added.
+- Updated 2026-06-12 — best-effort post-completion checks added to D3
+  (e.g. Terraform log fetch, 0..N per task); D11 consolidates the full
+  timeout budget incl. per-call HTTP deadlines; error taxonomy splits
+  `CALL_TIMEOUT` / `EXECUTION_TIMEOUT`.
 
 **Relates to:**
 - `design/admin-page-requirements.md` §4.4 — fixes the pipeline *model* (decisions #5–#14: Pipeline/Task, EXECUTE/WAIT_EXTERNAL, strict-sequential DAG, fail-count retry, TTL expiry). This ADR fixes the *runtime architecture* underneath that model.
@@ -82,6 +86,7 @@ Established facts and constraints:
 │                                  │   (= outbox)      │      │  · slot scheduler (N, FIFO)││
 │                                  └─────────┬─────────┘      │  · JobAdapter              ││
 │                                            │                │  · ConditionAdapter        ││
+│                                            │                │  · post-checks (D3)        ││
 │  Notifier loop ◄──unnotified events────────┘                └────┬───────────────┬───────┘│
 │       │                                                          │               │        │
 └───────┼──────────────────────────────────────────────────────────┼───────────────┼────────┘
@@ -141,11 +146,13 @@ task            id, pipeline_id, seq, name, type(EXECUTE|WAIT_EXTERNAL),
 task_attempt    id, task_id, attempt_no, started_at, finished_at,
                 result(OK|FAIL), error_code, error_detail, external_job_id
 
-task_check      id, task_id, attempt_no, checked_at, kind(JOB_POLL|CONDITION_CHECK),
+task_check      id, task_id, attempt_no, checked_at,
+                kind(JOB_POLL|CONDITION_CHECK|POST_CHECK), name,
                 api_result(OK|ERROR), observed(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET),
-                error_code, latency_ms, external_job_id
-                -- one row per external status call: the "did the poll itself
-                -- succeed, and what did it say" record (D6)
+                error_code, latency_ms, external_job_id, detail(jsonb)
+                -- one row per external call: the "did the call itself succeed,
+                -- and what did it say" record (D6). `detail` holds small
+                -- excerpts/references only (e.g. a Terraform log pointer).
 
 pipeline_event  id, pipeline_id, task_id?, type, severity, payload(jsonb),
                 actor(human|system|ai), created_at, notified_at
@@ -185,6 +192,14 @@ Every task executes through exactly one of two adapters:
   done/not-yet with a predicate. Per requirements §4.4.3, "not yet" is not a
   failure; only a check-API error increments `fail_count`. Every check call —
   met, not-yet, or error — is persisted as a `task_check` row (D6).
+- **Post-completion checks** (0..N per task, best-effort): a task definition
+  may list verification calls that run after the task reaches DONE — e.g.
+  fetch the Terraform log via API, capture a final status snapshot. They
+  execute once each (no retry) with their own call timeout (default 60 s),
+  **do not gate the successor task** (the pipeline advances immediately), and
+  **never** affect task/pipeline state or `fail_count`. The outcome is
+  recorded as `task_check` kind=POST_CHECK — on failure just the simple reason
+  (`error_code`), on success an optional excerpt/reference in `detail`.
 
 **Polling cadence split (R3).** The admin-tunable ≥10-minute guard (requirements
 decision #6) applies to **WAIT_EXTERNAL condition checks** — they track
@@ -256,6 +271,7 @@ What gets recorded when:
 | Execution attempt | `task_attempt`: attempt_no, timings, result, `error_code`, `external_job_id` |
 | Each job status poll | `task_check` kind=JOB_POLL: `api_result`, observed RUNNING/SUCCEEDED/FAILED, latency |
 | Each condition / WAIT_EXTERNAL check | `task_check` kind=CONDITION_CHECK: `api_result`, observed MET/NOT_MET (an `api_result=ERROR` also bumps `fail_count`) |
+| Each post-completion check | `task_check` kind=POST_CHECK: `api_result`, simple failure reason or success excerpt/reference in `detail` — never affects state |
 | Notification dispatch | `pipeline_event.notified_at` |
 
 This makes "did the execution succeed", "did the success-confirming poll call
@@ -273,6 +289,12 @@ and the history views:
 - `GET /admin/pipelines/{id}` — run detail with task states.
 - `GET /admin/pipelines/{id}/tasks/{taskId}/history` — merged attempt + check
   timeline for one task, paginated.
+
+The merged task timeline is the **incident-investigation surface**: one
+ordered view of every external interaction — dispatch attempts, job polls,
+condition checks, post-completion checks — each with its outcome and, on
+timeout, *which* timeout layer fired (`CALL_TIMEOUT` vs `EXECUTION_TIMEOUT`
+vs TTL `EXPIRED`, D11). Investigating an issue never requires log-file access.
 
 Indexes to match: `pipeline(target_source_id, started_at DESC)`,
 `pipeline(started_at)`, `task_check(task_id, checked_at)`,
@@ -323,8 +345,10 @@ This ADR adds:
    **[지금 확인]** force-check button (one-shot immediate poll, rate-limited,
    audited as `actor=human`) — the escape hatch from the ≥10 min cadence.
 3. **Task panel**: attempt history (timestamps, error codes), the per-call
-   check log (every poll/check with `api_result` + `observed`, paginated), and
-   a read-only TerraformJob drill-down listing the job's internal tasks.
+   check log (every poll/check/post-check with `api_result` + `observed`,
+   paginated), post-completion check results (e.g. Terraform log
+   excerpt/reference from `detail`), and a read-only TerraformJob drill-down
+   listing the job's internal tasks.
 4. **TargetSource 상세 · 설치 관리 탭**: last install/delete run summary
    (time, result) plus the target's full run-history list — row click opens
    the run detail with its task → attempt → check drill-down.
@@ -345,9 +369,11 @@ Rules that make later AI operation an addition, not a rewrite:
   (the §5 assumed list); the UI holds no behavior of its own. An AI operator is
   just another API principal with scoped permissions.
 - **R-AI2 — Machine-readable events.** Every transition carries a reason code.
-  Error taxonomy: `TRANSIENT_INFRA | AUTH | QUOTA | TF_ERROR | TIMEOUT |
-  EXTERNAL_NOT_READY | UNKNOWN`. This log is simultaneously audit trail,
-  notification source, and future diagnosis/training data.
+  Error taxonomy: `TRANSIENT_INFRA | AUTH | QUOTA | TF_ERROR | CALL_TIMEOUT |
+  EXECUTION_TIMEOUT | EXTERNAL_NOT_READY | UNKNOWN` — the two timeout codes
+  distinguish "the API call itself hung" from "the job ran too long" (D11).
+  This log is simultaneously audit trail, notification source, and future
+  diagnosis/training data.
 - **R-AI3 — Actor everywhere.** `human | system | ai` on every event and
   trigger; the 변경 이력 tab renders it.
 - **R-AI4 — Phased autonomy with guardrails.**
@@ -377,6 +403,35 @@ hand-off makes recalling a published message impractical (confirmed
 - The board shows "중단됨 · 실행 중 job 종료 대기" while the last job drains.
   Its final status is recorded on the task attempt for history but no longer
   affects pipeline state.
+
+### D11. Timeout budget — no unbounded wait anywhere
+
+Every layer that can hang has an explicit deadline:
+
+| Layer | Scope | Default | On expiry |
+|---|---|---|---|
+| Per-call HTTP deadline | every external call: run API, job poll, condition check, post-check | 30 s (post-check 60 s) | call recorded as `CALL_TIMEOUT` on the attempt / `task_check` row |
+| Dispatch recovery | DISPATCHING age without a stored `job_id` | 5 min | re-dispatch (at-least-once, D5) |
+| Execution timeout | EXECUTE task: dispatch → job terminal | 30 min | failed attempt `EXECUTION_TIMEOUT`; TF slot released; fail-count policy (D3) |
+| WAIT_EXTERNAL TTL | total dwell time | per task (e.g. 7 d) | task EXPIRED → pipeline FAILED (requirements decision #11) |
+| Post-check call | each post-completion check | 60 s, single attempt | simple reason recorded; never affects state (D3) |
+
+How `CALL_TIMEOUT` propagates depends on what was being called:
+
+- **Run API timed out** → the outcome is *unknown* (the job may or may not
+  have been issued). This is exactly the D5 dual-write gap: the task stays
+  DISPATCHING and the 5-minute recovery re-dispatches; TerraformWorker dedup
+  makes the re-call safe.
+- **Condition check timed out** → counts as a check-API error
+  (`fail_count`++ per requirements §4.4.3).
+- **Job status poll timed out** → recorded, retried at the next poll cadence;
+  only the execution timeout decides the attempt's fate.
+- **Post-check timed out** → recorded with its reason; nothing else happens.
+
+The reconciler runs all external calls with these per-call deadlines and
+bounded parallelism, so a single slow upstream cannot stall the tick — the
+leader loop's worst-case duration stays predictable even when Infra Manager
+hangs.
 
 ## Options considered
 
@@ -416,8 +471,9 @@ it doesn't notify — and everything that matters is a `pipeline_event`.
 ### R5 — Settings are data
 
 N, default polling interval, default TTL, default max_fail_count, execution
-timeout, `task_check` retention, and routing live in DB-backed runtime config,
-editable in the admin settings page, with
+timeout, per-call HTTP deadlines (incl. post-check), `task_check` retention,
+and routing live in DB-backed runtime config, editable in the admin settings
+page, with
 changes audited as events. No redeploy to tune operations.
 
 ## Consequences
