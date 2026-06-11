@@ -13,6 +13,10 @@ Proposed (2026-06-11)
   (e.g. Terraform log fetch, 0..N per task); D11 consolidates the full
   timeout budget incl. per-call HTTP deadlines; error taxonomy splits
   `CALL_TIMEOUT` / `EXECUTION_TIMEOUT`.
+- Updated 2026-06-12 — D12 (crash & N-pod walkthrough; CAS transitions; R6
+  "correctness never depends on the leader lock") and D13 (TerraformWorker
+  outage circuit breaker — detect, pause dispatch, auto-resume; minimal admin
+  intervention) added.
 
 **Relates to:**
 - `design/admin-page-requirements.md` §4.4 — fixes the pipeline *model* (decisions #5–#14: Pipeline/Task, EXECUTE/WAIT_EXTERNAL, strict-sequential DAG, fail-count retry, TTL expiry). This ADR fixes the *runtime architecture* underneath that model.
@@ -122,7 +126,8 @@ broker, no separate service.
   each due task, and persists state + event **in the same transaction**.
 - If the BFF runs multiple replicas, one leader runs the tick via a DB advisory
   lock (`pg_try_advisory_lock` or equivalent); the others skip. Nothing depends
-  on in-memory state, so restart/redeploy mid-run is safe by construction.
+  on in-memory state, so restart/redeploy mid-run is safe by construction
+  (full crash & N-pod walkthrough: D12).
 - UI actions (retry / cancel / force-check) do not call Infra Manager directly;
   they record an *intent* on the row, which the next tick executes. This keeps
   external calls and slot accounting single-writer (see R2).
@@ -317,8 +322,11 @@ Indexes to match: `pipeline(target_source_id, started_at DESC)`,
 - The `pipeline_event` row written in the same transaction as a state change is
   the single source of notifications (**transactional outbox**) — no lost or
   duplicated alerts, and the audit log is the same data.
-- A notifier loop consumes events where `notified_at IS NULL`, resolves routing,
-  and fans out through a `NotificationChannel` interface.
+- A notifier loop consumes events where `notified_at IS NULL` (claimed via
+  `FOR UPDATE SKIP LOCKED`, so N pods share the work without a leader),
+  resolves routing, and fans out through a `NotificationChannel` interface.
+  Push channels are at-least-once; the in-app center is exactly-once by
+  construction — the event row itself is what it renders.
 - **v1 ships the in-app notification center only** (bell + unread badge +
   severity filter). Slack webhook and email are later channel adapters —
   config-only additions, no orchestrator change (user decision: web now,
@@ -332,12 +340,15 @@ Default routing (admin-editable later):
 | TASK_EXPIRED (TTL) → PIPELINE_FAILED | critical | in-app |
 | PIPELINE_DONE | info | in-app |
 | QUEUE_WAIT_EXCEEDED (slot wait > threshold, proposed 30 min) | warning | in-app |
+| WORKER_OUTAGE_SUSPECTED / WORKER_RECOVERED — one rolled-up alert, not per task (D13) | critical / info | in-app |
 | SETTINGS_CHANGED (N, defaults) | info | in-app |
 
 ### D8. Admin console composition (delta on v14)
 
 v14 already renders the pipeline board (summary cards, sequence panel, table).
-This ADR adds:
+Operating principle: **the board is read-mostly** — routine operation,
+transient failures, BFF restarts, and worker outages self-heal without admin
+action (D12, D13); buttons are escape hatches, not duties. This ADR adds:
 
 1. **Board header**: TF slot gauge (`실행 중 n / N`) + waiting-queue card
    (count, oldest wait time).
@@ -370,9 +381,10 @@ Rules that make later AI operation an addition, not a rewrite:
   just another API principal with scoped permissions.
 - **R-AI2 — Machine-readable events.** Every transition carries a reason code.
   Error taxonomy: `TRANSIENT_INFRA | AUTH | QUOTA | TF_ERROR | CALL_TIMEOUT |
-  EXECUTION_TIMEOUT | EXTERNAL_NOT_READY | UNKNOWN` — the two timeout codes
-  distinguish "the API call itself hung" from "the job ran too long" (D11).
-  This log is simultaneously audit trail, notification source, and future
+  EXECUTION_TIMEOUT | WORKER_OUTAGE | EXTERNAL_NOT_READY | UNKNOWN` — the two
+  timeout codes distinguish "the API call itself hung" from "the job ran too
+  long" (D11); `WORKER_OUTAGE` marks systemic downstream failure (D13). This
+  log is simultaneously audit trail, notification source, and future
   diagnosis/training data.
 - **R-AI3 — Actor everywhere.** `human | system | ai` on every event and
   trigger; the 변경 이력 tab renders it.
@@ -433,6 +445,86 @@ bounded parallelism, so a single slow upstream cannot stall the tick — the
 leader loop's worst-case duration stays predictable even when Infra Manager
 hangs.
 
+Two refinements: expiry is judged **after a fresh status read** (D12), so an
+outage longer than a timeout cannot fail work that actually completed; and a
+timeout that fires while the worker-outage breaker is open is reclassified
+`WORKER_OUTAGE` without consuming `fail_count` (D13).
+
+### D12. Crash & multi-replica safety
+
+The orchestrator runs **inside the BFF process** (D1) — the same deployable as
+the admin API — so BFF instability is a design input, not an edge case. Two
+invariants make it safe:
+
+1. **The DB is the only state, and every transition is a guarded write.** The
+   transition function (R1) carries the expected prior state in its `WHERE`
+   clause (compare-and-set): a stale or duplicate writer updates zero rows.
+   Concurrency degrades to no-ops, never to double transitions.
+2. **Every external side effect is safe to repeat.** Run-API re-calls converge
+   to one execution (TerraformWorker dedup, D5); job polls and condition
+   checks are reads; post-checks are read-only by contract (D3).
+
+Consequently the **leader lock is an efficiency device, not a correctness
+device** (R6): if it misfires, the system wastes a few duplicate calls and
+no-op writes — state stays consistent.
+
+Crash walkthrough (a pod dies at the worst moment):
+
+| Crash point | Recovery behavior |
+|---|---|
+| Mid-tick, between tasks | Transitions commit independently; committed ones persist, the rest re-derive next tick. No partial-batch state. |
+| After the run-API call, before `job_id` is persisted | Task stays DISPATCHING → the 5-min recovery re-dispatches (D5); worker dedup absorbs the duplicate. |
+| After a poll/check response, before recording it | Observation lost; the next cadence re-reads. Reads are idempotent. |
+| After a state write, before the notification goes out | The outbox row still has `notified_at IS NULL` → the notifier retries (D7 delivery semantics). |
+| While holding the advisory lock | Advisory locks are session-scoped: the dead pod's connection closes, the lock frees itself, another pod wins the next tick. No lease cleanup. |
+| During a post-check | May re-run on recovery (read-only by contract); worst case a duplicate `task_check` row. |
+| Long outage (hours) | Overdue work fires on the first ticks back, absorbed by bounded parallelism and the N-slot cap. Timeouts are judged after a fresh status read (D11), so completed work is recorded SUCCEEDED, never falsely timed out. An outage delays pipelines; it cannot corrupt or wrongly fail them. |
+
+N-pod walkthrough:
+
+| Concern | Answer |
+|---|---|
+| Who runs the tick? | Every pod tries `pg_try_advisory_lock` each tick; one wins, the rest skip. Failover is automatic within one tick interval (≤30 s). |
+| Split brain (two leaders)? | Only possible via lock-session loss, and harmless: CAS transitions + repeat-safe side effects (R6). |
+| Admin API on N pods? | Stateless — any pod serves reads and writes intents (create/retry/cancel/force-check are guarded DB writes); the leader's tick executes them (R2). |
+| Notifier on N pods? | Needs no leader: events are claimed with `FOR UPDATE SKIP LOCKED`, so concurrent notifiers share work without double-claiming (D7). |
+| Rolling deploy (two versions live)? | Same as split brain, plus `definition_version` pins in-flight runs to the DAG they started with. |
+| DB outage / scale to zero? | The orchestrator pauses; TerraformJobs already running in Infra Manager continue unaffected; polls catch up on recovery. Degradation is always delay, never corruption. The BFF DB is the availability anchor — accepted; it already is one for the admin console. |
+
+### D13. Systemic failure: TerraformWorker outage circuit breaker
+
+A single failed job is a task-level event. A **worker outage looks different**:
+every dispatched job stops reporting at once. Without a systemic view, the
+board would degrade into N independent 30-minute timeouts, N fail-count
+retries against a dead worker, and N separate critical alerts — maximum admin
+noise for a problem no retry can fix. The operating principle is the opposite
+(minimal admin intervention), so the dispatcher carries a **circuit breaker**:
+
+- **Detect (breaker opens).** Primary signal: a dispatched job is not picked
+  up within the pickup window (default 5 min) — requires job status to
+  distinguish "queued" from "running" (open question O7). Fallback when that
+  granularity is missing: ≥3 consecutive `EXECUTION_TIMEOUT`s across distinct
+  targets within 15 min.
+- **Pause, don't fail.** While open: no new TF dispatches — tasks stay in
+  WAITING_SLOT keeping their original FIFO position; running tasks whose
+  timeout fires are recorded `WORKER_OUTAGE` and **requeued without consuming
+  `fail_count`** — a dead worker is not the task's fault, the same logic as
+  WAIT_EXTERNAL's "not yet is not a failure".
+- **Probe (half-open).** Every probe interval (default 5 min) one canary
+  dispatch goes through; when it gets picked up / reports, the breaker closes
+  and the queue drains FIFO automatically. A worker health endpoint, if Infra
+  Manager offers one, replaces the canary (O7).
+- **Alert once, rolled up.** Opening emits a single critical
+  `WORKER_OUTAGE_SUSPECTED` event ("dispatch paused, M tasks waiting") instead
+  of M task alerts; closing emits `WORKER_RECOVERED`. The board shows one
+  banner with the waiting count; affected rows get a "worker 중단 추정" chip.
+- **No new pipeline states.** Pipelines stay RUNNING; only dispatch admission
+  is gated. Manual force-resume / force-pause of dispatch exists as an audited
+  escape hatch.
+
+Recovery is fully automatic: worker returns → canary succeeds → queue drains →
+one recovery notice. Zero admin clicks on the expected path of an outage.
+
 ## Options considered
 
 | Option | Decision | Reason |
@@ -450,7 +542,9 @@ hangs.
 
 Every state change goes through one transition function that (a) validates
 against the transition table, (b) writes the new state and the `pipeline_event`
-in one transaction. No code path writes `status` directly.
+in one transaction, (c) carries the expected prior state in the `WHERE` clause
+(compare-and-set), so stale or duplicate writers update zero rows. No code
+path writes `status` directly.
 
 ### R2 — The reconciler is the only Infra Manager caller
 
@@ -471,10 +565,17 @@ it doesn't notify — and everything that matters is a `pipeline_event`.
 ### R5 — Settings are data
 
 N, default polling interval, default TTL, default max_fail_count, execution
-timeout, per-call HTTP deadlines (incl. post-check), `task_check` retention,
-and routing live in DB-backed runtime config, editable in the admin settings
-page, with
+timeout, per-call HTTP deadlines (incl. post-check), breaker thresholds
+(pickup window, probe interval), `task_check` retention, and routing live in
+DB-backed runtime config, editable in the admin settings page, with
 changes audited as events. No redeploy to tune operations.
+
+### R6 — Correctness never depends on the leader lock
+
+Every transition is a compare-and-set (R1); every external side effect is
+repeat-safe (D5, D12). The advisory lock only prevents duplicate work. Any
+change that makes a transition or side effect unsafe to repeat must bring its
+own idempotency mechanism or be rejected in review.
 
 ## Consequences
 
@@ -482,6 +583,9 @@ changes audited as events. No redeploy to tune operations.
 
 - Today's manual, human-sequenced Terraform operation becomes restart-safe
   automation with a visible queue and enforced concurrency.
+- Transient failures, BFF crashes/redeploys, and worker outages self-heal
+  (fail-count retry, D12 invariants, D13 breaker) — the board is read-mostly
+  and admin intervention is the exception, not the routine.
 - Execution history at every grain (run → task → attempt → individual
   poll/check), last-run timestamps, audit trail, and notifications all derive
   from the same append-only recording discipline — no second bookkeeping
@@ -511,6 +615,7 @@ changes audited as events. No redeploy to tune operations.
 |---|---|---|
 | O4 | Scheduled (cron-style) pipeline runs in scope? | Out of scope; `triggered_by` and the event model leave room. |
 | O5 | UI label for TerraformJob internal tasks vs pipeline Task (naming collision) | Drill-down panel titled "Terraform Job 상세 단계"; confirm with UX. |
+| O7 | Does TerraformJob status distinguish "queued (not yet picked up)" from "running"? Is there a worker health endpoint? Determines the breaker's primary detection signal (D13). | Fallback signal: ≥3 consecutive `EXECUTION_TIMEOUT`s across distinct targets within 15 min opens the breaker; canary dispatch probes recovery. |
 
 ### Resolved (2026-06-12, with the platform owner)
 
