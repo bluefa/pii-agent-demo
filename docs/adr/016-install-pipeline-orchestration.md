@@ -2,8 +2,13 @@
 
 ## Status
 
-Proposed (2026-06-11) · Updated 2026-06-12 — O1/O2/O3/O6/A1 resolved with the
-platform owner; execution timeout added to D3/D4; D10 (cancellation) added.
+Proposed (2026-06-11)
+
+- Updated 2026-06-12 — O1/O2/O3/O6/A1 resolved with the platform owner;
+  execution timeout added to D3/D4; D10 (cancellation) added.
+- Updated 2026-06-12 — execution-history & queryability requirement folded in
+  (`task_check` observation log, history/query API, history UI in D8);
+  architecture overview diagram added.
 
 **Relates to:**
 - `design/admin-page-requirements.md` §4.4 — fixes the pipeline *model* (decisions #5–#14: Pipeline/Task, EXECUTE/WAIT_EXTERNAL, strict-sequential DAG, fail-count retry, TTL expiry). This ADR fixes the *runtime architecture* underneath that model.
@@ -45,11 +50,60 @@ Established facts and constraints:
    below N (Infra Manager capacity concern).
 6. **Today, all Infra Manager TF calls are made manually by human operators.**
    The pipeline becomes the first and only automated caller.
-7. Execution times (start, finish, last run per target) and notifications are
-   first-class operational requirements.
+7. Execution times and **full execution history** are first-class: per-target
+   run history, per-task detail, and the outcome of every external call — both
+   "did the execution succeed" and "did the status-confirming poll call itself
+   succeed" — queryable by target source and by time range. Notifications are
+   equally first-class.
 8. The plane should be operable by an AI agent later without rework.
 
 ## Decision
+
+### Architecture overview
+
+```
+┌─────────────────────────────── Admin Console (v14 + D8) ───────────────────────────────┐
+│ Pipeline Board · Run History · TargetSource detail (install tab) · Notifications · Settings │
+└────────────────┬─────────────────────────────────────────────────────────────────────────┘
+                 │  Admin API — UI = API parity (R-AI1); same surface for humans and AI
+┌────────────────▼─────────────────────────────────────────────────────────────────────────┐
+│ BFF                                                                                       │
+│                                                                                           │
+│  API handlers ──write intents──────────────┐           History / Query API                │
+│  (create · retry · cancel · force-check)   │           (by target source · by period ·    │
+│                                            │            run → task → attempt → check)     │
+│                                            ▼                           ▲                  │
+│                                  ┌───────────────────┐                 │ reads            │
+│                                  │      BFF DB       │─────────────────┘                  │
+│                                  │ pipeline · task   │                                    │
+│                                  │ task_attempt      │      ┌────────────────────────────┐│
+│                                  │ task_check        │◄─────│ Reconciler — 30 s tick     ││
+│                                  │ pipeline_event    │─────►│ (leader via advisory lock) ││
+│                                  │   (= outbox)      │      │  · slot scheduler (N, FIFO)││
+│                                  └─────────┬─────────┘      │  · JobAdapter              ││
+│                                            │                │  · ConditionAdapter        ││
+│  Notifier loop ◄──unnotified events────────┘                └────┬───────────────┬───────┘│
+│       │                                                          │               │        │
+└───────┼──────────────────────────────────────────────────────────┼───────────────┼────────┘
+        │ channel adapters                       run API + job status polls    condition checks
+        ▼                                                          │               │
+  In-app center (v1)                             ┌─────────────────▼────┐  ┌───────▼──────────┐
+  Slack / Email (later)                          │ Infra Manager        │  │ Backend Manager / │
+                                                 │  issues job_id,      │  │ provider status   │
+                                                 │  publishes pubsub    │  │ APIs              │
+                                                 └───────┬──────▲───────┘  └───────────────────┘
+                                                  pubsub │      │ result — can be lost
+                                                         ▼      │ (absorbed by execution timeout)
+                                                 ┌──────────────┴──────┐
+                                                 │ TerraformWorker     │
+                                                 │ dedup: same work    │
+                                                 │ executes only once  │
+                                                 └─────────────────────┘
+```
+
+Every arrow into the DB is also a history record: the state tables, the attempt
+log, the observation log (`task_check`), and the event outbox are written in
+the same transactions that advance the state machine (D6, R1).
 
 ### D1. Orchestration pattern: durable state machine + reconciler tick, inside the BFF
 
@@ -87,6 +141,12 @@ task            id, pipeline_id, seq, name, type(EXECUTE|WAIT_EXTERNAL),
 task_attempt    id, task_id, attempt_no, started_at, finished_at,
                 result(OK|FAIL), error_code, error_detail, external_job_id
 
+task_check      id, task_id, attempt_no, checked_at, kind(JOB_POLL|CONDITION_CHECK),
+                api_result(OK|ERROR), observed(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET),
+                error_code, latency_ms, external_job_id
+                -- one row per external status call: the "did the poll itself
+                -- succeed, and what did it say" record (D6)
+
 pipeline_event  id, pipeline_id, task_id?, type, severity, payload(jsonb),
                 actor(human|system|ai), created_at, notified_at
                 -- append-only; doubles as audit log and notification outbox
@@ -119,11 +179,12 @@ Every task executes through exactly one of two adapters:
   absorbs the lost-result case (Context fact 4). The TerraformJob's internal
   task list is mirrored read-only for the drill-down UI; orchestration consumes
   only the job-level terminal status plus the failed internal task's error for
-  `error_code` extraction.
+  `error_code` extraction. Every poll is persisted as a `task_check` row (D6).
 - **ConditionAdapter** (WAIT_EXTERNAL, and any call that returns no `job_id`):
   call a provider-specific check API every `polling_interval` and judge
   done/not-yet with a predicate. Per requirements §4.4.3, "not yet" is not a
-  failure; only a check-API error increments `fail_count`.
+  failure; only a check-API error increments `fail_count`. Every check call —
+  met, not-yet, or error — is persisted as a `task_check` row (D6).
 
 **Polling cadence split (R3).** The admin-tunable ≥10-minute guard (requirements
 decision #6) applies to **WAIT_EXTERNAL condition checks** — they track
@@ -175,18 +236,59 @@ abandoned — worker dedup prevents a second execution, and if an orphan job
 never reports a result, nobody is polling it. The execution timeout (D3)
 bounds every waiting path, including jobs whose results are lost.
 
-### D6. Timestamps, history, and "last run"
+### D6. Timestamps, history, and queryability
 
-- Pipelines, tasks, and attempts are append-only — never overwritten. This
-  yields full execution history per target source for free.
-- Recorded everywhere: `created_at` / `started_at` / `finished_at` (pipeline,
-  task), per-attempt timing, and `next_check_at` so the admin sees "다음 확인
-  14:32" instead of guessing the polling schedule.
+History is recorded at **four grains**, all append-only — never overwritten:
+
+| Grain | Table | One row per |
+|---|---|---|
+| Run | `pipeline` | install/delete execution per target source |
+| Step | `task` | task within a run (current state + timings) |
+| Attempt | `task_attempt` | execution attempt (dispatch → terminal), incl. run-API call failures |
+| Observation | `task_check` | every external status call — TerraformJob poll or condition/WAIT_EXTERNAL check — with `api_result` (did the call succeed) and `observed` (what it reported) |
+
+What gets recorded when:
+
+| Lifecycle moment | Recorded as |
+|---|---|
+| Pipeline created / started / finished | `pipeline` timestamps + `pipeline_event` |
+| Task state transition | `task` update + `pipeline_event` |
+| Execution attempt | `task_attempt`: attempt_no, timings, result, `error_code`, `external_job_id` |
+| Each job status poll | `task_check` kind=JOB_POLL: `api_result`, observed RUNNING/SUCCEEDED/FAILED, latency |
+| Each condition / WAIT_EXTERNAL check | `task_check` kind=CONDITION_CHECK: `api_result`, observed MET/NOT_MET (an `api_result=ERROR` also bumps `fail_count`) |
+| Notification dispatch | `pipeline_event.notified_at` |
+
+This makes "did the execution succeed", "did the success-confirming poll call
+itself succeed", and "what did every check observe" first-class queryable
+facts — not log-file archaeology.
+
+**Query surface** — one list endpoint plus drill-downs, feeding both the board
+and the history views:
+
+- `GET /admin/pipelines?targetSourceId=&provider=&type=&status=&from=&to=&cursor=`
+  — cross-cutting query. Period filtering uses **overlap semantics**: a run
+  matches if it was active at any point in `[from, to]`
+  (`started_at <= to AND (finished_at IS NULL OR finished_at >= from)`).
+  Per-target history is this same endpoint filtered by `targetSourceId`.
+- `GET /admin/pipelines/{id}` — run detail with task states.
+- `GET /admin/pipelines/{id}/tasks/{taskId}/history` — merged attempt + check
+  timeline for one task, paginated.
+
+Indexes to match: `pipeline(target_source_id, started_at DESC)`,
+`pipeline(started_at)`, `task_check(task_id, checked_at)`,
+`pipeline_event(pipeline_id, created_at)`.
+
+- Also recorded: `next_check_at`, so the admin sees "다음 확인 14:32" instead
+  of guessing the polling schedule.
 - A denormalized per-target summary (`last_install_run_at`, `last_delete_run_at`,
   last result, running pipeline id) feeds list views without scanning history.
-- Retention: keep everything (volume is low — pipelines are rare per target).
-  The board's "완료" card filters to the last 7 days per the requirements
-  wireframe; history remains queryable.
+- **Retention**: `pipeline` / `task` / `task_attempt` / `pipeline_event` are
+  kept indefinitely (runs are rare per target). `task_check` is the only table
+  that grows with polling cadence — bounded (a 7-day WAIT_EXTERNAL at 10-min
+  cadence ≈ ≤1,008 rows; a 30-min job at 30–60 s polls ≈ ≤60 rows) — default
+  retention 90 days, admin-tunable, pruned by the reconciler. The board's
+  "완료" card still defaults to the last 7 days per the requirements wireframe;
+  older runs live in the history view.
 
 ### D7. Notifications: event-log-driven, channel-pluggable
 
@@ -220,15 +322,20 @@ This ADR adds:
 2. **Row / task panel**: next-check countdown; queue position for WAITING_SLOT;
    **[지금 확인]** force-check button (one-shot immediate poll, rate-limited,
    audited as `actor=human`) — the escape hatch from the ≥10 min cadence.
-3. **Task panel**: attempt history (timestamps, error codes) and a read-only
-   TerraformJob drill-down listing the job's internal tasks.
+3. **Task panel**: attempt history (timestamps, error codes), the per-call
+   check log (every poll/check with `api_result` + `observed`, paginated), and
+   a read-only TerraformJob drill-down listing the job's internal tasks.
 4. **TargetSource 상세 · 설치 관리 탭**: last install/delete run summary
-   (time, result, link to the board).
+   (time, result) plus the target's full run-history list — row click opens
+   the run detail with its task → attempt → check drill-down.
 5. **Notification center** (bell) and a **settings page** (N, default
-   polling/TTL/max_fail_count, execution timeout, queue-wait threshold, future
-   channel routing).
+   polling/TTL/max_fail_count, execution timeout, `task_check` retention,
+   queue-wait threshold, future channel routing).
 6. **History**: pipeline events merge into the 변경 이력 tab — requirements
    §9.10 already lists pipeline start/fail/done there; same event stream.
+7. **Run-history view**: the board gains a history mode — period picker
+   (overlap semantics), provider/type/status/target filters, pagination —
+   backed by the same list endpoint as the board (D6).
 
 ### D9. AI-ready management plane
 
@@ -309,8 +416,8 @@ it doesn't notify — and everything that matters is a `pipeline_event`.
 ### R5 — Settings are data
 
 N, default polling interval, default TTL, default max_fail_count, execution
-timeout, and routing live in DB-backed runtime config, editable in the admin
-settings page, with
+timeout, `task_check` retention, and routing live in DB-backed runtime config,
+editable in the admin settings page, with
 changes audited as events. No redeploy to tune operations.
 
 ## Consequences
@@ -319,8 +426,10 @@ changes audited as events. No redeploy to tune operations.
 
 - Today's manual, human-sequenced Terraform operation becomes restart-safe
   automation with a visible queue and enforced concurrency.
-- Execution history, last-run timestamps, audit trail, and notifications all
-  derive from one append-only event stream — no second bookkeeping system.
+- Execution history at every grain (run → task → attempt → individual
+  poll/check), last-run timestamps, audit trail, and notifications all derive
+  from the same append-only recording discipline — no second bookkeeping
+  system, no log-file archaeology.
 - Slack/email channels and AI operation are additive (adapter / API principal),
   not architectural changes.
 
@@ -335,6 +444,10 @@ changes audited as events. No redeploy to tune operations.
   Infra Manager history, and timeout-released slots can transiently push
   effective concurrency past N (both accepted; TerraformWorker dedup prevents
   double execution).
+- The observation log (`task_check`) writes a row on every poll/check. Volume
+  is bounded by cadence and pruned by retention, but it is real DB traffic a
+  log-file approach would not create (accepted — queryability is the
+  requirement).
 
 ## Open questions
 
