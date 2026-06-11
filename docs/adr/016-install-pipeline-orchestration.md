@@ -17,6 +17,10 @@ Proposed (2026-06-11)
   "correctness never depends on the leader lock") and D13 (TerraformWorker
   outage circuit breaker — detect, pause dispatch, auto-resume; minimal admin
   intervention) added.
+- Updated 2026-06-12 — companion implementation spec
+  `design/pipeline-interfaces.md` added (Java interfaces, admin API,
+  cancellation concurrency analysis); D10 refined with the CANCELLING drain
+  state and the forward/drain-edge rule.
 
 **Relates to:**
 - `design/admin-page-requirements.md` §4.4 — fixes the pipeline *model* (decisions #5–#14: Pipeline/Task, EXECUTE/WAIT_EXTERNAL, strict-sequential DAG, fail-count retry, TTL expiry). This ADR fixes the *runtime architecture* underneath that model.
@@ -138,7 +142,8 @@ Rejected alternatives are listed under *Options considered*.
 
 ```
 pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
-                definition_version, status(QUEUED|RUNNING|DONE|FAILED|CANCELLED),
+                definition_version,
+                status(QUEUED|RUNNING|CANCELLING|DONE|FAILED|CANCELLED),
                 triggered_by(actor), created_at, started_at, finished_at, fail_reason
 
 task            id, pipeline_id, seq, name, type(EXECUTE|WAIT_EXTERNAL),
@@ -408,13 +413,21 @@ Infra Manager has no cancel API for an issued TerraformJob, and the pubsub
 hand-off makes recalling a published message impractical (confirmed
 2026-06-12). Pipeline [중단] therefore means:
 
-- The pipeline moves to CANCELLED and no further task is readied or dispatched.
+- The pipeline moves to **CANCELLING**: cancellation gates the state machine's
+  *forward* edges only (readying, dispatching, retrying, breaker requeue) —
+  never its *drain* edges (recording a returned `job_id`, polling a running
+  job to terminal). Tasks not yet dispatched are CANCELLED immediately.
 - An in-flight TerraformJob runs to its natural end (or to execution timeout)
   and **keeps holding its TF slot until then** — the cap protects Infra
-  Manager, and that job is genuinely still consuming worker capacity.
-- The board shows "중단됨 · 실행 중 job 종료 대기" while the last job drains.
+  Manager, and that job is genuinely still consuming worker capacity. When it
+  reaches a terminal state, the pipeline finalizes to CANCELLED.
+- The board shows "중단 중 · 실행 중 job 종료 대기" while the last job drains.
   Its final status is recorded on the task attempt for history but no longer
   affects pipeline state.
+- Race-by-race concurrency analysis and the implementing interfaces live in
+  `design/pipeline-interfaces.md` §5. Conclusion: cancellation cannot fail or
+  leak (no double transition, no slot leak, no orphan job) — it can only be
+  late, bounded by the execution timeout.
 
 ### D11. Timeout budget — no unbounded wait anywhere
 
@@ -629,6 +642,7 @@ own idempotency mechanism or be rejected in review.
 
 ## Affected files
 
+- `design/pipeline-interfaces.md` — companion implementation spec: Java interfaces, admin API definitions, cancellation concurrency analysis (Korean)
 - `design/admin-page-requirements.md` — §4.4 model source; §5 assumed admin API list (pipeline endpoints will become swagger specs)
 - `design/SIT Prototype Athena v14.html` — pipeline board exists; D8 deltas target the next prototype revision
 - `docs/swagger/` — future `admin-pipelines.yaml` (create/board/retry/cancel/force-check/task PATCH/settings/notifications)
