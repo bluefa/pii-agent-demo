@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed (2026-06-11)
+Proposed (2026-06-11) · Updated 2026-06-12 — O1/O2/O3/O6/A1 resolved with the
+platform owner; execution timeout added to D3/D4; D10 (cancellation) added.
 
 **Relates to:**
 - `design/admin-page-requirements.md` §4.4 — fixes the pipeline *model* (decisions #5–#14: Pipeline/Task, EXECUTE/WAIT_EXTERNAL, strict-sequential DAG, fail-count retry, TTL expiry). This ADR fixes the *runtime architecture* underneath that model.
@@ -31,16 +32,22 @@ Established facts and constraints:
 2. **Infra Manager's run API is async**: it returns a `job_id`; a TerraformJob
    contains multiple internal tasks. Some calls return no `job_id` and must be
    judged by condition.
-3. **TerraformWorker dedupes**: Terraform execution is managed by a separate
-   TerraformWorker component. Submitting the same work N times concurrently still
-   executes only one actual run (user-provided platform fact).
-4. **Concurrency cap**: the number of concurrently running TerraformJobs must stay
+3. **Job lifecycle is pubsub-async**: Infra Manager issues `terraform_job_id`
+   server-side at request time and publishes a pubsub message carrying it; a
+   separate **TerraformWorker** consumes the message, runs Terraform, and
+   reports the result back to Infra Manager. Submitting the same work N times
+   concurrently still executes only one actual run (worker-level dedup).
+4. **Results can be lost**: occasionally the worker never reports back and the
+   job stays non-terminal forever. The BFF deliberately does not distinguish
+   "still running" from "result lost" — both are absorbed by an execution
+   timeout (user decision).
+5. **Concurrency cap**: the number of concurrently running TerraformJobs must stay
    below N (Infra Manager capacity concern).
-5. **Today, all Infra Manager TF calls are made manually by human operators.**
+6. **Today, all Infra Manager TF calls are made manually by human operators.**
    The pipeline becomes the first and only automated caller.
-6. Execution times (start, finish, last run per target) and notifications are
+7. Execution times (start, finish, last run per target) and notifications are
    first-class operational requirements.
-7. The plane should be operable by an AI agent later without rework.
+8. The plane should be operable by an AI agent later without rework.
 
 ## Decision
 
@@ -73,8 +80,8 @@ pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
 task            id, pipeline_id, seq, name, type(EXECUTE|WAIT_EXTERNAL),
                 status(BLOCKED|READY|WAITING_SLOT|DISPATCHING|RUNNING|
                        WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED),
-                depends_on, polling_interval(≥10m guard), ttl, deadline_at,
-                max_fail_count, fail_count,
+                depends_on, polling_interval(≥10m guard), ttl, execution_timeout,
+                deadline_at, max_fail_count, fail_count,
                 external_job_id, next_check_at, started_at, finished_at
 
 task_attempt    id, task_id, attempt_no, started_at, finished_at,
@@ -104,7 +111,12 @@ Every task executes through exactly one of two adapters:
 
 - **JobAdapter** (EXECUTE that launches Terraform): call Infra Manager run API →
   store `external_job_id` → poll job status every `JOB_POLL_INTERVAL`
-  (system-level, default 30–60 s) until terminal. The TerraformJob's internal
+  (system-level, default 30–60 s) until terminal, **or until
+  `execution_timeout` elapses** (default 30 min, admin-tunable). A timed-out
+  job is a failed attempt (`error_code=TIMEOUT`): the TF slot is released and
+  the normal fail-count policy decides retry vs FAILED. Re-running is safe —
+  the worker dedupes and `terraform apply` is convergent. This timeout is what
+  absorbs the lost-result case (Context fact 4). The TerraformJob's internal
   task list is mirrored read-only for the drill-down UI; orchestration consumes
   only the job-level terminal status plus the failed internal task's error for
   `error_code` extraction.
@@ -117,16 +129,21 @@ Every task executes through exactly one of two adapters:
 decision #6) applies to **WAIT_EXTERNAL condition checks** — they track
 human-speed external actions. TerraformJob status polls are system-configured
 (30–60 s) and exempt; a 3-minute Terraform run must not take 10+ minutes to
-detect. *(Assumption A1 — confirm that decision #6 was only ever about
-WAIT_EXTERNAL 확인주기.)*
+detect. *(A1 — confirmed by the requirements owner, 2026-06-12.)*
 
 ### D4. Concurrency cap: BFF-side admission control only
 
 - A task that needs a TerraformJob enters `WAITING_SLOT`. Each tick the
   scheduler counts tasks in `DISPATCHING|RUNNING` that hold a TF slot and admits
-  from the queue **FIFO by ready time** while the count < N.
-- N is runtime configuration, editable on the admin settings page (proposed
-  default N=3), changes audited as events.
+  from the queue **FIFO by ready time** while the count < N. Global FIFO, no
+  priority classes (confirmed 2026-06-12); revisit only if DELETE-priority or
+  per-provider fairness becomes a demonstrated need.
+- N is runtime configuration, editable on the admin settings page (default
+  N=10 — sized up from the initial N=3 proposal by the platform owner),
+  changes audited as events.
+- A task that hits its execution timeout releases its slot even though the
+  underlying job may still be running — effective concurrency can transiently
+  exceed N. Accepted: same family as the manual-run blind spot below.
 - Enforcement lives **only in the BFF** (user decision). Rationale: today the
   only other TF callers are human operators, and the pipeline is the sole
   automated caller. **Documented blind spot:** jobs launched directly by humans
@@ -151,11 +168,12 @@ build exactly-once machinery:
    `job_id` is simply re-dispatched. Worst case, a duplicate submission reaches
    TerraformWorker, which executes the work once.
 
-**Open question O1:** what does a duplicate submission *return* — the same
-`job_id` (idempotent response), or a new `job_id` whose run no-ops? The BFF
-must poll whichever job represents the real work. Until confirmed with the
-Infra Manager team, the BFF treats the latest returned `job_id` as
-authoritative and tolerates a no-op duplicate in job history.
+**Resolved (2026-06-12):** `terraform_job_id` is issued server-side per
+request, so a re-dispatch always yields a *new* job_id. The BFF polls only the
+latest `external_job_id` it persisted; an earlier orphaned submission is
+abandoned — worker dedup prevents a second execution, and if an orphan job
+never reports a result, nobody is polling it. The execution timeout (D3)
+bounds every waiting path, including jobs whose results are lost.
 
 ### D6. Timestamps, history, and "last run"
 
@@ -207,7 +225,8 @@ This ADR adds:
 4. **TargetSource 상세 · 설치 관리 탭**: last install/delete run summary
    (time, result, link to the board).
 5. **Notification center** (bell) and a **settings page** (N, default
-   polling/TTL/max_fail_count, queue-wait threshold, future channel routing).
+   polling/TTL/max_fail_count, execution timeout, queue-wait threshold, future
+   channel routing).
 6. **History**: pipeline events merge into the 변경 이력 tab — requirements
    §9.10 already lists pipeline start/fail/done there; same event stream.
 
@@ -237,6 +256,20 @@ Rules that make later AI operation an addition, not a rewrite:
   detection (feeds Phase 0).
 - Future: an MCP server can expose the same admin APIs as tools; no new surface
   is required because of R-AI1.
+
+### D10. Cancellation: stop advancing, never kill
+
+Infra Manager has no cancel API for an issued TerraformJob, and the pubsub
+hand-off makes recalling a published message impractical (confirmed
+2026-06-12). Pipeline [중단] therefore means:
+
+- The pipeline moves to CANCELLED and no further task is readied or dispatched.
+- An in-flight TerraformJob runs to its natural end (or to execution timeout)
+  and **keeps holding its TF slot until then** — the cap protects Infra
+  Manager, and that job is genuinely still consuming worker capacity.
+- The board shows "중단됨 · 실행 중 job 종료 대기" while the last job drains.
+  Its final status is recorded on the task attempt for history but no longer
+  affects pipeline state.
 
 ## Options considered
 
@@ -275,8 +308,9 @@ it doesn't notify — and everything that matters is a `pipeline_event`.
 
 ### R5 — Settings are data
 
-N, default polling interval, default TTL, default max_fail_count, and routing
-live in DB-backed runtime config, editable in the admin settings page, with
+N, default polling interval, default TTL, default max_fail_count, execution
+timeout, and routing live in DB-backed runtime config, editable in the admin
+settings page, with
 changes audited as events. No redeploy to tune operations.
 
 ## Consequences
@@ -297,21 +331,27 @@ changes audited as events. No redeploy to tune operations.
   lock keeps this small, but it is real operational surface).
 - The N-cap is blind to human-launched jobs in Infra Manager (accepted; D4
   re-trigger documented).
-- At-least-once dispatch can produce occasional duplicate no-op jobs in Infra
-  Manager history (accepted; relies on TerraformWorker dedup — O1 confirms the
-  polling contract).
+- At-least-once dispatch can produce occasional duplicate/orphaned jobs in
+  Infra Manager history, and timeout-released slots can transiently push
+  effective concurrency past N (both accepted; TerraformWorker dedup prevents
+  double execution).
 
 ## Open questions
 
 | # | Question | Default until answered |
 |---|---|---|
-| O1 | TerraformWorker dedup contract: duplicate submission returns the same `job_id`, or a new no-op job? | Treat latest returned `job_id` as authoritative; tolerate no-op duplicates. |
-| O2 | Can a RUNNING TerraformJob be cancelled via API? | Pipeline CANCELLED stops advancing but lets the in-flight job finish; board shows "중단됨 · 실행 중 job 종료 대기". |
-| O3 | Slot queue policy beyond global FIFO — per-provider fairness? DELETE priority over INSTALL? | Global FIFO, no preemption. |
 | O4 | Scheduled (cron-style) pipeline runs in scope? | Out of scope; `triggered_by` and the event model leave room. |
 | O5 | UI label for TerraformJob internal tasks vs pipeline Task (naming collision) | Drill-down panel titled "Terraform Job 상세 단계"; confirm with UX. |
-| O6 | Values: N default, queue-wait alert threshold, dispatch timeout | N=3, 30 min, 5 min. |
-| A1 | Confirm the ≥10-minute guard (requirements decision #6) was only ever intended for WAIT_EXTERNAL checks, not job status polls | R3 split stands. |
+
+### Resolved (2026-06-12, with the platform owner)
+
+| # | Resolution |
+|---|---|
+| O1 | `terraform_job_id` is issued server-side per request and handed to TerraformWorker via pubsub; duplicates execute once; lost worker results are absorbed by the execution timeout. → D3, D5 |
+| O2 | No cancel API exists — cancellation never kills an in-flight job. → D10 |
+| O3 | Slot queue stays global FIFO, no priority classes. → D4 |
+| O6 | N=10 (raised from the N=3 proposal), execution timeout 30 min, queue-wait alert 30 min, dispatch timeout 5 min — all runtime-tunable. → D4, D8, R5 |
+| A1 | The ≥10-minute guard applies to WAIT_EXTERNAL checks only; job status polls are system-level 30–60 s. → D3, R3 |
 
 ## Affected files
 
