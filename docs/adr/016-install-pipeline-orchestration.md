@@ -642,7 +642,8 @@ own idempotency mechanism or be rejected in review.
 
 ## Affected files
 
-- `design/pipeline-interfaces.md` — companion implementation spec: Java interfaces, admin API definitions, cancellation concurrency analysis (Korean)
+- `design/pipeline-interfaces.md` — companion implementation spec: Java interfaces, cancellation concurrency analysis (Korean)
+- `design/pipeline-api.md` — canonical admin API set with rough request/response schemas and error codes (Korean); source for the future swagger
 - `design/admin-page-requirements.md` — §4.4 model source; §5 assumed admin API list (pipeline endpoints will become swagger specs)
 - `design/SIT Prototype Athena v14.html` — pipeline board exists; D8 deltas target the next prototype revision
 - `docs/swagger/` — future `admin-pipelines.yaml` (create/board/retry/cancel/force-check/task PATCH/settings/notifications)

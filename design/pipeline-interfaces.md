@@ -536,6 +536,8 @@ UI 매핑: `CANCELLING` = "중단 중 · 실행 중 job 종료 대기", `CANCELL
 
 > BFF가 노출하는 관리자 API. **UI = API parity** (R-AI1) — 화면의 모든 동작이 이 API와 1:1이다.
 > 쓰기 API는 전부 intent 기록(202)이고 실행은 reconciler가 한다 (I4).
+> **전체 목록·개략 요청/응답 스키마·에러 코드의 canonical 정의는 `design/pipeline-api.md`** —
+> 본 §6은 인터페이스 매핑 관점의 요약이다.
 
 ### 6.1 Pipeline 실행/제어
 
@@ -545,7 +547,7 @@ UI 매핑: `CANCELLING` = "중단 중 · 실행 중 job 종료 대기", `CANCELL
 | POST | `/admin/pipelines/{id}/cancel` | 취소 요청 (비동기, 멱등 — §5) | `202 { outcome: "CANCELLED_IMMEDIATE" \| "CANCELLING_DRAINING" \| "ALREADY_TERMINAL", drainingTask?: {...} }` |
 | POST | `/admin/pipelines/{id}/retry` | FAILED 재시도 (카운트·타이머 리셋) | `202` / `409` FAILED 아님 |
 | PATCH | `/admin/pipelines/{id}/tasks/{taskId}` | 확인주기(≥10분)·TTL·max_fail_count 수정. DONE/RUNNING 불가 | `200` / `422` 가드 위반 |
-| POST | `/admin/tasks/{taskId}/force-check` | [지금 확인] — next_check_at을 now로 (rate-limit) | `202` |
+| POST | `/admin/pipelines/{id}/tasks/{taskId}/force-check` | [지금 확인] — next_check_at을 now로 (rate-limit) | `202` |
 
 ### 6.2 조회 (보드·이력·이슈 조사)
 
