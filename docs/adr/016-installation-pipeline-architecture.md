@@ -871,8 +871,9 @@ PENDING task_check를 남기고 C를 소비한다 — `requiresSlot=false`는 "t
   bounded되고 retention으로 prune되지만 로그 파일 방식엔 없는 DB 트래픽이다(감수 — 조회성과
   "시도 이력" 구분이 요구사항).
 - queued vs running 구분이 불가능하므로(O7 해소) breaker는 EXECUTION_TIMEOUT 기반 감지에만 의존하며
-  감지·회복이 execution timeout 분만큼 둔화된다(~30분+) — 구조적 상수로 감수. timeout 발화 job은 fail
-  없이 requeue되어 성공까지 무한정 재폴링된다.
+  감지·회복이 execution timeout 분만큼 둔화된다(~30분+) — 구조적 상수로 감수. 단일 job은 terminal까지
+  폴링하며, execution timeout(드문 안전망)에 걸리면 재시도하고 — breaker open 중이면 fail_count 소모
+  없이 requeue된다.
 - 재개 비지원으로 실패한 긴 run의 재시도는 전체 재실행 시간을 지불한다(감수; terraform 수렴으로
   완료분은 사실상 no-op).
 - 외부 호출을 비블로킹 async로 실행해야 하는 런타임 제약이 있다 — 구현(VT)·검증 세부는 **부록 A**
@@ -963,7 +964,7 @@ PENDING task_check를 남기고 C를 소비한다 — `requiresSlot=false`는 "t
   모델 변경 불요. 미해결 10→9건(O7–O10·O18–O20·O25·O27).
 - **O7 해소 (2026-06-14):** TerraformJob queued vs running 구분 불가(IM API가 노출 못 함) → terminal
   까지 무한정 폴링·성공 대기; breaker 빠른 primary 감지 폐기, EXECUTION_TIMEOUT 3연속+canary가 유일
-  감지(latency ~30분+ 구조적 상수), timeout job은 fail 없이 requeue. pickup-window config 제거.
+  감지(latency ~30분+ 구조적 상수), timeout job은 재시도(breaker open 시 requeue). pickup-window config 제거.
   미해결 9→8건(O8–O10·O18–O20·O25·O27).
 - **O9 해소 (2026-06-14):** postChecks는 task 성공(DONE) 시에만 실행 — CANCELLING/drain·실패 경로에선
   실행 안 함. "성공 시에만"이 단일 기준이라 forward/drain edge에 별도 분기 불필요. 미해결 8→7건
@@ -1011,7 +1012,7 @@ PENDING task_check를 남기고 C를 소비한다 — `requiresSlot=false`는 "t
 | O21 | pipeline.target_source_id 비정규화 복제 컬럼 **제거** — parameters['target_source_id']가 단일 출처; 조회용 인덱스 pipeline(target_source_id, started_at)는 식 인덱스 pipeline((parameters->>'target_source_id'), started_at DESC)로 대체(컬럼 없이 동일 조회 보존) — **S19의 "비정규화 복제" 문구 supersede** → 결정 1.2/2, migration (2026-06-14) |
 | O23 | fan-out 케이스 = **① 한 dispatch가 분리 불가한 원자적 N id**로 확정 — attempt 1:check N + 전부 SUCCEEDED 집계(handle별 check 행은 O24 "1호출=1행"의 귀결, 새 테이블·배열 컬럼 불요). **②(독립 action)는 fan-out이 아니라 일반 task 분리**(모델 무변경)라 별개; 판별은 task 설계 시점 구조(분리 불가 원자적→①, 분리 가능→② 분리). 현재 알려진 dispatch는 단수 handle(terraform=요청당 1 job_id)이며 ①은 실재 시 모델 변경 없이 수용 → 결정 2/1.6/3.1, S21/S23 (2026-06-14) |
 | O22 | 실행 단위 확장 — **고민 불요, 결정 2에 흡수.** 실행 단위 = target_source_id(1 pipeline:1 target); target 묶기(1:N)는 비채택(N target=N pipeline — 재시도 run 단위·히스토리 target별인 결정 5 기조와 정합); 단위 확장 입력은 parameters(jsonb) 키 추가로 흡수(실행 단위=데이터), 어떤 확장도 task엔 target_source_id 안 넣어 추상 입력 계약 유지 → 모델 변경 불요 → 결정 2/5 (2026-06-14) |
-| O7 | TerraformJob "queued vs running" 구분 = **불가능**(IM API가 노출 못 함, worker health endpoint 없음) → terminal까지 **무한정 폴링·성공 대기**(stuck vs 느림 조기 구분 불가). breaker 빠른 primary 감지(pickup-window) 폐기 — **EXECUTION_TIMEOUT 3연속 + canary가 유일 감지/probe**; 감지 latency ~30분+는 구조적 상수로 감수, timeout job은 fail 없이 requeue. pickup-window config 제거, k8s 직접 조회 비채택 유지 → 결정 4d (2026-06-14) |
+| O7 | TerraformJob "queued vs running" 구분 = **불가능**(IM API가 노출 못 함, worker health endpoint 없음) → terminal까지 **무한정 폴링·성공 대기**(stuck vs 느림 조기 구분 불가). breaker 빠른 primary 감지(pickup-window) 폐기 — **EXECUTION_TIMEOUT 3연속 + canary가 유일 감지/probe**; 감지 latency ~30분+는 구조적 상수로 감수; timeout job은 재시도하고 breaker open 중이면 fail_count 소모 없이 requeue. pickup-window config 제거, k8s 직접 조회 비채택 유지 → 결정 4d (2026-06-14) |
 | O9 | CANCELLING/drain에서 terminal 도달 job의 postChecks 실행 = **안 함.** postChecks는 task가 **성공(DONE)일 때만** 실행(취소·실패·drain은 비성공 경로) — forward/drain edge에 별도 분기 불필요, "성공 시에만"이 단일 기준 → 결정 2/4c (2026-06-14) |
 | O25 | 외부 호출 없는 check(동기·조건)의 행 기록 = **남긴다.** task_check는 관측의 장부(호출 장부 아님)라 1평가 1행 — 안 남기면 조사 타임라인에서 사라짐. 거부되는 건 행이 아니라 "호출 없는 평가용 별도 카운팅 규칙/플래그"(신규 메커니즘); 행은 남기고 새 규칙은 안 만든다. C는 **외부 호출이 실제 발사된 행(PENDING)만** 카운트(D-T5 선기록이 자동 판별) — 대부분의 check(조건 평가·핸들 폴링)는 외부 호출이라 C 소비, 네트워크 안 타는 평가만 미소비 → 결정 6 D-T5/D-T7 (2026-06-14) |
 
