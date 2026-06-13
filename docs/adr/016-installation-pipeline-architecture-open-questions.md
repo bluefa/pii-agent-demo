@@ -4,8 +4,8 @@
 > **미해결 질문 트래커**. 본 ADR 본문(Part IV)에서 분리한 작업 노트다 — 결정이 나면 본 ADR의
 > Part III **Resolved**로 옮기고 여기서 제거한다.
 >
-> O-번호는 본 ADR 본문의 cross-reference와 **공유**한다(번호 보존). O4–O6·O11–O17은 해소되거나
-> 정리되어 빠졌다(번호 gap은 의도) — 해소·정리 내역은 ADR Part III **Resolved** 및 재구성 내역 참조.
+> O-번호는 본 ADR 본문의 cross-reference와 **공유**한다(번호 보존). O4–O6·O11–O17·O24·O26은
+> 해소되거나 정리되어 빠졌다(번호 gap은 의도) — 해소·정리 내역은 ADR Part III **Resolved** 및 재구성 내역 참조.
 
 | # | 질문 | 현황 / 방향 |
 |---|---|---|
@@ -19,7 +19,5 @@
 | O21 | `pipeline.target_source_id` 비정규화 복제 컬럼 유지 여부 | 진실의 출처는 parameters; 기존 인덱스 pipeline(target_source_id, started_at) 유지엔 복제 필요 vs 단일 출처. 현재 복제 유지, 미정 |
 | O22 | 실행 단위 변경 시 확장 경로(1:N target / pipeline_group / pipeline_target 정규화) | 현재 단위 = target_source_id(1:1). 어느 경로도 task에 target_source_id 안 넣음. 지금 미구현, 박제만 |
 | O23 | fan-out 케이스가 ①(분리 불가 원자적 N id)인가 ②(독립 action)인가 | ②면 task 분리(모델 무변경, 기본), ①이면 attempt 1:check N + "전부 SUCCEEDED" 집계(handle home=attempt.response). 현재 입력 미확인 |
-| O24 | N개 id 확인 시 task_check 행 단위 | (가) 외부 호출마다 1행(id별 N행 — 개별 latency/error·PENDING·C 카운트·조사 보존, 권장) vs (나) check 1회당 1행(종합). 입력 계약과 독립. 다음 확정 1순위 |
 | O25 | 외부 호출 없는 check(동기·조건)의 행 기록 | "1평가 1행"으로 호출 없어도 행 남길지; 남기면 C budget은 실제 외부 호출 발생 행만 카운트(호출 없는 평가는 IM 부하 0). 미정 |
-| O26 | task_check.attempt_id 사용 여부 | N handle+재시도 시 check↔attempt 연결용. O24를 (가)로 확정하면 필요(발사 시점 기록); 단수/무재시도면 불요. O24에 종속 |
 | O27 | 완료(terminal) id 결과 보존 방식 | 방식1: 집계 시 id별 최신 check 행 조회(추가 상태 없음, 권장) vs 방식2: terminal id를 context에 누적(대규모). 동작 동일 |
