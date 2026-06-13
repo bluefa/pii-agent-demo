@@ -16,6 +16,7 @@
 | [ADR-011](./011-typed-bff-client-consolidation.md) | Typed BFF Client Consolidation | 승인됨 | 2026-04-25 |
 | [ADR-012](./012-target-source-page-layout.md) | Target Source Page Layout Registry | Proposed | 2026-04-25 |
 | [ADR-013](./013-i18n-architecture.md) | Internationalization Architecture (Cookie + Full Reload + Layered Translation Contract) | Proposed | 2026-04-27 |
+| [ADR-016](./016-installation-pipeline-architecture.md) | 설치/삭제 파이프라인 오케스트레이션 아키텍처 | Proposed | 2026-06-11 |
 
 ## ADR 작성 규칙
 

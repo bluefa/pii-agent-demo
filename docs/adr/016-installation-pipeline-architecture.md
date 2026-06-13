@@ -1,0 +1,770 @@
+# ADR — 설치/삭제 파이프라인 오케스트레이션 아키텍처 (개정 3판)
+
+## Status
+
+Proposed (2026-06-11) · 전면 재구성 (2026-06-12) · **tick 외부호출 모델 통합 (2026-06-13)**
+
+재구성 내역:
+
+- 결정 13개(구 D1–D13) → **6개로 통합.** 판별 기준: *"다르게 결정했다면 시스템의 형태나
+  불변식이 바뀌었을 결정"* 만 headline 결정으로 두고, 나머지(elaboration·증명·적용)는
+  해당 결정에 흡수.
+- **D9(AI-ready management plane) 제거.** UI = API parity는 BFF 계층 규칙으로 흡수.
+- **D12(crash & N-pod walkthrough)는 결정에서 근거로 강등.** 새로 정한 것이 없는 검증이므로
+  결정 3의 근거 절로 이동. "BFF DB = availability anchor"만 감수 비용으로 분리.
+- **결정 5 신설:** 수동 재시도 = 새 run 생성, 재개·task 레벨 수동 재실행 비지원.
+- **결정 6 신설 (2026-06-13):** tick의 외부 호출 실행 모델 — Virtual Thread 발사,
+  관측/상태 쓰기 분리, 호출 전 선기록, per-call deadline의 task별 오버라이드.
+- execution timeout 기본 30분 유지, 운영 통계 기반 조정.
+- worker 결과 보고 누락 빈도 확인(구두): 거의 없음 → 제약 #4 주석, timeout 역할 재정의.
+- k8s pod 직접 조회 비채택 — O7 조건부 옵션으로만 기록.
+
+Relates to:
+
+- `design/admin-page-requirements.md` §4.4 — 파이프라인 모델 확정(결정 #5–#14).
+- ADR-006(3-object confirmation model), ADR-009(process status model) — 파이프라인은
+  CONFIRMED와 INSTALLED 사이에서 동작한다.
+
+---
+
+## Context
+
+시스템 계층:
+
+```
+Frontend (Admin console)
+    → BFF                      ← 파이프라인 오케스트레이션이 여기 산다 (확정)
+        → Backend Manager      ← 도메인: 연동, 승인, target source
+        → Infra Manager        ← Terraform job API; 실행은 TerraformWorker (k8s pod)
+```
+
+파이프라인이 하는 일은 의도적으로 단순하다: API를 호출하고, (a) 응답에 job_id가 있으면
+그 TerraformJob이 terminal에 도달할 때까지 폴링하거나, (b) job_id가 없으면 provider별
+조건(예: 설치 상태 확인)이 충족될 때까지 평가한다.
+
+확정된 사실과 제약:
+
+1. 파이프라인 관리의 주체는 BFF다(사용자 결정). 파이프라인은 Admin 콘솔([설치 시작]/
+   [삭제 시작])에서 생성되고 브라우저 세션 없이 전진한다.
+2. Infra Manager의 run API는 비동기다: job_id를 반환하며, 하나의 TerraformJob은 내부에
+   여러 task를 가진다. 일부 호출은 job_id를 반환하지 않으며 조건으로 판정한다.
+3. job 생애주기는 pubsub 비동기다: Infra Manager가 요청 시점에 terraform_job_id를
+   서버 측에서 발급하고 pubsub 메시지를 발행하면, 별도 TerraformWorker(k8s pod)가 소비해
+   Terraform을 실행하고 결과를 보고한다. 동일 작업 N번 동시 제출도 실제 실행은 1회다
+   (worker 레벨 dedup).
+4. 결과는 유실될 수 있다: 간혹 worker가 결과를 보고하지 않아 job이 영구 non-terminal로
+   남는다. BFF는 "아직 실행 중"과 "결과 유실"을 의도적으로 구분하지 않으며 둘 다 execution
+   timeout으로 흡수한다(사용자 결정).
+   **[2026-06-12 주석]** 누락은 worker 구현 결함으로만 간혹 발생하며 빈도가 매우 낮음(구두 확인).
+   따라서 execution timeout은 일상적 흡수 장치가 아니라 드문 버그에 대한 안전망이며, 발화 시
+   버그 의심 신호로 취급한다(결정 4). 단 "거의 없음 ≠ 없음"이므로 timeout 구조는 유지한다.
+5. 동시성 상한: 동시 실행 TerraformJob 수는 N 미만이어야 한다(Infra Manager 용량 보호).
+6. 현재 모든 Infra Manager TF 호출은 사람이 수동으로 한다. 파이프라인이 최초이자 유일한
+   자동화 caller가 된다.
+7. 실행 시간과 전체 실행 히스토리는 일급 요구사항이다: target별 run 히스토리, task별 상세,
+   모든 외부 호출의 결과 — "실행이 성공했는가"와 "상태 확인 폴링 호출 자체가 성공했는가" 모두 —
+   를 target source별·기간별로 조회할 수 있어야 한다. 알림 또한 일급이다.
+8. (descoped) AI 에이전트 운영은 본 ADR의 결정 범위에서 제외한다. 단, 모든 admin 액션이
+   공개 BFF admin API라는 계층 규칙을 유지하므로, 향후 AI 운영자는 권한 범위를 가진 또 하나의
+   API principal로 표면 변경 없이 추가될 수 있다.
+9. **BFF는 Java 21+에서 동작하며 외부 호출에 Virtual Thread를 사용한다(결정 6의 전제).**
+
+---
+
+## 아키텍처 개요
+
+```
+┌────────────────────────── Admin Console ──────────────────────────┐
+│  파이프라인 보드 · Run 히스토리 · TargetSource 설치 탭 · 알림 · 설정    │
+└───────────────┬────────────────────────────────────────────────────┘
+                │  Admin API — UI = API 동일 표면 (계층 규칙)
+┌───────────────▼────────────────────────────────────────────────────┐
+│ BFF (Java 21+)                                                      │
+│                                                                     │
+│  API 핸들러 ──intent 기록──┐            History / Query API          │
+│  (생성·재시도·중단·강제확인) │            (target별·기간별,             │
+│                            ▼             run→task→attempt→check)   │
+│                  ┌──────────────────┐               ▲               │
+│                  │     BFF DB       │───────────────┘               │
+│                  │ pipeline · task  │      ┌────────────────────┐   │
+│                  │ task_attempt     │◄─────│ Reconciler 30s tick│   │
+│                  │ task_check       │─────►│ (advisory lock 리더)│   │
+│                  │ pipeline_event   │      │ · slot 스케줄 (N)   │   │
+│                  │   (= outbox)     │      │ · READY dispatch   │   │
+│                  │ def_snapshot     │      │ · 외부호출 VT 발사   │   │
+│                  └────────┬─────────┘      │ · 관측 보고 상태전이  │   │
+│  Notifier ◄──미통지 이벤트──┘                └─────┬─────────┬─────┘   │
+│      │                                          │         │         │
+│      ▼                          VT: run/poll/check 호출   │         │
+│  인앱 알림 센터 (v1)                          │              │         │
+│  Slack / Email (후속)              ┌─────────▼───┐  ┌───────▼────────┐
+│                                    │ Infra       │  │ Backend Manager │
+└────────────────────────────────── │ Manager     │  │ / provider 상태  │
+                                     └───┬────▲────┘  └────────────────┘
+                              pubsub │    │ 결과 보고 — 누락 가능(드묾)
+                                     ▼    │ (execution timeout이 흡수)
+                                 ┌────────┴─────────┐
+                                 │ TerraformWorker  │
+                                 │ k8s pod · dedup  │
+                                 └──────────────────┘
+```
+
+DB로 들어가는 모든 화살표는 동시에 히스토리 레코드다: 상태 테이블, attempt 로그, 관측
+로그(task_check), 이벤트 outbox가 상태기계를 전진시키는 트랜잭션 안에서 함께 쓰인다.
+
+---
+
+## 결정 1 — 오케스트레이션: BFF 내부 durable state machine + reconciler tick, DB가 유일한 상태
+
+> 흡수: 구 D1, D2, D6, D7, D8, R4, Options A–F
+
+### 1.1 구조
+
+BFF 안의 pipeline-orchestrator 모듈. 워크플로 엔진도, 메시지 브로커도, 별도 서비스도 없다.
+
+- 모든 Pipeline/Task 상태는 BFF 소유 DB에 산다(사용자 결정). Backend Manager는 도메인 상태만,
+  Infra Manager는 Terraform 상태만 가진다.
+- 단일 논리 스케줄러(reconciler)가 고정 tick(기본 30초)으로 깨어나 due task를 선별한다 —
+  아직 dispatch 안 된 READY, 상태 확인이 도래한 RUNNING/WAITING_EXTERNAL, 시간 초과 task —
+  `next_check_at ASC, last_checked_at ASC NULLS FIRST, created_at ASC, seq ASC` 순서
+  (가장 밀린 것 우선; 기아 방지)로 각 task의 다음 전이를 수행하고, 상태와 이벤트를 같은
+  트랜잭션으로 기록한다.
+- BFF가 다중 replica로 뜨면 DB advisory lock(`pg_try_advisory_lock`)을 잡은 한 pod만 tick을
+  돌리고 나머지는 건너뛴다. 메모리 상태에 의존하지 않으므로 실행 중 재시작/재배포는 구조적으로
+  안전하다(검증: 결정 3.3).
+- UI 액션(재시도/중단/강제확인)은 Infra Manager를 직접 호출하지 않는다. row에 intent를
+  기록하면 다음 tick이 실행한다. 외부 호출과 slot 회계가 단일 writer로 유지된다(결정 3.2).
+- **Pipeline 상태는 Task 상태에서 파생된다.** reconciler는 개별 Task를 전진시키고(READY →
+  dispatch, RUNNING → check, 시간 초과 → expire) Pipeline 상태 갱신은 부산물이다: 전 task
+  DONE이면 DONE, 재시도 소진 task가 나오면 FAILED, [중단] 후 in-flight task가 모두 drain되면
+  CANCELLED. reconciler는 "파이프라인을 돌리지" 않는다 — task를 전진시킨다.
+
+### 1.2 데이터 모델 (BFF DB)
+
+```
+pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
+                definition_version,
+                status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED),
+                triggered_by(actor), created_at, started_at, finished_at, fail_reason
+
+task            id, pipeline_id, seq, name, type(EXECUTE|WAIT_EXTERNAL),
+                status(BLOCKED|READY|WAITING_SLOT|DISPATCHING|RUNNING|
+                       WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED),
+                depends_on, polling_interval(≥10m guard), ttl, execution_timeout,
+                deadline_at, max_fail_count, fail_count,
+                external_handle, next_check_at, last_checked_at, started_at, finished_at
+
+task_attempt    id, task_id, attempt_no, started_at, finished_at,
+                result(OK|FAIL), error_code, error_detail, external_handle
+                -- dispatch당 1행; dispatch → terminal 생애주기를 추적
+
+task_check      id, task_id, checked_at, started_at,
+                kind(DISPATCH|JOB_POLL|CONDITION_CHECK|POST_CHECK|FORCE_CHECK), name,
+                api_result(PENDING|OK|ERROR), observed(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET),
+                error_code, latency_ms, external_handle, detail(jsonb)
+                -- 외부 호출당 1행; Task 소속(특정 attempt의 부속이 아님).
+                -- 호출 직전 PENDING으로 선기록, 응답 후 채움(결정 6, D-T5).
+                -- detail은 발췌/참조만 (예: Terraform 로그 포인터).
+
+pipeline_event  id, pipeline_id, task_id?, type, severity, payload(jsonb),
+                actor(human|system|ai), created_at, notified_at
+                -- append-only; 감사 로그이자 알림 outbox
+
+pipeline_def_snapshot   pipeline_id, definition_key, definition_version,
+                        type, provider, spec(jsonb)
+                        -- 생성 시 1회 기록(write-once); 전체 PipelineDefinition을 박제.
+                        -- 물리 삭제 금지.
+```
+
+**task_attempt와 task_check는 task 아래 형제다(attempt → check 중첩이 아님).** 근거:
+① WAIT_EXTERNAL은 dispatch가 없을 수 있어(0..1) attempt 없이 발생하는 check가 존재하고,
+force-check도 attempt 경계와 무관하다. ② crash 복구 순간에는 check의 attempt 소속이 본질적으로
+모호하며, 관측은 사실이고 사실은 해석보다 먼저 기록되어야 한다. ③ 사고 조사 surface가 task 단위
+merged timeline이다. attempt와의 상관관계가 필요하면 양쪽의 `external_handle` 매칭으로 soft
+link가 복원된다 — 모호한 경우 link가 없는 것이 정확한 표현이다.
+
+내부 task 상태가 UI 어휘보다 풍부한 것은 의도다. 매핑:
+
+| 내부 | 보드 라벨 |
+|---|---|
+| BLOCKED / READY / WAITING_SLOT | 대기 (WAITING_SLOT은 큐 순번 추가 표시) |
+| DISPATCHING / RUNNING | 실행 중 |
+| WAITING_EXTERNAL | 외부 대기 |
+| DONE / FAILED / EXPIRED / CANCELLED | 완료 / 실패 / 타임아웃 / 중단 |
+
+(장시간 check 진행 중을 위한 별도 상태는 두지 않는다 — 결정 6, D-T6. "확인 중" 노출이
+필요하면 최신 task_check의 api_result=PENDING 여부로 파생한다.)
+
+### 1.3 기록·조회·알림 — 하나의 append-only 규율
+
+히스토리는 4개 grain으로, 모두 append-only로 기록된다(덮어쓰기 없음):
+
+| Grain | 테이블 | 1행의 의미 |
+|---|---|---|
+| Run | pipeline | target source당 설치/삭제 실행 1회 |
+| Step | task | run 내 task (현재 상태 + 타이밍) |
+| Attempt | task_attempt | 실행 시도 생애주기 (dispatch → terminal), dispatch당 1행 |
+| Observation | task_check | Task에 대한 모든 외부 호출 — dispatch, 상태 poll, 조건 확인, post-check, force-check |
+
+기록 시점:
+
+| 생애주기 순간 | 기록 |
+|---|---|
+| Pipeline 생성(→ 즉시 RUNNING) / 종료 | pipeline 타임스탬프 + pipeline_event; 생성 시 pipeline_def_snapshot |
+| Task 상태 전이 | task 갱신 + pipeline_event |
+| Dispatch 호출 | **호출 전** task_check kind=DISPATCH 선기록(PENDING) → 호출 → 결과 채움; task_attempt 행 개시 |
+| 각 job 상태 poll | **호출 전** task_check kind=JOB_POLL 선기록 → 호출 → observed RUNNING/SUCCEEDED/FAILED 채움 |
+| 각 조건 확인 | **호출 전** task_check kind=CONDITION_CHECK 선기록 → 호출 → observed MET/NOT_MET 채움 (api_result=ERROR면 fail_count++) |
+| 각 post-check | **호출 전** task_check kind=POST_CHECK 선기록 → 호출 → 채움 (상태 무영향) |
+| 강제 확인(수동) | task_check kind=FORCE_CHECK; actor=human; rate-limited |
+| 알림 발송 | pipeline_event.notified_at |
+
+모든 외부 호출은 **호출 직전에 task_check 행을 PENDING으로 선기록**하고 응답 후 채운다
+(결정 6, D-T5). 이로써 "호출을 시도했으나 결과 미상"(행 존재 + PENDING)과 "호출 자체를 안 함"
+(행 없음)이 구분되고, "실행이 성공했는가", "확인 폴링 호출 자체가 성공했는가", "모든 확인이
+무엇을 관측했는가"가 로그 파일 고고학이 아니라 일급 조회 가능한 사실이 된다.
+
+조회 표면 — 리스트 엔드포인트 하나 + 드릴다운, 보드와 히스토리 뷰가 공유:
+
+- `GET /admin/pipelines?targetSourceId=&provider=&type=&status=&from=&to=&cursor=` —
+  횡단 조회. 기간 필터는 overlap 의미론:
+  `started_at <= to AND (finished_at IS NULL OR finished_at >= from)`.
+- `GET /admin/pipelines/{id}` — run 상세 + task 상태.
+- `GET /admin/pipelines/{id}/tasks/{taskId}/history` — task 하나의 attempt + check 병합
+  타임라인, 페이지네이션. **사고 조사 surface**: 모든 외부 상호작용을 시간순 한 줄로, timeout 시
+  어느 층이 발화했는지(CALL_TIMEOUT vs EXECUTION_TIMEOUT vs TTL EXPIRED)까지.
+
+인덱스: `pipeline(target_source_id, started_at DESC)`, `pipeline(started_at)`,
+`task_check(task_id, checked_at)`, `pipeline_event(pipeline_id, created_at)`.
+
+`next_check_at`도 노출한다 — 운영자가 "다음 확인 14:32"를 본다. target별 비정규화 요약
+(last_install_run_at, last_delete_run_at, 마지막 결과, 실행 중 pipeline id)이 리스트 뷰를
+히스토리 스캔 없이 떠받친다.
+
+보존: pipeline / task / task_attempt / pipeline_event는 무기한. task_check만 폴링 cadence에
+비례해 증가 — bounded(7일 WAIT_EXTERNAL 10분 cadence ≈ ≤1,008행; 30분 job 30–60초 poll ≈
+≤60행) — 기본 보존 90일, 관리자 조정, reconciler가 prune. **terminal run의
+pipeline/task/attempt 데이터를 정리하지 않는 것은 결정 5의 확장 경로 전제이기도 하다.**
+
+알림은 이벤트에서만 나간다: 상태 변경과 같은 트랜잭션에 쓰인 pipeline_event 행이 알림의 단일
+원천(transactional outbox)이다 — 유실도 중복도 없고 감사 로그와 같은 데이터다. Notifier 루프가
+`notified_at IS NULL` 이벤트를 `FOR UPDATE SKIP LOCKED`로 점유 소비하므로 N pod가 리더 없이
+일을 나눈다. push 채널은 at-least-once, 인앱 센터는 구조상 exactly-once. v1은 인앱 센터만;
+Slack/email은 후속 채널 어댑터(설정만 추가, 오케스트레이터 무변경).
+
+기본 라우팅(추후 관리자 편집):
+
+| 이벤트 | Severity | v1 채널 |
+|---|---|---|
+| TASK_FAILED (max_fail_count 초과) | critical | 인앱 |
+| TASK_EXPIRED (TTL) → PIPELINE_FAILED | critical | 인앱 |
+| PIPELINE_DONE | info | 인앱 |
+| QUEUE_WAIT_EXCEEDED (slot 대기 > 임계, 제안 30분) | warning | 인앱 |
+| WORKER_OUTAGE_SUSPECTED / WORKER_RECOVERED — 롤업 1건 | critical / info | 인앱 |
+| EXECUTION_TIMEOUT 발화 | critical (제약 #4: 드문 버그 의심 신호) | 인앱 |
+| SETTINGS_CHANGED | info | 인앱 |
+
+### 1.4 관리 콘솔 (v14 delta)
+
+운영 원칙: 보드는 read-mostly다 — 일상 운영, 일시 장애, BFF 재시작, worker 장애는 관리자 개입
+없이 자가 회복한다(결정 3.3, 4d). 버튼은 의무가 아니라 비상구다.
+
+1. 보드 헤더: TF slot 게이지(실행 중 n / N) + 대기 큐 카드(건수, 최장 대기).
+2. 행/task 패널: 다음 확인 카운트다운; WAITING_SLOT 큐 순번; [지금 확인] 강제 확인 버튼.
+3. Task 패널: attempt 히스토리, 호출별 check 로그(페이지네이션), post-check 결과,
+   읽기 전용 TerraformJob 내부 task 드릴다운.
+4. TargetSource 상세 · 설치 관리 탭: 최근 설치/삭제 run 요약 + 전체 run 히스토리.
+5. 알림 센터(벨)와 설정 페이지(N, 기본 polling/TTL/max_fail_count, execution timeout,
+   per-call deadline, task_check 보존, 큐 대기 임계, 향후 채널 라우팅).
+6. 변경 이력 탭에 pipeline 이벤트 병합.
+7. Run 히스토리 모드: 기간 선택(overlap), provider/type/status/target 필터, 페이지네이션.
+
+### 거부한 대안
+
+| 옵션 | 결정 | 이유 |
+|---|---|---|
+| A. BFF 내부 durable reconciler (DB row + tick) | **채택** | 실제 워크로드에 부합; 재시작 안전; 관리자 조정형 폴링이 next_check_at에 자연 대응; 최소 운영 footprint |
+| B. 별도 오케스트레이터 마이크로서비스 | 보류 | 모듈 분량 로직에 서비스 분량 오버헤드. 모듈 경계가 추출 비용을 낮게 유지 |
+| C. 워크플로 엔진 (Temporal/Airflow/브로커) | 거부 | ≥10분 폴링의 2–4 step 선형 체인은 그 비용을 정당화 못 함 |
+| D. BFF 인메모리 async 체인 | 거부 | 재시작/배포에 run 유실; durable 큐·히스토리·수일 WAIT_EXTERNAL 표현 불가 |
+| E. Backend Manager에 파이프라인 상태 | 거부 (사용자 결정) | 로직·상태 분산; 원격 API 경유 원자적 slot 회계는 racy |
+| F. Infra Manager 측 동시성 제한 (지금) | 보류 (사용자 결정) | 현재 자동화 caller는 BFF뿐; 결정 4b 재검토 트리거 참조 |
+
+**별도 워커 분리도 같은 이유로 배제한다.** 무거운 워크로드(실제 Terraform 실행)는 이미
+TerraformWorker로 분리돼 있고, BFF reconciler가 하는 것은 호출·폴링·상태 기록뿐이다. 조율
+로직을 추가로 떼면 분산 dual-write와 racy한 slot 회계를 새로 들이고 단일 writer의 단순함을
+잃는다. 부하가 강제할 때의 답은 워커 분리가 아니라 Option B(모듈 통째 추출)다.
+
+### 감수 비용
+
+BFF가 더 이상 stateless proxy가 아니다 — DB, 백그라운드 루프, 다중 replica 시 리더 선출이
+생긴다. 본 ADR에서 가장 비싼 한 줄이지만, restart-safety·히스토리·조회성이 같은 뿌리에서
+나오므로 감수한다.
+
+---
+
+## 결정 2 — 작업 모델: 불변·버전 고정 Definition, 순차 task chain
+
+> 흡수: 구 D3, D2의 snapshot/lifecycle, R3
+
+PipelineDefinition은 파이프라인 type·provider별 **순차 task 시퀀스**를 기술하는 코드 정의
+객체다. 병렬 분기 없는 versioned task sequence다.
+
+PipelineDefinition: `key`(예: AWS_INSTALL), `version`(불변; v3과 v4는 별개 객체),
+`type`(INSTALL|DELETE), `provider`, `taskDefinitions[]`.
+
+```
+AWS_INSTALL v3
+ ├ TerraformApplyNetwork
+ ├ TerraformApplyIntegration
+ ├ InstallationReadyCheck
+ └ FinalValidation
+```
+
+TaskDefinition은 task 하나의 외부 호출과 정책을 선언한다:
+
+- **dispatch (0..1)**: 실행 API 호출. 복수 dispatch가 필요하면 별도 task로 분리.
+- **check (0..1)**: 완료 확인 API 호출. task당 최대 하나의 check 경로.
+- **postChecks (0..N)**: 완료 후 best-effort 결과 조회. **관측 전용** — 후속 task를 gate하지
+  않고, 상태를 바꾸지 않고, fail_count에 영향 없다. 결과는 히스토리로만.
+- **requiresSlot**: Terraform 실행 slot 소비 여부.
+- **pollingPolicy**: check 실행 시점.
+- **timeoutPolicy**: per-call HTTP deadline, execution timeout, TTL. **per-call deadline은
+  task별 오버라이드 가능**(결정 6, D-T3): 기본 30초(post-check 60초), 느린 provider check는
+  정상 응답 시간 + 여유(예: 90초/240초).
+- **completionRule**: provider 응답을 task 결과로 매핑하는 규칙.
+
+Terraform 기반 task: dispatch가 run API 호출 → terraform_job_id를 external_handle로 저장 →
+check가 terminal 또는 execution timeout까지 폴링 → postChecks로 로그/출력 조회.
+requiresSlot = true.
+
+조건 전용 task: dispatch 부재 가능. check가 provider 상태 API 호출. **"아직"은 실패가 아니다**
+— check API 에러만 fail_count를 올린다. requiresSlot = false.
+
+불변성과 박제: 모든 행동·정책 변경은 새 버전을 만든다. Pipeline은 생성 시 버전에 고정되고 전체
+정의가 pipeline_def_snapshot으로 직렬화된다. **코드 정의가 실행 권위, 스냅샷이 히스토리 권위.**
+정의는 참조되는 동안 물리 삭제되지 않고 lifecycle을 따른다: ACTIVE → DEPRECATED → RETIRED.
+히스토리 조회는 전 단계에서 유지.
+
+폴링 cadence는 두 개, guard는 하나: ≥10분 관리자 조정형 guard는 **WAIT_EXTERNAL 조건 확인에만**
+적용된다. TerraformJob 상태 폴링은 시스템 설정(30–60초)이며 task별 노출하지 않는다.
+
+---
+
+## 결정 3 — 정합성: exactly-once 기계 없이 idempotency-by-construction
+
+> 흡수: 구 D5, R1, R2, R6 · 근거: 구 D12
+
+### 3.1 원칙: at-least-once dispatch + 다운스트림 dedup
+
+crash window — reconciler가 dispatch API를 호출한 뒤 external_handle 영속화 전에 죽는 것 —
+는 고전적 dual-write 갭이다. 다운스트림이 동시 제출을 dedup하므로 BFF는 exactly-once 기계를
+만들지 않는다:
+
+1. DISPATCHING 마킹 + task_attempt 행 + task_check kind=DISPATCH 선기록 (tx 1)
+2. dispatch API 호출
+3. external_handle 영속화, RUNNING 전이 (tx 2)
+4. 복구 규칙: external_handle 없이 dispatch timeout(5분)보다 늙은 DISPATCHING 행은 단순
+   재dispatch. 최악의 경우 중복 제출이 가지만 실행은 1회다.
+
+terraform_job_id는 요청별 서버 측 발급이므로 재dispatch는 항상 새 job_id를 낳는다. BFF는
+최신 external_handle만 폴링하고, 이전 고아 제출은 방치된다 — worker dedup이 2차 실행을 막고,
+고아 job이 결과를 영영 안 보고해도 아무도 폴링하지 않는다. execution timeout(결정 4)이 결과
+유실 job 포함 모든 대기 경로를 bound한다.
+
+### 3.2 룰
+
+- **단일 전이 함수.** 모든 상태 변경은 하나의 전이 함수를 거친다: (a) 전이 테이블 검증,
+  (b) 새 상태와 pipeline_event를 한 트랜잭션에 기록, (c) WHERE 절에 기대 prior 상태를 실음
+  (compare-and-set) — 낡거나 중복된 writer는 0행 갱신. status를 직접 쓰는 코드 경로는 없다.
+- **reconciler가 유일한 외부 호출자.** UI/API 액션은 intent만 기록하고 tick이 실행한다.
+  TaskDefinition.dispatch/.check/.postChecks의 모든 외부 호출은 reconciler tick에서만
+  발원한다(VT로 발사하되 발원 주체는 tick — 결정 6). 외부 호출과 slot 회계가 단일 writer로
+  유지되는 것이 N-cap과 at-least-once dispatch 추론의 성립 조건이다.
+- **정확성은 leader lock에 의존하지 않는다.** 모든 전이는 CAS이고 모든 side effect는 반복
+  안전이므로, advisory lock은 효율 장치일 뿐이다. misfire해도 중복 호출과 no-op 쓰기를 낭비할
+  뿐 상태는 일관된다. **전이나 side effect를 반복 불안전하게 만드는 모든 변경은 자체 idempotency
+  메커니즘을 동반하거나 리뷰에서 거부되어야 한다.**
+
+### 3.3 근거 — crash & N-pod walkthrough
+
+두 불변식 — ① DB가 유일한 상태이고 모든 전이는 guarded write(CAS), ② 모든 외부 side effect는
+반복 안전(run API 재호출은 dedup으로 수렴, poll/조건 확인은 읽기, post-check는 read-only) —
+이 성립함을 최악의 순간으로 검증한다.
+
+| Crash 지점 | 복구 동작 |
+|---|---|
+| tick 도중, task 사이 | 전이는 독립 commit; 완료분 유지, 나머지는 다음 tick 재도출. 부분 배치 없음 |
+| dispatch 호출 후, external_handle 영속화 전 | DISPATCHING 잔류 → 5분 복구가 재dispatch; dedup이 중복 흡수 |
+| poll/check 응답 후, 기록 전 | 관측 1회 유실; 다음 cadence 재독. 읽기는 idempotent (결정 6, D-T4) |
+| 외부 호출 발사 후, VT가 결과 기록 전 죽음 | status 불변(VT는 status 안 건드림) → 다음 tick이 재호출. task_check는 PENDING 행으로 "시도 이력" 보존 (결정 6, D-T4/D-T5) |
+| 상태 기록 후, 알림 발송 전 | outbox 행 notified_at IS NULL → Notifier 재시도 |
+| advisory lock 보유 중 | session-scoped lock 자동 해제, 다음 tick에 다른 pod 획득 |
+| post-check 도중 | 복구 시 재실행 가능(read-only); 최악은 task_check 중복 1행 |
+| 장시간 outage (수 시간) | 복귀 첫 tick들에 밀린 작업 일괄 발화 — bounded parallelism과 N-cap이 흡수. timeout은 fresh 상태 재독 후 판정(결정 4)하므로 완료 작업은 SUCCEEDED로 기록되지 오판 timeout되지 않는다 |
+
+| N-pod 우려 | 답 |
+|---|---|
+| tick은 누가 도는가 | 매 tick 모든 pod가 advisory lock 시도; 1 pod 승리. failover 자동, ≤30초 |
+| split brain | lock 세션 유실로만 가능하고 무해: CAS + 반복 안전 side effect |
+| Admin API on N pods | stateless — 어느 pod든 읽기·intent 쓰기; 리더 tick이 실행 |
+| Notifier on N pods | 리더 불요: FOR UPDATE SKIP LOCKED로 분담 |
+| rolling deploy | split brain과 동일 + definition_version이 in-flight run을 시작 버전에 고정 |
+
+### 3.4 감수 비용
+
+DB outage / scale-to-zero 시 오케스트레이터는 멈춘다. 이미 도는 TerraformJob은 영향 없이
+계속되고 복구 후 폴링이 따라잡는다 — 열화는 항상 지연이지 손상이 아니다. **BFF DB가
+availability anchor가 되는 것은 감수한다** (admin 콘솔에 대해서는 이미 그렇다).
+
+---
+
+## 결정 4 — Liveness: 무한 대기 없음, 죽일 수 없거나 systemic한 실패는 corruption이 아니라 delay
+
+> 흡수: 구 D11, D4, D10, D13
+
+공통 명제: **이 시스템은 외부 작업을 강제 종료하거나 정확히 한 번 끝낼 능력이 없다. 그러므로
+모든 실패를 시간으로 bound된 지연으로 환원하고, corruption은 구조적으로 불가능하게 만든다.**
+(a)가 토대이고 (b)(c)(d)는 그 위의 적용이다.
+
+### 4a. 통합 timeout budget
+
+hang할 수 있는 모든 층에 명시적 deadline:
+
+| 층 | 범위 | 기본값 | 만료 시 |
+|---|---|---|---|
+| tick 주기 | reconciler 깨어나는 간격 (빈도) | 30초 | 다음 tick 처리 — **호출 deadline과 무관(결정 6, D-T1)** |
+| 호출별 HTTP deadline | 외부 호출 1회 (run/poll/check) | 30초 (post-check 60초); **task별 오버라이드 가능** | 그 호출을 CALL_TIMEOUT으로 끊음 |
+| Dispatch 복구 | external_handle 없는 DISPATCHING 경과 | 5분 | 재dispatch |
+| Execution timeout | EXECUTE task: dispatch → job terminal | 30분 (유지; 통계 기반 조정) | attempt 실패 EXECUTION_TIMEOUT; slot 해제 |
+| WAIT_EXTERNAL TTL | task당 총 체류 시간 | 예: 7일 | task EXPIRED → pipeline FAILED |
+| Post-check 호출 | 각 post-check | 60초, 1회 | 사유만 기록; 상태 무영향 |
+
+**호출 deadline ≠ tick 주기(결정 6, D-T1).** tick 주기 30초는 "호출이 30초 안에 끝나야 한다"가
+아니다. 호출의 성패는 그 호출 자신의 deadline으로만 판정된다. CALL_TIMEOUT은 **호출 1회의 실패**
+이지 task 실패가 아니다: check면 fail_count++ 후 재시도(누적이 max 넘으면 FAILED), job poll이면
+다음 주기 재시도(execution timeout만이 attempt 운명 결정), dispatch면 DISPATCHING 유지 후 5분
+복구. **deadline < 정상 응답 시간이면 그 호출은 구조적으로 영원히 실패**하므로, 느린 check는
+timeoutPolicy로 그 task만 deadline을 정상 응답 시간 이상으로 올린다(결정 6, D-T3).
+
+reconciler는 모든 외부 호출을 호출별 deadline + Virtual Thread 발사(결정 6)로 실행한다 — 느린
+upstream 하나가 tick을 정지시키지 못하고, Infra Manager가 hang해도 리더 루프의 worst-case는
+예측 가능하다.
+
+두 정련: **만료는 fresh 상태 재독 후 판정한다**(timeout보다 긴 outage가 완료 작업을 실패시킬 수
+없음). worker-outage breaker가 열린 동안 발화한 timeout은 fail_count 소모 없이 WORKER_OUTAGE로
+재분류된다(4d).
+
+**execution timeout의 역할(2026-06-12 재정의):** 결과 누락 빈도가 매우 낮음이 확인되었으므로
+(제약 #4), 이 timeout은 일상적 흡수가 아니라 **드문 worker 버그의 안전망**이다. 발화 시 severity를
+critical로 격상한다. 30분 기본값은 유지하되 정상 실행이 30분을 넘는 사례가 실재하므로, 운영 통계
+(task_check 분포)로 분포 확인 후 조정한다 — 단일 상향 또는 timeoutPolicy의 task별 차등. R5에
+따라 무중단 조정. 단일 상향 시 4d fallback 감지 둔화를 함께 검토한다.
+
+### 4b. 동시성 상한: BFF 측 admission control
+
+- requiresSlot=true인 task는 WAITING_SLOT로 진입한다. 매 tick 스케줄러가 slot 보유
+  task(DISPATCHING|RUNNING)를 COUNT해 N 미만일 동안 큐에서 admit한다. **별도 카운터 없이 상태
+  COUNT로 센다** — 카운터 증가와 상태 변경이 둘로 갈리는 dual-write를 피한다. admission은
+  전역 task 순서를 따른다 — 파이프라인 내 FIFO, 파이프라인 간 공정. 우선순위 클래스 없음.
+- **이 admission 계산이 단일 리더 tick이어야 하는 이유:** 두 pod가 동시에 COUNT→admit하면 둘 다
+  빈 자리를 보고 둘 다 들여보내 N을 깬다. slot 정확성이 리더 단일성에 의존한다.
+- N은 런타임 설정(기본 N=10 — 초안 N=3에서 상향), 변경은 이벤트로 감사.
+- execution timeout으로 slot이 해제된 task의 기저 job은 계속 돌 수 있다 — 실효 동시성이 일시적
+  N 초과 가능(감수).
+- enforcement는 BFF에만(사용자 결정). **기록된 blind spot:** Infra Manager에서 사람이 직접 띄운
+  job은 BFF 카운터에 보이지 않으므로 실효 총량이 수동 job 수만큼 N을 초과할 수 있다.
+- 재검토 트리거: 다른 자동화 caller 등장 또는 수동 실행 빈발 시 Infra Manager 측 제한(429)을
+  2선 방어로 추가; BFF는 429를 일시 requeue로 처리.
+
+### 4c. 중단: 죽이지 않고 전진만 멈춤
+
+Infra Manager에 cancel API가 없고 pubsub 회수가 비현실적이다(확정). 파이프라인 [중단]의 의미:
+
+- 파이프라인은 CANCELLING으로 전이한다. 취소는 **forward edge만** gate한다(readying,
+  dispatching, retrying, breaker requeue) — **drain edge는 절대 gate하지 않는다**(반환된 job_id
+  기록, 실행 중 job의 terminal까지 폴링). 아직 dispatch 안 된 task는 즉시 CANCELLED.
+- in-flight TerraformJob은 자연 종료(또는 execution timeout)까지 돌고 **그때까지 slot을 보유**
+  한다. terminal 도달 시 파이프라인이 CANCELLED로 확정된다.
+- 보드는 "중단 중 · 실행 중 job 종료 대기"를 표시. 최종 상태는 attempt에 히스토리로 기록되지만
+  파이프라인 상태엔 영향 없다.
+- 결론: 취소는 실패하거나 leak할 수 없다(이중 전이·slot leak·고아 job 없음) — **늦을 수만 있으며**
+  execution timeout이 bound한다.
+
+### 4d. Systemic 실패: TerraformWorker outage circuit breaker
+
+단일 job 실패는 task 레벨 사건이다. worker outage는 dispatch된 모든 job이 동시에 보고를 멈춘다.
+systemic 관점이 없으면 N개의 독립적 30분 timeout, N번 fail-count 재시도, N건 critical 알림으로
+열화한다. 운영 원칙(최소 개입)에 따라 dispatcher가 circuit breaker를 가진다:
+
+- **감지 (open).** primary: dispatch된 job이 pickup window(기본 5분) 내 미수령 — job 상태가
+  "queued"와 "running"을 구분해야 성립(미해결 O7). fallback: 15분 내 서로 다른 target에서
+  EXECUTION_TIMEOUT 3연속. **한계: fallback에서는 감지가 execution timeout에 종속되어 worker
+  사망 후 breaker open까지 ~30분+, 회복 확인도 둔화. O7 해소가 breaker latency를 좌우한다.**
+- **Pause, don't fail.** open 동안: 신규 dispatch 없음 — task는 FIFO 위치 유지한 채
+  WAITING_SLOT 잔류; timeout 발화 task는 fail_count 소모 없이 WORKER_OUTAGE로 기록 후 requeue.
+- **Probe (half-open).** probe 간격(기본 5분)마다 canary dispatch 1건; 수령/보고되면 닫히고
+  큐가 FIFO 자동 배수. worker health endpoint가 있으면 canary 대체(O7).
+- **알림 1건 롤업.** open 시 단일 critical WORKER_OUTAGE_SUSPECTED; close 시 WORKER_RECOVERED.
+- **새 파이프라인 상태 없음.** 파이프라인 RUNNING 유지; dispatch admission만 gate. 수동 강제
+  재개/중지는 감사 비상구.
+
+회복은 완전 자동: worker 복귀 → canary 성공 → 큐 배수 → 알림 1건.
+
+### 부속 결정: k8s pod 직접 조회 비채택
+
+TerraformWorker가 k8s pod이므로 pod 조회로 "실행 중 worker 수"를 얻을 수 있으나, BFF 직접 조회는
+채택하지 않는다. 근거: ① BFF가 worker 배포 방식에 묶여 계층 추상화가 깨짐. ② breaker 핵심
+질문(O7: queued vs running)을 풀지 못함 — queued는 pod 부재일 수 있어 구분 불가. ③ pod↔job
+매핑이 보장되지 않으면 집계 숫자만 남아 실효 없음. 조건부 옵션: worker 현황이 필요하면 BFF가
+아니라 **Infra Manager가 API로 노출**하는 것이 계층 보존 경로이며, 그때 job 상태/health(O7)를
+함께 노출하면 breaker primary signal과 execution timeout 단축을 동시에 얻는다.
+
+---
+
+## 결정 5 — 수동 개입: 재시도 = 새 run 생성, 재개·task 레벨 수동 재실행 비지원
+
+> 구 D8/R2의 [재시도] intent에 비어 있던 의미론을 확정한다.
+
+**원칙 두 줄:**
+
+1. **Terminal은 terminal이다.** EXPIRED/FAILED/CANCELLED/DONE에서 나가는 전이는 없다. task도
+   pipeline도 부활하지 않는다.
+2. **수동 개입의 단위는 run, 자동 회복의 단위는 attempt다.** task 안의 재시도는 fail_count
+   한도까지 reconciler가 자동 수행(attempt_no 증가)하며, 운영자에게 task 레벨 재시작 수단을
+   제공하지 않는다.
+
+**[재시도]의 의미 = 같은 definition으로 새 pipeline 생성의 단축.** 죽은 run을 되살리지 않고
+동일 target에 새 run을 만든다. 새 run은 별개 pipeline 행이며 target별 히스토리에 별개 run으로
+쌓인다.
+
+**안전 근거 — 재개 없이도 전체 재실행이 안전하다:** terraform apply는 수렴형이어서 이미 완료된
+리소스 재apply는 변경 없음으로 빠르게 통과하고, WAIT_EXTERNAL check는 읽기여서 이미 충족된
+조건은 첫 확인에서 MET이다. 결정 3("모든 side effect는 반복 안전")의 직접 귀결 — 중간부터
+재개라는 최적화 없이도 정확성 손실이 없으며 잃는 것은 시간뿐이다.
+
+**배제한 대안 — terminal 부활:** EXPIRED→READY, FAILED→RUNNING 전이 합법화는 거부한다. 전이
+테이블 한 곳 수정으로 가능하나 "terminal은 terminal"의 단순함이 깨지고 fail_count 리셋·알림
+의미·히스토리 해석을 전부 재정의해야 한다. N-cap은 근거가 아님을 명시 — task 재실행을 만들어도
+dispatch는 WAITING_SLOT admission을 통과하므로 cap은 스스로를 지킨다. 배제 근거는 slot이 아니라
+의미론 비용 대비 실익 부재다.
+
+**확장 경로 (지금 만들지 않음):** 전체 재실행 시간이 실제 문제가 되면 "이전 run의 완료 task를
+알고 시작하는 새 run"(예: retry API에 skipCompleted 옵션)으로 additive하게 확장한다 — snapshot과
+task별 히스토리가 무엇이 완료였는지 이미 알고 있으므로 일부 task를 DONE/SKIPPED로 시드하면 되고
+새 상태도 새 전이도 필요 없다. 전제는 terminal run 데이터의 무기한 보존이며 결정 1.3이 보장한다.
+
+---
+
+## 결정 6 — tick의 외부 호출 실행 모델
+
+> 신규 (2026-06-13). "tick이 외부 API 호출을 어떻게 실행하고, 장시간 호출과 실행 주체의 죽음을
+> 어떻게 처리하는가"를 확정한다. WAIT_EXTERNAL의 일부 check가 200초+ 걸리는 문제가 출발점이다.
+
+### D-T1. tick 주기와 호출 deadline은 별개의 시계다
+
+- **tick 주기(30초)** = reconciler가 깨어나는 빈도. **호출 deadline(30초~)** = 호출 하나가
+  매달릴 수 있는 지속 시간. 둘은 무관하다.
+- tick 주기는 "호출이 30초 안에 끝나야 한다"를 의미하지 않는다. 호출 성패는 그 호출 자신의
+  deadline으로만 판정된다.
+- 따라서 어떤 호출의 deadline을 90초/240초로 바꿔도 tick 주기 규칙과 어긋나지 않는다.
+
+### D-T2. tick은 외부 호출을 Virtual Thread로 발사하고 블로킹하지 않는다
+
+- tick이 호출을 순차로 기다리면 200초 호출 하나가 같은 tick의 다른 task 전부를 200초씩 민다.
+  이를 막기 위해 tick은 외부 호출을 **Virtual Thread(Java 21+)로 발사**하고 루프 자신은
+  블로킹되지 않는다. 진행 중 호출은 백그라운드 VT에서 자기 deadline만큼 진행되고, tick은 다음
+  주기에 다시 깨어난다.
+- **자원: 개수는 비문제, pinning이 실제 제약.** target ≈ 2000개라도 동시 진행 호출은 일부다
+  (WAIT_EXTERNAL은 ≥10분 분산, EXECUTE는 slot N=10 제한). VT는 힙 객체라 수천 개도 메모리
+  무시 수준 — "스레드 개수 초과"는 VT를 쓰는 한 사실상 없다. **진짜 제약은 carrier thread
+  pinning**: VT park 시 carrier를 놓지 않으면 코어 수만큼만 동시 실행되어 굶는다. 유발 지점은
+  `synchronized` 내 블로킹 I/O(Java 21; JEP 491/Java 24+는 대부분 해소), 네이티브 호출, 일부
+  레거시 HTTP 클라이언트.
+- **HTTP backing client가 VT-friendly해야 한다.** Feign 등 추상화를 써도 carrier를 잡느냐는
+  backing이 정한다: **위험** = Feign 기본 `Client.Default`(→ `HttpURLConnection`, 내부
+  synchronized → pinning); **안전** = `feign-java11`(→ `java.net.http.HttpClient`) 또는
+  `feign-hc5`(Apache HttpClient 5.x). Spring Cloud OpenFeign은 classpath 의존성으로 backing을
+  auto-select하므로 VT-friendly client를 명시해 기본값에 떨어지지 않게 한다.
+- **검증은 실측.** `-Djdk.tracePinnedThreads=full`(Java 21)로 느린 호출을 돌리며 pinning을
+  확인한다. 개수 계산이 아니라 이 로그가 근거다.
+
+### D-T3. per-call HTTP deadline은 task별로 오버라이드 가능하다
+
+- **deadline < 정상 응답 시간 → 그 호출은 구조적으로 영원히 실패**(매번 잘려 fail_count만 쌓임).
+- **전역 상향 금지** — 빠르게 실패해야 할 호출까지 느려지고 tick worst-case가 늘어난다.
+- **`TaskDefinition.timeoutPolicy`가 per-call deadline을 task별 오버라이드한다.** 기본 30초
+  (post-check 60초), 느린 provider check는 정상 응답 시간 + 여유(예: 최대 50초면 90초, 최대
+  200초면 240초). post-check가 이미 60초로 전역값을 벗어나 있으며 같은 패턴의 명시화일 뿐이다.
+
+### D-T4. 관측은 VT가, 상태는 tick이 쓴다 (쓰기 책임 분리)
+
+- **VT가 쓰는 것 = 관측(task_check).** 호출하고 응답이 오면 결과를 task_check 행에 기록한다.
+  **VT는 task.status를 절대 바꾸지 않는다.**
+- **tick이 쓰는 것 = 상태(task.status).** 다음 tick이 적재된 관측을 보고 상태 전이를 CAS로
+  수행한다.
+- 지키는 것: ① **단일 writer 불변식** — 상태 전이는 tick에서만. VT가 status를 직접 바꾸면 slot
+  회계·crash 복구 추론이 흔들린다. ② **crash 안전성의 단순함** — VT가 status를 안 건드리므로
+  "전이 도중 죽음" 같은 중간 상태가 없다. status는 항상 일관되게 직전 값을 유지하고 복구는
+  재호출로 끝난다(check는 읽기라 반복 안전).
+
+```
+tick → VT 발사 → API Call (그 호출의 deadline만큼 대기)
+                      │
+                      └→ VT: 결과를 task_check에 기록 (status는 안 건드림)
+                                  │
+              (다음) tick: 그 관측을 보고 task.status를 CAS 전이
+```
+
+- **중복 발사 방지:** tick은 **호출 발사 시점에 next_check_at을 미래로 민다.** VT가 죽어도
+  next_check_at은 밀려 있으므로 복구 재호출은 그 시각 도래 후에 일어난다(폴링 주기만큼 지연되나
+  결국 복구). WAIT_EXTERNAL은 ≥10분 주기 + 수일 TTL이라 무해. (대안 "응답 후 밀기"는 빠른
+  복구를 주지만 정상 케이스 중복 발사 위험이 있어 미채택.)
+
+### D-T5. task_check는 호출 직전에 선기록한다 ("시도"와 "미시도"의 구분)
+
+VT가 결과 기록 전에 죽는 경우, 두 상황을 구분할 수 있어야 한다:
+
+- **(A) 호출 안 함** — tick이 VT 발사 전 죽음. External API 미접촉.
+- **(B) 호출했으나 결과 기록 전 죽음** — External API에 요청이 갔고 provider가 처리했을 수 있음.
+
+이 둘은 incident 조사·감사에서 완전히 다르다("외부 호출 이력" 자체가 사실이며 보존되어야 함).
+**2단계 쓰기**로 구분한다:
+
+```
+1. (호출 직전, tx) task_check 행 생성: kind, name, external_handle, started_at;
+                   api_result = PENDING
+2. External API Call (VT)
+3. (응답 후, tx) 같은 행 UPDATE: api_result = OK|ERROR, observed, latency_ms
+```
+
+→ **(A) = task_check 행 없음, (B) = api_result=PENDING 행 존재.** "외부 호출 시도 이력"이
+(B)에서 보존된다.
+
+- 일관성 근거: dispatch가 이미 따르는 규율(결정 3.1)을 **모든 외부 호출(check 포함)로 일반화**한
+  것이다.
+- tick의 PENDING 행 처리: **정리하지 않고** "이 시각에 호출 시도, 결과 미상"이라는 영구 관측으로
+  보존(조사 자산). 재호출은 새 task_check 행으로. started_at이 deadline을 훨씬 지난 PENDING은
+  조사 대상 플래그 가능.
+- 스키마: `task_check.api_result`에 **PENDING 추가**(`PENDING|OK|ERROR`). 기존 `OK|ERROR`로는
+  (B)를 표현 불가.
+
+### D-T6. 장시간 check를 위한 별도 task 상태는 두지 않는다
+
+200초 check 진행 중 task를 별도 상태(CHECKING/ExecutingAPI)로 두는 안은 채택하지 않는다.
+
+- **제어·안정성 목적으로는 불필요.** crash 안전성은 상태 입자가 아니라 CAS + 반복 안전성에서
+  나온다. 별도 상태를 두어도 그 상태에서 죽으면 "다음 tick 재확인"으로 복구되어 현행
+  (WAITING_EXTERNAL 유지)과 동일하다. 오히려 좀비 가능성과 별도 복구 타임아웃을 새로 만들어
+  복잡성만 증가.
+- **VT가 자원 문제를 제거했으므로 추적할 이유가 없다.** 진행 중 호출이 자원을 고갈시킨다면
+  "호출 중 개수"를 상태로 추적해 admission으로 제한해야 했겠으나, VT 덕에 고갈이 없으니 추적할
+  상태도 불필요하다.
+- **노출 목적이라면 상태가 아니라 task_check에서 파생.** "확인 중 vs 다음 확인 대기"는 최신
+  task_check의 api_result=PENDING 여부로 파생한다. status 집합을 키우지 않는다.
+
+→ WAIT_EXTERNAL 하나로 충분. task 상태는 현행 10종 유지. (별도로 BLOCKED를 READY로 통합해
+9종으로 줄이는 축소안이 논의되었으나, 그 외 상태는 각각 고유 전이/복구를 가져 축소 시 다른
+구분자가 늘어 순손실이다.)
+
+---
+
+## 아키텍처 룰 (잔존)
+
+R1·R2·R6은 결정 3.2로, R3은 결정 2로, R4는 결정 1.3으로 흡수되었다. 독립 룰로 남는 것:
+
+**R5 — 설정은 데이터다.** N, 기본 polling interval, 기본 TTL, 기본 max_fail_count, execution
+timeout, per-call HTTP deadline(post-check 및 task별 오버라이드 포함), breaker 임계(pickup
+window, probe 간격), task_check 보존, 알림 라우팅은 DB 기반 런타임 설정으로 관리자 설정
+페이지에서 변경하며 변경은 이벤트로 감사된다. 운영 튜닝에 재배포가 필요 없다.
+
+---
+
+## Consequences
+
+### Positive
+
+- 오늘의 수동·사람 순차 Terraform 운영이 가시적 큐와 강제된 동시성을 갖춘 restart-safe 자동화가
+  된다.
+- 일시 장애, BFF crash/재배포, worker outage, 외부 호출 실행 주체(VT) 죽음이 자가 회복한다
+  (fail-count 재시도, 결정 3.3 불변식, 4d breaker, 결정 6 관측/상태 분리).
+- 모든 grain의 실행 히스토리(run → task → attempt → 개별 poll/check), "호출 시도 vs 미시도"
+  구분(PENDING 선기록), 최근 실행 시각, 감사 추적, 알림이 동일한 append-only 기록 규율에서
+  파생된다 — 2차 장부도 로그 파일 고고학도 없다.
+- 장시간 외부 호출(200초+)을 tick 모델과 불변식을 깨지 않고 수용한다 — VT 발사로 tick 비블로킹,
+  task별 deadline로 false failure 방지, 관측/상태 쓰기 분리로 단일 writer 보존.
+- 재시도 의미론이 "새 run"으로 확정되어 terminal 단순함이 보존되고, 완료분 스킵 확장이 additive로
+  열려 있다.
+- Slack/email 채널과 (descope된) AI 운영은 어댑터/API principal 추가이지 아키텍처 변경이 아니다.
+
+### Negative / 감수한 비용
+
+- BFF가 DB와 백그라운드 루프를 갖는다 — 더 이상 stateless proxy가 아니다. 다중 replica엔 리더
+  선출이 필요하다.
+- N-cap은 Infra Manager의 사람 직접 실행 job에 눈멀어 있다(감수; 4b 재검토 트리거 기록).
+- at-least-once dispatch는 간헐적 중복/고아 job을 남길 수 있고, timeout 해제 slot은 실효 동시성을
+  일시 N 너머로 민다(감수; dedup이 이중 실행 방지).
+- 관측 로그(task_check)는 poll/check마다 행을 쓰고, 이제 호출 전 선기록까지 더해진다. cadence로
+  bounded되고 retention으로 prune되지만 로그 파일 방식엔 없는 DB 트래픽이다(감수 — 조회성과
+  "시도 이력" 구분이 요구사항).
+- O7 미해소 동안 breaker는 fallback에 의존하며 감지·회복이 execution timeout 분만큼 둔화된다
+  (감수; O7 해소 1순위).
+- 재개 비지원으로 실패한 긴 run의 재시도는 전체 재실행 시간을 지불한다(감수; terraform 수렴으로
+  완료분은 사실상 no-op).
+- HTTP backing client가 VT-friendly해야 한다는 운영 제약이 추가된다 — 기본 HttpURLConnection은
+  pinning을 유발하므로 의존성·설정으로 회피해야 하고, pinning 실측 검증이 배포 체크리스트에
+  들어간다(감수; VT의 자원 이점이 이 제약의 대가).
+
+---
+
+## Open questions
+
+| # | 질문 | 기본값 |
+|---|---|---|
+| O4 | 스케줄(cron형) 실행이 범위인가? | 범위 외; triggered_by·이벤트 모델이 여지 |
+| O5 | TerraformJob 내부 task vs 파이프라인 Task UI 라벨 | 드릴다운 "Terraform Job 상세 단계"; UX 확인 |
+| O7 | TerraformJob 상태가 queued vs running 구분? worker health endpoint? | breaker primary 감지·회복 probe를 결정, 해소 시 execution timeout 단축도 함께. 미해소 시 fallback(EXECUTION_TIMEOUT 3연속)+canary. k8s 직접 조회 비채택 — Infra Manager API 경유 |
+| O8 | breaker canary는 real 대기 task인가 synthetic dispatch인가? | 미정. synthetic + R2 예외 명문화 방향 우세 |
+| O9 | CANCELLING에서 drain된 job terminal 후 postChecks 실행? | 미정. 관측 전용이라 무해하나 forward/drain edge 규칙에 위치 명시 필요 |
+| O10 | retry 새 run의 definition 버전: 원 run 동일 vs 생성 시점 ACTIVE? | 미정. DEPRECATED run retry edge와 함께 pipeline-api.md에서 확정 |
+| O11 | 기록·관측·알림(1.3)을 독립 headline으로 승격? | 현행 결정 1 포함 |
+| O12 | R7 룰 — "모든 외부 대기는 deadline, 어떤 실패도 손상 아닌 지연" 명문화 | 제안 상태 |
+| O13 (신규) | next_check_at 발사 시 미는 간격의 구체 산정 | 방향만 확정(발사 시 밀기); 간격값 미정 |
+| O14 (신규) | PENDING으로 오래 남은 task_check의 조사 플래그/정리 정책 | 보존은 확정; 운영 도구 미정 |
+| O15 (신규) | 느린 호출/빠른 호출 VT 병렬 자원 격리 필요? | 대량 동시 설치/삭제 실재 시만 재검토; 현재 불필요로 판단 |
+| O16 (신규) | 200초 check API 자체의 최적화(provider 비동기화 / 확인 빈도 완화) | 별도 과제로 분리 — 결정 6은 아키텍처 방어이지 근본 최적화가 아님 |
+
+## Resolved
+
+| # | 해소 내용 |
+|---|---|
+| O1 | terraform_job_id는 요청별 서버 측 발급, pubsub 인계; 중복 1회 실행; 유실은 execution timeout 흡수 → 결정 3.1, 4 (2026-06-12) |
+| O2 | cancel API 없음 → 결정 4c (2026-06-12) |
+| O3 | slot 큐 전역 FIFO, 우선순위 없음 → 결정 4b (2026-06-12) |
+| O6 | N=10, execution timeout 30분, 큐 대기 알림 30분, dispatch timeout 5분 — 런타임 조정형 → 결정 4, R5 (2026-06-12) |
+| A1 | ≥10분 guard는 WAIT_EXTERNAL만; job poll은 시스템 30–60초 → 결정 2 (2026-06-12) |
+| S1 | worker 결과 누락 거의 없음 → 제약 #4 주석, execution timeout 역할 재정의 → 결정 4 (2026-06-12) |
+| S2 | execution timeout 30분 유지, 통계 기반 조정; 정상 30분 초과 실재 → 단일 상향 vs task별 차등 → 결정 4 (2026-06-12) |
+| S3 | k8s pod 직접 조회 비채택; worker 현황은 Infra Manager API 경유 → 결정 4 부속 (2026-06-12) |
+| S4 | 수동 재시도 = 새 run 생성; 재개·task 레벨 수동 재실행·terminal 부활 비지원; 확장은 완료분 스킵 → 결정 5 (2026-06-12) |
+| S5 (신규) | 호출 deadline ≠ tick 주기; 호출은 VT로 발사하여 tick 비블로킹 → 결정 6 D-T1, D-T2 (2026-06-13) |
+| S6 (신규) | per-call deadline은 timeoutPolicy로 task별 오버라이드(느린 check 90~240초); 전역 상향 금지 → 결정 6 D-T3 (2026-06-13) |
+| S7 (신규) | 관측(task_check)은 VT, 상태(task.status)는 tick — 단일 writer 보존, crash 단순화 → 결정 6 D-T4 (2026-06-13) |
+| S8 (신규) | task_check 호출 전 선기록(PENDING) → "호출 시도 vs 미시도" 구분; dispatch 규율을 모든 외부 호출로 일반화; api_result에 PENDING 추가 → 결정 6 D-T5 (2026-06-13) |
+| S9 (신규) | 장시간 check용 별도 task 상태 미도입(10종 유지); "확인 중" 노출은 task_check 파생 → 결정 6 D-T6 (2026-06-13) |
+| S10 (신규) | VT 사용 시 개수는 비문제, carrier pinning이 실제 제약; HTTP backing client는 VT-friendly여야(Feign 기본 HttpURLConnection은 pinning) → 결정 6 D-T2 (2026-06-13) |
+
+---
+
+## Affected files
+
+- `design/pipeline-interfaces.md` — 동반 구현 스펙. **결정 5(retry=새 run)·결정 6(VT 호출 모델,
+  관측/상태 분리, 선기록) 반영 필요.**
+- `design/pipeline-api.md` — admin API 정본; swagger 원천. **retry 엔드포인트 의미론, O10 확정,
+  per-call deadline 설정 표면 반영 필요.**
+- `design/admin-page-requirements.md` — §4.4 모델 원천; §5 admin API 가정 목록.
+- `design/SIT Prototype Athena v14.html` — 파이프라인 보드; 결정 1.4 delta 대상.
+- `docs/swagger/` — 향후 admin-pipelines.yaml.
+- `docs/cloud-provider-states.md` — task 시퀀스 정의가 인코딩하는 provider별 순서.
+- **DB migration** — task_check.api_result에 PENDING 추가, task_check.started_at 추가,
+  task.last_checked_at 추가 (결정 6).
