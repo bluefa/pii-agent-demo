@@ -22,8 +22,8 @@
 | job-poll cadence | 30–60초 | 전역(시스템) | TerraformJob 상태 폴링; task별 비노출 (결정 2) |
 | N (slot cap) | 10 (초안 3) | 전역 | BFF 발 terraform job을 **N·K로 bound**(무분별 방지); **N ≤ IM 수용량/K**; split-brain 시 일시 초과는 N·K 언저리 (4b) |
 | max_external_calls_per_tick (외부 호출 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 호출 수; burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
-| max_fail_count | task별 | task별 | 자동 재시도 한도; **K(재dispatch 상한) 겸함** (1.2, 3.1) |
-| K (재dispatch 상한 = max_fail_count) | IM 스펙 기반 (예 2~3) | task별 또는 전역 | crash 재dispatch 포함 시도 상한; **N·K = BFF 발 최악 동시 job 수**, N ≤ 수용량/K로 IM 수용량 이하 (3.1, 4b) |
+| max_fail_count | task별 | task별 | 자동 재시도 한도 = **K (초기 dispatch 포함 최대 attempt 수)** (1.2, 3.1) |
+| K (= max_fail_count = 최대 attempt 수, 초기 포함) | IM 스펙 기반 (예 2~3) | task별 또는 전역 | 최대 총 attempt(재dispatch ≤ K−1); **N·K = BFF 발 최악 동시 job 수**, N ≤ 수용량/K로 IM 수용량 이하 (3.1, 4b) |
 | task_check 보존 | 90일 | 전역 | reconciler prune (1.3) |
 | queue-wait 알림 임계 | 30분 (제안) | 전역 | QUEUE_WAIT_EXCEEDED (1.3) |
 | 알림 라우팅 | 기본 표 (1.3) | 이벤트별 | 관리자 편집 |
