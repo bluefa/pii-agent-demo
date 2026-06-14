@@ -512,7 +512,10 @@ Infra Manager에 cancel API가 없고 pubsub 회수가 비현실적이다(확정
 
 - 파이프라인은 CANCELLING으로 전이한다. 취소는 **forward edge만** gate한다(readying,
   dispatching, retrying) — **drain edge는 절대 gate하지 않는다**(반환된 job_id
-  기록, 실행 중 job의 terminal까지 폴링). 아직 dispatch 안 된 task는 즉시 CANCELLED.
+  기록, 실행 중 job의 terminal까지 폴링). 아직 dispatch 안 된 task는 즉시 CANCELLED. **CONDITION_CHECK은
+  dispatch도 in-flight side-effect job도 없는 read-only 폴링이라 drain할 대상이 없다 — WAITING_EXTERNAL로
+  폴링 중이어도 [중단] 시 즉시 CANCELLED된다(drain은 죽일 수 없는 in-flight job을 가진 TERRAFORM_JOB·
+  GENERAL_JOB에만 적용).**
 - in-flight TerraformJob은 자연 종료(또는 execution timeout)까지 돌고 **그때까지 slot을 보유**
   한다. terminal 도달 시 파이프라인이 CANCELLED로 확정된다. **drain된 job이 terminal에 도달해도
   postCheck는 실행하지 않는다**(pipeline.status == CANCELLING이므로 — 결정 2 postCheck 규칙).

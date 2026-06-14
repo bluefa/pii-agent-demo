@@ -102,21 +102,54 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | RUNNING | DISPATCHING | poll FAILED → fail++; slot 무관이라 바로 재dispatch | GENERAL_JOB |
 | WAITING_EXTERNAL | WAITING_EXTERNAL (in-place) | NOT_MET(미가산) 또는 check ERROR(fail++) → 계속 폴링 | CONDITION_CHECK |
 
-**취소 전이 (pipeline = CANCELLING)** — forward edge만 gate, drain edge는 gate 안 함(결정 4c).
+**취소 전이 (pipeline = CANCELLING)** — forward edge만 gate, drain edge는 gate 안 함(결정 4c). drain은
+**죽일 수 없는 in-flight side-effect job**(TERRAFORM_JOB·GENERAL_JOB)에만 적용된다 — read-only 폴링엔 drain할
+대상이 없다.
 
 | From | → To | 규칙 |
 |---|---|---|
-| BLOCKED · READY · WAITING_SLOT | CANCELLED | **미dispatch task → 즉시 CANCELLED**(forward edge가 gate되어 전진 불가) |
-| DISPATCHING · RUNNING · WAITING_EXTERNAL | (drain) 자연 terminal | **in-flight task는 drain** — job_id 기록·terminal까지 폴링은 drain edge라 gate 안 함; 재dispatch/재시도만 gate(새 attempt 없음); slot은 terminal까지 보유. task의 실제 terminal(DONE/FAILED/EXPIRED)은 히스토리에 사실대로 남고, pipeline만 CANCELLED로 수렴 |
+| BLOCKED · READY · WAITING_SLOT (전체 kind) | CANCELLED | **미dispatch task → 즉시 CANCELLED**(forward edge가 gate되어 전진 불가) |
+| WAITING_EXTERNAL (CONDITION_CHECK) | CANCELLED | **read-only 폴링이라 drain할 in-flight job이 없다 → 폴링 중이어도 즉시 CANCELLED**(결정 4c) |
+| DISPATCHING · RUNNING (TERRAFORM_JOB·GENERAL_JOB) | (drain) 자연 terminal | **죽일 수 없는 in-flight job → drain** — job_id 기록·terminal까지 폴링은 drain edge라 gate 안 함; 재dispatch/재시도만 gate(새 attempt 없음); slot은 terminal까지 보유. task의 실제 terminal(DONE/FAILED)은 히스토리에 사실대로 남고, pipeline만 CANCELLED로 수렴 |
 
-> **task CANCELLED ≠ pipeline CANCELLED.** task의 CANCELLED는 *한 번도 dispatch되지 않은* task에만 붙는다.
-> in-flight task는 자기 자연 terminal(DONE/FAILED/EXPIRED)로 가고, 그 사실은 보존되며, pipeline 파생만
-> 결정 1.1 ①에 의해 CANCELLED로 수렴한다(CANCELLING 중에는 FAILED 승격 금지).
+> **task CANCELLED ≠ pipeline CANCELLED.** task의 CANCELLED는 *한 번도 dispatch되지 않은* task에만 붙는다
+> (미dispatch TF/GEN + 모든 CONDITION_CHECK — 후자는 애초에 dispatch가 없다). dispatch한 in-flight TF/GEN
+> job은 자기 자연 terminal(DONE/FAILED)로 drain되고, 그 사실은 보존되며, pipeline 파생만 결정 1.1 ①에 의해
+> CANCELLED로 수렴한다(CANCELLING 중에는 FAILED 승격 금지).
 
 terminal 4종(DONE·FAILED·EXPIRED·CANCELLED)에서 나가는 전이는 없다(결정 5 "terminal은 terminal").
 
 ---
 
-> **미반영 (열린 항목):** 동기 작업(dispatch 응답이 즉시 terminal을 주어 `DISPATCHING→DONE` 전이가 필요한
-> kind)은 현재 3종에 없어 이 전이도에 없다. 실재로 확정되면 전진/종결 표에 `DISPATCHING→DONE/FAILED`
-> 행을 추가한다([task-model.md](./task-model.md) 참조).
+## CONDITION_CHECK 전이 (단순 확인 task)
+
+side effect 없이 **외부 조건이 충족(MET)됐는지만 반복해 읽는** task다(예: 권한 부여 완료, terraform 외
+사전 조치 완료). 시킬 게 없어 dispatch가 없고, **dispatch가 없으니 attempt도 없다**(결정 1.2: attempt =
+action의 생애주기 — 추적할 action 자체가 없다). 모든 관측은 `task_check(kind=CHECK)`로만 남는다 — 2×2로
+attempt 0 + 폴링 ≥1. ADR이 attempt와 task_check를 중첩이 아니라 **형제**로 둔 표준 사례다(예외·빈칸 아님).
+
+```
+            deps DONE          조건 폴링 개시 (dispatch·attempt 없음)
+ [BLOCKED] ─(tick)─► [READY] ─(tick)─► [WAITING_EXTERNAL] ─── observed=MET ───► [DONE]
+                                          │   ▲
+                       ≥10분 cadence 재폴링 │   │  NOT_MET(미가산) · api_result=ERROR(fail++ <K)
+                                          └───┘
+                                          ├─ check ERROR 누적 → fail++ == K ──► [FAILED]
+                                          ├─ WAIT_EXTERNAL TTL(기본 7일) 초과 ──► [EXPIRED] → pipeline FAILED
+                                          └─ [중단](CANCELLING) ──────────────► [CANCELLED]
+```
+
+1. **(생성) → BLOCKED** — pipeline 생성 시 task 행만 생성.
+2. **BLOCKED → READY** — predecessor 전부 DONE → tick 승격.
+3. **READY → WAITING_EXTERNAL** — tick이 조건 폴링 개시. dispatch 없음 → **task_attempt 행을 만들지 않는다**.
+4. **WAITING_EXTERNAL 자기루프(폴링)** — ≥10분 cadence(WAIT_EXTERNAL polling guard, 관리자 조정)마다 tick이
+   check 발사. **폴링 1회 = `task_check(kind=CHECK)` 1행**(1 call = 1 row). observed=NOT_MET이면 계속
+   (fail_count 무변동 — "아직"은 실패 아님); api_result=ERROR(호출 자체 실패)면 fail_count++, < K면 계속.
+5. **→ DONE** — observed=MET.
+6. **→ FAILED** — check ERROR 누적으로 fail_count++ == K(NOT_MET은 미가산).
+7. **→ EXPIRED** — WAIT_EXTERNAL TTL(기본 7일) 초과 → pipeline FAILED 파생. (무한 대기 없음.)
+8. **→ CANCELLED** — [중단] 시. in-flight side-effect job이 없어 drain 대상이 없으므로 폴링 중
+   (WAITING_EXTERNAL)이어도 즉시 CANCELLED(결정 4c — drain은 TF/GEN의 죽일 수 없는 job에만).
+
+attempt가 0개여도 **모든 폴링이 task_check에 남아 조사 타임라인은 완전**하다. DISPATCH-kind task_check는 없고
+(dispatch 없음), POST_CHECK는 task당 0..1(terminal 직전 스냅샷이 필요할 때만 — 순수 확인엔 보통 없음).
