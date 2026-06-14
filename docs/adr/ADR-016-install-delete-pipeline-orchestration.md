@@ -73,7 +73,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - 일시 장애·BFF crash/재배포·worker outage·외부 호출 실행 주체 죽음이 **자가 회복**한다(fail-count
   재시도, timeout + retry, 관측/상태 분리).
 - 모든 grain의 실행 히스토리(run → task → attempt → 개별 poll/check)·"호출 시도 vs 미시도" 구분·
-  감사·알림이 **하나의 append-only 기록 규율**에서 파생된다(2차 장부·로그 고고학 없음).
+  감사·알림이 **하나의 기록 규율**(현재 상태=CAS 갱신 · 이력=행 추가)에서 파생된다(2차 장부·로그 고고학 없음).
 - 장시간 외부 호출(200초+)을 tick 모델·불변식을 깨지 않고 수용한다(async 발사·task별 deadline·
   관측/상태 분리).
 - 재시도 의미론이 "새 run"으로 확정돼 terminal 단순함이 보존되고, 모델이 TaskKind 3종으로 단순하다.
