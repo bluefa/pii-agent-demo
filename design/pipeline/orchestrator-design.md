@@ -182,9 +182,12 @@ predecessor)이 모두 DONE이면 reconciler가 READY로 승격시킨다. **READ
 후보"임을 보장**하고 BLOCKED는 "아직 후보가 아니라 reconciler가 쳐다볼 필요도 없는" 상태다 — 둘을
 합치면 READY가 그 보장을 잃으므로 분리한다. 따라서 task 상태는 10종이다.)
 
-### 1.3 기록·조회·알림 — 하나의 append-only 규율
+### 1.3 기록·조회·알림 — current-state 갱신 + 이력 추가의 단일 규율
 
-히스토리는 4개 grain으로, 모두 append-only로 기록된다(덮어쓰기 없음):
+상태와 이력을 나눠 기록한다 — **현재 상태**는 `pipeline`·`task` 행에 CAS로 **갱신**하고(current-state,
+과거 버전 미보관), **일어난 일의 이력**은 행을 **추가**해 남긴다(`task_attempt` 시도당 · `task_check`
+호출당 · `pipeline_event` 이벤트당). 추가된 이력 행은 결과만 사후 채울 뿐(PENDING→결과 · notified_at)
+**과거 행을 다시 쓰지 않는다** — 2차 장부도 로그 고고학도 없다. 아래는 run→task→attempt→check 4개 grain:
 
 | Grain | 테이블 | 1행의 의미 |
 |---|---|---|
