@@ -875,8 +875,9 @@ PENDING task_check를 남기고 C를 소비한다 — `requiresSlot=false`는 "t
 - **스키마 추가 최소 — `call_deadline_at` 1개.** `api_result=PENDING`·`started_at`은 D-T5가 이미
   추가하고, 여기에 호출 deadline 박제용 `call_deadline_at`만 더한다. 이게 없으면 호출별로 다른
   deadline(30/60/90/240초)을 단일 상수로 뭉뚱그려 in-flight를 오계수한다(P0).
-- **C는 넉넉히 잡는다.** 대부분의 호출은 sub-second로 끝나 budget을 즉시 비우므로, C는 드문 느린
-  호출(200초+) 집중과 burst만 묶으면 된다. R5 런타임 설정(Part II).
+- **C는 넉넉히 잡는다(초기값 50).** 대부분의 호출은 sub-second로 끝나 budget을 즉시 비우므로, C는
+  드문 느린 호출(200초+) 집중과 burst만 묶으면 된다. R5 런타임 설정(Part II). **초기값 50은 출발점일
+  뿐 근거 있는 최종값이 아니다** — 정밀 산정은 IM 용량 실측 기반의 운영 튜닝 영역으로 본 ADR 범위 밖이다.
 - **soft + leader-serialized — N-cap 결론을 그대로 상속.** COUNT→admit 구조가 N-cap admission과
   동일하다(결정 4b). 일시 초과는 무해하다 — poll은 idempotent read라 미뤄도 정확성 무손상이고
   최악은 관측 지연(시스템의 정상 열화). 정밀 강제가 필요하면 IM이 자기 M-pod 부하로 **429/503
@@ -955,7 +956,7 @@ PENDING task_check를 남기고 C를 소비한다 — `requiresSlot=false`는 "t
 | WAIT_EXTERNAL polling guard | ≥10분 | task별, 관리자 조정 | 조건 확인 cadence (결정 2) |
 | job-poll cadence | 30–60초 | 전역(시스템) | TerraformJob 상태 폴링; task별 비노출 (결정 2) |
 | N (slot cap) | 10 (초안 3) | 전역 | 동시 slot 보유 task soft target; **N ≤ IM 수용량/K** (4b) |
-| C (외부 호출 동시성 budget) | 넉넉히 (런타임 조정) | 전역 | 동시 in-flight 외부 호출 상한; poll 부하 보호 (D-T7) |
+| C (외부 호출 동시성 budget) | 50 (초기값, 런타임 조정) | 전역 | 동시 in-flight 외부 호출 상한; poll 부하 보호 (D-T7) |
 | max_fail_count | task별 | task별 | 자동 재시도 한도; **K(재dispatch 상한) 겸함** (1.2, 3.1) |
 | K (재dispatch 상한 = max_fail_count) | IM 스펙 기반 (예 2~3) | task별 또는 전역 | crash 재dispatch 포함 시도 상한; N ≤ 수용량/K 헤드룸 근거 (3.1, 4b) |
 | breaker probe 간격 | 5분 | 전역 | half-open canary 주기 (4d) |
@@ -1009,6 +1010,9 @@ PENDING task_check를 남기고 C를 소비한다 — `requiresSlot=false`는 "t
   유지하되 근거를 "handle 1/N/0개 흡수"에서 "dispatch 종류별 응답 형태를 컬럼 ALTER 없이 담는 그릇"으로
   수정. Resolved O23 제거·O24는 "1 call=1 row"만 유지·S21/S23 fan-out 문구 정리; O27(완료 id 보존)은
   질문 자체가 소멸. 미해결 6→5건(O8·O10·O18–O20).
+- **C 초기값 50 (2026-06-14):** Part II에서 유일하게 비어 있던 C(외부 호출 동시성 budget)에 운영
+  시작용 초기값 50 부여(D-T7 본문에도 명시). 정밀 산정은 IM 용량 실측 기반 운영 튜닝 영역으로 본
+  ADR 범위 밖이며, 50은 최종값이 아니라 출발점 → 결정 6 D-T7, Part II.
 - **BLOCKED 제거 → 복구 (2026-06-13 → 06-14):** 06-13 제거(의존성 대기는 seq에서 파생되므로
   불필요)했으나 06-14 복구 — **READY 불변식**("의존 풀림·전진 가능 후보")을 지키려면 "아직 후보
   아님(의존 미해소)"을 BLOCKED로 분리해야 하기 때문. 합치면 READY가 그 보장을 잃는다. 9→10종.
