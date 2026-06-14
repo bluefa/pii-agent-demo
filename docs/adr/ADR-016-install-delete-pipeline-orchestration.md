@@ -106,7 +106,8 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 
 | 문서 | 내용 |
 |---|---|
-| [orchestrator-design.md](../../design/pipeline/orchestrator-design.md) | 상태기계·DB 모델·tick 흐름·dispatch 5단계·crash recovery·N-cap admission·CANCELLING |
+| [orchestrator-design.md](../../design/pipeline/orchestrator-design.md) | 상태기계 설계(CAS·파생·단일 writer)·DB 모델·tick 흐름·dispatch 5단계·crash recovery·N-cap admission·CANCELLING |
+| [state-machine.md](../../design/pipeline/state-machine.md) | Pipeline·Task 전이도 (상태·트리거·guard 일람) |
 | [task-model.md](../../design/pipeline/task-model.md) | TaskKind 3종·작성 규칙·멱등성 계약 |
 | [api.md](../../design/pipeline/api.md) | Admin·History·cancel/retry API |
 | [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
