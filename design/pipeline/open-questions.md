@@ -1,8 +1,8 @@
 # ADR-016 — Open Questions (미해결 질문)
 
-> [ADR-016 설치/삭제 파이프라인 오케스트레이션 아키텍처](./016-installation-pipeline-architecture.md)의
-> **미해결 질문 트래커**. 본 ADR 본문(Part IV)에서 분리한 작업 노트다 — 결정이 나면 본 ADR의
-> Part III **Resolved**로 옮기고 여기서 제거한다.
+> [ADR-016 Install/Delete Pipeline Orchestration](../../docs/adr/ADR-016-install-delete-pipeline-orchestration.md)의
+> **미해결 질문 트래커**. 결정이 나면 [decision-history.md](./decision-history.md)의 **Resolved**로
+> 옮기고 여기서 제거한다.
 >
 > O-번호는 본 ADR 본문의 cross-reference와 **공유**한다(번호 보존). O4–O9·O11–O18·O21–O28은
 > 해소되거나 정리되어 빠졌다(번호 gap은 의도) — 해소·정리 내역은 ADR Part III **Resolved** 및 재구성 내역 참조.

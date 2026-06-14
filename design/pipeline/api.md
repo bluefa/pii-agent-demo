@@ -1,6 +1,6 @@
 # 파이프라인 오케스트레이션 — BFF API (러프 초안)
 
-> [ADR-016 설치/삭제 파이프라인 오케스트레이션 아키텍처](../docs/adr/016-installation-pipeline-architecture.md)가
+> [ADR-016 Install/Delete Pipeline Orchestration](../../docs/adr/ADR-016-install-delete-pipeline-orchestration.md)가
 > 요구하는 admin/operator API 표면. **swagger가 아니라** 대략적인 path + response 정리다 —
 > 최종 정본·스키마는 추후 `docs/swagger/admin-pipelines.yaml`로 옮긴다.
 >
