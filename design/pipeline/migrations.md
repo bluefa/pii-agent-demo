@@ -27,7 +27,8 @@
   terraform_job_id·general_handle 전용 컬럼 없음); **task.external_handle(단수) 제거**
   (handle home=attempt.response). task_check 행 = check 호출 1회(O24); **attempt_id 컬럼 미도입**
   (O26 — job_id 고유 발급이라 soft-link로 충분). **crash 복구가 fail_count를 증가시키는 경로 추가**
-  (K=max_fail_count 겸용이라 신규 컬럼 불요 — P0-1).
+  (K=max_fail_count 겸용이라 신규 컬럼 불요 — P0-1). **task_attempt.result enum은 OK|FAIL 유지 —
+  EXECUTION_TIMEOUT은 별도 result 값이 아니라 error_code로 표현**(옵션 B; result→API outcome 파생, DB 변경 없음).
 
 ## 인덱스 / Retention
 

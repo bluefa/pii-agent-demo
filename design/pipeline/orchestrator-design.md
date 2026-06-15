@@ -126,6 +126,10 @@ task            id, pipeline_id, seq, name,
 task_attempt    id, task_id, attempt_no, started_at, finished_at,
                 result(OK|FAIL), error_code, error_detail, response(jsonb)
                 -- dispatch당 1행; dispatch → terminal 생애주기를 추적(action의 생애주기).
+                -- result(OK|FAIL) = attempt 전체의 **terminal result**(dispatch API 호출 accepted 여부 아님).
+                --   dispatch 호출 자체의 성공/실패 관측은 task_check(kind=DISPATCH)에, dispatch 산출은 response에 남는다.
+                --   EXECUTION_TIMEOUT은 별도 result 값이 아니라 result=FAIL + error_code=EXECUTION_TIMEOUT으로 기록.
+                --   API Attempt.outcome은 이 result+error_code에서 파생되는 표현(저장값 아님 — api.md 매핑).
                 -- response = dispatch 원응답(write-once·불변; 재시도=새 attempt=새 response).
                 --   handle의 home — TaskKind별 응답 형태를 컬럼 ALTER 없이 같은 컬럼에 담는
                 --   그릇(TERRAFORM_JOB {job_id} · GENERAL_JOB {handle} · CONDITION_CHECK 없음).
