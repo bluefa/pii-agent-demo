@@ -48,23 +48,24 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 
 ---
 
-## Task 전이도 (10종)
+## Task 전이도 (9종)
 
 상태 전진 경로는 kind가 정한다(결정 2). happy path만 lane으로, 분기(실패·timeout·취소·재시도)는 아래 표.
 
 ```
 공통 진입:  (생성) → [BLOCKED] ──depends_on 전부 DONE (tick 승격)──► [READY] ──┐ kind로 분기
                                                                           │
- TERRAFORM_JOB   │ [READY] → [WAITING_SLOT] → [DISPATCHING] → [RUNNING] → [DONE]
- (slot 소비)      │            COUNT<N admit    dispatch       job 폴링
- GENERAL_JOB     │ [READY] ───────────────────► [DISPATCHING] → [RUNNING] → [DONE]
- (slot 불요)      │                             dispatch       handle 폴링
- CONDITION_CHECK │ [READY] ─────────────────────► [WAITING_EXTERNAL] → [DONE]
- (dispatch 없음)  │                              조건 폴링 (MET까지, dispatch/attempt 없음)
+ TERRAFORM_JOB   │ [READY] ──admit: COUNT(DISP|RUN)<N──► [DISPATCHING] → [RUNNING] → [DONE]
+ (slot 소비)      │   (READY = slot 큐, 미admit)          dispatch       job 폴링
+ GENERAL_JOB     │ [READY] ────────────────────────────► [DISPATCHING] → [RUNNING] → [DONE]
+ (slot 불요)      │                                      dispatch       handle 폴링
+ CONDITION_CHECK │ [READY] ──────────────────────────────► [WAITING_EXTERNAL] → [DONE]
+ (dispatch 없음)  │                                       조건 폴링 (MET까지, dispatch/attempt 없음)
 ```
 
-비terminal 6종(BLOCKED·READY·WAITING_SLOT·DISPATCHING·RUNNING·WAITING_EXTERNAL) · terminal 4종
-(DONE·FAILED·EXPIRED·CANCELLED). 보드 라벨 매핑은 [orchestrator-design.md](./orchestrator-design.md) §1.2 표.
+비terminal 5종(BLOCKED·READY·DISPATCHING·RUNNING·WAITING_EXTERNAL) · terminal 4종
+(DONE·FAILED·EXPIRED·CANCELLED). **slot 큐 대기는 별도 상태가 아니라 `READY ∧ kind=TERRAFORM_JOB`로 표현**
+한다(WAITING_SLOT 제거 — decision-history S26). 보드 라벨 매핑은 [orchestrator-design.md](./orchestrator-design.md) §1.2 표.
 
 **전진 전이**
 
@@ -72,8 +73,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 |---|---|---|---|
 | (생성) | BLOCKED | pipeline 생성 시 task 행 생성 | 전체 |
 | BLOCKED | READY | tick: depends_on(순차 chain=predecessor) 전부 DONE → 승격 | 전체 |
-| READY | WAITING_SLOT | tick: slot 소비 kind → admission 큐 진입 | TERRAFORM_JOB |
-| WAITING_SLOT | DISPATCHING | tick: COUNT(DISPATCHING\|RUNNING) < N → admit (CAS) + task_attempt 생성 + next_check_at | TERRAFORM_JOB |
+| READY | DISPATCHING | tick: **admit** — COUNT(DISPATCHING\|RUNNING) < N일 때(READY TF = slot 큐); CAS + task_attempt 생성 + next_check_at | TERRAFORM_JOB |
 | READY | DISPATCHING | tick: slot 불요 → 즉시 dispatch (CAS) + task_attempt 생성 + next_check_at | GENERAL_JOB |
 | READY | WAITING_EXTERNAL | tick: dispatch 없이 조건 폴링 개시 | CONDITION_CHECK |
 | DISPATCHING | RUNNING | (다음) tick: attempt.response 적재(dispatch 응답 OK) 관측 → CAS (결정 3.1 5단계) | TERRAFORM_JOB·GENERAL_JOB |
@@ -98,7 +98,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | From | → To | 트리거 / Guard | kind |
 |---|---|---|---|
 | DISPATCHING | DISPATCHING (in-place) | dispatch 복구 timeout(response 없음) → attempt 실패 마감 fail++; **slot 보유한 채** 재dispatch | TERRAFORM_JOB·GENERAL_JOB |
-| RUNNING | WAITING_SLOT | poll FAILED/execution timeout → fail++; **slot 반납 후 재큐**(결정 5: 재dispatch도 admission 통과) | TERRAFORM_JOB |
+| RUNNING | READY | poll FAILED/execution timeout → fail++; **slot 반납 후 READY로 재큐**(=slot 큐 재진입; 결정 5: 재dispatch도 admission 통과) | TERRAFORM_JOB |
 | RUNNING | DISPATCHING | poll FAILED → fail++; slot 무관이라 바로 재dispatch | GENERAL_JOB |
 | WAITING_EXTERNAL | WAITING_EXTERNAL (in-place) | NOT_MET(미가산) 또는 check ERROR(fail++) → 계속 폴링 | CONDITION_CHECK |
 
@@ -108,7 +108,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 
 | From | → To | 규칙 |
 |---|---|---|
-| BLOCKED · READY · WAITING_SLOT (전체 kind) | CANCELLED | **미dispatch task → 즉시 CANCELLED**(forward edge가 gate되어 전진 불가) |
+| BLOCKED · READY (전체 kind) | CANCELLED | **미dispatch task → 즉시 CANCELLED**(forward edge가 gate되어 전진 불가; slot 큐 대기 중인 READY TF 포함) |
 | WAITING_EXTERNAL (CONDITION_CHECK) | CANCELLED | **read-only 폴링이라 drain할 in-flight job이 없다 → 폴링 중이어도 즉시 CANCELLED**(결정 4c) |
 | DISPATCHING · RUNNING (TERRAFORM_JOB·GENERAL_JOB) | (drain) 자연 terminal | **죽일 수 없는 in-flight job → drain** — job_id 기록·terminal까지 폴링은 drain edge라 gate 안 함; 재dispatch/재시도만 gate(새 attempt 없음); slot은 terminal까지 보유. task의 실제 terminal(DONE/FAILED)은 히스토리에 사실대로 남고, pipeline만 CANCELLED로 수렴 |
 
