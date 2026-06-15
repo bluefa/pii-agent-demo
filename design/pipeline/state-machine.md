@@ -91,7 +91,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | WAITING_EXTERNAL | EXPIRED | tick: WAIT_EXTERNAL TTL(총 체류) 초과 → EXPIRED (→ pipeline FAILED 파생) | CONDITION_CHECK |
 
 > EXPIRED는 **WAIT_EXTERNAL TTL 전용**이다. RUNNING의 execution timeout은 EXPIRED가 아니라 *attempt
-> 실패*(fail_count++, slot 해제 — 결정 4a)이며, 재시도 소진 시에만 FAILED가 된다. (결정 4a timeout 표의
+> 실패*(fail_count++, slot 해제 — 결정 4a; **DB 기록 = result=FAIL + error_code=EXECUTION_TIMEOUT**, 별도 result enum 아님)이며, 재시도 소진 시에만 FAILED가 된다. (결정 4a timeout 표의
 > "EXECUTE task"·"WAIT_EXTERNAL"은 각각 dispatch-poll kind(TERRAFORM_JOB·GENERAL_JOB)·CONDITION_CHECK의
 > 구 라벨이다.)
 
