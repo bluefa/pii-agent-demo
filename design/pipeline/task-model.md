@@ -56,15 +56,19 @@ TERRAFORM_JOB              GENERAL_JOB               CONDITION_CHECK
 - **connector / callStrategy / resourcePool 추상화 레이어는 도입하지 않는다(YAGNI)** — 두 번째
   capacity-limited backend가 실재할 때 additive로 확장한다.
 
-**postCheck (task당 0..1) — terminal snapshot 조회.** 일반 후처리 훅이 아니라(개정 4판 — 구
-0..N `postChecks[]`에서 0..1로 축소), task가 terminal에 도달하기 직전 수행하는 **terminal snapshot
-조회**다. 목적은 휘발성 로그·결과 보존(예: Terraform 마지막 로그 저장, Backend Manager 최종 상태
-저장). 규칙:
+**postCheck (task당 0..1) — 성공 시 best-effort 스냅샷 관측.** 일반 후처리 훅이 아니라(개정 4판 — 구
+0..N `postChecks[]`에서 0..1로 축소), task가 **성공(DONE)에 도달했음을 관측한 시점에 발사되는, DONE
+전이와 분리된(off critical path) best-effort 관측**이다("terminal 직전 단계"가 아님 — 임계 경로에 없다).
+목적은 휘발성 로그·결과 보존(예: Terraform 마지막 로그, Backend Manager 최종 상태). **완료를 *가르면*
+CHECK(상태 판정), 기록만 하면 postCheck** — postCheck는 정의상 상태를 가르지 않는다. 규칙:
 
-- task당 최대 1개.
-- `pipeline.status != CANCELLING`인 경우에만 수행.
-- 실패해도 상태 전이에 영향 없음, retry 없음.
-- 상태 판정 기능이 아니다 — 후속 task를 gate하지 않고 fail_count에 영향 없다. 결과는 히스토리로만.
+- task당 최대 1개; `pipeline.status != CANCELLING` ∧ task 성공(DONE)일 때만 발사(O9).
+- **DONE 전이와 분리.** task는 성공 관측만으로 DONE이 되고 DONE은 postCheck를 기다리지 않는다 — postCheck가
+  timeout/실패해도 **task는 DONE 유지**(status·fail_count·후속 gate 전부 무영향). "RUNNING→postCheck→DONE"
+  같은 중간 상태는 없다. 전이 함수를 호출하지 않아(append-only 관측) status에 **구조적으로** 무영향이다.
+- **1회성·fire-and-forget (A안).** 성공 시 async 1발 → `task_check(POST_CHECK)` 1행 기록 → 끝. 재시도 없음
+  (실패=기록만). 크래시로 DONE 확정 후 미기록이면 **재발사하지 않는다**(reconciler는 terminal task를 재방문
+  안 함 — 드문 크래시 창의 스냅샷 유실은 best-effort라 감수). reconciler가 계속 돌리는 폴링이 아니다(CHECK와 다름).
 - **결과 타입은 kind 코드가 정의한다.** 결과는 `task_check.detail(jsonb)`에 담기되 타입 없는 봉투가 아니라
   **TaskKind 코드 클래스가 정의하는 타입 결과**다(`attempt.response`가 dispatch 응답을 kind별로 담는 것과 같은
   패턴 — 컬럼 ALTER 없음). `type` 판별자로 인지한다: TERRAFORM_JOB → `TerraformLogResult{ type:"TERRAFORM_LOG",

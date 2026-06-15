@@ -218,7 +218,7 @@ predecessor)이 모두 DONE이면 reconciler가 READY로 승격시킨다. **READ
 | Task 상태 전이 | task 갱신 + pipeline_event |
 | Dispatch 호출 | **(tick)** DISPATCHING 전이 · task_attempt 행 생성 · next_check_at 갱신 → **(호출 스레드)** task_check kind=DISPATCH 선기록(PENDING) → 호출 → response·task_check 채움 → **(다음 tick)** RUNNING 전이 (결정 3.1 5단계) |
 | 각 완료 확인(check) | **호출 직전(호출 스레드)** task_check kind=CHECK 선기록 → 호출 → observed 채움 (핸들 폴링이면 RUNNING/SUCCEEDED/FAILED, 조건 평가면 MET/NOT_MET; api_result=ERROR면 fail_count++) |
-| post-check (task당 0..1) | **task terminal 직전(호출 스레드)** task_check kind=POST_CHECK 선기록 → 호출(deadline 60초) → 채움 (상태·fail_count 무영향, retry 없음); pipeline.status != CANCELLING일 때만; 실행 경로는 다른 호출과 동일(async 발사) |
+| post-check (task당 0..1) | **성공(DONE) 관측 시 발사(호출 스레드) — DONE 전이와 분리, off critical path.** task_check kind=POST_CHECK 선기록 → 호출(deadline 60초) → 채움 (상태·fail_count 무영향, **1회성·재시도 없음·크래시 재발사 없음**); pipeline.status != CANCELLING ∧ 성공일 때만; 실행 경로는 다른 호출과 동일(async 발사) |
 | 알림 발송 | pipeline_event.notified_at |
 
 모든 외부 호출은 **호출 직전에 task_check 행을 PENDING으로 선기록**하고 응답 후 채운다
@@ -410,7 +410,7 @@ soft-link 무모호).
 | 외부 호출 발사 후, 실행 주체가 결과 기록 전 죽음 | status 불변(실행 주체는 status 안 건드림) → 다음 tick이 재호출. task_check는 PENDING 행으로 "시도 이력" 보존 (결정 6, D-T4/D-T5) |
 | 상태 기록 후, 알림 발송 전 | outbox 행 notified_at IS NULL → Notifier 재시도 |
 | advisory lock 보유 중 | session-scoped lock 자동 해제, 다음 tick에 다른 pod 획득 |
-| post-check 도중 | 복구 시 재실행 가능(read-only); 최악은 task_check 중복 1행 |
+| post-check 도중 | **재발사·복구 없음(fire-and-forget, A안)** — task는 DONE 무영향, 미기록 스냅샷은 best-effort 유실 감수. (DONE 확정 *전* 중단이면 성공 재처리에 함께 재발사될 수 있고, 그땐 read-only라 중복 1행이 최악) |
 | 장시간 outage (수 시간) | 복귀 첫 tick들에 밀린 작업 일괄 발화 — **dispatch burst는 N-cap이, poll burst는 tick당 발사 상한 `max_external_calls_per_tick`(결정 6 D-T7)이 흡수**(상한 개수씩 wave로 배수; poll은 slot 무관이라 N-cap이 안 막음). timeout은 fresh 상태 재독 후 판정(결정 4)하므로 완료 작업은 SUCCEEDED로 기록되지 오판 timeout되지 않는다 |
 
 | N-pod 우려 | 답 |
