@@ -65,6 +65,12 @@ TERRAFORM_JOB              GENERAL_JOB               CONDITION_CHECK
 - `pipeline.status != CANCELLING`인 경우에만 수행.
 - 실패해도 상태 전이에 영향 없음, retry 없음.
 - 상태 판정 기능이 아니다 — 후속 task를 gate하지 않고 fail_count에 영향 없다. 결과는 히스토리로만.
+- **결과 타입은 kind 코드가 정의한다.** 결과는 `task_check.detail(jsonb)`에 담기되 타입 없는 봉투가 아니라
+  **TaskKind 코드 클래스가 정의하는 타입 결과**다(`attempt.response`가 dispatch 응답을 kind별로 담는 것과 같은
+  패턴 — 컬럼 ALTER 없음). `type` 판별자로 인지한다: TERRAFORM_JOB → `TerraformLogResult{ type:"TERRAFORM_LOG",
+  logPointer, excerpt }`, GENERAL_JOB → `ApiResponseResult{ type:"API_RESPONSE", ... }`. **full terraform 로그는
+  BFF가 보존하지 않고 `logPointer`로 IM에서 조회**한다(detail엔 발췌만 — 로그 비대화 방지). 조회 표면은
+  [api.md](./api.md) `Check.detail`.
 
 조건 전용 task(CONDITION_CHECK)에서 **"아직"은 실패가 아니다** — check API 에러만 fail_count를 올린다.
 

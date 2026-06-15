@@ -139,7 +139,10 @@ task_check      id, task_id, checked_at, started_at,
                 --   JOB_POLL+CONDITION_CHECK→CHECK 통합; 핸들폴링 vs 조건평가는 external_handle 유무로 파생.
                 --   강제 확인(force-check)은 제거(개정 4판) — 모든 확인은 polling 정책으로 수행한다.
                 --   observed 어휘 통일은 미정(Open O19).
-                -- detail은 발췌/참조만 (예: Terraform 로그 포인터).
+                -- detail(jsonb) = kind 코드가 정의하는 **타입 결과를 담는 그릇**(attempt.response와 동일 패턴
+                --   — 컬럼 ALTER 없이 kind별 형태 수용). type 판별자로 인지: TERRAFORM_JOB postCheck =
+                --   {type:"TERRAFORM_LOG", logPointer, excerpt} · GENERAL_JOB = {type:"API_RESPONSE", ...}.
+                --   full terraform 로그는 BFF 미보존 — logPointer로 IM 조회, detail엔 발췌만(로그 비대화 방지).
                 -- attempt_id 컬럼 미도입(O26 해소): job_id가 요청별 고유 발급(재dispatch=새 job_id)이라
                 --   external_handle∈attempt.response soft-link가 무모호 — 명시 링크 컬럼 불요.
 
