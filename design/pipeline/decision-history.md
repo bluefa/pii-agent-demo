@@ -46,12 +46,10 @@
   execution timeout·WAIT_EXTERNAL TTL·retry=새 run·N-cap·idempotency contract·CANCELLING drain.
 - **트래커 정리:** Open O8(breaker canary)·O18(force-check actor)은 breaker·force-check 제거로 소멸 —
   open-questions 트래커에서 제거.
-- **N-cap 목표 명시 (메커니즘 무변경, 프레이밍 전환).** N-cap을 "soft target"으로 격하하며 달던
-  사과성 단서(수동 job blind spot·하드캡=IM 429·N≤수용량/K 헤드룸)를 **"BFF 발 terraform job을
-  N·K로 bound(무분별 방지)"라는 목표 명세**로 재서술. admission COUNT→admit·WAITING_SLOT·N·K 계산은
-  그대로. N-cap의 고유 가치 = IM backpressure(429) 신뢰성에 의존하지 않고 BFF 발 동시성을 스스로
-  bound(대비: `max_external_calls_per_tick`은 IM 429에 위임). soft target은 split-brain(≤30초) 일시
-  초과에 대해서만 soft이며 그것도 N·K 언저리. 결정 4b 주 대상, 결정 2 cross-ref, Part II N/K 행.
+- **N-cap 목표 재정의.** N-cap이 직접 보장하는 것은 **BFF-visible active Terraform task count ≤ N**이다.
+  `N·K`는 actual global worker job hard cap이 아니라 retry/orphan headroom 산정값이다. 모든 caller·수동
+  job·orphan job까지 포함한 global hard cap은 BFF가 아니라 Infra Manager 429/503의 책임이다. 결정 4b 주
+  대상, 결정 2 cross-ref, Part II N/K 행.
 
 > 개정 4판은 개정 3판의 일반화 결정 일부를 의도적으로 되돌린다. 아래 개정 3판~Resolved 기록은 그
 > 일반화에 도달한 사고 이력으로 보존하되, 위 항목과 충돌하는 부분은 본 개정 4판 항목이 정본이다.
@@ -78,7 +76,7 @@
 - **P0-1 해소 — 멱등성이 at-least-once를 보장 (2026-06-14):** "worker dedup으로 실행 1회" 전제가
   틀림(worker엔 dedup 없음) → 정정. 실행 dedup이 아니라 **작업 멱등성**이 안전성 보장(INSTALL
   이미존재=성공, DELETE 이미부재=성공); crash 재dispatch는 fail_count++로 세어 K(=max_fail_count)
-  상한 겸용, N ≤ 수용량/K 헤드룸으로 hard ceiling 보호. 제약 #3·결정 3.1/4b·Part II 반영, 본문
+  상한 겸용, N·K headroom으로 retry/orphan 제출 여유를 산정한다. 제약 #3·결정 3.1/4b·Part II 반영, 본문
   "dedup" 표현 전수 교체. 신규 검증 항목 O28(task별 멱등성). 미해결 6→7건.
 - **P0-4 CANCELLING precedence (2026-06-14):** 결정 1.1 파생 규칙에 CANCELLING 최우선 순서 박음 —
   CANCELLING 중 task terminal(FAILED 포함)은 pipeline FAILED로 승격 안 하고 drain 후 CANCELLED 수렴;
@@ -165,8 +163,8 @@
 | S8 | task_check 호출 전 선기록(PENDING) → "호출 시도 vs 미시도" 구분; dispatch 규율을 모든 외부 호출로 일반화; api_result에 PENDING 추가 → 결정 6 D-T5 (2026-06-13) |
 | S9 | 장시간 check용 별도 task 상태 미도입(상태 집합 불확대); "확인 중" 노출은 task_check 파생 → 결정 6 D-T6 (2026-06-13) |
 | S10 | async 구현(Virtual Thread): 개수는 비문제, carrier pinning이 실제 제약; HTTP backing client는 VT-friendly여야(Feign 기본 HttpURLConnection은 pinning) → 부록 A (2026-06-13) |
-| S11 | N-cap = soft target(잘 설계된 worker 큐가 실질 backpressure); 상태기계 정확성만 leader 무관, capacity는 leader-serialized soft; split-brain·잔존 job·외부 caller 일시 초과 감수; 하드 글로벌 상한은 BFF lease 아닌 Infra Manager 429 → 결정 3.2, 4b (2026-06-13) |
-| S12 | poll 부하(축 다)는 in-flight 동시성 budget C로 제어 — PENDING task_check로 count(새 상태·WAIT_EXTERNAL 계수 아님), C 넉넉히, soft·leader-serialized, IM 429→requeue(fail_count 미소모); 3.3 catch-up은 dispatch=N-cap·poll=C → 결정 6 D-T7 (2026-06-13) |
+| S11 | N-cap = soft target(잘 설계된 worker 큐가 실질 backpressure); 상태기계 정확성만 leader 무관, capacity는 leader-serialized soft; split-brain·잔존 job·외부 caller 일시 초과 감수; 하드 글로벌 상한은 BFF lease 아닌 Infra Manager 429/503 → 결정 3.2, 4b (2026-06-13) |
+| S12 | poll 부하(축 다)는 in-flight 동시성 budget C로 제어 — PENDING task_check로 count(새 상태·WAIT_EXTERNAL 계수 아님), C 넉넉히, soft·leader-serialized, IM 429/503→requeue(fail_count 미소모); 3.3 catch-up은 dispatch=N-cap·poll=C → 결정 6 D-T7 (2026-06-13) |
 | S13 | task 상태 BLOCKED: 06-13 제거(seq 파생) → **06-14 복구**(10종; 06-15 WAITING_SLOT 제거로 **9종** — S26) — READY는 "의존 풀림·전진 가능 후보"를 보장해야 하므로 "의존 미해소(아직 후보 아님)"를 BLOCKED로 분리; task는 BLOCKED로 시작, depends_on 충족 시 reconciler가 READY로 승격 → 결정 1.1/1.2, 6 D-T6 (2026-06-13 제거, 06-14 복구) |
 | S14 | Task 모델 = 훅 조합(dispatch?/check?/postChecks[]/requiresSlot); 종류는 훅 유무가 결정(타입 enum 아님), TERRAFORM/GENERAL_API는 훅 안 코드 차이일 뿐 terraform은 구현 사례; reconciler는 훅으로 분기; task.type은 표현 라벨; connector/strategy/pool 미도입(YAGNI) → 결정 2 (2026-06-14) |
 | S15 | requiresSlot = "공유 IM 동시성 자원 소비"(타입 아님); 타입별 slot 분배 비채택; 단일 풀(infra_manager, cap=N), named pool은 YAGNI → 결정 4b (2026-06-14) |
@@ -187,11 +185,10 @@
 | O7 | TerraformJob "queued vs running" 구분 = **불가능**(IM API가 노출 못 함, worker health endpoint 없음) → terminal까지 **무한정 폴링·성공 대기**(stuck vs 느림 조기 구분 불가). breaker 빠른 primary 감지(pickup-window) 폐기 — **EXECUTION_TIMEOUT 3연속 + canary가 유일 감지/probe**; 감지 latency ~30분+는 구조적 상수로 감수; timeout job은 재시도하고 breaker open 중이면 fail_count 소모 없이 requeue. pickup-window config 제거, k8s 직접 조회 비채택 유지 → 결정 4d (2026-06-14) |
 | O9 | CANCELLING/drain에서 terminal 도달 job의 postChecks 실행 = **안 함.** postChecks는 task가 **성공(DONE)일 때만** 실행(취소·실패·drain은 비성공 경로) — forward/drain edge에 별도 분기 불필요, "성공 시에만"이 단일 기준 → 결정 2/4c (2026-06-14) |
 | O25 | 외부 호출 없는 check(동기·조건)의 행 기록 = **남긴다.** task_check는 관측의 장부(호출 장부 아님)라 1평가 1행 — 안 남기면 조사 타임라인에서 사라짐. 거부되는 건 행이 아니라 "호출 없는 평가용 별도 카운팅 규칙/플래그"(신규 메커니즘); 행은 남기고 새 규칙은 안 만든다. C는 **외부 호출이 실제 발사된 행(PENDING)만** 카운트(D-T5 선기록이 자동 판별) — 대부분의 check(조건 평가·핸들 폴링)는 외부 호출이라 C 소비, 네트워크 안 타는 평가만 미소비 → 결정 6 D-T5/D-T7 (2026-06-14) |
-| P0-1 | downstream dedup 계약: **worker dedup 없음 + execution API 멱등 보장**으로 해소 — 중복 job 각각 실행되나 멱등이라 안전, B도 정상 수렴해 timeout 시나리오 불가; idempotency key/상태조회 불요; crash 재dispatch는 **fail_count++**로 세어 K(=max_fail_count) 상한 겸용, **N ≤ 수용량/K** 헤드룸으로 hard ceiling 보호 → 제약 #3, 결정 3.1/4b, Part II (2026-06-14) |
+| P0-1 | downstream dedup 계약: **worker dedup 없음 + execution API 멱등 보장**으로 해소 — 중복 job 각각 실행되나 멱등이라 안전, B도 정상 수렴해 timeout 시나리오 불가; idempotency key/상태조회 불요; crash 재dispatch는 **fail_count++**로 세어 K(=max_fail_count) 상한 겸용, **N·K headroom**으로 retry/orphan 제출 여유 산정 → 제약 #3, 결정 3.1/4b, Part II (2026-06-14) |
 | P0-2 | dispatch 선기록 흐름의 결정 3.1 ↔ 결정 6 충돌 해소 — **5단계 writer 분리**로 명문화: **(1 tick tx)** DISPATCHING CAS·task_attempt 생성·next_check_at, **(2 호출 스레드 tx)** task_check DISPATCH/PENDING 선기록, **(3 호출 스레드)** dispatch 호출, **(4 호출 스레드 tx)** response·task_check UPDATE, **(5 다음 tick)** RUNNING 전이. 상태 전이(DISPATCHING·RUNNING)는 tick, 관측(task_check)·산출(response)은 호출 스레드 — dispatch도 결정 6 단일 writer 규율을 예외 없이 따름(기존 "tx1에 task_check 선기록"·"tx2에서 RUNNING 전이"·결정 2 표의 "task_attempt 호출 스레드 개시" 정정) → 결정 3.1/2/6 (2026-06-14) |
 | P0-4 | CANCELLING 중 task FAILED/EXPIRED의 pipeline 최종 = **CANCELLED 확정**; 결정 1.1에 "CANCELLING 최우선" precedence 명문화(4c 입장의 정합 — 동작 권위는 4c, 본 행은 1.1로의 명문화이지 설계 변경 아님); 판정은 **상태 기준**(파생 시 pipeline.status가 CANCELLING인가)이지 시각 기준 아님 — 직전 확정분 누수·CAS race 방지; task 상태는 사실대로 보존(FAILED는 FAILED, CANCELLED는 미발사 task만), pipeline만 수렴; 입구 가드(terminal→CANCELLING 거부)는 결정 5 "terminal은 terminal"의 귀결로 자동 차단(4c에 명시) → 결정 1.1/4c, 5 (2026-06-14) |
 | O28 | dispatch 멱등성 = **BFF가 검증하는 사실이 아니라 task에 요구하는 계약**으로 해소(task별 감사 표 아님 — dispatch는 외부 API라 BFF가 멱등성을 런타임에 알 수 없어 표를 채울 수 없음). job_id를 발급받아 폴링하는 모든 dispatch 작업이 멱등(이미-원하는-상태=성공, DELETE not-found=성공)을 보장하도록 task 등록 계약으로 요구·리뷰에서 강제(결정 3.2 연장), 비멱등은 거부; 실제 충족 검증 책임은 task 구현·IM 쪽 → 결정 3.1/3.2 (2026-06-14) |
 | S26 | **WAITING_SLOT 상태 제거 (10→9종)** — slot 큐 대기 = `READY ∧ kind=TERRAFORM_JOB`로 표현(별도 상태 불요). admission 게이트가 `WAITING_SLOT→DISPATCHING`에서 `READY→DISPATCHING`(TF, COUNT(DISP\|RUN)<N)로 이동; retry 재큐는 `RUNNING→READY`; cancel은 `{BLOCKED,READY}→CANCELLED`. 근거: WAITING_SLOT은 READY와 **동작 동일**(둘 다 수동 대기·고유 복구 없음·취소 즉시 CANCELLED, slot 카운트는 `DISPATCHING\|RUNNING`만 세어 WAITING_SLOT 미포함) — 9개 상태 중 **유일하게 동작 차이를 kind-조건문으로 이전하지 않는 −1**(RUNNING↔WAITING_EXTERNAL 병합은 timeout=재시도/EXPIRED·cancel=drain/CANCEL 차이를 조건문으로 relocate하므로 비채택; DISPATCHING은 re-dispatch 복구라 유지). slot 큐 관측(깊이·순번)은 `COUNT(READY∧TF)`·admission 순서로 파생 — **S13의 "10종" supersede** → 결정 1.2/4b, state-machine.md (2026-06-15) |
 
 ---
-
