@@ -39,9 +39,9 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - **Retry는 재개가 아니라 새 run 생성**이다 — terminal 부활 없음, 완료분은 terraform 수렴으로 사실상 no-op.
 - **정합성은 exactly-once 기계가 아니라 idempotency-by-construction**으로 확보한다 — 모든 dispatch는
   멱등이어야 하고, at-least-once dispatch의 안전성은 그 멱등성에 의존한다.
-- **N-cap은 BFF 측 soft target**으로 적용해 BFF 발 동시 terraform job을 **N·K로 bound**한다(무분별 방지;
-  IM backpressure(429) 신뢰성에 의존하지 않음). poll burst는 `max_external_calls_per_tick`으로 완화하고
-  정밀 강제는 IM 429에 위임한다.
+- **N-cap은 BFF 측 admission control**로 적용해 BFF-visible active Terraform task 수를 N 이하로
+  제한한다. `N·K`는 실제 worker job hard cap이 아니라 retry/orphan headroom 산정값이며, global hard cap은
+  필요 시 IM 429/503에 위임한다. poll burst는 `max_external_calls_per_tick`으로 완화한다.
 - **무한 대기를 막는다** — execution timeout + WAIT_EXTERNAL TTL. 죽일 수 없거나 systemic한 실패는
   corruption이 아니라 delay로 다룬다(circuit breaker 없음 — timeout + retry + 알림 롤업).
 - **중단(cancel)은 죽이지 않고 전진만 멈춘다** — forward edge만 gate, in-flight job은 drain,
@@ -60,7 +60,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 | C. 워크플로 엔진 (Temporal/Airflow/브로커) | 거부 | ≥10분 폴링의 2–4 step 선형 체인은 그 비용을 정당화 못 함 |
 | D. BFF 인메모리 async 체인 | 거부 | 재시작/배포에 run 유실; durable 큐·히스토리·수일 WAIT_EXTERNAL 표현 불가 |
 | E. Backend Manager에 파이프라인 상태 | 거부 (사용자 결정) | 로직·상태 분산; 원격 API 경유 원자적 slot 회계는 racy |
-| F. Infra Manager 측 동시성 제한 (지금) | 보류 (사용자 결정) | 현재 자동화 caller는 BFF뿐; 다른 caller 등장 시 IM 429 재검토(결정 4b) |
+| F. Infra Manager 측 동시성 제한 (지금) | 보류 (사용자 결정) | 현재 자동화 caller는 BFF뿐; 다른 caller 등장 시 IM 429/503 재검토(결정 4b) |
 
 별도 워커 분리도 같은 이유로 배제한다 — 무거운 워크로드(실제 Terraform 실행)는 이미 TerraformWorker로
 분리돼 있고 reconciler는 호출·폴링·기록만 한다. 부하가 강제하면 답은 워커 분리가 아니라 Option B다.
@@ -83,7 +83,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - BFF가 DB·백그라운드 루프를 갖는다 — 더 이상 stateless proxy가 아니다(다중 replica엔 리더 선출 필요).
   **본 ADR에서 가장 비싼 한 줄**이지만 restart-safety·히스토리·조회성이 같은 뿌리에서 나오므로 감수한다.
 - at-least-once dispatch는 간헐적 중복/고아 job을 남길 수 있다 — 멱등 apply가 이중 실행을 무해하게 하고,
-  재dispatch 헤드룸(N·K ≤ IM 수용량)과 execution timeout이 점유를 bound한다.
+  N·K 기준의 retry/orphan headroom 산정과 execution timeout이 BFF 발 제출 폭주를 운영상 bound한다.
+  실제 worker global hard cap은 BFF가 보장하지 않는다.
 - worker outage 감지가 execution timeout에 의존해 둔하다(~30분+, 구조적 상수) — circuit breaker 없이
   timeout + retry + 알림 롤업으로 처리.
 - 재개 비지원으로 실패한 긴 run의 재시도는 전체 재실행 시간을 지불한다(terraform 수렴으로 완료분은 no-op).
@@ -97,7 +98,7 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 - **FR-2** target별 run history — `pipeline.target_source_id` + history API
 - **FR-3** task별 attempt/check audit trail — `task_attempt` · `task_check`
 - **FR-4** 무한 대기 방지 — execution timeout + WAIT_EXTERNAL TTL
-- **FR-5** Terraform 동시 실행 제한 — N-cap admission
+- **FR-5** BFF-visible active Terraform task 제한 — N-cap admission
 - **NFR-1** 재시작 안전 — DB state + tick 재도출
 - **NFR-2** at-least-once dispatch 안전 — idempotency contract
 - **NFR-3** 다중 replica 안전 — advisory lock + CAS
