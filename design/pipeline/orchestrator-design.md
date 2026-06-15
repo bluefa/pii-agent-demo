@@ -138,7 +138,10 @@ task_check      id, task_id, checked_at, started_at,
                 -- kind는 표현(UX/조사) 라벨이지 control flow 분기 신호가 아니다(D-T6 인근 원칙).
                 --   JOB_POLL+CONDITION_CHECK→CHECK 통합; 핸들폴링 vs 조건평가는 external_handle 유무로 파생.
                 --   강제 확인(force-check)은 제거(개정 4판) — 모든 확인은 polling 정책으로 수행한다.
-                --   observed 어휘 통일은 미정(Open O19).
+                --   observed = 원시 kind별 값이 canonical(O19 해소): 폴링 RUNNING/SUCCEEDED/FAILED ·
+                --     조건 MET/NOT_MET; reconciler 판정(DONE/PENDING/FAILED)은 (kind, observed)에서 파생.
+                -- name = 호출 operation 식별자(어떤 API/동작; 예 im.terraformApply·im.jobStatus).
+                -- error_code 카탈로그(api.md): CALL_TIMEOUT·EXECUTION_TIMEOUT·TTL_EXPIRED·IM_REJECTED·CHECK_ERROR·DISPATCH_NO_RESPONSE.
                 -- detail(jsonb) = kind 코드가 정의하는 **타입 결과를 담는 그릇**(attempt.response와 동일 패턴
                 --   — 컬럼 ALTER 없이 kind별 형태 수용). type 판별자로 인지: TERRAFORM_JOB postCheck =
                 --   {type:"TERRAFORM_LOG", logPointer, excerpt} · GENERAL_JOB = {type:"API_RESPONSE", ...}.
@@ -223,8 +226,8 @@ predecessor)이 모두 DONE이면 reconciler가 READY로 승격시킨다. **READ
   횡단 조회. 기간 필터는 overlap 의미론:
   `started_at <= to AND (finished_at IS NULL OR finished_at >= from)`.
 - `GET /admin/pipelines/{id}` — run 상세 + task 상태.
-- `GET /admin/pipelines/{id}/tasks/{taskId}/history` — task 하나의 attempt + check 병합
-  타임라인, 페이지네이션. **사고 조사 surface**: 모든 외부 상호작용을 시간순 한 줄로, timeout 시
+- `GET /admin/pipelines/{id}/tasks/{taskId}` — task 하나의 attempt + check 병합 타임라인
+  (attempts 인라인, checks는 Pageable). **사고 조사 surface**: 모든 외부 상호작용을 시간순 한 줄로, timeout 시
   어느 층이 발화했는지(CALL_TIMEOUT vs EXECUTION_TIMEOUT vs TTL EXPIRED)까지.
 
 인덱스: `pipeline(target_source_id, started_at DESC)`, `pipeline(started_at)`,
