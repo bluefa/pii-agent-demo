@@ -114,7 +114,7 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 | [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
 | [requirements.md](../../design/pipeline/requirements.md) | 기능/비기능/성능 요구사항 |
 | [migrations.md](../../design/pipeline/migrations.md) | DB migration·인덱스·retention |
-| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(O10) |
+| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(O10·O29) |
 | [decision-history.md](../../design/pipeline/decision-history.md) | 긴 변경 이력(재구성 내역·Resolved) |
 
 관련: ADR-006(3-object confirmation model), ADR-009(process status model) — 파이프라인은 CONFIRMED와
