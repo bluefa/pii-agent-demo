@@ -50,6 +50,13 @@
   `N·K`는 actual global worker job hard cap이 아니라 retry/orphan headroom 산정값이다. 모든 caller·수동
   job·orphan job까지 포함한 global hard cap은 BFF가 아니라 Infra Manager 429/503의 책임이다. 결정 4b 주
   대상, 결정 2 cross-ref, Part II N/K 행.
+- **[중단] 트리거 명확화 — intent 표현 제거, API 즉시 전이 (결정 1.1/3.2/4c · state-machine).**
+  "UI 액션은 intent를 기록하고 다음 tick이 실행한다"를 제거. [중단]은 외부 side effect가 아니라
+  pipeline 내부 상태 전이이므로 Admin API가 공통 전이 함수로 `RUNNING → CANCELLING`을 즉시 수행
+  (CAS prior=RUNNING + pipeline_event; intent row·`cancel_requested_at`·`pipeline_command` 미도입).
+  reconciler tick의 task cancel/drain은 종전과 동일(4c/state-machine 무변경). 단일 writer 불변식은
+  그 적용 범위(외부 호출·slot 회계·task 전진 = tick-only)로 정밀화하고 pipeline-level 사용자 전이를
+  그 예외로 명시. 감사는 전이가 남긴 pipeline_event.actor. 메커니즘 무변경, 표현 정밀화.
 
 > 개정 4판은 개정 3판의 일반화 결정 일부를 의도적으로 되돌린다. 아래 개정 3판~Resolved 기록은 그
 > 일반화에 도달한 사고 이력으로 보존하되, 위 항목과 충돌하는 부분은 본 개정 4판 항목이 정본이다.
