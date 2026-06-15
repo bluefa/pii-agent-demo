@@ -6,9 +6,11 @@
 > 흩어진 전이 규칙을 한 곳에 합성한 전이도다. **충돌 시 각 결정 본문이 정본**이며, 결정 번호는 두 문서와
 > 공유한다(아래 표 "근거" 열).
 
-모든 전이의 writer는 reconciler tick이다 — **상태 전이는 tick에서만**(결정 6 D-T4), 관측(task_check)·산출
-(attempt.response)은 호출 스레드. 이 문서는 현재 **TaskKind 3종(TERRAFORM_JOB · GENERAL_JOB · CONDITION_CHECK)**
-기준이다.
+**task 전이의 writer는 reconciler tick이다 — task 상태 전이·외부 호출·slot 회계는 tick에서만**(결정 6
+D-T4); 관측(task_check)·산출(attempt.response)은 호출 스레드. **예외는 pipeline-level 사용자 전이 하나** —
+[중단] `RUNNING → CANCELLING`은 Admin API가 공통 전이 함수(CAS + pipeline_event)로 수행한다(외부 효과·
+task 변경 없음, 결정 4c). 그 외 모든 pipeline 파생(DONE/FAILED/CANCELLED)은 tick이 task에서 파생한다.
+이 문서는 현재 **TaskKind 3종(TERRAFORM_JOB · GENERAL_JOB · CONDITION_CHECK)** 기준이다.
 
 ---
 
@@ -37,7 +39,7 @@
 | From | → To | 트리거 / Guard | 근거 |
 |---|---|---|---|
 | (생성) | RUNNING | pipeline 생성 즉시 | 1.3 |
-| RUNNING | CANCELLING | [중단] intent → tick. **입구 가드: pipeline이 비terminal일 때만** | 4c, 5 |
+| RUNNING | CANCELLING | **[중단] API → 공통 전이 함수(CAS+event)**, 즉시 전이. **CAS prior=RUNNING** (terminal·CANCELLING이면 0행=no-op → 중복 중단·terminal 부활 자동 차단) | 4c, 5 |
 | RUNNING | FAILED | tick 파생 ②: ¬CANCELLING ∧ fail_count==K task 존재 | 1.1 |
 | RUNNING | FAILED | tick 파생 ③: ¬CANCELLING ∧ TTL EXPIRED task 존재 | 1.1, 4a |
 | RUNNING | DONE | tick 파생 ④: ¬CANCELLING ∧ 전 task DONE | 1.1 |
