@@ -5298,6 +5298,48 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 /* inspector controls */
 .adm-insp-foot { padding: 11px 16px; border-top: 1px solid var(--toss-divider); display: flex; gap: 8px; background: #fff; }
 .adm-insp-foot .btn { flex: 1; justify-content: center; }
+/* ===== F1 attention banner ===== */
+.adm-attn {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 11px 15px;
+  border-radius: 12px; font-size: 13px; font-weight: 600; line-height: 1.45;
+  background: #FFF7ED; border: 1px solid #FED7AA; color: #9A3412;
+  animation: admAttnIn 0.32s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes admAttnIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.adm-attn.crit { background: #FEF2F2; border-color: #FECACA; color: #B91C1C; }
+.adm-attn .at-ico { font-size: 15px; flex-shrink: 0; }
+.adm-attn b { font-weight: 800; }
+.adm-attn .at-spacer { flex: 1; }
+.adm-attn .at-link { font-weight: 800; color: inherit; text-decoration: underline; cursor: pointer; white-space: nowrap; }
+/* ===== F2 liveness chip ===== */
+.adm-live {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800;
+  padding: 2px 8px; border-radius: 999px; margin-left: 8px; vertical-align: 1px;
+}
+.adm-live .lv-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.adm-live.ok { background: #F0F4F8; color: #5B6776; }
+.adm-live.wait { background: #FFFBEB; color: #B45309; }
+.adm-live.delay { background: #FFF1E6; color: #C2410C; }
+.adm-live.fail { background: #FEF2F2; color: #DC2626; }
+.adm-live.cancelling { background: #F0F4F8; color: #5B6776; }
+/* ===== F3 expected-vs-actual ===== */
+.nd-exp { font-size: 10.5px; color: var(--toss-weak-text); margin-top: 3px; }
+.nd-exp.delay { color: #C2410C; font-weight: 700; }
+.is-prog { display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
+.is-prog .ip-cur { font-weight: 800; color: var(--toss-strong-text); }
+.is-prog.delay .ip-cur { color: #C2410C; }
+.is-prog .ip-base { color: var(--toss-weak-text); }
+.is-prog .ip-tag { margin-left: auto; font-size: 10.5px; font-weight: 800; padding: 1px 8px; border-radius: 999px; background: #F0F4F8; color: #5B6776; }
+.is-prog.delay .ip-tag { background: #FFF1E6; color: #C2410C; }
+/* slot held during drain (F5) */
+.adm-slot-held { font-size: 10px; font-weight: 800; color: #B45309; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 5px; padding: 1px 6px; margin-left: 8px; }
+/* F6 inline poll expand */
+.is-polls { margin-top: 8px; border-top: 1px dashed var(--toss-divider); padding-top: 8px; }
+.is-poll { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; padding: 2px 0; color: var(--toss-medium-text); }
+.is-poll.err { color: #DC2626; font-weight: 700; }
+.is-poll .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+/* F7 lineage chip */
+.adm-lineage { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #0064FF; background: #E8F1FF; border-radius: 6px; padding: 1px 7px; margin-left: 8px; vertical-align: 1px; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -7548,6 +7590,7 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
           <h1>설치/삭제 파이프라인</h1>
           <p>Terraform 설치/삭제 작업이 정해진 단계(DAG)에 따라 순차 실행돼요. 행을 클릭하면 Task 상세가 보여요.</p>
         </div>
+        <div id="admPipeBanner"></div>
         <div class="adm-cards" id="admPipeCards"></div>
         <div class="card">
           <div class="db-list-table" style="border:0; border-radius:0;">
@@ -11626,7 +11669,7 @@ const ADM = {
     { id: 'PL-81', tsId: '30002', type: '설치', status: 'RUNNING', elapsed: '2일', open: false,
       tasks: [
         { name: 'TF 권한 확인', kind: 'WAIT', state: 'DONE', meta: '06-09 10:00 · 5회 확인', poll: 30, ttl: 7, maxFail: null, fail: 0 },
-        { name: 'Subnet 생성 확인', kind: 'WAIT', state: 'WAITING', meta: '확인 중 (2일 경과)', poll: 30, ttl: 7, maxFail: null, fail: 0 },
+        { name: 'Subnet 생성 확인', kind: 'WAIT', state: 'WAITING', meta: '확인 중 (2일 경과)', poll: 30, ttl: 7, maxFail: null, fail: 0, exp: '보통 1일', cur: '2일', delay: true },
         { name: 'SVC TF 동작', kind: 'EXEC', state: 'QUEUED', meta: '', poll: 10, ttl: null, maxFail: 1, fail: 0 },
         { name: 'BDC TF 동작', kind: 'EXEC', state: 'QUEUED', meta: '', poll: 10, ttl: null, maxFail: 1, fail: 0 },
       ] },
@@ -12434,19 +12477,38 @@ function admRenderPipelines() {
   ];
   document.getElementById('admPipeCards').innerHTML = cards.map(c =>
     `<div class="adm-card"><div class="ac-k"><span class="ac-dot" style="background:${c.dot}"></span>${c.k}</div><div class="ac-v">${c.v}<small>건</small></div></div>`).join('');
+  // F1 attention banner — 실패/지연을 execution timeout(30분) 알림 전에 환기 (false-green 방지)
+  const failN = ps.filter(p => p.status === 'FAILED').length;
+  const delayN = ps.reduce((n, p) => n + p.tasks.filter(t => t.delay && t.state !== 'DONE').length, 0);
+  const bn = document.getElementById('admPipeBanner');
+  if (bn) {
+    if (failN || delayN) {
+      const parts = [];
+      if (failN) parts.push(`파이프라인 <b>${failN}건 실패</b>`);
+      if (delayN) parts.push(`task <b>${delayN}건 지연</b>`);
+      bn.innerHTML = `<div class="adm-attn${failN ? ' crit' : ''}"><span class="at-ico">⚠</span><span>${parts.join(' · ')} — 확인이 필요해요. 정상 폴링 중이라도 기준을 넘겼거나 worker 장애일 수 있어요.</span><span class="at-spacer"></span></div>`;
+    } else bn.innerHTML = '';
+  }
   document.getElementById('admPipeTbody').innerHTML = (ps.map((p, pi) => {
     const done = p.tasks.filter(t => t.state === 'DONE').length;
     const cur = p.tasks.find(t => t.state !== 'DONE');
     const failed = p.status === 'FAILED';
-    const curLabel = p.status === 'DONE' ? '완료' : p.status === 'CANCELLED' ? '중단됨'
+    const cancelling = p.status === 'CANCELLING';
+    const baseLabel = p.status === 'DONE' ? '완료' : p.status === 'CANCELLED' ? '중단됨' : cancelling ? '중단 중 · 실행 job 종료 대기'
       : cur ? `${cur.name}${cur.state === 'WAITING' ? ' ⏱' : ''}${cur.state === 'FAILED' ? ` 실패(${cur.fail}/${cur.maxFail})` : ''}` : '—';
+    // F2 liveness chip
+    const lv = failed ? { label: '실패', cls: 'fail' }
+      : (!cancelling && p.status !== 'DONE' && p.status !== 'CANCELLED') ? admLiveness(cur) : null;
+    const lvChip = lv ? `<span class="adm-live ${lv.cls}"><span class="lv-dot"></span>${lv.label}</span>`
+      : (cancelling ? '<span class="adm-live cancelling"><span class="lv-dot"></span>중단 중</span>' : '');
+    const lineage = p.retryOf ? `<span class="adm-lineage" title="${p.retryOf} 다시 실행">↻ ${p.retryOf}</span>` : '';
     const act = failed
-      ? `<button class="btn ghost" onclick="event.stopPropagation(); admRetryPipe(${pi})">재시도</button><button class="btn ghost danger-text" onclick="event.stopPropagation(); admCancelPipe(${pi})">중단</button>`
+      ? `<button class="btn ghost" onclick="event.stopPropagation(); admRetryPipe(${pi})">다시 실행</button><button class="btn ghost danger-text" onclick="event.stopPropagation(); admCancelPipe(${pi})">중단</button>`
       : '';
     return `<tr class="adm-row-clickable" onclick="ADM.pipelines[${pi}].open=!ADM.pipelines[${pi}].open; admRenderPipelines()">
-      <td class="mono" style="font-size:12.5px;">${p.tsId}</td><td>${p.type}</td><td>${ADM.ts[p.tsId].provider}</td>
+      <td class="mono" style="font-size:12.5px;">${p.tsId}${lineage}</td><td>${p.type}</td><td>${ADM.ts[p.tsId].provider}</td>
       <td><div class="adm-progress${failed ? ' failed' : ''}"><div class="bar"><i style="width:${Math.round(done / p.tasks.length * 100)}%"></i></div><span class="pn">${done}/${p.tasks.length}</span></div></td>
-      <td style="font-size:12.5px; ${failed ? 'color:#B91C1C; font-weight:600;' : ''}">${curLabel}</td>
+      <td style="font-size:12.5px; ${failed ? 'color:#B91C1C; font-weight:600;' : ''}">${baseLabel}${lvChip}</td>
       <td style="font-size:12.5px; color:var(--toss-weak-text);">${p.elapsed}</td>
       <td style="white-space:nowrap;">${act}</td></tr>` +
       (p.open ? `<tr><td colspan="7" style="background:#FAFBFC;">${admTaskPanel(p, pi)}</td></tr>` : '');
@@ -12485,10 +12547,20 @@ function admIsSlotWait(t) {
   return t.state === 'QUEUED' && admTaskKind(t) === 'TERRAFORM_JOB'
     && ADM.pipelines.some(p => p.tasks.includes(t)) ;
 }
+// F2 liveness — "정상 장기실행 vs 문제" 한눈 구분 (표현용 파생)
+function admLiveness(t) {
+  if (!t || t.state === 'DONE') return null;
+  if (t.state === 'FAILED' || t.state === 'EXPIRED') return { label: '실패', cls: 'fail' };
+  if (t.delay) return { label: '지연', cls: 'delay' };
+  if (t.state === 'WAITING') return { label: '예정 대기', cls: 'wait' };
+  if (t.state === 'RUNNING' || t.state === 'DISPATCHING') return { label: '진행 정상', cls: 'ok' };
+  return null;
+}
 
 function admTaskPanel(p, pi) {
   const pIdx = pi != null ? pi : ADM.pipelines.indexOf(p);
   const fid = 'flow' + pIdx;
+  const cancelling = p.status === 'CANCELLING';
   // layout: single left->right row; depends_on = previous task (seed is a chain)
   const n = p.tasks.length;
   const layW = ADM_PAD * 2 + n * ADM_NODE_W + (n - 1) * ADM_GAP_X;
@@ -12497,17 +12569,22 @@ function admTaskPanel(p, pi) {
   p.tasks.forEach((t, ti) => {
     const x = ADM_PAD + ti * (ADM_NODE_W + ADM_GAP_X), y = ADM_ROW_Y;
     const m = admStateMap(t), kind = admTaskKind(t), slotWait = admIsSlotWait(t);
+    const draining = cancelling && (t.state === 'RUNNING' || t.state === 'DISPATCHING');
     const ico = m.cls === 'done' ? '✓' : m.cls === 'running' ? '<span class="adm-spin"></span>' : m.cls === 'waiting' ? '⏱' : m.cls === 'failed' ? '✕' : String(ti + 1);
-    const meta = m.cls === 'failed' ? t.meta
+    const meta = draining ? '중단 중 · 실행 job 종료 대기'
+      : m.cls === 'failed' ? t.meta
       : t.state === 'WAITING' ? (t.meta || '외부 조건 폴링 중')
       : t.state === 'DONE' ? t.meta
       : `의존: ${ti === 0 ? '(시작)' : p.tasks[ti - 1].name}`;
+    // F3 expected-vs-actual on the node
+    const expLine = (t.exp && t.state !== 'DONE' && m.cls !== 'failed' && !draining)
+      ? `<div class="nd-exp${t.delay ? ' delay' : ''}">${t.exp} · 현재 ${t.cur || '—'}${t.delay ? ' ⚠' : ''}</div>` : '';
     const sel = (ADM._flow && ADM._flow[fid] && ADM._flow[fid].sel === ti) ? ' sel' : '';
     nodes.push(`<div class="adm-node ${m.cls}${sel}" style="left:${x}px;top:${y}px;" onclick="event.stopPropagation();admSelNode(${pIdx},${ti})">
       <span class="nd-port in"></span><span class="nd-port out"></span>
       <div class="nd-top"><span class="nd-ico">${ico}</span><span class="nd-name">${t.name}</span></div>
       <span class="nd-kind">${kind}</span>${slotWait ? '<span class="nd-slotwait">slot 대기</span>' : ''}
-      <div class="nd-meta">${meta || '대기'}</div>
+      <div class="nd-meta">${meta || '대기'}</div>${expLine}
     </div>`);
     mm.push(`<div class="mm-node ${m.cls}" style="left:${(x / layW * 100).toFixed(1)}%;top:${(y / layH * 100).toFixed(1)}%;width:${(ADM_NODE_W / layW * 100).toFixed(1)}%;height:${(ADM_NODE_H / layH * 100).toFixed(1)}%;"></div>`);
     if (ti < n - 1) {
@@ -12534,7 +12611,7 @@ function admTaskPanel(p, pi) {
       ${nextCheck}
       <span class="adm-slot-gauge${slotWarn}" title="동시 Terraform slot 사용량 (GET /admin/pipelines/concurrency)">
         slot <span class="sg-track"><span class="sg-fill" style="width:${slotPct}%"></span></span> ${slotsInUse}/${slotCap}
-      </span>
+      </span>${cancelling ? '<span class="adm-slot-held">slot 점유 중 (drain)</span>' : ''}
     </div>
     <div class="adm-canvas" id="${fid}" onmousedown="admPanStart(event,'${fid}')" onwheel="admWheel(event,'${fid}')">
       <div class="adm-canvas-layer" id="${fid}_layer" style="width:${layW}px;height:${layH}px;">
@@ -12581,6 +12658,13 @@ function admInspectorHtml(pIdx) {
   // check aggregate (count + last checkedAt + last observed)
   const checkN = /(\d+)\s*회/.exec(t.meta || '');
   const aggN = checkN ? checkN[1] : (kind === 'CONDITION_CHECK' ? '12' : '3');
+  // F6 notable individual polls (인라인 펼치기용 — ERROR/전이만 의미)
+  const pollRows = [
+    { at: '14:31:40', txt: 'observed=' + (t.state === 'DONE' ? 'MET' : kind === 'CONDITION_CHECK' ? 'NOT_MET' : 'RUNNING'), err: false },
+    { at: '14:21:40', txt: 'observed=' + (kind === 'CONDITION_CHECK' ? 'NOT_MET' : 'RUNNING'), err: false },
+    { at: '14:11:40', txt: 'apiResult=ERROR · CHECK_ERROR', err: true },
+    { at: '14:01:40', txt: 'observed=' + (kind === 'CONDITION_CHECK' ? 'NOT_MET' : 'RUNNING'), err: false },
+  ].map(r => `<div class="is-poll${r.err ? ' err' : ''}"><span class="mono">${r.at}</span><span>${r.txt}</span></div>`).join('');
   // postCheck TERRAFORM_LOG (only TERRAFORM_JOB, only on DONE)
   const postCheck = (kind === 'TERRAFORM_JOB' && t.state === 'DONE') ? `
     <div class="adm-insp-sec">
@@ -12610,6 +12694,7 @@ Outputs: subnet_id = "subnet-0a91…"</div>
         ${admIsSlotWait(t) ? '<span class="is-statepill waiting" style="margin-left:6px;">slot 큐 대기</span>' : ''}
         ${failed && errCode ? `<div style="margin-top:9px;"><span class="is-chip"><span class="chip-x">⚠</span>${errCode} · ${errCopy[errCode]}</span></div>` : ''}
       </div>
+      ${(t.exp && t.state !== 'DONE' && !failed) ? `<div class="adm-insp-sec"><div class="is-label">진행 (정상 기준 대비)</div><div class="is-prog${t.delay ? ' delay' : ''}"><span class="ip-cur">현재 ${t.cur || '—'}</span><span class="ip-base">/ ${t.exp}</span><span class="ip-tag">${t.delay ? '지연 ⚠' : '정상'}</span></div><div style="margin-top:5px; font-size:11px; color:${t.delay ? '#C2410C' : 'var(--toss-weak-text)'};">${t.delay ? '기준을 넘겼어요 — 정상 폴링 중이라도 worker 확인을 권장해요.' : 'Terraform 작업은 30분+ 걸릴 수 있어요. 기준 이내라 정상이에요.'}</div></div>` : ''}
       <div class="adm-insp-sec">
         <div class="is-label">기본 정보</div>
         <div class="is-row"><span class="is-k">kind</span><span class="is-v">${kind}</span></div>
@@ -12621,7 +12706,7 @@ Outputs: subnet_id = "subnet-0a91…"</div>
       ${tl.length ? `<div class="adm-insp-sec"><div class="is-label">타임라인 · attempt + check 머지 (O20)</div><div class="is-timeline">${tl.join('')}</div></div>` : ''}
       <div class="adm-insp-sec">
         <div class="is-label">check 요약 (집계)</div>
-        <div class="is-agg">확인 <b>${aggN}회</b> · 마지막 <b>14:31:40</b> · observed <b>${t.state === 'DONE' ? 'MET / SUCCEEDED' : kind === 'CONDITION_CHECK' ? 'NOT_MET' : 'RUNNING'}</b><br><span class="agg-toggle" onclick="event.stopPropagation();alert('개별 폴링 ${aggN}건 펼치기 — notable(ERROR/PENDING/전이)만 기본 노출')">개별 폴링 펼치기 ▾</span></div>
+        <div class="is-agg">확인 <b>${aggN}회</b> · 마지막 <b>14:31:40</b> · observed <b>${t.state === 'DONE' ? 'MET / SUCCEEDED' : kind === 'CONDITION_CHECK' ? 'NOT_MET' : 'RUNNING'}</b><br><span class="agg-toggle" onclick="event.stopPropagation();var b=this.parentNode.querySelector('.is-polls');b.classList.toggle('hidden');this.textContent=b.classList.contains('hidden')?'개별 폴링 펼치기 ▾':'접기 ▴';">개별 폴링 펼치기 ▾</span><div class="is-polls hidden">${pollRows}</div></div>
       </div>
       ${postCheck}
     </div>
@@ -12738,15 +12823,34 @@ function admFocusSel(fid) {
   st.y = cv.clientHeight / 2 - nodeCy * st.z;
   admApplyFlow(fid, true);
 }
+// F4 재시도 = '다시 실행'(새 run) 확인 모달 + 실패 진단 · F7 계보(retryOf)
 function admRetryPipe(pi) {
   const p = ADM.pipelines[pi];
-  p.tasks.forEach(t => { if (t.state === 'FAILED' || t.state === 'EXPIRED') { t.state = t.kind === 'WAIT' ? 'WAITING' : 'RUNNING'; t.fail = 0; t.meta = '재시도 중'; } });
-  p.status = 'RUNNING';
-  admRenderAll();
+  const failTask = p.tasks.find(t => t.state === 'FAILED' || t.state === 'EXPIRED');
+  const ec = !failTask ? '—' : (failTask.state === 'EXPIRED' ? 'TTL_EXPIRED' : /504|timeout|타임/i.test(failTask.meta || '') ? 'EXECUTION_TIMEOUT' : 'IM_REJECTED');
+  const body = `<p style="margin:0 0 12px; color:var(--toss-medium-text); font-size:13.5px; line-height:1.6;">이 run은 되살릴 수 없어요. 같은 구성으로 <b>새 파이프라인 run</b>을 만들어요. 완료된 단계는 terraform 수렴으로 빠르게 통과해요.</p>${failTask ? `<div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:10px 12px; font-size:12.5px; color:#B91C1C; line-height:1.55;">실패 단계 <b>${failTask.name}</b> · errorCode <b>${ec}</b><br><span style="color:#9A3412;">원인을 확인·수정한 뒤 다시 실행하세요.</span></div>` : ''}`;
+  admAskConfirm('다시 실행 (새 run 생성)', body, '새 run 만들기', () => {
+    const np = JSON.parse(JSON.stringify(p));
+    np.id = 'PL-' + (admPipeSeq++); np.retryOf = p.id; np.status = 'RUNNING'; np.open = true; np.elapsed = '방금 시작';
+    np.tasks.forEach(t => { if (t.state === 'FAILED' || t.state === 'EXPIRED') { t.state = t.kind === 'WAIT' ? 'WAITING' : 'RUNNING'; t.fail = 0; t.meta = '재시도 중'; delete t.delay; } });
+    p.open = false; // 죽은 run은 terminal 그대로 — 새 run을 위에 쌓음
+    ADM.pipelines.unshift(np);
+    admRenderAll();
+  });
 }
+// F5 취소 = 죽이지 않고 전진만 멈춤(forward gate, in-flight drain) → CANCELLED 수렴
 function admCancelPipe(pi) {
-  ADM.pipelines[pi].status = 'CANCELLED';
+  const p = ADM.pipelines[pi];
+  if (!p || p.status === 'CANCELLED' || p.status === 'CANCELLING') return;
+  p.status = 'CANCELLING'; p.elapsed = '중단 중'; p.open = true;
   admRenderAll();
+  setTimeout(() => {
+    if (p.status === 'CANCELLING') {
+      p.status = 'CANCELLED'; p.elapsed = '중단됨';
+      p.tasks.forEach(t => { if (t.state !== 'DONE') t.state = 'CANCELLED'; });
+      admRenderAll();
+    }
+  }, 2600);
 }
 let admTaskCtx = null;
 function admOpenTask(pi, ti) {
