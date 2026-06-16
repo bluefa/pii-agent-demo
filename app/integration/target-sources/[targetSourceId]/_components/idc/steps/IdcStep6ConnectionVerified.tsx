@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { cn, textColors } from '@/lib/theme';
-import { Card } from '@/app/components/ui/Card';
+import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { StepBanner } from '@/app/components/ui/StepBanner';
+import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
+import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -12,6 +14,7 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
+import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
@@ -20,6 +23,23 @@ type ResourcesState =
   | { status: 'loading' }
   | { status: 'ready'; resources: IdcResourceView[] }
   | { status: 'error' };
+
+/** 연결 테스트 재실행 — intentionally a toast stub (mirrors cloud siblings). */
+const ConnectionVerifiedRetestButton = () => {
+  const toast = useToast();
+  return (
+    <div className="flex justify-end mt-4">
+      <button
+        type="button"
+        className={WARNING_OUTLINE_BUTTON_CLASS}
+        onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}
+      >
+        <ReloadIcon className="w-3.5 h-3.5" />
+        연결 테스트 재실행
+      </button>
+    </div>
+  );
+};
 
 /**
  * IDC Step 6 — 완료 여부 관리자 승인 대기 (read-only).
@@ -65,21 +85,40 @@ export const IdcStep6ConnectionVerified = ({
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
-      <Card title="완료 여부 관리자 승인 대기" padding="none">
-        {state.status === 'loading' && (
-          <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-            연동 대상을 불러오는 중...
+      <section className={cn(cardStyles.base, 'overflow-hidden')}>
+        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
+          <div>
+            <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
+            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+              PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
+            </p>
           </div>
-        )}
-        {state.status === 'error' && (
-          <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-            연동 대상을 불러오지 못했습니다.
-          </div>
-        )}
-        {state.status === 'ready' && (
-          <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />
-        )}
-      </Card>
+          <span className={cn(idcStyles.statusPill, statusColors.warning.bg, statusColors.warning.textDark)}>
+            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+            승인 대기
+          </span>
+        </header>
+        <div className="p-6">
+          <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
+            <strong className="font-semibold">최종 관리자 승인을 기다리고 있어요.</strong>{' '}
+            승인이 완료되면 모니터링이 즉시 시작됩니다.
+          </StepBanner>
+          {state.status === 'loading' && (
+            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+              연동 대상을 불러오는 중...
+            </div>
+          )}
+          {state.status === 'error' && (
+            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+              연동 대상을 불러오지 못했습니다.
+            </div>
+          )}
+          {state.status === 'ready' && (
+            <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />
+          )}
+          <ConnectionVerifiedRetestButton />
+        </div>
+      </section>
       <RejectionAlert project={project} />
     </>
   );

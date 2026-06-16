@@ -3,8 +3,17 @@
 import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { cn, textColors } from '@/lib/theme';
-import { Card } from '@/app/components/ui/Card';
+import {
+  cardStyles,
+  cn,
+  confirmModalStyles,
+  idcStyles,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
+import { ClockIcon, DeleteIcon } from '@/app/components/ui/icons';
+import { StepBanner } from '@/app/components/ui/StepBanner';
+import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -35,6 +44,7 @@ export const IdcStep2WaitingApproval = ({
   onProjectUpdate,
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
+  const toast = useToast();
 
   const [state, setState] = useState<ResourcesState>({ status: 'loading' });
 
@@ -67,21 +77,55 @@ export const IdcStep2WaitingApproval = ({
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
-      <Card title="연동 대상 승인 대기" padding="none">
-        {state.status === 'loading' && (
-          <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-            연동 대상을 불러오는 중...
+      <section className={cn(cardStyles.base, 'overflow-hidden')}>
+        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
+          <div>
+            <h2 className={cardStyles.cardTitle}>연동 대상 승인 대기</h2>
+            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+              요청하신 DB 목록을 관리자가 확인하고 있어요.
+            </p>
           </div>
-        )}
-        {state.status === 'error' && (
-          <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-            연동 대상을 불러오지 못했습니다.
+          <span
+            className={cn(
+              idcStyles.statusPill,
+              statusColors.warning.bg,
+              statusColors.warning.textDark,
+            )}
+          >
+            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+            승인 대기
+          </span>
+        </header>
+        <div className="p-6">
+          <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
+            <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>{' '}
+            평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다.
+          </StepBanner>
+          {state.status === 'loading' && (
+            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+              연동 대상을 불러오는 중...
+            </div>
+          )}
+          {state.status === 'error' && (
+            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+              연동 대상을 불러오지 못했습니다.
+            </div>
+          )}
+          {state.status === 'ready' && (
+            <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
+          )}
+          <div className="flex justify-end mt-4">
+            <button
+              type="button"
+              className={cn(confirmModalStyles.dangerOutlineButton, 'gap-1.5')}
+              onClick={() => toast.info('전체 요청 취소 기능 준비중입니다.')}
+            >
+              <DeleteIcon className="w-3.5 h-3.5" />
+              전체 요청 취소
+            </button>
           </div>
-        )}
-        {state.status === 'ready' && (
-          <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
-        )}
-      </Card>
+        </div>
+      </section>
       <RejectionAlert project={project} />
     </>
   );

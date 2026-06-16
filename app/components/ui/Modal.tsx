@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, ReactNode } from 'react';
-import { statusColors, cn } from '@/lib/theme';
+import { bgColors, borderColors, cn, interactiveColors, modalStyles, statusColors, textColors } from '@/lib/theme';
 
 export interface ModalProps {
   /** 모달 표시 여부 */
@@ -16,6 +16,14 @@ export interface ModalProps {
   icon?: ReactNode;
   /** 모달 크기 */
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  /**
+   * 모달 chrome. 'default'(기본)는 앱 공용 스타일 — AWS/Azure/GCP 등 기존 사용처와
+   * 동일하게 유지된다. 'toss'는 IDC 전용 프로토타입 스타일(radius 24 · 26px 타이틀 ·
+   * 흰색 footer)을 opt-in으로 적용한다.
+   */
+  chrome?: 'default' | 'toss';
+  /** 헤더 아이콘 원의 톤 (toss chrome에서 의미 있음). 'warn'은 amber 경고색. */
+  tone?: 'info' | 'warn';
   /** 모달 본문 */
   children: ReactNode;
   /** 푸터 영역 (버튼 등) */
@@ -60,6 +68,8 @@ export const Modal = ({
   subtitle,
   icon,
   size = 'md',
+  chrome = 'default',
+  tone = 'info',
   children,
   footer,
   closeOnBackdropClick = true,
@@ -100,36 +110,42 @@ export const Modal = ({
 
   if (!isOpen) return null;
 
+  const isToss = chrome === 'toss';
+  const containerCls = cn(
+    'bg-white shadow-xl w-full mx-4 overflow-hidden',
+    isToss ? modalStyles.toss.container : 'rounded-xl',
+    SIZE_CLASSES[size],
+  );
+  const headerCls = isToss
+    ? modalStyles.toss.header
+    : cn('flex items-center justify-between px-6 py-4 border-b', borderColors.light);
+  const iconCls = isToss
+    ? cn(modalStyles.toss.iconBase, tone === 'warn' ? modalStyles.toss.iconWarn : modalStyles.toss.iconInfo)
+    : cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', statusColors.info.bg);
+  const titleCls = isToss ? modalStyles.toss.title : cn('text-lg font-bold', textColors.primary);
+  const subtitleCls = isToss ? modalStyles.toss.subtitle : cn('text-sm', textColors.tertiary);
+  const bodyCls = isToss ? modalStyles.toss.body : 'p-6';
+  const footerCls = isToss
+    ? modalStyles.toss.footer
+    : cn('px-6 py-4 border-t flex justify-end gap-3', borderColors.light, bgColors.muted);
+
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={handleBackdropClick}
-    >
-      <div
-        className={cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden')}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-      >
+    <div ref={overlayRef} className={modalStyles.overlay} onClick={handleBackdropClick}>
+      <div className={containerCls} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            {icon && (
-              <div className={cn('w-10 h-10', statusColors.info.bg, 'rounded-lg flex items-center justify-center flex-shrink-0')}>
-                {icon}
-              </div>
-            )}
+        <div className={headerCls}>
+          <div className={cn('flex gap-3', isToss ? 'items-start' : 'items-center')}>
+            {icon && <div className={iconCls}>{icon}</div>}
             <div>
-              <h2 id="modal-title" className="text-lg font-bold text-gray-900">
+              <h2 id="modal-title" className={titleCls}>
                 {title}
               </h2>
-              {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+              {subtitle && <p className={subtitleCls}>{subtitle}</p>}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className={cn('p-2 rounded-lg transition-colors', interactiveColors.closeButton)}
             aria-label="닫기"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,14 +155,10 @@ export const Modal = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className={bodyCls}>{children}</div>
 
         {/* Footer */}
-        {footer && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-            {footer}
-          </div>
-        )}
+        {footer && <div className={footerCls}>{footer}</div>}
       </div>
     </div>
   );

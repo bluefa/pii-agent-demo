@@ -1,9 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button } from '@/app/components/ui/Button';
 import { Modal } from '@/app/components/ui/Modal';
-import { StepBanner } from '@/app/components/ui/StepBanner';
 import { CloseIcon, PlusIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import {
   IDC_DB_TYPES,
@@ -18,7 +16,7 @@ import {
   bgColors,
   borderColors,
   cn,
-  inputStyles,
+  idcStyles,
   primaryColors,
   statusColors,
   textColors,
@@ -72,11 +70,11 @@ const SectionLabel = ({ num, children }: { num: number; children: React.ReactNod
 );
 
 const FieldError = ({ children }: { children: React.ReactNode }) => (
-  <p className={cn('mt-1 text-[12px]', statusColors.error.text)}>{children}</p>
+  <p className={idcStyles.fieldError}>{children}</p>
 );
 
 const FieldWarn = ({ children }: { children: React.ReactNode }) => (
-  <p className={cn('mt-1 text-[12px]', statusColors.warning.textDark)}>{children}</p>
+  <p className={idcStyles.fieldWarn}>{children}</p>
 );
 
 /**
@@ -167,14 +165,15 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
       title={isEdit ? '연동 대상 수정' : '연동 대상 추가'}
       subtitle="PII 모니터링 모듈 연동이 필요한 IDC DB의 접속 정보를 입력해주세요."
       size="2xl"
+      chrome="toss"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
             취소
-          </Button>
-          <Button variant="primary" disabled={!valid} onClick={handleSubmit}>
+          </button>
+          <button type="button" className={idcStyles.modalBtn.primary} disabled={!valid} onClick={handleSubmit}>
             {isEdit ? '저장' : '추가'}
-          </Button>
+          </button>
         </>
       }
     >
@@ -231,19 +230,14 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                         value={ip}
                         placeholder="예: 10.20.30.40"
                         onChange={(e) => updateIp(index, e.target.value)}
-                        className={cn(inputStyles.base, 'py-2.5 text-[13.5px]')}
+                        className={idcStyles.input}
                       />
                       {index > 0 && (
                         <button
                           type="button"
                           aria-label="IP 삭제"
                           onClick={() => removeIp(index)}
-                          className={cn(
-                            'inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors',
-                            borderColors.default,
-                            textColors.quaternary,
-                            bgColors.mutedHover,
-                          )}
+                          className={idcStyles.removeIp}
                         >
                           <CloseIcon className="h-4 w-4" />
                         </button>
@@ -257,22 +251,20 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   onClick={addIp}
                   disabled={ipFull}
                   title={ipFull ? `IP는 최대 ${IDC_MAX_IPS}개까지 등록할 수 있어요` : undefined}
-                  className={cn(
-                    'mt-2 inline-flex items-center gap-1 rounded-lg border border-dashed px-3 py-1.5 text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                    borderColors.strong,
-                    textColors.tertiary,
-                    bgColors.mutedHover,
-                  )}
+                  className={idcStyles.addIp}
                 >
                   <PlusIcon className="h-3 w-3" />
                   IP 추가
                 </button>
 
                 {ips.length > 1 && (
-                  <StepBanner variant="warn" icon={<StatusWarningIcon className="h-4 w-4" />} className="mt-2.5 mb-0">
-                    여러 IP 등록은 멀티 노드 구성(예: Oracle RAC)에서만 권장돼요. 가능하면 <strong>단일 IP</strong>로
-                    등록해주세요.
-                  </StepBanner>
+                  <div className={cn(idcStyles.warnBanner, 'mt-2.5')}>
+                    <StatusWarningIcon className="mt-px h-4 w-4 flex-shrink-0" />
+                    <span>
+                      여러 IP 등록은 멀티 노드 구성(예: Oracle RAC)에서만 권장돼요. 가능하면 <strong>단일 IP</strong>로
+                      등록해주세요.
+                    </span>
+                  </div>
                 )}
                 {ipTrailingSpace && <FieldWarn>입력값 끝에 공백 문자가 포함되어 있어요. 공백을 제거해주세요.</FieldWarn>}
                 {showIpFormatErr && <FieldError>올바른 IPv4 형식으로 입력해주세요 (예: 10.20.30.40)</FieldError>}
@@ -286,16 +278,19 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   maxLength={IDC_DOMAIN_MAXLEN}
                   placeholder="예: db.svc-a.io"
                   onChange={(e) => setDomain(e.target.value)}
-                  className={cn(inputStyles.base, 'py-2.5 text-[13.5px]')}
+                  className={idcStyles.input}
                 />
                 {domainTrailingSpace && (
                   <FieldWarn>입력값 끝에 공백 문자가 포함되어 있어요. 공백을 제거해주세요.</FieldWarn>
                 )}
                 {showDomainErr && <FieldError>올바른 도메인 형식으로 입력해주세요 (예: db.svc-a.io)</FieldError>}
-                <StepBanner variant="warn" icon={<StatusWarningIcon className="h-4 w-4" />} className="mt-2.5 mb-0">
-                  Web Server가 아닌 <strong>DB에 대한 주소</strong>를 입력해야 해요. DB에 Domain을 연결하는 것은{' '}
-                  <strong>DB IP가 유동적으로 변경되는 경우에만</strong> 권장돼요.
-                </StepBanner>
+                <div className={cn(idcStyles.warnBanner, 'mt-2.5')}>
+                  <StatusWarningIcon className="mt-px h-4 w-4 flex-shrink-0" />
+                  <span>
+                    Web Server가 아닌 <strong>DB에 대한 주소</strong>를 입력해야 해요. DB에 Domain을 연결하는 것은{' '}
+                    <strong>DB IP가 유동적으로 변경되는 경우에만</strong> 권장돼요.
+                  </span>
+                </div>
               </div>
             )}
           </section>
@@ -309,7 +304,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   value={dbTypeLabel}
                   onChange={(e) => onDbTypeChange(e.target.value)}
                   aria-label="Database Type"
-                  className={cn(inputStyles.base, 'py-2.5 text-[13.5px]')}
+                  className={idcStyles.input}
                 >
                   <option value="">DB Type 선택…</option>
                   {dbTypeOptions.map((label) => (
@@ -332,7 +327,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                       setOracleSid(e.target.value);
                       setSidTouched(true);
                     }}
-                    className={cn(inputStyles.base, 'py-2.5 text-[13.5px]')}
+                    className={idcStyles.input}
                   />
                   {showSidErr && <FieldError>Oracle 선택 시 SID는 필수예요</FieldError>}
                 </div>
@@ -347,7 +342,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                   value={port}
                   placeholder="예: 3306"
                   onChange={(e) => setPort(e.target.value)}
-                  className={cn(inputStyles.base, 'py-2.5 text-[13.5px]')}
+                  className={idcStyles.input}
                 />
                 {showPortErr && <FieldError>1–65535 범위의 포트를 입력해주세요</FieldError>}
               </div>

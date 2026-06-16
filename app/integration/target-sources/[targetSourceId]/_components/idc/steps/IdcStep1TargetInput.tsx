@@ -10,8 +10,7 @@ import {
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
-import { bgColors, borderColors, cn, primaryColors, statusColors, textColors } from '@/lib/theme';
-import { Button } from '@/app/components/ui/Button';
+import { bgColors, borderColors, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -217,21 +216,21 @@ export const IdcStep1TargetInput = ({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2.5">
-            <Button variant="warnOutline" onClick={() => setLoadOpen(true)} className="inline-flex items-center gap-1.5 text-[13px]">
+            <button type="button" onClick={() => setLoadOpen(true)} className={idcStyles.triggerBtn.warnOutline}>
               <ReloadIcon className="h-3.5 w-3.5" />
               기존 연동 요청 정보 불러오기
-            </Button>
-            <Button
-              variant="soft"
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setEditId(null);
                 setFormOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 text-[13px]"
+              className={idcStyles.triggerBtn.soft}
             >
               <PlusIcon className="h-3.5 w-3.5" />
               연동 대상 추가
-            </Button>
+            </button>
           </div>
         </div>
 
@@ -283,13 +282,14 @@ export const IdcStep1TargetInput = ({
                     </>
                   )}
                 </span>
-                <Button
-                  variant="primary"
+                <button
+                  type="button"
                   disabled={liveCount === 0}
                   onClick={() => setSubmitOpen(true)}
+                  className={idcStyles.triggerBtn.primary}
                 >
                   연동 대상 승인 요청
-                </Button>
+                </button>
               </div>
             </>
           )}

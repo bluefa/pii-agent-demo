@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/app/components/ui/Button';
 import { Modal } from '@/app/components/ui/Modal';
 import { IDC_REASON_MAXLEN } from '@/lib/constants/idc';
-import { borderColors, cn, inputStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 
 interface IdcExclusionReasonModalProps {
   isOpen: boolean;
@@ -47,14 +46,15 @@ export const IdcExclusionReasonModal = ({
       title="제외 사유 직접 입력"
       subtitle="이 DB를 연동 대상에서 제외하는 이유를 입력해주세요. 관리자 승인 시 함께 전달돼요."
       size="lg"
+      chrome="toss"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
             취소
-          </Button>
-          <Button variant="primary" disabled={!canSave} onClick={() => onSave(trimmed)}>
+          </button>
+          <button type="button" className={idcStyles.modalBtn.primary} disabled={!canSave} onClick={() => onSave(trimmed)}>
             저장
-          </Button>
+          </button>
         </>
       }
     >
@@ -66,7 +66,7 @@ export const IdcExclusionReasonModal = ({
           rows={4}
           onChange={(e) => setText(e.target.value)}
           placeholder="예: Stg 환경 DB이며 운영 데이터가 아닌 익명화된 샘플 데이터만 보관하고 있어 제외합니다."
-          className={cn(inputStyles.base, 'resize-none border', borderColors.default, 'text-[13.5px] leading-[1.6]')}
+          className={idcStyles.textarea}
         />
         <div className={cn('text-right text-[11.5px]', textColors.quaternary)}>
           {text.length}/{IDC_REASON_MAXLEN}자

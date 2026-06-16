@@ -5,9 +5,8 @@ import { DeleteIcon, EditIcon } from '@/app/components/ui/icons';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
   bgColors,
-  borderColors,
   cn,
-  interactiveColors,
+  idcStyles,
   primaryColors,
   statusColors,
   tableStyles,
@@ -116,7 +115,7 @@ export const IdcTargetListTable = ({
                   <RowActionButton label="수정" onClick={() => onEdit(row.resourceId)}>
                     <EditIcon className="h-3.5 w-3.5" />
                   </RowActionButton>
-                  <RowActionButton label="삭제" onClick={() => onDelete(row.resourceId)}>
+                  <RowActionButton label="삭제" variant="delete" onClick={() => onDelete(row.resourceId)}>
                     <DeleteIcon className="h-3.5 w-3.5" />
                   </RowActionButton>
                 </span>
@@ -133,19 +132,16 @@ interface RowActionButtonProps {
   label: string;
   onClick: () => void;
   children: React.ReactNode;
+  variant?: 'edit' | 'delete';
 }
 
-const RowActionButton = ({ label, onClick, children }: RowActionButtonProps) => (
+const RowActionButton = ({ label, onClick, children, variant = 'edit' }: RowActionButtonProps) => (
   <button
     type="button"
     aria-label={label}
     title={label}
     onClick={onClick}
-    className={cn(
-      'inline-grid h-7 w-7 place-items-center rounded-md border transition-colors',
-      borderColors.default,
-      interactiveColors.closeButton,
-    )}
+    className={variant === 'delete' ? idcStyles.rowActionDelete : idcStyles.rowAction}
   >
     {children}
   </button>

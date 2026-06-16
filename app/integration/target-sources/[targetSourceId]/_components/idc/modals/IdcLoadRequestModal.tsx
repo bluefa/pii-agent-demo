@@ -1,17 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Button } from '@/app/components/ui/Button';
+import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
-import { getIdcPreviousRequest, type IdcResourceView } from '@/app/lib/api/idc';
-import { AppError } from '@/lib/errors';
+import { useIdcPreviousRequest } from '@/app/hooks/useIdcPreviousRequest';
+import { type IdcResourceView } from '@/app/lib/api/idc';
 import { IDC_LOAD_PER } from '@/lib/constants/idc';
 import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   numericFeatures,
   statusColors,
   tableStyles,
@@ -32,14 +32,14 @@ interface IdcLoadRequestModalProps {
   onClose: () => void;
 }
 
-type LoadState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; resources: IdcResourceView[] };
-
 /**
  * "기존 연동 요청 정보 불러오기" — warning header, paginated preview of the
- * previous request, empty state, confirm replaces the list (v15 idcLoadModal).
+ * previous request, skeleton while loading, empty state, confirm replaces the
+ * working list (v15 idcLoadModal).
+ *
+ * The fetch runs through `useIdcPreviousRequest` (AbortController + stale-id
+ * guard), so a slow/stray response from a previous open or a different target
+ * source can never overwrite the rows shown here.
  */
 export const IdcLoadRequestModal = ({
   isOpen,
@@ -47,27 +47,9 @@ export const IdcLoadRequestModal = ({
   onConfirm,
   onClose,
 }: IdcLoadRequestModalProps) => {
-  const [state, setState] = useState<LoadState>({ status: 'loading' });
+  const { resources, loading, error } = useIdcPreviousRequest(targetSourceId);
   const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const controller = new AbortController();
-
-    void getIdcPreviousRequest(targetSourceId, { signal: controller.signal })
-      .then((resources) => {
-        if (controller.signal.aborted) return;
-        setState({ status: 'ready', resources });
-      })
-      .catch((err: unknown) => {
-        if (err instanceof AppError && err.code === 'ABORTED') return;
-        setState({ status: 'error', message: '기존 연동 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.' });
-      });
-
-    return () => controller.abort();
-  }, [isOpen, targetSourceId]);
-
-  const resources = state.status === 'ready' ? state.resources : [];
   const hasRows = resources.length > 0;
   const totalPages = Math.max(1, Math.ceil(resources.length / IDC_LOAD_PER));
   const safePage = Math.min(page, totalPages - 1);
@@ -76,7 +58,7 @@ export const IdcLoadRequestModal = ({
   const excludedCount = resources.filter((r) => r.excluded).length;
   const liveCount = resources.length - excludedCount;
 
-  const canConfirm = state.status === 'ready' && hasRows;
+  const canConfirm = !loading && !error && hasRows;
 
   return (
     <Modal
@@ -86,35 +68,38 @@ export const IdcLoadRequestModal = ({
       subtitle="현재 입력한 정보는 모두 사라지고 아래 기존 연동 정보를 불러옵니다."
       icon={<StatusWarningIcon className="h-5 w-5" />}
       size="2xl"
+      chrome="toss"
+      tone="warn"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
             취소
-          </Button>
-          <Button
-            variant="primary"
+          </button>
+          <button
+            type="button"
+            className={idcStyles.modalBtn.primary}
             disabled={!canConfirm}
             onClick={() => canConfirm && onConfirm(resources)}
           >
             불러오기
-          </Button>
+          </button>
         </>
       }
     >
-      {state.status === 'loading' && (
-        <div className={cn('px-6 py-12 text-center text-sm', textColors.tertiary)}>
-          불러오는 중…
-        </div>
+      {loading && <LoadPreviewSkeleton />}
+
+      {!loading && error && (
+        <div className={cn('px-6 py-12 text-center text-sm', statusColors.error.text)}>{error}</div>
       )}
 
-      {state.status === 'error' && (
-        <div className={cn('px-6 py-12 text-center text-sm', statusColors.error.text)}>
-          {state.message}
-        </div>
-      )}
-
-      {state.status === 'ready' && !hasRows && (
-        <div className={cn('rounded-xl border border-dashed px-6 py-10 text-center text-[13px]', borderColors.default, textColors.tertiary)}>
+      {!loading && !error && !hasRows && (
+        <div
+          className={cn(
+            'rounded-xl border border-dashed px-6 py-10 text-center text-[13px]',
+            borderColors.default,
+            textColors.tertiary,
+          )}
+        >
           <strong className={cn('mb-1 block text-[14px]', textColors.secondary)}>
             불러올 기존 연동 정보가 없어요
           </strong>
@@ -122,7 +107,7 @@ export const IdcLoadRequestModal = ({
         </div>
       )}
 
-      {state.status === 'ready' && hasRows && (
+      {!loading && !error && hasRows && (
         <div className="space-y-3">
           <div className={cn('text-[12.5px]', textColors.tertiary)}>
             불러올 연동 대상 <strong className={textColors.secondary}>{resources.length}건</strong> · 연동{' '}
@@ -191,6 +176,26 @@ export const IdcLoadRequestModal = ({
     </Modal>
   );
 };
+
+/** Skeleton frame shown while the previous request loads — mirrors the preview table shape. */
+const LoadPreviewSkeleton = () => (
+  <div className="space-y-3" aria-busy="true" aria-live="polite">
+    <div className="h-3.5 w-64 animate-pulse rounded" style={{ backgroundColor: '#f3f4f6' }} />
+    <div className={cn('overflow-hidden rounded-xl border', borderColors.default)}>
+      {Array.from({ length: IDC_LOAD_PER }).map((_, i) => (
+        <div
+          key={i}
+          className={cn('flex items-center gap-3 px-4 py-3.5', i > 0 && cn('border-t', borderColors.light))}
+        >
+          <div className="h-5 w-16 animate-pulse rounded-md" style={{ backgroundColor: '#f3f4f6' }} />
+          <div className="h-4 flex-1 animate-pulse rounded" style={{ backgroundColor: '#f3f4f6' }} />
+          <div className="h-4 w-12 animate-pulse rounded" style={{ backgroundColor: '#f3f4f6' }} />
+          <div className="h-5 w-24 animate-pulse rounded-full" style={{ backgroundColor: '#f3f4f6' }} />
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 interface PageBtnProps {
   label: string;

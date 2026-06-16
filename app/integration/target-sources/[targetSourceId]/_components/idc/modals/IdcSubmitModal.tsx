@@ -1,11 +1,11 @@
 'use client';
 
-import { Button } from '@/app/components/ui/Button';
 import { Modal } from '@/app/components/ui/Modal';
 import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   numericFeatures,
   primaryColors,
   statusColors,
@@ -64,14 +64,15 @@ export const IdcSubmitModal = ({
     title="연동 대상을 승인 요청할까요?"
     subtitle="요청 후에는 관리자 검토가 시작되며, 변경이 필요하면 요청을 취소하고 다시 제출해야 해요."
     size="xl"
+    chrome="toss"
     footer={
       <>
-        <Button variant="secondary" onClick={onClose}>
+        <button type="button" className={idcStyles.modalBtn.outline} onClick={onClose}>
           머무르기
-        </Button>
-        <Button variant="primary" disabled={submitting} onClick={onSubmit}>
+        </button>
+        <button type="button" className={idcStyles.modalBtn.primary} disabled={submitting} onClick={onSubmit}>
           제출하기
-        </Button>
+        </button>
       </>
     }
   >

@@ -3,13 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { EditIcon } from '@/app/components/ui/icons';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
-import {
-  bgColors,
-  borderColors,
-  cn,
-  primaryColors,
-  textColors,
-} from '@/lib/theme';
+import { cn, idcStyles } from '@/lib/theme';
 
 interface IdcExclusionPopoverProps {
   /** Element the popover anchors to (the unchecked checkbox or reason chip). */
@@ -87,15 +81,9 @@ export const IdcExclusionPopover = ({
       role="menu"
       aria-label="제외 사유 선택"
       style={{ top: pos.top, left: pos.left }}
-      className={cn(
-        'fixed z-50 w-[200px] rounded-xl border p-1.5 shadow-xl',
-        borderColors.default,
-        bgColors.surface,
-      )}
+      className={idcStyles.popover.container}
     >
-      <div className={cn('px-2 py-1.5 text-[11px] font-semibold', textColors.tertiary)}>
-        제외 사유 선택
-      </div>
+      <div className={idcStyles.popover.title}>제외 사유 선택</div>
       {IDC_EXCL_PRESETS.map((reason) => {
         const active = !customActive && selectedPreset === reason;
         return (
@@ -104,12 +92,7 @@ export const IdcExclusionPopover = ({
             type="button"
             role="menuitem"
             onClick={() => onPickPreset(reason)}
-            className={cn(
-              'flex w-full items-center rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors',
-              active
-                ? cn(primaryColors.bgLight, primaryColors.text)
-                : cn(textColors.secondary, bgColors.mutedHover),
-            )}
+            className={cn(idcStyles.popover.opt, active && idcStyles.popover.optSelected)}
           >
             {reason}
           </button>
@@ -120,10 +103,9 @@ export const IdcExclusionPopover = ({
         role="menuitem"
         onClick={onPickCustom}
         className={cn(
-          'mt-0.5 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors',
-          customActive
-            ? cn(primaryColors.bgLight, primaryColors.text)
-            : cn(textColors.secondary, bgColors.mutedHover),
+          idcStyles.popover.opt,
+          idcStyles.popover.custom,
+          customActive && idcStyles.popover.optSelected,
         )}
       >
         <EditIcon className="h-3 w-3" />

@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { cn, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { Button } from '@/app/components/ui/Button';
-import { Card } from '@/app/components/ui/Card';
 import { StepBanner } from '@/app/components/ui/StepBanner';
+import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -25,6 +25,22 @@ type ResourcesState =
 
 /** v15 runIdcConnTest: cells show "Testing…" then settle to Success after ~1.8s. */
 const TEST_DURATION_MS = 1800;
+
+/** Approval-request CTA — intentionally a toast stub (mirrors cloud siblings). */
+const ApproveRequestButton = () => {
+  const toast = useToast();
+  return (
+    <div className="flex justify-end mt-4">
+      <button
+        type="button"
+        className={idcStyles.triggerBtn.primary}
+        onClick={() => toast.info('완료 승인 요청 기능 준비중입니다.')}
+      >
+        완료 승인 요청
+      </button>
+    </div>
+  );
+};
 
 /**
  * IDC Step 5 — 연결 테스트.
@@ -109,15 +125,18 @@ export const IdcStep5ConnectionTest = ({
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
-      <Card
-        title="연결 테스트"
-        padding="none"
-        headerAction={
+      <section className={cn(cardStyles.base, 'overflow-hidden')}>
+        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
+          <div>
+            <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
+            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+              DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
+            </p>
+          </div>
           <Button onClick={runTest} disabled={!ready || testing}>
             {testing ? '연결 테스트 진행 중...' : 'Run Test'}
           </Button>
-        }
-      >
+        </header>
         <div className="p-6 space-y-4">
           {testing && (
             <StepBanner variant="info">
@@ -135,9 +154,17 @@ export const IdcStep5ConnectionTest = ({
               연동 대상을 불러오지 못했습니다.
             </div>
           )}
-          {ready && <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />}
+          {ready && (
+            <>
+              <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />
+              <p className={cn('text-[12px]', textColors.tertiary)}>
+                ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.
+              </p>
+              <ApproveRequestButton />
+            </>
+          )}
         </div>
-      </Card>
+      </section>
       <RejectionAlert project={project} />
     </>
   );

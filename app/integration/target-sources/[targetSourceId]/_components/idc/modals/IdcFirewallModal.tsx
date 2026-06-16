@@ -1,8 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { Button } from '@/app/components/ui/Button';
-import { cn, tableStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcEndpointCell,
@@ -35,7 +34,8 @@ export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModa
       title="방화벽 확인"
       subtitle="Source IP → 연동 대상 방화벽 오픈 여부를 확인합니다."
       size="2xl"
-      footer={<Button onClick={onClose}>확인</Button>}
+      chrome="toss"
+      footer={<button type="button" className={idcStyles.modalBtn.primary} onClick={onClose}>확인</button>}
     >
       {rows.length === 0 ? (
         <div className={cn('px-2 py-8 text-center text-sm', textColors.tertiary)}>

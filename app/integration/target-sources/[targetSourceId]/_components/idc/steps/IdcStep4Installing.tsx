@@ -130,7 +130,7 @@ export const IdcStep4Installing = ({
             <p className={cn('text-[12px]', textColors.tertiary)}>{error}</p>
           ) : null}
 
-          <InstallTaskPipeline items={tasks} />
+          <InstallTaskPipeline items={tasks} columns={2} />
         </div>
 
         <div className={cn('border-t', borderColors.default)}>

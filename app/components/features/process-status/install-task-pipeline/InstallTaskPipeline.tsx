@@ -15,15 +15,18 @@ export interface InstallTaskPipelineItem {
 
 interface InstallTaskPipelineProps {
   items: InstallTaskPipelineItem[];
+  /** Grid column count. Default 3 (cloud providers). IDC passes 2 for its 2-task pipeline (v15 `cols-2`). */
+  columns?: 2 | 3;
 }
 
-export const InstallTaskPipeline = ({ items }: InstallTaskPipelineProps) => {
+export const InstallTaskPipeline = ({ items, columns = 3 }: InstallTaskPipelineProps) => {
   if (items.length === 0) return null;
 
   const lastIndex = items.length - 1;
+  const gridCls = columns === 2 ? 'grid grid-cols-2 gap-0' : 'grid grid-cols-3 gap-0';
 
   return (
-    <div className="grid grid-cols-3 gap-0">
+    <div className={gridCls}>
       {items.map((item, idx) => (
         <InstallTaskCard
           key={item.key}
