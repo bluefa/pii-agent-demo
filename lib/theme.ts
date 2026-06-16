@@ -483,7 +483,6 @@ export const idcStyles = {
     green: 'bg-[#E5F8EE] text-[#197A3F]',
     red: 'bg-[#FEECEC] text-[#B42318]',
     orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
-    gray: 'bg-[#F7F8FA] text-[#4E5968]',
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
   status: {
@@ -491,7 +490,6 @@ export const idcStyles = {
     dot: 'w-2 h-2 rounded-full',
     healthy: { text: 'text-[#2A7D52]', dot: 'bg-[#45CB85]' },
     unhealthy: { text: 'text-[#991B1B]', dot: 'bg-[#991B1B]' },
-    pending: { text: 'text-[#7A3F0E]', dot: 'bg-[#F97316]' },
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
