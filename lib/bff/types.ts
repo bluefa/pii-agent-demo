@@ -99,6 +99,12 @@ import type {
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
 import type { GuideGetResponse, GuidePutResult } from '@/lib/bff/types/guides';
+import type {
+  IdcConfirmFirewallResponse,
+  IdcInstallationStatus,
+  IdcResourcesResponse,
+  IdcSourceIpRecommendation,
+} from '@/lib/bff/types/idc';
 
 export interface BffClient {
   targetSources: {
@@ -203,6 +209,16 @@ export interface BffClient {
     getScanServiceAccount: (id: number) => Promise<GcpScanServiceAccountResponse>;
     getTerraformServiceAccount: (id: number) => Promise<GcpTerraformServiceAccountResponse>;
   };
+
+  idc: {
+    getInstallationStatus: (id: number) => Promise<IdcInstallationStatus>;
+    checkInstallation: (id: number) => Promise<IdcInstallationStatus>;
+    confirmFirewall: (id: number) => Promise<IdcConfirmFirewallResponse>;
+    getResources: (id: number) => Promise<IdcResourcesResponse>;
+    updateResources: (id: number, body: unknown) => Promise<IdcResourcesResponse>;
+    getSourceIpRecommendation: (ipType: string) => Promise<IdcSourceIpRecommendation>;
+  };
+
   confirm: {
     getResources: (id: number) => Promise<ResourceCatalogResponse>;
     createApprovalRequest: (id: number, body: ApprovalRequestCreateBody) => Promise<unknown>;

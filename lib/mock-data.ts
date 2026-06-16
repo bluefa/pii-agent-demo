@@ -800,6 +800,41 @@ export const mockProjects: Project[] = [
     isRejected: false,
   },
 ];
+
+// ===== IDC 데모 프로젝트 (Step 1~7) =====
+// IDC 리소스 데이터는 lib/mock-idc.ts 의 idcStore 가 보유한다. 프로젝트의
+// resources 는 비워 두고 processStatus 만 단계별로 시드해 각 화면을 데모한다.
+const makeIdcProject = (
+  targetSourceId: number,
+  step: ProcessStatus,
+  name: string,
+): Project => ({
+  id: `idc-proj-${targetSourceId}`,
+  targetSourceId,
+  projectCode: `IDC-${String(targetSourceId).slice(-3)}`,
+  name,
+  description: 'IDC 온프레미스 DB에 PII Agent 연동',
+  serviceCode: 'SERVICE-A',
+  cloudProvider: 'IDC',
+  processStatus: step,
+  status: createStatusForProcessStatus(step, { selectedCount: 2, excludedCount: 1 }),
+  resources: [],
+  terraformState: { bdcTf: step >= ProcessStatus.INSTALLING ? 'COMPLETED' : 'PENDING' },
+  createdAt: '2026-03-01T09:00:00Z',
+  updatedAt: '2026-03-01T09:00:00Z',
+  isRejected: false,
+});
+
+mockProjects.push(
+  makeIdcProject(1020, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력'),
+  makeIdcProject(1021, ProcessStatus.WAITING_APPROVAL, 'IDC PII Agent - 승인 대기'),
+  makeIdcProject(1022, ProcessStatus.APPLYING_APPROVED, 'IDC PII Agent - 반영 중'),
+  makeIdcProject(1023, ProcessStatus.INSTALLING, 'IDC PII Agent - 설치 진행'),
+  makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트'),
+  makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인'),
+  makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료'),
+);
+
 // ===== Helper Functions =====
 
 export const getProjectsByServiceCode = (serviceCode: string): Project[] => {
