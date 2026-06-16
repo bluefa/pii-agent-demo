@@ -5634,6 +5634,11 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pd-wrap .pr-foot .leg { display:flex; gap:16px; align-items:center; }
 .pd-wrap .pr-foot .leg span { display:inline-flex; align-items:center; gap:5px; }
 .pd-wrap .pr-foot .leg i { width:7px; height:7px; border-radius:50%; }
+/* more table-like: column dividers + tighter rhythm (less 'cards in a panel') */
+.pd-wrap .pr-table thead th { border-right:1px solid #eef0f7; }
+.pd-wrap .pr-table thead th:last-child { border-right:none; }
+.pd-wrap .pr-table tbody td { border-right:1px solid #f3f4f9; height:58px; }
+.pd-wrap .pr-table tbody td:last-child { border-right:none; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -12885,6 +12890,7 @@ function admPdmTaskHtml(t, i) {
 }
 function admOpenPipeModal(pi) {
   const p = ADM.pipelines[pi]; if (!p) return;
+  if (ADM._flow && ADM._flow['flow' + pi]) ADM._flow['flow' + pi].sel = null;
   const sk = admPipeStatusKey(p), prov = admPipeProv(p);
   const provAbbr = { AWS: 'AW', GCP: 'GC', Azure: 'AZ', IDC: 'DC', SDU: 'SD' }[prov] || prov.slice(0, 2).toUpperCase();
   const provBg = { AWS: '#ec7211', GCP: '#1a73e8', Azure: '#0078d4', IDC: '#475569', SDU: '#7c3aed' }[prov] || '#475569';
@@ -12904,7 +12910,7 @@ function admOpenPipeModal(pi) {
       <h3><span class="chip" style="background:${provBg}">${provAbbr}</span>${prov} ${p.type} 파이프라인</h3>
       <div class="pdm-meta"><span>시작 <b>${admWhenShort(p.startedAt)}</b></span><span>경과 <b>${p.elapsed}</b></span><span>진행 <b>${done}/${p.tasks.length}</b></span></div>
       </div><div class="pdm-actions">${actions}</div></div></div>
-    <div class="pdm-body">${banner}<div class="pdm-flowtitle">워크플로 캔버스 <span class="c">${p.tasks.length}단계</span></div><div style="margin:0 -4px;">${admTaskPanel(p, pi)}</div></div>
+    <div class="pdm-body">${banner}<div class="pdm-flowtitle">Workflow Canvas <span class="c">${p.tasks.length} steps</span></div><div style="margin:0 -4px;">${admTaskPanel(p, pi)}</div></div>
     <div class="pdm-foot"><div class="hint">ⓘ ${canRetry ? '재시도는 새 run을 생성하며 현재 run은 보존돼요.' : '노드를 클릭하면 Task 상세가 보여요.'}</div><div class="links"><button class="pdm-ghost">≡ 실행 로그</button><button class="pdm-ghost">⎘ 실행 정의</button></div></div>
   </div>`;
   const ov = document.getElementById('pdmOverlay'); if (!ov) return;
@@ -13083,14 +13089,14 @@ function admTaskPanel(p, pi) {
   const nextCheck = waitT ? `<span class="adm-next-check"><span class="nc-dot"></span>다음 확인 14:32 · 약 ${waitT.poll}분 후</span>` : '';
   return `<div class="adm-flow-wrap" onclick="event.stopPropagation()" data-fid="${fid}">
     <div class="adm-flow-bar">
-      <span class="fb-title">파이프라인 워크플로 · ${p.id}</span>
+      <span class="fb-title">Pipeline Workflow · ${p.id}</span>
       <span class="fb-spacer"></span>
       ${nextCheck}
       <span class="adm-slot-gauge${slotWarn}" title="동시 Terraform slot 사용량 (GET /admin/pipelines/concurrency)">
         slot <span class="sg-track"><span class="sg-fill" style="width:${slotPct}%"></span></span> ${slotsInUse}/${slotCap}
       </span>${cancelling ? '<span class="adm-slot-held">slot 점유 중 (drain)</span>' : ''}
     </div>
-    <div class="adm-canvas" id="${fid}" style="cursor:default;">
+    <div class="adm-canvas" id="${fid}" onmousedown="admPanStart(event,'${fid}')">
       <div class="adm-canvas-layer" id="${fid}_layer" style="width:${layW}px;height:${layH}px;">
         <svg class="adm-edges" width="${layW}" height="${layH}">${edges.join('')}</svg>
         ${nodes.join('')}
@@ -13179,7 +13185,6 @@ Outputs: subnet_id = "subnet-0a91…"</div>
       </div>
       ${postCheck}
     </div>
-    <div class="adm-insp-foot">${ctrl}</div>
   </div>`;
 }
 
@@ -13276,10 +13281,19 @@ function admPanStart(e, fid) {
 function admSelNode(pIdx, ti) {
   const fid = 'flow' + pIdx, st = admFlowState(fid, pIdx);
   st.sel = (st.sel === ti) ? null : ti;
-  // refresh whichever view currently hosts this canvas (board or install tab)
+  // if the canvas lives inside the detail modal, re-render only that canvas
+  const ov = document.getElementById('pdmOverlay');
+  if (ov && ov.classList.contains('open')) {
+    const wrap = ov.querySelector('.adm-flow-wrap');
+    if (wrap && wrap.parentElement) {
+      wrap.parentElement.innerHTML = admTaskPanel(ADM.pipelines[pIdx], pIdx);
+      requestAnimationFrame(() => { admInitAllFlows(); admFocusSel(fid); });
+      return;
+    }
+  }
+  // otherwise refresh the board/install canvas
   if (ADM.curTs) admRenderTsDetail();
   admRenderPipelines();
-  // gently bring the selected node into the visible area beside the inspector
   requestAnimationFrame(() => admFocusSel(fid));
 }
 function admFocusSel(fid) {
