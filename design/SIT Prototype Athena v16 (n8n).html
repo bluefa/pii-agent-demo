@@ -5111,13 +5111,14 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 @keyframes admBlink { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
 /* canvas viewport (pan/zoom) */
 .adm-canvas {
-  position: relative; height: 320px; overflow: hidden; cursor: grab;
+  position: relative; height: 452px; overflow: hidden; cursor: grab;
   background-color: #FAFBFD;
   background-image: radial-gradient(circle, #DCE2EC 1px, transparent 1px);
-  background-size: 16px 16px;
+  background-size: 18px 18px;
 }
 .adm-canvas.panning { cursor: grabbing; }
 .adm-canvas-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+.adm-canvas-layer.smooth { transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1); }
 .adm-edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
 .adm-edge { fill: none; stroke: #CBD5E1; stroke-width: 2; }
 .adm-edge.done { stroke: #34D399; }
@@ -12657,9 +12658,10 @@ function admFlowState(fid, pIdx) {
   if (!ADM._flow[fid]) ADM._flow[fid] = { x: 0, y: 0, z: 1, sel: null, pIdx };
   return ADM._flow[fid];
 }
-function admApplyFlow(fid) {
+function admApplyFlow(fid, smooth) {
   const st = ADM._flow[fid], layer = document.getElementById(fid + '_layer');
   if (!layer) return;
+  layer.classList.toggle('smooth', !!smooth);
   layer.style.transform = `translate(${st.x}px,${st.y}px) scale(${st.z})`;
   const zl = document.getElementById(fid + '_zl');
   if (zl) zl.textContent = Math.round(st.z * 100) + '%';
@@ -12681,21 +12683,31 @@ function admInitAllFlows() {
 function admFit(fid) {
   const cv = document.getElementById(fid), layer = document.getElementById(fid + '_layer'), st = ADM._flow[fid];
   if (!cv || !layer) return;
-  const cw = cv.clientWidth - 16, ch = cv.clientHeight - 16;
+  const inspW = (st.sel != null) ? 352 : 0; // keep nodes clear of the open inspector drawer
+  const cw = cv.clientWidth - 32 - inspW, ch = cv.clientHeight - 32;
   const lw = layer.offsetWidth, lh = layer.offsetHeight;
-  if (!cw || !ch || !lw || !lh) { admApplyFlow(fid); return; } // not laid out yet — keep current transform
+  if (cw <= 0 || ch <= 0 || !lw || !lh) { admApplyFlow(fid, true); return; } // not laid out yet — keep current transform
   let z = Math.min(1.1, cw / lw, ch / lh);
   if (!isFinite(z) || z <= 0) z = 1;
-  st.z = z; st.x = Math.max(8, (cv.clientWidth - lw * z) / 2); st.y = Math.max(8, (cv.clientHeight - lh * z) / 2);
-  admApplyFlow(fid);
+  st.z = z; st.x = Math.max(16, (cv.clientWidth - inspW - lw * z) / 2); st.y = Math.max(16, (cv.clientHeight - lh * z) / 2);
+  admApplyFlow(fid, true);
 }
 function admZoom(fid, d) {
-  const st = ADM._flow[fid]; if (!st) return;
-  st.z = Math.max(0.4, Math.min(2, st.z + d)); admApplyFlow(fid);
+  const st = ADM._flow[fid], cv = document.getElementById(fid); if (!st || !cv) return;
+  // zoom toward the visible-area center, eased
+  const inspW = (st.sel != null) ? 352 : 0;
+  const px = (cv.clientWidth - inspW) / 2, py = cv.clientHeight / 2;
+  const nz = Math.max(0.4, Math.min(2, st.z + d)), k = nz / st.z;
+  st.x = px - (px - st.x) * k; st.y = py - (py - st.y) * k; st.z = nz;
+  admApplyFlow(fid, true);
 }
 function admWheel(e, fid) {
-  e.preventDefault(); const st = ADM._flow[fid]; if (!st) return;
-  st.z = Math.max(0.4, Math.min(2, st.z - e.deltaY * 0.0015)); admApplyFlow(fid);
+  e.preventDefault(); const st = ADM._flow[fid], cv = document.getElementById(fid); if (!st || !cv) return;
+  // zoom toward the cursor (natural), immediate (no easing while scrolling)
+  const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  const nz = Math.max(0.4, Math.min(2, st.z - e.deltaY * 0.0015)), k = nz / st.z;
+  st.x = px - (px - st.x) * k; st.y = py - (py - st.y) * k; st.z = nz;
+  admApplyFlow(fid);
 }
 function admPanStart(e, fid) {
   if (e.target.closest('.adm-node') || e.target.closest('.adm-flow-tools') || e.target.closest('.adm-inspector') || e.target.closest('.adm-minimap')) return;
@@ -12712,6 +12724,19 @@ function admSelNode(pIdx, ti) {
   // refresh whichever view currently hosts this canvas (board or install tab)
   if (ADM.curTs) admRenderTsDetail();
   admRenderPipelines();
+  // gently bring the selected node into the visible area beside the inspector
+  requestAnimationFrame(() => admFocusSel(fid));
+}
+function admFocusSel(fid) {
+  const st = ADM._flow[fid], cv = document.getElementById(fid);
+  if (!st || !cv) return;
+  if (st.sel == null) { admFit(fid); return; }
+  const inspW = 352, visW = cv.clientWidth - inspW;
+  const nodeCx = ADM_PAD + st.sel * (ADM_NODE_W + ADM_GAP_X) + ADM_NODE_W / 2;
+  const nodeCy = ADM_ROW_Y + ADM_NODE_H / 2;
+  st.x = visW / 2 - nodeCx * st.z;
+  st.y = cv.clientHeight / 2 - nodeCy * st.z;
+  admApplyFlow(fid, true);
 }
 function admRetryPipe(pi) {
   const p = ADM.pipelines[pi];
