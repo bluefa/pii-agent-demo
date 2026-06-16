@@ -5462,7 +5462,7 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 /* ============ Pipeline Detail MODAL (tournament winner a1 — navy/indigo, top cancel/retry) ============ */
 .pdm-overlay { position:fixed; inset:0; background:rgba(11,14,33,.55); backdrop-filter:blur(3px); display:grid; place-items:center; z-index:1000; padding:40px; opacity:0; pointer-events:none; transition:opacity .2s; }
 .pdm-overlay.open { opacity:1; pointer-events:auto; }
-.pdm-modal { width:min(820px,96vw); max-height:90vh; background:#fff; border-radius:20px; box-shadow:0 30px 80px rgba(8,11,30,.45), 0 8px 24px rgba(8,11,30,.3); overflow:hidden; display:flex; flex-direction:column; border:1px solid rgba(255,255,255,.6); transform:translateY(8px) scale(.99); transition:transform .22s cubic-bezier(.22,1,.36,1); }
+.pdm-modal { width:min(1060px,96vw); max-height:90vh; background:#fff; border-radius:20px; box-shadow:0 30px 80px rgba(8,11,30,.45), 0 8px 24px rgba(8,11,30,.3); overflow:hidden; display:flex; flex-direction:column; border:1px solid rgba(255,255,255,.6); transform:translateY(8px) scale(.99); transition:transform .22s cubic-bezier(.22,1,.36,1); }
 .pdm-overlay.open .pdm-modal { transform:none; }
 .pdm-head { padding:20px 24px 18px; background:radial-gradient(420px 200px at 100% -40%, rgba(99,102,241,.16), transparent 70%), linear-gradient(180deg,#fbfbff,#fff); border-bottom:1px solid #eef0f7; }
 .pdm-head .top { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; }
@@ -5531,22 +5531,44 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pdm-foot .links { display:flex; gap:8px; }
 .pdm-ghost { font-family:inherit; font-size:12.5px; font-weight:600; color:#383e5c; background:#fff; border:1px solid #e7e9f3; border-radius:10px; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
 .pdm-ghost:hover { background:#f4f5fb; }
-/* install-mgmt: DAG preview + run history */
-.dag-row { display:flex; align-items:center; gap:12px; padding:7px 0; flex-wrap:wrap; }
-.dag-label { font-size:11px; font-weight:800; padding:3px 10px; border-radius:7px; flex:0 0 auto; }
-.dag-label.install { background:#eef0ff; color:#4338ca; }
-.dag-label.delete { background:#f3effb; color:#7c3aed; }
-.dag-chain { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.dag-node { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:#383e5c; background:#fff; border:1px solid #e7e9f3; border-radius:9px; padding:6px 10px; box-shadow:0 1px 2px rgba(16,20,43,.05); }
-.dag-node em { font-style:normal; font-size:9px; font-weight:800; color:#8b91ad; background:#eef0f8; padding:1px 5px; border-radius:4px; }
-.dag-arrow { color:#c4cbd4; font-weight:700; }
-.hist-row { display:flex; align-items:center; gap:14px; padding:12px 20px; border-top:1px solid #eef0f7; cursor:pointer; transition:background .12s; }
-.hist-row:hover { background:#f7f8ff; }
-.hist-id { font-weight:700; color:#10142b; font-variant-numeric:tabular-nums; width:62px; flex:0 0 auto; }
-.hist-type { font-size:12px; color:#6a7090; }
-.hist-when { margin-left:auto; font-size:12px; color:#6a7090; font-variant-numeric:tabular-nums; }
-.hist-el { font-size:12px; font-weight:600; color:#383e5c; width:58px; text-align:right; flex:0 0 auto; }
-.hist-arrow { color:#c4cbd4; font-size:16px; flex:0 0 auto; }
+/* install-mgmt: DAG section label + rich history rows */
+.dag-sec { display:flex; align-items:center; gap:8px; margin-bottom:2px; }
+.dag-tag { font-size:11px; font-weight:800; padding:3px 10px; border-radius:7px; }
+.dag-tag.install { background:#eef0ff; color:#4338ca; } .dag-tag.delete { background:#f3effb; color:#7c3aed; }
+.dag-cnt { font-size:11px; font-weight:600; color:#8b95a1; }
+.histx { display:flex; align-items:center; gap:14px; padding:13px 18px; border-top:1px solid #eef0f7; cursor:pointer; position:relative; transition:background .12s; }
+.histx:first-child { border-top:0; }
+.histx:hover { background:#f7f8ff; }
+.histx::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; }
+.histx.h-fail::before { background:#dc2626; } .histx.h-warn::before { background:#f59e0b; }
+.hx-node { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:#fff; font-size:14px; font-weight:800; flex:0 0 auto; box-shadow:0 3px 8px rgba(16,20,43,.14); }
+.hx-node.done { background:linear-gradient(135deg,#22c55e,#16a34a); } .hx-node.fail { background:linear-gradient(135deg,#ef4444,#dc2626); } .hx-node.wait { background:linear-gradient(135deg,#f59e0b,#d97706); } .hx-node.run { background:linear-gradient(135deg,#6366f1,#4338ca); } .hx-node.cancel { background:#94a3b8; }
+.hx-main { flex:1; min-width:0; }
+.hx-top { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.hx-id { font-size:13.5px; font-weight:700; color:#10142b; font-variant-numeric:tabular-nums; }
+.hx-prov { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:#6a7090; font-weight:600; }
+.hx-pchip { width:18px; height:18px; border-radius:5px; display:grid; place-items:center; font-size:8px; font-weight:800; color:#fff; }
+.hx-sub { display:flex; align-items:center; gap:10px; font-size:11.5px; color:#8b91ad; margin-top:5px; }
+.hx-prog { display:inline-flex; align-items:center; gap:7px; font-weight:600; color:#6a7090; }
+.hx-bar { width:80px; height:5px; border-radius:5px; background:#eef0f8; overflow:hidden; }
+.hx-bar i { display:block; height:100%; border-radius:5px; }
+.hx-bar.done i { background:#16a34a; } .hx-bar.fail i { background:#dc2626; } .hx-bar.wait i { background:#d97706; } .hx-bar.run i { background:#4f46e5; } .hx-bar.cancel i { background:#94a3b8; }
+.hx-right { text-align:right; flex:0 0 auto; }
+.hx-when { font-size:12px; font-weight:600; color:#383e5c; font-variant-numeric:tabular-nums; }
+.hx-el { font-size:11px; color:#8b91ad; margin-top:2px; }
+.hx-arrow { color:#c4cbd4; font-size:18px; flex:0 0 auto; transition:transform .12s, color .12s; }
+.histx:hover .hx-arrow { color:#6366f1; transform:translateX(2px); }
+/* ===== richer run table (admin-dashboard rows: left accents, indigo hover) ===== */
+.pd-wrap thead th { background:#fbfbfe; color:#8b91ad; padding:12px 16px; border-bottom:1px solid #eef0f7; }
+.pd-wrap tbody td { padding:14px 16px; border-bottom:1px solid #eef0f7; }
+.pd-wrap tbody tr.pd-row { cursor:pointer; transition:background .12s; }
+.pd-wrap tbody tr.pd-row:hover { background:#f7f8ff; }
+.pd-wrap tbody tr.row-alert { background:linear-gradient(90deg, rgba(220,38,38,.05), transparent 52%); box-shadow:inset 3px 0 0 #dc2626; }
+.pd-wrap tbody tr.row-alert:hover { background:linear-gradient(90deg, rgba(220,38,38,.085), #f7f8ff 52%); }
+.pd-wrap tbody tr.row-warn { background:linear-gradient(90deg, rgba(245,158,11,.055), transparent 52%); box-shadow:inset 3px 0 0 #f59e0b; }
+.pd-wrap tbody tr.row-warn:hover { background:linear-gradient(90deg, rgba(245,158,11,.09), #f7f8ff 52%); }
+.pd-wrap tbody tr.pd-row td:last-child::after { content:'›'; color:#c4cbd4; font-size:17px; margin-left:10px; opacity:0; transition:opacity .12s, transform .12s; display:inline-block; transform:translateX(-3px); }
+.pd-wrap tbody tr.pd-row:hover td:last-child::after { opacity:1; transform:none; color:#6366f1; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -7773,26 +7795,15 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
           <div data-tstab-panel="install" class="hidden">
             <div class="card" style="margin-bottom:16px;">
               <div class="card-header">
-                <h2>설치 상태</h2>
+                <h2>수행할 Pipeline</h2>
                 <div style="display:flex; gap:8px;">
                   <button class="btn soft" id="admBtnInstall" onclick="admStartPipeline('설치')">설치 시작</button>
                   <button class="btn ghost danger-text" id="admBtnDelete" onclick="admStartPipeline('삭제')">삭제 시작</button>
                 </div>
               </div>
-              <div id="admInstallSummary"></div>
+              <div id="admDagPreview" style="padding:6px 18px 16px;"></div>
             </div>
             <div class="card">
-              <div class="card-header">
-                <h2>진행 중 Pipeline</h2>
-                <button class="btn ghost" onclick="adminShow('pipeline')">파이프라인 보드에서 보기 →</button>
-              </div>
-              <div id="admTsPipeline"></div>
-            </div>
-            <div class="card" style="margin-top:16px;">
-              <div class="card-header"><h2>수행할 Pipeline (DAG)</h2><span class="adm-muted">[설치 시작]/[삭제 시작] 시 아래 단계가 순차 실행돼요</span></div>
-              <div id="admDagPreview" style="padding:14px 20px 18px;"></div>
-            </div>
-            <div class="card" style="margin-top:16px;">
               <div class="card-header"><h2>Pipeline 동작 이력</h2><span class="adm-muted" id="admHistCount"></span></div>
               <div id="admPipeHistory"></div>
             </div>
@@ -12264,33 +12275,23 @@ function admRenderTsDetail() {
   admRenderWorkCard(t);
   admRenderConfig(t);
   admRenderData(t);
-  // install tab — n8n-style mini flow
-  document.getElementById('admInstallSummary').innerHTML =
-    `<div style="padding:16px 20px;">${admMiniFlow(t.install || [])}</div>`;
   const running = ADM.pipelines.find(p => p.tsId === ADM.curTs && (p.status === 'RUNNING' || p.status === 'FAILED'));
   const canPipe = stage >= 3 && !!t.confirmedSnap && !running;
-  document.getElementById('admBtnInstall').classList.toggle('is-disabled', !canPipe);
-  document.getElementById('admBtnDelete').classList.toggle('is-disabled', !canPipe);
-  document.getElementById('admTsPipeline').innerHTML = running
-    ? `<div style="padding:16px 20px;">${admTaskPanel(running)}</div>`
-    : `<div class="adm-empty">진행 중인 Pipeline이 없어요</div>`;
-  // DAG preview (수행할 파이프라인) — 설치/삭제 시 실행될 단계 미리보기
+  const bi = document.getElementById('admBtnInstall'), bd = document.getElementById('admBtnDelete');
+  if (bi) bi.classList.toggle('is-disabled', !canPipe);
+  if (bd) bd.classList.toggle('is-disabled', !canPipe);
+  // 수행할 Pipeline — 기존 워크플로 노드 플로우(admMiniFlow) 재활용한 DAG 미리보기
   const dagP = document.getElementById('admDagPreview');
   if (dagP) {
     const dag = ADM_DAGS[t.provider] || ADM_DAGS.AWS;
-    const chain = (label, seq, cls) => `<div class="dag-row"><span class="dag-label ${cls}">${label}</span><div class="dag-chain">${seq.map((d, i) => `<span class="dag-node">${i + 1}. ${d[0]} <em>${d[1] === 'WAIT' ? '대기' : '실행'}</em></span>${i < seq.length - 1 ? '<span class="dag-arrow">→</span>' : ''}`).join('')}</div></div>`;
-    dagP.innerHTML = chain('설치', dag['설치'], 'install') + chain('삭제', dag['삭제'], 'delete');
+    const mk = seq => admMiniFlow(seq.map(d => ({ k: d[0], meta: d[1] === 'WAIT' ? '외부 대기' : 'TF 실행' })), true);
+    dagP.innerHTML = `<div class="dag-sec"><span class="dag-tag install">설치</span><span class="dag-cnt">${dag['설치'].length}단계</span></div>${mk(dag['설치'])}<div class="dag-sec" style="margin-top:16px;"><span class="dag-tag delete">삭제</span><span class="dag-cnt">${dag['삭제'].length}단계</span></div>${mk(dag['삭제'])}`;
   }
-  // Pipeline 동작 이력 — 이 TargetSource의 과거 run
+  // Pipeline 동작 이력 — 이 TargetSource의 과거 run (rich rows)
   const hist = ADM.pipelines.map((p, idx) => ({ p, idx })).filter(x => x.p.tsId === ADM.curTs);
   const hc = document.getElementById('admHistCount'); if (hc) hc.textContent = '총 ' + hist.length + '건';
   const hp = document.getElementById('admPipeHistory');
-  if (hp) hp.innerHTML = hist.length ? hist.map(x => {
-    const p = x.p, sk = admPipeStatusKey(p);
-    const stLbl = { done: '완료', run: '진행', wait: '외부 대기', fail: '실패', cancel: p.status === 'CANCELLING' ? '중단 중' : '중단' }[sk];
-    const stCls = { done: 'done', run: 'run', wait: 'wait', fail: 'fail', cancel: 'queued' }[sk];
-    return `<div class="hist-row" onclick="admOpenPipeModal(${x.idx})"><span class="hist-id">${p.id}</span><span class="pdm-pill ${stCls}">${stLbl}</span><span class="hist-type">${p.type}</span><span class="hist-when">${admWhenShort(p.startedAt)}</span><span class="hist-el">${p.elapsed}</span><span class="hist-arrow">›</span></div>`;
-  }).join('') : '<div class="adm-empty">이력이 없어요</div>';
+  if (hp) hp.innerHTML = hist.length ? hist.map(x => admHistRow(x.p, x.idx)).join('') : '<div class="adm-empty">이력이 없어요</div>';
   admInitAllFlows();
 }
 
@@ -12821,13 +12822,36 @@ function admOpenPipeModal(pi) {
       <h3><span class="chip" style="background:${provBg}">${provAbbr}</span>${prov} ${p.type} 파이프라인</h3>
       <div class="pdm-meta"><span>시작 <b>${admWhenShort(p.startedAt)}</b></span><span>경과 <b>${p.elapsed}</b></span><span>진행 <b>${done}/${p.tasks.length}</b></span></div>
       </div><div class="pdm-actions">${actions}</div></div></div>
-    <div class="pdm-body">${banner}<div class="pdm-flowtitle">파이프라인 Task <span class="c">${p.tasks.length}단계</span></div><div class="pdm-flow">${tasks}</div></div>
-    <div class="pdm-foot"><div class="hint">ⓘ ${canRetry ? '재시도는 새 run을 생성하며 현재 run은 보존돼요.' : '바깥을 클릭하면 닫혀요.'}</div><div class="links"><button class="pdm-ghost">≡ 실행 로그</button><button class="pdm-ghost">⎘ 실행 정의</button><button class="pdm-ghost" onclick="admClosePipeModal();ADM.pipelines[${pi}].open=true;admRenderPipelines();setTimeout(()=>{var f=document.querySelector('.adm-flow-wrap');if(f)f.scrollIntoView({block:'center'});},60);">⬡ 워크플로 캔버스</button></div></div>
+    <div class="pdm-body">${banner}<div class="pdm-flowtitle">워크플로 캔버스 <span class="c">${p.tasks.length}단계</span></div><div style="margin:0 -4px;">${admTaskPanel(p, pi)}</div></div>
+    <div class="pdm-foot"><div class="hint">ⓘ ${canRetry ? '재시도는 새 run을 생성하며 현재 run은 보존돼요.' : '노드를 클릭하면 Task 상세가 보여요.'}</div><div class="links"><button class="pdm-ghost">≡ 실행 로그</button><button class="pdm-ghost">⎘ 실행 정의</button></div></div>
   </div>`;
   const ov = document.getElementById('pdmOverlay'); if (!ov) return;
   ov.innerHTML = html; ov.classList.add('open');
+  requestAnimationFrame(() => admInitAllFlows());
 }
 function admClosePipeModal() { const ov = document.getElementById('pdmOverlay'); if (ov) ov.classList.remove('open'); }
+// rich history row (admin-dashboard style)
+function admHistRow(p, idx) {
+  const sk = admPipeStatusKey(p), prov = admPipeProv(p);
+  const provAbbr = { AWS: 'AW', GCP: 'GC', Azure: 'AZ', IDC: 'DC', SDU: 'SD' }[prov] || prov.slice(0, 2).toUpperCase();
+  const provBg = { AWS: '#ec7211', GCP: '#1a73e8', Azure: '#0078d4', IDC: '#475569', SDU: '#7c3aed' }[prov] || '#475569';
+  const stLbl = { done: '완료', run: '진행', wait: '외부 대기', fail: '실패', cancel: p.status === 'CANCELLING' ? '중단 중' : '중단' }[sk];
+  const done = p.tasks.filter(t => t.state === 'DONE').length, total = p.tasks.length, pct = Math.round(done / total * 100);
+  const delayed = p.tasks.some(t => t.delay && t.state !== 'DONE');
+  const accent = sk === 'fail' ? ' h-fail' : (sk === 'wait' || delayed) ? ' h-warn' : '';
+  const cur = p.tasks.find(t => t.state !== 'DONE' && t.state !== 'CANCELLED');
+  const curTxt = p.status === 'DONE' ? '모든 Task 완료' : p.status === 'CANCELLED' ? '사용자 중단' : p.status === 'CANCELLING' ? '중단 중 · drain' : cur ? cur.name : '—';
+  const nIco = sk === 'done' ? '✓' : sk === 'fail' ? '✕' : sk === 'wait' ? '⏱' : sk === 'run' ? '▶' : '■';
+  return `<div class="histx${accent}" onclick="admOpenPipeModal(${idx})">
+    <div class="hx-node ${sk}">${nIco}</div>
+    <div class="hx-main">
+      <div class="hx-top"><span class="hx-id">${p.id}</span><span class="pdm-pill ${sk === 'cancel' ? 'queued' : sk}">${stLbl}</span>${p.retryOf ? `<span class="pdm-kind">↻ ${p.retryOf}</span>` : ''}<span class="hx-prov"><span class="hx-pchip" style="background:${provBg}">${provAbbr}</span>${prov} · ${p.type}</span></div>
+      <div class="hx-sub">${curTxt} <span class="hx-prog"><span class="hx-bar ${sk}"><i style="width:${pct}%"></i></span>${done}/${total}</span></div>
+    </div>
+    <div class="hx-right"><div class="hx-when">${admWhenShort(p.startedAt)}</div><div class="hx-el">${p.elapsed}</div></div>
+    <span class="hx-arrow">›</span>
+  </div>`;
+}
 function admRenderPipelines() {
   if (!ADM.pf) ADM.pf = { status: 'all', type: 'all', provider: 'all', q: '', sort: 'startedAt', dir: 'desc', range: '7d', cols: { slot: true, next: true } };
   const pf = ADM.pf, ps = ADM.pipelines;
@@ -13094,22 +13118,23 @@ Outputs: subnet_id = "subnet-0a91…"</div>
   </div>`;
 }
 
-function admMiniFlow(items) {
+function admMiniFlow(items, preview) {
   const n = items.length;
   const W = 142, H = 64, GAP = 54, PAD = 14, Y = 16, NH = 48;
   const layW = PAD * 2 + n * W + (n - 1) * GAP, layH = Y + NH + PAD;
   const nodes = [], edges = [];
   items.forEach((s, i) => {
     const x = PAD + i * (W + GAP);
-    const cls = s.ok ? 'done' : (i === items.findIndex(z => !z.ok) ? 'running' : 'queued');
-    const ico = s.ok ? '✓' : cls === 'running' ? '<span class="adm-spin"></span>' : String(i + 1);
+    const cls = preview ? 'queued' : (s.ok ? 'done' : (i === items.findIndex(z => !z.ok) ? 'running' : 'queued'));
+    const ico = (!preview && s.ok) ? '✓' : cls === 'running' ? '<span class="adm-spin"></span>' : String(i + 1);
+    const meta = preview ? (s.meta || '대기') : (s.ok ? '완료' : cls === 'running' ? '진행 중' : '대기');
     nodes.push(`<div class="adm-node ${cls}" style="left:${x}px;top:${Y}px;width:${W}px;cursor:default;">
       <span class="nd-port in"></span><span class="nd-port out"></span>
       <div class="nd-top"><span class="nd-ico">${ico}</span><span class="nd-name">${s.k}</span></div>
-      <div class="nd-meta">${s.ok ? '완료' : cls === 'running' ? '진행 중' : '대기'}</div>
+      <div class="nd-meta">${meta}</div>
     </div>`);
     if (i < n - 1) {
-      const ec = s.ok ? (items[i + 1].ok ? 'done' : 'active') : '';
+      const ec = (!preview && s.ok) ? (items[i + 1].ok ? 'done' : 'active') : '';
       const x1 = x + W, y1 = Y + NH / 2, x2 = x + W + GAP, cx = GAP * 0.5;
       edges.push(`<path class="adm-edge ${ec}" d="M${x1},${y1} C${x1 + cx},${y1} ${x2 - cx},${y1} ${x2},${y1}"/>`);
     }
