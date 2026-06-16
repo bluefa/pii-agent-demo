@@ -180,17 +180,17 @@ export const IdcLoadRequestModal = ({
 /** Skeleton frame shown while the previous request loads — mirrors the preview table shape. */
 const LoadPreviewSkeleton = () => (
   <div className="space-y-3" aria-busy="true" aria-live="polite">
-    <div className="h-3.5 w-64 animate-pulse rounded" style={{ backgroundColor: '#f3f4f6' }} />
+    <div className={cn(idcStyles.skeletonBar, 'h-3.5 w-64 rounded')} />
     <div className={cn('overflow-hidden rounded-xl border', borderColors.default)}>
       {Array.from({ length: IDC_LOAD_PER }).map((_, i) => (
         <div
           key={i}
           className={cn('flex items-center gap-3 px-4 py-3.5', i > 0 && cn('border-t', borderColors.light))}
         >
-          <div className="h-5 w-16 animate-pulse rounded-md" style={{ backgroundColor: '#f3f4f6' }} />
-          <div className="h-4 flex-1 animate-pulse rounded" style={{ backgroundColor: '#f3f4f6' }} />
-          <div className="h-4 w-12 animate-pulse rounded" style={{ backgroundColor: '#f3f4f6' }} />
-          <div className="h-5 w-24 animate-pulse rounded-full" style={{ backgroundColor: '#f3f4f6' }} />
+          <div className={cn(idcStyles.skeletonBar, 'h-5 w-16 rounded-md')} />
+          <div className={cn(idcStyles.skeletonBar, 'h-4 flex-1 rounded')} />
+          <div className={cn(idcStyles.skeletonBar, 'h-4 w-12 rounded')} />
+          <div className={cn(idcStyles.skeletonBar, 'h-5 w-24 rounded-full')} />
         </div>
       ))}
     </div>

@@ -110,31 +110,32 @@ export const Modal = ({
 
   if (!isOpen) return null;
 
+  // Default (non-toss) branch reproduces the original byte-for-byte class strings
+  // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged.
   const isToss = chrome === 'toss';
-  const containerCls = cn(
-    'bg-white shadow-xl w-full mx-4 overflow-hidden',
-    isToss ? modalStyles.toss.container : 'rounded-xl',
-    SIZE_CLASSES[size],
-  );
+  const containerCls = isToss
+    ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', modalStyles.toss.container, SIZE_CLASSES[size])
+    : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden');
   const headerCls = isToss
     ? modalStyles.toss.header
     : cn('flex items-center justify-between px-6 py-4 border-b', borderColors.light);
+  const iconGroupCls = isToss ? 'flex gap-3 items-start' : 'flex items-center gap-3';
   const iconCls = isToss
     ? cn(modalStyles.toss.iconBase, tone === 'warn' ? modalStyles.toss.iconWarn : modalStyles.toss.iconInfo)
-    : cn('w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0', statusColors.info.bg);
+    : cn('w-10 h-10', statusColors.info.bg, 'rounded-lg flex items-center justify-center flex-shrink-0');
   const titleCls = isToss ? modalStyles.toss.title : cn('text-lg font-bold', textColors.primary);
   const subtitleCls = isToss ? modalStyles.toss.subtitle : cn('text-sm', textColors.tertiary);
   const bodyCls = isToss ? modalStyles.toss.body : 'p-6';
   const footerCls = isToss
     ? modalStyles.toss.footer
-    : cn('px-6 py-4 border-t flex justify-end gap-3', borderColors.light, bgColors.muted);
+    : cn('px-6 py-4 border-t', borderColors.light, bgColors.muted, 'flex justify-end gap-3');
 
   return (
     <div ref={overlayRef} className={modalStyles.overlay} onClick={handleBackdropClick}>
       <div className={containerCls} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         {/* Header */}
         <div className={headerCls}>
-          <div className={cn('flex gap-3', isToss ? 'items-start' : 'items-center')}>
+          <div className={iconGroupCls}>
             {icon && <div className={iconCls}>{icon}</div>}
             <div>
               <h2 id="modal-title" className={titleCls}>
@@ -145,7 +146,7 @@ export const Modal = ({
           </div>
           <button
             onClick={onClose}
-            className={cn('p-2 rounded-lg transition-colors', interactiveColors.closeButton)}
+            className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
             aria-label="닫기"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

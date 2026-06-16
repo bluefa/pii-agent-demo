@@ -82,6 +82,17 @@ export const IdcStep4Installing = ({
   const bdcStatus: InstallTaskStatus = status ? BDC_TASK_STATUS[status.bdcTf] : 'pending';
   const firewallOpened = status?.firewallOpened ?? false;
 
+  // Per-resource Source IP / firewall state is surfaced by installation-status
+  // (contract §6 G6), not by /resources. Merge it into the displayed rows so a
+  // backend that follows the contract — where /resources omits these fields —
+  // still renders Step 4 correctly. In mock both carry the same values, so the
+  // demo is unchanged; this only removes the cutover risk.
+  const statusById = new Map((status?.resources ?? []).map((r) => [r.resourceId, r]));
+  const mergedResources: IdcResourceView[] = resources.map((r) => {
+    const s = statusById.get(r.resourceId);
+    return s ? { ...r, sourceIps: s.sourceIps, firewallOpen: s.firewallOpen } : r;
+  });
+
   const tasks: InstallTaskPipelineItem[] = [
     {
       key: 'bdc',
@@ -139,7 +150,7 @@ export const IdcStep4Installing = ({
               설치 정보를 불러오는 중입니다.
             </div>
           ) : (
-            <IdcResourceTable resources={resources} cols={['src', 'fw']} />
+            <IdcResourceTable resources={mergedResources} cols={['src', 'fw']} />
           )}
         </div>
       </div>
@@ -149,7 +160,7 @@ export const IdcStep4Installing = ({
       <IdcFirewallModal
         isOpen={firewallOpen}
         onClose={() => setFirewallOpen(false)}
-        resources={resources}
+        resources={mergedResources}
       />
     </>
   );

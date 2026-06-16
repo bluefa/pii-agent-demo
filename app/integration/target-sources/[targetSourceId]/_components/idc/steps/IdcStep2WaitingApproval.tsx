@@ -3,17 +3,9 @@
 import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import {
-  cardStyles,
-  cn,
-  confirmModalStyles,
-  idcStyles,
-  statusColors,
-  textColors,
-} from '@/lib/theme';
-import { ClockIcon, DeleteIcon } from '@/app/components/ui/icons';
+import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
-import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -21,8 +13,10 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
+import { WaitingApprovalCancelButton } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
+import { getProject } from '@/app/lib/api';
 import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
 
 type ResourcesState =
@@ -44,7 +38,6 @@ export const IdcStep2WaitingApproval = ({
   onProjectUpdate,
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
-  const toast = useToast();
 
   const [state, setState] = useState<ResourcesState>({ status: 'loading' });
 
@@ -114,15 +107,11 @@ export const IdcStep2WaitingApproval = ({
           {state.status === 'ready' && (
             <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
           )}
-          <div className="flex justify-end mt-4">
-            <button
-              type="button"
-              className={cn(confirmModalStyles.dangerOutlineButton, 'gap-1.5')}
-              onClick={() => toast.info('전체 요청 취소 기능 준비중입니다.')}
-            >
-              <DeleteIcon className="w-3.5 h-3.5" />
-              전체 요청 취소
-            </button>
+          <div className="mt-4 flex justify-end">
+            <WaitingApprovalCancelButton
+              targetSourceId={project.targetSourceId}
+              onSuccess={async () => onProjectUpdate(await getProject(project.targetSourceId))}
+            />
           </div>
         </div>
       </section>
