@@ -5531,6 +5531,22 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pdm-foot .links { display:flex; gap:8px; }
 .pdm-ghost { font-family:inherit; font-size:12.5px; font-weight:600; color:#383e5c; background:#fff; border:1px solid #e7e9f3; border-radius:10px; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
 .pdm-ghost:hover { background:#f4f5fb; }
+/* install-mgmt: DAG preview + run history */
+.dag-row { display:flex; align-items:center; gap:12px; padding:7px 0; flex-wrap:wrap; }
+.dag-label { font-size:11px; font-weight:800; padding:3px 10px; border-radius:7px; flex:0 0 auto; }
+.dag-label.install { background:#eef0ff; color:#4338ca; }
+.dag-label.delete { background:#f3effb; color:#7c3aed; }
+.dag-chain { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.dag-node { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:#383e5c; background:#fff; border:1px solid #e7e9f3; border-radius:9px; padding:6px 10px; box-shadow:0 1px 2px rgba(16,20,43,.05); }
+.dag-node em { font-style:normal; font-size:9px; font-weight:800; color:#8b91ad; background:#eef0f8; padding:1px 5px; border-radius:4px; }
+.dag-arrow { color:#c4cbd4; font-weight:700; }
+.hist-row { display:flex; align-items:center; gap:14px; padding:12px 20px; border-top:1px solid #eef0f7; cursor:pointer; transition:background .12s; }
+.hist-row:hover { background:#f7f8ff; }
+.hist-id { font-weight:700; color:#10142b; font-variant-numeric:tabular-nums; width:62px; flex:0 0 auto; }
+.hist-type { font-size:12px; color:#6a7090; }
+.hist-when { margin-left:auto; font-size:12px; color:#6a7090; font-variant-numeric:tabular-nums; }
+.hist-el { font-size:12px; font-weight:600; color:#383e5c; width:58px; text-align:right; flex:0 0 auto; }
+.hist-arrow { color:#c4cbd4; font-size:16px; flex:0 0 auto; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -7771,6 +7787,14 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
                 <button class="btn ghost" onclick="adminShow('pipeline')">파이프라인 보드에서 보기 →</button>
               </div>
               <div id="admTsPipeline"></div>
+            </div>
+            <div class="card" style="margin-top:16px;">
+              <div class="card-header"><h2>수행할 Pipeline (DAG)</h2><span class="adm-muted">[설치 시작]/[삭제 시작] 시 아래 단계가 순차 실행돼요</span></div>
+              <div id="admDagPreview" style="padding:14px 20px 18px;"></div>
+            </div>
+            <div class="card" style="margin-top:16px;">
+              <div class="card-header"><h2>Pipeline 동작 이력</h2><span class="adm-muted" id="admHistCount"></span></div>
+              <div id="admPipeHistory"></div>
             </div>
           </div>
         </div>
@@ -12250,6 +12274,23 @@ function admRenderTsDetail() {
   document.getElementById('admTsPipeline').innerHTML = running
     ? `<div style="padding:16px 20px;">${admTaskPanel(running)}</div>`
     : `<div class="adm-empty">진행 중인 Pipeline이 없어요</div>`;
+  // DAG preview (수행할 파이프라인) — 설치/삭제 시 실행될 단계 미리보기
+  const dagP = document.getElementById('admDagPreview');
+  if (dagP) {
+    const dag = ADM_DAGS[t.provider] || ADM_DAGS.AWS;
+    const chain = (label, seq, cls) => `<div class="dag-row"><span class="dag-label ${cls}">${label}</span><div class="dag-chain">${seq.map((d, i) => `<span class="dag-node">${i + 1}. ${d[0]} <em>${d[1] === 'WAIT' ? '대기' : '실행'}</em></span>${i < seq.length - 1 ? '<span class="dag-arrow">→</span>' : ''}`).join('')}</div></div>`;
+    dagP.innerHTML = chain('설치', dag['설치'], 'install') + chain('삭제', dag['삭제'], 'delete');
+  }
+  // Pipeline 동작 이력 — 이 TargetSource의 과거 run
+  const hist = ADM.pipelines.map((p, idx) => ({ p, idx })).filter(x => x.p.tsId === ADM.curTs);
+  const hc = document.getElementById('admHistCount'); if (hc) hc.textContent = '총 ' + hist.length + '건';
+  const hp = document.getElementById('admPipeHistory');
+  if (hp) hp.innerHTML = hist.length ? hist.map(x => {
+    const p = x.p, sk = admPipeStatusKey(p);
+    const stLbl = { done: '완료', run: '진행', wait: '외부 대기', fail: '실패', cancel: p.status === 'CANCELLING' ? '중단 중' : '중단' }[sk];
+    const stCls = { done: 'done', run: 'run', wait: 'wait', fail: 'fail', cancel: 'queued' }[sk];
+    return `<div class="hist-row" onclick="admOpenPipeModal(${x.idx})"><span class="hist-id">${p.id}</span><span class="pdm-pill ${stCls}">${stLbl}</span><span class="hist-type">${p.type}</span><span class="hist-when">${admWhenShort(p.startedAt)}</span><span class="hist-el">${p.elapsed}</span><span class="hist-arrow">›</span></div>`;
+  }).join('') : '<div class="adm-empty">이력이 없어요</div>';
   admInitAllFlows();
 }
 
