@@ -224,6 +224,7 @@ export const httpBff: BffClient = {
     checkInstallation: (id) => post(`/idc/target-sources/${id}/check-installation`, {}),
     confirmFirewall: (id) => post(`/idc/target-sources/${id}/confirm-firewall`, {}),
     getResources: (id) => get(`/idc/target-sources/${id}/resources`, { raw: true }),
+    getPreviousRequest: (id) => get(`/idc/target-sources/${id}/previous-request`, { raw: true }),
     updateResources: (id, body) => put(`/idc/target-sources/${id}/resources`, body),
     getSourceIpRecommendation: (ipType) =>
       get(`/idc/source-ip-recommendation?ipType=${encodeURIComponent(ipType)}`, { raw: true }),

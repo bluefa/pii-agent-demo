@@ -215,6 +215,7 @@ export interface BffClient {
     checkInstallation: (id: number) => Promise<IdcInstallationStatus>;
     confirmFirewall: (id: number) => Promise<IdcConfirmFirewallResponse>;
     getResources: (id: number) => Promise<IdcResourcesResponse>;
+    getPreviousRequest: (id: number) => Promise<IdcResourcesResponse>;
     updateResources: (id: number, body: unknown) => Promise<IdcResourcesResponse>;
     getSourceIpRecommendation: (ipType: string) => Promise<IdcSourceIpRecommendation>;
   };

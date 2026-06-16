@@ -97,6 +97,12 @@ export const getIdcResources = (targetSourceId: number): MockIdcResult<{ resourc
   data: { resources: ensureSeeded(targetSourceId) },
 });
 
+export const getIdcPreviousRequest = (
+  _targetSourceId: number,
+): MockIdcResult<{ resources: IdcResourceInput[] }> => ({
+  data: { resources: cloneSeed(IDC_PREV_REQUEST_SEED) },
+});
+
 export const updateIdcResources = (
   targetSourceId: number,
   body: unknown,

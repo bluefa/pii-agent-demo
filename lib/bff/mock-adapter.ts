@@ -194,6 +194,8 @@ export const mockBff: BffClient = {
       unwrap<IdcConfirmFirewallResponse>(await mockIdc.confirmFirewall(String(id))),
     getResources: async (id) =>
       unwrap<IdcResourcesResponse>(await mockIdc.getResources(String(id))),
+    getPreviousRequest: async (id) =>
+      unwrap<IdcResourcesResponse>(await mockIdc.getPreviousRequest(String(id))),
     updateResources: async (id, body) =>
       unwrap<IdcResourcesResponse>(await mockIdc.updateResources(String(id), body)),
     getSourceIpRecommendation: async (ipType) =>

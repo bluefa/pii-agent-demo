@@ -55,6 +55,12 @@ export const mockIdc = {
     return handleResult(idcFns.getIdcResources(Number(targetSourceId)));
   },
 
+  getPreviousRequest: async (targetSourceId: string) => {
+    const auth = authorize(targetSourceId);
+    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
+    return handleResult(idcFns.getIdcPreviousRequest(Number(targetSourceId)));
+  },
+
   updateResources: async (targetSourceId: string, body: unknown) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;

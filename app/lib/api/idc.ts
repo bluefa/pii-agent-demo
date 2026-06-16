@@ -149,6 +149,17 @@ export const getIdcResources = async (
   return res.resources.map(toIdcResourceView);
 };
 
+export const getIdcPreviousRequest = async (
+  targetSourceId: number,
+  opts?: { signal?: AbortSignal },
+): Promise<IdcResourceView[]> => {
+  const res = await fetchInfraJson<IdcResourcesResponse>(
+    `${idcBase(targetSourceId)}/previous-request`,
+    { signal: opts?.signal },
+  );
+  return res.resources.map(toIdcResourceView);
+};
+
 export const updateIdcResources = async (
   targetSourceId: number,
   views: IdcResourceView[],
