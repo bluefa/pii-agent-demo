@@ -5354,7 +5354,8 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pd-fromto .field { font-weight:600; color:#191F28; background:#F4F4FB; padding:5px 9px; border-radius:6px; border:1px solid #EBEEF2; font-size:11.5px; }
 .pd-fromto .arrow { color:#8B95A1; }
 .pd-metric-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
-.pd-metric { background:#fff; border:1px solid #EBEEF2; border-radius:13px; padding:15px 17px 13px; position:relative; overflow:hidden; box-shadow:0 1px 2px rgba(20,30,50,.035); }
+.pd-metric { background:#fff; border:1px solid #EEF0F7; border-radius:16px; padding:16px 18px 14px; position:relative; overflow:hidden; box-shadow:0 1px 3px rgba(16,20,43,.06), 0 10px 24px rgba(16,20,43,.07); transition:transform .15s, box-shadow .15s; }
+.pd-metric:hover { transform:translateY(-2px); box-shadow:0 2px 6px rgba(16,20,43,.07), 0 16px 34px rgba(16,20,43,.10); }
 .pd-metric .pd-accent { position:absolute; left:0; top:0; bottom:0; width:3px; }
 .pd-metric .pd-mlabel { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#4E5968; }
 .pd-metric .pd-micon { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; }
@@ -5368,7 +5369,7 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pd-amber .pd-accent{background:#F97316;} .pd-amber .pd-micon{background:#FEEEE2;color:#F97316;} .pd-amber .pd-mvalue{color:#F97316;}
 .pd-red .pd-accent{background:#EF4444;} .pd-red .pd-micon{background:#FDE9E9;color:#EF4444;} .pd-red .pd-mvalue{color:#EF4444;}
 .pd-green .pd-accent{background:#45CB85;} .pd-green .pd-micon{background:#E6F8EF;color:#2FAE6E;} .pd-green .pd-mvalue{color:#2FAE6E;}
-.pd-panel { background:#fff; border:1px solid #EBEEF2; border-radius:14px; box-shadow:0 1px 2px rgba(20,30,50,.035); }
+.pd-panel { background:#fff; border:1px solid #EEF0F7; border-radius:16px; box-shadow:0 1px 2px rgba(16,20,43,.05), 0 6px 16px rgba(16,20,43,.06), 0 18px 40px rgba(16,20,43,.04); }
 .pd-filterbar { display:flex; align-items:center; gap:10px; padding:11px 14px; margin-bottom:14px; flex-wrap:wrap; }
 .pd-seglabel { font-size:11px; font-weight:600; color:#8B95A1; text-transform:uppercase; letter-spacing:.4px; }
 .pd-chip-row { display:flex; gap:5px; background:#F4F4FB; padding:3px; border-radius:9px; }
@@ -5437,6 +5438,78 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pd-pager button { min-width:28px; height:28px; padding:0 8px; border-radius:7px; border:1px solid #EBEEF2; background:#fff; font-size:12px; font-weight:600; color:#4E5968; cursor:pointer; font-family:inherit; }
 .pd-pager button.on { background:#0064FF; border-color:#0064FF; color:#fff; }
 .pd-empty { padding:40px; text-align:center; color:#8B95A1; font-size:13px; }
+/* ============ Pipeline Detail MODAL (tournament winner a1 — navy/indigo, top cancel/retry) ============ */
+.pdm-overlay { position:fixed; inset:0; background:rgba(11,14,33,.55); backdrop-filter:blur(3px); display:grid; place-items:center; z-index:1000; padding:40px; opacity:0; pointer-events:none; transition:opacity .2s; }
+.pdm-overlay.open { opacity:1; pointer-events:auto; }
+.pdm-modal { width:min(820px,96vw); max-height:90vh; background:#fff; border-radius:20px; box-shadow:0 30px 80px rgba(8,11,30,.45), 0 8px 24px rgba(8,11,30,.3); overflow:hidden; display:flex; flex-direction:column; border:1px solid rgba(255,255,255,.6); transform:translateY(8px) scale(.99); transition:transform .22s cubic-bezier(.22,1,.36,1); }
+.pdm-overlay.open .pdm-modal { transform:none; }
+.pdm-head { padding:20px 24px 18px; background:radial-gradient(420px 200px at 100% -40%, rgba(99,102,241,.16), transparent 70%), linear-gradient(180deg,#fbfbff,#fff); border-bottom:1px solid #eef0f7; }
+.pdm-head .top { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; }
+.pdm-eyebrow { display:flex; align-items:center; gap:9px; margin-bottom:8px; }
+.pdm-eyebrow .id { font-size:12.5px; font-weight:700; color:#10142b; font-variant-numeric:tabular-nums; }
+.pdm-eyebrow .ts { font-size:12px; color:#8b91ad; }
+.pdm-head h3 { font-size:19px; font-weight:750; letter-spacing:-.025em; display:flex; align-items:center; gap:10px; color:#10142b; }
+.pdm-head h3 .chip { width:26px; height:26px; border-radius:8px; display:grid; place-items:center; font-size:10px; font-weight:800; color:#fff; }
+.pdm-meta { display:flex; align-items:center; gap:16px; margin-top:11px; font-size:12px; color:#6a7090; flex-wrap:wrap; }
+.pdm-meta b { color:#383e5c; font-weight:600; font-variant-numeric:tabular-nums; }
+.pdm-actions { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.pdm-btn { display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:13.5px; font-weight:650; padding:11px 18px; border-radius:12px; cursor:pointer; border:1px solid transparent; letter-spacing:-.01em; transition:transform .08s, box-shadow .15s; }
+.pdm-btn:active { transform:translateY(1px); }
+.pdm-stop { background:#fff; color:#b11f1f; border-color:rgba(220,38,38,.3); box-shadow:0 1px 2px rgba(16,20,43,.05); }
+.pdm-stop:hover { background:#fdebeb; border-color:rgba(220,38,38,.5); }
+.pdm-retry { background:linear-gradient(180deg,#5b53ec,#4338ca); color:#fff; box-shadow:0 1px 2px rgba(40,28,120,.4),0 8px 20px rgba(67,56,202,.4), inset 0 1px 0 rgba(255,255,255,.25); }
+.pdm-retry:hover { box-shadow:0 1px 2px rgba(40,28,120,.4),0 12px 26px rgba(67,56,202,.5), inset 0 1px 0 rgba(255,255,255,.3); }
+.pdm-close { width:34px; height:34px; border-radius:10px; border:1px solid #e7e9f3; background:#fff; display:grid; place-items:center; cursor:pointer; color:#8b91ad; font-size:16px; flex:0 0 auto; }
+.pdm-close:hover { background:#f4f5fb; color:#383e5c; }
+.pdm-body { padding:22px 24px 24px; overflow:auto; background:linear-gradient(180deg,#fafafe,#fff 80px); }
+.pdm-banner { display:flex; align-items:flex-start; gap:12px; border-radius:13px; padding:13px 15px; margin-bottom:20px; }
+.pdm-banner.fail { background:#fdebeb; border:1px solid rgba(220,38,38,.2); box-shadow:0 4px 12px rgba(220,38,38,.07); }
+.pdm-banner.warn { background:#fdf3e2; border:1px solid rgba(217,119,6,.22); box-shadow:0 4px 12px rgba(217,119,6,.07); }
+.pdm-banner.ok { background:#e8f7ee; border:1px solid rgba(22,163,74,.2); }
+.pdm-banner .bi { width:30px; height:30px; border-radius:9px; background:#fff; display:grid; place-items:center; flex:0 0 auto; box-shadow:0 1px 3px rgba(16,20,43,.14); font-size:15px; }
+.pdm-banner b { font-size:13px; display:block; letter-spacing:-.01em; }
+.pdm-banner.fail b { color:#b11f1f; } .pdm-banner.warn b { color:#9a5b06; } .pdm-banner.ok b { color:#0f7a37; }
+.pdm-banner p { font-size:12px; color:#7c3a3a; margin-top:2px; line-height:1.5; }
+.pdm-banner.warn p { color:#7a5a2a; } .pdm-banner.ok p { color:#3a6a4a; }
+.pdm-banner code { font-family:'Geist Mono',ui-monospace,monospace; background:rgba(220,38,38,.12); padding:1px 6px; border-radius:5px; font-size:11px; color:#b11f1f; }
+.pdm-flowtitle { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8b91ad; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.pdm-flowtitle .c { font-size:11px; font-weight:600; color:#6a7090; background:#eef0f8; padding:1px 8px; border-radius:7px; letter-spacing:0; }
+.pdm-flow { display:flex; flex-direction:column; }
+.pdm-task { position:relative; display:flex; gap:16px; padding-bottom:22px; }
+.pdm-task:last-child { padding-bottom:0; }
+.pdm-rail { position:relative; flex:0 0 36px; display:flex; justify-content:center; }
+.pdm-node { width:36px; height:36px; border-radius:11px; display:grid; place-items:center; z-index:2; box-shadow:0 4px 10px rgba(16,20,43,.12), inset 0 1px 0 rgba(255,255,255,.5); color:#fff; font-size:16px; font-weight:800; }
+.pdm-task:not(:last-child) .pdm-rail::after { content:""; position:absolute; top:36px; bottom:-22px; left:50%; width:2px; transform:translateX(-50%); background:#e7e9f3; z-index:1; }
+.pdm-task.t-done:not(:last-child) .pdm-rail::after { background:linear-gradient(#16a34a,#d97706); }
+.pdm-node.done { background:linear-gradient(135deg,#22c55e,#16a34a); }
+.pdm-node.fail { background:linear-gradient(135deg,#ef4444,#dc2626); box-shadow:0 4px 14px rgba(220,38,38,.4), inset 0 1px 0 rgba(255,255,255,.4); }
+.pdm-node.wait { background:#fff; color:#d97706; box-shadow:inset 0 0 0 2px rgba(217,119,6,.25); }
+.pdm-node.run { background:linear-gradient(135deg,#6366f1,#4338ca); }
+.pdm-node.queued { background:#eef0f8; color:#8b91ad; box-shadow:inset 0 0 0 2px #e7e9f3; }
+.pdm-tcard { flex:1; background:#fff; border:1px solid #eef0f7; border-radius:13px; padding:14px 16px; box-shadow:0 1px 2px rgba(16,20,43,.04), 0 4px 14px rgba(16,20,43,.05); }
+.pdm-task.t-fail .pdm-tcard { border-color:rgba(220,38,38,.25); box-shadow:0 1px 2px rgba(16,20,43,.04),0 8px 20px rgba(220,38,38,.1); }
+.pdm-task.t-wait .pdm-tcard { background:#fffdfa; }
+.pdm-tcard .r1 { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.pdm-tcard .nm { font-size:14px; font-weight:700; color:#10142b; letter-spacing:-.02em; display:flex; align-items:center; gap:9px; }
+.pdm-tcard .nm .sn { font-size:10.5px; font-weight:700; color:#8b91ad; background:#eef0f8; width:20px; height:20px; border-radius:7px; display:grid; place-items:center; }
+.pdm-tcard .desc { font-size:12px; color:#6a7090; margin-top:7px; line-height:1.55; }
+.pdm-tcard .sub { display:flex; align-items:center; gap:12px; margin-top:11px; flex-wrap:wrap; }
+.pdm-tcard .sub .k { font-size:11px; color:#8b91ad; display:flex; align-items:center; gap:5px; }
+.pdm-tcard .sub .k b { color:#383e5c; font-weight:600; font-variant-numeric:tabular-nums; }
+.pdm-errx { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:#b11f1f; background:#fdebeb; padding:3px 9px; border-radius:8px; font-family:'Geist Mono',ui-monospace,monospace; }
+.pdm-kind { font-size:9.5px; font-weight:800; letter-spacing:.03em; padding:2px 6px; border-radius:5px; background:#eef0f8; color:#6a7090; }
+.pdm-pill { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; }
+.pdm-pill::before { content:""; width:6px; height:6px; border-radius:50%; }
+.pdm-pill.done { background:#e8f7ee; color:#0f7a37; } .pdm-pill.done::before { background:#16a34a; }
+.pdm-pill.fail { background:#fdebeb; color:#b11f1f; } .pdm-pill.fail::before { background:#dc2626; }
+.pdm-pill.wait { background:#fdf3e2; color:#9a5b06; } .pdm-pill.wait::before { background:#d97706; }
+.pdm-pill.run { background:#eef0ff; color:#4338ca; } .pdm-pill.run::before { background:#4f46e5; }
+.pdm-pill.queued { background:#eef1f6; color:#4a5468; } .pdm-pill.queued::before { background:#64748b; }
+.pdm-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 24px; border-top:1px solid #eef0f7; background:#fbfbfe; }
+.pdm-foot .hint { font-size:11.5px; color:#8b91ad; display:flex; align-items:center; gap:7px; }
+.pdm-foot .links { display:flex; gap:8px; }
+.pdm-ghost { font-family:inherit; font-size:12.5px; font-weight:600; color:#383e5c; background:#fff; border:1px solid #e7e9f3; border-radius:10px; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.pdm-ghost:hover { background:#f4f5fb; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -7690,6 +7763,7 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
         <div id="admPipeBanner"></div>
         <div class="pd-wrap" id="admPipeWrap"></div>
       </section>
+      <div class="pdm-overlay" id="pdmOverlay" onclick="admClosePipeModal()"></div>
 
       <!-- VIEW: API 현황 -->
       <section data-aview-panel="api" class="hidden">
@@ -12630,7 +12704,7 @@ function admPipeRow(p) {
   const lineage = p.retryOf ? `<span class="pd-lineage2">↻ ${p.retryOf}</span>` : '';
   const elapsedCls = p.elapsed === '—' ? ' none' : ((delayRow || /일|시간/.test(p.elapsed || '')) && sk !== 'done' && sk !== 'cancel') ? ' long' : '';
   const cols = ADM.pf.cols;
-  return `<tr class="pd-row${rowCls}" onclick="ADM.pipelines[${pi}].open=!ADM.pipelines[${pi}].open; admRenderPipelines()">
+  return `<tr class="pd-row${rowCls}" onclick="admOpenPipeModal(${pi})">
     <td><div class="pd-plid">${p.id}${lineage}</div><div class="pd-tsname">${p.tsId}</div></td>
     <td><span class="pd-typetag ${p.type === '삭제' ? 'delete' : 'install'}">${p.type}</span></td>
     <td><span class="pd-prov"><span class="b pb-${provB}">${provAbbr}</span>${prov}</span></td>
@@ -12643,6 +12717,54 @@ function admPipeRow(p) {
     <td style="text-align:right;"><span class="pd-elapsed${elapsedCls}">${p.elapsed}</span></td>
   </tr>` + (p.open ? `<tr class="pd-expand"><td colspan="11">${admTaskPanel(p, pi)}</td></tr>` : '');
 }
+// ===== Pipeline detail MODAL (winner a1 — top cancel/retry + colored task timeline) =====
+function admPdmTaskHtml(t, i) {
+  const kind = admTaskKind(t);
+  const sk = t.state === 'DONE' ? 'done' : (t.state === 'FAILED' || t.state === 'EXPIRED') ? 'fail' : t.state === 'WAITING' ? 'wait' : (t.state === 'RUNNING' || t.state === 'DISPATCHING') ? 'run' : t.state === 'CANCELLED' ? 'queued' : 'queued';
+  const ico = sk === 'done' ? '✓' : sk === 'fail' ? '✕' : sk === 'wait' ? '⏱' : sk === 'run' ? '<span class="adm-spin" style="border-color:rgba(255,255,255,.5);border-top-color:#fff"></span>' : (i + 1);
+  const pillLbl = { done: '완료', fail: '실패' + (t.fail ? ' ' + t.fail + '/' + t.maxFail : ''), wait: '외부 대기', run: '실행 중', queued: t.state === 'CANCELLED' ? '중단' : '대기' }[sk];
+  const taskCls = sk === 'fail' ? 't-fail' : sk === 'wait' ? 't-wait' : sk === 'done' ? 't-done' : '';
+  let sub;
+  if (sk === 'fail') sub = `<span class="pdm-errx">↻ EXECUTION_TIMEOUT</span><span class="k">대기 임계 <b>30s 초과</b></span><span class="k">마지막 시도 <b>14:18</b></span>`;
+  else if (sk === 'wait') sub = `<span class="k">확인주기 <b>${t.poll}분</b></span>${t.delay ? `<span class="k" style="color:#9a5b06;">지연 <b>${t.cur || ''} / ${t.exp || ''}</b> ⚠</span>` : '<span class="k">상태 <b>정상 폴링</b></span>'}`;
+  else if (sk === 'done') sub = `<span class="k">${t.meta || '정상 완료'}</span>`;
+  else if (sk === 'run') sub = `<span class="k">상태 <b>실행 중</b></span>`;
+  else sub = `<span class="k">상태 <b>${t.state === 'CANCELLED' ? '중단됨' : '미시작 (blocked)'}</b></span>`;
+  const desc = sk === 'fail' ? '외부 호출 → 타임아웃. 자동 재시도 후 최종 실패 처리됐어요.'
+    : sk === 'wait' ? '외부 조건이 충족될 때까지 폴링해요.' + (t.delay ? ' 기준 초과 — 지연 중이에요.' : '')
+    : sk === 'done' ? '정상 완료됐어요.' : sk === 'run' ? '실행 중이에요.' : '선행 단계 완료 후 시작돼요.';
+  return `<div class="pdm-task ${taskCls}"><div class="pdm-rail"><div class="pdm-node ${sk}">${ico}</div></div>
+    <div class="pdm-tcard"><div class="r1"><div class="nm"><span class="sn">${i + 1}</span>${t.name} <span class="pdm-kind">${kind}</span></div><span class="pdm-pill ${sk}">${pillLbl}</span></div>
+    <div class="desc">${desc}</div><div class="sub">${sub}</div></div></div>`;
+}
+function admOpenPipeModal(pi) {
+  const p = ADM.pipelines[pi]; if (!p) return;
+  const sk = admPipeStatusKey(p), prov = admPipeProv(p);
+  const provAbbr = { AWS: 'AW', GCP: 'GC', Azure: 'AZ', IDC: 'DC', SDU: 'SD' }[prov] || prov.slice(0, 2).toUpperCase();
+  const provBg = { AWS: '#ec7211', GCP: '#1a73e8', Azure: '#0078d4', IDC: '#475569', SDU: '#7c3aed' }[prov] || '#475569';
+  const stPill = { done: ['done', '완료'], run: ['run', '진행'], wait: ['wait', '외부 대기'], fail: ['fail', '실패'], cancel: ['queued', p.status === 'CANCELLING' ? '중단 중' : '중단'] }[sk];
+  const done = p.tasks.filter(t => t.state === 'DONE').length;
+  let banner = '';
+  if (sk === 'fail') { const ft = p.tasks.find(t => t.state === 'FAILED' || t.state === 'EXPIRED'); const fi = p.tasks.indexOf(ft) + 1; banner = `<div class="pdm-banner fail"><div class="bi">⚠</div><div><b>${fi}단계 "${ft ? ft.name : ''}"에서 파이프라인이 중단됐어요</b><p>오류 코드 <code>EXECUTION_TIMEOUT</code> · ${ft ? ft.fail + '회 모두 실패 (' + ft.fail + '/' + ft.maxFail + ')' : ''}. 외부 시스템 응답 지연으로 추정돼요. 재시도 시 새 run이 생성돼요.</p></div></div>`; }
+  else if ((sk === 'wait' || sk === 'run') && p.tasks.some(t => t.delay && t.state !== 'DONE')) banner = `<div class="pdm-banner warn"><div class="bi">⏱</div><div><b>외부 대기가 정상 기준을 초과했어요</b><p>정상 폴링 중이지만 기준을 넘겼어요 — worker 상태 점검을 권장해요.</p></div></div>`;
+  else if (sk === 'done') banner = `<div class="pdm-banner ok"><div class="bi">✓</div><div><b>파이프라인이 정상 완료됐어요</b><p>모든 Task가 성공으로 종료됐어요.</p></div></div>`;
+  const canCancel = sk === 'run' || sk === 'wait' || p.status === 'CANCELLING';
+  const canRetry = sk === 'fail';
+  const actions = `${canCancel ? `<button class="pdm-btn pdm-stop" onclick="admCancelPipe(${pi});admClosePipeModal();"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2.5" stroke="currentColor" stroke-width="1.9"/></svg>중단</button>` : ''}${canRetry ? `<button class="pdm-btn pdm-retry" onclick="admClosePipeModal();admRetryPipe(${pi});"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0113.7-5.7L20 8M20 4v4h-4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 12a8 8 0 01-13.7 5.7L4 16m0 4v-4h4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>재시도 (새 run)</button>` : ''}<button class="pdm-close" onclick="admClosePipeModal()">✕</button>`;
+  const tasks = p.tasks.map((t, i) => admPdmTaskHtml(t, i)).join('');
+  const html = `<div class="pdm-modal" onclick="event.stopPropagation()">
+    <div class="pdm-head"><div class="top"><div style="min-width:0">
+      <div class="pdm-eyebrow"><span class="pdm-pill ${stPill[0]}">${stPill[1]}</span><span class="id">${p.id}</span><span class="ts">· ${p.tsId}</span>${p.retryOf ? `<span class="pdm-kind">↻ ${p.retryOf} 재실행</span>` : ''}</div>
+      <h3><span class="chip" style="background:${provBg}">${provAbbr}</span>${prov} ${p.type} 파이프라인</h3>
+      <div class="pdm-meta"><span>시작 <b>${admWhenShort(p.startedAt)}</b></span><span>경과 <b>${p.elapsed}</b></span><span>진행 <b>${done}/${p.tasks.length}</b></span></div>
+      </div><div class="pdm-actions">${actions}</div></div></div>
+    <div class="pdm-body">${banner}<div class="pdm-flowtitle">파이프라인 Task <span class="c">${p.tasks.length}단계</span></div><div class="pdm-flow">${tasks}</div></div>
+    <div class="pdm-foot"><div class="hint">ⓘ ${canRetry ? '재시도는 새 run을 생성하며 현재 run은 보존돼요.' : '바깥을 클릭하면 닫혀요.'}</div><div class="links"><button class="pdm-ghost">≡ 실행 로그</button><button class="pdm-ghost">⎘ 실행 정의</button><button class="pdm-ghost" onclick="admClosePipeModal();ADM.pipelines[${pi}].open=true;admRenderPipelines();setTimeout(()=>{var f=document.querySelector('.adm-flow-wrap');if(f)f.scrollIntoView({block:'center'});},60);">⬡ 워크플로 캔버스</button></div></div>
+  </div>`;
+  const ov = document.getElementById('pdmOverlay'); if (!ov) return;
+  ov.innerHTML = html; ov.classList.add('open');
+}
+function admClosePipeModal() { const ov = document.getElementById('pdmOverlay'); if (ov) ov.classList.remove('open'); }
 function admRenderPipelines() {
   if (!ADM.pf) ADM.pf = { status: 'all', type: 'all', provider: 'all', q: '', sort: 'startedAt', dir: 'desc', range: '7d', cols: { slot: true, next: true } };
   const pf = ADM.pf, ps = ADM.pipelines;
