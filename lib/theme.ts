@@ -536,6 +536,14 @@ export const idcStyles = {
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
   /** Toss textarea — borderless #F7F8FA fill / radius 12. */
   textarea: 'w-full rounded-xl border-0 bg-[#F7F8FA] px-3.5 py-3 text-[15px] font-medium leading-[1.6] text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] resize-none',
+  /** Table chrome — `.db-table` (header 13px/700 #4E5968, NO uppercase; 14/16 cells; #EBEEF2 dividers). */
+  table: {
+    header: 'bg-[#FAFBFC] text-left text-[13px] font-bold text-[#4E5968]',
+    headerCell: 'px-4 py-3.5',
+    body: 'divide-y divide-[#EBEEF2]',
+    row: 'hover:bg-[#F7F8FA] transition-colors',
+    cell: 'px-4 py-3.5',
+  },
 } as const;
 
 /**

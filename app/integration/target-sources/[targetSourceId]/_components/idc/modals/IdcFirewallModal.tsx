@@ -1,7 +1,7 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
-import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcEndpointCell,
@@ -44,31 +44,31 @@ export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModa
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className={tableStyles.header}>
+            <thead className={idcStyles.table.header}>
               <tr>
-                <th className={cn(tableStyles.headerCell, 'w-[160px]')}>Source IP</th>
-                <th className={cn(tableStyles.headerCell, 'w-[30px]')} aria-hidden="true" />
-                <th className={cn(tableStyles.headerCell, 'w-[220px]')}>연동 대상</th>
-                <th className={cn(tableStyles.headerCell, 'w-[70px]')}>Port</th>
-                <th className={cn(tableStyles.headerCell, 'w-[170px]')}>오픈 여부</th>
+                <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>Source IP</th>
+                <th className={cn(idcStyles.table.headerCell, 'w-[30px]')} aria-hidden="true" />
+                <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>연동 대상</th>
+                <th className={cn(idcStyles.table.headerCell, 'w-[70px]')}>Port</th>
+                <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>오픈 여부</th>
               </tr>
             </thead>
-            <tbody className={tableStyles.body}>
+            <tbody className={idcStyles.table.body}>
               {rows.map((r) => (
-                <tr key={r.resourceId} className={tableStyles.row}>
-                  <td className={tableStyles.cell}>
+                <tr key={r.resourceId} className={idcStyles.table.row}>
+                  <td className={idcStyles.table.cell}>
                     <IdcSourceIpCell sourceIps={r.sourceIps} />
                   </td>
-                  <td className={cn(tableStyles.cell, 'text-center', textColors.quaternary)}>
+                  <td className={cn(idcStyles.table.cell, 'text-center', textColors.quaternary)}>
                     →
                   </td>
-                  <td className={tableStyles.cell}>
+                  <td className={idcStyles.table.cell}>
                     <IdcEndpointCell resource={r} />
                   </td>
-                  <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary)}>
+                  <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
                     {r.port}
                   </td>
-                  <td className={tableStyles.cell}>
+                  <td className={idcStyles.table.cell}>
                     <IdcFirewallBadge open={r.firewallOpen} />
                   </td>
                 </tr>

@@ -2,7 +2,7 @@
 
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { bgColors, cn, tableStyles, textColors } from '@/lib/theme';
+import { bgColors, cn, idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -57,39 +57,39 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <thead className={tableStyles.header}>
+        <thead className={idcStyles.table.header}>
           <tr>
-            <th className={cn(tableStyles.headerCell, 'w-[110px]')}>구분</th>
-            <th className={cn(tableStyles.headerCell, 'w-[220px]')}>연동 대상</th>
-            <th className={cn(tableStyles.headerCell, 'w-[80px]')}>Port</th>
-            <th className={tableStyles.headerCell}>Database Type</th>
+            <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>구분</th>
+            <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>연동 대상</th>
+            <th className={cn(idcStyles.table.headerCell, 'w-[80px]')}>Port</th>
+            <th className={idcStyles.table.headerCell}>Database Type</th>
             {has('src') && (
-              <th className={cn(tableStyles.headerCell, 'w-[180px]')}>
+              <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>
                 <SourceIpHeader />
               </th>
             )}
-            {has('excl') && <th className={cn(tableStyles.headerCell, 'w-[180px]')}>연동 대상 여부</th>}
-            {has('fw') && <th className={cn(tableStyles.headerCell, 'w-[170px]')}>방화벽 상태</th>}
-            {has('conn') && <th className={cn(tableStyles.headerCell, 'w-[150px]')}>Connection Status</th>}
-            {has('health') && <th className={cn(tableStyles.headerCell, 'w-[150px]')}>Status</th>}
+            {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>연동 대상 여부</th>}
+            {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
+            {has('conn') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>}
+            {has('health') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Status</th>}
           </tr>
         </thead>
-        <tbody className={tableStyles.body}>
+        <tbody className={idcStyles.table.body}>
           {rows.map((r) => {
             const dim = r.excluded ? 'opacity-50' : '';
             return (
-              <tr key={r.resourceId} className={cn(tableStyles.row, r.excluded && bgColors.muted)}>
-                <td className={cn(tableStyles.cell, dim)}><IdcKindBadge kind={r.kind} /></td>
-                <td className={cn(tableStyles.cell, dim)}><IdcEndpointCell resource={r} /></td>
-                <td className={cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary, dim)}>{r.port}</td>
-                <td className={cn(tableStyles.cell, dim)}><IdcDbTypeCell resource={r} /></td>
+              <tr key={r.resourceId} className={cn(idcStyles.table.row, r.excluded && bgColors.muted)}>
+                <td className={cn(idcStyles.table.cell, dim)}><IdcKindBadge kind={r.kind} /></td>
+                <td className={cn(idcStyles.table.cell, dim)}><IdcEndpointCell resource={r} /></td>
+                <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary, dim)}>{r.port}</td>
+                <td className={cn(idcStyles.table.cell, dim)}><IdcDbTypeCell resource={r} /></td>
                 {has('src') && (
-                  <td className={cn(tableStyles.cell, dim)}>
+                  <td className={cn(idcStyles.table.cell, dim)}>
                     {r.excluded ? <span className={textColors.quaternary}>—</span> : <IdcSourceIpCell sourceIps={r.sourceIps} />}
                   </td>
                 )}
                 {has('excl') && (
-                  <td className={tableStyles.cell}>
+                  <td className={idcStyles.table.cell}>
                     {r.excluded ? (
                       <span className="inline-flex items-center gap-2">
                         <IdcTargetPill excluded />
@@ -100,9 +100,9 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
                     )}
                   </td>
                 )}
-                {has('fw') && <td className={cn(tableStyles.cell, dim)}><IdcFirewallBadge open={r.firewallOpen} /></td>}
-                {has('conn') && <td className={cn(tableStyles.cell, dim)}><IdcConnBadge state={r.connection} /></td>}
-                {has('health') && <td className={cn(tableStyles.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
+                {has('fw') && <td className={cn(idcStyles.table.cell, dim)}><IdcFirewallBadge open={r.firewallOpen} /></td>}
+                {has('conn') && <td className={cn(idcStyles.table.cell, dim)}><IdcConnBadge state={r.connection} /></td>}
+                {has('health') && <td className={cn(idcStyles.table.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
               </tr>
             );
           })}

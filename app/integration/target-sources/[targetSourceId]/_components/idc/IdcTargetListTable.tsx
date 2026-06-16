@@ -9,7 +9,6 @@ import {
   idcStyles,
   primaryColors,
   statusColors,
-  tableStyles,
   textColors,
 } from '@/lib/theme';
 import {
@@ -57,21 +56,21 @@ export const IdcTargetListTable = ({
 }: IdcTargetListTableProps) => (
   <div className="overflow-x-auto">
     <table className="w-full">
-      <thead className={tableStyles.header}>
+      <thead className={idcStyles.table.header}>
         <tr>
           {HEADERS.map((h, i) => (
-            <th key={i} className={cn(tableStyles.headerCell, 'py-3', h.className)}>
+            <th key={i} className={cn(idcStyles.table.headerCell, h.className)}>
               {h.label}
             </th>
           ))}
         </tr>
       </thead>
-      <tbody className={tableStyles.body}>
+      <tbody className={idcStyles.table.body}>
         {rows.map((row) => {
           const dim = row.excluded ? 'opacity-50' : '';
           return (
-            <tr key={row.resourceId} className={cn('group', tableStyles.row, row.excluded && bgColors.muted)}>
-              <td className="px-6 py-4">
+            <tr key={row.resourceId} className={cn('group', idcStyles.table.row, row.excluded && bgColors.muted)}>
+              <td className="px-4 py-3.5">
                 <input
                   type="checkbox"
                   checked={!row.excluded}
@@ -85,17 +84,17 @@ export const IdcTargetListTable = ({
                   )}
                 />
               </td>
-              <td className={cn('px-6 py-4', dim)}>
+              <td className={cn('px-4 py-3.5', dim)}>
                 <IdcKindBadge kind={row.kind} />
               </td>
-              <td className={cn('px-6 py-4', dim)}>
+              <td className={cn('px-4 py-3.5', dim)}>
                 <IdcEndpointCell resource={row} />
               </td>
-              <td className={cn('px-6 py-4 font-mono text-[12px]', textColors.secondary, dim)}>{row.port}</td>
-              <td className={cn('px-6 py-4', dim)}>
+              <td className={cn('px-4 py-3.5 font-mono text-[12px]', textColors.secondary, dim)}>{row.port}</td>
+              <td className={cn('px-4 py-3.5', dim)}>
                 <IdcDbTypeCell resource={row} />
               </td>
-              <td className="px-6 py-4">
+              <td className="px-4 py-3.5">
                 {row.excluded && row.exclusionReason ? (
                   <button
                     type="button"
@@ -109,8 +108,8 @@ export const IdcTargetListTable = ({
                   <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
                 )}
               </td>
-              <td className={cn('px-6 py-4 text-[12.5px]', textColors.secondary, dim)}>{row.done}</td>
-              <td className="px-6 py-4">
+              <td className={cn('px-4 py-3.5 text-[12.5px]', textColors.secondary, dim)}>{row.done}</td>
+              <td className="px-4 py-3.5">
                 <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <RowActionButton label="수정" onClick={() => onEdit(row.resourceId)}>
                     <EditIcon className="h-3.5 w-3.5" />
