@@ -31,6 +31,9 @@ import type {
 // Domain models (UI contract — stable across wire changes)
 // ---------------------------------------------------------------------------
 
+/** Wire enums re-exported so CSR components import them here, not from @/lib/bff/* (boundaries.md). */
+export type { IdcDatabaseTypeWire, IdcTfStatus } from '@/lib/bff/types/idc';
+
 export type IdcKind = 'SINGLE' | 'MULTIPLE_IP' | 'DOMAIN';
 export type IdcConnState = 'PENDING' | 'SUCCESS';
 export type IdcHealth = 'HEALTHY' | 'UNHEALTHY';

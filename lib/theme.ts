@@ -204,6 +204,10 @@ export const buttonStyles = {
     danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow',
     success: 'bg-[#45CB85] text-white hover:bg-[#3AB574] shadow-sm hover:shadow',
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
+    /** Soft Primary — light blue fill + primary text (결정 #58, secondary CTA). */
+    soft: 'bg-blue-50 text-[#0064FF] hover:bg-blue-100',
+    /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
+    warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
   },
   sizes: {
     sm: 'px-3 py-1.5 text-sm',

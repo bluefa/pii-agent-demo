@@ -40,10 +40,10 @@ describe('Guide resolver — spec §8.1', () => {
     expect(slot).toBeUndefined();
   });
 
-  it('case 4: GUIDE_SLOTS has 28 unique keys', () => {
+  it('case 4: GUIDE_SLOTS has 35 unique keys', () => {
     const keys = Object.keys(GUIDE_SLOTS);
-    expect(keys).toHaveLength(28);
-    expect(new Set(keys).size).toBe(28);
+    expect(keys).toHaveLength(35);
+    expect(new Set(keys).size).toBe(35);
   });
 
   it('case 5: every current slot is process-step kind', () => {

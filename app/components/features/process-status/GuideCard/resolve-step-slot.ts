@@ -38,5 +38,10 @@ export const resolveStepSlot = (
     return isSlotKey(key) ? key : null;
   }
 
+  if (provider === 'IDC') {
+    const key = `process.idc.${currentStep}`;
+    return isSlotKey(key) ? key : null;
+  }
+
   return null;
 };

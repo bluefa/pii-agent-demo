@@ -8,8 +8,8 @@ import {
 } from '@/lib/constants/guide-registry';
 
 describe('guide-registry', () => {
-  it('GUIDE_NAMES has exactly 22 entries', () => {
-    expect(GUIDE_NAMES).toHaveLength(22);
+  it('GUIDE_NAMES has exactly 29 entries', () => {
+    expect(GUIDE_NAMES).toHaveLength(29);
   });
 
   it('every GUIDE_SLOTS entry references a name in GUIDE_NAMES', () => {

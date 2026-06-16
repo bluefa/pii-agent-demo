@@ -5,7 +5,7 @@ import { buttonStyles, cn } from '@/lib/theme';
 interface ButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'soft' | 'warnOutline';
   type?: 'button' | 'submit';
   disabled?: boolean;
   className?: string;
@@ -15,6 +15,8 @@ const variantStyles = {
   primary: buttonStyles.variants.primary,
   secondary: buttonStyles.variants.secondary,
   danger: buttonStyles.variants.danger,
+  soft: buttonStyles.variants.soft,
+  warnOutline: buttonStyles.variants.warnOutline,
 };
 
 export const Button = ({

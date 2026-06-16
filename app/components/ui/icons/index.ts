@@ -10,6 +10,7 @@ export { ChevronRightIcon } from '@/app/components/ui/icons/ChevronRightIcon';
 export { ClockIcon } from '@/app/components/ui/icons/ClockIcon';
 export { CloseIcon } from '@/app/components/ui/icons/CloseIcon';
 export { CopyIcon } from '@/app/components/ui/icons/CopyIcon';
+export { DatabaseIcon } from '@/app/components/ui/icons/DatabaseIcon';
 export { DeleteIcon } from '@/app/components/ui/icons/DeleteIcon';
 export { DownloadIcon } from '@/app/components/ui/icons/DownloadIcon';
 export { EditIcon } from '@/app/components/ui/icons/EditIcon';
