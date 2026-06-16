@@ -89,8 +89,12 @@ const deriveKind = (wire: IdcResourceInput): IdcKind => {
   return (wire.ips?.length ?? 0) > 1 ? 'MULTIPLE_IP' : 'SINGLE';
 };
 
-export const toIdcResourceView = (wire: IdcResourceInput): IdcResourceView => ({
-  resourceId: wire.resource_id ?? '',
+export const toIdcResourceView = (wire: IdcResourceInput, index = 0): IdcResourceView => ({
+  // GET/previous-request responses always carry resource_id (idc.yaml); the
+  // index fallback only guards a non-conformant backend so missing ids can never
+  // collapse to the same React key / break edit-delete targeting (it is never
+  // serialized back — `persisted` stays false, so toIdcResourceInput omits it).
+  resourceId: wire.resource_id ?? `idc-row-${index}`,
   persisted: wire.resource_id !== undefined,
   kind: deriveKind(wire),
   hosts: wire.input_format === 'IP' ? (wire.ips ?? []) : wire.host ? [wire.host] : [],
@@ -149,7 +153,7 @@ export const getIdcResources = async (
   const res = await fetchInfraJson<IdcResourcesResponse>(`${idcBase(targetSourceId)}/resources`, {
     signal: opts?.signal,
   });
-  return res.resources.map(toIdcResourceView);
+  return res.resources.map((r, i) => toIdcResourceView(r, i));
 };
 
 export const getIdcPreviousRequest = async (
@@ -160,7 +164,7 @@ export const getIdcPreviousRequest = async (
     `${idcBase(targetSourceId)}/previous-request`,
     { signal: opts?.signal },
   );
-  return res.resources.map(toIdcResourceView);
+  return res.resources.map((r, i) => toIdcResourceView(r, i));
 };
 
 export const updateIdcResources = async (
@@ -171,7 +175,7 @@ export const updateIdcResources = async (
     method: 'PUT',
     body: { resources: views.map(toIdcResourceInput) },
   });
-  return res.resources.map(toIdcResourceView);
+  return res.resources.map((r, i) => toIdcResourceView(r, i));
 };
 
 export const getIdcInstallationStatus = async (

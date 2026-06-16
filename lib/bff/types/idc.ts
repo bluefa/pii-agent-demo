@@ -11,12 +11,13 @@
  * `get(path, { raw: true })`), matching the mock and this file. The mapper
  * owns camel conversion — do not camelCase at the BFF layer for IDC.
  *
- * Divergences from the current idc.yaml are intentional and tracked in
- * `design/idc-implementation-plan.md` §6 (G2/G3/G5/G6):
- *   - database_type: 7 values (yaml has 4)        — G5
- *   - ips: up to 6 (yaml maxItems 3)              — G2
- *   - exclusion_reason on the resource            — G3
- *   - per-resource source_ips / firewall_open     — G6
+ * idc.yaml is reconciled to these DTOs 1:1 (no remaining schema divergence):
+ *   - database_type: 7 values                     — G5 (yaml updated)
+ *   - ips: up to 6                                — G2 (yaml updated)
+ *   - exclusion_reason on the resource           — G3 (yaml updated)
+ *   - per-resource source_ips / firewall_open    — G6 (installation-status.resources)
+ * Remaining backend-dependent items (G1 approval transition, Step 5 test-connection
+ * wiring) are tracked in `design/idc-implementation-plan.md` §6.
  */
 
 export type IdcTfStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

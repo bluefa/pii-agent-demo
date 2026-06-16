@@ -9,7 +9,6 @@ import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
-import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -29,11 +28,11 @@ const CompleteActions = () => {
   const stub = (label: string) => () => toast.info(`${label} 기능 준비중입니다.`);
   return (
     <div className="mb-3 flex justify-end gap-2">
-      <button type="button" className={WARNING_OUTLINE_BUTTON_CLASS} onClick={stub('인프라 변경')}>
+      <button type="button" className={idcStyles.triggerBtn.warnOutline} onClick={stub('인프라 변경')}>
         <EditIcon className="w-3.5 h-3.5" />
         인프라 변경
       </button>
-      <button type="button" className={WARNING_OUTLINE_BUTTON_CLASS} onClick={stub('연결 테스트 재실행')}>
+      <button type="button" className={idcStyles.triggerBtn.warnOutline} onClick={stub('연결 테스트 재실행')}>
         <ReloadIcon className="w-3.5 h-3.5" />
         연결 테스트 재실행
       </button>

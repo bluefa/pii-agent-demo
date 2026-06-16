@@ -68,7 +68,7 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
                 <SourceIpHeader />
               </th>
             )}
-            {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>연동 대상 여부</th>}
+            {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>연동 대상 / 제외 사유</th>}
             {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
             {has('conn') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>}
             {has('health') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Status</th>}

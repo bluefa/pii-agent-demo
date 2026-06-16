@@ -14,7 +14,6 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
-import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
@@ -31,7 +30,7 @@ const ConnectionVerifiedRetestButton = () => {
     <div className="flex justify-end mt-4">
       <button
         type="button"
-        className={WARNING_OUTLINE_BUTTON_CLASS}
+        className={idcStyles.triggerBtn.warnOutline}
         onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}
       >
         <ReloadIcon className="w-3.5 h-3.5" />
