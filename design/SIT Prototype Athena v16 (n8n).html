@@ -5340,6 +5340,103 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .is-poll .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
 /* F7 lineage chip */
 .adm-lineage { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: #0064FF; background: #E8F1FF; border-radius: 6px; padding: 1px 7px; margin-left: 8px; vertical-align: 1px; }
+/* ============ Pipeline Dashboard (hybrid v4 visual + v6 filter chips + v10 ops columns) ============ */
+.pd-wrap { font-feature-settings:"tnum" 1; }
+.pd-timebar { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #EBEEF2; border-radius:10px; padding:5px 6px 5px 12px; box-shadow:0 1px 2px rgba(20,30,50,.04); width:fit-content; margin-bottom:14px; }
+.pd-timebar .pd-clock { color:#8B95A1; display:flex; }
+.pd-range-main { display:flex; align-items:center; gap:9px; padding:6px 12px; border-radius:8px; cursor:pointer; background:#E8F0FF; border:1px solid rgba(0,100,255,.18); }
+.pd-range-main .lbl { font-size:11px; color:#0064FF; font-weight:600; opacity:.85; }
+.pd-range-main .val { font-size:13.5px; font-weight:700; color:#0050D6; letter-spacing:-.2px; }
+.pd-preset-group { display:flex; gap:2px; background:#EEF1F4; padding:3px; border-radius:8px; }
+.pd-preset { font-size:12px; font-weight:600; color:#4E5968; padding:6px 11px; border-radius:6px; cursor:pointer; border:none; background:transparent; font-family:inherit; }
+.pd-preset.on { background:#fff; color:#0064FF; box-shadow:0 1px 3px rgba(20,30,50,.12); }
+.pd-fromto { display:flex; align-items:center; gap:7px; font-size:11.5px; color:#4E5968; padding-left:6px; border-left:1px solid #EBEEF2; margin-left:2px; }
+.pd-fromto .field { font-weight:600; color:#191F28; background:#F4F4FB; padding:5px 9px; border-radius:6px; border:1px solid #EBEEF2; font-size:11.5px; }
+.pd-fromto .arrow { color:#8B95A1; }
+.pd-metric-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
+.pd-metric { background:#fff; border:1px solid #EBEEF2; border-radius:13px; padding:15px 17px 13px; position:relative; overflow:hidden; box-shadow:0 1px 2px rgba(20,30,50,.035); }
+.pd-metric .pd-accent { position:absolute; left:0; top:0; bottom:0; width:3px; }
+.pd-metric .pd-mlabel { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:#4E5968; }
+.pd-metric .pd-micon { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+.pd-metric .pd-mbody { display:flex; align-items:flex-end; justify-content:space-between; margin-top:9px; }
+.pd-metric .pd-mvalue { font-size:30px; font-weight:720; letter-spacing:-1px; line-height:1; }
+.pd-metric .pd-mvalue .unit { font-size:14px; font-weight:600; color:#8B95A1; margin-left:3px; letter-spacing:0; }
+.pd-metric .pd-mdelta { font-size:11px; font-weight:600; color:#8B95A1; margin-top:6px; }
+.pd-spark { height:30px; width:92px; }
+.pd-metric.attn { box-shadow:0 0 0 1px rgba(239,68,68,.22), 0 2px 10px rgba(239,68,68,.09); }
+.pd-blue .pd-accent{background:#0064FF;} .pd-blue .pd-micon{background:#E8F0FF;color:#0064FF;} .pd-blue .pd-mvalue{color:#0064FF;}
+.pd-amber .pd-accent{background:#F97316;} .pd-amber .pd-micon{background:#FEEEE2;color:#F97316;} .pd-amber .pd-mvalue{color:#F97316;}
+.pd-red .pd-accent{background:#EF4444;} .pd-red .pd-micon{background:#FDE9E9;color:#EF4444;} .pd-red .pd-mvalue{color:#EF4444;}
+.pd-green .pd-accent{background:#45CB85;} .pd-green .pd-micon{background:#E6F8EF;color:#2FAE6E;} .pd-green .pd-mvalue{color:#2FAE6E;}
+.pd-panel { background:#fff; border:1px solid #EBEEF2; border-radius:14px; box-shadow:0 1px 2px rgba(20,30,50,.035); }
+.pd-filterbar { display:flex; align-items:center; gap:10px; padding:11px 14px; margin-bottom:14px; flex-wrap:wrap; }
+.pd-seglabel { font-size:11px; font-weight:600; color:#8B95A1; text-transform:uppercase; letter-spacing:.4px; }
+.pd-chip-row { display:flex; gap:5px; background:#F4F4FB; padding:3px; border-radius:9px; }
+.pd-chip { font-size:12px; font-weight:600; color:#4E5968; padding:6px 11px; border-radius:6px; cursor:pointer; border:none; background:transparent; font-family:inherit; display:flex; align-items:center; gap:6px; }
+.pd-chip .cdot { width:7px; height:7px; border-radius:50%; }
+.pd-chip .cnt { font-size:10.5px; font-weight:800; color:#8B95A1; background:#EEF1F4; border-radius:10px; padding:0 6px; min-width:18px; text-align:center; }
+.pd-chip.on { background:#fff; color:#191F28; box-shadow:0 1px 3px rgba(20,30,50,.12); }
+.pd-chip.on .cnt { color:#0064FF; background:#E8F0FF; }
+.pd-select { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:#191F28; background:#F4F4FB; border:1px solid #EBEEF2; padding:7px 11px; border-radius:8px; cursor:pointer; }
+.pd-select .ph { color:#8B95A1; }
+.pd-search { display:flex; align-items:center; gap:8px; flex:1; min-width:200px; background:#F4F4FB; border:1px solid #EBEEF2; padding:8px 12px; border-radius:9px; }
+.pd-search svg { width:14px; height:14px; color:#8B95A1; flex:none; }
+.pd-search input { border:none; background:transparent; outline:none; font-size:12.5px; color:#191F28; width:100%; font-family:inherit; }
+.pd-vsep { width:1px; height:22px; background:#EBEEF2; }
+.pd-coltoggle { display:flex; align-items:center; gap:6px; padding:0 16px 12px; flex-wrap:wrap; border-bottom:1px solid #EBEEF2; }
+.pd-coltoggle .ctl { font-size:11px; font-weight:600; color:#8B95A1; }
+.pd-coltog { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; cursor:pointer; border:1px solid #EBEEF2; background:#fff; color:#4E5968; }
+.pd-coltog.on { background:#191F28; color:#fff; border-color:#191F28; }
+.pd-table-head { display:flex; align-items:center; justify-content:space-between; padding:13px 16px 11px; }
+.pd-table-head .tt { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:650; color:#191F28; }
+.pd-table-head .count-pill { font-size:11px; font-weight:600; color:#4E5968; background:#F4F4FB; padding:2px 8px; border-radius:20px; }
+.pd-export { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:#4E5968; background:#fff; border:1px solid #EBEEF2; padding:6px 11px; border-radius:8px; cursor:pointer; font-family:inherit; }
+.pd-wrap table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.pd-wrap thead th { text-align:left; font-size:10.5px; font-weight:600; color:#8B95A1; text-transform:uppercase; letter-spacing:.4px; padding:9px 14px; background:#FAFBFD; border-top:1px solid #EBEEF2; border-bottom:1px solid #EBEEF2; white-space:nowrap; }
+.pd-wrap thead th.sortable { cursor:pointer; user-select:none; }
+.pd-wrap thead th.sorted { color:#0064FF; }
+.pd-wrap tbody td { padding:12px 14px; border-bottom:1px solid #EBEEF2; vertical-align:middle; }
+.pd-wrap tbody tr.pd-row { cursor:pointer; }
+.pd-wrap tbody tr.pd-row:hover { background:#FAFBFE; }
+.pd-wrap tbody tr.row-alert { background:linear-gradient(90deg, rgba(239,68,68,.05), transparent 60%); }
+.pd-wrap tbody tr.row-warn { background:linear-gradient(90deg, rgba(249,115,22,.055), transparent 60%); }
+.pd-wrap tbody tr.pd-expand > td { padding:0; background:#FAFBFC; }
+.pd-plid { font-weight:700; color:#191F28; font-size:12.5px; font-variant-numeric:tabular-nums; }
+.pd-tsname { font-size:11px; color:#8B95A1; font-weight:500; margin-top:1px; }
+.pd-prov { display:inline-flex; align-items:center; gap:7px; font-weight:600; color:#191F28; }
+.pd-prov .b { width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:#fff; }
+.pb-aws{background:#FF9900;} .pb-gcp{background:#4285F4;} .pb-azure{background:#0078D4;} .pb-idc{background:#5B6470;} .pb-sdu{background:#7A5AF8;}
+.pd-typetag { font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:6px; }
+.pd-typetag.install { background:#E8F0FF; color:#0064FF; } .pd-typetag.delete { background:#F3EFFB; color:#7A5AF8; }
+.pd-status { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; padding:4px 10px 4px 8px; border-radius:20px; white-space:nowrap; }
+.pd-status .sd { width:7px; height:7px; border-radius:50%; }
+.pd-st-done{background:#E6F8EF;color:#218B57;} .pd-st-done .sd{background:#45CB85;}
+.pd-st-run{background:#E8F0FF;color:#0064FF;} .pd-st-run .sd{background:#0064FF;}
+.pd-st-wait{background:#FEEEE2;color:#C2570F;} .pd-st-wait .sd{background:#F97316;}
+.pd-st-fail{background:#FDE9E9;color:#C53030;} .pd-st-fail .sd{background:#EF4444;}
+.pd-st-cancel{background:#EEF1F4;color:#6B7684;} .pd-st-cancel .sd{background:#A0A8B3;}
+.pd-progress { display:flex; align-items:center; gap:9px; min-width:104px; }
+.pd-progress .ptxt { font-size:11.5px; font-weight:700; color:#4E5968; font-variant-numeric:tabular-nums; width:24px; }
+.pd-bar { flex:1; height:6px; border-radius:4px; background:#EEF1F4; overflow:hidden; max-width:70px; }
+.pd-bar > span { display:block; height:100%; border-radius:4px; }
+.pd-bar.done>span{background:#45CB85;} .pd-bar.run>span{background:#0064FF;} .pd-bar.fail>span{background:#EF4444;} .pd-bar.cancel>span{background:#A0A8B3;}
+.pd-task { max-width:230px; }
+.pd-task .tx { font-size:12px; color:#4E5968; font-weight:500; display:flex; align-items:center; gap:5px; }
+.pd-task .tx.warn { color:#C2570F; font-weight:600; } .pd-task .tx.fail { color:#C53030; font-weight:600; }
+.pd-task .tm { font-size:10.5px; color:#8B95A1; margin-top:2px; }
+.pd-slot { font-size:11.5px; font-weight:700; color:#4E5968; font-variant-numeric:tabular-nums; }
+.pd-next { font-size:11.5px; font-weight:600; color:#4E5968; }
+.pd-next.soon { color:#C2570F; } .pd-next.none { color:#C4CBD4; }
+.pd-when { font-size:12px; color:#191F28; font-weight:600; font-variant-numeric:tabular-nums; }
+.pd-when .rel { display:block; font-size:10.5px; color:#8B95A1; font-weight:500; margin-top:1px; }
+.pd-elapsed { font-size:12.5px; font-weight:700; color:#191F28; font-variant-numeric:tabular-nums; }
+.pd-elapsed.long { color:#F97316; } .pd-elapsed.none { color:#8B95A1; }
+.pd-foot { display:flex; align-items:center; justify-content:space-between; padding:11px 16px; }
+.pd-foot .fi { font-size:11.5px; color:#4E5968; } .pd-foot .fi b { color:#191F28; }
+.pd-pager { display:flex; align-items:center; gap:4px; }
+.pd-pager button { min-width:28px; height:28px; padding:0 8px; border-radius:7px; border:1px solid #EBEEF2; background:#fff; font-size:12px; font-weight:600; color:#4E5968; cursor:pointer; font-family:inherit; }
+.pd-pager button.on { background:#0064FF; border-color:#0064FF; color:#fff; }
+.pd-empty { padding:40px; text-align:center; color:#8B95A1; font-size:13px; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -7588,23 +7685,10 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
       <section data-aview-panel="pipeline" class="hidden">
         <div class="adm-page-head">
           <h1>설치/삭제 파이프라인</h1>
-          <p>Terraform 설치/삭제 작업이 정해진 단계(DAG)에 따라 순차 실행돼요. 행을 클릭하면 Task 상세가 보여요.</p>
+          <p>전체 설치·삭제 run을 한눈에 모니터링하고 상태·기간으로 조회해요. 행을 클릭하면 워크플로 캔버스가 펼쳐져요.</p>
         </div>
         <div id="admPipeBanner"></div>
-        <div class="adm-cards" id="admPipeCards"></div>
-        <div class="card">
-          <div class="db-list-table" style="border:0; border-radius:0;">
-            <table>
-              <thead>
-                <tr>
-                  <th>TargetSource</th><th style="width:70px;">유형</th><th style="width:90px;">Provider</th>
-                  <th style="width:170px;">진행</th><th>현재 Task</th><th style="width:90px;">경과</th><th style="width:110px;"></th>
-                </tr>
-              </thead>
-              <tbody id="admPipeTbody"></tbody>
-            </table>
-          </div>
-        </div>
+        <div class="pd-wrap" id="admPipeWrap"></div>
       </section>
 
       <!-- VIEW: API 현황 -->
@@ -11659,25 +11743,37 @@ const ADM = {
   ],
   nlbSel: null, nlbCtx: null,
   pipelines: [
-    { id: 'PL-77', tsId: '30001', type: '설치', status: 'DONE', elapsed: '41분', open: false,
+    { id: 'PL-82', tsId: '30004', type: '설치', provider: 'Azure', status: 'FAILED', elapsed: '5시간', startedAt: '2026-06-16 09:10', open: false,
       tasks: [
-        { name: 'TF 권한 확인', kind: 'WAIT', state: 'DONE', meta: '06-10 13:40 · 2회 확인', poll: 10, ttl: 7, maxFail: null, fail: 0 },
-        { name: 'SVC TF 실행', kind: 'EXEC', state: 'DONE', meta: '06-10 14:02 · 3분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
-        { name: 'BDC Common TF 실행', kind: 'EXEC', state: 'DONE', meta: '06-10 14:10 · 6분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
-        { name: 'BDC Service Level TF 실행', kind: 'EXEC', state: 'DONE', meta: '06-10 14:18 · 4분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+        { name: 'AzureVM 설치 확인', kind: 'WAIT', state: 'DONE', meta: '09:10 · 1회 확인', poll: 10, ttl: 7, maxFail: null, fail: 0 },
+        { name: 'PE 승인 요청', kind: 'EXEC', state: 'FAILED', meta: '실패 3/3 — InfraManager 504', poll: 10, ttl: null, maxFail: 3, fail: 3 },
+        { name: 'PE 승인 확인', kind: 'WAIT', state: 'QUEUED', meta: '', poll: 10, ttl: 7, maxFail: null, fail: 0 },
       ] },
-    { id: 'PL-81', tsId: '30002', type: '설치', status: 'RUNNING', elapsed: '2일', open: false,
+    { id: 'PL-77', tsId: '30001', type: '설치', provider: 'AWS', status: 'DONE', elapsed: '41분', startedAt: '2026-06-16 13:40', open: false,
       tasks: [
-        { name: 'TF 권한 확인', kind: 'WAIT', state: 'DONE', meta: '06-09 10:00 · 5회 확인', poll: 30, ttl: 7, maxFail: null, fail: 0 },
+        { name: 'TF 권한 확인', kind: 'WAIT', state: 'DONE', meta: '13:40 · 2회 확인', poll: 10, ttl: 7, maxFail: null, fail: 0 },
+        { name: 'SVC TF 실행', kind: 'EXEC', state: 'DONE', meta: '13:44 · 3분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+        { name: 'BDC Common TF 실행', kind: 'EXEC', state: 'DONE', meta: '13:50 · 6분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+        { name: 'BDC Service Level TF 실행', kind: 'EXEC', state: 'DONE', meta: '13:58 · 4분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+      ] },
+    { id: 'PL-79', tsId: '30003', type: '삭제', provider: 'IDC', status: 'DONE', elapsed: '12분', startedAt: '2026-06-15 18:20', open: false,
+      tasks: [
+        { name: 'BDP TF 삭제', kind: 'EXEC', state: 'DONE', meta: '18:20 · 4분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+        { name: 'BDC CX TF 삭제', kind: 'EXEC', state: 'DONE', meta: '18:25 · 5분', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+      ] },
+    { id: 'PL-81', tsId: '30002', type: '설치', provider: 'GCP', status: 'RUNNING', elapsed: '2일', startedAt: '2026-06-14 09:00', open: false,
+      tasks: [
+        { name: 'TF 권한 확인', kind: 'WAIT', state: 'DONE', meta: '06-14 09:00 · 5회 확인', poll: 30, ttl: 7, maxFail: null, fail: 0 },
         { name: 'Subnet 생성 확인', kind: 'WAIT', state: 'WAITING', meta: '확인 중 (2일 경과)', poll: 30, ttl: 7, maxFail: null, fail: 0, exp: '보통 1일', cur: '2일', delay: true },
         { name: 'SVC TF 동작', kind: 'EXEC', state: 'QUEUED', meta: '', poll: 10, ttl: null, maxFail: 1, fail: 0 },
         { name: 'BDC TF 동작', kind: 'EXEC', state: 'QUEUED', meta: '', poll: 10, ttl: null, maxFail: 1, fail: 0 },
       ] },
-    { id: 'PL-82', tsId: '30004', type: '설치', status: 'FAILED', elapsed: '5시간', open: false,
+    { id: 'PL-78', tsId: '30001', type: '설치', provider: 'AWS', status: 'CANCELLED', elapsed: '—', startedAt: '2026-06-14 11:00', open: false,
       tasks: [
-        { name: 'AzureVM 설치 확인', kind: 'WAIT', state: 'DONE', meta: '06-11 09:00 · 1회 확인', poll: 10, ttl: 7, maxFail: null, fail: 0 },
-        { name: 'PE 승인 요청', kind: 'EXEC', state: 'FAILED', meta: '실패 3/3 — InfraManager 504', poll: 10, ttl: null, maxFail: 3, fail: 3 },
-        { name: 'PE 승인 확인', kind: 'WAIT', state: 'QUEUED', meta: '', poll: 10, ttl: 7, maxFail: null, fail: 0 },
+        { name: 'TF 권한 확인', kind: 'WAIT', state: 'DONE', meta: '11:00 · 2회 확인', poll: 10, ttl: 7, maxFail: null, fail: 0 },
+        { name: 'SVC TF 실행', kind: 'EXEC', state: 'CANCELLED', meta: '운영자 중단', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+        { name: 'BDC Common TF 실행', kind: 'EXEC', state: 'CANCELLED', meta: '', poll: 10, ttl: null, maxFail: 1, fail: 0 },
+        { name: 'BDC Service Level TF 실행', kind: 'EXEC', state: 'CANCELLED', meta: '', poll: 10, ttl: null, maxFail: 1, fail: 0 },
       ] },
   ],
   apiStats: [
@@ -12467,53 +12563,152 @@ function admStartPipeline(type) {
   });
   admRenderAll();
 }
+const PD_IC = {
+  run: '<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 3a9 9 0 1 0 9 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  wait: '<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  fail: '<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.9"/><path d="M15 9l-6 6M9 9l6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>',
+  done: '<svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const PD_SPARK = { blue: '0,22 16,20 32,21 48,16 64,18 80,12 92,14', amber: '0,24 16,23 32,20 48,19 64,14 80,12 92,8', red: '0,18 16,16 32,19 48,15 64,17 80,13 92,5', green: '0,26 16,24 32,22 48,18 64,16 80,11 92,7' };
+const PD_SPARKC = { blue: '#0064FF', amber: '#F97316', red: '#EF4444', green: '#45CB85' };
+function admPdMetric(cls, ic, label, val, delta, attn) {
+  return `<div class="pd-metric pd-${cls}${attn ? ' attn' : ''}"><div class="pd-accent"></div>
+    <div class="pd-mlabel"><span class="pd-micon">${ic}</span>${label}</div>
+    <div class="pd-mbody"><div><div class="pd-mvalue">${val}<span class="unit">개</span></div><div class="pd-mdelta"${attn ? ` style="color:${cls === 'red' ? '#EF4444' : '#F97316'}"` : ''}>${delta}</div></div>
+    <svg class="pd-spark" viewBox="0 0 92 30" preserveAspectRatio="none"><polyline points="${PD_SPARK[cls]}" fill="none" stroke="${PD_SPARKC[cls]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>`;
+}
+function admPipeProv(p) { return p.provider || (ADM.ts[p.tsId] && ADM.ts[p.tsId].provider) || '—'; }
+function admPipeStatusKey(p) {
+  if (p.status === 'DONE') return 'done';
+  if (p.status === 'FAILED') return 'fail';
+  if (p.status === 'CANCELLED' || p.status === 'CANCELLING') return 'cancel';
+  return p.tasks.some(t => t.state === 'WAITING') ? 'wait' : 'run';
+}
+function admPipeFiltered() {
+  const pf = ADM.pf, q = (pf.q || '').toLowerCase();
+  const list = ADM.pipelines.filter(p => {
+    if (pf.status !== 'all' && admPipeStatusKey(p) !== pf.status) return false;
+    if (pf.type !== 'all' && p.type !== pf.type) return false;
+    if (pf.provider !== 'all' && admPipeProv(p) !== pf.provider) return false;
+    if (q && !((p.id || '').toLowerCase().includes(q) || (p.tsId || '').toLowerCase().includes(q) || admPipeProv(p).toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const dir = pf.dir === 'desc' ? -1 : 1;
+  list.sort((a, b) => (((a.startedAt || '') < (b.startedAt || '')) ? -1 : ((a.startedAt || '') > (b.startedAt || '')) ? 1 : 0) * dir);
+  return list;
+}
+function admPfSet(key, val) { ADM.pf[key] = val; admRenderPipelines(); }
+function admPfSearch(v) { ADM.pf.q = v; ADM._pfFocus = true; admRenderPipelines(); }
+function admPfToggleCol(col) { ADM.pf.cols[col] = !ADM.pf.cols[col]; admRenderPipelines(); }
+function admPfSort(key) { const pf = ADM.pf; if (pf.sort === key) pf.dir = pf.dir === 'desc' ? 'asc' : 'desc'; else { pf.sort = key; pf.dir = 'desc'; } admRenderPipelines(); }
+function admRangeFrom(r) { return r === '1h' ? '2026-06-16 22:59' : r === '24h' ? '2026-06-15 23:00' : r === '7d' ? '2026-06-09 23:59' : '2026-05-17 23:59'; }
+function admWhenShort(s) { return s ? s.slice(5, 16) : '—'; }
+function admRelDay(s) { if (!s) return ''; const d = s.slice(0, 10); return d === '2026-06-16' ? '오늘' : d === '2026-06-15' ? '어제' : d === '2026-06-14' ? '2일 전' : d; }
+function admPipeRow(p) {
+  const pi = ADM.pipelines.indexOf(p);
+  const done = p.tasks.filter(t => t.state === 'DONE').length, total = p.tasks.length, pct = Math.round(done / total * 100);
+  const cur = p.tasks.find(t => t.state !== 'DONE' && t.state !== 'CANCELLED');
+  const sk = admPipeStatusKey(p), prov = admPipeProv(p);
+  const delayRow = p.tasks.some(t => t.delay && t.state !== 'DONE');
+  const rowCls = sk === 'fail' ? ' row-alert' : (delayRow || sk === 'wait') ? ' row-warn' : '';
+  const provB = { AWS: 'aws', GCP: 'gcp', Azure: 'azure', IDC: 'idc', SDU: 'sdu' }[prov] || 'idc';
+  const provAbbr = { AWS: 'AW', GCP: 'GC', Azure: 'Az', IDC: 'DC', SDU: 'SD' }[prov] || prov.slice(0, 2);
+  const stMap = { done: ['pd-st-done', '완료'], run: ['pd-st-run', '진행'], wait: ['pd-st-wait', '외부 대기'], fail: ['pd-st-fail', '실패'], cancel: ['pd-st-cancel', p.status === 'CANCELLING' ? '중단 중' : '중단'] };
+  const stCls = stMap[sk][0], stLbl = stMap[sk][1];
+  const barCls = sk === 'fail' ? 'fail' : sk === 'cancel' ? 'cancel' : sk === 'done' ? 'done' : 'run';
+  let taskHtml;
+  if (p.status === 'DONE') taskHtml = `<div class="tx" style="color:#218B57;font-weight:600;">현재: 완료</div><div class="tm">모든 Task 정상 종료</div>`;
+  else if (p.status === 'CANCELLED') taskHtml = `<div class="tx">— 사용자 중단됨</div><div class="tm">CANCELLED</div>`;
+  else if (p.status === 'CANCELLING') taskHtml = `<div class="tx">중단 중 · 실행 job 종료 대기</div><div class="tm">CANCELLING</div>`;
+  else if (sk === 'fail') { const ft = p.tasks.find(t => t.state === 'FAILED'); taskHtml = `<div class="tx fail">⊘ ${ft ? ft.name + ' 실패 ' + ft.fail + '/' + ft.maxFail : '실패'}</div><div class="tm">EXECUTION_TIMEOUT</div>`; }
+  else if (cur) { const w = cur.delay || cur.state === 'WAITING'; taskHtml = `<div class="tx${w ? ' warn' : ''}">${w ? '⚠ ' : ''}${cur.name}</div><div class="tm">${cur.state === 'WAITING' ? '외부 대기' + (cur.delay ? ' · 지연 ⚠' : '') : '진행 중'}</div>`; }
+  else taskHtml = `<div class="tx">—</div>`;
+  const runTf = p.tasks.find(t => (t.state === 'RUNNING' || t.state === 'DISPATCHING') && admTaskKind(t) === 'TERRAFORM_JOB');
+  const slotCell = (p.status === 'CANCELLING') ? '점유(drain)' : runTf ? 'slot-0' + ((pi % 4) + 1) : '—';
+  const waitT = p.tasks.find(t => t.state === 'WAITING');
+  const nextCell = waitT ? `<span class="pd-next${waitT.delay ? ' soon' : ''}">~${waitT.poll}분 후 · 폴링</span>` : (sk === 'fail' ? '<span class="pd-next none">중단됨</span>' : '<span class="pd-next none">—</span>');
+  const lineage = p.retryOf ? `<span class="pd-lineage2">↻ ${p.retryOf}</span>` : '';
+  const elapsedCls = p.elapsed === '—' ? ' none' : ((delayRow || /일|시간/.test(p.elapsed || '')) && sk !== 'done' && sk !== 'cancel') ? ' long' : '';
+  const cols = ADM.pf.cols;
+  return `<tr class="pd-row${rowCls}" onclick="ADM.pipelines[${pi}].open=!ADM.pipelines[${pi}].open; admRenderPipelines()">
+    <td><div class="pd-plid">${p.id}${lineage}</div><div class="pd-tsname">${p.tsId}</div></td>
+    <td><span class="pd-typetag ${p.type === '삭제' ? 'delete' : 'install'}">${p.type}</span></td>
+    <td><span class="pd-prov"><span class="b pb-${provB}">${provAbbr}</span>${prov}</span></td>
+    <td><span class="pd-status ${stCls}"><span class="sd"></span>${stLbl}</span></td>
+    <td><div class="pd-progress"><span class="ptxt">${done}/${total}</span><span class="pd-bar ${barCls}"><span style="width:${pct}%"></span></span></div></td>
+    <td class="pd-task">${taskHtml}</td>
+    ${cols.slot ? `<td><span class="pd-slot">${slotCell}</span></td>` : ''}
+    ${cols.next ? `<td>${nextCell}</td>` : ''}
+    <td><span class="pd-when">${admWhenShort(p.startedAt)}<span class="rel">${admRelDay(p.startedAt)}</span></span></td>
+    <td style="text-align:right;"><span class="pd-elapsed${elapsedCls}">${p.elapsed}</span></td>
+  </tr>` + (p.open ? `<tr class="pd-expand"><td colspan="11">${admTaskPanel(p, pi)}</td></tr>` : '');
+}
 function admRenderPipelines() {
-  const ps = ADM.pipelines;
-  const cards = [
-    { k: '진행 중', v: ps.filter(p => p.status === 'RUNNING' && !p.tasks.some(t => t.state === 'WAITING')).length, dot: '#3B82F6' },
-    { k: '외부 대기', v: ps.filter(p => p.status === 'RUNNING' && p.tasks.some(t => t.state === 'WAITING')).length, dot: '#F59E0B' },
-    { k: '실패', v: ps.filter(p => p.status === 'FAILED').length, dot: '#EF4444' },
-    { k: '완료 (7일)', v: ps.filter(p => p.status === 'DONE').length, dot: '#10B981' },
-  ];
-  document.getElementById('admPipeCards').innerHTML = cards.map(c =>
-    `<div class="adm-card"><div class="ac-k"><span class="ac-dot" style="background:${c.dot}"></span>${c.k}</div><div class="ac-v">${c.v}<small>건</small></div></div>`).join('');
-  // F1 attention banner — 실패/지연을 execution timeout(30분) 알림 전에 환기 (false-green 방지)
-  const failN = ps.filter(p => p.status === 'FAILED').length;
-  const delayN = ps.reduce((n, p) => n + p.tasks.filter(t => t.delay && t.state !== 'DONE').length, 0);
+  if (!ADM.pf) ADM.pf = { status: 'all', type: 'all', provider: 'all', q: '', sort: 'startedAt', dir: 'desc', range: '7d', cols: { slot: true, next: true } };
+  const pf = ADM.pf, ps = ADM.pipelines;
+  const cnt = { all: ps.length, run: 0, wait: 0, fail: 0, done: 0, cancel: 0 };
+  ps.forEach(p => { const k = admPipeStatusKey(p); cnt[k] = (cnt[k] || 0) + 1; });
+  // F1 attention banner
+  const failN = cnt.fail, delayN = ps.reduce((n, p) => n + p.tasks.filter(t => t.delay && t.state !== 'DONE').length, 0);
   const bn = document.getElementById('admPipeBanner');
-  if (bn) {
-    if (failN || delayN) {
-      const parts = [];
-      if (failN) parts.push(`파이프라인 <b>${failN}건 실패</b>`);
-      if (delayN) parts.push(`task <b>${delayN}건 지연</b>`);
-      bn.innerHTML = `<div class="adm-attn${failN ? ' crit' : ''}"><span class="at-ico">⚠</span><span>${parts.join(' · ')} — 확인이 필요해요. 정상 폴링 중이라도 기준을 넘겼거나 worker 장애일 수 있어요.</span><span class="at-spacer"></span></div>`;
-    } else bn.innerHTML = '';
-  }
-  document.getElementById('admPipeTbody').innerHTML = (ps.map((p, pi) => {
-    const done = p.tasks.filter(t => t.state === 'DONE').length;
-    const cur = p.tasks.find(t => t.state !== 'DONE');
-    const failed = p.status === 'FAILED';
-    const cancelling = p.status === 'CANCELLING';
-    const baseLabel = p.status === 'DONE' ? '완료' : p.status === 'CANCELLED' ? '중단됨' : cancelling ? '중단 중 · 실행 job 종료 대기'
-      : cur ? `${cur.name}${cur.state === 'WAITING' ? ' ⏱' : ''}${cur.state === 'FAILED' ? ` 실패(${cur.fail}/${cur.maxFail})` : ''}` : '—';
-    // F2 liveness chip
-    const lv = failed ? { label: '실패', cls: 'fail' }
-      : (!cancelling && p.status !== 'DONE' && p.status !== 'CANCELLED') ? admLiveness(cur) : null;
-    const lvChip = lv ? `<span class="adm-live ${lv.cls}"><span class="lv-dot"></span>${lv.label}</span>`
-      : (cancelling ? '<span class="adm-live cancelling"><span class="lv-dot"></span>중단 중</span>' : '');
-    const lineage = p.retryOf ? `<span class="adm-lineage" title="${p.retryOf} 다시 실행">↻ ${p.retryOf}</span>` : '';
-    const act = failed
-      ? `<button class="btn ghost" onclick="event.stopPropagation(); admRetryPipe(${pi})">다시 실행</button><button class="btn ghost danger-text" onclick="event.stopPropagation(); admCancelPipe(${pi})">중단</button>`
-      : '';
-    return `<tr class="adm-row-clickable" onclick="ADM.pipelines[${pi}].open=!ADM.pipelines[${pi}].open; admRenderPipelines()">
-      <td class="mono" style="font-size:12.5px;">${p.tsId}${lineage}</td><td>${p.type}</td><td>${ADM.ts[p.tsId].provider}</td>
-      <td><div class="adm-progress${failed ? ' failed' : ''}"><div class="bar"><i style="width:${Math.round(done / p.tasks.length * 100)}%"></i></div><span class="pn">${done}/${p.tasks.length}</span></div></td>
-      <td style="font-size:12.5px; ${failed ? 'color:#B91C1C; font-weight:600;' : ''}">${baseLabel}${lvChip}</td>
-      <td style="font-size:12.5px; color:var(--toss-weak-text);">${p.elapsed}</td>
-      <td style="white-space:nowrap;">${act}</td></tr>` +
-      (p.open ? `<tr><td colspan="7" style="background:#FAFBFC;">${admTaskPanel(p, pi)}</td></tr>` : '');
-  }).join('')) || '<tr><td colspan="7"><div class="adm-empty">파이프라인이 없어요</div></td></tr>';
+  if (bn) bn.innerHTML = (failN || delayN)
+    ? `<div class="adm-attn${failN ? ' crit' : ''}"><span class="at-ico">⚠</span><span>${[failN ? `파이프라인 <b>${failN}건 실패</b>` : '', delayN ? `task <b>${delayN}건 지연</b>` : ''].filter(Boolean).join(' · ')} — 확인이 필요해요. 정상 폴링 중이라도 기준을 넘겼거나 worker 장애일 수 있어요.</span><span class="at-spacer"></span></div>`
+    : '';
+  const wrap = document.getElementById('admPipeWrap');
+  if (!wrap) return;
+  const list = admPipeFiltered();
+  // KPI strip
+  const kpi = `<div class="pd-metric-strip">
+    ${admPdMetric('blue', PD_IC.run, '진행 중', cnt.run, 'RUNNING · 활성 파이프라인', false)}
+    ${admPdMetric('amber', PD_IC.wait, '외부 대기 / 지연', cnt.wait, delayN ? '⚠ 기준 초과 ' + delayN + '건' : '폴링 대기 중', delayN > 0)}
+    ${admPdMetric('red', PD_IC.fail, '실패', cnt.fail, failN ? 'FAILED · 확인 필요' : '없음', failN > 0)}
+    ${admPdMetric('green', PD_IC.done, '완료', cnt.done, 'DONE · 최근 7일', false)}
+  </div>`;
+  // Time bar
+  const presets = ['1h', '24h', '7d', '30d'];
+  const timebar = `<div class="pd-timebar">
+    <span class="pd-clock"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+    <div class="pd-range-main"><span class="lbl">시간 범위</span><span class="val">최근 ${pf.range}</span><span>▾</span></div>
+    <div class="pd-preset-group">${presets.map(r => `<button class="pd-preset${pf.range === r ? ' on' : ''}" onclick="admPfSet('range','${r}')">${r}</button>`).join('')}</div>
+    <div class="pd-fromto"><span class="field">${admRangeFrom(pf.range)}</span><span class="arrow">→</span><span class="field">2026-06-16 23:59</span></div>
+  </div>`;
+  // Filter bar
+  const sChip = (k, label, dot) => `<button class="pd-chip${pf.status === k ? ' on' : ''}" onclick="admPfSet('status','${k}')">${dot ? `<span class="cdot" style="background:${dot}"></span>` : ''}${label}<span class="cnt">${cnt[k] || 0}</span></button>`;
+  const tChip = (k, label) => `<button class="pd-chip${pf.type === k ? ' on' : ''}" onclick="admPfSet('type','${k}')">${label}</button>`;
+  const provs = ['all', 'AWS', 'GCP', 'Azure', 'IDC'];
+  const filterbar = `<div class="pd-panel pd-filterbar">
+    <span class="pd-seglabel">상태</span>
+    <div class="pd-chip-row">${sChip('all', '전체')}${sChip('run', '진행', '#0064FF')}${sChip('wait', '대기·지연', '#F97316')}${sChip('fail', '실패', '#EF4444')}${sChip('done', '완료', '#45CB85')}${sChip('cancel', '중단', '#A0A8B3')}</div>
+    <span class="pd-vsep"></span><span class="pd-seglabel">유형</span>
+    <div class="pd-chip-row">${tChip('all', '전체')}${tChip('설치', '설치')}${tChip('삭제', '삭제')}</div>
+    <span class="pd-vsep"></span>
+    <div class="pd-chip-row">${provs.map(pv => `<button class="pd-chip${pf.provider === pv ? ' on' : ''}" onclick="admPfSet('provider','${pv}')">${pv === 'all' ? '전체 Provider' : pv}</button>`).join('')}</div>
+    <div class="pd-search"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.9"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><input id="pdSearch" type="text" placeholder="TargetSource 또는 PL id 검색…" value="${(pf.q || '').replace(/"/g, '&quot;')}" oninput="admPfSearch(this.value)"></div>
+  </div>`;
+  // Column toggle
+  const coltoggle = `<div class="pd-coltoggle"><span class="ctl">컬럼 표시</span>
+    <span class="pd-coltog on" style="cursor:default;opacity:.55;">상태</span><span class="pd-coltog on" style="cursor:default;opacity:.55;">진행</span><span class="pd-coltog on" style="cursor:default;opacity:.55;">현재 Task</span>
+    <span class="pd-coltog${pf.cols.slot ? ' on' : ''}" onclick="admPfToggleCol('slot')">Slot</span>
+    <span class="pd-coltog${pf.cols.next ? ' on' : ''}" onclick="admPfToggleCol('next')">다음 확인</span>
+  </div>`;
+  // Table
+  const cols = pf.cols;
+  const rows = list.length ? list.map(p => admPipeRow(p)).join('') : `<tr><td colspan="11"><div class="pd-empty">조건에 맞는 파이프라인이 없어요</div></td></tr>`;
+  const table = `<div class="pd-panel">
+    <div class="pd-table-head"><div class="tt">파이프라인 Run <span class="count-pill">${list.length}건</span></div>
+      <button class="pd-export" onclick="event.stopPropagation();alert('CSV 내보내기 (mock)')">⤓ 내보내기</button></div>
+    ${coltoggle}
+    <table><thead><tr>
+      <th>TargetSource / PL</th><th>유형</th><th>Provider</th><th>상태</th><th>진행</th><th>현재 Task</th>
+      ${cols.slot ? '<th>Slot</th>' : ''}${cols.next ? '<th>다음 확인</th>' : ''}
+      <th class="sortable sorted" onclick="admPfSort('startedAt')">시작시각 ${pf.dir === 'desc' ? '↓' : '↑'}</th><th style="text-align:right;">경과</th>
+    </tr></thead><tbody>${rows}</tbody></table>
+    <div class="pd-foot"><div class="fi">전체 <b>${list.length}</b>건 · 시작시각 ${pf.dir === 'desc' ? '최신순' : '오래된순'} 정렬</div>
+      <div class="pd-pager"><button>‹</button><button class="on">1</button><button>›</button></div></div>
+  </div>`;
+  wrap.innerHTML = timebar + kpi + filterbar + table;
   admInitAllFlows();
+  if (ADM._pfFocus) { const el = document.getElementById('pdSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } ADM._pfFocus = false; }
 }
 // ===== ADR-016 vocabulary mapping (seed data -> current model) =====
 // node geometry for the n8n canvas
