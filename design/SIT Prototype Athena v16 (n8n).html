@@ -5569,6 +5569,71 @@ select.adm-field-input { appearance: none; background: #fff url("data:image/svg+
 .pd-wrap tbody tr.row-warn:hover { background:linear-gradient(90deg, rgba(245,158,11,.09), #f7f8ff 52%); }
 .pd-wrap tbody tr.pd-row td:last-child::after { content:'›'; color:#c4cbd4; font-size:17px; margin-left:10px; opacity:0; transition:opacity .12s, transform .12s; display:inline-block; transform:translateX(-3px); }
 .pd-wrap tbody tr.pd-row:hover td:last-child::after { opacity:1; transform:none; color:#6366f1; }
+/* ===== Tournament winner r1: premium pipeline-run rows ===== */
+.pd-wrap .pr-table { width:100%; border-collapse:separate; border-spacing:0; }
+.pd-wrap .pr-table thead th { text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#8b91ad; padding:11px 14px; background:#fbfbfe; border-top:1px solid #eef0f7; border-bottom:1px solid #eef0f7; white-space:nowrap; }
+.pd-wrap .pr-table thead th.pr-leadth { padding-left:26px; }
+.pd-wrap .pr-table thead th.r { text-align:right; padding-right:24px; }
+.pd-wrap .pr-table tbody td { padding:0 14px; border-bottom:1px solid #eef0f7; vertical-align:middle; height:64px; }
+.pd-wrap .pr-table tbody td.r { text-align:right; padding-right:24px; }
+.pd-wrap .pr-table tbody tr:last-child td { border-bottom:none; }
+.pd-wrap .pr-row { transition:background .13s ease; cursor:pointer; }
+.pd-wrap .pr-row:hover { background:#fafaff; }
+.pd-wrap .pr-lead { position:relative; padding-left:26px; }
+.pd-wrap .pr-lead::before { content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:0 3px 3px 0; background:var(--ac,transparent); opacity:.9; transition:top .12s,bottom .12s; }
+.pd-wrap .pr-row:hover .pr-lead::before { top:6px; bottom:6px; }
+.pd-wrap .pr-row.t-error { --ac:#dc2626; --ring:rgba(220,38,38,.14); }
+.pd-wrap .pr-row.t-success { --ac:#16a34a; --ring:rgba(22,163,74,.14); }
+.pd-wrap .pr-row.t-warn { --ac:#d97706; --ring:rgba(217,119,6,.16); }
+.pd-wrap .pr-row.t-pause { --ac:#64748b; --ring:rgba(100,116,139,.16); }
+.pd-wrap .pr-row.t-run { --ac:#5b5bd6; --ring:rgba(91,91,214,.16); }
+.pd-wrap .pr-idcell { display:flex; align-items:center; gap:11px; }
+.pd-wrap .pr-node { width:9px; height:9px; border-radius:50%; flex:none; position:relative; background:var(--ac,#c3c8db); box-shadow:0 0 0 3px var(--ring,rgba(99,102,121,.12)); }
+.pd-wrap .pr-row.t-warn .pr-node::after { content:""; position:absolute; inset:-3px; border-radius:50%; border:1.5px solid #d97706; opacity:.35; animation:prPulse 2.1s ease-out infinite; }
+@keyframes prPulse { 0%{transform:scale(.8);opacity:.5;} 100%{transform:scale(2.1);opacity:0;} }
+.pd-wrap .pr-idtext { display:flex; flex-direction:column; gap:2px; line-height:1.15; }
+.pd-wrap .pr-id { font-size:13.5px; font-weight:680; letter-spacing:-.01em; color:#10142b; font-variant-numeric:tabular-nums; }
+.pd-wrap .pr-sub { font-size:11.5px; font-weight:500; color:#8b91ad; font-variant-numeric:tabular-nums; }
+.pd-wrap .pr-lin { font-size:10px; font-weight:700; color:#5b5bd6; background:#eeeefc; border-radius:5px; padding:0 5px; margin-left:6px; }
+.pd-wrap .pr-type { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:550; color:#6a7090; }
+.pd-wrap .pr-type .dot-i { width:6px; height:6px; border-radius:2px; background:#5b5bd6; }
+.pd-wrap .pr-type.del .dot-i { background:#94a3b8; }
+.pd-wrap .pr-prov { display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 9px 0 7px; border-radius:7px; font-size:11.5px; font-weight:600; border:1px solid transparent; }
+.pd-wrap .pr-prov .glyph { width:15px; height:15px; border-radius:4px; display:grid; place-items:center; font-size:9px; font-weight:800; color:#fff; }
+.pd-wrap .pr-prov.azure { background:#eef4fd; color:#0d61b8; border-color:#dbe8fb; } .pd-wrap .pr-prov.azure .glyph { background:#0078d4; }
+.pd-wrap .pr-prov.aws { background:#fff4e8; color:#b4560a; border-color:#fde4cb; } .pd-wrap .pr-prov.aws .glyph { background:#ec912d; }
+.pd-wrap .pr-prov.idc { background:#f1f2f7; color:#4b5168; border-color:#e3e5ee; } .pd-wrap .pr-prov.idc .glyph { background:#5b6377; }
+.pd-wrap .pr-prov.gcp { background:#eaf1fe; color:#1a63d6; border-color:#d8e4fc; } .pd-wrap .pr-prov.gcp .glyph { background:#4285f4; }
+.pd-wrap .pr-badge { display:inline-flex; align-items:center; gap:6px; height:25px; padding:0 10px 0 9px; border-radius:7px; font-size:11.5px; font-weight:600; border:1px solid transparent; white-space:nowrap; }
+.pd-wrap .pr-badge .bdot { width:6px; height:6px; border-radius:50%; flex:none; }
+.pd-wrap .pr-badge .code { font-size:9.5px; font-weight:600; opacity:.62; letter-spacing:.02em; }
+.pd-wrap .pr-badge.error { background:#fef2f2; color:#b91c1c; border-color:#fadddd; } .pd-wrap .pr-badge.error .bdot { background:#dc2626; }
+.pd-wrap .pr-badge.success { background:#f0fdf4; color:#15803d; border-color:#d6f3df; } .pd-wrap .pr-badge.success .bdot { background:#16a34a; }
+.pd-wrap .pr-badge.warn { background:#fffbeb; color:#b45309; border-color:#fcecc4; } .pd-wrap .pr-badge.warn .bdot { background:#d97706; box-shadow:0 0 0 2px rgba(217,119,6,.16); }
+.pd-wrap .pr-badge.pause { background:#f8fafc; color:#475569; border-color:#e6eaf0; } .pd-wrap .pr-badge.pause .bdot { background:#64748b; }
+.pd-wrap .pr-badge.run { background:#eeeefc; color:#4848c4; border-color:#e0e0fb; } .pd-wrap .pr-badge.run .bdot { background:#5b5bd6; }
+.pd-wrap .pr-prog { display:flex; flex-direction:column; gap:6px; min-width:104px; }
+.pd-wrap .pr-ptop { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.pd-wrap .pr-frac { font-size:12px; font-weight:600; color:#10142b; font-variant-numeric:tabular-nums; }
+.pd-wrap .pr-frac .tot { color:#8b91ad; font-weight:550; }
+.pd-wrap .pr-pct { font-size:10.5px; font-weight:600; color:#8b91ad; font-variant-numeric:tabular-nums; }
+.pd-wrap .pr-seg { display:flex; gap:3px; height:5px; }
+.pd-wrap .pr-seg i { flex:1; border-radius:99px; background:#e7e9f3; display:block; }
+.pd-wrap .pr-seg i.on { background:var(--ac,#5b5bd6); }
+.pd-wrap .pr-seg i.on.done-ok { background:#16a34a; }
+.pd-wrap .pr-seg i.fail { background:#dc2626; }
+.pd-wrap .pr-seg i.cur-warn { background:#d97706; background-image:linear-gradient(90deg,#d97706 50%,#f4c578 50%); background-size:8px 100%; }
+.pd-wrap .pr-task { font-size:12.5px; font-weight:500; color:#6a7090; line-height:1.3; max-width:212px; display:inline-flex; align-items:center; gap:7px; }
+.pd-wrap .pr-task.muted { color:#8b91ad; }
+.pd-wrap .pr-task strong { color:#10142b; font-weight:600; }
+.pd-wrap .pr-ts { font-size:12px; font-weight:500; color:#6a7090; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.pd-wrap .pr-el { font-size:12.5px; font-weight:600; color:#10142b; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.pd-wrap .pr-el.dim { color:#8b91ad; font-weight:550; } .pd-wrap .pr-el.hot { color:#dc2626; } .pd-wrap .pr-el.warn { color:#b45309; }
+.pd-wrap .pr-table tfoot td { padding:13px 24px; font-size:11.5px; color:#8b91ad; background:#fbfbfe; border-top:1px solid #eef0f7; }
+.pd-wrap .pr-foot { display:flex; align-items:center; justify-content:space-between; }
+.pd-wrap .pr-foot .leg { display:flex; gap:16px; align-items:center; }
+.pd-wrap .pr-foot .leg span { display:inline-flex; align-items:center; gap:5px; }
+.pd-wrap .pr-foot .leg i { width:7px; height:7px; border-radius:50%; }
 </style>
 </head>
 <body style="background-color: rgb(244, 244, 251); font-family: Geist">
@@ -12765,20 +12830,37 @@ function admPipeRow(p) {
   const slotCell = (p.status === 'CANCELLING') ? '점유(drain)' : runTf ? 'slot-0' + ((pi % 4) + 1) : '—';
   const waitT = p.tasks.find(t => t.state === 'WAITING');
   const nextCell = waitT ? `<span class="pd-next${waitT.delay ? ' soon' : ''}">~${waitT.poll}분 후 · 폴링</span>` : (sk === 'fail' ? '<span class="pd-next none">중단됨</span>' : '<span class="pd-next none">—</span>');
-  const lineage = p.retryOf ? `<span class="pd-lineage2">↻ ${p.retryOf}</span>` : '';
-  const elapsedCls = p.elapsed === '—' ? ' none' : ((delayRow || /일|시간/.test(p.elapsed || '')) && sk !== 'done' && sk !== 'cancel') ? ' long' : '';
-  const cols = ADM.pf.cols;
-  return `<tr class="pd-row${rowCls}" onclick="admOpenPipeModal(${pi})">
-    <td><div class="pd-plid">${p.id}${lineage}</div><div class="pd-tsname">${p.tsId}</div></td>
-    <td><span class="pd-typetag ${p.type === '삭제' ? 'delete' : 'install'}">${p.type}</span></td>
-    <td><span class="pd-prov"><span class="b pb-${provB}">${provAbbr}</span>${prov}</span></td>
-    <td><span class="pd-status ${stCls}"><span class="sd"></span>${stLbl}</span></td>
-    <td><div class="pd-progress"><span class="ptxt">${done}/${total}</span><span class="pd-bar ${barCls}"><span style="width:${pct}%"></span></span></div></td>
-    <td class="pd-task">${taskHtml}</td>
-    ${cols.slot ? `<td><span class="pd-slot">${slotCell}</span></td>` : ''}
-    ${cols.next ? `<td>${nextCell}</td>` : ''}
-    <td><span class="pd-when">${admWhenShort(p.startedAt)}<span class="rel">${admRelDay(p.startedAt)}</span></span></td>
-    <td style="text-align:right;"><span class="pd-elapsed${elapsedCls}">${p.elapsed}</span></td>
+  const st = sk === 'fail' ? 'error' : sk === 'done' ? 'success' : sk === 'cancel' ? 'pause' : (sk === 'wait' || delayRow) ? 'warn' : 'run';
+  const provCls = { AWS: 'aws', GCP: 'gcp', Azure: 'azure', IDC: 'idc', SDU: 'idc' }[prov] || 'idc';
+  const provAbbr2 = { AWS: 'aws', GCP: 'G', Azure: 'Az', IDC: 'DC', SDU: 'SD' }[prov] || prov.slice(0, 2);
+  const badgeLbl = sk === 'fail' ? '실패' : sk === 'done' ? '완료' : sk === 'cancel' ? (p.status === 'CANCELLING' ? '중단 중' : '중단') : (sk === 'wait' || delayRow) ? (delayRow ? '외부 대기·지연' : '외부 대기') : '진행';
+  const badgeCode = sk === 'fail' ? '<span class="code">EXECUTION_TIMEOUT</span>' : '';
+  let segs = '';
+  for (let i = 0; i < total; i++) {
+    if (i < done) segs += '<i class="on done-ok"></i>';
+    else if (i === done && sk === 'fail') segs += '<i class="fail"></i>';
+    else if (i === done && (sk === 'wait' || delayRow)) segs += '<i class="cur-warn"></i>';
+    else if (i === done && sk === 'run') segs += '<i class="on"></i>';
+    else segs += '<i></i>';
+  }
+  let prTask;
+  if (p.status === 'DONE') prTask = `<span class="pr-task muted">✓ 완료</span>`;
+  else if (p.status === 'CANCELLED') prTask = `<span class="pr-task muted">⊘ 사용자 중단</span>`;
+  else if (p.status === 'CANCELLING') prTask = `<span class="pr-task muted">중단 중 · drain</span>`;
+  else if (sk === 'fail') { const ft = p.tasks.find(t => t.state === 'FAILED'); prTask = `<span class="pr-task"><span style="color:#dc2626;font-weight:700">⊘</span> ${ft ? ft.name + ' 실패 <strong>' + ft.fail + '/' + ft.maxFail + '</strong>' : '실패'}</span>`; }
+  else if (cur) { const w = cur.delay || cur.state === 'WAITING'; prTask = `<span class="pr-task">${w ? '<span style="color:#d97706">◷</span>' : '<span style="color:#5b5bd6">▶</span>'} <strong>${cur.name}</strong>${cur.delay ? ' (지연)' : ''}</span>`; }
+  else prTask = `<span class="pr-task muted">—</span>`;
+  const lineage = p.retryOf ? `<span class="pr-lin">↻ ${p.retryOf}</span>` : '';
+  const elCls = p.elapsed === '—' ? ' dim' : sk === 'fail' ? ' hot' : (delayRow && /일|시간/.test(p.elapsed || '')) ? ' warn' : (sk === 'done' || sk === 'cancel') ? ' dim' : '';
+  return `<tr class="pr-row t-${st}" onclick="admOpenPipeModal(${pi})">
+    <td class="pr-lead"><div class="pr-idcell"><span class="pr-node"></span><span class="pr-idtext"><span class="pr-id">${p.id}${lineage}</span><span class="pr-sub">${p.tsId}</span></span></div></td>
+    <td><span class="pr-type ${p.type === '삭제' ? 'del' : ''}"><span class="dot-i"></span>${p.type}</span></td>
+    <td><span class="pr-prov ${provCls}"><span class="glyph">${provAbbr2}</span>${prov}</span></td>
+    <td><span class="pr-badge ${st}"><span class="bdot"></span>${badgeLbl} ${badgeCode}</span></td>
+    <td><div class="pr-prog"><div class="pr-ptop"><span class="pr-frac">${done}<span class="tot">/${total}</span></span><span class="pr-pct">${pct}%</span></div><div class="pr-seg">${segs}</div></div></td>
+    <td>${prTask}</td>
+    <td><span class="pr-ts">${admWhenShort(p.startedAt)}</span></td>
+    <td class="r"><span class="pr-el${elCls}">${p.elapsed}</span></td>
   </tr>`;
 }
 // ===== Pipeline detail MODAL (winner a1 — top cancel/retry + colored task timeline) =====
@@ -12894,26 +12976,17 @@ function admRenderPipelines() {
     <div class="pd-chip-row">${provs.map(pv => `<button class="pd-chip${pf.provider === pv ? ' on' : ''}" onclick="admPfSet('provider','${pv}')">${pv === 'all' ? '전체 Provider' : pv}</button>`).join('')}</div>
     <div class="pd-search"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.9"/><path d="m20 20-3-3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg><input id="pdSearch" type="text" placeholder="TargetSource 또는 PL id 검색…" value="${(pf.q || '').replace(/"/g, '&quot;')}" oninput="admPfSearch(this.value)"></div>
   </div>`;
-  // Column toggle
-  const coltoggle = `<div class="pd-coltoggle"><span class="ctl">컬럼 표시</span>
-    <span class="pd-coltog on" style="cursor:default;opacity:.55;">상태</span><span class="pd-coltog on" style="cursor:default;opacity:.55;">진행</span><span class="pd-coltog on" style="cursor:default;opacity:.55;">현재 Task</span>
-    <span class="pd-coltog${pf.cols.slot ? ' on' : ''}" onclick="admPfToggleCol('slot')">Slot</span>
-    <span class="pd-coltog${pf.cols.next ? ' on' : ''}" onclick="admPfToggleCol('next')">다음 확인</span>
-  </div>`;
-  // Table
-  const cols = pf.cols;
-  const rows = list.length ? list.map(p => admPipeRow(p)).join('') : `<tr><td colspan="11"><div class="pd-empty">조건에 맞는 파이프라인이 없어요</div></td></tr>`;
+  // Table (winner r1 — premium rows; Slot/다음확인 & column-toggle removed for a clean look)
+  const rows = list.length ? list.map(p => admPipeRow(p)).join('') : `<tr><td colspan="8"><div class="pd-empty">조건에 맞는 파이프라인이 없어요</div></td></tr>`;
+  const legend = `<span><i style="background:#16a34a"></i>완료 ${cnt.done}</span><span><i style="background:#dc2626"></i>실패 ${cnt.fail}</span><span><i style="background:#d97706"></i>대기·지연 ${cnt.wait}</span><span><i style="background:#64748b"></i>중단 ${cnt.cancel}</span>`;
   const table = `<div class="pd-panel">
     <div class="pd-table-head"><div class="tt">파이프라인 Run <span class="count-pill">${list.length}건</span></div>
-      <button class="pd-export" onclick="event.stopPropagation();alert('CSV 내보내기 (mock)')">⤓ 내보내기</button></div>
-    ${coltoggle}
-    <table><thead><tr>
-      <th>TargetSource / PL</th><th>유형</th><th>Provider</th><th>상태</th><th>진행</th><th>현재 Task</th>
-      ${cols.slot ? '<th>Slot</th>' : ''}${cols.next ? '<th>다음 확인</th>' : ''}
-      <th class="sortable sorted" onclick="admPfSort('startedAt')">시작시각 ${pf.dir === 'desc' ? '↓' : '↑'}</th><th style="text-align:right;">경과</th>
-    </tr></thead><tbody>${rows}</tbody></table>
-    <div class="pd-foot"><div class="fi">전체 <b>${list.length}</b>건 · 시작시각 ${pf.dir === 'desc' ? '최신순' : '오래된순'} 정렬</div>
-      <div class="pd-pager"><button>‹</button><button class="on">1</button><button>›</button></div></div>
+      <div style="display:flex;gap:8px;"><button class="pd-export" onclick="event.stopPropagation();admPfSort('startedAt')">↕ 정렬: 시작시각 ${pf.dir === 'desc' ? '↓' : '↑'}</button><button class="pd-export" onclick="event.stopPropagation();alert('CSV 내보내기 (mock)')">⤓ 내보내기</button></div></div>
+    <table class="pr-table"><thead><tr>
+      <th class="pr-leadth">TargetSource / PL</th><th>유형</th><th>Provider</th><th>상태</th><th>진행</th><th>현재 TASK</th><th>시작시각</th><th class="r">경과</th>
+    </tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="8"><div class="pr-foot"><div class="leg">${legend}</div><div>전체 ${list.length}건 · 시작시각 ${pf.dir === 'desc' ? '최신순' : '오래된순'}</div></div></td></tr></tfoot>
+    </table>
   </div>`;
   wrap.innerHTML = timebar + kpi + filterbar + table;
   admInitAllFlows();
