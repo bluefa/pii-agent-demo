@@ -12779,7 +12779,7 @@ function admPipeRow(p) {
     ${cols.next ? `<td>${nextCell}</td>` : ''}
     <td><span class="pd-when">${admWhenShort(p.startedAt)}<span class="rel">${admRelDay(p.startedAt)}</span></span></td>
     <td style="text-align:right;"><span class="pd-elapsed${elapsedCls}">${p.elapsed}</span></td>
-  </tr>` + (p.open ? `<tr class="pd-expand"><td colspan="11">${admTaskPanel(p, pi)}</td></tr>` : '');
+  </tr>`;
 }
 // ===== Pipeline detail MODAL (winner a1 — top cancel/retry + colored task timeline) =====
 function admPdmTaskHtml(t, i) {
@@ -13017,19 +13017,11 @@ function admTaskPanel(p, pi) {
         slot <span class="sg-track"><span class="sg-fill" style="width:${slotPct}%"></span></span> ${slotsInUse}/${slotCap}
       </span>${cancelling ? '<span class="adm-slot-held">slot 점유 중 (drain)</span>' : ''}
     </div>
-    <div class="adm-canvas" id="${fid}" onmousedown="admPanStart(event,'${fid}')" onwheel="admWheel(event,'${fid}')">
+    <div class="adm-canvas" id="${fid}" style="cursor:default;">
       <div class="adm-canvas-layer" id="${fid}_layer" style="width:${layW}px;height:${layH}px;">
         <svg class="adm-edges" width="${layW}" height="${layH}">${edges.join('')}</svg>
         ${nodes.join('')}
       </div>
-      <div class="adm-flow-tools">
-        <button onclick="event.stopPropagation();admZoom('${fid}',-0.15)" title="축소">−</button>
-        <button onclick="event.stopPropagation();admZoom('${fid}',0.15)" title="확대">+</button>
-        <span class="ft-sep"></span>
-        <button class="ft-fit" onclick="event.stopPropagation();admFit('${fid}')" title="화면 맞춤">맞춤</button>
-      </div>
-      <span class="adm-zoom-label" id="${fid}_zl">100%</span>
-      <div class="adm-minimap">${mm.join('')}</div>
       ${admInspectorHtml(pIdx)}
     </div>
   </div>`;
