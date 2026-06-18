@@ -69,8 +69,21 @@ export interface IdcResourceInput {
   done?: string;
 }
 
+/**
+ * Read-response resource — swagger `IdcResource` (allOf `IdcResourceInput` +
+ * required `resource_id`). GET `/resources` and `/previous-request` return these,
+ * so the id Step 4 merges by / edit-update keys on is guaranteed at the type
+ * level. Write requests still use `IdcResourceInput` (new rows have no id).
+ *
+ * `app/lib/api/idc.ts` keeps an index fallback as runtime defense — `fetchInfraJson`
+ * does not validate, so a non-conformant backend could still omit it at runtime.
+ */
+export interface IdcResourceWire extends IdcResourceInput {
+  resource_id: string;
+}
+
 export interface IdcResourcesResponse {
-  resources: IdcResourceInput[];
+  resources: IdcResourceWire[];
 }
 
 /** Per-resource install detail (§6 G6) — basis for the firewall column/modal. */

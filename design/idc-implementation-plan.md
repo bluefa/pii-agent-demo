@@ -344,29 +344,35 @@ IP 중복 차단(결정 #55), Domain FQDN + maxlen 100(결정 #56), Port 1~65535
 
 HTML raw 값 → `lib/theme.ts` 토큰. **raw 색상 클래스 직접 사용 금지** — 토큰/UI 컴포넌트만.
 
-| HTML | 의미 | 토큰/컴포넌트 |
+> **반영 완료 (IDC-scoped exact match).** 아래는 구현된 최종 매핑이다. IDC는 공유 `Badge`/`tagStyles`/
+> `Button`/`Modal`/`tableStyles` 대신 **`idcStyles.*` + `modalStyles.toss`** (프로토타입 정확 hex)를 쓴다.
+> 형제 provider(AWS/Azure/GCP)는 미변경. 신규 IDC 디자인 작업도 이 표를 따른다.
+
+| HTML | 의미 | 토큰 (lib/theme.ts) |
 |------|------|--------------|
-| `.idc-kind.single` (#E8F1FF/#1747B5) | 구분 Single | `tagStyles.blue` (Badge/tag) |
-| `.idc-kind.multi` (#FEF0E1/#7A3F0E) | 구분 Multiple IP | `tagStyles.orange` |
-| `.idc-kind.domain` (#EEF2FF/#4338CA) | 구분 Domain | `tagStyles` indigo/info |
-| `.tag.blue` (DB Type) | DB Type 뱃지 | `tagStyles.blue` |
-| `.tag.green` 방화벽 오픈 / Success / Healthy | 성공 | `Badge variant="success"` / `statusColors.success` |
-| `.tag.red` 오픈되지 않음 | 실패 | `Badge variant="error"` / `statusColors.error` |
-| `.tag.orange` Pending/진행중 | 진행 | `Badge variant="warning"` |
-| `.res-id-cell` + copy-on-hover + floating tooltip | host/SID/SourceIP 셀 | 기존 res-id-cell 패턴(`CopyButton opacity-0 group-hover:opacity-100` + `Tooltip`) |
-| `.btn.soft` 연동 대상 추가 | Soft Primary(결정 #58) | primary 연배경 변형(`primaryColors` soft) |
-| `.btn.warn-outline` 불러오기 | warn outline(결정 #42) | warn outline 변형 |
-| `.btn.gray` 취소/머무르기 | 보조(결정 #51) | `buttonStyles.secondary` |
-| `.install-mode-seg` radio-card | 입력 방식 IP/Domain | 기존 InstallModeToggle 패턴 |
+| `.idc-kind.single/.multi/.domain` | 구분 배지 | `idcStyles.kindBadge.{single,multi,domain}` (+`.base`) |
+| `.tag.blue` (DB Type) | DB Type 배지 | `idcStyles.tag.blue` (+`.base`) |
+| `.tag.green` 방화벽 오픈/Success | 성공 배지 | `idcStyles.tag.green` |
+| `.tag.red` 오픈되지 않음 | 실패 배지 | `idcStyles.tag.red` |
+| `.tag.orange` Pending | 진행 배지 | `idcStyles.tag.orange` |
+| `.status.healthy/.unhealthy` (점+텍스트, bg 없음) | Health | `idcStyles.status` (`.base`/`.dot`/`.healthy`/`.unhealthy`) |
+| `.idc-ep-toggle` / `.idc-sid-k` | 멀티 IP 더보기 / SID 키 | `idcStyles.epToggle` / `idcStyles.sidKey` |
+| `.idc-field-warn` / `.idc-field-err` | 인라인 경고/오류 | `idcStyles.fieldWarn` / `idcStyles.fieldError` |
+| `.idc-add-ip` / `.rm-ip` | IP 추가/삭제 | `idcStyles.addIp` / `idcStyles.removeIp` |
+| `.idc-row-actions button(.del)` | 행 수정/삭제 | `idcStyles.rowAction` / `idcStyles.rowActionDelete` |
+| `.idc-reason-pop` | 제외 사유 팝오버 | `idcStyles.popover.*` |
+| `.idc-ip-warn` / `.idc-load-note` | amber 경고 배너 | `idcStyles.warnBanner` |
+| `.btn.soft`/`.warn-outline`/`.primary` (카드 CTA, h40) | 추가/불러오기/승인요청 | `idcStyles.triggerBtn.{soft,warnOutline,primary}` |
+| `.modal-footer .btn.*` (52px) | 모달 푸터 버튼 | `idcStyles.modalBtn.{primary,outline}` |
+| `.field input/select/textarea` (borderless #F7F8FA) | 모달 입력 | `idcStyles.input` / `idcStyles.textarea` |
+| `.db-table` 헤더(13/700 #4E5968 비대문자) | IDC 테이블 | `idcStyles.table.{header,headerCell,body,row,cell}` |
+| `.modal` Toss chrome (radius24/26px/흰 footer/amber icon) | IDC 모달 외관 | `<Modal chrome="toss" tone="info\|warn">` + `modalStyles.toss` |
+| 스켈레톤 shimmer | 불러오기 로딩 | `idcStyles.skeletonBar` |
+| `.status` pill 승인 대기/Healthy | 헤더 상태 pill | `idcStyles.statusPill` + `statusColors.{warning,success}` |
 | `--color-provider-idc` #374151 | IDC accent | `providerColors.IDC` (gray-700) |
-| `.reason-chip-inline` + `.reason-floating-tip` | 제외 사유 칩+툴팁 | 기존 cloud reason-chip 패턴 재사용 |
-| `.th-tip` Source IP ⓘ | 헤더 tooltip | `InfoTooltip` (헤더 1개, 결정 #19·40) |
+| `.reason-chip-inline` / `.th-tip` Source IP ⓘ | 사유칩 / 헤더 tooltip | 기존 `ReasonChipInline` / `InfoTooltip` 재사용 |
 
-간격/모서리: card-padding 24, section-gap 24, form-gap 20, button-gap 12 / rounded 6·8·12·full
-(DESIGN.md). 타이포: page/card 토큰 + 9-stop scale.
-
-토큰 갭(없으면 DESIGN.md 확장 후보): `.btn.soft`(Soft Primary), `.btn.warn-outline` 가 theme.ts에 명시
-변형으로 없으면 추가. 구분 Multiple IP(주황)·Domain(인디고) 매핑은 `tagStyles` 내 기존 키로 충당.
+간격/모서리: card-padding 24, section-gap 24, form-gap 20 / rounded 6·8·12·14·24·full. 타이포: page/card 토큰 + 9-stop scale.
 
 ---
 
