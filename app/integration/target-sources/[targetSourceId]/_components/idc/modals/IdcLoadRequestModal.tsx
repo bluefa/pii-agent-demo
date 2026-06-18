@@ -14,7 +14,6 @@ import {
   idcStyles,
   numericFeatures,
   statusColors,
-  tableStyles,
   textColors,
 } from '@/lib/theme';
 import {
@@ -117,7 +116,7 @@ export const IdcLoadRequestModal = ({
 
           <div className={cn('overflow-hidden rounded-xl border', borderColors.default)}>
             <table className="w-full">
-              <tbody className={tableStyles.body}>
+              <tbody className={idcStyles.table.body}>
                 {pageRows.map((r) => {
                   const dim = r.excluded ? 'opacity-50' : '';
                   return (

@@ -1,5 +1,12 @@
 # IDC v15 — Design Verification (element-by-element vs `SIT Prototype Athena v15.html`)
 
+> **상태: PRE-FIX 감사 스냅샷.** 이 문서는 수정 *이전* 상태를 기록한 감사 결과다. 이후 PR에서
+> Bucket A(스텝 2~7 subtitle·상태 pill·배너·액션 버튼 복원, Step4 2-up)·Bucket B(배지/health/필드색/팝오버/
+> 불러오기 토큰)·Bucket C(IDC-scoped: Modal `chrome="toss"`/`tone`, 52px footer, borderless input,
+> 13/700 비대문자 테이블 헤더)를 모두 반영했고, codex 교차검증 3회로 후속 항목(불러오기 hook+스켈레톤,
+> 실제 취소 플로우, Step4 installation-status 병합, swagger 정합, BAD_REQUEST→400 매핑)까지 정리했다.
+> 즉 아래 "현재 결함"으로 적힌 항목 대부분은 **해결됨** — 본 문서는 무엇을 점검했는지의 기록으로 본다.
+
 Audited the shipped IDC UI against the v15 HTML mockup, every element (layout, copy,
 font-size, font-weight, color, padding/margin/gap, border-radius). Six read-only
 agents covered: shared cells/tokens, Step 1 list, Step 1 modals, Steps 2/3, Step 4

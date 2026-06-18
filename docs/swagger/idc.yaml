@@ -161,7 +161,7 @@ paths:
                   resources:
                     type: array
                     items:
-                      $ref: '#/components/schemas/IdcResourceInput'
+                      $ref: '#/components/schemas/IdcResource'
         '400':
           description: IDC 프로젝트가 아님
           content:
@@ -209,7 +209,7 @@ paths:
                   resources:
                     type: array
                     items:
-                      $ref: '#/components/schemas/IdcResourceInput'
+                      $ref: '#/components/schemas/IdcResource'
         '400':
           description: 유효성 검증 실패 또는 IDC 프로젝트가 아님
           content:
@@ -246,7 +246,7 @@ paths:
                   resources:
                     type: array
                     items:
-                      $ref: '#/components/schemas/IdcResourceInput'
+                      $ref: '#/components/schemas/IdcResource'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
@@ -518,6 +518,16 @@ components:
         done:
           type: string
           description: "연동 완료 여부" 표시값 — Step 1 (예: 연동 완료 / 연동 진행중 / —)
+    IdcResource:
+      description: |-
+        조회/저장 응답의 IDC 리소스. `IdcResourceInput`에 더해 **`resource_id`가 항상 존재**한다
+        (read contract). Step 4가 installation-status.resources 를 `resource_id`로 병합하므로,
+        실 백엔드의 read 응답(`/resources`, `/previous-request`)은 반드시 `resource_id`를 포함해야 한다 (§6 G6).
+      allOf:
+        - $ref: '#/components/schemas/IdcResourceInput'
+        - type: object
+          required:
+            - resource_id
     ConfirmTargetsResponse:
       type: object
       description: 연동 대상 확정 응답
