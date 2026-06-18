@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
-import { Button } from '@/app/components/ui/Button';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -133,9 +132,14 @@ export const IdcStep5ConnectionTest = ({
               DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
             </p>
           </div>
-          <Button onClick={runTest} disabled={!ready || testing}>
+          <button
+            type="button"
+            onClick={runTest}
+            disabled={!ready || testing}
+            className={idcStyles.triggerBtn.primary}
+          >
             {testing ? '연결 테스트 진행 중...' : 'Run Test'}
-          </Button>
+          </button>
         </header>
         <div className="p-6 space-y-4">
           {testing && (

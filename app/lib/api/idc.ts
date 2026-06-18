@@ -103,6 +103,11 @@ export const toIdcResourceView = (wire: IdcResourceInput, index = 0): IdcResourc
   databaseTypeWire: wire.database_type,
   oracleSid: wire.service_id,
   credentialId: wire.credential_id,
+  // Server-assigned fields. The mock co-locates them on /resources for the demo;
+  // at cutover their canonical sources differ (Step 4 firewall/source_ips ←
+  // installation-status; Step 2/3/6 snapshot ← approval APIs; Step 7 health ←
+  // project/confirmed-integration — see plan §4.1). The defaults below are
+  // demo-only: a real backend must not let a missing `health` read as HEALTHY.
   sourceIps: wire.source_ips ?? [],
   firewallOpen: wire.firewall_open ?? false,
   connection: wire.connection_status ?? 'PENDING',
