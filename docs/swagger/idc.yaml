@@ -312,8 +312,10 @@ paths:
       x-expected-duration: 500ms
       description: |-
         **동기 작업(Synchronous)**
-        리소스를 프로젝트에 추가하고 설치 단계(INSTALLING)로 전이합니다.
-        설치 상태가 PENDING으로 초기화됩니다.
+        ⚠ **v15 플로우 미사용 (§6 G1).** 원래 계약은 "리소스 확정 + INSTALLING 직행"이었으나,
+        v15는 공용 승인 플로우(Step 1 → 2 승인 → 3 반영 → 4 설치)를 따른다. 본 endpoint는 전이
+        부수효과 없이 **리소스 확정 저장**으로만 취급하며, INSTALLING 전이는 공용 승인/반영 경로가
+        담당한다. (백엔드 확정 시 본 operation 분리/폐기 결정)
       requestBody:
         required: true
         content:

@@ -17,12 +17,12 @@ export interface ModalProps {
   /** 모달 크기 */
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   /**
-   * 모달 chrome. 'default'(기본)는 앱 공용 스타일 — AWS/Azure/GCP 등 기존 사용처와
-   * 동일하게 유지된다. 'toss'는 IDC 전용 프로토타입 스타일(radius 24 · 26px 타이틀 ·
-   * 흰색 footer)을 opt-in으로 적용한다.
+   * Modal chrome. 'default' keeps the shared app styling — byte-identical for
+   * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
+   * styling (radius 24, 26px title, white footer).
    */
   chrome?: 'default' | 'toss';
-  /** 헤더 아이콘 원의 톤 (toss chrome에서 의미 있음). 'warn'은 amber 경고색. */
+  /** Header icon-circle tone (meaningful with toss chrome). 'warn' is the amber warning color. */
   tone?: 'info' | 'warn';
   /** 모달 본문 */
   children: ReactNode;

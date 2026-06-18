@@ -469,7 +469,7 @@ export const tabStyles = {
  * no-raw-color rule. See docs/reports/idc-v15/04-design-verification.md.
  */
 export const idcStyles = {
-  /** 구분 badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6). */
+  /** Kind badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6). */
   kindBadge: {
     base: 'inline-flex items-center rounded-md px-2 py-[3px] text-[11.5px] font-semibold',
     single: 'bg-[#E8F1FF] text-[#1747B5]',
@@ -501,7 +501,7 @@ export const idcStyles = {
   fieldWarn: 'mt-1 text-[11.5px] text-[#B45309]',
   /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
   fieldError: 'mt-1 text-[11.5px] text-[#DC2626]',
-  /** "+ IP 추가" — `.idc-add-ip` (12.5px / 600 / primary / no border / radius 6 / mt 10). */
+  /** Add-IP button — `.idc-add-ip` (12.5px / 600 / primary / no border / radius 6 / mt 10). */
   addIp: 'mt-2.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-semibold text-[#0064FF] hover:bg-[#E8F1FF] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent',
   /** Remove-IP icon button — `.rm-ip` (30×30 / radius 7 / fg-3 / red hover). */
   removeIp: 'inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[7px] text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
