@@ -21,7 +21,7 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
-import type { IdcDatabaseTypeWire, IdcKind } from '@/app/lib/api/idc';
+import type { IdcKind } from '@/app/lib/api/idc';
 
 type IdcInputMode = 'ip' | 'domain';
 
@@ -34,13 +34,16 @@ export interface IdcTargetFormInitial {
   oracleSid?: string;
 }
 
-/** Validated form output handed back to the parent to build/merge a row. */
+/**
+ * Validated form output handed back to the parent to build/merge a row.
+ * Domain-only: the DB type is the display label; the container derives the wire
+ * enum at the boundary (ADR-017 §2) so no wire type leaks into this ⑧ file.
+ */
 export interface IdcTargetFormResult {
   kind: IdcKind;
   hosts: string[];
   port: number;
   databaseTypeLabel: string;
-  databaseTypeWire: IdcDatabaseTypeWire;
   oracleSid?: string;
 }
 
@@ -144,8 +147,6 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
   const handleSubmit = () => {
     if (!valid) return;
-    const wire = dbDef?.wire;
-    if (!wire) return;
     const kind: IdcKind =
       mode === 'domain' ? 'DOMAIN' : filledIps.length > 1 ? 'MULTIPLE_IP' : 'SINGLE';
     onSubmit({
@@ -153,7 +154,6 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
       hosts: mode === 'domain' ? [domainTrimmed] : ips.map((s) => s.trim()),
       port: portNum,
       databaseTypeLabel: dbTypeLabel,
-      databaseTypeWire: wire,
       oracleSid: isOracle ? oracleSid.trim() : undefined,
     });
   };

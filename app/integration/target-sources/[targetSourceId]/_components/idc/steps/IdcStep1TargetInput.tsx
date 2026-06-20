@@ -6,6 +6,7 @@ import { AppError } from '@/lib/errors';
 import { getProject } from '@/app/lib/api';
 import {
   getIdcResources,
+  idcDbTypeWireFromLabel,
   updateIdcResources,
   type IdcResourceView,
 } from '@/app/lib/api/idc';
@@ -122,13 +123,18 @@ export const IdcStep1TargetInput = ({
   }, []);
 
   const handleFormSubmit = (result: IdcTargetFormResult) => {
+    // Derive the wire enum at the container boundary (ADR-017 §2, migration #2) —
+    // the form (⑧) emits only the domain label. The label is always a valid
+    // IDC_DB_TYPES option, so this resolves; guard keeps it type-safe.
+    const databaseTypeWire = idcDbTypeWireFromLabel(result.databaseTypeLabel);
+    if (!databaseTypeWire) return;
     if (editId) {
       patchRow(editId, {
         kind: result.kind,
         hosts: result.hosts,
         port: result.port,
         databaseTypeLabel: result.databaseTypeLabel,
-        databaseTypeWire: result.databaseTypeWire,
+        databaseTypeWire,
         oracleSid: result.oracleSid,
       });
     } else {
@@ -139,7 +145,7 @@ export const IdcStep1TargetInput = ({
         hosts: result.hosts,
         port: result.port,
         databaseTypeLabel: result.databaseTypeLabel,
-        databaseTypeWire: result.databaseTypeWire,
+        databaseTypeWire,
         oracleSid: result.oracleSid,
         credentialId: undefined,
         sourceIps: defaultSourceIps(result.kind),
