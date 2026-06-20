@@ -170,7 +170,10 @@ pipeline_def_snapshot   pipeline_id, definition_key, definition_version,
                         --   (각 task config = task row에 freeze되는 값과 동일).
                         -- task row = 그 run의 실행 상태(가변; reconciler가 전진). snapshot.spec = 그 run의
                         --   definition 원본(불변·재현 권위; 실행 때 재읽지 않음). 코드=실행 권위·snapshot=이력 권위.
-                        --   default recipe release 변경과 무관하게 in-flight·과거 run을 절연. 물리 삭제 금지.
+                        --   절연 범위 = recipe/config(task 목록·순서·deadline·ttl·polling·max_fail_count) — default
+                        --   release를 올려도 in-flight·과거 run의 *구성*은 불변. 단 task class 코드(핸들러 동작)는
+                        --   절연 안 됨 — reconciler는 현재 배포 코드로 실행하므로 같은 task 구현을 바꾸면 in-flight도
+                        --   새 코드를 탄다(코드=실행 권위; task class는 배포 간 동작 호환 전제). 물리 삭제 금지.
 ```
 
 **task_attempt와 task_check는 task 아래 형제다(attempt → check 중첩이 아님).** 역할이 다르다:
@@ -734,7 +737,8 @@ tick 리더는 due 호출을 `next_check_at ASC` 순으로 최대 `max_external_
 > 박제한다. (TargetSource별 데이터 custom override는 v2 defer — v2-deferred.md.)
 
 핵심: **task도 recipe(구성)도 코드, 실행 기록은 불변 snapshot.** 둘은 서로 다른 layer이며 "코드가 정의한
-것 ≠ 실행된 것"을 snapshot이 보장한다(default release를 올려도 in-flight·과거 run은 절연).
+것 ≠ 실행된 것"을 snapshot이 보장한다(default release를 올려도 in-flight·과거 run의 *구성*은 절연 — 단 task
+class 코드 동작은 현재 배포본을 탄다, 7.3).
 
 ### 7.1 layer
 
@@ -747,7 +751,7 @@ tick 리더는 due 호출을 `next_check_at ASC` 순으로 최대 `max_external_
   전체 recipe = `{ name, tasks:[{ seq, name(operation), kind, deadline, ttl?, pollingInterval?,
   executionTimeout?, maxFailCount }] }`. **task row = 실행 상태(가변), snapshot.spec = definition 원본
   (불변·재현 권위; 실행 때 재읽지 않음 — 코드=실행 권위·snapshot=이력 권위).** default release를 올려도
-  in-flight·과거 run은 절연된다.
+  in-flight·과거 run의 **recipe/config는 절연**된다(task class 코드 동작은 절연 대상 아님 — 7.3).
 
 ### 7.2 생성 시 resolution
 
@@ -757,7 +761,12 @@ tick 리더는 due 호출을 `next_check_at ASC` 순으로 최대 `max_external_
 
 ### 7.3 정합성·재현
 
-- **재현** = snapshot이 단일 권위("이 run이 무엇이었나").
+- **절연 범위 (과장 금지).** snapshot·task row가 freeze하는 것은 **recipe/config**(task 목록·순서·deadline·
+  ttl·polling·max_fail_count)다 — default release를 올려도 in-flight·과거 run의 *구성*은 불변이다. **그러나
+  task class 코드(dispatch/check 핸들러의 실제 동작)는 freeze 대상이 아니다** — reconciler는 현재 배포 코드로
+  실행하므로 같은 task key의 구현을 바꾸면 in-flight run도 새 코드를 탄다(코드=실행 권위). 따라서 task class는
+  배포 간 동작 호환을 전제하며, 비호환 변경은 기존 task를 고치지 말고 **새 task class(=새 kind/key)로 도입**한다.
+- **재현** = snapshot이 단일 권위("이 run의 *구성*이 무엇이었나" — 코드 동작은 release에 따름).
 - **재시도**(결정 5) = 새 run **생성 시점의 현재 default recipe**를 resolve(원 run 버전에 고정하지 않음 —
   **O10 해소**). v1 재시도는 full re-run이며, 완료분 skip(content-hash 비교)은 v2 defer(v2-deferred.md).
 

@@ -49,7 +49,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   CANCELLING → CANCELLED로 수렴(CANCELLING이 최우선 precedence).
 - **Pipeline 구성(Definition)은 코드 default + 실행 시 불변 snapshot으로 정의**한다(결정 7) — recipe는
   `(type,provider)`당 코드 default 1개이고, 실행 구성은 snapshot으로 박제해 재현한다(default release를
-  올려도 in-flight·과거 run은 절연). **snapshot(`pipeline_def_snapshot`, 1 pipeline:1행·생성 시 write-once)에
+  올려도 in-flight·과거 run의 **recipe/config는 절연** — 단 task class 코드 동작은 절연 대상이 아니라 현재
+  배포본을 탄다; 코드=실행 권위, 결정 7.3). **snapshot(`pipeline_def_snapshot`, 1 pipeline:1행·생성 시 write-once)에
   `{pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)}`를 저장하며, `spec`은
   resolve된 전체 recipe(이름 + 순서 있는 task 목록, 각 task = `{seq, name(operation), kind, deadline·ttl·
   polling·max_fail_count}`)다 — task row가 그 run의 실행 상태라면 snapshot은 definition 원본(이력·재현 권위;

@@ -37,6 +37,12 @@
   충분). **유지 결정:** `task_attempt.response(jsonb)`는 컷 검토 후 **보류**(유지); `pipeline_def_snapshot`도
   유지(spec(jsonb) 내용을 결정 7.1·§1.2·ADR에 정밀 명시 — `{name, tasks:[{seq, name(operation), kind,
   deadline, ttl?, pollingInterval?, executionTimeout?, maxFailCount}]}`). 동작 무변경(스키마·문서 정리).
+- **개정 6판 후속2 — codex v1 리뷰 문구 정밀화(설계 무변경).** ① snapshot "절연" 과장 교정 — 절연 범위 =
+  recipe/config이며 **task class 코드 동작은 절연 대상 아님**(현재 배포본 실행, 코드=실행 권위; 비호환 변경은
+  새 task class로). 결정 7.1/7.3·§1.2·ADR 반영. ② retry 응답 모순 해소 — `{newPipelineId}` → `{pipelineId,
+  created}`(non-terminal 충돌 시 기존 반환=created:false, unique 제약과 정합). ③ api §3 생성 계약을
+  3-point(resolution·원자성·중복차단; retry 동일)로 집약. codex 점수 85/100의 감점 사유(생성/retry 계약·
+  snapshot 의미) 대응.
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
