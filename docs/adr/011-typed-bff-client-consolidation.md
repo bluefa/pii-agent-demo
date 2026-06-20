@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted (2026-04-25) — supersedes ADR-007 «API Client 패턴 도입» (file removed; see git history at commit `3e88b08` and prior).
+Accepted (2026-04-25) — supersedes ADR-007 «API Client 패턴 도입» (file removed; see git history at commit `3e88b08` and prior). · **Amendment proposed by [ADR-019](./019-bff-casing-boundary-and-runtime-validation.md)** (Proposed 2026-06-20; pending acceptance)
+
+> **Proposed amendment (ADR-019, casing boundary + runtime validation).** Once accepted, ADR-019 keeps this ADR's typed-client consolidation and migration plan (Phases 0-6); resolves the GET/POST casing asymmetry this ADR deferred to "a separate post-migration ADR" (sequenced with Phase 6); and adopts §Scope / §Fallback "Option D (shared zod schemas)" as an added runtime-validation complement. This is the *complement* path, not the §Fallback *withdrawal* — ADR-011 is **not** superseded. See ADR-019 §D4-D5.
 
 ## Context
 
