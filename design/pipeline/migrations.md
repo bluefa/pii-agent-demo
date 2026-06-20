@@ -29,6 +29,10 @@
   (O26 — job_id 고유 발급이라 soft-link로 충분). **crash 복구가 fail_count를 증가시키는 경로 추가**
   (K=max_fail_count 겸용이라 신규 컬럼 불요 — P0-1). **task_attempt.result enum은 OK|FAIL 유지 —
   EXECUTION_TIMEOUT은 별도 result 값이 아니라 error_code로 표현**(옵션 B; result→API outcome 파생, DB 변경 없음).
+  **신규 테이블 `custom_pipeline_recipe`**(target_source_id, type(INSTALL|DELETE), version, spec(jsonb),
+  updated_by, updated_at — 결정 7 Custom Pipeline override; `unique(target_source_id, type)`; 편집마다 version +1,
+  full 교체, sparse — 표준 target은 행 없이 코드 default 사용). `pipeline_def_snapshot`은 무변경(결정 7 Layer 3
+  실행 기록으로 역할 명문화만).
 
 ## 인덱스 / Retention
 
@@ -36,4 +40,5 @@
   - `pipeline(target_source_id, started_at DESC)` — target별 run 이력 조회
   - `task_check(task_id, checked_at)` — task 타임라인
   - `pipeline_event(pipeline_id, created_at)` — 이벤트 / 감사 로그
+  - `custom_pipeline_recipe(target_source_id, type)` **unique** — target·type당 custom override 1건(결정 7)
 - **Retention** — `task_check`만 폴링 cadence에 비례해 증가하므로 보존 기간(기본 90일) 후 reconciler가 prune. `pipeline`·`task`·`task_attempt`·`pipeline_event`는 무기한 보존(결정 1.3; 결정 5 확장 경로 전제).

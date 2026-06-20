@@ -5,11 +5,10 @@
 > 옮기고 여기서 제거한다.
 >
 > O-번호는 본 ADR 본문의 cross-reference와 **공유**한다(번호 보존). O4–O9·O11–O28은
-> 해소되거나 정리되어 빠졌다(O10·O29만 미해결; 번호 gap은 의도) — 해소·정리 내역은 ADR Part III **Resolved** 및 재구성 내역 참조.
+> 해소되거나 정리되어 빠졌다(O29만 미해결; 번호 gap은 의도) — 해소·정리 내역은 ADR Part III **Resolved** 및 재구성 내역 참조.
 > 특히 **O8(breaker canary)·O18(force-check actor)** 는 **개정 4판**의 circuit breaker·force-check
 > 제거로 소멸했다(ADR 재구성 내역 참조).
 
 | # | 질문 | 현황 / 방향 |
 |---|---|---|
-| O10 | retry 새 run의 definition 버전: 원 run 동일 vs 생성 시점 ACTIVE? | 미정. DEPRECATED run retry edge와 함께 pipeline-api.md에서 확정 |
 | O29 | `task_check.detail`의 kind별 스키마 + full terraform 로그 조회 경로 | **write-once 캡처라 중요**(덜 캡처 시 옛 run 데이터 영구 소실). 하위 4: (1) full 로그 위치 — 포인터 위임(A)/BFF 복제(B·B')/발췌만(C), **IM 로그 API 존재·보관기간**에 종속; (2) 발췌 정책(크기·tail vs apply 요약); (3) type별 필드(TERRAFORM_LOG·API_RESPONSE·CHECK/DISPATCH detail 유무); (4) 민감정보 redaction(캡처 전 필수). 타입 그릇 패턴은 S27 확정. 미정 |

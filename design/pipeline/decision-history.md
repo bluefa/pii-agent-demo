@@ -8,6 +8,31 @@
 
 ## 재구성 내역
 
+개정 5판 (2026-06-20 Pipeline Definition / Custom Pipeline):
+
+- **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
+  가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
+  release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다
+  version +1, sparse, full 교체), **Snapshot=불변 실행 기록**(생성 시 {metadata·확정 task목록·출처
+  recipe+version} 박제). 개정 4판의 "recipe는 (type,provider)당 고정" 암묵 전제를 Custom Pipeline 능력으로
+  **확장**하되 default 경로는 코드 유지(무게=per-target cardinality, default=코드가 제거 — 결정 7.4).
+  resolution = (target,type) override 있으면 그것·없으면 (type,provider) default; task row 생성 + snapshot
+  박제는 원자적. 신규 테이블 `custom_pipeline_recipe`(unique(target_source_id, type)).
+- **O10 해소.** retry는 새 run 생성 시점의 현재 recipe를 resolve(원 run 버전 미고정) → O10(retry definition
+  버전: 원 run vs 생성 시점 ACTIVE) 확정. skip-completed는 v1 미지원(full re-run), 도입 시 task content-hash
+  비교로 판정(결정 5 확장 경로). 미해결 2→1건(O29만).
+- **version 배치 정정.** recipe-level 명시 version은 두지 않는다 — 재현은 snapshot, skip은 task content-hash,
+  편집 이력은 custom override +1 version + audit가 담당. (대화 중 "version은 task에서만" 논의 → 편집 가능
+  custom은 audit·동시편집용 +1 version만 별도로 가진다; 구성 재배열은 어느 task의 version도 아니므로 snapshot이
+  run별 구성 이력을 책임진다.)
+- **lifecycle 단순화.** default=코드(release 1개) + custom=데이터(target별 현재 version 1개) + snapshot
+  이력 구조라, ACTIVE/DEPRECATED/RETIRED 다중 버전 공존 lifecycle은 불요해진다(결정 7.4).
+
+> 개정 5판은 개정 4판의 "recipe 고정" 가정을 확장(supersede)한다 — default=코드 경로는 4판 그대로이고,
+> custom override 데이터 layer만 additive로 더해진다. 런타임 상태기계·멱등성·N-cap·snapshot 메커니즘은 무변경.
+
+---
+
 개정 4판 (2026-06-14 단순화 리팩토링):
 
 목표는 기능 제거가 아니라 **workflow engine 일반화를 제거하고 실제 요구사항(target source 설치/삭제
@@ -203,5 +228,7 @@
 | S28 | task 상세 API 기본값 확정(낮은 중요도, 되돌리기 쉬움) — **name** = 호출 operation 식별자(어떤 API/동작; 요구 "각 phase가 어떤 API" 충족), **errorCode** enum = {CALL_TIMEOUT, EXECUTION_TIMEOUT, TTL_EXPIRED, IM_REJECTED, CHECK_ERROR, DISPATCH_NO_RESPONSE}(확장 가능; backpressure≠실패), **엔드포인트** = `GET …/tasks/{taskId}` 단일(머지 타임라인; §1.3 `/history` 표기 정정), **checks 페이지네이션** = Spring Pageable. **별도 결정으로 남김(중요·write-once): task_check.detail의 kind별 정확한 스키마 + full terraform 로그 조회 경로(logPointer·IM 로그 API 존재 여부·포인터 위임 vs BFF 프록시)** — 타입 그릇 패턴은 S27로 확정됨; **추적은 O29** → api.md, 결정 1.2/2, O29 (2026-06-15) |
 | S29 | postCheck 의미 확정 — "terminal *직전*" + "상태 무영향"의 모순 해소. postCheck = **성공(DONE) 관측 시 발사되는, DONE 전이와 분리된(off critical path) best-effort 관측**(임계 경로 위 단계 아님). timeout/실패해도 task는 DONE 유지(전이 함수 미호출·append-only 관측 → status·fail_count·gate에 **구조적** 무영향); "RUNNING→postCheck→DONE" 중간 상태 없음. **1회성·fire-and-forget(A안)**: async 1발 → `task_check(POST_CHECK)` 1행 → 끝; 재시도 없음, **크래시로 DONE 확정 후 미기록이면 재발사 안 함**(reconciler는 terminal task 재방문 안 함 — 드문 유실 감수, 폴링 아님). 경계: **완료를 가르면 CHECK, 기록만 하면 postCheck**. §3.3 "복구 시 재실행 가능"을 A안(재발사 없음)으로 확정 → 결정 2/1.3, §3.3, state-machine.md (2026-06-15) |
 | S30 | task_attempt.result vs API Attempt.outcome 표현 정리(**옵션 B, DB 무변경**) — `result(OK\|FAIL)`은 dispatch accepted 여부가 아니라 **attempt 전체의 terminal result**; dispatch 호출 성공/실패 관측은 `task_check(kind=DISPATCH)`·`response` 기록 여부로 판단. **EXECUTION_TIMEOUT은 별도 result enum이 아니라 `result=FAIL + error_code=EXECUTION_TIMEOUT`**. API `outcome`은 저장값 아닌 파생값(result=OK→SUCCEEDED · FAIL∧EXECUTION_TIMEOUT→EXECUTION_TIMEOUT · FAIL∧그외→FAILED). result enum(OK\|FAIL) 유지 → migration 변경 없음 → 결정 1.2, api.md/migrations (2026-06-15) |
+| S31 | **Pipeline Definition 모델 = 3 layer** (Task catalog=코드 class / Default recipe=코드((type,provider)당, release version·metadata) / Custom recipe=데이터 override / Snapshot=불변 실행기록); **Custom Pipeline** = TargetSource별 편집 가능 override(편집마다 version +1, sparse, **full 교체**, 편집·생성 시 catalog 검증), 표준 target은 코드 default; resolution = (target,type) override 있으면 그것·없으면 (type,provider) default, **task row + snapshot 원자적 박제**; version 배치 = recipe-level 명시 version 없음(재현=snapshot·skip=task content-hash·편집감사=override +1); 무게=per-target cardinality라 default=코드가 제거; 신규 테이블 `custom_pipeline_recipe`(unique(target_source_id, type)) → 결정 7, orchestrator-design 1.2, migrations (2026-06-20) |
+| O10 | retry 새 run의 definition 버전 = **생성 시점의 현재 recipe**(default 현재 release·custom 현재 version) — 원 run 버전에 고정 안 함; 완료분 skip은 v1 미지원(full re-run, terraform 수렴), 도입 시 **task content-hash 비교**로 판정(결정 5 확장 경로 — content-hash가 stable key 역할) → 결정 7.3, 5 (2026-06-20) |
 
 ---

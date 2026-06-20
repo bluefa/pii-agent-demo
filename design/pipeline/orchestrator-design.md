@@ -2,7 +2,7 @@
 
 > [ADR-016: Install/Delete Pipeline Orchestration](../../docs/adr/ADR-016-install-delete-pipeline-orchestration.md)의 상세 설계 문서.
 > ADR은 "왜"를, 이 문서는 "어떻게"(상태기계·DB 모델·tick 흐름·dispatch 5단계·crash recovery·N-cap admission·CANCELLING precedence)를 다룬다.
-> 결정 번호(결정 1/3/4/5/6 · D-T1~D-T7 · 4a~4d)는 [decision-history](./decision-history.md)와 공유한다.
+> 결정 번호(결정 1/3/4/5/6/7 · D-T1~D-T7 · 4a~4d)는 [decision-history](./decision-history.md)와 공유한다.
 
 ---
 
@@ -165,8 +165,18 @@ pipeline_event  id, pipeline_id, task_id?, type, severity, payload(jsonb),
 
 pipeline_def_snapshot   pipeline_id, definition_key, definition_version,
                         type, provider, spec(jsonb)
-                        -- 생성 시 1회 기록(write-once); 전체 PipelineDefinition을 박제.
+                        -- 실행 기록(결정 7 Layer 3). 생성 시 1회 박제(write-once) — 그 run이 resolve한
+                        --   구성을 {metadata, 확정 task 목록, 출처 recipe key+version}로 고정한다.
+                        --   이후 recipe 편집과 무관하게 in-flight·과거 run을 절연("편집 대상 ≠ 실행된 것").
                         -- 물리 삭제 금지.
+
+custom_pipeline_recipe  id, target_source_id, type(INSTALL|DELETE),
+                        version, spec(jsonb), updated_by, updated_at
+                        -- TargetSource별 custom override(결정 7 Layer 2). 데이터·편집 가능, 편집마다 version +1.
+                        --   커스텀하는 target만 행 보유(sparse) — 행이 없으면 (type,provider) 코드 default 사용.
+                        -- spec = task catalog 참조의 순서 목록(full 교체; patch 아님). 편집·생성 시 catalog 검증.
+                        -- version = audit·동시편집 충돌 방지·표시용 handle(정확성용 아님 — 재현은 snapshot,
+                        --   skip 판정은 task content-hash). unique(target_source_id, type).
 ```
 
 **task_attempt와 task_check는 task 아래 형제다(attempt → check 중첩이 아님).** 역할이 다르다:
@@ -765,6 +775,60 @@ tick 리더는 due 호출을 `next_check_at ASC` 순으로 최대 `max_external_
 - ⚠️ **per-call deadline(D-T3)은 (다)를 막지 못한다.** deadline은 느린 호출을 *끊을* 뿐 호출은 이미
   IM에 도달했다(부하 발생 후). IM을 보호하려면 *호출을 안 보내야* 하고(발사 상한/backoff), 이것이
   발사 상한이 deadline과 별개로 필요한 이유다.
+
+---
+
+## 결정 7 — Pipeline Definition: 코드 default + 데이터 custom override + run snapshot
+
+> 신규 (2026-06-20). "파이프라인 구성(어떤 task를 어떤 순서로)을 무엇이 정의하고, TargetSource별
+> 커스터마이즈를 어떻게 지원하며, 실행된 구성을 어떻게 재현하는가"를 확정한다. 개정 4판의
+> "recipe는 (type,provider)당 고정" 암묵 전제를 **Custom Pipeline** 능력으로 확장하되 default 경로는
+> 코드로 유지한다 — 무게가 per-target cardinality에 있으므로 default=코드가 그것을 제거한다(7.4).
+
+핵심: **task는 코드, recipe(구성)는 default=코드 / custom=데이터, 실행 기록은 불변 snapshot.** 셋은
+서로 다른 layer이며 "편집하는 것 ≠ 실행된 것"을 snapshot이 보장한다.
+
+### 7.1 세 layer
+
+- **Task catalog (코드).** 각 task는 코드 class다 — TaskKind 3종(결정 2) 위에서 dispatch/check/postCheck
+  바인딩을 가진 실행 단위. **데이터로 동작을 정의하지 않는다**(새 task = 새 class = 배포). stable key +
+  content-hash version을 가진다(version은 skip 판정용 — 7.3).
+- **Default recipe (코드).** `(type, provider)`당 코드에 선언 — release version·metadata(이름 등)를 코드에
+  명시. 표준 target용이며 **단일 출처**라 default 변경이 전 표준 target에 자동 반영된다(per-target 복제 =
+  drift가 없다).
+- **Custom recipe = override (데이터).** TargetSource별 **편집 가능한** override. 편집마다 **version +1**.
+  커스텀하는 소수 target만 행을 보유(sparse) — 없으면 default를 쓴다. **full 교체**다(patch 아님 — 그
+  target의 task 목록 전체를 대체). catalog 참조의 순서 목록이며 편집·생성 시 catalog에 대해 검증한다
+  (없는 task-ref·잘못된 순서·type 불일치 거부 — 코드 default는 리뷰가, 데이터 override는 런타임 validation이 막는다).
+- **Snapshot (불변 실행 기록).** = `pipeline_def_snapshot`. 파이프라인 생성 시점에
+  `{metadata, 확정 task 목록, 출처 recipe key+version}`를 1회 박제(write-once). 이후 recipe를 편집해도
+  in-flight·과거 run은 절연된다.
+
+### 7.2 생성 시 resolution
+
+`(target_source_id, type)`에 custom override가 있으면 그것을, 없으면 `(type, provider)` 코드 default를
+사용한다. 확정 구성으로 **task row 생성 + snapshot 기록을 한 트랜잭션**으로 수행한다(원자성 — snapshot ==
+실제 생성된 구성). type 집합은 현재 INSTALL·DELETE이며 **type-keyed라 재연동(RECONNECT) 등 확장은 enum
+추가로 흡수**한다(recipe 모델 무변경).
+
+### 7.3 정합성·재현
+
+- **재현** = snapshot이 단일 권위("이 run이 무엇이었나").
+- **재시도**(결정 5) = 새 run **생성 시점의 현재 recipe**를 resolve(default 현재 release 또는 custom 현재
+  version) — 원 run 버전에 고정하지 않는다(**O10 해소**). 완료분 skip은 v1에서 만들지 않으며(full re-run),
+  만들 때는 **task content-hash 비교**로 판정한다(결정 5 확장 경로; content-hash가 stable key 역할 →
+  버전이 바뀌어도 "같은 task인가"를 결정 가능).
+- **편집 감사** = custom override의 +1 version + pipeline_event. override version은 **정확성용이 아니라**
+  audit·동시편집 충돌 방지·표시용 handle이다(재현은 snapshot, skip은 content-hash).
+
+### 7.4 근거 — 무게는 cardinality에 있고 default=코드가 그것을 제거한다
+
+per-target **full-copy** recipe는 구성을 target 수(≈2000)만큼 복제해 default drift·catalog 결합·
+provisioning·validation blast radius를 target 규모로 키운다. **default를 코드로, custom을 sparse
+override로** 두면 표준 경로는 per-target 데이터가 0이라 그 무게가 사라지고, 커스텀하는 소수에서만 비용을
+지불한다 — Custom Pipeline을 default 경로(개정 4판) 변경 없이 더하는 최소 형태다. (ACTIVE/DEPRECATED/
+RETIRED 다중 버전 공존 lifecycle은 불요해진다 — default는 release 1개, custom은 target별 현재 version
+1개 + snapshot 이력으로 충분.)
 
 ---
 
