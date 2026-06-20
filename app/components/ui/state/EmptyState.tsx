@@ -62,7 +62,8 @@ export const EmptyState = ({
         <div
           className={cn(
             'mb-1 grid h-14 w-14 place-items-center rounded-2xl',
-            bgColors.muted,
+            // card container is already muted — give the icon chip a contrasting surface
+            variant === 'card' ? bgColors.surface : bgColors.muted,
             textColors.quaternary,
           )}
         >

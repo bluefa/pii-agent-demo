@@ -20,7 +20,7 @@ interface ErrorStateProps {
  * Title + description + optional retry; renders `message` now / `code` later.
  */
 export const ErrorState = ({ message, title, onRetry }: ErrorStateProps) => (
-  <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+  <div role="alert" className="flex flex-col items-center gap-2 px-6 py-12 text-center">
     <div
       className={cn(
         'mb-1 grid h-14 w-14 place-items-center rounded-2xl',

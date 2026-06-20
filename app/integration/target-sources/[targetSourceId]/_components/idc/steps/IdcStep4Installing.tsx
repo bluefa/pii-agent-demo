@@ -22,7 +22,7 @@ import {
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IdcFirewallModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
-import { ErrorState, LoadingState } from '@/app/components/ui/state';
+import { LoadingState } from '@/app/components/ui/state';
 
 /** v15 `bdc_tf` → install-task pill state (L6582 done / L6590 running). */
 const BDC_TASK_STATUS: Record<IdcTfStatus, InstallTaskStatus> = {
@@ -138,7 +138,7 @@ export const IdcStep4Installing = ({
             </button>
           </div>
 
-          {error ? <ErrorState message={error} /> : null}
+          {error ? <p className={cn('text-[12px]', textColors.tertiary)}>{error}</p> : null}
 
           <InstallTaskPipeline items={tasks} columns={2} />
         </div>
