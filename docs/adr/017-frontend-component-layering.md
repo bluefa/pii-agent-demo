@@ -4,6 +4,8 @@
 
 Accepted (2026-06-20). Incorporates an OpenAI Codex cross-review — five findings addressed: IDC grounding (resolved by merging #497), the wire/domain boundary scope, a staged error-state contract, enforcement precision, and the file-granularity rule.
 
+> **Amendment proposed 2026-06-20 by [ADR-020](./020-boundary-read-rendering.md) (§3 read-path rendering) — ADR-020 is Proposed.** It proposes that, for *suspense-capable* read paths, loading/error/forbidden be hoisted to Suspense + Error Boundaries instead of being reduced in the container. The §3 container-reduction model **remains in force for non-suspense reads** and is **unchanged for writes** (event handlers / mutations are not caught by Error Boundaries). This §3 wording stands until ADR-020 is accepted. See ADR-020.
+
 Composes with — does **not** supersede:
 
 - [ADR-008](./008-error-handling-strategy.md) — CSR error handling (the 2-layer `fetchJson` → component model). This ADR places ADR-008's "Layer 2" decision in the **container** and makes "reduce to a state" mandatory.
