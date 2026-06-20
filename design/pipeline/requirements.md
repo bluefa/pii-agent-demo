@@ -15,7 +15,7 @@
 | FR-3 | task별 attempt/check 추적 | `task_attempt` · `task_check` |
 | FR-4 | 재시도 지원 | terminal run 부활 없이 **새 run 생성**(결정 5) |
 | FR-5 | 중단 지원 | CANCELLING + in-flight drain(결정 4c) |
-| FR-6 | Terraform 로그/결과 보존 | `postCheck` terminal snapshot(결정 2) |
+| FR-6 | Terraform 로그/결과 보존 | **v2 defer** — terminal snapshot 캡처(구 postCheck)는 v2(v2-deferred.md); v1은 완료 여부·시각만 CHECK 관측에 보존 |
 | FR-7 | 알림 제공 | `pipeline_event` transactional outbox |
 | FR-8 | BFF-visible active Terraform task 제한 | N-cap admission(결정 4b) |
 

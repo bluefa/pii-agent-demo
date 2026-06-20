@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (개정 5판, 2026-06-20)
+Proposed (개정 6판, 2026-06-20)
 
 > 이 ADR은 **결정**(선택지·결정·근거·결과)만 담는다. 상세 설계·DB 모델·tick 흐름·운영·요구사항·
 > 긴 이력은 [`design/pipeline/`](../../design/pipeline/)로 분리했다 — 아래 **Links** 참조.
@@ -35,8 +35,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 각 task를 전진시키며 pipeline 상태는 task에서 파생된다. 다중 replica는 advisory lock 리더 + 모든
 전이 CAS로 안전하다.
 
-- **TaskKind는 3종으로 제한**한다 — `TERRAFORM_JOB` · `GENERAL_JOB` · `CONDITION_CHECK`(개정 4판:
-  훅의 임의 조합·범용 실행 컨텍스트 일반화를 제거). 새 task = 새 TaskKind 코드 클래스.
+- **TaskKind는 2종으로 제한**한다 — `TERRAFORM_JOB` · `CONDITION_CHECK`(개정 4판: 훅의 임의 조합·범용
+  실행 컨텍스트 일반화를 제거). 새 task = 새 TaskKind 코드 클래스. (비-terraform 비동기 job kind는 v2 defer.)
 - **Retry는 재개가 아니라 새 run 생성**이다 — terminal 부활 없음, 완료분은 terraform 수렴으로 사실상 no-op.
 - **정합성은 exactly-once 기계가 아니라 idempotency-by-construction**으로 확보한다 — 모든 dispatch는
   멱등이어야 하고, at-least-once dispatch의 안전성은 그 멱등성에 의존한다.
@@ -47,18 +47,14 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   corruption이 아니라 delay로 다룬다(circuit breaker 없음 — timeout + retry + 알림 롤업).
 - **중단(cancel)은 죽이지 않고 전진만 멈춘다** — forward edge만 gate, in-flight job은 drain,
   CANCELLING → CANCELLED로 수렴(CANCELLING이 최우선 precedence).
-- **Pipeline 구성(Definition)은 코드 default + TargetSource별 데이터 custom override + 실행 시 불변
-  snapshot으로 정의**한다(결정 7) — 표준 target은 코드 default, 커스텀하는 소수만 편집 가능한 override
-  (편집마다 version +1, full 교체), 실행 구성은 snapshot으로 박제해 재현한다. 무게가 per-target cardinality에
-  있으므로 default=코드가 그것을 제거한다.
-- **v1 범위 — postCheck defer.** terminal 로그/결과 스냅샷(postCheck)과 미해결 O29(detail 스키마·full 로그
-  조회·redaction)는 v1에서 제외한다 — 규칙·스키마 컨테이너는 보존해 후속 additive로 켠다(off-critical-path라
-  상태기계·마이그레이션 무변경). 도입 이전 run은 terminal 스냅샷이 없다(완료 여부·시각은 CHECK 관측에 보존).
-- **동일 target 다중 pipeline은 생성을 막지 않고 실행을 직렬화한다(결정 8).** target당 non-terminal pipeline은
-  `maxNonTerminalPipelinesPerTarget`(default 3)으로 bound하되, 실행은 `start_at`(v1=created_at) 최소 1개만
-  전진(나머지는 "대기"로 파생 — 새 상태 없음). 중복 pipeline의 동시 실행을 막아 target당 실행자 1을
-  유지하고(soft target — N-cap처럼 split-brain 시 일시 초과 가능, 멱등성이 흡수), 순서는 FIFO가 아니라
-  start_at 우선이라 scheduling의 substrate가 된다.
+- **Pipeline 구성(Definition)은 코드 default + 실행 시 불변 snapshot으로 정의**한다(결정 7) — recipe는
+  `(type,provider)`당 코드 default 1개이고, 실행 구성은 snapshot으로 박제해 재현한다(default release를
+  올려도 in-flight·과거 run은 절연). 무게가 per-target cardinality에 있으므로 default=코드가 그것을 제거한다.
+  (TargetSource별 데이터 custom override는 v2 defer.)
+- **동일 target 중복 pipeline은 unique 제약으로 1건만 허용한다(결정 5).** 부분 unique 제약
+  `unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)`으로 target당 non-terminal pipeline을
+  1건으로 강제한다 — 중복 생성([재시도] 포함)은 새 행을 만들지 못하고 기존 non-terminal pipeline을 반환한다.
+  "target당 실행자 1" 전제(단일 writer·N-cap·멱등 추론)가 이로써 성립한다.
 
 > 상세 메커니즘(상태기계·DB 스키마·tick·dispatch 5단계 writer 분리·crash recovery·CANCELLING
 > precedence·N-cap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),
@@ -89,7 +85,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   감사·알림이 **하나의 기록 규율**(현재 상태=CAS 갱신 · 이력=행 추가)에서 파생된다(2차 장부·로그 고고학 없음).
 - 장시간 외부 호출(200초+)을 tick 모델·불변식을 깨지 않고 수용한다(async 발사·task별 deadline·
   관측/상태 분리).
-- 재시도 의미론이 "새 run"으로 확정돼 terminal 단순함이 보존되고, 모델이 TaskKind 3종으로 단순하다.
+- 재시도 의미론이 "새 run"으로 확정돼 terminal 단순함이 보존되고, 모델이 TaskKind 2종으로 단순하다.
 
 ### Negative / 감수
 
@@ -122,12 +118,13 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 |---|---|
 | [orchestrator-design.md](../../design/pipeline/orchestrator-design.md) | 상태기계 설계(CAS·파생·단일 writer)·DB 모델·tick 흐름·dispatch 5단계·crash recovery·N-cap admission·CANCELLING |
 | [state-machine.md](../../design/pipeline/state-machine.md) | Pipeline·Task 전이도 (상태·트리거·guard 일람) |
-| [task-model.md](../../design/pipeline/task-model.md) | TaskKind 3종·작성 규칙·멱등성 계약 |
+| [task-model.md](../../design/pipeline/task-model.md) | TaskKind 2종·작성 규칙·멱등성 계약 |
 | [api.md](../../design/pipeline/api.md) | Admin·History·cancel/retry API |
 | [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
 | [requirements.md](../../design/pipeline/requirements.md) | 기능/비기능/성능 요구사항 |
 | [migrations.md](../../design/pipeline/migrations.md) | DB migration·인덱스·retention |
-| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(활성 0 — O29 dormant) |
+| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(활성 0) |
+| [v2-deferred.md](../../design/pipeline/v2-deferred.md) | v2로 미룬 표면(scheduling·직렬화 큐·custom recipe·postCheck/O29·알림 라우팅·skip-completed·GENERAL_JOB) |
 | [decision-history.md](../../design/pipeline/decision-history.md) | 긴 변경 이력(재구성 내역·Resolved) |
 
 관련: ADR-006(3-object confirmation model), ADR-009(process status model) — 파이프라인은 CONFIRMED와
@@ -142,5 +139,8 @@ INSTALLED 사이에서 동작한다.
   N-cap 목표 명시 · 설계 문서 분리
 - **2026-06-20** v5 Pipeline Definition 모델(코드 default + 데이터 custom override + run snapshot) ·
   Custom Pipeline 도입(결정 7) · O10 해소 · postCheck/O29 v1 defer · 다중 pipeline 실행 직렬화(결정 8)
+- **2026-06-20** v6 v1/v2 분리 — scheduling·per-target 직렬화 큐(구 결정 8)·custom recipe 데이터 layer
+  (구 결정 7 일부)·postCheck/O29·알림 라우팅·skip-completed·GENERAL_JOB을 v2로 이관(v2-deferred.md);
+  v1은 결정 8 큐 대신 unique 제약으로 중복 pipeline 1건 강제; TaskKind 2종; 결정 7=코드 default+snapshot
 
 전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).

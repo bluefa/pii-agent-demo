@@ -8,7 +8,27 @@
 
 ## 재구성 내역
 
-개정 5판 (2026-06-20 Pipeline Definition / Custom Pipeline):
+개정 6판 (2026-06-20 v1/v2 split — YAGNI 트리밍):
+
+- **목표 = v1 범위로 축소.** deferred·speculative 표면을 문서에서 **삭제**(relabel 아님)하고 별도
+  `v2-deferred.md`로 한 줄씩 이관한다. 동작 변경이 아니라 v1이 실제로 만드는 것만 남기는 문서 정리다.
+- **v2로 이관(삭제):** ① **scheduling**(`scheduled_at`·not-yet-due 큐 파생) · ② **per-target 실행
+  직렬화 큐(구 결정 8)**(active 게이트·`maxNonTerminalPipelinesPerTarget`) · ③ **custom per-target recipe
+  데이터 layer(구 결정 7 일부)**(`custom_pipeline_recipe` 테이블·override·편집 version·catalog validation·
+  api.md §6) · ④ **postCheck + O29**(detail 스키마·로그 조회·redaction) · ⑤ **알림 라우팅 + Slack/Email
+  채널** · ⑥ **skip-completed(content-hash)** · ⑦ **GENERAL_JOB**(구체적 v1 사용처 없는 speculative
+  3번째 kind). → 전부 v2-deferred.md.
+- **v1 중복 pipeline 방지 = unique 제약(결정 8 큐 아님).** "동일 target 다중 pipeline 실행 직렬화"(구
+  결정 8)를 삭제하고, 부분 unique 제약 `unique(target_source_id) WHERE status NOT IN (DONE,FAILED,
+  CANCELLED)`으로 대체 — target당 non-terminal pipeline 1건 강제, 중복 생성은 기존 1건 반환. 제약을 결정
+  5(retry=새 run)에 fold. **결정 8 standalone 섹션 제거**(내용은 v2-deferred + 이 제약으로 흡수).
+- **결정 7 = 코드 default + snapshot으로 축소.** 세 layer(catalog/default/custom override/snapshot)에서
+  custom override 데이터 layer를 빼 **코드 default recipe + run snapshot 2개**만 남긴다. v1 Definition =
+  코드 default + snapshot. 결정 7은 유지하되 trim(번호 보존).
+- **TaskKind 3종 → 2종.** GENERAL_JOB을 v2로 — v1은 `TERRAFORM_JOB` + `CONDITION_CHECK`. doc-set 전반
+  (task-model 결정 2·state-machine lanes/표·ADR·api·migrations)에서 GENERAL_JOB 표현 제거.
+- **결정 번호 미변경.** 결정 7은 trim, 결정 8 섹션만 제거(번호 결번·decision-history는 보존). O29는
+  open-questions에서 v2로 이관(활성 0건 유지).
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
@@ -17,7 +37,9 @@
   recipe+version} 박제). 개정 4판의 "recipe는 (type,provider)당 고정" 암묵 전제를 Custom Pipeline 능력으로
   **확장**하되 default 경로는 코드 유지(무게=per-target cardinality, default=코드가 제거 — 결정 7.4).
   resolution = (target,type) override 있으면 그것·없으면 (type,provider) default; task row 생성 + snapshot
-  박제는 원자적. 신규 테이블 `custom_pipeline_recipe`(unique(target_source_id, type)).
+  박제는 원자적. 신규 테이블 `custom_pipeline_recipe`(unique(target_source_id, type)). **→ v2 (개정 6판):**
+  custom recipe 데이터 layer(`custom_pipeline_recipe` 테이블·override·편집 version·catalog validation·api.md §6)를
+  doc-set에서 삭제하고 v2-deferred.md로 이관 — v1 결정 7 = 코드 default recipe + run snapshot 2개 layer.
 - **O10 해소.** retry는 새 run 생성 시점의 현재 recipe를 resolve(원 run 버전 미고정) → O10(retry definition
   버전: 원 run vs 생성 시점 ACTIVE) 확정. skip-completed는 v1 미지원(full re-run), 도입 시 task content-hash
   비교로 판정(결정 5 확장 경로). 미해결 2→1건(O29만).
@@ -32,7 +54,8 @@
   **보존**(off-critical-path라 상태기계·마이그레이션 무변경으로 켬). 미해결 **O29**(detail 스키마·full 로그
   조회·redaction)도 함께 **defer**(활성 미해결 0건). 근거: write-once 캡처는 안전한 캡처법
   (redaction-before-store + IM 로그 API 사실)이 확정된 뒤 켜는 것이 옳다. **forensic 결과:** 도입 이전 run은
-  terminal 스냅샷 없음·backfill 불가(완료 여부·시각은 CHECK 관측에 보존).
+  terminal 스냅샷 없음·backfill 불가(완료 여부·시각은 CHECK 관측에 보존). **→ v2 (개정 6판):** postCheck/O29
+  규칙·`POST_CHECK` enum 표현을 doc-set에서 삭제하고 v2-deferred.md로 이관(`detail` jsonb 컨테이너만 예약 유지).
 - **결정 8 신설 — 동일 target 다중 pipeline 생성 허용 + 실행 직렬화 (중복 pipeline 방지 해소).** unique 제약
   (생성 거부)이 아니라 **최古 `start_at` active 1개만 전진**으로 상호배제를 실행 시점에 둔다 — 생성 intent 보존·
   scheduling substrate. target당 non-terminal ≤ `maxNonTerminalPipelinesPerTarget`(default 3, Part II)로 spam
@@ -40,7 +63,10 @@
   active 아님`으로 파생(S26 철학, pipeline states 5 유지; behind/not-yet-due 두 사유). 순서 = `start_at`
   (v1=created_at) 최소 — **FIFO 아님**(예약이 도착 순을 깨므로); type supersede 없음. 컬럼 추가 없음
   (`scheduled_at`은 scheduling 확장 예약), 인덱스 `pipeline(target_source_id, created_at) WHERE non-terminal`
-  → 결정 8, 4b/1.1 cross-ref. **남은 활성 결정: 트리거 생성 path · RECONNECT 스코프.**
+  → 결정 8, 4b/1.1 cross-ref. **남은 활성 결정: 트리거 생성 path · RECONNECT 스코프.** **→ v2 (개정 6판):**
+  결정 8 standalone 섹션·per-target active 게이트·scheduling·`maxNonTerminalPipelinesPerTarget`을 doc-set에서
+  삭제하고 v2-deferred.md로 이관 — v1은 부분 unique 제약(`unique(target_source_id) WHERE non-terminal`)으로
+  중복 pipeline 1건만 허용(결정 5에 fold), 결정 8 큐 없음.
 - **트리거(생성) path = ADR 범위 외, 구현 시 확정.** 파이프라인 생성 endpoint·트리거 주체(설치 시작 버튼 vs
   CONFIRMED 전이)는 기존 integration install/delete 흐름(ADR-006/009)이 소유하므로 본 ADR이 고정하지 않는다
   — 실제 구현에서 기존 흐름과 배선하며 확정. ADR-016이 못 박는 생성 계약은 **결정 7·8**(resolution → cap →
@@ -254,7 +280,7 @@
 | S28 | task 상세 API 기본값 확정(낮은 중요도, 되돌리기 쉬움) — **name** = 호출 operation 식별자(어떤 API/동작; 요구 "각 phase가 어떤 API" 충족), **errorCode** enum = {CALL_TIMEOUT, EXECUTION_TIMEOUT, TTL_EXPIRED, IM_REJECTED, CHECK_ERROR, DISPATCH_NO_RESPONSE}(확장 가능; backpressure≠실패), **엔드포인트** = `GET …/tasks/{taskId}` 단일(머지 타임라인; §1.3 `/history` 표기 정정), **checks 페이지네이션** = Spring Pageable. **별도 결정으로 남김(중요·write-once): task_check.detail의 kind별 정확한 스키마 + full terraform 로그 조회 경로(logPointer·IM 로그 API 존재 여부·포인터 위임 vs BFF 프록시)** — 타입 그릇 패턴은 S27로 확정됨; **추적은 O29** → api.md, 결정 1.2/2, O29 (2026-06-15) |
 | S29 | postCheck 의미 확정 — "terminal *직전*" + "상태 무영향"의 모순 해소. postCheck = **성공(DONE) 관측 시 발사되는, DONE 전이와 분리된(off critical path) best-effort 관측**(임계 경로 위 단계 아님). timeout/실패해도 task는 DONE 유지(전이 함수 미호출·append-only 관측 → status·fail_count·gate에 **구조적** 무영향); "RUNNING→postCheck→DONE" 중간 상태 없음. **1회성·fire-and-forget(A안)**: async 1발 → `task_check(POST_CHECK)` 1행 → 끝; 재시도 없음, **크래시로 DONE 확정 후 미기록이면 재발사 안 함**(reconciler는 terminal task 재방문 안 함 — 드문 유실 감수, 폴링 아님). 경계: **완료를 가르면 CHECK, 기록만 하면 postCheck**. §3.3 "복구 시 재실행 가능"을 A안(재발사 없음)으로 확정 → 결정 2/1.3, §3.3, state-machine.md (2026-06-15) |
 | S30 | task_attempt.result vs API Attempt.outcome 표현 정리(**옵션 B, DB 무변경**) — `result(OK\|FAIL)`은 dispatch accepted 여부가 아니라 **attempt 전체의 terminal result**; dispatch 호출 성공/실패 관측은 `task_check(kind=DISPATCH)`·`response` 기록 여부로 판단. **EXECUTION_TIMEOUT은 별도 result enum이 아니라 `result=FAIL + error_code=EXECUTION_TIMEOUT`**. API `outcome`은 저장값 아닌 파생값(result=OK→SUCCEEDED · FAIL∧EXECUTION_TIMEOUT→EXECUTION_TIMEOUT · FAIL∧그외→FAILED). result enum(OK\|FAIL) 유지 → migration 변경 없음 → 결정 1.2, api.md/migrations (2026-06-15) |
-| S31 | **Pipeline Definition 모델 = 3 layer** (Task catalog=코드 class / Default recipe=코드((type,provider)당, release version·metadata) / Custom recipe=데이터 override / Snapshot=불변 실행기록); **Custom Pipeline** = TargetSource별 편집 가능 override(편집마다 version +1, sparse, **full 교체**, 편집·생성 시 catalog 검증), 표준 target은 코드 default; resolution = (target,type) override 있으면 그것·없으면 (type,provider) default, **task row + snapshot 원자적 박제**; version 배치 = recipe-level 명시 version 없음(재현=snapshot·skip=task content-hash·편집감사=override +1); 무게=per-target cardinality라 default=코드가 제거; 신규 테이블 `custom_pipeline_recipe`(unique(target_source_id, type)) → 결정 7, orchestrator-design 1.2, migrations (2026-06-20) |
-| O10 | retry 새 run의 definition 버전 = **생성 시점의 현재 recipe**(default 현재 release·custom 현재 version) — 원 run 버전에 고정 안 함; 완료분 skip은 v1 미지원(full re-run, terraform 수렴), 도입 시 **task content-hash 비교**로 판정(결정 5 확장 경로 — content-hash가 stable key 역할) → 결정 7.3, 5 (2026-06-20) |
+| S31 | **Pipeline Definition 모델 = 3 layer** (Task catalog=코드 class / Default recipe=코드((type,provider)당, release version·metadata) / Custom recipe=데이터 override / Snapshot=불변 실행기록); **Custom Pipeline** = TargetSource별 편집 가능 override(편집마다 version +1, sparse, **full 교체**, 편집·생성 시 catalog 검증), 표준 target은 코드 default; resolution = (target,type) override 있으면 그것·없으면 (type,provider) default, **task row + snapshot 원자적 박제**; version 배치 = recipe-level 명시 version 없음(재현=snapshot·skip=task content-hash·편집감사=override +1); 무게=per-target cardinality라 default=코드가 제거; 신규 테이블 `custom_pipeline_recipe`(unique(target_source_id, type)) → 결정 7, orchestrator-design 1.2, migrations (2026-06-20) **→ v2 (개정 6판): Custom recipe 데이터 layer를 v2로 이관 — v1 = Default recipe(코드) + Snapshot 2 layer(v2-deferred.md)** |
+| O10 | retry 새 run의 definition 버전 = **생성 시점의 현재 recipe**(default 현재 release·custom 현재 version) — 원 run 버전에 고정 안 함; 완료분 skip은 v1 미지원(full re-run, terraform 수렴), 도입 시 **task content-hash 비교**로 판정(결정 5 확장 경로 — content-hash가 stable key 역할) → 결정 7.3, 5 (2026-06-20) **→ v2 (개정 6판): skip-completed(content-hash)를 v2로 이관 — v1 재시도 = full re-run(v2-deferred.md)** |
 
 ---
