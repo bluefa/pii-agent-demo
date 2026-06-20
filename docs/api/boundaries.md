@@ -130,10 +130,13 @@ The `'server-only'` directive in `lib/bff/client.ts` provides a second runtime g
 ## Related docs
 
 - [ADR-011 — Typed BFF Client Consolidation](../adr/011-typed-bff-client-consolidation.md)
+- [ADR-019 — BFF Casing Boundary + Runtime Schema Validation](../adr/019-bff-casing-boundary-and-runtime-validation.md) (Proposed)
 - [ADR-008 — Error Handling Strategy](../adr/008-error-handling-strategy.md)
 - `.claude/skills/anti-patterns/SKILL.md` — "API boundary anti-patterns" section
 - Session memory: "BFF 2-hop architecture"
 
 ## Resolved by ADR-011
 
-The previous "Open questions" — two HTTP clients, schema validation gap framed against the boundary, ESLint enforcement — were addressed by ADR-011 over specs adr011-01 through adr011-05. Schema validation at routes (zod) is tracked separately as a future ADR.
+The previous "Open questions" — two HTTP clients, schema validation gap framed against the boundary, ESLint enforcement — were addressed by ADR-011 over specs adr011-01 through adr011-05.
+
+Schema validation (zod) at the proxy boundary, and consolidation of response casing onto `lib/bff/*` (removing the CSR-side `fetchInfraCamelJson` double-pass), are now decided in **[ADR-019](../adr/019-bff-casing-boundary-and-runtime-validation.md)** (Proposed; pending implementation). Until ADR-019 is implemented, the current transport described above (`fetchInfraCamelJson`) and the GET-camelCase / POST-raw response asymmetry remain in effect.
