@@ -40,4 +40,5 @@
   - `task_check(task_id, checked_at)` — task 타임라인
   - `pipeline_event(pipeline_id, created_at)` — 이벤트 / 감사 로그
   - `pipeline(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)` **unique** — target당 non-terminal pipeline 1건 강제·중복 생성 차단(결정 5)
+  - `task(pipeline_id, seq)` **unique** — 순차 chain 순서·중복 seq 방지(결정 2; `depends_on` 배열 대신 seq predecessor)
 - **Retention** — `task_check`만 폴링 cadence에 비례해 증가하므로 보존 기간(기본 90일) 후 reconciler가 prune. `pipeline`·`task`·`task_attempt`·`pipeline_event`는 무기한 보존(결정 1.3; 결정 5 확장 경로 전제).

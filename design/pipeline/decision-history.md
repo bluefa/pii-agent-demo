@@ -29,6 +29,14 @@
   (task-model 결정 2·state-machine lanes/표·ADR·api·migrations)에서 GENERAL_JOB 표현 제거.
 - **결정 번호 미변경.** 결정 7은 trim, 결정 8 섹션만 제거(번호 결번·decision-history는 보존). O29는
   open-questions에서 v2로 이관(활성 0건 유지).
+- **개정 6판 후속 — v1 스키마 정리 (codex v1 재리뷰 반영).** TaskKind 2종화로 죽은 일반화 제거:
+  ① `task_check.detail(jsonb)` 제거(구 postCheck 결과 그릇 — v2 도입 시 additive 추가) · ② `task.depends_on`
+  배열 제거 → 순차 chain은 **seq predecessor**(seq-1 DONE→승격) + `unique(task.pipeline_id, seq)` 제약 ·
+  ③ `/admin/pipelines/concurrency` endpoint 제거(slot 게이지는 `COUNT(DISPATCHING|RUNNING)`로 파생) ·
+  ④ `open-questions.md` 삭제(활성 0·O29는 v2-deferred.md) · ⑤ target 비정규화 요약 컬럼 제거(인덱스 조회로
+  충분). **유지 결정:** `task_attempt.response(jsonb)`는 컷 검토 후 **보류**(유지); `pipeline_def_snapshot`도
+  유지(spec(jsonb) 내용을 결정 7.1·§1.2·ADR에 정밀 명시 — `{name, tasks:[{seq, name(operation), kind,
+  deadline, ttl?, pollingInterval?, executionTimeout?, maxFailCount}]}`). 동작 무변경(스키마·문서 정리).
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,

@@ -49,7 +49,11 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   CANCELLING → CANCELLED로 수렴(CANCELLING이 최우선 precedence).
 - **Pipeline 구성(Definition)은 코드 default + 실행 시 불변 snapshot으로 정의**한다(결정 7) — recipe는
   `(type,provider)`당 코드 default 1개이고, 실행 구성은 snapshot으로 박제해 재현한다(default release를
-  올려도 in-flight·과거 run은 절연). 무게가 per-target cardinality에 있으므로 default=코드가 그것을 제거한다.
+  올려도 in-flight·과거 run은 절연). **snapshot(`pipeline_def_snapshot`, 1 pipeline:1행·생성 시 write-once)에
+  `{pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)}`를 저장하며, `spec`은
+  resolve된 전체 recipe(이름 + 순서 있는 task 목록, 각 task = `{seq, name(operation), kind, deadline·ttl·
+  polling·max_fail_count}`)다 — task row가 그 run의 실행 상태라면 snapshot은 definition 원본(이력·재현 권위;
+  코드=실행 권위).** 무게가 per-target cardinality에 있으므로 default=코드가 그것을 제거한다.
   (TargetSource별 데이터 custom override는 v2 defer.)
 - **동일 target 중복 pipeline은 unique 제약으로 1건만 허용한다(결정 5).** 부분 unique 제약
   `unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)`으로 target당 non-terminal pipeline을
@@ -123,7 +127,6 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 | [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
 | [requirements.md](../../design/pipeline/requirements.md) | 기능/비기능/성능 요구사항 |
 | [migrations.md](../../design/pipeline/migrations.md) | DB migration·인덱스·retention |
-| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(활성 0) |
 | [v2-deferred.md](../../design/pipeline/v2-deferred.md) | v2로 미룬 표면(scheduling·직렬화 큐·custom recipe·postCheck/O29·알림 라우팅·skip-completed·GENERAL_JOB) |
 | [decision-history.md](../../design/pipeline/decision-history.md) | 긴 변경 이력(재구성 내역·Resolved) |
 
@@ -142,5 +145,8 @@ INSTALLED 사이에서 동작한다.
 - **2026-06-20** v6 v1/v2 분리 — scheduling·per-target 직렬화 큐(구 결정 8)·custom recipe 데이터 layer
   (구 결정 7 일부)·postCheck/O29·알림 라우팅·skip-completed·GENERAL_JOB을 v2로 이관(v2-deferred.md);
   v1은 결정 8 큐 대신 unique 제약으로 중복 pipeline 1건 강제; TaskKind 2종; 결정 7=코드 default+snapshot
+- **2026-06-20** v6 후속 — v1 스키마 정리(detail 제거 · depends_on→seq predecessor+unique(pipeline_id,seq) ·
+  /concurrency·open-questions 제거 · 비정규화 요약 제거); `pipeline_def_snapshot` spec(jsonb) 내용 정밀
+  명시; `task_attempt.response`는 유지
 
 전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).

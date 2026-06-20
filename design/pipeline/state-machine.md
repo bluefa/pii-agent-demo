@@ -55,7 +55,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 상태 전진 경로는 kind가 정한다(결정 2). happy path만 lane으로, 분기(실패·timeout·취소·재시도)는 아래 표.
 
 ```
-공통 진입:  (생성) → [BLOCKED] ──depends_on 전부 DONE (tick 승격)──► [READY] ──┐ kind로 분기
+공통 진입:  (생성) → [BLOCKED] ──직전 seq task DONE (tick 승격)──► [READY] ──┐ kind로 분기
                                                                           │
  TERRAFORM_JOB   │ [READY] ──admit: COUNT(DISP|RUN)<N──► [DISPATCHING] → [RUNNING] → [DONE]
  (slot 소비)      │   (READY = slot 큐, 미admit)          dispatch       job 폴링
@@ -72,7 +72,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | From | → To | 트리거 / Guard | kind |
 |---|---|---|---|
 | (생성) | BLOCKED | pipeline 생성 시 task 행 생성 | 전체 |
-| BLOCKED | READY | tick: depends_on(순차 chain=predecessor) 전부 DONE → 승격 | 전체 |
+| BLOCKED | READY | tick: 직전 task(seq-1) DONE → 승격 (순차 chain — seq 순서로 파생) | 전체 |
 | READY | DISPATCHING | tick: **admit** — COUNT(DISPATCHING\|RUNNING) < N일 때(READY TF = slot 큐); CAS + task_attempt 생성 + next_check_at | TERRAFORM_JOB |
 | READY | WAITING_EXTERNAL | tick: dispatch 없이 조건 폴링 개시 | CONDITION_CHECK |
 | DISPATCHING | RUNNING | (다음) tick: attempt.response 적재(dispatch 응답 OK) 관측 → CAS (결정 3.1 5단계) | TERRAFORM_JOB |
