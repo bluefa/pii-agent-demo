@@ -41,6 +41,12 @@
   (v1=created_at) 최소 — **FIFO 아님**(예약이 도착 순을 깨므로); type supersede 없음. 컬럼 추가 없음
   (`scheduled_at`은 scheduling 확장 예약), 인덱스 `pipeline(target_source_id, created_at) WHERE non-terminal`
   → 결정 8, 4b/1.1 cross-ref. **남은 활성 결정: 트리거 생성 path · RECONNECT 스코프.**
+- **트리거(생성) path = ADR 범위 외, 구현 시 확정.** 파이프라인 생성 endpoint·트리거 주체(설치 시작 버튼 vs
+  CONFIRMED 전이)는 기존 integration install/delete 흐름(ADR-006/009)이 소유하므로 본 ADR이 고정하지 않는다
+  — 실제 구현에서 기존 흐름과 배선하며 확정. ADR-016이 못 박는 생성 계약은 **결정 7·8**(resolution → cap →
+  원자적 task row + snapshot)뿐. 이로써 **ADR-016 아키텍처 결정(결정 1~8)은 닫힘** — 남은 항목은 배선(트리거
+  path)·요구사항(RECONNECT)·구현(default recipe 시퀀스·catalog 검증)·보류(postCheck/O29·scheduling·skip)로,
+  모두 본 ADR이 내려야 할 아키텍처 결정이 아니다 → api.md §3 (2026-06-20).
 
 > 개정 5판은 개정 4판의 "recipe 고정" 가정을 확장(supersede)한다 — default=코드 경로는 4판 그대로이고,
 > custom override 데이터 layer만 additive로 더해진다. 런타임 상태기계·멱등성·N-cap·snapshot 메커니즘은 무변경.
