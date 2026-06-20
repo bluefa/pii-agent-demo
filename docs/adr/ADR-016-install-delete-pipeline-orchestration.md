@@ -53,6 +53,10 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - **v1 범위 — postCheck defer.** terminal 로그/결과 스냅샷(postCheck)과 미해결 O29(detail 스키마·full 로그
   조회·redaction)는 v1에서 제외한다 — 규칙·스키마 컨테이너는 보존해 후속 additive로 켠다(off-critical-path라
   상태기계·마이그레이션 무변경). 도입 이전 run은 terminal 스냅샷이 없다(완료 여부·시각은 CHECK 관측에 보존).
+- **동일 target 다중 pipeline은 생성을 막지 않고 실행을 직렬화한다(결정 8).** target당 non-terminal pipeline은
+  `maxNonTerminalPipelinesPerTarget`(default 3)으로 bound하되, 실행은 `start_at`(v1=created_at) 최소 1개만
+  전진(나머지는 "대기"로 파생 — 새 상태 없음). 중복 pipeline의 동시 실행을 막아 target당 실행자 1을 보장하고,
+  순서는 FIFO가 아니라 start_at 우선이라 scheduling의 substrate가 된다.
 
 > 상세 메커니즘(상태기계·DB 스키마·tick·dispatch 5단계 writer 분리·crash recovery·CANCELLING
 > precedence·N-cap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),
@@ -135,6 +139,6 @@ INSTALLED 사이에서 동작한다.
 - **2026-06-14** v4 단순화(TaskKind 3종 · circuit breaker·C-budget·force-check 제거 · postCheck 0..1) ·
   N-cap 목표 명시 · 설계 문서 분리
 - **2026-06-20** v5 Pipeline Definition 모델(코드 default + 데이터 custom override + run snapshot) ·
-  Custom Pipeline 도입(결정 7) · O10 해소 · postCheck/O29 v1 defer
+  Custom Pipeline 도입(결정 7) · O10 해소 · postCheck/O29 v1 defer · 다중 pipeline 실행 직렬화(결정 8)
 
 전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).

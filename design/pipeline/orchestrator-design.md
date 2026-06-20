@@ -2,7 +2,7 @@
 
 > [ADR-016: Install/Delete Pipeline Orchestration](../../docs/adr/ADR-016-install-delete-pipeline-orchestration.md)의 상세 설계 문서.
 > ADR은 "왜"를, 이 문서는 "어떻게"(상태기계·DB 모델·tick 흐름·dispatch 5단계·crash recovery·N-cap admission·CANCELLING precedence)를 다룬다.
-> 결정 번호(결정 1/3/4/5/6/7 · D-T1~D-T7 · 4a~4d)는 [decision-history](./decision-history.md)와 공유한다.
+> 결정 번호(결정 1/3/4/5/6/7/8 · D-T1~D-T7 · 4a~4d)는 [decision-history](./decision-history.md)와 공유한다.
 
 ---
 
@@ -253,7 +253,8 @@ predecessor)이 모두 DONE이면 reconciler가 READY로 승격시킨다. **READ
   어느 층이 발화했는지(CALL_TIMEOUT vs EXECUTION_TIMEOUT vs TTL EXPIRED)까지.
 
 인덱스: `pipeline(target_source_id, started_at DESC)`, `pipeline(started_at)`,
-`task_check(task_id, checked_at)`, `pipeline_event(pipeline_id, created_at)`.
+`task_check(task_id, checked_at)`, `pipeline_event(pipeline_id, created_at)`,
+`pipeline(target_source_id, created_at) WHERE status NOT IN (DONE,FAILED,CANCELLED)`(결정 8 — target별 active 조회·cap COUNT).
 
 `next_check_at`도 노출한다 — 운영자가 "다음 확인 14:32"를 본다. target별 비정규화 요약
 (last_install_run_at, last_delete_run_at, 마지막 결과, 실행 중 pipeline id)이 리스트 뷰를
@@ -831,6 +832,53 @@ override로** 두면 표준 경로는 per-target 데이터가 0이라 그 무게
 지불한다 — Custom Pipeline을 default 경로(개정 4판) 변경 없이 더하는 최소 형태다. (ACTIVE/DEPRECATED/
 RETIRED 다중 버전 공존 lifecycle은 불요해진다 — default는 release 1개, custom은 target별 현재 version
 1개 + snapshot 이력으로 충분.)
+
+---
+
+## 결정 8 — 동일 target 다중 pipeline: 생성 허용 + 실행 직렬화(최古 start_at만 전진)
+
+> 신규 (2026-06-20). 같은 target_source에 non-terminal pipeline이 둘 이상 존재할 때의 정합성·실행 규칙을
+> 확정한다. "중복 pipeline 방지"를 생성 거부(unique 제약)가 아니라 **실행 직렬화**로 푼다 — 생성 intent를
+> 보존하고 scheduling의 substrate가 된다.
+
+문제: 같은 target에 non-terminal pipeline이 둘이면 두 tick 경로가 같은 `target_source_id`에 terraform을
+몰아 — 단일 writer·N-cap·멱등 추론이 "target당 실행자 1"을 암묵 전제하므로 깨진다. [재시도]=새 run(결정 5)이
+이를 키운다.
+
+해법 — **상호배제를 생성 시점이 아니라 실행 시점에 둔다:**
+
+- **생성은 막지 않는다(직렬화로 해결).** 다중 non-terminal pipeline을 허용하되, **target당 non-terminal
+  pipeline 수를 `maxNonTerminalPipelinesPerTarget`(default 3, Part II 런타임 설정)으로 bound** — 초과 생성만
+  거부(남용 방어선). 이는 *target당 pipeline* 상한이며 *전역 TF task* 상한 N-cap(결정 4b)과 **별개 축**이다.
+- **실행은 active 1개만.** reconciler는 target별로 **`start_at`(= `scheduled_at`이 있으면 그것, 없으면
+  `created_at`)이 `≤ now`인 non-terminal 중 최소**인 pipeline 하나만 "active"로 보고 그 task만 전진시킨다.
+  나머지 non-terminal pipeline의 task는 존재하되 dispatch되지 않는다 — 기존 admission 술어(depends_on 해소 ∧
+  N-cap)에 **per-target active 게이트**가 한 겹 더 얹힌다(결정 4b 연장).
+- **새 pipeline 상태를 만들지 않는다.** "대기(큐)"는 `RUNNING ∧ 그 target의 active 아님`으로 **파생**한다
+  (WAITING_SLOT을 READY∧TF로 파생한 S26과 동일 철학) — pipeline 상태는 5종 유지. 보드는 대기 사유를 둘로
+  파생 표시: **behind**(`start_at ≤ now`인데 앞 active 존재) · **not-yet-due**(`start_at > now`, scheduling
+  도입 시에만 발생).
+- **순서는 도착 순(FIFO)이 아니라 `start_at` 최소 우선이다.** v1은 모든 pipeline이 즉시 실행이라
+  `start_at = created_at` → 결과적으로 생성 순이지만, 늦게 생성됐어도 더 이른 `scheduled_at`을 가지면 먼저
+  도는 모델이므로 **FIFO로 기술하지 않는다**. type-aware supersede(예: DELETE가 pending INSTALL 추월)는
+  없다 — 순수 시간순.
+- **active 종료 시 승계.** active가 terminal(DONE/FAILED/CANCELLED)에 도달하면 다음 tick이 같은 규칙으로
+  다음 active(`start_at ≤ now` 최소)를 뽑아 전진시킨다 — 별도 신호·전이 없이 게이트 재평가로 수렴.
+
+### 스키마·인덱스
+
+- **컬럼 추가 없음(v1).** `start_at`은 v1에서 `created_at`과 동일하므로 별도 컬럼을 두지 않는다(키 =
+  `created_at`). scheduling 도입 시 `pipeline.scheduled_at` 추가 + 키 = `COALESCE(scheduled_at, created_at)`
+  (예약 pipeline의 cap 포함 여부는 그때 확정).
+- 인덱스 `pipeline(target_source_id, created_at) WHERE status NOT IN (DONE,FAILED,CANCELLED)` — target별
+  active(최古 non-terminal) 조회 + cap COUNT.
+
+### 정합성
+
+active 게이트는 N-cap과 같은 부류의 **soft target**이다 — 단일 리더가 per-target active를 직렬화하고, leader
+failover split-brain(≤30초) 동안 두 pod가 일시적으로 두 active를 전진시킬 수 있으나(서로 다른 target이면
+무관, 같은 target이면 다음 tick이 수렴) corruption은 멱등성이 흡수한다. 정확성 불변식이 아니라 admission
+제어다(결정 3.2/4b와 무모순). [중단]·[재시도]도 cap·게이트를 그대로 따른다(retry=새 run이라 cap 대상).
 
 ---
 

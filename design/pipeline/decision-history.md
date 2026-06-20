@@ -33,6 +33,14 @@
   조회·redaction)도 함께 **defer**(활성 미해결 0건). 근거: write-once 캡처는 안전한 캡처법
   (redaction-before-store + IM 로그 API 사실)이 확정된 뒤 켜는 것이 옳다. **forensic 결과:** 도입 이전 run은
   terminal 스냅샷 없음·backfill 불가(완료 여부·시각은 CHECK 관측에 보존).
+- **결정 8 신설 — 동일 target 다중 pipeline 생성 허용 + 실행 직렬화 (중복 pipeline 방지 해소).** unique 제약
+  (생성 거부)이 아니라 **최古 `start_at` active 1개만 전진**으로 상호배제를 실행 시점에 둔다 — 생성 intent 보존·
+  scheduling substrate. target당 non-terminal ≤ `maxNonTerminalPipelinesPerTarget`(default 3, Part II)로 spam
+  bound(초과만 거부; *target당 pipeline* 상한이라 *전역 TF task* N-cap과 별개 축). "대기(큐)"는 `RUNNING ∧
+  active 아님`으로 파생(S26 철학, pipeline states 5 유지; behind/not-yet-due 두 사유). 순서 = `start_at`
+  (v1=created_at) 최소 — **FIFO 아님**(예약이 도착 순을 깨므로); type supersede 없음. 컬럼 추가 없음
+  (`scheduled_at`은 scheduling 확장 예약), 인덱스 `pipeline(target_source_id, created_at) WHERE non-terminal`
+  → 결정 8, 4b/1.1 cross-ref. **남은 활성 결정: 트리거 생성 path · RECONNECT 스코프.**
 
 > 개정 5판은 개정 4판의 "recipe 고정" 가정을 확장(supersede)한다 — default=코드 경로는 4판 그대로이고,
 > custom override 데이터 layer만 additive로 더해진다. 런타임 상태기계·멱등성·N-cap·snapshot 메커니즘은 무변경.
