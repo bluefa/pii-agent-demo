@@ -22,7 +22,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   3. terraform_job_id는 요청별 서버 측 발급. **TerraformWorker에 dedup이 없다** — 중복 제출은 각각
      실행되나 모든 execution API가 멱등이라 인프라 결과는 손상되지 않는다.
   4. 결과 유실 가능(드문 worker 결함) — "실행 중"과 "유실"을 구분하지 않고 execution timeout으로 흡수한다.
-  5. 동시 실행 TerraformJob은 N 미만이어야 한다(IM 용량 보호). 현재 자동화 caller는 BFF뿐이다.
+  5. 동시 실행 TerraformJob은 **고정 worker 풀 크기 M으로 hard-cap**된다(IM 용량 보호) — BFF N-cap(N≈M)은
+     그 위의 제출 throttle. 현재 자동화 caller는 BFF뿐이다.
   6. 실행 시간·전체 히스토리(target별 run · task별 attempt/check · 모든 외부 호출 결과)와 알림이
      일급 요구사항이다.
   7. (descoped) AI 운영은 범위 외 — 단, 모든 admin 액션이 BFF admin API라는 계층 규칙을 유지하므로
@@ -39,9 +40,9 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - **Retry는 재개가 아니라 새 run 생성**이다 — terminal 부활 없음, 완료분은 terraform 수렴으로 사실상 no-op.
 - **정합성은 exactly-once 기계가 아니라 idempotency-by-construction**으로 확보한다 — 모든 dispatch는
   멱등이어야 하고, at-least-once dispatch의 안전성은 그 멱등성에 의존한다.
-- **N-cap은 BFF 측 admission control**로 적용해 BFF-visible active Terraform task 수를 N 이하로
-  제한한다. `N·K`는 실제 worker job hard cap이 아니라 retry/orphan headroom 산정값이며, global hard cap은
-  필요 시 IM 429/503에 위임한다. poll burst는 `max_external_calls_per_tick`으로 완화한다.
+- **동시성은 고정 TerraformWorker 풀이 hard-cap(≤ M)**하고, BFF N-cap은 pubsub 큐를 얕게 유지하는 제출
+  throttle다(N ≈ M). `N·K`는 동시 실행 상한이 아니라 worst-case 제출량 sizing 값. poll burst는
+  `max_external_calls_per_tick`으로 완화한다.
 - **무한 대기를 막는다** — execution timeout + WAIT_EXTERNAL TTL. 죽일 수 없거나 systemic한 실패는
   corruption이 아니라 delay로 다룬다(circuit breaker 없음 — timeout + retry + 알림 롤업).
 - **중단(cancel)은 죽이지 않고 전진만 멈춘다** — forward edge만 gate, in-flight job은 drain,

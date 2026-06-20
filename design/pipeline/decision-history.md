@@ -47,6 +47,12 @@
   원자적 task row + snapshot)뿐. 이로써 **ADR-016 아키텍처 결정(결정 1~8)은 닫힘** — 남은 항목은 배선(트리거
   path)·요구사항(RECONNECT)·구현(default recipe 시퀀스·catalog 검증)·보류(postCheck/O29·scheduling·skip)로,
   모두 본 ADR이 내려야 할 아키텍처 결정이 아니다 → api.md §3 (2026-06-20).
+- **고정 worker 풀 채택 → 결정 4b 단순화.** TerraformWorker를 **고정 크기 풀(M)**로 두기로 결정 — 동시
+  terraform 실행이 풀에서 **hard-cap(≤ M)**된다. 이로써 N-cap이 지던 "전역 동시성 보장" 부담이 풀로
+  이전되어 N-cap은 *동시성 안전장치 → pubsub 큐 throttle(N≈M)*로 강등. 결정 4b의 soft-target·N·K-not-a-cap·
+  IM-429-위임 단서 더미를 crisp 버전으로 축약(autoscale 시나리오용 escape만 잔존). **codex가 반복 지적한
+  'N·K 복잡성'은 설계 복잡이 아니라 무한-풀 전제의 방어 문서였고, 고정 풀로 그 전제가 사라져 해소**(문서
+  축약일 뿐 동작 무변경) → 결정 4b, ADR 제약#5 (2026-06-20).
 
 > 개정 5판은 개정 4판의 "recipe 고정" 가정을 확장(supersede)한다 — default=코드 경로는 4판 그대로이고,
 > custom override 데이터 layer만 additive로 더해진다. 런타임 상태기계·멱등성·N-cap·snapshot 메커니즘은 무변경.
