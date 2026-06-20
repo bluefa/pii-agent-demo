@@ -27,6 +27,12 @@
   run별 구성 이력을 책임진다.)
 - **lifecycle 단순화.** default=코드(release 1개) + custom=데이터(target별 현재 version 1개) + snapshot
   이력 구조라, ACTIVE/DEPRECATED/RETIRED 다중 버전 공존 lifecycle은 불요해진다(결정 7.4).
+- **postCheck v1 defer + O29 dormant.** postCheck(terminal 스냅샷 관측)는 v1 범위에서 제외 — 규칙
+  (S29·결정 2/1.3/3.3/4a/4c)·스키마 컨테이너(`kind=POST_CHECK`·`detail` jsonb)는 후속 additive 도입용으로
+  **보존**(off-critical-path라 상태기계·마이그레이션 무변경으로 켬). 미해결 **O29**(detail 스키마·full 로그
+  조회·redaction)도 함께 **defer**(활성 미해결 0건). 근거: write-once 캡처는 안전한 캡처법
+  (redaction-before-store + IM 로그 API 사실)이 확정된 뒤 켜는 것이 옳다. **forensic 결과:** 도입 이전 run은
+  terminal 스냅샷 없음·backfill 불가(완료 여부·시각은 CHECK 관측에 보존).
 
 > 개정 5판은 개정 4판의 "recipe 고정" 가정을 확장(supersede)한다 — default=코드 경로는 4판 그대로이고,
 > custom override 데이터 layer만 additive로 더해진다. 런타임 상태기계·멱등성·N-cap·snapshot 메커니즘은 무변경.

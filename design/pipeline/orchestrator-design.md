@@ -156,6 +156,8 @@ task_check      id, task_id, checked_at, started_at,
                 --   — 컬럼 ALTER 없이 kind별 형태 수용). type 판별자로 인지: TERRAFORM_JOB postCheck =
                 --   {type:"TERRAFORM_LOG", logPointer, excerpt} · GENERAL_JOB = {type:"API_RESPONSE", ...}.
                 --   full terraform 로그는 BFF 미보존 — logPointer로 IM 조회, detail엔 발췌만(로그 비대화 방지).
+                --   v1: postCheck defer(task-model.md)로 detail은 사실상 미사용 — POST_CHECK enum·컨테이너는
+                --   예약(후속 additive 도입, O29 dormant).
                 -- attempt_id 컬럼 미도입(O26 해소): job_id가 요청별 고유 발급(재dispatch=새 job_id)이라
                 --   external_handle∈attempt.response soft-link가 무모호 — 명시 링크 컬럼 불요.
 
@@ -232,7 +234,7 @@ predecessor)이 모두 DONE이면 reconciler가 READY로 승격시킨다. **READ
 | Task 상태 전이 | task 갱신 + pipeline_event |
 | Dispatch 호출 | **(tick)** DISPATCHING 전이 · task_attempt 행 생성 · next_check_at 갱신 → **(호출 스레드)** task_check kind=DISPATCH 선기록(PENDING) → 호출 → response·task_check 채움 → **(다음 tick)** RUNNING 전이 (결정 3.1 5단계) |
 | 각 완료 확인(check) | **호출 직전(호출 스레드)** task_check kind=CHECK 선기록 → 호출 → observed 채움 (핸들 폴링이면 RUNNING/SUCCEEDED/FAILED, 조건 평가면 MET/NOT_MET; api_result=ERROR면 fail_count++) |
-| post-check (task당 0..1) | **성공(DONE) 관측 시 발사(호출 스레드) — DONE 전이와 분리, off critical path.** task_check kind=POST_CHECK 선기록 → 호출(deadline 60초) → 채움 (상태·fail_count 무영향, **1회성·재시도 없음·크래시 재발사 없음**); pipeline.status != CANCELLING ∧ 성공일 때만; 실행 경로는 다른 호출과 동일(async 발사) |
+| post-check (task당 0..1) | **(v1 defer — task-model.md)** **성공(DONE) 관측 시 발사(호출 스레드) — DONE 전이와 분리, off critical path.** task_check kind=POST_CHECK 선기록 → 호출(deadline 60초) → 채움 (상태·fail_count 무영향, **1회성·재시도 없음·크래시 재발사 없음**); pipeline.status != CANCELLING ∧ 성공일 때만; 실행 경로는 다른 호출과 동일(async 발사) |
 | 알림 발송 | pipeline_event.notified_at |
 
 모든 외부 호출은 **호출 직전에 task_check 행을 PENDING으로 선기록**하고 응답 후 채운다

@@ -50,6 +50,9 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   snapshot으로 정의**한다(결정 7) — 표준 target은 코드 default, 커스텀하는 소수만 편집 가능한 override
   (편집마다 version +1, full 교체), 실행 구성은 snapshot으로 박제해 재현한다. 무게가 per-target cardinality에
   있으므로 default=코드가 그것을 제거한다.
+- **v1 범위 — postCheck defer.** terminal 로그/결과 스냅샷(postCheck)과 미해결 O29(detail 스키마·full 로그
+  조회·redaction)는 v1에서 제외한다 — 규칙·스키마 컨테이너는 보존해 후속 additive로 켠다(off-critical-path라
+  상태기계·마이그레이션 무변경). 도입 이전 run은 terminal 스냅샷이 없다(완료 여부·시각은 CHECK 관측에 보존).
 
 > 상세 메커니즘(상태기계·DB 스키마·tick·dispatch 5단계 writer 분리·crash recovery·CANCELLING
 > precedence·N-cap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),
@@ -118,7 +121,7 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 | [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
 | [requirements.md](../../design/pipeline/requirements.md) | 기능/비기능/성능 요구사항 |
 | [migrations.md](../../design/pipeline/migrations.md) | DB migration·인덱스·retention |
-| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(O29) |
+| [open-questions.md](../../design/pipeline/open-questions.md) | 미해결 질문(활성 0 — O29 dormant) |
 | [decision-history.md](../../design/pipeline/decision-history.md) | 긴 변경 이력(재구성 내역·Resolved) |
 
 관련: ADR-006(3-object confirmation model), ADR-009(process status model) — 파이프라인은 CONFIRMED와
@@ -132,6 +135,6 @@ INSTALLED 사이에서 동작한다.
 - **2026-06-14** v4 단순화(TaskKind 3종 · circuit breaker·C-budget·force-check 제거 · postCheck 0..1) ·
   N-cap 목표 명시 · 설계 문서 분리
 - **2026-06-20** v5 Pipeline Definition 모델(코드 default + 데이터 custom override + run snapshot) ·
-  Custom Pipeline 도입(결정 7) · O10 해소
+  Custom Pipeline 도입(결정 7) · O10 해소 · postCheck/O29 v1 defer
 
 전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).

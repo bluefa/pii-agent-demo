@@ -56,6 +56,13 @@ TERRAFORM_JOB              GENERAL_JOB               CONDITION_CHECK
 - **connector / callStrategy / resourcePool 추상화 레이어는 도입하지 않는다(YAGNI)** — 두 번째
   capacity-limited backend가 실재할 때 additive로 확장한다.
 
+> **v1 범위 외 (2026-06-20 defer).** postCheck는 v1에서 발사하지 않는다 — 아래 규칙·`task_check(POST_CHECK)`·
+> `detail` 컨테이너는 **후속 additive 도입용 보존 스펙**이다(off-critical-path라 상태기계·마이그레이션 무변경으로
+> 켤 수 있음, 결정 6 D-T6). 미해결 **O29**(detail 스키마·full 로그 조회·redaction)도 함께 **defer**한다. **forensic
+> 결과:** 도입 이전 run은 terminal 스냅샷이 없고 backfill 불가(완료 *여부·시각*은 CHECK 관측에 보존 — 잃는 건
+> 로그/응답 본문). 근거: write-once 캡처는 안전한 캡처법(redaction-before-store + IM 로그 API 사실)이 확정된 뒤
+> 켜는 것이 옳다.
+
 **postCheck (task당 0..1) — 성공 시 best-effort 스냅샷 관측.** 일반 후처리 훅이 아니라(개정 4판 — 구
 0..N `postChecks[]`에서 0..1로 축소), task가 **성공(DONE)에 도달했음을 관측한 시점에 발사되는, DONE
 전이와 분리된(off critical path) best-effort 관측**이다("terminal 직전 단계"가 아님 — 임계 경로에 없다).
