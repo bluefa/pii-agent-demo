@@ -60,6 +60,29 @@ export interface EndpointConfigSnapshot extends EndpointConfigInputData {
   resource_id: string;
 }
 
+// ===== IDC Provider (mock domain) =====
+
+export type IdcInputFormat = 'IP' | 'HOST';
+
+/**
+ * Per-resource IDC config attached to a MockResource (mock domain only).
+ * Mirrors the v15 IDC target shape; surfaced to the client via the IDC API
+ * layer as `IdcResourceView` (see `app/lib/api/idc.ts`).
+ */
+export interface IdcResourceConfig {
+  inputFormat: IdcInputFormat;
+  /** inputFormat=IP — 1..6 entries. */
+  ips: string[];
+  /** inputFormat=HOST — single domain. */
+  domain: string;
+  /** Oracle SID — present only for Oracle. */
+  oracleSid?: string;
+  /** BDC Agent source IPs — assigned from Step 2 (1..2 entries). */
+  sourceIps: string[];
+  /** Firewall open state for this resource — Step 4. */
+  firewallOpen: boolean;
+}
+
 export type AwsResourceType = 'RDS' | 'RDS_CLUSTER' | 'DOCUMENTDB' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'EC2';
 
 // RDS Cluster 전용 타입
@@ -213,6 +236,9 @@ export interface MockResource {
   // --- VM 전용 설정 ---
   vmDatabaseConfig?: VmDatabaseConfig;    // VM 리소스(EC2, AZURE_VM)만
   nics?: AzureVmNic[];  // Azure VM 전용: NIC 목록
+
+  // --- IDC 전용 설정 ---
+  idcConfig?: IdcResourceConfig;          // IDC 수동입력 리소스만
 
   // --- RDS_CLUSTER 전용 ---
   clusterType?: RdsClusterType;

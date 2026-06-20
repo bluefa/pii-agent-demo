@@ -1,7 +1,7 @@
 /**
  * Guide CMS — slot registry.
  *
- * Spec: docs/reports/guide-cms/spec.md §3.3. Maps 28 slot keys to 22
+ * Spec: docs/reports/guide-cms/spec.md §3.3. Maps 35 slot keys to 29
  * guide names; many slots can share one name (e.g. AWS AUTO step 1 and
  * AWS MANUAL step 1 both point to `AWS_TARGET_CONFIRM`).
  *
@@ -157,6 +157,42 @@ export const GUIDE_SLOTS = {
   'process.gcp.7': {
     guideName: 'GCP_COMPLETED',
     placement: { kind: 'process-step', provider: 'GCP', step: 7, stepLabel: '완료' },
+    component: 'GuideCard',
+  },
+  // IDC (7) — no variant; step 1 is manual input, step 4 is BDC install + firewall.
+  'process.idc.1': {
+    guideName: 'IDC_TARGET_INPUT',
+    placement: { kind: 'process-step', provider: 'IDC', step: 1, stepLabel: '연동 대상 입력' },
+    component: 'GuideCard',
+  },
+  'process.idc.2': {
+    guideName: 'IDC_APPROVAL_PENDING',
+    placement: { kind: 'process-step', provider: 'IDC', step: 2, stepLabel: '승인 대기' },
+    component: 'GuideCard',
+  },
+  'process.idc.3': {
+    guideName: 'IDC_APPLYING',
+    placement: { kind: 'process-step', provider: 'IDC', step: 3, stepLabel: '연동 대상 반영 중' },
+    component: 'GuideCard',
+  },
+  'process.idc.4': {
+    guideName: 'IDC_INSTALLING',
+    placement: { kind: 'process-step', provider: 'IDC', step: 4, stepLabel: '설치 진행' },
+    component: 'GuideCard',
+  },
+  'process.idc.5': {
+    guideName: 'IDC_CONNECTION_TEST',
+    placement: { kind: 'process-step', provider: 'IDC', step: 5, stepLabel: '연결 테스트' },
+    component: 'GuideCard',
+  },
+  'process.idc.6': {
+    guideName: 'IDC_CONNECTION_VERIFIED',
+    placement: { kind: 'process-step', provider: 'IDC', step: 6, stepLabel: '연결 확인' },
+    component: 'GuideCard',
+  },
+  'process.idc.7': {
+    guideName: 'IDC_COMPLETE',
+    placement: { kind: 'process-step', provider: 'IDC', step: 7, stepLabel: '설치 완료' },
     component: 'GuideCard',
   },
 } as const satisfies Record<string, GuideSlot>;

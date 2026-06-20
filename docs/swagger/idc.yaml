@@ -161,7 +161,7 @@ paths:
                   resources:
                     type: array
                     items:
-                      $ref: '#/components/schemas/IdcResourceInput'
+                      $ref: '#/components/schemas/IdcResource'
         '400':
           description: IDC 프로젝트가 아님
           content:
@@ -209,13 +209,44 @@ paths:
                   resources:
                     type: array
                     items:
-                      $ref: '#/components/schemas/IdcResourceInput'
+                      $ref: '#/components/schemas/IdcResource'
         '400':
           description: 유효성 검증 실패 또는 IDC 프로젝트가 아님
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/TargetSourceNotFound'
+  /idc/target-sources/{targetSourceId}/previous-request:
+    parameters:
+      - $ref: '#/components/parameters/targetSourceId'
+    get:
+      tags:
+        - IDC Resources
+      summary: 기존 연동 요청 정보 조회 ("불러오기")
+      operationId: getIdcPreviousRequest
+      x-expected-duration: 100ms
+      description: |-
+        **동기 작업(Synchronous)**
+        직전 연동 요청의 리소스 목록을 조회합니다 (Step 1 "기존 연동 요청 정보 불러오기").
+        확정 시 현재 입력 목록을 이 응답으로 전면 교체합니다 (§6 G4).
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - resources
+                properties:
+                  resources:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IdcResource'
         '403':
           $ref: '#/components/responses/PermissionDenied'
         '404':
@@ -281,8 +312,10 @@ paths:
       x-expected-duration: 500ms
       description: |-
         **동기 작업(Synchronous)**
-        리소스를 프로젝트에 추가하고 설치 단계(INSTALLING)로 전이합니다.
-        설치 상태가 PENDING으로 초기화됩니다.
+        ⚠ **v15 플로우 미사용 (§6 G1).** 원래 계약은 "리소스 확정 + INSTALLING 직행"이었으나,
+        v15는 공용 승인 플로우(Step 1 → 2 승인 → 3 반영 → 4 설치)를 따른다. 본 endpoint는 전이
+        부수효과 없이 **리소스 확정 저장**으로만 취급하며, INSTALLING 전이는 공용 승인/반영 경로가
+        담당한다. (백엔드 확정 시 본 operation 분리/폐기 결정)
       requestBody:
         required: true
         content:
@@ -346,7 +379,27 @@ components:
           description: BDC Terraform 설치 상태
         firewall_opened:
           type: boolean
-          description: 방화벽 오픈 여부
+          description: 방화벽 오픈 여부 (전체 roll-up — 모든 행이 open일 때 true)
+        resources:
+          type: array
+          description: 행별 설치/네트워크 상태 — Step 4 Source IP·방화벽의 정본 출처 (§6 G6)
+          items:
+            type: object
+            required:
+              - resource_id
+              - source_ips
+              - firewall_open
+            properties:
+              resource_id:
+                type: string
+              source_ips:
+                type: array
+                items:
+                  type: string
+                description: 행별 할당 Source IP (1~2개)
+              firewall_open:
+                type: boolean
+                description: 행별 방화벽 오픈 여부
         last_checked_at:
           type: string
           format: date-time
@@ -399,6 +452,9 @@ components:
         - port
         - database_type
       properties:
+        resource_id:
+          type: string
+          description: 서버 할당 식별자 (신규 입력 시 생략, 임시저장/조회 시 존재)
         name:
           type: string
           description: 리소스 이름
@@ -410,10 +466,10 @@ components:
           description: 입력 형식
         ips:
           type: array
-          maxItems: 3
+          maxItems: 6
           items:
             type: string
-          description: IP 목록 (inputFormat=IP일 때)
+          description: IP 목록 (inputFormat=IP일 때, 최대 6개 — §6 G2)
         host:
           type: string
           maxLength: 100
@@ -428,13 +484,52 @@ components:
             - MYSQL
             - POSTGRESQL
             - MSSQL
-          description: 데이터베이스 타입
+            - MARIADB
+            - MONGODB
+            - REDIS
+          description: 데이터베이스 타입 (7종 — §6 G5)
         service_id:
           type: string
           description: Oracle Service ID (Oracle 필수)
         credential_id:
           type: string
           description: 선택된 Credential ID
+        exclusion_reason:
+          type: string
+          description: 연동 제외 사유 (값이 있으면 제외 대상 — §6 G3)
+        source_ips:
+          type: array
+          items:
+            type: string
+          description: 행별 Source IP — Step 2+ 표시. 정본 출처는 installation-status.resources (§6 G6)
+        firewall_open:
+          type: boolean
+          description: 행별 방화벽 오픈 여부 — Step 4. 정본 출처는 installation-status.resources (§6 G6)
+        connection_status:
+          type: string
+          enum:
+            - PENDING
+            - SUCCESS
+          description: 연결 테스트 상태 — Step 5/6
+        health:
+          type: string
+          enum:
+            - HEALTHY
+            - UNHEALTHY
+          description: 헬스 상태 — Step 7
+        done:
+          type: string
+          description: "연동 완료 여부" 표시값 — Step 1 (예: 연동 완료 / 연동 진행중 / —)
+    IdcResource:
+      description: |-
+        조회/저장 응답의 IDC 리소스. `IdcResourceInput`에 더해 **`resource_id`가 항상 존재**한다
+        (read contract). Step 4가 installation-status.resources 를 `resource_id`로 병합하므로,
+        실 백엔드의 read 응답(`/resources`, `/previous-request`)은 반드시 `resource_id`를 포함해야 한다 (§6 G6).
+      allOf:
+        - $ref: '#/components/schemas/IdcResourceInput'
+        - type: object
+          required:
+            - resource_id
     ConfirmTargetsResponse:
       type: object
       description: 연동 대상 확정 응답

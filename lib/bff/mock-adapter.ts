@@ -28,6 +28,7 @@ import { mockQueueBoard } from '@/lib/bff/mock/queue-board';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
+import { mockIdc } from '@/lib/bff/mock/idc';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockGuides } from '@/lib/bff/mock/guides';
 import type {
@@ -52,6 +53,12 @@ import type {
   GcpScanServiceAccountResponse,
   GcpTerraformServiceAccountResponse,
 } from '@/lib/bff/types/gcp';
+import type {
+  IdcConfirmFirewallResponse,
+  IdcInstallationStatus,
+  IdcResourcesResponse,
+  IdcSourceIpRecommendation,
+} from '@/lib/bff/types/idc';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -176,6 +183,23 @@ export const mockBff: BffClient = {
       unwrap<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
     getTerraformServiceAccount: async (id) =>
       unwrap<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
+  },
+
+  idc: {
+    getInstallationStatus: async (id) =>
+      unwrap<IdcInstallationStatus>(await mockIdc.getInstallationStatus(String(id))),
+    checkInstallation: async (id) =>
+      unwrap<IdcInstallationStatus>(await mockIdc.checkInstallation(String(id))),
+    confirmFirewall: async (id) =>
+      unwrap<IdcConfirmFirewallResponse>(await mockIdc.confirmFirewall(String(id))),
+    getResources: async (id) =>
+      unwrap<IdcResourcesResponse>(await mockIdc.getResources(String(id))),
+    getPreviousRequest: async (id) =>
+      unwrap<IdcResourcesResponse>(await mockIdc.getPreviousRequest(String(id))),
+    updateResources: async (id, body) =>
+      unwrap<IdcResourcesResponse>(await mockIdc.updateResources(String(id), body)),
+    getSourceIpRecommendation: async (ipType) =>
+      unwrap<IdcSourceIpRecommendation>(await mockIdc.getSourceIpRecommendation(ipType)),
   },
 
   confirm: {

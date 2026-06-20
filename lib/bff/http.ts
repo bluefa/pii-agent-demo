@@ -216,6 +216,20 @@ export const httpBff: BffClient = {
     getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 
+  // IDC responses are raw snake passthrough — `{ raw: true }` bypasses
+  // camelCaseKeys so `app/lib/api/idc.ts` owns the conversion (§5). Upstream
+  // path lives only here; a path change touches this block alone.
+  idc: {
+    getInstallationStatus: (id) => get(`/idc/target-sources/${id}/installation-status`, { raw: true }),
+    checkInstallation: (id) => post(`/idc/target-sources/${id}/check-installation`, {}),
+    confirmFirewall: (id) => post(`/idc/target-sources/${id}/confirm-firewall`, {}),
+    getResources: (id) => get(`/idc/target-sources/${id}/resources`, { raw: true }),
+    getPreviousRequest: (id) => get(`/idc/target-sources/${id}/previous-request`, { raw: true }),
+    updateResources: (id, body) => put(`/idc/target-sources/${id}/resources`, body),
+    getSourceIpRecommendation: (ipType) =>
+      get(`/idc/source-ip-recommendation?ipType=${encodeURIComponent(ipType)}`, { raw: true }),
+  },
+
   confirm: {
     getResources: async (id) => {
       const payload = await get<ResourceCatalogResponsePayload>(`/target-sources/${id}/resources`);

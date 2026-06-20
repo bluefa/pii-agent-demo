@@ -30,6 +30,14 @@ export const GUIDE_NAMES = [
   'GCP_CONNECTION_TEST',
   'GCP_ADMIN_APPROVAL',
   'GCP_COMPLETED',
+  // IDC (7) — manual target input (no scan), BDC install + firewall at step 4.
+  'IDC_TARGET_INPUT',
+  'IDC_APPROVAL_PENDING',
+  'IDC_APPLYING',
+  'IDC_INSTALLING',
+  'IDC_CONNECTION_TEST',
+  'IDC_CONNECTION_VERIFIED',
+  'IDC_COMPLETE',
 ] as const;
 
 export type GuideName = (typeof GUIDE_NAMES)[number];
@@ -41,7 +49,7 @@ export type GuideName = (typeof GUIDE_NAMES)[number];
 export type GuidePlacement =
   | {
       kind: 'process-step';
-      provider: 'AWS' | 'AZURE' | 'GCP';
+      provider: 'AWS' | 'AZURE' | 'GCP' | 'IDC';
       variant?: 'AUTO' | 'MANUAL';
       step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
       stepLabel: string;

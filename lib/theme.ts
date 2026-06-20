@@ -204,6 +204,10 @@ export const buttonStyles = {
     danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow',
     success: 'bg-[#45CB85] text-white hover:bg-[#3AB574] shadow-sm hover:shadow',
     ghost: 'bg-transparent text-gray-600 hover:bg-gray-100',
+    /** Soft Primary — light blue fill + primary text (결정 #58, secondary CTA). */
+    soft: 'bg-blue-50 text-[#0064FF] hover:bg-blue-100',
+    /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
+    warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
   },
   sizes: {
     sm: 'px-3 py-1.5 text-sm',
@@ -324,6 +328,22 @@ export const modalStyles = {
   header: 'px-6 py-4 border-b border-gray-100 flex items-center justify-between',
   body: 'p-6',
   footer: 'px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3',
+  /**
+   * IDC opt-in Toss chrome (Modal `chrome="toss"`) — radius 24, 26px title,
+   * 28/40 body, white footer with #EBEEF2 divider, 38px round icon circle.
+   * Mirrors `.modal` / `.modal-header` / `.modal-title` in SIT v15.
+   */
+  toss: {
+    container: 'rounded-[24px]',
+    header: 'px-10 pt-9 pb-1.5 flex items-start justify-between',
+    title: 'text-[26px] font-extrabold tracking-[-0.03em] leading-[1.25] text-[#191F28]',
+    subtitle: 'text-[14px] font-medium leading-[1.6] text-[#8B95A1]',
+    body: 'px-10 pt-7 pb-2',
+    footer: 'px-10 pt-5 pb-6 border-t border-[#EBEEF2] bg-white flex justify-end gap-2.5',
+    iconBase: 'w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0',
+    iconInfo: 'bg-[#E8F1FF] text-[#0064FF]',
+    iconWarn: 'bg-[#FEF3C7] text-[#B45309]',
+  },
   sizes: {
     sm: 'max-w-sm',
     md: 'max-w-md',
@@ -411,6 +431,7 @@ export const bannerStyles = {
  */
 export const tagStyles = {
   blue: 'bg-blue-100 text-blue-800',
+  indigo: 'bg-indigo-100 text-indigo-800',
   gray: 'bg-gray-100 text-gray-700',
   green: 'bg-green-100 text-green-800',
   red: 'bg-red-100 text-red-800',
@@ -435,6 +456,93 @@ export const tabStyles = {
     itemActive: 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
     countBadge: 'inline-block min-w-[18px] px-1.5 py-px rounded-full text-[11px] font-bold text-center bg-gray-100 text-gray-500',
     countBadgeActive: 'bg-blue-50 text-blue-600',
+  },
+} as const;
+
+/**
+ * IDC (on-prem) provider — exact prototype tokens (SIT Prototype Athena v15).
+ *
+ * IDC opts into the mockup's hand-tuned Toss palette WITHOUT changing the shared
+ * generic components (decision: IDC-scoped exact match — siblings AWS/Azure/GCP
+ * stay on the app's generic design system). Raw hexes mirror the prototype's
+ * `.idc-*` / `.tag` / `.modal` CSS and live here (not in components) per the
+ * no-raw-color rule. See docs/reports/idc-v15/04-design-verification.md.
+ */
+export const idcStyles = {
+  /** Kind badge — `.idc-kind` (11.5px / 600 / 3px 8px / radius 6). */
+  kindBadge: {
+    base: 'inline-flex items-center rounded-md px-2 py-[3px] text-[11.5px] font-semibold',
+    single: 'bg-[#E8F1FF] text-[#1747B5]',
+    multi: 'bg-[#FEF0E1] text-[#7A3F0E]',
+    domain: 'bg-[#EEF2FF] text-[#4338CA]',
+  },
+  /** Inline color tag — `.tag` (4px 10px / radius 8 / 12px / 600). */
+  tag: {
+    base: 'inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-semibold tracking-[-0.01em] whitespace-nowrap',
+    blue: 'bg-[#E8F1FF] text-[#1747B5]',
+    green: 'bg-[#E5F8EE] text-[#197A3F]',
+    red: 'bg-[#FEECEC] text-[#B42318]',
+    orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
+  },
+  /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
+  status: {
+    base: 'inline-flex items-center gap-1.5 text-[12.5px] font-medium',
+    dot: 'w-2 h-2 rounded-full',
+    healthy: { text: 'text-[#2A7D52]', dot: 'bg-[#45CB85]' },
+    unhealthy: { text: 'text-[#991B1B]', dot: 'bg-[#991B1B]' },
+  },
+  /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
+  statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+  /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / primary). */
+  epToggle: 'text-[11.5px] font-semibold text-[#0064FF] hover:underline',
+  /** Oracle SID key — `.idc-sid-k` (10px / 700 / fg-4 / ls .02em; bare, no bg/pad/radius). */
+  sidKey: 'text-[10px] font-bold text-gray-400 tracking-[0.02em]',
+  /** Field-level warning under an input — `.idc-field-warn` (#B45309 / 11.5px). */
+  fieldWarn: 'mt-1 text-[11.5px] text-[#B45309]',
+  /** Field-level error under an input — `.idc-field-err` (#DC2626 / 11.5px). */
+  fieldError: 'mt-1 text-[11.5px] text-[#DC2626]',
+  /** Add-IP button — `.idc-add-ip` (12.5px / 600 / primary / no border / radius 6 / mt 10). */
+  addIp: 'mt-2.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-semibold text-[#0064FF] hover:bg-[#E8F1FF] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-transparent',
+  /** Remove-IP icon button — `.rm-ip` (30×30 / radius 7 / fg-3 / red hover). */
+  removeIp: 'inline-flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[7px] text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
+  /** Row hover action (edit) — `.idc-row-actions button` (26×26 / radius 6 / fg-3). */
+  rowAction: 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#F7F8FA] hover:text-gray-900',
+  /** Row hover action (delete) — `.idc-row-actions button.del` (red hover). */
+  rowActionDelete: 'inline-flex h-[26px] w-[26px] items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-[#FEECEC] hover:text-[#B42318]',
+  /** Exclusion-reason popover — `.idc-reason-pop`. */
+  popover: {
+    container: 'fixed z-[120] min-w-[180px] rounded-xl border border-gray-200 bg-white p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.14)]',
+    title: 'px-2.5 pb-1.5 pt-2 text-[11px] font-bold tracking-[0.01em] text-gray-500',
+    opt: 'flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-gray-900 transition-colors hover:bg-[#F7F8FA]',
+    optSelected: 'bg-[#E8F1FF] font-bold text-[#0064FF]',
+    custom: 'mt-1 border-t border-gray-200 pt-2.5 font-semibold text-[#0064FF]',
+  },
+  /** Amber overwrite/warn banner — `.idc-ip-warn` / `.idc-load-note` (#FFFBEB / #FCD34D / #92400E). */
+  warnBanner: 'flex items-start gap-2 rounded-lg border border-[#FCD34D] bg-[#FFFBEB] px-3 py-2.5 text-[12px] leading-[1.55] text-[#92400E]',
+  /** Toss modal footer buttons (52px) — `.modal-footer .btn.*`. */
+  modalBtn: {
+    primary: 'inline-flex h-[52px] items-center justify-center rounded-[14px] bg-[#0064FF] px-7 text-[15px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
+    outline: 'inline-flex h-[52px] items-center justify-center rounded-[14px] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#4E5968] transition-colors hover:bg-[#EBEEF2]',
+  },
+  /** In-card / step CTA buttons — `.btn` base (h40 / radius12 / 14px / 700) + variants. */
+  triggerBtn: {
+    primary: 'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0064FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
+    soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0064FF] transition-colors hover:bg-[#D6E7FF]',
+    warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
+  },
+  /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
+  input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
+  /** Toss textarea — borderless #F7F8FA fill / radius 12. */
+  textarea: 'w-full rounded-xl border-0 bg-[#F7F8FA] px-3.5 py-3 text-[15px] font-medium leading-[1.6] text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] resize-none',
+  /** Skeleton shimmer bar (loading frames) — pair with size/radius utilities. */
+  skeletonBar: 'animate-pulse bg-[#F3F4F6]',
+  /** Table chrome — `.db-table` (header 13px/700 #4E5968, NO uppercase; 14/16 cells; #EBEEF2 dividers). */
+  table: {
+    header: 'bg-[#FAFBFC] text-left text-[13px] font-bold text-[#4E5968]',
+    headerCell: 'px-4 py-3.5',
+    body: 'divide-y divide-[#EBEEF2]',
+    row: 'hover:bg-[#F7F8FA] transition-colors',
+    cell: 'px-4 py-3.5',
   },
 } as const;
 

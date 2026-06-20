@@ -6,6 +6,7 @@ import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_c
 import { AwsProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/aws';
 import { AzureProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/azure';
 import { GcpProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/gcp';
+import { IdcProjectPage } from '@/app/integration/target-sources/[targetSourceId]/_components/idc';
 import { ServiceListPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/ServiceListPanel';
 
 interface ProjectDetailProps {
@@ -25,6 +26,16 @@ export const ProjectDetail = ({ initialProject }: ProjectDetailProps) => {
         return <AzureProjectPage project={project} onProjectUpdate={setProject} />;
       case 'GCP':
         return <GcpProjectPage project={project} onProjectUpdate={setProject} />;
+      case 'IDC':
+        // key by targetSourceId so switching IDC target sources fully remounts
+        // the subtree — no stale per-target state leaks across (DR2).
+        return (
+          <IdcProjectPage
+            key={project.targetSourceId}
+            project={project}
+            onProjectUpdate={setProject}
+          />
+        );
       default:
         return <ErrorState error="지원하지 않는 클라우드 프로바이더입니다." />;
     }
