@@ -1,4 +1,5 @@
 import type { AzureVmNic } from '@/lib/types/azure';
+import type { OpaqueKeys } from '@/lib/object-case';
 
 // ===== Enums & Constants =====
 
@@ -524,7 +525,7 @@ export interface V1ScanJob {
   scanVersion: number;
   scanProgress: number | null;
   durationSeconds: number;
-  resourceCountByResourceType: Record<string, number>;
+  resourceCountByResourceType: OpaqueKeys<Record<string, number>>;
   scanError: string | null;
 }
 

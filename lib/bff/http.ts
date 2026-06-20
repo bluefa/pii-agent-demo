@@ -4,7 +4,8 @@
  * Per ADR-011 README §"Observable Behavior Invariants" I-3, GET responses
  * are camelCased (matches legacy `proxyGet` behavior); POST/PUT/DELETE
  * responses are raw passthrough (matches legacy `proxyPost/Put/Delete`).
- * Resolving the asymmetry is a separate post-migration ADR.
+ * Resolving the asymmetry is scheduled by ADR-019 (D5, gated on ADR-011 Phase 6);
+ * snake_case opt-outs use the named `getSnakeRaw` entry point (ADR-019 D6).
  */
 import type { BffClient } from '@/lib/bff/types';
 import type {
@@ -20,6 +21,7 @@ import type {
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
+import type { SnakeRaw } from '@/lib/object-case';
 import { extractConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import { extractResourceCatalog } from '@/lib/resource-catalog-response';
 
@@ -33,14 +35,31 @@ async function throwBffError(res: Response): Promise<never> {
   throw bffErrorFromBody(res.status, body);
 }
 
-async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
+async function get<T>(path: string): Promise<T> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
   console.log(`[BFF] → GET ${fullPath}`);
   const res = await fetch(fullPath, { headers: { Accept: 'application/json' } });
   console.log(`[BFF] ← GET ${fullPath} (${res.status})`);
   if (!res.ok) await throwBffError(res);
   const data = await res.json();
-  return (opts?.raw ? data : camelCaseKeys(data)) as T;
+  return camelCaseKeys(data) as T;
+}
+
+/**
+ * GET that returns the upstream body verbatim — `camelCaseKeys` is deliberately
+ * NOT applied, so the snake_case wire shape is preserved (ADR-019 D2/D6). This
+ * named entry point replaces the old `get(..., { raw: true })` flag so every
+ * casing opt-out is greppable and typed (`SnakeRaw<T>`). Two sanctioned uses:
+ * a domain with its own wire→domain mapper (IDC, `app/lib/api/idc.ts`), and the
+ * transitional `azure.getScanApp` (Issue #222, retired with ADR-019 D5).
+ */
+async function getSnakeRaw<T>(path: string): Promise<SnakeRaw<T>> {
+  const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
+  console.log(`[BFF] → GET ${fullPath} (snake-raw)`);
+  const res = await fetch(fullPath, { headers: { Accept: 'application/json' } });
+  console.log(`[BFF] ← GET ${fullPath} (${res.status}, snake-raw)`);
+  if (!res.ok) await throwBffError(res);
+  return (await res.json()) as SnakeRaw<T>;
 }
 
 async function getRaw(path: string): Promise<Response> {
@@ -202,8 +221,8 @@ export const httpBff: BffClient = {
     checkInstallation: (id) => post(`/target-sources/${id}/azure/check-installation`, {}),
     getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
     getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
-    // Issue #222: snake_case raw passthrough — bypass camelCaseKeys.
-    getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`, { raw: true }),
+    // Issue #222: snake_case raw passthrough (transitional — retired with ADR-019 D5).
+    getScanApp: (id) => getSnakeRaw(`/target-sources/${id}/azure/scan-app`),
     vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
     vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
     vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),
@@ -216,18 +235,18 @@ export const httpBff: BffClient = {
     getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 
-  // IDC responses are raw snake passthrough — `{ raw: true }` bypasses
-  // camelCaseKeys so `app/lib/api/idc.ts` owns the conversion (§5). Upstream
-  // path lives only here; a path change touches this block alone.
+  // IDC responses are raw snake passthrough — `getSnakeRaw` skips camelCaseKeys
+  // so `app/lib/api/idc.ts` owns the conversion (§5). Upstream path lives only
+  // here; a path change touches this block alone.
   idc: {
-    getInstallationStatus: (id) => get(`/idc/target-sources/${id}/installation-status`, { raw: true }),
+    getInstallationStatus: (id) => getSnakeRaw(`/idc/target-sources/${id}/installation-status`),
     checkInstallation: (id) => post(`/idc/target-sources/${id}/check-installation`, {}),
     confirmFirewall: (id) => post(`/idc/target-sources/${id}/confirm-firewall`, {}),
-    getResources: (id) => get(`/idc/target-sources/${id}/resources`, { raw: true }),
-    getPreviousRequest: (id) => get(`/idc/target-sources/${id}/previous-request`, { raw: true }),
+    getResources: (id) => getSnakeRaw(`/idc/target-sources/${id}/resources`),
+    getPreviousRequest: (id) => getSnakeRaw(`/idc/target-sources/${id}/previous-request`),
     updateResources: (id, body) => put(`/idc/target-sources/${id}/resources`, body),
     getSourceIpRecommendation: (ipType) =>
-      get(`/idc/source-ip-recommendation?ipType=${encodeURIComponent(ipType)}`, { raw: true }),
+      getSnakeRaw(`/idc/source-ip-recommendation?ipType=${encodeURIComponent(ipType)}`),
   },
 
   confirm: {

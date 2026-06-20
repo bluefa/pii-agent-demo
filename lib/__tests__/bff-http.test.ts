@@ -73,3 +73,33 @@ describe('httpBff.users.me', () => {
     });
   });
 });
+
+describe('httpBff snake-raw passthrough (getSnakeRaw)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    delete process.env.BFF_API_URL;
+  });
+
+  it('azure.getScanApp returns the snake_case body verbatim (no camelCasing)', async () => {
+    process.env.BFF_API_URL = 'https://bff.example.com';
+    const snakeBody = {
+      app_id: 'app-1',
+      status: 'SUCCESS',
+      fail_reason: null,
+      fail_message: null,
+      last_verified_at: '2026-01-01T00:00:00Z',
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(snakeBody), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    const { httpBff } = await import('@/lib/bff/http');
+
+    // last_verified_at must NOT become lastVerifiedAt — getSnakeRaw skips camelCaseKeys.
+    await expect(httpBff.azure.getScanApp(123)).resolves.toEqual(snakeBody);
+  });
+});
