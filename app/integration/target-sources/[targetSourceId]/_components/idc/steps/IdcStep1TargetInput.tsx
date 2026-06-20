@@ -12,6 +12,7 @@ import {
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import { bgColors, borderColors, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { LoadingState, ErrorState, EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -236,19 +237,16 @@ export const IdcStep1TargetInput = ({
 
         <div className="p-6">
           {loading ? (
-            <div className={cn('py-12 text-center text-sm', textColors.tertiary)}>연동 대상을 불러오는 중…</div>
+            <LoadingState label="연동 대상을 불러오는 중…" />
           ) : error ? (
-            <div className={cn('py-12 text-center text-sm', textColors.tertiary)}>{error}</div>
+            <ErrorState message={error} />
           ) : rows.length === 0 ? (
-            <div className={cn('flex flex-col items-center gap-2 py-14 text-center')}>
-              <div className={cn('mb-1 grid h-14 w-14 place-items-center rounded-2xl', bgColors.muted, textColors.tertiary)}>
-                <DatabaseIcon className="h-7 w-7" aria-hidden="true" />
-              </div>
-              <h3 className={cn('text-[15px] font-bold', textColors.secondary)}>연동 대상을 추가해주세요</h3>
-              <p className={cn('text-[12.5px]', textColors.tertiary)}>
-                &lsquo;연동 대상 추가&rsquo; 버튼으로 IP 또는 Domain 기반의 DB 접속 정보를 등록할 수 있어요
-              </p>
-            </div>
+            <EmptyState
+              variant="block"
+              icon={<DatabaseIcon className="h-7 w-7" aria-hidden="true" />}
+              title="연동 대상을 추가해주세요"
+              description="‘연동 대상 추가’ 버튼으로 IP 또는 Domain 기반의 DB 접속 정보를 등록할 수 있어요"
+            />
           ) : (
             <>
               <IdcTargetListTable

@@ -22,6 +22,7 @@ import {
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IdcFirewallModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
+import { ErrorState, LoadingState } from '@/app/components/ui/state';
 
 /** v15 `bdc_tf` → install-task pill state (L6582 done / L6590 running). */
 const BDC_TASK_STATUS: Record<IdcTfStatus, InstallTaskStatus> = {
@@ -137,18 +138,14 @@ export const IdcStep4Installing = ({
             </button>
           </div>
 
-          {error ? (
-            <p className={cn('text-[12px]', textColors.tertiary)}>{error}</p>
-          ) : null}
+          {error ? <ErrorState message={error} /> : null}
 
           <InstallTaskPipeline items={tasks} columns={2} />
         </div>
 
         <div className={cn('border-t', borderColors.default)}>
           {loading && resources.length === 0 ? (
-            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-              설치 정보를 불러오는 중입니다.
-            </div>
+            <LoadingState label="설치 정보를 불러오는 중입니다." />
           ) : (
             <IdcResourceTable resources={mergedResources} cols={['src', 'fw']} />
           )}
