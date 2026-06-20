@@ -15,6 +15,12 @@ PipelineDefinition은 파이프라인 type·provider별 **순차 task 시퀀스*
 PipelineDefinition: `key`(예: AWS_INSTALL), `version`(불변; v3과 v4는 별개 객체),
 `type`(INSTALL|DELETE), `provider`, `taskDefinitions[]`.
 
+> **[개정 5판 갱신 — 현행 Definition 모델은 [결정 7](./orchestrator-design.md) 정본]** 위 `PipelineDefinition`은
+> **코드 default recipe**에 해당하며(`(type,provider)`당, release version), 여기에 **TargetSource별 데이터
+> custom override**(편집마다 +1, sparse, full 교체)가 더해진다. **recipe-level 관리 version은 두지 않는다**
+> (재현=snapshot, skip=task content-hash). 아래(불변성·박제 절)의 `lifecycle ACTIVE→DEPRECATED→RETIRED`는
+> 결정 7.4로 **불요화**됐다(default=release 1개, custom=현재 version 1개 + snapshot 이력).
+
 ```
 AWS_INSTALL v3
  ├ TerraformApplyNetwork
@@ -108,8 +114,9 @@ N개 id를 원자적으로 내는 fan-out(attempt 1개가 handle 여러 개)은 
 
 불변성과 박제: 모든 행동·정책 변경은 새 버전을 만든다. Pipeline은 생성 시 버전에 고정되고 전체
 정의가 pipeline_def_snapshot으로 직렬화된다. **코드 정의가 실행 권위, 스냅샷이 히스토리 권위.**
-정의는 참조되는 동안 물리 삭제되지 않고 lifecycle을 따른다: ACTIVE → DEPRECATED → RETIRED.
-히스토리 조회는 전 단계에서 유지.
+정의·snapshot은 물리 삭제되지 않는다(히스토리 권위). ~~lifecycle ACTIVE → DEPRECATED → RETIRED~~ —
+**결정 7.4로 불요화**: default=코드 release 1개 · custom=데이터 현재 version 1개 · 이력은 snapshot이
+보유하므로 다중 버전 공존 lifecycle이 필요 없다.
 
 **실행 단위는 `target_source_id`로 고정한다(개정 4판).** 실행 입력 일반화(`pipeline.parameters`
 jsonb)는 도입하지 않는다 — pipeline은 `target_source_id` 컬럼 하나를 갖고 그것이 실행 단위다(생성

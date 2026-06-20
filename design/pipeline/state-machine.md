@@ -82,6 +82,12 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | RUNNING | DONE | tick: 최신 poll observed=SUCCEEDED | TERRAFORM_JOB·GENERAL_JOB |
 | WAITING_EXTERNAL | DONE | tick: 최신 check observed=MET | CONDITION_CHECK |
 
+> **[결정 8] 모든 전진 전이는 per-target active gate를 추가 전제로 한다.** task의 pipeline이 그 target의
+> active(= `start_at ≤ now`(v1=`created_at`) 최소 non-terminal)가 아니면 위 전진 전이는 **일어나지 않는다** —
+> reconciler가 due-task 선별에서 active pipeline의 task만 후보로 둔다. active 아닌 non-terminal pipeline은
+> RUNNING이되 보드에서 '대기(큐)'로 파생되고(새 상태 없음 — S26 철학), active가 terminal에 도달하면 다음
+> active로 게이트가 재평가된다(orchestrator-design 결정 8).
+
 **종결(실패·timeout) 전이** — `fail_count`는 "성공하지 못한 시도 횟수"(결정 3.1), K=max_fail_count.
 
 | From | → To | 트리거 / Guard | kind |
