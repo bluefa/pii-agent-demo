@@ -43,6 +43,15 @@ class HandlerRegistryTest {
                 .isInstanceOf(UnknownHandlerException.class);
     }
 
+    @Test
+    void failsFastOnTwoBeansOfTheSameHandlerClass() {
+        // distinct keys so the duplicate-key check passes and the class index is what fails.
+        assertThatThrownBy(() -> new HandlerRegistry(
+                List.of(new KeyedConditionHandler("k1"), new KeyedConditionHandler("k2"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Duplicate handler class");
+    }
+
     /** Named (non-anonymous) so {@code getClass()} is the stable index key. */
     static final class FakeTerraformHandler implements TerraformJobHandler {
         @Override
@@ -65,6 +74,25 @@ class HandlerRegistryTest {
         @Override
         public String key() {
             return "fake.cond";
+        }
+
+        @Override
+        public CheckOutcome check(CheckContext ctx) {
+            return new CheckOutcome.Condition(Observed.MET);
+        }
+    }
+
+    /** key supplied per instance so two instances of this one class can carry distinct keys. */
+    static final class KeyedConditionHandler implements ConditionCheckHandler {
+        private final String key;
+
+        KeyedConditionHandler(String key) {
+            this.key = key;
+        }
+
+        @Override
+        public String key() {
+            return key;
         }
 
         @Override

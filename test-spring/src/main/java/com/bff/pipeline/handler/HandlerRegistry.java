@@ -1,6 +1,7 @@
 package com.bff.pipeline.handler;
 
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +29,15 @@ public class HandlerRegistry {
                         "Duplicate handler key '" + h.key() + "': " + prev.getClass().getName()
                                 + " vs " + h.getClass().getName());
             }
-            byType.put(h.getClass(), h);
+            // user class, not the runtime type: an AOP-proxied handler's getClass() is a CGLIB
+            // subclass, but recipes reference the real handler class — index by that. Fail fast on
+            // two beans of the same handler class (the class index could not disambiguate them).
+            Class<?> userClass = ClassUtils.getUserClass(h);
+            PipelineHandler prevByClass = byType.putIfAbsent(userClass, h);
+            if (prevByClass != null) {
+                throw new IllegalStateException("Duplicate handler class '" + userClass.getName()
+                        + "': " + prevByClass.key() + " vs " + h.key());
+            }
         }
         this.byKey = Map.copyOf(m);
         this.byClass = Map.copyOf(byType);

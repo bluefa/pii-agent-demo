@@ -80,7 +80,8 @@
   <build>
     <plugins>
       <!-- JDK 23+ runs no implicit annotation processing; Lombok must be an explicit
-           processor path or its @Getter/@Setter never generate (version from the parent BOM). -->
+           processor path or its @Getter/@Setter never generate. The unversioned path resolves
+           to the overridden lombok.version (1.18.46) via the parent's dependency management. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
