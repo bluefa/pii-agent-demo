@@ -22,7 +22,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   3. terraform_job_id는 요청별 서버 측 발급. **TerraformWorker에 dedup이 없다** — 중복 제출은 각각
      실행되나 모든 execution API가 멱등이라 인프라 결과는 손상되지 않는다.
   4. 결과 유실 가능(드문 worker 결함) — "실행 중"과 "유실"을 구분하지 않고 execution timeout으로 흡수한다.
-  5. 동시 실행 TerraformJob은 **고정 worker 풀 크기 M으로 hard-cap**된다(IM 용량 보호) — BFF N-cap(N≈M)은
+  5. 동시 실행 TerraformJob은 **고정 worker 풀 크기 workerPoolSize (M)으로 hard-cap**된다(IM 용량 보호) — BFF slotCap (N, slotCap ≈ workerPoolSize)은
      그 위의 제출 throttle. 현재 자동화 caller는 BFF뿐이다.
   6. 실행 시간·전체 히스토리(target별 run · task별 attempt/check · 모든 외부 호출 결과)와 알림이
      일급 요구사항이다. **단 보존은 2단: run/task/attempt/event spine은 무기한, 고빈도 관측(task_check)은
@@ -44,8 +44,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - **Retry는 재개가 아니라 새 run 생성**이다 — terminal 부활 없음, 완료분은 terraform 수렴으로 사실상 no-op.
 - **정합성은 exactly-once 기계가 아니라 idempotency-by-construction**으로 확보한다 — 모든 dispatch는
   멱등이어야 하고, at-least-once dispatch의 안전성은 그 멱등성에 의존한다.
-- **동시성은 고정 TerraformWorker 풀이 hard-cap(≤ M)**하고, BFF N-cap은 pubsub 큐를 얕게 유지하는 제출
-  throttle다(N ≈ M). `N·K`는 동시 실행 상한이 아니라 worst-case 제출량 sizing 값. poll burst는
+- **동시성은 고정 TerraformWorker 풀이 hard-cap(≤ workerPoolSize)**하고, BFF slotCap은 pubsub 큐를 얕게 유지하는 제출
+  throttle다(slotCap ≈ workerPoolSize). `slotCap × maxFailCount`는 동시 실행 상한이 아니라 worst-case 제출량 sizing 값. poll burst는
   `max_external_calls_per_tick`으로 완화한다.
 - **무한 대기를 막는다** — execution timeout + WAIT_EXTERNAL TTL. 죽일 수 없거나 systemic한 실패는
   corruption이 아니라 delay로 다룬다(circuit breaker 없음 — timeout + retry + 알림 롤업).
@@ -66,12 +66,12 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   1건으로 강제한다. **생성 계약(트리거 endpoint는 외부지만 이 계약은 ADR 불변식):** 어느 경로로 생성되든
   ① recipe resolve → ② task row + snapshot **원자적** 생성 → ③ **unique 위반(Postgres 23505) 시 에러가 아니라
   기존 non-terminal pipeline을 반환**해야 한다([재시도]도 동일). ③을 누락하면 "target당 실행자 1" 전제
-  (단일 writer·N-cap·멱등 추론)가 깨지므로, endpoint 구현이 *반드시* 충족할 계약으로 못박는다. 토대 불변식이
+  (단일 writer·slotCap·멱등 추론)가 깨지므로, endpoint 구현이 *반드시* 충족할 계약으로 못박는다. 토대 불변식이
   외부(ADR 밖) endpoint 코드에 의존하므로, **트리거 endpoint는 ③(23505→기존 non-terminal 반환) 계약의 통합
   테스트를 반드시 갖춘다**(계약 회귀 방지).
 
 > 상세 메커니즘(상태기계·DB 스키마·tick·dispatch 5단계 writer 분리·crash recovery·CANCELLING
-> precedence·N-cap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),
+> precedence·slotCap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),
 > TaskKind·멱등성 계약은 [task-model.md](../../design/pipeline/task-model.md) 참조.
 
 ## Considered Options
@@ -106,7 +106,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - BFF가 DB·백그라운드 루프를 갖는다 — 더 이상 stateless proxy가 아니다(다중 replica엔 리더 선출 필요).
   **본 ADR에서 가장 비싼 한 줄**이지만 restart-safety·히스토리·조회성이 같은 뿌리에서 나오므로 감수한다.
 - at-least-once dispatch는 간헐적 중복/고아 job을 남길 수 있다 — 멱등 apply가 이중 실행을 무해하게 하고,
-  N·K 기준의 retry/orphan headroom 산정과 execution timeout이 BFF 발 제출 폭주를 운영상 bound한다.
+  slotCap × maxFailCount 기준의 retry/orphan headroom 산정과 execution timeout이 BFF 발 제출 폭주를 운영상 bound한다.
   실제 worker global hard cap은 BFF가 보장하지 않는다.
 - worker outage 감지가 execution timeout에 의존해 둔하다(~30분+, 구조적 상수) — circuit breaker 없이
   timeout + retry + 알림 롤업으로 처리.
@@ -121,7 +121,7 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 - **FR-2** target별 run history — `pipeline.target_source_id` + history API
 - **FR-3** task별 attempt/check audit trail — `task_attempt` · `task_check`
 - **NFR-3** 무한 대기 방지 — execution timeout + WAIT_EXTERNAL TTL
-- **FR-8** BFF-visible active Terraform task 제한 — N-cap admission
+- **FR-8** BFF-visible active Terraform task 제한 — slotCap admission
 - **NFR-1** 재시작 안전 — DB state + tick 재도출
 - **NFR-2** at-least-once dispatch 안전 — idempotency contract
 - **NFR-4** 다중 replica 안전 — advisory lock + CAS
@@ -130,7 +130,7 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 
 | 문서 | 내용 |
 |---|---|
-| [orchestrator-design.md](../../design/pipeline/orchestrator-design.md) | 상태기계 설계(CAS·파생·단일 writer)·DB 모델·tick 흐름·dispatch 5단계·crash recovery·N-cap admission·CANCELLING |
+| [orchestrator-design.md](../../design/pipeline/orchestrator-design.md) | 상태기계 설계(CAS·파생·단일 writer)·DB 모델·tick 흐름·dispatch 5단계·crash recovery·slotCap admission·CANCELLING |
 | [state-machine.md](../../design/pipeline/state-machine.md) | Pipeline·Task 전이도 (상태·트리거·guard 일람) |
 | [task-model.md](../../design/pipeline/task-model.md) | TaskKind 2종·작성 규칙·멱등성 계약 |
 | [api.md](../../design/pipeline/api.md) | Admin·History·cancel/retry API |
@@ -148,9 +148,9 @@ INSTALLED 사이에서 동작한다.
 
 - **2026-06-11** Proposed
 - **2026-06-12** timeout / retry / cancel 의미론 명확화
-- **2026-06-13** async 실행 모델(결정 6) · N-cap soft target · poll budget
+- **2026-06-13** async 실행 모델(결정 6) · slotCap soft target · poll budget
 - **2026-06-14** v4 단순화(TaskKind 3종 · circuit breaker·C-budget·force-check 제거 · postCheck 0..1) ·
-  N-cap 목표 명시 · 설계 문서 분리
+  slotCap 목표 명시 · 설계 문서 분리
 - **2026-06-20** v5 Pipeline Definition 모델(코드 default + 데이터 custom override + run snapshot) ·
   Custom Pipeline 도입(결정 7) · O10 해소 · postCheck/O29 v1 defer · 다중 pipeline 실행 직렬화(결정 8)
 - **2026-06-20** v6 v1/v2 분리 — scheduling·per-target 직렬화 큐(구 결정 8)·custom recipe 데이터 layer
@@ -160,7 +160,7 @@ INSTALLED 사이에서 동작한다.
   /concurrency·open-questions 제거 · 비정규화 요약 제거); `pipeline_def_snapshot` spec(jsonb) 내용 정밀
   명시; `task_attempt.response`는 유지
 - **2026-06-21** v6 후속3 — 정밀도 정정(codex·opus 재리뷰 86~87/100): `pipeline.definition_version` 제거
-  (snapshot 단일)·`last_activity_at` 정의(보드 정렬)·outbox at-least-once 정정·settings N 모순 해소·
-  task name=표시라벨 명확화·충돌반환 actor 감사·K crash headroom 주석; 부록 A → implementation-notes.md 분리
+  (snapshot 단일)·`last_activity_at` 정의(보드 정렬)·outbox at-least-once 정정·settings slotCap 모순 해소·
+  task name=표시라벨 명확화·충돌반환 actor 감사·maxFailCount crash headroom 주석; 부록 A → implementation-notes.md 분리
 
 전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).

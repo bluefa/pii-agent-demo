@@ -8,7 +8,7 @@
 ## 설정 (R5 — 설정은 데이터다)
 
 **R5 — 설정은 데이터다.** 아래는 운영 파라미터다 — **대부분 DB 런타임 설정**(관리자 설정 페이지 결정 1.4-5에서
-변경, pipeline_event 감사, 재배포 불요; settings API 편집 대상). **예외: `M`(worker 풀 크기)은 배포 설정이라
+변경, pipeline_event 감사, 재배포 불요; settings API 편집 대상). **예외: `workerPoolSize (M)`(worker 풀 크기)은 배포 설정이라
 재배포로만 바뀌고 settings API 비대상**(그 행에 명시). **결정 본문은 메커니즘만 기술하고, 구체 기본값은 이
 표를 단일 출처로 참조한다.**
 
@@ -21,20 +21,20 @@
 | TTL (CONDITION_CHECK) | 7일 (예) | task별 | 초과 시 EXPIRED → pipeline FAILED; WAITING_EXTERNAL 총 체류 (4a) |
 | CONDITION_CHECK polling guard | ≥10분 | task별, 관리자 조정 | 조건 확인 cadence (결정 2) |
 | job-poll cadence | 30–60초 | 전역(시스템) | TerraformJob 상태 폴링; task별 비노출 (결정 2) |
-| M (worker 풀 크기) | 고정 (배포 설정 — **settings API 비편집**; 출발값은 IM worker 풀 스펙에 맞춤, 예 4~8) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수; 재배포로만 변경; N≈M의 기준 (4b) |
-| N (slot cap) | ≈ M (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(N≈M); 동시성 hard cap은 M이지 N 아님 (4b) |
-| max_external_calls_per_tick (due poll/check 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 poll/check 호출 수(**dispatch 제외 — N-cap admission으로 제한**); burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
-| max_fail_count (= **K**; TERRAFORM_JOB=초기 dispatch 포함 최대 attempt 수·CONDITION_CHECK=비-backpressure CHECK ERROR 허용 횟수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |
+| workerPoolSize (M) | 고정 (배포 설정 — **settings API 비편집**; 출발값은 IM worker 풀 스펙에 맞춤, 예 4~8) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수; 재배포로만 변경; slotCap ≈ workerPoolSize의 기준 (4b) |
+| slotCap (N) | ≈ workerPoolSize (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(slotCap ≈ workerPoolSize); 동시성 hard cap은 workerPoolSize이지 slotCap 아님 (4b) |
+| max_external_calls_per_tick (due poll/check 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 poll/check 호출 수(**dispatch 제외 — slotCap admission으로 제한**); burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
+| max_fail_count (= **maxFailCount**; TERRAFORM_JOB=초기 dispatch 포함 최대 attempt 수·CONDITION_CHECK=비-backpressure CHECK ERROR 허용 횟수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ maxFailCount − 1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 maxFailCount 주석); **slotCap × maxFailCount = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |
 | task_check 보존 | 90일 | 전역 | reconciler prune (1.3) |
 | queue-wait 알림 임계 | 30분 (제안) | 전역 | slot 큐 대기 초과 시 QUEUE_WAIT_EXCEEDED 발화(정의=아래 알림 섹션; 발화 경로 outbox=결정 1.3) |
 
 (구 아키텍처 룰 R1·R2·R6은 결정 3.2로, R3은 결정 2로, R4는 결정 1.3으로 흡수되었고, 독립 룰로
 남는 것은 R5뿐이다.)
 
-**적용 시점.** 전역 노브(tick·per-call HTTP deadline·N·max_external_calls_per_tick·보존 기간)는 변경 즉시
-전체에 적용된다(**`M`은 배포 설정이라 즉시-적용 노브가 아니다 — 재배포로만 변경**). 반면 task별 값(`ttl`·`polling_interval`·`execution_timeout`·`max_fail_count`)은 생성 시 recipe에서
+**적용 시점.** 전역 노브(tick·per-call HTTP deadline·slotCap·max_external_calls_per_tick·보존 기간)는 변경 즉시
+전체에 적용된다(**`workerPoolSize`은 배포 설정이라 즉시-적용 노브가 아니다 — 재배포로만 변경**). 반면 task별 값(`ttl`·`polling_interval`·`execution_timeout`·`max_fail_count`)은 생성 시 recipe에서
 task row에 **frozen**(결정 7.3)이라 **이미 생성된 in-flight run에는 불변**이고 변경은 *이후 생성되는 run*에만 적용된다.
-(M은 배포 설정이라 재배포로만 바뀐다.)
+(workerPoolSize은 배포 설정이라 재배포로만 바뀐다.)
 
 ---
 
@@ -49,23 +49,23 @@ task row에 **frozen**(결정 7.3)이라 **이미 생성된 in-flight run에는 
 
 | 신호 | 의미 | 대응 |
 |---|---|---|
-| execution timeout 1건 | 그 job이 30분 내 terminal 미도달 | 재시도(fail_count++); K회 소진 시 task FAILED |
+| execution timeout 1건 | 그 job이 30분 내 terminal 미도달 | 재시도(fail_count++); maxFailCount 소진 시 task FAILED |
 | execution timeout 연속 | worker outage 의심 | WORKER_OUTAGE_SUSPECTED 확인, worker 상태 점검 |
-| queue wait 길어짐 | slot(N) 포화 또는 worker 정체 | N과 N·K headroom, worker 용량 점검 |
-| task FAILED | K회 시도 소진 또는 HANDLER_NOT_FOUND 등 영구 실패 | error_code 확인 후 retry=새 run |
+| queue wait 길어짐 | slotCap 포화 또는 worker 정체 | slotCap과 slotCap × maxFailCount headroom, worker 용량 점검 |
+| task FAILED | maxFailCount 시도 소진 또는 HANDLER_NOT_FOUND 등 영구 실패 | error_code 확인 후 retry=새 run |
 
 ## 동시성 제어의 의미
 
-- **동시성 hard cap = 고정 worker 풀(M).** 동시 terraform 실행은 풀 크기 M으로 hard-cap되고 초과 제출은
-  pubsub 큐가 흡수한다 — 운영자는 **M·N≈M·큐 깊이·timeout rate**만 보면 된다.
-- **N-cap(slot, N≈M)** — 그 큐를 얕게 유지하는 제출 throttle이지 동시성 안전장치가 아니다(split-brain 일시
-  초과도 풀이 흡수). **N·K**는 retry/orphan worst-case 제출량 산정 참고값일 뿐 동시성 상한이 아니다.
-  (풀이 autoscale이면 N-cap이 유일 throttle이 되고 전역 hard cap은 IM 429/503에 위임 — 결정 4b.)
-- **max_external_calls_per_tick** — tick당 due poll/check 발사 상한(burst 완화; **dispatch는 이 상한 밖 — N-cap admission으로 제한**, D-T7). 정확한 global 동시성 보장이 아니라 완화 장치이며 정밀 강제는 IM 429/503에 위임(결정 6 D-T7).
-- **⚠️ N↔execution-timeout 결합 (튜닝 주의).** execution timeout은 dispatch→job terminal 경과를 잰다. **N ≫ M이면**
+- **동시성 hard cap = 고정 worker 풀(workerPoolSize).** 동시 terraform 실행은 풀 크기 workerPoolSize으로 hard-cap되고 초과 제출은
+  pubsub 큐가 흡수한다 — 운영자는 **workerPoolSize·slotCap≈workerPoolSize·큐 깊이·timeout rate**만 보면 된다.
+- **slotCap(slot, slotCap ≈ workerPoolSize)** — 그 큐를 얕게 유지하는 제출 throttle이지 동시성 안전장치가 아니다(split-brain 일시
+  초과도 풀이 흡수). **slotCap × maxFailCount**는 retry/orphan worst-case 제출량 산정 참고값일 뿐 동시성 상한이 아니다.
+  (풀이 autoscale이면 slotCap이 유일 throttle이 되고 전역 hard cap은 IM 429/503에 위임 — 결정 4b.)
+- **max_external_calls_per_tick** — tick당 due poll/check 발사 상한(burst 완화; **dispatch는 이 상한 밖 — slotCap admission으로 제한**, D-T7). 정확한 global 동시성 보장이 아니라 완화 장치이며 정밀 강제는 IM 429/503에 위임(결정 6 D-T7).
+- **⚠️ slotCap↔execution-timeout 결합 (튜닝 주의).** execution timeout은 dispatch→job terminal 경과를 잰다. **slotCap ≫ workerPoolSize이면**
   pubsub 큐가 깊어져 정상 job이 worker 큐에서 대기하는 시간까지 그 경과에 포함돼 **execution timeout이 오발**(정상
-  대기 ≠ stuck)한다. 그래서 **N ≈ M**으로 큐를 얕게 유지하는 것이 timeout 정확도와 worker outage 감지 latency를
-  동시에 지키는 레버다 — N을 함부로 올리면(또는 M보다 크게) timeout 오발이 는다.
+  대기 ≠ stuck)한다. 그래서 **slotCap ≈ workerPoolSize**으로 큐를 얕게 유지하는 것이 timeout 정확도와 worker outage 감지 latency를
+  동시에 지키는 레버다 — slotCap을 함부로 올리면(또는 workerPoolSize보다 크게) timeout 오발이 는다.
 
 ## 없는 버튼 (개정 4판)
 

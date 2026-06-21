@@ -12,7 +12,7 @@
 BFF의 async 실행 구현 선택은 Java 21+ Virtual Thread다. 아래는 그 구현의 운영 제약이다.
 
 - **자원: 개수는 비문제, pinning이 실제 제약.** target ≈ 2000개라도 동시 진행 호출은 일부다
-  (CONDITION_CHECK은 ≥10분 분산, TERRAFORM_JOB은 slot N 제한). VT는 힙 객체라 수천 개도 메모리
+  (CONDITION_CHECK은 ≥10분 분산, TERRAFORM_JOB은 slotCap (N) 제한). VT는 힙 객체라 수천 개도 메모리
   무시 수준 — "스레드 개수 초과"는 VT를 쓰는 한 사실상 없다. **진짜 제약은 carrier thread
   pinning**: VT park 시 carrier를 놓지 않으면 코어 수만큼만 동시 실행되어 굶는다. 유발 지점은
   `synchronized` 내 블로킹 I/O(Java 21; JEP 491/Java 24+는 대부분 해소), 네이티브 호출, 일부
