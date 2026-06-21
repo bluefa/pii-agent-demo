@@ -129,6 +129,7 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 | [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
 | [requirements.md](../../design/pipeline/requirements.md) | 기능/비기능/성능 요구사항 |
 | [migrations.md](../../design/pipeline/migrations.md) | DB migration·인덱스·retention |
+| [implementation-notes.md](../../design/pipeline/implementation-notes.md) | 구현 런북(Virtual Thread·pinning — 아키텍처 불변식 아님) |
 | [v2-deferred.md](../../design/pipeline/v2-deferred.md) | v2로 미룬 표면(scheduling·직렬화 큐·custom recipe·postCheck/O29·알림 라우팅·skip-completed·GENERAL_JOB) |
 | [decision-history.md](../../design/pipeline/decision-history.md) | 긴 변경 이력(재구성 내역·Resolved) |
 
@@ -150,5 +151,8 @@ INSTALLED 사이에서 동작한다.
 - **2026-06-20** v6 후속 — v1 스키마 정리(detail 제거 · depends_on→seq predecessor+unique(pipeline_id,seq) ·
   /concurrency·open-questions 제거 · 비정규화 요약 제거); `pipeline_def_snapshot` spec(jsonb) 내용 정밀
   명시; `task_attempt.response`는 유지
+- **2026-06-21** v6 후속3 — 정밀도 정정(codex·opus 재리뷰 86~87/100): `pipeline.definition_version` 제거
+  (snapshot 단일)·`last_activity_at` 정의(보드 정렬)·outbox at-least-once 정정·settings N 모순 해소·
+  task name=표시라벨 명확화·충돌반환 actor 감사·K crash headroom 주석; 부록 A → implementation-notes.md 분리
 
 전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).

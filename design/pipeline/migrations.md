@@ -29,12 +29,15 @@
   EXECUTION_TIMEOUT은 별도 result 값이 아니라 error_code로 표현**(옵션 B; result→API outcome 파생, DB 변경 없음).
   `pipeline_def_snapshot`은 무변경(결정 7 실행 기록). **`pipeline`에 부분 unique 제약
   `unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)`**(결정 5 — target당 non-terminal
-  pipeline 1건; 중복 생성은 기존 1건 반환).
+  pipeline 1건; 중복 생성은 기존 1건 반환). **`pipeline.definition_version` 컬럼 제거** — 버전·구성은
+  `pipeline_def_snapshot` 단일 보유(중복 비정규화 제거). **`pipeline.last_activity_at` 추가** — 마지막 상태
+  전이 시각(보드 기본 정렬 키; 매 전이 tx에서 갱신).
 
 ## 인덱스 / Retention
 
 - **인덱스** (스키마는 orchestrator-design 결정 1.2):
   - `pipeline(target_source_id, started_at DESC)` — target별 run 이력 조회
+  - `pipeline(last_activity_at DESC)` — 보드 기본 정렬(최근 활동순, 결정 1.2/api §1)
   - `task_check(task_id, checked_at)` — task 타임라인
   - `pipeline_event(pipeline_id, created_at)` — 이벤트 / 감사 로그
   - `pipeline(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)` **unique** — target당 non-terminal pipeline 1건 강제·중복 생성 차단(결정 5)

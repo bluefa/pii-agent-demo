@@ -52,6 +52,18 @@
   기존 kind 재사용; 새 흐름 shape일 때만 새 kind)"로 정정(operation/kind 혼동 해소 — task-model·requirements·
   ADR). **반려:** codex의 TaskOperation/TaskHandler catalog 레이어 도입은 v1에 새 추상 추가라 거부(YAGNI) —
   문구만 정정.
+- **개정 6판 후속3 — DB↔API 정밀도 정정 (codex 86 / opus 87 재리뷰; 설계 무변경).** 두 독립 리뷰가 더 깊은
+  층을 팜: ① `pipeline.definition_version` 제거 — 1:1·write-once `pipeline_def_snapshot`이 단일 보유라 중복
+  비정규화(opus); rolling-deploy 노트도 snapshot 기준으로 정합. ② `pipeline.last_activity_at` 정의 — 보드
+  기본 정렬 키가 backing 없는 유령 컬럼이었음(opus); 매 전이 tx 갱신 실 컬럼 + 인덱스. ③ outbox "exactly-once"
+  과장 정정(codex) — 전달은 at-least-once(notified_at 전후 crash 재발송 가능), 인앱은 event id read-dedup으로
+  effectively-once. ④ settings N 기본값 모순(operations ≈M/3 vs requirements 10) 해소 — operations 단일 출처
+  (codex). ⑤ task `name` = 표시 라벨, 안정 handler 정체성 = kind+코드 class(별도 key 컬럼 없음) 명확화(codex).
+  ⑥ unique 충돌-반환 경로도 `RETRY_ATTEMPTED` pipeline_event(actor) 1행 남김 — 감사 일급성(opus). ⑦ §3.1에
+  "K는 crash-recovery headroom 포함" 주석 — dispatch복구창≪execution timeout의 fail_count 이중소진은 좁은 창
+  K제곱 확률이라 재설계 아닌 K 여유로 흡수(opus, 확률 과장은 반박). **분리:** 부록 A(VT/pinning)를
+  `implementation-notes.md`로 이관(아키텍처 불변식 아님 — codex/기합의 A안). **반려:** `response(jsonb)`→typed
+  컬럼(codex 재지적)은 유지 결정 고수(#1 철회 반영).
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,

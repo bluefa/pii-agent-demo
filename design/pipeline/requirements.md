@@ -37,7 +37,7 @@
 | ID | 목표 | 기준 |
 |---|---|---|
 | PR-1 | target 2000개 관리 | run history·polling이 견딜 수 있어야 함 |
-| PR-2 | BFF-visible active Terraform task 제한 | N 기본 10; N·K는 retry/orphan headroom 산정 |
+| PR-2 | BFF-visible active Terraform task 제한 | N≈M (기본값은 operations 설정표 단일 출처); N·K는 retry/orphan headroom 산정 |
 | PR-3 | poll burst 제한 | tick당 외부 호출 `max_external_calls_per_tick` 기본 50 |
 | PR-4 | WAIT_EXTERNAL 장기 대기 | TTL 기본 7일 |
 | PR-5 | job poll cadence | 30~60초 |
