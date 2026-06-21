@@ -71,6 +71,24 @@ public class Pipeline {
     @Enumerated(EnumType.STRING)
     private ErrorCode failReasonErrorCode;
 
+    /**
+     * Portable "one non-terminal pipeline per target" enforcement (Decision 5). A DB-computed column that
+     * holds {@code target_source_id} only while the pipeline is non-terminal and NULL once it is terminal;
+     * a UNIQUE constraint on it admits many terminal rows (NULL is not unique-checked) but at most one
+     * non-terminal per target. Hibernate emits {@code GENERATED ALWAYS AS (...)} so it works on H2 auto-DDL
+     * AND Postgres, standing in for the canonical Postgres partial unique index
+     * ({@code unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)}) in unit tests. The
+     * status literals MUST match the {@code @Enumerated(STRING)} storage of {@link PipelineStatus}.
+     *
+     * <p>Read-only to the ORM ({@code insertable=false, updatable=false}); the DB derives it. Violating the
+     * constraint surfaces as {@link org.springframework.dao.DataIntegrityViolationException} (Postgres 23505)
+     * — the creation contract catches it and returns the existing non-terminal pipeline.
+     */
+    @org.hibernate.annotations.GeneratedColumn(
+            "CASE WHEN status IN ('DONE','FAILED','CANCELLED') THEN NULL ELSE target_source_id END")
+    @Column(name = "active_target_source_id", unique = true, insertable = false, updatable = false)
+    private String activeTargetSourceId;
+
     @Version
     private Long version;
 }
