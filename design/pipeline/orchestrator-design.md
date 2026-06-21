@@ -233,7 +233,8 @@ task_check.external_handle(확인한 id)이 attempt.response의 handle과 일치
 필요하면 최신 task_check의 api_result=PENDING 여부로 파생한다.)
 
 (의존성 대기는 **BLOCKED** 상태로 표현한다 — task는 BLOCKED로 시작하고, 직전 task(seq-1)가
-DONE이면 reconciler가 READY로 승격시킨다(순차 chain — 별도 `depends_on` 배열 없이 seq 순서로 파생). **READY는 "의존이 풀려 전진 가능한
+DONE이면 reconciler가 READY로 승격시킨다(순차 chain — 별도 `depends_on` 배열 없이 seq 순서로 파생).
+**최저 seq task는 predecessor가 없으므로 predecessor 조건이 공집합=충족 → 첫 tick에 무조건 READY로 승격된다**(특례 아님 — "predecessor 전부 DONE"의 자연 귀결; 빠뜨리면 첫 task가 BLOCKED에 갇힌다). **READY는 "의존이 풀려 전진 가능한
 후보"임을 보장**하고 BLOCKED는 "아직 후보가 아니라 reconciler가 쳐다볼 필요도 없는" 상태다 — 둘을
 합치면 READY가 그 보장을 잃으므로 분리한다. 따라서 task 상태는 9종이다 — slot 큐 대기는 WAITING_SLOT
 상태 없이 READY ∧ kind=TERRAFORM_JOB로 파생한다(S26).)
@@ -556,8 +557,8 @@ Infra Manager에 cancel API가 없고 pubsub 회수가 비현실적이다(확정
   레벨 drain·slot 보유를 규정하고, "CANCELLING 중 task가 FAILED로 끝나도 pipeline은 FAILED 아닌
   CANCELLED로 수렴"이라는 파이프라인 파생 우선순위는 1.1에서 확정한다.
 - **입구 가드:** 이미 terminal인 pipeline(DONE/FAILED/CANCELLED)에 들어온 [중단](CANCELLING) 전이는
-  거부된다 — 결정 5 "terminal은 terminal"의 직접 귀결이라 별도 전이 규칙이 불필요하며, terminal
-  부활은 없다.
+  **CAS 0행 no-op으로 차단**되고 API는 에러가 아니라 **현재 status를 200으로 반환**한다(api §2·state-machine 표와 동일) —
+  결정 5 "terminal은 terminal"의 직접 귀결이라 별도 전이 규칙이 불필요하며, terminal 부활은 없다.
 
 ### 4d. Systemic 실패: timeout + retry로 처리, 알림은 롤업만
 

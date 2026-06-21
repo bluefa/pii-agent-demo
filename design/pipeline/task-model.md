@@ -133,9 +133,6 @@ dispatch가 낸 handle은 `attempt.response`에 보존되고, poll이 그걸 폴
 
 ---
 
-
----
-
 ## 멱등성 계약 (task 작성 필수)
 
 모든 dispatch task는 멱등이어야 한다 — 근거는 [orchestrator-design 결정 3.1](./orchestrator-design.md). 요약:

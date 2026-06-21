@@ -15,7 +15,7 @@
 - `design/SIT Prototype Athena v14.html` — 파이프라인 보드; 결정 1.4 delta 대상.
 - `docs/swagger/` — 향후 admin-pipelines.yaml.
 - `docs/cloud-provider-states.md` — task 시퀀스 정의가 인코딩하는 provider별 순서.
-- **DB migration** — task_check.api_result에 PENDING 추가, task_check.started_at 추가,
+- **DB migration** (이 단락은 리비전 **delta**이지 DDL 전량 목록 아님 — **전체 task/task_check 컬럼 정본 = orchestrator §1.2**; `task.started_at·finished_at·deadline_at·next_check_at`도 §1.2가 정의) — task_check.api_result에 PENDING 추가, task_check.started_at 추가,
   task.last_checked_at 추가 (결정 6). task_check.kind: JOB_POLL+CONDITION_CHECK → CHECK 통합,
   **FORCE_CHECK 제거** (`DISPATCH|CHECK`). **task_check.call_deadline_at 미도입**(C-budget
   제거, 개정 4판). **pipeline.parameters(jsonb) 미도입 — pipeline.target_source_id 컬럼**으로 고정
@@ -28,7 +28,7 @@
   (O26 — job_id 고유 발급이라 soft-link로 충분). **crash 복구가 fail_count를 증가시키는 경로 추가**
   (K=max_fail_count 겸용이라 신규 컬럼 불요 — P0-1). **task_attempt.result enum은 OK|FAIL 유지 —
   EXECUTION_TIMEOUT은 별도 result 값이 아니라 error_code로 표현**(옵션 B; result→API outcome 파생, DB 변경 없음).
-  `pipeline_def_snapshot`은 무변경(결정 7 실행 기록). **`pipeline`에 부분 unique 제약
+  `pipeline_def_snapshot`은 결정 1.2/7 스키마(`pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)`)로 **생성 대상**(이전 리비전 대비 *무변경*이지만 DDL상 신규 테이블 — `pipeline.definition_version`은 두지 않고 버전은 snapshot에만). **`pipeline`에 부분 unique 제약
   `unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)`**(결정 5 — target당 non-terminal
   pipeline 1건; 중복 생성은 기존 1건 반환). **`pipeline.definition_version` 컬럼 제거** — 버전·구성은
   `pipeline_def_snapshot` 단일 보유(중복 비정규화 제거). **`pipeline.last_activity_at` 추가** — 마지막 상태

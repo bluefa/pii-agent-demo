@@ -142,6 +142,13 @@
   ⑥ **settings 계층 모호 해소**(둘 다) — 설정 객체 = **전역 기본값**; task별 차등(ttl·execution_timeout·max_fail_count)은 코드 default recipe override이고 생성 시 (recipe override 우선, 없으면 전역 기본)이 row에 frozen(결정 7.3)이라 API 변경은 future run에만 반영; per-call deadline TaskKind 오버라이드는 코드/배포 소관(api 설정 GET 주석).
   ⑦ **opus 보강** — task.started_at/finished_at 정의 누락(다른 *_at은 다 정의됨) → "BLOCKED 벗어나 실행 개시(READY→DISPATCHING|WAITING_EXTERNAL, 두 kind 공통) / terminal 도달"; Attempt DTO에 `attemptNo`; operations max_fail_count/K 두 행 병합. **보류:** O·S 아카이브, swagger, ascii 정밀.
 
+- **개정 6판 후속10 — r9 문서 정확성 (codex 86 / opus 93; 설계 무변경).** opus는 significant 0·불명확 0 보고(2회 연속 수렴); codex가 잡은 significant 갭만:
+  ① **(significant) 첫 task READY 승격 규칙 누락** — "직전 task(seq-1) DONE → 승격"만 있어 최저 seq task(predecessor 없음)가 BLOCKED에 stuck될 수 있음. "최저 seq task는 predecessor 공집합=충족 → 첫 tick 무조건 READY"를 state-machine 표·orchestrator 본문에 명시.
+  ② **(significant) DISPATCHING→CANCELLED의 attempt 마감 규약 부재** — 1단계에서 생성된 task_attempt를 어떻게 마감할지·늦은 dispatch response 처리가 미정. "진행 중 attempt는 result=FAIL 마감(outcome=FAILED 파생; task status=CANCELLED가 권위), 늦은 response는 terminal이라 단일 writer CAS가 차단"을 명시(결정 6/3.1·4c).
+  ③ **(significant) migrations snapshot '무변경' ↔ §1.2 충돌** — DDL 체크리스트로 읽으면 테이블 생성 누락 가능 → "결정 1.2 스키마로 생성 대상(리비전 무변경이나 신규 테이블)"로 정정.
+  ④ **(minor) terminal cancel 어휘** — orchestrator "거부" ↔ api/state-machine "0행 no-op + 200"을 "CAS 0행 no-op 차단 + 현재 status 200 반환"으로 통일.
+  ⑤ **opus minor** — migrations delta 비대칭("전체 컬럼 정본=§1.2, 이 단락은 리비전 delta" 포인터); task-model 빈 구분선 중복 제거. **보류:** O·S 아카이브, swagger, ascii 정밀.
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다
