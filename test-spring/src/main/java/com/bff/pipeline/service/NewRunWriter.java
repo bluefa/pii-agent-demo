@@ -121,8 +121,7 @@ class NewRunWriter {
         s.setType(def.type());
         s.setProvider(def.provider());
         Map<String, Object> spec = new LinkedHashMap<>();
-        spec.put("definitionKey", def.definitionKey());
-        spec.put("version", def.version());
+        spec.put("name", def.definitionKey());
         spec.put("tasks", specTasks);
         s.setSpec(writeJson(spec));
         return s;
@@ -144,12 +143,12 @@ class NewRunWriter {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("seq", seq);
         m.put("name", td.name());
-        m.put("handlerKey", handlers.keyOf(td.handlerClass()));
+        m.put("handler_key", handlers.keyOf(td.handlerClass())); // internal jsonb = snake_case (ADR-019)
         m.put("kind", td.kind().name());
         m.put("ttl", asText(knobs.ttl()));
-        m.put("pollingInterval", asText(knobs.pollingInterval()));
-        m.put("executionTimeout", asText(knobs.executionTimeout()));
-        m.put("maxFailCount", knobs.maxFailCount());
+        m.put("polling_interval", asText(knobs.pollingInterval()));
+        m.put("execution_timeout", asText(knobs.executionTimeout()));
+        m.put("max_fail_count", knobs.maxFailCount());
         return m;
     }
 

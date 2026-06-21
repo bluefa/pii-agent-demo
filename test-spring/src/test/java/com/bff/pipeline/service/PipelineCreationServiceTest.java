@@ -165,26 +165,25 @@ class PipelineCreationServiceTest {
         PipelineDefSnapshot snapshot = snapshots.findById(pipeline.getId()).orElseThrow();
         JsonNode spec = json.readTree(snapshot.getSpec());
 
-        assertThat(spec.get("definitionKey").asText()).isEqualTo("install/test");
-        assertThat(spec.get("version").asText()).isEqualTo("v1");
+        assertThat(spec.get("name").asText()).isEqualTo("install/test");
         JsonNode specTasks = spec.get("tasks");
         assertThat(specTasks).hasSize(2);
 
         JsonNode terraform = specTasks.get(0);
         assertThat(terraform.get("seq").asInt()).isZero();
-        assertThat(terraform.get("handlerKey").asText()).isEqualTo(FakeTf.KEY);
+        assertThat(terraform.get("handler_key").asText()).isEqualTo(FakeTf.KEY);
         assertThat(terraform.get("kind").asText()).isEqualTo(TaskKind.TERRAFORM_JOB.name());
-        assertThat(terraform.get("executionTimeout").asText()).isEqualTo(Duration.ofMinutes(30).toString());
+        assertThat(terraform.get("execution_timeout").asText()).isEqualTo(Duration.ofMinutes(30).toString());
         assertThat(terraform.get("ttl").isNull()).isTrue();
-        assertThat(terraform.get("maxFailCount").asInt()).isEqualTo(3);
+        assertThat(terraform.get("max_fail_count").asInt()).isEqualTo(3);
 
         JsonNode condition = specTasks.get(1);
         assertThat(condition.get("seq").asInt()).isEqualTo(1);
-        assertThat(condition.get("handlerKey").asText()).isEqualTo(FakeCond.KEY);
+        assertThat(condition.get("handler_key").asText()).isEqualTo(FakeCond.KEY);
         assertThat(condition.get("kind").asText()).isEqualTo(TaskKind.CONDITION_CHECK.name());
         assertThat(condition.get("ttl").asText()).isEqualTo(Duration.ofHours(168).toString());
-        assertThat(condition.get("pollingInterval").asText()).isEqualTo(Duration.ofMinutes(10).toString());
-        assertThat(condition.get("executionTimeout").isNull()).isTrue();
+        assertThat(condition.get("polling_interval").asText()).isEqualTo(Duration.ofMinutes(10).toString());
+        assertThat(condition.get("execution_timeout").isNull()).isTrue();
     }
 
     /**

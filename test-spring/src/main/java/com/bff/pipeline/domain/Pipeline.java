@@ -23,6 +23,8 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "pipeline",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_pipeline_active_target", columnNames = "active_target_source_id"),
         indexes = {
                 @Index(name = "ix_pipeline_target_started", columnList = "targetSourceId, startedAt"),
                 @Index(name = "ix_pipeline_started", columnList = "startedAt"),
@@ -86,7 +88,7 @@ public class Pipeline {
      */
     @org.hibernate.annotations.GeneratedColumn(
             "CASE WHEN status IN ('DONE','FAILED','CANCELLED') THEN NULL ELSE target_source_id END")
-    @Column(name = "active_target_source_id", unique = true, insertable = false, updatable = false)
+    @Column(name = "active_target_source_id", insertable = false, updatable = false)
     private String activeTargetSourceId;
 
     @Version
