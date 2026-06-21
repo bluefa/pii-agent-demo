@@ -195,9 +195,9 @@ export const IdcStep1TargetInput = ({
     setSubmitting(true);
     try {
       // Persist the working list, then request approval through the shared flow.
-      // IDC resources live outside project.resources, so the auto-approval policy
-      // (which evaluates an empty project.resources) always routes to PENDING →
-      // the project advances to WAITING_APPROVAL (Step 2, 승인 대기).
+      // createApprovalRequest routes every submission to WAITING_APPROVAL
+      // (Step 2, 승인 대기) for manual admin approval — same as cloud providers
+      // (auto-approval is disabled in the demo flow).
       const persisted = await updateIdcResources(targetSourceId, rows);
       const resourceInputs = persisted.map((r) =>
         r.excluded

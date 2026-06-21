@@ -41,16 +41,6 @@ export const evaluateAutoApproval = (context: AutoApprovalContext): AutoApproval
   const { resources, selectedResourceIds } = context;
   const selectedSet = new Set(selectedResourceIds);
 
-  // 평가할 프로젝트 리소스가 없으면 (예: IDC 수동 입력 플로우는 리소스를
-  // project.resources 밖의 별도 스토어에 보관) 자동 승인 대상이 없으므로
-  // 항상 수동 승인(승인 대기)으로 보냅니다.
-  if (resources.length === 0) {
-    return {
-      shouldAutoApprove: false,
-      reason: 'NON_EXCLUDED_NOT_SELECTED',
-    };
-  }
-
   // 선택하지 않은 TARGET 리소스 중 제외 확정되지 않은 리소스 찾기
   const unselectedNonExcluded = resources.filter(
     (r) => r.integrationCategory === 'TARGET' && !selectedSet.has(r.id) && !r.exclusion

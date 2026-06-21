@@ -228,7 +228,8 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
   });
 
   describe('시나리오 2: 자동 승인 vs 수동 승인 분기', () => {
-    it('모든 TARGET 리소스 선택 → 자동 승인 (approval.status=AUTO_APPROVED)', async () => {
+    it('모든 TARGET 리소스 선택 → 수동 승인 대기 (approval.status=PENDING)', async () => {
+      // 데모 정책: cloud도 IDC와 동일하게 연동 대상 제출 직후 항상 승인 대기로 진입한다.
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -240,16 +241,15 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
-      // approval.status가 AUTO_APPROVED로 설정됨
-      expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
-      // 자동 승인 직후에는 APPLYING 단계(PENDING)로 유지
+      // approval.status가 PENDING으로 설정됨 (관리자 수동 승인 대기)
+      expect(getProjectApprovalStatus()).toBe('PENDING');
+      // 설치는 아직 PENDING
       expect(getProjectInstallationStatus()).toBe('PENDING');
 
-      // BFF process_status = APPLYING_APPROVED (P1 버그 수정)
+      // BFF process_status = WAITING_APPROVAL
       const status = await getProcessStatus();
-      expect(status.process_status).toBe('APPLYING_APPROVED');
-      expect(status.status_inputs.has_approved_integration).toBe(true);
-      expect(status.status_inputs.last_approval_result).toBe('APPROVED');
+      expect(status.process_status).toBe('WAITING_APPROVAL');
+      expect(status.status_inputs.has_pending_approval_request).toBe(true);
     });
 
     it('일부 TARGET 리소스 미선택 (제외 아님) → 수동 승인 필요 (approval.status=PENDING)', async () => {
@@ -277,7 +277,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(status.status_inputs.has_pending_approval_request).toBe(true);
     });
 
-    it('제외 확정된 리소스만 미선택 → 자동 승인', async () => {
+    it('제외 확정된 리소스만 미선택 → 수동 승인 대기', async () => {
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -288,19 +288,19 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
-      // res-1만 선택 (res-2는 이미 제외 확정 → 미선택해도 자동 승인)
+      // res-1만 선택 (res-2는 이미 제외 확정) → 어떤 구성이든 항상 승인 대기로 진입
       const reqBody = createApprovalRequestBody(['res-1']);
       const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
-      expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
+      expect(getProjectApprovalStatus()).toBe('PENDING');
       expect(getProjectInstallationStatus()).toBe('PENDING');
 
       const status = await getProcessStatus();
-      expect(status.process_status).toBe('APPLYING_APPROVED');
+      expect(status.process_status).toBe('WAITING_APPROVAL');
     });
 
-    it('NO_INSTALL_NEEDED 리소스 미선택 → 자동 승인 (TARGET만 판정 대상)', async () => {
+    it('NO_INSTALL_NEEDED 리소스 미선택 → 수동 승인 대기 (항상 승인 대기)', async () => {
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -308,15 +308,15 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
-      // res-1만 선택 (res-2는 NO_INSTALL_NEEDED → 자동 승인 판정 대상 아님)
+      // res-1만 선택 → 데모 정책상 항상 승인 대기로 진입
       const reqBody = createApprovalRequestBody(['res-1']);
       const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
 
-      expect(getProjectApprovalStatus()).toBe('AUTO_APPROVED');
+      expect(getProjectApprovalStatus()).toBe('PENDING');
     });
 
-    it('자동 승인 이력은 request/result 한 항목으로 묶여 approval-history에 노출된다', async () => {
+    it('승인 대기 요청은 request 한 항목으로 approval-history에 노출된다 (result 미확정)', async () => {
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -330,12 +330,13 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const historyRes = await mockConfirm.getApprovalHistory(TEST_TARGET_SOURCE_ID_STR, 0, 10);
       const historyData = await parseResponse(historyRes);
 
+      // 승인 대기 단계이므로 요청은 기록되지만 승인 결과(result)는 아직 없다.
       expect(historyData.content).toHaveLength(1);
       expect(historyData.content[0].request.input_data.resource_inputs).toHaveLength(2);
-      expect(historyData.content[0].result.result).toBe('AUTO_APPROVED');
+      expect(historyData.content[0].result).toBeUndefined();
     });
 
-    it('자동 승인 후 20초 경과 시 INSTALLING(IN_PROGRESS)으로 전환된다', async () => {
+    it('수동 승인 후 20초 경과 시 INSTALLING(IN_PROGRESS)으로 전환된다', async () => {
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -343,9 +344,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
+      // 연동 요청 → 승인 대기, 관리자 승인 → APPLYING_APPROVED
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
       const reqRes = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes.status).toBe(201);
+      expect(getProjectInstallationStatus()).toBe('PENDING');
+
+      const approveRes = await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
+      expect(approveRes.status).toBe(200);
       expect(getProjectInstallationStatus()).toBe('PENDING');
 
       _fastForwardApproval(TEST_TARGET_SOURCE_ID_STR);
@@ -967,7 +973,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(status.status_inputs.has_pending_approval_request).toBe(false);
     });
 
-    it('취소 후 재요청 가능 (자동 승인 경로)', async () => {
+    it('취소 후 재요청 가능 (수동 승인 대기 경로)', async () => {
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -975,35 +981,19 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
         ],
       });
 
-      // 전체 선택 → 자동 승인 → APPLYING_APPROVED
+      // 전체 선택해도 데모 정책상 항상 승인 대기 → WAITING_APPROVAL
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
       await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       let status = await getProcessStatus();
-      expect(status.process_status).toBe('APPLYING_APPROVED');
-
-      // 자동 승인이라 취소 불가 — 이 경우는 별도 테스트에서 검증
-      // 수동 승인 경로로 재요청 테스트
-      resetTestState();
-      addTestProject({
-        resources: [
-          createTestResource('res-1'),
-          createTestResource('res-2'),
-          createTestResource('res-3', { integrationCategory: 'TARGET' }),
-        ],
-      });
-
-      const reqBody2 = createApprovalRequestBody(['res-1', 'res-2'], ['res-3']);
-      await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody2);
-      status = await getProcessStatus();
       expect(status.process_status).toBe('WAITING_APPROVAL');
 
-      // 취소
+      // 승인 대기 상태이므로 취소 가능
       await mockConfirm.cancelApprovalRequest(TEST_TARGET_SOURCE_ID_STR);
       status = await getProcessStatus();
       expect(status.process_status).toBe('REQUEST_REQUIRED');
 
       // 재요청 성공 확인
-      const reqRes2 = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody2);
+      const reqRes2 = await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
       expect(reqRes2.status).toBe(201);
 
       status = await getProcessStatus();
@@ -1020,7 +1010,7 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
     });
 
     it('APPLYING_APPROVED(반영 중) 상태에서 취소 시도 → 409 CONFLICT', async () => {
-      // 자동 승인되어 APPLYING_APPROVED 상태로 진입
+      // 연동 요청 → 승인 대기 → 관리자 승인 → APPLYING_APPROVED 상태로 진입
       addTestProject({
         resources: [
           createTestResource('res-1'),
@@ -1030,8 +1020,9 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
 
       const reqBody = createApprovalRequestBody(['res-1', 'res-2']);
       await mockConfirm.createApprovalRequest(TEST_TARGET_SOURCE_ID_STR, reqBody);
+      await mockConfirm.approveApprovalRequest(TEST_TARGET_SOURCE_ID_STR, {});
 
-      // 자동 승인됨 확인
+      // 승인되어 반영 중 상태 확인
       const status = await getProcessStatus();
       expect(status.process_status).toBe('APPLYING_APPROVED');
 

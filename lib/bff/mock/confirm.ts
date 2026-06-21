@@ -6,7 +6,6 @@ import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
-import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
@@ -497,10 +496,10 @@ export const mockConfirm = {
     const selectedCount = selectedInputs.length;
     const excludedCount = excludedInputs.length;
 
-    const autoApprovalResult = evaluateAutoApproval({
-      resources: project.resources,
-      selectedResourceIds,
-    });
+    // 데모 정책: cloud(aws/azure/gcp)도 IDC와 동일하게 연동 대상 제출 직후 항상
+    // '승인 대기'(WAITING_APPROVAL, 관리자 수동 승인) 단계로 진입한다. 자동 승인은
+    // 데모 플로우에서 비활성화한다 (자동 승인 정책 함수 자체는 보존).
+    const autoApprovalResult: { shouldAutoApprove: boolean } = { shouldAutoApprove: false };
 
     const updatedStatus: ProjectStatus = {
       ...project.status,
