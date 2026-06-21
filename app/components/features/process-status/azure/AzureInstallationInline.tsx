@@ -5,13 +5,15 @@ import { AzureServiceIcon, isAzureResourceType } from '@/app/components/ui/Azure
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { ActionCard } from '@/app/components/features/process-status/shared/ActionCard';
+import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
 import { AzureResourceList } from '@/app/components/features/process-status/azure/AzureResourceList';
 import { AzurePeApprovalGuide } from '@/app/components/features/process-status/azure/AzurePeApprovalGuide';
 import { AzureSubnetGuide } from '@/app/components/features/process-status/azure/AzureSubnetGuide';
 import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import { buildAzurePipelineItems } from '@/lib/constants/azure-install';
 import { formatDateTime } from '@/lib/utils/date';
-import { statusColors, cn, textColors } from '@/lib/theme';
+import { statusColors, interactiveColors, cn, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
 import type { AzureResourceType } from '@/app/components/ui/AzureServiceIcon';
@@ -129,12 +131,9 @@ export const AzureInstallationInline = ({
   const completedCount = unifiedResources.filter(r => r.isCompleted).length;
   const totalCount = unifiedResources.length;
   const allCompleted = completedCount === totalCount && totalCount > 0;
-  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  const hasError = unifiedResources.some(r => r.step === 'PE_REJECTED');
   const lastCheckStatus = status?.lastCheck.status ?? 'SUCCESS';
   const lastCheckedLabel = getLastCheckedLabel(status?.lastCheck.checkedAt);
   const hasSyncFailure = lastCheckStatus === 'FAILED';
-  const isChecking = lastCheckStatus === 'IN_PROGRESS';
 
   // allCompleted 시 부모에 알림
   useEffect(() => {
@@ -145,117 +144,55 @@ export const AzureInstallationInline = ({
   const vmTfNeeded = unifiedResources.filter(r => r.step === 'VM_TF_REQUIRED');
   const pePending = unifiedResources.filter(r => r.step === 'PE_PENDING');
   const peRejected = unifiedResources.filter(r => r.step === 'PE_REJECTED');
-  const hasActionOrError = subnetNeeded.length > 0 || vmTfNeeded.length > 0 || pePending.length > 0 || peRejected.length > 0;
 
   if (loading) return <InstallationLoadingView provider="Azure" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
 
-  const mainCardColor = hasSyncFailure
-    ? statusColors.error
-    : isChecking
-      ? statusColors.info
-      : allCompleted
-        ? statusColors.success
-        : hasError
-          ? statusColors.error
-          : statusColors.warning;
-  const statusText = hasSyncFailure
-    ? 'Azure 설치 상태 확인 실패'
-    : isChecking
-      ? 'Azure 설치 상태 확인 중'
-      : allCompleted
-        ? `Azure 에이전트 설치 완료 (${completedCount}/${totalCount})`
-        : hasError
-          ? `Azure 에이전트 설치 조치 필요 (${completedCount}/${totalCount} 완료)`
-          : `Azure 에이전트 설치 중... (${completedCount}/${totalCount} 완료)`;
-
   return (
     <>
       <div className="w-full space-y-3">
-        <div className={cn('px-4 py-3 rounded-lg border', mainCardColor.bg, mainCardColor.border)}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {allCompleted ? (
-                <svg className={cn('w-5 h-5 flex-shrink-0', mainCardColor.text)} fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <div className={cn('w-4 h-4 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0', mainCardColor.border)} />
-              )}
-              <span className={cn('text-sm font-medium', mainCardColor.textDark)}>{statusText}</span>
-            </div>
-            <button
-              onClick={refresh}
-              disabled={refreshing}
-              className={cn('p-1 rounded transition-colors disabled:opacity-50 flex-shrink-0 ml-2', mainCardColor.textDark, 'hover:bg-white/50')}
-              title="새로고침"
-            >
-              {refreshing ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              )}
-            </button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className={cn('text-sm font-semibold', textColors.primary)}>Azure 에이전트 설치 상태</h3>
+            {lastCheckedLabel && (
+              <span className={cn('text-xs', textColors.tertiary)}>
+                마지막 확인: {lastCheckedLabel}
+              </span>
+            )}
           </div>
-
-          <div className="mt-2 h-1.5 rounded-full bg-white/50 overflow-hidden">
-            <div
-              className={cn('h-full rounded-full transition-all duration-500', mainCardColor.dot)}
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-
-          {hasSyncFailure ? (
-            <div className="mt-2 space-y-1">
-              <p className={cn('text-xs', mainCardColor.textDark)}>
-                {status?.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다. 새로고침으로 다시 확인해주세요.'}
-              </p>
-              {lastCheckedLabel && (
-                <p className={cn('text-xs', textColors.tertiary)}>
-                  마지막 확인: {lastCheckedLabel}
-                </p>
-              )}
-            </div>
-          ) : isChecking ? (
-            <div className="mt-2 space-y-1">
-              <p className={cn('text-xs', mainCardColor.textDark)}>
-                최신 Azure 설치 상태를 다시 확인하고 있습니다.
-              </p>
-              {lastCheckedLabel && (
-                <p className={cn('text-xs', textColors.tertiary)}>
-                  마지막 확인: {lastCheckedLabel}
-                </p>
-              )}
-            </div>
-          ) : !allCompleted && !hasActionOrError ? (
-            <div className="mt-2 space-y-1">
-              <p className={cn('text-xs', textColors.tertiary)}>
-                자동으로 설치가 진행 중입니다. 각 리소스에 보안 연결을 설정하고 있습니다.
-              </p>
-              {lastCheckedLabel && (
-                <p className={cn('text-xs', textColors.tertiary)}>
-                  마지막 확인: {lastCheckedLabel}
-                </p>
-              )}
-            </div>
-          ) : lastCheckedLabel ? (
-            <p className={cn('mt-2 text-xs', textColors.tertiary)}>
-              마지막 확인: {lastCheckedLabel}
-            </p>
-          ) : null}
-
-          <AzureResourceList resources={unifiedResources} />
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className={cn('p-1 rounded transition-colors disabled:opacity-50', interactiveColors.closeButton)}
+            title="새로고침"
+          >
+            {refreshing ? (
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {hasSyncFailure && (
+          <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
+            상태 확인 실패: {status?.lastCheck.failReason ?? '최근 설치 상태 확인에 실패했습니다. 새로고침으로 다시 확인해주세요.'}
+          </div>
+        )}
+
+        <InstallTaskPipeline columns={3} items={buildAzurePipelineItems(unifiedResources)} />
+
+        <AzureResourceList resources={unifiedResources} />
 
         {subnetNeeded.map(resource => (
           <ActionCard key={resource.id} title="조치 필요">
             <div className="flex items-center gap-2 mb-1">
               <AzureServiceIcon type={isAzureResourceType(resource.resourceType) ? resource.resourceType as AzureResourceType : 'AZURE_VM'} size="sm" />
-              <span className="text-sm font-medium text-gray-900">{resource.name}</span>
+              <span className={cn('text-sm font-medium', textColors.primary)}>{resource.name}</span>
             </div>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className={cn('text-sm mb-2', textColors.secondary)}>
               네트워크 설정이 필요합니다. VM을 연동하려면 전용 네트워크(서브넷)가 필요합니다.
             </p>
             <button
@@ -269,7 +206,7 @@ export const AzureInstallationInline = ({
 
         {vmTfNeeded.length > 0 && (
           <ActionCard title="조치 필요">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className={cn('text-sm mb-2', textColors.secondary)}>
               VM 환경 설정이 필요합니다. 설치 스크립트를 다운로드하여 VM에서 실행해주세요.
             </p>
             <button
@@ -283,7 +220,7 @@ export const AzureInstallationInline = ({
 
         {pePending.length > 0 && (
           <ActionCard title="조치 필요">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className={cn('text-sm mb-2', textColors.secondary)}>
               연결 승인이 필요한 리소스가 {pePending.length}건 있습니다
             </p>
             <div className="space-y-1 mb-2">
@@ -294,13 +231,13 @@ export const AzureInstallationInline = ({
                 return (
                   <div key={resource.id} className="flex items-center gap-2 py-1">
                     <AzureServiceIcon type={iconType} size="sm" />
-                    <span className="text-sm text-gray-900">{resource.name}</span>
+                    <span className={cn('text-sm', textColors.primary)}>{resource.name}</span>
                     <span className={cn('text-xs', statusColors.warning.textDark)}>승인 대기 중</span>
                   </div>
                 );
               })}
             </div>
-            <p className="text-xs text-gray-500 mb-1">Azure Portal에서 보안 연결 요청을 승인해주세요.</p>
+            <p className={cn('text-xs mb-1', textColors.tertiary)}>Azure Portal에서 보안 연결 요청을 승인해주세요.</p>
             <button
               onClick={() => setShowPeGuide({ show: true, peId: pePending[0]?.peId })}
               className={cn('text-sm font-medium hover:underline', statusColors.warning.textDark)}
@@ -317,12 +254,12 @@ export const AzureInstallationInline = ({
                 type={isAzureResourceType(resource.resourceType) ? resource.resourceType as AzureResourceType : 'AZURE_MSSQL'}
                 size="sm"
               />
-              <span className="text-sm font-medium text-gray-900">{resource.name}</span>
+              <span className={cn('text-sm font-medium', textColors.primary)}>{resource.name}</span>
             </div>
-            <p className="text-sm text-gray-600 mb-2">
+            <p className={cn('text-sm mb-2', textColors.secondary)}>
               보안 연결이 거부되었습니다. 재승인이 필요합니다.
             </p>
-            <p className="text-xs text-gray-500 mb-1">Azure Portal에서 연결 요청을 다시 승인해주세요.</p>
+            <p className={cn('text-xs mb-1', textColors.tertiary)}>Azure Portal에서 연결 요청을 다시 승인해주세요.</p>
             <button
               onClick={() => setShowPeGuide({ show: true, peId: resource.peId })}
               className={cn('text-sm font-medium hover:underline', statusColors.error.textDark)}
