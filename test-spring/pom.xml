@@ -81,6 +81,19 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
+      <!-- We use fakes, never mocks (skill standard). Drop Mockito so its ByteBuddy self-attach
+           (restricted/failing on JDK 21+ build hosts) never initializes — keeps the Spring-backed
+           tests portable across environments. Re-add with a -javaagent if a mock is ever needed. -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.mockito</groupId>
+          <artifactId>mockito-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.mockito</groupId>
+          <artifactId>mockito-junit-jupiter</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

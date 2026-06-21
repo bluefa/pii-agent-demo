@@ -143,7 +143,7 @@ class NewRunWriter {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("seq", seq);
         m.put("name", td.name());
-        m.put("handler_key", handlers.keyOf(td.handlerClass())); // internal jsonb = snake_case (ADR-019)
+        m.put("handler_key", handlers.keyOf(td.handlerClass())); // internal jsonb = snake_case (orchestrator §1.2)
         m.put("kind", td.kind().name());
         m.put("ttl", asText(knobs.ttl()));
         m.put("polling_interval", asText(knobs.pollingInterval()));
