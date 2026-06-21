@@ -24,7 +24,7 @@ task 변경 없음, 결정 4c). 그 외 모든 pipeline 파생(DONE/FAILED/CANCE
  │ RUNNING │ ─────────────────────────────────────► │ CANCELLING │
  └────┬────┘                                         └─────┬──────┘
       │ 매 tick 파생 (¬CANCELLING일 때만)                    │ 파생 ① (최우선)
-      │   ② fail_count==K task 존재  → FAILED              │ 전 in-flight drain 완료
+      │   ② status=FAILED task 존재  → FAILED              │ 전 in-flight drain 완료
       │   ③ TTL EXPIRED task 존재    → FAILED              │ (CANCELLING 중 task가
       │   ④ 전 task DONE             → DONE                │  FAILED/EXPIRED여도 pipeline
       ▼                                                   ▼  FAILED 승격 안 함)
@@ -40,7 +40,7 @@ task 변경 없음, 결정 4c). 그 외 모든 pipeline 파생(DONE/FAILED/CANCE
 |---|---|---|---|
 | (생성) | RUNNING | pipeline 생성 즉시 | 1.3 |
 | RUNNING | CANCELLING | **[중단] API → 공통 전이 함수(CAS+event)**, 즉시 전이. **CAS prior=RUNNING** (terminal·CANCELLING이면 0행=no-op → 중복 중단·terminal 부활 자동 차단) | 4c, 5 |
-| RUNNING | FAILED | tick 파생 ②: ¬CANCELLING ∧ fail_count==K task 존재 | 1.1 |
+| RUNNING | FAILED | tick 파생 ②: ¬CANCELLING ∧ status=FAILED task 존재(재시도 소진 fail_count==K **또는** HANDLER_NOT_FOUND 등 영구 실패 — fail_count 미소모 포함) | 1.1 |
 | RUNNING | FAILED | tick 파생 ③: ¬CANCELLING ∧ TTL EXPIRED task 존재 | 1.1, 4a |
 | RUNNING | DONE | tick 파생 ④: ¬CANCELLING ∧ 전 task DONE | 1.1 |
 | CANCELLING | CANCELLED | tick 파생 ①(최우선): 전 in-flight task가 terminal로 drain 완료 | 1.1, 4c |

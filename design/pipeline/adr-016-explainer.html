@@ -405,7 +405,7 @@
       <tr><th>From</th><th>→ To</th><th>트리거 / Guard</th></tr>
       <tr><td>(생성)</td><td><span class="pill run">RUNNING</span></td><td>pipeline 생성 즉시</td></tr>
       <tr><td><span class="pill run">RUNNING</span></td><td><span class="pill cancel">CANCELLING</span></td><td>[중단] API → CAS prior=RUNNING (terminal이면 0행 no-op = 부활 차단)</td></tr>
-      <tr><td><span class="pill run">RUNNING</span></td><td><span class="pill fail">FAILED</span></td><td>tick 파생 ②/③: ¬CANCELLING ∧ (fail_count==K task · 또는 TTL EXPIRED task)</td></tr>
+      <tr><td><span class="pill run">RUNNING</span></td><td><span class="pill fail">FAILED</span></td><td>tick 파생 ②/③: ¬CANCELLING ∧ (status=FAILED task[재시도 소진 fail_count==K 또는 HANDLER_NOT_FOUND 영구 실패] · 또는 TTL EXPIRED task)</td></tr>
       <tr><td><span class="pill run">RUNNING</span></td><td><span class="pill done">DONE</span></td><td>tick 파생 ④: ¬CANCELLING ∧ 전 task DONE</td></tr>
       <tr><td><span class="pill cancel">CANCELLING</span></td><td><span class="pill term">CANCELLED</span></td><td>tick 파생 ①(최우선): 전 in-flight drain 완료</td></tr>
     </table>

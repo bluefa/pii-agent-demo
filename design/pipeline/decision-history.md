@@ -133,6 +133,15 @@
   ⑨ 잔여 stale 어휘 정정 — `EXECUTE`/`WAIT_EXTERNAL`을 kind처럼 쓴 곳(implementation-notes §15, task-model §40) → `TERRAFORM_JOB`/`CONDITION_CHECK(WAITING_EXTERNAL 체류)`; operations 설정표에 적용 시점(전역 노브 즉시 vs task별 frozen 불변) 한 줄. ⑩ `triggered_by`↔`pipeline_event.actor` 동일 도메인(human|system|ai) 명시.
   **보류(후속6·7과 동일):** O·S번호 아카이브 이동, swagger 작성, ascii 다이어그램 정밀 편집(표가 권위라 illustrative로 둠).
 
+- **개정 6판 후속9 — r8 문서 정확성 (codex 84 / opus 94; 설계 무변경).** opus는 직접 모순 0건 보고(수렴); codex가 더 깊이 판 정확성 결함만:
+  ① **(중요) pipeline FAILED 파생이 HANDLER_NOT_FOUND를 누락** — 파생 ②가 `fail_count==K`만 봐서, fail_count 미소모로 FAILED되는 HANDLER_NOT_FOUND task가 있으면 pipeline이 RUNNING에 stuck. 조건을 `status=FAILED task 존재`(재시도 소진 **또는** 영구 실패)로 정정 — state-machine 전이도·표·orchestrator §1.1·explainer 4곳.
+  ② **operations 장애표 모순** — "task FAILED = K회 시도 모두 실패"를 "K회 소진 또는 HANDLER_NOT_FOUND 등 영구 실패"로(①과 동근).
+  ③ **ADR 요구사항 ID drift** — ADR 요약의 `FR-4 무한대기`→`NFR-3`, `FR-5 N-cap`→`FR-8`, `NFR-3 multi-replica`→`NFR-4`로 requirements.md 정본에 맞춤.
+  ④ **overlap predicate 불일치** — orchestrator `started_at<=to ∧ finished_at>=from`(inclusive)을 api `[from,to)` half-open과 통일: `started_at < to AND (finished_at IS NULL OR finished_at > from)`.
+  ⑤ **errorCode 저장 재분류** — "호출 행 없는 두 경우"가 부정확(RUNNING TF의 HANDLER_NOT_FOUND는 과거 attempt 존재)이라 사유 귀속 3분류로: ① attempt 귀속(EXECUTION_TIMEOUT·DISPATCH_NO_RESPONSE·IM_REJECTED) ② task_check 관측(CHECK_ERROR·CALL_TIMEOUT) ③ tick 판정(TTL_EXPIRED=status 파생·HANDLER_NOT_FOUND=task_check 1행).
+  ⑥ **settings 계층 모호 해소**(둘 다) — 설정 객체 = **전역 기본값**; task별 차등(ttl·execution_timeout·max_fail_count)은 코드 default recipe override이고 생성 시 (recipe override 우선, 없으면 전역 기본)이 row에 frozen(결정 7.3)이라 API 변경은 future run에만 반영; per-call deadline TaskKind 오버라이드는 코드/배포 소관(api 설정 GET 주석).
+  ⑦ **opus 보강** — task.started_at/finished_at 정의 누락(다른 *_at은 다 정의됨) → "BLOCKED 벗어나 실행 개시(READY→DISPATCHING|WAITING_EXTERNAL, 두 kind 공통) / terminal 도달"; Attempt DTO에 `attemptNo`; operations max_fail_count/K 두 행 병합. **보류:** O·S 아카이브, swagger, ascii 정밀.
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다

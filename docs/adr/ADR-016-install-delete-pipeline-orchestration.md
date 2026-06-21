@@ -119,11 +119,11 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 - **FR-1** 브라우저 세션 없는 durable 설치/삭제 — DB durable state machine
 - **FR-2** target별 run history — `pipeline.target_source_id` + history API
 - **FR-3** task별 attempt/check audit trail — `task_attempt` · `task_check`
-- **FR-4** 무한 대기 방지 — execution timeout + WAIT_EXTERNAL TTL
-- **FR-5** BFF-visible active Terraform task 제한 — N-cap admission
+- **NFR-3** 무한 대기 방지 — execution timeout + WAIT_EXTERNAL TTL
+- **FR-8** BFF-visible active Terraform task 제한 — N-cap admission
 - **NFR-1** 재시작 안전 — DB state + tick 재도출
 - **NFR-2** at-least-once dispatch 안전 — idempotency contract
-- **NFR-3** 다중 replica 안전 — advisory lock + CAS
+- **NFR-4** 다중 replica 안전 — advisory lock + CAS
 
 ## Links
 

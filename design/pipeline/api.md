@@ -20,13 +20,13 @@
 - **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`  ← **`progress` 파생**: `total` = 그 run의 task 행 수(생성 시 고정 = snapshot.tasks 길이; CANCELLED task도 행은 남아 분모 불변), `done` = `COUNT(task WHERE status=DONE)`(다른 terminal은 미포함 — 진척이지 종료 아님). **분수는 RUNNING 진행 지표일 뿐 — terminal pipeline의 결과 판정은 `status`가 권위다**(CANCELLED/FAILED는 `done<total`로 남는 게 정상; 분수가 1이 아니라고 "미완"으로 읽지 말 것)
 - **Pipeline** — `PipelineSummary` + `{ createdAt, finishedAt, failReason, tasks:[Task] }`
 - **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, nextCheckAt?, latestCheck:Check? }`  ← `nextCheckAt`=다음 tick 확인 예정 시각(`next_check_at`; terminal이면 null)  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
-- **Attempt** — `{ id, taskId, response{}, errorCode, startedAt, finishedAt, outcome(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
+- **Attempt** — `{ id, taskId, attemptNo, response{}, errorCode, startedAt, finishedAt, outcome(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `attemptNo`=`task_attempt.attempt_no`(타임라인 "n번째 시도"); `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
     - `result=OK` → `outcome=SUCCEEDED`
     - `result=FAIL` ∧ `error_code=EXECUTION_TIMEOUT` → `outcome=EXECUTION_TIMEOUT`
     - `result=FAIL` ∧ `error_code ≠ EXECUTION_TIMEOUT` → `outcome=FAILED`
 - **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed?(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode, externalHandle, startedAt, checkedAt?, latencyMs }`  ← `name`=호출 operation 식별자(어떤 API/동작 — 예 `im.terraformApply`·`im.jobStatus`); **`startedAt`=발사 시각(PENDING 포함 항상 set; 정렬·latestCheck 기준)**, `checkedAt`=관측 시각(PENDING이면 null), `observed`=관측 후에만(PENDING/미관측이면 null). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
 - **PipelineEvent** — `{ id, pipelineId, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`  ← **`message`=DB 저장 컬럼 아님**: `pipeline_event.payload(jsonb)`에서 `type`별로 렌더링한 API 파생(저장은 `payload`만; 결정 1.2/1.3)
-- **errorCode** (attempt·check 공통) — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당). **attempt 있는 실패**(EXECUTION_TIMEOUT·CHECK_ERROR·IM_REJECTED·DISPATCH_NO_RESPONSE·CALL_TIMEOUT)는 그 attempt/check 행에 실린다. **attempt 없는 두 경우는 저장 위치가 다르다**: `TTL_EXPIRED`는 status=EXPIRED가 유일 원인이라 **status에서 파생**(별도 행 없음); `HANDLER_NOT_FOUND` = `handler_key` 미해결 → task 즉시 FAILED(fail_count 미소모, 영구 조건)이라 사유는 **`task_check` 1행**(O25 관측 장부)에 errorCode로 기록
+- **errorCode** — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당). **저장 위치는 사유 귀속에 따라 셋**: **① attempt 귀속**(EXECUTION_TIMEOUT·DISPATCH_NO_RESPONSE·IM_REJECTED — dispatch/run attempt 실패)은 그 `task_attempt.error_code`에; **② task_check 관측**(CHECK_ERROR·CALL_TIMEOUT — check 호출 실패; CONDITION_CHECK check·TERRAFORM_JOB poll 공통)은 그 `task_check.error_code`에; **③ tick 판정**(과거 attempt 유무와 무관): `TTL_EXPIRED`는 status=EXPIRED가 유일 원인이라 **status에서 파생**(별도 행 없음), `HANDLER_NOT_FOUND`는 즉시 FAILED 판정이라 **`task_check` 1행**(O25 관측 장부)에 errorCode로 기록(이미 RUNNING TF였다면 과거 attempt는 그대로 보존)
 
 ---
 
@@ -114,6 +114,7 @@
   taskCheckRetentionDays, queueWaitAlertMin
 }
 ```
+> **이 객체 = 전역 기본값(평면 단일 객체)**. `perCallDeadlineSec`의 TaskKind별 오버라이드(operations D-T3)는 코드/배포 소관이라 여기서 편집하지 않는다. `executionTimeoutMin·waitExternalTtlDays·maxFailCount`는 **전역 기본값**일 뿐이며, 코드 default recipe가 task별로 override할 수 있다 — 생성 시 **(recipe per-task override 우선, 없으면 이 전역 기본값)**이 row에 frozen(결정 7.3·operations 적용 시점)이라, 이 API 변경은 *이후 생성되는 run*에만 반영된다. 즉 task별 차등의 출처는 recipe(코드)이고, 이 API는 전역 노브·기본값만 편집한다.
 
 ### `PUT /admin/pipelines/settings`
 - body: 위 객체(부분 갱신 허용). 변경은 `pipeline_event`로 감사, 재배포 불필요(R5).

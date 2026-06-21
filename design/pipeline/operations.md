@@ -23,8 +23,7 @@
 | M (worker 풀 크기) | 고정 (배포 설정) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수 (4b) |
 | N (slot cap) | ≈ M (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(N≈M); 동시성 hard cap은 M이지 N 아님 (4b) |
 | max_external_calls_per_tick (외부 호출 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 호출 수; burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
-| max_fail_count | task별 | task별 | 자동 재시도 한도 = **K (초기 dispatch 포함 최대 attempt 수)** (1.2, 3.1) |
-| K (= max_fail_count = 최대 attempt 수, 초기 포함) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별 또는 전역 | 최대 총 attempt(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom을 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (3.1, 4b) |
+| max_fail_count (= **K**, 초기 dispatch 포함 최대 attempt 수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |
 | task_check 보존 | 90일 | 전역 | reconciler prune (1.3) |
 | queue-wait 알림 임계 | 30분 (제안) | 전역 | QUEUE_WAIT_EXCEEDED (1.3) |
 
@@ -52,7 +51,7 @@ task row에 **frozen**(결정 7.3)이라 **이미 생성된 in-flight run에는 
 | execution timeout 1건 | 그 job이 30분 내 terminal 미도달 | 재시도(fail_count++); K회 소진 시 task FAILED |
 | execution timeout 연속 | worker outage 의심 | WORKER_OUTAGE_SUSPECTED 확인, worker 상태 점검 |
 | queue wait 길어짐 | slot(N) 포화 또는 worker 정체 | N과 N·K headroom, worker 용량 점검 |
-| task FAILED | K회 시도 모두 실패 | error_code 확인 후 retry=새 run |
+| task FAILED | K회 시도 소진 또는 HANDLER_NOT_FOUND 등 영구 실패 | error_code 확인 후 retry=새 run |
 
 ## 동시성 제어의 의미
 
