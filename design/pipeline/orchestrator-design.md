@@ -267,7 +267,7 @@ DONE이면 reconciler가 READY로 승격시킨다(순차 chain — 별도 `depen
 | Pipeline 생성(→ 즉시 RUNNING) / 종료 | pipeline 타임스탬프 + pipeline_event; 생성 시 pipeline_def_snapshot |
 | Task 상태 전이 | task 갱신 + pipeline_event |
 | Dispatch 호출 | **(tick)** DISPATCHING 전이 · task_attempt 행 생성 · next_check_at 갱신 → **(호출 스레드)** task_check kind=DISPATCH 선기록(PENDING) → 호출 → response·task_check 채움 → **(다음 tick)** RUNNING 전이 (결정 3.1 5단계) |
-| 각 완료 확인(check) | **호출 직전(호출 스레드)** task_check kind=CHECK 선기록 → 호출 → observed 채움 (핸들 폴링이면 RUNNING/SUCCEEDED/FAILED, 조건 평가면 MET/NOT_MET). **호출 스레드는 관측(task_check)만 기록** — `api_result=ERROR`의 `fail_count++`·FAILED/재시도 전이는 **다음 tick**이 그 관측을 처리하며 수행(D-T4 단일 writer: 상태는 tick) |
+| 각 완료 확인(check) | **호출 직전(호출 스레드)** task_check kind=CHECK 선기록 → 호출 → observed 채움 (핸들 폴링이면 RUNNING/SUCCEEDED/FAILED, 조건 평가면 MET/NOT_MET). **호출 스레드는 관측(task_check)만 기록** — 전이·`fail_count++`는 **다음 tick**(D-T4 단일 writer: 상태는 tick). **kind별 fail 회계 차등**: CONDITION_CHECK은 `api_result=ERROR`(비-backpressure)면 fail_count++(check 호출이 task의 일이라 못 읽음=진전 없음); **TERRAFORM_JOB poll**은 `api_result=ERROR`(비-backpressure)여도 **잡 상태를 못 읽었을 뿐 잡 실패가 아니라 fail 미소모·RUNNING 유지·재-poll**(attempt 마감은 `observed=FAILED`(JOB_FAILED)/execution timeout만). 429/503 backpressure는 둘 다 미가산 |
 | 알림 발송 | pipeline_event.notified_at |
 
 모든 외부 호출은 **호출 직전에 task_check 행을 PENDING으로 선기록**하고 응답 후 채운다
@@ -367,10 +367,9 @@ D-T4/D-T5). dispatch도 이 규율을 예외 없이 따른다:
 1. **(tick tx)** task를 DISPATCHING으로 CAS 전이 + task_attempt 행 생성 + next_check_at 갱신.
 2. **(호출 스레드 tx)** 호출 직전 task_check kind=DISPATCH 행을 PENDING으로 선기록.
 3. **(호출 스레드)** dispatch API 호출.
-4. **(호출 스레드 tx)** task_attempt.response 영속화(dispatch 응답) + 같은 task_check 행 UPDATE —
-   **단 `task.status=DISPATCHING AND task_attempt.finished_at IS NULL` guard(CAS)**: 그 사이 task가 terminal(예: cancel로 CANCELLED)
-   로 전환됐거나 attempt가 이미 마감됐으면 **0행 → 늦은 response 무시**(마감된 attempt에 `{jobId}` 덮어쓰기 방지; state-machine
-   4c DISPATCHING→CANCELLED 늦은-response 차단의 메커니즘).
+4. **(호출 스레드 tx)** 두 쓰기를 **분리**한다:
+   **(a) task_check 관측 기록** — 선기록한 PENDING 행에 호출 결과를 채운다(성공이면 응답 수신, 429/503·오류면 그 관측). **시도 사실은 항상 기록**(아래 CAS 결과와 무관).
+   **(b) task_attempt.response 채택** — **`response IS NULL AND task_attempt.finished_at IS NULL AND task.status=DISPATCHING` guard(CAS)**일 때만 write. **write-once**(중복 dispatch 응답이 기존 `response`를 덮어쓰지 못함) + **늦은-response 차단**(그 사이 cancel/마감됐으면 0행 → `{jobId}` 무시; state-machine 4c DISPATCHING→CANCELLED 메커니즘). **CAS 0행이어도 (a) 관측 행은 채워진 채 남는다**(PENDING 잔류 아님 — 시도+결과 이력).
 5. **(다음 tick)** 적재된 관측을 보고 RUNNING으로 CAS 전이.
 
 tick은 dispatch 발사 시점에 status(DISPATCHING)와 next_check_at만 쓰고, 상태 전이(→ RUNNING)는 다음
@@ -380,6 +379,8 @@ tick이 한다 — 상태를 호출 스레드에 넣으면 slot 회계와 crash 
    행은 **그 attempt를 실패로 마감(fail_count++)한 뒤** 재dispatch한다. **crash로 결과를 받지 못한
    것도 "성공하지 못한 시도"이므로 IM이 명시적으로 실패를 반환한 경우와 동일하게 센다**(원인은
    error_code로 구분하되 카운트는 동일). 중복 제출은 각각 실행되나 모든 dispatch가 멱등이라 인프라는 안전하다.
+   **예외 — backpressure:** 마지막 task_check 관측이 **429/503(backpressure)** 이면 이 복구 규칙의 fail++ 마감을 적용하지 않는다 —
+   응답이 *없는* 게 아니라 *나중에 오라*는 명시 신호이므로, **동일 attempt 미마감 + backoff(Retry-After) 재dispatch**(state-machine 102행).
 
 **멱등성 불변식 (at-least-once dispatch의 성립 조건).** 모든 dispatch 작업은 멱등이어야 한다 — 중복
 실행되어도 인프라 결과가 손상되지 않고, "이미 원하는 상태"를 성공으로 반환해야 한다(INSTALL: 이미
@@ -775,8 +776,11 @@ tick 리더는 due **poll/check 호출**을 `next_check_at ASC` 순으로 최대
   상한은 드문 느린 호출 집중과 catch-up burst만 잘라낸다. R5 런타임 설정(Part II); 50은 출발점일
   뿐 IM 용량 실측 기반 튜닝 영역이다.
 - **정밀 강제가 필요하면 IM 측에서.** 더 엄밀한 보호가 필요하면 IM이 자기 부하로 **429/503
-  (+Retry-After)** 를 던지고 BFF는 **requeue**(next_check_at 미루기)로 순응하되 **fail_count는
-  소모하지 않는다**(backpressure ≠ 실패).
+  (+Retry-After)** 를 던지고 BFF는 **requeue**(next_check_at 미루기 — **`Retry-After` 우선, 없으면 그 kind의 기본
+  cadence**)로 순응하되 **fail_count는 소모하지 않는다**(backpressure ≠ 실패). **이 backpressure 규칙은 어느 IM 호출이든
+  (dispatch·job poll·condition check) 동일하다**: 429/503은 `task_check(api_result=ERROR, error_code=null)` 1행으로
+  '시도 이력'만 남기고 **CHECK_ERROR·DISPATCH_NO_RESPONSE·fail_count 어느 것으로도 세지 않는다**(dispatch면 attempt 미마감
+  동일 attempt 재사용; poll/check면 task 상태 유지·재시도). 아래 kind별 **실패 회계는 비-backpressure 호출 오류에만** 적용된다.
 - ⚠️ **per-call deadline(D-T3)은 (다)를 막지 못한다.** deadline은 느린 호출을 *끊을* 뿐 호출은 이미
   IM에 도달했다(부하 발생 후). IM을 보호하려면 *호출을 안 보내야* 하고(발사 상한/backoff), 이것이
   발사 상한이 deadline과 별개로 필요한 이유다.

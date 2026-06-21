@@ -186,6 +186,13 @@
   ④ **(minor·내 r10 self-inflicted) operations:34 "전역 노브(M·N…) 즉시적용" ↔ M=배포설정 모순** → 즉시-적용 목록서 M 제거(재배포로만).
   ⑤ **(minor) §1.2:140 active-attempt 마감에 error_code=null 누락**(api/state-machine엔 있음) → 대칭 보강. **(opus minor) state-machine:113 마감에 error_code=null 추가**(취소 경로 대칭). **(minor) settings frozen 노트에 waitExternalPollingGuardMin 추가.**
   **교훈: opus 단독 "수렴"을 신뢰하면 안 됨 — codex가 dispatch backpressure·JOB_FAILED 같은 잠복 실제 gap을 7라운드째 발견. 수렴 = 양 reviewer significant 0.** **보류:** O·S 아카이브, swagger, ascii 정밀.
+
+- **개정 6판 후속16 — r14 error-handling 통합 (codex 84 / opus 92; 설계 무변경 — 결정된 동작의 미명세 detail 채움).** r13 backpressure 추가가 새 edge를 열어(opus는 "수렴"이라 했으나 codex가 또 잡음) error-handling 모델을 통합 정합:
+  ① **(significant) backpressure 균일화** — 내가 r13에서 dispatch만 backpressure 처리해, IM이 poll/check에 429/503 주면 CHECK_ERROR로 잘못 셀 소지. **429/503은 어느 IM 호출(dispatch·poll·check)이든 동일 backpressure**: requeue(Retry-After 우선), fail_count 미소모, task_check(api_result=ERROR, error_code=null) 1행, kind별 fail 회계는 비-backpressure에만. state-machine RUNNING/WAITING_EXTERNAL self-loop + orchestrator 표/복구규칙에 균일 반영.
+  ② **(significant) poll 호출오류 ≠ 잡 실패** — orchestrator:270이 "모든 check api_result=ERROR→fail++"로 읽혀, TERRAFORM_JOB poll 호출 실패(잡 상태 *못 읽음*)를 잡 실패로 셀 소지. **CONDITION_CHECK만 check ERROR→fail++**; TERRAFORM_JOB poll 호출오류는 RUNNING 유지·재-poll·fail 미소모, attempt 마감은 observed=FAILED(JOB_FAILED)/execution timeout만. RUNNING→RUNNING(in-place) 행 추가.
+  ③ **(significant·내 r13 step4 보강) response 채택 ↔ 관측 기록 혼동** — step4 guard가 write-once response를 중복 dispatch 응답이 덮을 소지 → step4를 (a)task_check 관측(항상 기록) / (b)response 채택 CAS(`response IS NULL AND finished_at IS NULL AND status=DISPATCHING`)로 분리; CAS 0행이어도 관측 행은 채워진 채 잔류.
+  ④ **(opus minor)** api:29에 backpressure가 task_check 1행 남김 명시(state-machine 대칭); backpressure 재dispatch=동일 attempt 재사용·attempt_no 불변. **(codex minor)** Retry-After 우선 재시도 시각.
+  **교훈 재확인: 복잡 영역(dispatch/poll error)은 수정이 새 edge를 열어 라운드마다 1겹씩 벗겨짐 — 통합 패스 + 하드 sweep 필요.** **보류:** O·S 아카이브, swagger, ascii 정밀.
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다

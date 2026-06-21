@@ -85,7 +85,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 |---|---|---|---|
 | RUNNING | FAILED | tick: poll FAILED / execution timeout으로 fail_count++ == **K** (DB: attempt result=FAIL + error_code=`JOB_FAILED`(poll observed=FAILED) \| `EXECUTION_TIMEOUT`(timeout)) | TERRAFORM_JOB |
 | DISPATCHING | FAILED | tick: dispatch가 끝내 response 없이(또는 `IM_REJECTED` 비-backpressure)로 fail_count++ == **K** → slot 반납 (DB: attempt result=FAIL + error_code=`DISPATCH_NO_RESPONSE`\|`IM_REJECTED`) | TERRAFORM_JOB |
-| WAITING_EXTERNAL | FAILED | tick: check api_result=ERROR로 fail_count++ == **K** (NOT_MET은 미가산 — "아직"은 실패 아님) | CONDITION_CHECK |
+| WAITING_EXTERNAL | FAILED | tick: check api_result=ERROR(**비-backpressure**)로 fail_count++ == **K** (NOT_MET·429/503 backpressure는 미가산 — "아직"·"나중에"는 실패 아님) | CONDITION_CHECK |
 | WAITING_EXTERNAL | EXPIRED | tick: WAIT_EXTERNAL TTL(총 체류) 초과 → EXPIRED (→ pipeline FAILED 파생). 사유 `TTL_EXPIRED`는 status=EXPIRED가 유일 원인이라 status에서 파생(별도 error_code 행 없음) | CONDITION_CHECK |
 | READY·DISPATCHING·RUNNING·WAITING_EXTERNAL | FAILED | tick: **`handler_key` 미해결**(registry에 없음 — 핸들러 은퇴/규율 위반) → **즉시 FAILED**(`error_code=HANDLER_NOT_FOUND`, fail_count 미소모 — 영구 조건이라 재시도 무의미). 사유는 **synthetic `task_check` 1행**(O25 관측 장부): `kind=CHECK·name="orchestrator.handler.resolve"·api_result=ERROR·observed=null·external_handle=null·started_at=checked_at=tick 시각·latency_ms=null(외부 호출 없음)·error_code=HANDLER_NOT_FOUND`. **DISPATCHING/RUNNING이라 active attempt가 있으면** 그 attempt를 `result=FAIL·finished_at=tick 시각·error_code=null`로 마감(원인은 task_check가 보유). 보유 slot 반납. **RUNNING TERRAFORM_JOB의 in-flight job은 죽일 수 없어 orphan으로 남는다** — 멱등이라 무해하고, **BFF가 추적을 끊으므로 BFF execution timeout이 아니라 worker의 terraform apply 자연 종료(유한)가 그 bound**다 | 전체 |
 
@@ -99,9 +99,10 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | From | → To | 트리거 / Guard | kind |
 |---|---|---|---|
 | DISPATCHING | DISPATCHING (in-place) | dispatch 복구 timeout(response 없음) 또는 dispatch api_result=ERROR(`IM_REJECTED` 비-backpressure) → attempt 실패 마감 fail++; **slot 보유한 채** 재dispatch | TERRAFORM_JOB |
-| DISPATCHING | DISPATCHING (in-place, **backpressure**) | dispatch가 IM **429/503**(backpressure) → **fail_count 미소모**(실패 아님), task_check(kind=DISPATCH, api_result=ERROR, error_code 미해당) 기록, **attempt 미마감(`finished_at=null` 유지)**, **slot 보유**, next_check_at 미뤄 재dispatch (IM_REJECTED 하드 거부와 구분 — 그건 위 행 fail++) | TERRAFORM_JOB |
-| RUNNING | READY | poll FAILED/execution timeout → fail++; **slot 반납 후 READY로 재큐**(=slot 큐 재진입; 결정 5: 재dispatch도 admission 통과) | TERRAFORM_JOB |
-| WAITING_EXTERNAL | WAITING_EXTERNAL (in-place) | NOT_MET(미가산) 또는 check ERROR(fail++) → 계속 폴링 | CONDITION_CHECK |
+| DISPATCHING | DISPATCHING (in-place, **backpressure**) | dispatch가 IM **429/503**(backpressure) → **fail_count 미소모**(실패 아님), task_check(kind=DISPATCH, api_result=ERROR, error_code 미해당) 기록, **attempt 미마감(`finished_at=null` 유지) → 동일 attempt 재사용**(새 attempt 생성 안 함·`attempt_no` 불변; fail_count 미소모와 정합), **slot 보유**, next_check_at 미뤄 재dispatch (IM_REJECTED 하드 거부와 구분 — 그건 위 행 attempt 마감 fail++·새 attempt) | TERRAFORM_JOB |
+| RUNNING | READY | poll **observed=FAILED**(잡 자체 실패)/execution timeout → fail++; **slot 반납 후 READY로 재큐**(=slot 큐 재진입; 결정 5: 재dispatch도 admission 통과) | TERRAFORM_JOB |
+| RUNNING | RUNNING (in-place) | poll observed=RUNNING(잡 진행 중) **또는 poll 호출 오류**(api_result=ERROR 비-backpressure — 잡 상태를 *못 읽음*이지 잡 실패 아님 → **fail 미소모**, task_check 기록, 재-poll) **또는 429/503 backpressure**(fail 미소모, Retry-After 후 재-poll) → slot 보유한 채 계속 폴링 | TERRAFORM_JOB |
+| WAITING_EXTERNAL | WAITING_EXTERNAL (in-place) | NOT_MET(미가산) 또는 check ERROR(**비-backpressure**, fail++) 또는 429/503 backpressure(fail 미소모, Retry-After 후 재-check) → 계속 폴링 | CONDITION_CHECK |
 
 **취소 전이 (pipeline = CANCELLING)** — forward edge만 gate, drain edge는 gate 안 함(결정 4c). drain은
 **죽일 수 없는 in-flight side-effect job**(TERRAFORM_JOB)에만 적용된다 — read-only 폴링엔 drain할
