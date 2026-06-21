@@ -56,7 +56,7 @@ class HandlerRegistry {
     }
     PipelineHandler get(String key) {
         var h = byKey.get(key);
-        if (h == null) throw new UnknownHandlerException(key);   // 런타임 미해결 → task FAILED(HANDLER_NOT_FOUND)
+        if (h == null) throw new UnknownHandlerException(key);   // 런타임 resolve 실패 → task FAILED(HANDLER_NOT_FOUND)
         return h;
     }
 }
@@ -74,6 +74,6 @@ var AWS_INSTALL = List.of(
 
 - **Task는 in-place 수정 없이 `_V1/_V2` append-only**로 관리한다 — 동작이 바뀌면 `TerraformApplyNetwork_V2`를
   *추가*(키 `aws.tf.network_v2`)하고 `_V1`은 불변 유지. 옛 row·snapshot의 `_V1` 키가 영원히 resolve된다.
-- **런타임 미해결 종료:** 이미 만들어진 옛 row의 handler가 (규율 위반으로) 사라지면 `get()`이 throw → task는
+- **런타임 resolve 실패 종료:** 이미 만들어진 옛 row의 handler가 (규율 위반으로) 사라지면 `get()`이 throw → task는
   **즉시 FAILED(`HANDLER_NOT_FOUND`)**, RUNNING TERRAFORM_JOB의 in-flight job은 죽일 수 없어 orphan으로
   흡수(state-machine 종결표). 무한 폴링·크래시 루프 없음.

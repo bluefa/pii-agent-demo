@@ -21,7 +21,7 @@
   제거, 개정 4판). **pipeline.parameters(jsonb) 미도입 — pipeline.target_source_id 컬럼**으로 고정
   (조회 인덱스 `pipeline(target_source_id, started_at DESC)`, 개정 4판). **task.kind
   (TERRAFORM_JOB|CONDITION_CHECK)** — 구 task.type(EXECUTE|WAIT_EXTERNAL) 대체(결정 2).
-  **task.handler_key 추가**(안정 코드 class 식별자 — reconciler 라우팅; 미해결 시 task FAILED/HANDLER_NOT_FOUND, 결정 2).
+  **task.handler_key 추가**(안정 코드 class 식별자 — reconciler 라우팅; resolve 실패 시 task FAILED/HANDLER_NOT_FOUND, 결정 2).
   **task_attempt.external_handle 제거 → response(jsonb)**(dispatch 원응답, write-once;
   terraform_job_id 전용 컬럼 없음); **task.external_handle(단수) 제거**
   (handle home=attempt.response). **task_check.poll_count 추가 + 행 단위 = RLE(O24→RLE 후속17):** DISPATCH는

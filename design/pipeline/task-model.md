@@ -63,7 +63,7 @@ TERRAFORM_JOB              CONDITION_CHECK
   실행해 불가하면 배포를 막는다(배포를 *막으려면* 배포 완료 후인 부팅이 아니라 배포 전 단계여야 한다; 부팅 시 동일
   assert는 defense-in-depth). 런타임 FAILED보다 강한 사전 방어 — in-flight run을 깨뜨릴 배포를 CI 게이트에서
   차단. ⑤ 그럼에도 **런타임에
-  `handler_key` 미해결**(검사 우회·경합 등)이면 안전망으로 task 즉시
+  `handler_key` resolve 실패**(검사 우회·경합 등)이면 안전망으로 task 즉시
   **FAILED(`HANDLER_NOT_FOUND`)** — 영구 조건이라 재시도 무의미, RUNNING TF의 in-flight job은 죽일 수 없어
   orphan으로 남는다(BFF 추적 중단이라 BFF execution timeout이 아니라 worker terraform 자연 종료가 bound;
   state-machine 종결표). 구현 코드는 [implementation-notes.md](./implementation-notes.md).

@@ -111,7 +111,7 @@ pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
                 -- fail_reason = pipeline FAILED 수렴 원인 요약(저장 컬럼) — tick이 FAILED 파생 시 기록:
                 --   `{task_id: FAILED/EXPIRED 유발 task, error_code: 그 task의 canonical errorCode}`
                 --   (저장 jsonb이라 키는 snake_case = snapshot.spec과 동일 계층 — ADR-019; API DTO failReason의 camelCase `{taskId, errorCode}`와 별개, api §0).
-                --   (EXPIRED→TTL_EXPIRED · poll 잡 실패→JOB_FAILED · check 누적 실패→CHECK_ERROR · handler 미해결→HANDLER_NOT_FOUND 등).
+                --   (EXPIRED→TTL_EXPIRED · poll 잡 실패→JOB_FAILED · check 누적 실패→CHECK_ERROR · handler resolve 실패→HANDLER_NOT_FOUND 등).
                 --   CANCELLING precedence로 CANCELLED 수렴 시엔 미설정(null) — 취소는 실패 아님(결정 1.1). api failReason은 이 컬럼.
                 -- 실행 단위 = target_source_id (1 pipeline : 1 target), 생성 시 고정.
                 --   실행 입력 일반화(parameters jsonb)는 도입하지 않는다(개정 4판) — 실행 단위는
@@ -139,7 +139,7 @@ task            id, pipeline_id, seq, name, handler_key,
                 --   task 생성 시 박는다. 같은 kind 안의 여러 task(예 ApplyNetwork vs ApplyIntegration)는
                 --   handler_key로 구분된다(kind는 너무 거칠고 name·seq는 식별자 아님). kind는 handler class가
                 --   선언하는 값을 row에 비정규화(slot COUNT 등 쿼리용). name = 표시 라벨(UX)일 뿐.
-                --   미해결(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 status=FAILED·fail_count 미소모.
+                --   resolve 실패(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 status=FAILED·fail_count 미소모.
                 --   원인 errorCode=HANDLER_NOT_FOUND는 task에 error_code 컬럼이 없으므로 synthetic task_check 1행에 기록
                 --   (kind=CHECK·name="orchestrator.handler.resolve"·api_result=ERROR·observed=null·external_handle=null·error_code=HANDLER_NOT_FOUND·poll_count=1·latency_ms=null; 외부 호출 없는 내부 평가라 kind 고정 — state-machine 종결표·§1.2 task_check ③·api §0).
                 --   active attempt(DISPATCHING/RUNNING) 있으면 result=FAIL·finished_at=tick·attempt.error_code=null로 마감(원인은 위 task_check가 보유);
