@@ -68,16 +68,18 @@ describe('ConfirmedIntegrationTable', () => {
   });
 
   describe('variant=complete', () => {
-    it('renders Status + logical DB columns', () => {
+    it('renders the v15 columns incl. Region + Resource Name + logical DB + Status', () => {
       render(
         <ConfirmedIntegrationTable
           confirmed={[makeResource()]}
           variant="complete"
         />,
       );
-      expect(screen.getByText('DB Type')).toBeTruthy();
-      expect(screen.getByText('Resource ID')).toBeTruthy();
-      expect(screen.getByText('DB Credential')).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Region' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'DB Credential' })).toBeTruthy();
       expect(screen.getByText('연동 대상 논리 DB')).toBeTruthy();
       expect(screen.getByText('연동 제외 논리 DB')).toBeTruthy();
       expect(screen.getByText('Status')).toBeTruthy();
@@ -113,7 +115,7 @@ describe('ConfirmedIntegrationTable', () => {
       expect(screen.getByText('Unhealthy')).toBeTruthy();
     });
 
-    it('renders — placeholder for both logical DB count cells', () => {
+    it('renders real (non-dash) logical DB counts derived from resourceId', () => {
       const { container } = render(
         <ConfirmedIntegrationTable
           confirmed={[makeResource()]}
@@ -125,9 +127,12 @@ describe('ConfirmedIntegrationTable', () => {
       const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map(
         (cell) => cell.textContent,
       );
-      // cells: DB Type / Resource ID / DB Credential / target logical DB / excluded logical DB / Status
-      expect(cellTexts[3]).toBe('—');
-      expect(cellTexts[4]).toBe('—');
+      // cells: Database Type / Resource ID / Region / Resource Name / DB Credential
+      //        / target logical DB / excluded logical DB / Status
+      expect(cellTexts[5]).toMatch(/^\d+$/);
+      expect(cellTexts[6]).toMatch(/^\d+$/);
+      expect(cellTexts[5]).not.toBe('—');
+      expect(cellTexts[6]).not.toBe('—');
     });
   });
 

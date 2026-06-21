@@ -81,24 +81,41 @@ describe('joinGcpResources', () => {
     expect(result[0].databaseType).toBeNull();
   });
 
-  it('uses GcpResourceStatus.resourceName for databaseName', () => {
+  it('shortens GcpResourceStatus.resourceName to its last path segment for databaseName', () => {
     const result = joinGcpResources(
       [
-        installResource('r1', 'service-db-prod', 'COMPLETED'),
+        installResource('r1', 'projects/p/instances/service-db-prod', 'COMPLETED'),
         installResource('r2', undefined, 'IN_PROGRESS'),
       ],
       [],
     );
     expect(result[0].databaseName).toBe('service-db-prod');
-    expect(result[1].databaseName).toBeNull();
+    // No name + no confirmed match → fall back to the resourceId's short name.
+    expect(result[1].databaseName).toBe('r2');
   });
 
-  it('region is null pending later wave (ConfirmedResource lacks the field)', () => {
+  it('prefers confirmed resourceName for databaseName when matched', () => {
+    const result = joinGcpResources(
+      [installResource('r1', 'projects/p/instances/raw-name', 'COMPLETED')],
+      [{ ...confirmedResource('r1', 'MYSQL'), resourceName: 'live · default' }],
+    );
+    expect(result[0].databaseName).toBe('live · default');
+  });
+
+  it('falls back to the GCP default region when confirmed lacks one', () => {
     const result = joinGcpResources(
       [installResource('r1', 'name', 'COMPLETED')],
       [confirmedResource('r1', 'MYSQL')],
     );
-    expect(result[0].region).toBeNull();
+    expect(result[0].region).toBe('asia-northeast3');
+  });
+
+  it('prefers confirmed region when present', () => {
+    const result = joinGcpResources(
+      [installResource('r1', 'name', 'COMPLETED')],
+      [{ ...confirmedResource('r1', 'MYSQL'), region: 'asia-northeast1' }],
+    );
+    expect(result[0].region).toBe('asia-northeast1');
   });
 
   it('preserves source GcpResourceStatus reference for downstream step lookup', () => {

@@ -6,6 +6,10 @@ import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AzureV1Resource } from '@/lib/types/azure';
 import type { UnifiedInstallResource } from '@/app/components/features/process-status/azure/AzureInstallationInline';
 import type { DatabaseType } from '@/lib/types';
+import { getResourceDisplayName } from '@/lib/resource';
+
+// GCP 리소스의 기본 리전 (v15: asia-northeast3). 확정 정보에 리전이 있으면 그것을 우선한다.
+const GCP_DEFAULT_REGION = 'asia-northeast3';
 
 export interface InstallResourceRow {
   resourceId: string;
@@ -31,11 +35,15 @@ export const joinGcpResources = (
 
   return installation.map((r) => {
     const matched = confirmedById.get(r.resourceId);
+    // v15: 전체 경로(projects/…/instances/…) 대신 짧은 이름을 표시한다.
+    // 확정 정보의 Resource Name을 우선하고, 없으면 resourceId의 마지막 세그먼트를 쓴다.
+    const databaseName =
+      matched?.resourceName ?? getResourceDisplayName({ resourceId: r.resourceName ?? r.resourceId });
     return {
       resourceId: r.resourceId,
       databaseType: matched?.databaseType ?? null,
-      region: null,
-      databaseName: r.resourceName ?? null,
+      region: matched?.region ?? GCP_DEFAULT_REGION,
+      databaseName,
       installationStatus: r.installationStatus,
       source: r,
     };

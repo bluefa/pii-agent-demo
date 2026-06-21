@@ -543,6 +543,8 @@ export const normalizeConfirmedIntegration = (
       resource_id: resource.resource_id,
       resource_type: resource.resource_type,
       ...(resource.database_type ? { database_type: resource.database_type } : {}),
+      ...(resource.database_region ? { database_region: resource.database_region } : {}),
+      ...(resource.resource_name ? { resource_name: resource.resource_name } : {}),
       ...(resource.port !== null ? { port: resource.port } : {}),
       ...(resource.host !== null ? { host: resource.host } : {}),
       ...(resource.oracle_service_id ? { oracle_service_id: resource.oracle_service_id } : {}),

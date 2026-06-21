@@ -132,15 +132,13 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
           </tbody>
         </table>
       </div>
-      {rows.length > pageSize && (
-        <Pagination
-          page={safePage}
-          pageSize={pageSize}
-          totalCount={rows.length}
-          onPageChange={setPage}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      )}
+      <Pagination
+        page={safePage}
+        pageSize={pageSize}
+        totalCount={rows.length}
+        onPageChange={setPage}
+        onPageSizeChange={handlePageSizeChange}
+      />
     </div>
   );
 };

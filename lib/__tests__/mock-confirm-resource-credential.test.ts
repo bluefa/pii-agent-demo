@@ -86,8 +86,9 @@ describe('mockConfirm.updateResourceCredential', () => {
         resource_type: 'AZURE_MSSQL',
         endpoint_config: null,
         credential_id: 'cred-new',
-        database_region: null,
-        resource_name: 'azure-sql-1',
+        // Demo enrichment: Azure region + friendly name are derived deterministically.
+        database_region: 'ap-northeast-1',
+        resource_name: 'sea-payments-prod',
         scan_status: 'UNCHANGED',
         integration_status: 'INTEGRATED',
       },

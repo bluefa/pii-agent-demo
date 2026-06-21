@@ -416,6 +416,7 @@ export interface ApprovedIntegrationResponse {
     id: string;
     request_id: string;
     approved_at: string;
+    approved_by: string | null;
     resource_infos: ApprovedIntegrationResourceItem[];
     excluded_resource_ids: string[];
     excluded_resource_infos: ApprovedIntegrationExcludedResourceItem[];
@@ -441,6 +442,7 @@ export const getApprovedIntegration = async (
       id: String(payload.id ?? ''),
       request_id: String(payload.request_id ?? ''),
       approved_at: payload.approved_at ?? '',
+      approved_by: payload.approved_by?.user_id ?? null,
       resource_infos: payload.resource_infos.map(toApprovedIntegrationResourceSnapshot),
       excluded_resource_ids: excludedResourceInfos
         .map((item) => item.resource_id)

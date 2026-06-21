@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { getProject } from '@/app/lib/api';
+import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
   getIdcResources,
   idcDbTypeWireFromLabel,
@@ -194,10 +194,22 @@ export const IdcStep1TargetInput = ({
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await updateIdcResources(targetSourceId, rows);
+      // Persist the working list, then request approval through the shared flow.
+      // IDC resources live outside project.resources, so the auto-approval policy
+      // (which evaluates an empty project.resources) always routes to PENDING →
+      // the project advances to WAITING_APPROVAL (Step 2, 승인 대기).
+      const persisted = await updateIdcResources(targetSourceId, rows);
+      const resourceInputs = persisted.map((r) =>
+        r.excluded
+          ? {
+              resource_id: r.resourceId,
+              selected: false as const,
+              ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
+            }
+          : { resource_id: r.resourceId, selected: true as const },
+      );
+      await createApprovalRequest(targetSourceId, { resource_inputs: resourceInputs });
       await refreshProject();
-      // TODO(integration): advance processStatus → WAITING_APPROVAL via the
-      // shared approval flow once the IDC approval transition is wired in mock.
       setSubmitOpen(false);
     } catch {
       // surfaced by the mutation layer; keep the modal open

@@ -20,9 +20,10 @@ interface ApprovedIntegrationSectionProps {
 interface ApprovedView {
   resources: ApprovedResource[];
   approvedAt: string | null;
+  approver: string | null;
 }
 
-const EMPTY_VIEW: ApprovedView = { resources: [], approvedAt: null };
+const EMPTY_VIEW: ApprovedView = { resources: [], approvedAt: null, approver: null };
 
 export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrationSectionProps) => {
   const [state, setState] = useState<AsyncState<ApprovedView>>({ status: 'loading' });
@@ -43,6 +44,7 @@ export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrati
           data: {
             resources: approvedIntegrationToApproved(approved.resource_infos),
             approvedAt: approved.approved_at || null,
+            approver: approved.approved_by || null,
           },
         });
       })
@@ -76,6 +78,14 @@ export const ApprovedIntegrationSection = ({ targetSourceId }: ApprovedIntegrati
             <strong className={cn('font-semibold', textColors.secondary)}>
               {formatDate(view.approvedAt, 'datetime')}
             </strong>
+            {view.approver && (
+              <>
+                {' · '}승인자{' '}
+                <strong className={cn('font-semibold', textColors.secondary)}>
+                  {view.approver}
+                </strong>
+              </>
+            )}
           </p>
         )}
       </div>

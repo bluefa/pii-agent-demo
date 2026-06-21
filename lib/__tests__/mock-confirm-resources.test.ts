@@ -109,7 +109,8 @@ describe('mockConfirm.getResources', () => {
       {
         id: 'vm-db-001',
         resource_id: 'vm-db-001',
-        name: 'vm-db-001',
+        // name is a demo-derived friendly DB label (v15), keyed off the internal id.
+        name: 'sea-live-space-stg',
         resource_type: 'AZURE_VM',
         database_type: 'ORACLE',
         integration_category: 'NO_INSTALL_NEEDED',
@@ -118,17 +119,17 @@ describe('mockConfirm.getResources', () => {
         oracle_service_id: 'ORCL',
         network_interface_id: 'nic-1',
         ip_configuration_name: null,
-        scan_status: 'NEW_SCAN',
+        scan_status: 'UNCHANGED',
         metadata: {
           provider: 'Azure',
           resourceType: 'AZURE_VM',
-          region: '',
+          region: 'ap-northeast-1',
         },
       },
       {
         id: 'pg-flex-001',
         resource_id: 'pg-flex-001',
-        name: 'pg-flex-001',
+        name: 'sea-live-space-dev',
         resource_type: 'AZURE_POSTGRESQL',
         database_type: 'POSTGRESQL',
         integration_category: 'TARGET',
@@ -137,11 +138,11 @@ describe('mockConfirm.getResources', () => {
         oracle_service_id: null,
         network_interface_id: null,
         ip_configuration_name: null,
-        scan_status: 'NEW_SCAN',
+        scan_status: 'UNCHANGED',
         metadata: {
           provider: 'Azure',
           resourceType: 'AZURE_POSTGRESQL',
-          region: '',
+          region: 'ap-northeast-1',
         },
       },
     ]);

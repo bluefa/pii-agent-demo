@@ -184,34 +184,72 @@ export const mockProjects: Project[] = [
     tenantId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 4, excludedCount: 2 }),
     resources: [
       {
         id: 'azure-res-1',
-        type: 'AZURE_MSSQL',
-        resourceId: 'mssql-prod-001',
-        databaseType: 'MSSQL',
+        type: 'AZURE_MYSQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-prod-01',
+        databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
         integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-2',
-        type: 'AZURE_POSTGRESQL',
-        resourceId: 'pg-analytics-001',
-        databaseType: 'POSTGRESQL',
+        type: 'AZURE_MYSQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-stg-02',
+        databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
         integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-3',
-        type: 'AZURE_MYSQL',
-        resourceId: 'mysql-app-001',
-        databaseType: 'MYSQL',
+        type: 'AZURE_POSTGRESQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-analytics-03',
+        databaseType: 'POSTGRESQL',
         connectionStatus: 'PENDING',
         isSelected: true,
         integrationCategory: 'TARGET',
+      },
+      {
+        id: 'azure-res-9',
+        type: 'AZURE_MSSQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.Sql/servers/mssql-payments-04',
+        databaseType: 'MSSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      // 비대상 (excluded) — v15 step2/3 show 비대상 rows with reason chips
+      {
+        id: 'azure-res-10',
+        type: 'AZURE_POSTGRESQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-stg/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-stg-05',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: 'Stg 환경 DB · PII 데이터 미보유',
+          excludedAt: '2026-01-20T09:00:00Z',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+        },
+      },
+      {
+        id: 'azure-res-11',
+        type: 'AZURE_MARIADB',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-legacy/providers/Microsoft.DBforMariaDB/servers/mariadb-legacy-archive-2019',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: 'Legacy archive · 2024년 EOL 예정으로 연동 제외',
+          excludedAt: '2026-01-20T09:00:00Z',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+        },
       },
     ],
     terraformState: {
@@ -849,7 +887,7 @@ const gcpDemoResources: Project['resources'] = [
   {
     id: 'gcp-res-1',
     type: 'GCP_SQL',
-    resourceId: 'projects/pii-agent-prod-12345/instances/sql-prod-mysql-01',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/services/bigquery/datasets/sea_bdp_prd',
     databaseType: 'MYSQL',
     connectionStatus: 'PENDING',
     isSelected: true,
@@ -858,11 +896,35 @@ const gcpDemoResources: Project['resources'] = [
   {
     id: 'gcp-res-2',
     type: 'GCP_SQL',
-    resourceId: 'projects/pii-agent-prod-12345/instances/sql-prod-pg-01',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/sql-analytics-01',
+    databaseType: 'MYSQL',
+    connectionStatus: 'PENDING',
+    isSelected: true,
+    integrationCategory: 'TARGET',
+  },
+  {
+    id: 'gcp-res-3',
+    type: 'GCP_SQL',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-main',
     databaseType: 'POSTGRESQL',
     connectionStatus: 'PENDING',
     isSelected: true,
     integrationCategory: 'TARGET',
+  },
+  // 비대상 (excluded) — v15 step2/3 show 비대상 rows with reason chips
+  {
+    id: 'gcp-res-4',
+    type: 'GCP_SQL',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-stg-02',
+    databaseType: 'POSTGRESQL',
+    connectionStatus: 'PENDING',
+    isSelected: false,
+    integrationCategory: 'TARGET',
+    exclusion: {
+      reason: 'Stg 환경 DB · PII 데이터 미보유',
+      excludedAt: '2026-02-01T09:00:00Z',
+      excludedBy: { id: 'admin-1', name: '관리자' },
+    },
   },
 ];
 
@@ -879,6 +941,21 @@ const cloneForStep = (
 ): Project => {
   const base = mockProjects.find((p) => p.id === baseId);
   if (!base) throw new Error(`step-coverage base not found: ${baseId}`);
+  const sourceResources = over.resources ?? base.resources;
+  // Steps 6/7 (CONNECTION_VERIFIED, INSTALLATION_COMPLETE) render the confirmed
+  // table, which only surfaces CONNECTED resources. The azure/gcp demo seeds carry
+  // PENDING connections, so mark selected targets CONNECTED for those clones to
+  // keep the confirmed-integration table populated (matches v15).
+  const requiresConnection =
+    over.status === ProcessStatus.CONNECTION_VERIFIED ||
+    over.status === ProcessStatus.INSTALLATION_COMPLETE;
+  const resources = requiresConnection
+    ? sourceResources.map((r) =>
+        r.isSelected && r.integrationCategory === 'TARGET'
+          ? { ...r, connectionStatus: 'CONNECTED' as const }
+          : r,
+      )
+    : sourceResources;
   return {
     ...base,
     id: over.id,
@@ -887,7 +964,7 @@ const cloneForStep = (
     name: over.name,
     processStatus: over.status,
     status: createStatusForProcessStatus(over.status, { selectedCount: 2 }),
-    resources: over.resources ?? base.resources,
+    resources,
     isRejected: false,
   };
 };
