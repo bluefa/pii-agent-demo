@@ -420,6 +420,20 @@ class TaskAdvancerTest {
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DONE); // drained to its real terminal
     }
 
+    @Test
+    void cancellingDrainDefersTimeoutWhenBudgetIsExhausted() {
+        Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.RUNNING, FakeTf.KEY);
+        task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1))); // deadline passed
+        tasks.save(task);
+        seedAttempt(task.getId(), 1, "job-9", NOW, null);
+        tf.poll = new PollOutcome.Status(Observed.SUCCEEDED); // would succeed if it could be polled
+
+        advancer.advance(pipeline, task, true, new TickBudget(0)); // no budget → defer, do not timeout blind
+
+        assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.RUNNING);
+    }
+
     // ---- pipeline derivation ----
 
     @Test

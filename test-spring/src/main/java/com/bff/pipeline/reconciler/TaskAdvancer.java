@@ -355,14 +355,18 @@ public class TaskAdvancer {
             return; // can't poll; the orphan job ends on its own — leave RUNNING until handler returns
         }
         TaskAttempt attempt = currentAttempt(task.getId());
-        if (due && budget.tryConsume()) {
+        boolean deadlinePassed = timedOut(task, now);
+        // Same confirm-before-timeout rule as the normal RUNNING path (P1): a fresh poll must confirm the job
+        // did not already SUCCEED before we declare an execution timeout, and a budget-starved tick defers
+        // rather than fail a possibly-finished drain.
+        if ((due || deadlinePassed) && budget.tryConsume()) {
             PollOutcome outcome = externalCalls.poll(task, attempt, handler, pipeline.getTargetSourceId());
             if (applyDrainPoll(pipeline, task, attempt, outcome, now)) {
-                return;
+                return; // SUCCEEDED → DONE / FAILED → FAILED (beats timeout)
             }
-        }
-        if (timedOut(task, now)) {
-            runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, true);
+            if (deadlinePassed) {
+                runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, true);
+            }
         }
     }
 
