@@ -15,6 +15,14 @@ import java.util.function.Supplier;
  * deadline. On deadline exceed the call is cancelled and reported as {@code timedOut} (the orchestrator
  * maps that to CALL_TIMEOUT). Latency is measured with {@link System#nanoTime()} (a duration, not wall
  * clock). Tests substitute a synchronous fake, so this class is never exercised under @DataJpaTest.
+ *
+ * <p><b>Bounded-synchronous by design (V1).</b> The caller (the tick) waits on {@code future.get(deadline)} —
+ * the virtual thread makes that wait cheap and gives an <em>interruptible</em> timeout, and the per-call
+ * deadline (D-T3) caps how long a slow IM call can hold the tick. This is NOT a fire-and-forget fan-out: the
+ * tick consumes the returned outcome in the same step (the synchronous single-writer model both reviews
+ * accepted). A production nonblocking executor (submit-and-return; observations consumed by a later tick)
+ * would implement the same {@link ExternalCallExecutor} interface — that fan-out is a deferred scalability
+ * refinement, not a state-machine concern (correctness rests on the CAS transitions, not the call threading).
  */
 @Component
 class VirtualThreadExternalCallExecutor implements ExternalCallExecutor {

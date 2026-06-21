@@ -107,7 +107,7 @@ class PipelineCreationServiceTest {
         Task terraform = chain.get(0);
         assertThat(terraform.getSeq()).isZero();
         assertThat(terraform.getName()).isEqualTo("apply");
-        assertThat(terraform.getStatus()).isEqualTo(TaskStatus.READY);
+        assertThat(terraform.getStatus()).isEqualTo(TaskStatus.BLOCKED); // created BLOCKED; first tick promotes seq0
         assertThat(terraform.getKind()).isEqualTo(TaskKind.TERRAFORM_JOB);
         assertThat(terraform.getHandlerKey()).isEqualTo(FakeTf.KEY);
 

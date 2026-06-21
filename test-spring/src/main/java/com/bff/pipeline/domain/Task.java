@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -50,12 +52,16 @@ public class Task {
     @Column(nullable = false)
     private TaskStatus status;
 
-    // ---- frozen recipe knobs (snapshot.spec) ----
+    // ---- frozen recipe knobs (snapshot.spec); Duration stored as BIGINT nanoseconds (matches schema-postgres.sql,
+    //      explicit so ddl-auto=validate agrees instead of relying on Hibernate's default numeric mapping) ----
     /** CONDITION_CHECK only (>=10m guard); null for TERRAFORM_JOB (uses system job-poll cadence). */
+    @JdbcTypeCode(SqlTypes.BIGINT)
     private Duration pollingInterval;
     /** CONDITION_CHECK total-residence TTL. */
+    @JdbcTypeCode(SqlTypes.BIGINT)
     private Duration ttl;
     /** TERRAFORM_JOB dispatch->terminal execution timeout. */
+    @JdbcTypeCode(SqlTypes.BIGINT)
     private Duration executionTimeout;
 
     @Column(nullable = false)

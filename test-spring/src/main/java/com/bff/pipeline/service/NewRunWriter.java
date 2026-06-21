@@ -104,7 +104,7 @@ public class NewRunWriter {
         t.setName(td.name());
         t.setHandlerKey(handlers.keyOf(td.handlerClass()));
         t.setKind(td.kind());
-        t.setStatus(seq == 0 ? TaskStatus.READY : TaskStatus.BLOCKED); // first task eligible, rest gated on predecessor
+        t.setStatus(TaskStatus.BLOCKED); // all tasks start BLOCKED; the first tick promotes seq0 → READY (state-machine)
         t.setTtl(knobs.ttl());
         t.setPollingInterval(knobs.pollingInterval());
         t.setExecutionTimeout(knobs.executionTimeout());

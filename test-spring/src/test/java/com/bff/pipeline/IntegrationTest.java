@@ -24,9 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Full-context integration (Todo T7): the entire ADR-016 V1 application boots — every bean from T1–T6 plus
  * the scheduler and the Feign transport wire together — over H2, and a real creation flows through the real
- * DefaultRecipes / handler registry to the query surface. The IM transport is stubbed (a @Primary fake) so a
- * scheduled tick that reaches dispatch never makes a real HTTP call; scheduler intervals are pushed out so
- * the background loops stay quiet during the assertions.
+ * DefaultRecipes / handler registry to the query surface. The IM Feign transport is wired (a lazy proxy) but
+ * never called: the scheduler's initial delay is pushed out so the tick — hence dispatch — never fires, and
+ * the create/query flow itself makes no IM call, so the background loops stay quiet during the assertions.
  */
 @SpringBootTest(properties = {
         "im.base-url=http://localhost:0",
