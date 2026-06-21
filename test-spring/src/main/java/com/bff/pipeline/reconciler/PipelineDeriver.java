@@ -14,6 +14,7 @@ import com.bff.pipeline.repo.TaskAttemptRepository;
 import com.bff.pipeline.repo.TaskCheckRepository;
 import com.bff.pipeline.service.EventRecorder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -46,6 +47,7 @@ public class PipelineDeriver {
         this.clock = clock;
     }
 
+    @Transactional
     public void derive(Pipeline pipeline, List<Task> tasks) {
         Long id = pipeline.getId();
         Instant now = clock.instant();

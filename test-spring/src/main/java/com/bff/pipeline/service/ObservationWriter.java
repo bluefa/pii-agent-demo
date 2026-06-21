@@ -25,7 +25,7 @@ import java.time.Instant;
  * crash between the call and the response write still leaves the "attempted" marker (D-T5).
  */
 @Component
-class ObservationWriter {
+public class ObservationWriter {
 
     private final TaskCheckRepository checks;
     private final TaskAttemptRepository attempts;
