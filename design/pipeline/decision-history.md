@@ -149,6 +149,14 @@
   ④ **(minor) terminal cancel 어휘** — orchestrator "거부" ↔ api/state-machine "0행 no-op + 200"을 "CAS 0행 no-op 차단 + 현재 status 200 반환"으로 통일.
   ⑤ **opus minor** — migrations delta 비대칭("전체 컬럼 정본=§1.2, 이 단락은 리비전 delta" 포인터); task-model 빈 구분선 중복 제거. **보류:** O·S 아카이브, swagger, ascii 정밀.
 
+- **개정 6판 후속11 — r10 문서 정확성 (codex 88 / opus 93; 설계 무변경).** opus는 significant 0 **3회 연속** 보고(수렴 확정); codex가 잡은 정확성 갭만:
+  ① **(significant) 진행 중 attempt nullability 미명시** — `task_attempt.result/finished_at/error_code`와 API `Attempt.outcome`이 terminal 값만 정의했는데 attempt는 dispatch 시(1단계) 생성돼 RUNNING 동안 미완료로 존재 → "terminal 전까지 result·finished_at·error_code=null, response는 응답 후 set; API는 finishedAt==null이면 outcome·errorCode·response null/생략"을 §1.2·api에 명시.
+  ② **(significant) M 소유권 모순** — operations 설정표 intro "모두 DB 런타임 설정"이 M(배포 설정·settings API 비대상)과 모순 → "대부분 DB 런타임, 예외 M은 배포 설정·settings API 비편집"으로 intro·M 행 정정.
+  ③ **(minor) 잔존 "부록 A" 참조 4곳** → implementation-notes.md §A로 교체(이력·리비전 노트의 부록 A는 이동 기록이라 보존).
+  ④ **(minor) §1.3 응답 형태 예시 "동기 {result}"** → v1은 TERRAFORM_JOB {job_id}·CONDITION_CHECK dispatch 없음으로 제한(동기 {result}는 v2 GENERAL_JOB).
+  ⑤ **(minor) Check kind=DISPATCH의 observed** → "observed 없음=null, dispatch 성공/실패 권위=apiResult+attempt.response/errorCode" 명시.
+  ⑥ **opus minor** — QUEUE_WAIT_EXCEEDED 근거 (1.3) 교정(정의=알림 섹션·발화=outbox); deadline_at 미노출 정책 명시; DISPATCH_NO_RESPONSE 시 task_check(DISPATCH) PENDING 잔류(D-T5, ERROR로 안 덮음) 결합 서술. **보류:** O·S 아카이브, swagger, ascii 정밀.
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다
