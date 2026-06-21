@@ -50,18 +50,21 @@ TERRAFORM_JOB              CONDITION_CHECK
 
 - **kind = 코드 클래스.** reconciler는 kind로 흐름을 정한다: TERRAFORM_JOB은 dispatch 후 poll,
   CONDITION_CHECK은 dispatch 없이 조건 폴링.
-- **Task 추가는 새로운 TaskKind 추가로만 수행한다.** 임의 훅 조합·`requiresSlot`·`completionRule`·
-  `timeoutPolicy` 같은 일반화 슬롯은 두지 않는다(개정 4판) — slot 소비 여부는 kind에서 정해지고
-  (TERRAFORM_JOB만 소비), 완료 판정은 kind별 poll 코드 안에 있다. 새 kind = **코드 클래스 1개
-  추가**, 스키마·전이 무변경. (비-terraform 비동기 job kind(구 GENERAL_JOB)는 v2 defer — v2-deferred.md.)
+- **새 task = 새 코드 class.** 대개 **기존 kind를 재사용**한다(예: 또 하나의 TERRAFORM_JOB task =
+  TerraformApplyStorage class) — kind는 dispatch/poll *흐름 shape*이지 task마다 하나씩 늘리는 게 아니다.
+  **genuinely 새로운 흐름 shape가 필요할 때만 새 kind를 추가**한다. 임의 훅 조합·`requiresSlot`·
+  `completionRule`·`timeoutPolicy` 같은 일반화 슬롯이나 별도 operation catalog 레이어는 두지 않는다
+  (개정 4판; YAGNI) — slot 소비 여부는 kind에서 정해지고(TERRAFORM_JOB만 소비), 완료 판정은 kind별 poll
+  코드 안에 있다. 어느 쪽이든 **코드 class 추가**일 뿐 스키마·전이 무변경. (비-terraform 비동기 job kind
+  (구 GENERAL_JOB)는 v2 defer — v2-deferred.md.)
 - **connector / callStrategy / resourcePool 추상화 레이어는 도입하지 않는다(YAGNI)** — 두 번째
   capacity-limited backend가 실재할 때 additive로 확장한다.
 
 조건 전용 task(CONDITION_CHECK)에서 **"아직"은 실패가 아니다** — check API 에러만 fail_count를 올린다.
 
 > **terminal 스냅샷 캡처(구 postCheck)는 v2 defer — v2-deferred.md.** v1 task는 성공 관측으로 DONE이 되며,
-> 휘발성 로그·결과 본문을 별도 캡처하지 않는다(완료 여부·시각은 CHECK 관측에 보존). `task_check.detail`
-> 컨테이너는 예약만 한다.
+> 휘발성 로그·결과 본문을 별도 캡처하지 않는다(완료 여부·시각은 CHECK 관측에 보존). **v1엔 `task_check.detail`
+> 컬럼이 없다** — v2 postCheck 도입 시 additive로 추가한다.
 
 **입력 — 범용 실행 컨텍스트를 두지 않는다(개정 4판).** `TaskExecutionContext{input, attempt?}` 추상은
 제거한다. 상태기계는 범용 실행 컨텍스트를 쓰지 않으며, task는 두 가지만 사용한다:

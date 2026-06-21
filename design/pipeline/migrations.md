@@ -7,12 +7,10 @@
 
 ## B. Affected files
 
-- `design/pipeline-interfaces.md` — 동반 구현 스펙. **결정 5(retry=새 run)·결정 6(async 호출
-  모델, 관측/상태 분리, 선기록)·dispatch 멱등성 불변식·crash 복구 fail_count++ 규칙(3.1, P0-1) 반영 필요.**
-- `design/pipeline-api.md` — admin API 정본; swagger 원천. **retry 엔드포인트 의미론, O10 확정,
-  per-call deadline 설정 표면, IM run API 멱등 계약(DELETE의 not-found=성공) 반영 필요(P0-1).
-  개정 4판 단순화(breaker·C-budget·force-check 제거, target_source_id) + v1 범위(TaskKind 2종)
-  반영 필요.**
+- `design/pipeline/orchestrator-design.md` · `design/pipeline/task-model.md` — 설계 정본(상태기계·DB 모델·
+  dispatch 5단계·멱등성 계약·crash 복구). migration DDL은 결정 1.2 스키마를 따른다.
+- `design/pipeline/api.md` — admin API 표면(swagger 원천); retry 의미론·per-call deadline·IM run API 멱등
+  계약(DELETE not-found=성공) 반영. v1 범위(TaskKind 2종, response(jsonb), seq predecessor) 정합.
 - `design/admin-page-requirements.md` — §4.4 모델 원천; §5 admin API 가정 목록.
 - `design/SIT Prototype Athena v14.html` — 파이프라인 보드; 결정 1.4 delta 대상.
 - `docs/swagger/` — 향후 admin-pipelines.yaml.

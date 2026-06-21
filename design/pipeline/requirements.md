@@ -30,7 +30,7 @@
 | NFR-5 | 운영 가시성 | `task_check` · `pipeline_event` |
 | NFR-6 | burst 완화 | `max_external_calls_per_tick`(결정 6 D-T7) |
 | NFR-7 | worker 결과 유실 흡수 | execution timeout(결정 4a) |
-| NFR-8 | 확장 가능한 task 추가 | 새 TaskKind 추가 방식(결정 2) |
+| NFR-8 | 확장 가능한 task 추가 | 새 task = 새 코드 class(대개 기존 kind 재사용; 새 흐름 shape일 때만 새 kind) — 결정 2 |
 
 ## 성능 / 용량 요구사항 (PR)
 

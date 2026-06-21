@@ -36,7 +36,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 전이 CAS로 안전하다.
 
 - **TaskKind는 2종으로 제한**한다 — `TERRAFORM_JOB` · `CONDITION_CHECK`(개정 4판: 훅의 임의 조합·범용
-  실행 컨텍스트 일반화를 제거). 새 task = 새 TaskKind 코드 클래스. (비-terraform 비동기 job kind는 v2 defer.)
+  실행 컨텍스트 일반화를 제거). 새 task = 새 코드 class(대개 기존 kind 재사용; 새 흐름 shape일 때만 새 kind).
+  (비-terraform 비동기 job kind는 v2 defer.)
 - **Retry는 재개가 아니라 새 run 생성**이다 — terminal 부활 없음, 완료분은 terraform 수렴으로 사실상 no-op.
 - **정합성은 exactly-once 기계가 아니라 idempotency-by-construction**으로 확보한다 — 모든 dispatch는
   멱등이어야 하고, at-least-once dispatch의 안전성은 그 멱등성에 의존한다.

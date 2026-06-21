@@ -43,6 +43,15 @@
   created}`(non-terminal 충돌 시 기존 반환=created:false, unique 제약과 정합). ③ api §3 생성 계약을
   3-point(resolution·원자성·중복차단; retry 동일)로 집약. codex 점수 85/100의 감점 사유(생성/retry 계약·
   snapshot 의미) 대응.
+- **개정 6판 후속3 — 문서 위생 (codex v1 재리뷰 86/100 대응; 설계 무변경).** v1 트리밍의 follow-through 누락
+  정리: ① operations.md에서 v2 residue 제거(post-check 60초·알림 라우팅 행·라우팅 참조) + 동시성 설명을
+  고정 풀 framing으로 정렬(M=hard cap·N≈M throttle·N·K는 제출량 산정값; M 행 추가) · ② `task_check.detail`
+  = "v1 컬럼 없음"으로 전 문서 통일(task-model·decision-history 잔재 "예약 컨테이너" 문구 교정) · ③
+  migrations.md affected-files의 stale 경로(`design/pipeline-interfaces.md`·`pipeline-api.md`)를 실재
+  `design/pipeline/*.md`로 수정 · ④ "Task 추가 = 새 TaskKind 추가" 문구를 "새 task = 새 코드 class(대개
+  기존 kind 재사용; 새 흐름 shape일 때만 새 kind)"로 정정(operation/kind 혼동 해소 — task-model·requirements·
+  ADR). **반려:** codex의 TaskOperation/TaskHandler catalog 레이어 도입은 v1에 새 추상 추가라 거부(YAGNI) —
+  문구만 정정.
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
@@ -69,7 +78,7 @@
   조회·redaction)도 함께 **defer**(활성 미해결 0건). 근거: write-once 캡처는 안전한 캡처법
   (redaction-before-store + IM 로그 API 사실)이 확정된 뒤 켜는 것이 옳다. **forensic 결과:** 도입 이전 run은
   terminal 스냅샷 없음·backfill 불가(완료 여부·시각은 CHECK 관측에 보존). **→ v2 (개정 6판):** postCheck/O29
-  규칙·`POST_CHECK` enum 표현을 doc-set에서 삭제하고 v2-deferred.md로 이관(`detail` jsonb 컨테이너만 예약 유지).
+  규칙·`POST_CHECK` enum 표현을 doc-set에서 삭제하고 v2-deferred.md로 이관(`detail` 컬럼은 개정 6판 후속2에서 제거 — v2 도입 시 additive).
 - **결정 8 신설 — 동일 target 다중 pipeline 생성 허용 + 실행 직렬화 (중복 pipeline 방지 해소).** unique 제약
   (생성 거부)이 아니라 **최古 `start_at` active 1개만 전진**으로 상호배제를 실행 시점에 둔다 — 생성 intent 보존·
   scheduling substrate. target당 non-terminal ≤ `maxNonTerminalPipelinesPerTarget`(default 3, Part II)로 spam
