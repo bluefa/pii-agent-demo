@@ -51,7 +51,7 @@ public class AlertService {
         long timeouts = attempts.countByErrorCodeAndFinishedAtAfter(ErrorCode.EXECUTION_TIMEOUT, windowStart);
         if (timeouts >= WORKER_OUTAGE_THRESHOLD
                 && !events.existsByTypeAndCreatedAtAfter("WORKER_OUTAGE_SUSPECTED", windowStart)) {
-            recorder.recordPipelineEvent(null, null, "WORKER_OUTAGE_SUSPECTED", Severity.CRITICAL, Actor.SYSTEM, null);
+            recorder.recordGlobalEvent("WORKER_OUTAGE_SUSPECTED", Severity.CRITICAL, Actor.SYSTEM, null);
         }
     }
 
@@ -65,7 +65,7 @@ public class AlertService {
         Instant threshold = clock.instant().minus(settings.getQueueWaitAlert());
         if (tasks.existsSlotQueuedTaskStartedBefore(threshold)
                 && !events.existsByTypeAndCreatedAtAfter("QUEUE_WAIT_EXCEEDED", threshold)) {
-            recorder.recordPipelineEvent(null, null, "QUEUE_WAIT_EXCEEDED", Severity.CRITICAL, Actor.SYSTEM, null);
+            recorder.recordGlobalEvent("QUEUE_WAIT_EXCEEDED", Severity.CRITICAL, Actor.SYSTEM, null);
         }
     }
 }

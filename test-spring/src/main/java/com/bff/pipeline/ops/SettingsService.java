@@ -36,6 +36,6 @@ public class SettingsService {
         setting.setKey(key);
         setting.setValue(value);
         settings.save(setting);
-        events.recordPipelineEvent(null, null, "SETTINGS:CHANGED", Severity.INFO, actor, "{\"key\":\"" + key + "\"}");
+        events.recordGlobalEvent("SETTINGS:CHANGED", Severity.INFO, actor, "{\"key\":\"" + key + "\"}");
     }
 }
