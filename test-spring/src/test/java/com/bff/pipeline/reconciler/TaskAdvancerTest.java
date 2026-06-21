@@ -23,6 +23,8 @@ import com.bff.pipeline.handler.HandlerRegistry;
 import com.bff.pipeline.handler.PollContext;
 import com.bff.pipeline.handler.PollOutcome;
 import com.bff.pipeline.handler.TerraformJobHandler;
+import com.bff.pipeline.domain.PipelineEvent;
+import com.bff.pipeline.repo.PipelineEventRepository;
 import com.bff.pipeline.repo.PipelineRepository;
 import com.bff.pipeline.repo.TaskAttemptRepository;
 import com.bff.pipeline.repo.TaskCheckRepository;
@@ -78,6 +80,7 @@ class TaskAdvancerTest {
     @Autowired private PipelineDeriver deriver;
     @Autowired private TaskCheckPruner pruner;
     @Autowired private PipelineRepository pipelines;
+    @Autowired private PipelineEventRepository events;
     @Autowired private TaskRepository tasks;
     @Autowired private TaskAttemptRepository attempts;
     @Autowired private TaskCheckRepository checks;
@@ -88,6 +91,7 @@ class TaskAdvancerTest {
     @AfterEach
     void cleanup() {
         executor.reset();
+        events.deleteAll();
         checks.deleteAll();
         attempts.deleteAll();
         tasks.deleteAll();
@@ -455,6 +459,78 @@ class TaskAdvancerTest {
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).hasSize(1);
     }
 
+    @Test
+    void dispatchingBackpressureSuppressesTheRecoveryFail() {
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.DISPATCHING, FakeTf.KEY, 0, 3);
+        seedAttempt(task.getId(), 1, null, NOW.minus(Duration.ofMinutes(10)), null); // old enough to be recovery-due
+        checks.save(dispatchObservation(task.getId(), ApiResult.ERROR, null)); // last DISPATCH obs = backpressure marker
+
+        advancer.advance(pipeline, task, false, budget()); // not due: no re-fire; recovery must be suppressed
+
+        assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DISPATCHING);
+        assertThat(reload(task).getFailCount()).isZero(); // backpressure ⇒ no DISPATCH_NO_RESPONSE fail++
+    }
+
+    @Test
+    void dispatchRejectedThenRedispatchesTheNewAttemptNextTick() {
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.DISPATCHING, FakeTf.KEY, 0, 3);
+        seedAttempt(task.getId(), 1, null, NOW, null);
+        tf.dispatch = new DispatchOutcome.Rejected("nope");
+        advancer.advance(pipeline, task, true, budget()); // attempt 1 fails, attempt 2 opens
+
+        tf.dispatch = new DispatchOutcome.Accepted("job-redispatch");
+        advancer.advance(pipeline, reload(task), true, budget()); // NOT stalled by the prior (ERROR,null) row
+
+        TaskAttempt latest = attempts.findFirstByTaskIdOrderByAttemptNoDesc(task.getId()).orElseThrow();
+        assertThat(latest.getAttemptNo()).isEqualTo(2);
+        assertThat(latest.getResponse()).isEqualTo("job-redispatch");
+    }
+
+    @Test
+    void runningPollSucceededBeatsAnExpiredExecutionDeadline() {
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.RUNNING, FakeTf.KEY);
+        task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1))); // execution deadline already passed
+        tasks.save(task);
+        seedAttempt(task.getId(), 1, "job-9", NOW, null);
+        tf.poll = new PollOutcome.Status(Observed.SUCCEEDED);
+
+        advancer.advance(pipeline, task, true, budget());
+
+        assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DONE); // completed observation beats timeout
+    }
+
+    @Test
+    void cancellingRunningDrainFailedTerminatesAsFailedAndCounts() {
+        Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.RUNNING, FakeTf.KEY, 0, 3);
+        TaskAttempt attempt = seedAttempt(task.getId(), 1, "job-9", NOW, null);
+        tf.poll = new PollOutcome.Status(Observed.FAILED);
+
+        advancer.advance(pipeline, task, true, budget());
+
+        assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.FAILED); // real failure recorded, no requeue
+        assertThat(reload(task).getFailCount()).isEqualTo(1);
+        assertThat(attempts.findById(attempt.getId()).orElseThrow().getErrorCode()).isEqualTo(ErrorCode.JOB_FAILED);
+    }
+
+    @Test
+    void aTransitionEmitsAPipelineEvent() {
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.BLOCKED, FakeTf.KEY);
+
+        advancer.advance(pipeline, task, true, budget());
+
+        assertThat(events.findByPipelineIdOrderByCreatedAtAsc(pipeline.getId())).singleElement()
+                .satisfies((PipelineEvent event) -> {
+                    assertThat(event.getType()).isEqualTo("TASK:READY");
+                    assertThat(event.getTaskId()).isEqualTo(task.getId());
+                    assertThat(event.getActor()).isEqualTo(Actor.SYSTEM);
+                });
+    }
+
     // ---- seeds ----
 
     private Pipeline seedPipeline(PipelineStatus status) {
@@ -499,6 +575,19 @@ class TaskAdvancerTest {
         a.setStartedAt(startedAt);
         a.setFinishedAt(finishedAt);
         return attempts.save(a);
+    }
+
+    private TaskCheck dispatchObservation(Long taskId, ApiResult apiResult, ErrorCode errorCode) {
+        TaskCheck c = new TaskCheck();
+        c.setTaskId(taskId);
+        c.setKind(CheckKind.DISPATCH);
+        c.setName("fake.tf:dispatch");
+        c.setApiResult(apiResult);
+        c.setErrorCode(errorCode);
+        c.setPollCount(1);
+        c.setStartedAt(NOW);
+        c.setCheckedAt(NOW);
+        return c;
     }
 
     private TaskCheck check(Long taskId, Instant checkedAt) {

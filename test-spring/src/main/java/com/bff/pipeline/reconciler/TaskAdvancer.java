@@ -147,14 +147,17 @@ public class TaskAdvancer {
             }
             return;
         }
-        if (isLastDispatchBackpressure(task.getId())) {
-            return; // backpressure hold: no fail, next_check_at already deferred by the call-thread
-        }
-        if (!now.isBefore(attempt.getStartedAt().plus(settings.getDispatchRecoveryTimeout()))) {
+        // Recovery: response never persisted past the recovery timeout → fail the attempt. The backpressure
+        // exception (last DISPATCH observation = 429/503 = the (ERROR,null) marker) suppresses ONLY this fail,
+        // NEVER the re-dispatch — backpressure already deferred next_check_at, so the task simply is not due
+        // yet. (A hard reject writes the same (ERROR,null) row but is handled synchronously by the returned
+        // outcome, so it must not also block the next attempt's re-dispatch — that was the stall bug.)
+        boolean recoveryDue = !now.isBefore(attempt.getStartedAt().plus(settings.getDispatchRecoveryTimeout()));
+        if (recoveryDue && !isLastDispatchBackpressure(task.getId())) {
             failDispatch(pipeline, task, attempt, ErrorCode.DISPATCH_NO_RESPONSE);
             return;
         }
-        if (due) { // re-fire dispatch at cadence (at-least-once; dispatch is idempotent)
+        if (due) { // (re-)fire dispatch when due (at-least-once; dispatch is idempotent)
             handleDispatchOutcome(pipeline, task, attempt,
                     externalCalls.dispatch(task, attempt, handler, pipeline.getTargetSourceId()));
         }
@@ -171,13 +174,19 @@ public class TaskAdvancer {
     private void advanceRunning(Pipeline pipeline, Task task, TerraformJobHandler handler, boolean due, TickBudget budget) {
         Instant now = clock.instant();
         TaskAttempt attempt = currentAttempt(task.getId());
+        if (attempt == null) {
+            return; // invariant: a RUNNING task always has an attempt (created at admission); defensive
+        }
+        // The tick consumes the poll outcome synchronously — the returned value IS the just-committed
+        // observation's content. One poll call per due tick → at most one transition / one fail_count, which
+        // is the per-call accounting the fail matrix requires (a ledger re-scan would double-count an in-place
+        // error run). A rolled-back transition self-heals: the next tick re-polls the still-SUCCEEDED job.
         if (due && budget.tryConsume()) {
             PollOutcome outcome = externalCalls.poll(task, attempt, handler, pipeline.getTargetSourceId());
             if (applyPoll(pipeline, task, attempt, outcome, now)) {
-                return; // a terminal/requeue transition fired
+                return; // a terminal/requeue transition fired (completed observation beats timeout)
             }
         }
-        // completed observation didn't terminate: execution timeout?
         if (timedOut(task, now)) {
             runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, false);
         }
@@ -264,10 +273,10 @@ public class TaskAdvancer {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.DISPATCHING, TaskStatus.FAILED, now) > 0) {
                 onTransition(pipeline, task, "TASK:FAILED", Severity.CRITICAL);
             }
-        } else { // new attempt; stay DISPATCHING (slot held), re-dispatch next due tick
+        } else { // new attempt; stay DISPATCHING (slot held), re-dispatch on the next tick
             createAttempt(task.getId(), attempt.getAttemptNo() + 1, now);
             tasks.setDeadlineAt(task.getId(), now.plus(executionTimeout(task)));
-            tasks.setSchedule(task.getId(), now, now.plus(settings.getJobPollCadence()));
+            tasks.setSchedule(task.getId(), now, now); // due now → re-dispatch next tick
             onTransition(pipeline, task, "TASK:REDISPATCH", Severity.INFO);
         }
     }
