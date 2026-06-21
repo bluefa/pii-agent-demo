@@ -245,13 +245,11 @@ DONE이면 reconciler가 READY로 승격시킨다(순차 chain — 별도 `depen
 
 조회 표면 — 리스트 엔드포인트 하나 + 드릴다운, 보드와 히스토리 뷰가 공유:
 
-- `GET /admin/pipelines?targetSourceId=&provider=&type=&status=&from=&to=&cursor=` —
-  횡단 조회. 기간 필터는 overlap 의미론:
-  `started_at <= to AND (finished_at IS NULL OR finished_at >= from)`.
-- `GET /admin/pipelines/{id}` — run 상세 + task 상태.
-- `GET /admin/pipelines/{id}/tasks/{taskId}` — task 하나의 attempt + check 병합 타임라인
-  (attempts 인라인, checks는 Pageable). **사고 조사 surface**: 모든 외부 상호작용을 시간순 한 줄로, timeout 시
-  어느 층이 발화했는지(CALL_TIMEOUT vs EXECUTION_TIMEOUT vs TTL EXPIRED)까지.
+- **횡단 조회 + 드릴다운** — run 목록 / run 상세(+task) / task 타임라인(attempt+check 병합). 정확한 endpoint·
+  쿼리 파라미터 정본은 [api.md §1](./api.md)이며, 여기선 **조회 *능력*과 그 기반만** 규정한다(중복 방지).
+  - **기간 필터는 overlap 의미론**: `started_at <= to AND (finished_at IS NULL OR finished_at >= from)`.
+  - task 타임라인은 **사고 조사 surface**: 모든 외부 상호작용을 시간순 한 줄로, timeout 시 어느 층이 발화했는지
+    (CALL_TIMEOUT vs EXECUTION_TIMEOUT vs TTL EXPIRED)까지.
 
 인덱스: `pipeline(target_source_id, started_at DESC)`, `pipeline(started_at)`,
 `task_check(task_id, checked_at)`, `pipeline_event(pipeline_id, created_at)`,
@@ -518,7 +516,9 @@ Infra Manager에 cancel API가 없고 pubsub 회수가 비현실적이다(확정
   기록, 실행 중 job의 terminal까지 폴링). 아직 dispatch 안 된 task는 즉시 CANCELLED. **CONDITION_CHECK은
   dispatch도 in-flight side-effect job도 없는 read-only 폴링이라 drain할 대상이 없다 — WAITING_EXTERNAL로
   폴링 중이어도 [중단] 시 즉시 CANCELLED된다(drain은 죽일 수 없는 in-flight job을 가진 TERRAFORM_JOB에만
-  적용).**
+  적용).** **DISPATCHING 중 job_id 미영속 TERRAFORM_JOB도 폴링할 handle이 없어 drain 대상이 아니다 → 즉시
+  CANCELLED**(slot 반납; 원 dispatch가 accepted됐어도 멱등이라 무해, orphan은 execution timeout이 흡수).
+  **drain은 job_id가 영속된 RUNNING task에만 적용된다.**
 - in-flight TerraformJob은 자연 종료(또는 execution timeout)까지 돌고 **그때까지 slot을 보유**
   한다. terminal 도달 시 파이프라인이 CANCELLED로 확정된다.
 - 보드는 "중단 중 · 실행 중 job 종료 대기"를 표시. 최종 상태는 attempt에 히스토리로 기록되지만

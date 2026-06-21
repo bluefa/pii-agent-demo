@@ -37,6 +37,7 @@
 
 - **인덱스** (스키마는 orchestrator-design 결정 1.2):
   - `pipeline(target_source_id, started_at DESC)` — target별 run 이력 조회
+  - `pipeline(started_at)` — 기간(overlap) 횡단 조회(결정 1.3)
   - `pipeline(last_activity_at DESC)` — 보드 기본 정렬(최근 활동순, 결정 1.2/api §1)
   - `task_check(task_id, checked_at)` — task 타임라인
   - `pipeline_event(pipeline_id, created_at)` — 이벤트 / 감사 로그

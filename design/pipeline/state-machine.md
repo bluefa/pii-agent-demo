@@ -108,12 +108,14 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 |---|---|---|
 | BLOCKED · READY (전체 kind) | CANCELLED | **미dispatch task → 즉시 CANCELLED**(forward edge가 gate되어 전진 불가; slot 큐 대기 중인 READY TF 포함) |
 | WAITING_EXTERNAL (CONDITION_CHECK) | CANCELLED | **read-only 폴링이라 drain할 in-flight job이 없다 → 폴링 중이어도 즉시 CANCELLED**(결정 4c) |
-| DISPATCHING · RUNNING (TERRAFORM_JOB) | (drain) 자연 terminal | **죽일 수 없는 in-flight job → drain** — job_id 기록·terminal까지 폴링은 drain edge라 gate 안 함; 재dispatch/재시도만 gate(새 attempt 없음); slot은 terminal까지 보유. task의 실제 terminal(DONE/FAILED)은 히스토리에 사실대로 남고, pipeline만 CANCELLED로 수렴 |
+| DISPATCHING (TERRAFORM_JOB) | CANCELLED | **job_id 미영속이라 폴링할 handle이 없다 → drain 불가 → 즉시 CANCELLED**(slot 반납). 원 dispatch가 IM에 accepted돼 실제 실행됐더라도 멱등이라 무해하고 그 orphan은 execution timeout이 흡수한다 — drain은 *handle을 가진 RUNNING*에만 적용된다(결정 4c). 재dispatch(forward edge)도 gate되므로 좀비가 되지 않는다 |
+| RUNNING (TERRAFORM_JOB) | (drain) 자연 terminal | **죽일 수 없는 in-flight job(job_id 영속됨) → drain** — terminal까지 폴링은 drain edge라 gate 안 함; 재dispatch/재시도만 gate(새 attempt 없음); slot은 terminal까지 보유. task의 실제 terminal(DONE/FAILED)은 히스토리에 사실대로 남고, pipeline만 CANCELLED로 수렴 |
 
-> **task CANCELLED ≠ pipeline CANCELLED.** task의 CANCELLED는 *한 번도 dispatch되지 않은* task에만 붙는다
-> (미dispatch TERRAFORM_JOB + 모든 CONDITION_CHECK — 후자는 애초에 dispatch가 없다). dispatch한 in-flight
-> TERRAFORM_JOB job은 자기 자연 terminal(DONE/FAILED)로 drain되고, 그 사실은 보존되며, pipeline 파생만 결정
-> 1.1 ①에 의해 CANCELLED로 수렴한다(CANCELLING 중에는 FAILED 승격 금지).
+> **task CANCELLED ≠ pipeline CANCELLED.** task의 CANCELLED는 *폴링할 handle이 없는* task에 붙는다 —
+> ① 미dispatch TERRAFORM_JOB(BLOCKED/READY) · ② **DISPATCHING 중 job_id 미영속** TERRAFORM_JOB · ③ 모든
+> CONDITION_CHECK(애초에 dispatch·handle 없음). **job_id가 영속된(RUNNING) in-flight job만** 자기 자연
+> terminal(DONE/FAILED)로 drain되고, 그 사실은 보존되며, pipeline 파생만 결정 1.1 ①에 의해 CANCELLED로
+> 수렴한다(CANCELLING 중에는 FAILED 승격 금지).
 
 terminal 4종(DONE·FAILED·EXPIRED·CANCELLED)에서 나가는 전이는 없다(결정 5 "terminal은 terminal").
 

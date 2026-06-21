@@ -64,6 +64,16 @@
   K제곱 확률이라 재설계 아닌 K 여유로 흡수(opus, 확률 과장은 반박). **분리:** 부록 A(VT/pinning)를
   `implementation-notes.md`로 이관(아키텍처 불변식 아님 — codex/기합의 A안). **반려:** `response(jsonb)`→typed
   컬럼(codex 재지적)은 유지 결정 고수(#1 철회 반영).
+- **개정 6판 후속4 — DISPATCHING+취소 엣지 명세 + api.md drift 제거 (codex·opus r4 86/86).**
+  ① **DISPATCHING(job_id 미영속)에서 [중단] = 즉시 CANCELLED** 확정(opus 신규 지적: drain도 재dispatch도 막혀
+  좀비 되던 엣지) — 폴링할 handle이 없어 drain 불가, 원 dispatch는 멱등이라 무해·orphan은 execution timeout이
+  흡수; drain은 job_id 영속된 RUNNING에만. state-machine 취소표 split + 결정 4c 명시 + "task CANCELLED" 노트
+  갱신. ② **api.md drift 3건 제거**(codex 반복 지적: 병렬 REST 정본이 §1.2·operations·§1.3과 어긋남) —
+  §0 데이터모델 = "§1.2 camelCase 스케치(정본 아님)"로 강등, §4 설정 = "operations 표가 정본"으로 강등,
+  §1.3 조회 endpoint 파라미터 = api §1로 단일화(중복 param 제거), `pipeline(started_at)` 인덱스를 migrations에
+  추가(orchestrator만 언급하던 누락). retry 응답 모양({pipelineId,created})은 api §2 유지(의미 정본은 결정 5).
+  **남은 미결(설계 콜):** handler identity — `kind`+`name`(표시)로 task→코드 class 라우팅 불가, stable
+  `handler_key` 필요(3R 반복 지적; 사용자 설명 완료, 반영 대기).
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
