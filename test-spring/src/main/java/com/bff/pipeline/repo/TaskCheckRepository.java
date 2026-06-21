@@ -14,11 +14,12 @@ public interface TaskCheckRepository extends JpaRepository<TaskCheck, Long> {
      * (taskId, kind, name, externalHandle). Consecutive identical (apiResult, observed, errorCode)
      * fold into this run (poll_count++); a changed observation starts a new run.
      */
-    Optional<TaskCheck> findFirstByTaskIdAndKindAndNameAndExternalHandleOrderByStartedAtDesc(
+    Optional<TaskCheck> findFirstByTaskIdAndKindAndNameAndExternalHandleOrderByStartedAtDescIdDesc(
             Long taskId, CheckKind kind, String name, String externalHandle);
 
-    /** latestCheck = the task_check with max started_at (the current open run). */
-    Optional<TaskCheck> findFirstByTaskIdOrderByStartedAtDesc(Long taskId);
+    /** latestCheck = the task_check with max started_at (the current open run); id breaks started_at ties
+     *  so the *latest-inserted* run wins when a fixed clock / same-instant inserts collide. */
+    Optional<TaskCheck> findFirstByTaskIdOrderByStartedAtDescIdDesc(Long taskId);
 
     List<TaskCheck> findByTaskIdOrderByStartedAtAsc(Long taskId);
 }

@@ -233,6 +233,47 @@ class ExternalCallsObservationTest {
         });
     }
 
+    @Test
+    void aSecondRunCollapsesIntoTheLatestRunNotAnEarlierIdenticalKey() {
+        Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
+        TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
+
+        tfHandler.setPoll(new PollOutcome.Status(Observed.RUNNING));
+        externalCalls.poll(task, attempt, tfHandler, TARGET);
+        externalCalls.poll(task, attempt, tfHandler, TARGET);
+
+        tfHandler.setPoll(new PollOutcome.Status(Observed.SUCCEEDED));
+        externalCalls.poll(task, attempt, tfHandler, TARGET);
+        externalCalls.poll(task, attempt, tfHandler, TARGET);
+
+        // Two runs, each folding two polls. Under the fixed clock both runs share started_at, so the
+        // 4th poll (SUCCEEDED) must collapse into the LATEST run by the id tiebreak — not reopen against
+        // the earlier RUNNING run, which would spuriously create a third run.
+        List<TaskCheck> runs = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
+        assertThat(runs).hasSize(2);
+        assertThat(runs.get(0).getObserved()).isEqualTo(Observed.RUNNING);
+        assertThat(runs.get(0).getPollCount()).isEqualTo(2);
+        assertThat(runs.get(1).getObserved()).isEqualTo(Observed.SUCCEEDED);
+        assertThat(runs.get(1).getPollCount()).isEqualTo(2);
+    }
+
+    @Test
+    void pollExecutorTimeoutRecordsCallTimeoutErrorRun() {
+        Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
+        TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
+        tfHandler.setPoll(new PollOutcome.Status(Observed.RUNNING)); // would-be value; the deadline fires first
+        executor.setTimedOut(true);
+
+        PollOutcome outcome = externalCalls.poll(task, attempt, tfHandler, TARGET);
+
+        assertThat(outcome).isEqualTo(new PollOutcome.CallFailed(ErrorCode.CALL_TIMEOUT));
+        assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
+            assertThat(run.getKind()).isEqualTo(CheckKind.CHECK);
+            assertThat(run.getApiResult()).isEqualTo(ApiResult.ERROR);
+            assertThat(run.getErrorCode()).isEqualTo(ErrorCode.CALL_TIMEOUT);
+        });
+    }
+
     // ---- check (CONDITION_CHECK, RLE) ----
 
     @Test
@@ -272,6 +313,22 @@ class ExternalCallsObservationTest {
         // next_check_at = now + max(Retry-After 5s, conditionPollingGuard 10m) = now + 10m.
         assertThat(tasks.findById(task.getId()).orElseThrow().getNextCheckAt())
                 .isEqualTo(FIXED.plus(Duration.ofMinutes(10)));
+    }
+
+    @Test
+    void checkExecutorTimeoutRecordsCallTimeoutErrorRun() {
+        Task task = seedTask(TaskStatus.WAITING_EXTERNAL, TaskKind.CONDITION_CHECK);
+        condHandler.setCheck(new CheckOutcome.Condition(Observed.NOT_MET)); // would-be value; deadline fires first
+        executor.setTimedOut(true);
+
+        CheckOutcome outcome = externalCalls.check(task, condHandler, TARGET);
+
+        assertThat(outcome).isEqualTo(new CheckOutcome.CallFailed(ErrorCode.CALL_TIMEOUT));
+        assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
+            assertThat(run.getKind()).isEqualTo(CheckKind.CHECK);
+            assertThat(run.getApiResult()).isEqualTo(ApiResult.ERROR);
+            assertThat(run.getErrorCode()).isEqualTo(ErrorCode.CALL_TIMEOUT);
+        });
     }
 
     // ---- seed helpers (committed via repos; no test tx) ----

@@ -59,7 +59,8 @@ class ObservationWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     void completeDispatch(long checkId, long taskId, long attemptId, DispatchOutcome outcome,
                           long latencyMs, Instant backpressureNextCheckAt) {
-        TaskCheck row = checks.findById(checkId).orElseThrow();
+        TaskCheck row = checks.findById(checkId)
+                .orElseThrow(() -> new IllegalStateException("dispatch pre-record " + checkId + " missing"));
         row.setCheckedAt(clock.instant());
         row.setLatencyMs(latencyMs);
         switch (outcome) {
@@ -95,7 +96,8 @@ class ObservationWriter {
     void recordCheckObservation(long taskId, String name, String handle, Observation obs,
                                 long latencyMs, Instant backpressureNextCheckAt) {
         TaskCheck open = checks
-                .findFirstByTaskIdAndKindAndNameAndExternalHandleOrderByStartedAtDesc(taskId, CheckKind.CHECK, name, handle)
+                .findFirstByTaskIdAndKindAndNameAndExternalHandleOrderByStartedAtDescIdDesc(
+                        taskId, CheckKind.CHECK, name, handle)
                 .orElse(null);
         if (open != null && sameRun(open, obs)) {
             open.setCheckedAt(clock.instant());
