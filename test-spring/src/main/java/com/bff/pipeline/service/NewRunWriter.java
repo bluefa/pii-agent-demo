@@ -36,7 +36,7 @@ import java.util.Map;
  * immediately rather than at an ambiguous later commit.
  */
 @Component
-class NewRunWriter {
+public class NewRunWriter {
 
     private final RecipeRegistry recipes;
     private final HandlerRegistry handlers;
