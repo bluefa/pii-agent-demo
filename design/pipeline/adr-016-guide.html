@@ -139,6 +139,10 @@ details.fold .fold-body{padding:0 16px 14px}
 .sd-tag{font-size:.73rem;font-weight:700;color:var(--muted);font-family:var(--mono)}
 .sd-legend{font-size:.8rem;color:var(--muted);line-height:1.6}
 .sd-legend b{color:var(--fg)}
+.sd-phase{font-size:.74rem;font-weight:800;letter-spacing:.02em;color:var(--accent);margin-top:4px}
+.sd-phase.div{border-top:1px dashed var(--line);padding-top:11px;margin-top:7px}
+.sd-node small{display:block;font-size:.66rem;font-weight:500;opacity:.78;margin:1px 0 0}
+.sd-node.col{flex-direction:column;align-items:flex-start}
 
 /* glossary */
 #glossary .gcat{margin-top:1.8em}
@@ -382,6 +386,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 
 <h3>Task 전이 (9상태)</h3>
 <div class="sd">
+  <div class="sd-phase">▸ 전진 (happy path)</div>
   <div class="sd-flow">
     <span class="sd-node start">생성</span>
     <span class="sd-arr"><span class="ln">→</span></span>
@@ -410,7 +415,42 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
       <span class="sd-node done">DONE</span>
     </div>
   </div>
-  <div class="sd-legend">비terminal 5: <b>BLOCKED·READY·DISPATCHING·RUNNING·WAITING_EXTERNAL</b> · terminal 4: <span style="color:var(--done)">DONE</span>·<span style="color:var(--fail)">FAILED</span>·<span style="color:var(--expire)">EXPIRED</span>·<span style="color:var(--cancel)">CANCELLED</span>. <a class="t" href="#g-slot-queue">slot 큐</a> 대기 = READY ∧ kind=TERRAFORM_JOB(별도 상태 없음). 실패·timeout·취소 분기는 ↓ 매트릭스.</div>
+
+  <div class="sd-phase div">▸ 실패 · 재시도 · 만료</div>
+  <div class="sd-flow">
+    <span class="sd-node run col">DISPATCHING / RUNNING<small>TERRAFORM_JOB attempt</small></span>
+    <span class="sd-arr"><span class="lbl">attempt 실패<br>(IM_REJECTED·DISPATCH_NO_RESPONSE<br>·JOB_FAILED·EXECUTION_TIMEOUT)</span><span class="ln">→</span></span>
+    <span class="sd-stack">
+      <span class="sd-node fail col">FAILED<small>fail_count == maxFailCount (소진)</small></span>
+      <span class="sd-node col">재시도<small>fail_count &lt; maxFailCount · RUNNING→READY 재큐 / DISPATCHING in-place 재dispatch</small></span>
+    </span>
+  </div>
+  <div class="sd-flow">
+    <span class="sd-node wait">WAITING_EXTERNAL</span>
+    <span class="sd-arr"><span class="ln">→</span></span>
+    <span class="sd-stack">
+      <span class="sd-node fail col">FAILED<small><a class="t" href="#g-ec-check-error">CHECK ERROR</a> 누적 == maxFailCount</small></span>
+      <span class="sd-node expire col">EXPIRED<small><a class="t" href="#g-ttl">TTL</a> 초과 → pipeline FAILED</small></span>
+    </span>
+  </div>
+
+  <div class="sd-phase div">▸ handler 코드 은퇴/삭제 · 중단</div>
+  <div class="sd-flow">
+    <span class="sd-node col">READY · DISPATCHING<br>RUNNING · WAITING_EXTERNAL<small>BLOCKED 제외 (serviceable)</small></span>
+    <span class="sd-arr"><span class="lbl"><a class="t" href="#g-handler-key">handler_key</a> 미해결<br>(코드 은퇴·삭제·규율 위반)</span><span class="ln">→</span></span>
+    <span class="sd-node fail col">FAILED<small><a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a> · fail_count 미소모</small></span>
+  </div>
+  <div class="sd-flow">
+    <span class="sd-node col">비terminal (전 kind)<small>BLOCKED·READY·DISPATCHING·RUNNING·WAIT_EXT</small></span>
+    <span class="sd-arr"><span class="lbl">[중단]<br>pipeline=CANCELLING</span><span class="ln">→</span></span>
+    <span class="sd-node">CANCELLED<small><a class="t" href="#g-drain">drain</a>은 RUNNING TF만</small></span>
+  </div>
+
+  <div class="sd-legend">
+    <b>handler 코드가 deprecated·삭제되어도 task는 사라지지 않는다</b> — <span style="color:var(--fail)">FAILED(HANDLER_NOT_FOUND)</span>로 즉시 종결되고 task row·이력은 보존된다(영구 조건이라 재시도 무의미 → fail_count 미소모). RUNNING TERRAFORM_JOB의 in-flight job은 죽일 수 없어 <a class="t" href="#g-orphan">orphan</a>으로 남고 worker terraform 자연 종료가 그 bound다.<br>
+    자기루프(poll observed=RUNNING · NOT_MET · backpressure)는 상태 유지하며 계속 폴링. <a class="t" href="#g-drain">drain</a> 세부는 ↓ <b>cancel / drain 매트릭스</b>.<br>
+    비terminal 5(BLOCKED·READY·DISPATCHING·RUNNING·WAITING_EXTERNAL) · terminal 4(<span style="color:var(--done)">DONE</span>·<span style="color:var(--fail)">FAILED</span>·<span style="color:var(--expire)">EXPIRED</span>·<span style="color:var(--cancel)">CANCELLED</span>).
+  </div>
 </div>
 
 <h3>tick 평가 순서 (한 task 안에서 — 처음 성립하는 규칙 하나만)</h3>
