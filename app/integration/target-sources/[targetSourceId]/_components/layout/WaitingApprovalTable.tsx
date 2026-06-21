@@ -5,7 +5,6 @@ import { Badge } from '@/app/components/ui/Badge';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { idcStyles, tableStyles, textColors, cn } from '@/lib/theme';
-import type { ResourceScanStatus } from '@/lib/types';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -13,7 +12,6 @@ export interface WaitingApprovalResource {
   region: string;
   resourceName: string;
   selected: boolean;
-  scanStatus?: ResourceScanStatus | null;
   /** Exclusion reason text from `excluded_resource_infos[].exclusion_reason`. Only meaningful when `selected === false`. */
   exclusionReason?: string;
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
@@ -30,20 +28,12 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
 
-const formatScanStatus = (status: ResourceScanStatus | null | undefined): string => {
-  if (status === 'NEW_SCAN') return '신규';
-  if (status === 'UNCHANGED') return '변경';
-  return PLACEHOLDER;
-};
-
 const COLUMNS: readonly { label: string; widthClass?: string }[] = [
-  { label: '#', widthClass: 'w-9' },
   { label: 'Database Type' },
   { label: 'Resource ID' },
   { label: 'Region' },
   { label: 'Resource Name' },
   { label: '연동 대상 여부' },
-  { label: '스캔 이력' },
   { label: '제외 사유' },
 ];
 
@@ -85,13 +75,10 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
           </tr>
         </thead>
         <tbody className={tableStyles.body}>
-          {resources.map((resource, index) => {
+          {resources.map((resource) => {
             const excluded = !resource.selected;
             return (
             <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-              <td className={cn(tableStyles.cell, 'tabular-nums text-sm', textColors.secondary, excluded && EXCLUDED_CELL)}>
-                {index + 1}
-              </td>
               <td className={cn(tableStyles.cell, excluded && EXCLUDED_CELL)}>
                 <Badge variant="info" size="sm">{resource.resourceType}</Badge>
               </td>
@@ -131,9 +118,6 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
               </td>
               <td className={cn(tableStyles.cell, excluded && EXCLUDED_CELL)}>
                 <TargetPill excluded={excluded} />
-              </td>
-              <td className={cn(tableStyles.cell, 'text-sm', textColors.secondary, excluded && EXCLUDED_CELL)}>
-                {formatScanStatus(resource.scanStatus)}
               </td>
               <td className={cn(tableStyles.cell, 'text-sm', excluded && EXCLUDED_CELL)}>
                 {!resource.selected && resource.exclusionReason ? (

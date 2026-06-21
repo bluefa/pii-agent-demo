@@ -47,7 +47,6 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   region: item.database_region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
-  scanStatus: item.scan_status ?? null,
 });
 
 const toExcludedRow = (
@@ -58,7 +57,6 @@ const toExcludedRow = (
   region: item.database_region ?? '',
   resourceName: item.resource_name ?? '',
   selected: false,
-  scanStatus: item.scan_status ?? null,
   exclusionReason: item.exclusion_reason ?? undefined,
 });
 
