@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (개정 6판, 2026-06-20)
+Proposed (개정 6판 후속, 2026-06-21)
 
 > 이 ADR은 **결정**(선택지·결정·근거·결과)만 담는다. 상세 설계·DB 모델·tick 흐름·운영·요구사항·
 > 긴 이력은 [`design/pipeline/`](../../design/pipeline/)로 분리했다 — 아래 **Links** 참조.

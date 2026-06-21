@@ -157,6 +157,21 @@
   ⑤ **(minor) Check kind=DISPATCH의 observed** → "observed 없음=null, dispatch 성공/실패 권위=apiResult+attempt.response/errorCode" 명시.
   ⑥ **opus minor** — QUEUE_WAIT_EXCEEDED 근거 (1.3) 교정(정의=알림 섹션·발화=outbox); deadline_at 미노출 정책 명시; DISPATCH_NO_RESPONSE 시 task_check(DISPATCH) PENDING 잔류(D-T5, ERROR로 안 덮음) 결합 서술. **보류:** O·S 아카이브, swagger, ascii 정밀.
 
+- **개정 6판 후속12 — 잔여 활성 결정 종결 (실제 결정; 사용자 확정 2026-06-21).** "남은 활성 결정: 트리거 생성 path · RECONNECT 스코프"(후속의 결정 8 항목)를 둘 다 닫음:
+  ① **RECONNECT(재연동) pipeline type = v2 defer** — 현재 제품 요구 없음(도메인 문서·cloud-provider-states·swagger에 정의 없음; 과거 가설 "설치/삭제/재연동"에서 유래). type-keyed라 v2에서 enum 값 + 코드 recipe 추가만으로 흡수(스키마·상태기계 무변경). **GENERAL_JOB과 함께 도입하는 type**(재연동=비-terraform 복구 작업 포함 가능 → GENERAL_JOB kind 전제) — 사용자 확정. v2-deferred.md에 추가, orchestrator §7.2 주석.
+  ② **트리거 생성 path = out-of-ADR-scope defer 유지** — endpoint·트리거 주체는 UI/UX 확정 후 구현 시 ADR-006/009와 배선(사용자: "ui/ux 정해지면 언급"); ADR이 못박는 생성 계약(23505→기존 반환)은 endpoint 무관 공통(api §3 유지).
+  ③ B군(v2-deferred 7항목)·swagger도 사용자 확정으로 v2/구현 유지. **→ 남은 활성 결정 0건.**
+
+- **개정 6판 후속13 — r11 문서 정확성 (codex 86 / opus 92; 설계 무변경).** opus significant 0 **4회 연속**; codex가 더 깊이 파 잡은 갭(내가 r10에서 만든 regression 1건 포함):
+  ① **(significant·내 r10 regression 교정)** — api Attempt에 "진행 중이면 response도 null"이라 한 건 과함: RUNNING attempt는 dispatch 응답 `{jobId}`을 이미 가짐 → "response는 dispatch 응답 기록 전까지만 null, 기록 후 RUNNING에도 노출"로 정정(orchestrator §1.2와 정합).
+  ② **(significant) 단일 writer 위반** — check-error의 `fail_count++`가 호출 스레드 흐름(orchestrator 5단계 표)에 있어 D-T4("상태는 tick")와 충돌 → "호출 스레드는 task_check만 기록; fail_count++·전이는 다음 tick"으로 정정.
+  ③ **(significant) HANDLER_NOT_FOUND "attempt 없는" 부정확** — DISPATCHING/RUNNING엔 active attempt 존재 → "active attempt 있으면 result=FAIL·finished_at=tick·error_code=null로 마감; synthetic task_check 필드(kind=CHECK·name=orchestrator.handler.resolve·api_result=ERROR·observed=null·error_code=HANDLER_NOT_FOUND) 명시".
+  ④ **(significant) "tick 발사=next_check_at만"이 dispatch와 충돌** — dispatch는 tick이 DISPATCHING 전이·attempt 생성도 함(3.1 1단계) → "일반 check/poll 발사에선 …, dispatch만 예외" 범위 한정.
+  ⑤ **(minor)** "새 task class(=새 kind/key)" → "새 handler_key; kind는 기존 TaskKind 재사용, 새 흐름 shape일 때만 새 kind"(TaskKind 2종 고정 정합).
+  ⑥ **(minor)** api PipelineEvent `pipelineId` → nullable(global 이벤트 null; DB pipeline_id? 정합).
+  ⑦ **(minor)** ADR Status 날짜 2026-06-20 → "개정 6판 후속, 2026-06-21"(리비전 이력과 정합).
+  ⑧ **opus minor** — 보드 게이지 COUNT에 kind=TERRAFORM_JOB 한정자; retry created=true 감사=새 pipeline 생성 이벤트 커버 명시. **교훈: 빠른 정밀 수정이 새 drift를 만들 수 있다(①) — 적대적 리뷰가 자기 regression을 잡음.** **보류:** O·S 아카이브, swagger, ascii 정밀.
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다

@@ -14,3 +14,4 @@
 | **알림 라우팅 + Slack/Email 채널** (`notificationRouting` 설정·event/severity/channel 표·외부 채널 어댑터) | v1은 인앱 알림(`pipeline_event` outbox)만으로 충분 — 라우팅 설정·외부 채널 요구가 아직 없다. |
 | **skip-completed (content-hash)** (완료 task 시드·부분 재실행·task content-hash 비교) | v1 재시도 = full re-run이 terraform 수렴·읽기 멱등으로 안전 — 부분 재실행이 실측 문제가 될 때 켠다. |
 | **GENERAL_JOB** (비-terraform 비동기 job TaskKind) | v1 task는 TERRAFORM_JOB + CONDITION_CHECK 2종으로 모든 흐름을 표현 — 구체적 비-terraform job 사용처가 없다. |
+| **RECONNECT (재연동) pipeline type** | v1 type은 INSTALL·DELETE 2종 — 재연동 flow 요구가 아직 없다. type-keyed라 enum 값 + 코드 recipe 추가만으로 흡수(스키마·상태기계 무변경, orchestrator §7.2). **GENERAL_JOB과 함께 도입**하는 type(재연동은 비-terraform 복구 작업을 포함할 수 있어 GENERAL_JOB kind를 전제). |

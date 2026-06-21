@@ -20,12 +20,12 @@
 - **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`  ← **`progress` 파생**: `total` = 그 run의 task 행 수(생성 시 고정 = snapshot.tasks 길이; CANCELLED task도 행은 남아 분모 불변), `done` = `COUNT(task WHERE status=DONE)`(다른 terminal은 미포함 — 진척이지 종료 아님). **분수는 RUNNING 진행 지표일 뿐 — terminal pipeline의 결과 판정은 `status`가 권위다**(CANCELLED/FAILED는 `done<total`로 남는 게 정상; 분수가 1이 아니라고 "미완"으로 읽지 말 것)
 - **Pipeline** — `PipelineSummary` + `{ createdAt, finishedAt, failReason, tasks:[Task] }`
 - **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, nextCheckAt?, latestCheck:Check? }`  ← `nextCheckAt`=다음 tick 확인 예정 시각(`next_check_at`; terminal이면 null; `deadline_at`은 내부 파생값이라 미노출 — 운영 표시는 `nextCheckAt`로 충분)  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
-- **Attempt** — `{ id, taskId, attemptNo, response{}?, errorCode?, startedAt, finishedAt?, outcome?(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `attemptNo`=`task_attempt.attempt_no`(타임라인 "n번째 시도"); **진행 중(미terminal: `finishedAt==null`)이면 `outcome`·`errorCode`·`response`는 null/생략**(attempt는 dispatch 시 생성돼 RUNNING 동안 미완료, §1.2); `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
+- **Attempt** — `{ id, taskId, attemptNo, response{}?, errorCode?, startedAt, finishedAt?, outcome?(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `attemptNo`=`task_attempt.attempt_no`(타임라인 "n번째 시도"); **진행 중(미terminal: `finishedAt==null`)이면 `outcome`·`errorCode`는 null/생략**; `response`는 dispatch 응답 기록 전까지만 null이고 **기록 후엔 terminal 전(RUNNING)에도 `{jobId}` 노출**(attempt는 dispatch 시 생성돼 RUNNING 동안 미완료, §1.2); `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
     - `result=OK` → `outcome=SUCCEEDED`
     - `result=FAIL` ∧ `error_code=EXECUTION_TIMEOUT` → `outcome=EXECUTION_TIMEOUT`
     - `result=FAIL` ∧ `error_code ≠ EXECUTION_TIMEOUT` → `outcome=FAILED`
 - **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed?(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode, externalHandle, startedAt, checkedAt?, latencyMs }`  ← `name`=호출 operation 식별자(어떤 API/동작 — 예 `im.terraformApply`·`im.jobStatus`); **`startedAt`=발사 시각(PENDING 포함 항상 set; 정렬·latestCheck 기준)**, `checkedAt`=관측 시각(PENDING이면 null), `observed`=관측 후에만(PENDING/미관측이면 null; **`kind=DISPATCH` 행은 observed 없음=null** — dispatch 성공/실패 권위는 `apiResult` + `attempt.response/errorCode`). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
-- **PipelineEvent** — `{ id, pipelineId, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`  ← **`message`=DB 저장 컬럼 아님**: `pipeline_event.payload(jsonb)`에서 `type`별로 렌더링한 API 파생(저장은 `payload`만; 결정 1.2/1.3)
+- **PipelineEvent** — `{ id, pipelineId?, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`  ← `pipelineId`는 nullable(설정 변경 등 **global 이벤트는 null** — DB `pipeline_id?` 결정 1.2와 정합); **`message`=DB 저장 컬럼 아님**: `pipeline_event.payload(jsonb)`에서 `type`별로 렌더링한 API 파생(저장은 `payload`만; 결정 1.2/1.3)
 - **errorCode** — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당). **저장 위치는 사유 귀속에 따라 셋**: **① attempt 귀속**(EXECUTION_TIMEOUT·DISPATCH_NO_RESPONSE·IM_REJECTED — dispatch/run attempt 실패)은 그 `task_attempt.error_code`에(단 DISPATCH_NO_RESPONSE는 응답 미영속이라 대응 `task_check(kind=DISPATCH)`가 PENDING으로 잔류 — D-T5 "시도 이력", ERROR로 덮지 않음); **② task_check 관측**(CHECK_ERROR·CALL_TIMEOUT — check 호출 실패; CONDITION_CHECK check·TERRAFORM_JOB poll 공통)은 그 `task_check.error_code`에; **③ tick 판정**(과거 attempt 유무와 무관): `TTL_EXPIRED`는 status=EXPIRED가 유일 원인이라 **status에서 파생**(별도 행 없음), `HANDLER_NOT_FOUND`는 즉시 FAILED 판정이라 **`task_check` 1행**(O25 관측 장부)에 errorCode로 기록(이미 RUNNING TF였다면 과거 attempt는 그대로 보존)
 
 ---
@@ -37,7 +37,7 @@
   — `lastActivityAt` = `pipeline.last_activity_at`(매 상태 전이 tx에서 갱신되는 실 컬럼, 결정 1.2; 인덱스 보유).
   `from`/`to` = 기간 횡단 조회 — run의 `[started_at, finished_at)` 체류 구간이 `[from, to)`와 겹치는 run(overlap; `pipeline(started_at)` 인덱스, orchestrator §1.3).
 - `200` → `{ content: [PipelineSummary], totalElements, totalPages, number, size }`
-- 보드의 N(slot) 사용량 게이지 = `COUNT(task WHERE status IN (DISPATCHING,RUNNING))` / `slotCap`로 파생 — 별도 endpoint 불요.
+- 보드의 N(slot) 사용량 게이지 = `COUNT(task WHERE kind=TERRAFORM_JOB AND status IN (DISPATCHING,RUNNING))` / `slotCap`로 파생(admission COUNT와 동일 — DISPATCHING|RUNNING은 TERRAFORM_JOB만 진입; orchestrator §4b) — 별도 endpoint 불요.
 
 ### `GET /admin/pipelines/{pipelineId}` — 파이프라인 상세 (보드 → 드릴다운)
 - `200` → `Pipeline` (`tasks[]` 포함)
@@ -71,7 +71,7 @@
 - 단 target에 이미 non-terminal pipeline이 있으면 unique 제약(결정 5)이 새 생성을 막고 **그 기존 1건을 반환**한다
   (예: 원 run이 아직 drain 중). 두 경로를 응답으로 구분:
 - `200` → `{ pipelineId, created }` — `created=true`(새 run 생성) · `created=false`(기존 non-terminal 반환).
-- `created=false`(충돌 반환)여도 **누가 시도했는지는 감사된다** — 그 경로도 `pipeline_event`(`RETRY_ATTEMPTED`·actor) 1행을 기존 pipeline에 남긴다(생성 전이는 없지만 시도 사실은 기록 — 감사 일급성).
+- `created=true`(새 run 생성) 경로의 retry 감사는 **새 pipeline의 생성 이벤트·`triggeredBy`(actor)**가 커버한다(별도 RETRY_ATTEMPTED 불요). `created=false`(충돌 반환)여도 **누가 시도했는지는 감사된다** — 그 경로는 생성 전이가 없으므로 `pipeline_event`(`RETRY_ATTEMPTED`·actor) 1행을 기존 pipeline에 남긴다(시도 사실 기록 — 감사 일급성).
 
 > **force-check / pause / resume 제거 (개정 4판).** 수동 강제 확인(`force-check`)은 제거 — 모든 상태
 > 확인은 polling 정책으로만 수행한다. dispatch admission gate(pause/resume)도 제거 — circuit breaker가
