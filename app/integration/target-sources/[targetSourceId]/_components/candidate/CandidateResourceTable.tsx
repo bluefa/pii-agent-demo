@@ -78,6 +78,7 @@ export const CandidateResourceTable = ({
                 <th className={idcStyles.table.headerCell}>Resource ID</th>
                 <th className={idcStyles.table.headerCell}>Region</th>
                 <th className={idcStyles.table.headerCell}>Resource Name</th>
+                <th className={idcStyles.table.headerCell}>스캔 상태</th>
                 <th className={idcStyles.table.headerCell}>연동 완료 여부</th>
               </tr>
             </thead>
@@ -241,6 +242,21 @@ const CandidateResourceRow = ({
 
         <td className={idcStyles.table.cell}>
           <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
+        </td>
+
+        <td className={idcStyles.table.cell}>
+          {candidate.scanStatus
+            ? (
+                <span
+                  className={cn(
+                    idcStyles.tag.base,
+                    candidate.scanStatus === 'NEW' ? idcStyles.tag.blue : idcStyles.tag.orange,
+                  )}
+                >
+                  {candidate.scanStatus === 'NEW' ? '신규' : '변경'}
+                </span>
+              )
+            : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
         </td>
 
         <td className={idcStyles.table.cell}>

@@ -30,6 +30,7 @@ import type {
   ResourceScanStatus,
   ResourceSnapshot,
 } from '@/lib/types';
+import type { CandidateScanStatus } from '@/lib/types/resources';
 
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
 const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
@@ -92,6 +93,7 @@ interface ResourceCatalogItem {
   oracle_service_id: string | null;
   network_interface_id: string | null;
   ip_configuration_name: string | null;
+  scan_status: CandidateScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -160,6 +162,12 @@ function buildMetadata(resource: MockResource, project: Project): ConfirmResourc
   }
 }
 
+// Step-1 scan-status tag (신규/변경). No upstream signal exists in the mock seed,
+// so derive a stable mix from the resourceId: previously-connected resources read
+// as CHANGED (re-scanned), and everything else as NEW. Deterministic per resource.
+const deriveCandidateScanStatus = (resource: MockResource): CandidateScanStatus =>
+  resource.connectionStatus === 'CONNECTED' ? 'CHANGED' : 'NEW';
+
 function toResourceCatalogItem(resource: MockResource, project: Project): ResourceCatalogItem {
   return {
     id: resource.resourceId,
@@ -173,6 +181,7 @@ function toResourceCatalogItem(resource: MockResource, project: Project): Resour
     oracle_service_id: resource.vmDatabaseConfig?.oracleServiceId ?? null,
     network_interface_id: resource.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration_name: null,
+    scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
   };
 }
@@ -236,6 +245,8 @@ function toConfirmedIntegrationResourceInfo(r: MockResource): BffConfirmedIntegr
     resource_id: r.resourceId,
     resource_type: r.type,
     database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+    database_region: r.region ?? null,
+    resource_name: r.resourceId,
     port: r.vmDatabaseConfig?.port ?? null,
     host: r.vmDatabaseConfig?.host ?? null,
     oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? null,

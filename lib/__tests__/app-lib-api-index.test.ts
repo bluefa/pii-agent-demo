@@ -140,6 +140,8 @@ describe('app/lib/api/index', () => {
           resource_id: 'res-1',
           resource_type: 'ORACLE_DB',
           database_type: 'ORACLE',
+          database_region: null,
+          resource_name: null,
           host: 'db.internal',
           port: 1521,
           oracle_service_id: 'ORCL',

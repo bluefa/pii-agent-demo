@@ -26,6 +26,8 @@ const confirmedResource = (
   resourceId,
   type: 'CLOUD_SQL',
   databaseType,
+  region: null,
+  resourceName: resourceId,
   host: null,
   port: null,
   oracleServiceId: null,

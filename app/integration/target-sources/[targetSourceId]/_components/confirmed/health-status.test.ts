@@ -11,6 +11,8 @@ const makeResource = (
   resourceId: 'res-1',
   type: 'RDS',
   databaseType: 'MYSQL',
+  region: 'ap-northeast-2',
+  resourceName: 'res-1',
   host: 'localhost',
   port: 3306,
   oracleServiceId: null,

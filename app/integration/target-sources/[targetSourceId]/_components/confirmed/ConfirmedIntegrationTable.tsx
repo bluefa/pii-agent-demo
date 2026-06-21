@@ -2,7 +2,7 @@
 
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
-import { bgColors, cn, tableStyles, textColors } from '@/lib/theme';
+import { bgColors, cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
 import { deriveHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
@@ -99,15 +99,18 @@ export const ConfirmedIntegrationTable = ({
     <table className="w-full text-sm">
       <thead className={bgColors.muted}>
         <tr>
-          <th className={headerCellClass}>리소스 ID</th>
-          <th className={headerCellClass}>유형</th>
-          <th className={headerCellClass}>DB 타입</th>
-          <th className={headerCellClass}>Credential</th>
+          <th className={headerCellClass}>Database Type</th>
+          <th className={headerCellClass}>Resource ID</th>
+          <th className={headerCellClass}>Region</th>
+          <th className={headerCellClass}>Resource Name</th>
+          <th className={headerCellClass}>DB Credential</th>
+          <th className={headerCellClass}>Connection Status</th>
         </tr>
       </thead>
       <tbody className={tableStyles.body}>
         {confirmed.map((resource) => (
           <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
+            <td className={cellClass}>{resource.databaseType ?? '-'}</td>
             <td className={monoCellClass}>
               <span className="inline-flex items-center gap-1">
                 <span>{resource.resourceId}</span>
@@ -118,9 +121,12 @@ export const ConfirmedIntegrationTable = ({
                 />
               </span>
             </td>
-            <td className={cellClass}>{resource.type}</td>
-            <td className={cellClass}>{resource.databaseType ?? '-'}</td>
+            <td className={cellClass}>{resource.region ?? '-'}</td>
+            <td className={cellClass}>{resource.resourceName ?? '-'}</td>
             <td className={cellClass}>{resource.credentialId ?? '-'}</td>
+            <td className={tableStyles.cell}>
+              <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+            </td>
           </tr>
         ))}
       </tbody>

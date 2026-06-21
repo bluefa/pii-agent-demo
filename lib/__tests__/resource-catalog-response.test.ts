@@ -18,6 +18,7 @@ const normalizedCatalog: ResourceCatalogResponse = {
       oracle_service_id: 'ORCL',
       network_interface_id: 'nic-1',
       ip_configuration_name: null,
+      scan_status: null,
       metadata: {
         provider: 'Azure',
         resourceType: 'AZURE_VM',
@@ -97,6 +98,7 @@ describe('extractResourceCatalog', () => {
           oracle_service_id: null,
           network_interface_id: null,
           ip_configuration_name: null,
+          scan_status: null,
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_MSSQL',
@@ -110,5 +112,21 @@ describe('extractResourceCatalog', () => {
       ],
       total_count: 1,
     });
+  });
+
+  it('passes a valid scan_status through and coerces unknown values to null', () => {
+    const result = extractResourceCatalog({
+      resources: [
+        { resource_id: 'a', resource_type: 'RDS', name: 'a', scan_status: 'CHANGED' },
+        { resource_id: 'b', resource_type: 'RDS', name: 'b', scanStatus: 'NEW' },
+        { resource_id: 'c', resource_type: 'RDS', name: 'c' },
+      ],
+      total_count: 3,
+    });
+    expect(result.resources.map((resource) => resource.scan_status)).toEqual([
+      'CHANGED',
+      'NEW',
+      null,
+    ]);
   });
 });

@@ -849,6 +849,8 @@ export interface ConfirmedIntegrationResourceInfo {
   resource_id: string;
   resource_type: string;
   database_type: DatabaseType | null;
+  database_region: string | null;
+  resource_name: string | null;
   port: number | null;
   host: string | null;
   oracle_service_id: string | null;

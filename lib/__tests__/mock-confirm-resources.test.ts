@@ -19,6 +19,7 @@ interface MockResourceCatalogResponse {
     oracle_service_id: string | null;
     network_interface_id: string | null;
     ip_configuration_name: string | null;
+    scan_status: string | null;
     metadata: {
       provider: string;
       resourceType: string;
@@ -117,6 +118,7 @@ describe('mockConfirm.getResources', () => {
         oracle_service_id: 'ORCL',
         network_interface_id: 'nic-1',
         ip_configuration_name: null,
+        scan_status: 'NEW',
         metadata: {
           provider: 'Azure',
           resourceType: 'AZURE_VM',
@@ -135,6 +137,7 @@ describe('mockConfirm.getResources', () => {
         oracle_service_id: null,
         network_interface_id: null,
         ip_configuration_name: null,
+        scan_status: 'NEW',
         metadata: {
           provider: 'Azure',
           resourceType: 'AZURE_POSTGRESQL',

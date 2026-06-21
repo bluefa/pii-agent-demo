@@ -2,6 +2,7 @@ export type {
   CandidateBehaviorKey,
   CandidateConfigKind,
   CandidateResource,
+  CandidateScanStatus,
   EndpointConfigDraft,
 } from '@/lib/types/resources/candidate';
 

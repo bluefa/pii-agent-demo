@@ -13,6 +13,8 @@ const makeResource = (
   resourceId: 'res-1',
   type: 'RDS',
   databaseType: 'MYSQL',
+  region: 'ap-northeast-2',
+  resourceName: 'res-1',
   host: 'localhost',
   port: 3306,
   oracleServiceId: null,
@@ -30,14 +32,31 @@ describe('ConfirmedIntegrationTable', () => {
   });
 
   describe('variant=pre-install (default)', () => {
-    it('renders pre-install columns: 리소스 ID / 유형 / DB 타입 / Credential', () => {
+    it('renders the 6 v15 columns: Database Type / Resource ID / Region / Resource Name / DB Credential / Connection Status', () => {
       render(
         <ConfirmedIntegrationTable confirmed={[makeResource()]} />,
       );
-      expect(screen.getByText('리소스 ID')).toBeTruthy();
-      expect(screen.getByText('유형')).toBeTruthy();
-      expect(screen.getByText('DB 타입')).toBeTruthy();
-      expect(screen.getByText('Credential')).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Region' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'DB Credential' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Connection Status' })).toBeTruthy();
+    });
+
+    it('renders Region and Resource Name values', () => {
+      render(
+        <ConfirmedIntegrationTable
+          confirmed={[makeResource({ region: 'ap-northeast-1', resourceName: 'sea-live-space-prod' })]}
+        />,
+      );
+      expect(screen.getByText('ap-northeast-1')).toBeTruthy();
+      expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
+    });
+
+    it('renders Connection Status as a "Success" chip', () => {
+      render(<ConfirmedIntegrationTable confirmed={[makeResource()]} />);
+      expect(screen.getByText('Success')).toBeTruthy();
     });
 
     it('does not render Status, 연동 대상 논리 DB, 연동 제외 논리 DB columns', () => {

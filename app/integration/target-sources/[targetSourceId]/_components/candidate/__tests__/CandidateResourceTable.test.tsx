@@ -45,6 +45,32 @@ describe('CandidateResourceTable', () => {
     expect(screen.queryByRole('columnheader', { name: '스캔 이력' })).toBeNull();
   });
 
+  it('renders the 스캔 상태 column with 신규/변경 tags reflecting scanStatus', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[
+          candidateFixture({ id: 'c-new', resourceId: 'res-new', scanStatus: 'NEW' }),
+          candidateFixture({ id: 'c-changed', resourceId: 'res-changed', scanStatus: 'CHANGED' }),
+        ]}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: '스캔 상태' })).toBeTruthy();
+    expect(screen.getByText('신규')).toBeTruthy();
+    expect(screen.getByText('변경')).toBeTruthy();
+  });
+
+  it('renders — in the 스캔 상태 cell when scanStatus is absent', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[candidateFixture({ scanStatus: undefined })]}
+      />,
+    );
+    expect(screen.queryByText('신규')).toBeNull();
+    expect(screen.queryByText('변경')).toBeNull();
+  });
+
   it('renders a hover-revealed CopyButton on each Resource ID cell', () => {
     render(
       <CandidateResourceTable
