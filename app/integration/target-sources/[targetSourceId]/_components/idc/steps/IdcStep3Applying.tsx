@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { CheckIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { LoadingState, ErrorState } from '@/app/components/ui/state';
@@ -51,20 +51,14 @@ export const IdcStep3Applying = ({
               관리자 승인 후 시스템에 연동 정보를 반영하고 있어요.
             </p>
           </div>
-          <span
-            className={cn(
-              idcStyles.statusPill,
-              statusColors.warning.bg,
-              statusColors.warning.textDark,
-            )}
-          >
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
+            <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
             반영중
           </span>
         </header>
         <div className="p-6">
           <StepBanner variant="success" icon={<CheckIcon className="w-[18px] h-[18px]" />}>
-            <strong className="font-semibold">승인이 완료되어 시스템에 반영 중입니다.</strong>{' '}
+            <strong className="font-bold">승인이 완료되어 시스템에 반영 중입니다.</strong>{' '}
             평균 5분 내외 소요됩니다.
           </StepBanner>
           {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}

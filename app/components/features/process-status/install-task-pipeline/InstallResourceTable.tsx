@@ -82,11 +82,11 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
         <table className="w-full text-sm">
           <thead className={bgColors.muted}>
             <tr>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Type</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Name</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>
+              <th className={TABLE_HEADER_CELL}>DB Type</th>
+              <th className={TABLE_HEADER_CELL}>Resource ID</th>
+              <th className={TABLE_HEADER_CELL}>Region</th>
+              <th className={TABLE_HEADER_CELL}>Resource Name</th>
+              <th className={TABLE_HEADER_CELL}>
                 {RESOURCE_STATUS_COLUMN_LABEL[provider]}
               </th>
             </tr>
@@ -95,7 +95,7 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
             {visibleRows.map((row) => (
               <tr
                 key={row.resourceId}
-                className={cn('border-t group', borderColors.light)}
+                className="border-t border-[#EBEEF2] group"
               >
                 <td className={TABLE_BODY_CELL}>
                   {row.databaseType ? (
@@ -104,9 +104,11 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
                     <span className={textColors.tertiary}>—</span>
                   )}
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   <span className="inline-flex items-center gap-1.5">
-                    <span>{row.resourceId}</span>
+                    <span className="max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left">
+                      {row.resourceId}
+                    </span>
                     <CopyButton
                       value={row.resourceId}
                       label={`${row.resourceId} 복사`}
@@ -114,10 +116,10 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
                     />
                   </span>
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   {row.region ?? '—'}
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   {row.databaseName ?? '—'}
                 </td>
                 <td className={TABLE_BODY_CELL}>

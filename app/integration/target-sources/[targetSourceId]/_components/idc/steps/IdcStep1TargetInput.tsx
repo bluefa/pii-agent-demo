@@ -11,7 +11,7 @@ import {
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
-import { bgColors, borderColors, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { bgColors, cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { LoadingState, ErrorState, EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
@@ -215,10 +215,10 @@ export const IdcStep1TargetInput = ({
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>
-        <div className={cn('flex items-start justify-between gap-4 border-b p-6', borderColors.light)}>
+        <div className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
-            <h2 className={cn('text-[18px] font-bold', textColors.primary)}>연동 대상 DB 입력</h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
+            <p className={cn('mt-1', cardStyles.subtitle)}>
               IDC 인프라는 자동 스캔이 지원되지 않아요. 연동할 DB 접속 정보를 직접 입력해주세요.
             </p>
           </div>
@@ -241,7 +241,7 @@ export const IdcStep1TargetInput = ({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className={cardStyles.body}>
           {loading ? (
             <LoadingState label="연동 대상을 불러오는 중…" />
           ) : error ? (

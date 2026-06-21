@@ -489,8 +489,8 @@ export const confirmModalStyles = {
  * Step banner — 단계 본문 위 안내 배너 (시안 SIT Prototype v3 line 1832)
  */
 export const bannerStyles = {
-  /** v15 StepBanner — radius 12, 18/22 padding, no border, 500, font 14. */
-  base: 'flex items-center gap-3 px-[22px] py-[18px] mb-4 rounded-[12px] font-medium text-[14px]',
+  /** v15 StepBanner — radius 12, 18/22 padding, no border, 500, font 14, gap 14, mb 20. */
+  base: 'flex items-center gap-[14px] px-[22px] py-[18px] mb-5 rounded-[12px] font-medium text-[14px]',
   variants: {
     info: 'bg-blue-50 text-[#1E40AF]',
     warn: 'bg-amber-50 text-amber-900',
@@ -558,7 +558,6 @@ export const idcStyles = {
     green: 'bg-[#E5F8EE] text-[#197A3F]',
     red: 'bg-[#FEECEC] text-[#B42318]',
     orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
-    gray: 'bg-[#F7F8FA] text-[#4E5968]',
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
   status: {
@@ -566,6 +565,8 @@ export const idcStyles = {
     dot: 'w-2 h-2 rounded-full',
     healthy: { text: 'text-[#2A7D52]', dot: 'bg-[#45CB85]' },
     unhealthy: { text: 'text-[#991B1B]', dot: 'bg-[#991B1B]' },
+    /** `.status.partial` — orange "승인 대기"/pending-approval inline label (03-status-tag-pill §2). */
+    partial: { text: 'text-[#9A3412]', dot: 'bg-[#F97316]' },
   },
   /** Target yes/no pill — `.target-pill` (3px 9px / radius 999 / 11.5px / 600 / dot 6px). */
   targetPill: {

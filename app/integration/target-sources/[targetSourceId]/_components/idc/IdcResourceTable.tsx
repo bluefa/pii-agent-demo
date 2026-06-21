@@ -2,7 +2,7 @@
 
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { bgColors, cn, idcStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -79,7 +79,7 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
           {rows.map((r) => {
             const dim = r.excluded ? 'opacity-50' : '';
             return (
-              <tr key={r.resourceId} className={cn(idcStyles.table.row, r.excluded && bgColors.muted)}>
+              <tr key={r.resourceId} className={cn(idcStyles.table.row, r.excluded && 'bg-[#F7F8FA]')}>
                 <td className={cn(idcStyles.table.cell, dim)}><IdcKindBadge kind={r.kind} /></td>
                 <td className={cn(idcStyles.table.cell, dim)}><IdcEndpointCell resource={r} /></td>
                 <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary, dim)}>{r.port}</td>

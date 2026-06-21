@@ -30,15 +30,13 @@ const TEST_DURATION_MS = 1800;
 const ApproveRequestButton = () => {
   const toast = useToast();
   return (
-    <div className="flex justify-end mt-4">
-      <button
-        type="button"
-        className={idcStyles.triggerBtn.primary}
-        onClick={() => toast.info('완료 승인 요청 기능 준비중입니다.')}
-      >
-        완료 승인 요청
-      </button>
-    </div>
+    <button
+      type="button"
+      className={idcStyles.triggerBtn.primary}
+      onClick={() => toast.info('완료 승인 요청 기능 준비중입니다.')}
+    >
+      완료 승인 요청
+    </button>
   );
 };
 
@@ -139,10 +137,25 @@ export const IdcStep5ConnectionTest = ({
             disabled={!ready || testing}
             className={idcStyles.triggerBtn.primary}
           >
-            {testing ? '연결 테스트 진행 중...' : 'Run Test'}
+            {testing ? (
+              '연결 테스트 진행 중...'
+            ) : (
+              <>
+                <svg
+                  className="w-[13px] h-[13px]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.2}
+                >
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+                Run Test
+              </>
+            )}
           </button>
         </header>
-        <div className="p-6 space-y-4">
+        <div className={cn(cardStyles.body, 'space-y-4')}>
           {testing && (
             <StepBanner variant="info">
               <strong>연결 테스트 진행 중...</strong>
@@ -156,10 +169,12 @@ export const IdcStep5ConnectionTest = ({
           {ready && (
             <>
               <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />
-              <p className={cn('text-[12px]', textColors.tertiary)}>
-                ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.
-              </p>
-              <ApproveRequestButton />
+              <div className="flex items-center justify-between mt-4">
+                <p className={cn('text-[12px]', textColors.tertiary)}>
+                  ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.
+                </p>
+                <ApproveRequestButton />
+              </div>
             </>
           )}
         </div>

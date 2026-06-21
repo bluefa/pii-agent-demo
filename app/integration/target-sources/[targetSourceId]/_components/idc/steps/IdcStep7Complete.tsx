@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { EditIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
 import { LoadingState, ErrorState } from '@/app/components/ui/state';
@@ -67,11 +67,11 @@ export const IdcStep7Complete = ({
           <div>
             <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동 완료</h2>
             <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
-              PII가 사용되어 있을 가능성이 있어요. 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
+              PII가 사용되어 있을 가능성이 있어요. 사용 단어 빈도가 표시되며, 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
             </p>
           </div>
-          <span className={cn(idcStyles.statusPill, statusColors.success.bg, statusColors.success.textDark)}>
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.success.dot)} />
+          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.healthy.text)}>
+            <span className={cn(idcStyles.status.dot, idcStyles.status.healthy.dot)} />
             Healthy
           </span>
         </header>

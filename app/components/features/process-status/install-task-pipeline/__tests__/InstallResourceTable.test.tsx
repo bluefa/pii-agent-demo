@@ -42,13 +42,13 @@ describe('InstallResourceTable — column headers', () => {
     const dbTypeIdx = html.indexOf('DB Type');
     const resourceIdx = html.indexOf('Resource ID');
     const regionIdx = html.indexOf('Region');
-    const dbNameIdx = html.indexOf('DB Name');
+    const resourceNameIdx = html.indexOf('Resource Name');
     const statusIdx = html.indexOf('서비스 리소스 상태');
     expect(dbTypeIdx).toBeGreaterThan(0);
     expect(resourceIdx).toBeGreaterThan(dbTypeIdx);
     expect(regionIdx).toBeGreaterThan(resourceIdx);
-    expect(dbNameIdx).toBeGreaterThan(regionIdx);
-    expect(statusIdx).toBeGreaterThan(dbNameIdx);
+    expect(resourceNameIdx).toBeGreaterThan(regionIdx);
+    expect(statusIdx).toBeGreaterThan(resourceNameIdx);
   });
 });
 

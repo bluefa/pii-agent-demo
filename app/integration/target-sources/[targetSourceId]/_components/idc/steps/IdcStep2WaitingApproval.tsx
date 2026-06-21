@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { LoadingState, ErrorState } from '@/app/components/ui/state';
@@ -14,7 +14,6 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCancelButton } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
-import { IdcApprovalStats } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcApprovalStats';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
@@ -54,14 +53,8 @@ export const IdcStep2WaitingApproval = ({
               요청하신 DB 목록을 관리자가 확인하고 있어요.
             </p>
           </div>
-          <span
-            className={cn(
-              idcStyles.statusPill,
-              statusColors.warning.bg,
-              statusColors.warning.textDark,
-            )}
-          >
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
+            <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
             승인 대기
           </span>
         </header>
@@ -75,10 +68,7 @@ export const IdcStep2WaitingApproval = ({
             <ErrorState message="연동 대상을 불러오지 못했습니다." />
           )}
           {state.status === 'ready' && (
-            <>
-              <IdcApprovalStats resources={state.resources} />
-              <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
-            </>
+            <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
           )}
           <div className="mt-4 flex justify-end">
             <WaitingApprovalCancelButton
