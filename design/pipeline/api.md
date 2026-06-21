@@ -19,22 +19,23 @@
 
 - **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`  ← **`progress` 파생**: `total` = 그 run의 task 행 수(생성 시 고정 = snapshot.tasks 길이; CANCELLED task도 행은 남아 분모 불변), `done` = `COUNT(task WHERE status=DONE)`(다른 terminal은 미포함 — 진척이지 종료 아님). **분수는 RUNNING 진행 지표일 뿐 — terminal pipeline의 결과 판정은 `status`가 권위다**(CANCELLED/FAILED는 `done<total`로 남는 게 정상; 분수가 1이 아니라고 "미완"으로 읽지 말 것)
 - **Pipeline** — `PipelineSummary` + `{ createdAt, finishedAt, failReason, tasks:[Task] }`
-- **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, latestCheck:Check? }`  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
+- **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, nextCheckAt?, latestCheck:Check? }`  ← `nextCheckAt`=다음 tick 확인 예정 시각(`next_check_at`; terminal이면 null)  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
 - **Attempt** — `{ id, taskId, response{}, errorCode, startedAt, finishedAt, outcome(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
     - `result=OK` → `outcome=SUCCEEDED`
     - `result=FAIL` ∧ `error_code=EXECUTION_TIMEOUT` → `outcome=EXECUTION_TIMEOUT`
     - `result=FAIL` ∧ `error_code ≠ EXECUTION_TIMEOUT` → `outcome=FAILED`
-- **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode, externalHandle, checkedAt, latencyMs }`  ← `name`=호출 operation 식별자(어떤 API/동작 — 예 `im.terraformApply`·`im.jobStatus`). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
-- **PipelineEvent** — `{ id, pipelineId, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`
-- **errorCode** (attempt·check 공통) — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당). `HANDLER_NOT_FOUND` = `handler_key` 미해결 → task 즉시 FAILED(fail_count 미소모, 영구 조건)
+- **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed?(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode, externalHandle, startedAt, checkedAt?, latencyMs }`  ← `name`=호출 operation 식별자(어떤 API/동작 — 예 `im.terraformApply`·`im.jobStatus`); **`startedAt`=발사 시각(PENDING 포함 항상 set; 정렬·latestCheck 기준)**, `checkedAt`=관측 시각(PENDING이면 null), `observed`=관측 후에만(PENDING/미관측이면 null). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
+- **PipelineEvent** — `{ id, pipelineId, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`  ← **`message`=DB 저장 컬럼 아님**: `pipeline_event.payload(jsonb)`에서 `type`별로 렌더링한 API 파생(저장은 `payload`만; 결정 1.2/1.3)
+- **errorCode** (attempt·check 공통) — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당). **attempt 있는 실패**(EXECUTION_TIMEOUT·CHECK_ERROR·IM_REJECTED·DISPATCH_NO_RESPONSE·CALL_TIMEOUT)는 그 attempt/check 행에 실린다. **attempt 없는 두 경우는 저장 위치가 다르다**: `TTL_EXPIRED`는 status=EXPIRED가 유일 원인이라 **status에서 파생**(별도 행 없음); `HANDLER_NOT_FOUND` = `handler_key` 미해결 → task 즉시 FAILED(fail_count 미소모, 영구 조건)이라 사유는 **`task_check` 1행**(O25 관측 장부)에 errorCode로 기록
 
 ---
 
 ## 1. 보드 / 조회 (read-only)
 
 ### `GET /admin/pipelines` — 보드 목록
-- query: `status`, `type`, `provider`, `targetSourceId`, `page`, `size`, `sort`(기본 `lastActivityAt,desc`)
+- query: `status`, `type`, `provider`, `targetSourceId`, `from?`, `to?`, `page`, `size`, `sort`(기본 `lastActivityAt,desc`)
   — `lastActivityAt` = `pipeline.last_activity_at`(매 상태 전이 tx에서 갱신되는 실 컬럼, 결정 1.2; 인덱스 보유).
+  `from`/`to` = 기간 횡단 조회 — run의 `[started_at, finished_at)` 체류 구간이 `[from, to)`와 겹치는 run(overlap; `pipeline(started_at)` 인덱스, orchestrator §1.3).
 - `200` → `{ content: [PipelineSummary], totalElements, totalPages, number, size }`
 - 보드의 N(slot) 사용량 게이지 = `COUNT(task WHERE status IN (DISPATCHING,RUNNING))` / `slotCap`로 파생 — 별도 endpoint 불요.
 

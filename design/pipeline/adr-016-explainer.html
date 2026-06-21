@@ -359,7 +359,7 @@
       <tr><td><code>task_attempt</code></td><td>실행 시도 생애주기 (dispatch당 1행)</td><td>attempt_no · result(OK\|FAIL) · error_code · <strong>response(jsonb)</strong> <span class="small">(dispatch 원응답 = {job_id})</span></td></tr>
       <tr><td><code>task_check</code></td><td>모든 외부 호출의 관측 (호출당 1행)</td><td>kind(DISPATCH\|CHECK) · name · api_result(PENDING\|OK\|ERROR) · observed · external_handle <span class="small">(detail 컬럼 없음 → v2)</span></td></tr>
       <tr><td><code>pipeline_event</code></td><td>이벤트 = 감사 로그 + 알림 outbox</td><td>pipeline_id? · type · severity · actor · notified_at <span class="small">(append-only)</span></td></tr>
-      <tr><td><code>pipeline_def_snapshot</code></td><td>그 run의 definition 원본 (write-once)</td><td>definition_key · definition_version · type · provider · <strong>spec(jsonb)</strong> = {name, tasks:[{seq,name,kind,deadline,ttl?,polling?,maxFailCount}]}</td></tr>
+      <tr><td><code>pipeline_def_snapshot</code></td><td>그 run의 definition 원본 (write-once)</td><td>definition_key · definition_version · type · provider · <strong>spec(jsonb)</strong> = {name, tasks:[{seq,handler_key,name,kind,ttl?,polling_interval?,execution_timeout?,max_fail_count}]}</td></tr>
     </table>
     <div class="note small"><strong>attempt와 check는 형제다(중첩 아님).</strong> attempt = action(side effect) 생애주기, check = 관측 장부.
       CONDITION_CHECK은 dispatch가 없어 <strong>attempt가 0개</strong>인데 check는 존재한다 — 형제 구조라야 표현된다.</div>

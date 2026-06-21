@@ -121,6 +121,18 @@
   WAIT_EXTERNAL 약칭 전면 치환(append-only 이력·HTML 8파일 blast radius·state-machine §93에 별칭 주석 존재 — 리뷰 루프 판정 대기),
   O·S번호 아카이브 이동, swagger 작성.
 
+- **개정 6판 후속8 — r7 문서 정확성 (codex 82 / opus 89; 설계 무변경).** 두 독립 리뷰 교차 후 결정 변경 없는 drift/추측-제거만:
+  ① **explainer.html spec stale**(opus, 내가 r6에서 놓침) — `pipeline_def_snapshot` spec에 제거된 per-task `deadline` 잔존 + `handler_key` 누락 → snake spec으로 정정.
+  ② **DISPATCHING 종착 전이 누락**(둘 다) — 재시도표엔 DISPATCHING→DISPATCHING뿐이고 한도 소진 종착행이 없었음 → `DISPATCHING → FAILED`(dispatch 끝내 response 없음/`IM_REJECTED` 비backpressure, fail_count==K) 추가; 잘못 RUNNING→FAILED에 있던 "IM 거부"를 dispatch 단계로 이동(IM_REJECTED=제출 거부지 poll 아님).
+  ③ **CANCELLED 광의 정정**(codex) — orchestrator의 "한 번도 dispatch되지 않은 task에만"이 state-machine(미dispatch·job_id 미영속 DISPATCHING·CONDITION_CHECK 즉시 CANCELLED)과 모순 → "폴링할 durable handle 없는 task"로 광의화.
+  ④ **§1.3 인덱스 목록 보강**(codex) — 누락된 `pipeline(last_activity_at DESC)`(보드 정렬)·`task(pipeline_id, seq) unique` 추가, "리스트 충분" 문장을 정렬용/target 이력용으로 분리.
+  ⑤ **API read-model drift**(codex) — `Check`에 `startedAt`(정렬·latestCheck 기준) 추가·`observed`/`checkedAt` nullable 명시; `Task`에 `nextCheckAt` 추가; 보드 목록에 기간 `from/to`(overlap) 파라미터 추가; `PipelineEvent.message`=payload 렌더 파생(저장 컬럼 아님) 명시.
+  ⑥ **errorCode 저장 위치 명시**(둘 다, attempt 없는 사유) — `TTL_EXPIRED`=status=EXPIRED 파생(별도 행 없음), `HANDLER_NOT_FOUND`=task_check 1행(O25 관측 장부)에 기록 — 새 컬럼·테이블 없이 기존 결정에 기댐.
+  ⑦ **snapshot.spec 키 casing 통일**(codex) — `handler_key`(snake)+`pollingInterval`(camel) 혼용을 전부 snake로(내부 jsonb=task row 컬럼과 동일, API DTO camelCase와 별개 계층 — ADR-019); ADR/orchestrator/explainer 정합.
+  ⑧ **per-call deadline 어휘**(codex C1) — 4a 표·ADL의 "task별 오버라이드/deadline"을 전역+TaskKind별로(operations 단일출처 정합); **S6(task별) 행에 v1 coarsening supersede 주석 추가**(call_deadline_at 미도입으로 v1엔 per-task deadline 저장 컬럼 없음 → TaskKind별이 유일 구현값).
+  ⑨ 잔여 stale 어휘 정정 — `EXECUTE`/`WAIT_EXTERNAL`을 kind처럼 쓴 곳(implementation-notes §15, task-model §40) → `TERRAFORM_JOB`/`CONDITION_CHECK(WAITING_EXTERNAL 체류)`; operations 설정표에 적용 시점(전역 노브 즉시 vs task별 frozen 불변) 한 줄. ⑩ `triggered_by`↔`pipeline_event.actor` 동일 도메인(human|system|ai) 명시.
+  **보류(후속6·7과 동일):** O·S번호 아카이브 이동, swagger 작성, ascii 다이어그램 정밀 편집(표가 권위라 illustrative로 둠).
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다
@@ -333,7 +345,7 @@
 | S3 | k8s pod 직접 조회 비채택; worker 현황은 Infra Manager API 경유 → 결정 4 부속 (2026-06-12) |
 | S4 | 수동 재시도 = 새 run 생성; 재개·task 레벨 수동 재실행·terminal 부활 비지원; 확장은 완료분 스킵 → 결정 5 (2026-06-12) |
 | S5 | 호출 deadline ≠ tick 주기; 호출은 async로 발사하여 tick 비블로킹 → 결정 6 D-T1, D-T2 (2026-06-13) |
-| S6 | per-call deadline은 timeoutPolicy로 task별 오버라이드(느린 check 90~240초); 전역 상향 금지 → 결정 6 D-T3 (2026-06-13) |
+| S6 | per-call deadline은 timeoutPolicy로 task별 오버라이드(느린 check 90~240초); 전역 상향 금지 → 결정 6 D-T3 (2026-06-13) **→ v1 (개정 6판): per-task deadline 저장 기계(`task_check.call_deadline_at`·snapshot.spec `deadline`) 제거(C-budget 제거 동반)로 per-call deadline override를 전역+TaskKind별로 coarsen — v1엔 per-task deadline 저장 컬럼이 없어 task별 granularity 미지원; operations D-T3가 단일출처** |
 | S7 | 관측(task_check)은 실행 주체, 상태(task.status)는 tick — 단일 writer 보존, crash 단순화 → 결정 6 D-T4 (2026-06-13) |
 | S8 | task_check 호출 전 선기록(PENDING) → "호출 시도 vs 미시도" 구분; dispatch 규율을 모든 외부 호출로 일반화; api_result에 PENDING 추가 → 결정 6 D-T5 (2026-06-13) |
 | S9 | 장시간 check용 별도 task 상태 미도입(상태 집합 불확대); "확인 중" 노출은 task_check 파생 → 결정 6 D-T6 (2026-06-13) |
