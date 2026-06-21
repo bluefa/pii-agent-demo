@@ -98,7 +98,7 @@ export const InstallationCompleteStep = ({
         </header>
         <div className={cardStyles.body}>
           <InstallationCompleteActions />
-          <ConfirmedResourcesSlot variant="complete" />
+          <ConfirmedResourcesSlot variant="complete" bare />
         </div>
       </section>
       <RejectionAlert project={project} />

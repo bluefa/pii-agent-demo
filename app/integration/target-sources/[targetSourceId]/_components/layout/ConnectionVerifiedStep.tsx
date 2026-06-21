@@ -85,7 +85,7 @@ export const ConnectionVerifiedStep = ({
             <strong className="font-semibold">최종 관리자 승인을 기다리고 있어요.</strong>
             {' '}승인이 완료되면 모니터링이 즉시 시작됩니다.
           </StepBanner>
-          <ConfirmedResourcesSlot />
+          <ConfirmedResourcesSlot bare />
           <ConnectionVerifiedRetestButton />
         </div>
       </section>
