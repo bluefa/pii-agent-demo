@@ -14,6 +14,7 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { WaitingApprovalCancelButton } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCancelButton';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import { IdcApprovalStats } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcApprovalStats';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
@@ -74,7 +75,10 @@ export const IdcStep2WaitingApproval = ({
             <ErrorState message="연동 대상을 불러오지 못했습니다." />
           )}
           {state.status === 'ready' && (
-            <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
+            <>
+              <IdcApprovalStats resources={state.resources} />
+              <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />
+            </>
           )}
           <div className="mt-4 flex justify-end">
             <WaitingApprovalCancelButton

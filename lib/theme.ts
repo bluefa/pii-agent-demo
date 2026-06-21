@@ -331,14 +331,47 @@ export const pageChromeStyles = {
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
  */
-export const pageMetaStyles = {
-  container: 'flex flex-wrap gap-9',
-  item: 'flex flex-col gap-1',
-  /** v15 ib-k — 12 / 600 / #8B95A1. */
-  key: 'text-[12px] font-semibold text-[#8B95A1]',
-  /** v15 ib-mono value — 13 / #191F28 / ls 0. */
-  value: 'text-[13px] font-semibold tracking-normal text-[#191F28]',
-  mono: 'font-mono',
+/**
+ * Per-provider brand accent for the v15 `.identity-bar` `--ib-accent` local var
+ * (00-tokens.md `--color-provider-*`). Consumed via inline `style` so the
+ * accent-derived `color-mix(...)` backgrounds + stripe recolor per provider.
+ * Keyed by lowercased CloudProvider; falls back to the Azure default (v15 line 753).
+ */
+export const providerAccent: Record<string, string> = {
+  aws: '#FF9900',
+  azure: '#0078D4',
+  gcp: '#4285F4',
+  idc: '#374151',
+  sdu: '#9333EA',
+};
+export const providerAccentDefault = providerAccent.azure;
+
+/**
+ * v15 `.identity-bar` provider/ID/agent strip (01-chrome.md 752–855). Structural
+ * + accent classes only; the per-provider accent is injected as the `--ib-accent`
+ * CSS var via inline `style` on the bar (see IdentityBar.tsx). All `color-mix`
+ * backgrounds + stripe reference that var, so no raw provider hex lives here.
+ */
+export const identityBarStyles = {
+  bar: 'relative flex items-center gap-8 flex-wrap overflow-hidden rounded-[14px] bg-white py-4 pr-[22px] pl-7 mt-4 mb-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_1px_3px_rgba(17,24,39,0.04)] before:content-[""] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--ib-accent)]',
+  provider: 'flex items-center gap-3 flex-shrink-0',
+  providerIcon:
+    'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-shrink-0 bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',
+  providerName: 'text-[17px] font-bold tracking-[-0.025em] leading-[1.2] text-[#191F28]',
+  providerSub: 'mt-[3px] text-[12px] font-semibold tracking-normal text-[#8B95A1]',
+  divider: 'self-stretch w-px my-1 flex-shrink-0 bg-[#EBEEF2]',
+  field: 'flex flex-col gap-1 min-w-0',
+  key: 'text-[12px] font-semibold tracking-normal text-[#8B95A1]',
+  idRow: 'inline-flex items-center gap-1.5',
+  mono: 'font-mono text-[13px] font-semibold tracking-normal leading-[1.3] text-[#191F28]',
+  copyBase:
+    'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
+  copyIdle: 'text-[#8B95A1] hover:bg-[#F7F8FA] hover:text-[#191F28]',
+  copyCopied: 'text-[#14B96E]',
+  spacer: 'flex-1',
+  agent:
+    'inline-flex items-center gap-[7px] flex-shrink-0 px-[13px] py-[7px] rounded-full leading-none text-[13px] font-bold tracking-[-0.005em] bg-[color-mix(in_srgb,var(--ib-accent)_10%,transparent)] text-[var(--ib-accent)]',
+  agentIcon: 'w-[13px] h-[13px]',
 } as const;
 
 /**
@@ -525,6 +558,7 @@ export const idcStyles = {
     green: 'bg-[#E5F8EE] text-[#197A3F]',
     red: 'bg-[#FEECEC] text-[#B42318]',
     orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
+    gray: 'bg-[#F7F8FA] text-[#4E5968]',
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
   status: {
@@ -715,4 +749,3 @@ export type ButtonVariant = keyof typeof buttonStyles.variants;
 export type ButtonSize = keyof typeof buttonStyles.sizes;
 export type CardPadding = keyof typeof cardStyles.padding;
 export type ModalSize = keyof typeof modalStyles.sizes;
-export type PageMetaItemKey = keyof typeof pageMetaStyles;

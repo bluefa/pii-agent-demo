@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { CloseIcon, PlusIcon, StatusWarningIcon } from '@/app/components/ui/icons';
 import {
@@ -24,6 +24,12 @@ import {
 import type { IdcKind } from '@/app/lib/api/idc';
 
 type IdcInputMode = 'ip' | 'domain';
+
+/** Editable IP row with a stable client id so input focus survives add/remove. */
+interface IpRow {
+  id: number;
+  value: string;
+}
 
 /** Prefill for edit mode (from an existing working-list row). */
 export interface IdcTargetFormInitial {
@@ -92,9 +98,14 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
   // prefill instead of syncing props→state in an effect.
   const isEdit = initial !== undefined;
   const [mode, setMode] = useState<IdcInputMode>(initial ? modeFromKind(initial.kind) : 'ip');
-  const [ips, setIps] = useState<string[]>(
-    initial && initial.kind !== 'DOMAIN' ? (initial.hosts.length > 0 ? initial.hosts : ['']) : [''],
-  );
+  // Stable row ids assigned at creation (counter ref), never derived from index.
+  const ipIdRef = useRef(0);
+  const nextIpId = () => ipIdRef.current++;
+  const [ips, setIps] = useState<IpRow[]>(() => {
+    const initialValues =
+      initial && initial.kind !== 'DOMAIN' ? (initial.hosts.length > 0 ? initial.hosts : ['']) : [''];
+    return initialValues.map((value) => ({ id: nextIpId(), value }));
+  });
   const [domain, setDomain] = useState(initial && initial.kind === 'DOMAIN' ? (initial.hosts[0] ?? '') : '');
   const [dbTypeLabel, setDbTypeLabel] = useState(initial?.databaseTypeLabel ?? '');
   const [oracleSid, setOracleSid] = useState(initial?.oracleSid ?? '');
@@ -108,10 +119,10 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
   const portNum = Number(port);
   const portOk = port !== '' && Number.isFinite(portNum) && portNum >= 1 && portNum <= 65535;
 
-  const ipTrailingSpace = ips.some((ip) => IDC_TRAILING_WS_RE.test(ip));
-  const filledIps = ips.map((s) => s.trim()).filter((s) => s !== '');
+  const ipTrailingSpace = ips.some((ip) => IDC_TRAILING_WS_RE.test(ip.value));
+  const filledIps = ips.map((s) => s.value.trim()).filter((s) => s !== '');
   const ipDup = new Set(filledIps).size !== filledIps.length;
-  const ipsOk = !ipTrailingSpace && !ipDup && ips.length > 0 && ips.every((ip) => isValidIdcIp(ip));
+  const ipsOk = !ipTrailingSpace && !ipDup && ips.length > 0 && ips.every((ip) => isValidIdcIp(ip.value));
 
   const domainTrailingSpace = IDC_TRAILING_WS_RE.test(domain);
   const domainTrimmed = domain.trim();
@@ -121,7 +132,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
   const sidOk = !isOracle || oracleSid.trim() !== '';
   const valid = portOk && dbTypeLabel !== '' && sidOk && (mode === 'ip' ? ipsOk : domainOk);
 
-  const showIpFormatErr = mode === 'ip' && ips.some((ip) => ip.trim() !== '' && !isValidIdcIp(ip));
+  const showIpFormatErr = mode === 'ip' && ips.some((ip) => ip.value.trim() !== '' && !isValidIdcIp(ip.value));
   const showDomainErr = mode === 'domain' && domainTrimmed !== '' && !IDC_DOMAIN_RE.test(domainTrimmed);
   const showPortErr = port !== '' && !portOk;
   const showSidErr = isOracle && oracleSid.trim() === '' && sidTouched;
@@ -129,13 +140,13 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
 
   const dbTypeOptions = useMemo(() => IDC_DB_TYPES.map((d) => d.label), []);
 
-  const updateIp = (index: number, value: string) =>
-    setIps((prev) => prev.map((ip, i) => (i === index ? value : ip)));
+  const updateIp = (id: number, value: string) =>
+    setIps((prev) => prev.map((ip) => (ip.id === id ? { ...ip, value } : ip)));
   const addIp = () => {
     if (ipFull) return;
-    setIps((prev) => [...prev, '']);
+    setIps((prev) => [...prev, { id: nextIpId(), value: '' }]);
   };
-  const removeIp = (index: number) => setIps((prev) => prev.filter((_, i) => i !== index));
+  const removeIp = (id: number) => setIps((prev) => prev.filter((ip) => ip.id !== id));
 
   const onDbTypeChange = (label: string) => {
     setDbTypeLabel(label);
@@ -151,7 +162,7 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
       mode === 'domain' ? 'DOMAIN' : filledIps.length > 1 ? 'MULTIPLE_IP' : 'SINGLE';
     onSubmit({
       kind,
-      hosts: mode === 'domain' ? [domainTrimmed] : ips.map((s) => s.trim()),
+      hosts: mode === 'domain' ? [domainTrimmed] : ips.map((s) => s.value.trim()),
       port: portNum,
       databaseTypeLabel: dbTypeLabel,
       oracleSid: isOracle ? oracleSid.trim() : undefined,
@@ -225,18 +236,18 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
                 <label className={cn('mb-1.5 block text-[12.5px] font-medium', textColors.secondary)}>IP 주소</label>
                 <div className="space-y-2">
                   {ips.map((ip, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={ip.id} className="flex items-center gap-2">
                       <input
-                        value={ip}
+                        value={ip.value}
                         placeholder="예: 10.20.30.40"
-                        onChange={(e) => updateIp(index, e.target.value)}
+                        onChange={(e) => updateIp(ip.id, e.target.value)}
                         className={idcStyles.input}
                       />
                       {index > 0 && (
                         <button
                           type="button"
                           aria-label="IP 삭제"
-                          onClick={() => removeIp(index)}
+                          onClick={() => removeIp(ip.id)}
                           className={idcStyles.removeIp}
                         >
                           <CloseIcon className="h-4 w-4" />

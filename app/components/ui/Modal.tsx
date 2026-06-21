@@ -77,19 +77,27 @@ export const Modal = ({
 }: ModalProps) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // ESC 키로 닫기
+  // Keep the latest onClose in a ref so the keydown listener can be bound once.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    if (!closeOnEscape) return;
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
+  // ESC 키로 닫기 — bind once; read latest isOpen/closeOnEscape per keypress.
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
+  const closeOnEscapeRef = useRef(closeOnEscape);
+  closeOnEscapeRef.current = closeOnEscape;
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
+      if (e.key === 'Escape' && isOpenRef.current && closeOnEscapeRef.current) {
+        onCloseRef.current();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose, closeOnEscape]);
+  }, []);
 
   // 모달 열릴 때 body 스크롤 방지
   useEffect(() => {

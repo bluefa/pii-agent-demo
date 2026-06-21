@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { Badge } from '@/app/components/ui/Badge';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
@@ -46,7 +47,9 @@ const COLUMNS: readonly { label: string; widthClass?: string }[] = [
   { label: '제외 사유' },
 ];
 
-export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprovalTableProps) => {
+const MONO_CELL = cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary);
+
+export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingApprovalTableProps) => {
   if (resources.length === 0) {
     return (
       <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
@@ -54,8 +57,6 @@ export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprova
       </div>
     );
   }
-
-  const MONO_CELL = cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary);
 
   return (
     <div className="overflow-x-auto">
@@ -140,4 +141,6 @@ export const WaitingApprovalTable = ({ resources, emptyMessage }: WaitingApprova
       </table>
     </div>
   );
-};
+});
+
+WaitingApprovalTable.displayName = 'WaitingApprovalTable';

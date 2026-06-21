@@ -1,9 +1,9 @@
 import type { TargetSource } from '@/lib/types';
 import { Breadcrumb } from '@/app/components/ui/Breadcrumb';
 import { PageHeader } from '@/app/components/ui/PageHeader';
-import { PageMeta, type PageMetaItem } from '@/app/components/ui/PageMeta';
+import { IdentityBar, type IdentityBarField } from '@/app/components/ui/IdentityBar';
 import { integrationRoutes } from '@/lib/routes';
-import { cn, primaryColors } from '@/lib/theme';
+import { cn, primaryColors, providerAccent, providerAccentDefault } from '@/lib/theme';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common/project-identity';
 
 interface ProjectPageMetaProps {
@@ -25,30 +25,30 @@ const extractJiraLabel = (url: string): string => {
   return match ? match[1] : 'Jira';
 };
 
-const buildPageMetaItems = (identity: ProjectIdentity): PageMetaItem[] => {
-  const items: PageMetaItem[] = [
-    { label: 'Cloud Provider', value: identity.cloudProvider },
-  ];
+const PROVIDER_ICON = (
+  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.62-1.46A4.5 4.5 0 0 1 17.5 18H7Z" />
+  </svg>
+);
 
-  for (const id of identity.identifiers) {
-    items.push({
-      label: id.label,
-      value: id.value ?? '-',
-      mono: id.mono,
-      copyText: id.value ?? undefined,
-    });
-  }
+const buildIdentityFields = (identity: ProjectIdentity): IdentityBarField[] => {
+  const fields: IdentityBarField[] = identity.identifiers.map((id) => ({
+    label: id.label,
+    value: id.value ?? '-',
+    mono: id.mono,
+    copyText: id.value ?? undefined,
+  }));
 
   if (identity.jiraLink) {
     const jiraLink = identity.jiraLink;
-    items.push({
-      label: 'Jira Link',
+    fields.push({
+      label: 'Jira',
       value: (
         <a
           href={jiraLink}
           target="_blank"
           rel="noopener noreferrer"
-          className={cn(primaryColors.text, 'hover:underline')}
+          className={cn(primaryColors.text, 'font-semibold hover:underline')}
         >
           {extractJiraLabel(jiraLink)}
         </a>
@@ -56,8 +56,7 @@ const buildPageMetaItems = (identity: ProjectIdentity): PageMetaItem[] => {
     });
   }
 
-  items.push({ label: '모니터링 방식', value: identity.monitoringMethod });
-  return items;
+  return fields;
 };
 
 export const ProjectPageMeta = ({ project, providerLabel, identity, action }: ProjectPageMetaProps) => {
@@ -66,6 +65,7 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
     { label: project.serviceCode, href: integrationRoutes.admin },
     { label: providerLabel },
   ];
+  const accent = providerAccent[String(identity.cloudProvider).toLowerCase()] ?? providerAccentDefault;
 
   return (
     <>
@@ -74,7 +74,14 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
         title={`${project.name || project.projectCode} (${project.serviceCode})`}
         action={action}
       />
-      <PageMeta items={buildPageMetaItems(identity)} />
+      <IdentityBar
+        accent={accent}
+        providerName={providerLabel}
+        providerSub="Cloud Provider"
+        icon={PROVIDER_ICON}
+        fields={buildIdentityFields(identity)}
+        agentLabel={identity.monitoringMethod}
+      />
     </>
   );
 };

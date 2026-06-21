@@ -189,7 +189,10 @@ export const WaitingApprovalCard = ({
   const safePage = Math.min(page, totalPages - 1);
   const sliceStart = safePage * pageSize;
   const sliceEnd = Math.min(filteredCount, sliceStart + pageSize);
-  const visibleResources = filteredResources.slice(sliceStart, sliceEnd);
+  const visibleResources = useMemo(
+    () => filteredResources.slice(sliceStart, sliceEnd),
+    [filteredResources, sliceStart, sliceEnd],
+  );
   const visibleStart = filteredCount === 0 ? 0 : sliceStart + 1;
   const visibleEnd = sliceEnd;
 

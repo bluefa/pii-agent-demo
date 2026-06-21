@@ -61,7 +61,7 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
   return (
     <span className="flex flex-col items-start gap-0.5">
       <HostCell value={hosts[0] ?? ''} label="Host" />
-      {expanded && hosts.slice(1).map((host, i) => <HostCell key={i} value={host} label="Host" />)}
+      {expanded && hosts.slice(1).map((host) => <HostCell key={host} value={host} label="Host" />)}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

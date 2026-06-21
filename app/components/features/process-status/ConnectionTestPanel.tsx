@@ -51,15 +51,13 @@ export const ConnectionTestPanel = ({
   const prevUiStateRef = useRef(uiState);
 
   useEffect(() => {
-    if (
-      prevUiStateRef.current === 'PENDING' &&
-      (uiState === 'SUCCESS' || uiState === 'FAIL')
-    ) {
+    const prev = prevUiStateRef.current;
+    prevUiStateRef.current = uiState;
+    if (prev === 'PENDING' && (uiState === 'SUCCESS' || uiState === 'FAIL')) {
       queueMicrotask(() => setIsShaking(true));
       const timer = setTimeout(() => setIsShaking(false), 500);
       return () => clearTimeout(timer);
     }
-    prevUiStateRef.current = uiState;
   }, [uiState]);
 
   // Credential 모달 상태
