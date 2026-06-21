@@ -36,9 +36,16 @@ const HostCell = ({
   label: string;
   maxWidthClass?: string;
 }) => (
-  <span className={cn('group/host inline-flex items-center gap-1 min-w-0', maxWidthClass)}>
-    <Tooltip content={value} size="md">
-      <span className={cn('truncate font-mono text-[12.5px]', textColors.primary)}>{value}</span>
+  <span className={cn('group/host inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
+    <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden">
+      <span
+        className={cn(
+          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12.5px] text-left [direction:ltr]',
+          textColors.primary,
+        )}
+      >
+        {value}
+      </span>
     </Tooltip>
     <CopyButton
       value={value}
@@ -79,8 +86,13 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
     {resource.oracleSid ? (
       <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
         <span className={idcStyles.sidKey}>SID</span>
-        <Tooltip content={resource.oracleSid} size="md">
-          <span className={cn('truncate font-mono text-[11.5px]', textColors.tertiary)}>
+        <Tooltip content={resource.oracleSid} size="md" triggerClassName="min-w-0 overflow-hidden">
+          <span
+            className={cn(
+              'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11.5px] text-left',
+              textColors.tertiary,
+            )}
+          >
             {resource.oracleSid}
           </span>
         </Tooltip>

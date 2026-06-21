@@ -23,7 +23,14 @@ interface DetailResourceTableProps {
 }
 
 export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps) => {
-  if (rows.length === 0) {
+  // Only GCP rows carry a per-step `source`; rows without one have no step
+  // breakdown to display in this detail view.
+  const stepRows = rows.filter(
+    (row): row is InstallResourceRow & { source: NonNullable<InstallResourceRow['source']> } =>
+      row.source !== null,
+  );
+
+  if (stepRows.length === 0) {
     return (
       <div
         className={cn(
@@ -49,7 +56,7 @@ export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps)
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {stepRows.map((row) => {
             const stepStatus = row.source[stepKey].status;
             return (
               <tr key={row.resourceId} className="border-t border-[#EBEEF2]">

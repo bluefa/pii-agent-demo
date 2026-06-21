@@ -14,6 +14,7 @@ export const filterRowsByDetailTab = (
   tab: DetailTab,
 ): InstallResourceRow[] =>
   rows.filter((row) => {
+    if (!row.source) return false;
     const status = row.source[stepKey].status;
     if (isSkippedStepStatus(status)) return false;
     if (tab === 'all') return true;

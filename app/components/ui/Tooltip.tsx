@@ -19,6 +19,12 @@ interface TooltipProps {
   position?: 'top' | 'bottom' | 'left' | 'right';
   size?: TooltipSize;
   variant?: TooltipVariant;
+  /**
+   * Extra classes for the trigger wrapper. Lets callers make the wrapper
+   * shrinkable/clipping (e.g. `min-w-0 overflow-hidden`) so a `truncate` child
+   * can actually ellipsis inside a constrained cell.
+   */
+  triggerClassName?: string;
 }
 
 // Per-variant literal hex/box geometry — values transcribed verbatim from
@@ -47,6 +53,7 @@ export const Tooltip = ({
   position = 'top',
   size = 'md',
   variant = 'status',
+  triggerClassName,
 }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
   const [actualPosition, setActualPosition] = useState(position);
@@ -153,7 +160,7 @@ export const Tooltip = ({
   return (
     <div
       ref={containerRef}
-      className="relative inline-flex"
+      className={cn('relative inline-flex', triggerClassName)}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
       onFocus={() => setIsVisible(true)}
