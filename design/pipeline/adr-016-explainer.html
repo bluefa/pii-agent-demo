@@ -355,7 +355,7 @@
     <table>
       <tr><th>테이블</th><th>1행의 의미</th><th>핵심 컬럼</th></tr>
       <tr><td><code>pipeline</code></td><td>target당 설치/삭제 실행 1회 (run)</td><td>target_source_id · type · provider · status · triggered_by · <strong>last_activity_at</strong> · fail_reason <span class="small">(definition_version 없음 → snapshot)</span></td></tr>
-      <tr><td><code>task</code></td><td>run 내 task (현재 상태 + 타이밍)</td><td>seq · name · kind · status · polling_interval · ttl · execution_timeout · max_fail_count · fail_count · next_check_at <span class="small">(depends_on 없음 → seq predecessor)</span></td></tr>
+      <tr><td><code>task</code></td><td>run 내 task (현재 상태 + 타이밍)</td><td>seq · name(표시) · <strong>handler_key</strong>(코드 class 라우팅) · kind · status · polling_interval · ttl · execution_timeout · max_fail_count · fail_count · next_check_at <span class="small">(depends_on 없음 → seq predecessor)</span></td></tr>
       <tr><td><code>task_attempt</code></td><td>실행 시도 생애주기 (dispatch당 1행)</td><td>attempt_no · result(OK\|FAIL) · error_code · <strong>response(jsonb)</strong> <span class="small">(dispatch 원응답 = {job_id})</span></td></tr>
       <tr><td><code>task_check</code></td><td>모든 외부 호출의 관측 (호출당 1행)</td><td>kind(DISPATCH\|CHECK) · name · api_result(PENDING\|OK\|ERROR) · observed · external_handle <span class="small">(detail 컬럼 없음 → v2)</span></td></tr>
       <tr><td><code>pipeline_event</code></td><td>이벤트 = 감사 로그 + 알림 outbox</td><td>pipeline_id? · type · severity · actor · notified_at <span class="small">(append-only)</span></td></tr>

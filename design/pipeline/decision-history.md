@@ -74,6 +74,23 @@
   추가(orchestrator만 언급하던 누락). retry 응답 모양({pipelineId,created})은 api §2 유지(의미 정본은 결정 5).
   **남은 미결(설계 콜):** handler identity — `kind`+`name`(표시)로 task→코드 class 라우팅 불가, stable
   `handler_key` 필요(3R 반복 지적; 사용자 설명 완료, 반영 대기).
+- **개정 6판 후속5 — 95↑ 목표 3 gap 닫기 (handler_key·last_checked_at/latestCheck·생성 계약 불변식).**
+  ① **handler_key 도입** — `task.handler_key`(안정 코드 class 식별자) 컬럼 추가; reconciler가 `handler_key→
+  handler class` 라우팅(같은 kind 내 ApplyNetwork vs ApplyIntegration 구분; `kind`=흐름 shape·쿼리용 비정규화,
+  `name`=표시). **handler 계약:** handler가 `key()` 선언 → 레지스트리 자동 수집(수동 목록·중복 0, Spring
+  `List<T>` 주입) → recipe는 handler를 **class로 참조**(컴파일 안전, 문자열 중복 0) → 부팅 시 recipe 참조
+  검증. **Task는 in-place 수정 없이 `_V1/_V2` append-only**(키 영구 불변 → 옛 snapshot 항상 resolve). 코드 =
+  implementation-notes.md §B. snapshot spec의 모호한 `name(operation)`도 `handler_key`+`name(표시)`로 정리.
+  ② **handler 미해결 종료 명세** — 런타임에 `handler_key` 미해결(은퇴/규율 위반)이면 task **즉시 FAILED
+  (`HANDLER_NOT_FOUND`, fail_count 미소모 — 영구 조건)**; **RUNNING TERRAFORM_JOB의 in-flight job은 죽일 수
+  없어 orphan으로 흡수**(멱등·worker/execution timeout), BFF 관측 중단(cancel DISPATCHING과 동일 shape).
+  state-machine 종결표 + §1.2 + task-model + errorCode 카탈로그(+HANDLER_NOT_FOUND) 반영. ③ **last_checked_at
+  /latestCheck 정의** — `task.last_checked_at` = tick이 마지막 서비스한 시각(기아 방지 정렬 키, tick 발사 시
+  기록; task_check.checked_at 관측 시각과 구분); `latestCheck` = `started_at` 최대 task_check 1건(PENDING 포함
+  → "확인 중" 파생). ④ **생성 계약 불변식 격상** — 트리거 endpoint는 외부(ADR-006/009)지만 *생성은 어느 경로든*
+  ① resolve ② 원자적 row+snapshot ③ **unique 위반(23505)→기존 반환(에러 아님)**을 *반드시* 충족(③ 누락=target-1
+  불변식 붕괴) → ADR Decision·api §3 필수 처리로 명문화. opus/codex r4 "생성 path가 외부 코드에 의존" 반복
+  지적 대응.
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,

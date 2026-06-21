@@ -48,8 +48,20 @@ TERRAFORM_JOB              CONDITION_CHECK
  terminal                   MET
 ```
 
-- **kind = 코드 클래스.** reconciler는 kind로 흐름을 정한다: TERRAFORM_JOB은 dispatch 후 poll,
-  CONDITION_CHECK은 dispatch 없이 조건 폴링.
+- **kind = 흐름 shape, handler_key = 구체 class.** reconciler는 `kind`로 *흐름*을 정하고(TERRAFORM_JOB은
+  dispatch 후 poll · CONDITION_CHECK은 dispatch 없이 조건 폴링), **`task.handler_key`(안정 식별자, 예
+  `aws.tf.network`)로 *어느 코드 class*를 호출할지 라우팅**한다 — 같은 kind 안의 여러 task(ApplyNetwork vs
+  ApplyIntegration)를 가른다. `kind`는 handler class가 선언하는 값을 row에 비정규화(slot COUNT 쿼리용),
+  `name`은 표시 라벨일 뿐. recipe(코드)가 task 생성 시 handler_key를 박는다.
+- **handler 계약 (수동 레지스트리·중복 없음).** ① 각 handler는 **안정 `key()`를 선언**(클래스명과 무관 —
+  rename해도 키 유지; 키 문자열의 단일 출처). ② 레지스트리는 **자동 수집**한다 — 모든 handler 빈을 주입받아
+  `key()→handler` 맵을 부팅 시 파생(손으로 유지하는 목록 없음; 중복 키면 부팅 실패). ③ recipe는 handler를
+  **문자열이 아니라 class로 참조**(컴파일 타임 안전 — 오타·없는 handler는 컴파일 에러), 저장되는 `handler_key`는
+  `handler.key()`에서 파생. ④ **부팅 시** default recipe가 참조하는 모든 handler가 등록됐는지 검증(새 bad row
+  차단). ⑤ **런타임에 `handler_key` 미해결**(이미 만들어진 옛 row의 handler가 은퇴/규율 위반)이면 task 즉시
+  **FAILED(`HANDLER_NOT_FOUND`)** — 영구 조건이라 재시도 무의미, RUNNING TF의 in-flight job은 죽일 수 없어
+  orphan으로 흡수(state-machine 종결표·결정 4 liveness). 구현 코드는 [implementation-notes.md](./implementation-notes.md).
+  (Task는 in-place 수정 없이 `_V1/_V2` append-only로 관리 — `_V1` key가 영구 불변이라 옛 snapshot이 항상 resolve.)
 - **새 task = 새 코드 class.** 대개 **기존 kind를 재사용**한다(예: 또 하나의 TERRAFORM_JOB task =
   TerraformApplyStorage class) — kind는 dispatch/poll *흐름 shape*이지 task마다 하나씩 늘리는 게 아니다.
   **genuinely 새로운 흐름 shape가 필요할 때만 새 kind를 추가**한다. 임의 훅 조합·`requiresSlot`·

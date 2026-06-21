@@ -115,7 +115,7 @@ pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
                 --   ≥10분 cadence라 저빈도). 보드 기본 정렬 키. (§1.3 "비정규화 target 요약 컬럼 안 둠"과
                 --   무관 — pipeline 자신의 활동 시각이지 target 롤업이 아니다.)
 
-task            id, pipeline_id, seq, name,
+task            id, pipeline_id, seq, name, handler_key,
                 kind(TERRAFORM_JOB|CONDITION_CHECK),
                 status(BLOCKED|READY|DISPATCHING|RUNNING|
                        WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED),
@@ -125,8 +125,16 @@ task            id, pipeline_id, seq, name,
                 -- kind = TaskKind 2종(결정 2); dispatch/poll 흐름과 slot 소비 여부가 kind에서 정해진다
                 --   (TERRAFORM_JOB이 공유 IM slot을 소비, 결정 4b). slot 큐 대기는 별도 상태가 아니라
                 --   READY ∧ kind=TERRAFORM_JOB로 표현(WAITING_SLOT 제거, S26).
-                -- name = 표시 라벨(UX). 안정적 handler 정체성은 kind + 코드 class가 정한다 — 별도
-                --   handler-key 컬럼 없음(task 추가 = 코드 class 추가, 결정 2).
+                -- handler_key = 안정적 코드 class 식별자(예 "aws.tf.network"). reconciler가
+                --   handler_key→handler class 레지스트리로 dispatch/check를 라우팅한다 — recipe(코드)가
+                --   task 생성 시 박는다. 같은 kind 안의 여러 task(예 ApplyNetwork vs ApplyIntegration)는
+                --   handler_key로 구분된다(kind는 너무 거칠고 name·seq는 식별자 아님). kind는 handler class가
+                --   선언하는 값을 row에 비정규화(slot COUNT 등 쿼리용). name = 표시 라벨(UX)일 뿐.
+                --   미해결(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 FAILED(error_code=
+                --   HANDLER_NOT_FOUND, fail_count 미소모; RUNNING TF의 in-flight job은 orphan으로 흡수) — state-machine 종결표.
+                -- last_checked_at = tick이 이 task를 마지막으로 서비스(발사)한 시각 — due 선별의 기아 방지
+                --   정렬 키(§1.1 last_checked_at ASC NULLS FIRST). tick이 발사 시 next_check_at과 함께 기록
+                --   (상태=tick 규율); task_check.checked_at(관측 시각)과 다르다.
                 -- 단수 external_handle 컬럼 없음: dispatch 산출(handle)의 home은
                 --   attempt.response(jsonb); 폴링 대상 handle은 거기서 추출(결정 3.1).
 
@@ -158,7 +166,7 @@ task_check      id, task_id, checked_at, started_at,
                 --   observed = 원시 kind별 값이 canonical(O19 해소): 폴링 RUNNING/SUCCEEDED/FAILED ·
                 --     조건 MET/NOT_MET; reconciler 판정(DONE/PENDING/FAILED)은 (kind, observed)에서 파생.
                 -- name = 호출 operation 식별자(어떤 API/동작; 예 im.terraformApply·im.jobStatus).
-                -- error_code 카탈로그(api.md): CALL_TIMEOUT·EXECUTION_TIMEOUT·TTL_EXPIRED·IM_REJECTED·CHECK_ERROR·DISPATCH_NO_RESPONSE.
+                -- error_code 카탈로그(api.md): CALL_TIMEOUT·EXECUTION_TIMEOUT·TTL_EXPIRED·IM_REJECTED·CHECK_ERROR·DISPATCH_NO_RESPONSE·HANDLER_NOT_FOUND.
                 -- (detail 컬럼 없음 — terminal 스냅샷 캡처/구 postCheck는 v2 defer; 도입 시 additive 추가, v2-deferred.md.)
                 -- attempt_id 컬럼 미도입(O26 해소): job_id가 요청별 고유 발급(재dispatch=새 job_id)이라
                 --   external_handle∈attempt.response soft-link가 무모호 — 명시 링크 컬럼 불요.
@@ -172,7 +180,7 @@ pipeline_def_snapshot   pipeline_id, definition_key, definition_version,
                         type, provider, spec(jsonb)
                         -- 실행 기록(결정 7). 생성 시 1회 박제(write-once)·1 pipeline:1행. 그 run이 resolve한
                         --   definition 원본을 고정한다. spec(jsonb) = resolve된 전체 recipe:
-                        --   { name, tasks:[{ seq, name(operation 식별자), kind, deadline, ttl?,
+                        --   { name, tasks:[{ seq, handler_key, name(표시), kind, deadline, ttl?,
                         --     pollingInterval?, executionTimeout?, maxFailCount }] }
                         --   (각 task config = task row에 freeze되는 값과 동일).
                         -- task row = 그 run의 실행 상태(가변; reconciler가 전진). snapshot.spec = 그 run의
@@ -762,7 +770,7 @@ class 코드 동작은 현재 배포본을 탄다, 7.3).
   명시. **단일 출처**라 default 변경이 전 target에 자동 반영된다(per-target 복제 = drift가 없다).
 - **Snapshot (불변 실행 기록).** = `pipeline_def_snapshot`(1 pipeline:1행, 생성 시 write-once). 컬럼
   `{pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)}`; `spec`은 resolve된
-  전체 recipe = `{ name, tasks:[{ seq, name(operation), kind, deadline, ttl?, pollingInterval?,
+  전체 recipe = `{ name, tasks:[{ seq, handler_key, name(표시), kind, deadline, ttl?, pollingInterval?,
   executionTimeout?, maxFailCount }] }`. **task row = 실행 상태(가변), snapshot.spec = definition 원본
   (불변·재현 권위; 실행 때 재읽지 않음 — 코드=실행 권위·snapshot=이력 권위).** default release를 올려도
   in-flight·과거 run의 **recipe/config는 절연**된다(task class 코드 동작은 절연 대상 아님 — 7.3).

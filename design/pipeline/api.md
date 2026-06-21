@@ -19,14 +19,14 @@
 
 - **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`
 - **Pipeline** — `PipelineSummary` + `{ createdAt, finishedAt, failReason, tasks:[Task] }`
-- **Task** — `{ id, seq, name, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, latestCheck:Check? }`  ← 순서·의존은 `seq`(순차 chain); 별도 `dependsOn` 없음
+- **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, latestCheck:Check? }`  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
 - **Attempt** — `{ id, taskId, response{}, errorCode, startedAt, finishedAt, outcome(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
     - `result=OK` → `outcome=SUCCEEDED`
     - `result=FAIL` ∧ `error_code=EXECUTION_TIMEOUT` → `outcome=EXECUTION_TIMEOUT`
     - `result=FAIL` ∧ `error_code ≠ EXECUTION_TIMEOUT` → `outcome=FAILED`
 - **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode, externalHandle, checkedAt, latencyMs }`  ← `name`=호출 operation 식별자(어떤 API/동작 — 예 `im.terraformApply`·`im.jobStatus`). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
 - **PipelineEvent** — `{ id, pipelineId, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`
-- **errorCode** (attempt·check 공통) — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당)
+- **errorCode** (attempt·check 공통) — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당). `HANDLER_NOT_FOUND` = `handler_key` 미해결 → task 즉시 FAILED(fail_count 미소모, 영구 조건)
 
 ---
 
@@ -84,7 +84,7 @@
 >
 > 1. **Resolution** — `(type,provider)` 코드 default recipe를 resolve(결정 7).
 > 2. **원자성** — task row 생성 + `pipeline_def_snapshot` 박제를 한 트랜잭션(snapshot == 실제 생성 구성).
-> 3. **중복 차단** — 동일 target에 non-terminal pipeline이 있으면 부분 unique 제약 `unique(target_source_id) WHERE non-terminal`(결정 5)이 새 생성을 막고 **기존 1건을 반환**한다. **[재시도]도 동일 계약**을 탄다(§2 retry — terminal pipeline에서 호출해도 target에 non-terminal이 있으면 그것을 반환, `created=false`).
+> 3. **중복 차단(필수 처리)** — 동일 target에 non-terminal pipeline이 있으면 부분 unique 제약 `unique(target_source_id) WHERE non-terminal`(결정 5)이 INSERT를 막는다. **트리거 구현은 그 unique 위반(Postgres SQLSTATE 23505)을 *반드시* catch해 에러 대신 기존 non-terminal pipeline을 SELECT-반환해야 한다** — 이걸 누락하면 "target당 실행자 1" 불변식이 깨진다(ADR 핵심 계약, 결정 5). **[재시도]도 동일**(§2 retry — terminal에서 호출해도 target에 non-terminal이 있으면 그것을 반환, `created=false`).
 >
 > 아래 endpoint 예시는 참고일 뿐 정본 아님.
 
