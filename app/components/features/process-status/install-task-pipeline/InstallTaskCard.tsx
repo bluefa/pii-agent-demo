@@ -1,9 +1,7 @@
 'use client';
 
-import type { InstallTaskStatus } from '@/lib/constants/gcp';
+import type { InstallTaskStatus } from '@/lib/constants/install-task';
 import { cn } from '@/lib/theme';
-
-export type InstallTaskCardPosition = 'first' | 'middle' | 'last';
 
 interface InstallTaskCardProps {
   num: number;
@@ -13,7 +11,6 @@ interface InstallTaskCardProps {
   completedCount?: number;
   activeCount?: number;
   onClick?: () => void;
-  position: InstallTaskCardPosition;
   showConnector?: boolean;
 }
 
@@ -76,7 +73,6 @@ export const InstallTaskCard = ({
   completedCount,
   activeCount,
   onClick,
-  position: _position,
   showConnector,
 }: InstallTaskCardProps) => {
   const showCount = status === 'running' && typeof activeCount === 'number';

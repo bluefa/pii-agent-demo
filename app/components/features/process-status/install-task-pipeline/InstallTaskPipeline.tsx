@@ -38,7 +38,6 @@ export const InstallTaskPipeline = ({ items, columns = 3 }: InstallTaskPipelineP
           completedCount={item.completedCount}
           activeCount={item.activeCount}
           onClick={item.onClick}
-          position={idx === 0 ? 'first' : idx === lastIndex ? 'last' : 'middle'}
           showConnector={idx < lastIndex}
         />
       ))}

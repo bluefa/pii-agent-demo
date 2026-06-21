@@ -12,7 +12,6 @@ const baseProps = {
   num: 1,
   title: '서비스 측 리소스 설치 진행',
   sub: 'VPC Peering / Firewall / Service Account 권한 위임 구성',
-  position: 'first' as const,
 };
 
 describe('InstallTaskCard — status pill labels', () => {
@@ -69,7 +68,7 @@ describe('InstallTaskCard — title / sub / num', () => {
 
   it('omits sub element when sub is undefined', () => {
     const html = renderToStaticMarkup(
-      <InstallTaskCard num={2} title="t" status="pending" position="middle" />,
+      <InstallTaskCard num={2} title="t" status="pending" />,
     );
     expect(html).not.toContain('custom subtitle');
     expect(html).toContain('t');
@@ -130,16 +129,12 @@ describe('InstallTaskCard — connector chevron', () => {
 });
 
 describe('InstallTaskCard — card surface', () => {
-  it('uses uniform rounded-xl on every position (v15 12px all corners)', () => {
-    for (const position of ['first', 'middle', 'last'] as const) {
-      const html = renderToStaticMarkup(
-        <InstallTaskCard {...baseProps} status="pending" position={position} />,
-      );
-      expect(html).toContain('rounded-xl');
-      expect(html).toContain('border-0');
-      expect(html).not.toContain('rounded-l-[10px]');
-      expect(html).not.toContain('rounded-r-[10px]');
-    }
+  it('uses uniform rounded-xl with all corners (v15 12px all corners)', () => {
+    const html = renderToStaticMarkup(<InstallTaskCard {...baseProps} status="pending" />);
+    expect(html).toContain('rounded-xl');
+    expect(html).toContain('border-0');
+    expect(html).not.toContain('rounded-l-[10px]');
+    expect(html).not.toContain('rounded-r-[10px]');
   });
 
   it('tints the done card #ECFDF5 and running card #EFF6FF', () => {
