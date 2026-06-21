@@ -1,6 +1,6 @@
 import { StatusInfoIcon } from '@/app/components/ui/icons';
 import { Tooltip } from '@/app/components/ui/Tooltip';
-import { bgColors, borderColors, cn, textColors } from '@/lib/theme';
+import { cn, idcStyles, textColors } from '@/lib/theme';
 
 interface ReasonChipInlineProps {
   /** Full reason text — shown inside the tooltip popover. */
@@ -30,16 +30,9 @@ export const ReasonChipInline = ({ reason, summary, meta }: ReasonChipInlineProp
         </div>
       }
     >
-      <span
-        className={cn(
-          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11.5px] font-medium cursor-default',
-          borderColors.default,
-          bgColors.muted,
-          textColors.secondary,
-        )}
-      >
-        <StatusInfoIcon className={cn('h-3 w-3', textColors.quaternary)} />
-        <span className="truncate max-w-[200px]">{displaySummary}</span>
+      <span className={idcStyles.reasonChip.base}>
+        <StatusInfoIcon className={cn('h-3 w-3', idcStyles.reasonChip.icon)} />
+        <span className={idcStyles.reasonChip.text}>{displaySummary}</span>
       </span>
     </Tooltip>
   );

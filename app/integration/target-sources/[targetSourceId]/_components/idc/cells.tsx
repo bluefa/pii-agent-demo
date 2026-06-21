@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge } from '@/app/components/ui/Badge';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
@@ -131,9 +130,12 @@ export const IdcHealthBadge = ({ health }: { health: IdcHealth }) => {
   );
 };
 
-export const IdcTargetPill = ({ excluded }: { excluded: boolean }) =>
-  excluded ? (
-    <Badge variant="neutral" size="sm" dot>비대상</Badge>
-  ) : (
-    <Badge variant="success" size="sm" dot>대상</Badge>
+export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
+  const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
+  return (
+    <span className={cn(idcStyles.targetPill.base, variant.box)}>
+      <span className={cn(idcStyles.targetPill.dot, variant.dot)} />
+      {excluded ? '비대상' : '대상'}
+    </span>
   );
+};

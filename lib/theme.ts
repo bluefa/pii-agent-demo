@@ -533,6 +533,19 @@ export const idcStyles = {
     healthy: { text: 'text-[#2A7D52]', dot: 'bg-[#45CB85]' },
     unhealthy: { text: 'text-[#991B1B]', dot: 'bg-[#991B1B]' },
   },
+  /** Target yes/no pill — `.target-pill` (3px 9px / radius 999 / 11.5px / 600 / dot 6px). */
+  targetPill: {
+    base: 'inline-flex items-center gap-1.5 rounded-full border px-[9px] py-[3px] text-[11.5px] font-semibold whitespace-nowrap',
+    dot: 'w-1.5 h-1.5 rounded-full',
+    yes: { box: 'bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]', dot: 'bg-[#10B981]' },
+    no: { box: 'bg-white text-[#6B7280] border-[#E5E7EB]', dot: 'bg-[#9CA3AF]' },
+  },
+  /** Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help). */
+  reasonChip: {
+    base: 'inline-flex max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',
+    text: 'overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
+    icon: 'flex-shrink-0 text-[#C2410C] opacity-80',
+  },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
   /** Multi-IP endpoint toggle — `.idc-ep-toggle` (11.5px / 600 / primary). */
