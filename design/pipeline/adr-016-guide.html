@@ -576,23 +576,35 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <!-- ════════════════ S13 요구사항 ════════════════ -->
 <section id="requirements">
 <h2><span class="sec-num">13</span> 요구사항 충족</h2>
-<p class="role" style="color:var(--muted)">대표 항목. 전체 표(FR-1~8 / NFR-1~8 / PR-1~7)는 <code>requirements.md</code>.</p>
-<table class="tbl"><thead><tr><th>ID</th><th>요구사항</th><th>충족</th></tr></thead><tbody>
-<tr><td><a class="t" href="#g-fr">FR-1</a></td><td>브라우저 세션 없는 durable 설치/삭제</td><td>DB durable state machine</td></tr>
+<p class="role" style="color:var(--muted)">전체 요구사항 매핑(정본 <code>requirements.md</code>).</p>
+<table class="tbl"><caption><a class="t" href="#g-fr">FR</a> — 기능</caption><thead><tr><th>ID</th><th>요구사항</th><th>충족</th></tr></thead><tbody>
+<tr><td>FR-1</td><td>브라우저 세션 없는 durable 설치/삭제</td><td>DB durable state machine + reconciler tick</td></tr>
 <tr><td>FR-2</td><td>target별 run history</td><td>pipeline.target_source_id + history API</td></tr>
 <tr><td>FR-3</td><td>task별 attempt/check audit</td><td>task_attempt · task_check</td></tr>
-<tr><td><a class="t" href="#g-nfr">NFR-3</a></td><td>무한 대기 방지</td><td>execution timeout + WAIT_EXTERNAL TTL</td></tr>
 <tr><td>FR-4</td><td>재시도</td><td>terminal 부활 없이 새 run 생성(결정 5)</td></tr>
 <tr><td>FR-5</td><td>중단</td><td>CANCELLING + in-flight drain(결정 4c)</td></tr>
+<tr><td>FR-6</td><td>Terraform 로그/결과 보존</td><td><b>v2 defer</b> — v1은 완료 여부·시각만 CHECK 관측에 보존</td></tr>
 <tr><td>FR-7</td><td>알림</td><td>pipeline_event transactional outbox</td></tr>
 <tr><td>FR-8</td><td>BFF-visible active TF task 제한</td><td>slotCap admission</td></tr>
-<tr><td>NFR-1</td><td>재시작 안전</td><td>DB state + tick 재도출</td></tr>
+</tbody></table>
+<table class="tbl"><caption><a class="t" href="#g-nfr">NFR</a> — 비기능</caption><thead><tr><th>ID</th><th>요구사항</th><th>충족</th></tr></thead><tbody>
+<tr><td>NFR-1</td><td>재시작 후 복구</td><td>DB state + tick 재도출</td></tr>
+<tr><td>NFR-2</td><td>중복 dispatch 안전</td><td>idempotency contract(결정 3)</td></tr>
+<tr><td>NFR-3</td><td>무한 대기 방지</td><td>execution timeout + WAIT_EXTERNAL TTL</td></tr>
+<tr><td>NFR-4</td><td>다중 replica 안전</td><td>advisory lock 리더 + CAS 전이</td></tr>
 <tr><td>NFR-5</td><td>운영 가시성</td><td>task_check · pipeline_event</td></tr>
 <tr><td>NFR-6</td><td>burst 완화</td><td>max_external_calls_per_tick(D-T7)</td></tr>
 <tr><td>NFR-7</td><td>worker 결과 유실 흡수</td><td>execution timeout(결정 4a)</td></tr>
-<tr><td>NFR-2</td><td>at-least-once dispatch 안전</td><td>idempotency contract</td></tr>
-<tr><td>NFR-4</td><td>다중 replica 안전</td><td>advisory lock + CAS</td></tr>
-<tr><td><a class="t" href="#g-pr-req">PR-1</a></td><td>target 2000개 관리</td><td>run history·polling 견딤</td></tr>
+<tr><td>NFR-8</td><td>확장 가능한 task 추가</td><td>새 task = 새 코드 class(결정 2)</td></tr>
+</tbody></table>
+<table class="tbl"><caption><a class="t" href="#g-pr-req">PR</a> — 성능/용량</caption><thead><tr><th>ID</th><th>목표</th><th>기준</th></tr></thead><tbody>
+<tr><td>PR-1</td><td>target 2000개 관리</td><td>run history·polling이 견딤</td></tr>
+<tr><td>PR-2</td><td>BFF-visible active TF task 제한</td><td>slotCap ≈ workerPoolSize; slotCap × maxFailCount headroom</td></tr>
+<tr><td>PR-3</td><td>poll burst 제한</td><td>max_external_calls_per_tick 기본 50</td></tr>
+<tr><td>PR-4</td><td>WAIT_EXTERNAL 장기 대기</td><td>TTL 기본 7일</td></tr>
+<tr><td>PR-5</td><td>job poll cadence</td><td>30~60초</td></tr>
+<tr><td>PR-6</td><td>condition polling guard</td><td>최소 10분</td></tr>
+<tr><td>PR-7</td><td>task_check 증가량 제한</td><td>retention 90일, reconciler prune</td></tr>
 </tbody></table>
 </section>
 
