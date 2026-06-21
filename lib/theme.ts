@@ -25,6 +25,34 @@ export const colorRaw = {
   white: '#FFFFFF',
 } as const;
 
+/**
+ * Toss surface/text tokens (v15 2nd `:root`, design/v15-extract/00-tokens.md).
+ * The target-source screens are "Toss-flavored" and consume THESE exact hexes;
+ * previously scattered inline across components. Named here as the SSOT.
+ */
+export const tossColors = {
+  /** Toss black — strongest text. */
+  strongText: '#191F28',
+  /** Medium body text. */
+  mediumText: '#4E5968',
+  /** Weak text — captions, table headers, keys. */
+  weakText: '#8B95A1',
+  /** Faint text — connectors, separators. */
+  faintText: '#B0B8C1',
+  /** Nested surface inside cards. */
+  innerBg: '#F7F8FA',
+  /** Divider between rows / cells. */
+  divider: '#EBEEF2',
+} as const;
+
+/**
+ * Toss 2-layer card shadow (--toss-shadow-sm, 00-tokens.md). Arbitrary-value
+ * utility string for consumption via Tailwind `shadow-[...]`.
+ */
+export const tossShadow = {
+  sm: 'shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+} as const;
+
 // =============================================================================
 // 색상 (Colors)
 // =============================================================================
@@ -197,7 +225,8 @@ export const interactiveColors = {
  * 버튼 스타일
  */
 export const buttonStyles = {
-  base: 'px-4 py-2 rounded-lg font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed',
+  /** v15 .btn — radius 12, weight 700, h40, 14px, ls -0.01em, :active scale(.97). */
+  base: 'px-4 h-10 rounded-[12px] font-bold text-[14px] tracking-[-0.01em] transition-all duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed',
   variants: {
     primary: 'bg-[#0064FF] text-white hover:bg-[#0050D6] shadow-sm hover:shadow',
     secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
@@ -208,9 +237,12 @@ export const buttonStyles = {
     soft: 'bg-blue-50 text-[#0064FF] hover:bg-blue-100',
     /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
+    /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */
+    dangerOutline: 'bg-[#FEF2F2] text-[#991B1B] font-semibold border-0 hover:bg-[#FEE2E2]',
   },
   sizes: {
-    sm: 'px-3 py-1.5 text-sm',
+    /** v15 .btn.sm — radius 10, h32, 13px. */
+    sm: 'px-3 h-8 rounded-[10px] text-[13px]',
     md: 'px-4 py-2',
     lg: 'px-6 py-3 text-lg',
   },
@@ -220,24 +252,28 @@ export const buttonStyles = {
  * 카드 스타일
  */
 export const cardStyles = {
-  base: 'bg-white rounded-xl shadow-sm',
+  /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
+  base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
   padding: {
     none: '',
     sm: 'p-4',
     default: 'p-6',
     lg: 'p-8',
   },
-  header: 'px-6 py-4 border-b border-gray-100',
+  /** v15 header — 28/28/12 padding, no base border. */
+  header: 'pt-[28px] px-[28px] pb-[12px]',
+  /** v15 card body — 16/28/28 padding. */
+  body: 'pt-[16px] px-[28px] pb-[28px]',
   /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
   /** Small uppercase header above a card display title (ADR-014 card-eyebrow). */
   eyebrow: 'text-[12px] font-bold text-[#0064FF] tracking-[0.02em]',
   /** Large display heading inside a card header (ADR-014 card-display-title). */
-  displayTitle: 'text-[26px] font-extrabold text-gray-900 tracking-[-0.045em] leading-[1.2]',
-  /** In-card section title — prototype --type-h1 (22 / 700 / -0.01em). Distinct from displayTitle (page-level). */
-  cardTitle: 'text-[22px] font-bold tracking-[-0.01em] leading-[1.25] text-gray-900',
-  /** Paragraph beneath a display title (ADR-014 card-subtitle). */
-  subtitle: 'text-[13.5px] font-medium text-gray-500 leading-[1.55]',
+  displayTitle: 'text-[26px] font-extrabold text-[#191F28] tracking-[-0.045em] leading-[1.2]',
+  /** In-card section / step-card title — v15 display geometry (26 / 800 / -0.045em / #191F28). */
+  cardTitle: 'text-[26px] font-extrabold tracking-[-0.045em] leading-[1.2] text-[#191F28]',
+  /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
+  subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
   editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
   /** Toolbar surface — muted bg sitting above the Tiptap area */
@@ -298,8 +334,10 @@ export const pageChromeStyles = {
 export const pageMetaStyles = {
   container: 'flex flex-wrap gap-9',
   item: 'flex flex-col gap-1',
-  key: 'text-[13px] font-medium text-gray-500',
-  value: 'text-[15px] font-semibold tracking-[-0.01em] text-gray-900',
+  /** v15 ib-k — 12 / 600 / #8B95A1. */
+  key: 'text-[12px] font-semibold text-[#8B95A1]',
+  /** v15 ib-mono value — 13 / #191F28 / ls 0. */
+  value: 'text-[13px] font-semibold tracking-normal text-[#191F28]',
   mono: 'font-mono',
 } as const;
 
@@ -357,11 +395,13 @@ export const modalStyles = {
  * 테이블 스타일
  */
 export const tableStyles = {
-  header: 'bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
-  headerCell: 'px-6 py-3',
-  body: 'divide-y divide-gray-100',
+  /** v15 thead — #F7F8FA bg, 600, #8B95A1; NO uppercase / NO tracking-wider. */
+  header: 'bg-[#F7F8FA] text-left text-xs font-semibold text-[#8B95A1]',
+  headerCell: 'px-[18px] py-[12px]',
+  body: 'divide-y divide-[#EBEEF2]',
   row: 'hover:bg-gray-50 transition-colors',
-  cell: 'px-6 py-4',
+  /** v15 td — 16/18 padding, #191F28 / weight 500. */
+  cell: 'px-[18px] py-[16px] text-[#191F28] font-medium',
 } as const;
 
 /**
@@ -405,8 +445,9 @@ export const confirmModalStyles = {
   note: {
     warning: 'bg-amber-50 border-amber-300 text-amber-800',
   },
+  /** v15 cancel/danger-outline — radius 12, border 0, weight 600, #991B1B. */
   dangerOutlineButton:
-    'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
+    'inline-flex items-center justify-center px-4 py-2 rounded-[12px] text-sm font-semibold border-0 bg-red-50 text-[#991B1B] hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
   outlineButton:
     'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
 } as const;
@@ -415,12 +456,13 @@ export const confirmModalStyles = {
  * Step banner — 단계 본문 위 안내 배너 (시안 SIT Prototype v3 line 1832)
  */
 export const bannerStyles = {
-  base: 'flex items-center gap-3 px-4 py-3 mb-4 rounded-[10px] border text-[13px]',
+  /** v15 StepBanner — radius 12, 18/22 padding, no border, 500, font 14. */
+  base: 'flex items-center gap-3 px-[22px] py-[18px] mb-4 rounded-[12px] font-medium text-[14px]',
   variants: {
-    info: 'bg-blue-50 border-blue-200 text-blue-900',
-    warn: 'bg-amber-50 border-amber-300 text-amber-900',
-    success: 'bg-emerald-50 border-emerald-300 text-emerald-900',
-    error: 'bg-red-50 border-red-200 text-red-900',
+    info: 'bg-blue-50 text-[#1E40AF]',
+    warn: 'bg-amber-50 text-amber-900',
+    success: 'bg-emerald-50 text-[#065F46]',
+    error: 'bg-red-50 text-red-900',
   },
 } as const;
 
@@ -573,7 +615,8 @@ export const spacing = {
  * 테두리 라운딩 (Border Radius)
  */
 export const borderRadius = {
-  card: 'rounded-xl',
+  /** v15 Toss big-surface radius (--toss-radius-card 20px). */
+  card: 'rounded-[20px]',
   button: 'rounded-lg',
   badge: 'rounded-full',
   input: 'rounded-lg',

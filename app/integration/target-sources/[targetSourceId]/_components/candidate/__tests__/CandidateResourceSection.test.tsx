@@ -62,7 +62,7 @@ describe('CandidateResourceSection', () => {
       />,
     );
     const h2 = await screen.findByRole('heading', { level: 2, name: '연동 대상 DB 선택' });
-    expect(h2.className).toContain('text-[22px]');
-    expect(h2.className).toContain('font-bold');
+    expect(h2.className).toContain('text-[26px]');
+    expect(h2.className).toContain('font-extrabold');
   });
 });

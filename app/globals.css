@@ -10,10 +10,10 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  /* Primary Color (주요 색상) */
-  --color-primary: theme('colors.blue.600');
-  --color-primary-hover: theme('colors.blue.700');
-  --color-primary-light: theme('colors.blue.100');
+  /* Primary Color (주요 색상) — v15 Toss primary (NOT Tailwind blue.600 family) */
+  --color-primary: #0064FF;
+  --color-primary-hover: #0050D6;
+  --color-primary-light: #E8F1FF;
 
   /* Status Colors (상태 색상) - CLAUDE.md 규칙 준수 */
   --color-status-success: #45CB85;
@@ -37,13 +37,19 @@
   --color-text-secondary: theme('colors.gray.500');
   --color-text-muted: theme('colors.gray.400');
 
+  /* Foreground scale (v15 --fg-*) — referenced by .prose-guide / editor anchors */
+  --fg-1: #111827;
+  --fg-2: #374151;
+  --fg-3: #6B7280;
+  --fg-4: #9CA3AF;
+
   /* Spacing (간격) */
   --space-card-padding: theme('spacing.6');
   --space-section-gap: theme('spacing.6');
   --space-form-gap: theme('spacing.5');
 
-  /* Border Radius (모서리 라운딩) */
-  --radius-card: theme('borderRadius.xl');
+  /* Border Radius (모서리 라운딩) — v15 Toss big-surface radius (--toss-radius-card 20px) */
+  --radius-card: 20px;
   --radius-button: theme('borderRadius.lg');
   --radius-input: theme('borderRadius.lg');
   --radius-badge: theme('borderRadius.full');
@@ -85,9 +91,12 @@
    ============================================================================= */
 
 body {
+  /* NOTE: v15 page background = #F4F4FB (inline body override, 00-tokens.md). Wiring
+     the page/shell bg requires touching layout files — out of scope for this token pass. */
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', sans-serif;
+  letter-spacing: -0.018em;
 }
 
 /* Focus Ring (접근성) */

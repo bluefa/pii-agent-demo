@@ -126,10 +126,10 @@ describe('ConnectionVerifiedStep', () => {
     expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
   });
 
-  it('renders the card title with the cardTitle token (22px / font-bold)', () => {
+  it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     renderStep();
     const h2 = screen.getByRole('heading', { level: 2, name: /완료 여부 관리자 승인 대기/ });
-    expect(h2.className).toContain('text-[22px]');
-    expect(h2.className).toContain('font-bold');
+    expect(h2.className).toContain('text-[26px]');
+    expect(h2.className).toContain('font-extrabold');
   });
 });
