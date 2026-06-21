@@ -17,7 +17,7 @@
 > (스키마 변경 시 §1.2가 단일 출처 — 중복을 줄이려 여기엔 **API 고유 파생만** 추가 명시: `Attempt.outcome`(S30 파생)·`latestCheck`).
 > 최종 스키마는 추후 `docs/swagger/admin-pipelines.yaml`로 옮긴다.
 
-- **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`
+- **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`  ← **`progress` 파생**: `total` = 그 run의 task 행 수(생성 시 고정 = snapshot.tasks 길이; CANCELLED task도 행은 남아 분모 불변), `done` = `COUNT(task WHERE status=DONE)`(다른 terminal은 미포함 — 진척이지 종료 아님)
 - **Pipeline** — `PipelineSummary` + `{ createdAt, finishedAt, failReason, tasks:[Task] }`
 - **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, latestCheck:Check? }`  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
 - **Attempt** — `{ id, taskId, response{}, errorCode, startedAt, finishedAt, outcome(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
@@ -43,7 +43,7 @@
 
 ### `GET /admin/pipelines/{pipelineId}/tasks/{taskId}` — task 타임라인
 - 한 task의 attempt·check 머지 타임라인 (O5 "Terraform Job 상세 단계" 드릴다운).
-- query: `page`·`size`·`sort`(기본 `checkedAt,desc`) — **checks 페이지네이션**(WAIT_EXTERNAL은 행이 많음); attempts는 인라인(K로 bounded).
+- query: `page`·`size`·`sort`(기본 `startedAt,desc` — `started_at`은 PENDING 행도 항상 set; `checkedAt`은 관측 후라 PENDING이면 null) — **checks 페이지네이션**(WAIT_EXTERNAL은 행이 많음); attempts는 인라인(K로 bounded).
 - `200` → `{ task: Task, attempts: [Attempt], checks: { content:[Check], totalElements, totalPages, number, size } }`
 
 ### `GET /admin/pipelines/{pipelineId}/events` — 이벤트 / 감사 로그
@@ -61,7 +61,9 @@
 
 ### `POST /admin/pipelines/{pipelineId}/cancel` — 취소
 - 파이프라인을 `CANCELLING`으로. forward edge만 gate, in-flight job은 drain(결정 4c).
-- `200` → `{ id, status: "CANCELLING" }`
+- CAS prior=RUNNING(state-machine). **이미 CANCELLING/terminal이면 0행 no-op = 멱등** — 에러가 아니라
+  `200`으로 **현재 status를 반환**(이미-취소 재요청·terminal 부활 시도 모두 안전).
+- `200` → `{ id, status }` — 신규 전이면 `"CANCELLING"`, 멱등 no-op이면 현재 status(CANCELLING/DONE/FAILED/CANCELLED).
 
 ### `POST /admin/pipelines/{pipelineId}/retry` — 재시도 = **새 run 생성(또는 기존 non-terminal 반환)**
 - 재개가 아니라 새 run 생성(결정 5). 완료분은 terraform 수렴으로 사실상 no-op.

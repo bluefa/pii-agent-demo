@@ -111,6 +111,8 @@ pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
                 --   target source로 고정. 조회는 target_source_id 인덱스(아래).
                 -- definition_version 컬럼 없음 — 그 run의 버전·구성은 pipeline_def_snapshot이 단일 보유
                 --   (1:1·write-once 재현 권위; 중복 비정규화 안 함, 결정 7).
+                -- started_at = RUNNING 진입 시각 = 생성 시각(생성 즉시 RUNNING이라 created_at과 동일, 결정 1.3).
+                --   기간(overlap) 필터의 기준 컬럼(§1.3). finished_at = terminal 도달 시각.
                 -- last_activity_at = 마지막 상태 전이(task·pipeline) 시각. 매 전이 tx에서 갱신(2~4 task·
                 --   ≥10분 cadence라 저빈도). 보드 기본 정렬 키. (§1.3 "비정규화 target 요약 컬럼 안 둠"과
                 --   무관 — pipeline 자신의 활동 시각이지 target 롤업이 아니다.)
@@ -131,7 +133,8 @@ task            id, pipeline_id, seq, name, handler_key,
                 --   handler_key로 구분된다(kind는 너무 거칠고 name·seq는 식별자 아님). kind는 handler class가
                 --   선언하는 값을 row에 비정규화(slot COUNT 등 쿼리용). name = 표시 라벨(UX)일 뿐.
                 --   미해결(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 FAILED(error_code=
-                --   HANDLER_NOT_FOUND, fail_count 미소모; RUNNING TF의 in-flight job은 orphan으로 흡수) — state-machine 종결표.
+                --   HANDLER_NOT_FOUND, fail_count 미소모; RUNNING TF의 in-flight job은 orphan — BFF 추적 중단이라
+                --   BFF execution timeout 아닌 worker terraform 자연 종료가 bound) — state-machine 종결표.
                 -- last_checked_at = tick이 이 task를 마지막으로 서비스(발사)한 시각 — due 선별의 기아 방지
                 --   정렬 키(§1.1 last_checked_at ASC NULLS FIRST). tick이 발사 시 next_check_at과 함께 기록
                 --   (상태=tick 규율); task_check.checked_at(관측 시각)과 다르다.
@@ -159,7 +162,9 @@ task_check      id, task_id, checked_at, started_at,
                 --   (1 call = 1 row). 외부 호출 없는 평가(조건 즉시결과·로컬 평가)도 행을 남긴다
                 --   (안 남기면 조사 타임라인에서 사라짐).
                 -- external_handle = 그 행이 확인한 id의 *참조*(handle 저장소 아님 — home은 attempt.response).
-                -- 호출 스레드에서 호출 직전 PENDING으로 선기록, 응답 후 채움(결정 6, D-T5).
+                -- started_at = 호출 발사 시각(PENDING 선기록 시 set, 항상 존재). checked_at = 관측 기록 시각
+                --   (응답 후 채움; PENDING이면 null). 정렬·"최신 check"(api latestCheck)는 **started_at 기준**
+                --   (PENDING 포함). 호출 스레드에서 호출 직전 PENDING으로 선기록, 응답 후 채움(결정 6, D-T5).
                 -- kind는 표현(UX/조사) 라벨이지 control flow 분기 신호가 아니다(D-T6 인근 원칙).
                 --   JOB_POLL+CONDITION_CHECK→CHECK 통합; 핸들폴링 vs 조건평가는 external_handle 유무로 파생.
                 --   강제 확인(force-check)은 제거(개정 4판) — 모든 확인은 polling 정책으로 수행한다.
@@ -525,7 +530,8 @@ Infra Manager에 cancel API가 없고 pubsub 회수가 비현실적이다(확정
   dispatch도 in-flight side-effect job도 없는 read-only 폴링이라 drain할 대상이 없다 — WAITING_EXTERNAL로
   폴링 중이어도 [중단] 시 즉시 CANCELLED된다(drain은 죽일 수 없는 in-flight job을 가진 TERRAFORM_JOB에만
   적용).** **DISPATCHING 중 job_id 미영속 TERRAFORM_JOB도 폴링할 handle이 없어 drain 대상이 아니다 → 즉시
-  CANCELLED**(slot 반납; 원 dispatch가 accepted됐어도 멱등이라 무해, orphan은 execution timeout이 흡수).
+  CANCELLED**(slot 반납; 원 dispatch가 accepted됐어도 멱등이라 무해 — BFF 추적 중단이라 BFF execution timeout이
+  아니라 worker terraform 자연 종료가 그 orphan의 bound).
   **drain은 job_id가 영속된 RUNNING task에만 적용된다.**
 - in-flight TerraformJob은 자연 종료(또는 execution timeout)까지 돌고 **그때까지 slot을 보유**
   한다. terminal 도달 시 파이프라인이 CANCELLED로 확정된다.

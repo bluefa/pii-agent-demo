@@ -25,7 +25,9 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   5. 동시 실행 TerraformJob은 **고정 worker 풀 크기 M으로 hard-cap**된다(IM 용량 보호) — BFF N-cap(N≈M)은
      그 위의 제출 throttle. 현재 자동화 caller는 BFF뿐이다.
   6. 실행 시간·전체 히스토리(target별 run · task별 attempt/check · 모든 외부 호출 결과)와 알림이
-     일급 요구사항이다.
+     일급 요구사항이다. **단 보존은 2단: run/task/attempt/event spine은 무기한, 고빈도 관측(task_check)은
+     retention 창(기본 90일) 내** — "전체 외부호출 결과"의 일급성은 retention 창 안에서의 일급 조회를 뜻하고,
+     장기로는 spine + attempt 결과가 남는다(migrations Retention).
   7. (descoped) AI 운영은 범위 외 — 단, 모든 admin 액션이 BFF admin API라는 계층 규칙을 유지하므로
      향후 AI 운영자는 또 하나의 API principal로 표면 변경 없이 추가될 수 있다.
 

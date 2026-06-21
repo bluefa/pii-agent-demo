@@ -460,7 +460,7 @@
       <tr><td>재시도</td><td>RUNNING → READY</td><td>fail++ &lt; K → slot 반납 후 재큐(admission 재통과)</td></tr>
       <tr><td>재시도</td><td>DISPATCHING (in-place)</td><td>dispatch 복구 timeout → fail++; slot 보유한 채 재dispatch</td></tr>
       <tr><td>취소</td><td>BLOCKED·READY → <span class="pill term">CANCELLED</span></td><td>미dispatch → 즉시 CANCELLED (forward edge gate)</td></tr>
-      <tr><td>취소</td><td>DISPATCHING (TF) → <span class="pill term">CANCELLED</span></td><td><strong>job_id 미영속 → 폴링할 handle 없음 → 즉시 CANCELLED</strong>(원 dispatch 멱등이라 무해, orphan은 execution timeout 흡수)</td></tr>
+      <tr><td>취소</td><td>DISPATCHING (TF) → <span class="pill term">CANCELLED</span></td><td><strong>job_id 미영속 → 폴링할 handle 없음 → 즉시 CANCELLED</strong>(원 dispatch 멱등이라 무해; BFF 추적 중단이라 worker terraform 자연 종료가 bound, BFF execution timeout 아님)</td></tr>
       <tr><td>취소</td><td>RUNNING (TF) → drain</td><td>job_id 영속된 죽일 수 없는 job → 자연 terminal까지 drain; pipeline만 CANCELLED로 수렴</td></tr>
     </table>
     <div class="note small"><strong>task CANCELLED ≠ pipeline CANCELLED.</strong> task의 CANCELLED는 한 번도 dispatch되지 않은 task에만 붙는다.

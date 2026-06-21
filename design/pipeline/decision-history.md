@@ -91,6 +91,19 @@
   ① resolve ② 원자적 row+snapshot ③ **unique 위반(23505)→기존 반환(에러 아님)**을 *반드시* 충족(③ 누락=target-1
   불변식 붕괴) → ADR Decision·api §3 필수 처리로 명문화. opus/codex r4 "생성 path가 외부 코드에 의존" 반복
   지적 대응.
+- **개정 6판 후속6 — r5 정밀도 정정 (codex 88 / opus 88).** ① **orphan bound 문구 오류 정정(내 실수)** —
+  추적을 끊는 경우(DISPATCHING→CANCELLED, HANDLER_NOT_FOUND→FAILED)의 orphan은 "BFF execution timeout이
+  흡수"가 틀림(끊긴 task엔 BFF 타이머 안 걸림). **실제 bound = worker terraform apply 자연 종료(유한·멱등)**로
+  전 문서+HTML 정정. (단 *drain*=RUNNING 추적 유지는 execution timeout이 맞음 — 둘을 정밀 구분.) ② **시간 필드
+  정의(둘 다 지적)** — task_check `started_at`=발사 시각(PENDING도 set)·`checked_at`=관측 시각(PENDING이면 null);
+  latestCheck·checks 정렬을 **started_at 기준**으로 정합(checkedAt→startedAt). `pipeline.started_at`=RUNNING
+  진입=생성 시각 정의(overlap 필터 기준). ③ **progress{done,total} 파생** — total=task 행 수(=snapshot.tasks,
+  분모 불변)·done=COUNT(status=DONE). ④ **audit retention 모순(codex)** — Context #6에 "spine 무기한 / task_check
+  90일" 2단 보존 명시. ⑤ **handler deploy-time hard-fail(codex)** — 배포 시 non-terminal pipeline handler_key
+  resolve 검사로 in-flight 깨는 배포 차단(런타임 FAILED는 안전망). ⑥ **operations N↔execution-timeout 결합**
+  (N≫M→큐 깊어져 timeout 오발) + K 기본값 crash-headroom 포함 명시. ⑦ **cancel 멱등 응답** — terminal/이미
+  CANCELLING이면 0행 no-op=200 현재 status 반환. **보류:** decision-history/O·S번호 본문→아카이브 이동(opus,
+  큰 sweep+추적성 충돌), response(jsonb)·snapshot full spec(유지 결정), swagger 작성(over-scope).
 
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,

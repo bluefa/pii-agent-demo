@@ -86,7 +86,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | RUNNING | FAILED | tick: poll FAILED / execution timeout / IM 거부로 fail_count++ == **K** | TERRAFORM_JOB |
 | WAITING_EXTERNAL | FAILED | tick: check api_result=ERROR로 fail_count++ == **K** (NOT_MET은 미가산 — "아직"은 실패 아님) | CONDITION_CHECK |
 | WAITING_EXTERNAL | EXPIRED | tick: WAIT_EXTERNAL TTL(총 체류) 초과 → EXPIRED (→ pipeline FAILED 파생) | CONDITION_CHECK |
-| READY·DISPATCHING·RUNNING·WAITING_EXTERNAL | FAILED | tick: **`handler_key` 미해결**(registry에 없음 — 핸들러 은퇴/규율 위반) → **즉시 FAILED**(`error_code=HANDLER_NOT_FOUND`, fail_count 미소모 — 영구 조건이라 재시도 무의미), 보유 slot 반납. **RUNNING TERRAFORM_JOB의 in-flight job은 죽일 수 없어 orphan으로 남고**(멱등이라 무해, worker/execution timeout이 흡수) BFF는 관측 중단 | 전체 |
+| READY·DISPATCHING·RUNNING·WAITING_EXTERNAL | FAILED | tick: **`handler_key` 미해결**(registry에 없음 — 핸들러 은퇴/규율 위반) → **즉시 FAILED**(`error_code=HANDLER_NOT_FOUND`, fail_count 미소모 — 영구 조건이라 재시도 무의미), 보유 slot 반납. **RUNNING TERRAFORM_JOB의 in-flight job은 죽일 수 없어 orphan으로 남는다** — 멱등이라 무해하고, **BFF가 추적을 끊으므로 BFF execution timeout이 아니라 worker의 terraform apply 자연 종료(유한)가 그 bound**다 | 전체 |
 
 > EXPIRED는 **WAIT_EXTERNAL TTL 전용**이다. RUNNING의 execution timeout은 EXPIRED가 아니라 *attempt
 > 실패*(fail_count++, slot 해제 — 결정 4a; **DB 기록 = result=FAIL + error_code=EXECUTION_TIMEOUT**, 별도 result enum 아님)이며, 재시도 소진 시에만 FAILED가 된다. (결정 4a timeout 표의
@@ -109,7 +109,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 |---|---|---|
 | BLOCKED · READY (전체 kind) | CANCELLED | **미dispatch task → 즉시 CANCELLED**(forward edge가 gate되어 전진 불가; slot 큐 대기 중인 READY TF 포함) |
 | WAITING_EXTERNAL (CONDITION_CHECK) | CANCELLED | **read-only 폴링이라 drain할 in-flight job이 없다 → 폴링 중이어도 즉시 CANCELLED**(결정 4c) |
-| DISPATCHING (TERRAFORM_JOB) | CANCELLED | **job_id 미영속이라 폴링할 handle이 없다 → drain 불가 → 즉시 CANCELLED**(slot 반납). 원 dispatch가 IM에 accepted돼 실제 실행됐더라도 멱등이라 무해하고 그 orphan은 execution timeout이 흡수한다 — drain은 *handle을 가진 RUNNING*에만 적용된다(결정 4c). 재dispatch(forward edge)도 gate되므로 좀비가 되지 않는다 |
+| DISPATCHING (TERRAFORM_JOB) | CANCELLED | **job_id 미영속이라 폴링할 handle이 없다 → drain 불가 → 즉시 CANCELLED**(slot 반납). 원 dispatch가 IM에 accepted돼 실제 실행됐더라도 멱등이라 무해하고, **BFF가 추적을 끊으므로 그 orphan은 BFF execution timeout이 아니라 worker의 terraform apply 자연 종료(유한)가 bound**한다 — drain은 *handle을 가진 RUNNING*에만 적용된다(결정 4c). 재dispatch(forward edge)도 gate되므로 좀비가 되지 않는다 |
 | RUNNING (TERRAFORM_JOB) | (drain) 자연 terminal | **죽일 수 없는 in-flight job(job_id 영속됨) → drain** — terminal까지 폴링은 drain edge라 gate 안 함; 재dispatch/재시도만 gate(새 attempt 없음); slot은 terminal까지 보유. task의 실제 terminal(DONE/FAILED)은 히스토리에 사실대로 남고, pipeline만 CANCELLED로 수렴 |
 
 > **task CANCELLED ≠ pipeline CANCELLED.** task의 CANCELLED는 *폴링할 handle이 없는* task에 붙는다 —
