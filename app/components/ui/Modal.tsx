@@ -77,27 +77,27 @@ export const Modal = ({
 }: ModalProps) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Keep the latest onClose in a ref so the keydown listener can be bound once.
+  // Keep the latest onClose in a ref so the keydown listener doesn't re-bind on
+  // every parent render (onClose is often an inline closure).
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  // ESC 키로 닫기 — bind once; read latest isOpen/closeOnEscape per keypress.
-  const isOpenRef = useRef(isOpen);
-  isOpenRef.current = isOpen;
-  const closeOnEscapeRef = useRef(closeOnEscape);
-  closeOnEscapeRef.current = closeOnEscape;
+  // ESC 키로 닫기 — re-bind only when isOpen/closeOnEscape change (rare); read
+  // the latest onClose from the ref so identity churn never re-binds.
   useEffect(() => {
+    if (!closeOnEscape) return;
+
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpenRef.current && closeOnEscapeRef.current) {
+      if (e.key === 'Escape' && isOpen) {
         onCloseRef.current();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
+  }, [isOpen, closeOnEscape]);
 
   // 모달 열릴 때 body 스크롤 방지
   useEffect(() => {

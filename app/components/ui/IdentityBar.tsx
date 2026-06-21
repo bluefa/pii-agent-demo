@@ -72,8 +72,9 @@ export const IdentityBar = ({
 );
 
 const IdentityField = ({ field }: { field: IdentityBarField }) => {
-  const copyTarget =
-    field.mono ? field.copyText ?? (typeof field.value === 'string' ? field.value : null) : null;
+  // Only copyable when an explicit non-empty copyText is supplied — never the
+  // '-' placeholder a missing identifier renders.
+  const copyTarget = field.mono && field.copyText && field.copyText.trim() !== '' ? field.copyText : null;
 
   return (
     <div className={identityBarStyles.field}>

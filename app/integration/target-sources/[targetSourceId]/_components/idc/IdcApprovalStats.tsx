@@ -34,13 +34,18 @@ interface StatTileProps {
 }
 
 const StatTile = ({ label, value, unit, pct, swatch }: StatTileProps) => (
-  <div className={cn('flex flex-col gap-1.5 rounded-xl px-5 py-[18px]', idcStyles.tag.gray)}>
+  <div
+    className={cn(
+      'flex flex-col gap-1.5 rounded-xl px-5 py-[18px] transition-colors duration-150 hover:bg-[#ECEEF1]',
+      idcStyles.tag.gray,
+    )}
+  >
     <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#8B95A1]">
       {swatch && (
         <span
           className={cn(
             'h-2 w-2 rounded-[2px]',
-            swatch === 'target' ? idcStyles.targetPill.yes.dot : idcStyles.targetPill.no.dot,
+            swatch === 'target' ? idcStyles.targetPill.yes.dot : 'bg-[#D1D5DB]',
           )}
         />
       )}

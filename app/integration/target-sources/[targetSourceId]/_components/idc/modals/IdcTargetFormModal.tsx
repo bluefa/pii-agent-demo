@@ -98,14 +98,16 @@ export const IdcTargetFormModal = ({ isOpen, initial, onSubmit, onClose }: IdcTa
   // prefill instead of syncing props→state in an effect.
   const isEdit = initial !== undefined;
   const [mode, setMode] = useState<IdcInputMode>(initial ? modeFromKind(initial.kind) : 'ip');
-  // Stable row ids assigned at creation (counter ref), never derived from index.
-  const ipIdRef = useRef(0);
-  const nextIpId = () => ipIdRef.current++;
+  // Stable row ids: initial rows get index ids at mount; new rows draw from a
+  // counter seeded past them. The counter only advances in event handlers
+  // (addIp), never during render. The modal remounts per open, so ids reset.
   const [ips, setIps] = useState<IpRow[]>(() => {
     const initialValues =
       initial && initial.kind !== 'DOMAIN' ? (initial.hosts.length > 0 ? initial.hosts : ['']) : [''];
-    return initialValues.map((value) => ({ id: nextIpId(), value }));
+    return initialValues.map((value, i) => ({ id: i, value }));
   });
+  const ipIdRef = useRef(ips.length);
+  const nextIpId = () => ipIdRef.current++;
   const [domain, setDomain] = useState(initial && initial.kind === 'DOMAIN' ? (initial.hosts[0] ?? '') : '');
   const [dbTypeLabel, setDbTypeLabel] = useState(initial?.databaseTypeLabel ?? '');
   const [oracleSid, setOracleSid] = useState(initial?.oracleSid ?? '');
