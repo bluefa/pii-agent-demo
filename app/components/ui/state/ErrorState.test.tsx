@@ -25,4 +25,9 @@ describe('ErrorState', () => {
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes an alert live region for assistive tech', () => {
+    render(<ErrorState message="실패" />);
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
 });

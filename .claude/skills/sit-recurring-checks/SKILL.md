@@ -96,6 +96,37 @@ git fetch origin main && git show origin/main:<path>
 ```
 before reporting "not found". Local HEAD may lag behind.
 
+### 8. State-view component without an ARIA live-region role — P2
+
+Rule: a shared loading/error state primitive must announce to assistive tech.
+Source: PR #504 review (`LoadingState`/`ErrorState` shipped with no role). See
+`docs/reports/pr504-review-retrospective.md`.
+
+A non-test `*State.tsx` under `app/components/ui/state/` that renders a loading or
+error state must carry `role="status"` (loading) / `role="alert"` (error), and a
+render test must assert it.
+
+Detect:
+```bash
+grep -L 'role=' $(echo "$CHANGED" | grep -E 'components/ui/state/.*State\.tsx$' | grep -vE '\.test\.') 2>/dev/null
+```
+
+Auto-fix: add the role to the wrapper and an assertion to the `.test.tsx`.
+
+### 9. Full-panel `ErrorState` / `EmptyState` used for a secondary status line — P2 (manual)
+
+Rule: `ErrorState` and `EmptyState variant="block|card"` are full-panel,
+primary-outcome states. A secondary status *inside* otherwise-present content
+(e.g. an install-status error beside a still-rendering pipeline) must stay inline —
+a small `<p>`, or `ErrorState variant="inline"` once that lands.
+Source: PR #504, Step 4. A grep cannot judge primary-vs-secondary; this is manual.
+
+Detect manually: for each `<ErrorState>` / `<EmptyState>` in the diff, confirm it
+renders the **primary** outcome (the whole area is empty/failed), not a line within
+present content.
+
+Auto-fix: none — revert to an inline element, or use the inline variant.
+
 ## Output
 
 After running, emit a single table:
@@ -112,6 +143,8 @@ After running, emit a single table:
 | 5 | orphan-imports               | 0    | —             |
 | 6 | mockup-pii                   | 0    | —             |
 | 7 | spec-lookup (origin/main)    | ok   | —             |
+| 8 | state-view-aria-role         | 0    | —             |
+| 9 | full-panel-vs-inline-state   | ok   | reviewed      |
 ```
 
 Findings with severity P1 or P2 that were **not** auto-fixed must appear in the chat response with `file:line` so the user can act.

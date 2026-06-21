@@ -13,4 +13,9 @@ describe('LoadingState', () => {
     render(<LoadingState label="연동 대상을 불러오는 중…" />);
     expect(screen.getByText('연동 대상을 불러오는 중…')).toBeTruthy();
   });
+
+  it('exposes a status live region for assistive tech', () => {
+    render(<LoadingState />);
+    expect(screen.getByRole('status')).toBeTruthy();
+  });
 });
