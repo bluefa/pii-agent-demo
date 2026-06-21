@@ -1,6 +1,6 @@
 package com.bff.pipeline.service;
 
-import com.bff.pipeline.config.PipelineSettings;
+import com.bff.pipeline.ops.RuntimeSettings;
 import com.bff.pipeline.domain.ApiResult;
 import com.bff.pipeline.domain.ErrorCode;
 import com.bff.pipeline.domain.Task;
@@ -33,11 +33,11 @@ public class ExternalCalls {
 
     private final ExternalCallExecutor executor;
     private final ObservationWriter observations;
-    private final PipelineSettings settings;
+    private final RuntimeSettings settings;
     private final Clock clock;
 
     public ExternalCalls(ExternalCallExecutor executor, ObservationWriter observations,
-                         PipelineSettings settings, Clock clock) {
+                         RuntimeSettings settings, Clock clock) {
         this.executor = executor;
         this.observations = observations;
         this.settings = settings;

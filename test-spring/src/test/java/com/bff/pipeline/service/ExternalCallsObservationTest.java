@@ -57,6 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import({
         ExternalCalls.class,
         ObservationWriter.class,
+        com.bff.pipeline.ops.RuntimeSettings.class,
         ExternalCallsObservationTest.Wiring.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)

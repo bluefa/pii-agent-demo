@@ -1,6 +1,6 @@
 package com.bff.pipeline.reconciler;
 
-import com.bff.pipeline.config.PipelineSettings;
+import com.bff.pipeline.ops.RuntimeSettings;
 import com.bff.pipeline.domain.Pipeline;
 import com.bff.pipeline.domain.PipelineStatus;
 import com.bff.pipeline.domain.Task;
@@ -43,11 +43,11 @@ public class Reconciler {
     private final TaskAdvancer advancer;
     private final PipelineDeriver deriver;
     private final TaskCheckPruner pruner;
-    private final PipelineSettings settings;
+    private final RuntimeSettings settings;
     private final Clock clock;
 
     public Reconciler(Leader leader, PipelineRepository pipelines, TaskRepository tasks, TaskAdvancer advancer,
-                      PipelineDeriver deriver, TaskCheckPruner pruner, PipelineSettings settings, Clock clock) {
+                      PipelineDeriver deriver, TaskCheckPruner pruner, RuntimeSettings settings, Clock clock) {
         this.leader = leader;
         this.pipelines = pipelines;
         this.tasks = tasks;

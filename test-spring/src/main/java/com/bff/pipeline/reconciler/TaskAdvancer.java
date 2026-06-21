@@ -1,6 +1,6 @@
 package com.bff.pipeline.reconciler;
 
-import com.bff.pipeline.config.PipelineSettings;
+import com.bff.pipeline.ops.RuntimeSettings;
 import com.bff.pipeline.domain.Actor;
 import com.bff.pipeline.domain.ApiResult;
 import com.bff.pipeline.domain.CheckKind;
@@ -58,12 +58,12 @@ public class TaskAdvancer {
     private final HandlerRegistry registry;
     private final ExternalCalls externalCalls;
     private final EventRecorder events;
-    private final PipelineSettings settings;
+    private final RuntimeSettings settings;
     private final Clock clock;
 
     public TaskAdvancer(TaskRepository tasks, PipelineRepository pipelines, TaskAttemptRepository attempts,
                         TaskCheckRepository checks, HandlerRegistry registry, ExternalCalls externalCalls,
-                        EventRecorder events, PipelineSettings settings, Clock clock) {
+                        EventRecorder events, RuntimeSettings settings, Clock clock) {
         this.tasks = tasks;
         this.pipelines = pipelines;
         this.attempts = attempts;

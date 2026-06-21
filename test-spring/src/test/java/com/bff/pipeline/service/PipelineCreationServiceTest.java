@@ -60,6 +60,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         EventRecorder.class,
         HandlerRegistry.class,
         RecipeRegistry.class,
+        com.bff.pipeline.ops.RuntimeSettings.class,
         PipelineCreationServiceTest.Wiring.class
 })
 class PipelineCreationServiceTest {

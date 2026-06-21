@@ -1,6 +1,6 @@
 package com.bff.pipeline.reconciler;
 
-import com.bff.pipeline.config.PipelineSettings;
+import com.bff.pipeline.ops.RuntimeSettings;
 import com.bff.pipeline.repo.TaskCheckRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +18,10 @@ import java.time.Instant;
 public class TaskCheckPruner {
 
     private final TaskCheckRepository checks;
-    private final PipelineSettings settings;
+    private final RuntimeSettings settings;
     private final Clock clock;
 
-    public TaskCheckPruner(TaskCheckRepository checks, PipelineSettings settings, Clock clock) {
+    public TaskCheckPruner(TaskCheckRepository checks, RuntimeSettings settings, Clock clock) {
         this.checks = checks;
         this.settings = settings;
         this.clock = clock;

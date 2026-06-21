@@ -68,6 +68,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         ObservationWriter.class,
         EventRecorder.class,
         HandlerRegistry.class,
+        com.bff.pipeline.ops.RuntimeSettings.class,
         TaskAdvancerTest.Wiring.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)

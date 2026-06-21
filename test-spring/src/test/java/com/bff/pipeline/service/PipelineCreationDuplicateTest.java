@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         EventRecorder.class,
         com.bff.pipeline.handler.HandlerRegistry.class,
         com.bff.pipeline.recipe.RecipeRegistry.class,
+        com.bff.pipeline.ops.RuntimeSettings.class,
         PipelineCreationServiceTest.Wiring.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)

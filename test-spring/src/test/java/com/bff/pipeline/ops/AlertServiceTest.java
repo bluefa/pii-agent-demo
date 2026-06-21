@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * deterministically.
  */
 @DataJpaTest
-@Import({AlertService.class, EventRecorder.class, AlertServiceTest.Wiring.class})
+@Import({AlertService.class, EventRecorder.class, RuntimeSettings.class, AlertServiceTest.Wiring.class})
 class AlertServiceTest {
 
     private static final Instant FIXED = Instant.parse("2026-06-21T10:15:30Z");

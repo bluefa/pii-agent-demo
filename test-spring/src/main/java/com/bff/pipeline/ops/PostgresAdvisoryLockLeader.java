@@ -2,7 +2,6 @@ package com.bff.pipeline.ops;
 
 import com.bff.pipeline.reconciler.Leader;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -24,8 +23,11 @@ public class PostgresAdvisoryLockLeader implements Leader {
     /** A fixed key identifying the reconciler-tick lock (arbitrary constant, shared by all replicas). */
     private static final long TICK_LOCK_KEY = 0xAD016L;
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final EntityManager entityManager;
+
+    PostgresAdvisoryLockLeader(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
 
     @Override
     public boolean isLeader() {

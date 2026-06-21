@@ -1,6 +1,5 @@
 package com.bff.pipeline.ops;
 
-import com.bff.pipeline.config.PipelineSettings;
 import com.bff.pipeline.domain.Actor;
 import com.bff.pipeline.domain.ErrorCode;
 import com.bff.pipeline.domain.Severity;
@@ -28,11 +27,11 @@ public class AlertService {
     private final TaskRepository tasks;
     private final PipelineEventRepository events;
     private final EventRecorder recorder;
-    private final PipelineSettings settings;
+    private final RuntimeSettings settings;
     private final java.time.Clock clock;
 
     public AlertService(TaskAttemptRepository attempts, TaskRepository tasks, PipelineEventRepository events,
-                        EventRecorder recorder, PipelineSettings settings, java.time.Clock clock) {
+                        EventRecorder recorder, RuntimeSettings settings, java.time.Clock clock) {
         this.attempts = attempts;
         this.tasks = tasks;
         this.events = events;

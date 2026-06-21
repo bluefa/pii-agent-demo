@@ -1,6 +1,6 @@
 package com.bff.pipeline.service;
 
-import com.bff.pipeline.config.PipelineSettings;
+import com.bff.pipeline.ops.RuntimeSettings;
 import com.bff.pipeline.domain.Pipeline;
 import com.bff.pipeline.domain.PipelineDefSnapshot;
 import com.bff.pipeline.domain.PipelineStatus;
@@ -44,13 +44,13 @@ public class NewRunWriter {
     private final TaskRepository tasks;
     private final PipelineDefSnapshotRepository snapshots;
     private final EventRecorder events;
-    private final PipelineSettings settings;
+    private final RuntimeSettings settings;
     private final ObjectMapper json;
     private final Clock clock;
 
     NewRunWriter(RecipeRegistry recipes, HandlerRegistry handlers, PipelineRepository pipelines,
                  TaskRepository tasks, PipelineDefSnapshotRepository snapshots, EventRecorder events,
-                 PipelineSettings settings, ObjectMapper json, Clock clock) {
+                 RuntimeSettings settings, ObjectMapper json, Clock clock) {
         this.recipes = recipes;
         this.handlers = handlers;
         this.pipelines = pipelines;
