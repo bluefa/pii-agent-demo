@@ -24,8 +24,9 @@
   **task.handler_key 추가**(안정 코드 class 식별자 — reconciler 라우팅; 미해결 시 task FAILED/HANDLER_NOT_FOUND, 결정 2).
   **task_attempt.external_handle 제거 → response(jsonb)**(dispatch 원응답, write-once;
   terraform_job_id 전용 컬럼 없음); **task.external_handle(단수) 제거**
-  (handle home=attempt.response). task_check 행 = check 호출 1회(O24); **attempt_id 컬럼 미도입**
-  (O26 — job_id 고유 발급이라 soft-link로 충분). **crash 복구가 fail_count를 증가시키는 경로 추가**
+  (handle home=attempt.response). **task_check.poll_count 추가 + 행 단위 = RLE(O24→RLE 후속17):** DISPATCH는
+  호출당 1행, CHECK는 관측 run(연속 동일 collapse, poll_count++); started_at=run 첫 발사·checked_at=run 마지막 관측.
+  **attempt_id 컬럼 미도입** (O26 — job_id 고유 발급이라 soft-link로 충분). **crash 복구가 fail_count를 증가시키는 경로 추가**
   (K=max_fail_count 겸용이라 신규 컬럼 불요 — P0-1). **task_attempt.result enum은 OK|FAIL 유지 —
   EXECUTION_TIMEOUT은 별도 result 값이 아니라 error_code로 표현**(옵션 B; result→API outcome 파생, DB 변경 없음).
   `pipeline_def_snapshot`은 결정 1.2/7 스키마(`pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)`)로 **생성 대상**(이전 리비전 대비 *무변경*이지만 DDL상 신규 테이블 — `pipeline.definition_version`은 두지 않고 버전은 snapshot에만). **`pipeline`에 부분 unique 제약
