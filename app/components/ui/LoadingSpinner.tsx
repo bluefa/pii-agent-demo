@@ -14,6 +14,7 @@ const sizeMap = {
 export const LoadingSpinner = ({ size = 'md', className = '' }: LoadingSpinnerProps) => {
   return (
     <svg
+      aria-hidden="true"
       className={cn(sizeMap[size], 'animate-spin', className)}
       viewBox="0 0 24 24"
     >

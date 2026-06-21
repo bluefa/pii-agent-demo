@@ -31,8 +31,8 @@ docs/adr/                                Architecture decisions
 
 ## Import Boundaries
 
-- Use `@/` absolute imports for new cross-directory imports.
-- Existing sibling imports and local barrel exports may still use relative paths; match the local pattern only when keeping edits tightly scoped.
+- Use `@/` absolute imports for **all** new imports — cross-directory, sibling, and barrel (`index.ts`) re-exports alike (CLAUDE.md #3 forbids relative paths).
+- Pre-existing relative imports may be left untouched in files you are not converting; do **not** add new relative paths, and do **not** rewrite new code to relative to "match the local pattern".
 - CSR components under `app/components/**` and `app/integration/**/_components/**` use `@/app/lib/api/*` and never import `@/lib/bff/*`.
 - Server Components and `app/integration/api/v1/**/route.ts` handlers use `@/lib/bff/client`.
 - Do not import `@/lib/api-client/*`; it was removed by ADR-011 and is blocked by ESLint.

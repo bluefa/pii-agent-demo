@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
-import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
+import { LoadingState, ErrorState } from '@/app/components/ui/state';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -17,12 +16,7 @@ import { WaitingApprovalCancelButton } from '@/app/integration/target-sources/[t
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
-import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
-
-type ResourcesState =
-  | { status: 'loading' }
-  | { status: 'ready'; resources: IdcResourceView[] }
-  | { status: 'error' };
+import { useIdcResources } from '@/app/hooks/useIdcResources';
 
 /**
  * IDC Step 2 — 연동 대상 승인 대기 (read-only).
@@ -39,26 +33,7 @@ export const IdcStep2WaitingApproval = ({
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
 
-  const [state, setState] = useState<ResourcesState>({ status: 'loading' });
-
-  // Target-switch safety: the IDC subtree is keyed by targetSourceId (DR2 remount),
-  // so this effect runs once per mount; the AbortController guards the late
-  // response if the component unmounts mid-flight (DR3).
-  useEffect(() => {
-    const controller = new AbortController();
-
-    void getIdcResources(project.targetSourceId, { signal: controller.signal })
-      .then((resources) => {
-        if (controller.signal.aborted) return;
-        setState({ status: 'ready', resources });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted || (error instanceof AppError && error.code === 'ABORTED')) return;
-        setState({ status: 'error' });
-      });
-
-    return () => controller.abort();
-  }, [project.targetSourceId]);
+  const { state } = useIdcResources(project.targetSourceId);
 
   return (
     <>
@@ -94,15 +69,9 @@ export const IdcStep2WaitingApproval = ({
             <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>{' '}
             평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다.
           </StepBanner>
-          {state.status === 'loading' && (
-            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-              연동 대상을 불러오는 중...
-            </div>
-          )}
+          {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}
           {state.status === 'error' && (
-            <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-              연동 대상을 불러오지 못했습니다.
-            </div>
+            <ErrorState message="연동 대상을 불러오지 못했습니다." />
           )}
           {state.status === 'ready' && (
             <IdcResourceTable resources={state.resources} cols={['src', 'excl']} />

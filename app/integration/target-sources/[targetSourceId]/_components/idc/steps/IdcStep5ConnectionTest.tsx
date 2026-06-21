@@ -5,6 +5,7 @@ import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { StepBanner } from '@/app/components/ui/StepBanner';
+import { ErrorState, LoadingState } from '@/app/components/ui/state';
 import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -148,15 +149,9 @@ export const IdcStep5ConnectionTest = ({
               &nbsp;각 연동 대상의 Connection Status를 확인하고 있어요.
             </StepBanner>
           )}
-          {state.status === 'loading' && (
-            <div className={cn('py-10 text-center text-sm', textColors.tertiary)}>
-              연동 대상을 불러오는 중...
-            </div>
-          )}
+          {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}
           {state.status === 'error' && (
-            <div className={cn('py-10 text-center text-sm', textColors.tertiary)}>
-              연동 대상을 불러오지 못했습니다.
-            </div>
+            <ErrorState message="연동 대상을 불러오지 못했습니다." />
           )}
           {ready && (
             <>
