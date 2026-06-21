@@ -120,6 +120,26 @@ details.fold .fold-body{padding:0 16px 14px}
 .flow .node{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-family:var(--mono);font-weight:600}
 .flow .arr{color:var(--muted)}
 
+/* state-flow diagram */
+.sd{margin:1.1em 0;display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow-x:auto}
+.sd-flow{display:flex;align-items:center;gap:0;flex-wrap:nowrap;width:max-content;min-width:100%}
+.sd-node{display:inline-flex;align-items:center;padding:6px 13px;border-radius:9px;font-family:var(--mono);font-weight:700;font-size:.8rem;border:1.5px solid var(--cancel);color:var(--cancel);background:color-mix(in srgb,var(--cancel) 9%,transparent);white-space:nowrap}
+.sd-node small{font-weight:500;opacity:.8;margin-left:4px}
+.sd-node.run{border-color:var(--run);color:var(--run);background:color-mix(in srgb,var(--run) 10%,transparent)}
+.sd-node.done{border-color:var(--done);color:var(--done);background:color-mix(in srgb,var(--done) 10%,transparent)}
+.sd-node.fail{border-color:var(--fail);color:var(--fail);background:color-mix(in srgb,var(--fail) 10%,transparent)}
+.sd-node.wait{border-color:var(--wait);color:var(--wait);background:color-mix(in srgb,var(--wait) 12%,transparent)}
+.sd-node.expire{border-color:var(--expire);color:var(--expire);background:color-mix(in srgb,var(--expire) 10%,transparent)}
+.sd-node.start{border-style:dashed;font-weight:600;color:var(--muted)}
+.sd-arr{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:58px;padding:0 6px;color:var(--muted)}
+.sd-arr .lbl{font-size:.66rem;line-height:1.15;text-align:center;white-space:nowrap;margin-bottom:1px}
+.sd-arr .ln{font-size:1.1rem;line-height:1;font-weight:700}
+.sd-stack{display:inline-flex;flex-direction:column;gap:7px}
+.sd-branch{display:flex;flex-direction:column;gap:7px;border-left:3px solid var(--line);padding:2px 0 2px 14px;margin-left:10px}
+.sd-tag{font-size:.73rem;font-weight:700;color:var(--muted);font-family:var(--mono)}
+.sd-legend{font-size:.8rem;color:var(--muted);line-height:1.6}
+.sd-legend b{color:var(--fg)}
+
 /* glossary */
 #glossary .gcat{margin-top:1.8em}
 #glossary dl{margin:.4em 0;display:grid;grid-template-columns:minmax(150px,210px) 1fr;gap:2px 14px}
@@ -342,20 +362,56 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <p>task 전이의 writer는 reconciler tick이다(<a class="t" href="#g-single-writer">단일 writer</a>). 예외는 pipeline-level 사용자 전이 하나 — [중단] <span class="pill run">RUNNING</span>→<span class="pill cancel">CANCELLING</span>은 Admin API가 공통 전이 함수로 수행한다.</p>
 
 <h3>Pipeline 전이 (5상태)</h3>
-<div class="diagram"><pre>          (생성) 즉시
-             ▼
-       <span class="pill run">RUNNING</span> ──[중단] (가드: prior=RUNNING)──► <span class="pill cancel">CANCELLING</span>
-          │ 매 tick 파생 (¬CANCELLING)              │ 파생 ① (최우선)
-          │  ② FAILED task 존재 → FAILED           │ 전 in-flight drain 완료
-          │  ③ TTL EXPIRED      → FAILED           ▼
-          │  ④ 전 task DONE     → DONE          <span class="pill cancel">CANCELLED</span>
-          ▼
-   <span class="pill fail">FAILED</span> / <span class="pill done">DONE</span></pre></div>
+<div class="sd">
+  <div class="sd-flow">
+    <span class="sd-node start">생성</span>
+    <span class="sd-arr"><span class="lbl">즉시</span><span class="ln">→</span></span>
+    <span class="sd-node run">RUNNING</span>
+    <span class="sd-arr"><span class="lbl">매 tick 파생<br>(¬CANCELLING)</span><span class="ln">→</span></span>
+    <span class="sd-stack"><span class="sd-node done">DONE</span><span class="sd-node fail">FAILED</span></span>
+  </div>
+  <div class="sd-flow">
+    <span class="sd-node run">RUNNING</span>
+    <span class="sd-arr"><span class="lbl">[중단]<br>prior=RUNNING</span><span class="ln">→</span></span>
+    <span class="sd-node">CANCELLING</span>
+    <span class="sd-arr"><span class="lbl">in-flight<br>drain 완료</span><span class="ln">→</span></span>
+    <span class="sd-node">CANCELLED</span>
+  </div>
+  <div class="sd-legend"><a class="t" href="#g-cancelling-precedence">파생 우선순위</a>: <b>① CANCELLING(최우선)</b> &gt; ② FAILED task → FAILED &gt; ③ TTL EXPIRED → FAILED &gt; ④ 전 task DONE → DONE</div>
+</div>
 
 <h3>Task 전이 (9상태)</h3>
-<div class="diagram"><pre>(생성)→<span class="pill cancel">BLOCKED</span> ──seq-1 DONE──► <span class="pill cancel">READY</span> ──┐ kind로 분기
- <a class="t" href="#g-terraform-job">TERRAFORM_JOB</a> │ <span class="pill cancel">READY</span> ──<a class="t" href="#g-admission">admit</a>: COUNT(DISP|RUN)&lt;slotCap──► <span class="pill run">DISPATCHING</span> → <span class="pill run">RUNNING</span> → <span class="pill done">DONE</span>
- <a class="t" href="#g-condition-check">CONDITION_CHECK</a> │ <span class="pill cancel">READY</span> ─────────────────────► <span class="pill wait">WAITING_EXTERNAL</span> → <span class="pill done">DONE</span></pre></div>
+<div class="sd">
+  <div class="sd-flow">
+    <span class="sd-node start">생성</span>
+    <span class="sd-arr"><span class="ln">→</span></span>
+    <span class="sd-node">BLOCKED</span>
+    <span class="sd-arr"><span class="lbl">seq-1 DONE</span><span class="ln">→</span></span>
+    <span class="sd-node">READY</span>
+    <span class="sd-arr"><span class="lbl">kind 분기</span><span class="ln">↘</span></span>
+  </div>
+  <div class="sd-branch">
+    <div class="sd-tag"><a class="t" href="#g-terraform-job">TERRAFORM_JOB</a> · slot 소비</div>
+    <div class="sd-flow">
+      <span class="sd-node">READY<small>slot 큐</small></span>
+      <span class="sd-arr"><span class="lbl"><a class="t" href="#g-admission">admit</a><br>COUNT(DISP|RUN)&lt;slotCap</span><span class="ln">→</span></span>
+      <span class="sd-node run">DISPATCHING</span>
+      <span class="sd-arr"><span class="lbl">response</span><span class="ln">→</span></span>
+      <span class="sd-node run">RUNNING</span>
+      <span class="sd-arr"><span class="lbl">poll SUCCEEDED</span><span class="ln">→</span></span>
+      <span class="sd-node done">DONE</span>
+    </div>
+    <div class="sd-tag"><a class="t" href="#g-condition-check">CONDITION_CHECK</a> · dispatch 없음</div>
+    <div class="sd-flow">
+      <span class="sd-node">READY</span>
+      <span class="sd-arr"><span class="lbl">조건 폴링 개시</span><span class="ln">→</span></span>
+      <span class="sd-node wait">WAITING_EXTERNAL</span>
+      <span class="sd-arr"><span class="lbl">observed=MET</span><span class="ln">→</span></span>
+      <span class="sd-node done">DONE</span>
+    </div>
+  </div>
+  <div class="sd-legend">비terminal 5: <b>BLOCKED·READY·DISPATCHING·RUNNING·WAITING_EXTERNAL</b> · terminal 4: <span style="color:var(--done)">DONE</span>·<span style="color:var(--fail)">FAILED</span>·<span style="color:var(--expire)">EXPIRED</span>·<span style="color:var(--cancel)">CANCELLED</span>. <a class="t" href="#g-slot-queue">slot 큐</a> 대기 = READY ∧ kind=TERRAFORM_JOB(별도 상태 없음). 실패·timeout·취소 분기는 ↓ 매트릭스.</div>
+</div>
 
 <h3>tick 평가 순서 (한 task 안에서 — 처음 성립하는 규칙 하나만)</h3>
 <ol>
