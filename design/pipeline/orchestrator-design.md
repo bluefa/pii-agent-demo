@@ -194,7 +194,10 @@ task_check      id, task_id, checked_at, started_at, poll_count,
                 --   observed = 원시 kind별 값이 canonical(O19 해소): 폴링 RUNNING/SUCCEEDED/FAILED ·
                 --     조건 MET/NOT_MET; reconciler 판정(DONE/PENDING/FAILED)은 (kind, observed)에서 파생.
                 -- name = 호출 operation 식별자(어떤 API/동작; 예 im.terraformApply·im.jobStatus).
-                -- error_code 카탈로그(api.md): CALL_TIMEOUT·EXECUTION_TIMEOUT·TTL_EXPIRED·IM_REJECTED·CHECK_ERROR·DISPATCH_NO_RESPONSE·HANDLER_NOT_FOUND·JOB_FAILED(poll observed=FAILED 잡 실패).
+                -- error_code 카탈로그·저장위치 3분류 정본=api.md §0. **task_check.error_code에 실리는 건 ② 관측분
+                --   (CHECK_ERROR·CALL_TIMEOUT)과 ③ HANDLER_NOT_FOUND(synthetic 1행)뿐**; ① attempt 귀속
+                --   (EXECUTION_TIMEOUT·DISPATCH_NO_RESPONSE·IM_REJECTED·JOB_FAILED)은 task_attempt.error_code에,
+                --   TTL_EXPIRED는 status=EXPIRED 파생(별도 행 없음). (JOB_FAILED 관측은 task_check.observed=FAILED가 보유.)
                 -- (detail 컬럼 없음 — terminal 스냅샷 캡처/구 postCheck는 v2 defer; 도입 시 additive 추가, v2-deferred.md.)
                 -- attempt_id 컬럼 미도입(O26 해소): job_id가 요청별 고유 발급(재dispatch=새 job_id)이라
                 --   external_handle∈attempt.response soft-link가 무모호 — 명시 링크 컬럼 불요.
@@ -222,8 +225,9 @@ pipeline_def_snapshot   pipeline_id, definition_key, definition_version,
 
 **task_attempt와 task_check는 task 아래 형제다(attempt → check 중첩이 아님).** 역할이 다르다:
 `task_attempt` = **action(side effect)의 생애주기**(dispatch당 1행, dispatch→terminal, 재시도
-회계 attempt_no) — 관측값 저장 테이블이 아니다. `task_check` = **모든 외부 호출의 관측**(호출당
-1행). 근거:
+회계 attempt_no — 단 **429/503 backpressure 재호출은 동일 logical attempt 재사용**으로 새 행을 만들지 않고 그 호출 이력은
+task_check에만 누적) — 관측값 저장 테이블이 아니다. `task_check` = **외부 호출의 관측**(DISPATCH 호출당 1행·CHECK
+관측 run당 1행, RLE 후속17). 근거:
 ① 조건 전용 task(dispatch 없음)는 **attempt가 0개인데 check는 존재**한다(dispatch 0..1) — 중첩
 구조면 부모 없는 check를 표현할 수 없다. 훅 단순화 모델에서 이 케이스가 더 일급이 되어 형제 구조의
 정당성이 오히려 강화된다. ② crash 복구 순간에는 check의
@@ -377,7 +381,7 @@ D-T4/D-T5). dispatch도 이 규율을 예외 없이 따른다:
 3. **(호출 스레드)** dispatch API 호출.
 4. **(호출 스레드 tx)** 두 쓰기를 **분리**한다:
    **(a) task_check 관측 기록** — 선기록한 PENDING 행에 호출 결과를 채운다(성공이면 응답 수신, 429/503·오류면 그 관측). **시도 사실은 항상 기록**(아래 CAS 결과와 무관).
-   **(b) task_attempt.response 채택** — **`response IS NULL AND task_attempt.finished_at IS NULL AND task.status=DISPATCHING` guard(CAS)**일 때만 write. **write-once**(중복 dispatch 응답이 기존 `response`를 덮어쓰지 못함) + **늦은-response 차단**(그 사이 cancel/마감됐으면 0행 → `{jobId}` 무시; state-machine 4c DISPATCHING→CANCELLED 메커니즘). **CAS 0행이어도 (a) 관측 행은 채워진 채 남는다**(PENDING 잔류 아님 — 시도+결과 이력).
+   **(b) task_attempt.response 채택** — **`response IS NULL AND task_attempt.finished_at IS NULL AND task.status=DISPATCHING` guard(CAS)**일 때만 write. **write-once**(중복 dispatch 응답이 기존 `response`를 덮어쓰지 못함) + **늦은-response 차단**(그 사이 **task가 terminal로 마감됐으면** 0행 → `{jobId}` 무시). **주의:** Admin cancel은 pipeline만 즉시 CANCELLING으로 바꾸고 **task는 다음 tick에야 CANCELLED**가 된다 — 그 사이 task가 아직 DISPATCHING이면 response는 **채택될 수 있고**, 다음 tick의 DISPATCHING→CANCELLED가 그 attempt를 `result=FAIL`로 마감한다(state-machine 4c). **CAS 0행이어도 (a) 관측 행은 채워진 채 남는다**(시도+결과 이력).
 5. **(다음 tick)** 적재된 관측을 보고 RUNNING으로 CAS 전이.
 
 tick은 dispatch 발사 시점에 status(DISPATCHING)와 next_check_at만 쓰고, 상태 전이(→ RUNNING)는 다음
@@ -463,7 +467,7 @@ soft-link 무모호).
 | tick 도중, task 사이 | 전이는 독립 commit; 완료분 유지, 나머지는 다음 tick 재도출. 부분 배치 없음 |
 | dispatch 호출 후, attempt.response 영속화 전 | DISPATCHING 잔류 → dispatch 복구가 재dispatch(fail_count++); 멱등성이 중복 흡수 |
 | poll/check 응답 후, 기록 전 | 관측 1회 유실; 다음 cadence 재독. 읽기는 idempotent (결정 6, D-T4) |
-| 외부 호출 발사 후, 실행 주체가 결과 기록 전 죽음 | status 불변(실행 주체는 status 안 건드림) → 다음 tick이 재호출. task_check는 PENDING 행으로 "시도 이력" 보존 (결정 6, D-T4/D-T5) |
+| 외부 호출 발사 후, 실행 주체가 결과 기록 전 죽음 | status 불변(실행 주체는 status 안 건드림) → 다음 tick이 재호출. **DISPATCH**는 PENDING 행으로 "시도 이력" 보존(D-T5); **CHECK**은 PENDING 선기록이 없어 행 없이 다음 cadence에 재독(read 멱등이라 무해 — RLE 후속17) (결정 6, D-T4/D-T5) |
 | 상태 기록 후, 알림 발송 전 | outbox 행 notified_at IS NULL → Notifier 재시도 |
 | advisory lock 보유 중 | session-scoped lock 자동 해제, 다음 tick에 다른 pod 획득 |
 | 장시간 outage (수 시간) | 복귀 첫 tick들에 밀린 작업 일괄 발화 — **dispatch burst는 N-cap이, poll burst는 tick당 발사 상한 `max_external_calls_per_tick`(결정 6 D-T7)이 흡수**(상한 개수씩 wave로 배수; poll은 slot 무관이라 N-cap이 안 막음). timeout은 fresh 상태 재독 후 판정(결정 4)하므로 완료 작업은 SUCCEEDED로 기록되지 오판 timeout되지 않는다 |
@@ -501,7 +505,7 @@ hang할 수 있는 모든 층에 명시적 deadline을 둔다(기본값은 Part 
 | tick 주기 | reconciler 깨어나는 간격 (빈도) | 다음 tick 처리 — **호출 deadline과 무관(결정 6, D-T1)** |
 | 호출별 HTTP deadline | 외부 호출 1회 (run/poll/check); **전역 + TaskKind별 오버라이드**(task별 아님 — operations D-T3) | 그 호출을 CALL_TIMEOUT으로 끊음 |
 | Dispatch 복구 | response 없는 DISPATCHING 경과 | 재dispatch |
-| Execution timeout | TERRAFORM_JOB: dispatch → job terminal | attempt 실패 EXECUTION_TIMEOUT; slot 해제 |
+| Execution timeout | TERRAFORM_JOB: dispatch → job terminal | attempt 실패 EXECUTION_TIMEOUT·slot 반납·RUNNING→READY 재큐(fail++); **K 소진 시에만 task FAILED**(1회 만료=재시도) |
 | TTL (CONDITION_CHECK) | task당 총 체류 시간 (WAITING_EXTERNAL) | task EXPIRED → pipeline FAILED |
 
 **호출 deadline ≠ tick 주기(결정 6, D-T1).** tick 주기는 "호출이 그 안에 끝나야 한다"가
@@ -694,7 +698,8 @@ v2 defer(v2-deferred.md). terminal run 데이터의 무기한 보존은 결정 1
 ```
 tick: due 선별 → next_check_at 미래로 밀기 → async 발사 → (tick 종료)
                                                   │
-   호출 스레드: ① task_check PENDING 선기록(tx) → ② API Call(deadline) → ③ 같은 행 UPDATE
+   호출 스레드(DISPATCH): ① task_check PENDING 선기록(tx) → ② API Call(deadline) → ③ 같은 행 UPDATE
+   (CHECK은 ①선기록 없이 ②호출 → ③관측 run UPDATE-or-INSERT — RLE)
                (api_result·observed·latency; status는 절대 안 건드림)
                                                   │
               (다음) tick: 그 관측을 보고 task.status를 CAS 전이
@@ -792,9 +797,11 @@ tick 리더는 due **poll/check 호출**을 `next_check_at ASC` 순으로 최대
 - **정밀 강제가 필요하면 IM 측에서.** 더 엄밀한 보호가 필요하면 IM이 자기 부하로 **429/503
   (+Retry-After)** 를 던지고 BFF는 **requeue**(next_check_at 미루기 — **`Retry-After` 우선, 없으면 그 kind의 기본
   cadence**)로 순응하되 **fail_count는 소모하지 않는다**(backpressure ≠ 실패). **이 backpressure 규칙은 어느 IM 호출이든
-  (dispatch·job poll·condition check) 동일하다**: 429/503은 `task_check(api_result=ERROR, error_code=null)` 1행으로
-  '시도 이력'만 남기고 **CHECK_ERROR·DISPATCH_NO_RESPONSE·fail_count 어느 것으로도 세지 않는다**(dispatch면 attempt 미마감
-  동일 attempt 재사용; poll/check면 task 상태 유지·재시도). 아래 kind별 **실패 회계는 비-backpressure 호출 오류에만** 적용된다.
+  (dispatch·job poll·condition check) 동일하다**: 429/503은 `task_check(api_result=ERROR, error_code=null)` 관측으로만 남기고
+  (**dispatch=DISPATCH 1행 · poll/check=CHECK 관측 run에 poll_count++**) **CHECK_ERROR·DISPATCH_NO_RESPONSE·fail_count 어느 것으로도
+  세지 않는다**(dispatch면 attempt 미마감 **동일 logical attempt 재사용**; poll/check면 task 상태 유지·재시도). 재시도 시각은
+  `next_check_at = max(Retry-After, 그 kind cadence)`로 미루는데, **next_check_at은 상태 전이가 아니라 스케줄 힌트라 호출 스레드가
+  직접 세팅**(task.status는 여전히 tick 전용). 아래 kind별 **실패 회계는 비-backpressure 호출 오류에만** 적용된다.
 - ⚠️ **per-call deadline(D-T3)은 (다)를 막지 못한다.** deadline은 느린 호출을 *끊을* 뿐 호출은 이미
   IM에 도달했다(부하 발생 후). IM을 보호하려면 *호출을 안 보내야* 하고(발사 상한/backoff), 이것이
   발사 상한이 deadline과 별개로 필요한 이유다.

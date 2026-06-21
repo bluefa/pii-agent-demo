@@ -21,7 +21,7 @@
 | TTL (CONDITION_CHECK) | 7일 (예) | task별 | 초과 시 EXPIRED → pipeline FAILED; WAITING_EXTERNAL 총 체류 (4a) |
 | CONDITION_CHECK polling guard | ≥10분 | task별, 관리자 조정 | 조건 확인 cadence (결정 2) |
 | job-poll cadence | 30–60초 | 전역(시스템) | TerraformJob 상태 폴링; task별 비노출 (결정 2) |
-| M (worker 풀 크기) | 고정 (배포 설정 — **settings API 비편집**) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수; 재배포로만 변경 (4b) |
+| M (worker 풀 크기) | 고정 (배포 설정 — **settings API 비편집**; 출발값은 IM worker 풀 스펙에 맞춤, 예 4~8) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수; 재배포로만 변경; N≈M의 기준 (4b) |
 | N (slot cap) | ≈ M (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(N≈M); 동시성 hard cap은 M이지 N 아님 (4b) |
 | max_external_calls_per_tick (외부 호출 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 호출 수; burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
 | max_fail_count (= **K**, 초기 dispatch 포함 최대 attempt 수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |

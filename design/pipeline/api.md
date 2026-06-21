@@ -24,7 +24,7 @@
     - `result=OK` → `outcome=SUCCEEDED`
     - `result=FAIL` ∧ `error_code=EXECUTION_TIMEOUT` → `outcome=EXECUTION_TIMEOUT`
     - `result=FAIL` ∧ `error_code ≠ EXECUTION_TIMEOUT` → `outcome=FAILED`
-- **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed?(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode, externalHandle, startedAt, checkedAt?, pollCount, latencyMs }`  ← **CHECK은 관측 run**(연속 동일 관측 collapse, O24→RLE 후속17): `startedAt`=run 첫 발사·`checkedAt`=run 마지막 관측·`pollCount`=접힌 폴 수(예 NOT_MET run pollCount=1000)·`latencyMs`=마지막 폴; **DISPATCH은 호출당 1행**(pollCount=1). `name`=호출 operation 식별자(예 `im.terraformApply`·`im.jobStatus`); **`startedAt`=정렬·latestCheck 기준(현재 열린 run)**, `observed`=관측 후에만(미관측이면 null; **`kind=DISPATCH`는 observed=null** — dispatch 성패 권위는 `apiResult`+`attempt.response/errorCode`). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
+- **Check** — `{ id, taskId, kind(DISPATCH|CHECK), name, apiResult(PENDING|OK|ERROR), observed?(RUNNING|SUCCEEDED|FAILED|MET|NOT_MET), errorCode?, externalHandle, startedAt, checkedAt?, pollCount, latencyMs }`  ← **CHECK은 관측 run**(연속 동일 관측 collapse, O24→RLE 후속17): `startedAt`=run 첫 발사·`checkedAt`=run 마지막 관측·`pollCount`=접힌 폴 수(예 NOT_MET run pollCount=1000)·`latencyMs`=마지막 폴; **DISPATCH은 호출당 1행**(pollCount=1). `name`=호출 operation 식별자(예 `im.terraformApply`·`im.jobStatus`); **`startedAt`=정렬·latestCheck 기준(현재 열린 run)**, `observed`=관측 후에만(미관측이면 null; **`kind=DISPATCH`는 observed=null** — dispatch 성패 권위는 `apiResult`+`attempt.response/errorCode`). (terminal 스냅샷 결과 컨테이너 `detail`은 v2 defer.)
 - **PipelineEvent** — `{ id, pipelineId?, taskId?, type, severity(INFO|CRITICAL), message, actor, createdAt }`  ← `pipelineId`는 nullable(설정 변경 등 **global 이벤트는 null** — DB `pipeline_id?` 결정 1.2와 정합); **`message`=DB 저장 컬럼 아님**: `pipeline_event.payload(jsonb)`에서 `type`별로 렌더링한 API 파생(저장은 `payload`만; 결정 1.2/1.3)
 - **errorCode** — `CALL_TIMEOUT · EXECUTION_TIMEOUT · TTL_EXPIRED · IM_REJECTED · CHECK_ERROR · DISPATCH_NO_RESPONSE · HANDLER_NOT_FOUND · JOB_FAILED`(확장 가능; backpressure 429/503은 실패 아님 → requeue, fail_count·errorCode 둘 다 미해당 — 단 **`task_check(api_result=ERROR, error_code=null)` 1행은 남긴다**(시도 이력; `api_result=ERROR ∧ error_code=null` 형태 = 관측은 있되 사유코드 없음, state-machine 102) — **dispatch면 DISPATCH 1행, poll/check면 CHECK 관측 run(반복은 pollCount로 접힘)**). **저장 위치는 사유 귀속에 따라 셋**: **① attempt 귀속**(EXECUTION_TIMEOUT·DISPATCH_NO_RESPONSE·IM_REJECTED·**JOB_FAILED** — dispatch/run attempt 실패; `JOB_FAILED`=TERRAFORM_JOB poll이 잡 자체 실패를 `observed=FAILED`로 관측 → K 소진 시 task FAILED, 그 관측은 `task_check.observed=FAILED`가 보유)는 그 `task_attempt.error_code`에(단 DISPATCH_NO_RESPONSE는 응답 미영속이라 대응 `task_check(kind=DISPATCH)`가 PENDING으로 잔류 — D-T5 "시도 이력", ERROR로 덮지 않음); **② task_check 관측**(CHECK_ERROR·CALL_TIMEOUT)은 그 호출의 `task_check.error_code`에 — CHECK_ERROR는 check 관측 실패, **CALL_TIMEOUT은 어느 호출이든 1회 timeout(dispatch/poll/check 공통)**. CALL_TIMEOUT은 **호출 1회 실패이지 attempt 직접 실패가 아니다**: dispatch면 `task_check(kind=DISPATCH,error_code=CALL_TIMEOUT)` 남기고 **DISPATCHING 유지→복구**(attempt 운명은 dispatch_recovery_timeout까지 response null이면 tick이 `DISPATCH_NO_RESPONSE`로 마감), check면 다음 tick fail_count++, poll이면 다음 tick 재시도(4a, D-T1); **③ tick 판정**(과거 attempt 유무와 무관): `TTL_EXPIRED`는 status=EXPIRED가 유일 원인이라 **status에서 파생**(별도 행 없음), `HANDLER_NOT_FOUND`는 즉시 FAILED 판정이라 **`task_check` 1행**(O25 관측 장부)에 errorCode로 기록(DISPATCHING/RUNNING TF라 active attempt가 있으면 그 attempt는 `result=FAIL·finished_at=tick·error_code=null`로 **마감** — state-machine 종결표; 원인 errorCode는 이 task_check가 보유)
 
@@ -33,7 +33,7 @@
 ## 1. 보드 / 조회 (read-only)
 
 ### `GET /admin/pipelines` — 보드 목록
-- query: `status`, `type`, `provider`, `targetSourceId`, `from?`, `to?`, `page`, `size`, `sort`(기본 `lastActivityAt,desc`)
+- query: `status`, `type`, `provider`, `targetSourceId`, `from?`, `to?`, `page`, `size`, `sort`(기본 `lastActivityAt,desc`; **허용 키 = `lastActivityAt`·`startedAt`만** — 인덱스 보유 컬럼)
   — `lastActivityAt` = `pipeline.last_activity_at`(매 상태 전이 tx에서 갱신되는 실 컬럼, 결정 1.2; 인덱스 보유).
   `from`/`to` = 기간 횡단 조회 — run의 `[started_at, finished_at)` 체류 구간이 `[from, to)`와 겹치는 run(overlap; `pipeline(started_at)` 인덱스, orchestrator §1.3).
 - `200` → `{ content: [PipelineSummary], totalElements, totalPages, number, size }`
@@ -44,7 +44,7 @@
 
 ### `GET /admin/pipelines/{pipelineId}/tasks/{taskId}` — task 타임라인
 - 한 task의 attempt·check 머지 타임라인 (O5 "Terraform Job 상세 단계" 드릴다운).
-- query: `page`·`size`·`sort`(기본 `startedAt,desc` — `started_at`은 PENDING 행도 항상 set; `checkedAt`은 관측 후라 PENDING이면 null) — **checks 페이지네이션**(WAIT_EXTERNAL은 행이 많음); attempts는 인라인(K로 bounded).
+- query: `page`·`size`·`sort`(기본 `startedAt,desc` — `started_at`은 PENDING 행도 항상 set; `checkedAt`은 관측 후라 PENDING이면 null) — **checks 페이지네이션**(WAIT_EXTERNAL은 CHECK run이라 행이 적지만 전이·ERROR run이 쌓일 수 있음); attempts는 인라인(task당 ≤ K, §1.2).
 - `200` → `{ task: Task, attempts: [Attempt], checks: { content:[Check], totalElements, totalPages, number, size } }`
 
 ### `GET /admin/pipelines/{pipelineId}/events` — 이벤트 / 감사 로그
@@ -114,7 +114,7 @@
   taskCheckRetentionDays, queueWaitAlertMin
 }
 ```
-> **이 객체 = 전역 기본값(평면 단일 객체)**. `perCallDeadlineSec`의 TaskKind별 오버라이드(operations D-T3)는 코드/배포 소관이라 여기서 편집하지 않는다. `executionTimeoutMin·waitExternalTtlDays·waitExternalPollingGuardMin(=polling_interval)·maxFailCount`는 **전역 기본값**일 뿐이며, 코드 default recipe가 task별로 override할 수 있다 — 생성 시 **(recipe per-task override 우선, 없으면 이 전역 기본값)**이 row에 frozen(결정 7.3·operations 적용 시점)이라, 이 API 변경은 *이후 생성되는 run*에만 반영된다. 즉 task별 차등의 출처는 recipe(코드)이고, 이 API는 전역 노브·기본값만 편집한다.
+> **이 객체 = 전역 기본값(평면 단일 객체)**. `perCallDeadlineSec`의 TaskKind별 오버라이드(operations D-T3)는 코드/배포 소관이라 여기서 편집하지 않는다. **`M`(worker 풀 크기)은 배포 설정이라 이 객체에 포함되지 않는다**(read도 불가 — operations 표·배포 스펙 참조). `executionTimeoutMin·waitExternalTtlDays·waitExternalPollingGuardMin(=polling_interval)·maxFailCount`는 **전역 기본값**일 뿐이며, 코드 default recipe가 task별로 override할 수 있다 — 생성 시 **(recipe per-task override 우선, 없으면 이 전역 기본값)**이 row에 frozen(결정 7.3·operations 적용 시점)이라, 이 API 변경은 *이후 생성되는 run*에만 반영된다. 즉 task별 차등의 출처는 recipe(코드)이고, 이 API는 전역 노브·기본값만 편집한다.
 
 ### `PUT /admin/pipelines/settings`
 - body: 위 객체(부분 갱신 허용). 변경은 `pipeline_event`로 감사, 재배포 불필요(R5).

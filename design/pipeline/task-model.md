@@ -145,5 +145,5 @@ dispatch가 낸 handle은 `attempt.response`에 보존되고, poll이 그걸 폴
 ## 금지 (개정 4판)
 
 - **비멱등 task** (위 계약 위반)
-- **fan-out handle** — 한 dispatch가 handle 여러 개 반환 금지(attempt:handle = 1:1, attempt:task_check = 1:N 폴링)
+- **fan-out handle** — 한 dispatch가 handle 여러 개 반환 금지(attempt:handle = 1:1, attempt:task_check-run = 1:N; 폴 횟수는 run의 poll_count — RLE 후속17)
 - **task 간 값 전달** — task는 pipeline.target_source_id 와 task_attempt.response 만 사용
