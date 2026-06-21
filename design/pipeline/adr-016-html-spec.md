@@ -131,7 +131,7 @@
   CHECK=관측 run(partition=`task_id+kind+name+external_handle`, collapse key=`(api_result,observed,error_code)`,
   poll_count++). "NOT_MET 1000폴=1행(poll_count=1000)" 예시. RLE는 *행 표현*일 뿐 fail_count 회계와 무관.
 - **스키마 delta·인덱스·retention**(migrations 홈): 추가(handler_key·poll_count·last_activity_at·unique
-  제약) / 제거(definition_version·external_handle·detail·call_deadline_at·attempt_id·parameters) / 인덱스 6종 /
+  제약) / 제거(pipeline.definition_version[단 snapshot.definition_version은 유지]·external_handle·detail·call_deadline_at·attempt_id·parameters) / 인덱스 6종 /
   retention(spine 무기한, task_check 90일 prune).
 
 ### S5 — 상태 기계
@@ -162,7 +162,9 @@
 - **fail-count 가산 매트릭스**(정본; codex 요청): TERRAFORM_JOB poll 호출 오류=**미가산**(잡 못 읽음≠잡 실패) ·
   TERRAFORM_JOB dispatch 실패(IM_REJECTED/recovery/EXECUTION_TIMEOUT/JOB_FAILED)=가산 · CONDITION_CHECK
   CHECK ERROR/CALL_TIMEOUT(비-backpressure)=가산 · NOT_MET=미가산 · backpressure(전부)=미가산 ·
-  HANDLER_NOT_FOUND=fail-count 미소모(영구 실패) · 취소 정리=미가산.
+  HANDLER_NOT_FOUND=fail-count 미소모(영구 실패) · 취소 정리 마감(error_code=null)=미가산. **단 drain 중
+  RUNNING TF의 *실제* 실패/timeout(JOB_FAILED·EXECUTION_TIMEOUT)은 fail_count++ 가산**(사실대로 마감) — 그래도
+  pipeline은 CANCELLING precedence로 CANCELLED 수렴(fail_count 증가가 pipeline FAILED를 유발하지 않음).
 - __maxFailCount (K)__ 정의: TERRAFORM_JOB=초기 dispatch 포함 최대 attempt 수(총 attempt ≤ maxFailCount, 재dispatch ≤ maxFailCount − 1) /
   CONDITION_CHECK=비-backpressure CHECK ERROR **또는 CALL_TIMEOUT** 허용 횟수.
 - **slotCap↔execution-timeout 결합** 경고(slotCap ≫ workerPoolSize이면 큐 대기가 timeout 경과에 포함돼 오발).
@@ -268,7 +270,7 @@
 - `state.running.task` (task RUNNING — job 폴링 중) vs `state.running.pipeline` (pipeline RUNNING — 진행 중).
 - `state.failed.task` vs `state.failed.pipeline`(파생 terminal).
 - `check.kind` (task_check.kind=CHECK — TF job poll + condition 둘 다) vs `check.verb`(조건 확인 호출 행위).
-- `pending.apiresult` (api_result=PENDING — DISPATCH 선기록) — 상태 아님.
+- `apiresult.pending` (api_result=PENDING — DISPATCH 선기록) — 상태 아님(§7 마스터 키와 동일).
 - `col.status`/`col.type`/`col.name`/`col.response` (DB 컬럼) — 각 테이블별 의미 주석.
 본문 저작 시 올바른 namespace 키를 고른다(리뷰 체크 항목).
 
@@ -391,6 +393,8 @@ HTML만 읽고 답할 수 있어야 하는 질문(리뷰에서 본문 존재 검
 - `dispatch` **dispatch** — IM run API 호출로 job_id 획득(side-effect). TERRAFORM_JOB만.
 - `poll` **poll** — dispatch한 job 상태를 cadence마다 반복 확인(read-only, kind=CHECK).
 - `check.verb` **check(행위)** — CONDITION_CHECK 조건 확인 호출(read-only, kind=CHECK).
+- `check.kind` **task_check.kind=CHECK** — 관측 kind 값. **TF job poll·CONDITION_CHECK 조건 확인 둘 다** 이 kind(RLE collapse 대상). DISPATCH(호출당 1행)와 구분.
+- `dispatch.kind` **task_check.kind=DISPATCH** — dispatch 호출 관측 kind 값. 호출당 1행(RLE 안 함, poll_count=1).
 - `observation-run` **관측 run** — RLE 단위. 연속 동일 (api_result,observed,error_code) 폴을 1행으로 접고 poll_count++.
 - `external-handle` **external_handle** — task_check가 확인한 id의 참조(home은 attempt.response).
 - `handle` **handle** — dispatch 산출 식별자(terraform=job_id). attempt:handle = 1:1.
@@ -440,7 +444,7 @@ HTML만 읽고 답할 수 있어야 하는 질문(리뷰에서 본문 존재 검
 - `last-checked-at` **last_checked_at** — tick이 task를 마지막 서비스(발사)한 시각. 기아 방지 정렬 키(ASC NULLS FIRST).
 - `deadline-at` **deadline_at** — 현재 적용 timeout 절대 만료 시각(reconciler 파생값, 내부 비노출).
 - `last-activity-at` **last_activity_at** — 마지막 상태 전이 시각. 보드 기본 정렬 키. (started_at과 다름.)
-- `col.started-at` **started_at** — (pipeline)RUNNING 진입=생성 시각·overlap 필터 기준 / (task)BLOCKED 벗어난 시각 / (attempt)dispatch 시작 / (task_check)run 첫 발사.
+- `col.started-at` **started_at** — (pipeline)RUNNING 진입=생성 시각·overlap 필터 기준 / (task)**첫 실행 개시** = READY→DISPATCHING(TF)·READY→WAITING_EXTERNAL(CONDITION_CHECK) 전이 시각(BLOCKED→READY 승격이 아님) / (attempt)dispatch 시작 / (task_check)run 첫 발사.
 - `col.finished-at` **finished_at** — terminal 도달 시각(pipeline/task/attempt 각 grain).
 - `col.created-at` **created_at** — pipeline 생성 시각(생성 즉시 RUNNING이라 started_at과 동일).
 - `col.checked-at` **checked_at** — task_check run 마지막 관측 시각(DISPATCH PENDING이면 null).
@@ -448,7 +452,7 @@ HTML만 읽고 답할 수 있어야 하는 질문(리뷰에서 본문 존재 검
 ### 7.7 상태 enum (task)
 - `state.blocked` **BLOCKED** — 의존 미해소(predecessor 미완). reconciler가 안 봄.
 - `state.ready` **READY** — 전진 가능. READY∧TF=slot 큐(WAITING_SLOT 없음).
-- `state.dispatching` **DISPATCHING** — dispatch 발사~response 적재. slot 점유.
+- `state.dispatching` **DISPATCHING** — dispatch 발사 ~ **다음 tick의 RUNNING 전이 전**(response가 적재돼도 RUNNING 승격은 다음 tick; 그 사이 cancel도 DISPATCHING 취급 — drain 안 함). slot 점유.
 - `state.running.task` **RUNNING (task)** — job_id 폴링 중. slot 점유.
 - `state.waiting-external` **WAITING_EXTERNAL** — CONDITION_CHECK 조건 폴링 중.
 - `state.done` **DONE** — 성공 terminal.
@@ -477,6 +481,7 @@ HTML만 읽고 답할 수 있어야 하는 질문(리뷰에서 본문 존재 검
 - `apiresult.ok` **OK** — 호출 성공.
 - `apiresult.error` **ERROR** — 호출 실패/관측(backpressure도 ERROR·error_code=null).
 - `observed` **observed** — 원시 관측값. canonical(통합 enum 저장 안 함).
+- `verdict.pending` **PENDING (파생 verdict)** — reconciler가 `(kind, observed)`에서 파생하는 통합 판정 "진행 중"(DONE/PENDING/FAILED 중). **api_result=PENDING(DISPATCH 선기록)과 다른 개념** — 이건 폴 결과 판정, 저건 호출 미완.
 - `observed.running` **RUNNING (observed)** — poll: 잡 진행 중.
 - `observed.succeeded` **SUCCEEDED (observed)** — poll: 잡 성공.
 - `observed.failed` **FAILED (observed)** — poll: 잡 자체 실패(→JOB_FAILED).
@@ -580,7 +585,8 @@ HTML만 읽고 답할 수 있어야 하는 질문(리뷰에서 본문 존재 검
 - `revision17` **후속17** — RLE 개정(collapse 의미론). 다수 인용.
 - `rev4` **개정 4판** — TaskKind 3→2·circuit breaker/C-budget/force-check 제거·postCheck v1 defer.
 - `rev6` **개정 6판** — v1/v2 분리(scheduling·custom recipe·GENERAL_JOB 등 v2 이관·unique 제약 도입).
-- `decision-labels` **결정 1~7 / 4a~4d / 7.1~7.4 / D-T1~D-T7** — orchestrator 결정·하위결정 라벨(본문 인용 단위).
+- `decision-labels` **결정 1~7 / 1.1~1.4 / 3.1~3.4 / 4a~4d / 7.1~7.4 / D-T1~D-T7** — orchestrator 결정·하위결정 라벨(본문 인용 단위). 예: 1.1=파생 우선순위·1.2=스키마·1.3=기록/조회/알림·3.1=dispatch 5단계·3.3=crash walkthrough.
+- `legacy-d-labels` **D1~D13 (구 결정 라벨)** — 개정 전 결정 번호. 현 결정 1~7로 흡수·재구성(decision-history 추적; 본문은 현 라벨 사용).
 - `req-labels` **FR-1~8 / NFR-1~8 / PR-1~7** — 요구사항 ID.
 - `option-labels` **Option A~F** — 검토한 대안 라벨.
 - `part-ii` **Part II / Config 표** — operations 설정표(기본값 단일 출처) 별칭.
@@ -588,6 +594,12 @@ HTML만 읽고 답할 수 있어야 하는 질문(리뷰에서 본문 존재 검
 
 ### 7.17 제거·연기된 용어 (소스에 흔적 남음 — 혼동 방지용)
 - `removed.circuit-breaker` **circuit breaker(제거)** — 장애 차단기. 개정 4판 제거(timeout+retry+알림 롤업 대체).
+- `removed.breaker-states` **breaker open/half-open/close(제거)** — circuit breaker 상태. 개정 4판 제거.
+- `removed.canary` **canary dispatch / outage dispatch gate(제거)** — breaker 복구 probe·outage 시 dispatch 차단. 개정 4판 제거(N↔timeout 결합으로 대체).
+- `removed.worker-recovered` **WORKER_RECOVERED(제거)** — breaker 복구 알림. 제거(현재 WORKER_OUTAGE_SUSPECTED 롤업만).
+- `removed.timeout-requeue-special` **timeout requeue special path(제거)** — breaker open 중 timeout job을 fail 미소모로 requeue하던 특례. 제거(일반 execution timeout 경로로 단일화).
+- `removed.c-budget-formula` **in_flight / admit = C − in_flight / C-budget(제거)** — 구 D-T7 호출 예산 공식. 개정 4판 제거(max_external_calls_per_tick 발사 상한으로 대체).
+- `removed.cancel-requested-at` **cancel_requested_at / intent row(미도입)** — 중단 의사 별도 컬럼/행. 안 둠 — CANCELLING 상태 자체가 표현, 누가·언제는 pipeline_event(actor)가 감사.
 - `removed.force-check` **force-check(제거)** — 수동 강제 확인. 모든 확인은 polling만.
 - `removed.pause-resume` **pause/resume(제거)** — dispatch admission gate. circuit breaker와 함께 제거.
 - `removed.waiting-slot` **WAITING_SLOT(제거)** — slot 큐 별도 상태. READY∧kind=TF로 대체(S26).
