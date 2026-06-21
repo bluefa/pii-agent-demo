@@ -110,7 +110,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 - worker outage 감지가 execution timeout에 의존해 둔하다(~30분+, 구조적 상수) — circuit breaker 없이
   timeout + retry + 알림 롤업으로 처리.
 - 재개 비지원으로 실패한 긴 run의 재시도는 전체 재실행 시간을 지불한다(terraform 수렴으로 완료분은 no-op).
-- 관측 로그(task_check)가 poll/check마다 행을 쓴다 — cadence로 bounded·retention으로 prune되지만 DB 트래픽.
+- 관측 로그(task_check)는 DISPATCH는 호출당, CHECK는 관측 run당 행을 쓴다(RLE — 동일 관측 반복은 poll_count로 접힘) — retention으로 prune되지만 DB 트래픽.
 
 ## Requirements Satisfied
 
