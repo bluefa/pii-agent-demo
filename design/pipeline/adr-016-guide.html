@@ -922,6 +922,7 @@ ADR-016 Install/Delete Pipeline Orchestration · 이 가이드는 <code>docs/adr
   mb.addEventListener('click',function(){setDrawer(!side.classList.contains('open'));});
   side.addEventListener('click',function(e){if(e.target.tagName==='A')setDrawer(false);});
   document.addEventListener('keydown',function(e){if(e.key==='Escape')setDrawer(false);});
+  document.addEventListener('click',function(e){if(side.classList.contains('open')&&!e.target.closest('#side')&&!e.target.closest('#menuBtn'))setDrawer(false);});
 
   /* scroll-spy */
   var links={}, navA=document.querySelectorAll('nav.side a[href^="#"]');
