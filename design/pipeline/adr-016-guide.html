@@ -56,6 +56,8 @@ nav.side a{display:block;padding:5px 18px 5px 18px;color:var(--muted);text-decor
 nav.side a .n{display:inline-block;width:30px;color:var(--accent);font-variant-numeric:tabular-nums;font-weight:700;font-size:.78rem}
 nav.side a:hover{color:var(--fg);background:color-mix(in srgb,var(--accent) 6%,transparent)}
 nav.side a.active{color:var(--fg);border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent);font-weight:600}
+nav.side a.sub{padding-left:34px;font-size:.8rem}
+nav.side a.sub .n{width:34px;font-size:.72rem}
 main{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:78px 28px 120px;width:100%}
 section{margin:0 0 56px;scroll-margin-top:66px}
 .lead{font-size:1.06rem;color:var(--fg)}
@@ -200,20 +202,21 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
   <div class="navhead">ADR-016 가이드<small>Install/Delete Pipeline Orchestration</small></div>
   <a href="#tldr"><span class="n">0</span>한눈에 (TL;DR)</a>
   <a href="#problem"><span class="n">1</span>문제와 맥락</a>
-  <a href="#decision"><span class="n">2</span>핵심 결정</a>
-  <a href="#creation-contract"><span class="n">2c</span>생성 계약</a>
-  <a href="#options"><span class="n">3</span>검토한 대안</a>
-  <a href="#data-model"><span class="n">4</span>데이터 모델</a>
-  <a href="#state-machine"><span class="n">5</span>상태 기계</a>
-  <a href="#concurrency"><span class="n">6</span>동시성 모델</a>
-  <a href="#tick-model"><span class="n">7</span>tick 실행 모델</a>
-  <a href="#resilience"><span class="n">8</span>복구 (crash &amp; N-pod)</a>
-  <a href="#errorcodes"><span class="n">9</span>errorCode 분류</a>
-  <a href="#definition"><span class="n">10</span>Definition·Snapshot</a>
-  <a href="#api"><span class="n">11</span>API 표면</a>
-  <a href="#operations"><span class="n">12</span>운영·알림</a>
-  <a href="#requirements"><span class="n">13</span>요구사항 충족</a>
-  <a href="#glossary"><span class="n">14</span>용어 사전</a>
+  <a href="#options"><span class="n">2</span>검토한 대안</a>
+  <a href="#decision"><span class="n">3</span>핵심 결정</a>
+  <a href="#decision-detail"><span class="n">4</span>Decision (상세)</a>
+  <a class="sub" href="#data-model"><span class="n">4.1</span>데이터 모델</a>
+  <a class="sub" href="#state-machine"><span class="n">4.2</span>상태 기계</a>
+  <a class="sub" href="#concurrency"><span class="n">4.3</span>동시성 모델</a>
+  <a class="sub" href="#tick-model"><span class="n">4.4</span>tick 실행 모델</a>
+  <a class="sub" href="#resilience"><span class="n">4.5</span>dispatch·복구</a>
+  <a class="sub" href="#errorcodes"><span class="n">4.6</span>errorCode 분류</a>
+  <a class="sub" href="#definition"><span class="n">4.7</span>Definition·Snapshot</a>
+  <a class="sub" href="#creation-contract"><span class="n">4.8</span>생성 계약</a>
+  <a href="#api"><span class="n">5</span>API 표면</a>
+  <a href="#operations"><span class="n">6</span>운영·알림</a>
+  <a href="#requirements"><span class="n">7</span>요구사항 충족</a>
+  <a href="#glossary"><span class="n">8</span>용어 사전</a>
 </nav>
 
 <div class="util">
@@ -230,7 +233,7 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 
 <!-- ════════════════ S0 TL;DR ════════════════ -->
 <section id="tldr">
-<h2><span class="sec-num">00</span> 한눈에 (TL;DR)</h2>
+<h2><span class="sec-num">0</span> 한눈에 (TL;DR)</h2>
 <div class="tldr">
 <p><b>무엇을.</b> target source(약 2000개)의 설치/삭제를 <b>브라우저 세션 없이</b> 자동·복구가능하게 진행하고, 실행 히스토리를 <b>일급</b>으로 조회·알림한다.</p>
 <p><b>어떻게.</b> <a class="t" href="#g-bff">BFF</a> 안에 <a class="t" href="#g-durable-state-machine">durable state machine</a>과 30초 주기 <a class="t" href="#g-reconciler">reconciler</a> <a class="t" href="#g-tick">tick</a>을 둔다. <b>DB가 유일한 상태</b>이고 tick이 각 <a class="t" href="#g-task">task</a>를 전진시키며 <a class="t" href="#g-pipeline">pipeline</a> 상태는 task에서 파생된다.</p>
@@ -244,9 +247,8 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 </div>
 </section>
 
-<!-- ════════════════ S1 문제 ════════════════ -->
 <section id="problem">
-<h2><span class="sec-num">01</span> 문제와 맥락</h2>
+<h2><span class="sec-num">1</span> 문제와 맥락</h2>
 <p><b>현재 문제.</b> 모든 <a class="t" href="#g-im">Infra Manager</a> <a class="t" href="#g-terraform">Terraform</a> 호출이 사람 수동이다. 브라우저 세션 없이 자동·복구가능하게, 실행 히스토리를 일급으로 만들어야 한다. <b>규모</b>는 <a class="t" href="#g-target-source">target source</a> 약 2000개, provider × install/delete 파이프라인 정의 약 12종.</p>
 
 <h3>시스템 계층</h3>
@@ -272,9 +274,24 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 </div>
 </section>
 
-<!-- ════════════════ S2 결정 ════════════════ -->
+<section id="options">
+<h2><span class="sec-num">2</span> 검토한 대안</h2>
+<table class="tbl">
+<thead><tr><th>옵션</th><th>결정</th><th>이유</th></tr></thead>
+<tbody>
+<tr><td>A. BFF 내부 durable reconciler (DB row + tick)</td><td><b>채택</b></td><td>실제 워크로드에 부합; 재시작 안전; 관리자 조정형 폴링이 <a class="t" href="#g-next-check-at">next_check_at</a>에 자연 대응; 최소 운영 footprint</td></tr>
+<tr><td>B. 별도 오케스트레이터 마이크로서비스</td><td>보류</td><td>모듈 분량 로직에 서비스 분량 오버헤드. 모듈 경계가 추출 비용을 낮게 유지</td></tr>
+<tr><td>C. <a class="t" href="#g-workflow-engine">워크플로 엔진</a> (Temporal/Airflow)</td><td>거부</td><td>≥10분 폴링의 2~4 step 선형 체인은 그 도입 비용을 정당화 못 함. 큐·재현·수일 <a class="t" href="#g-ttl">WAIT</a>는 DB row+tick으로 충분</td></tr>
+<tr><td>D. BFF 인메모리 async 체인</td><td>거부</td><td>재시작/배포에 run 유실; durable 큐·히스토리·수일 대기 표현 불가</td></tr>
+<tr><td>E. Backend Manager에 파이프라인 상태</td><td>거부</td><td>로직·상태 분산; 원격 API 경유 원자적 slot 회계는 racy</td></tr>
+<tr><td>F. Infra Manager 측 동시성 제한 (지금)</td><td>보류</td><td>현재 자동화 caller는 BFF뿐; 다른 caller 등장 시 IM 429/503 재검토(결정 4b)</td></tr>
+</tbody>
+</table>
+<p class="role" style="color:var(--muted);font-size:.88rem">별도 워커 분리도 배제한다 — 무거운 워크로드(실제 Terraform 실행)는 이미 TerraformWorker로 분리돼 있고 reconciler는 호출·폴링·기록만 한다. 부하가 강제하면 답은 워커 분리가 아니라 Option B다.</p>
+</section>
+
 <section id="decision">
-<h2><span class="sec-num">02</span> 핵심 결정</h2>
+<h2><span class="sec-num">3</span> 핵심 결정</h2>
 <p class="lead"><b>BFF 내부 <a class="t" href="#g-durable-state-machine">durable state machine</a> + reconciler tick을 둔다.</b> DB가 유일한 상태이고, 30초 tick이 각 task를 전진시키며 pipeline 상태는 task에서 파생된다. 다중 replica는 <a class="t" href="#g-advisory-lock">advisory lock</a> 리더 + 모든 전이 <a class="t" href="#g-cas">CAS</a>로 안전하다.</p>
 
 <div class="box key"><div class="bx-t">먼저 — 두 개의 토대 (axiom)</div>
@@ -325,11 +342,11 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 
   <div class="dec">
     <div class="dec-top"><span class="dec-num">5</span><span class="dec-h">retry = 새 run + 중복 unique 제약<small>수동 개입</small></span></div>
-    <div class="dec-body">재개·terminal 부활 없음(완료분은 terraform 수렴으로 no-op). 동일 target <a class="t" href="#g-unique-constraint">부분 unique 제약</a>으로 non-terminal 1건 강제 → <b><a class="t" href="#g-creation-contract">생성 계약</a>(↓ §02c)</b>.</div>
+    <div class="dec-body">재개·terminal 부활 없음(완료분은 terraform 수렴으로 no-op). 동일 target <a class="t" href="#g-unique-constraint">부분 unique 제약</a>으로 non-terminal 1건 강제 → <b><a class="t" href="#g-creation-contract">생성 계약</a>(↓ §4.8)</b>.</div>
   </div>
 
   <div class="dec">
-    <div class="dec-top"><span class="dec-num">6</span><span class="dec-h">tick의 외부 호출 실행 모델<small>D-T1~D-T7 · 상세는 §07</small></span></div>
+    <div class="dec-top"><span class="dec-num">6</span><span class="dec-h">tick의 외부 호출 실행 모델<small>D-T1~D-T7 · 상세는 §4.4</small></span></div>
     <div class="dec-subs">
       <span class="dec-sub"><b>D-T1</b><a class="t" href="#g-per-call-deadline">호출 deadline</a> ≠ tick 주기</span>
       <span class="dec-sub"><b>D-T2</b>비블로킹 <a class="t" href="#g-vt">async</a> 발사</span>
@@ -355,40 +372,14 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 </div>
 </section>
 
-<!-- ════════════════ S2c 생성 계약 ════════════════ -->
-<section id="creation-contract">
-<h2><span class="sec-num">02c</span> 생성 계약 — "target당 실행자 1"</h2>
-<div class="box warn"><div class="bx-t">ADR이 가장 강하게 못 박은 외부 불변식</div>
-이 계약을 누락하면 <a class="t" href="#g-single-writer">단일 writer</a>·<a class="t" href="#g-slotcap">slotCap</a>·멱등 추론이 전부 깨진다 — 그래서 별도로 강조한다.</div>
-<p>어느 경로로 생성되든 트리거는 다음 3단계를 충족해야 한다:</p>
-<ol>
-<li><b>Resolution</b> — <code>(type, provider)</code> 코드 default <a class="t" href="#g-recipe">recipe</a>를 resolve(결정 7).</li>
-<li><b>원자성</b> — task row 생성 + <a class="t" href="#g-snapshot">pipeline_def_snapshot</a> 박제를 <b>한 트랜잭션</b>으로(snapshot == 실제 생성 구성).</li>
-<li><b>중복 차단(필수)</b> — 동일 target에 non-terminal pipeline이 있으면 <a class="t" href="#g-unique-constraint">부분 unique 제약</a>이 INSERT를 막는다. 트리거는 그 <a class="t" href="#g-sqlstate-23505">23505</a>(Postgres unique 위반)를 <b>반드시 catch해 에러 대신 기존 non-terminal pipeline을 반환</b>해야 한다.</li>
-</ol>
-<p>[재시도]도 동일하다 — terminal에서 호출해도 target에 non-terminal이 있으면 그것을 반환한다(<a class="t" href="#g-created-flag">created=false</a>). 토대 불변식이 ADR 밖 endpoint 코드에 의존하므로 <b>이 계약(특히 3번)의 통합 테스트를 반드시 갖춘다</b>(계약 회귀 방지).</p>
+<!-- ══ 4 Decision (상세) ══ -->
+<section id="decision-detail">
+<h2><span class="sec-num">4</span> Decision (상세)</h2>
+<p class="lead">아래는 §3 핵심 결정의 상세 메커니즘이다 — 데이터 모델(4.1)부터 생성 계약(4.8)까지 결정 1~7을 구현 관점으로 푼다.</p>
 </section>
 
-<!-- ════════════════ S3 대안 ════════════════ -->
-<section id="options">
-<h2><span class="sec-num">03</span> 검토한 대안</h2>
-<table class="tbl">
-<thead><tr><th>옵션</th><th>결정</th><th>이유</th></tr></thead>
-<tbody>
-<tr><td>A. BFF 내부 durable reconciler (DB row + tick)</td><td><b>채택</b></td><td>실제 워크로드에 부합; 재시작 안전; 관리자 조정형 폴링이 <a class="t" href="#g-next-check-at">next_check_at</a>에 자연 대응; 최소 운영 footprint</td></tr>
-<tr><td>B. 별도 오케스트레이터 마이크로서비스</td><td>보류</td><td>모듈 분량 로직에 서비스 분량 오버헤드. 모듈 경계가 추출 비용을 낮게 유지</td></tr>
-<tr><td>C. <a class="t" href="#g-workflow-engine">워크플로 엔진</a> (Temporal/Airflow)</td><td>거부</td><td>≥10분 폴링의 2~4 step 선형 체인은 그 도입 비용을 정당화 못 함. 큐·재현·수일 <a class="t" href="#g-ttl">WAIT</a>는 DB row+tick으로 충분</td></tr>
-<tr><td>D. BFF 인메모리 async 체인</td><td>거부</td><td>재시작/배포에 run 유실; durable 큐·히스토리·수일 대기 표현 불가</td></tr>
-<tr><td>E. Backend Manager에 파이프라인 상태</td><td>거부</td><td>로직·상태 분산; 원격 API 경유 원자적 slot 회계는 racy</td></tr>
-<tr><td>F. Infra Manager 측 동시성 제한 (지금)</td><td>보류</td><td>현재 자동화 caller는 BFF뿐; 다른 caller 등장 시 IM 429/503 재검토(결정 4b)</td></tr>
-</tbody>
-</table>
-<p class="role" style="color:var(--muted);font-size:.88rem">별도 워커 분리도 배제한다 — 무거운 워크로드(실제 Terraform 실행)는 이미 TerraformWorker로 분리돼 있고 reconciler는 호출·폴링·기록만 한다. 부하가 강제하면 답은 워커 분리가 아니라 Option B다.</p>
-</section>
-
-<!-- ════════════════ S4 데이터 모델 ════════════════ -->
 <section id="data-model">
-<h2><span class="sec-num">04</span> 데이터 모델</h2>
+<h2><span class="sec-num">4.1</span> 데이터 모델</h2>
 <p>BFF DB의 6개 테이블. 모든 화살표가 동시에 히스토리 레코드다 — 단 <b>하나의 tx가 아니라 두 writer로 갈린다</b>(<a class="t" href="#g-single-writer">단일 writer</a>): 상태 전이 tx(tick)와 호출 스레드 tx(관측·산출).</p>
 <div class="cards">
 <div class="card"><h4><code>pipeline</code></h4><div class="role">run 1건. id·<a class="t" href="#g-col-target-source-id">target_source_id</a>·<a class="t" href="#g-col-type">type</a>·<a class="t" href="#g-col-provider">provider</a>·<a class="t" href="#g-col-status">status</a>·<a class="t" href="#g-actor">triggered_by</a>·<a class="t" href="#g-col-started-at">started_at</a>·<a class="t" href="#g-col-finished-at">finished_at</a>·<a class="t" href="#g-last-activity-at">last_activity_at</a>·<a class="t" href="#g-fail-reason">fail_reason</a></div></div>
@@ -432,9 +423,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </div></details>
 </section>
 
-<!-- ════════════════ S5 상태 기계 ════════════════ -->
 <section id="state-machine">
-<h2><span class="sec-num">05</span> 상태 기계</h2>
+<h2><span class="sec-num">4.2</span> 상태 기계</h2>
 <p>task 전이의 writer는 reconciler tick이다(<a class="t" href="#g-single-writer">단일 writer</a>). 예외는 pipeline-level 사용자 전이 하나 — [중단] <span class="pill run">RUNNING</span>→<span class="pill cancel">CANCELLING</span>은 Admin API가 공통 전이 함수로 수행한다.</p>
 
 <h3>Pipeline 전이 (5상태)</h3>
@@ -549,9 +539,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </tbody></table>
 </section>
 
-<!-- ════════════════ S6 동시성 ════════════════ -->
 <section id="concurrency">
-<h2><span class="sec-num">06</span> 동시성 모델</h2>
+<h2><span class="sec-num">4.3</span> 동시성 모델</h2>
 <p>네 개의 값이 모두 "동시성 제한"처럼 들리지만 <b>hard cap은 하나뿐</b>이다.</p>
 <div class="cards">
 <div class="card" style="border-left:4px solid var(--fail)"><h4><a class="t" href="#g-workerpoolsize">workerPoolSize</a></h4><div class="role"><b>동시성 hard cap</b>. 고정 worker 풀 크기(IM 보호). 배포 설정 — settings API 비편집·비노출.</div></div>
@@ -574,9 +563,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <div class="box warn"><b>slotCap ↔ execution-timeout 결합 (튜닝 주의).</b> slotCap ≫ workerPoolSize이면 pubsub 큐가 깊어져 정상 job의 큐 대기 시간까지 <a class="t" href="#g-execution-timeout">execution timeout</a> 경과에 포함돼 <b>오발</b>한다. 그래서 slotCap ≈ workerPoolSize로 큐를 얕게 유지하는 것이 timeout 정확도의 레버다.</div>
 </section>
 
-<!-- ════════════════ S7 tick 모델 ════════════════ -->
 <section id="tick-model">
-<h2><span class="sec-num">07</span> tick 실행 모델 (결정 6)</h2>
+<h2><span class="sec-num">4.4</span> tick 실행 모델 (결정 6)</h2>
 <h3><a class="t" href="#g-single-writer">단일 writer</a> 분리</h3>
 <table class="tbl"><thead><tr><th>writer</th><th>무엇을 쓰나</th></tr></thead><tbody>
 <tr><td>상태 전이 tx (<b>tick</b>)</td><td>pipeline/task <a class="t" href="#g-col-status">status</a> + pipeline_event + attempt 생애주기 경계(dispatch 시 생성·terminal 시 마감)</td></tr>
@@ -597,9 +585,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <div class="box"><b><a class="t" href="#g-next-check-at">next_check_at</a> writer 규칙:</b> 일반 발사 = <b>tick</b>이 last_checked_at·next_check_at 함께 기록 / <a class="t" href="#g-backpressure">backpressure</a> 재설정 = <b>호출 스레드</b>(상태 전이 아닌 스케줄 힌트).</div>
 </section>
 
-<!-- ════════════════ S8 복구 ════════════════ -->
 <section id="resilience">
-<h2><span class="sec-num">08</span> dispatch · 멱등성 · 복구 (crash &amp; N-pod)</h2>
+<h2><span class="sec-num">4.5</span> dispatch · 멱등성 · 복구 (crash &amp; N-pod)</h2>
 <h3>dispatch 5단계 writer 분리</h3>
 <div class="flow">
 <span class="node">1 tick: DISPATCHING CAS + attempt 생성</span><span class="arr">→</span>
@@ -641,9 +628,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <div class="box key"><b>K headroom.</b> response 영속 <i>직전</i> 좁은 <a class="t" href="#g-pre-persist-crash">pre-persist crash</a> 창이 정상 job의 fail_count 1을 소비한다 → <a class="t" href="#g-maxfailcount">maxFailCount</a>를 IM 최소가 아니라 약간의 여유를 두고 잡는다.</div>
 </section>
 
-<!-- ════════════════ S9 errorCode ════════════════ -->
 <section id="errorcodes">
-<h2><span class="sec-num">09</span> errorCode 분류</h2>
+<h2><span class="sec-num">4.6</span> errorCode 분류</h2>
 <h3>8종 카탈로그 · 저장위치 3분류</h3>
 <table class="tbl"><thead><tr><th>저장 위치</th><th>errorCode</th></tr></thead><tbody>
 <tr><td>① attempt 귀속 → <code>task_attempt.error_code</code></td><td><a class="t" href="#g-ec-execution-timeout">EXECUTION_TIMEOUT</a> · <a class="t" href="#g-ec-dispatch-no-response">DISPATCH_NO_RESPONSE</a> · <a class="t" href="#g-ec-im-rejected">IM_REJECTED</a> · <a class="t" href="#g-ec-job-failed">JOB_FAILED</a></td></tr>
@@ -661,9 +647,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </tbody></table>
 </section>
 
-<!-- ════════════════ S10 Definition ════════════════ -->
 <section id="definition">
-<h2><span class="sec-num">10</span> Definition · Snapshot (결정 7)</h2>
+<h2><span class="sec-num">4.7</span> Definition · Snapshot (결정 7)</h2>
 <h3>2-layer</h3>
 <div class="flow">
 <span class="node">코드 default <a class="t" href="#g-recipe">recipe</a> ((type,provider)당 1개)</span><span class="arr">→ 생성 시 박제 →</span>
@@ -683,9 +668,21 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </ul>
 </section>
 
-<!-- ════════════════ S11 API ════════════════ -->
+<section id="creation-contract">
+<h2><span class="sec-num">4.8</span> 생성 계약 — "target당 실행자 1"</h2>
+<div class="box warn"><div class="bx-t">ADR이 가장 강하게 못 박은 외부 불변식</div>
+이 계약을 누락하면 <a class="t" href="#g-single-writer">단일 writer</a>·<a class="t" href="#g-slotcap">slotCap</a>·멱등 추론이 전부 깨진다 — 그래서 별도로 강조한다.</div>
+<p>어느 경로로 생성되든 트리거는 다음 3단계를 충족해야 한다:</p>
+<ol>
+<li><b>Resolution</b> — <code>(type, provider)</code> 코드 default <a class="t" href="#g-recipe">recipe</a>를 resolve(결정 7).</li>
+<li><b>원자성</b> — task row 생성 + <a class="t" href="#g-snapshot">pipeline_def_snapshot</a> 박제를 <b>한 트랜잭션</b>으로(snapshot == 실제 생성 구성).</li>
+<li><b>중복 차단(필수)</b> — 동일 target에 non-terminal pipeline이 있으면 <a class="t" href="#g-unique-constraint">부분 unique 제약</a>이 INSERT를 막는다. 트리거는 그 <a class="t" href="#g-sqlstate-23505">23505</a>(Postgres unique 위반)를 <b>반드시 catch해 에러 대신 기존 non-terminal pipeline을 반환</b>해야 한다.</li>
+</ol>
+<p>[재시도]도 동일하다 — terminal에서 호출해도 target에 non-terminal이 있으면 그것을 반환한다(<a class="t" href="#g-created-flag">created=false</a>). 토대 불변식이 ADR 밖 endpoint 코드에 의존하므로 <b>이 계약(특히 3번)의 통합 테스트를 반드시 갖춘다</b>(계약 회귀 방지).</p>
+</section>
+
 <section id="api">
-<h2><span class="sec-num">11</span> API 표면</h2>
+<h2><span class="sec-num">5</span> API 표면</h2>
 <h3>DTO 빌딩블록 — 파생 주의</h3>
 <div class="cards">
 <div class="card"><h4><a class="t" href="#g-progress">progress{done,total}</a></h4><div class="role">total=task 행 수(고정), done=COUNT(DONE). <b>분수는 RUNNING 진행 지표일 뿐 — terminal 판정은 status가 권위</b>(CANCELLED/FAILED는 done&lt;total로 남는 게 정상).</div></div>
@@ -703,9 +700,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <p class="role" style="color:var(--muted);font-size:.88rem">경로 포맷: admin=<code>/admin/...</code> · 트리거=<code>/integration/api/v1/...</code>. 필드 <a class="t" href="#g-camel-case">camelCase</a>.</p>
 </section>
 
-<!-- ════════════════ S12 운영 ════════════════ -->
 <section id="operations">
-<h2><span class="sec-num">12</span> 운영 · 알림</h2>
+<h2><span class="sec-num">6</span> 운영 · 알림</h2>
 <h3>설정 (<a class="t" href="#g-r5">R5</a> — "설정은 데이터다")</h3>
 <p>대부분 런타임 DB 설정(변경 즉시·재배포 불요·pipeline_event 감사). <b>예외: <a class="t" href="#g-workerpoolsize">workerPoolSize</a>는 배포 설정</b>(settings API 비편집·비노출).</p>
 <table class="tbl"><thead><tr><th>설정</th><th>기본값(예시)</th><th>적용</th></tr></thead><tbody>
@@ -741,9 +737,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </div>
 </section>
 
-<!-- ════════════════ S13 요구사항 ════════════════ -->
 <section id="requirements">
-<h2><span class="sec-num">13</span> 요구사항 충족</h2>
+<h2><span class="sec-num">7</span> 요구사항 충족</h2>
 <p class="role" style="color:var(--muted)">전체 요구사항 매핑(정본 <code>requirements.md</code>).</p>
 <table class="tbl"><caption><a class="t" href="#g-fr">FR</a> — 기능</caption><thead><tr><th>ID</th><th>요구사항</th><th>충족</th></tr></thead><tbody>
 <tr><td>FR-1</td><td>브라우저 세션 없는 durable 설치/삭제</td><td>DB durable state machine + reconciler tick</td></tr>
@@ -776,9 +771,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </tbody></table>
 </section>
 
-<!-- ════════════════ S14 용어 사전 ════════════════ -->
 <section id="glossary">
-<h2><span class="sec-num">14</span> 용어 사전</h2>
+<h2><span class="sec-num">8</span> 용어 사전</h2>
 <p class="role" style="color:var(--muted)">본문의 점선 밑줄 용어에 마우스를 올리면 여기 정의가 툴팁으로 뜬다(클릭하면 해당 항목으로 점프). 이 사전이 모든 툴팁의 단일 출처다.</p>
 
 <div class="gcat"><h3>시스템 · 계층</h3><dl>
@@ -962,7 +956,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-camel-case">camelCase</dt><dd>API DTO 표기.</dd>
 <dt id="g-unique-constraint">부분 unique 제약</dt><dd>unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED). target당 non-terminal pipeline 1건 강제.</dd>
 <dt id="g-sqlstate-23505">23505</dt><dd>Postgres unique 위반 SQLSTATE. 생성 계약: 에러 대신 기존 non-terminal 반환.</dd>
-<dt id="g-creation-contract">생성 계약</dt><dd>어느 트리거든 충족할 ADR 불변식 — ①recipe resolve ②task row+snapshot 원자 생성 ③23505 catch → 기존 non-terminal 반환. 통합 테스트 필수(§02c).</dd>
+<dt id="g-creation-contract">생성 계약</dt><dd>어느 트리거든 충족할 ADR 불변식 — ①recipe resolve ②task row+snapshot 원자 생성 ③23505 catch → 기존 non-terminal 반환. 통합 테스트 필수(§4.8).</dd>
 </dl></div>
 
 <div class="gcat"><h3>API 표면</h3><dl>
