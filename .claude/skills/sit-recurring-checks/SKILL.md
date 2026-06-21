@@ -102,13 +102,14 @@ Rule: a shared loading/error state primitive must announce to assistive tech.
 Source: PR #504 review (`LoadingState`/`ErrorState` shipped with no role). See
 `docs/reports/pr504-review-retrospective.md`.
 
-A non-test `*State.tsx` under `app/components/ui/state/` that renders a loading or
-error state must carry `role="status"` (loading) / `role="alert"` (error), and a
-render test must assert it.
+A non-test `*State.tsx` under `app/components/ui/state/` that renders a **loading or
+error** state must carry `role="status"` (loading) / `role="alert"` (error), and a
+render test must assert it. `EmptyState` is **exempt** — a zero-results placeholder
+is static content, not a live-region announcement (confirmed PR #504 review).
 
-Detect:
+Detect (excludes EmptyState):
 ```bash
-grep -L 'role=' $(echo "$CHANGED" | grep -E 'components/ui/state/.*State\.tsx$' | grep -vE '\.test\.') 2>/dev/null
+grep -L 'role=' $(echo "$CHANGED" | grep -E 'components/ui/state/.*State\.tsx$' | grep -vE '\.test\.|/EmptyState\.tsx$') 2>/dev/null
 ```
 
 Auto-fix: add the role to the wrapper and an assertion to the `.test.tsx`.
