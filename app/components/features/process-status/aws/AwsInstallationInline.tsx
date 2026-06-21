@@ -11,6 +11,7 @@ import { InstallationErrorView } from '@/app/components/features/process-status/
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
 import { TfDownloadCard } from '@/app/components/features/process-status/install-task-pipeline/TfDownloadCard';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
+import { useToast } from '@/app/components/ui/toast';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { buildAwsAutoItems, buildAwsManualItems } from '@/lib/constants/aws-install';
 import type { AwsInstallationStatus, AwsInstallationMode } from '@/lib/types';
@@ -45,6 +46,7 @@ export const AwsInstallationInline = ({
   const [guideOpen, setGuideOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const completionNotifiedRef = useRef(false);
+  const toast = useToast();
 
   useEffect(() => {
     completionNotifiedRef.current = false;
@@ -64,10 +66,17 @@ export const AwsInstallationInline = ({
   });
 
   const handleDownload = async () => {
+    // Open the tab synchronously (inside the click) so the popup blocker allows
+    // it; navigate it once the signed URL resolves.
+    const tab = window.open('', '_blank');
+    setDownloading(true);
     try {
-      setDownloading(true);
       const res = await getAwsTerraformScript(targetSourceId);
-      window.open(res.downloadUrl, '_blank');
+      if (tab) tab.location.href = res.downloadUrl;
+      else window.open(res.downloadUrl, '_blank');
+    } catch {
+      tab?.close();
+      toast.error('Terraform 스크립트 다운로드에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setDownloading(false);
     }

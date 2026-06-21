@@ -27,12 +27,13 @@ interface Case {
 
 const cases: Case[] = [
   {
-    // DB-only: no VMs → phase1/2 done (0/0). phase3 driven purely by PE lifecycle.
+    // DB-only: no VMs → phase1/2 done (0/0). PE_PENDING = approval in flight =>
+    // active => phase3 running.
     name: '0 VMs, DB at PE_PENDING',
     resources: [db('PE_PENDING'), db('PE_NOT_REQUESTED')],
     phase1: { status: 'done', completedCount: 0, activeCount: 0 },
     phase2: { status: 'done', completedCount: 0, activeCount: 0 },
-    phase3: { status: 'pending', completedCount: 0, activeCount: 2 },
+    phase3: { status: 'running', completedCount: 0, activeCount: 2 },
   },
   {
     name: 'VM blocked at SUBNET_REQUIRED',
@@ -84,11 +85,11 @@ describe('deriveAzurePhases', () => {
     });
   }
 
-  it('empty input → all phases done with 0/0', () => {
+  it('empty input → all phases pending (nothing installed; avoid 3x 완료)', () => {
     const phases = deriveAzurePhases([]);
-    expect(phases.phase1).toEqual({ status: 'done', completedCount: 0, activeCount: 0 });
-    expect(phases.phase2).toEqual({ status: 'done', completedCount: 0, activeCount: 0 });
-    expect(phases.phase3).toEqual({ status: 'done', completedCount: 0, activeCount: 0 });
+    expect(phases.phase1).toEqual({ status: 'pending', completedCount: 0, activeCount: 0 });
+    expect(phases.phase2).toEqual({ status: 'pending', completedCount: 0, activeCount: 0 });
+    expect(phases.phase3).toEqual({ status: 'pending', completedCount: 0, activeCount: 0 });
   });
 });
 

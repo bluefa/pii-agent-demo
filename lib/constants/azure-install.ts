@@ -70,16 +70,24 @@ const classifyPhase2 = (step: AzureInstallStep): ResourceState =>
   step === 'SUBNET_REQUIRED' || step === 'VM_TF_REQUIRED' ? 'pending' : 'done';
 
 // Phase 3 (Private Endpoint): participants = ALL resources.
-// COMPLETED → done; PE_REJECTED → failed; everything else → pending.
+// COMPLETED → done; PE_REJECTED → failed; PE_PENDING → active (request made,
+// awaiting approval = in-progress, distinct from PE_NOT_REQUESTED); else pending.
 const classifyPhase3 = (step: AzureInstallStep): ResourceState => {
   if (step === 'COMPLETED') return 'done';
   if (step === 'PE_REJECTED') return 'failed';
+  if (step === 'PE_PENDING') return 'active';
   return 'pending';
 };
+
+const PENDING_PHASE: AzurePhaseSummary = { status: 'pending', completedCount: 0, activeCount: 0 };
 
 export const deriveAzurePhases = (
   resources: readonly AzurePhaseResource[]
 ): AzurePhases => {
+  // No resources at all → nothing installed; don't render three 완료 cards.
+  if (resources.length === 0) {
+    return { phase1: PENDING_PHASE, phase2: PENDING_PHASE, phase3: PENDING_PHASE };
+  }
   const vmResources = resources.filter((r) => r.isVm);
 
   return {
