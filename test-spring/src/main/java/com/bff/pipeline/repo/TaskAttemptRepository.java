@@ -18,6 +18,9 @@ public interface TaskAttemptRepository extends JpaRepository<TaskAttempt, Long> 
 
     List<TaskAttempt> findByTaskIdOrderByAttemptNoAsc(Long taskId);
 
+    /** WORKER_OUTAGE alert input: attempts that closed with a given errorCode within a recent window. */
+    long countByErrorCodeAndFinishedAtAfter(ErrorCode errorCode, java.time.Instant after);
+
     // ---- guarded CAS (explicit prior-state predicate; NOT @Version-as-CAS) ----
 
     /**

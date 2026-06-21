@@ -21,6 +21,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      *  predecessor DONE promotes its successor BLOCKED → READY (same-tick convergence). */
     Optional<Task> findByPipelineIdAndSeq(Long pipelineId, int seq);
 
+    /** QUEUE_WAIT alert input (V1 dwell proxy): is a TERRAFORM_JOB still READY (slot-queued) on a pipeline that
+     *  started before the threshold? Cross-entity join on pipelineId (no JPA association is mapped). */
+    @Query("select case when count(t) > 0 then true else false end from Task t, com.bff.pipeline.domain.Pipeline p "
+            + "where t.pipelineId = p.id and t.kind = com.bff.pipeline.domain.TaskKind.TERRAFORM_JOB "
+            + "and t.status = com.bff.pipeline.domain.TaskStatus.READY and p.startedAt <= :threshold")
+    boolean existsSlotQueuedTaskStartedBefore(@Param("threshold") Instant threshold);
+
     /**
      * Slot admission count (Decision 4b): {@code COUNT(task WHERE kind=TERRAFORM_JOB AND status IN
      * (DISPATCHING, RUNNING))}. Global across all pipelines — slotCap is a global submission throttle.
