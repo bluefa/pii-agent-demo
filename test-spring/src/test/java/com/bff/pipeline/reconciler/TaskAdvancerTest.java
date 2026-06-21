@@ -354,8 +354,24 @@ class TaskAdvancerTest {
     @Test
     void waitingExternalCheckErrorAtMaxFails() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(pipeline.getId(), 0, TaskKind.CONDITION_CHECK, TaskStatus.WAITING_EXTERNAL, FakeCond.KEY, 2, 3);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.CONDITION_CHECK, TaskStatus.WAITING_EXTERNAL, FakeCond.KEY, 0, 3);
+        checks.save(conditionCheckError(task.getId(), 2)); // two prior failed CHECK calls in the durable ledger
         cond.check = new CheckOutcome.CallFailed(ErrorCode.CHECK_ERROR);
+
+        advancer.advance(pipeline, task, true, budget()); // the 3rd failed call → maxFailCount → FAILED
+
+        assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.FAILED);
+        assertThat(reload(task).getFailCount()).isEqualTo(3);
+    }
+
+    @Test
+    void conditionFailuresRecomputedFromLedgerFailEvenIfAFailWasNeverPersisted() {
+        // codex's rollback scenario: failed CHECK calls committed to the ledger, but the fail++ tick rolled
+        // back so fail_count is stale at 0. The recompute must terminalize FAILED — a later MET must not rescue it.
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.CONDITION_CHECK, TaskStatus.WAITING_EXTERNAL, FakeCond.KEY, 0, 3);
+        checks.save(conditionCheckError(task.getId(), 3));
+        cond.check = new CheckOutcome.Condition(Observed.MET);
 
         advancer.advance(pipeline, task, true, budget());
 
@@ -587,6 +603,21 @@ class TaskAdvancerTest {
         c.setPollCount(1);
         c.setStartedAt(NOW);
         c.setCheckedAt(NOW);
+        return c;
+    }
+
+    /** A committed CONDITION_CHECK error run (RLE) representing {@code pollCount} failed CHECK calls. Its name
+     *  matches ExternalCalls' operation id so a fired check collapses into it. */
+    private TaskCheck conditionCheckError(Long taskId, int pollCount) {
+        TaskCheck c = new TaskCheck();
+        c.setTaskId(taskId);
+        c.setKind(CheckKind.CHECK);
+        c.setName(FakeCond.KEY + ":check");
+        c.setApiResult(ApiResult.ERROR);
+        c.setErrorCode(ErrorCode.CHECK_ERROR);
+        c.setPollCount(pollCount);
+        c.setStartedAt(NOW.minus(Duration.ofMinutes(20)));
+        c.setCheckedAt(NOW.minus(Duration.ofMinutes(20)));
         return c;
     }
 

@@ -14,6 +14,7 @@ import com.bff.pipeline.domain.TaskAttempt;
 import com.bff.pipeline.domain.TaskCheck;
 import com.bff.pipeline.domain.TaskKind;
 import com.bff.pipeline.domain.TaskStatus;
+import com.bff.pipeline.handler.CheckOutcome;
 import com.bff.pipeline.handler.ConditionCheckHandler;
 import com.bff.pipeline.handler.DispatchOutcome;
 import com.bff.pipeline.handler.PipelineHandler;
@@ -177,18 +178,20 @@ public class TaskAdvancer {
         if (attempt == null) {
             return; // invariant: a RUNNING task always has an attempt (created at admission); defensive
         }
-        // The tick consumes the poll outcome synchronously — the returned value IS the just-committed
-        // observation's content. One poll call per due tick → at most one transition / one fail_count, which
-        // is the per-call accounting the fail matrix requires (a ledger re-scan would double-count an in-place
-        // error run). A rolled-back transition self-heals: the next tick re-polls the still-SUCCEEDED job.
-        if (due && budget.tryConsume()) {
+        boolean deadlinePassed = timedOut(task, now);
+        // Poll when due OR when the deadline has passed — a fresh poll must confirm the job did NOT already
+        // SUCCEED before we declare an execution timeout (completed observation beats timeout). With the budget
+        // spent we DEFER rather than fail a possibly-finished job blind. The returned value IS the just-committed
+        // observation; one poll per tick = at most one fail_count (per-call accounting the fail matrix needs);
+        // a rolled-back terminal self-heals since the next tick re-polls the still-SUCCEEDED job (terminal-once).
+        if ((due || deadlinePassed) && budget.tryConsume()) {
             PollOutcome outcome = externalCalls.poll(task, attempt, handler, pipeline.getTargetSourceId());
             if (applyPoll(pipeline, task, attempt, outcome, now)) {
-                return; // a terminal/requeue transition fired (completed observation beats timeout)
+                return; // SUCCEEDED → DONE / FAILED → fail (beats timeout)
             }
-        }
-        if (timedOut(task, now)) {
-            runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, false);
+            if (deadlinePassed) {
+                runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, false);
+            }
         }
     }
 
@@ -223,42 +226,51 @@ public class TaskAdvancer {
 
     private void advanceWaiting(Pipeline pipeline, Task task, ConditionCheckHandler handler, boolean due, TickBudget budget) {
         Instant now = clock.instant();
-        if (due && budget.tryConsume() && applyCheck(pipeline, task, externalCalls.check(task, handler, pipeline.getTargetSourceId()), now)) {
-            return; // MET → DONE or check-error → FAILED
+        // CONDITION_CHECK fail_count is recomputed from the durable observation ledger before anything else —
+        // see conditionFailedAtMax. This recovers a fail that was observed (committed) but whose tick rolled
+        // back, so a committed failed call is never lost and never double-counted.
+        if (conditionFailedAtMax(pipeline, task, now)) {
+            return;
         }
-        if (timedOut(task, now) && tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.EXPIRED, now) > 0) {
-            onTransition(pipeline, task, "TASK:EXPIRED", Severity.CRITICAL); // reason TTL_EXPIRED is derived from status
-        }
-    }
-
-    /** @return true if a terminal transition fired (DONE/FAILED). */
-    private boolean applyCheck(Pipeline pipeline, Task task, com.bff.pipeline.handler.CheckOutcome outcome, Instant now) {
-        return switch (outcome) {
-            case com.bff.pipeline.handler.CheckOutcome.Condition condition -> {
-                if (condition.observed() == Observed.MET) {
-                    if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.DONE, now) > 0) {
-                        onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
-                    }
-                    yield true;
+        boolean ttlPassed = timedOut(task, now);
+        // Check when due OR when the TTL has passed — a fresh check must confirm the condition is not already
+        // MET before declaring EXPIRED (completed observation beats timeout); with no budget, defer.
+        if ((due || ttlPassed) && budget.tryConsume()) {
+            CheckOutcome outcome = externalCalls.check(task, handler, pipeline.getTargetSourceId());
+            if (outcome instanceof CheckOutcome.Condition met && met.observed() == Observed.MET) {
+                if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.DONE, now) > 0) {
+                    onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
                 }
-                tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard())); // NOT_MET: no fail
-                yield false;
+                return;
             }
-            case com.bff.pipeline.handler.CheckOutcome.CallFailed ignored -> conditionFailure(pipeline, task, now);
-            case com.bff.pipeline.handler.CheckOutcome.Backpressure ignored -> false; // call-thread set next_check_at
-        };
+            if (outcome instanceof CheckOutcome.CallFailed && conditionFailedAtMax(pipeline, task, now)) {
+                return; // this call pushed the durable failure count to maxFailCount → FAILED
+            }
+            if (!(outcome instanceof CheckOutcome.Backpressure)) { // NOT_MET or a sub-max error → keep polling
+                tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard()));
+            }
+            if (ttlPassed && tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.EXPIRED, now) > 0) {
+                onTransition(pipeline, task, "TASK:EXPIRED", Severity.CRITICAL); // TTL_EXPIRED derived from status
+            }
+        }
     }
 
-    /** CONDITION_CHECK check error: fail_count++; FAILED at maxFailCount, else keep polling. @return reached FAILED. */
-    private boolean conditionFailure(Pipeline pipeline, Task task, Instant now) {
-        tasks.incrementFailCount(task.getId());
-        if (task.getFailCount() + 1 >= task.getMaxFailCount()) {
+    /**
+     * Recompute CONDITION_CHECK fail_count from the durable CHECK error ledger (sum of non-backpressure error
+     * calls) and FAIL the task if it reached maxFailCount. Idempotent (a recompute, not a ++), so it is the
+     * rollback-safe accounting: a committed failed call that lost its tick still counts on the next tick.
+     *
+     * @return true if the task reached maxFailCount and was FAILED.
+     */
+    private boolean conditionFailedAtMax(Pipeline pipeline, Task task, Instant now) {
+        int failures = (int) checks.sumConditionCheckFailures(task.getId());
+        tasks.setFailCount(task.getId(), failures);
+        if (failures >= task.getMaxFailCount()) {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.FAILED, now) > 0) {
                 onTransition(pipeline, task, "TASK:FAILED", Severity.CRITICAL);
             }
             return true;
         }
-        tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard()));
         return false;
     }
 

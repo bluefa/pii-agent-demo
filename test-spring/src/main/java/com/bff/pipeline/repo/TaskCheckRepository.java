@@ -4,6 +4,8 @@ import com.bff.pipeline.domain.CheckKind;
 import com.bff.pipeline.domain.TaskCheck;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +32,18 @@ public interface TaskCheckRepository extends JpaRepository<TaskCheck, Long> {
     Optional<TaskCheck> findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(Long taskId, CheckKind kind);
 
     List<TaskCheck> findByTaskIdOrderByStartedAtAsc(Long taskId);
+
+    /**
+     * CONDITION_CHECK fail accounting (state-machine 95: "실패한 CHECK 호출 수"): the total of non-backpressure
+     * CHECK error CALLS = SUM(poll_count) over the CHECK error runs (errorCode = CHECK_ERROR | CALL_TIMEOUT;
+     * backpressure errorCode is null and excluded). The tick recomputes fail_count from this durable ledger so
+     * a committed failed call is never lost to a rolled-back fail++ (and never double-counted — it is a sum).
+     */
+    @Query("select coalesce(sum(c.pollCount), 0) from TaskCheck c where c.taskId = :taskId "
+            + "and c.kind = com.bff.pipeline.domain.CheckKind.CHECK "
+            + "and c.apiResult = com.bff.pipeline.domain.ApiResult.ERROR "
+            + "and c.errorCode in (com.bff.pipeline.domain.ErrorCode.CHECK_ERROR, com.bff.pipeline.domain.ErrorCode.CALL_TIMEOUT)")
+    long sumConditionCheckFailures(@Param("taskId") Long taskId);
 
     /** Retention prune (Decision 1.3): drop CHECK/DISPATCH rows whose last observation is past retention. */
     @Modifying

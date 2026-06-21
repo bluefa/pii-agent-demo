@@ -76,6 +76,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     @Query("update Task t set t.failCount = t.failCount + 1 where t.id = :id")
     int incrementFailCount(@Param("id") Long id);
 
+    /** Set fail_count to an absolute value — the tick recomputes CONDITION_CHECK fail_count from the durable
+     *  task_check ledger (rollback-safe accounting; see TaskCheckRepository.sumConditionCheckFailures). */
+    @Modifying
+    @Query("update Task t set t.failCount = :count where t.id = :id")
+    int setFailCount(@Param("id") Long id, @Param("count") int count);
+
     /**
      * Set both the starvation-sort key {@code lastCheckedAt} and the next due time {@code nextCheckAt} —
      * the reconciler fire: when the tick services a task it records "serviced now, due next at".
