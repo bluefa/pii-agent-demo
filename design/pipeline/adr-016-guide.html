@@ -501,7 +501,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
   <div class="sd-phase div">▸ handler 코드 은퇴/삭제 · 중단</div>
   <div class="sd-flow">
     <span class="sd-node col">READY · DISPATCHING<br>RUNNING · WAITING_EXTERNAL<small>BLOCKED 제외 (serviceable)</small></span>
-    <span class="sd-arr"><span class="lbl"><a class="t" href="#g-handler-key">handler_key</a> 미해결<br>(코드 은퇴·삭제·규율 위반)</span><span class="ln">→</span></span>
+    <span class="sd-arr"><span class="lbl"><a class="t" href="#g-handler-key">handler_key</a> resolve 실패<br>(코드 은퇴·삭제·규율 위반)</span><span class="ln">→</span></span>
     <span class="sd-node fail col">FAILED<small><a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a> · fail_count 미소모</small></span>
   </div>
   <div class="sd-flow">
@@ -520,7 +520,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <h3>tick 평가 순서 (한 task 안에서 — 처음 성립하는 규칙 하나만)</h3>
 <ol>
 <li><b>pipeline=CANCELLING이면 취소 규칙 우선</b> — 일반 forward·재시도를 누른다.</li>
-<li><b><a class="t" href="#g-handler-key">handler_key</a> resolve</b>(READY 이상) — 미해결이면 즉시 <span class="pill fail">FAILED</span>(<a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a>).</li>
+<li><b><a class="t" href="#g-handler-key">handler_key</a> resolve</b>(READY 이상) — resolve 실패면 즉시 <span class="pill fail">FAILED</span>(<a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a>).</li>
 <li><b>완료 관측 우선 (timeout보다 앞)</b> — 최신 <a class="t" href="#g-observed">observed</a>=SUCCEEDED/MET면 DONE. "만료는 <a class="t" href="#g-fresh-read">fresh 상태 재독</a> 후 판정"이라 이미 완료된 작업을 timeout으로 실패시키지 않는다.</li>
 <li><b>timeout 판정</b> — execution timeout → attempt 실패 / TTL 초과 → <span class="pill expire">EXPIRED</span>.</li>
 <li><b>그 외 일반 전이.</b></li>
@@ -666,7 +666,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <li>레지스트리 <b>자동 수집</b>(모든 handler 빈 → key()→handler 맵 부팅 시 파생; 중복 키 = 부팅 실패).</li>
 <li>recipe는 handler를 <b>class로 참조</b>(컴파일 안전).</li>
 <li><b>2단계 검증 — <a class="t" href="#g-ci-gate">pre-deploy CI 게이트가 authoritative</a></b>(배포 <i>전</i> prod DB non-terminal handler_key 검사; <a class="t" href="#g-boot-assert">부팅 assert</a>는 <a class="t" href="#g-defense-in-depth">defense-in-depth</a> — 배포를 막으려면 배포 후인 부팅이 아니라 배포 전이어야).</li>
-<li>런타임 미해결 시 <a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a>. 비호환 변경만 <a class="t" href="#g-version-policy">_V1/_V2</a> append-only(호환 bugfix는 현재 코드).</li>
+<li>런타임 resolve 실패 시 <a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a>. 비호환 변경만 <a class="t" href="#g-version-policy">_V1/_V2</a> append-only(호환 bugfix는 현재 코드).</li>
 </ul>
 </section>
 
@@ -811,7 +811,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-terraform-job">TERRAFORM_JOB</dt><dd>dispatch→job_id→poll→terminal. IM slot 소비. attempt 있음.</dd>
 <dt id="g-condition-check">CONDITION_CHECK</dt><dd>dispatch 없이 조건 MET까지 폴링. attempt 없음. slot 비소비.</dd>
 <dt id="g-general-job">GENERAL_JOB</dt><dd>비-terraform 비동기 job kind. v2 defer(RECONNECT와 함께 도입).</dd>
-<dt id="g-handler-key">handler_key</dt><dd>안정적 코드 class 식별자(예 aws.tf.network). reconciler 라우팅 키. 미해결=HANDLER_NOT_FOUND.</dd>
+<dt id="g-handler-key">handler_key</dt><dd>안정적 코드 class 식별자(예 aws.tf.network). reconciler 라우팅 키. resolve 실패(레지스트리 미등록)=HANDLER_NOT_FOUND.</dd>
 <dt id="g-handler">handler</dt><dd>task 흐름을 구현한 코드 class. 안정 key() 선언, 자동 레지스트리 수집.</dd>
 <dt id="g-registry">레지스트리(자동)</dt><dd>모든 handler 빈을 주입받아 key()→handler 맵을 부팅 시 파생(수동 목록 없음·중복 키=부팅 실패).</dd>
 <dt id="g-stable-key">stable key / key()</dt><dd>handler가 선언하는 클래스명 무관 안정 키(rename해도 불변; 키 문자열의 단일 출처).</dd>
@@ -915,7 +915,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-ec-im-rejected">IM_REJECTED</dt><dd>dispatch 하드 거부(비-backpressure). attempt 귀속.</dd>
 <dt id="g-ec-check-error">CHECK_ERROR</dt><dd>check 관측 실패(비-backpressure). task_check 귀속.</dd>
 <dt id="g-ec-dispatch-no-response">DISPATCH_NO_RESPONSE</dt><dd>recovery_timeout까지 응답 미영속. attempt 귀속(대응 DISPATCH PENDING 잔류).</dd>
-<dt id="g-ec-handler-not-found">HANDLER_NOT_FOUND</dt><dd>handler_key 미해결. 즉시 FAILED·fail_count 미소모. synthetic task_check 1행(kind=CHECK, poll_count=1).</dd>
+<dt id="g-ec-handler-not-found">HANDLER_NOT_FOUND</dt><dd>handler_key resolve 실패(레지스트리 미등록). 즉시 FAILED·fail_count 미소모. synthetic task_check 1행(kind=CHECK, poll_count=1).</dd>
 <dt id="g-ec-job-failed">JOB_FAILED</dt><dd>TERRAFORM_JOB poll이 job 자체 FAILED 관측. errorCode는 attempt 귀속(관측은 task_check.observed=FAILED).</dd>
 </dl></div>
 
