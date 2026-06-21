@@ -108,7 +108,8 @@ pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
                 triggered_by(actor: human|system|ai — pipeline_event.actor와 동일 도메인), created_at, started_at, finished_at,
                 last_activity_at, fail_reason
                 -- fail_reason = pipeline FAILED 수렴 원인 요약(저장 컬럼) — tick이 FAILED 파생 시 기록:
-                --   `{task_id: FAILED/EXPIRED 유발 task, errorCode: 그 task의 canonical errorCode(EXPIRED면 TTL_EXPIRED)}`.
+                --   `{task_id: FAILED/EXPIRED 유발 task, errorCode: 그 task의 canonical errorCode}`
+                --   (EXPIRED→TTL_EXPIRED · poll 잡 실패→JOB_FAILED · check 누적 실패→CHECK_ERROR · handler 미해결→HANDLER_NOT_FOUND 등).
                 --   CANCELLING precedence로 CANCELLED 수렴 시엔 미설정(null) — 취소는 실패 아님(결정 1.1). api failReason은 이 컬럼.
                 -- 실행 단위 = target_source_id (1 pipeline : 1 target), 생성 시 고정.
                 --   실행 입력 일반화(parameters jsonb)는 도입하지 않는다(개정 4판) — 실행 단위는
@@ -138,7 +139,7 @@ task            id, pipeline_id, seq, name, handler_key,
                 --   선언하는 값을 row에 비정규화(slot COUNT 등 쿼리용). name = 표시 라벨(UX)일 뿐.
                 --   미해결(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 FAILED(error_code=
                 --   HANDLER_NOT_FOUND, fail_count 미소모; active attempt(DISPATCHING/RUNNING) 있으면 result=FAIL·
-                --   finished_at=tick으로 마감; RUNNING TF의 in-flight job은 orphan — BFF 추적 중단이라
+                --   finished_at=tick·error_code=null로 마감; RUNNING TF의 in-flight job은 orphan — BFF 추적 중단이라
                 --   BFF execution timeout 아닌 worker terraform 자연 종료가 bound) — state-machine 종결표.
                 -- last_checked_at = tick이 이 task를 마지막으로 서비스(발사)한 시각 — due 선별의 기아 방지
                 --   정렬 키(§1.1 last_checked_at ASC NULLS FIRST). tick이 발사 시 next_check_at과 함께 기록
@@ -187,7 +188,7 @@ task_check      id, task_id, checked_at, started_at,
                 --   observed = 원시 kind별 값이 canonical(O19 해소): 폴링 RUNNING/SUCCEEDED/FAILED ·
                 --     조건 MET/NOT_MET; reconciler 판정(DONE/PENDING/FAILED)은 (kind, observed)에서 파생.
                 -- name = 호출 operation 식별자(어떤 API/동작; 예 im.terraformApply·im.jobStatus).
-                -- error_code 카탈로그(api.md): CALL_TIMEOUT·EXECUTION_TIMEOUT·TTL_EXPIRED·IM_REJECTED·CHECK_ERROR·DISPATCH_NO_RESPONSE·HANDLER_NOT_FOUND.
+                -- error_code 카탈로그(api.md): CALL_TIMEOUT·EXECUTION_TIMEOUT·TTL_EXPIRED·IM_REJECTED·CHECK_ERROR·DISPATCH_NO_RESPONSE·HANDLER_NOT_FOUND·JOB_FAILED(poll observed=FAILED 잡 실패).
                 -- (detail 컬럼 없음 — terminal 스냅샷 캡처/구 postCheck는 v2 defer; 도입 시 additive 추가, v2-deferred.md.)
                 -- attempt_id 컬럼 미도입(O26 해소): job_id가 요청별 고유 발급(재dispatch=새 job_id)이라
                 --   external_handle∈attempt.response soft-link가 무모호 — 명시 링크 컬럼 불요.
@@ -366,7 +367,10 @@ D-T4/D-T5). dispatch도 이 규율을 예외 없이 따른다:
 1. **(tick tx)** task를 DISPATCHING으로 CAS 전이 + task_attempt 행 생성 + next_check_at 갱신.
 2. **(호출 스레드 tx)** 호출 직전 task_check kind=DISPATCH 행을 PENDING으로 선기록.
 3. **(호출 스레드)** dispatch API 호출.
-4. **(호출 스레드 tx)** task_attempt.response 영속화(dispatch 응답) + 같은 task_check 행 UPDATE.
+4. **(호출 스레드 tx)** task_attempt.response 영속화(dispatch 응답) + 같은 task_check 행 UPDATE —
+   **단 `task.status=DISPATCHING AND task_attempt.finished_at IS NULL` guard(CAS)**: 그 사이 task가 terminal(예: cancel로 CANCELLED)
+   로 전환됐거나 attempt가 이미 마감됐으면 **0행 → 늦은 response 무시**(마감된 attempt에 `{jobId}` 덮어쓰기 방지; state-machine
+   4c DISPATCHING→CANCELLED 늦은-response 차단의 메커니즘).
 5. **(다음 tick)** 적재된 관측을 보고 RUNNING으로 CAS 전이.
 
 tick은 dispatch 발사 시점에 status(DISPATCHING)와 next_check_at만 쓰고, 상태 전이(→ RUNNING)는 다음

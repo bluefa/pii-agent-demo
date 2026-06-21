@@ -179,6 +179,13 @@
   ④ **(codex minor) fail_reason 정의** — pipeline.fail_reason/api failReason이 정의 없이 노출됐음 → "FAILED 수렴 원인 `{task_id, errorCode}`; CANCELLED/DONE/RUNNING이면 null"로 §1.2+api 명시.
   ⑤ **(codex minor) max_external_calls_per_tick 범위** — "due 호출 전체"로 읽히던 D-T7을 "poll/check 발사 상한; dispatch는 N-cap만"으로 한정(453·operations와 정합). **교훈 강화: 멀티-문서 짝 동기화를 매 수정마다 sweep해야 함(이번엔 sweep로 3번째 regression 방지).** **보류:** O·S 아카이브, swagger, ascii 정밀.
 
+- **개정 6판 후속15 — r13 검증 라운드 (codex 84 / opus 92; 설계 무변경).** **opus는 "수렴·안정·significant 0"이라 했으나 codex(xhigh)가 genuine 3 significant를 더 발견 — 수렴 판정은 두 reviewer 합의가 필요(codex가 더 엄격한 gate).** r12 attempt-마감 sync 자체는 둘 다 regression 0 확인. codex가 잡은 신규/잠복 gap:
+  ① **(significant·잠복) dispatch backpressure(429/503) 전이 미명세** — poll requeue는 next_check_at만 밀면 되나 dispatch는 attempt 생성 후라 처리 불명. state-machine에 행 추가: `429/503 → fail_count 미소모·attempt 미마감·slot 보유·재dispatch`(IM_REJECTED 하드 거부와 구분). 결정(backpressure→requeue)은 기존, 전이 detail만 명세.
+  ② **(significant·잠복) poll observed=FAILED의 errorCode 부재** — terraform 잡 자체 실패(observed=FAILED)에 카탈로그 코드 없어 fail_reason.errorCode가 invent돼야 함 → **카탈로그에 `JOB_FAILED` 추가**(api·orchestrator·state-machine RUNNING→FAILED·fail_reason 일관); JOB_FAILED=poll 잡 실패, task_check.observed=FAILED가 관측 보유.
+  ③ **(significant·내 r12 incompleteness) 늦은 dispatch response CAS guard가 정본 5단계에 누락** — state-machine 4c엔 있으나 orchestrator 3.1 step 4에 없음 → step 4에 `task.status=DISPATCHING AND attempt.finished_at IS NULL` guard + 0행 무시 명시(마감 attempt에 늦은 {jobId} 덮어쓰기 방지).
+  ④ **(minor·내 r10 self-inflicted) operations:34 "전역 노브(M·N…) 즉시적용" ↔ M=배포설정 모순** → 즉시-적용 목록서 M 제거(재배포로만).
+  ⑤ **(minor) §1.2:140 active-attempt 마감에 error_code=null 누락**(api/state-machine엔 있음) → 대칭 보강. **(opus minor) state-machine:113 마감에 error_code=null 추가**(취소 경로 대칭). **(minor) settings frozen 노트에 waitExternalPollingGuardMin 추가.**
+  **교훈: opus 단독 "수렴"을 신뢰하면 안 됨 — codex가 dispatch backpressure·JOB_FAILED 같은 잠복 실제 gap을 7라운드째 발견. 수렴 = 양 reviewer significant 0.** **보류:** O·S 아카이브, swagger, ascii 정밀.
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다

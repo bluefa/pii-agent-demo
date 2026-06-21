@@ -31,8 +31,8 @@
 (구 아키텍처 룰 R1·R2·R6은 결정 3.2로, R3은 결정 2로, R4는 결정 1.3으로 흡수되었고, 독립 룰로
 남는 것은 R5뿐이다.)
 
-**적용 시점.** 전역 노브(tick·per-call HTTP deadline·M·N·max_external_calls_per_tick·보존 기간)는 변경 즉시
-전체에 적용된다. 반면 task별 값(`ttl`·`polling_interval`·`execution_timeout`·`max_fail_count`)은 생성 시 recipe에서
+**적용 시점.** 전역 노브(tick·per-call HTTP deadline·N·max_external_calls_per_tick·보존 기간)는 변경 즉시
+전체에 적용된다(**`M`은 배포 설정이라 즉시-적용 노브가 아니다 — 재배포로만 변경**). 반면 task별 값(`ttl`·`polling_interval`·`execution_timeout`·`max_fail_count`)은 생성 시 recipe에서
 task row에 **frozen**(결정 7.3)이라 **이미 생성된 in-flight run에는 불변**이고 변경은 *이후 생성되는 run*에만 적용된다.
 (M은 배포 설정이라 재배포로만 바뀐다.)
 
