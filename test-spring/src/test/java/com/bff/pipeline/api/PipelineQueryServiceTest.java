@@ -91,14 +91,29 @@ class PipelineQueryServiceTest {
 
     @Test
     void listFallsBackToDefaultSortForUnsupportedKeyWithoutThrowing() {
-        persistPipeline("ts-sort-a", PipelineStatus.RUNNING, T0, null);
-        persistPipeline("ts-sort-b", PipelineStatus.DONE, T0.plusSeconds(60), T0.plusSeconds(120));
+        Pipeline older = persistPipeline("ts-sort-a", PipelineStatus.RUNNING, T0, null); // lastActivityAt T0
+        Pipeline newer = persistPipeline("ts-sort-b", PipelineStatus.DONE,
+                T0.plusSeconds(60), T0.plusSeconds(120)); // lastActivityAt T0+120
 
         Page<PipelineSummary> page = query.list(
                 new PipelineListFilter(null, null, null, null, null, null),
-                PageRequest.of(0, 20, Sort.by("provider")));
+                PageRequest.of(0, 20, Sort.by("provider"))); // unsupported key → fall back, do not throw
 
-        assertThat(page.getTotalElements()).isEqualTo(2);
+        assertThat(page.getContent()).extracting(PipelineSummary::id)
+                .containsExactly(newer.getId(), older.getId()); // fallback order = lastActivityAt desc
+    }
+
+    @Test
+    void listOverlapIncludesAnOngoingRunAndExcludesOneStartingAfterTheWindow() {
+        // window [+30m, +60m): an ongoing run started +45m (finishedAt null → overlaps); a run started +90m is after `to`.
+        Pipeline ongoing = persistPipeline("ts-ongoing", PipelineStatus.RUNNING, T0.plusSeconds(45 * 60), null);
+        persistPipeline("ts-after", PipelineStatus.RUNNING, T0.plusSeconds(90 * 60), null);
+
+        Page<PipelineSummary> page = query.list(
+                new PipelineListFilter(null, null, null, null, T0.plusSeconds(30 * 60), T0.plusSeconds(60 * 60)), unpaged());
+
+        assertThat(page.getContent()).singleElement()
+                .satisfies(summary -> assertThat(summary.id()).isEqualTo(ongoing.getId()));
     }
 
     @Test
@@ -113,7 +128,8 @@ class PipelineQueryServiceTest {
 
         PipelineDetail detail = query.detail(pipeline.getId());
 
-        assertThat(detail.pipeline().progress()).isEqualTo(new Progress(1, 2));
+        assertThat(detail.progress()).isEqualTo(new Progress(1, 2));
+        assertThat(detail.createdAt()).isEqualTo(T0); // flattened detail carries createdAt
         assertThat(detail.tasks()).hasSize(2);
         assertThat(detail.tasks().get(0).latestCheck().id()).isEqualTo(latestForDone.getId());
         assertThat(detail.tasks().get(1).latestCheck().id()).isEqualTo(latestForRunning.getId());

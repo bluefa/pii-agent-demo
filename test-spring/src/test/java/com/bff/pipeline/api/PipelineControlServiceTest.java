@@ -118,6 +118,16 @@ class PipelineControlServiceTest {
     }
 
     @Test
+    void cancelIsAnIdempotentNoOpOnAnAlreadyCancellingPipeline() {
+        Pipeline cancelling = persistPipeline("ts-cancel-twice", PipelineStatus.CANCELLING);
+
+        PipelineControlService.CancelResult result = control.cancel(cancelling.getId(), Actor.HUMAN);
+
+        assertThat(result.status()).isEqualTo(PipelineStatus.CANCELLING);
+        assertThat(events.findByPipelineIdOrderByCreatedAtAsc(cancelling.getId())).isEmpty(); // no duplicate event
+    }
+
+    @Test
     void retryForAFreshTargetCreatesANewRunningPipeline() {
         PipelineControlService.RetryResult result =
                 control.retry(PipelineType.INSTALL, "TEST", "ts-retry-fresh", Actor.HUMAN);

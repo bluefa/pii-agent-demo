@@ -59,7 +59,7 @@ public class PipelineQueryService {
         Pipeline pipeline = require(pipelineId);
         List<Task> chain = tasks.findByPipelineIdOrderBySeqAsc(pipelineId);
         List<TaskView> views = chain.stream().map(this::toTaskView).toList();
-        return new PipelineDetail(PipelineSummary.of(pipeline, Progress.of(chain)), views);
+        return PipelineDetail.of(pipeline, Progress.of(chain), views);
     }
 
     public TaskTimeline taskTimeline(Long pipelineId, Long taskId, Pageable checkPage) {
@@ -68,8 +68,14 @@ public class PipelineQueryService {
                 .orElseThrow(() -> new IllegalArgumentException("no task " + taskId + " in pipeline " + pipelineId));
         List<AttemptView> attemptViews = attempts.findByTaskIdOrderByAttemptNoAsc(taskId).stream()
                 .map(AttemptView::of).toList();
-        Page<CheckView> checkViews = checks.findByTaskId(taskId, checkPage).map(CheckView::of);
+        Page<CheckView> checkViews = checks.findByTaskId(taskId, defaultCheckSort(checkPage)).map(CheckView::of);
         return new TaskTimeline(toTaskView(task), attemptViews, checkViews);
+    }
+
+    /** Checks default to {@code startedAt desc} (api §1) when the caller specified no sort. */
+    private static Pageable defaultCheckSort(Pageable pageable) {
+        return pageable.getSort().isSorted() ? pageable : PageRequest.of(
+                pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "startedAt"));
     }
 
     public Page<PipelineEventView> events(Long pipelineId, Severity severity, Pageable pageable) {
