@@ -11,10 +11,15 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByPipelineIdOrderBySeqAsc(Long pipelineId);
+
+    /** A single task by its chain position — the tick reads the predecessor (seq-1) fresh so a same-tick
+     *  predecessor DONE promotes its successor BLOCKED → READY (same-tick convergence). */
+    Optional<Task> findByPipelineIdAndSeq(Long pipelineId, int seq);
 
     /**
      * Slot admission count (Decision 4b): {@code COUNT(task WHERE kind=TERRAFORM_JOB AND status IN
