@@ -45,9 +45,17 @@
   tr:last-child td{border-bottom:none}
   .tag{display:inline-block;font-size:11px;font-weight:600;padding:1px 7px;border-radius:6px;background:var(--accent-weak);color:var(--accent)}
   .tag.kept{background:#e3f6ea;color:#0a7d34}.tag.cut{background:#fde7ec;color:#c0264a}.tag.v2{background:#fff2e0;color:#9a5400}
-  .ascii{background:var(--code);color:#d7dce5;border-radius:12px;padding:18px 20px;overflow:auto;
-    font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;white-space:pre}
-  .ascii .a{color:#8fb6ff}.ascii .g{color:#7fd6a0}.ascii .r{color:#ff9eb1}.ascii .m{color:#9aa3ad}
+  .diagram{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0;overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:540px}
+  .stepper{counter-reset:s;margin:14px 0;padding:0;list-style:none}
+  .stepper li{position:relative;padding:10px 14px 10px 46px;margin:8px 0;background:var(--surface);
+    border:1px solid var(--line);border-radius:10px;font-size:13.5px}
+  .stepper li::before{counter-increment:s;content:counter(s);position:absolute;left:12px;top:50%;
+    transform:translateY(-50%);width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+    font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .stepper li.tick{border-left:4px solid #1e54c9}.stepper li.call{border-left:4px solid #0a7d34}
+  .stepper b{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  .stepper .tx{color:#1e54c9}.stepper .ct{color:#0a7d34}
   .kbd{background:var(--codebg);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:"SF Mono",monospace;font-size:.85em}
   .note{border-left:3px solid var(--accent);background:var(--accent-weak);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:14px}
   .warn{border-left:3px solid var(--warn);background:#fff6ea}
@@ -105,23 +113,56 @@
   <section id="what">
     <h2>한 눈에</h2>
     <p class="lead">레이어 위치와 책임을 먼저.</p>
-    <div class="ascii"><span class="m">Frontend (Admin 콘솔)</span>
-      │  Admin API (UI = API 동일 표면)
-      ▼
-<span class="a">┌──────────────────────────── BFF (Java 21+) ────────────────────────────┐</span>
-<span class="a">│</span>  API 핸들러 ─기록→ ┌──────────────┐   ┌─────────────────────────┐       <span class="a">│</span>
-<span class="a">│</span>  (생성·취소·재시도) │  BFF DB      │◄──│ Reconciler 30s tick     │       <span class="a">│</span>
-<span class="a">│</span>                  │  = 유일 상태  │──►│ (advisory-lock 리더)     │       <span class="a">│</span>
-<span class="a">│</span>                  │  pipeline    │   │ · READY → dispatch       │       <span class="a">│</span>
-<span class="a">│</span>                  │  task        │   │ · 외부호출 async 발사     │       <span class="a">│</span>
-<span class="a">│</span>                  │  task_attempt│   │ · 관측 보고 → 상태 전이    │       <span class="a">│</span>
-<span class="a">│</span>                  │  task_check  │   └──────────┬──────────────┘       <span class="a">│</span>
-<span class="a">│</span>                  │  pipeline_   │              │ async (run/poll/check)   <span class="a">│</span>
-<span class="a">│</span>                  │   event(outbox)│            ▼                         <span class="a">│</span>
-<span class="a">└──────────────────────────────────────────────┼─────────────────────────┘</span>
-                                               ▼
-                        <span class="g">Infra Manager (IM)</span> ──pubsub──► <span class="g">TerraformWorker</span> (k8s pod, dedup 없음)
-                        Backend Manager (도메인 상태·조건)</div>
+    <div class="diagram">
+    <svg viewBox="0 0 820 430" role="img" aria-label="시스템 레이어 다이어그램">
+      <defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8a94a0"/></marker></defs>
+      <!-- Frontend -->
+      <rect x="300" y="14" width="220" height="42" rx="9" fill="#eef0f2" stroke="#cfd5dc"/>
+      <text x="410" y="40" text-anchor="middle" font-size="13" fill="#3a414a" font-family="sans-serif">Frontend · Admin 콘솔</text>
+      <line x1="410" y1="56" x2="410" y2="86" stroke="#8a94a0" marker-end="url(#ah)"/>
+      <text x="420" y="76" font-size="11.5" fill="#5b6470" font-family="sans-serif">Admin API (UI = API 동일 표면)</text>
+      <!-- BFF outer -->
+      <rect x="28" y="92" width="764" height="208" rx="16" fill="#f6f9ff" stroke="#c4d6fb"/>
+      <text x="46" y="114" font-size="13" font-weight="700" fill="#1e54c9" font-family="sans-serif">BFF (Java 21+)</text>
+      <!-- API handler -->
+      <rect x="50" y="150" width="150" height="92" rx="10" fill="#eaf1ff" stroke="#b8cdf5"/>
+      <text x="125" y="186" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e54c9" font-family="sans-serif">API 핸들러</text>
+      <text x="125" y="206" text-anchor="middle" font-size="11" fill="#5b6470" font-family="sans-serif">생성 · 취소 · 재시도</text>
+      <!-- DB -->
+      <rect x="300" y="138" width="180" height="120" rx="10" fill="#ffffff" stroke="#c9d2dc"/>
+      <text x="390" y="162" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1a1c1f" font-family="sans-serif">BFF DB = 유일 상태</text>
+      <text x="390" y="186" text-anchor="middle" font-size="11" fill="#5b6470" font-family="monospace">pipeline · task</text>
+      <text x="390" y="204" text-anchor="middle" font-size="11" fill="#5b6470" font-family="monospace">task_attempt · task_check</text>
+      <text x="390" y="222" text-anchor="middle" font-size="11" fill="#5b6470" font-family="monospace">pipeline_event (outbox)</text>
+      <text x="390" y="244" text-anchor="middle" font-size="11" fill="#5b6470" font-family="monospace">pipeline_def_snapshot</text>
+      <!-- Reconciler -->
+      <rect x="560" y="138" width="210" height="120" rx="10" fill="#eafaef" stroke="#aedcbd"/>
+      <text x="665" y="162" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0a7d34" font-family="sans-serif">Reconciler 30s tick</text>
+      <text x="665" y="182" text-anchor="middle" font-size="11" fill="#3a6b4a" font-family="sans-serif">advisory-lock 리더 (1 pod)</text>
+      <text x="665" y="202" text-anchor="middle" font-size="11" fill="#5b6470" font-family="sans-serif">· READY → dispatch</text>
+      <text x="665" y="220" text-anchor="middle" font-size="11" fill="#5b6470" font-family="sans-serif">· 외부호출 async 발사</text>
+      <text x="665" y="238" text-anchor="middle" font-size="11" fill="#5b6470" font-family="sans-serif">· 관측 보고 → 상태 전이</text>
+      <!-- arrows API->DB, DB<->Reconciler -->
+      <line x1="200" y1="196" x2="298" y2="196" stroke="#8a94a0" marker-end="url(#ah)"/>
+      <text x="249" y="189" text-anchor="middle" font-size="10.5" fill="#5b6470" font-family="sans-serif">기록</text>
+      <line x1="482" y1="190" x2="558" y2="190" stroke="#8a94a0" marker-end="url(#ah)"/>
+      <line x1="558" y1="206" x2="482" y2="206" stroke="#8a94a0" marker-end="url(#ah)"/>
+      <text x="520" y="226" text-anchor="middle" font-size="10.5" fill="#5b6470" font-family="sans-serif">read / write</text>
+      <!-- BFF -> down -->
+      <path d="M665,258 L665,338" fill="none" stroke="#8a94a0" marker-end="url(#ah)"/>
+      <text x="675" y="318" font-size="10.5" fill="#5b6470" font-family="sans-serif">async run/poll/check</text>
+      <!-- bottom layer -->
+      <rect x="40" y="344" width="170" height="44" rx="9" fill="#eafaef" stroke="#aedcbd"/>
+      <text x="125" y="371" text-anchor="middle" font-size="12" fill="#0a7d34" font-family="sans-serif">Backend Manager</text>
+      <rect x="470" y="344" width="180" height="44" rx="9" fill="#eafaef" stroke="#aedcbd"/>
+      <text x="560" y="371" text-anchor="middle" font-size="12" fill="#0a7d34" font-family="sans-serif">Infra Manager (IM)</text>
+      <rect x="668" y="344" width="124" height="44" rx="9" fill="#eafaef" stroke="#aedcbd"/>
+      <text x="730" y="365" text-anchor="middle" font-size="11" fill="#0a7d34" font-family="sans-serif">Terraform</text>
+      <text x="730" y="379" text-anchor="middle" font-size="10" fill="#5b6470" font-family="sans-serif">Worker (dedup 없음)</text>
+      <line x1="650" y1="366" x2="666" y2="366" stroke="#8a94a0" marker-end="url(#ah)"/>
+      <text x="658" y="358" text-anchor="middle" font-size="9.5" fill="#5b6470" font-family="sans-serif">pubsub</text>
+    </svg>
+    </div>
     <div class="grid3">
       <div class="card"><strong>규모</strong><div class="small">target ≈ 2000개 · provider × install/delete 정의 ≈ 12종</div></div>
       <div class="card"><strong>한 파이프라인</strong><div class="small">2–4 step 선형 task chain · ≥10분 폴링이 흔함</div></div>
@@ -199,11 +240,14 @@
       관측(<code>task_check</code>)과 산출(<code>attempt.response</code>)은 호출 스레드가 쓴다.
       실행 주체는 <strong>status를 절대 건드리지 않는다</strong> → "전이 도중 죽음" 같은 중간 상태가 없다.</div>
     <h3>dispatch 5단계 (writer 분리의 정수)</h3>
-    <div class="ascii"><span class="a">1. (tick tx)</span>          task → DISPATCHING (CAS) + task_attempt 행 생성 + next_check_at
-<span class="a">2. (호출 스레드 tx)</span>    task_check(kind=DISPATCH) PENDING 선기록
-<span class="a">3. (호출 스레드)</span>       dispatch API 호출 (IM run)
-<span class="a">4. (호출 스레드 tx)</span>    attempt.response 영속화 + 같은 task_check 행 UPDATE
-<span class="g">5. (다음 tick)</span>        적재된 관측 보고 → RUNNING (CAS)</div>
+    <ol class="stepper">
+      <li class="tick"><b class="tx">tick tx</b> · task → <code>DISPATCHING</code> (CAS) + <code>task_attempt</code> 행 생성 + <code>next_check_at</code></li>
+      <li class="call"><b class="ct">호출 스레드 tx</b> · <code>task_check(kind=DISPATCH)</code> PENDING 선기록</li>
+      <li class="call"><b class="ct">호출 스레드</b> · dispatch API 호출 (IM run)</li>
+      <li class="call"><b class="ct">호출 스레드 tx</b> · <code>attempt.response</code> 영속화 + 같은 <code>task_check</code> 행 UPDATE</li>
+      <li class="tick"><b class="tx">다음 tick</b> · 적재된 관측 보고 → <code>RUNNING</code> (CAS)</li>
+    </ol>
+    <p class="small"><span style="color:#1e54c9">■</span> 상태 전이 = tick &nbsp; <span style="color:#0a7d34">■</span> 관측·산출 = 호출 스레드</p>
     <p>중간에 죽어도: status는 직전 값으로 일관 유지되고, 복구는 재호출로 끝난다(poll/조건확인은 읽기라 반복 안전).
        "호출 시도 vs 미시도"는 <code>task_check</code> 행 존재 여부(PENDING)로 일급 사실이 된다.</p>
     <div class="grid2">
@@ -276,9 +320,9 @@
         IM에 cancel API가 없다(확정). 그래서 <strong>forward edge만 gate</strong>(readying·dispatching·retrying),
         <strong>drain edge는 절대 gate 안 함</strong>.
         <ul class="clean small">
-          <li>미dispatch task → 즉시 <span class="pill term">CANCELLED</span></li>
+          <li>미dispatch task · DISPATCHING(job_id 미영속) → 즉시 <span class="pill term">CANCELLED</span></li>
           <li>CONDITION_CHECK(read-only) → 폴링 중이어도 즉시 CANCELLED</li>
-          <li>in-flight TERRAFORM_JOB → 자연 terminal까지 drain(slot 보유)</li>
+          <li>RUNNING TERRAFORM_JOB(job_id 영속) → 자연 terminal까지 drain(slot 보유)</li>
         </ul>
         결론: 취소는 실패·leak할 수 없고 <strong>늦을 수만</strong> 있다(execution timeout이 bound).</div>
     </div>
@@ -323,16 +367,40 @@
 
   <section id="pipeline-sm">
     <h2>Pipeline 상태기계 (5종)</h2>
-    <div class="flow">
-      <span class="box"><span class="pill run">RUNNING</span></span><span class="arr">→ 중단 →</span>
-      <span class="box"><span class="pill cancel">CANCELLING</span></span><span class="arr">→ drain 완료 →</span>
-      <span class="box"><span class="pill term">CANCELLED</span></span>
+    <div class="diagram">
+    <svg viewBox="0 0 760 300" role="img" aria-label="Pipeline 상태 전이도">
+      <defs><marker id="ap" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8a94a0"/></marker></defs>
+      <text x="20" y="24" font-size="11" fill="#9aa3ad" font-family="sans-serif">(생성) → 즉시 RUNNING</text>
+      <!-- RUNNING -->
+      <rect x="34" y="116" width="140" height="58" rx="11" fill="#e8f0ff" stroke="#9bbcf5"/>
+      <text x="104" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#1e54c9" font-family="sans-serif">RUNNING</text>
+      <!-- CANCELLING -->
+      <rect x="330" y="24" width="156" height="58" rx="11" fill="#fff2e0" stroke="#e6c08a"/>
+      <text x="408" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#9a5400" font-family="sans-serif">CANCELLING</text>
+      <!-- CANCELLED -->
+      <rect x="566" y="24" width="160" height="58" rx="11" fill="#eef0f2" stroke="#cfd5dc"/>
+      <text x="646" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#5b6470" font-family="sans-serif">CANCELLED</text>
+      <!-- DONE -->
+      <rect x="330" y="116" width="156" height="58" rx="11" fill="#e3f6ea" stroke="#aedcbd"/>
+      <text x="408" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#0a7d34" font-family="sans-serif">DONE</text>
+      <!-- FAILED -->
+      <rect x="330" y="212" width="230" height="58" rx="11" fill="#fde7ec" stroke="#f0b6c4"/>
+      <text x="445" y="240" text-anchor="middle" font-size="14" font-weight="700" fill="#c0264a" font-family="sans-serif">FAILED</text>
+      <text x="445" y="258" text-anchor="middle" font-size="10.5" fill="#a23a55" font-family="sans-serif">fail_count==K · 또는 TTL EXPIRED</text>
+      <!-- arrows -->
+      <path d="M152,116 C220,70 270,55 328,53" fill="none" stroke="#8a94a0" marker-end="url(#ap)"/>
+      <text x="225" y="70" text-anchor="middle" font-size="11" fill="#9a5400" font-family="sans-serif">[중단] 입구가드</text>
+      <line x1="486" y1="53" x2="564" y2="53" stroke="#8a94a0" marker-end="url(#ap)"/>
+      <text x="525" y="44" text-anchor="middle" font-size="10.5" fill="#5b6470" font-family="sans-serif">drain 완료 ①(최우선)</text>
+      <line x1="174" y1="145" x2="328" y2="145" stroke="#8a94a0" marker-end="url(#ap)"/>
+      <text x="251" y="137" text-anchor="middle" font-size="10.5" fill="#0a7d34" font-family="sans-serif">전 task DONE ④</text>
+      <path d="M152,174 C220,210 260,232 328,238" fill="none" stroke="#8a94a0" marker-end="url(#ap)"/>
+      <text x="232" y="222" text-anchor="middle" font-size="10.5" fill="#c0264a" font-family="sans-serif">②③</text>
+    </svg>
     </div>
-    <div class="flow">
-      <span class="box"><span class="pill run">RUNNING</span></span><span class="arr">→ 파생 →</span>
-      <span class="box"><span class="pill done">DONE</span> <span class="small">(전 task DONE)</span></span>
-      <span class="box"><span class="pill fail">FAILED</span> <span class="small">(fail_count==K · 또는 TTL EXPIRED)</span></span>
-    </div>
+    <div class="danger note" style="margin-top:0"><strong>파생 우선순위(매 tick).</strong>
+      <strong>① CANCELLING이 최우선</strong> &gt; ② fail_count==K &gt; ③ TTL EXPIRED &gt; ④ 전 task DONE.
+      ①이 ②③을 누르므로 "취소 중 task가 실패해도 pipeline은 <span class="pill term">CANCELLED</span>로 단일 수렴".</div>
     <table>
       <tr><th>From</th><th>→ To</th><th>트리거 / Guard</th></tr>
       <tr><td>(생성)</td><td><span class="pill run">RUNNING</span></td><td>pipeline 생성 즉시</td></tr>
@@ -347,19 +415,43 @@
   <section id="task-sm">
     <h2>Task 상태기계 (9종)</h2>
     <p class="lead">비terminal 5종 + terminal 4종. 전진 경로는 kind가 정한다. slot 큐 대기는 별도 상태가 아니라 <code>READY ∧ kind=TERRAFORM_JOB</code>로 표현(WAITING_SLOT 제거).</p>
-    <div class="flow" style="margin-bottom:4px">
-      <span class="pill block">BLOCKED</span><span class="pill" style="background:#e8f0ff;color:#1e54c9">READY</span>
-      <span class="pill" style="background:#e8f0ff;color:#1e54c9">DISPATCHING</span><span class="pill run">RUNNING</span>
-      <span class="pill wait">WAITING_EXTERNAL</span>
-      <span class="small">· terminal:</span>
-      <span class="pill done">DONE</span><span class="pill fail">FAILED</span><span class="pill term">EXPIRED</span><span class="pill term">CANCELLED</span>
+    <div class="diagram">
+    <svg viewBox="0 0 820 300" role="img" aria-label="Task 상태 전이도 (happy path)">
+      <defs><marker id="at" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#8a94a0"/></marker></defs>
+      <!-- common -->
+      <rect x="14" y="120" width="112" height="52" rx="11" fill="#f1f3f6" stroke="#cfd5dc"/>
+      <text x="70" y="151" text-anchor="middle" font-size="12.5" font-weight="700" fill="#6b7280" font-family="sans-serif">BLOCKED</text>
+      <rect x="176" y="120" width="104" height="52" rx="11" fill="#e8f0ff" stroke="#9bbcf5"/>
+      <text x="228" y="151" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1e54c9" font-family="sans-serif">READY</text>
+      <line x1="126" y1="146" x2="174" y2="146" stroke="#8a94a0" marker-end="url(#at)"/>
+      <text x="150" y="138" text-anchor="middle" font-size="9.5" fill="#5b6470" font-family="sans-serif">직전 seq DONE</text>
+      <!-- TF lane -->
+      <text x="372" y="30" font-size="11" font-weight="700" fill="#0a7d34" font-family="sans-serif">TERRAFORM_JOB · slot 소비</text>
+      <rect x="372" y="42" width="146" height="52" rx="11" fill="#e8f0ff" stroke="#9bbcf5"/>
+      <text x="445" y="73" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1e54c9" font-family="sans-serif">DISPATCHING</text>
+      <rect x="560" y="42" width="120" height="52" rx="11" fill="#e8f0ff" stroke="#9bbcf5"/>
+      <text x="620" y="73" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1e54c9" font-family="sans-serif">RUNNING</text>
+      <rect x="716" y="42" width="90" height="52" rx="11" fill="#e3f6ea" stroke="#aedcbd"/>
+      <text x="761" y="73" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0a7d34" font-family="sans-serif">DONE</text>
+      <path d="M280,132 C320,100 340,74 370,69" fill="none" stroke="#8a94a0" marker-end="url(#at)"/>
+      <text x="318" y="96" text-anchor="middle" font-size="9.5" fill="#5b6470" font-family="sans-serif">admit: COUNT&lt;N</text>
+      <line x1="518" y1="68" x2="558" y2="68" stroke="#8a94a0" marker-end="url(#at)"/>
+      <text x="538" y="60" text-anchor="middle" font-size="9" fill="#5b6470" font-family="sans-serif">dispatch</text>
+      <line x1="680" y1="68" x2="714" y2="68" stroke="#8a94a0" marker-end="url(#at)"/>
+      <text x="697" y="60" text-anchor="middle" font-size="8.5" fill="#5b6470" font-family="sans-serif">SUCCEEDED</text>
+      <!-- CC lane -->
+      <text x="372" y="194" font-size="11" font-weight="700" fill="#5a39c9" font-family="sans-serif">CONDITION_CHECK · dispatch·attempt 없음</text>
+      <rect x="372" y="204" width="196" height="52" rx="11" fill="#f0ecff" stroke="#c3b6f0"/>
+      <text x="470" y="235" text-anchor="middle" font-size="12.5" font-weight="700" fill="#5a39c9" font-family="sans-serif">WAITING_EXTERNAL</text>
+      <rect x="608" y="204" width="90" height="52" rx="11" fill="#e3f6ea" stroke="#aedcbd"/>
+      <text x="653" y="235" text-anchor="middle" font-size="12.5" font-weight="700" fill="#0a7d34" font-family="sans-serif">DONE</text>
+      <path d="M280,160 C320,196 340,224 370,229" fill="none" stroke="#8a94a0" marker-end="url(#at)"/>
+      <text x="316" y="216" text-anchor="middle" font-size="9.5" fill="#5b6470" font-family="sans-serif">조건 폴링 개시</text>
+      <line x1="568" y1="230" x2="606" y2="230" stroke="#8a94a0" marker-end="url(#at)"/>
+      <text x="587" y="222" text-anchor="middle" font-size="8.5" fill="#5b6470" font-family="sans-serif">MET</text>
+    </svg>
     </div>
-    <div class="ascii">공통:  (생성) → <span class="m">[BLOCKED]</span> ──직전 seq task DONE──► <span class="a">[READY]</span> ──┐ kind로 분기
-
- <span class="g">TERRAFORM_JOB</span>    <span class="a">[READY]</span> ──admit: COUNT(DISP|RUN)&lt;N──► [DISPATCHING] → [RUNNING] → <span class="g">[DONE]</span>
- (slot 소비)       (READY = slot 큐, 미admit)         dispatch        job 폴링
- <span class="g">CONDITION_CHECK</span>  <span class="a">[READY]</span> ─────────────────────────► [WAITING_EXTERNAL] → <span class="g">[DONE]</span>
- (dispatch 없음)                                     조건 폴링 (MET까지, attempt 없음)</div>
+    <p class="small">비terminal 5종(<span class="pill block">BLOCKED</span> <span class="pill" style="background:#e8f0ff;color:#1e54c9">READY</span> <span class="pill" style="background:#e8f0ff;color:#1e54c9">DISPATCHING</span> <span class="pill run">RUNNING</span> <span class="pill wait">WAITING_EXTERNAL</span>) · terminal 4종(<span class="pill done">DONE</span> <span class="pill fail">FAILED</span> <span class="pill term">EXPIRED</span> <span class="pill term">CANCELLED</span>). slot 큐 대기 = <code>READY ∧ kind=TERRAFORM_JOB</code>(별도 상태 아님). 분기(실패·취소·재시도)는 아래 표.</p>
     <h3>분기 전이 (요약)</h3>
     <table>
       <tr><th>종류</th><th>전이</th><th>규칙</th></tr>
@@ -368,7 +460,8 @@
       <tr><td>재시도</td><td>RUNNING → READY</td><td>fail++ &lt; K → slot 반납 후 재큐(admission 재통과)</td></tr>
       <tr><td>재시도</td><td>DISPATCHING (in-place)</td><td>dispatch 복구 timeout → fail++; slot 보유한 채 재dispatch</td></tr>
       <tr><td>취소</td><td>BLOCKED·READY → <span class="pill term">CANCELLED</span></td><td>미dispatch → 즉시 CANCELLED (forward edge gate)</td></tr>
-      <tr><td>취소</td><td>DISPATCHING·RUNNING (TF) → drain</td><td>죽일 수 없는 job → 자연 terminal까지 drain; pipeline만 CANCELLED로 수렴</td></tr>
+      <tr><td>취소</td><td>DISPATCHING (TF) → <span class="pill term">CANCELLED</span></td><td><strong>job_id 미영속 → 폴링할 handle 없음 → 즉시 CANCELLED</strong>(원 dispatch 멱등이라 무해, orphan은 execution timeout 흡수)</td></tr>
+      <tr><td>취소</td><td>RUNNING (TF) → drain</td><td>job_id 영속된 죽일 수 없는 job → 자연 terminal까지 drain; pipeline만 CANCELLED로 수렴</td></tr>
     </table>
     <div class="note small"><strong>task CANCELLED ≠ pipeline CANCELLED.</strong> task의 CANCELLED는 한 번도 dispatch되지 않은 task에만 붙는다.
       dispatch한 in-flight job은 자기 terminal(DONE/FAILED)로 drain되고 그 사실은 보존된다 — pipeline 파생만 CANCELLED로 수렴.</div>
