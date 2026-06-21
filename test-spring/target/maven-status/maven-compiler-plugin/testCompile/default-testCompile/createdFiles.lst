@@ -1,0 +1,8 @@
+com/bff/pipeline/handler/HandlerRegistryTest.class
+com/bff/pipeline/handler/HandlerRegistryTest$UnregisteredHandler.class
+com/bff/pipeline/repo/TaskRepositoryCasTest.class
+com/bff/pipeline/repo/TaskAttemptRepositoryAdoptionTest.class
+com/bff/pipeline/handler/HandlerRegistryTest$FakeConditionHandler.class
+com/bff/pipeline/handler/HandlerRegistryTest$FakeTerraformHandler.class
+com/bff/pipeline/repo/PipelineRepositoryCasTest.class
+com/bff/pipeline/service/EventRecorderTest.class

@@ -1,0 +1,5 @@
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/test/java/com/bff/pipeline/handler/HandlerRegistryTest.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/test/java/com/bff/pipeline/repo/PipelineRepositoryCasTest.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/test/java/com/bff/pipeline/repo/TaskAttemptRepositoryAdoptionTest.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/test/java/com/bff/pipeline/repo/TaskRepositoryCasTest.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/test/java/com/bff/pipeline/service/EventRecorderTest.java

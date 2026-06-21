@@ -27,12 +27,11 @@ public class RecipeRegistry {
                 throw new IllegalStateException("Duplicate default recipe for " + k);
             }
             for (TaskDefinition t : def.tasks()) {
-                PipelineHandler h = handlers.find(t.handlerKey()).orElseThrow(() ->
-                        new IllegalStateException("Recipe " + def.definitionKey()
-                                + " references unregistered handler_key: " + t.handlerKey()));
+                PipelineHandler h = handlers.getByClass(t.handlerClass());
                 if (h.kind() != t.kind()) {
                     throw new IllegalStateException("Recipe " + def.definitionKey() + " task '" + t.name()
-                            + "' kind " + t.kind() + " != handler " + t.handlerKey() + " kind " + h.kind());
+                            + "' kind " + t.kind() + " != handler "
+                            + t.handlerClass().getSimpleName() + " kind " + h.kind());
                 }
             }
         }

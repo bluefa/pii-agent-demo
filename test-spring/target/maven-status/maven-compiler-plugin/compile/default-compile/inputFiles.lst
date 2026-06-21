@@ -49,3 +49,4 @@
 /Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/main/java/com/bff/pipeline/repo/TaskAttemptRepository.java
 /Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/main/java/com/bff/pipeline/repo/TaskCheckRepository.java
 /Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/main/java/com/bff/pipeline/repo/TaskRepository.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring/src/main/java/com/bff/pipeline/service/EventRecorder.java

@@ -1,6 +1,7 @@
 com/bff/pipeline/handler/PollOutcome$CallFailed.class
 com/bff/pipeline/domain/PipelineEvent.class
 com/bff/pipeline/handler/UnknownHandlerException.class
+com/bff/pipeline/service/EventRecorder.class
 com/bff/pipeline/domain/PipelineType.class
 com/bff/pipeline/im/ImFault$HardError.class
 com/bff/pipeline/domain/Actor.class

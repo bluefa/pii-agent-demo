@@ -16,9 +16,11 @@ import java.util.Optional;
 public class HandlerRegistry {
 
     private final Map<String, PipelineHandler> byKey;
+    private final Map<Class<?>, PipelineHandler> byClass;
 
     public HandlerRegistry(List<PipelineHandler> handlers) {
         Map<String, PipelineHandler> m = new HashMap<>();
+        Map<Class<?>, PipelineHandler> byType = new HashMap<>();
         for (PipelineHandler h : handlers) {
             PipelineHandler prev = m.putIfAbsent(h.key(), h);
             if (prev != null) {
@@ -26,8 +28,10 @@ public class HandlerRegistry {
                         "Duplicate handler key '" + h.key() + "': " + prev.getClass().getName()
                                 + " vs " + h.getClass().getName());
             }
+            byType.put(h.getClass(), h);
         }
         this.byKey = Map.copyOf(m);
+        this.byClass = Map.copyOf(byType);
     }
 
     /** resolve or throw (call path). */
@@ -46,5 +50,19 @@ public class HandlerRegistry {
 
     public boolean contains(String key) {
         return byKey.containsKey(key);
+    }
+
+    /** resolve a handler by its concrete class (recipe class-ref path); throws if its bean is absent. */
+    public PipelineHandler getByClass(Class<? extends PipelineHandler> type) {
+        PipelineHandler h = byClass.get(type);
+        if (h == null) {
+            throw new UnknownHandlerException(type.getName());
+        }
+        return h;
+    }
+
+    /** the registered String key for a handler class — creation freezes this onto the task row. */
+    public String keyOf(Class<? extends PipelineHandler> type) {
+        return getByClass(type).key();
     }
 }
