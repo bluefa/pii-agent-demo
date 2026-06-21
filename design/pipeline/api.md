@@ -37,7 +37,7 @@
   — `lastActivityAt` = `pipeline.last_activity_at`(매 상태 전이 tx에서 갱신되는 실 컬럼, 결정 1.2; 인덱스 보유).
   `from`/`to` = 기간 횡단 조회 — run의 `[started_at, finished_at)` 체류 구간이 `[from, to)`와 겹치는 run(overlap; `pipeline(started_at)` 인덱스, orchestrator §1.3).
 - `200` → `{ content: [PipelineSummary], totalElements, totalPages, number, size }`
-- 보드의 slotCap (N) 사용량 게이지 = `COUNT(task WHERE kind=TERRAFORM_JOB AND status IN (DISPATCHING,RUNNING))` / `slotCap`로 파생(admission COUNT와 동일 — DISPATCHING|RUNNING은 TERRAFORM_JOB만 진입; orchestrator §4b) — 별도 endpoint 불요.
+- 보드의 slotCap 사용량 게이지 = `COUNT(task WHERE kind=TERRAFORM_JOB AND status IN (DISPATCHING,RUNNING))` / `slotCap`로 파생(admission COUNT와 동일 — DISPATCHING|RUNNING은 TERRAFORM_JOB만 진입; orchestrator §4b) — 별도 endpoint 불요.
 
 ### `GET /admin/pipelines/{pipelineId}` — 파이프라인 상세 (보드 → 드릴다운)
 - `200` → `Pipeline` (`tasks[]` 포함)
@@ -108,7 +108,7 @@
   tickIntervalSec, perCallDeadlineSec,
   dispatchRecoveryTimeoutMin, executionTimeoutMin,
   waitExternalTtlDays, waitExternalPollingGuardMin, jobPollCadenceSec,
-  slotCap,                  // slotCap (N) — 동시 slot 보유 task soft target (TERRAFORM_JOB)
+  slotCap,                  // slotCap — 동시 slot 보유 task soft target (TERRAFORM_JOB)
   maxExternalCallsPerTick,  // tick당 due poll/check 발사 상한 (dispatch 제외 — slotCap admission으로 제한; burst 완화, D-T7)
   maxFailCount,
   taskCheckRetentionDays, queueWaitAlertMin

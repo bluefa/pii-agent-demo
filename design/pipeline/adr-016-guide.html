@@ -80,6 +80,19 @@ a.t:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radi
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .card h4{margin:0 0 .3em;color:var(--fg)}
 .card .role{color:var(--muted);font-size:.86rem}
+
+/* decision list (grouped) */
+.declist{margin:1.1em 0;display:flex;flex-direction:column;gap:10px}
+.dec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px 14px;border-left:4px solid var(--accent)}
+.dec-top{display:flex;align-items:center;gap:11px}
+.dec-num{flex:none;width:32px;height:32px;border-radius:9px;background:var(--accent-soft);color:var(--accent);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:.95rem}
+.dec-h{font-weight:700;font-size:1rem}
+.dec-h small{font-weight:500;color:var(--muted);font-size:.82rem;margin-left:7px}
+.dec-body{color:var(--muted);font-size:.9rem;margin:7px 0 0 43px}
+.dec-subs{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0 0 43px}
+.dec-sub{background:color-mix(in srgb,var(--accent) 6%,transparent);border:1px solid var(--line);border-radius:7px;padding:4px 9px;font-size:.78rem;color:var(--fg);line-height:1.35}
+.dec-sub b{color:var(--accent);font-family:var(--mono);font-size:.73rem;margin-right:5px}
+@media (max-width:560px){.dec-body,.dec-subs{margin-left:0}}
 .box{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:12px 16px;margin:1em 0}
 .box.warn{border-left-color:var(--fail)}
 .box.key{border-left-color:var(--done)}
@@ -253,7 +266,7 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 <div class="card"><h4>2. IM run = 비동기</h4><div class="role"><a class="t" href="#g-job-id">job_id</a> 반환, pubsub로 worker 실행. 일부 호출은 job_id 없이 조건으로 판정.</div></div>
 <div class="card"><h4>3. dedup 없음 → 멱등</h4><div class="role">중복 제출은 각각 실행되나 모든 execution API가 <a class="t" href="#g-idempotency">멱등</a>이라 인프라 결과 무손상.</div></div>
 <div class="card"><h4>4. 결과 유실 가능</h4><div class="role">드문 worker 결함 — "실행 중"과 "유실"을 구분하지 않고 <a class="t" href="#g-execution-timeout">execution timeout</a>으로 흡수.</div></div>
-<div class="card"><h4>5. 고정 풀 hard cap</h4><div class="role">동시 TerraformJob은 <a class="t" href="#g-workerpoolsize">workerPoolSize (M)</a>으로 hard-cap; BFF <a class="t" href="#g-slotcap">slotCap (N)</a>은 그 위의 제출 throttle.</div></div>
+<div class="card"><h4>5. 고정 풀 hard cap</h4><div class="role">동시 TerraformJob은 <a class="t" href="#g-workerpoolsize">workerPoolSize</a>으로 hard-cap; BFF <a class="t" href="#g-slotcap">slotCap</a>은 그 위의 제출 throttle.</div></div>
 <div class="card"><h4>6. 히스토리·알림 일급 (2단 보존)</h4><div class="role">run/task/attempt/event spine은 무기한, 고빈도 <a class="t" href="#g-task-check">task_check</a>은 retention 창(기본 90일).</div></div>
 <div class="card"><h4>7. AI 운영 = 범위 외</h4><div class="role">단 모든 admin 액션이 BFF admin API라, 향후 AI 운영자는 또 하나의 API principal로 표면 변경 없이 추가.</div></div>
 </div>
@@ -271,15 +284,74 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 <li><b><a class="t" href="#g-per-call-deadline">호출 deadline</a> ≠ tick 주기</b> (<a class="t" href="#g-dt-labels">D-T1</a>) — 한 외부 호출이 tick 안에 끝날 필요가 없다(비블로킹 <a class="t" href="#g-vt">async</a> 발사).</li>
 </ul></div>
 
-<h3>정본 결정 1~7</h3>
-<div class="cards">
-<div class="card"><h4>결정 1 — durable state machine + tick</h4><div class="role">DB=유일 상태. 다중 replica = advisory lock 리더 + CAS 전이. UI 액션은 외부 호출도 task 전진도 안 함.</div></div>
-<div class="card"><h4>결정 2 — <a class="t" href="#g-task-kind">TaskKind</a> 2종</h4><div class="role"><a class="t" href="#g-terraform-job">TERRAFORM_JOB</a> · <a class="t" href="#g-condition-check">CONDITION_CHECK</a>. 새 task = 새 코드 class(대개 기존 kind 재사용).</div></div>
-<div class="card"><h4>결정 3 — <a class="t" href="#g-idempotency-by-construction">idempotency-by-construction</a></h4><div class="role"><a class="t" href="#g-at-least-once">at-least-once</a> dispatch + 멱등. exactly-once 기계 안 만듦.</div></div>
-<div class="card"><h4>결정 4 — Liveness</h4><div class="role">무한대기 없음. <b>4a</b> timeout budget · <b>4b</b> workerPoolSize hard cap + slotCap · <b>4c</b> <a class="t" href="#g-drain">cancel=drain</a> · <b>4d</b> systemic 실패는 알림 롤업.</div></div>
-<div class="card"><h4>결정 5 — retry=새 run + unique</h4><div class="role">재개 없음(terminal 부활 없음). 동일 target <a class="t" href="#g-unique-constraint">unique 제약</a> → 생성 계약(↓ 2c).</div></div>
-<div class="card"><h4>결정 6 — tick 외부 호출 모델</h4><div class="role"><a class="t" href="#g-dt-labels">D-T1~D-T7</a>. 단일 writer·async 발사·per-call deadline·<a class="t" href="#g-rle">RLE</a>.</div></div>
-<div class="card"><h4>결정 7 — Definition</h4><div class="role">코드 default <a class="t" href="#g-recipe">recipe</a> + run <a class="t" href="#g-snapshot">snapshot</a> 박제(7.1~7.4). 코드=실행 권위.</div></div>
+<h3>정본 결정 1~7 (하위결정 포함)</h3>
+<div class="declist">
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">1</span><span class="dec-h">durable state machine + reconciler tick<small>오케스트레이션</small></span></div>
+    <div class="dec-body">DB가 유일한 상태. 다중 replica = <a class="t" href="#g-advisory-lock">advisory lock</a> 리더 + 모든 전이 <a class="t" href="#g-cas">CAS</a>. UI 액션은 외부 호출도 task 전진도 안 함.</div>
+    <div class="dec-subs">
+      <span class="dec-sub"><b>1.1</b>파생 우선순위·구조</span>
+      <span class="dec-sub"><b>1.2</b>데이터 모델(스키마)</span>
+      <span class="dec-sub"><b>1.3</b>기록·조회·알림 <a class="t" href="#g-transactional-outbox">outbox</a></span>
+      <span class="dec-sub"><b>1.4</b>관리 콘솔</span>
+    </div>
+  </div>
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">2</span><span class="dec-h"><a class="t" href="#g-task-kind">TaskKind</a> 2종<small>작업 모델</small></span></div>
+    <div class="dec-body"><a class="t" href="#g-terraform-job">TERRAFORM_JOB</a> · <a class="t" href="#g-condition-check">CONDITION_CHECK</a>. 새 task = 새 코드 class(대개 기존 kind 재사용; 새 흐름 shape일 때만 새 kind). GENERAL_JOB은 v2.</div>
+  </div>
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">3</span><span class="dec-h"><a class="t" href="#g-idempotency-by-construction">idempotency-by-construction</a><small>정합성</small></span></div>
+    <div class="dec-body"><a class="t" href="#g-at-least-once">at-least-once</a> dispatch + 멱등. <a class="t" href="#g-exactly-once">exactly-once</a> 기계 안 만듦.</div>
+    <div class="dec-subs">
+      <span class="dec-sub"><b>3.1</b>dispatch 5단계 writer 분리</span>
+      <span class="dec-sub"><b>3.2</b>단일 전이 함수 룰</span>
+      <span class="dec-sub"><b>3.3</b>crash &amp; N-pod walkthrough</span>
+    </div>
+  </div>
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">4</span><span class="dec-h">Liveness — 무한대기 없음<small>죽일 수 없거나 systemic한 실패 = corruption 아닌 delay</small></span></div>
+    <div class="dec-subs">
+      <span class="dec-sub"><b>4a</b>통합 timeout budget</span>
+      <span class="dec-sub"><b>4b</b>동시성 — <a class="t" href="#g-workerpoolsize">workerPoolSize</a> hard cap + <a class="t" href="#g-slotcap">slotCap</a> throttle</span>
+      <span class="dec-sub"><b>4c</b>중단 = <a class="t" href="#g-drain">drain</a>(죽이지 않고 전진만 멈춤)</span>
+      <span class="dec-sub"><b>4d</b>systemic 실패 = 알림 롤업(circuit breaker 없음)</span>
+    </div>
+  </div>
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">5</span><span class="dec-h">retry = 새 run + 중복 unique 제약<small>수동 개입</small></span></div>
+    <div class="dec-body">재개·terminal 부활 없음(완료분은 terraform 수렴으로 no-op). 동일 target <a class="t" href="#g-unique-constraint">부분 unique 제약</a>으로 non-terminal 1건 강제 → <b><a class="t" href="#g-creation-contract">생성 계약</a>(↓ §02c)</b>.</div>
+  </div>
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">6</span><span class="dec-h">tick의 외부 호출 실행 모델<small>D-T1~D-T7 · 상세는 §07</small></span></div>
+    <div class="dec-subs">
+      <span class="dec-sub"><b>D-T1</b><a class="t" href="#g-per-call-deadline">호출 deadline</a> ≠ tick 주기</span>
+      <span class="dec-sub"><b>D-T2</b>비블로킹 <a class="t" href="#g-vt">async</a> 발사</span>
+      <span class="dec-sub"><b>D-T3</b>per-call deadline TaskKind 오버라이드</span>
+      <span class="dec-sub"><b>D-T4</b>관측=실행주체 / 상태=tick</span>
+      <span class="dec-sub"><b>D-T5</b>DISPATCH PENDING 선기록</span>
+      <span class="dec-sub"><b>D-T6</b>장시간 check 별도 상태 없음</span>
+      <span class="dec-sub"><b>D-T7</b><a class="t" href="#g-max-external-calls">발사 상한</a>(<a class="t" href="#g-rle">RLE</a> 포함)</span>
+    </div>
+  </div>
+
+  <div class="dec">
+    <div class="dec-top"><span class="dec-num">7</span><span class="dec-h">Definition — 코드 default + run snapshot<small>Pipeline 구성</small></span></div>
+    <div class="dec-body">코드 default <a class="t" href="#g-recipe">recipe</a> + 생성 시 <a class="t" href="#g-snapshot">snapshot</a> 박제. <a class="t" href="#g-code-is-authority">코드=실행 권위</a> / snapshot=이력 권위.</div>
+    <div class="dec-subs">
+      <span class="dec-sub"><b>7.1</b>3-layer(catalog·recipe·snapshot)</span>
+      <span class="dec-sub"><b>7.2</b>생성 시 resolution</span>
+      <span class="dec-sub"><b>7.3</b>정합성·재현(절연 범위)</span>
+      <span class="dec-sub"><b>7.4</b>무게는 cardinality(default=코드가 제거)</span>
+    </div>
+  </div>
+
 </div>
 </section>
 
@@ -482,8 +554,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <h2><span class="sec-num">06</span> 동시성 모델</h2>
 <p>네 개의 값이 모두 "동시성 제한"처럼 들리지만 <b>hard cap은 하나뿐</b>이다.</p>
 <div class="cards">
-<div class="card" style="border-left:4px solid var(--fail)"><h4><a class="t" href="#g-workerpoolsize">workerPoolSize</a> (M)</h4><div class="role"><b>동시성 hard cap</b>. 고정 worker 풀 크기(IM 보호). 배포 설정 — settings API 비편집·비노출.</div></div>
-<div class="card" style="border-left:4px solid var(--run)"><h4><a class="t" href="#g-slotcap">slotCap</a> (N)</h4><div class="role">BFF 제출 throttle(slotCap ≈ workerPoolSize). pubsub 큐를 얕게. <a class="t" href="#g-soft-target">soft target</a> — 안전장치 아님.</div></div>
+<div class="card" style="border-left:4px solid var(--fail)"><h4><a class="t" href="#g-workerpoolsize">workerPoolSize</a></h4><div class="role"><b>동시성 hard cap</b>. 고정 worker 풀 크기(IM 보호). 배포 설정 — settings API 비편집·비노출.</div></div>
+<div class="card" style="border-left:4px solid var(--run)"><h4><a class="t" href="#g-slotcap">slotCap</a></h4><div class="role">BFF 제출 throttle(slotCap ≈ workerPoolSize). pubsub 큐를 얕게. <a class="t" href="#g-soft-target">soft target</a> — 안전장치 아님.</div></div>
 <div class="card" style="border-left:4px solid var(--wait)"><h4><a class="t" href="#g-nk">slotCap × maxFailCount</a></h4><div class="role">retry/orphan worst-case <b>제출량 sizing 값</b>(큐로 흘러드는 총량). 동시 실행 상한 <b>아님</b>.</div></div>
 <div class="card" style="border-left:4px solid var(--cancel)"><h4><a class="t" href="#g-max-external-calls">max_external_calls_per_tick</a></h4><div class="role">tick당 poll/check 발사 상한(기본 50). <b>dispatch 제외</b> — dispatch는 slotCap admission으로 제한.</div></div>
 </div>
@@ -498,7 +570,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <tr><td><a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a> · 취소 정리(error_code=null)</td><td>❌ 미소모 (영구 실패·취소는 재시도 가능 시도 아님)</td></tr>
 <tr><td><b>drain 중 RUNNING TF 실제 실패/timeout</b></td><td>✅ 가산 (사실대로 — 단 pipeline은 CANCELLED 수렴)</td></tr>
 </tbody></table>
-<p><b><a class="t" href="#g-maxfailcount">maxFailCount (K)</a></b> 정의: TERRAFORM_JOB = 초기 dispatch 포함 최대 attempt 수(총 attempt ≤ maxFailCount, 재dispatch ≤ maxFailCount−1) / CONDITION_CHECK = 비-backpressure CHECK ERROR·CALL_TIMEOUT 허용 횟수.</p>
+<p><b><a class="t" href="#g-maxfailcount">maxFailCount</a></b> 정의: TERRAFORM_JOB = 초기 dispatch 포함 최대 attempt 수(총 attempt ≤ maxFailCount, 재dispatch ≤ maxFailCount−1) / CONDITION_CHECK = 비-backpressure CHECK ERROR·CALL_TIMEOUT 허용 횟수.</p>
 <div class="box warn"><b>slotCap ↔ execution-timeout 결합 (튜닝 주의).</b> slotCap ≫ workerPoolSize이면 pubsub 큐가 깊어져 정상 job의 큐 대기 시간까지 <a class="t" href="#g-execution-timeout">execution timeout</a> 경과에 포함돼 <b>오발</b>한다. 그래서 slotCap ≈ workerPoolSize로 큐를 얕게 유지하는 것이 timeout 정확도의 레버다.</div>
 </section>
 
@@ -763,14 +835,14 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 </dl></div>
 
 <div class="gcat"><h3>동시성</h3><dl>
-<dt id="g-workerpoolsize">workerPoolSize (M)</dt><dd>고정 worker 풀 크기 = 동시성 hard cap(IM 보호). 배포 설정 — settings API 비편집·비노출. 예 4~8.</dd>
-<dt id="g-slotcap">slotCap (N, 구 N-cap)</dt><dd>BFF admission 제출 throttle(slotCap ≈ workerPoolSize). pubsub 큐를 얕게. soft target — 동시성 안전장치 아님. 초안 3.</dd>
+<dt id="g-workerpoolsize">workerPoolSize</dt><dd>고정 worker 풀 크기 = 동시성 hard cap(IM 보호). 배포 설정 — settings API 비편집·비노출. 예 4~8.</dd>
+<dt id="g-slotcap">slotCap</dt><dd>BFF admission 제출 throttle(slotCap ≈ workerPoolSize). pubsub 큐를 얕게. soft target — 동시성 안전장치 아님. 초안 3.</dd>
 <dt id="g-slot">slot</dt><dd>TERRAFORM_JOB이 DISPATCHING/RUNNING 동안 점유하는 admission 단위. slotCap개 한도.</dd>
 <dt id="g-slot-queue">slot 큐</dt><dd>admit 못 받은 READY TERRAFORM_JOB(별도 상태 없이 READY∧kind=TF로 표현; 순번=admission 순서 파생).</dd>
 <dt id="g-admission">admission</dt><dd>READY TF를 COUNT(DISPATCHING|RUNNING) &lt; slotCap일 때만 DISPATCHING 승격.</dd>
 <dt id="g-soft-target">soft target</dt><dd>CAS 불변식이 아니라 근사 목표(slotCap; COUNT→admit read-then-act라 leader 단일성 의존). split-brain 일시 초과는 풀이 흡수.</dd>
-<dt id="g-nk">slotCap × maxFailCount (구 N·K)</dt><dd>retry/orphan worst-case 제출량 sizing 값(큐로 흘러드는 총량). 동시 실행 상한 아님.</dd>
-<dt id="g-maxfailcount">maxFailCount (K, = max_fail_count 컬럼)</dt><dd>task FAILED 전 최대 비성공 시도. TF=초기 dispatch 포함 최대 attempt 수 / CONDITION_CHECK=비-backpressure CHECK ERROR·CALL_TIMEOUT 허용 횟수.</dd>
+<dt id="g-nk">slotCap × maxFailCount</dt><dd>retry/orphan worst-case 제출량 sizing 값(큐로 흘러드는 총량). 동시 실행 상한 아님.</dd>
+<dt id="g-maxfailcount">maxFailCount (= max_fail_count 컬럼)</dt><dd>task FAILED 전 최대 비성공 시도. TF=초기 dispatch 포함 최대 attempt 수 / CONDITION_CHECK=비-backpressure CHECK ERROR·CALL_TIMEOUT 허용 횟수.</dd>
 <dt id="g-fail-count">fail_count</dt><dd>"성공하지 못한 시도 횟수". maxFailCount 도달 시 task FAILED. 미가산: backpressure·NOT_MET·TERRAFORM_JOB poll 오류(잡 못 읽음). 가산: TF dispatch/job 실패·CONDITION_CHECK CHECK_ERROR/CALL_TIMEOUT·drain 중 실제 실패.</dd>
 <dt id="g-max-external-calls">max_external_calls_per_tick</dt><dd>tick당 poll/check 발사 상한(기본 50). dispatch 제외(slotCap admission으로 제한). burst 완화.</dd>
 <dt id="g-split-brain">split-brain</dt><dd>lock 세션 유실로 두 pod가 잠시 둘 다 리더. 무해(workerPoolSize가 cap·CAS 수렴).</dd>
@@ -890,6 +962,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-camel-case">camelCase</dt><dd>API DTO 표기.</dd>
 <dt id="g-unique-constraint">부분 unique 제약</dt><dd>unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED). target당 non-terminal pipeline 1건 강제.</dd>
 <dt id="g-sqlstate-23505">23505</dt><dd>Postgres unique 위반 SQLSTATE. 생성 계약: 에러 대신 기존 non-terminal 반환.</dd>
+<dt id="g-creation-contract">생성 계약</dt><dd>어느 트리거든 충족할 ADR 불변식 — ①recipe resolve ②task row+snapshot 원자 생성 ③23505 catch → 기존 non-terminal 반환. 통합 테스트 필수(§02c).</dd>
 </dl></div>
 
 <div class="gcat"><h3>API 표면</h3><dl>

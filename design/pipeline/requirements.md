@@ -17,7 +17,7 @@
 | FR-5 | 중단 지원 | CANCELLING + in-flight drain(결정 4c) |
 | FR-6 | Terraform 로그/결과 보존 | **v2 defer** — terminal snapshot 캡처(구 postCheck)는 v2(v2-deferred.md); v1은 완료 여부·시각만 CHECK 관측에 보존 |
 | FR-7 | 알림 제공 | `pipeline_event` transactional outbox |
-| FR-8 | BFF-visible active Terraform task 제한 | slotCap (N) admission(결정 4b) |
+| FR-8 | BFF-visible active Terraform task 제한 | slotCap admission(결정 4b) |
 
 ## 비기능 요구사항 (NFR)
 

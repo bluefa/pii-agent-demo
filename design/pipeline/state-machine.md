@@ -32,7 +32,7 @@ task 변경 없음, 결정 4c). 그 외 모든 pipeline 파생(DONE/FAILED/CANCE
 ```
 
 **파생은 병렬 비교가 아니라 매 tick 우선순위 순서로 평가**한다(결정 1.1) — **① CANCELLING이면 최우선**
-(다른 모든 파생을 누른다) > ② status=FAILED task 존재 → FAILED(**재시도 소진 fail_count==maxFailCount (K) 또는 HANDLER_NOT_FOUND 등 fail_count 미소모 영구 실패 포함**) > ③ TTL EXPIRED FAILED > ④ 전 task DONE.
+(다른 모든 파생을 누른다) > ② status=FAILED task 존재 → FAILED(**재시도 소진 fail_count==maxFailCount 또는 HANDLER_NOT_FOUND 등 fail_count 미소모 영구 실패 포함**) > ③ TTL EXPIRED FAILED > ④ 전 task DONE.
 ①이 ②③을 누르므로 "취소 중 task가 실패해도 pipeline은 CANCELLED로 단일 수렴"이 보장된다. 판정 기준은
 *실패 시각*이 아니라 *파생 시점의 pipeline.status*다(상태 기준, 결정 1.1).
 
@@ -57,7 +57,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 ```
 공통 진입:  (생성) → [BLOCKED] ──직전 seq task DONE (tick 승격)──► [READY] ──┐ kind로 분기
                                                                           │
- TERRAFORM_JOB   │ [READY] ──admit: COUNT(DISP|RUN)<slotCap (N)──► [DISPATCHING] → [RUNNING] → [DONE]
+ TERRAFORM_JOB   │ [READY] ──admit: COUNT(DISP|RUN)<slotCap──► [DISPATCHING] → [RUNNING] → [DONE]
  (slot 소비)      │   (READY = slot 큐, 미admit)          dispatch       job 폴링
  CONDITION_CHECK │ [READY] ──────────────────────────────► [WAITING_EXTERNAL] → [DONE]
  (dispatch 없음)  │                                       조건 폴링 (MET까지, dispatch/attempt 없음)
@@ -91,7 +91,7 @@ terminal 부활도 없다(결정 5 "terminal은 terminal"). retry는 새 pipelin
 | RUNNING | DONE | tick: 최신 poll observed=SUCCEEDED → 현재 attempt 성공 마감(result=OK·finished_at=tick·error_code=null) + **slot 반납**. **execution timeout보다 우선**(평가 순서 3·4) | TERRAFORM_JOB |
 | WAITING_EXTERNAL | DONE | tick: 최신 check observed=MET (CONDITION_CHECK은 attempt·slot 없음 — 마감/반납 대상 없음). **TTL 초과 판정보다 우선**(평가 순서 3·4) | CONDITION_CHECK |
 
-**종결(실패·timeout) 전이** — `fail_count`는 "성공하지 못한 시도 횟수"(결정 3.1), maxFailCount (K)=max_fail_count.
+**종결(실패·timeout) 전이** — `fail_count`는 "성공하지 못한 시도 횟수"(결정 3.1), maxFailCount=max_fail_count.
 (kind별 "시도" 단위: **TERRAFORM_JOB = `error_code≠null`로 마감된 실패 attempt 수** — dispatch가 IM_REJECTED/recovery timeout/crash(DISPATCH_NO_RESPONSE)로 마감, job poll이 `observed=FAILED`(JOB_FAILED) 관측, execution timeout(EXECUTION_TIMEOUT). **poll API 호출 오류(api_result=ERROR·CALL_TIMEOUT)는 attempt를 마감하지 않으므로 미가산** — 잡 상태를 못 읽은 것이지 잡 실패가 아니다(재시도 표 RUNNING self-loop 행). **CONDITION_CHECK = 실패한 CHECK 호출 수**(attempt 없음 — check api_result=ERROR 비-backpressure만 가산, RLE collapse 여부와 무관). 둘 다 backpressure·NOT_MET은 미가산. **`error_code=null`로 마감한 attempt는 fail_count 미증가** — 즉 ① **HANDLER_NOT_FOUND**(원인은 task_check가 보유, attempt error_code=null·fail_count 미소모, 종결 표 handler 행)와 ② **취소 정리**(pipeline=CANCELLING, 취소 표) attempt는 카운트되지 않는다(영구 실패·취소는 "성공 못 한 *재시도 가능* 시도"가 아니다).)
 
 | From | → To | 트리거 / Guard | kind |

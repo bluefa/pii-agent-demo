@@ -22,7 +22,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   3. terraform_job_id는 요청별 서버 측 발급. **TerraformWorker에 dedup이 없다** — 중복 제출은 각각
      실행되나 모든 execution API가 멱등이라 인프라 결과는 손상되지 않는다.
   4. 결과 유실 가능(드문 worker 결함) — "실행 중"과 "유실"을 구분하지 않고 execution timeout으로 흡수한다.
-  5. 동시 실행 TerraformJob은 **고정 worker 풀 크기 workerPoolSize (M)으로 hard-cap**된다(IM 용량 보호) — BFF slotCap (N, slotCap ≈ workerPoolSize)은
+  5. 동시 실행 TerraformJob은 **고정 worker 풀 크기 workerPoolSize으로 hard-cap**된다(IM 용량 보호) — BFF slotCap (≈ workerPoolSize)은
      그 위의 제출 throttle. 현재 자동화 caller는 BFF뿐이다.
   6. 실행 시간·전체 히스토리(target별 run · task별 attempt/check · 모든 외부 호출 결과)와 알림이
      일급 요구사항이다. **단 보존은 2단: run/task/attempt/event spine은 무기한, 고빈도 관측(task_check)은
