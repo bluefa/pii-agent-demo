@@ -12,17 +12,17 @@ const buildResource = (overrides: Partial<ApprovedResource> = {}): ApprovedResou
 });
 
 describe('deriveScanPill', () => {
-  it('returns "pending" for any approved resource (no signal source yet)', () => {
-    expect(deriveScanPill(buildResource())).toBe('pending');
+  it('returns "kept" for any approved resource (no signal source yet)', () => {
+    expect(deriveScanPill(buildResource())).toBe('kept');
   });
 
-  it('returns "pending" regardless of resource type or database type', () => {
-    expect(deriveScanPill(buildResource({ type: 'DYNAMODB', databaseType: 'DYNAMODB' }))).toBe('pending');
-    expect(deriveScanPill(buildResource({ type: 'RDS', databaseType: 'POSTGRESQL' }))).toBe('pending');
+  it('returns "kept" regardless of resource type or database type', () => {
+    expect(deriveScanPill(buildResource({ type: 'DYNAMODB', databaseType: 'DYNAMODB' }))).toBe('kept');
+    expect(deriveScanPill(buildResource({ type: 'RDS', databaseType: 'POSTGRESQL' }))).toBe('kept');
   });
 
-  it('returns "pending" when credentialId is null and when set', () => {
-    expect(deriveScanPill(buildResource({ credentialId: null }))).toBe('pending');
-    expect(deriveScanPill(buildResource({ credentialId: 'cred-1' }))).toBe('pending');
+  it('returns "kept" when credentialId is null and when set', () => {
+    expect(deriveScanPill(buildResource({ credentialId: null }))).toBe('kept');
+    expect(deriveScanPill(buildResource({ credentialId: 'cred-1' }))).toBe('kept');
   });
 });

@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-import { textColors, cn } from '@/lib/theme';
-
 interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -13,7 +11,12 @@ interface BreadcrumbProps {
 
 export const Breadcrumb = ({ crumbs }: BreadcrumbProps) => {
   return (
-    <nav aria-label="breadcrumb" className={cn('text-xs', textColors.tertiary)}>
+    <nav
+      aria-label="breadcrumb"
+      // v15 `.breadcrumb` — 13/500/#8B95A1 (toss weak), mb 16. Literal hexes are
+      // Toss greys Tailwind's palette can't hit; see tossColors SSOT in lib/theme.ts.
+      className="mb-4 text-[13px] font-medium text-[#8B95A1]"
+    >
       <ol className="flex flex-wrap items-center">
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
@@ -24,12 +27,14 @@ export const Breadcrumb = ({ crumbs }: BreadcrumbProps) => {
                   {crumb.label}
                 </Link>
               ) : (
-                <span aria-current={isLast ? 'page' : undefined} className={textColors.secondary}>
+                // v15 `.breadcrumb .current` — #4E5968 (toss medium).
+                <span aria-current={isLast ? 'page' : undefined} className="text-[#4E5968]">
                   {crumb.label}
                 </span>
               )}
               {!isLast && (
-                <span aria-hidden="true" className={cn('mx-1.5', textColors.quaternary)}>
+                // v15 `.breadcrumb .sep` — margin 0 8px, color #B0B8C1 (toss faint).
+                <span aria-hidden="true" className="mx-2 text-[#B0B8C1]">
                   ›
                 </span>
               )}

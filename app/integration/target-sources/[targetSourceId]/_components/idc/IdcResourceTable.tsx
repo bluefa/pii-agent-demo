@@ -31,10 +31,11 @@ const SourceIpHeader = () => (
   <span className="inline-flex items-center gap-1">
     Source IP
     <InfoTooltip
+      variant="sourceIp"
       content={
-        <div className="max-w-[260px] space-y-1">
+        <div className="space-y-1">
           <div className="font-bold">{TIP_TITLE}</div>
-          <div className="text-[12px] leading-[1.5]">{TIP_REST.join(' ')}</div>
+          <div>{TIP_REST.join(' ')}</div>
         </div>
       }
     />

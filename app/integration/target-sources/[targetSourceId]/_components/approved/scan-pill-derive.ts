@@ -9,13 +9,13 @@ import type { ScanPillState } from '@/app/components/ui/ScanPill';
  * here and lives on the shared ScanPill primitive for surfaces that mix
  * selected and excluded rows.
  *
- * Default is 'pending'. This helper is the hook point a future signal
+ * Default is 'kept'. This helper is the hook point a future signal
  * source (terraform-status per resource or a new `integrated_at` response
- * field) plugs into. No such signal exists today, so every row is Pending.
+ * field) plugs into. No such signal exists today, so every row is Kept.
  */
 export const deriveScanPill = (resource: ApprovedResource): ScanPillState => {
   // Future signal source (terraform-status per resource or `integrated_at`)
-  // will key off `resource`; today every row is Pending.
+  // will key off `resource`; today every row is Kept.
   void resource;
-  return 'pending';
+  return 'kept';
 };

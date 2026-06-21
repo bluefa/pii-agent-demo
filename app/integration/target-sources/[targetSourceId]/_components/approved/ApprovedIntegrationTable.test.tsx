@@ -24,7 +24,7 @@ describe('ApprovedIntegrationTable', () => {
     expect(screen.getByText('연동 이력')).toBeTruthy();
   });
 
-  it('renders a Pending scan-pill for every approved row', () => {
+  it('renders a Kept scan-pill for every approved row', () => {
     render(
       <ApprovedIntegrationTable
         approved={[
@@ -33,9 +33,9 @@ describe('ApprovedIntegrationTable', () => {
         ]}
       />,
     );
-    // Two pending pills — both rows default to "pending" via deriveScanPill.
-    const pendingPills = screen.getAllByText('Pending');
-    expect(pendingPills.length).toBe(2);
+    // Two kept pills — both rows default to "kept" via deriveScanPill.
+    const keptPills = screen.getAllByText('Kept');
+    expect(keptPills.length).toBe(2);
   });
 
   it('renders 5 columns total (4 original + 연동 이력)', () => {

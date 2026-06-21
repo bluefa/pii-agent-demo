@@ -26,9 +26,9 @@ describe('InstallTaskCard — status pill labels', () => {
     expect(html).toContain('실패');
   });
 
-  it('renders 해당없음 for pending', () => {
+  it('renders 대기 for pending', () => {
     const html = renderToStaticMarkup(<InstallTaskCard {...baseProps} status="pending" />);
-    expect(html).toContain('해당없음');
+    expect(html).toContain('대기');
   });
 
   it('renders 진행중 for running without counts', () => {
@@ -99,11 +99,14 @@ describe('InstallTaskCard — onClick controls element type', () => {
 });
 
 describe('InstallTaskCard — connector chevron', () => {
-  it('renders a chevron span when showConnector is true', () => {
+  it('renders a › chevron glyph when showConnector is true', () => {
     const html = renderToStaticMarkup(
       <InstallTaskCard {...baseProps} status="done" showConnector />,
     );
-    expect(html).toContain('right-[-7px]');
+    // v15 `.install-task::after` — `›` glyph at right -14, #B0B8C1, 22px.
+    expect(html).toContain('right-[-14px]');
+    expect(html).toContain('text-[#B0B8C1]');
+    expect(html).toContain('›');
     expect(html).toContain('aria-hidden="true"');
   });
 
@@ -114,8 +117,8 @@ describe('InstallTaskCard — connector chevron', () => {
     const explicitFalse = renderToStaticMarkup(
       <InstallTaskCard {...baseProps} status="done" showConnector={false} />,
     );
-    expect(without).not.toContain('right-[-7px]');
-    expect(explicitFalse).not.toContain('right-[-7px]');
+    expect(without).not.toContain('right-[-14px]');
+    expect(explicitFalse).not.toContain('right-[-14px]');
   });
 
   it('does not use inline left-percent style anywhere (AP-E2)', () => {
@@ -126,29 +129,30 @@ describe('InstallTaskCard — connector chevron', () => {
   });
 });
 
-describe('InstallTaskCard — position rounded class', () => {
-  it('first position gets rounded-l-[10px]', () => {
-    const html = renderToStaticMarkup(
-      <InstallTaskCard {...baseProps} status="pending" position="first" />,
-    );
-    expect(html).toContain('rounded-l-[10px]');
-    expect(html).not.toContain('rounded-r-[10px]');
+describe('InstallTaskCard — card surface', () => {
+  it('uses uniform rounded-xl on every position (v15 12px all corners)', () => {
+    for (const position of ['first', 'middle', 'last'] as const) {
+      const html = renderToStaticMarkup(
+        <InstallTaskCard {...baseProps} status="pending" position={position} />,
+      );
+      expect(html).toContain('rounded-xl');
+      expect(html).toContain('border-0');
+      expect(html).not.toContain('rounded-l-[10px]');
+      expect(html).not.toContain('rounded-r-[10px]');
+    }
   });
 
-  it('middle position gets neither rounded corner', () => {
-    const html = renderToStaticMarkup(
-      <InstallTaskCard {...baseProps} status="pending" position="middle" />,
-    );
-    expect(html).not.toContain('rounded-l-[10px]');
-    expect(html).not.toContain('rounded-r-[10px]');
+  it('tints the done card #ECFDF5 and running card #EFF6FF', () => {
+    const done = renderToStaticMarkup(<InstallTaskCard {...baseProps} status="done" />);
+    const running = renderToStaticMarkup(<InstallTaskCard {...baseProps} status="running" />);
+    const pending = renderToStaticMarkup(<InstallTaskCard {...baseProps} status="pending" />);
+    expect(done).toContain('bg-[#ECFDF5]');
+    expect(running).toContain('bg-[#EFF6FF]');
+    expect(pending).toContain('bg-[#F7F8FA]');
   });
 
-  it('last position gets rounded-r-[10px] without border-r-0', () => {
-    const html = renderToStaticMarkup(
-      <InstallTaskCard {...baseProps} status="pending" position="last" />,
-    );
-    expect(html).toContain('rounded-r-[10px]');
-    expect(html).not.toContain('rounded-l-[10px]');
-    expect(html).not.toContain('border-r-0');
+  it('renders the 진행중 pill on the primary #0064FF fill', () => {
+    const html = renderToStaticMarkup(<InstallTaskCard {...baseProps} status="running" />);
+    expect(html).toContain('bg-[#0064FF]');
   });
 });

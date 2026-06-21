@@ -1,21 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import {
-  ChevronFirstIcon,
-  ChevronLastIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from '@/app/components/ui/icons';
-import {
-  bgColors,
-  borderColors,
-  cn,
-  interactiveColors,
-  numericFeatures,
-  primaryColors,
-  textColors,
-} from '@/lib/theme';
+import { cn, numericFeatures } from '@/lib/theme';
 
 interface PaginationProps {
   /** 0-based page index */
@@ -28,6 +14,15 @@ interface PaginationProps {
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+/**
+ * v15 `.pg-perpage select` custom chevron — inline data-URI (#9CA3AF stroke),
+ * positioned `right 7px center no-repeat` over a `#fff` fill. Paired with
+ * `appearance-none` so the native arrow is hidden. (05-tables.md §7c, line 2952.)
+ */
+const SELECT_CHEVRON_BG =
+  "bg-[#fff] bg-[length:9px] bg-[right_7px_center] bg-no-repeat " +
+  "bg-[url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")]";
 
 /**
  * Returns the page numbers (0-based) and ellipses to render in the page-numbers
@@ -46,6 +41,12 @@ export const buildVisiblePages = (current: number, total: number): Array<number 
   return out;
 };
 
+/**
+ * v15 `.pagination-row` footer (05-tables.md §7) — a standalone bar that sits
+ * directly beneath a table: 1px #E5E7EB border with no top edge, `0 0 10px 10px`
+ * radius, #FCFCFD fill, 10/14 padding, 12px/#374151. Numbered page buttons +
+ * ellipsis only (no first/last/prev/next icon controls in v15).
+ */
 export const Pagination = ({
   page,
   pageSize,
@@ -59,17 +60,18 @@ export const Pagination = ({
   const start = totalCount === 0 ? 0 : page * pageSize + 1;
   const end = Math.min(totalCount, (page + 1) * pageSize);
   const visible = buildVisiblePages(page, totalPages);
-  const isFirst = page === 0;
-  const isLast = page >= totalPages - 1;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 py-3">
-      <div className={cn('flex items-center gap-2 text-[12px]', textColors.secondary)}>
+    <div className="flex items-center px-[14px] py-[10px] border border-[#E5E7EB] border-t-0 rounded-b-[10px] bg-[#FCFCFD] text-[12px] text-[#6B7280]">
+      <div className="inline-flex items-center gap-1.5">
         <span>표시</span>
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className={cn('h-7 rounded-md border px-1 text-[12px]', borderColors.default, textColors.primary)}
+          className={cn(
+            'h-[26px] rounded-[6px] border border-[#E5E7EB] pr-[22px] pl-[8px] text-[12px] text-[#111827] cursor-pointer appearance-none',
+            SELECT_CHEVRON_BG,
+          )}
           aria-label="페이지당 표시 건수"
         >
           {options.map((opt) => (
@@ -80,25 +82,27 @@ export const Pagination = ({
         </select>
         <span>건씩</span>
       </div>
-      <span className={cn('text-[12px]', textColors.tertiary, numericFeatures.tabular)}>
-        <strong className={cn('font-semibold', textColors.secondary)}>
+      <span className={cn('ml-[16px] text-[#374151]', numericFeatures.tabular)}>
+        <strong className="font-semibold text-[#111827]">
           {start}–{end}
         </strong>{' '}
         / 전체{' '}
-        <strong className={cn('font-semibold', textColors.secondary)}>{totalCount}</strong>건
+        <strong className="font-semibold text-[#111827]">{totalCount}</strong>건
       </span>
-      <div className="ml-auto flex items-center gap-1">
-        <IconBtn aria-label="처음 페이지" disabled={isFirst} onClick={() => onPageChange(0)}>
-          <ChevronFirstIcon className="h-3.5 w-3.5" />
-        </IconBtn>
-        <IconBtn aria-label="이전 페이지" disabled={isFirst} onClick={() => onPageChange(page - 1)}>
-          <ChevronLeftIcon className="h-3.5 w-3.5" />
-        </IconBtn>
+      <div className="flex-1" />
+      <div className="inline-flex gap-0.5">
+        {/* first/prev/next/last kept for usability (v15 mockup shows numbers only). */}
+        <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
+          ‹‹
+        </PageBtn>
+        <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(page - 1)} ariaLabel="이전 페이지">
+          ‹
+        </PageBtn>
         {visible.map((entry, index) =>
           entry === '…' ? (
             <span
               key={`ellipsis-${index}`}
-              className={cn('px-1 text-[12px]', textColors.quaternary)}
+              className="inline-flex min-w-[20px] items-center justify-center self-center text-center text-[12px] text-[#9CA3AF]"
               aria-hidden="true"
             >
               …
@@ -114,59 +118,43 @@ export const Pagination = ({
             </PageBtn>
           ),
         )}
-        <IconBtn aria-label="다음 페이지" disabled={isLast} onClick={() => onPageChange(page + 1)}>
-          <ChevronRightIcon className="h-3.5 w-3.5" />
-        </IconBtn>
-        <IconBtn aria-label="끝 페이지" disabled={isLast} onClick={() => onPageChange(totalPages - 1)}>
-          <ChevronLastIcon className="h-3.5 w-3.5" />
-        </IconBtn>
+        <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)} ariaLabel="다음 페이지">
+          ›
+        </PageBtn>
+        <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel="끝 페이지">
+          ››
+        </PageBtn>
       </div>
     </div>
   );
 };
-
-interface IconBtnProps {
-  'aria-label': string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}
-
-const IconBtn = ({ 'aria-label': ariaLabel, disabled, onClick, children }: IconBtnProps) => (
-  <button
-    type="button"
-    aria-label={ariaLabel}
-    disabled={disabled}
-    onClick={onClick}
-    className={cn(
-      'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-40',
-      borderColors.default,
-      interactiveColors.closeButton,
-    )}
-  >
-    {children}
-  </button>
-);
 
 interface PageBtnProps {
   active: boolean;
   onClick: () => void;
   ariaLabel: string;
   children: ReactNode;
+  disabled?: boolean;
 }
 
-const PageBtn = ({ active, onClick, ariaLabel, children }: PageBtnProps) => (
+/**
+ * v15 `.pg-pages button` (05-tables.md §7g–7h): 28×28, radius 6, 0/8 padding,
+ * transparent border + bg, #374151 text. Hover → #F9FAFB / #111827. Active
+ * (`.current`) → #0064FF / #fff / 600. Disabled → opacity 0.35.
+ */
+const PageBtn = ({ active, onClick, ariaLabel, children, disabled }: PageBtnProps) => (
   <button
     type="button"
     aria-label={ariaLabel}
     aria-current={active ? 'page' : undefined}
+    disabled={disabled}
     onClick={onClick}
     className={cn(
-      'inline-flex h-7 min-w-[28px] items-center justify-center rounded-md border px-1.5 text-[12px] font-semibold transition-colors',
+      'inline-grid min-w-[28px] h-[28px] place-items-center rounded-[6px] border px-[8px] text-[12px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed',
       numericFeatures.tabular,
       active
-        ? cn(primaryColors.bg, primaryColors.border, textColors.inverse)
-        : cn(borderColors.default, textColors.secondary, bgColors.mutedHover),
+        ? 'border-transparent bg-[#0064FF] text-white font-semibold'
+        : 'border-transparent bg-transparent text-[#374151] hover:bg-[#F9FAFB] hover:text-[#111827]',
     )}
   >
     {children}
