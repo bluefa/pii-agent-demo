@@ -138,6 +138,11 @@ task            id, pipeline_id, seq, name, handler_key,
                 -- last_checked_at = tick이 이 task를 마지막으로 서비스(발사)한 시각 — due 선별의 기아 방지
                 --   정렬 키(§1.1 last_checked_at ASC NULLS FIRST). tick이 발사 시 next_check_at과 함께 기록
                 --   (상태=tick 규율); task_check.checked_at(관측 시각)과 다르다.
+                -- timeout 필드 규약: polling_interval·ttl·execution_timeout = recipe(snapshot.spec)가 박는
+                --   task별 duration(생성 시 frozen). deadline_at = 현재 적용 timeout의 절대 만료 시각
+                --   (TERRAFORM_JOB: dispatch + execution_timeout; CONDITION_CHECK: 최초 WAITING_EXTERNAL 진입 + ttl)을
+                --   reconciler가 계산·갱신하는 파생값 — `*_at`=절대 timestamp, 위 셋=duration. 호출별 HTTP deadline은
+                --   task별이 아니라 전역+TaskKind 오버라이드(operations D-T3)라 row/snapshot에 task별로 저장하지 않는다.
                 -- 단수 external_handle 컬럼 없음: dispatch 산출(handle)의 home은
                 --   attempt.response(jsonb); 폴링 대상 handle은 거기서 추출(결정 3.1).
 
@@ -185,12 +190,13 @@ pipeline_def_snapshot   pipeline_id, definition_key, definition_version,
                         type, provider, spec(jsonb)
                         -- 실행 기록(결정 7). 생성 시 1회 박제(write-once)·1 pipeline:1행. 그 run이 resolve한
                         --   definition 원본을 고정한다. spec(jsonb) = resolve된 전체 recipe:
-                        --   { name, tasks:[{ seq, handler_key, name(표시), kind, deadline, ttl?,
+                        --   { name, tasks:[{ seq, handler_key, name(표시), kind, ttl?,
                         --     pollingInterval?, executionTimeout?, maxFailCount }] }
-                        --   (각 task config = task row에 freeze되는 값과 동일).
+                        --   (각 task config = task row에 freeze되는 duration과 동일; 호출별 HTTP deadline은
+                        --    task별 아닌 전역+TaskKind 설정이라 spec에 없음 — operations D-T3).
                         -- task row = 그 run의 실행 상태(가변; reconciler가 전진). snapshot.spec = 그 run의
                         --   definition 원본(불변·재현 권위; 실행 때 재읽지 않음). 코드=실행 권위·snapshot=이력 권위.
-                        --   절연 범위 = recipe/config(task 목록·순서·deadline·ttl·polling·max_fail_count) — default
+                        --   절연 범위 = recipe/config(task 목록·순서·ttl·polling·execution_timeout·max_fail_count) — default
                         --   release를 올려도 in-flight·과거 run의 *구성*은 불변. 단 task class 코드(핸들러 동작)는
                         --   절연 안 됨 — reconciler는 현재 배포 코드로 실행하므로 같은 task 구현을 바꾸면 in-flight도
                         --   새 코드를 탄다(코드=실행 권위; task class는 배포 간 동작 호환 전제). 물리 삭제 금지.
@@ -265,7 +271,7 @@ DONE이면 reconciler가 READY로 승격시킨다(순차 chain — 별도 `depen
     (CALL_TIMEOUT vs EXECUTION_TIMEOUT vs TTL EXPIRED)까지.
 
 인덱스: `pipeline(target_source_id, started_at DESC)`, `pipeline(started_at)`,
-`task_check(task_id, checked_at)`, `pipeline_event(pipeline_id, created_at)`,
+`task_check(task_id, started_at)`, `pipeline_event(pipeline_id, created_at)`,
 `unique(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)`(결정 5 — target당 non-terminal pipeline 1건 강제·중복 생성 차단).
 
 `next_check_at`도 노출한다 — 운영자가 "다음 확인 14:32"를 본다. 리스트 뷰는
@@ -468,8 +474,8 @@ hang할 수 있는 모든 층에 명시적 deadline을 둔다(기본값은 Part 
 | tick 주기 | reconciler 깨어나는 간격 (빈도) | 다음 tick 처리 — **호출 deadline과 무관(결정 6, D-T1)** |
 | 호출별 HTTP deadline | 외부 호출 1회 (run/poll/check); **task별 오버라이드 가능** | 그 호출을 CALL_TIMEOUT으로 끊음 |
 | Dispatch 복구 | response 없는 DISPATCHING 경과 | 재dispatch |
-| Execution timeout | EXECUTE task: dispatch → job terminal | attempt 실패 EXECUTION_TIMEOUT; slot 해제 |
-| WAIT_EXTERNAL TTL | task당 총 체류 시간 | task EXPIRED → pipeline FAILED |
+| Execution timeout | TERRAFORM_JOB: dispatch → job terminal | attempt 실패 EXECUTION_TIMEOUT; slot 해제 |
+| TTL (CONDITION_CHECK) | task당 총 체류 시간 (WAITING_EXTERNAL) | task EXPIRED → pipeline FAILED |
 
 **호출 deadline ≠ tick 주기(결정 6, D-T1).** tick 주기는 "호출이 그 안에 끝나야 한다"가
 아니다. 호출의 성패는 그 호출 자신의 deadline으로만 판정된다. CALL_TIMEOUT은 **호출 1회의 실패**
@@ -776,8 +782,8 @@ class 코드 동작은 현재 배포본을 탄다, 7.3).
   명시. **단일 출처**라 default 변경이 전 target에 자동 반영된다(per-target 복제 = drift가 없다).
 - **Snapshot (불변 실행 기록).** = `pipeline_def_snapshot`(1 pipeline:1행, 생성 시 write-once). 컬럼
   `{pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)}`; `spec`은 resolve된
-  전체 recipe = `{ name, tasks:[{ seq, handler_key, name(표시), kind, deadline, ttl?, pollingInterval?,
-  executionTimeout?, maxFailCount }] }`. **task row = 실행 상태(가변), snapshot.spec = definition 원본
+  전체 recipe = `{ name, tasks:[{ seq, handler_key, name(표시), kind, ttl?, pollingInterval?,
+  executionTimeout?, maxFailCount }] }` (호출별 HTTP deadline은 task별 아닌 전역+TaskKind 설정이라 spec에 없음 — operations D-T3). **task row = 실행 상태(가변), snapshot.spec = definition 원본
   (불변·재현 권위; 실행 때 재읽지 않음 — 코드=실행 권위·snapshot=이력 권위).** default release를 올려도
   in-flight·과거 run의 **recipe/config는 절연**된다(task class 코드 동작은 절연 대상 아님 — 7.3).
 
@@ -789,8 +795,9 @@ class 코드 동작은 현재 배포본을 탄다, 7.3).
 
 ### 7.3 정합성·재현
 
-- **절연 범위 (과장 금지).** snapshot·task row가 freeze하는 것은 **recipe/config**(task 목록·순서·deadline·
-  ttl·polling·max_fail_count)다 — default release를 올려도 in-flight·과거 run의 *구성*은 불변이다. **그러나
+- **절연 범위 (과장 금지).** snapshot·task row가 freeze하는 것은 **recipe/config**(task 목록·순서·ttl·
+  polling·execution_timeout·max_fail_count; 호출별 HTTP deadline은 task별 아닌 전역+TaskKind 설정이라 비포함)다 —
+  default release를 올려도 in-flight·과거 run의 *구성*은 불변이다. **그러나
   task class 코드(dispatch/check 핸들러의 실제 동작)는 freeze 대상이 아니다** — reconciler는 현재 배포 코드로
   실행하므로 같은 task key의 구현을 바꾸면 in-flight run도 새 코드를 탄다(코드=실행 권위). 따라서 task class는
   배포 간 동작 호환을 전제하며, 비호환 변경은 기존 task를 고치지 말고 **새 task class(=새 kind/key)로 도입**한다.

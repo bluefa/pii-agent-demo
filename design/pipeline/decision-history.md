@@ -105,6 +105,22 @@
   CANCELLING이면 0행 no-op=200 현재 status 반환. **보류:** decision-history/O·S번호 본문→아카이브 이동(opus,
   큰 sweep+추적성 충돌), response(jsonb)·snapshot full spec(유지 결정), swagger 작성(over-scope).
 
+- **개정 6판 후속7 — r6 문서 정확성 6건 (codex 88 / opus 88; 설계 무변경).** 결정 변경 없는 정밀도/추측-제거 수정만:
+  ① **deadline 모델 명확화** — snapshot.spec의 per-task `deadline`이 operations의 "호출별 HTTP deadline = 전역+TaskKind
+  오버라이드(D-T3)"와 모순(구현자가 task별이냐 kind별이냐 추측)이라, spec/절연목록에서 per-task `deadline` 제거(전 doc+HTML+ADR);
+  §1.2에 timeout 필드 규약 박음 — `polling_interval·ttl·execution_timeout`=recipe가 박는 task별 duration(frozen),
+  `deadline_at`=현재 적용 timeout의 절대 만료 시각(TF: dispatch+execution_timeout · CC: 최초 WAITING_EXTERNAL 진입+ttl)을
+  reconciler가 계산하는 파생값(`*_at`=절대 timestamp). **후속1/S31의 spec에 있던 per-task `deadline` supersede.**
+  ② **task_check 인덱스 정정(내 r5 self-drift)** — latestCheck·정렬을 started_at으로 바꾼 뒤 인덱스가 `(task_id, checked_at)`로
+  남아 있던 것을 `(task_id, started_at)`로(orchestrator §1.3 + migrations). ③ **4a timeout 표 어휘** — `EXECUTE task`/`WAIT_EXTERNAL TTL`
+  구 kind 라벨을 `TERRAFORM_JOB`/`TTL(CONDITION_CHECK)`로(orchestrator+operations). ④ **progress 권위 명시** — terminal pipeline 결과
+  판정은 `status`가 권위, `done/total` 분수는 RUNNING 진행 지표일 뿐(CANCELLED/FAILED는 done<total 정상)을 api §1에 한 줄. ⑤ **생성 계약
+  통합 테스트 필수** — 토대 불변식(23505→기존 반환)이 ADR 밖 endpoint 코드에 의존하므로 그 계약의 통합 테스트를 못박음(ADR 결정 5 + api §3).
+  ⑥ **handler deploy gate 단계 명시** — "부팅 시 … 배포를 막는다"의 자기모순(부팅=배포 후) 해소: non-terminal handler_key resolve 검사는
+  **pre-deploy CI 게이트가 authoritative**(배포 전 prod DB 대상), 부팅 assert는 defense-in-depth(task-model ④). **보류(후속6과 동일):**
+  WAIT_EXTERNAL 약칭 전면 치환(append-only 이력·HTML 8파일 blast radius·state-machine §93에 별칭 주석 존재 — 리뷰 루프 판정 대기),
+  O·S번호 아카이브 이동, swagger 작성.
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다

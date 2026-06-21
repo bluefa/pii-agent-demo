@@ -57,9 +57,12 @@ TERRAFORM_JOB              CONDITION_CHECK
   rename해도 키 유지; 키 문자열의 단일 출처). ② 레지스트리는 **자동 수집**한다 — 모든 handler 빈을 주입받아
   `key()→handler` 맵을 부팅 시 파생(손으로 유지하는 목록 없음; 중복 키면 부팅 실패). ③ recipe는 handler를
   **문자열이 아니라 class로 참조**(컴파일 타임 안전 — 오타·없는 handler는 컴파일 에러), 저장되는 `handler_key`는
-  `handler.key()`에서 파생. ④ **부팅 시** default recipe가 참조하는 모든 handler가 등록됐는지 검증(새 bad row
-  차단), **그리고 non-terminal pipeline의 `handler_key`가 전부 resolve되는지 검사해 불가하면 배포를 막는다**
-  (런타임 FAILED보다 강한 사전 방어 — in-flight run을 깨뜨릴 배포를 deploy gate에서 차단). ⑤ 그럼에도 **런타임에
+  `handler.key()`에서 파생. ④ 두 단계 검증: (a) **부팅 시** default recipe가 참조하는 모든 handler가 등록됐는지
+  assert(bad 배포 아티팩트 fail-fast), (b) **non-terminal pipeline의 `handler_key`가 전부 resolve되는지는
+  pre-deploy CI 게이트가 authoritative** — 배포 전(promotion 전) prod DB의 non-terminal `handler_key` 대상으로
+  실행해 불가하면 배포를 막는다(배포를 *막으려면* 배포 완료 후인 부팅이 아니라 배포 전 단계여야 한다; 부팅 시 동일
+  assert는 defense-in-depth). 런타임 FAILED보다 강한 사전 방어 — in-flight run을 깨뜨릴 배포를 CI 게이트에서
+  차단. ⑤ 그럼에도 **런타임에
   `handler_key` 미해결**(검사 우회·경합 등)이면 안전망으로 task 즉시
   **FAILED(`HANDLER_NOT_FOUND`)** — 영구 조건이라 재시도 무의미, RUNNING TF의 in-flight job은 죽일 수 없어
   orphan으로 남는다(BFF 추적 중단이라 BFF execution timeout이 아니라 worker terraform 자연 종료가 bound;

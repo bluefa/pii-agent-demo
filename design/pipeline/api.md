@@ -17,7 +17,7 @@
 > (스키마 변경 시 §1.2가 단일 출처 — 중복을 줄이려 여기엔 **API 고유 파생만** 추가 명시: `Attempt.outcome`(S30 파생)·`latestCheck`).
 > 최종 스키마는 추후 `docs/swagger/admin-pipelines.yaml`로 옮긴다.
 
-- **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`  ← **`progress` 파생**: `total` = 그 run의 task 행 수(생성 시 고정 = snapshot.tasks 길이; CANCELLED task도 행은 남아 분모 불변), `done` = `COUNT(task WHERE status=DONE)`(다른 terminal은 미포함 — 진척이지 종료 아님)
+- **PipelineSummary** — `{ id, type(INSTALL|DELETE), provider(AWS|AZURE|GCP|IDC|SDU), targetSourceId, status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED), progress{ done, total }, startedAt, lastActivityAt, triggeredBy }`  ← **`progress` 파생**: `total` = 그 run의 task 행 수(생성 시 고정 = snapshot.tasks 길이; CANCELLED task도 행은 남아 분모 불변), `done` = `COUNT(task WHERE status=DONE)`(다른 terminal은 미포함 — 진척이지 종료 아님). **분수는 RUNNING 진행 지표일 뿐 — terminal pipeline의 결과 판정은 `status`가 권위다**(CANCELLED/FAILED는 `done<total`로 남는 게 정상; 분수가 1이 아니라고 "미완"으로 읽지 말 것)
 - **Pipeline** — `PipelineSummary` + `{ createdAt, finishedAt, failReason, tasks:[Task] }`
 - **Task** — `{ id, seq, name, handlerKey, kind(TERRAFORM_JOB|CONDITION_CHECK), status(BLOCKED|READY|DISPATCHING|RUNNING|WAITING_EXTERNAL|DONE|FAILED|EXPIRED|CANCELLED), failCount, maxFailCount, latestCheck:Check? }`  ← `handlerKey`=실행 코드 class 식별자(라우팅; `name`은 표시 라벨); 순서·의존은 `seq`(순차 chain, 별도 `dependsOn` 없음); **`latestCheck` = `started_at` 최대인 `task_check` 1건(PENDING 포함)** — `apiResult=PENDING`이면 "확인 중" 파생(D-T6)
 - **Attempt** — `{ id, taskId, response{}, errorCode, startedAt, finishedAt, outcome(SUCCEEDED|FAILED|EXECUTION_TIMEOUT) }`  ← `response`=dispatch 원응답(TERRAFORM_JOB {jobId}, 단수); `errorCode`=attempt 실패 사유. **`outcome`은 DB 저장값이 아니라 `task_attempt.result` + `error_code`에서 파생한 API 표현**(DB는 `result(OK|FAIL)`+`error_code`만 저장; `outcome` 컬럼 없음):
@@ -86,7 +86,7 @@
 >
 > 1. **Resolution** — `(type,provider)` 코드 default recipe를 resolve(결정 7).
 > 2. **원자성** — task row 생성 + `pipeline_def_snapshot` 박제를 한 트랜잭션(snapshot == 실제 생성 구성).
-> 3. **중복 차단(필수 처리)** — 동일 target에 non-terminal pipeline이 있으면 부분 unique 제약 `unique(target_source_id) WHERE non-terminal`(결정 5)이 INSERT를 막는다. **트리거 구현은 그 unique 위반(Postgres SQLSTATE 23505)을 *반드시* catch해 에러 대신 기존 non-terminal pipeline을 SELECT-반환해야 한다** — 이걸 누락하면 "target당 실행자 1" 불변식이 깨진다(ADR 핵심 계약, 결정 5). **[재시도]도 동일**(§2 retry — terminal에서 호출해도 target에 non-terminal이 있으면 그것을 반환, `created=false`).
+> 3. **중복 차단(필수 처리)** — 동일 target에 non-terminal pipeline이 있으면 부분 unique 제약 `unique(target_source_id) WHERE non-terminal`(결정 5)이 INSERT를 막는다. **트리거 구현은 그 unique 위반(Postgres SQLSTATE 23505)을 *반드시* catch해 에러 대신 기존 non-terminal pipeline을 SELECT-반환해야 한다** — 이걸 누락하면 "target당 실행자 1" 불변식이 깨진다(ADR 핵심 계약, 결정 5). **[재시도]도 동일**(§2 retry — terminal에서 호출해도 target에 non-terminal이 있으면 그것을 반환, `created=false`). 토대 불변식이 ADR 밖 endpoint 코드에 의존하므로 **이 계약(특히 3번)의 통합 테스트를 반드시 갖춘다**(계약 회귀 방지; ADR 결정 5).
 >
 > 아래 endpoint 예시는 참고일 뿐 정본 아님.
 

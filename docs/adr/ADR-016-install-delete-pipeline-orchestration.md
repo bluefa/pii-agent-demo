@@ -55,8 +55,9 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   올려도 in-flight·과거 run의 **recipe/config는 절연** — 단 task class 코드 동작은 절연 대상이 아니라 현재
   배포본을 탄다; 코드=실행 권위, 결정 7.3). **snapshot(`pipeline_def_snapshot`, 1 pipeline:1행·생성 시 write-once)에
   `{pipeline_id, definition_key, definition_version, type, provider, spec(jsonb)}`를 저장하며, `spec`은
-  resolve된 전체 recipe(이름 + 순서 있는 task 목록, 각 task = `{seq, handler_key, name(표시), kind, deadline·ttl·
-  polling·max_fail_count}`)다 — task row가 그 run의 실행 상태라면 snapshot은 definition 원본(이력·재현 권위;
+  resolve된 전체 recipe(이름 + 순서 있는 task 목록, 각 task = `{seq, handler_key, name(표시), kind, ttl·
+  polling·execution_timeout·max_fail_count}`; 호출별 HTTP deadline은 task별 아닌 전역+TaskKind 설정이라 spec에 없음)다 —
+  task row가 그 run의 실행 상태라면 snapshot은 definition 원본(이력·재현 권위;
   코드=실행 권위).** 무게가 per-target cardinality에 있으므로 default=코드가 그것을 제거한다.
   (TargetSource별 데이터 custom override는 v2 defer.)
 - **동일 target 중복 pipeline은 unique 제약으로 1건만 허용한다(결정 5).** 부분 unique 제약
@@ -64,7 +65,9 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   1건으로 강제한다. **생성 계약(트리거 endpoint는 외부지만 이 계약은 ADR 불변식):** 어느 경로로 생성되든
   ① recipe resolve → ② task row + snapshot **원자적** 생성 → ③ **unique 위반(Postgres 23505) 시 에러가 아니라
   기존 non-terminal pipeline을 반환**해야 한다([재시도]도 동일). ③을 누락하면 "target당 실행자 1" 전제
-  (단일 writer·N-cap·멱등 추론)가 깨지므로, endpoint 구현이 *반드시* 충족할 계약으로 못박는다.
+  (단일 writer·N-cap·멱등 추론)가 깨지므로, endpoint 구현이 *반드시* 충족할 계약으로 못박는다. 토대 불변식이
+  외부(ADR 밖) endpoint 코드에 의존하므로, **트리거 endpoint는 ③(23505→기존 non-terminal 반환) 계약의 통합
+  테스트를 반드시 갖춘다**(계약 회귀 방지).
 
 > 상세 메커니즘(상태기계·DB 스키마·tick·dispatch 5단계 writer 분리·crash recovery·CANCELLING
 > precedence·N-cap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),

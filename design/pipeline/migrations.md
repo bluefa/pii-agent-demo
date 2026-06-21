@@ -40,7 +40,7 @@
   - `pipeline(target_source_id, started_at DESC)` — target별 run 이력 조회
   - `pipeline(started_at)` — 기간(overlap) 횡단 조회(결정 1.3)
   - `pipeline(last_activity_at DESC)` — 보드 기본 정렬(최근 활동순, 결정 1.2/api §1)
-  - `task_check(task_id, checked_at)` — task 타임라인
+  - `task_check(task_id, started_at)` — task 타임라인 (latestCheck = started_at 최대; checks 정렬 startedAt,desc — api §1)
   - `pipeline_event(pipeline_id, created_at)` — 이벤트 / 감사 로그
   - `pipeline(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)` **unique** — target당 non-terminal pipeline 1건 강제·중복 생성 차단(결정 5)
   - `task(pipeline_id, seq)` **unique** — 순차 chain 순서·중복 seq 방지(결정 2; `depends_on` 배열 대신 seq predecessor)

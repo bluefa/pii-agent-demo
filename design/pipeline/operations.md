@@ -17,8 +17,8 @@
 | per-call HTTP deadline | 30초 | 전역 + TaskKind별 오버라이드 | 느린 check는 정상 응답시간+여유(예 90/240초) (D-T3) |
 | Dispatch 복구 timeout | 5분 | 전역 | response 없는 DISPATCHING 재dispatch (3.1) |
 | Execution timeout | 30분 | 전역 (task별 차등 가능) | dispatch→terminal; 드문 worker 버그 안전망 (4a) |
-| WAIT_EXTERNAL TTL | 7일 (예) | task별 | 초과 시 EXPIRED → pipeline FAILED (4a) |
-| WAIT_EXTERNAL polling guard | ≥10분 | task별, 관리자 조정 | 조건 확인 cadence (결정 2) |
+| TTL (CONDITION_CHECK) | 7일 (예) | task별 | 초과 시 EXPIRED → pipeline FAILED; WAITING_EXTERNAL 총 체류 (4a) |
+| CONDITION_CHECK polling guard | ≥10분 | task별, 관리자 조정 | 조건 확인 cadence (결정 2) |
 | job-poll cadence | 30–60초 | 전역(시스템) | TerraformJob 상태 폴링; task별 비노출 (결정 2) |
 | M (worker 풀 크기) | 고정 (배포 설정) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수 (4b) |
 | N (slot cap) | ≈ M (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(N≈M); 동시성 hard cap은 M이지 N 아님 (4b) |
