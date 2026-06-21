@@ -12,12 +12,13 @@
 ## 의존 DAG (실행 순서)
 
 ```
-T1(foundation) ─┬─► T2(recipe+생성) ─┐
-                └─► T3(call-thread) ─┴─► T4(Reconciler 코어) ─┬─► T5(control+query)
-                                                              └─► T6(settings+notifier+leader+alert)
-                                                                          └─► T7(config+통합 빌드/테스트 green)
+T1(foundation) ─┬─► T2(recipe+생성) ──────────────────► T5 (retry는 T2 의존)
+                └─► T3(call-thread) ─► T4(Reconciler 코어) ─┬─► T5(control+query 통합)
+                                                            └─► T6(settings+notifier+leader+alert) ─► T7
 ```
-T2·T3 병렬, T5·T6 병렬. 각 Todo는 **완료 시 codex+opus 리뷰 → 결함 0까지 수정** 후 다음으로.
+- T4 의존 = **T1+T3** (Reconciler는 seeded row/snapshot을 읽고 전진; 생성 서비스 T2를 호출하지 않음).
+- T5 의존 = T1(cancel)·T2(retry)·T4(query 통합). T6 의존 = T1·T4. T7 = 전체.
+- **병렬: T2 ∥ T3 · T5 ∥ T6**. 각 Todo는 **완료 시 codex+opus 리뷰 → 결함 0까지 수정** 후 다음으로.
 
 ---
 
@@ -25,7 +26,7 @@ T2·T3 병렬, T5·T6 병렬. 각 Todo는 **완료 시 codex+opus 리뷰 → 결
 **무엇**: 상태 쓰기의 토대. `@Modifying` prior-state 가드 업데이트(@Version 아님).
 - repo CAS: Pipeline status CAS(예 cancel `prior=RUNNING`), Task status CAS(`WHERE status=:expected`), attempt **response 채택 CAS**(`response IS NULL AND finished_at IS NULL AND status=DISPATCHING`), fail_count++/마감, `last_activity_at` touch(매 전이), `last_checked_at`+(일반)`next_check_at` 세팅. 0행=no-op 처리.
 - `HandlerRegistry` class→handler 인덱스 + `keyOf(Class)`; `TaskDefinition`을 handler **class 참조**로 전환(필수).
-- **`EventRecorder`(outbox 기록측)**: `pipeline_event` append-only insert(type·severity·payload·actor·created_at·notified_at=null) — **T2(생성)·T4(전이)가 같은 tx에서 사용**. 소비(Notifier loop)는 T6.
+- **`EventRecorder`(outbox 기록측)**: `pipeline_event` append-only insert(type·severity·payload·actor·created_at·notified_at=null) — **T2(생성)·T4(전이)·T5(cancel·RETRY_ATTEMPTED)·T6(설정 감사)가 같은 tx에서 사용**. 소비(Notifier loop)는 T6.
 **ADR**: orchestrator §3.1(b)·§3.2·1.3, state-machine 42/90/94-95/128, orchestrator 123-125, task-model 56, impl-notes 64.
 **수락**: 모든 상태 전이가 명시 가드 업데이트; 0행 경로 존재; class 참조 컴파일 안전; 이벤트 기록 helper 존재.
 **테스트**: wrong-prior CAS 0행; response 채택 가드(미채택/늦은 response 차단).
@@ -43,7 +44,7 @@ T2·T3 병렬, T5·T6 병렬. 각 Todo는 **완료 시 codex+opus 리뷰 → 결
 **무엇**: `ExternalCallExecutor`(프로덕션 VT async / 테스트 동기); `ExternalCalls`(@Service, **REQUIRES_NEW**): 핸들러로 dispatch/poll/check 호출 → **task_check 관측 기록(RLE: DISPATCH 호출당 1행·CHECK run collapse·latency overwrite)** + **response 채택 CAS** + backpressure 시 `next_check_at`. **per-call deadline(D-T1·D-T3 전역+TaskKind) 만료 = `CALL_TIMEOUT` 관측**(호출 1회 실패이지 task/attempt 직접 실패 아님). **쓰기 한정: task_check·attempt.response·backpressure next_check_at만**(상태·fail_count·일반 next_check_at은 tick 소유).
 **ADR**: 결정 3.1/3.2/6(D-T1,2,3,4,5,7), api §0(29), state-machine 70/115, orchestrator 178-208/286/388/521.
 **수락**: 단일 writer 분리(별도 빈·REQUIRES_NEW); RLE 정확; DISPATCH PENDING 선기록; CALL_TIMEOUT 관측 매핑.
-**테스트**: RLE collapse(NOT_MET×N=1행 poll_count) + **latency_ms overwrite(§6 #8)**; DISPATCH 1행; **errorCode 저장위치(task_check: CHECK_ERROR/CALL_TIMEOUT — §6 #9 쓰기측)**; response 채택; backpressure next_check_at; CALL_TIMEOUT 관측.
+**테스트**: RLE collapse(NOT_MET×N=1행 poll_count) + **관측 변화=새 run INSERT** + **latency_ms overwrite(§6 #8)**; DISPATCH 1행; **errorCode 저장위치(task_check: CHECK_ERROR/CALL_TIMEOUT — §6 #9 쓰기측)**; response 채택; backpressure next_check_at; CALL_TIMEOUT 관측.
 **의존**: T1(CAS), 핸들러(완료).
 
 ## T4 — Reconciler (tick 코어) ★ 단일 writer, 분할 금지
@@ -54,10 +55,10 @@ T2·T3 병렬, T5·T6 병렬. 각 Todo는 **완료 시 codex+opus 리뷰 → 결
 **의존**: T1, T3.
 
 ## T5 — Control + Query 서비스
-**무엇**: `PipelineControlService`(cancel = 공통 전이 함수 CAS `prior=RUNNING`·멱등 no-op; retry = 새 run 또는 기존 반환 `created` + 충돌 시 `RETRY_ATTEMPTED` 감사); `PipelineQueryService`(list/detail/task-timeline/events/latest; **Pageable**·허용 sort키(lastActivityAt·startedAt)·**`[from,to)` overlap**·**latest**(non-terminal 우선); 파생 `progress{done,total}`·`latestCheck`·`Attempt.outcome`·`failReason`(camel)).
+**무엇**: `PipelineControlService`(cancel = 공통 전이 함수 CAS `prior=RUNNING` **+ `CANCELLING` pipeline_event(actor) 발화(EventRecorder·같은 tx)**·멱등 no-op[0행=이벤트 없음]; retry = 새 run 또는 기존 반환 `created` + 충돌 시 `RETRY_ATTEMPTED` 감사); `PipelineQueryService`(list/detail/task-timeline/events/latest; **Pageable**·허용 sort키(lastActivityAt·startedAt)·**`[from,to)` overlap**·**latest**(non-terminal 우선); 파생 `progress{done,total}`·`latestCheck`·`Attempt.outcome`·`failReason`(camel)).
 **ADR**: 결정 4c/5, api §1/§2/§0, state-machine 9-12.
 **수락**: cancel CAS 멱등; retry created true/false + 감사(created=true는 생성 이벤트(T2)·created=false는 RETRY_ATTEMPTED); query 파생·의미 정확.
-**테스트**: cancel 멱등(terminal no-op); retry created(true/false) + RETRY_ATTEMPTED(§6 #10 충돌측); fragile 14(progress·outcome·overlap·latest).
+**테스트**: cancel CAS + CANCELLING 이벤트 발화(terminal no-op 시 0행·이벤트 없음); retry created(true/false) + RETRY_ATTEMPTED(§6 #10 충돌측); fragile 14(progress·outcome·overlap·latest).
 **의존**: T1(cancel)·T2(retry)·T4(통합) — query 파생은 repo fixture로 선행 가능(최종 통합은 T4 후).
 
 ## T6 — Settings(R5) + Notifier + Postgres Leader + Alert
