@@ -1,0 +1,47 @@
+# ADR-016 V1 reference configuration. The default profile relies on the PipelineSettings CODE defaults for
+# the operational knobs (so unit-test Wirings keep their explicit values); per-environment overrides and the
+# Postgres datasource live under the `postgres` profile, and any knob is also runtime-editable via the
+# settings API (R5 → DB `setting` row → RuntimeSettings). Tests use embedded H2 with Hibernate auto-DDL.
+
+im:
+  base-url: http://infra-manager.local   # IM (Infra Manager) Feign transport (implementation-notes §A)
+
+pipeline:
+  # background-loop cadences (PipelineScheduler) — NOT PipelineSettings fields, so they never rebind it.
+  scheduler:
+    initial-delay-ms: 5000
+    tick-ms: 30000
+    alert-ms: 60000
+    notify-ms: 10000
+
+---
+# Production profile: Postgres + the canonical schema (schema-postgres.sql, validated) + explicit operational
+# knobs. workerPoolSize is intentionally absent — it is the IM's deploy setting (slotCap ≈ workerPoolSize).
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pipeline
+    username: ${DB_USER:pipeline}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # schema is owned by schema-postgres.sql / migrations, not Hibernate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+
+pipeline:
+  slot-cap: 4
+  max-external-calls-per-tick: 50
+  max-fail-count: 3
+  task-check-retention-days: 90
+  tick-interval: PT30S
+  per-call-deadline: PT30S
+  dispatch-recovery-timeout: PT5M
+  execution-timeout: PT30M
+  wait-external-ttl: P7D
+  condition-polling-guard: PT10M
+  job-poll-cadence: PT45S
+  queue-wait-alert: PT30M
