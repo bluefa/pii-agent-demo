@@ -30,7 +30,6 @@ import type {
   ResourceScanStatus,
   ResourceSnapshot,
 } from '@/lib/types';
-import type { CandidateScanStatus } from '@/lib/types/resources';
 
 // Mock store: ApprovedIntegration (승인 완료 후 반영 중 스냅샷)
 const approvedIntegrationStore = new Map<string, BffApprovedIntegration>();
@@ -93,7 +92,7 @@ interface ResourceCatalogItem {
   oracle_service_id: string | null;
   network_interface_id: string | null;
   ip_configuration_name: string | null;
-  scan_status: CandidateScanStatus | null;
+  scan_status: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -163,10 +162,11 @@ function buildMetadata(resource: MockResource, project: Project): ConfirmResourc
 }
 
 // Step-1 scan-status tag (신규/변경). No upstream signal exists in the mock seed,
-// so derive a stable mix from the resourceId: previously-connected resources read
-// as CHANGED (re-scanned), and everything else as NEW. Deterministic per resource.
-const deriveCandidateScanStatus = (resource: MockResource): CandidateScanStatus =>
-  resource.connectionStatus === 'CONNECTED' ? 'CHANGED' : 'NEW';
+// so derive a stable value from connectionStatus: previously-connected resources
+// read as UNCHANGED (re-scanned), everything else as NEW_SCAN. Mirrors the
+// sibling `deriveScanStatus` derivation so candidate scan_status stays on-contract.
+const deriveCandidateScanStatus = (resource: MockResource): ResourceScanStatus =>
+  resource.connectionStatus === 'CONNECTED' ? 'UNCHANGED' : 'NEW_SCAN';
 
 function toResourceCatalogItem(resource: MockResource, project: Project): ResourceCatalogItem {
   return {

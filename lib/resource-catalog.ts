@@ -4,6 +4,7 @@ import {
   type ConfirmResourceMetadata,
   type DatabaseType,
   type IntegrationCategory,
+  type ResourceScanStatus,
   type ResourceSnapshot,
   type VmDatabaseConfig,
   type VmDatabaseType,
@@ -12,7 +13,6 @@ import type {
   ApprovedResource,
   CandidateBehaviorKey,
   CandidateResource,
-  CandidateScanStatus,
   ConfirmedResource,
   EndpointConfigDraft,
 } from '@/lib/types/resources';
@@ -35,7 +35,7 @@ export interface CatalogItem {
   oracleServiceId: string | null;
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
-  scanStatus: CandidateScanStatus | null;
+  scanStatus: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 

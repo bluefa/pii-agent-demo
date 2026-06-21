@@ -50,8 +50,8 @@ describe('CandidateResourceTable', () => {
       <CandidateResourceTable
         {...defaultProps}
         candidates={[
-          candidateFixture({ id: 'c-new', resourceId: 'res-new', scanStatus: 'NEW' }),
-          candidateFixture({ id: 'c-changed', resourceId: 'res-changed', scanStatus: 'CHANGED' }),
+          candidateFixture({ id: 'c-new', resourceId: 'res-new', scanStatus: 'NEW_SCAN' }),
+          candidateFixture({ id: 'c-changed', resourceId: 'res-changed', scanStatus: 'UNCHANGED' }),
         ]}
       />,
     );

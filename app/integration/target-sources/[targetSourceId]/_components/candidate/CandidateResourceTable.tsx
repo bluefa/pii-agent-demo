@@ -250,10 +250,10 @@ const CandidateResourceRow = ({
                 <span
                   className={cn(
                     idcStyles.tag.base,
-                    candidate.scanStatus === 'NEW' ? idcStyles.tag.blue : idcStyles.tag.orange,
+                    candidate.scanStatus === 'NEW_SCAN' ? idcStyles.tag.blue : idcStyles.tag.orange,
                   )}
                 >
-                  {candidate.scanStatus === 'NEW' ? '신규' : '변경'}
+                  {candidate.scanStatus === 'NEW_SCAN' ? '신규' : '변경'}
                 </span>
               )
             : <span className={cn('text-xs', textColors.quaternary)}>—</span>}

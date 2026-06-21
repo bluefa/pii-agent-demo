@@ -11,11 +11,11 @@ import {
   BffConfirmedIntegration,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
+  ResourceScanStatus,
   ResourceSnapshot,
   normalizeCloudProvider,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
-import type { CandidateScanStatus } from '@/lib/types/resources';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
 import {
   extractTargetSource,
@@ -285,7 +285,7 @@ export interface ConfirmResourceItem {
   oracleServiceId: string | null;
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
-  scanStatus: CandidateScanStatus | null;
+  scanStatus: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
