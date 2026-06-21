@@ -10,6 +10,7 @@ import {
   updateIdcResources,
   type IdcResourceView,
 } from '@/app/lib/api/idc';
+import { useApiAction } from '@/app/hooks/useApiMutation';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import { bgColors, borderColors, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -73,7 +74,6 @@ export const IdcStep1TargetInput = ({
   const [editId, setEditId] = useState<string | null>(null);
   const [loadOpen, setLoadOpen] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [reasonFor, setReasonFor] = useState<string | null>(null);
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
@@ -191,20 +191,21 @@ export const IdcStep1TargetInput = ({
     setReasonFor(null);
   };
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
+  // Approval request. useApiAction surfaces a failure as a toast (no silent catch)
+  // and tracks loading; the async work is awaited in the body, not in onSuccess
+  // (which is fire-and-forget). On failure the modal stays open for a retry.
+  const submit = useApiAction(
+    async () => {
       await updateIdcResources(targetSourceId, rows);
       await refreshProject();
       // TODO(integration): advance processStatus → WAITING_APPROVAL via the
       // shared approval flow once the IDC approval transition is wired in mock.
-      setSubmitOpen(false);
-    } catch {
-      // surfaced by the mutation layer; keep the modal open
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+    {
+      onSuccess: () => setSubmitOpen(false),
+      errorMessage: '연동 대상 승인 요청에 실패했어요. 잠시 후 다시 시도해주세요.',
+    },
+  );
 
   const pagedRows = rows.slice(page * pageSize, page * pageSize + pageSize);
 
@@ -342,8 +343,8 @@ export const IdcStep1TargetInput = ({
         total={total}
         live={liveCount}
         excluded={excludedCount}
-        submitting={submitting}
-        onSubmit={handleSubmit}
+        submitting={submit.loading}
+        onSubmit={submit.execute}
         onClose={() => setSubmitOpen(false)}
       />
 
