@@ -24,7 +24,7 @@
 | M (worker 풀 크기) | 고정 (배포 설정 — **settings API 비편집**; 출발값은 IM worker 풀 스펙에 맞춤, 예 4~8) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수; 재배포로만 변경; N≈M의 기준 (4b) |
 | N (slot cap) | ≈ M (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(N≈M); 동시성 hard cap은 M이지 N 아님 (4b) |
 | max_external_calls_per_tick (due poll/check 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 poll/check 호출 수(**dispatch 제외 — N-cap admission으로 제한**); burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
-| max_fail_count (= **K**, 초기 dispatch 포함 최대 attempt 수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |
+| max_fail_count (= **K**; TERRAFORM_JOB=초기 dispatch 포함 최대 attempt 수·CONDITION_CHECK=비-backpressure CHECK ERROR 허용 횟수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |
 | task_check 보존 | 90일 | 전역 | reconciler prune (1.3) |
 | queue-wait 알림 임계 | 30분 (제안) | 전역 | slot 큐 대기 초과 시 QUEUE_WAIT_EXCEEDED 발화(정의=아래 알림 섹션; 발화 경로 outbox=결정 1.3) |
 

@@ -141,7 +141,7 @@ task            id, pipeline_id, seq, name, handler_key,
                 --   선언하는 값을 row에 비정규화(slot COUNT 등 쿼리용). name = 표시 라벨(UX)일 뿐.
                 --   미해결(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 status=FAILED·fail_count 미소모.
                 --   원인 errorCode=HANDLER_NOT_FOUND는 task에 error_code 컬럼이 없으므로 synthetic task_check 1행에 기록
-                --   (api_result=ERROR·observed=null·error_code=HANDLER_NOT_FOUND·poll_count=1; kind는 시도하려던 단계 따라 DISPATCH|CHECK — §1.2 task_check ③·api §0).
+                --   (kind=CHECK·name="orchestrator.handler.resolve"·api_result=ERROR·observed=null·external_handle=null·error_code=HANDLER_NOT_FOUND·poll_count=1·latency_ms=null; 외부 호출 없는 내부 평가라 kind 고정 — state-machine 종결표·§1.2 task_check ③·api §0).
                 --   active attempt(DISPATCHING/RUNNING) 있으면 result=FAIL·finished_at=tick·attempt.error_code=null로 마감(원인은 위 task_check가 보유);
                 --   RUNNING TF의 in-flight job은 orphan — BFF 추적 중단이라 BFF execution timeout 아닌 worker terraform 자연 종료가 bound — state-machine 종결표.
                 -- last_checked_at = tick이 이 task를 마지막으로 서비스(발사)한 시각 — due 선별의 기아 방지
@@ -182,7 +182,8 @@ task_check      id, task_id, checked_at, started_at, poll_count,
                 -- 관측의 장부(호출의 장부 아님); Task 소속. **행 단위 = kind별로 다르다(O24 → RLE 개정, 후속17):**
                 --   • DISPATCH: 1행 = 1 dispatch 호출. 저빈도(attempt당 1회)·side-effect라 crash "발사했나" 구분이 필요 →
                 --     D-T5 PENDING 선기록 유지(호출 직전 PENDING, 응답 후 채움); poll_count=1, collapse 안 함.
-                --   • CHECK: 1행 = **관측 run**(연속 동일 관측 collapse). 같은 `(api_result, observed, error_code)`가 반복되면
+                --   • CHECK: 1행 = **관측 run**(연속 동일 관측 collapse; partition = `task_id+kind+name+external_handle` 내에서,
+                --     state-machine). 같은 `(api_result, observed, error_code)`가 반복되면
                 --     **기존 run UPDATE**(checked_at=now, poll_count++, latency_ms=이번 폴), 관측이 바뀌면(전이·ERROR·
                 --     backpressure 변화·MET) **새 run INSERT**(poll_count=1, started_at=checked_at=now). → NOT_MET 1000폴 =
                 --     run 1행(poll_count=1000). 모든 *구별되는* 관측(전이·error_code별 ERROR run·backpressure run)은 보존,
