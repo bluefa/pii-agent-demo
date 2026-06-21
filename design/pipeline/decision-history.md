@@ -172,6 +172,13 @@
   ⑦ **(minor)** ADR Status 날짜 2026-06-20 → "개정 6판 후속, 2026-06-21"(리비전 이력과 정합).
   ⑧ **opus minor** — 보드 게이지 COUNT에 kind=TERRAFORM_JOB 한정자; retry created=true 감사=새 pipeline 생성 이벤트 커버 명시. **교훈: 빠른 정밀 수정이 새 drift를 만들 수 있다(①) — 적대적 리뷰가 자기 regression을 잡음.** **보류:** O·S 아카이브, swagger, ascii 정밀.
 
+- **개정 6판 후속14 — r12 문서 정확성 (codex 88 / opus 89; 설계 무변경).** **codex "잘못/부정확 0건" — r11 수정이 regression 없이 정확 확인.** opus가 잡은 건 또 내 r11 수정의 짝 동기화 누락(2연속 self-inflicted):
+  ① **(significant·내 r11 regression 교정)** — state-machine:90을 "HANDLER_NOT_FOUND active attempt 마감"으로 고치며 api:29의 짝 문구 "과거 attempt 그대로 보존"을 동기화 안 해 직접 모순. **이번엔 spot-fix 대신 attempt-마감 story를 전 문서 일관화**: api:29·state-machine:90/113·orchestrator §1.2 모두 "active attempt(DISPATCHING/RUNNING)는 `result=FAIL·finished_at=tick·error_code=null`로 마감, 원인은 task_check/status가 보유"로 통일(보존 문구 0).
+  ② **(opus minor)** state-machine:113 DISPATCHING→CANCELLED 마감에 `finished_at=tick` 추가(line 90과 대칭·outcome 파생 정합); synthetic task_check에 `latency_ms=null`.
+  ③ **(codex significant-불명확) dispatch CALL_TIMEOUT 처리 위치** — api:29가 CALL_TIMEOUT을 "check 전용"으로 박아 모호 → "CALL_TIMEOUT은 어느 호출이든 1회 timeout(dispatch/poll/check), 호출 1회 실패이지 attempt 직접 실패 아님 — dispatch면 DISPATCHING 유지→복구(DISPATCH_NO_RESPONSE), check면 다음 tick fail++, poll이면 재시도"로 정정(4a:493와 정합).
+  ④ **(codex minor) fail_reason 정의** — pipeline.fail_reason/api failReason이 정의 없이 노출됐음 → "FAILED 수렴 원인 `{task_id, errorCode}`; CANCELLED/DONE/RUNNING이면 null"로 §1.2+api 명시.
+  ⑤ **(codex minor) max_external_calls_per_tick 범위** — "due 호출 전체"로 읽히던 D-T7을 "poll/check 발사 상한; dispatch는 N-cap만"으로 한정(453·operations와 정합). **교훈 강화: 멀티-문서 짝 동기화를 매 수정마다 sweep해야 함(이번엔 sweep로 3번째 regression 방지).** **보류:** O·S 아카이브, swagger, ascii 정밀.
+
 - **Pipeline Definition 모델 확정 + Custom Pipeline 도입 (결정 7 신설).** 파이프라인 구성을 세 layer로
   가른다: **Task catalog=코드 class**(content-hash version), **Default recipe=코드**((type,provider)당,
   release version·metadata 코드 명시), **Custom recipe=데이터**(TargetSource별 편집 가능 override, 편집마다

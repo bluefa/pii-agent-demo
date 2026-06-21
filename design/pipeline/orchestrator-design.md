@@ -107,6 +107,9 @@ pipeline        id, target_source_id, type(INSTALL|DELETE), provider,
                 status(RUNNING|CANCELLING|DONE|FAILED|CANCELLED),
                 triggered_by(actor: human|system|ai — pipeline_event.actor와 동일 도메인), created_at, started_at, finished_at,
                 last_activity_at, fail_reason
+                -- fail_reason = pipeline FAILED 수렴 원인 요약(저장 컬럼) — tick이 FAILED 파생 시 기록:
+                --   `{task_id: FAILED/EXPIRED 유발 task, errorCode: 그 task의 canonical errorCode(EXPIRED면 TTL_EXPIRED)}`.
+                --   CANCELLING precedence로 CANCELLED 수렴 시엔 미설정(null) — 취소는 실패 아님(결정 1.1). api failReason은 이 컬럼.
                 -- 실행 단위 = target_source_id (1 pipeline : 1 target), 생성 시 고정.
                 --   실행 입력 일반화(parameters jsonb)는 도입하지 않는다(개정 4판) — 실행 단위는
                 --   target source로 고정. 조회는 target_source_id 인덱스(아래).
@@ -134,7 +137,8 @@ task            id, pipeline_id, seq, name, handler_key,
                 --   handler_key로 구분된다(kind는 너무 거칠고 name·seq는 식별자 아님). kind는 handler class가
                 --   선언하는 값을 row에 비정규화(slot COUNT 등 쿼리용). name = 표시 라벨(UX)일 뿐.
                 --   미해결(registry에 없음 — 핸들러 은퇴/규율 위반) 시 task 즉시 FAILED(error_code=
-                --   HANDLER_NOT_FOUND, fail_count 미소모; RUNNING TF의 in-flight job은 orphan — BFF 추적 중단이라
+                --   HANDLER_NOT_FOUND, fail_count 미소모; active attempt(DISPATCHING/RUNNING) 있으면 result=FAIL·
+                --   finished_at=tick으로 마감; RUNNING TF의 in-flight job은 orphan — BFF 추적 중단이라
                 --   BFF execution timeout 아닌 worker terraform 자연 종료가 bound) — state-machine 종결표.
                 -- last_checked_at = tick이 이 task를 마지막으로 서비스(발사)한 시각 — due 선별의 기아 방지
                 --   정렬 키(§1.1 last_checked_at ASC NULLS FIRST). tick이 발사 시 next_check_at과 함께 기록
@@ -753,8 +757,8 @@ JOB_POLL과 CONDITION_CHECK를 `CHECK`로 통합한다 — reconciler는 완료 
 무관**해서 N-cap으로 안 묶인다 — in-flight + WAIT_EXTERNAL task 수(수천 가능)에 비례한다.
 
 **메커니즘은 단순화한다(개정 4판): tick당 발사 호출 수 상한 `max_external_calls_per_tick`.** 매
-tick 리더는 due 호출을 `next_check_at ASC` 순으로 최대 `max_external_calls_per_tick`개만 발사하고
-나머지는 다음 tick으로 미룬다. 그게 전부다.
+tick 리더는 due **poll/check 호출**을 `next_check_at ASC` 순으로 최대 `max_external_calls_per_tick`개만 발사하고
+나머지는 다음 tick으로 미룬다(**dispatch는 이 상한에 안 묶이고 N-cap admission으로만 제한** — 표 4a/4b·operations). 그게 전부다.
 
 - **의미: tick당 최대 발사 호출 수 (burst 완화).** 복귀 catch-up·동시 due 폭주를 tick 경계로 잘라
   IM에 한 번에 쏟아지는 호출 수를 제한한다. **정확한 global concurrency 보장은 하지 않는다** —
