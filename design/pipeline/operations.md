@@ -35,7 +35,7 @@
 
 ## 알림
 
-- 모든 알림은 `pipeline_event`(transactional outbox)에서 나간다 — 유실·중복 없음(결정 1.3).
+- 모든 알림은 `pipeline_event`(transactional outbox)에서 나간다 — **유실 없음**(상태 변경과 같은 tx). 전달은 **at-least-once**(인앱은 event id read-dedup으로 effectively-once)(결정 1.3).
 - **WORKER_OUTAGE_SUSPECTED** (critical) — execution timeout 연속 발생 시 systemic worker 장애 의심, 단일 롤업 알림(개정 4판: circuit breaker 없이 알림만).
 - **QUEUE_WAIT_EXCEEDED** — slot 대기가 임계(기본 30분) 초과.
 - v1은 **인앱 알림(`pipeline_event`)만** — 라우팅 설정·외부 채널(Slack/Email)은 v2 defer(v2-deferred.md).
