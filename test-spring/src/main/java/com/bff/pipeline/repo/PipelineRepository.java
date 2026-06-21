@@ -4,6 +4,7 @@ import com.bff.pipeline.domain.ErrorCode;
 import com.bff.pipeline.domain.Pipeline;
 import com.bff.pipeline.domain.PipelineStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,7 +14,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface PipelineRepository extends JpaRepository<Pipeline, Long> {
+public interface PipelineRepository
+        extends JpaRepository<Pipeline, Long>, JpaSpecificationExecutor<Pipeline> {
 
     /** active pipelines for the tick (RUNNING, CANCELLING), oldest first. */
     List<Pipeline> findByStatusInOrderByIdAsc(Collection<PipelineStatus> statuses);

@@ -33,6 +33,10 @@ public interface TaskCheckRepository extends JpaRepository<TaskCheck, Long> {
 
     List<TaskCheck> findByTaskIdOrderByStartedAtAsc(Long taskId);
 
+    /** Paged checks for the task timeline (api §1). */
+    org.springframework.data.domain.Page<TaskCheck> findByTaskId(
+            Long taskId, org.springframework.data.domain.Pageable pageable);
+
     /**
      * CONDITION_CHECK fail accounting (state-machine 95: "실패한 CHECK 호출 수"): the total of non-backpressure
      * CHECK error CALLS = SUM(poll_count) over the CHECK error runs (errorCode = CHECK_ERROR | CALL_TIMEOUT;
