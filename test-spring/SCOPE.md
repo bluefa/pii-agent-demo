@@ -58,7 +58,7 @@
 ## 3. 상태기계·서비스 규칙 (정확 구현 대상)
 
 - **Pipeline 5 / Task 9 상태**. slot 큐 = READY∧TF.
-- **파생 ①CANCELLING > ②FAILED task(fail==K 또는 HANDLER_NOT_FOUND) > ③TTL EXPIRED > ④전 task DONE**. **CANCELLING precedence = 상태 기준**(파생 시점 pipeline.status; 시간 아님). FAILED 파생 시 `fail_reason={task_id, error_code}` 기록 — **error_code 출처 case별**: TF 실패=그 task 최신 `task_attempt.error_code`(JOB_FAILED/EXECUTION_TIMEOUT/IM_REJECTED/DISPATCH_NO_RESPONSE) · CONDITION_CHECK 누적 실패=최신 `task_check.error_code`(CHECK_ERROR) · EXPIRED=`TTL_EXPIRED`(status 파생) · HANDLER_NOT_FOUND=synthetic `task_check.error_code`. **CANCELLED 수렴 시 fail_reason=null**.
+- **파생 ①CANCELLING > ②FAILED task(fail==K 또는 HANDLER_NOT_FOUND) > ③TTL EXPIRED > ④전 task DONE**. **CANCELLING precedence = 상태 기준**(파생 시점 pipeline.status; 시간 아님). FAILED 파생 시 `fail_reason={task_id, error_code}` 기록 — **error_code 출처 case별**: TF 실패=그 task 최신 `task_attempt.error_code`(JOB_FAILED/EXECUTION_TIMEOUT/IM_REJECTED/DISPATCH_NO_RESPONSE) · CONDITION_CHECK 누적 실패=최신 `task_check.error_code`(CHECK_ERROR **또는 CALL_TIMEOUT**) · EXPIRED=`TTL_EXPIRED`(status 파생) · HANDLER_NOT_FOUND=synthetic `task_check.error_code`. **CANCELLED 수렴 시 fail_reason=null**.
 - **tick 평가 순서(task 1개)**: ①CANCELLING 취소규칙 ②**handler resolve(READY 이상 serviceable만 — BLOCKED 제외)** 미해결→즉시 FAILED ③**완료관측 > timeout**(최신 poll=SUCCEEDED/check=MET면 DONE; "만료는 fresh 재독 후") ④timeout 판정(exec→attempt 실패·TTL→EXPIRED) ⑤일반 전이.
 - **fail_count 가산**: TF dispatch 실패(IM_REJECTED·DISPATCH_NO_RESPONSE)·TF job 실패(JOB_FAILED·EXECUTION_TIMEOUT)=가산 · **TF poll 호출 오류(task_check error_code=CHECK_ERROR 또는 CALL_TIMEOUT)=미가산**(잡 못 읽음) · CONDITION_CHECK 비-backpressure CHECK ERROR/CALL_TIMEOUT=가산 · NOT_MET·backpressure=미가산 · HANDLER_NOT_FOUND·취소정리(error_code=null)=미소모 · **drain 중 실제 실패(JOB_FAILED·EXECUTION_TIMEOUT)=가산하되 pipeline CANCELLED 수렴**. K=maxFailCount(TF=초기 dispatch 포함 최대 attempt).
 - **재시도**: TF RUNNING 실패 fail<K→READY 재큐(새 attempt)·==K→FAILED · TF DISPATCHING 실패 fail<K→in-place 재dispatch(새 attempt·slot 보유)·==K→FAILED · CONDITION_CHECK CHECK ERROR 누적==K→FAILED.
@@ -117,7 +117,7 @@ test/          ☐ 단위 테스트 (§6)
 11. **maxExternalCallsPerTick** — poll/check만 상한; dispatch 미적용(admission만).
 12. **R5** — global 설정 즉시 / task별 frozen은 이후 run만.
 13. **알림** — execution timeout 짧은 창 연속 → **단일** WORKER_OUTAGE_SUSPECTED(N건 아님); slot 대기 임계 초과 → QUEUE_WAIT_EXCEEDED; Notifier claim→notified_at 스탬프(단일소비자).
-14. **query 파생** — progress(CANCELLED도 분모·done&lt;total terminal 정상) · Attempt.outcome(error_code=null FAIL→FAILED) · latestCheck · failReason(camel) · Pageable sort키 제한.
+14. **query 파생·의미** — progress(CANCELLED도 분모·done&lt;total terminal 정상) · Attempt.outcome(error_code=null FAIL→FAILED) · latestCheck · failReason(camel) · Pageable sort키 제한 · **`[from,to)` overlap 필터** · **latest 조회**(non-terminal 우선·없으면 최근 terminal).
 
 ## 7. 위험·정합성 체크포인트 (리뷰 집중)
 

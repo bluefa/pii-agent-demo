@@ -11,9 +11,12 @@ import java.time.Instant;
  * pipeline — one install/delete run for a single target_source_id (1 pipeline : 1 target).
  * Status is derived from task states by the reconciler, except RUNNING -> CANCELLING (Admin API).
  *
- * <p>{@code @Version} is the JPA realization of the ADR's CAS (guarded write): a concurrent writer
- * loses with an optimistic-lock failure. Transition preconditions (e.g. cancel requires prior=RUNNING)
- * are additionally checked in app logic so terminal revival is a no-op.
+ * <p>{@code @Version} gives lost-update protection ONLY — it is NOT the ADR's CAS. The ADR's CAS
+ * ("transition only from an expected prior status") is an explicit prior-state guarded update (a
+ * {@code @Modifying} query with {@code WHERE status=:expected}) — e.g. cancel's {@code prior=RUNNING}
+ * and the response-adoption guard {@code response IS NULL AND finished_at IS NULL AND status=DISPATCHING};
+ * a 0-row result is the no-op (terminal revival / stale write blocked). {@code version} is kept as
+ * defense-in-depth and bumped inside those guarded updates.
  *
  * <p>fail_reason is jsonb {task_id, error_code} in the canonical schema; denormalized to two columns
  * here. Null on CANCELLED/DONE/RUNNING; set only on FAILED convergence.
