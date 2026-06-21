@@ -44,6 +44,7 @@ li{margin:.25em 0}
 .util button{font:inherit;font-size:.82rem;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer}
 .util button:hover{border-color:var(--accent);color:var(--accent)}
 .util .brand{margin-right:auto;font-weight:700;font-size:.86rem;color:var(--muted);letter-spacing:.02em}
+.util .menu{display:none;margin-right:auto}
 
 /* layout */
 .wrap{display:grid;grid-template-columns:var(--sb) 1fr}
@@ -146,12 +147,11 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
   #glossary dl{grid-template-columns:1fr;gap:0}
   #glossary dd{margin-bottom:10px;padding-bottom:8px}
 }
-.util .menu{display:none;margin-right:auto}
 @media print{
   nav.side,.util,#top,#tip{display:none!important}
   main{max-width:none;padding:0}
   details.fold{border:none}details.fold>summary{display:none}details.fold .fold-body{padding:0}
-  a.t{border:none;color:inherit}
+  a.t{border-bottom:1px solid #999;color:inherit}
   .wrap{display:block}
 }
 </style>
@@ -295,12 +295,12 @@ footer{grid-column:2;max-width:var(--maxw);margin:0 auto;padding:20px 28px 60px;
 <h2><span class="sec-num">04</span> 데이터 모델</h2>
 <p>BFF DB의 6개 테이블. 모든 화살표가 동시에 히스토리 레코드다 — 단 <b>하나의 tx가 아니라 두 writer로 갈린다</b>(<a class="t" href="#g-single-writer">단일 writer</a>): 상태 전이 tx(tick)와 호출 스레드 tx(관측·산출).</p>
 <div class="cards">
-<div class="card"><h4><code>pipeline</code></h4><div class="role">run 1건. id·target_source_id·<a class="t" href="#g-col-type">type</a>·<a class="t" href="#g-col-provider">provider</a>·<a class="t" href="#g-col-status">status</a>·<a class="t" href="#g-actor">triggered_by</a>·started_at·finished_at·<a class="t" href="#g-last-activity-at">last_activity_at</a>·<a class="t" href="#g-fail-reason">fail_reason</a></div></div>
+<div class="card"><h4><code>pipeline</code></h4><div class="role">run 1건. id·<a class="t" href="#g-col-target-source-id">target_source_id</a>·<a class="t" href="#g-col-type">type</a>·<a class="t" href="#g-col-provider">provider</a>·<a class="t" href="#g-col-status">status</a>·<a class="t" href="#g-actor">triggered_by</a>·<a class="t" href="#g-col-started-at">started_at</a>·<a class="t" href="#g-col-finished-at">finished_at</a>·<a class="t" href="#g-last-activity-at">last_activity_at</a>·<a class="t" href="#g-fail-reason">fail_reason</a></div></div>
 <div class="card"><h4><code>task</code></h4><div class="role">순차 chain 단계. seq·name·<a class="t" href="#g-handler-key">handler_key</a>·<a class="t" href="#g-task-kind">kind</a>·status·polling_interval·ttl·execution_timeout·<a class="t" href="#g-deadline-at">deadline_at</a>·<a class="t" href="#g-maxfailcount">max_fail_count</a>·<a class="t" href="#g-fail-count">fail_count</a>·<a class="t" href="#g-next-check-at">next_check_at</a>·<a class="t" href="#g-last-checked-at">last_checked_at</a></div></div>
 <div class="card"><h4><code>task_attempt</code></h4><div class="role"><a class="t" href="#g-attempt">action 생애주기</a> (dispatch당 1행). <a class="t" href="#g-col-attempt-no">attempt_no</a>·started_at·finished_at·<a class="t" href="#g-result-okfail">result</a>·<a class="t" href="#g-col-error-code">error_code</a>·<a class="t" href="#g-col-error-detail">error_detail</a>·<a class="t" href="#g-col-response">response</a></div></div>
 <div class="card"><h4><code>task_check</code></h4><div class="role"><a class="t" href="#g-task-check">외부 호출 관측 장부</a>. checked_at·started_at·<a class="t" href="#g-poll-count">poll_count</a>·<a class="t" href="#g-check-kind">kind</a>·name·<a class="t" href="#g-api-result">api_result</a>·<a class="t" href="#g-observed">observed</a>·error_code·<a class="t" href="#g-latency-ms">latency_ms</a>·<a class="t" href="#g-external-handle">external_handle</a></div></div>
 <div class="card"><h4><code>pipeline_event</code></h4><div class="role">감사 로그 + 알림 <a class="t" href="#g-transactional-outbox">outbox</a> (append-only). pipeline_id?·task_id?·type·<a class="t" href="#g-severity">severity</a>·<a class="t" href="#g-col-payload">payload</a>·actor·<a class="t" href="#g-col-notified-at">notified_at</a></div></div>
-<div class="card"><h4><code>pipeline_def_snapshot</code></h4><div class="role">생성 시 박제(<a class="t" href="#g-write-once">write-once</a>, 1:1). definition_key·<a class="t" href="#g-definition-version">definition_version</a>·type·provider·<a class="t" href="#g-spec-jsonb">spec(jsonb)</a></div></div>
+<div class="card"><h4><code>pipeline_def_snapshot</code></h4><div class="role">생성 시 박제(<a class="t" href="#g-write-once">write-once</a>, 1:1). <a class="t" href="#g-definition-key">definition_key</a>·<a class="t" href="#g-definition-version">definition_version</a>·type·provider·<a class="t" href="#g-spec-jsonb">spec(jsonb)</a></div></div>
 </div>
 
 <h3>attempt ⊥ check — 형제 구조 (중첩 아님)</h3>
@@ -330,8 +330,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <div class="box"><b>예:</b> <span class="pill wait">NOT_MET</span> 1000폴 = <b>1행</b>(poll_count=1000). 모든 <i>구별되는</i> 관측(전이·error별 ERROR·MET)은 보존, 동일 반복만 count로 접힌다. <b>RLE는 행 표현일 뿐 <a class="t" href="#g-fail-count">fail_count</a> 회계와 무관하다.</b></div>
 
 <details class="fold"><summary>스키마 delta · 인덱스 · retention</summary><div class="fold-body">
-<p><b>추가</b>: <a class="t" href="#g-handler-key">handler_key</a>·<a class="t" href="#g-poll-count">poll_count</a>·<a class="t" href="#g-last-activity-at">last_activity_at</a>·<a class="t" href="#g-unique-constraint">부분 unique 제약</a>. <b>제거</b>: <a class="t" href="#g-legacy-pipeline-defver">pipeline.definition_version</a>(단 snapshot.definition_version은 유지)·external_handle·<a class="t" href="#g-removed-task-detail">detail</a>·<a class="t" href="#g-removed-c-budget-formula">call_deadline_at</a>·<a class="t" href="#g-removed-attempt-id">attempt_id</a>·<a class="t" href="#g-removed-parameters">parameters</a>.</p>
-<p><b>인덱스 6종</b>: <code>pipeline(target_source_id, started_at DESC)</code>·<code>pipeline(started_at)</code>·<code>pipeline(last_activity_at DESC)</code>·<code>task_check(task_id, started_at)</code>·<code>pipeline_event(pipeline_id, created_at)</code>·unique <code>pipeline(target_source_id) WHERE non-terminal</code>·unique <code>task(pipeline_id, seq)</code>.</p>
+<p><b>추가</b>: <a class="t" href="#g-handler-key">handler_key</a>·<a class="t" href="#g-poll-count">poll_count</a>·<a class="t" href="#g-last-activity-at">last_activity_at</a>·<a class="t" href="#g-unique-constraint">부분 unique 제약</a>. <b>제거</b>: <a class="t" href="#g-legacy-pipeline-defver">pipeline.definition_version</a>(단 snapshot.definition_version은 유지)·external_handle(task_attempt·task의 단수 컬럼만 — task_check.external_handle은 유지)·<a class="t" href="#g-removed-task-detail">detail</a>·<a class="t" href="#g-removed-c-budget-formula">call_deadline_at</a>·<a class="t" href="#g-removed-attempt-id">attempt_id</a>·<a class="t" href="#g-removed-parameters">parameters</a>.</p>
+<p><b>인덱스·제약 7종</b>: <code>pipeline(target_source_id, started_at DESC)</code>·<code>pipeline(started_at)</code>·<code>pipeline(last_activity_at DESC)</code>·<code>task_check(task_id, started_at)</code>·<code>pipeline_event(pipeline_id, created_at)</code>·unique <code>pipeline(target_source_id) WHERE non-terminal</code>·unique <code>task(pipeline_id, seq)</code>.</p>
 <p><b>Retention</b>: spine(pipeline·task·task_attempt·pipeline_event)은 무기한, task_check(CHECK)은 구별 관측 run 수에 비례 증가 → 기본 90일 후 reconciler prune.</p>
 </div></details>
 </section>
@@ -395,7 +395,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <h3><a class="t" href="#g-fail-count">fail_count</a> 가산 매트릭스</h3>
 <table class="tbl"><thead><tr><th>사건</th><th>가산?</th></tr></thead><tbody>
 <tr><td>TERRAFORM_JOB <b>poll</b> 호출 오류 (잡 못 읽음)</td><td>❌ 미가산 (관측 실패 ≠ 잡 실패)</td></tr>
-<tr><td>TERRAFORM_JOB dispatch 실패 (IM_REJECTED·recovery·EXECUTION_TIMEOUT·JOB_FAILED)</td><td>✅ 가산</td></tr>
+<tr><td>TERRAFORM_JOB attempt 실패 — dispatch(<a class="t" href="#g-ec-im-rejected">IM_REJECTED</a>·<a class="t" href="#g-ec-dispatch-no-response">DISPATCH_NO_RESPONSE</a>) 또는 RUNNING/job(<a class="t" href="#g-ec-job-failed">JOB_FAILED</a>·<a class="t" href="#g-ec-execution-timeout">EXECUTION_TIMEOUT</a>)</td><td>✅ 가산</td></tr>
 <tr><td>CONDITION_CHECK <b>CHECK ERROR / CALL_TIMEOUT</b> (비-backpressure)</td><td>✅ 가산</td></tr>
 <tr><td><span class="pill wait">NOT_MET</span> ("아직")</td><td>❌ 미가산</td></tr>
 <tr><td><a class="t" href="#g-backpressure">backpressure</a> (429/503, 전부)</td><td>❌ 미가산 ("나중에")</td></tr>
@@ -482,7 +482,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <tr><td>② task_check 관측 → <code>task_check.error_code</code></td><td><a class="t" href="#g-ec-check-error">CHECK_ERROR</a> · <a class="t" href="#g-ec-call-timeout">CALL_TIMEOUT</a> (dispatch/poll/check 공통 — 호출 1회 실패이지 attempt 직접 실패 아님)</td></tr>
 <tr><td>③ tick 파생</td><td><a class="t" href="#g-ec-ttl-expired">TTL_EXPIRED</a> (status=EXPIRED 파생·행 없음) · <a class="t" href="#g-ec-handler-not-found">HANDLER_NOT_FOUND</a> (synthetic task_check 1행)</td></tr>
 </tbody></table>
-<div class="box"><b>HANDLER_NOT_FOUND synthetic 행:</b> <code>kind=CHECK · name="orchestrator.handler.resolve" · api_result=ERROR · observed=null · poll_count=1 · latency_ms=null</code>. active attempt가 있으면 <code>result=FAIL·finished_at=tick·error_code=null</code>로 마감(원인은 이 task_check가 보유).</div>
+<div class="box"><b>HANDLER_NOT_FOUND synthetic 행:</b> <code>kind=CHECK · name="orchestrator.handler.resolve" · api_result=ERROR · observed=null · external_handle=null · error_code=HANDLER_NOT_FOUND · started_at=checked_at=tick · poll_count=1 · latency_ms=null</code>. active attempt가 있으면 <code>result=FAIL·finished_at=tick·error_code=null</code>로 마감(원인은 이 task_check가 보유).</div>
 
 <h3><a class="t" href="#g-fail-reason">fail_reason</a> · <a class="t" href="#g-outcome">outcome</a></h3>
 <p><b>fail_reason</b> = pipeline FAILED 수렴 원인 <code>{task_id, error_code}</code>(<a class="t" href="#g-snake-case">snake</a>; CANCELLED/DONE/RUNNING=null). API DTO는 <a class="t" href="#g-camel-case">camel</a> <code>{taskId, errorCode}</code>(<a class="t" href="#g-adr-019">ADR-019</a> 경계).</p>
@@ -503,7 +503,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <span class="node">재현 권위</span>
 </div>
 <p><b><a class="t" href="#g-code-is-authority">코드 = 실행 권위</a> / snapshot = 이력 권위.</b></p>
-<div class="box"><b>절연 범위.</b> default release를 올려도 in-flight·과거 run의 <i>구성</i>(task 목록·순서·ttl·polling·execution_timeout·max_fail_count)은 불변. <b>단 task class 코드 동작은 현재 배포본을 탄다</b>(절연 대상 아님 — 코드=실행 권위).</p></div>
+<div class="box"><b>절연 범위.</b> default release를 올려도 in-flight·과거 run의 <i>구성</i>(task 목록·순서·ttl·polling·execution_timeout·max_fail_count)은 불변. <b>단 task class 코드 동작은 현재 배포본을 탄다</b>(절연 대상 아님 — 코드=실행 권위).</div>
 
 <h3><a class="t" href="#g-registry">handler 자동 레지스트리</a></h3>
 <ul>
@@ -550,6 +550,9 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <tr><td><a class="t" href="#g-slotcap">slotCap</a></td><td>초안 3 (≈workerPoolSize)</td><td>즉시</td></tr>
 <tr><td>max_external_calls_per_tick</td><td>50</td><td>즉시</td></tr>
 <tr><td>max_fail_count</td><td>예 2~3</td><td>task별 frozen</td></tr>
+<tr><td><a class="t" href="#g-dispatch-recovery-timeout">dispatch 복구 timeout</a></td><td>5분</td><td>즉시</td></tr>
+<tr><td>job-poll cadence</td><td>30~60초</td><td>즉시</td></tr>
+<tr><td>queue-wait 알림 임계</td><td>30분</td><td>즉시</td></tr>
 <tr><td>task_check 보존</td><td>90일</td><td>즉시</td></tr>
 </tbody></table>
 
@@ -573,13 +576,20 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <!-- ════════════════ S13 요구사항 ════════════════ -->
 <section id="requirements">
 <h2><span class="sec-num">13</span> 요구사항 충족</h2>
+<p class="role" style="color:var(--muted)">대표 항목. 전체 표(FR-1~8 / NFR-1~8 / PR-1~7)는 <code>requirements.md</code>.</p>
 <table class="tbl"><thead><tr><th>ID</th><th>요구사항</th><th>충족</th></tr></thead><tbody>
 <tr><td><a class="t" href="#g-fr">FR-1</a></td><td>브라우저 세션 없는 durable 설치/삭제</td><td>DB durable state machine</td></tr>
 <tr><td>FR-2</td><td>target별 run history</td><td>pipeline.target_source_id + history API</td></tr>
 <tr><td>FR-3</td><td>task별 attempt/check audit</td><td>task_attempt · task_check</td></tr>
 <tr><td><a class="t" href="#g-nfr">NFR-3</a></td><td>무한 대기 방지</td><td>execution timeout + WAIT_EXTERNAL TTL</td></tr>
+<tr><td>FR-4</td><td>재시도</td><td>terminal 부활 없이 새 run 생성(결정 5)</td></tr>
+<tr><td>FR-5</td><td>중단</td><td>CANCELLING + in-flight drain(결정 4c)</td></tr>
+<tr><td>FR-7</td><td>알림</td><td>pipeline_event transactional outbox</td></tr>
 <tr><td>FR-8</td><td>BFF-visible active TF task 제한</td><td>slotCap admission</td></tr>
 <tr><td>NFR-1</td><td>재시작 안전</td><td>DB state + tick 재도출</td></tr>
+<tr><td>NFR-5</td><td>운영 가시성</td><td>task_check · pipeline_event</td></tr>
+<tr><td>NFR-6</td><td>burst 완화</td><td>max_external_calls_per_tick(D-T7)</td></tr>
+<tr><td>NFR-7</td><td>worker 결과 유실 흡수</td><td>execution timeout(결정 4a)</td></tr>
 <tr><td>NFR-2</td><td>at-least-once dispatch 안전</td><td>idempotency contract</td></tr>
 <tr><td>NFR-4</td><td>다중 replica 안전</td><td>advisory lock + CAS</td></tr>
 <tr><td><a class="t" href="#g-pr-req">PR-1</a></td><td>target 2000개 관리</td><td>run history·polling 견딤</td></tr>
@@ -653,7 +663,7 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-soft-target">soft target</dt><dd>CAS 불변식이 아니라 근사 목표(slotCap; COUNT→admit read-then-act라 leader 단일성 의존). split-brain 일시 초과는 풀이 흡수.</dd>
 <dt id="g-nk">slotCap × maxFailCount (구 N·K)</dt><dd>retry/orphan worst-case 제출량 sizing 값(큐로 흘러드는 총량). 동시 실행 상한 아님.</dd>
 <dt id="g-maxfailcount">maxFailCount (K, = max_fail_count 컬럼)</dt><dd>task FAILED 전 최대 비성공 시도. TF=초기 dispatch 포함 최대 attempt 수 / CONDITION_CHECK=비-backpressure CHECK ERROR·CALL_TIMEOUT 허용 횟수.</dd>
-<dt id="g-fail-count">fail_count</dt><dd>"성공하지 못한 시도 횟수". maxFailCount 도달 시 task FAILED. backpressure·NOT_MET·poll 오류 미가산.</dd>
+<dt id="g-fail-count">fail_count</dt><dd>"성공하지 못한 시도 횟수". maxFailCount 도달 시 task FAILED. 미가산: backpressure·NOT_MET·TERRAFORM_JOB poll 오류(잡 못 읽음). 가산: TF dispatch/job 실패·CONDITION_CHECK CHECK_ERROR/CALL_TIMEOUT·drain 중 실제 실패.</dd>
 <dt id="g-max-external-calls">max_external_calls_per_tick</dt><dd>tick당 poll/check 발사 상한(기본 50). dispatch 제외(slotCap admission으로 제한). burst 완화.</dd>
 <dt id="g-split-brain">split-brain</dt><dd>lock 세션 유실로 두 pod가 잠시 둘 다 리더. 무해(workerPoolSize가 cap·CAS 수렴).</dd>
 <dt id="g-catch-up-burst">catch-up burst / wave</dt><dd>outage 복귀 첫 tick들의 밀린 작업 일괄 발화. slotCap·max_external_calls가 wave로 배수.</dd>
@@ -685,6 +695,11 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-last-checked-at">last_checked_at</dt><dd>tick이 task를 마지막 서비스(발사)한 시각. 기아 방지 정렬 키(ASC NULLS FIRST).</dd>
 <dt id="g-deadline-at">deadline_at</dt><dd>현재 적용 timeout의 절대 만료 시각(reconciler 파생값, 내부 비노출).</dd>
 <dt id="g-last-activity-at">last_activity_at</dt><dd>마지막 상태 전이 시각. 보드 기본 정렬 키(started_at과 다름).</dd>
+<dt id="g-col-started-at">started_at</dt><dd>(pipeline)RUNNING 진입=생성 시각·overlap 필터 기준 / (task)<b>첫 실행 개시</b>=READY→DISPATCHING(TF)·READY→WAITING_EXTERNAL(CONDITION_CHECK) 전이 시각(BLOCKED→READY 승격이 아님) / (attempt)dispatch 시작 / (task_check)run 첫 발사.</dd>
+<dt id="g-col-finished-at">finished_at</dt><dd>terminal 도달 시각(pipeline/task/attempt 각 grain).</dd>
+<dt id="g-col-created-at">created_at</dt><dd>pipeline 생성 시각(생성 즉시 RUNNING이라 started_at과 동일).</dd>
+<dt id="g-col-checked-at">checked_at</dt><dd>task_check run 마지막 관측 시각(DISPATCH PENDING이면 null).</dd>
+<dt id="g-dispatch-recovery-timeout">dispatch 복구 timeout</dt><dd>response 없는 DISPATCHING을 재dispatch하는 기준(기본 5분).</dd>
 </dl></div>
 
 <div class="gcat"><h3>상태 (task 9종 · pipeline 5종)</h3><dl>
@@ -738,6 +753,9 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-boot-assert">부팅 assert</dt><dd>부팅 시 default recipe handler 등록 검증(defense-in-depth).</dd>
 <dt id="g-ci-gate">pre-deploy CI 게이트</dt><dd>배포 전 prod DB non-terminal handler_key 검증(authoritative — 배포 차단; 부팅 assert보다 강함).</dd>
 <dt id="g-defense-in-depth">defense-in-depth</dt><dd>부팅 assert가 CI 게이트 뒤의 2차 방어.</dd>
+<dt id="g-definition-key">definition_key</dt><dd>recipe 식별자(예 AWS_INSTALL). snapshot이 보유.</dd>
+<dt id="g-release-version">release version</dt><dd>default recipe의 코드 릴리스 1개. 다중 버전 공존 lifecycle 불요(이력은 snapshot).</dd>
+<dt id="g-promotion">promotion</dt><dd>배포 승격. pre-deploy CI 게이트는 promotion 전에 실행돼 깨질 배포를 막는다.</dd>
 </dl></div>
 
 <div class="gcat"><h3>알림 · 이벤트 · 데이터</h3><dl>
@@ -748,7 +766,10 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-actor">actor (triggered_by)</dt><dd>행위 주체(human|system|ai). 감사·triggeredBy. ai는 향후 API principal.</dd>
 <dt id="g-col-payload">payload (jsonb)</dt><dd>이벤트 본문 저장. API message는 type별로 여기서 렌더(message는 저장 컬럼 아님).</dd>
 <dt id="g-col-notified-at">notified_at</dt><dd>Notifier가 찍는 발송 시각. IS NULL=미발송(outbox 커서).</dd>
+<dt id="g-pipeline-event">pipeline_event</dt><dd>감사 로그 + 알림 outbox(append-only). pipeline_id?·task_id?·type·severity·payload·actor·notified_at.</dd>
 <dt id="g-fail-reason">fail_reason</dt><dd>pipeline FAILED 수렴 원인 {task_id, error_code}(snake). CANCELLED/DONE/RUNNING=null. API DTO는 camel.</dd>
+<dt id="g-col-name">name</dt><dd>(task)표시 라벨(UX) / (task_check)호출 operation 식별자(예 im.terraformApply).</dd>
+<dt id="g-col-target-source-id">target_source_id</dt><dd>실행 단위 컬럼(1 pipeline : 1 target, 생성 시 고정).</dd>
 <dt id="g-col-error-detail">error_detail</dt><dd>task_attempt의 추가 실패 상세(error_code 옆).</dd>
 <dt id="g-col-error-code">error_code</dt><dd>실패 사유 코드 컬럼(task_attempt·task_check 각각).</dd>
 <dt id="g-col-response">response (jsonb)</dt><dd>dispatch 원응답·handle home(TF {job_id}). write-once.</dd>
@@ -768,6 +789,10 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-latest-check">latestCheck</dt><dd>started_at 최대 task_check(현재 열린 run). "확인 중" 표시 구동.</dd>
 <dt id="g-created-flag">created (retry)</dt><dd>POST /retry 응답. true=새 run / false=기존 non-terminal 반환.</dd>
 <dt id="g-spring-pageable">Spring Pageable</dt><dd>목록 페이지네이션(page·size·sort). content·totalElements·totalPages 봉투.</dd>
+<dt id="g-dto-blocks">DTO 빌딩블록</dt><dd>API 응답 모델: PipelineSummary·Pipeline·Task·Attempt·Check·PipelineEvent(orchestrator §1.2 스키마의 camelCase 표현).</dd>
+<dt id="g-op-names">im.terraformApply / im.jobStatus</dt><dd>task_check.name(호출 operation 식별자) 예 — dispatch가 부르는 run API / poll이 부르는 상태 API.</dd>
+<dt id="g-query-overlap">overlap (from / to)</dt><dd>run [started_at, finished_at)가 [from, to)와 겹치는 기간 횡단 조회.</dd>
+<dt id="g-page-envelope">Page envelope</dt><dd>Spring Page 응답 봉투(content·totalElements·totalPages·number·size).</dd>
 </dl></div>
 
 <div class="gcat"><h3>구현 런타임 (아키텍처 불변식 아님)</h3><dl>
@@ -797,6 +822,8 @@ dispatch당 1행      DISPATCH=호출당 1행 / CHECK=관측 run</pre></div>
 <dt id="g-removed-c-budget-formula">C-budget / call_deadline_at (제거)</dt><dd>구 D-T7 호출 예산 공식(in_flight, admit=C−in_flight). max_external_calls_per_tick 발사 상한으로 대체.</dd>
 <dt id="g-removed-attempt-id">attempt_id (미도입)</dt><dd>job_id 고유 발급이라 soft-link로 충분(O26).</dd>
 <dt id="g-removed-parameters">pipeline.parameters (미도입)</dt><dd>실행 입력 일반화 거부. 단위=target_source_id 고정.</dd>
+<dt id="g-removed-exec-context">TaskExecutionContext (제거)</dt><dd>범용 실행 컨텍스트. task는 target_source_id·attempt.response만 사용(개정 4판).</dd>
+<dt id="g-depends-on-removed">depends_on (제거)</dt><dd>의존 배열. seq predecessor + unique(pipeline_id, seq)로 대체.</dd>
 <dt id="g-removed-task-detail">task_check.detail (미도입)</dt><dd>terminal 스냅샷 컨테이너. postCheck와 함께 v2.</dd>
 <dt id="g-removed-cancel-requested-at">cancel_requested_at / intent row (미도입)</dt><dd>중단 의사 별도 컬럼/행. 안 둠 — CANCELLING 상태 자체가 표현, 감사는 pipeline_event(actor).</dd>
 <dt id="g-legacy-pipeline-defver">pipeline.definition_version (제거)</dt><dd>버전·구성은 snapshot 단일 보유(중복 비정규화 제거). snapshot.definition_version은 유지.</dd>
@@ -868,6 +895,7 @@ ADR-016 Install/Delete Pipeline Orchestration · 이 가이드는 <code>docs/adr
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')hide();});
   window.addEventListener('scroll',hide,{passive:true});
+  document.addEventListener('click',function(e){if(cur&&!e.target.closest('a.t')&&!e.target.closest('#tip'))hide();});
 
   /* 테마 */
   var root=document.documentElement, tb=document.getElementById('themeBtn');
@@ -889,8 +917,11 @@ ADR-016 Install/Delete Pipeline Orchestration · 이 가이드는 <code>docs/adr
   /* 글로서리 점프 / 목차 토글 */
   document.getElementById('glossBtn').addEventListener('click',function(){location.hash='#glossary';});
   var side=document.getElementById('side'), mb=document.getElementById('menuBtn');
-  mb.addEventListener('click',function(){side.classList.toggle('open');});
-  side.addEventListener('click',function(e){if(e.target.tagName==='A')side.classList.remove('open');});
+  mb.setAttribute('aria-expanded','false');
+  function setDrawer(o){side.classList.toggle('open',o);mb.setAttribute('aria-expanded',String(o));}
+  mb.addEventListener('click',function(){setDrawer(!side.classList.contains('open'));});
+  side.addEventListener('click',function(e){if(e.target.tagName==='A')setDrawer(false);});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')setDrawer(false);});
 
   /* scroll-spy */
   var links={}, navA=document.querySelectorAll('nav.side a[href^="#"]');
