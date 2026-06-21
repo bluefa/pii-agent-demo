@@ -23,7 +23,7 @@
 | job-poll cadence | 30–60초 | 전역(시스템) | TerraformJob 상태 폴링; task별 비노출 (결정 2) |
 | M (worker 풀 크기) | 고정 (배포 설정 — **settings API 비편집**; 출발값은 IM worker 풀 스펙에 맞춤, 예 4~8) | 전역 | **동시 terraform 실행 hard cap** — 초과 제출은 pubsub 큐가 흡수; 재배포로만 변경; N≈M의 기준 (4b) |
 | N (slot cap) | ≈ M (초안 3) | 전역 | pubsub 큐를 얕게 유지하는 제출 throttle(N≈M); 동시성 hard cap은 M이지 N 아님 (4b) |
-| max_external_calls_per_tick (외부 호출 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 호출 수; burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
+| max_external_calls_per_tick (due poll/check 발사 상한) | 50 (초기값, 런타임 조정) | 전역 | tick당 최대 발사 poll/check 호출 수(**dispatch 제외 — N-cap admission으로 제한**); burst 완화(정확한 동시성 보장 아님), poll 부하 보호 (D-T7) |
 | max_fail_count (= **K**, 초기 dispatch 포함 최대 attempt 수) | IM 스펙 최소 + crash-recovery 여유 (예 2~3) | task별(전역 기본값 위) | 자동 재시도 한도(재dispatch ≤ K−1); **기본값은 IM 최소가 아니라 crash-recovery headroom 포함**(좁은 pre-persist crash 창이 정상 job의 fail_count 1을 먹으므로, 결정 3.1 K 주석); **N·K = retry/orphan worst-case 제출 여유 산정값**, BFF 단독 global concurrency 보장식 아님 (1.2, 3.1, 4b) |
 | task_check 보존 | 90일 | 전역 | reconciler prune (1.3) |
 | queue-wait 알림 임계 | 30분 (제안) | 전역 | slot 큐 대기 초과 시 QUEUE_WAIT_EXCEEDED 발화(정의=아래 알림 섹션; 발화 경로 outbox=결정 1.3) |
@@ -61,7 +61,7 @@ task row에 **frozen**(결정 7.3)이라 **이미 생성된 in-flight run에는 
 - **N-cap(slot, N≈M)** — 그 큐를 얕게 유지하는 제출 throttle이지 동시성 안전장치가 아니다(split-brain 일시
   초과도 풀이 흡수). **N·K**는 retry/orphan worst-case 제출량 산정 참고값일 뿐 동시성 상한이 아니다.
   (풀이 autoscale이면 N-cap이 유일 throttle이 되고 전역 hard cap은 IM 429/503에 위임 — 결정 4b.)
-- **max_external_calls_per_tick** — tick당 발사 호출 수 상한(burst 완화). 정확한 global 동시성 보장이 아니라 완화 장치이며 정밀 강제는 IM 429/503에 위임(결정 6 D-T7).
+- **max_external_calls_per_tick** — tick당 due poll/check 발사 상한(burst 완화; **dispatch는 이 상한 밖 — N-cap admission으로 제한**, D-T7). 정확한 global 동시성 보장이 아니라 완화 장치이며 정밀 강제는 IM 429/503에 위임(결정 6 D-T7).
 - **⚠️ N↔execution-timeout 결합 (튜닝 주의).** execution timeout은 dispatch→job terminal 경과를 잰다. **N ≫ M이면**
   pubsub 큐가 깊어져 정상 job이 worker 큐에서 대기하는 시간까지 그 경과에 포함돼 **execution timeout이 오발**(정상
   대기 ≠ stuck)한다. 그래서 **N ≈ M**으로 큐를 얕게 유지하는 것이 timeout 정확도와 worker outage 감지 latency를
