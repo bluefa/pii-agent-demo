@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Badge } from '@/app/components/ui/Badge';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { tableStyles, textColors, cn } from '@/lib/theme';
+import { idcStyles, tableStyles, textColors, cn } from '@/lib/theme';
 import type { ResourceScanStatus } from '@/lib/types';
 
 export interface WaitingApprovalResource {
@@ -38,7 +38,7 @@ const formatScanStatus = (status: ResourceScanStatus | null | undefined): string
 
 const COLUMNS: readonly { label: string; widthClass?: string }[] = [
   { label: '#', widthClass: 'w-9' },
-  { label: 'DB Type' },
+  { label: 'Database Type' },
   { label: 'Resource ID' },
   { label: 'Region' },
   { label: 'Resource Name' },
@@ -48,6 +48,20 @@ const COLUMNS: readonly { label: string; widthClass?: string }[] = [
 ];
 
 const MONO_CELL = cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary);
+
+// v15 .approval-table tr.row-excluded — gray td bg + #6B7280 mono/res-id text.
+const EXCLUDED_CELL = 'bg-[#F2F4F6]';
+const EXCLUDED_MONO = 'text-[#6B7280]';
+
+const TargetPill = ({ excluded }: { excluded: boolean }) => {
+  const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
+  return (
+    <span className={cn(idcStyles.targetPill.base, variant.box)}>
+      <span className={cn(idcStyles.targetPill.dot, variant.dot)} />
+      {excluded ? '비대상' : '대상'}
+    </span>
+  );
+};
 
 export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingApprovalTableProps) => {
   if (resources.length === 0) {
@@ -71,15 +85,17 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
           </tr>
         </thead>
         <tbody className={tableStyles.body}>
-          {resources.map((resource, index) => (
+          {resources.map((resource, index) => {
+            const excluded = !resource.selected;
+            return (
             <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-              <td className={cn(tableStyles.cell, 'tabular-nums text-sm', textColors.secondary)}>
+              <td className={cn(tableStyles.cell, 'tabular-nums text-sm', textColors.secondary, excluded && EXCLUDED_CELL)}>
                 {index + 1}
               </td>
-              <td className={tableStyles.cell}>
+              <td className={cn(tableStyles.cell, excluded && EXCLUDED_CELL)}>
                 <Badge variant="info" size="sm">{resource.resourceType}</Badge>
               </td>
-              <td className={MONO_CELL}>
+              <td className={cn(MONO_CELL, excluded && cn(EXCLUDED_CELL, EXCLUDED_MONO))}>
                 <span className="inline-flex items-center gap-1">
                   <span>{resource.resourceId}</span>
                   <CopyButton
@@ -89,7 +105,7 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
                   />
                 </span>
               </td>
-              <td className={MONO_CELL}>
+              <td className={cn(MONO_CELL, excluded && cn(EXCLUDED_CELL, EXCLUDED_MONO))}>
                 {resource.region ? (
                   <span className="inline-flex items-center gap-1">
                     <span>{resource.region}</span>
@@ -101,7 +117,7 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
                   </span>
                 ) : PLACEHOLDER}
               </td>
-              <td className={MONO_CELL}>
+              <td className={cn(MONO_CELL, excluded && cn(EXCLUDED_CELL, EXCLUDED_MONO))}>
                 {resource.resourceName ? (
                   <span className="inline-flex items-center gap-1">
                     <span>{resource.resourceName}</span>
@@ -113,19 +129,13 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
                   </span>
                 ) : PLACEHOLDER}
               </td>
-              <td
-                className={cn(
-                  tableStyles.cell,
-                  'text-sm',
-                  resource.selected ? textColors.primary : textColors.tertiary,
-                )}
-              >
-                {resource.selected ? '대상' : '비대상'}
+              <td className={cn(tableStyles.cell, excluded && EXCLUDED_CELL)}>
+                <TargetPill excluded={excluded} />
               </td>
-              <td className={cn(tableStyles.cell, 'text-sm', textColors.secondary)}>
+              <td className={cn(tableStyles.cell, 'text-sm', textColors.secondary, excluded && EXCLUDED_CELL)}>
                 {formatScanStatus(resource.scanStatus)}
               </td>
-              <td className={cn(tableStyles.cell, 'text-sm')}>
+              <td className={cn(tableStyles.cell, 'text-sm', excluded && EXCLUDED_CELL)}>
                 {!resource.selected && resource.exclusionReason ? (
                   <ReasonChipInline
                     reason={resource.exclusionReason}
@@ -136,7 +146,8 @@ export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingAp
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

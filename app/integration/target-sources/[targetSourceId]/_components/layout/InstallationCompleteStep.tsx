@@ -46,7 +46,7 @@ const InstallationCompleteActions = () => {
         className={WARNING_OUTLINE_BUTTON_CLASS}
         onClick={stub('인프라 변경')}
       >
-        <EditIcon className="w-3.5 h-3.5" />
+        <EditIcon className="w-[13px] h-[13px]" />
         인프라 변경
       </button>
       <button
@@ -54,7 +54,7 @@ const InstallationCompleteActions = () => {
         className={WARNING_OUTLINE_BUTTON_CLASS}
         onClick={stub('연결 테스트 재실행')}
       >
-        <ReloadIcon className="w-3.5 h-3.5" />
+        <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
     </div>
@@ -96,7 +96,7 @@ export const InstallationCompleteStep = ({
           </div>
           <InstallationCompleteHeaderRight />
         </header>
-        <div className="p-6">
+        <div className={cardStyles.body}>
           <InstallationCompleteActions />
           <ConfirmedResourcesSlot variant="complete" />
         </div>

@@ -39,7 +39,7 @@ describe('WaitingApprovalTable', () => {
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
       '#',
-      'DB Type',
+      'Database Type',
       'Resource ID',
       'Region',
       'Resource Name',

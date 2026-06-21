@@ -79,7 +79,7 @@ const SearchBox = ({ value, onChange }: SearchBoxProps) => (
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      placeholder="Resource ID 또는 Name 검색"
+      placeholder="Resource ID 또는 DB Name 검색"
       className="h-8 w-full rounded-[8px] border border-[#E5E7EB] bg-white pl-[32px] pr-[12px] text-[12.5px] text-[#111827] outline-none focus:border-[#0064FF] focus:shadow-[0_0_0_3px_rgba(0,100,255,0.08)]"
       aria-label="리소스 검색"
     />

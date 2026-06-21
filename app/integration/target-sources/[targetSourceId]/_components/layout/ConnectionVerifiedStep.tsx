@@ -8,7 +8,7 @@ import { resolveStepSlot } from '@/app/components/features/process-status/GuideC
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -35,7 +35,7 @@ const ConnectionVerifiedRetestButton = () => {
         className={WARNING_OUTLINE_BUTTON_CLASS}
         onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}
       >
-        <ReloadIcon className="w-3.5 h-3.5" />
+        <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
     </div>
@@ -75,14 +75,8 @@ export const ConnectionVerifiedStep = ({
               PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
             </p>
           </div>
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-              statusColors.warning.bg,
-              statusColors.warning.textDark,
-            )}
-          >
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
+            <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
             승인 대기
           </span>
         </header>

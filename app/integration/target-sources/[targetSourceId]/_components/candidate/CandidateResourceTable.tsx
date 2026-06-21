@@ -15,6 +15,7 @@ import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   primaryColors,
   statusColors,
   tableStyles,
@@ -66,21 +67,21 @@ export const CandidateResourceTable = ({
 
   return (
     <div>
-      <div className={cn('rounded-lg border shadow-sm overflow-hidden', bgColors.surface, borderColors.default)}>
+      <div className={cn('rounded-xl border border-[#EBEEF2] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)] overflow-hidden', bgColors.surface)}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className={cn('whitespace-nowrap', tableStyles.header)}>
-                {showCheckboxColumn && <th className="px-6 py-3 w-10" />}
-                <th className="px-6 py-3">연동 대상 여부</th>
-                <th className="px-6 py-3">Database Type</th>
-                <th className="px-6 py-3">Resource ID</th>
-                <th className="px-6 py-3">Region</th>
-                <th className="px-6 py-3">Resource Name</th>
-                <th className="px-6 py-3">연동 완료 여부</th>
+              <tr className={cn('whitespace-nowrap', idcStyles.table.header)}>
+                {showCheckboxColumn && <th className={cn(idcStyles.table.headerCell, 'w-10')} />}
+                <th className={idcStyles.table.headerCell}>연동 대상 여부</th>
+                <th className={idcStyles.table.headerCell}>Database Type</th>
+                <th className={idcStyles.table.headerCell}>Resource ID</th>
+                <th className={idcStyles.table.headerCell}>Region</th>
+                <th className={idcStyles.table.headerCell}>Resource Name</th>
+                <th className={idcStyles.table.headerCell}>연동 완료 여부</th>
               </tr>
             </thead>
-            <tbody className={tableStyles.body}>
+            <tbody className={idcStyles.table.body}>
               {candidates.map((candidate) => (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -113,7 +114,7 @@ export const CandidateResourceTable = ({
             className="flex items-center gap-2"
           >
             {approvalSubmitting && <LoadingSpinner />}
-            연동 대상 확정 승인 요청
+            연동 대상 승인 요청
           </Button>
         </div>
       )}
@@ -185,7 +186,7 @@ const CandidateResourceRow = ({
         onClick={handleRowClick}
       >
         {showCheckboxColumn && (
-          <td className="px-6 py-3 w-10" onClick={(event) => event.stopPropagation()}>
+          <td className={cn(idcStyles.table.cell, 'w-10')} onClick={(event) => event.stopPropagation()}>
             <input
               type="checkbox"
               checked={isSelected}
@@ -196,13 +197,13 @@ const CandidateResourceRow = ({
           </td>
         )}
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           {isIneligible
             ? <Badge variant="pending" size="sm">비대상</Badge>
             : <Badge variant="success" size="sm">대상</Badge>}
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <div className="flex items-center gap-1.5">
             <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
             {showConfigNeeded && (
@@ -211,7 +212,7 @@ const CandidateResourceRow = ({
           </div>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <div className="flex items-center gap-2">
             <span className={cn('font-mono text-xs', textColors.tertiary)}>{candidate.resourceId}</span>
             <span onClick={(event) => event.stopPropagation()}>
@@ -234,15 +235,15 @@ const CandidateResourceRow = ({
           </div>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <span className={cn('font-mono text-xs', textColors.tertiary)}>{region}</span>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <span className={cn('text-xs', textColors.quaternary)}>—</span>
         </td>
       </tr>
