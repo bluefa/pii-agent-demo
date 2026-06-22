@@ -11,10 +11,12 @@ import {
   RejectionAlert,
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
-import { ConfirmedIntegrationDataProvider } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { ConfirmedResourcesSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
-import { ConnectionTestSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestSlot';
-import { LogicalDbSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSlot';
+import {
+  ConfirmedIntegrationDataProvider,
+  useConfirmedIntegration,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
+import { ConnectionTestCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard';
+import { ErrorRow, LoadingRow } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state-views';
 
 interface WaitingConnectionTestStepProps {
   project: CloudTargetSource;
@@ -24,6 +26,32 @@ interface WaitingConnectionTestStepProps {
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
+// Reads the shared confirmed-integration context — must render inside the provider.
+const ConnectionTestSection = ({
+  providerLabel,
+  refreshProject,
+}: {
+  providerLabel: string;
+  refreshProject: () => void;
+}) => {
+  const { state, retry } = useConfirmedIntegration();
+  if (state.status === 'loading') return <LoadingRow message="불러오는 중..." />;
+  if (state.status === 'error') return <ErrorRow message={state.message} onRetry={retry} />;
+  return (
+    <ConnectionTestCard
+      confirmed={state.data}
+      providerLabel={providerLabel}
+      refreshProject={refreshProject}
+    />
+  );
+};
+
+/**
+ * Cloud WAITING_CONNECTION_TEST step — v16 consolidates this into ONE 연결 테스트 card
+ * (`data-prov-view="azure gcp aws"`, HTML 6883). The former 연동 대상 정보 / 연결 테스트 패널 /
+ * 논리 DB 확인 slots collapse into ConnectionTestCard; the ConfirmedIntegrationDataProvider
+ * wrapper is preserved as the shared data source.
+ */
 export const WaitingConnectionTestStep = ({
   project,
   identity,
@@ -52,12 +80,7 @@ export const WaitingConnectionTestStep = ({
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
-      <ConfirmedResourcesSlot />
-      <ConnectionTestSlot
-        targetSourceId={project.targetSourceId}
-        refreshProject={refreshProject}
-      />
-      <LogicalDbSlot />
+      <ConnectionTestSection providerLabel={providerLabel} refreshProject={refreshProject} />
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>
   );
