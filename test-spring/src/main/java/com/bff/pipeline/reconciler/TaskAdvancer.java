@@ -145,6 +145,9 @@ public class TaskAdvancer {
         }
         if (attempt.getResponse() != null) { // step 5: response adopted by the call-thread → RUNNING
             if (tasks.casStatus(task.getId(), TaskStatus.DISPATCHING, TaskStatus.RUNNING) > 0) {
+                // Clear the dispatch in-flight park (next_check_at = fire + recoveryTimeout): make the task due
+                // now so the FIRST job poll fires on the next tick at the job-poll cadence, not after recovery.
+                tasks.setSchedule(task.getId(), now, now);
                 onTransition(pipeline, task, "TASK:RUNNING", Severity.INFO);
             }
             return;
@@ -152,19 +155,21 @@ public class TaskAdvancer {
         // Read the committed DISPATCH observation of THIS attempt. A hard reject (ERROR, error_code=IM_REJECTED)
         // fails the attempt now; backpressure (ERROR, null) and a single CALL_TIMEOUT (ERROR, CALL_TIMEOUT) hold
         // DISPATCHING and fall through to the time-based recovery / backoff re-dispatch below.
-        TaskCheck lastDispatch = checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(task.getId(), CheckKind.DISPATCH)
-                .filter(c -> !c.getStartedAt().isBefore(attempt.getStartedAt())) // scope to the current attempt
-                .orElse(null);
+        TaskCheck lastDispatch = checks.findFirstByTaskIdAndKindAndAttemptIdOrderByStartedAtDescIdDesc(
+                task.getId(), CheckKind.DISPATCH, attempt.getId()).orElse(null); // scoped to THIS attempt (clock-independent)
         if (lastDispatch != null && lastDispatch.getApiResult() == ApiResult.ERROR
                 && lastDispatch.getErrorCode() == ErrorCode.IM_REJECTED) {
             failDispatch(pipeline, task, attempt, ErrorCode.IM_REJECTED);
             return;
         }
         // Recovery: response never persisted past the recovery timeout → fail the attempt (DISPATCH_NO_RESPONSE).
-        // Suppressed ONLY while the last observation is the backpressure marker — "later" is not "no response",
-        // so backpressure holds the same attempt and only the backoff re-dispatch fires (state-machine 102/115).
+        // Suppressed ONLY while THIS attempt's last observation is the backpressure marker (ERROR, null) —
+        // "later" is not "no response", so backpressure holds the same attempt and only the backoff re-dispatch
+        // fires (state-machine 102/115). Reuses lastDispatch (already attempt-scoped) — no second query.
+        boolean lastIsBackpressure = lastDispatch != null
+                && lastDispatch.getApiResult() == ApiResult.ERROR && lastDispatch.getErrorCode() == null;
         boolean recoveryDue = !now.isBefore(attempt.getStartedAt().plus(settings.getDispatchRecoveryTimeout()));
-        if (recoveryDue && !isLastDispatchBackpressure(task.getId())) {
+        if (recoveryDue && !lastIsBackpressure) {
             failDispatch(pipeline, task, attempt, ErrorCode.DISPATCH_NO_RESPONSE);
             return;
         }
@@ -360,12 +365,11 @@ public class TaskAdvancer {
 
     // ---- helpers ----
 
-    /** The latest CHECK observation that belongs to the current attempt (started at/after it). Older runs from
-     *  a prior attempt's handle are scoped out so a stale FAILED/SUCCEEDED is never re-consumed (no double-count). */
+    /** The latest CHECK observation of the current attempt — scoped by attempt id (clock-independent), so a
+     *  prior attempt's stale FAILED/SUCCEEDED poll run is never re-consumed for a new attempt (no double-count). */
     private TaskCheck latestCheckForAttempt(Long taskId, TaskAttempt attempt) {
-        return checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(taskId, CheckKind.CHECK)
-                .filter(c -> !c.getStartedAt().isBefore(attempt.getStartedAt()))
-                .orElse(null);
+        return checks.findFirstByTaskIdAndKindAndAttemptIdOrderByStartedAtDescIdDesc(
+                taskId, CheckKind.CHECK, attempt.getId()).orElse(null);
     }
 
     /** true once the current observation's last poll/check happened at/after the deadline — a fresh confirm
@@ -381,12 +385,6 @@ public class TaskAdvancer {
         }
         return tasks.findByPipelineIdAndSeq(task.getPipelineId(), task.getSeq() - 1)
                 .map(t -> t.getStatus() == TaskStatus.DONE)
-                .orElse(false);
-    }
-
-    private boolean isLastDispatchBackpressure(Long taskId) {
-        return checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(taskId, CheckKind.DISPATCH)
-                .map(c -> c.getApiResult() == ApiResult.ERROR && c.getErrorCode() == null)
                 .orElse(false);
     }
 

@@ -284,6 +284,24 @@ class TaskAdvancerTest {
         assertThat(reload(task).getFailCount()).isEqualTo(1);
     }
 
+    @Test
+    void enteringRunningClearsTheDispatchParkSoTheFirstPollIsDuePromptly() {
+        // Regression: an accepted dispatch parks next_check_at at recoveryTimeout (so an in-flight dispatch is
+        // not re-fired). The DISPATCHING→RUNNING transition MUST reset that, or the first job poll waits
+        // ~recoveryTimeout (≈5 min) instead of the 30–60s job-poll cadence.
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.DISPATCHING, FakeTf.KEY);
+        seedAttempt(task.getId(), 1, "job-9", NOW, null); // response adopted → promotes to RUNNING this tick
+        task.setNextCheckAt(NOW.plus(Duration.ofMinutes(5))); // the dispatch in-flight park
+        tasks.save(task);
+
+        advancer.advance(pipeline, task, true, budget());
+
+        Task after = reload(task);
+        assertThat(after.getStatus()).isEqualTo(TaskStatus.RUNNING);
+        assertThat(after.getNextCheckAt()).isEqualTo(NOW); // reset to due-now (Reconciler fires the poll next tick), not the 5-min park
+    }
+
     // ---- RUNNING ----
 
     @Test
@@ -556,8 +574,8 @@ class TaskAdvancerTest {
     void dispatchingBackpressureSuppressesTheRecoveryFail() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
         Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.DISPATCHING, FakeTf.KEY, 0, 3);
-        seedAttempt(task.getId(), 1, null, NOW.minus(Duration.ofMinutes(10)), null); // old enough to be recovery-due
-        checks.save(dispatchObservation(task.getId(), ApiResult.ERROR, null)); // last DISPATCH obs = backpressure marker
+        TaskAttempt attempt = seedAttempt(task.getId(), 1, null, NOW.minus(Duration.ofMinutes(10)), null); // recovery-due
+        checks.save(dispatchObservation(task.getId(), attempt.getId(), ApiResult.ERROR, null)); // this attempt's last DISPATCH = backpressure marker
 
         advancer.advance(pipeline, task, false, budget()); // not due: no re-fire; recovery must be suppressed
 
@@ -585,6 +603,29 @@ class TaskAdvancerTest {
         TaskAttempt latest = attempts.findFirstByTaskIdOrderByAttemptNoDesc(task.getId()).orElseThrow();
         assertThat(latest.getAttemptNo()).isEqualTo(2);
         assertThat(latest.getResponse()).isEqualTo("job-redispatch");
+    }
+
+    @Test
+    void redispatchCorrelationIsClockIndependent() {
+        // Defect-2 regression: observation→attempt correlation is by attempt_id, NOT wall-clock started_at, so a
+        // stale prior-attempt reject never double-fails the new attempt even when the clock does NOT advance
+        // between the reject and the new attempt (the backward-clock-step hazard). Clock stays FIXED here.
+        Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
+        Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.DISPATCHING, FakeTf.KEY, 0, 3);
+        seedAttempt(task.getId(), 1, null, NOW, null);
+        tf.dispatch = new DispatchOutcome.Rejected("nope");
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires reject (queued)
+        callExecutor.drain();                             // attempt 1's (ERROR, IM_REJECTED) row at started_at=NOW, attempt_id=1
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads reject → attempt 1 fails, attempt 2 opens at started_at=NOW
+
+        tf.dispatch = new DispatchOutcome.Accepted("job-2");
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 3: attempt 2 (id≠1) is NOT stalled by the same-instant stale reject
+        callExecutor.drain();
+
+        TaskAttempt latest = attempts.findFirstByTaskIdOrderByAttemptNoDesc(task.getId()).orElseThrow();
+        assertThat(latest.getAttemptNo()).isEqualTo(2);
+        assertThat(latest.getResponse()).isEqualTo("job-2");          // attempt 2 dispatched normally
+        assertThat(reload(task).getFailCount()).isEqualTo(1);          // exactly ONE fail (attempt 1), never double-counted
     }
 
     @Test
@@ -682,9 +723,10 @@ class TaskAdvancerTest {
         return attempts.save(a);
     }
 
-    private TaskCheck dispatchObservation(Long taskId, ApiResult apiResult, ErrorCode errorCode) {
+    private TaskCheck dispatchObservation(Long taskId, Long attemptId, ApiResult apiResult, ErrorCode errorCode) {
         TaskCheck c = new TaskCheck();
         c.setTaskId(taskId);
+        c.setAttemptId(attemptId); // the tick scopes the DISPATCH read by attempt id (clock-independent)
         c.setKind(CheckKind.DISPATCH);
         c.setName("fake.tf:dispatch");
         c.setApiResult(apiResult);

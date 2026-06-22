@@ -63,7 +63,7 @@ public class ExternalCalls {
     }
 
     private void runDispatch(long taskId, long attemptId, TerraformJobHandler handler, String targetSourceId, String name) {
-        long checkId = observations.prerecordDispatch(taskId, name);
+        long checkId = observations.prerecordDispatch(taskId, attemptId, name);
         CallOutcome<DispatchOutcome> call = executor.call(
                 () -> handler.dispatch(new DispatchContext(targetSourceId)), settings.getPerCallDeadline());
         DispatchOutcome outcome = call.timedOut() ? new DispatchOutcome.CallTimeout() : call.value();
@@ -76,19 +76,20 @@ public class ExternalCalls {
     /** TERRAFORM_JOB job poll (CHECK, RLE). Reads the job by the adopted handle (attempt.response). */
     public void poll(Task task, TaskAttempt attempt, TerraformJobHandler handler, String targetSourceId) {
         long taskId = task.getId();
+        long attemptId = attempt.getId();
         String handle = attempt.getResponse();
         String name = operation(handler, "poll");
-        background.execute(() -> runPoll(taskId, handle, handler, targetSourceId, name));
+        background.execute(() -> runPoll(taskId, attemptId, handle, handler, targetSourceId, name));
     }
 
-    private void runPoll(long taskId, String handle, TerraformJobHandler handler, String targetSourceId, String name) {
+    private void runPoll(long taskId, long attemptId, String handle, TerraformJobHandler handler, String targetSourceId, String name) {
         CallOutcome<PollOutcome> call = executor.call(
                 () -> handler.poll(new PollContext(targetSourceId, handle)), settings.getPerCallDeadline());
         PollOutcome outcome = call.timedOut() ? new PollOutcome.CallFailed(ErrorCode.CALL_TIMEOUT) : call.value();
 
         Instant backpressureAt = outcome instanceof PollOutcome.Backpressure b
                 ? clock.instant().plus(pollBackoff(b.retryAfter())) : null;
-        observations.recordCheckObservation(taskId, name, handle, classify(outcome), call.latencyMs(), backpressureAt);
+        observations.recordCheckObservation(taskId, attemptId, name, handle, classify(outcome), call.latencyMs(), backpressureAt);
     }
 
     /** CONDITION_CHECK condition check (CHECK, RLE). No handle, no slot, no attempt. */
@@ -105,7 +106,8 @@ public class ExternalCalls {
 
         Instant backpressureAt = outcome instanceof CheckOutcome.Backpressure b
                 ? clock.instant().plus(checkBackoff(b.retryAfter())) : null;
-        observations.recordCheckObservation(taskId, name, null, classify(outcome), call.latencyMs(), backpressureAt);
+        // CONDITION_CHECK has no attempt → attemptId null (the MET/EXPIRED read is unscoped — no re-attempt).
+        observations.recordCheckObservation(taskId, null, name, null, classify(outcome), call.latencyMs(), backpressureAt);
     }
 
     private static Observation classify(PollOutcome outcome) {

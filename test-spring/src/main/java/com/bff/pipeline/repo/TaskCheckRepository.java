@@ -26,10 +26,18 @@ public interface TaskCheckRepository extends JpaRepository<TaskCheck, Long> {
     Optional<TaskCheck> findFirstByTaskIdOrderByStartedAtDescIdDesc(Long taskId);
 
     /**
-     * The latest row of one kind for a task — the tick's DISPATCH-recovery backpressure-hold reads the
-     * latest DISPATCH observation (api_result=ERROR, error_code=null = backpressure => hold, no fail).
+     * The latest row of one kind for a task — used for the CONDITION_CHECK MET/EXPIRED read (no attempt).
      */
     Optional<TaskCheck> findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(Long taskId, CheckKind kind);
+
+    /**
+     * The latest observation of one kind for a SPECIFIC attempt — the tick's clock-independent correlation
+     * for TERRAFORM_JOB (DISPATCH reject/backpressure recovery, job-poll terminal/timeout). Scoping by the
+     * attempt id (not wall-clock started_at) means a stale prior-attempt row is never read for a new attempt,
+     * even if the system clock steps backward between the two.
+     */
+    Optional<TaskCheck> findFirstByTaskIdAndKindAndAttemptIdOrderByStartedAtDescIdDesc(
+            Long taskId, CheckKind kind, Long attemptId);
 
     List<TaskCheck> findByTaskIdOrderByStartedAtAsc(Long taskId);
 

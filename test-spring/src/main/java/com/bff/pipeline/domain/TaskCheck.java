@@ -31,6 +31,14 @@ public class TaskCheck {
     @Column(nullable = false)
     private Long taskId;
 
+    /**
+     * The attempt this observation belongs to (DISPATCH rows + TERRAFORM_JOB poll runs); null for
+     * CONDITION_CHECK checks and tick-synthetic rows (no attempt). The tick correlates a committed
+     * observation to the CURRENT attempt by this id — clock-independent, so a stale prior-attempt
+     * observation is never mistaken for the current one even if the wall clock steps backward.
+     */
+    private Long attemptId;
+
     /** run first-fire time (CHECK) / call-fire time (DISPATCH). Sort + latestCheck key. */
     private Instant startedAt;
     /** run last-observation time (null while DISPATCH PENDING). */

@@ -41,9 +41,10 @@ public class ObservationWriter {
 
     /** Step 2: pre-record the DISPATCH row PENDING in its own committed tx (crash leaves the attempt marker). */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    long prerecordDispatch(long taskId, String name) {
+    long prerecordDispatch(long taskId, long attemptId, String name) {
         TaskCheck pending = new TaskCheck();
         pending.setTaskId(taskId);
+        pending.setAttemptId(attemptId);
         pending.setKind(CheckKind.DISPATCH);
         pending.setName(name);
         pending.setApiResult(ApiResult.PENDING);
@@ -98,7 +99,7 @@ public class ObservationWriter {
      * a changed observation opens a new run. On backpressure, defer {@code next_check_at}. One committed tx.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    void recordCheckObservation(long taskId, String name, String handle, Observation obs,
+    void recordCheckObservation(long taskId, Long attemptId, String name, String handle, Observation obs,
                                 long latencyMs, Instant backpressureNextCheckAt) {
         TaskCheck open = checks
                 .findFirstByTaskIdAndKindAndNameAndExternalHandleOrderByStartedAtDescIdDesc(
@@ -110,17 +111,18 @@ public class ObservationWriter {
             open.setLatencyMs(latencyMs); // last poll's latency — overwrite, not accumulate (§1.2)
             checks.save(open);
         } else {
-            checks.save(newRun(taskId, name, handle, obs, latencyMs));
+            checks.save(newRun(taskId, attemptId, name, handle, obs, latencyMs));
         }
         if (backpressureNextCheckAt != null) {
             tasks.setNextCheckAt(taskId, backpressureNextCheckAt);
         }
     }
 
-    private TaskCheck newRun(long taskId, String name, String handle, Observation obs, long latencyMs) {
+    private TaskCheck newRun(long taskId, Long attemptId, String name, String handle, Observation obs, long latencyMs) {
         Instant now = clock.instant();
         TaskCheck run = new TaskCheck();
         run.setTaskId(taskId);
+        run.setAttemptId(attemptId); // TF poll: the owning attempt; null for CONDITION_CHECK
         run.setKind(CheckKind.CHECK);
         run.setName(name);
         run.setExternalHandle(handle);
