@@ -21,12 +21,18 @@ public class CheckView {
     private final CheckKind kind;
     private final String name;
     private final ApiResult apiResult;
+    @Nullable
     private final Observed observed;
+    @Nullable
     private final ErrorCode errorCode;
+    @Nullable
     private final String externalHandle;
+    @Nullable
     private final Instant startedAt;
+    @Nullable
     private final Instant checkedAt;
     private final int pollCount;
+    @Nullable
     private final Long latencyMs;
 
     @Nullable

@@ -4,6 +4,7 @@ import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.service.handler.PipelineHandler;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.lang.Nullable;
 
 import java.time.Duration;
 
@@ -20,9 +21,13 @@ public class TaskDefinition {
     private final String name;
     private final Class<? extends PipelineHandler> handlerClass;
     private final TaskKind kind;
+    @Nullable
     private final Duration ttl;
+    @Nullable
     private final Duration pollingInterval;
+    @Nullable
     private final Duration executionTimeout;
+    @Nullable
     private final Integer maxFailCount;
 
     public static TaskDefinition terraformJob(String name, Class<? extends PipelineHandler> handlerClass) {

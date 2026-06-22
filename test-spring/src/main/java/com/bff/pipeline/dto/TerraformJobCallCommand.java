@@ -3,6 +3,7 @@ package com.bff.pipeline.dto;
 import com.bff.pipeline.service.handler.TerraformJobHandler;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.lang.Nullable;
 
 /**
  * Scalars captured for a TERRAFORM_JOB call that runs on the fire-and-forget pool (dispatch or poll).
@@ -16,6 +17,7 @@ public class TerraformJobCallCommand {
 
     private final long taskId;
     private final long attemptId;
+    @Nullable
     private final String handle;
     private final TerraformJobHandler handler;
     private final String targetSourceId;
