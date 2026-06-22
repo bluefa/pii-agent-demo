@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { bgColors, cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
@@ -66,6 +68,11 @@ export const ConfirmedIntegrationTable = ({
   confirmed,
   variant = 'pre-install',
 }: ConfirmedIntegrationTableProps) => {
+  // Display-only pagination, mirroring IdcResourceTable. Hooks run before the
+  // empty-state early return so hook order stays stable across renders.
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
   if (confirmed.length === 0) {
     return (
       <div className={cn('px-6 py-12 text-sm text-center', textColors.tertiary)}>
@@ -73,6 +80,9 @@ export const ConfirmedIntegrationTable = ({
       </div>
     );
   }
+
+  const safePage = Math.min(page, Math.max(0, Math.ceil(confirmed.length / pageSize) - 1));
+  const pageRows = confirmed.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   const headerCellClass = cn(
     tableStyles.headerCell,
@@ -85,6 +95,7 @@ export const ConfirmedIntegrationTable = ({
   if (variant === 'complete') {
     const demoUnhealthyId = pickDemoUnhealthyId(confirmed);
     return (
+      <>
       <div className={idcStyles.table.frame}>
       <table className="w-full text-sm">
         <thead className={bgColors.muted}>
@@ -105,7 +116,7 @@ export const ConfirmedIntegrationTable = ({
           </tr>
         </thead>
         <tbody className={tableStyles.body}>
-          {confirmed.map((resource) => {
+          {pageRows.map((resource) => {
             const [targetCount, excludedCount] = deriveLogicalDbCounts(resource.resourceId);
             return (
               <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
@@ -131,6 +142,18 @@ export const ConfirmedIntegrationTable = ({
         </tbody>
       </table>
       </div>
+      <Pagination
+        page={safePage}
+        pageSize={pageSize}
+        totalCount={confirmed.length}
+        onPageChange={setPage}
+        onPageSizeChange={(next) => {
+          setPageSize(next);
+          setPage(0);
+        }}
+        pageSizeOptions={[10, 20, 50, 100]}
+      />
+      </>
     );
   }
 

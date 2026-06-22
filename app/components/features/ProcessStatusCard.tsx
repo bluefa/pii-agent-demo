@@ -1,17 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { CloudTargetSource, ProcessStatus } from '@/lib/types';
 import { getProcessStatus, getProject } from '@/app/lib/api';
 import { InstallationProcessProgressBar } from '@/app/components/features/process-status';
 import { TIMINGS } from '@/lib/constants/timings';
-import { borderColors, cn, primaryColors, interactiveColors } from '@/lib/theme';
-
-type ProcessTabType = 'status';
-
-const TABS: { id: ProcessTabType; label: string }[] = [
-  { id: 'status', label: '프로세스 진행 상태' },
-];
+import { cardStyles, cn } from '@/lib/theme';
 
 interface ProcessStatusCardProps {
   project: CloudTargetSource;
@@ -22,8 +16,6 @@ export const ProcessStatusCard = ({
   project,
   onProjectUpdate,
 }: ProcessStatusCardProps) => {
-  const [activeTab, setActiveTab] = useState<ProcessTabType>('status');
-
   const currentStep = project.processStatus;
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -74,31 +66,14 @@ export const ProcessStatusCard = ({
   }, [currentStep, project.targetSourceId, stableOnProjectUpdate]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
-      <div className={cn('border-b', borderColors.default)}>
-        <nav className="flex">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'px-6 py-4 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab.id
-                  ? `${primaryColors.border} ${primaryColors.text}`
-                  : interactiveColors.inactiveTab
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+    <section className={cn(cardStyles.base, 'overflow-hidden')}>
+      <header className={cardStyles.header}>
+        <h2 className={cardStyles.cardTitle}>프로세스 진행 상태</h2>
+      </header>
 
-      <div className="p-6 flex-1 flex flex-col">
-        {activeTab === 'status' && (
-          <InstallationProcessProgressBar currentStep={currentStep} />
-        )}
+      <div className={cardStyles.body}>
+        <InstallationProcessProgressBar currentStep={currentStep} />
       </div>
-    </div>
+    </section>
   );
 };
