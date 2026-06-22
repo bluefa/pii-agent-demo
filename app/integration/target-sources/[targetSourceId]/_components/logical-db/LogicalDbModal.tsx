@@ -82,8 +82,8 @@ export const LogicalDbModal = ({
     <Modal
       isOpen={open}
       onClose={onClose}
-      size="2xl"
-      title="논리 DB 확인"
+      size="logical"
+      title=""
       footer={
         <div className="flex w-full items-center justify-between gap-2">
           <span className={cn('text-[12px]', textColors.tertiary)}>
@@ -115,6 +115,14 @@ export const LogicalDbModal = ({
         </div>
       }
     >
+      {/*
+        v16 `.lg-title` — 20px / 700 / -0.02em / line-height 1.2 / #191F28.
+        Rendered here (not via Modal's title) because the shared Modal locks its
+        default title at 18px; other Modal callers must not regress.
+      */}
+      <h2 className="mb-2 text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#191F28]">
+        논리 DB 확인
+      </h2>
       {/* v16 `.lg-resource` — uppercase 12px/700 key + mono 12px/600 primary value */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span
