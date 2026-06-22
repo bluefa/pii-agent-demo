@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
 import { useToast } from '@/app/components/ui/toast';
 import {
@@ -51,10 +52,10 @@ interface ConnectionTestCardProps {
 }
 
 /**
- * Cloud Step 5 — 연결 테스트 (v16 `data-prov-view="azure gcp aws"` card). Collapses
- * the former 연동 대상 정보 + 연결 테스트 패널 + 논리 DB 확인 slots into one card that
- * mirrors the IDC step5 layout: conn-progress strip + a single table (cred select +
- * Connection Status + 논리 DB 확인) + a gated 완료 승인 요청 → CloudReqApprovalModal.
+ * Cloud Step 5 — connection test (v16 `data-prov-view="azure gcp aws"` card). Collapses
+ * the former confirmed-resources + connection-test panel + logical-DB-check slots into one
+ * card that mirrors the IDC step5 layout: conn-progress strip + a single table (cred select +
+ * Connection Status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
  *
  * Run Test is a demo simulation matching the approved IDC sibling: it flips a local
  * `testing` flag for ~1.8s, then settles every credentialed row to SUCCESS.
@@ -69,6 +70,8 @@ export const ConnectionTestCard = ({
   const [rows, setRows] = useState<ConnRow[]>(() => seedRows(confirmed));
   const [testing, setTesting] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const testTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logicalModal = useModal<LogicalModalTarget>();
   const toast = useToast();
@@ -124,6 +127,12 @@ export const ConnectionTestCard = ({
   const okCount = rows.filter((r) => r.credentialId && r.connection === 'SUCCESS').length;
   const pendingCount = total - okCount;
   const progressPct = total > 0 ? Math.round((okCount / total) * 100) : 0;
+  // Completion-approval gate (v16 connApproveBtn): only when every target is connected and
+  // no test is in flight. The footer hint promises this, and it mirrors the IDC modal gate.
+  const canRequestApproval = total > 0 && okCount === total && !testing;
+
+  const safePage = Math.min(page, Math.max(0, Math.ceil(total / pageSize) - 1));
+  const pageRows = rows.slice(safePage * pageSize, safePage * pageSize + pageSize);
   const progressState: ConnProgressState = testing
     ? 'running'
     : total > 0 && pendingCount === 0
@@ -191,7 +200,7 @@ export const ConnectionTestCard = ({
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
-              {rows.map((row) => {
+              {pageRows.map((row) => {
                 const { resource } = row;
                 const connected = !!row.credentialId && row.connection === 'SUCCESS';
                 return (
@@ -250,6 +259,19 @@ export const ConnectionTestCard = ({
             </tbody>
           </table>
         </div>
+        {total > 0 && (
+          <Pagination
+            page={safePage}
+            pageSize={pageSize}
+            totalCount={total}
+            onPageChange={setPage}
+            onPageSizeChange={(next) => {
+              setPageSize(next);
+              setPage(0);
+            }}
+            pageSizeOptions={[10, 20, 50, 100]}
+          />
+        )}
         <div className="flex items-center justify-between mt-4">
           <p className={cn('text-[12px]', textColors.tertiary)}>
             ※ 모든 DB의 Connection Status가 Success이고 논리 DB 확인 설정이 완료되어야 다음 단계로 진행할 수
@@ -258,7 +280,7 @@ export const ConnectionTestCard = ({
           <button
             type="button"
             onClick={() => setApprovalOpen(true)}
-            disabled={testing}
+            disabled={!canRequestApproval}
             className={idcStyles.triggerBtn.primary}
           >
             완료 승인 요청

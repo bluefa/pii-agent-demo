@@ -15,7 +15,7 @@ interface CloudReqApprovalModalProps {
   onSubmit: () => void;
 }
 
-// v16 raRender surfaces per-resource logical-DB counts (총 개수 / 제외). The BFF
+// v16 raRender surfaces per-resource logical-DB counts (total / excluded). The BFF
 // contract does not carry these yet, so mirror ConfirmedIntegrationTable's stable
 // hash → [target, excluded] pair.
 // ponytail: duplicated ~12 lines from ConfirmedIntegrationTable; fold into one shared
@@ -42,8 +42,8 @@ const deriveLogicalDbCounts = (resourceId: string): readonly [number, number] =>
 /**
  * Cloud completion-approval modal — v16 `#reqApprovalModal` (760px). Logical-DB
  * summary stats + a read-only resource table. Submit is ungated (the card's
- * 완료 승인 요청 button gates on connection state before this opens) and advances the
- * step via refetch, matching v16 `submitReqApproval` → `setStep(6)`.
+ * completion-approval button gates on connection state before this opens) and advances
+ * the step via refetch, matching v16 `submitReqApproval` → `setStep(6)`.
  */
 export const CloudReqApprovalModal = ({
   isOpen,
@@ -157,7 +157,7 @@ export const CloudReqApprovalModal = ({
                       </td>
                       <td className={cn(idcStyles.table.cell, 'text-right')}>
                         {excluded > 0 ? (
-                          <span className="font-semibold text-[#B45309]">{excluded}</span>
+                          <span className={idcStyles.reqModal.exclNum}>{excluded}</span>
                         ) : (
                           <span className={cn('font-medium', textColors.quaternary)}>0</span>
                         )}

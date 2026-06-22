@@ -69,12 +69,14 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
-  it('settles credentialed rows to Success and enables 설정 after Run Test', async () => {
+  it('gates 완료 승인 요청 until every row connects, then enables it after Run Test', async () => {
     vi.useFakeTimers();
     try {
       renderCard([makeResource({ credentialId: 'Key1' })]);
       expect(screen.getByText('Pending')).toBeTruthy();
+      // Pre-test: 설정 + 완료 승인 요청 are gated on a successful connection.
       expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
+      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
 
       fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
       await act(async () => {
@@ -83,6 +85,7 @@ describe('ConnectionTestCard', () => {
 
       expect(screen.getByText('Success')).toBeTruthy();
       expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', false);
+      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false);
     } finally {
       vi.useRealTimers();
     }

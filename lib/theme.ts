@@ -642,6 +642,8 @@ export const idcStyles = {
     thHeader: 'bg-[#FAFBFC] text-left text-[11px] font-bold uppercase tracking-[0.05em] text-[#9CA3AF]',
     /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
     statLabel: 'text-[11.5px]',
+    /** `.rm-num` excluded logical-DB count — amber (v16 raRender exclCell #B45309). */
+    exclNum: 'font-semibold text-[#B45309]',
   },
   /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
   connProgress: {
