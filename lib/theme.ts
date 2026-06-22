@@ -566,7 +566,7 @@ export const idcStyles = {
     dot: 'w-2 h-2 rounded-full',
     healthy: { text: 'text-[#2A7D52]', dot: 'bg-[#45CB85]' },
     unhealthy: { text: 'text-[#991B1B]', dot: 'bg-[#991B1B]' },
-    /** `.status.partial` — orange "승인 대기"/pending-approval inline label (03-status-tag-pill §2). */
+    /** `.status.partial` — orange pending-approval inline label (03-status-tag-pill §2). */
     partial: { text: 'text-[#9A3412]', dot: 'bg-[#F97316]' },
   },
   /** Target yes/no pill — `.target-pill` (3px 9px / radius 999 / 11.5px / 600 / dot 6px). */
@@ -638,6 +638,10 @@ export const idcStyles = {
     title: 'mt-2 text-[23px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
     sub: 'mt-1.5 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
     warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
+    /** `.req-modal .db-list-table th` override — 11px uppercase #9CA3AF (v16 2682). */
+    thHeader: 'bg-[#FAFBFC] text-left text-[11px] font-bold uppercase tracking-[0.05em] text-[#9CA3AF]',
+    /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
+    statLabel: 'text-[11.5px]',
   },
   /** Toss textarea — borderless #F7F8FA fill / radius 12. */
   textarea: 'w-full rounded-xl border-0 bg-[#F7F8FA] px-3.5 py-3 text-[15px] font-medium leading-[1.6] text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] resize-none',

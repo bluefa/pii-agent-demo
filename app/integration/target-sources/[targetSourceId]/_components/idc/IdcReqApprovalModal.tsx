@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { cn, idcStyles, interactiveColors, modalStyles, textColors } from '@/lib/theme';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { StatTile } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import {
   IdcConnStatusCell,
@@ -37,6 +38,9 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
     };
   }, [isOpen, onClose]);
 
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+
   if (!isOpen) return null;
 
   const live = resources.filter((r) => !r.excluded);
@@ -44,6 +48,8 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
   const ok = live.filter((r) => !!r.credentialId && r.connection === 'SUCCESS').length;
   const waiting = total - ok;
   const blocked = waiting > 0;
+  const safePage = Math.min(page, Math.max(0, Math.ceil(total / pageSize) - 1));
+  const pageRows = live.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   return (
     <div
@@ -90,7 +96,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
           </div>
           <div className={idcStyles.table.frame}>
             <table className="w-full">
-              <thead className={idcStyles.table.header}>
+              <thead className={idcStyles.reqModal.thHeader}>
                 <tr>
                   <th className={cn(idcStyles.table.headerCell, 'w-[96px]')}>구분</th>
                   <th className={idcStyles.table.headerCell}>연동 대상</th>
@@ -100,7 +106,7 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
                 </tr>
               </thead>
               <tbody className={idcStyles.table.body}>
-                {live.map((r) => (
+                {pageRows.map((r) => (
                   <tr key={r.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>
                       <IdcKindBadge kind={r.kind} />
@@ -122,6 +128,18 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
               </tbody>
             </table>
           </div>
+          {total > 0 && (
+            <Pagination
+              page={safePage}
+              pageSize={pageSize}
+              totalCount={total}
+              onPageChange={setPage}
+              onPageSizeChange={(next) => {
+                setPageSize(next);
+                setPage(0);
+              }}
+            />
+          )}
           {blocked && (
             <div className={idcStyles.reqModal.warn}>
               연결 미완료 {waiting}건이 있어요 — 자격 증명을 선택하고 Run Test를 실행해 모든 대상이 Success가 되어야
