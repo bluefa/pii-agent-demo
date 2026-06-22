@@ -1,11 +1,13 @@
 package com.bff.pipeline.service;
+import com.bff.pipeline.dto.PipelineCreationRequest;
+import com.bff.pipeline.dto.PipelineCreationResult;
 
-import com.bff.pipeline.domain.Actor;
-import com.bff.pipeline.domain.PipelineType;
-import com.bff.pipeline.repo.PipelineDefSnapshotRepository;
-import com.bff.pipeline.repo.PipelineEventRepository;
-import com.bff.pipeline.repo.PipelineRepository;
-import com.bff.pipeline.repo.TaskRepository;
+import com.bff.pipeline.type.Actor;
+import com.bff.pipeline.type.PipelineType;
+import com.bff.pipeline.repository.PipelineDefSnapshotRepository;
+import com.bff.pipeline.repository.PipelineEventRepository;
+import com.bff.pipeline.repository.PipelineRepository;
+import com.bff.pipeline.repository.TaskRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * run returns the existing run ({@code created == false}) instead of erroring.
  *
  * <p>This requires the FIRST run to be committed before the second collides, so the second
- * {@code saveAndFlush} actually violates the non-terminal-unique column and {@link NewRunWriter}'s own
+ * {@code saveAndFlush} actually violates the non-terminal-unique column and {@link PipelineRunWriter}'s own
  * {@code @Transactional} surfaces a real {@link org.springframework.dao.DataIntegrityViolationException}.
  * The class therefore SUPPRESSES the @DataJpaTest wrapping transaction with
  * {@link Propagation#NOT_SUPPORTED} (the documented exception to "no @Transactional on tests": we are
@@ -31,11 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @Import({
         PipelineCreationService.class,
-        NewRunWriter.class,
-        EventRecorder.class,
-        com.bff.pipeline.handler.HandlerRegistry.class,
-        com.bff.pipeline.recipe.RecipeRegistry.class,
-        com.bff.pipeline.ops.RuntimeSettings.class,
+        PipelineRunWriter.class,
+        PipelineEventRecorder.class,
+        com.bff.pipeline.service.handler.PipelineHandlerRegistry.class,
+        com.bff.pipeline.service.recipe.RecipeRegistry.class,
         PipelineCreationServiceTest.Wiring.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -64,15 +65,16 @@ class PipelineCreationDuplicateTest {
 
     @Test
     void secondCreateForSameNonTerminalTargetReturnsExistingRunWithoutCreating() {
-        CreationRequest request = new CreationRequest(PipelineType.INSTALL, "TEST", TARGET, Actor.HUMAN);
+        PipelineCreationRequest request = PipelineCreationRequest.builder()
+                .type(PipelineType.INSTALL).provider("TEST").targetSourceId(TARGET).triggeredBy(Actor.HUMAN).build();
 
-        CreationResult first = creation.create(request);
-        CreationResult second = creation.create(request);
+        PipelineCreationResult first = creation.create(request);
+        PipelineCreationResult second = creation.create(request);
 
-        assertThat(first.created()).isTrue();
-        assertThat(second.created()).isFalse();
-        assertThat(second.pipeline().getId()).isEqualTo(first.pipeline().getId());
+        assertThat(first.isCreated()).isTrue();
+        assertThat(second.isCreated()).isFalse();
+        assertThat(second.getPipeline().getId()).isEqualTo(first.getPipeline().getId());
         assertThat(pipelines.findByStatusInOrderByIdAsc(
-                java.util.List.of(com.bff.pipeline.domain.PipelineStatus.RUNNING))).hasSize(1);
+                java.util.List.of(com.bff.pipeline.type.PipelineStatus.RUNNING))).hasSize(1);
     }
 }

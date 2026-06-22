@@ -115,8 +115,3 @@ CREATE TABLE pipeline_def_snapshot (
     provider           TEXT  NOT NULL,
     spec               TEXT  NOT NULL        -- resolved recipe JSON (snake_case keys, ADR-019; String-mapped)
 );
-
-CREATE TABLE setting (
-    setting_key   TEXT PRIMARY KEY,
-    setting_value TEXT NOT NULL
-);
