@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { cn, primaryColors } from '@/lib/theme';
 
 type TooltipSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -56,8 +57,20 @@ export const Tooltip = ({
   triggerClassName,
 }: TooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [actualPosition, setActualPosition] = useState(position);
-  const [horizontalOffset, setHorizontalOffset] = useState(0);
+  // `actualPosition` is the resolved top/bottom placement after viewport flip.
+  // left/right requests collapse onto the top/bottom axis since the floating tip
+  // is centered on the trigger horizontally.
+  const [actualPosition, setActualPosition] = useState<'top' | 'bottom'>(
+    position === 'bottom' ? 'bottom' : 'top'
+  );
+  // Fixed-viewport coordinates for the portaled popover. `null` until measured:
+  // the popover mounts invisibly (opacity-0) so its height can be read, then
+  // becomes visible only once these real coords are committed — so its first
+  // *visible* frame is already at the final position (no slide from the origin).
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
+  // Horizontal pixel offset between the box center and the trigger center after
+  // viewport clamping, so the arrow can keep pointing at the trigger.
+  const [arrowOffset, setArrowOffset] = useState(0);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -66,96 +79,100 @@ export const Tooltip = ({
   // preserve the prop's place in the public API.
   void size;
 
-  useEffect(() => {
-    if (isVisible && tooltipRef.current && containerRef.current) {
-      const tooltip = tooltipRef.current.getBoundingClientRect();
-      const container = containerRef.current.getBoundingClientRect();
-      const padding = 16; // 화면 가장자리 여백
+  // Box geometry constants used for both positioning math and rendering.
+  const BOX_WIDTH = 280;
+  const GAP = 8; // distance between trigger edge and box (matches mb-2/mt-2)
+  const PADDING = 16; // viewport edge padding
 
-      queueMicrotask(() => {
-        // 상하 위치 조정
-        if (position === 'top' && container.top - tooltip.height < padding) {
-          setActualPosition('bottom');
-        } else if (position === 'bottom' && container.bottom + tooltip.height > window.innerHeight - padding) {
-          setActualPosition('top');
-        } else {
-          setActualPosition(position);
-        }
-
-        // 좌우 잘림 방지 (top/bottom 포지션일 때)
-        if (position === 'top' || position === 'bottom') {
-          const tooltipLeft = container.left + container.width / 2 - tooltip.width / 2;
-          const tooltipRight = tooltipLeft + tooltip.width;
-
-          if (tooltipLeft < padding) {
-            // 왼쪽으로 잘림 → 오른쪽으로 이동
-            setHorizontalOffset(padding - tooltipLeft);
-          } else if (tooltipRight > window.innerWidth - padding) {
-            // 오른쪽으로 잘림 → 왼쪽으로 이동
-            setHorizontalOffset(window.innerWidth - padding - tooltipRight);
-          } else {
-            setHorizontalOffset(0);
-          }
-        }
-      });
+  useLayoutEffect(() => {
+    // When hidden, drop coords so the next reveal re-measures from scratch and
+    // re-arms the invisible-mount → measure → reveal sequence. Deferred to keep
+    // the commit out of the effect body (repo lint: no sync setState in effects).
+    if (!isVisible) {
+      queueMicrotask(() => setCoords(null));
+      return;
     }
-  }, [isVisible, position]);
+    if (!tooltipRef.current || !containerRef.current) return;
 
-  const getPositionClasses = () => {
-    const base = {
-      top: 'bottom-full mb-2',
-      bottom: 'top-full mt-2',
-      left: 'right-full top-1/2 -translate-y-1/2 mr-2',
-      right: 'left-full top-1/2 -translate-y-1/2 ml-2',
-    };
-    return base[actualPosition];
-  };
+    // Read the popover's real height while it is mounted invisibly; width is the
+    // fixed BOX_WIDTH. Runs before paint (layout effect) so the value is ready
+    // for the same frame the popover becomes visible.
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const container = containerRef.current.getBoundingClientRect();
+    const triggerCenterX = container.left + container.width / 2;
+
+    // Vertical: default place above the trigger; flip below if there isn't room
+    // above within the viewport.
+    const wantsBottom = position === 'bottom';
+    const fitsAbove = container.top - tooltipRect.height - GAP >= PADDING;
+    const fitsBelow = container.bottom + tooltipRect.height + GAP <= window.innerHeight - PADDING;
+
+    let resolved: 'top' | 'bottom';
+    if (wantsBottom) {
+      resolved = fitsBelow || !fitsAbove ? 'bottom' : 'top';
+    } else {
+      resolved = fitsAbove || !fitsBelow ? 'top' : 'bottom';
+    }
+
+    const top =
+      resolved === 'top'
+        ? container.top - tooltipRect.height - GAP
+        : container.bottom + GAP;
+
+    // Horizontal: center on the trigger, then clamp into the viewport.
+    const idealLeft = triggerCenterX - BOX_WIDTH / 2;
+    const maxLeft = window.innerWidth - PADDING - BOX_WIDTH;
+    const clampedLeft = Math.max(PADDING, Math.min(idealLeft, maxLeft));
+
+    // Defer the position commit out of the effect body: the geometry is derived
+    // from a post-mount DOM measurement, so a synchronous setState here would be
+    // a cascading render. queueMicrotask matches the existing repo pattern.
+    queueMicrotask(() => {
+      setActualPosition(resolved);
+      setCoords({ left: clampedLeft, top });
+      // Arrow should sit at the trigger center relative to the (possibly clamped)
+      // box left edge.
+      setArrowOffset(triggerCenterX - clampedLeft);
+    });
+  }, [isVisible, position]);
 
   const box = variantStyles[variant];
 
-  const getTooltipStyle = (): React.CSSProperties => {
-    const common: React.CSSProperties = {
-      width: '280px',
-      background: box.box,
-      color: '#FFFFFF',
-      borderRadius: box.radius,
-      padding: '12px 14px',
-      boxShadow: box.shadow,
-      fontSize: '11.5px',
-      fontWeight: 400,
-      lineHeight: box.lineHeight,
-      // Reset the global inherited -0.018em so popover text is not spaced.
-      letterSpacing: 0,
-      textTransform: 'none',
-      whiteSpace: 'normal',
-    };
-    if (actualPosition === 'top' || actualPosition === 'bottom') {
-      return {
-        ...common,
-        left: '50%',
-        transform: `translateX(calc(-50% + ${horizontalOffset}px))`,
-      };
-    }
-    return common;
-  };
+  const getTooltipStyle = (): React.CSSProperties => ({
+    position: 'fixed',
+    // While `coords` is null the box is opacity-0 (see render), so the origin
+    // 0,0 here is never a visible frame — by the time opacity flips to 1 these
+    // are the real measured coordinates.
+    left: `${coords?.left ?? 0}px`,
+    top: `${coords?.top ?? 0}px`,
+    width: `${BOX_WIDTH}px`,
+    background: box.box,
+    color: '#FFFFFF',
+    borderRadius: box.radius,
+    padding: '12px 14px',
+    boxShadow: box.shadow,
+    fontSize: '11.5px',
+    fontWeight: 400,
+    lineHeight: box.lineHeight,
+    // Reset the global inherited -0.018em so popover text is not spaced.
+    letterSpacing: 0,
+    textTransform: 'none',
+    whiteSpace: 'normal',
+  });
 
   // v15 arrow = a 10×10 square rotated 45deg in the box color (not a CSS border
-  // triangle). Sits at the edge of the box facing the trigger.
-  const getArrowStyle = (): React.CSSProperties => {
-    const common: React.CSSProperties = {
-      width: '10px',
-      height: '10px',
-      background: box.box,
-      transform: 'rotate(45deg)',
-    };
-    const edge: Record<typeof actualPosition, React.CSSProperties> = {
-      top: { top: 'calc(100% - 5px)', left: 'calc(50% - 5px)' },
-      bottom: { top: '-5px', left: 'calc(50% - 5px)' },
-      left: { left: 'calc(100% - 5px)', top: 'calc(50% - 5px)' },
-      right: { left: '-5px', top: 'calc(50% - 5px)' },
-    };
-    return { ...common, ...edge[actualPosition] };
-  };
+  // triangle). Sits at the box edge facing the trigger, horizontally aligned to
+  // the trigger center even when the box is clamped to the viewport.
+  const getArrowStyle = (): React.CSSProperties => ({
+    width: '10px',
+    height: '10px',
+    background: box.box,
+    transform: 'rotate(45deg)',
+    left: `${arrowOffset - 5}px`,
+    ...(actualPosition === 'top'
+      ? { top: 'calc(100% - 5px)' }
+      : { top: '-5px' }),
+  });
 
   return (
     <div
@@ -167,16 +184,25 @@ export const Tooltip = ({
       onBlur={() => setIsVisible(false)}
     >
       {children}
-      {isVisible && (
-        <div
-          ref={tooltipRef}
-          style={getTooltipStyle()}
-          className={cn('absolute z-50', 'animate-in fade-in-0 zoom-in-95 duration-200', getPositionClasses())}
-        >
-          {content}
-          <div style={getArrowStyle()} className="absolute" />
-        </div>
-      )}
+      {isVisible &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={tooltipRef}
+            style={getTooltipStyle()}
+            // Mounted invisibly while coords are being measured, then fades in at
+            // its final fixed position. Opacity-only transition — no translate or
+            // zoom — so it simply appears in place rather than sliding from 0,0.
+            className={cn(
+              'z-[9999] transition-opacity duration-150',
+              coords ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            )}
+          >
+            {content}
+            <div style={getArrowStyle()} className="absolute" />
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

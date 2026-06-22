@@ -17,9 +17,10 @@ interface Props {
 
 const CardHeader = () => (
   <div className={cn('px-6 py-4', cardStyles.warmVariant.header)}>
+    {/* v16 guide title inherits `.card-header h2`: 26px / 800 / -0.045em / 1.2 */}
     <h2
       className={cn(
-        'inline-flex items-center gap-2.5 text-sm font-semibold',
+        'inline-flex items-center gap-[9px] text-[26px] font-extrabold tracking-[-0.045em] leading-[1.2]',
         cardStyles.warmVariant.titleText,
       )}
     >
@@ -58,8 +59,8 @@ export const GuideCardPure = ({
       {showHeader && <CardHeader />}
       <div
         className={cn(
-          'px-6 py-5 prose-guide text-[13px] leading-[1.72]',
-          cardStyles.warmVariant.body,
+          // v16 .guide-content: 13px / line-height 1.72 / color --fg-2 (gray-700 #374151)
+          'px-6 py-5 prose-guide text-[13px] leading-[1.72] text-[#374151]',
         )}
       >
         {rendered}

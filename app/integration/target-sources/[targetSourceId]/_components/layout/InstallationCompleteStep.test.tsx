@@ -170,20 +170,18 @@ describe('InstallationCompleteStep', () => {
     expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
   });
 
-  it('fires toast.info when 인프라 변경 is clicked', () => {
+  it('opens the infra-change confirm modal when 인프라 변경 is clicked', () => {
     providerState = { status: 'ready', data: [] };
-    toastInfo.mockClear();
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /인프라 변경/ }));
-    expect(toastInfo).toHaveBeenCalledWith('인프라 변경 기능 준비중입니다.');
+    expect(screen.getByText('인프라를 변경하시겠어요?')).toBeTruthy();
   });
 
-  it('fires toast.info when 연결 테스트 재실행 is clicked', () => {
+  it('opens the retest confirm modal when 연결 테스트 재실행 is clicked', () => {
     providerState = { status: 'ready', data: [] };
-    toastInfo.mockClear();
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
-    expect(toastInfo).toHaveBeenCalledWith('연결 테스트 재실행 기능 준비중입니다.');
+    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
   });
 
   it('mounts GuideCardContainer when the resolver returns a slot key', () => {

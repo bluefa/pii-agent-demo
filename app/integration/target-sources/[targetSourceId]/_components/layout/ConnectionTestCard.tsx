@@ -149,7 +149,7 @@ export const ConnectionTestCard = ({
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
           <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
-          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+          <p className={cn('mt-2.5', cardStyles.subtitle)}>
             DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
           </p>
         </div>
@@ -186,7 +186,7 @@ export const ConnectionTestCard = ({
           pending={pendingCount}
           pct={progressPct}
         />
-        <div className="overflow-x-auto">
+        <div className={idcStyles.table.frame}>
           <table className="w-full">
             <thead className={idcStyles.table.header}>
               <tr>

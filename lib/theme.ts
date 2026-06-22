@@ -696,8 +696,9 @@ export const idcStyles = {
     body: 'divide-y divide-[#EBEEF2]',
     row: 'hover:bg-[#F7F8FA] transition-colors',
     cell: 'px-4 py-3.5',
-    /** Table wrapper — `.db-list-table` border + radius (v16 1850–1869). */
-    frame: 'overflow-hidden rounded-xl border border-[#EBEEF2]',
+    /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
+    frame:
+      'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
   },

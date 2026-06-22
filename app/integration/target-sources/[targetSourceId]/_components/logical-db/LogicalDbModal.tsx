@@ -194,41 +194,117 @@ const Panel = ({
         <input
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="DB 이름 검색"
+          placeholder="Database / Schema 검색"
           className="h-7 w-full bg-transparent text-[12px] outline-none"
           aria-label={`${label} 검색`}
         />
       </div>
     </div>
-    <ul className="flex-1 overflow-y-auto">
-      {items.length === 0 ? (
-        <li className={cn('px-3 py-6 text-center text-[12px]', textColors.quaternary)}>
-          {emptyMessage}
-        </li>
-      ) : (
-        items.map((it) => (
-          <li
-            key={it.id}
+    <div className="flex-1 overflow-y-auto">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr
             className={cn(
-              'flex items-center justify-between px-3 py-2 text-[12.5px]',
-              bgColors.mutedHover,
+              'sticky top-0 border-b',
+              bgColors.muted,
+              borderColors.light,
             )}
           >
-            <span className={cn('font-mono', textColors.secondary)}>
-              {it.name}
-            </span>
-            <button
-              type="button"
-              onClick={() => onItemClick(it.id)}
-              className={cn('text-[11.5px] hover:underline', primaryColors.text)}
+            <th
+              scope="col"
+              className={cn(
+                'w-[88px] px-3 py-1.5 text-[11px] font-medium',
+                textColors.tertiary,
+              )}
             >
-              {actionLabel}
-            </button>
-          </li>
-        ))
-      )}
-    </ul>
+              Type
+            </th>
+            <th
+              scope="col"
+              className={cn(
+                'px-3 py-1.5 text-[11px] font-medium',
+                textColors.tertiary,
+              )}
+            >
+              Database
+            </th>
+            <th
+              scope="col"
+              className={cn(
+                'px-3 py-1.5 text-[11px] font-medium',
+                textColors.tertiary,
+              )}
+            >
+              Schema
+            </th>
+            <th
+              scope="col"
+              className={cn(
+                'w-[64px] px-3 py-1.5 text-right text-[11px] font-medium',
+                textColors.tertiary,
+              )}
+            >
+              <span className="sr-only">Action</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td
+                colSpan={4}
+                className={cn(
+                  'px-3 py-6 text-center text-[12px]',
+                  textColors.quaternary,
+                )}
+              >
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            items.map((it) => (
+              <tr
+                key={it.id}
+                className={cn('border-b text-[12.5px]', borderColors.light, bgColors.mutedHover)}
+              >
+                <td className="px-3 py-2">
+                  <TypePill type={it.type} />
+                </td>
+                <td className={cn('px-3 py-2 font-mono', textColors.secondary)}>
+                  {it.database}
+                </td>
+                <td className={cn('px-3 py-2 font-mono', textColors.tertiary)}>
+                  {it.schema ?? '—'}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onItemClick(it.id)}
+                    className={cn('text-[11.5px] hover:underline', primaryColors.text)}
+                  >
+                    {actionLabel}
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   </div>
+);
+
+const TypePill = ({ type }: { type: LogicalDatabase['type'] }) => (
+  <span
+    className={cn(
+      'inline-block rounded px-1.5 py-0.5 text-[10.5px] font-semibold',
+      type === 'db'
+        ? 'bg-[#DBEAFE] text-[#1E40AF]'
+        : 'bg-[#EDE9FE] text-[#5B21B6]',
+    )}
+  >
+    {type === 'db' ? 'Database' : 'Schema'}
+  </span>
 );
 
 const splitPanels = (

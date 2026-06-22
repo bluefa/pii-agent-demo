@@ -60,7 +60,6 @@ export const WaitingApprovalCancelButton = ({
         note="관리자에게 전달된 요청 내용은 보존되지 않으며, 취소 즉시 처리됩니다."
         confirmLabel="요청 취소"
         confirmVariant="danger"
-        iconVariant="warn"
         isPending={loading}
       />
     </>

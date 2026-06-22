@@ -85,6 +85,7 @@ export const ConfirmedIntegrationTable = ({
   if (variant === 'complete') {
     const demoUnhealthyId = pickDemoUnhealthyId(confirmed);
     return (
+      <div className={idcStyles.table.frame}>
       <table className="w-full text-sm">
         <thead className={bgColors.muted}>
           <tr>
@@ -129,6 +130,7 @@ export const ConfirmedIntegrationTable = ({
           })}
         </tbody>
       </table>
+      </div>
     );
   }
 
@@ -138,6 +140,7 @@ export const ConfirmedIntegrationTable = ({
   const demoPendingId = pickDemoUnhealthyId(confirmed);
 
   return (
+    <div className={idcStyles.table.frame}>
     <table className="w-full text-sm">
       <thead className={bgColors.muted}>
         <tr>
@@ -172,5 +175,6 @@ export const ConfirmedIntegrationTable = ({
         })}
       </tbody>
     </table>
+    </div>
   );
 };

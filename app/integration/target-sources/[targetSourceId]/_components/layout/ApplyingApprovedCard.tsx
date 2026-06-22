@@ -131,7 +131,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
       <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
           <h2 className={cn(cardStyles.cardTitle)}>연동 대상 반영중</h2>
-          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+          <p className={cn('mt-2.5', cardStyles.subtitle)}>
             관리자 승인 후 Agent 설치를 위한 사전 작업이 자동으로 진행됩니다.
             {view.approvedAt && (
               <>

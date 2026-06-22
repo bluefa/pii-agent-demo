@@ -2,7 +2,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ConfirmStepModal } from '@/app/components/ui/ConfirmStepModal';
-import { confirmModalStyles } from '@/lib/theme';
+import { modalStyles } from '@/lib/theme';
 
 describe('ConfirmStepModal', () => {
   const baseProps = {
@@ -73,15 +73,15 @@ describe('ConfirmStepModal', () => {
     expect(screen.getByText('중요 안내')).toBeTruthy();
   });
 
-  it('applies danger button class when confirmVariant=danger', () => {
+  it('applies the red destructive confirm button when confirmVariant=danger', () => {
     render(<ConfirmStepModal {...baseProps} open confirmVariant="danger" />);
     const confirmBtn = screen.getByRole('button', { name: '확인' });
-    expect(confirmBtn.className).toContain(confirmModalStyles.dangerOutlineButton);
+    expect(confirmBtn.className).toContain('bg-[#DC2626]');
   });
 
-  it('applies warn icon class by default', () => {
-    const { container } = render(<ConfirmStepModal {...baseProps} open />);
-    const iconCircle = container.querySelector('[role="dialog"] > div > div');
-    expect(iconCircle?.className).toContain(confirmModalStyles.iconCircle.warn);
+  it('applies the v16 toss modal title styling', () => {
+    render(<ConfirmStepModal {...baseProps} open />);
+    const title = screen.getByText('취소할까요?');
+    expect(title.className).toContain(modalStyles.toss.title);
   });
 });

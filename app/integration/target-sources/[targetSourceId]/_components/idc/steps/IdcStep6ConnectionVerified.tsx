@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { StepBanner } from '@/app/components/ui/StepBanner';
@@ -13,23 +14,41 @@ import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
+import {
+  ConfirmStepModal,
+  type ConfirmStepKind,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmStepModal';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
-/** 연결 테스트 재실행 — intentionally a toast stub (mirrors cloud siblings). */
+/** 연결 테스트 재실행 — opens the confirm-rewind modal (mirrors cloud siblings). */
 const ConnectionVerifiedRetestButton = () => {
   const toast = useToast();
+  const [confirmKind, setConfirmKind] = useState<ConfirmStepKind | null>(null);
+
+  // v16 opens the confirm-rewind modal; the rewind endpoint is not in the contract
+  // yet, so confirming surfaces a placeholder until the BFF wires it.
+  const handleConfirm = () => {
+    setConfirmKind(null);
+    toast.info('연결 테스트 재실행(5단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.');
+  };
+
   return (
     <div className="flex justify-end mt-4">
       <button
         type="button"
         className={idcStyles.triggerBtn.warnOutline}
-        onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}
+        onClick={() => setConfirmKind('retest')}
       >
         <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
+      <ConfirmStepModal
+        kind={confirmKind}
+        onClose={() => setConfirmKind(null)}
+        onConfirm={handleConfirm}
+      />
     </div>
   );
 };
@@ -65,7 +84,7 @@ export const IdcStep6ConnectionVerified = ({
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
             <h2 className={cardStyles.cardTitle}>완료 여부 관리자 승인 대기</h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <p className={cn('mt-2.5', cardStyles.subtitle)}>
               PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
             </p>
           </div>

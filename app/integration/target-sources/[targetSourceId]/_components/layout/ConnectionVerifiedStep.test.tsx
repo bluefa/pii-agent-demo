@@ -110,11 +110,10 @@ describe('ConnectionVerifiedStep', () => {
     expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
   });
 
-  it('fires toast.info when the retest button is clicked', () => {
-    toastInfo.mockClear();
+  it('opens the retest confirm modal when the retest button is clicked', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
-    expect(toastInfo).toHaveBeenCalledWith('연결 테스트 재실행 기능 준비중입니다.');
+    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
   });
 
   it('mounts GuideCardContainer when the resolver returns a slot key', () => {

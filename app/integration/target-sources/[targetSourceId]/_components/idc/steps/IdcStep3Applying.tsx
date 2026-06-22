@@ -47,7 +47,7 @@ export const IdcStep3Applying = ({
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
             <h2 className={cardStyles.cardTitle}>연동 대상 반영중</h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <p className={cn('mt-2.5', cardStyles.subtitle)}>
               관리자 승인 후 시스템에 연동 정보를 반영하고 있어요.
             </p>
           </div>

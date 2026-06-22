@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { bgColors, borderColors, cn, textColors } from '@/lib/theme';
+import { cardStyles, cn } from '@/lib/theme';
 import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -54,8 +54,7 @@ export const IdcStep4Installing = ({
 }: IdcStepProps) => {
   const { targetSourceId } = project;
   const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLING);
-  const { status, loading, refreshing, error, refresh } =
-    useIdcInstallationStatus(targetSourceId);
+  const { status, loading } = useIdcInstallationStatus(targetSourceId);
 
   const [resources, setResources] = useState<IdcResourceView[]>([]);
   const [firewallOpen, setFirewallOpen] = useState(false);
@@ -121,36 +120,31 @@ export const IdcStep4Installing = ({
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
-      <div className={cn('rounded-xl shadow-sm overflow-hidden', bgColors.surface)}>
-        <div className="p-6 flex flex-col gap-5">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className={cn('text-[15px] font-bold', textColors.primary)}>설치 진행 상태</h3>
-            <button
-              type="button"
-              onClick={() => void refresh()}
-              disabled={refreshing}
-              className={cn(
-                'text-[12px] font-medium hover:underline disabled:opacity-50 disabled:no-underline',
-                textColors.tertiary,
-              )}
-            >
-              {refreshing ? '확인 중…' : '설치 상태 새로고침'}
-            </button>
+      <section className={cn(cardStyles.base, 'overflow-hidden')}>
+        <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
+          <div>
+            <h2 className={cardStyles.cardTitle}>Agent 설치</h2>
+            <p className={cn('mt-2.5', cardStyles.subtitle)}>
+              승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
+            </p>
           </div>
-
-          {error ? <p className={cn('text-[12px]', textColors.tertiary)}>{error}</p> : null}
-
+          {/* v16 L6588 — provider indicator (not a control), short provider name. */}
+          <span className="text-[11.5px] text-[#8B95A1]">
+            Provider: <strong className="text-[#191F28]">IDC</strong>
+          </span>
+        </header>
+        <div className={cardStyles.body}>
           <InstallTaskPipeline items={tasks} columns={2} />
-        </div>
 
-        <div className={cn('border-t', borderColors.default)}>
-          {loading && resources.length === 0 ? (
-            <LoadingState label="설치 정보를 불러오는 중입니다." />
-          ) : (
-            <IdcResourceTable resources={mergedResources} cols={['src', 'fw']} />
-          )}
+          <div className="mt-6">
+            {loading && resources.length === 0 ? (
+              <LoadingState label="설치 정보를 불러오는 중입니다." />
+            ) : (
+              <IdcResourceTable resources={mergedResources} cols={['src', 'fw']} />
+            )}
+          </div>
         </div>
-      </div>
+      </section>
 
       <RejectionAlert project={project} />
 

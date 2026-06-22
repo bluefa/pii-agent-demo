@@ -69,7 +69,7 @@ export const IdcResourceTable = ({
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className={idcStyles.table.frame}>
       <table className="w-full">
         <thead className={idcStyles.table.header}>
           <tr>

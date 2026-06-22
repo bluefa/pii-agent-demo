@@ -121,6 +121,58 @@ of the skill.
   elements; (3) enumerate every `id="*Modal"` independently and analyze each modal body; (4) treat
   `data-state` / `data-status` / `data-*-mode` / `data-idc-cols` attribute-variants as DISTINCT
   visual states. A "byte-exact" claim from reading static markup alone is false by ~90%.
+- **L10 — Text geometry (size/weight/line-height) is silently wrong when hand-rolled.** The most
+  frequent real-world miss: a component hard-codes a title/subtitle at the WRONG size — card
+  subtitle `text-[12px]` when v16 `.card-header p` is **13.5px** (`!important`); a card title as
+  `<h3 text-sm>`/`text-[15px]` when v16 `.card-header h2` is **26px/800**. Eyeballing a PNG does NOT
+  catch a 1.5px or one-weight delta. **Rule:** for EVERY text element extract the exact v16
+  `font-size / font-weight / line-height / letter-spacing / color` from the authoritative CSS and
+  obey the cascade — a class with `!important` BEATS an inline `style=` (so `.card-header p` 13.5px
+  `!important` wins over an inline `font-size:12px`). Map to the existing token
+  (`cardStyles.cardTitle`, `cardStyles.subtitle`, `idcStyles.reqModal.title/​sub`) and use it; a
+  hand-rolled `text-[Npx]` on a card title/subtitle is a defect. Never invent a size.
+- **L11 — Inter-element SPACING (gaps/margins) is a first-class spec, measured not guessed.** The
+  title↔subtitle gap shipped at 4px (`mt-1`) when v16 `.card-header > div { gap: 6px }`; the
+  req-modal title→sub at 6px when v16 is **8px** (`margin: 0 0 8px`). These read as "about right"
+  yet are wrong. **Rule:** for every stacked eyebrow/title/subtitle group and every header/body,
+  extract the exact gap MECHANISM (flex `gap` vs `margin`) and VALUE from v16 and reproduce it
+  precisely (`gap-1.5`/`mt-1.5` = 6px, `mt-2`/`mb-2` = 8px, `gap-1` = 4px). When a user reports a
+  "height/margin difference", measure the computed px on BOTH sides (see Geometry harness) — do not
+  re-guess.
+
+## Canonical v16 geometry reference (screen-4, block 2 — verify vs HTML; update if mockup changes)
+
+Map to these tokens; flag any component that deviates. (px values transcribed from the v16 CSS.)
+
+- `.card-header`: padding **28/28/12**, flex space-between, gap 16. Inner `> div:first-child`:
+  `flex-col`, **gap 6px**, min-w-0. → header `cardStyles.header` + inner `flex flex-col` with
+  `mt-1.5` (6px) on the subtitle.
+- Card title `.card-header h2`: **26px / 800 / -0.045em / 1.2 / #191F28** = `cardStyles.cardTitle`.
+- Card subtitle `.card-header p`: **13.5px (!important) / 500 / #8B95A1 / 1.55** = `cardStyles.subtitle`
+  (an inline `font-size:12px` on some cards is overridden by the `!important` — render 13.5).
+- `.card-body`: padding **16/28/28** = `cardStyles.body`.
+- `.modal-title`: 26 / 800 / -0.03em / 1.25, **margin 0 0 8px**. `.modal-sub`: 14 / 500 / 1.6.
+- `.req-modal .modal-title`: **23 / 800**, margin 0 0 **8px**; `.req-modal .modal-sub`: **13 / 500** / 1.6;
+  `.rm-eyebrow` margin-bottom **9px**. `.logical-modal .modal-sub`: 12. `.athena-modal .modal-title`: 18/700, margin 0 0 4px.
+- Data-table frame `.db-list-table`: border 1px `#EBEEF2` + radius 12 + 3-layer shadow
+  `0 1px 2px rgba(17,24,39,.04), 0 6px 16px -8px rgba(17,24,39,.08), inset 0 1px 0 rgba(255,255,255,.6)`
+  = `idcStyles.table.frame`. EVERY data table is framed (don't render a bare `overflow-x-auto`).
+- Step-4 header right: `Provider: <strong>{name}</strong>` — 11.5px `#8B95A1` label, `#191F28` value;
+  it is an INDICATOR, not a refresh button.
+
+## Geometry harness — measure computed px, don't eyeball
+
+Screenshots find MISSING elements but not a 1.5px font or 2px gap delta. To verify geometry exactly,
+dump the computed style of the same selector on BOTH v16 and the impl and diff the numbers:
+
+```bash
+# scripts/measure.sh <url> <css-selector> — prints fontSize/fontWeight/lineHeight/letterSpacing/margin/gap/padding
+bash scripts/measure.sh "http://localhost:3000/integration/target-sources/1025" ".card-header h2"
+bash scripts/measure.sh "file:///…/SIT Prototype Athena v16.html" ".card-header h2"
+```
+
+Use this whenever a user reports a size/font/spacing mismatch, and as the final geometry gate per
+card/modal. A geometry claim from a PNG alone is unreliable.
 
 ## When HTML analysis fails
 

@@ -10,6 +10,7 @@ import {
   type ConnProgressState,
 } from '@/app/components/features/process-status/ConnProgressStrip';
 import { useToast } from '@/app/components/ui/toast';
+import { useModal } from '@/app/hooks/useModal';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -19,6 +20,7 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import { IdcReqApprovalModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcReqApprovalModal';
+import { LogicalDbModalLoader } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
 import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
@@ -27,6 +29,11 @@ type ResourcesState =
   | { status: 'loading' }
   | { status: 'ready'; resources: IdcResourceView[] }
   | { status: 'error' };
+
+interface LogicalModalTarget {
+  resourceId: string;
+  resourceName: string;
+}
 
 /** v15 runIdcConnTest: cells show "Testing…" then settle to Success after ~1.8s. */
 const TEST_DURATION_MS = 1800;
@@ -139,10 +146,24 @@ export const IdcStep5ConnectionTest = ({
       : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
 
   const toast = useToast();
-  // ponytail: per-resource logical-DB modal is a deferred subsystem (token §A16) — placeholder for now.
-  const handleLogicalOpen = useCallback(() => {
-    toast.info('논리 DB 설정은 준비 중입니다.');
-  }, [toast]);
+  const logicalModal = useModal<LogicalModalTarget>();
+  // Open the per-resource logical-DB modal (mirrors the cloud step5 ConnectionTestCard
+  // wiring). Display name is the resource's 연동 대상 endpoint (hosts[0]), with the
+  // resourceId as a fallback. IdcLogicalButtonCell gates this to credentialed + SUCCESS rows.
+  const handleLogicalOpen = useCallback(
+    (resource: IdcResourceView) => {
+      logicalModal.open({
+        resourceId: resource.resourceId,
+        resourceName: resource.hosts[0] ?? resource.resourceId,
+      });
+    },
+    [logicalModal],
+  );
+  // Save is a no-op until the BFF endpoint is wired (same as ConnectionTestCard).
+  const handleLogicalSave = useCallback(() => {
+    toast.info('논리 DB 정보 저장은 BFF 연동 후 활성화됩니다.');
+    logicalModal.close();
+  }, [logicalModal, toast]);
 
   const [approvalOpen, setApprovalOpen] = useState(false);
   // Completion-approval submit -> refetch advances to step 6 when the process status flips (locked: transition = refetch).
@@ -166,7 +187,7 @@ export const IdcStep5ConnectionTest = ({
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
             <h2 className={cardStyles.cardTitle}>연결 테스트</h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <p className={cn('mt-2.5', cardStyles.subtitle)}>
               DB 접근 정보 사전 등록 및 보안 통신/방화벽 ACL, Agent 연결 여부를 점검합니다.
             </p>
           </div>
@@ -233,6 +254,15 @@ export const IdcStep5ConnectionTest = ({
                 resources={state.resources}
                 onSubmit={handleSubmitApproval}
               />
+              {logicalModal.data && (
+                <LogicalDbModalLoader
+                  open={logicalModal.isOpen}
+                  resourceId={logicalModal.data.resourceId}
+                  resourceName={logicalModal.data.resourceName}
+                  onSave={handleLogicalSave}
+                  onClose={logicalModal.close}
+                />
+              )}
             </>
           )}
         </div>

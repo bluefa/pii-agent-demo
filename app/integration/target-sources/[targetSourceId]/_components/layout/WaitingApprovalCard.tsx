@@ -137,7 +137,7 @@ export const WaitingApprovalCard = ({
           <h2 className={cn(cardStyles.cardTitle)}>
             연동 대상 승인 대기
           </h2>
-          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+          <p className={cn('mt-2.5', cardStyles.subtitle)}>
             요청하신 DB 목록을 관리자가 확인하고 있어요.
             {requestSummary && (
               <>
