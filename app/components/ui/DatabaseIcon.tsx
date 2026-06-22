@@ -1,7 +1,7 @@
 'use client';
 
-import { DatabaseType } from '@/lib/types';
-import { cn } from '@/lib/theme';
+import { DatabaseType, normalizeResourceType } from '@/lib/types';
+import { bgColors, cn, textColors } from '@/lib/theme';
 
 interface DatabaseIconProps {
   type: DatabaseType;
@@ -65,7 +65,7 @@ export const DatabaseIcon = ({ type, size = 'md', className = '' }: DatabaseIcon
   const sizeClass = sizeMap[size];
   const combinedClass = `${sizeClass} ${className}`;
 
-  switch (type) {
+  switch (type.toUpperCase()) {
     case 'MYSQL':
       return <MySQLIcon className={combinedClass} />;
     case 'POSTGRESQL':
@@ -78,8 +78,8 @@ export const DatabaseIcon = ({ type, size = 'md', className = '' }: DatabaseIcon
       return <RedshiftIcon className={combinedClass} />;
     default:
       return (
-        <div className={cn(sizeClass, 'bg-gray-200 rounded flex items-center justify-center', className)}>
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className={cn(sizeClass, bgColors.divider, 'rounded flex items-center justify-center', className)}>
+          <svg className={cn('w-4 h-4', textColors.tertiary)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
           </svg>
         </div>
@@ -87,29 +87,58 @@ export const DatabaseIcon = ({ type, size = 'md', className = '' }: DatabaseIcon
   }
 };
 
-export const getDatabaseLabel = (type: DatabaseType): string => {
-  switch (type) {
-    case 'MYSQL':
-      return 'MySQL';
-    case 'POSTGRESQL':
-      return 'PostgreSQL';
-    case 'DYNAMODB':
-      return 'DynamoDB';
-    case 'ATHENA':
-      return 'Athena';
-    case 'REDSHIFT':
-      return 'Redshift';
-    case 'MSSQL':
-      return 'SQL Server';
-    case 'COSMOSDB':
-      return 'Cosmos DB';
-    case 'BIGQUERY':
-      return 'BigQuery';
-    case 'MONGODB':
-      return 'MongoDB';
-    case 'ORACLE':
-      return 'Oracle';
-    default:
-      return type;
-  }
+// UI-only pretty labels, keyed by the lowercase-canonical db type. Per user directive:
+// db type is a lowercase string; prettify ONLY on an exact match — anything else renders
+// as the lowercased raw value.
+const DATABASE_PRETTY_LABEL: Record<string, string> = {
+  mysql: 'MySQL',
+  postgresql: 'PostgreSQL',
+  mariadb: 'MariaDB',
+  mssql: 'SQL Server',
+  dynamodb: 'DynamoDB',
+  athena: 'Athena',
+  redshift: 'Redshift',
+  cosmosdb: 'Cosmos DB',
+  bigquery: 'BigQuery',
+  mongodb: 'MongoDB',
+  oracle: 'Oracle',
+  redis: 'Redis',
+};
+
+export const getDatabaseLabel = (type: string): string => {
+  const key = type.trim().toLowerCase();
+  return DATABASE_PRETTY_LABEL[key] ?? key;
+};
+
+// Cloud resource_type (prefixed taxonomy) → base DatabaseType, for the short DB pill
+// label. Mirrors the maps in lib/{confirmed-integration,resource-catalog}-response.ts.
+const DATABASE_TYPE_BY_RESOURCE_TYPE: Partial<Record<string, DatabaseType>> = {
+  RDS: 'MYSQL',
+  RDS_CLUSTER: 'MYSQL',
+  DOCUMENTDB: 'MONGODB',
+  DYNAMODB: 'DYNAMODB',
+  ATHENA: 'ATHENA',
+  REDSHIFT: 'REDSHIFT',
+  EC2: 'MYSQL',
+  AZURE_MSSQL: 'MSSQL',
+  AZURE_POSTGRESQL: 'POSTGRESQL',
+  AZURE_MYSQL: 'MYSQL',
+  AZURE_MARIADB: 'MYSQL',
+  AZURE_COSMOS_NOSQL: 'COSMOSDB',
+  AZURE_SYNAPSE: 'MSSQL',
+  AZURE_VM: 'MYSQL',
+  CLOUD_SQL: 'MYSQL',
+  BIGQUERY: 'BIGQUERY',
+  IDC: 'MYSQL',
+};
+
+/**
+ * Short DB-engine label for a raw `resource_type` (e.g. `AZURE_MYSQL` → "MySQL",
+ * `ATHENA` → "Athena"). v15 renders these as the blue `.tag` pill in the
+ * approval/candidate tables. Falls back to the raw value for unknown types.
+ */
+export const getDatabaseShortLabel = (resourceType: string): string => {
+  const normalized = normalizeResourceType(resourceType);
+  if (!normalized) return resourceType.toLowerCase();
+  return getDatabaseLabel(DATABASE_TYPE_BY_RESOURCE_TYPE[normalized] ?? normalized);
 };
