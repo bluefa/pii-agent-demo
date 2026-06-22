@@ -1,21 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  getApprovalRequestLatest,
   getApprovedIntegration,
-  type ApprovalRequestLatestResponse,
   type ApprovedIntegrationExcludedResourceItem,
   type ApprovedIntegrationResourceItem,
 } from '@/app/lib/api';
 import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
-import { ClockIcon } from '@/app/components/ui/icons';
+import { CheckIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { StepBanner } from '@/app/components/ui/StepBanner';
-import {
-  WaitingApprovalStats,
-} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
@@ -27,15 +22,13 @@ import {
   LoadingRow,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state-views';
 import type { AsyncState } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state';
-import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 
-interface WaitingApprovalCardProps {
+interface ApplyingApprovedCardProps {
   targetSourceId: number;
-  cancelSlot?: ReactNode;
-  reselectSlot?: ReactNode;
 }
 
-const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
+const FETCH_ERROR_MESSAGE = '반영 정보를 불러오지 못했습니다.';
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
 const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
@@ -58,26 +51,22 @@ const toExcludedRow = (
   exclusionReason: item.exclusion_reason ?? undefined,
 });
 
-interface RequestSummary {
-  requestedAt: string;
-  requestedBy: string;
+interface ApplyingView {
+  resources: WaitingApprovalResource[];
+  approvedAt: string | null;
+  approver: string | null;
 }
 
-const toRequestSummary = (response: ApprovalRequestLatestResponse): RequestSummary | null => {
-  const requestedAt = response.request?.requested_at;
-  const requestedBy = response.request?.requested_by?.user_id;
-  if (!requestedAt || !requestedBy) return null;
-  return { requestedAt, requestedBy };
-};
+const EMPTY_VIEW: ApplyingView = { resources: [], approvedAt: null, approver: null };
 
-export const WaitingApprovalCard = ({
-  targetSourceId,
-  cancelSlot,
-  reselectSlot,
-}: WaitingApprovalCardProps) => {
-  const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
+/**
+ * Step 3 (연동 대상 반영중) — the step-2 rich approval table re-skinned for the
+ * "applying" state: 승인일시/승인자 subtitle, green success banner, a 연동 이력 column,
+ * and no cancel action (advance to step 4 is driven by ProcessStatusCard polling).
+ */
+export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardProps) => {
+  const [state, setState] = useState<AsyncState<ApplyingView>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
-  const [requestSummary, setRequestSummary] = useState<RequestSummary | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,29 +75,27 @@ export const WaitingApprovalCard = ({
       .then((response) => {
         const approved = response.approved_integration;
         if (!approved) {
-          setState({ status: 'ready', data: [] });
+          setState({ status: 'ready', data: EMPTY_VIEW });
           return;
         }
         const selectedRows = approved.resource_infos.map(toSelectedRow);
         const excludedRows = approved.excluded_resource_infos.map(toExcludedRow);
-        setState({ status: 'ready', data: [...selectedRows, ...excludedRows] });
+        setState({
+          status: 'ready',
+          data: {
+            resources: [...selectedRows, ...excludedRows],
+            approvedAt: approved.approved_at || null,
+            approver: approved.approved_by || null,
+          },
+        });
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
         if (isMissingApprovedIntegrationError(error)) {
-          setState({ status: 'ready', data: [] });
+          setState({ status: 'ready', data: EMPTY_VIEW });
           return;
         }
         setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
-      });
-
-    void getApprovalRequestLatest(targetSourceId, { signal: controller.signal })
-      .then((response) => {
-        setRequestSummary(toRequestSummary(response));
-      })
-      .catch((error: unknown) => {
-        if (error instanceof AppError && error.code === 'ABORTED') return;
-        setRequestSummary(null);
       });
 
     return () => controller.abort();
@@ -119,12 +106,21 @@ export const WaitingApprovalCard = ({
     setRetryNonce((n) => n + 1);
   }, []);
 
-  const resources = useMemo<readonly WaitingApprovalResource[]>(
-    () => (state.status === 'ready' ? state.data : []),
-    [state],
-  );
+  const view = state.status === 'ready' ? state.data : EMPTY_VIEW;
+  const resources = useMemo<readonly WaitingApprovalResource[]>(() => view.resources, [view]);
 
   const table = useApprovalTableState(resources);
+
+  const { selectedCount, integratedCount } = useMemo(() => {
+    let selected = 0;
+    let integrated = 0;
+    for (const resource of resources) {
+      if (!resource.selected) continue;
+      selected += 1;
+      if (resource.integrationStatus === 'INTEGRATED') integrated += 1;
+    }
+    return { selectedCount: selected, integratedCount: integrated };
+  }, [resources]);
 
   const showFilterEmpty =
     state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
@@ -133,54 +129,50 @@ export const WaitingApprovalCard = ({
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <div className={cn(cardStyles.header, 'flex items-center justify-between')}>
         <div>
-          <h2 className={cn(cardStyles.cardTitle)}>
-            연동 대상 승인 대기
-          </h2>
+          <h2 className={cn(cardStyles.cardTitle)}>연동 대상 반영중</h2>
           <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
-            요청하신 DB 목록을 관리자가 확인하고 있어요.
-            {requestSummary && (
+            관리자 승인 후 Agent 설치를 위한 사전 작업이 자동으로 진행됩니다.
+            {view.approvedAt && (
               <>
-                {' · '}요청일시{' '}
+                {' · '}승인일시{' '}
                 <strong className={cn('font-semibold', textColors.secondary)}>
-                  {formatDate(requestSummary.requestedAt, 'datetime')}
+                  {formatDate(view.approvedAt, 'datetime')}
                 </strong>
-                {' · '}요청자{' '}
+              </>
+            )}
+            {view.approver && (
+              <>
+                {' · '}승인자{' '}
                 <strong className={cn('font-semibold', textColors.secondary)}>
-                  {requestSummary.requestedBy}
+                  {view.approver}
                 </strong>
               </>
             )}
           </p>
         </div>
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-            statusColors.warning.bg,
-            statusColors.warning.textDark,
-          )}
-        >
-          <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
-          승인 대기
+        <span className={cn(idcStyles.status.base, idcStyles.status.partial.text)}>
+          <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
+          반영중
         </span>
       </div>
 
       <div className="p-6">
-        <StepBanner variant="info" icon={<ClockIcon className="w-[18px] h-[18px]" />}>
-          <strong className="font-semibold">관리자 승인을 기다리고 있어요.</strong>
-          {' '}평균 1영업일 내 검토되며, 승인되면 메일로 안내됩니다.
+        <StepBanner variant="success" icon={<CheckIcon className="w-[18px] h-[18px]" />}>
+          <strong className="font-semibold">승인이 완료되어 시스템에 반영 중입니다.</strong>
+          {selectedCount > 0 && (
+            <>
+              {' '}전체 {selectedCount}건 중 {integratedCount}건 완료
+            </>
+          )}
+          {' · '}평균 5분 내외 소요
         </StepBanner>
 
         {state.status === 'loading' ? (
-          <LoadingRow message="승인 요청 리소스를 불러오는 중입니다." />
+          <LoadingRow message="반영 중인 리소스 목록을 불러오는 중입니다." />
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
           <div className="mt-4 flex flex-col gap-3">
-            <WaitingApprovalStats
-              totalCount={table.countsByFilter.all}
-              selectedCount={table.countsByFilter.target}
-              excludedCount={table.countsByFilter.excluded}
-            />
             <WaitingApprovalToolbar
               searchValue={table.searchValue}
               onSearchChange={table.onSearchChange}
@@ -199,6 +191,7 @@ export const WaitingApprovalCard = ({
             />
             <WaitingApprovalTable
               resources={table.visibleResources}
+              variant="applying"
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
             {table.filteredCount > 0 && (
@@ -210,13 +203,6 @@ export const WaitingApprovalCard = ({
                 onPageSizeChange={table.onPageSizeChange}
               />
             )}
-          </div>
-        )}
-
-        {(cancelSlot || reselectSlot) && (
-          <div className="flex justify-end items-center gap-2 mt-4">
-            {reselectSlot}
-            {cancelSlot}
           </div>
         )}
       </div>

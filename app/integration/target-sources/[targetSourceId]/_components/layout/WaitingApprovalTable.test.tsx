@@ -69,13 +69,13 @@ describe('WaitingApprovalTable', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
     const cells = within(rows[0]).getAllByRole('cell');
-    // index 1: Resource ID, 2: Region, 3: Resource Name
-    expect(cells[1].className).toContain('font-mono');
+    // v15: Resource ID mono lives inside the ellipsis ResourceIdCell span; Region/Name cells carry mono.
+    expect(within(cells[1]).getByText('mysql-prod-01').className).toContain('font-mono');
     expect(cells[2].className).toContain('font-mono');
     expect(cells[3].className).toContain('font-mono');
   });
 
-  it('mounts a hover-revealed CopyButton on Resource ID, Region, and Resource Name cells', () => {
+  it('mounts a single hover-revealed CopyButton on the Resource ID cell only (v15)', () => {
     const resources: WaitingApprovalResource[] = [
       {
         resourceId: 'res-1',
@@ -87,27 +87,9 @@ describe('WaitingApprovalTable', () => {
     ];
     render(<WaitingApprovalTable resources={resources} />);
     const buttons = screen.getAllByRole('button', { name: /복사$/ });
-    expect(buttons).toHaveLength(3);
-    expect(screen.getByRole('button', { name: 'res-1 복사' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'us-east-1 복사' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'orders-db 복사' })).toBeTruthy();
-    buttons.forEach((b) => {
-      expect(b.className).toContain('opacity-0');
-      expect(b.className).toContain('group-hover:opacity-100');
-    });
-  });
-
-  it('omits CopyButton when region or resourceName is empty', () => {
-    const resources: WaitingApprovalResource[] = [
-      {
-        resourceId: 'res-2',
-        resourceType: 'MySQL',
-        region: '',
-        resourceName: '',
-        selected: true,
-      },
-    ];
-    render(<WaitingApprovalTable resources={resources} />);
-    expect(screen.getAllByRole('button', { name: /복사$/ })).toHaveLength(1);
+    expect(buttons).toHaveLength(1);
+    const copy = screen.getByRole('button', { name: 'Resource ID 복사' });
+    expect(copy.className).toContain('opacity-0');
+    expect(copy.className).toContain('group-hover/resid:opacity-100');
   });
 });

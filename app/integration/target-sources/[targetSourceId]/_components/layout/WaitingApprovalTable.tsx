@@ -1,10 +1,11 @@
 'use client';
 
 import { memo } from 'react';
-import { Badge } from '@/app/components/ui/Badge';
-import { CopyButton } from '@/app/components/ui/CopyButton';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
-import { idcStyles, tableStyles, textColors, cn } from '@/lib/theme';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
+import { idcStyles, textColors, cn } from '@/lib/theme';
+import type { ResourceIntegrationStatus } from '@/lib/types';
 
 export interface WaitingApprovalResource {
   resourceId: string;
@@ -16,10 +17,19 @@ export interface WaitingApprovalResource {
   exclusionReason?: string;
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
+  /** Per-resource integration history (반영 이력) — only rendered in the `applying` variant (step 3). */
+  integrationStatus?: ResourceIntegrationStatus | null;
 }
+
+/**
+ * `waiting` (step 2 · 승인 대기): 연동 대상 여부 + 제외 사유 as two columns.
+ * `applying` (step 3 · 반영중): 연동 대상 / 제외 사유 merged + a 연동 이력 column.
+ */
+type ApprovalTableVariant = 'waiting' | 'applying';
 
 interface WaitingApprovalTableProps {
   resources: readonly WaitingApprovalResource[];
+  variant?: ApprovalTableVariant;
   /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
   emptyMessage?: string;
 }
@@ -28,20 +38,8 @@ const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
 
-const COLUMNS: readonly { label: string; widthClass?: string }[] = [
-  { label: 'Database Type' },
-  { label: 'Resource ID' },
-  { label: 'Region' },
-  { label: 'Resource Name' },
-  { label: '연동 대상 여부' },
-  { label: '제외 사유' },
-];
-
-const MONO_CELL = cn(tableStyles.cell, 'font-mono text-[12px]', textColors.secondary);
-
-// v15 .approval-table tr.row-excluded — gray td bg + #6B7280 mono/res-id text.
-const EXCLUDED_CELL = 'bg-[#F2F4F6]';
-const EXCLUDED_MONO = 'text-[#6B7280]';
+// v15 .approval-table tr.row-excluded — gray td bg + muted text.
+const EXCLUDED_ROW = 'bg-[#F9FAFB]';
 
 const TargetPill = ({ excluded }: { excluded: boolean }) => {
   const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
@@ -53,89 +51,106 @@ const TargetPill = ({ excluded }: { excluded: boolean }) => {
   );
 };
 
-export const WaitingApprovalTable = memo(({ resources, emptyMessage }: WaitingApprovalTableProps) => {
-  if (resources.length === 0) {
+const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
+  !resource.selected && resource.exclusionReason ? (
+    <ReasonChipInline reason={resource.exclusionReason} meta={resource.exclusionMeta} />
+  ) : (
+    <span className={textColors.quaternary}>{PLACEHOLDER}</span>
+  );
+
+// 연동 이력 (step 3) — INTEGRATED → Integrated(green), else Pending(orange); excluded → —.
+const IntegrationHistoryCell = ({ resource }: { resource: WaitingApprovalResource }) => {
+  if (!resource.selected) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
+  const integrated = resource.integrationStatus === 'INTEGRATED';
+  return (
+    <span className={cn(idcStyles.tag.base, integrated ? idcStyles.tag.green : idcStyles.tag.orange)}>
+      {integrated ? 'Integrated' : 'Pending'}
+    </span>
+  );
+};
+
+export const WaitingApprovalTable = memo(
+  ({ resources, variant = 'waiting', emptyMessage }: WaitingApprovalTableProps) => {
+    if (resources.length === 0) {
+      return (
+        <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
+          {emptyMessage ?? DEFAULT_EMPTY_MESSAGE}
+        </div>
+      );
+    }
+
+    const applying = variant === 'applying';
+    const lastColumnLabel = applying ? '연동 이력' : '제외 사유';
+    const targetColumnLabel = applying ? '연동 대상 / 제외 사유' : '연동 대상 여부';
+    const monoCell = cn('font-mono text-[12px]', textColors.secondary);
+
     return (
-      <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
-        {emptyMessage ?? DEFAULT_EMPTY_MESSAGE}
+      <div className="overflow-hidden rounded-xl border border-[#EBEEF2]">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className={idcStyles.table.header}>
+              <tr className="whitespace-nowrap">
+                <th className={idcStyles.table.headerCell}>Database Type</th>
+                <th className={idcStyles.table.headerCell}>Resource ID</th>
+                <th className={idcStyles.table.headerCell}>Region</th>
+                <th className={idcStyles.table.headerCell}>Resource Name</th>
+                <th className={idcStyles.table.headerCell}>{targetColumnLabel}</th>
+                <th className={idcStyles.table.headerCell}>{lastColumnLabel}</th>
+              </tr>
+            </thead>
+            <tbody className={idcStyles.table.body}>
+              {resources.map((resource) => {
+                const excluded = !resource.selected;
+                return (
+                  <tr
+                    key={resource.resourceId}
+                    className={cn('group', excluded ? EXCLUDED_ROW : idcStyles.table.row)}
+                  >
+                    <td className={idcStyles.table.cell}>
+                      <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>
+                        {getDatabaseShortLabel(resource.resourceType)}
+                      </span>
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <ResourceIdCell value={resource.resourceId} label="Resource ID" />
+                    </td>
+                    <td className={cn(idcStyles.table.cell, monoCell)}>
+                      {resource.region || PLACEHOLDER}
+                    </td>
+                    <td className={cn(idcStyles.table.cell, 'font-mono text-[12.5px]', textColors.primary)}>
+                      {resource.resourceName || PLACEHOLDER}
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      {applying ? (
+                        <span className="flex flex-col items-start gap-1.5">
+                          <TargetPill excluded={excluded} />
+                          {excluded && resource.exclusionReason && (
+                            <ReasonChipInline
+                              reason={resource.exclusionReason}
+                              meta={resource.exclusionMeta}
+                            />
+                          )}
+                        </span>
+                      ) : (
+                        <TargetPill excluded={excluded} />
+                      )}
+                    </td>
+                    <td className={cn(idcStyles.table.cell, 'text-sm')}>
+                      {applying ? (
+                        <IntegrationHistoryCell resource={resource} />
+                      ) : (
+                        <ReasonCell resource={resource} />
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
-  }
-
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead className={tableStyles.header}>
-          <tr>
-            {COLUMNS.map((column) => (
-              <th key={column.label} className={cn(tableStyles.headerCell, column.widthClass)}>
-                {column.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className={tableStyles.body}>
-          {resources.map((resource) => {
-            const excluded = !resource.selected;
-            return (
-            <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-              <td className={cn(tableStyles.cell, excluded && EXCLUDED_CELL)}>
-                <Badge variant="info" size="sm">{resource.resourceType}</Badge>
-              </td>
-              <td className={cn(MONO_CELL, excluded && cn(EXCLUDED_CELL, EXCLUDED_MONO))}>
-                <span className="inline-flex items-center gap-1">
-                  <span>{resource.resourceId}</span>
-                  <CopyButton
-                    value={resource.resourceId}
-                    label={`${resource.resourceId} 복사`}
-                    className="opacity-0 group-hover:opacity-100"
-                  />
-                </span>
-              </td>
-              <td className={cn(MONO_CELL, excluded && cn(EXCLUDED_CELL, EXCLUDED_MONO))}>
-                {resource.region ? (
-                  <span className="inline-flex items-center gap-1">
-                    <span>{resource.region}</span>
-                    <CopyButton
-                      value={resource.region}
-                      label={`${resource.region} 복사`}
-                      className="opacity-0 group-hover:opacity-100"
-                    />
-                  </span>
-                ) : PLACEHOLDER}
-              </td>
-              <td className={cn(MONO_CELL, excluded && cn(EXCLUDED_CELL, EXCLUDED_MONO))}>
-                {resource.resourceName ? (
-                  <span className="inline-flex items-center gap-1">
-                    <span>{resource.resourceName}</span>
-                    <CopyButton
-                      value={resource.resourceName}
-                      label={`${resource.resourceName} 복사`}
-                      className="opacity-0 group-hover:opacity-100"
-                    />
-                  </span>
-                ) : PLACEHOLDER}
-              </td>
-              <td className={cn(tableStyles.cell, excluded && EXCLUDED_CELL)}>
-                <TargetPill excluded={excluded} />
-              </td>
-              <td className={cn(tableStyles.cell, 'text-sm', excluded && EXCLUDED_CELL)}>
-                {!resource.selected && resource.exclusionReason ? (
-                  <ReasonChipInline
-                    reason={resource.exclusionReason}
-                    meta={resource.exclusionMeta}
-                  />
-                ) : (
-                  <span className={textColors.quaternary}>{PLACEHOLDER}</span>
-                )}
-              </td>
-            </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-});
+  },
+);
 
 WaitingApprovalTable.displayName = 'WaitingApprovalTable';
