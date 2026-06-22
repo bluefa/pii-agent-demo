@@ -118,4 +118,25 @@ These supersede the round-1 §A values where they differ:
   §A19 resource-id — `ResourceIdCell` EXISTS (verify v16 2885–2910); §A20 `idcStyles.table.frame` — **already added** (commit c80e3b9);
   §A21 sourceIpTooltip (v16 4942–4958) — defer; §A22 logical-modal close-x — defer with §A16.
 
-**Status:** DRAFT. Awaiting opus verifiers + element-inventory → one clean round-3 freeze → unanimous → Phase D.
+### Round 2 — opus token-verify-reconcile: §B3 WRONG, §B6 rationale
+- **§B3 DROP — do NOT change `unhealthy.dot` to #EF4444.** v16 screen-4 IDC conn table overrides to
+  inline `#991B1B` dot + pill bg `#FEE2E2` (HTML 7352 / `idcHealthBadge` 10455); the current theme.ts
+  `#991B1B` is CORRECT for that surface. The #EF4444 is the generic `.status.unhealthy` CSS class
+  which screen-4 overrides. **Removing §B3 from the freeze.**
+- **§B6** add `ghostPrimary` ✅ — but rationale corrected: v16 `.btn.ghost` is ALWAYS blue (no gray
+  ghost exists). The app's 6 gray-ghost callers (PendingTasksTable etc. "상세", history modal paging)
+  are an app-side deviation. → add `ghostPrimary`, point screen-4 callers (논리 DB 확인 "설정") at it.
+- §B1/§B2/§B10 MISMATCH-CONFIRMED; 6 "verified EXACT" claims all genuinely byte-exact.
+
+### Round 2 — opus token-verify-add + element-inventory: pending retrieval
+
+### spec-step5 token flags (implementation-grade, for step5 surface)
+NEW/no-token confirmed: `.idc-cred-select` (§A14), `.approval-stats`+swatch (§A10, mirror
+`WaitingApprovalStats.tsx`), red warn box `#FEF1F1/#F8D2D0/#B42318` (use `statusColors.error`),
+`.btn.sm.ghost` "설정" (reuse LogicalDbSlot pattern / ghostPrimary). IDC `tag gray` 자격 증명 필요
+already covered by `IdcConnBadge`. Cloud `ConfirmedIntegrationTable[pre-install]` already renders
+6/7 cols (extend, not rebuild); IDC `IdcResourceView` already has credentialId+connection (ADR
+boundary intact — no new wire fields).
+
+**Status:** DRAFT. Round-3 freeze pending token-verify-add + element-inventory; §B3 dropped, §B6
+clarified. step5 tokens settled enough to start Phase D on step5 in parallel.

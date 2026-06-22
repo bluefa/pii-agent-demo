@@ -7,22 +7,29 @@ import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcConnBadge,
+  IdcConnStatusCell,
+  IdcCredSelectCell,
   IdcDbTypeCell,
   IdcEndpointCell,
   IdcFirewallBadge,
   IdcHealthBadge,
   IdcKindBadge,
+  IdcLogicalButtonCell,
   IdcSourceIpCell,
   IdcTargetPill,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/cells';
 
-export type IdcTableCol = 'src' | 'excl' | 'fw' | 'conn' | 'health';
+export type IdcTableCol = 'src' | 'excl' | 'fw' | 'conn' | 'health' | 'cred' | 'logical';
 
 interface IdcResourceTableProps {
   resources: readonly IdcResourceView[];
   /** Column set per step (v15 `data-idc-cols`). `excl` also includes excluded rows. */
   cols: readonly IdcTableCol[];
   emptyMessage?: string;
+  /** Step-5: DB Credential select change (resourceId, credential). */
+  onCredChange?: (resourceId: string, cred: string) => void;
+  /** Step-5/6: open the per-resource logical-DB modal. */
+  onLogicalOpen?: (resource: IdcResourceView) => void;
 }
 
 const [TIP_TITLE, ...TIP_REST] = IDC_SOURCE_IP_TOOLTIP.split('\n');
@@ -42,7 +49,13 @@ const SourceIpHeader = () => (
   </span>
 );
 
-export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceTableProps) => {
+export const IdcResourceTable = ({
+  resources,
+  cols,
+  emptyMessage,
+  onCredChange,
+  onLogicalOpen,
+}: IdcResourceTableProps) => {
   const has = (c: IdcTableCol) => cols.includes(c);
   // Step 2·3 (`excl`) show excluded rows too; Step 4~7 show integration targets only.
   const rows = has('excl') ? resources : resources.filter((r) => !r.excluded);
@@ -61,7 +74,7 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
         <thead className={idcStyles.table.header}>
           <tr>
             <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>구분</th>
-            <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>연동 대상</th>
+            <th className={cn(idcStyles.table.headerCell, 'w-[168px]')}>연동 대상</th>
             <th className={cn(idcStyles.table.headerCell, 'w-[80px]')}>Port</th>
             <th className={idcStyles.table.headerCell}>Database Type</th>
             {has('src') && (
@@ -71,7 +84,9 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
             )}
             {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>연동 대상 / 제외 사유</th>}
             {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
+            {has('cred') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
             {has('conn') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>}
+            {has('logical') && <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
             {has('health') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Status</th>}
           </tr>
         </thead>
@@ -102,7 +117,32 @@ export const IdcResourceTable = ({ resources, cols, emptyMessage }: IdcResourceT
                   </td>
                 )}
                 {has('fw') && <td className={cn(idcStyles.table.cell, dim)}><IdcFirewallBadge open={r.firewallOpen} /></td>}
-                {has('conn') && <td className={cn(idcStyles.table.cell, dim)}><IdcConnBadge state={r.connection} /></td>}
+                {has('cred') && (
+                  <td className={idcStyles.table.cell}>
+                    {r.excluded ? (
+                      <span className={textColors.quaternary}>—</span>
+                    ) : (
+                      <IdcCredSelectCell
+                        value={r.credentialId ?? ''}
+                        onChange={(cred) => onCredChange?.(r.resourceId, cred)}
+                      />
+                    )}
+                  </td>
+                )}
+                {has('conn') && (
+                  <td className={cn(idcStyles.table.cell, dim)}>
+                    {has('cred') ? <IdcConnStatusCell resource={r} /> : <IdcConnBadge state={r.connection} />}
+                  </td>
+                )}
+                {has('logical') && (
+                  <td className={idcStyles.table.cell}>
+                    {r.excluded ? (
+                      <span className={textColors.quaternary}>—</span>
+                    ) : (
+                      <IdcLogicalButtonCell resource={r} onOpen={() => onLogicalOpen?.(r)} />
+                    )}
+                  </td>
+                )}
                 {has('health') && <td className={cn(idcStyles.table.cell, dim)}><IdcHealthBadge health={r.health} /></td>}
               </tr>
             );

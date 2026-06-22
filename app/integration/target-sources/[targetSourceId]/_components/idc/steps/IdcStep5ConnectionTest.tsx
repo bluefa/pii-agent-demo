@@ -111,7 +111,32 @@ export const IdcStep5ConnectionTest = ({
     }, TEST_DURATION_MS);
   }, [testing]);
 
+  // v16 setIdcCred: changing a credential invalidates the prior test → reset to PENDING.
+  const handleCredChange = useCallback((resourceId: string, cred: string) => {
+    setState((prev) =>
+      prev.status === 'ready'
+        ? {
+            status: 'ready',
+            resources: prev.resources.map((r) =>
+              r.resourceId === resourceId
+                ? { ...r, credentialId: cred || undefined, connection: 'PENDING' }
+                : r,
+            ),
+          }
+        : prev,
+    );
+  }, []);
+
   const ready = state.status === 'ready';
+  const liveResources = ready ? state.resources.filter((r) => !r.excluded) : [];
+  // Run Test gate: every live target must have a credential selected first (v16 runIdcConnTest guard).
+  const allCredsSet = liveResources.length > 0 && liveResources.every((r) => !!r.credentialId);
+
+  const toast = useToast();
+  // ponytail: per-resource logical-DB modal is a deferred subsystem (token §A16) — placeholder for now.
+  const handleLogicalOpen = useCallback(() => {
+    toast.info('논리 DB 설정은 준비 중입니다.');
+  }, [toast]);
 
   return (
     <>
@@ -134,7 +159,7 @@ export const IdcStep5ConnectionTest = ({
           <button
             type="button"
             onClick={runTest}
-            disabled={!ready || testing}
+            disabled={!ready || testing || !allCredsSet}
             className={idcStyles.triggerBtn.primary}
           >
             {testing ? (
@@ -168,7 +193,12 @@ export const IdcStep5ConnectionTest = ({
           )}
           {ready && (
             <>
-              <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />
+              <IdcResourceTable
+                resources={state.resources}
+                cols={['src', 'cred', 'conn', 'logical']}
+                onCredChange={handleCredChange}
+                onLogicalOpen={handleLogicalOpen}
+              />
               <div className="flex items-center justify-between mt-4">
                 <p className={cn('text-[12px]', textColors.tertiary)}>
                   ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.

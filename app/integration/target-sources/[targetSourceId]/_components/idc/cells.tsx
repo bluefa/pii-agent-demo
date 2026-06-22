@@ -151,3 +151,61 @@ export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
     </span>
   );
 };
+
+// v16 step5/6 DB Credential options — static demo list mirroring the prototype.
+export const IDC_CRED_OPTIONS = ['Key1', 'Key2', 'Key3', 'idc_svc_mysql', 'idc_svc_oracle', 'idc_svc_pg'] as const;
+
+const SELECT_CHEVRON =
+  "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\") right 8px center no-repeat";
+
+/** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). */
+export const IdcCredSelectCell = ({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    style={{ background: SELECT_CHEVRON }}
+    className={cn(idcStyles.credSelect, !value && idcStyles.credSelectEmpty)}
+    aria-label="DB Credential 선택"
+  >
+    <option value="">자격 증명 선택</option>
+    {IDC_CRED_OPTIONS.map((cred) => (
+      <option key={cred} value={cred}>
+        {cred}
+      </option>
+    ))}
+  </select>
+);
+
+/** Credential-aware connection status — no cred → 자격 증명 필요(gray); SUCCESS → green; else Pending(gray). */
+export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
+  if (!resource.credentialId) {
+    return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
+  }
+  return resource.connection === 'SUCCESS' ? (
+    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+  ) : (
+    <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
+  );
+};
+
+/** 논리 DB 관리 "설정" button — disabled until credential set AND connection SUCCESS. */
+export const IdcLogicalButtonCell = ({
+  resource,
+  onOpen,
+}: {
+  resource: IdcResourceView;
+  onOpen: () => void;
+}) => {
+  const enabled = !!resource.credentialId && resource.connection === 'SUCCESS';
+  return (
+    <button type="button" disabled={!enabled} onClick={onOpen} className={idcStyles.triggerBtn.ghostSm}>
+      설정
+    </button>
+  );
+};
