@@ -1,16 +1,16 @@
 package com.bff.pipeline.service;
 import com.bff.pipeline.dto.PipelineCreationRequest;
-import com.bff.pipeline.dto.PipelineEventRecord;
 
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.entity.Pipeline;
 import com.bff.pipeline.entity.PipelineDefSnapshot;
+import com.bff.pipeline.entity.PipelineEvent;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.Severity;
 import com.bff.pipeline.entity.Task;
 import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
-import com.bff.pipeline.service.handler.PipelineHandlerRegistry;
 import com.bff.pipeline.dto.PipelineDefinition;
 import com.bff.pipeline.service.recipe.RecipeRegistry;
 import com.bff.pipeline.dto.TaskDefinition;
@@ -43,7 +43,6 @@ import java.util.Map;
 public class PipelineRunWriter {
 
     private final RecipeRegistry recipes;
-    private final PipelineHandlerRegistry handlers;
     private final PipelineRepository pipelines;
     private final TaskRepository tasks;
     private final PipelineDefSnapshotRepository snapshots;
@@ -52,11 +51,10 @@ public class PipelineRunWriter {
     private final ObjectMapper json;
     private final Clock clock;
 
-    PipelineRunWriter(RecipeRegistry recipes, PipelineHandlerRegistry handlers, PipelineRepository pipelines,
+    PipelineRunWriter(RecipeRegistry recipes, PipelineRepository pipelines,
                  TaskRepository tasks, PipelineDefSnapshotRepository snapshots, PipelineEventRecorder events,
                  PipelineEngineSettings settings, ObjectMapper json, Clock clock) {
         this.recipes = recipes;
-        this.handlers = handlers;
         this.pipelines = pipelines;
         this.tasks = tasks;
         this.snapshots = snapshots;
@@ -83,9 +81,9 @@ public class PipelineRunWriter {
         }
 
         snapshots.save(newSnapshot(saved.getId(), def, specTasks));
-        events.recordPipelineEvent(PipelineEventRecord.builder()
+        events.recordPipelineEvent(PipelineEvent.builder()
                 .pipelineId(saved.getId())
-                .type("PIPELINE_CREATED")
+                .type(PipelineEventType.PIPELINE_CREATED.wire())
                 .severity(Severity.INFO)
                 .actor(req.getTriggeredBy())
                 .payload(writeJson(Map.of("type", def.getType().name(), "provider", def.getProvider())))
@@ -113,7 +111,7 @@ public class PipelineRunWriter {
         t.setPipelineId(pipelineId);
         t.setSeq(spec.getSeq());
         t.setName(td.getName());
-        t.setHandlerKey(handlers.keyOf(td.getHandlerClass()));
+        t.setOperation(td.getOperation());
         t.setKind(td.getKind());
         t.setStatus(TaskStatus.BLOCKED); // all tasks start BLOCKED; the first tick promotes seq0 → READY (state-machine)
         t.setTtl(knobs.getTtl());
@@ -156,7 +154,7 @@ public class PipelineRunWriter {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("seq", spec.getSeq());
         m.put("name", td.getName());
-        m.put("handler_key", handlers.keyOf(td.getHandlerClass())); // internal jsonb = snake_case (orchestrator §1.2)
+        m.put("operation", td.getOperation()); // internal jsonb = snake_case (orchestrator §1.2)
         m.put("kind", td.getKind().name());
         m.put("ttl", asText(knobs.getTtl()));
         m.put("polling_interval", asText(knobs.getPollingInterval()));

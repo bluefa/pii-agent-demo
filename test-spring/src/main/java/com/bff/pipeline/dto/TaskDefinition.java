@@ -1,7 +1,6 @@
 package com.bff.pipeline.dto;
 
 import com.bff.pipeline.type.TaskKind;
-import com.bff.pipeline.service.handler.PipelineHandler;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.lang.Nullable;
@@ -11,15 +10,15 @@ import java.time.Duration;
 /**
  * One task in a recipe (seq = its index in the chain). The duration knobs are frozen onto the task row
  * at creation; null means "use the global default". pollingInterval/ttl apply to CONDITION_CHECK,
- * executionTimeout to TERRAFORM_JOB. The handler is referenced by its concrete class (compile-time safe,
- * refactor-proof); creation resolves it to the stored String handler_key via {@code PipelineHandlerRegistry.keyOf}.
+ * executionTimeout to TERRAFORM_JOB. {@code operation} is the IM operation this task runs — fixed in the
+ * recipe and frozen onto the task row; the launcher selects the IM call by {@code (kind, operation)}.
  */
 @Getter
 @Builder
 public class TaskDefinition {
 
     private final String name;
-    private final Class<? extends PipelineHandler> handlerClass;
+    private final String operation;
     private final TaskKind kind;
     @Nullable
     private final Duration ttl;
@@ -30,18 +29,18 @@ public class TaskDefinition {
     @Nullable
     private final Integer maxFailCount;
 
-    public static TaskDefinition terraformJob(String name, Class<? extends PipelineHandler> handlerClass) {
+    public static TaskDefinition terraformJob(String name, String operation) {
         return TaskDefinition.builder()
                 .name(name)
-                .handlerClass(handlerClass)
+                .operation(operation)
                 .kind(TaskKind.TERRAFORM_JOB)
                 .build();
     }
 
-    public static TaskDefinition conditionCheck(String name, Class<? extends PipelineHandler> handlerClass) {
+    public static TaskDefinition conditionCheck(String name, String operation) {
         return TaskDefinition.builder()
                 .name(name)
-                .handlerClass(handlerClass)
+                .operation(operation)
                 .kind(TaskKind.CONDITION_CHECK)
                 .build();
     }

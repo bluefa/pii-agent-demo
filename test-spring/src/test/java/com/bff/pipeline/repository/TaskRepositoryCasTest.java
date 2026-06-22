@@ -138,7 +138,7 @@ class TaskRepositoryCasTest {
         task.setPipelineId(1L);
         task.setSeq(0);
         task.setName("apply network");
-        task.setHandlerKey("aws.tf.network");
+        task.setOperation("apply-network");
         task.setKind(TaskKind.TERRAFORM_JOB);
         task.setStatus(status);
         task.setMaxFailCount(3);

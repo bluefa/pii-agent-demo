@@ -33,7 +33,7 @@ CREATE TABLE task (
     pipeline_id       BIGINT  NOT NULL,
     seq               INT     NOT NULL,
     name              TEXT    NOT NULL,
-    handler_key       TEXT    NOT NULL,
+    operation         TEXT    NOT NULL,   -- the IM operation this task runs (launcher selects by kind + operation)
     kind              TEXT    NOT NULL,   -- TERRAFORM_JOB | CONDITION_CHECK
     status            TEXT    NOT NULL,   -- BLOCKED | READY | DISPATCHING | RUNNING | WAITING_EXTERNAL | DONE | FAILED | EXPIRED | CANCELLED
     polling_interval  BIGINT,            -- frozen knobs (nanoseconds); null = global default

@@ -1,16 +1,16 @@
 package com.bff.pipeline.service.external;
-import com.bff.pipeline.dto.CheckObservationRecord;
-import com.bff.pipeline.dto.DispatchCompletion;
-import com.bff.pipeline.dto.TaskCheckObservation;
 
+import com.bff.pipeline.dto.CallResult;
 import com.bff.pipeline.type.ApiResult;
+import com.bff.pipeline.type.CallStatus;
 import com.bff.pipeline.type.CheckKind;
 import com.bff.pipeline.type.ErrorCode;
+import com.bff.pipeline.type.Observed;
 import com.bff.pipeline.entity.TaskCheck;
-import com.bff.pipeline.dto.TerraformDispatchOutcome;
 import com.bff.pipeline.repository.TaskAttemptRepository;
 import com.bff.pipeline.repository.TaskCheckRepository;
 import com.bff.pipeline.repository.TaskRepository;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,10 @@ import java.time.Instant;
  *
  * <p>Every method is {@code REQUIRES_NEW} so the observation commits independently of the tick transaction,
  * and the DISPATCH PENDING pre-record is its OWN committed transaction ({@link #prerecordDispatch}) so a
- * crash between the call and the response write still leaves the "attempted" marker (D-T5).
+ * crash between the call and the response write still leaves the "attempted" marker (D-T5). Each write takes
+ * plain request scalars (taskId / attemptId / name / handle) + the {@link CallResult} (the 4-way
+ * {@link CallStatus} verdict, latency, the BACKPRESSURE Retry-After) and maps it onto the row; the backpressure
+ * {@code next_check_at} is computed here from {@code callResult.retryAfter} + the injected clock.
  */
 @Component
 public class TaskCheckObservationWriter {
@@ -57,92 +60,140 @@ public class TaskCheckObservationWriter {
     }
 
     /**
-     * Step 4: fill the pre-recorded DISPATCH row with the outcome, adopt the response on Accepted (write-once
+     * Step 4: fill the pre-recorded DISPATCH row with the result, adopt the response on SUCCESS (write-once
      * CAS + late-response block), and on backpressure defer {@code next_check_at}. All one committed tx.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    void completeDispatch(DispatchCompletion completion) {
-        TerraformDispatchOutcome outcome = completion.getOutcome();
-        TaskCheck row = checks.findById(completion.getCheckId())
-                .orElseThrow(() -> new IllegalStateException("dispatch pre-record " + completion.getCheckId() + " missing"));
+    void completeDispatch(long checkId, long taskId, long attemptId, CallResult result) {
+        TaskCheck row = checks.findById(checkId)
+                .orElseThrow(() -> new IllegalStateException("dispatch pre-record " + checkId + " missing"));
         row.setCheckedAt(clock.instant());
-        row.setLatencyMs(completion.getLatencyMs());
-        switch (outcome) {
-            case TerraformDispatchOutcome.Accepted a -> {
+        row.setLatencyMs(result.getLatencyMs());
+        switch (result.getStatus()) {
+            case SUCCESS -> {
                 row.setApiResult(ApiResult.OK);
-                row.setExternalHandle(a.getHandle());
+                row.setExternalHandle(result.getValue());
             }
             // A hard reject carries error_code=IM_REJECTED on the observation so the NEXT tick can tell it
             // apart from the (ERROR, observed=null, error_code=null) backpressure marker — the async single
             // writer reads the committed row, not a return value (state-machine 114/115). The attempt is
             // ALSO closed IM_REJECTED by the tick (the row is the ledger; the attempt is the fail home).
-            case TerraformDispatchOutcome.Rejected ignored -> {
+            case REJECT -> {
                 row.setApiResult(ApiResult.ERROR);
                 row.setErrorCode(ErrorCode.IM_REJECTED);
             }
-            case TerraformDispatchOutcome.Backpressure ignored -> row.setApiResult(ApiResult.ERROR); // (ERROR, null, null) marker
-            case TerraformDispatchOutcome.CallTimeout ignored -> {
+            case BACKPRESSURE -> row.setApiResult(ApiResult.ERROR); // (ERROR, null, null) marker
+            case TIMEOUT -> {
                 row.setApiResult(ApiResult.ERROR);
                 row.setErrorCode(ErrorCode.CALL_TIMEOUT);
             }
         }
         checks.save(row);
 
-        if (outcome instanceof TerraformDispatchOutcome.Accepted a) {
-            attempts.adoptResponseWhileDispatching(completion.getAttemptId(), a.getHandle());
+        if (result.getStatus() == CallStatus.SUCCESS) {
+            attempts.adoptResponseWhileDispatching(attemptId, result.getValue());
         }
-        if (completion.getBackpressureNextCheckAt() != null) {
-            tasks.setNextCheckAt(completion.getTaskId(), completion.getBackpressureNextCheckAt());
-        }
+        deferOnBackpressure(taskId, result);
+    }
+
+    /** Record one TERRAFORM_JOB poll observation (CHECK, RLE) — observed status mapped from the SUCCESS value. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    void recordPoll(long taskId, long attemptId, String name, String handle, CallResult result) {
+        recordObservation(taskId, attemptId, name, handle, result, classifyPoll(result));
+    }
+
+    /** Record one CONDITION_CHECK check observation (CHECK, RLE) — no attempt, no handle. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    void recordCheck(long taskId, String name, CallResult result) {
+        recordObservation(taskId, null, name, null, result, classifyCheck(result));
     }
 
     /**
-     * Record one CHECK observation (TERRAFORM_JOB poll or CONDITION_CHECK check) with RLE: an identical
-     * {@code (apiResult, observed, errorCode)} folds into the open run (poll_count++, latency overwritten);
-     * a changed observation opens a new run. On backpressure, defer {@code next_check_at}. One committed tx.
+     * Record one CHECK observation with RLE: an identical {@code (apiResult, observed, errorCode)} folds into
+     * the open run (poll_count++, latency overwritten); a changed observation opens a new run. On backpressure,
+     * defer {@code next_check_at}. One committed tx (callers are REQUIRES_NEW).
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    void recordCheckObservation(CheckObservationRecord record) {
-        TaskCheckObservation obs = record.getObservation();
+    private void recordObservation(long taskId, @Nullable Long attemptId, String name, @Nullable String handle,
+                                   CallResult result, Observation classified) {
         TaskCheck open = checks
                 .findFirstByTaskIdAndKindAndNameAndExternalHandleOrderByStartedAtDescIdDesc(
-                        record.getTaskId(), CheckKind.CHECK, record.getName(), record.getHandle())
+                        taskId, CheckKind.CHECK, name, handle)
                 .orElse(null);
-        if (open != null && sameRun(open, obs)) {
+        if (open != null && sameRun(open, classified)) {
             open.setCheckedAt(clock.instant());
             open.setPollCount(open.getPollCount() + 1);
-            open.setLatencyMs(record.getLatencyMs()); // last poll's latency — overwrite, not accumulate (§1.2)
+            open.setLatencyMs(result.getLatencyMs()); // last poll's latency — overwrite, not accumulate (§1.2)
             checks.save(open);
         } else {
-            checks.save(newRun(record));
+            checks.save(newRun(taskId, attemptId, name, handle, result, classified));
         }
-        if (record.getBackpressureNextCheckAt() != null) {
-            tasks.setNextCheckAt(record.getTaskId(), record.getBackpressureNextCheckAt());
+        deferOnBackpressure(taskId, result);
+    }
+
+    /** Backpressure defers the next check to now + the (floor-applied) Retry-After carried on the result. */
+    private void deferOnBackpressure(long taskId, CallResult result) {
+        if (result.getStatus() == CallStatus.BACKPRESSURE && result.getRetryAfter() != null) {
+            tasks.setNextCheckAt(taskId, clock.instant().plus(result.getRetryAfter()));
         }
     }
 
-    private TaskCheck newRun(CheckObservationRecord record) {
-        TaskCheckObservation obs = record.getObservation();
+    private TaskCheck newRun(long taskId, @Nullable Long attemptId, String name, @Nullable String handle,
+                             CallResult result, Observation classified) {
         Instant now = clock.instant();
         TaskCheck run = new TaskCheck();
-        run.setTaskId(record.getTaskId());
-        run.setAttemptId(record.getAttemptId()); // TF poll: the owning attempt; null for CONDITION_CHECK
+        run.setTaskId(taskId);
+        run.setAttemptId(attemptId); // TF poll: the owning attempt; null for CONDITION_CHECK
         run.setKind(CheckKind.CHECK);
-        run.setName(record.getName());
-        run.setExternalHandle(record.getHandle());
-        run.setApiResult(obs.getApiResult());
-        run.setObserved(obs.getObserved());
-        run.setErrorCode(obs.getErrorCode());
+        run.setName(name);
+        run.setExternalHandle(handle);
+        run.setApiResult(classified.apiResult());
+        run.setObserved(classified.observed());
+        run.setErrorCode(classified.errorCode());
         run.setPollCount(1);
         run.setStartedAt(now);
         run.setCheckedAt(now);
-        run.setLatencyMs(record.getLatencyMs());
+        run.setLatencyMs(result.getLatencyMs());
         return run;
     }
 
-    private static boolean sameRun(TaskCheck open, TaskCheckObservation obs) {
-        return open.getApiResult() == obs.getApiResult()
-                && open.getObserved() == obs.getObserved()
-                && open.getErrorCode() == obs.getErrorCode();
+    private static boolean sameRun(TaskCheck open, Observation obs) {
+        return open.getApiResult() == obs.apiResult()
+                && open.getObserved() == obs.observed()
+                && open.getErrorCode() == obs.errorCode();
     }
+
+    /** TERRAFORM_JOB poll: SUCCESS → OK + observed status; BACKPRESSURE → (ERROR, null); REJECT → CHECK_ERROR. */
+    private static Observation classifyPoll(CallResult result) {
+        return switch (result.getStatus()) {
+            case SUCCESS -> new Observation(ApiResult.OK, jobStatus(result.getValue()), null);
+            case BACKPRESSURE -> new Observation(ApiResult.ERROR, null, null);
+            case REJECT -> new Observation(ApiResult.ERROR, null, ErrorCode.CHECK_ERROR);
+            case TIMEOUT -> new Observation(ApiResult.ERROR, null, ErrorCode.CALL_TIMEOUT);
+        };
+    }
+
+    /** CONDITION_CHECK check: SUCCESS → OK + MET/NOT_MET; BACKPRESSURE → (ERROR, null); REJECT → CHECK_ERROR. */
+    private static Observation classifyCheck(CallResult result) {
+        return switch (result.getStatus()) {
+            case SUCCESS -> new Observation(ApiResult.OK, conditionStatus(result.getValue()), null);
+            case BACKPRESSURE -> new Observation(ApiResult.ERROR, null, null);
+            case REJECT -> new Observation(ApiResult.ERROR, null, ErrorCode.CHECK_ERROR);
+            case TIMEOUT -> new Observation(ApiResult.ERROR, null, ErrorCode.CALL_TIMEOUT);
+        };
+    }
+
+    private static Observed jobStatus(String value) {
+        return switch (value) {
+            case "SUCCEEDED" -> Observed.SUCCEEDED;
+            case "FAILED" -> Observed.FAILED;
+            default -> Observed.RUNNING;
+        };
+    }
+
+    private static Observed conditionStatus(String value) {
+        return "MET".equals(value) ? Observed.MET : Observed.NOT_MET;
+    }
+
+    /** One classified CHECK observation — the RLE collapse key {@code (apiResult, observed, errorCode)}. */
+    private record Observation(ApiResult apiResult, @Nullable Observed observed, @Nullable ErrorCode errorCode) {}
 }

@@ -35,7 +35,6 @@ import static org.assertj.core.api.Assertions.assertThat;
         PipelineCreationService.class,
         PipelineRunWriter.class,
         PipelineEventRecorder.class,
-        com.bff.pipeline.service.handler.PipelineHandlerRegistry.class,
         com.bff.pipeline.service.recipe.RecipeRegistry.class,
         PipelineCreationServiceTest.Wiring.class
 })

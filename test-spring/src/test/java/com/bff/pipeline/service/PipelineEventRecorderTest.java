@@ -1,6 +1,5 @@
 package com.bff.pipeline.service;
 
-import com.bff.pipeline.dto.PipelineEventRecord;
 import com.bff.pipeline.type.Actor;
 import com.bff.pipeline.entity.PipelineEvent;
 import com.bff.pipeline.type.Severity;
@@ -32,7 +31,7 @@ class PipelineEventRecorderTest {
     void recordPipelineEventInsertsRowWithFixedClockAndUnsentNotifiedAt() {
         PipelineEventRecorder recorder = new PipelineEventRecorder(events, Clock.fixed(FIXED, ZoneOffset.UTC));
 
-        PipelineEvent saved = recorder.recordPipelineEvent(PipelineEventRecord.builder()
+        PipelineEvent saved = recorder.recordPipelineEvent(PipelineEvent.builder()
                 .pipelineId(7L).taskId(42L).type("TASK_FAILED").severity(Severity.CRITICAL)
                 .actor(Actor.SYSTEM).payload("{\"code\":\"JOB_FAILED\"}").build());
 
@@ -51,7 +50,7 @@ class PipelineEventRecorderTest {
     void recordGlobalEventInsertsRowWithNullPipelineId() {
         PipelineEventRecorder recorder = new PipelineEventRecorder(events, Clock.fixed(FIXED, ZoneOffset.UTC));
 
-        PipelineEvent saved = recorder.recordGlobalEvent(PipelineEventRecord.builder()
+        PipelineEvent saved = recorder.recordGlobalEvent(PipelineEvent.builder()
                 .type("SETTINGS_CHANGED").severity(Severity.INFO).actor(Actor.HUMAN)
                 .payload("{\"slotCap\":4}").build());
 

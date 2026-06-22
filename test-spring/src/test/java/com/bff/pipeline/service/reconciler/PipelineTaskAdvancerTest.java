@@ -1,5 +1,7 @@
 package com.bff.pipeline.service.reconciler;
 
+import com.bff.pipeline.client.FakeImClient;
+import com.bff.pipeline.client.ImClient;
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.type.Actor;
 import com.bff.pipeline.type.ApiResult;
@@ -7,6 +9,7 @@ import com.bff.pipeline.type.CheckKind;
 import com.bff.pipeline.type.ErrorCode;
 import com.bff.pipeline.type.Observed;
 import com.bff.pipeline.entity.Pipeline;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.PipelineType;
 import com.bff.pipeline.entity.Task;
@@ -14,24 +17,13 @@ import com.bff.pipeline.entity.TaskAttempt;
 import com.bff.pipeline.entity.TaskCheck;
 import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
-import com.bff.pipeline.dto.ConditionCheckContext;
-import com.bff.pipeline.dto.ConditionCheckOutcome;
-import com.bff.pipeline.service.handler.ConditionCheckHandler;
-import com.bff.pipeline.dto.TerraformDispatchContext;
-import com.bff.pipeline.dto.TerraformDispatchOutcome;
-import com.bff.pipeline.service.handler.PipelineHandlerRegistry;
-import com.bff.pipeline.dto.TerraformPollContext;
-import com.bff.pipeline.dto.TerraformPollOutcome;
-import com.bff.pipeline.service.handler.TerraformJobHandler;
 import com.bff.pipeline.entity.PipelineEvent;
 import com.bff.pipeline.repository.PipelineEventRepository;
 import com.bff.pipeline.repository.PipelineRepository;
 import com.bff.pipeline.repository.TaskAttemptRepository;
 import com.bff.pipeline.repository.TaskCheckRepository;
 import com.bff.pipeline.repository.TaskRepository;
-import com.bff.pipeline.dto.ExternalCallOutcome;
 import com.bff.pipeline.service.PipelineEventRecorder;
-import com.bff.pipeline.service.external.ExternalCallExecutor;
 import com.bff.pipeline.service.external.ExternalCallLauncher;
 import com.bff.pipeline.service.external.TaskCheckObservationWriter;
 import org.junit.jupiter.api.AfterEach;
@@ -53,7 +45,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.Executor;
-import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -62,7 +53,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * REQUIRES-NEW-driven committed transaction, so the @DataJpaTest wrapper is suppressed (NOT_SUPPORTED) and
  * rows are seeded/asserted through the repos; {@link #cleanup()} clears the committed rows. The real
  * {@link ExternalCallLauncher}/{@link TaskCheckObservationWriter} run, driven by a mutable clock, a settable fake executor,
- * and settable fake handlers; time-based paths are triggered by seeding timestamps in the past.
+ * and a settable fake {@link ImClient} (the test seam); time-based paths are triggered by seeding timestamps
+ * in the past.
  *
  * <p>External calls are fire-and-forget (D-T2): {@link PipelineTaskAdvancer} FIRES a dispatch/poll/check at the END of
  * {@code advance()} via the {@code pipelineCallExecutor} and returns; the call's committed observation is read
@@ -81,7 +73,6 @@ import static org.assertj.core.api.Assertions.assertThat;
         ExternalCallLauncher.class,
         TaskCheckObservationWriter.class,
         PipelineEventRecorder.class,
-        PipelineHandlerRegistry.class,
         PipelineTaskAdvancerTest.Wiring.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -90,6 +81,8 @@ class PipelineTaskAdvancerTest {
     private static final Instant NOW = Instant.parse("2026-06-21T10:15:30Z");
     private static final Duration STEP = Duration.ofSeconds(1);
     private static final String TARGET = "ts-tick-1";
+    private static final String TF_OP = "apply-network";
+    private static final String COND_OP = "network-ready";
 
     @Autowired private PipelineTaskAdvancer advancer;
     @Autowired private PipelineStatusDeriver deriver;
@@ -99,20 +92,20 @@ class PipelineTaskAdvancerTest {
     @Autowired private TaskRepository tasks;
     @Autowired private TaskAttemptRepository attempts;
     @Autowired private TaskCheckRepository checks;
-    @Autowired private FakeExecutor executor;
     @Autowired private ManualCallExecutor callExecutor;
     @Autowired private MutableClock clock;
-    @Autowired private FakeTf tf;
-    @Autowired private FakeCond cond;
+    @Autowired private FakeImClient im;
 
     @BeforeEach
     void resetClock() {
         clock.set(NOW);
+        im.dispatchAccepted("job-9");
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING"));
+        im.setCheckCondition(FakeImClient.condition(false));
     }
 
     @AfterEach
     void cleanup() {
-        executor.reset();
         callExecutor.drain(); // discard any un-drained queued call so it cannot leak into the next test
         events.deleteAll();
         checks.deleteAll();
@@ -130,7 +123,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void blockedFirstTaskPromotesToReady() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.BLOCKED).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.BLOCKED).operation(TF_OP).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
 
@@ -140,8 +133,8 @@ class PipelineTaskAdvancerTest {
     @Test
     void blockedLaterTaskWaitsForItsPredecessor() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
-        Task second = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.BLOCKED).handlerKey(FakeCond.KEY).build());
+        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
+        Task second = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.BLOCKED).operation(COND_OP).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(second).due(true).budget(budget()).build());
         assertThat(reload(second).getStatus()).isEqualTo(TaskStatus.BLOCKED);
@@ -157,7 +150,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void readyTerraformAdmitsToDispatchingAndCreatesAttempt() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.READY).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.READY).operation(TF_OP).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
 
@@ -170,8 +163,8 @@ class PipelineTaskAdvancerTest {
     @Test
     void readyTerraformStaysWhenSlotCapIsFull() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build()); // occupies the only slot (slotCap=1)
-        Task waiting = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.READY).handlerKey(FakeTf.KEY).build());
+        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build()); // occupies the only slot (slotCap=1)
+        Task waiting = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.READY).operation(TF_OP).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(waiting).due(true).budget(budget()).build());
 
@@ -181,7 +174,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void readyConditionStartsWaitingExternalWithNoAttempt() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.READY).handlerKey(FakeCond.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.READY).operation(COND_OP).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
 
@@ -191,19 +184,20 @@ class PipelineTaskAdvancerTest {
     }
 
     @Test
-    void unknownHandlerFailsTaskWithSyntheticCheckAndNoFailCount() {
+    void readyConditionRoutesByKindAndOperationNotAttempt() {
+        // (kind, operation) routing replaces the handler registry: a CONDITION_CHECK task enters WAITING_EXTERNAL
+        // (no attempt, no slot) purely from its kind — the operation string is what the launcher will call.
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).handlerKey("missing.handler").build());
+        Task condition = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.READY).operation(COND_OP).build());
+        Task terraform = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.READY).operation(TF_OP).build());
 
-        advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
+        advancer.advance(TaskTick.builder().pipeline(pipeline).task(condition).due(true).budget(budget()).build());
+        advancer.advance(TaskTick.builder().pipeline(pipeline).task(terraform).due(true).budget(budget()).build());
 
-        Task after = reload(task);
-        assertThat(after.getStatus()).isEqualTo(TaskStatus.FAILED);
-        assertThat(after.getFailCount()).isZero();
-        assertThat(checks.findFirstByTaskIdOrderByStartedAtDescIdDesc(task.getId())).get().satisfies(row -> {
-            assertThat(row.getName()).isEqualTo("orchestrator.handler.resolve");
-            assertThat(row.getErrorCode()).isEqualTo(ErrorCode.HANDLER_NOT_FOUND);
-        });
+        assertThat(reload(condition).getStatus()).isEqualTo(TaskStatus.WAITING_EXTERNAL); // no attempt
+        assertThat(attempts.findByTaskIdOrderByAttemptNoAsc(condition.getId())).isEmpty();
+        assertThat(reload(terraform).getStatus()).isEqualTo(TaskStatus.DISPATCHING);       // attempt created
+        assertThat(attempts.findFirstByTaskIdOrderByAttemptNoDesc(terraform.getId())).isPresent();
     }
 
     // ---- dispatch / DISPATCHING ----
@@ -211,7 +205,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchingWithAdoptedResponsePromotesToRunning() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
@@ -222,9 +216,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchingFiresDispatchAndAdoptsAcceptedResponse() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW).build()); // open, response null
-        tf.dispatch = TerraformDispatchOutcome.Accepted.builder().handle("job-42").build();
+        im.dispatchAccepted("job-42");
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick fires the dispatch (queued)
         callExecutor.drain();                             // call thread adopts the response, writes the OK row
@@ -236,9 +230,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchRejectedUnderMaxFailsAttemptAndOpensANewOne() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW).build());
-        tf.dispatch = TerraformDispatchOutcome.Rejected.builder().detail("nope").build();
+        im.setRunTerraform(FakeImClient.reject());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires dispatch (queued)
         callExecutor.drain();                             // call thread writes the (ERROR, IM_REJECTED) row
@@ -254,9 +248,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchRejectedAtMaxFailsTask() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).failCount(2).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).failCount(2).maxFailCount(3).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(3).startedAt(NOW).build());
-        tf.dispatch = TerraformDispatchOutcome.Rejected.builder().detail("nope").build();
+        im.setRunTerraform(FakeImClient.reject());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires dispatch (queued)
         callExecutor.drain();                             // call thread writes the (ERROR, IM_REJECTED) row
@@ -270,7 +264,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchingPastRecoveryTimeoutFailsWithDispatchNoResponse() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         // attempt started long before now; response still null → recovery closes it.
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW.minus(Duration.ofMinutes(10))).build());
 
@@ -289,7 +283,7 @@ class PipelineTaskAdvancerTest {
         // not re-fired). The DISPATCHING→RUNNING transition MUST reset that, or the first job poll waits
         // ~recoveryTimeout (≈5 min) instead of the 30–60s job-poll cadence.
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build()); // response adopted → promotes to RUNNING this tick
         task.setNextCheckAt(NOW.plus(Duration.ofMinutes(5))); // the dispatch in-flight park
         tasks.save(task);
@@ -306,9 +300,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void runningPollSucceededCompletesTaskAndClosesAttemptOk() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED"));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires poll (queued)
         callExecutor.drain();                             // call thread writes the SUCCEEDED observation
@@ -322,9 +316,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void runningPollFailedRequeuesUnderMaxAndFailsAtMax() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task underMax = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task underMax = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         seedAttempt(AttemptSeed.builder().taskId(underMax.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.FAILED).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("FAILED"));
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(underMax).due(true).budget(budget()).build()); // tick 1: fires poll (queued)
         callExecutor.drain();                                 // call thread writes the FAILED observation
         clock.advance(STEP);
@@ -332,7 +326,7 @@ class PipelineTaskAdvancerTest {
         assertThat(reload(underMax).getStatus()).isEqualTo(TaskStatus.READY); // slot released, requeue
         assertThat(reload(underMax).getFailCount()).isEqualTo(1);
 
-        Task atMax = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).failCount(2).maxFailCount(3).build());
+        Task atMax = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).failCount(2).maxFailCount(3).build());
         seedAttempt(AttemptSeed.builder().taskId(atMax.getId()).attemptNo(3).response("job-9").startedAt(NOW).build());
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(atMax).due(true).budget(budget()).build()); // tick 1: fires poll (queued)
         callExecutor.drain();                              // call thread writes the FAILED observation
@@ -344,9 +338,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void runningPollReadErrorDoesNotConsumeFailCount() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.CallFailed.builder().reason(ErrorCode.CHECK_ERROR).build();
+        im.setTerraformJobStatus(FakeImClient.reject()); // a read error (CHECK_ERROR) — not a job failure
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires poll (queued)
         callExecutor.drain();                             // call thread writes the (ERROR, CHECK_ERROR) read-error obs
@@ -360,11 +354,11 @@ class PipelineTaskAdvancerTest {
     @Test
     void runningExecutionTimeoutFailsAttempt() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1))); // already past
         tasks.save(task);
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build(); // not terminal → timeout applies after a confirming poll
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING")); // not terminal → timeout applies after a confirming poll
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires the confirming poll (checkedAt = now ≥ deadline)
         callExecutor.drain();                             // call thread writes the non-terminal RUNNING observation
@@ -379,9 +373,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void budgetExhaustedSkipsThePoll() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED"));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(new ExternalCallTickBudget(0)).build());
         callExecutor.drain(); // nothing was queued (budget starved the fire)
@@ -395,8 +389,8 @@ class PipelineTaskAdvancerTest {
     @Test
     void waitingExternalMetCompletes() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).handlerKey(FakeCond.KEY).build());
-        cond.check = ConditionCheckOutcome.Condition.builder().observed(Observed.MET).build();
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).operation(COND_OP).build());
+        im.setCheckCondition(FakeImClient.condition(true));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires check (queued)
         callExecutor.drain();                             // call thread writes the MET observation
@@ -409,8 +403,8 @@ class PipelineTaskAdvancerTest {
     @Test
     void waitingExternalNotMetStaysWithoutFail() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).handlerKey(FakeCond.KEY).failCount(0).maxFailCount(3).build());
-        cond.check = ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build();
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).operation(COND_OP).failCount(0).maxFailCount(3).build());
+        im.setCheckCondition(FakeImClient.condition(false));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires check (queued)
         callExecutor.drain();                             // call thread writes the NOT_MET observation
@@ -424,9 +418,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void waitingExternalCheckErrorAtMaxFails() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).handlerKey(FakeCond.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).operation(COND_OP).failCount(0).maxFailCount(3).build());
         checks.save(conditionCheckError(task.getId(), 2)); // two prior failed CHECK calls in the durable ledger
-        cond.check = ConditionCheckOutcome.CallFailed.builder().reason(ErrorCode.CHECK_ERROR).build();
+        im.setCheckCondition(FakeImClient.reject()); // the 3rd check is a CHECK_ERROR
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires the 3rd check (queued)
         callExecutor.drain();                             // call thread folds the 3rd CHECK_ERROR into the ledger
@@ -442,9 +436,9 @@ class PipelineTaskAdvancerTest {
         // codex's rollback scenario: failed CHECK calls committed to the ledger, but the fail++ tick rolled
         // back so fail_count is stale at 0. The recompute must terminalize FAILED — a later MET must not rescue it.
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).handlerKey(FakeCond.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).operation(COND_OP).failCount(0).maxFailCount(3).build());
         checks.save(conditionCheckError(task.getId(), 3)); // ledger already at max BEFORE this tick
-        cond.check = ConditionCheckOutcome.Condition.builder().observed(Observed.MET).build();
+        im.setCheckCondition(FakeImClient.condition(true));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // ledger recompute fires first → FAILED on this tick
 
@@ -455,10 +449,10 @@ class PipelineTaskAdvancerTest {
     @Test
     void waitingExternalTtlExpires() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).handlerKey(FakeCond.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.WAITING_EXTERNAL).operation(COND_OP).build());
         task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1)));
         tasks.save(task);
-        cond.check = ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build();
+        im.setCheckCondition(FakeImClient.condition(false));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires the confirming check (checkedAt = now ≥ TTL)
         callExecutor.drain();                             // call thread writes the non-MET observation
@@ -473,7 +467,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void cancellingDispatchingTaskCancelsImmediatelyAndClosesAttempt() {
         Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
@@ -487,9 +481,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void cancellingRunningTaskDrainsToTerminal() {
         Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED"));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: drain fires the poll (queued)
         callExecutor.drain();                             // call thread writes the SUCCEEDED observation
@@ -502,11 +496,11 @@ class PipelineTaskAdvancerTest {
     @Test
     void cancellingDrainDefersTimeoutWhenBudgetIsExhausted() {
         Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
         task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1))); // deadline passed
         tasks.save(task);
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build(); // would succeed if it could be polled
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED")); // would succeed if it could be polled
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(new ExternalCallTickBudget(0)).build()); // no budget → defer, do not timeout blind
         callExecutor.drain(); // nothing queued
@@ -519,8 +513,8 @@ class PipelineTaskAdvancerTest {
     @Test
     void deriveCancellingWithAllTasksTerminalCancelsBeatsFailed() {
         Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
-        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.FAILED).handlerKey(FakeTf.KEY).build());
-        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.CANCELLED).handlerKey(FakeCond.KEY).build());
+        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.FAILED).operation(TF_OP).build());
+        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.CANCELLED).operation(COND_OP).build());
 
         deriver.derive(pipeline, tasks.findByPipelineIdOrderBySeqAsc(pipeline.getId()));
 
@@ -530,7 +524,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void deriveRunningWithAFailedTaskFailsPipelineWithReason() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task failed = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.FAILED).handlerKey(FakeTf.KEY).build());
+        Task failed = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.FAILED).operation(TF_OP).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(failed.getId()).attemptNo(1).response("job-9").startedAt(NOW).finishedAt(NOW).build());
         attempt.setErrorCode(ErrorCode.JOB_FAILED);
         attempts.save(attempt);
@@ -546,8 +540,8 @@ class PipelineTaskAdvancerTest {
     @Test
     void deriveRunningWithAllTasksDoneCompletesPipeline() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DONE).handlerKey(FakeTf.KEY).build());
-        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.DONE).handlerKey(FakeCond.KEY).build());
+        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DONE).operation(TF_OP).build());
+        seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(1).kind(TaskKind.CONDITION_CHECK).status(TaskStatus.DONE).operation(COND_OP).build());
 
         deriver.derive(pipeline, tasks.findByPipelineIdOrderBySeqAsc(pipeline.getId()));
 
@@ -559,7 +553,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void pruneDeletesOnlyChecksPastRetention() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
         checks.save(check(task.getId(), NOW.minus(Duration.ofDays(120)))); // older than 90d retention
         checks.save(check(task.getId(), NOW.minus(Duration.ofDays(1))));
 
@@ -572,7 +566,7 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchingBackpressureSuppressesTheRecoveryFail() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW.minus(Duration.ofMinutes(10))).build()); // recovery-due
         checks.save(dispatchObservation(DispatchObservationSeed.builder()
                 .taskId(task.getId()).attemptId(attempt.getId()).apiResult(ApiResult.ERROR).build())); // this attempt's last DISPATCH = backpressure marker
@@ -586,16 +580,16 @@ class PipelineTaskAdvancerTest {
     @Test
     void dispatchRejectedThenRedispatchesTheNewAttemptNextTick() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW).build());
-        tf.dispatch = TerraformDispatchOutcome.Rejected.builder().detail("nope").build();
+        im.setRunTerraform(FakeImClient.reject());
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires the reject (queued)
         callExecutor.drain();                             // call thread writes attempt 1's (ERROR, IM_REJECTED) row
 
         clock.advance(STEP);
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(reload(task)).due(true).budget(budget()).build()); // tick 2: reads reject → attempt 1 fails, attempt 2 opens (later startedAt)
 
-        tf.dispatch = TerraformDispatchOutcome.Accepted.builder().handle("job-redispatch").build();
+        im.dispatchAccepted("job-redispatch");
         clock.advance(STEP);
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(reload(task)).due(true).budget(budget()).build()); // tick 3: attempt 2 NOT stalled by the prior reject (scoped out) → fires
         callExecutor.drain();                                     // call thread adopts attempt 2's response
@@ -611,14 +605,14 @@ class PipelineTaskAdvancerTest {
         // stale prior-attempt reject never double-fails the new attempt even when the clock does NOT advance
         // between the reject and the new attempt (the backward-clock-step hazard). Clock stays FIXED here.
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.DISPATCHING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).startedAt(NOW).build());
-        tf.dispatch = TerraformDispatchOutcome.Rejected.builder().detail("nope").build();
+        im.setRunTerraform(FakeImClient.reject());
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires reject (queued)
         callExecutor.drain();                             // attempt 1's (ERROR, IM_REJECTED) row at started_at=NOW, attempt_id=1
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(reload(task)).due(true).budget(budget()).build()); // tick 2: reads reject → attempt 1 fails, attempt 2 opens at started_at=NOW
 
-        tf.dispatch = TerraformDispatchOutcome.Accepted.builder().handle("job-2").build();
+        im.dispatchAccepted("job-2");
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(reload(task)).due(true).budget(budget()).build()); // tick 3: attempt 2 (id≠1) is NOT stalled by the same-instant stale reject
         callExecutor.drain();
 
@@ -631,11 +625,11 @@ class PipelineTaskAdvancerTest {
     @Test
     void runningPollSucceededBeatsAnExpiredExecutionDeadline() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).build());
         task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1))); // execution deadline already passed
         tasks.save(task);
         seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED"));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: fires poll (queued)
         callExecutor.drain();                             // call thread writes the SUCCEEDED observation
@@ -648,9 +642,9 @@ class PipelineTaskAdvancerTest {
     @Test
     void cancellingRunningDrainFailedTerminatesAsFailedAndCounts() {
         Pipeline pipeline = seedPipeline(PipelineStatus.CANCELLING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).handlerKey(FakeTf.KEY).failCount(0).maxFailCount(3).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.RUNNING).operation(TF_OP).failCount(0).maxFailCount(3).build());
         TaskAttempt attempt = seedAttempt(AttemptSeed.builder().taskId(task.getId()).attemptNo(1).response("job-9").startedAt(NOW).build());
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.FAILED).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("FAILED"));
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build()); // tick 1: drain fires the poll (queued)
         callExecutor.drain();                             // call thread writes the FAILED observation
@@ -665,13 +659,13 @@ class PipelineTaskAdvancerTest {
     @Test
     void aTransitionEmitsAPipelineEvent() {
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
-        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.BLOCKED).handlerKey(FakeTf.KEY).build());
+        Task task = seedTask(TaskSeed.builder().pipelineId(pipeline.getId()).seq(0).kind(TaskKind.TERRAFORM_JOB).status(TaskStatus.BLOCKED).operation(TF_OP).build());
 
         advancer.advance(TaskTick.builder().pipeline(pipeline).task(task).due(true).budget(budget()).build());
 
         assertThat(events.findByPipelineIdOrderByCreatedAtAsc(pipeline.getId())).singleElement()
                 .satisfies((PipelineEvent event) -> {
-                    assertThat(event.getType()).isEqualTo("TASK:READY");
+                    assertThat(event.getType()).isEqualTo(PipelineEventType.TASK_READY.wire());
                     assertThat(event.getTaskId()).isEqualTo(task.getId());
                     assertThat(event.getActor()).isEqualTo(Actor.SYSTEM);
                 });
@@ -697,7 +691,7 @@ class PipelineTaskAdvancerTest {
         t.setPipelineId(seed.pipelineId);
         t.setSeq(seed.seq);
         t.setName("task-" + seed.seq);
-        t.setHandlerKey(seed.handlerKey);
+        t.setOperation(seed.operation);
         t.setKind(seed.kind);
         t.setStatus(seed.status);
         t.setFailCount(seed.failCount);
@@ -720,7 +714,7 @@ class PipelineTaskAdvancerTest {
         c.setTaskId(seed.taskId);
         c.setAttemptId(seed.attemptId); // the tick scopes the DISPATCH read by attempt id (clock-independent)
         c.setKind(CheckKind.DISPATCH);
-        c.setName("fake.tf:dispatch");
+        c.setName(TF_OP + ":dispatch");
         c.setApiResult(seed.apiResult);
         c.setErrorCode(seed.errorCode);
         c.setPollCount(1);
@@ -736,7 +730,7 @@ class PipelineTaskAdvancerTest {
         private final int seq;
         private final TaskKind kind;
         private final TaskStatus status;
-        private final String handlerKey;
+        private final String operation;
         @lombok.Builder.Default
         private final int failCount = 0;
         @lombok.Builder.Default
@@ -761,12 +755,12 @@ class PipelineTaskAdvancerTest {
     }
 
     /** A committed CONDITION_CHECK error run (RLE) representing {@code pollCount} failed CHECK calls. Its name
-     *  matches ExternalCallLauncher' operation id so a fired check collapses into it. */
+     *  matches the launcher's operation id ({@code operation:check}) so a fired check collapses into it. */
     private TaskCheck conditionCheckError(Long taskId, int pollCount) {
         TaskCheck c = new TaskCheck();
         c.setTaskId(taskId);
         c.setKind(CheckKind.CHECK);
-        c.setName(FakeCond.KEY + ":check");
+        c.setName(COND_OP + ":check");
         c.setApiResult(ApiResult.ERROR);
         c.setErrorCode(ErrorCode.CHECK_ERROR);
         c.setPollCount(pollCount);
@@ -805,11 +799,7 @@ class PipelineTaskAdvancerTest {
         }
 
         @Bean ReconcileLeader leader() {
-            return () -> true;
-        }
-
-        @Bean FakeExecutor fakeExecutor() {
-            return new FakeExecutor();
+            return new ReconcileLeader();
         }
 
         /** The fire-and-forget pool ({@link ExternalCallLauncher} @Qualifier): queue the call so it runs AFTER the
@@ -818,12 +808,8 @@ class PipelineTaskAdvancerTest {
             return new ManualCallExecutor();
         }
 
-        @Bean FakeTf fakeTf() {
-            return new FakeTf();
-        }
-
-        @Bean FakeCond fakeCond() {
-            return new FakeCond();
+        @Bean FakeImClient fakeImClient() {
+            return new FakeImClient();
         }
     }
 
@@ -886,42 +872,5 @@ class PipelineTaskAdvancerTest {
         public Clock withZone(ZoneId zone) {
             return this;
         }
-    }
-
-    static final class FakeExecutor implements ExternalCallExecutor {
-        private boolean timedOut = false;
-
-        void setTimedOut(boolean timedOut) {
-            this.timedOut = timedOut;
-        }
-
-        void reset() {
-            this.timedOut = false;
-        }
-
-        @Override
-        public <T> ExternalCallOutcome<T> call(Supplier<T> work, Duration deadline) {
-            return timedOut
-                    ? ExternalCallOutcome.<T>builder().value(null).latencyMs(1).timedOut(true).build()
-                    : ExternalCallOutcome.<T>builder().value(work.get()).latencyMs(1).timedOut(false).build();
-        }
-    }
-
-    static final class FakeTf implements TerraformJobHandler {
-        static final String KEY = "fake.tf";
-        TerraformDispatchOutcome dispatch = TerraformDispatchOutcome.Accepted.builder().handle("job-9").build();
-        TerraformPollOutcome poll = TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build();
-
-        @Override public String key() { return KEY; }
-        @Override public TerraformDispatchOutcome dispatch(TerraformDispatchContext ctx) { return dispatch; }
-        @Override public TerraformPollOutcome poll(TerraformPollContext ctx) { return poll; }
-    }
-
-    static final class FakeCond implements ConditionCheckHandler {
-        static final String KEY = "fake.cond";
-        ConditionCheckOutcome check = ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build();
-
-        @Override public String key() { return KEY; }
-        @Override public ConditionCheckOutcome check(ConditionCheckContext ctx) { return check; }
     }
 }

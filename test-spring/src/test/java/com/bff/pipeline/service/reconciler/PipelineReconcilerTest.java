@@ -1,8 +1,8 @@
 package com.bff.pipeline.service.reconciler;
 
+import com.bff.pipeline.client.FakeImClient;
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.type.Actor;
-import com.bff.pipeline.type.Observed;
 import com.bff.pipeline.entity.Pipeline;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.PipelineType;
@@ -10,23 +10,12 @@ import com.bff.pipeline.entity.Task;
 import com.bff.pipeline.entity.TaskAttempt;
 import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
-import com.bff.pipeline.dto.ConditionCheckContext;
-import com.bff.pipeline.dto.ConditionCheckOutcome;
-import com.bff.pipeline.service.handler.ConditionCheckHandler;
-import com.bff.pipeline.dto.TerraformDispatchContext;
-import com.bff.pipeline.dto.TerraformDispatchOutcome;
-import com.bff.pipeline.service.handler.PipelineHandlerRegistry;
-import com.bff.pipeline.dto.TerraformPollContext;
-import com.bff.pipeline.dto.TerraformPollOutcome;
-import com.bff.pipeline.service.handler.TerraformJobHandler;
 import com.bff.pipeline.repository.PipelineEventRepository;
 import com.bff.pipeline.repository.PipelineRepository;
 import com.bff.pipeline.repository.TaskAttemptRepository;
 import com.bff.pipeline.repository.TaskCheckRepository;
 import com.bff.pipeline.repository.TaskRepository;
-import com.bff.pipeline.dto.ExternalCallOutcome;
 import com.bff.pipeline.service.PipelineEventRecorder;
-import com.bff.pipeline.service.external.ExternalCallExecutor;
 import com.bff.pipeline.service.external.ExternalCallLauncher;
 import com.bff.pipeline.service.external.TaskCheckObservationWriter;
 import org.junit.jupiter.api.AfterEach;
@@ -45,16 +34,15 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The {@link PipelineReconciler} orchestration: the leader gate, the global due-order budget consumption (SCOPE §3 /
  * D-T7), and end-to-end tick transitions + derivation. Same NOT_SUPPORTED + cleanup harness as the rest of
- * the reconciler suite (each advance/derive commits in its own tx).
+ * the reconciler suite (each advance/derive commits in its own tx). The external call seam is a settable fake
+ * {@link com.bff.pipeline.client.ImClient}.
  */
 @DataJpaTest
 @Import({
@@ -65,13 +53,13 @@ import static org.assertj.core.api.Assertions.assertThat;
         ExternalCallLauncher.class,
         TaskCheckObservationWriter.class,
         PipelineEventRecorder.class,
-        PipelineHandlerRegistry.class,
         PipelineReconcilerTest.Wiring.class
 })
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PipelineReconcilerTest {
 
     private static final Instant NOW = Instant.parse("2026-06-21T10:15:30Z");
+    private static final String TF_OP = "apply-network";
 
     @Autowired private PipelineReconciler reconciler;
     @Autowired private PipelineRepository pipelines;
@@ -80,12 +68,13 @@ class PipelineReconcilerTest {
     @Autowired private TaskAttemptRepository attempts;
     @Autowired private TaskCheckRepository checks;
     @Autowired private ManualCallExecutor callExecutor;
-    @Autowired private FakeTf tf;
+    @Autowired private FakeImClient im;
     @Autowired private FakeLeader leader;
 
     @AfterEach
     void cleanup() {
         leader.isLeader = true;
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING"));
         callExecutor.drain(); // discard any un-drained queued call so it cannot leak into the next test
         events.deleteAll();
         checks.deleteAll();
@@ -97,7 +86,7 @@ class PipelineReconcilerTest {
     @Test
     void tickServicesTheLongestOverdueTaskFirstUnderBudgetPressure() {
         // Two active pipelines, each one RUNNING TF task due for a poll; the budget is 1 (Wiring).
-        tf.poll = TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build();
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING"));
         Task older = seedRunningTask(NOW.minus(Duration.ofSeconds(60))); // more overdue → serviced first
         Task newer = seedRunningTask(NOW.minus(Duration.ofSeconds(10)));
 
@@ -170,7 +159,7 @@ class PipelineReconcilerTest {
         t.setPipelineId(pipelineId);
         t.setSeq(0);
         t.setName("apply");
-        t.setHandlerKey(FakeTf.KEY);
+        t.setOperation(TF_OP);
         t.setKind(TaskKind.TERRAFORM_JOB);
         t.setStatus(status);
         t.setFailCount(0);
@@ -195,22 +184,14 @@ class PipelineReconcilerTest {
             return new FakeLeader();
         }
 
-        @Bean FakeExecutor fakeExecutor() {
-            return new FakeExecutor();
-        }
-
         /** The fire-and-forget pool ({@link ExternalCallLauncher} @Qualifier): queue the call so it runs AFTER the
          *  firing tick commits (drained by the test), modelling production's async boundary. */
         @Bean Executor pipelineCallExecutor() {
             return new ManualCallExecutor();
         }
 
-        @Bean FakeTf fakeTf() {
-            return new FakeTf();
-        }
-
-        @Bean FakeCond fakeCond() {
-            return new FakeCond();
+        @Bean FakeImClient fakeImClient() {
+            return new FakeImClient();
         }
     }
 
@@ -238,34 +219,11 @@ class PipelineReconcilerTest {
         }
     }
 
-    static final class FakeLeader implements ReconcileLeader {
+    static final class FakeLeader extends ReconcileLeader {
         boolean isLeader = true;
 
         @Override public boolean isLeader() {
             return isLeader;
         }
-    }
-
-    static final class FakeExecutor implements ExternalCallExecutor {
-        @Override public <T> ExternalCallOutcome<T> call(Supplier<T> work, Duration deadline) {
-            return ExternalCallOutcome.<T>builder().value(work.get()).latencyMs(1).timedOut(false).build();
-        }
-    }
-
-    static final class FakeTf implements TerraformJobHandler {
-        static final String KEY = "fake.tf";
-        TerraformDispatchOutcome dispatch = TerraformDispatchOutcome.Accepted.builder().handle("job-9").build();
-        TerraformPollOutcome poll = TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build();
-
-        @Override public String key() { return KEY; }
-        @Override public TerraformDispatchOutcome dispatch(TerraformDispatchContext ctx) { return dispatch; }
-        @Override public TerraformPollOutcome poll(TerraformPollContext ctx) { return poll; }
-    }
-
-    static final class FakeCond implements ConditionCheckHandler {
-        static final String KEY = "fake.cond";
-
-        @Override public String key() { return KEY; }
-        @Override public ConditionCheckOutcome check(ConditionCheckContext ctx) { return ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build(); }
     }
 }

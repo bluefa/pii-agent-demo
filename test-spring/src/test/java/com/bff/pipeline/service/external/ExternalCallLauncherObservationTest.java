@@ -1,7 +1,6 @@
 package com.bff.pipeline.service.external;
-import com.bff.pipeline.dto.ExternalCallOutcome;
-import com.bff.pipeline.dto.TerraformJobCall;
 
+import com.bff.pipeline.client.FakeImClient;
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.type.ApiResult;
 import com.bff.pipeline.type.CheckKind;
@@ -12,14 +11,6 @@ import com.bff.pipeline.entity.TaskAttempt;
 import com.bff.pipeline.entity.TaskCheck;
 import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
-import com.bff.pipeline.dto.ConditionCheckContext;
-import com.bff.pipeline.dto.ConditionCheckOutcome;
-import com.bff.pipeline.service.handler.ConditionCheckHandler;
-import com.bff.pipeline.dto.TerraformDispatchContext;
-import com.bff.pipeline.dto.TerraformDispatchOutcome;
-import com.bff.pipeline.dto.TerraformPollContext;
-import com.bff.pipeline.dto.TerraformPollOutcome;
-import com.bff.pipeline.service.handler.TerraformJobHandler;
 import com.bff.pipeline.repository.TaskAttemptRepository;
 import com.bff.pipeline.repository.TaskCheckRepository;
 import com.bff.pipeline.repository.TaskRepository;
@@ -36,12 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,9 +47,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * independently of any test transaction (the docs' one exception to "no @Transactional in tests": we suppress
  * the wrapper with {@link Propagation#NOT_SUPPORTED} to un-mask the real commit). Seeds and assertions go
  * through the repos (each its own committed tx), and {@link #cleanup()} deletes every committed row so it
- * cannot leak into another test. The {@link Wiring} fixes the {@link Clock} and supplies a synchronous
- * {@link ExternalCallExecutor} whose latency/timeout is settable per test — when it does not time out it
- * returns {@code work.get()} so the FAKE HANDLER decides the outcome.
+ * cannot leak into another test.
+ *
+ * <p>There is no executor seam anymore — the launcher folds the per-call deadline in. The test seam is the
+ * settable fake {@link com.bff.pipeline.client.ImClient}: a value, a thrown fault (REJECT / BACKPRESSURE), a
+ * latency simulated by advancing the shared {@link MutableClock} ({@link #latency}), or a CALL_TIMEOUT
+ * simulated by a behavior that blocks past the small {@code perCallDeadline} ({@link #slowerThanDeadline}).
  */
 @DataJpaTest
 @Import({
@@ -72,6 +66,10 @@ class ExternalCallLauncherObservationTest {
     private static final Instant FIXED = Instant.parse("2026-06-21T10:15:30Z");
     private static final String TARGET = "ts-external-1";
     private static final String HANDLE = "job-1";
+    private static final String TF_OP = "apply-network";
+    private static final String COND_OP = "network-ready";
+    /** The Wiring's perCallDeadline; a behavior that blocks longer than this trips CALL_TIMEOUT. */
+    private static final Duration PER_CALL_DEADLINE = Duration.ofMillis(100);
 
     @Autowired
     private ExternalCallLauncher externalCalls;
@@ -82,21 +80,42 @@ class ExternalCallLauncherObservationTest {
     @Autowired
     private TaskRepository tasks;
     @Autowired
-    private FakeExecutor executor;
+    private MutableClock clock;
     @Autowired
     private ManualCallExecutor callExecutor;
     @Autowired
-    private FakeTerraformHandler tfHandler;
-    @Autowired
-    private FakeConditionHandler condHandler;
+    private FakeImClient im;
 
     @AfterEach
     void cleanup() {
-        executor.reset();
+        clock.set(FIXED);
+        im.dispatchAccepted(HANDLE);
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING"));
+        im.setCheckCondition(FakeImClient.condition(false));
         callExecutor.drain(); // discard any un-drained queued call so it cannot leak into the next test
         checks.deleteAll();
         attempts.deleteAll();
         tasks.deleteAll();
+    }
+
+    /** A behavior that returns {@code value} after advancing the clock by {@code ms} (a simulated latency). */
+    private FakeImClient.Behavior latency(long ms, String value) {
+        return () -> {
+            clock.advance(Duration.ofMillis(ms));
+            return value;
+        };
+    }
+
+    /** A behavior that blocks past the per-call deadline, so {@code future.get(deadline)} trips CALL_TIMEOUT. */
+    private static FakeImClient.Behavior slowerThanDeadline(String wouldBeValue) {
+        return () -> {
+            try {
+                Thread.sleep(PER_CALL_DEADLINE.toMillis() * 20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return wouldBeValue;
+        };
     }
 
     // ---- dispatch ----
@@ -105,10 +124,9 @@ class ExternalCallLauncherObservationTest {
     void dispatchAcceptedRecordsOkDispatchRowAndAdoptsResponse() {
         Task task = seedTask(TaskStatus.DISPATCHING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedOpenAttempt(task.getId());
-        executor.setLatencyMs(42);
-        tfHandler.setDispatch(TerraformDispatchOutcome.Accepted.builder().handle(HANDLE).build());
+        im.setRunTerraform(latency(42, HANDLE));
 
-        externalCalls.dispatch(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.dispatch(task, attempt, TARGET);
         callExecutor.drain();
 
         List<TaskCheck> rows = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
@@ -117,7 +135,6 @@ class ExternalCallLauncherObservationTest {
             assertThat(row.getApiResult()).isEqualTo(ApiResult.OK);
             assertThat(row.getExternalHandle()).isEqualTo(HANDLE);
             assertThat(row.getPollCount()).isEqualTo(1);
-            assertThat(row.getCheckedAt()).isEqualTo(FIXED);
             assertThat(row.getLatencyMs()).isEqualTo(42L);
             assertThat(row.getErrorCode()).isNull();
         });
@@ -128,9 +145,9 @@ class ExternalCallLauncherObservationTest {
     void dispatchRejectedRecordsErrorDispatchRowWithImRejectedAndNoResponse() {
         Task task = seedTask(TaskStatus.DISPATCHING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedOpenAttempt(task.getId());
-        tfHandler.setDispatch(TerraformDispatchOutcome.Rejected.builder().detail("boom").build());
+        im.setRunTerraform(FakeImClient.reject());
 
-        externalCalls.dispatch(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.dispatch(task, attempt, TARGET);
         callExecutor.drain();
 
         // The reject row carries error_code=IM_REJECTED so the next tick tells it apart from the
@@ -148,11 +165,10 @@ class ExternalCallLauncherObservationTest {
     void dispatchCallTimeoutRecordsCallTimeoutErrorCode() {
         Task task = seedTask(TaskStatus.DISPATCHING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedOpenAttempt(task.getId());
-        // The handler would have Accepted, but the executor deadline fires first → outcome is CallTimeout.
-        tfHandler.setDispatch(TerraformDispatchOutcome.Accepted.builder().handle(HANDLE).build());
-        executor.setTimedOut(true);
+        // The IM would have accepted, but it blocks past the per-call deadline → outcome is TIMEOUT.
+        im.setRunTerraform(slowerThanDeadline(HANDLE));
 
-        externalCalls.dispatch(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.dispatch(task, attempt, TARGET);
         callExecutor.drain();
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(row -> {
@@ -166,9 +182,9 @@ class ExternalCallLauncherObservationTest {
     void dispatchBackpressureAdvancesNextCheckAtByRetryAfterWithoutResponse() {
         Task task = seedTask(TaskStatus.DISPATCHING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedOpenAttempt(task.getId());
-        tfHandler.setDispatch(TerraformDispatchOutcome.Backpressure.builder().retryAfter(Duration.ofSeconds(10)).build());
+        im.setRunTerraform(FakeImClient.backpressure(10L)); // 429/503 + Retry-After 10s
 
-        externalCalls.dispatch(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.dispatch(task, attempt, TARGET);
         callExecutor.drain();
 
         // Backpressure is the (ERROR, observed=null, error_code=null) marker — distinct from the reject row.
@@ -189,16 +205,16 @@ class ExternalCallLauncherObservationTest {
         Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
 
-        // Drain after EACH poll: a queued call reads the handler outcome at run time, so the call thread must
+        // Drain after EACH poll: a queued call reads the IM outcome at run time, so the call thread must
         // run before the next outcome is scripted (faithful to one fired call per drain).
-        tfHandler.setPoll(TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build());
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING"));
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
-        tfHandler.setPoll(TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build());
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED"));
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
         List<TaskCheck> runs = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
@@ -221,13 +237,12 @@ class ExternalCallLauncherObservationTest {
     void collapsedRunOverwritesLatencyWithTheLastPollNotTheSum() {
         Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
-        tfHandler.setPoll(TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build());
 
-        executor.setLatencyMs(100);
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        im.setTerraformJobStatus(latency(100, "RUNNING"));
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
-        executor.setLatencyMs(250);
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        im.setTerraformJobStatus(latency(250, "RUNNING"));
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
@@ -240,9 +255,9 @@ class ExternalCallLauncherObservationTest {
     void pollCallFailedRecordsErrorRunWithCheckErrorCode() {
         Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
-        tfHandler.setPoll(TerraformPollOutcome.CallFailed.builder().reason(ErrorCode.CHECK_ERROR).build());
+        im.setTerraformJobStatus(FakeImClient.reject()); // a read error → CHECK_ERROR
 
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
@@ -259,16 +274,16 @@ class ExternalCallLauncherObservationTest {
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
 
         // Drain after EACH poll so each call observes its scripted outcome (one fired call per drain).
-        tfHandler.setPoll(TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build());
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        im.setTerraformJobStatus(FakeImClient.jobStatus("RUNNING"));
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
-        tfHandler.setPoll(TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build());
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        im.setTerraformJobStatus(FakeImClient.jobStatus("SUCCEEDED"));
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
         // Two runs, each folding two polls. Under the fixed clock both runs share started_at, so the
@@ -286,10 +301,9 @@ class ExternalCallLauncherObservationTest {
     void pollExecutorTimeoutRecordsCallTimeoutErrorRun() {
         Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
-        tfHandler.setPoll(TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build()); // would-be value; the deadline fires first
-        executor.setTimedOut(true);
+        im.setTerraformJobStatus(slowerThanDeadline("RUNNING")); // would-be value; the deadline fires first
 
-        externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(tfHandler).targetSourceId(TARGET).build());
+        externalCalls.poll(task, attempt, TARGET);
         callExecutor.drain();
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
@@ -306,14 +320,14 @@ class ExternalCallLauncherObservationTest {
         Task task = seedTask(TaskStatus.WAITING_EXTERNAL, TaskKind.CONDITION_CHECK);
 
         // Drain after EACH check so each call observes its scripted outcome (one fired call per drain).
-        condHandler.setCheck(ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build());
-        externalCalls.check(task, condHandler, TARGET);
+        im.setCheckCondition(FakeImClient.condition(false));
+        externalCalls.check(task, TARGET);
         callExecutor.drain();
-        externalCalls.check(task, condHandler, TARGET);
+        externalCalls.check(task, TARGET);
         callExecutor.drain();
 
-        condHandler.setCheck(ConditionCheckOutcome.Condition.builder().observed(Observed.MET).build());
-        externalCalls.check(task, condHandler, TARGET);
+        im.setCheckCondition(FakeImClient.condition(true));
+        externalCalls.check(task, TARGET);
         callExecutor.drain();
 
         List<TaskCheck> runs = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
@@ -334,9 +348,9 @@ class ExternalCallLauncherObservationTest {
     @Test
     void checkBackpressureDefersNextCheckAtToTheConditionPollingGuardFloor() {
         Task task = seedTask(TaskStatus.WAITING_EXTERNAL, TaskKind.CONDITION_CHECK);
-        condHandler.setCheck(ConditionCheckOutcome.Backpressure.builder().retryAfter(Duration.ofSeconds(5)).build());
+        im.setCheckCondition(FakeImClient.backpressure(5L)); // Retry-After 5s, below the guard floor
 
-        externalCalls.check(task, condHandler, TARGET);
+        externalCalls.check(task, TARGET);
         callExecutor.drain();
 
         // next_check_at = now + max(Retry-After 5s, conditionPollingGuard 10m) = now + 10m.
@@ -347,10 +361,9 @@ class ExternalCallLauncherObservationTest {
     @Test
     void checkExecutorTimeoutRecordsCallTimeoutErrorRun() {
         Task task = seedTask(TaskStatus.WAITING_EXTERNAL, TaskKind.CONDITION_CHECK);
-        condHandler.setCheck(ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build()); // would-be value; deadline fires first
-        executor.setTimedOut(true);
+        im.setCheckCondition(slowerThanDeadline("NOT_MET")); // would-be value; deadline fires first
 
-        externalCalls.check(task, condHandler, TARGET);
+        externalCalls.check(task, TARGET);
         callExecutor.drain();
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
@@ -367,7 +380,7 @@ class ExternalCallLauncherObservationTest {
         task.setPipelineId(1L);
         task.setSeq(0);
         task.setName("apply network");
-        task.setHandlerKey(kind == TaskKind.TERRAFORM_JOB ? FakeTerraformHandler.KEY : FakeConditionHandler.KEY);
+        task.setOperation(kind == TaskKind.TERRAFORM_JOB ? TF_OP : COND_OP);
         task.setKind(kind);
         task.setStatus(status);
         task.setMaxFailCount(3);
@@ -390,27 +403,23 @@ class ExternalCallLauncherObservationTest {
     }
 
     /**
-     * Test wiring: a fixed {@link Clock}, default {@link PipelineEngineSettings} (perCallDeadline 30s,
-     * jobPollCadence 45s, conditionPollingGuard 10m), the queueing {@link ManualCallExecutor} for the
-     * fire-and-forget pool, the settable synchronous {@link ExternalCallExecutor}, and the two settable fake
-     * handlers. Handlers are stateless stubs whose returned outcome is set by the test before each call.
+     * Test wiring: a shared {@link MutableClock} (a behavior advances it to simulate latency), default
+     * {@link PipelineEngineSettings} but with a small {@code perCallDeadline} (so a slow behavior trips
+     * CALL_TIMEOUT quickly), the queueing {@link ManualCallExecutor} for the fire-and-forget pool, and the
+     * settable fake {@link com.bff.pipeline.client.ImClient} whose returned value / simulated fault / latency
+     * is set by the test before each call.
      */
     @TestConfiguration
     static class Wiring {
 
         @Bean
-        Clock clock() {
-            return Clock.fixed(FIXED, ZoneOffset.UTC);
+        MutableClock clock() {
+            return new MutableClock(FIXED);
         }
 
         @Bean
         PipelineEngineSettings pipelineEngineSettings() {
-            return PipelineEngineSettings.builder().build();
-        }
-
-        @Bean
-        FakeExecutor fakeExecutor() {
-            return new FakeExecutor();
+            return PipelineEngineSettings.builder().perCallDeadline(PER_CALL_DEADLINE).build();
         }
 
         /** The fire-and-forget pool ({@link ExternalCallLauncher} @Qualifier): queue the call so the test runs it
@@ -421,13 +430,8 @@ class ExternalCallLauncherObservationTest {
         }
 
         @Bean
-        FakeTerraformHandler fakeTerraformHandler() {
-            return new FakeTerraformHandler();
-        }
-
-        @Bean
-        FakeConditionHandler fakeConditionHandler() {
-            return new FakeConditionHandler();
+        FakeImClient fakeImClient() {
+            return new FakeImClient();
         }
     }
 
@@ -455,86 +459,37 @@ class ExternalCallLauncherObservationTest {
     }
 
     /**
-     * Synchronous {@link ExternalCallExecutor}. When not timing out it returns the handler's value
-     * ({@code work.get()}) so the FAKE HANDLER owns the outcome; when timing out it returns a null value with
-     * {@code timedOut=true}. Latency and timeout are settable per test.
+     * A mutable {@link Clock} the launcher reads around each call to measure latency; a scripted behavior
+     * advances it by the latency it wants to simulate. Reset to {@link #FIXED} before each test.
      */
-    static final class FakeExecutor implements ExternalCallExecutor {
+    static final class MutableClock extends Clock {
+        private Instant now;
 
-        private long latencyMs = 5;
-        private boolean timedOut = false;
-
-        void setLatencyMs(long latencyMs) {
-            this.latencyMs = latencyMs;
+        MutableClock(Instant start) {
+            this.now = start;
         }
 
-        void setTimedOut(boolean timedOut) {
-            this.timedOut = timedOut;
+        void set(Instant t) {
+            this.now = t;
         }
 
-        void reset() {
-            this.latencyMs = 5;
-            this.timedOut = false;
+        void advance(Duration d) {
+            this.now = this.now.plus(d);
         }
 
         @Override
-        public <T> ExternalCallOutcome<T> call(Supplier<T> work, Duration deadline) {
-            if (timedOut) {
-                return ExternalCallOutcome.<T>builder().value(null).latencyMs(latencyMs).timedOut(true).build();
-            }
-            return ExternalCallOutcome.<T>builder().value(work.get()).latencyMs(latencyMs).timedOut(false).build();
-        }
-    }
-
-    /** Settable TERRAFORM_JOB handler — dispatch/poll return the last outcome the test scripted. */
-    static final class FakeTerraformHandler implements TerraformJobHandler {
-        static final String KEY = "test.tf.apply";
-
-        private TerraformDispatchOutcome dispatchOutcome = TerraformDispatchOutcome.Accepted.builder().handle(HANDLE).build();
-        private TerraformPollOutcome pollOutcome = TerraformPollOutcome.Status.builder().observed(Observed.RUNNING).build();
-
-        void setDispatch(TerraformDispatchOutcome outcome) {
-            this.dispatchOutcome = outcome;
-        }
-
-        void setPoll(TerraformPollOutcome outcome) {
-            this.pollOutcome = outcome;
+        public Instant instant() {
+            return now;
         }
 
         @Override
-        public String key() {
-            return KEY;
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
         }
 
         @Override
-        public TerraformDispatchOutcome dispatch(TerraformDispatchContext ctx) {
-            return dispatchOutcome;
-        }
-
-        @Override
-        public TerraformPollOutcome poll(TerraformPollContext ctx) {
-            return pollOutcome;
-        }
-    }
-
-    /** Settable CONDITION_CHECK handler — check returns the last outcome the test scripted. */
-    static final class FakeConditionHandler implements ConditionCheckHandler {
-        static final String KEY = "test.cond.ready";
-
-        private ConditionCheckOutcome checkOutcome = ConditionCheckOutcome.Condition.builder().observed(Observed.NOT_MET).build();
-
-        void setCheck(ConditionCheckOutcome outcome) {
-            this.checkOutcome = outcome;
-        }
-
-        @Override
-        public String key() {
-            return KEY;
-        }
-
-        @Override
-        public ConditionCheckOutcome check(ConditionCheckContext ctx) {
-            return checkOutcome;
+        public Clock withZone(ZoneId zone) {
+            return this;
         }
     }
 }

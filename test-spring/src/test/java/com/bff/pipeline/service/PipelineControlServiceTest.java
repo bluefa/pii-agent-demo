@@ -2,21 +2,12 @@ package com.bff.pipeline.service;
 
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.type.Actor;
-import com.bff.pipeline.type.Observed;
 import com.bff.pipeline.entity.Pipeline;
 import com.bff.pipeline.entity.PipelineEvent;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.PipelineType;
 import com.bff.pipeline.dto.PipelineCreationRequest;
-import com.bff.pipeline.dto.ConditionCheckContext;
-import com.bff.pipeline.dto.ConditionCheckOutcome;
-import com.bff.pipeline.service.handler.ConditionCheckHandler;
-import com.bff.pipeline.dto.TerraformDispatchContext;
-import com.bff.pipeline.dto.TerraformDispatchOutcome;
-import com.bff.pipeline.service.handler.PipelineHandlerRegistry;
-import com.bff.pipeline.dto.TerraformPollContext;
-import com.bff.pipeline.dto.TerraformPollOutcome;
-import com.bff.pipeline.service.handler.TerraformJobHandler;
 import com.bff.pipeline.dto.PipelineDefinition;
 import com.bff.pipeline.service.recipe.RecipeRegistry;
 import com.bff.pipeline.dto.TaskDefinition;
@@ -57,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>The wiring is its OWN copy of {@code PipelineCreationServiceTest.Wiring} (that one is package-private to
  * the service-package test): a fixed {@link Clock}, a vanilla {@link ObjectMapper}, default
- * {@link PipelineEngineSettings}, two named no-Feign fake handlers, and one test recipe.
+ * {@link PipelineEngineSettings}, and one test recipe whose tasks name their IM operations.
  */
 @DataJpaTest
 @Import({
@@ -65,7 +56,6 @@ import static org.assertj.core.api.Assertions.assertThat;
         PipelineCreationService.class,
         PipelineRunWriter.class,
         PipelineEventRecorder.class,
-        PipelineHandlerRegistry.class,
         RecipeRegistry.class,
         PipelineControlServiceTest.Wiring.class
 })
@@ -104,7 +94,7 @@ class PipelineControlServiceTest {
                 .isEqualTo(PipelineStatus.CANCELLING);
         assertThat(events.findByPipelineIdOrderByCreatedAtAsc(running.getId()))
                 .singleElement()
-                .satisfies(event -> assertThat(event.getType()).isEqualTo("PIPELINE:CANCELLING"));
+                .satisfies(event -> assertThat(event.getType()).isEqualTo(PipelineEventType.PIPELINE_CANCELLING.wire()));
     }
 
     @Test
@@ -155,7 +145,7 @@ class PipelineControlServiceTest {
         assertThat(second.getPipelineId()).isEqualTo(first.getPipelineId());
         assertThat(events.findByPipelineIdOrderByCreatedAtAsc(second.getPipelineId()))
                 .extracting(PipelineEvent::getType)
-                .contains("PIPELINE:RETRY_ATTEMPTED");
+                .contains(PipelineEventType.PIPELINE_RETRY_ATTEMPTED.wire());
     }
 
     private Pipeline persistPipeline(String target, PipelineStatus status) {
@@ -174,8 +164,8 @@ class PipelineControlServiceTest {
 
     /**
      * Test wiring (own copy): fixed {@link Clock}, vanilla {@link ObjectMapper}, default {@link PipelineEngineSettings},
-     * two named fake handlers (no Feign — trivial stubs so creation can resolve their keys/kinds), and one test
-     * recipe ({@code install/test}, v1, INSTALL, TEST, [terraformJob, conditionCheck]).
+     * and one test recipe ({@code install/test}, v1, INSTALL, TEST, [terraformJob, conditionCheck]) whose tasks
+     * name their IM operations. No Feign, no handler registry.
      */
     @TestConfiguration
     static class Wiring {
@@ -196,58 +186,14 @@ class PipelineControlServiceTest {
         }
 
         @Bean
-        TerraformJobHandler fakeTerraformJobHandler() {
-            return new FakeTf();
-        }
-
-        @Bean
-        ConditionCheckHandler fakeConditionCheckHandler() {
-            return new FakeCond();
-        }
-
-        @Bean
         PipelineDefinition testRecipe() {
             return PipelineDefinition.builder()
                     .definitionKey("install/test").version("v1").type(PipelineType.INSTALL).provider("TEST")
                     .tasks(List.of(
-                            TaskDefinition.terraformJob("apply", FakeTf.class),
-                            TaskDefinition.conditionCheck("ready", FakeCond.class)))
+                            TaskDefinition.terraformJob("apply", "apply-network"),
+                            TaskDefinition.conditionCheck("ready", "network-ready")))
                     .build();
         }
     }
 
-    /** Named TERRAFORM_JOB stub so its key is the frozen handler_key; never dispatched in these tests. */
-    static final class FakeTf implements TerraformJobHandler {
-        static final String KEY = "test.tf.apply";
-
-        @Override
-        public String key() {
-            return KEY;
-        }
-
-        @Override
-        public TerraformDispatchOutcome dispatch(TerraformDispatchContext ctx) {
-            return TerraformDispatchOutcome.Accepted.builder().handle("job-test").build();
-        }
-
-        @Override
-        public TerraformPollOutcome poll(TerraformPollContext ctx) {
-            return TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build();
-        }
-    }
-
-    /** Named CONDITION_CHECK stub so its key is the frozen handler_key; never checked in these tests. */
-    static final class FakeCond implements ConditionCheckHandler {
-        static final String KEY = "test.cond.ready";
-
-        @Override
-        public String key() {
-            return KEY;
-        }
-
-        @Override
-        public ConditionCheckOutcome check(ConditionCheckContext ctx) {
-            return ConditionCheckOutcome.Condition.builder().observed(Observed.MET).build();
-        }
-    }
 }

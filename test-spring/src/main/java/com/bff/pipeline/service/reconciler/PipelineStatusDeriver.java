@@ -1,9 +1,10 @@
 package com.bff.pipeline.service.reconciler;
 
-import com.bff.pipeline.dto.PipelineEventRecord;
 import com.bff.pipeline.type.Actor;
 import com.bff.pipeline.type.ErrorCode;
 import com.bff.pipeline.entity.Pipeline;
+import com.bff.pipeline.entity.PipelineEvent;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.Severity;
 import com.bff.pipeline.entity.Task;
@@ -56,7 +57,7 @@ public class PipelineStatusDeriver {
 
         if (pipeline.getStatus() == PipelineStatus.CANCELLING) {
             if (allTerminal(tasks) && pipelines.casTerminal(id, PipelineStatus.CANCELLING, PipelineStatus.CANCELLED, now) > 0) {
-                emit(id, "PIPELINE:CANCELLED", Severity.INFO);
+                emit(id, PipelineEventType.PIPELINE_CANCELLED, Severity.INFO);
             }
             return;
         }
@@ -76,14 +77,14 @@ public class PipelineStatusDeriver {
         }
         if (!tasks.isEmpty() && tasks.stream().allMatch(t -> t.getStatus() == TaskStatus.DONE)
                 && pipelines.casTerminal(id, PipelineStatus.RUNNING, PipelineStatus.DONE, now) > 0) {
-            emit(id, "PIPELINE:DONE", Severity.INFO);
+            emit(id, PipelineEventType.PIPELINE_DONE, Severity.INFO);
         }
     }
 
     private void convergeFailed(Long pipelineId, Task task, Instant now) {
         if (pipelines.casStatusWithFailReason(
                 pipelineId, PipelineStatus.RUNNING, PipelineStatus.FAILED, task.getId(), failReason(task), now) > 0) {
-            emit(pipelineId, "PIPELINE:FAILED", Severity.CRITICAL);
+            emit(pipelineId, PipelineEventType.PIPELINE_FAILED, Severity.CRITICAL);
         }
     }
 
@@ -114,8 +115,8 @@ public class PipelineStatusDeriver {
         return !tasks.isEmpty() && tasks.stream().allMatch(t -> t.getStatus().isTerminal());
     }
 
-    private void emit(Long pipelineId, String type, Severity severity) {
-        events.recordPipelineEvent(PipelineEventRecord.builder()
-                .pipelineId(pipelineId).type(type).severity(severity).actor(Actor.SYSTEM).build());
+    private void emit(Long pipelineId, PipelineEventType type, Severity severity) {
+        events.recordPipelineEvent(PipelineEvent.builder()
+                .pipelineId(pipelineId).type(type.wire()).severity(severity).actor(Actor.SYSTEM).build());
     }
 }

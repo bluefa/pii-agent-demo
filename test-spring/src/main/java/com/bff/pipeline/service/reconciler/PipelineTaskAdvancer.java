@@ -1,8 +1,6 @@
 package com.bff.pipeline.service.reconciler;
 import com.bff.pipeline.service.external.ExternalCallLauncher;
 
-import com.bff.pipeline.dto.PipelineEventRecord;
-import com.bff.pipeline.dto.TerraformJobCall;
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.type.Actor;
 import com.bff.pipeline.type.ApiResult;
@@ -10,6 +8,8 @@ import com.bff.pipeline.type.CheckKind;
 import com.bff.pipeline.type.ErrorCode;
 import com.bff.pipeline.type.Observed;
 import com.bff.pipeline.entity.Pipeline;
+import com.bff.pipeline.entity.PipelineEvent;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.Severity;
 import com.bff.pipeline.entity.Task;
@@ -17,10 +17,6 @@ import com.bff.pipeline.entity.TaskAttempt;
 import com.bff.pipeline.entity.TaskCheck;
 import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
-import com.bff.pipeline.service.handler.ConditionCheckHandler;
-import com.bff.pipeline.service.handler.PipelineHandler;
-import com.bff.pipeline.service.handler.TerraformJobHandler;
-import com.bff.pipeline.service.handler.PipelineHandlerRegistry;
 import com.bff.pipeline.repository.PipelineRepository;
 import com.bff.pipeline.repository.TaskAttemptRepository;
 import com.bff.pipeline.repository.TaskCheckRepository;
@@ -45,9 +41,10 @@ import java.util.List;
  * first reads the latest committed observation and transitions, then (only if still pending and due) fires
  * the next call.
  *
- * <p>Evaluation order per task: ① pipeline CANCELLING → cancel rules ▸ ② handler resolve (serviceable task,
- * miss → immediate FAILED + synthetic task_check) ▸ ③ completed observation beats ④ timeout ▸ ⑤ normal.
- * Every transition is a guarded CAS; the event + last_activity bump fire only when the CAS changed a row.
+ * <p>Evaluation order per task: ① pipeline CANCELLING → cancel rules ▸ ② completed observation beats
+ * ③ timeout ▸ ④ normal. The operation each call runs is fixed in the recipe ({@code task.operation}), so there
+ * is no handler-resolve step. Every transition is a guarded CAS; the event + last_activity bump fire only when
+ * the CAS changed a row.
  */
 @Component
 public class PipelineTaskAdvancer {
@@ -58,20 +55,18 @@ public class PipelineTaskAdvancer {
     private final PipelineRepository pipelines;
     private final TaskAttemptRepository attempts;
     private final TaskCheckRepository checks;
-    private final PipelineHandlerRegistry registry;
     private final ExternalCallLauncher externalCalls;
     private final PipelineEventRecorder events;
     private final PipelineEngineSettings settings;
     private final Clock clock;
 
     public PipelineTaskAdvancer(TaskRepository tasks, PipelineRepository pipelines, TaskAttemptRepository attempts,
-                        TaskCheckRepository checks, PipelineHandlerRegistry registry, ExternalCallLauncher externalCalls,
+                        TaskCheckRepository checks, ExternalCallLauncher externalCalls,
                         PipelineEventRecorder events, PipelineEngineSettings settings, Clock clock) {
         this.tasks = tasks;
         this.pipelines = pipelines;
         this.attempts = attempts;
         this.checks = checks;
-        this.registry = registry;
         this.externalCalls = externalCalls;
         this.events = events;
         this.settings = settings;
@@ -94,17 +89,12 @@ public class PipelineTaskAdvancer {
             cancel(tick);
             return;
         }
-        PipelineHandler handler = registry.find(task.getHandlerKey()).orElse(null);
-        if (handler == null && task.getStatus() != TaskStatus.BLOCKED) {
-            failHandlerNotFound(pipeline, task);
-            return;
-        }
         switch (task.getStatus()) {
             case BLOCKED -> advanceBlocked(pipeline, task);
             case READY -> advanceReady(pipeline, task);
-            case DISPATCHING -> advanceDispatching(tick, (TerraformJobHandler) handler);
-            case RUNNING -> advanceRunning(tick, (TerraformJobHandler) handler);
-            case WAITING_EXTERNAL -> advanceWaiting(tick, (ConditionCheckHandler) handler);
+            case DISPATCHING -> advanceDispatching(tick);
+            case RUNNING -> advanceRunning(tick);
+            case WAITING_EXTERNAL -> advanceWaiting(tick);
             default -> { /* terminal handled above */ }
         }
     }
@@ -113,7 +103,7 @@ public class PipelineTaskAdvancer {
 
     private void advanceBlocked(Pipeline pipeline, Task task) {
         if (predecessorDone(task) && tasks.casStatus(task.getId(), TaskStatus.BLOCKED, TaskStatus.READY) > 0) {
-            onTransition(pipeline, task, transition("TASK:READY", Severity.INFO));
+            onTransition(pipeline, task, transition(PipelineEventType.TASK_READY, Severity.INFO));
         }
     }
 
@@ -132,16 +122,16 @@ public class PipelineTaskAdvancer {
                 createAttempt(task.getId(), 1, now);
                 tasks.setDeadlineAt(task.getId(), now.plus(executionTimeout(task)));
                 tasks.setSchedule(task.getId(), now, now); // due now → dispatch fires next tick
-                onTransition(pipeline, task, transition("TASK:DISPATCHING", Severity.INFO));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_DISPATCHING, Severity.INFO));
             }
         } else if (tasks.casStatusStarting(task.getId(), TaskStatus.READY, TaskStatus.WAITING_EXTERNAL, now) > 0) {
             tasks.setDeadlineAt(task.getId(), now.plus(ttl(task)));
             tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard()));
-            onTransition(pipeline, task, transition("TASK:WAITING_EXTERNAL", Severity.INFO));
+            onTransition(pipeline, task, transition(PipelineEventType.TASK_WAITING_EXTERNAL, Severity.INFO));
         }
     }
 
-    private void advanceDispatching(TaskTick tick, TerraformJobHandler handler) {
+    private void advanceDispatching(TaskTick tick) {
         Pipeline pipeline = tick.getPipeline();
         Task task = tick.getTask();
         Instant now = clock.instant();
@@ -154,7 +144,7 @@ public class PipelineTaskAdvancer {
                 // Clear the dispatch in-flight park (next_check_at = fire + recoveryTimeout): make the task due
                 // now so the FIRST job poll fires on the next tick at the job-poll cadence, not after recovery.
                 tasks.setSchedule(task.getId(), now, now);
-                onTransition(pipeline, task, transition("TASK:RUNNING", Severity.INFO));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_RUNNING, Severity.INFO));
             }
             return;
         }
@@ -183,12 +173,12 @@ public class PipelineTaskAdvancer {
             // past the recovery window so an in-flight call is not re-fired — next_check_at is the dedup (not the
             // PENDING row), and a backpressure response pulls it back in sooner (call thread sets Retry-After).
             tasks.setSchedule(task.getId(), now, now.plus(settings.getDispatchRecoveryTimeout()));
-            externalCalls.dispatch(TerraformJobCall.builder().task(task).attempt(attempt).handler(handler).targetSourceId(pipeline.getTargetSourceId()).build());
+            externalCalls.dispatch(task, attempt, pipeline.getTargetSourceId());
         }
     }
 
-    private void advanceRunning(TaskTick tick, TerraformJobHandler handler) {
-        pollJob(tick, handler, false);
+    private void advanceRunning(TaskTick tick) {
+        pollJob(tick, false);
     }
 
     /**
@@ -201,7 +191,7 @@ public class PipelineTaskAdvancer {
      * simply keep the job polling. {@code drain}=true (pipeline CANCELLING) closes a real failure terminally
      * with no requeue (forward edge gated, decision 4c).
      */
-    private void pollJob(TaskTick tick, TerraformJobHandler handler, boolean drain) {
+    private void pollJob(TaskTick tick, boolean drain) {
         Pipeline pipeline = tick.getPipeline();
         Task task = tick.getTask();
         Instant now = clock.instant();
@@ -213,7 +203,7 @@ public class PipelineTaskAdvancer {
         if (latest != null && latest.getObserved() == Observed.SUCCEEDED) {
             attempts.closeOk(attempt.getId(), now);
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.RUNNING, TaskStatus.DONE, now) > 0) {
-                onTransition(pipeline, task, transition("TASK:DONE", Severity.INFO));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_DONE, Severity.INFO));
             }
             return;
         }
@@ -230,11 +220,11 @@ public class PipelineTaskAdvancer {
         }
         if ((tick.isDue() || deadlinePassed) && tick.getBudget().tryConsume()) {
             tasks.setSchedule(task.getId(), now, now.plus(settings.getJobPollCadence()));
-            externalCalls.poll(TerraformJobCall.builder().task(task).attempt(attempt).handler(handler).targetSourceId(pipeline.getTargetSourceId()).build());
+            externalCalls.poll(task, attempt, pipeline.getTargetSourceId());
         }
     }
 
-    private void advanceWaiting(TaskTick tick, ConditionCheckHandler handler) {
+    private void advanceWaiting(TaskTick tick) {
         Pipeline pipeline = tick.getPipeline();
         Task task = tick.getTask();
         Instant now = clock.instant();
@@ -249,7 +239,7 @@ public class PipelineTaskAdvancer {
         TaskCheck latest = checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(task.getId(), CheckKind.CHECK).orElse(null);
         if (latest != null && latest.getObserved() == Observed.MET) {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.DONE, now) > 0) {
-                onTransition(pipeline, task, transition("TASK:DONE", Severity.INFO));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_DONE, Severity.INFO));
             }
             return;
         }
@@ -257,7 +247,7 @@ public class PipelineTaskAdvancer {
         boolean ttlPassed = timedOut(task, now);
         if (ttlPassed && polledPastDeadline(latest, task)) {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.EXPIRED, now) > 0) {
-                onTransition(pipeline, task, transition("TASK:EXPIRED", Severity.CRITICAL)); // TTL_EXPIRED derived from status
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_EXPIRED, Severity.CRITICAL)); // TTL_EXPIRED derived from status
             }
             return;
         }
@@ -265,7 +255,7 @@ public class PipelineTaskAdvancer {
         // ≥10m polling-guard cadence; the call thread overrides next_check_at only on backpressure (Retry-After).
         if ((tick.isDue() || ttlPassed) && tick.getBudget().tryConsume()) {
             tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard()));
-            externalCalls.check(task, handler, pipeline.getTargetSourceId());
+            externalCalls.check(task, pipeline.getTargetSourceId());
         }
     }
 
@@ -281,7 +271,7 @@ public class PipelineTaskAdvancer {
         tasks.setFailCount(task.getId(), failures);
         if (failures >= task.getMaxFailCount()) {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.FAILED, now) > 0) {
-                onTransition(pipeline, task, transition("TASK:FAILED", Severity.CRITICAL));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_FAILED, Severity.CRITICAL));
             }
             return true;
         }
@@ -300,13 +290,13 @@ public class PipelineTaskAdvancer {
         tasks.incrementFailCount(task.getId());
         if (task.getFailCount() + 1 >= task.getMaxFailCount()) {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.DISPATCHING, TaskStatus.FAILED, now) > 0) {
-                onTransition(pipeline, task, transition("TASK:FAILED", Severity.CRITICAL));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_FAILED, Severity.CRITICAL));
             }
         } else { // new attempt; stay DISPATCHING (slot held), re-dispatch on the next tick
             createAttempt(task.getId(), attempt.getAttemptNo() + 1, now);
             tasks.setDeadlineAt(task.getId(), now.plus(executionTimeout(task)));
             tasks.setSchedule(task.getId(), now, now); // due now → re-dispatch next tick
-            onTransition(pipeline, task, transition("TASK:REDISPATCH", Severity.INFO));
+            onTransition(pipeline, task, transition(PipelineEventType.TASK_REDISPATCH, Severity.INFO));
         }
     }
 
@@ -320,24 +310,10 @@ public class PipelineTaskAdvancer {
         tasks.incrementFailCount(task.getId());
         if (drain || task.getFailCount() + 1 >= task.getMaxFailCount()) {
             if (tasks.casStatusTerminal(task.getId(), TaskStatus.RUNNING, TaskStatus.FAILED, now) > 0) {
-                onTransition(pipeline, task, transition("TASK:FAILED", Severity.CRITICAL));
+                onTransition(pipeline, task, transition(PipelineEventType.TASK_FAILED, Severity.CRITICAL));
             }
         } else if (tasks.casStatus(task.getId(), TaskStatus.RUNNING, TaskStatus.READY) > 0) {
-            onTransition(pipeline, task, transition("TASK:REQUEUE", Severity.INFO)); // slot released by leaving RUNNING
-        }
-    }
-
-    private void failHandlerNotFound(Pipeline pipeline, Task task) {
-        Instant now = clock.instant();
-        checks.save(syntheticHandlerNotFound(task.getId(), now));
-        TaskAttempt active = currentAttempt(task.getId());
-        if (active != null && active.getFinishedAt() == null
-                && (task.getStatus() == TaskStatus.DISPATCHING || task.getStatus() == TaskStatus.RUNNING)) {
-            // close the in-flight attempt with no error_code — the cause lives on the synthetic task_check
-            attempts.closeFailed(active.getId(), null, now);
-        }
-        if (tasks.casStatusTerminal(task.getId(), task.getStatus(), TaskStatus.FAILED, now) > 0) {
-            onTransition(pipeline, task, transition("TASK:FAILED", Severity.CRITICAL));
+            onTransition(pipeline, task, transition(PipelineEventType.TASK_REQUEUE, Severity.INFO)); // slot released by leaving RUNNING
         }
     }
 
@@ -357,7 +333,7 @@ public class PipelineTaskAdvancer {
 
     private void cancelImmediate(Pipeline pipeline, Task task, Instant now) {
         if (tasks.casStatusTerminal(task.getId(), task.getStatus(), TaskStatus.CANCELLED, now) > 0) {
-            onTransition(pipeline, task, transition("TASK:CANCELLED", Severity.INFO));
+            onTransition(pipeline, task, transition(PipelineEventType.TASK_CANCELLED, Severity.INFO));
         }
     }
 
@@ -367,18 +343,14 @@ public class PipelineTaskAdvancer {
             attempts.closeFailed(active.getId(), null, now); // action incomplete → outcome FAILED (status CANCELLED authoritative)
         }
         if (tasks.casStatusTerminal(task.getId(), TaskStatus.DISPATCHING, TaskStatus.CANCELLED, now) > 0) {
-            onTransition(pipeline, task, transition("TASK:CANCELLED", Severity.INFO));
+            onTransition(pipeline, task, transition(PipelineEventType.TASK_CANCELLED, Severity.INFO));
         }
     }
 
     /** CANCELLING drain of an un-killable RUNNING TF job: identical poll/observe/timeout logic as the normal
      *  RUNNING path, but {@code drain}=true so a real failure/timeout closes terminally with no requeue. */
     private void drain(TaskTick tick) {
-        TerraformJobHandler handler = (TerraformJobHandler) registry.find(tick.getTask().getHandlerKey()).orElse(null);
-        if (handler == null) {
-            return; // can't poll; the orphan job ends on its own — leave RUNNING until handler returns
-        }
-        pollJob(tick, handler, true);
+        pollJob(tick, true);
     }
 
     // ---- helpers ----
@@ -430,32 +402,19 @@ public class PipelineTaskAdvancer {
         return task.getTtl() != null ? task.getTtl() : settings.getWaitExternalTtl();
     }
 
-    private TaskCheck syntheticHandlerNotFound(Long taskId, Instant now) {
-        TaskCheck row = new TaskCheck();
-        row.setTaskId(taskId);
-        row.setKind(CheckKind.CHECK);
-        row.setName("orchestrator.handler.resolve");
-        row.setApiResult(ApiResult.ERROR);
-        row.setErrorCode(ErrorCode.HANDLER_NOT_FOUND);
-        row.setPollCount(1);
-        row.setStartedAt(now);
-        row.setCheckedAt(now);
-        return row;
-    }
-
     private void onTransition(Pipeline pipeline, Task task, TaskTransition transition) {
         // a task transition refreshes the owning pipeline's board-sort key in the same tick.
         pipelines.touchActivity(pipeline.getId(), clock.instant());
-        events.recordPipelineEvent(PipelineEventRecord.builder()
+        events.recordPipelineEvent(PipelineEvent.builder()
                 .pipelineId(pipeline.getId())
                 .taskId(task.getId())
-                .type(transition.getType())
+                .type(transition.getType().wire())
                 .severity(transition.getSeverity())
                 .actor(Actor.SYSTEM)
                 .build());
     }
 
-    private static TaskTransition transition(String type, Severity severity) {
+    private static TaskTransition transition(PipelineEventType type, Severity severity) {
         return TaskTransition.builder().type(type).severity(severity).build();
     }
 }

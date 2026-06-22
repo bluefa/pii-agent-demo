@@ -1,6 +1,5 @@
 package com.bff.pipeline.service;
 
-import com.bff.pipeline.dto.PipelineEventRecord;
 import com.bff.pipeline.entity.PipelineEvent;
 import com.bff.pipeline.repository.PipelineEventRepository;
 import org.springframework.stereotype.Service;
@@ -16,7 +15,9 @@ import java.util.Objects;
  * (PipelineAlertNotifier, T6) is a separate component that claims {@code notifiedAt IS NULL} rows; this side never
  * stamps {@code notifiedAt} (it is left null = unsent).
  *
- * <p>{@code createdAt} comes from the injected {@link Clock} so event ordering is deterministic in tests.
+ * <p>The caller builds the {@link PipelineEvent} (type/severity/actor/pipelineId/taskId/payload) with the
+ * entity builder; this recorder owns only {@code createdAt} (from the injected {@link Clock}, so event
+ * ordering is deterministic in tests) and leaves {@code notifiedAt} null.
  */
 @Service
 public class PipelineEventRecorder {
@@ -29,34 +30,21 @@ public class PipelineEventRecorder {
         this.clock = clock;
     }
 
-    /**
-     * Append a pipeline-scoped event. The record's {@code pipelineId} must be non-null for pipeline events;
-     * {@code taskId} is null when the event is pipeline-level.
-     */
-    public PipelineEvent recordPipelineEvent(PipelineEventRecord record) {
-        Objects.requireNonNull(record.getPipelineId(), "pipelineId");
-        return insert(record);
+    /** Append a pipeline-scoped event — {@code pipelineId} must be non-null; {@code taskId} may be null. */
+    public PipelineEvent recordPipelineEvent(PipelineEvent event) {
+        Objects.requireNonNull(event.getPipelineId(), "pipelineId");
+        return insert(event);
     }
 
-    /**
-     * Append a global (non-pipeline) event — e.g. a settings change audit. {@code pipelineId} is null,
-     * which is permitted by the outbox schema.
-     */
-    public PipelineEvent recordGlobalEvent(PipelineEventRecord record) {
-        return insert(record);
+    /** Append a global (non-pipeline) event — e.g. a settings change audit; {@code pipelineId} is null. */
+    public PipelineEvent recordGlobalEvent(PipelineEvent event) {
+        return insert(event);
     }
 
-    private PipelineEvent insert(PipelineEventRecord record) {
-        Objects.requireNonNull(record.getType(), "type");
-        Objects.requireNonNull(record.getSeverity(), "severity");
-        Objects.requireNonNull(record.getActor(), "actor");
-        PipelineEvent event = new PipelineEvent();
-        event.setPipelineId(record.getPipelineId());
-        event.setTaskId(record.getTaskId());
-        event.setType(record.getType());
-        event.setSeverity(record.getSeverity());
-        event.setActor(record.getActor());
-        event.setPayload(record.getPayload());
+    private PipelineEvent insert(PipelineEvent event) {
+        Objects.requireNonNull(event.getType(), "type");
+        Objects.requireNonNull(event.getSeverity(), "severity");
+        Objects.requireNonNull(event.getActor(), "actor");
         event.setCreatedAt(Instant.now(clock));
         // notifiedAt stays null — the PipelineAlertNotifier (T6) stamps it on send.
         return events.save(event);

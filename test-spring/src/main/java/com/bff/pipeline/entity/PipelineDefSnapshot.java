@@ -2,6 +2,8 @@ package com.bff.pipeline.entity;
 import com.bff.pipeline.type.PipelineType;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -16,6 +18,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class PipelineDefSnapshot {
 
     /** PK == pipeline.id (1:1, write-once). */

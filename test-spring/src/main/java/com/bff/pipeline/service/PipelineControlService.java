@@ -1,10 +1,11 @@
 package com.bff.pipeline.service;
 import com.bff.pipeline.dto.PipelineCreationRequest;
 import com.bff.pipeline.dto.PipelineCreationResult;
-import com.bff.pipeline.dto.PipelineEventRecord;
 
 import com.bff.pipeline.type.Actor;
 import com.bff.pipeline.entity.Pipeline;
+import com.bff.pipeline.entity.PipelineEvent;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.Severity;
 import com.bff.pipeline.repository.PipelineRepository;
@@ -42,12 +43,9 @@ public class PipelineControlService {
     @Transactional
     public CancelResult cancel(@NonNull Long pipelineId, @NonNull Actor actor) {
         if (pipelines.casStatus(pipelineId, PipelineStatus.RUNNING, PipelineStatus.CANCELLING, clock.instant()) > 0) {
-            events.recordPipelineEvent(PipelineEventRecord.builder()
-                    .pipelineId(pipelineId)
-                    .type("PIPELINE:CANCELLING")
-                    .severity(Severity.INFO)
-                    .actor(actor)
-                    .build());
+            events.recordPipelineEvent(PipelineEvent.builder()
+                    .pipelineId(pipelineId).type(PipelineEventType.PIPELINE_CANCELLING.wire())
+                    .severity(Severity.INFO).actor(actor).build());
         }
         // idempotent: a terminal / already-CANCELLING run matched 0 rows — report its current status, not an error.
         PipelineStatus status = pipelines.findById(pipelineId)
@@ -60,12 +58,9 @@ public class PipelineControlService {
         PipelineCreationResult result = creation.create(request);
         if (!result.isCreated()) {
             // an existing non-terminal run blocked the new one; record who tried (the creation event is absent).
-            events.recordPipelineEvent(PipelineEventRecord.builder()
-                    .pipelineId(result.getPipeline().getId())
-                    .type("PIPELINE:RETRY_ATTEMPTED")
-                    .severity(Severity.INFO)
-                    .actor(request.getTriggeredBy())
-                    .build());
+            events.recordPipelineEvent(PipelineEvent.builder()
+                    .pipelineId(result.getPipeline().getId()).type(PipelineEventType.PIPELINE_RETRY_ATTEMPTED.wire())
+                    .severity(Severity.INFO).actor(request.getTriggeredBy()).build());
         }
         return RetryResult.builder().pipelineId(result.getPipeline().getId()).created(result.isCreated()).build();
     }

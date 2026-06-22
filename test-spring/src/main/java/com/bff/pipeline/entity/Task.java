@@ -3,6 +3,8 @@ import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -27,6 +29,8 @@ import java.time.Instant;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Task {
 
     @Id
@@ -40,13 +44,13 @@ public class Task {
     @Column(nullable = false)
     private int seq;
 
-    /** display label only (UX) — routing is by handlerKey. */
+    /** display label only (UX) — the IM operation is {@code operation}. */
     @Column(nullable = false)
     private String name;
 
-    /** stable code-class identifier (e.g. "aws.tf.network"); reconciler routes by this. */
+    /** the IM operation this task runs (e.g. "apply-network", "network-ready"); the launcher calls it. */
     @Column(nullable = false)
-    private String handlerKey;
+    private String operation;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

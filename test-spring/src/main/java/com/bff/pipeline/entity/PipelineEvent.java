@@ -3,6 +3,8 @@ import com.bff.pipeline.type.Actor;
 import com.bff.pipeline.type.Severity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -22,6 +24,8 @@ import java.time.Instant;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class PipelineEvent {
 
     @Id

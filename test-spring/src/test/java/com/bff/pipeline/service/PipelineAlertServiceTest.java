@@ -6,6 +6,7 @@ import com.bff.pipeline.type.AttemptResult;
 import com.bff.pipeline.type.ErrorCode;
 import com.bff.pipeline.entity.Pipeline;
 import com.bff.pipeline.entity.PipelineEvent;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.PipelineType;
 import com.bff.pipeline.type.Severity;
@@ -79,7 +80,7 @@ class PipelineAlertServiceTest {
         alerts.checkWorkerOutage();
         alerts.checkWorkerOutage();
 
-        List<PipelineEvent> outages = eventsOfType("WORKER_OUTAGE_SUSPECTED");
+        List<PipelineEvent> outages = eventsOfType(PipelineEventType.WORKER_OUTAGE_SUSPECTED.wire());
         assertThat(outages).hasSize(1);
         PipelineEvent outage = outages.getFirst();
         assertThat(outage.getSeverity()).isEqualTo(Severity.CRITICAL);
@@ -95,7 +96,7 @@ class PipelineAlertServiceTest {
 
         alerts.checkWorkerOutage();
 
-        assertThat(eventsOfType("WORKER_OUTAGE_SUSPECTED")).isEmpty();
+        assertThat(eventsOfType(PipelineEventType.WORKER_OUTAGE_SUSPECTED.wire())).isEmpty();
     }
 
     @Test
@@ -105,7 +106,7 @@ class PipelineAlertServiceTest {
 
         alerts.checkQueueWait();
 
-        List<PipelineEvent> queueWaits = eventsOfType("QUEUE_WAIT_EXCEEDED");
+        List<PipelineEvent> queueWaits = eventsOfType(PipelineEventType.QUEUE_WAIT_EXCEEDED.wire());
         assertThat(queueWaits).hasSize(1);
         assertThat(queueWaits.getFirst().getActor()).isEqualTo(Actor.SYSTEM);
         assertThat(queueWaits.getFirst().getPipelineId()).isNull();
@@ -118,7 +119,7 @@ class PipelineAlertServiceTest {
 
         alerts.checkQueueWait();
 
-        assertThat(eventsOfType("QUEUE_WAIT_EXCEEDED")).isEmpty();
+        assertThat(eventsOfType(PipelineEventType.QUEUE_WAIT_EXCEEDED.wire())).isEmpty();
     }
 
     private void timeoutAttempt(long taskId) {
@@ -150,7 +151,7 @@ class PipelineAlertServiceTest {
         task.setPipelineId(pipelineId);
         task.setSeq(0);
         task.setName("network");
-        task.setHandlerKey("aws.tf.network");
+        task.setOperation("apply-network");
         task.setKind(TaskKind.TERRAFORM_JOB);
         task.setStatus(TaskStatus.READY);
         task.setFailCount(0);

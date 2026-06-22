@@ -12,12 +12,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Infra Manager transport (example) — assumed Feign. Task handlers call this; the reconciler never does.
- * The backing HTTP client should be VT-friendly (feign-hc5 / feign-java11) to avoid carrier pinning
+ * Infra Manager transport (example) — assumed Feign. {@link FeignImClient} calls this; the reconciler never
+ * does. The backing HTTP client should be VT-friendly (feign-hc5 / feign-java11) to avoid carrier pinning
  * (implementation-notes §A). Production base URL via {@code im.base-url}.
  *
- * <p>This is a thin transport: 429/503/timeout surface as exceptions, which {@link ImCallMapper}
- * classifies into the backpressure / call-timeout / hard-error distinctions the handlers need.
+ * <p>This is a thin transport: 429/503/timeout surface as exceptions, which
+ * {@link com.bff.pipeline.service.external.ExternalCallLauncher} classifies into the backpressure /
+ * call-timeout / hard-error distinctions.
  */
 @FeignClient(name = "infra-manager", url = "${im.base-url:http://infra-manager.local}")
 public interface ImFeignClient {

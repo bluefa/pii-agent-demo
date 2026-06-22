@@ -1,14 +1,14 @@
-# ADR-016 V1 reference configuration. The operational knobs below are bound by @Value in PipelineEngineConfig
-# from this file (deploy-time, no runtime PUT) and assembled into the immutable PipelineEngineSettings bean the
-# engine reads. Unit-test slices do not load this file — they build PipelineEngineSettings.builder() whose
-# @Builder.Default values mirror these. The Postgres datasource lives under the `postgres` profile (it inherits
-# these knobs). Tests use embedded H2 with Hibernate auto-DDL.
+# ADR-016 V1 reference configuration. The operational knobs below are bound by @Value into the immutable
+# PipelineEngineSettings @Configuration (deploy-time, no runtime PUT), which the engine reads directly.
+# Unit-test slices do not load this file — they use PipelineEngineSettings.builder() whose default values
+# mirror these. The Postgres datasource lives under the `postgres` profile (it inherits these knobs). Tests
+# use embedded H2 with Hibernate auto-DDL.
 
 im:
   base-url: http://infra-manager.local   # IM (Infra Manager) Feign transport (implementation-notes §A)
 
 pipeline:
-  # operational knobs — bound by @Value in PipelineEngineConfig (deploy-time, no runtime PUT).
+  # operational knobs — bound by @Value into PipelineEngineSettings (deploy-time, no runtime PUT).
   slot-cap: 4
   max-external-calls-per-tick: 50
   max-fail-count: 3

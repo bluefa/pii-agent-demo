@@ -1,10 +1,7 @@
 package com.bff.pipeline.service;
 import com.bff.pipeline.type.AttemptOutcome;
-import com.bff.pipeline.dto.AttemptView;
 import com.bff.pipeline.dto.PipelineDetail;
-import com.bff.pipeline.dto.PipelineEventView;
 import com.bff.pipeline.dto.PipelineListFilter;
-import com.bff.pipeline.dto.PipelineSummary;
 import com.bff.pipeline.dto.Progress;
 import com.bff.pipeline.dto.TaskTimeline;
 
@@ -73,11 +70,11 @@ class PipelineQueryServiceTest {
         Pipeline running = persistPipeline(PipelineSeed.builder().target("ts-running").status(PipelineStatus.RUNNING).startedAt(T0).finishedAt(null).build());
         persistPipeline(PipelineSeed.builder().target("ts-done").status(PipelineStatus.DONE).startedAt(T0).finishedAt(T0.plusSeconds(60)).build());
 
-        Page<PipelineSummary> page = query.list(
+        Page<Pipeline> page = query.list(
                 PipelineListFilter.builder().status(PipelineStatus.RUNNING).build(), unpaged());
 
         assertThat(page.getContent()).singleElement()
-                .satisfies(summary -> assertThat(summary.getId()).isEqualTo(running.getId()));
+                .satisfies(pipeline -> assertThat(pipeline.getId()).isEqualTo(running.getId()));
     }
 
     @Test
@@ -90,11 +87,11 @@ class PipelineQueryServiceTest {
 
         Instant from = T0.plusSeconds(30 * 60);
         Instant to = T0.plusSeconds(90 * 60);
-        Page<PipelineSummary> page = query.list(
+        Page<Pipeline> page = query.list(
                 PipelineListFilter.builder().from(from).to(to).build(), unpaged());
 
         assertThat(page.getContent()).singleElement()
-                .satisfies(summary -> assertThat(summary.getId()).isEqualTo(inside.getId()));
+                .satisfies(pipeline -> assertThat(pipeline.getId()).isEqualTo(inside.getId()));
     }
 
     @Test
@@ -103,11 +100,11 @@ class PipelineQueryServiceTest {
         Pipeline newer = persistPipeline(PipelineSeed.builder().target("ts-sort-b").status(PipelineStatus.DONE)
                 .startedAt(T0.plusSeconds(60)).finishedAt(T0.plusSeconds(120)).build()); // lastActivityAt T0+120
 
-        Page<PipelineSummary> page = query.list(
+        Page<Pipeline> page = query.list(
                 PipelineListFilter.builder().build(),
                 PageRequest.of(0, 20, Sort.by("provider"))); // unsupported key → fall back, do not throw
 
-        assertThat(page.getContent()).extracting(PipelineSummary::getId)
+        assertThat(page.getContent()).extracting(Pipeline::getId)
                 .containsExactly(newer.getId(), older.getId()); // fallback order = lastActivityAt desc
     }
 
@@ -117,11 +114,11 @@ class PipelineQueryServiceTest {
         Pipeline ongoing = persistPipeline(PipelineSeed.builder().target("ts-ongoing").status(PipelineStatus.RUNNING).startedAt(T0.plusSeconds(45 * 60)).finishedAt(null).build());
         persistPipeline(PipelineSeed.builder().target("ts-after").status(PipelineStatus.RUNNING).startedAt(T0.plusSeconds(90 * 60)).finishedAt(null).build());
 
-        Page<PipelineSummary> page = query.list(
+        Page<Pipeline> page = query.list(
                 PipelineListFilter.builder().from(T0.plusSeconds(30 * 60)).to(T0.plusSeconds(60 * 60)).build(), unpaged());
 
         assertThat(page.getContent()).singleElement()
-                .satisfies(summary -> assertThat(summary.getId()).isEqualTo(ongoing.getId()));
+                .satisfies(pipeline -> assertThat(pipeline.getId()).isEqualTo(ongoing.getId()));
     }
 
     @Test
@@ -137,10 +134,10 @@ class PipelineQueryServiceTest {
         PipelineDetail detail = query.detail(pipeline.getId());
 
         assertThat(detail.getProgress()).isEqualTo(Progress.builder().done(1).total(2).build());
-        assertThat(detail.getCreatedAt()).isEqualTo(T0); // flattened detail carries createdAt
+        assertThat(detail.getPipeline().getCreatedAt()).isEqualTo(T0); // detail carries the run entity
         assertThat(detail.getTasks()).hasSize(2);
-        assertThat(detail.getTasks().get(0).getLatestCheck().getId()).isEqualTo(latestForDone.getId());
-        assertThat(detail.getTasks().get(1).getLatestCheck().getId()).isEqualTo(latestForRunning.getId());
+        assertThat(query.latestCheck(detail.getTasks().get(0).getId()).getId()).isEqualTo(latestForDone.getId());
+        assertThat(query.latestCheck(detail.getTasks().get(1).getId()).getId()).isEqualTo(latestForRunning.getId());
     }
 
     @Test
@@ -154,7 +151,7 @@ class PipelineQueryServiceTest {
 
         TaskTimeline timeline = query.taskTimeline(pipeline.getId(), task.getId(), PageRequest.of(0, 1));
 
-        assertThat(timeline.getAttempts()).extracting(AttemptView::getAttemptNo).containsExactly(1, 2);
+        assertThat(timeline.getAttempts()).extracting(TaskAttempt::getAttemptNo).containsExactly(1, 2);
         assertThat(timeline.getChecks().getContent()).hasSize(1);
         assertThat(timeline.getChecks().getTotalElements()).isEqualTo(2);
     }
@@ -170,7 +167,7 @@ class PipelineQueryServiceTest {
 
         TaskTimeline timeline = query.taskTimeline(pipeline.getId(), task.getId(), PageRequest.of(0, 20));
 
-        assertThat(timeline.getAttempts()).extracting(AttemptView::getOutcome).containsExactly(
+        assertThat(timeline.getAttempts()).extracting(PipelineQueryService::outcomeOf).containsExactly(
                 AttemptOutcome.SUCCEEDED,
                 AttemptOutcome.EXECUTION_TIMEOUT,
                 AttemptOutcome.FAILED,
@@ -182,7 +179,7 @@ class PipelineQueryServiceTest {
         persistPipeline(PipelineSeed.builder().target(TARGET).status(PipelineStatus.DONE).startedAt(T0.plusSeconds(100)).finishedAt(T0.plusSeconds(200)).build());
         Pipeline running = persistPipeline(PipelineSeed.builder().target(TARGET).status(PipelineStatus.RUNNING).startedAt(T0.plusSeconds(50)).finishedAt(null).build());
 
-        PipelineSummary summary = query.latest(TARGET);
+        Pipeline summary = query.latest(TARGET);
 
         assertThat(summary.getId()).isEqualTo(running.getId());
         assertThat(summary.getStatus()).isEqualTo(PipelineStatus.RUNNING);
@@ -193,7 +190,7 @@ class PipelineQueryServiceTest {
         persistPipeline(PipelineSeed.builder().target(TARGET).status(PipelineStatus.DONE).startedAt(T0.plusSeconds(50)).finishedAt(T0.plusSeconds(100)).build());
         Pipeline recent = persistPipeline(PipelineSeed.builder().target(TARGET).status(PipelineStatus.FAILED).startedAt(T0.plusSeconds(300)).finishedAt(T0.plusSeconds(400)).build());
 
-        PipelineSummary summary = query.latest(TARGET);
+        Pipeline summary = query.latest(TARGET);
 
         assertThat(summary.getId()).isEqualTo(recent.getId());
     }
@@ -209,11 +206,11 @@ class PipelineQueryServiceTest {
         persistEvent(EventSeed.builder().pipelineId(pipeline.getId()).type("PIPELINE:CREATED").severity(Severity.INFO).createdAt(T0).build());
         PipelineEvent critical = persistEvent(EventSeed.builder().pipelineId(pipeline.getId()).type("TASK:FAILED").severity(Severity.CRITICAL).createdAt(T0.plusSeconds(10)).build());
 
-        Page<PipelineEventView> filtered = query.events(pipeline.getId(), Severity.CRITICAL, unpaged());
-        Page<PipelineEventView> all = query.events(pipeline.getId(), null, unpaged());
+        Page<PipelineEvent> filtered = query.events(pipeline.getId(), Severity.CRITICAL, unpaged());
+        Page<PipelineEvent> all = query.events(pipeline.getId(), null, unpaged());
 
         assertThat(filtered.getContent()).singleElement()
-                .satisfies(view -> assertThat(view.getId()).isEqualTo(critical.getId()));
+                .satisfies(event -> assertThat(event.getId()).isEqualTo(critical.getId()));
         assertThat(all.getTotalElements()).isEqualTo(2);
     }
 
@@ -240,7 +237,7 @@ class PipelineQueryServiceTest {
         task.setPipelineId(seed.pipelineId);
         task.setSeq(seed.seq);
         task.setName(seed.name);
-        task.setHandlerKey("test." + seed.name);
+        task.setOperation("op-" + seed.name);
         task.setKind(seed.kind);
         task.setStatus(seed.status);
         task.setMaxFailCount(3);

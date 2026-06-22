@@ -20,13 +20,14 @@ import java.time.ZoneOffset;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@link PipelineAlertNotifier} — the outbox consumer (Decision 1.3). {@code consume()} claims the unsent rows
- * ({@code notifiedAt IS NULL}, native {@code FOR UPDATE SKIP LOCKED}) and stamps {@code notifiedAt} from the
- * injected {@link Clock}; an already-stamped row is untouched and a second pass finds nothing (idempotent).
- * The native SKIP-LOCKED claim is exercised against H2 here to prove it parses (H2 2.2 / Postgres both do).
+ * {@link PipelineAlertService#consume()} — the outbox consumer (Decision 1.3). {@code consume()} claims the
+ * unsent rows ({@code notifiedAt IS NULL}, native {@code FOR UPDATE SKIP LOCKED}) and stamps {@code notifiedAt}
+ * from the injected {@link Clock}; an already-stamped row is untouched and a second pass finds nothing
+ * (idempotent). The native SKIP-LOCKED claim is exercised against H2 here to prove it parses (H2 2.2 /
+ * Postgres both do).
  */
 @DataJpaTest
-@Import({PipelineAlertNotifier.class, PipelineEventRecorder.class, PipelineAlertNotifierTest.Wiring.class})
+@Import({PipelineAlertService.class, PipelineEventRecorder.class, PipelineAlertNotifierTest.Wiring.class})
 class PipelineAlertNotifierTest {
 
     private static final Instant FIXED = Instant.parse("2026-06-21T10:15:30Z");
@@ -45,7 +46,7 @@ class PipelineAlertNotifierTest {
     }
 
     @Autowired
-    private PipelineAlertNotifier notifier;
+    private PipelineAlertService alerts;
     @Autowired
     private PipelineEventRepository events;
 
@@ -55,7 +56,7 @@ class PipelineAlertNotifierTest {
         PipelineEvent unsentB = save("TASK_FAILED", null, FIXED.minusSeconds(30));
         PipelineEvent alreadySent = save("PIPELINE_DONE", FIXED.minusSeconds(120), FIXED.minusSeconds(90));
 
-        int firstPass = notifier.consume();
+        int firstPass = alerts.consume();
 
         assertThat(firstPass).isEqualTo(2);
         assertThat(events.findById(unsentA.getId()).orElseThrow().getNotifiedAt()).isEqualTo(FIXED);
@@ -63,7 +64,7 @@ class PipelineAlertNotifierTest {
         assertThat(events.findById(alreadySent.getId()).orElseThrow().getNotifiedAt())
                 .isEqualTo(FIXED.minusSeconds(120));
 
-        int secondPass = notifier.consume();
+        int secondPass = alerts.consume();
 
         assertThat(secondPass).isEqualTo(0);
     }

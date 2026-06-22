@@ -8,7 +8,6 @@ import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.PipelineType;
 import com.bff.pipeline.service.PipelineAlertService;
 import com.bff.pipeline.config.PipelineEngineSettings;
-import com.bff.pipeline.service.PipelineAlertNotifier;
 import com.bff.pipeline.service.reconciler.ReconcileLeader;
 import com.bff.pipeline.service.reconciler.PipelineReconciler;
 import com.bff.pipeline.dto.PipelineCreationRequest;
@@ -46,13 +45,12 @@ class IntegrationTest {
 
     @Test
     void theFullApplicationContextWiresEveryComponent() {
-        // one ReconcileLeader (SingleNodeReconcileLeader in the default profile), the tick, the call-thread, runtime settings,
+        // one ReconcileLeader (single-node default profile), the tick, the call-thread, runtime settings,
         // alerts, and the scheduler all resolve — proving T1–T7 compose.
         assertThat(context.getBean(PipelineReconciler.class)).isNotNull();
         assertThat(context.getBean(ExternalCallLauncher.class)).isNotNull();
         assertThat(context.getBean(PipelineEngineSettings.class)).isNotNull();
         assertThat(context.getBean(PipelineAlertService.class)).isNotNull();
-        assertThat(context.getBean(PipelineAlertNotifier.class)).isNotNull();
         assertThat(context.getBean(ReconcileTickScheduler.class)).isNotNull();
         assertThat(context.getBean(ReconcileLeader.class).isLeader()).isTrue();
     }
@@ -64,9 +62,9 @@ class IntegrationTest {
 
         assertThat(result.isCreated()).isTrue();
         PipelineDetail detail = queryService.detail(result.getPipeline().getId());
-        assertThat(detail.getStatus()).isEqualTo(PipelineStatus.RUNNING);
+        assertThat(detail.getPipeline().getStatus()).isEqualTo(PipelineStatus.RUNNING);
         assertThat(detail.getTasks()).hasSize(2); // DefaultRecipes INSTALL/AWS: TF apply-network → CONDITION ready
-        assertThat(detail.getTasks().get(0).getHandlerKey()).isEqualTo("aws.tf.network");
-        assertThat(detail.getTasks().get(1).getHandlerKey()).isEqualTo("aws.cond.network-ready");
+        assertThat(detail.getTasks().get(0).getOperation()).isEqualTo("apply-network");
+        assertThat(detail.getTasks().get(1).getOperation()).isEqualTo("network-ready");
     }
 }

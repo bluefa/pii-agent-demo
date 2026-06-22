@@ -4,25 +4,16 @@ import com.bff.pipeline.dto.PipelineCreationResult;
 
 import com.bff.pipeline.config.PipelineEngineSettings;
 import com.bff.pipeline.type.Actor;
-import com.bff.pipeline.type.Observed;
 import com.bff.pipeline.entity.Pipeline;
 import com.bff.pipeline.entity.PipelineDefSnapshot;
 import com.bff.pipeline.entity.PipelineEvent;
 import com.bff.pipeline.type.PipelineStatus;
 import com.bff.pipeline.type.PipelineType;
+import com.bff.pipeline.type.PipelineEventType;
 import com.bff.pipeline.type.Severity;
 import com.bff.pipeline.entity.Task;
 import com.bff.pipeline.type.TaskKind;
 import com.bff.pipeline.type.TaskStatus;
-import com.bff.pipeline.dto.ConditionCheckContext;
-import com.bff.pipeline.dto.ConditionCheckOutcome;
-import com.bff.pipeline.service.handler.ConditionCheckHandler;
-import com.bff.pipeline.dto.TerraformDispatchContext;
-import com.bff.pipeline.dto.TerraformDispatchOutcome;
-import com.bff.pipeline.service.handler.PipelineHandlerRegistry;
-import com.bff.pipeline.dto.TerraformPollContext;
-import com.bff.pipeline.dto.TerraformPollOutcome;
-import com.bff.pipeline.service.handler.TerraformJobHandler;
 import com.bff.pipeline.dto.PipelineDefinition;
 import com.bff.pipeline.service.recipe.RecipeRegistry;
 import com.bff.pipeline.dto.TaskDefinition;
@@ -50,17 +41,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@link PipelineCreationService} happy path (Decision 7). Wires the real creation collaborators
- * ({@link PipelineRunWriter}, {@link PipelineEventRecorder}, the two registries) over an H2 schema with a fixed
- * {@link Clock} and two NAMED fake handlers (no Feign). One {@link PipelineDefinition} test recipe drives
- * the chain. The asserts flush + clear the @DataJpaTest persistence context and re-read so the frozen
- * task knobs, snapshot, and creation event are read from H2 rather than the first-level cache.
+ * ({@link PipelineRunWriter}, {@link PipelineEventRecorder}, {@link RecipeRegistry}) over an H2 schema with a
+ * fixed {@link Clock}. One {@link PipelineDefinition} test recipe drives the chain; each task names its IM
+ * operation (no Feign, no handler registry). The asserts flush + clear the @DataJpaTest persistence context
+ * and re-read so the frozen task knobs, snapshot, and creation event are read from H2 rather than the cache.
  */
 @DataJpaTest
 @Import({
         PipelineCreationService.class,
         PipelineRunWriter.class,
         PipelineEventRecorder.class,
-        PipelineHandlerRegistry.class,
         RecipeRegistry.class,
         PipelineCreationServiceTest.Wiring.class
 })
@@ -68,6 +58,8 @@ class PipelineCreationServiceTest {
 
     private static final Instant FIXED = Instant.parse("2026-06-21T10:15:30Z");
     private static final String TARGET = "ts-create-1";
+    private static final String TF_OP = "apply-network";
+    private static final String COND_OP = "network-ready";
 
     @Autowired
     private PipelineCreationService creation;
@@ -110,14 +102,14 @@ class PipelineCreationServiceTest {
         assertThat(terraform.getName()).isEqualTo("apply");
         assertThat(terraform.getStatus()).isEqualTo(TaskStatus.BLOCKED); // created BLOCKED; first tick promotes seq0
         assertThat(terraform.getKind()).isEqualTo(TaskKind.TERRAFORM_JOB);
-        assertThat(terraform.getHandlerKey()).isEqualTo(FakeTf.KEY);
+        assertThat(terraform.getOperation()).isEqualTo(TF_OP);
 
         Task condition = chain.get(1);
         assertThat(condition.getSeq()).isEqualTo(1);
         assertThat(condition.getName()).isEqualTo("ready");
         assertThat(condition.getStatus()).isEqualTo(TaskStatus.BLOCKED);
         assertThat(condition.getKind()).isEqualTo(TaskKind.CONDITION_CHECK);
-        assertThat(condition.getHandlerKey()).isEqualTo(FakeCond.KEY);
+        assertThat(condition.getOperation()).isEqualTo(COND_OP);
 
         PipelineDefSnapshot snapshot = snapshots.findById(pipeline.getId()).orElseThrow();
         assertThat(snapshot.getDefinitionKey()).isEqualTo("install/test");
@@ -127,7 +119,7 @@ class PipelineCreationServiceTest {
 
         List<PipelineEvent> created = events.findByPipelineIdOrderByCreatedAtAsc(pipeline.getId());
         assertThat(created).singleElement().satisfies(event -> {
-            assertThat(event.getType()).isEqualTo("PIPELINE_CREATED");
+            assertThat(event.getType()).isEqualTo(PipelineEventType.PIPELINE_CREATED.wire());
             assertThat(event.getSeverity()).isEqualTo(Severity.INFO);
             assertThat(event.getActor()).isEqualTo(Actor.HUMAN);
             assertThat(event.getTaskId()).isNull();
@@ -175,7 +167,7 @@ class PipelineCreationServiceTest {
 
         JsonNode terraform = specTasks.get(0);
         assertThat(terraform.get("seq").asInt()).isZero();
-        assertThat(terraform.get("handler_key").asText()).isEqualTo(FakeTf.KEY);
+        assertThat(terraform.get("operation").asText()).isEqualTo(TF_OP);
         assertThat(terraform.get("kind").asText()).isEqualTo(TaskKind.TERRAFORM_JOB.name());
         assertThat(terraform.get("execution_timeout").asText()).isEqualTo(Duration.ofMinutes(30).toString());
         assertThat(terraform.get("ttl").isNull()).isTrue();
@@ -183,7 +175,7 @@ class PipelineCreationServiceTest {
 
         JsonNode condition = specTasks.get(1);
         assertThat(condition.get("seq").asInt()).isEqualTo(1);
-        assertThat(condition.get("handler_key").asText()).isEqualTo(FakeCond.KEY);
+        assertThat(condition.get("operation").asText()).isEqualTo(COND_OP);
         assertThat(condition.get("kind").asText()).isEqualTo(TaskKind.CONDITION_CHECK.name());
         assertThat(condition.get("ttl").asText()).isEqualTo(Duration.ofHours(168).toString());
         assertThat(condition.get("polling_interval").asText()).isEqualTo(Duration.ofMinutes(10).toString());
@@ -192,8 +184,7 @@ class PipelineCreationServiceTest {
 
     /**
      * Test wiring: a fixed {@link Clock}, a vanilla {@link ObjectMapper} and default {@link PipelineEngineSettings},
-     * the two named fake handlers, and the single test recipe. No Feign — the handlers are trivial stubs so
-     * creation can resolve their keys/kinds without any IM transport.
+     * and the single test recipe whose tasks name their IM operations. No Feign, no handler registry.
      */
     @TestConfiguration
     static class Wiring {
@@ -214,58 +205,13 @@ class PipelineCreationServiceTest {
         }
 
         @Bean
-        TerraformJobHandler fakeTerraformJobHandler() {
-            return new FakeTf();
-        }
-
-        @Bean
-        ConditionCheckHandler fakeConditionCheckHandler() {
-            return new FakeCond();
-        }
-
-        @Bean
         PipelineDefinition testRecipe() {
             return PipelineDefinition.builder()
                     .definitionKey("install/test").version("v1").type(PipelineType.INSTALL).provider("TEST")
                     .tasks(List.of(
-                            TaskDefinition.terraformJob("apply", FakeTf.class),
-                            TaskDefinition.conditionCheck("ready", FakeCond.class)))
+                            TaskDefinition.terraformJob("apply", TF_OP),
+                            TaskDefinition.conditionCheck("ready", COND_OP)))
                     .build();
-        }
-    }
-
-    /** Named TERRAFORM_JOB stub so its key is the frozen handler_key; never dispatched in these tests. */
-    static final class FakeTf implements TerraformJobHandler {
-        static final String KEY = "test.tf.apply";
-
-        @Override
-        public String key() {
-            return KEY;
-        }
-
-        @Override
-        public TerraformDispatchOutcome dispatch(TerraformDispatchContext ctx) {
-            return TerraformDispatchOutcome.Accepted.builder().handle("job-test").build();
-        }
-
-        @Override
-        public TerraformPollOutcome poll(TerraformPollContext ctx) {
-            return TerraformPollOutcome.Status.builder().observed(Observed.SUCCEEDED).build();
-        }
-    }
-
-    /** Named CONDITION_CHECK stub so its key is the frozen handler_key; never checked in these tests. */
-    static final class FakeCond implements ConditionCheckHandler {
-        static final String KEY = "test.cond.ready";
-
-        @Override
-        public String key() {
-            return KEY;
-        }
-
-        @Override
-        public ConditionCheckOutcome check(ConditionCheckContext ctx) {
-            return ConditionCheckOutcome.Condition.builder().observed(Observed.MET).build();
         }
     }
 }
