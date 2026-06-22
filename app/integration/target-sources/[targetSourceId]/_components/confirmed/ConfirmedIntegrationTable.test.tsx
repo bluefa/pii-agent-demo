@@ -146,8 +146,8 @@ describe('ConfirmedIntegrationTable', () => {
         variant={variant}
       />,
     );
-    const button = screen.getByRole('button', { name: 'conf-x 복사' });
+    const button = screen.getByRole('button', { name: 'Resource ID 복사' });
     expect(button.className).toContain('opacity-0');
-    expect(button.className).toContain('group-hover:opacity-100');
+    expect(button.className).toContain('group-hover/resid:opacity-100');
   });
 });
