@@ -87,8 +87,10 @@ export const ConfirmStepModal = ({ kind, onClose, onConfirm }: ConfirmStepModalP
             </svg>
           </div>
           <div>
-            <h2 className={cn('mb-1.5 mt-0.5 text-[17px] font-bold', textColors.primary)}>{content.title}</h2>
-            <p className={cn('text-[13px] leading-[1.55]', textColors.tertiary)}>{content.desc}</p>
+            <h2 className="mb-1.5 mt-0.5 text-[26px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]">
+              {content.title}
+            </h2>
+            <p className={cn('text-[13px] font-medium leading-[1.55]', textColors.tertiary)}>{content.desc}</p>
           </div>
         </div>
         <div className="px-7 pt-1">

@@ -27,7 +27,7 @@ read -r -d '' PROBE <<EOF || true
 window.addEventListener('load', function(){
   $nav
   setTimeout(function(){
-    var props=['fontSize','fontWeight','lineHeight','letterSpacing','color','marginTop','marginBottom','marginLeft','marginRight','gap','rowGap','columnGap','paddingTop','paddingBottom','paddingLeft','paddingRight','borderRadius','boxShadow'];
+    var props=['fontSize','fontWeight','lineHeight','letterSpacing','color','backgroundColor','marginTop','marginBottom','marginLeft','marginRight','gap','rowGap','columnGap','paddingTop','paddingBottom','paddingLeft','paddingRight','borderRadius','boxShadow'];
     var out=[].slice.call(document.querySelectorAll("$sel")).map(function(el,i){
       var cs=getComputedStyle(el); var r=el.getBoundingClientRect();
       var o={i:i,tag:el.tagName.toLowerCase(),text:(el.textContent||'').trim().slice(0,28)};

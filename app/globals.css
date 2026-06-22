@@ -91,9 +91,9 @@
    ============================================================================= */
 
 body {
-  /* NOTE: v15 page background = #F4F4FB (inline body override, 00-tokens.md). Wiring
-     the page/shell bg requires touching layout files — out of scope for this token pass. */
-  background: var(--background);
+  /* v16 page background = #F4F4FB (measured: getComputedStyle on the mockup body).
+     Cards/surfaces stay white (bg-white) and sit on this light lavender-gray page. */
+  background: #F4F4FB;
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard', sans-serif;
   letter-spacing: -0.018em;

@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
@@ -56,6 +58,11 @@ export const IdcResourceTable = ({
   onCredChange,
   onLogicalOpen,
 }: IdcResourceTableProps) => {
+  // Display-only pagination; per-step gating runs over the full list in the step
+  // components, so slicing the view here is safe.
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
   const has = (c: IdcTableCol) => cols.includes(c);
   // Step 2·3 (`excl`) show excluded rows too; Step 4~7 show integration targets only.
   const rows = has('excl') ? resources : resources.filter((r) => !r.excluded);
@@ -68,7 +75,11 @@ export const IdcResourceTable = ({
     );
   }
 
+  const safePage = Math.min(page, Math.max(0, Math.ceil(rows.length / pageSize) - 1));
+  const pageRows = rows.slice(safePage * pageSize, safePage * pageSize + pageSize);
+
   return (
+    <>
     <div className={idcStyles.table.frame}>
       <table className="w-full">
         <thead className={idcStyles.table.header}>
@@ -91,7 +102,7 @@ export const IdcResourceTable = ({
           </tr>
         </thead>
         <tbody className={idcStyles.table.body}>
-          {rows.map((r) => {
+          {pageRows.map((r) => {
             const dim = r.excluded ? 'opacity-50' : '';
             return (
               <tr key={r.resourceId} className={cn(idcStyles.table.row, r.excluded && 'bg-[#F7F8FA]')}>
@@ -150,5 +161,17 @@ export const IdcResourceTable = ({
         </tbody>
       </table>
     </div>
+    <Pagination
+      page={safePage}
+      pageSize={pageSize}
+      totalCount={rows.length}
+      onPageChange={setPage}
+      onPageSizeChange={(next) => {
+        setPageSize(next);
+        setPage(0);
+      }}
+      pageSizeOptions={[10, 20, 50, 100]}
+    />
+    </>
   );
 };
