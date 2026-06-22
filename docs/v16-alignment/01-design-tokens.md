@@ -104,4 +104,18 @@ exclusion modal 8478–97 · step5 card cloud 6883–6997 / idc 7004–7070.
 
 ### Round 1 — opus token-verify-add / token-verify-reconcile: _pending_
 
-**Status:** DRAFT. Round-2 revision pending opus verifiers, then re-review to unanimous before Phase D freeze.
+### Round 2 — corrected token strings (Codex round-1 applied; opus verifiers + element-inventory pending)
+These supersede the round-1 §A values where they differ:
+- §A3 paste-ready: `shadow-[0_8px_16px_rgba(17,24,39,0.04),0_24px_48px_-16px_rgba(17,24,39,0.14)]`
+- §A8 add: `none: 'bg-transparent text-[#9CA3AF] p-0'`, `icon: 'flex-shrink-0'`
+- §A10 fix: grid base is `grid grid-cols-4` (req-modal overrides to 3 inline); stat add `border-0 transition-colors`
+- §A13 add: `border-0 tracking-[-0.01em] transition-colors`
+- §A14 add: `cursor-pointer transition-colors` + bg repeat/position + `empty: 'text-[#6B7280] font-sans font-medium'`
+- §A6 add: eyebrow `gap-1.5`, title `mb-2`, stat-label override, pct `ml-1.5` tracking-0, body td/mono overrides, modal body padding, widths (760 cloud / 820 idc)
+- §B10 full: `fixed inset-0 grid place-items-center bg-[rgba(15,23,42,0.5)] z-[100]` + open-state (opacity/pointer-events/transition)
+- OMITTED → add: §A17 `connProgressStyles` (step5 진행바, v16 2552–2645) **NEW, required for step5**;
+  §A18 pagination — impl `Pagination` EXISTS, verify it matches v16 3099–3157 (no new token unless drift);
+  §A19 resource-id — `ResourceIdCell` EXISTS (verify v16 2885–2910); §A20 `idcStyles.table.frame` — **already added** (commit c80e3b9);
+  §A21 sourceIpTooltip (v16 4942–4958) — defer; §A22 logical-modal close-x — defer with §A16.
+
+**Status:** DRAFT. Awaiting opus verifiers + element-inventory → one clean round-3 freeze → unanimous → Phase D.
