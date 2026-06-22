@@ -13,7 +13,7 @@ import type {
 
 const KIND_LABEL: Record<IdcKind, string> = {
   SINGLE: 'Single',
-  MULTIPLE_IP: 'Multiple IP',
+  MULTIPLE_IP: 'Multi',
   DOMAIN: 'Domain',
 };
 const KIND_STYLE: Record<IdcKind, string> = {

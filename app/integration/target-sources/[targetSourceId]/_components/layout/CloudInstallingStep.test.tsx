@@ -93,13 +93,12 @@ const renderStep = (
   );
 
 describe('CloudInstallingStep DOM order', () => {
-  it('renders installation-status before confirmed-resources', () => {
+  it('renders installation-status and omits the redundant confirmed-resources card', () => {
     renderStep();
 
-    const install = screen.getByTestId('installation-status');
-    const confirmed = screen.getByTestId('confirmed-resources');
-    const ordering = install.compareDocumentPosition(confirmed);
-    expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId('installation-status')).toBeTruthy();
+    // The standalone "연동 대상 정보" card duplicated the install table (not in v15) — removed.
+    expect(screen.queryByTestId('confirmed-resources')).toBeNull();
   });
 });
 
@@ -120,13 +119,13 @@ describe('CloudInstallingStep Provider tag', () => {
   });
 });
 
-describe('CloudInstallingStep GCP fork (gate removed)', () => {
-  it('renders confirmed-resources for GCP', () => {
+describe('CloudInstallingStep GCP fork', () => {
+  it('omits the redundant confirmed-resources card for GCP too', () => {
     const gcpFixture: CloudTargetSource = {
       ...azureInstallingFixture,
       cloudProvider: 'GCP',
     };
     renderStep({ project: gcpFixture });
-    expect(screen.queryByTestId('confirmed-resources')).not.toBeNull();
+    expect(screen.queryByTestId('confirmed-resources')).toBeNull();
   });
 });

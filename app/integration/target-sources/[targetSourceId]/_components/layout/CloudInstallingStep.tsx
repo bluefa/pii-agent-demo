@@ -14,7 +14,6 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { ConfirmedIntegrationDataProvider } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { InstallationStatusSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/InstallationStatusSlot';
-import { ConfirmedResourcesSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 
 interface CloudInstallingStepProps {
   project: CloudTargetSource;
@@ -82,7 +81,6 @@ export const CloudInstallingStep = ({
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
       <InstallationStatusSlot project={project} refreshProject={refreshProject} />
-      <ConfirmedResourcesSlot />
       <RejectionAlert project={project} />
     </ConfirmedIntegrationDataProvider>
   );
