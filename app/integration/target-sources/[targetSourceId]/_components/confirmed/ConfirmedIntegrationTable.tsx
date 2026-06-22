@@ -163,6 +163,7 @@ export const ConfirmedIntegrationTable = ({
   const demoPendingId = pickDemoUnhealthyId(confirmed);
 
   return (
+    <>
     <div className={idcStyles.table.frame}>
     <table className="w-full text-sm">
       <thead className={bgColors.muted}>
@@ -176,7 +177,7 @@ export const ConfirmedIntegrationTable = ({
         </tr>
       </thead>
       <tbody className={tableStyles.body}>
-        {confirmed.map((resource) => {
+        {pageRows.map((resource) => {
           const isPending =
             resource.connectionStatus === 'DISCONNECTED' || resource.resourceId === demoPendingId;
           return (
@@ -199,5 +200,17 @@ export const ConfirmedIntegrationTable = ({
       </tbody>
     </table>
     </div>
+    <Pagination
+      page={safePage}
+      pageSize={pageSize}
+      totalCount={confirmed.length}
+      onPageChange={setPage}
+      onPageSizeChange={(next) => {
+        setPageSize(next);
+        setPage(0);
+      }}
+      pageSizeOptions={[10, 20, 50, 100]}
+    />
+    </>
   );
 };

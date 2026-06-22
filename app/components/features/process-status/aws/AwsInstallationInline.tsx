@@ -11,6 +11,7 @@ import { InstallationErrorView } from '@/app/components/features/process-status/
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
 import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
 import { TfDownloadCard } from '@/app/components/features/process-status/install-task-pipeline/TfDownloadCard';
+import { AwsModeBar } from '@/app/components/features/process-status/aws/AwsModeBar';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import { joinAwsResources } from '@/app/components/features/process-status/aws/join-aws-install-resources';
 import { useToast } from '@/app/components/ui/toast';
@@ -49,6 +50,9 @@ export const AwsInstallationInline = ({
 }: AwsInstallationInlineProps) => {
   const [guideOpen, setGuideOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // In-card mode toggle (v16 `.aws-mode-bar`): the `mode` prop seeds the initial
+  // view; the segmented control drives which install branch renders thereafter.
+  const [installMode, setInstallMode] = useState<AwsInstallationMode>(mode);
   const completionNotifiedRef = useRef(false);
   const toast = useToast();
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
@@ -56,6 +60,10 @@ export const AwsInstallationInline = ({
   useEffect(() => {
     completionNotifiedRef.current = false;
   }, [targetSourceId]);
+
+  useEffect(() => {
+    setInstallMode(mode);
+  }, [mode]);
 
   const { status, loading, error, fetchStatus } = useInstallationStatus<AwsInstallationStatus>({
     targetSourceId,
@@ -112,7 +120,8 @@ export const AwsInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        {mode === 'AUTO' ? (
+        <AwsModeBar value={installMode} onChange={setInstallMode} />
+        {installMode === 'AUTO' ? (
           <InstallTaskPipeline columns={3} items={buildAwsAutoItems(status)} />
         ) : (
           <>

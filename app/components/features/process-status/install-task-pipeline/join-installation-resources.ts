@@ -84,11 +84,15 @@ export const joinAzureResources = (
   return installation.map((r) => {
     const resourceId = azureResourceId(r);
     const matched = confirmedById.get(resourceId);
+    // Match the GCP path: prefer the confirmed Resource Name, else shorten the full
+    // Azure path (/subscriptions/…/servers/mysql-prod-01) to its last segment.
+    const databaseName =
+      matched?.resourceName ?? getResourceDisplayName({ resourceId: azureResourceName(r) ?? resourceId });
     return {
       resourceId,
       databaseType: matched?.databaseType ?? null,
       region: matched?.region ?? null,
-      databaseName: azureResourceName(r) ?? null,
+      databaseName,
       installationStatus: azureStatusFromStep(r),
       source: null,
     };

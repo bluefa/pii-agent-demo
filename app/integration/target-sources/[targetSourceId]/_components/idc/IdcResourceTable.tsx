@@ -21,7 +21,7 @@ import {
   IdcTargetPill,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/cells';
 
-export type IdcTableCol = 'src' | 'excl' | 'fw' | 'conn' | 'health' | 'cred' | 'logical';
+export type IdcTableCol = 'src' | 'excl' | 'fw' | 'conn' | 'health' | 'cred' | 'credro' | 'logical';
 
 interface IdcResourceTableProps {
   resources: readonly IdcResourceView[];
@@ -96,6 +96,7 @@ export const IdcResourceTable = ({
             {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>연동 대상 / 제외 사유</th>}
             {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
             {has('cred') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
+            {has('credro') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
             {has('conn') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Connection Status</th>}
             {has('logical') && <th className={cn(idcStyles.table.headerCell, 'w-[110px]')}>논리 DB 관리</th>}
             {has('health') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>Status</th>}
@@ -137,6 +138,17 @@ export const IdcResourceTable = ({
                         value={r.credentialId ?? ''}
                         onChange={(cred) => onCredChange?.(r.resourceId, cred)}
                       />
+                    )}
+                  </td>
+                )}
+                {has('credro') && (
+                  <td className={idcStyles.table.cell}>
+                    {r.excluded || !r.credentialId ? (
+                      <span className={textColors.quaternary}>—</span>
+                    ) : (
+                      <span className={cn('font-mono text-[12px] font-semibold', textColors.primary)}>
+                        {r.credentialId}
+                      </span>
                     )}
                   </td>
                 )}

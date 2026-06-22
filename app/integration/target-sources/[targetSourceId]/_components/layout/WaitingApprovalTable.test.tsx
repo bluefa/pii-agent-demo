@@ -39,7 +39,7 @@ describe('WaitingApprovalTable', () => {
       'Resource ID',
       'Region',
       'Resource Name',
-      '연동 대상 여부',
+      '연동 대상',
       '제외 사유',
     ]);
   });

@@ -150,7 +150,7 @@ describe('WaitingApprovalCard', () => {
     await waitFor(() => {
       expect(screen.getByText('전체 요청')).toBeTruthy();
     });
-    expect(screen.getByText('연동 대상')).toBeTruthy();
+    expect(screen.getAllByText('연동 대상').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('비대상').length).toBeGreaterThanOrEqual(1);
 
     const tiles = screen.getAllByText(/^\d+$/);

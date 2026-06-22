@@ -83,7 +83,9 @@ export const LogicalDbModal = ({
       isOpen={open}
       onClose={onClose}
       size="logical"
-      title=""
+      // 'bare' chrome drops the shared header (empty title bar + close-X). The
+      // "논리 DB 확인" title block below is the first element in the modal.
+      chrome="bare"
       footer={
         <div className="flex w-full items-center justify-between gap-2">
           <span className={cn('text-[12px]', textColors.tertiary)}>
@@ -117,8 +119,10 @@ export const LogicalDbModal = ({
     >
       {/*
         v16 `.lg-title` — 20px / 700 / -0.02em / line-height 1.2 / #191F28.
-        Rendered here (not via Modal's title) because the shared Modal locks its
-        default title at 18px; other Modal callers must not regress.
+        With `chrome="bare"` the Modal renders no header, so this is the first
+        element at the very top of the modal. Rendered here (not via Modal's
+        title) because the shared default header locks its title at 18px and
+        keeps a close-X; other Modal callers must not regress.
       */}
       <h2 className="mb-2 text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#191F28]">
         논리 DB 확인

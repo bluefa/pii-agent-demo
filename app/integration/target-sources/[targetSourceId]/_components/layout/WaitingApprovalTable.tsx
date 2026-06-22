@@ -80,7 +80,7 @@ export const WaitingApprovalTable = memo(
 
     const applying = variant === 'applying';
     const lastColumnLabel = applying ? '연동 이력' : '제외 사유';
-    const targetColumnLabel = applying ? '연동 대상 / 제외 사유' : '연동 대상 여부';
+    const targetColumnLabel = applying ? '연동 대상 / 제외 사유' : '연동 대상';
     const monoCell = cn('font-mono text-[12px]', textColors.secondary);
 
     return (

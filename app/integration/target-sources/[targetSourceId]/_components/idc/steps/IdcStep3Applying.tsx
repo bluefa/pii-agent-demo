@@ -1,6 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
+import { formatDate } from '@/lib/utils/date';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { CheckIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
@@ -48,7 +49,15 @@ export const IdcStep3Applying = ({
           <div>
             <h2 className={cardStyles.cardTitle}>연동 대상 반영중</h2>
             <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              관리자 승인 후 시스템에 연동 정보를 반영하고 있어요.
+              관리자 승인 후 Agent 설치를 위한 사전 작업이 자동으로 진행됩니다.
+              {' · '}승인일시{' '}
+              <strong className={cn('font-semibold', textColors.secondary)}>
+                {project.approvedAt ? formatDate(project.approvedAt, 'datetime') : '2026-05-09 09:12'}
+              </strong>
+              {' · '}승인자{' '}
+              <strong className={cn('font-semibold', textColors.secondary)}>
+                김보안 (kim.security)
+              </strong>
             </p>
           </div>
           <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>

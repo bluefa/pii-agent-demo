@@ -78,8 +78,8 @@ describe('CandidateResourceTable', () => {
         candidates={[candidateFixture({ resourceId: 'res-1' })]}
       />,
     );
-    const button = screen.getByRole('button', { name: 'res-1 복사' });
+    const button = screen.getByRole('button', { name: 'Resource ID 복사' });
     expect(button.className).toContain('opacity-0');
-    expect(button.className).toContain('group-hover:opacity-100');
+    expect(button.className).toContain('group-hover/resid:opacity-100');
   });
 });

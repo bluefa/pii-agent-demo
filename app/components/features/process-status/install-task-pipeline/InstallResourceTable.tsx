@@ -5,6 +5,7 @@ import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   tagStyles,
   textColors,
 } from '@/lib/theme';
@@ -39,8 +40,10 @@ const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
   FAIL: tagStyles.error,
 };
 
+// v16 `.db-list-table` status column header per provider (HTML 6811–6813):
+// Azure = 'Private Link 상태', GCP = '서비스 리소스 상태', AWS = 'VPC Endpoint 상태'.
 const RESOURCE_STATUS_COLUMN_LABEL: Record<CloudProvider, string> = {
-  AWS: 'Service 상태',
+  AWS: 'VPC Endpoint 상태',
   Azure: 'Private Link 상태',
   GCP: '서비스 리소스 상태',
   IDC: '서비스 리소스 상태',
@@ -78,7 +81,7 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
 
   return (
     <div className="flex flex-col gap-2">
-      <div className={cn('overflow-hidden rounded-lg border', bgColors.surface, borderColors.default)}>
+      <div className={idcStyles.table.frame}>
         <table className="w-full text-sm">
           <thead className={bgColors.muted}>
             <tr>
@@ -138,6 +141,7 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
         totalCount={rows.length}
         onPageChange={setPage}
         onPageSizeChange={handlePageSizeChange}
+        pageSizeOptions={[10, 20, 50, 100]}
       />
     </div>
   );

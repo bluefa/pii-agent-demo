@@ -55,7 +55,7 @@ const ConnectionVerifiedRetestButton = () => {
 
 /**
  * IDC Step 6 — 완료 여부 관리자 승인 대기 (read-only).
- * Chrome + read-only IdcResourceTable (cols `src`, `conn`; integration targets only).
+ * Chrome + read-only IdcResourceTable (cols `src`, `credro`, `conn`; integration targets only).
  * Each step fetches its own list under its `targetSourceId` (DR3/DR4/DR5/DR7)
  * via the shared `useIdcResources` read hook, never module-level state.
  */
@@ -101,7 +101,7 @@ export const IdcStep6ConnectionVerified = ({
           {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}
           {state.status === 'error' && <ErrorState message="연동 대상을 불러오지 못했습니다." />}
           {state.status === 'ready' && (
-            <IdcResourceTable resources={state.resources} cols={['src', 'conn']} />
+            <IdcResourceTable resources={state.resources} cols={['src', 'credro', 'conn']} />
           )}
           <ConnectionVerifiedRetestButton />
         </div>

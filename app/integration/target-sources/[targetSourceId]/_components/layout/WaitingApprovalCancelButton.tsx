@@ -40,7 +40,7 @@ export const WaitingApprovalCancelButton = ({
         onClick={() => modal.open()}
       >
         <DeleteIcon className="w-3.5 h-3.5" />
-        연동 대상 승인 요청 취소
+        전체 요청 취소
       </button>
 
       <ConfirmStepModal

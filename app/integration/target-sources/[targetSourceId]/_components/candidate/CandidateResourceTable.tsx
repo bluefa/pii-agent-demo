@@ -1,12 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
-import { CopyButton } from '@/app/components/ui/CopyButton';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { Pagination } from '@/app/components/ui/Pagination';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { VmDatabaseConfigPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
@@ -76,6 +78,11 @@ export const CandidateResourceTable = ({
   const selectedCount = selectedIds.size;
   const showCheckboxColumn = !readonly;
 
+  // Display-only pagination; selection/approval gating runs over the full list in
+  // the parent section, so slicing the view here is safe (mirrors IdcResourceTable).
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
   if (totalCount === 0) {
     return (
       <div className={cn('rounded-lg border px-6 py-10 text-center text-sm', bgColors.surface, borderColors.default, textColors.tertiary)}>
@@ -84,13 +91,16 @@ export const CandidateResourceTable = ({
     );
   }
 
+  const safePage = Math.min(page, Math.max(0, Math.ceil(totalCount / pageSize) - 1));
+  const pageRows = candidates.slice(safePage * pageSize, safePage * pageSize + pageSize);
+
   return (
     <div>
-      <div className={cn('rounded-xl border border-[#EBEEF2] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)] overflow-hidden', bgColors.surface)}>
+      <div className={idcStyles.table.frame}>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
-              <tr className={cn('whitespace-nowrap', idcStyles.table.header)}>
+            <thead className={idcStyles.table.header}>
+              <tr className="whitespace-nowrap">
                 {showCheckboxColumn && <th className={cn(idcStyles.table.headerCell, 'w-10')} />}
                 <th className={idcStyles.table.headerCell}>연동 대상 여부</th>
                 <th className={idcStyles.table.headerCell}>Database Type</th>
@@ -102,7 +112,7 @@ export const CandidateResourceTable = ({
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
-              {candidates.map((candidate) => (
+              {pageRows.map((candidate) => (
                 <CandidateResourceRow
                   key={candidate.id}
                   candidate={candidate}
@@ -120,6 +130,17 @@ export const CandidateResourceTable = ({
           </table>
         </div>
       </div>
+      <Pagination
+        page={safePage}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        onPageSizeChange={(next) => {
+          setPageSize(next);
+          setPage(0);
+        }}
+        pageSizeOptions={[10, 20, 50, 100]}
+      />
 
       {!readonly && (
         <div className="flex justify-between items-center pt-4">
@@ -235,13 +256,8 @@ const CandidateResourceRow = ({
 
         <td className={idcStyles.table.cell}>
           <div className="flex items-center gap-2">
-            <span className={cn('font-mono text-xs', textColors.tertiary)}>{candidate.resourceId}</span>
             <span onClick={(event) => event.stopPropagation()}>
-              <CopyButton
-                value={candidate.resourceId}
-                label={`${candidate.resourceId} 복사`}
-                className="opacity-0 group-hover:opacity-100"
-              />
+              <ResourceIdCell value={candidate.resourceId} label="Resource ID" />
             </span>
             {isIneligible && (
               <button
