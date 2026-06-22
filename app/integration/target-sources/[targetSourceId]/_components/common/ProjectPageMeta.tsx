@@ -67,11 +67,21 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
   ];
   const accent = providerAccent[String(identity.cloudProvider).toLowerCase()] ?? providerAccentDefault;
 
+  // v16 `.page-title` = stable NAME + a gray, weight-500 code in parens (e.g. "Big Data Platform (999)").
+  // Strip the step-specific " - {step}" suffix so the title stays stable across steps, and render the
+  // projectCode (e.g. "IDC-025") as a gray span rather than baking it into a flat string.
+  const stableName = (project.name || project.projectCode).split(' - ')[0];
+
   return (
     <>
       <Breadcrumb crumbs={crumbs} />
       <PageHeader
-        title={`${project.name || project.projectCode} (${project.serviceCode})`}
+        title={
+          <>
+            {stableName}{' '}
+            <span className="font-medium text-[#8B95A1]">({project.projectCode})</span>
+          </>
+        }
         action={action}
       />
       <IdentityBar

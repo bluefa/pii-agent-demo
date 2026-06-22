@@ -38,7 +38,9 @@ export const IdcTargetSourceLayout = (props: IdcStepProps) => {
   if (!step) return null;
   return (
     <main className={cn(bgColors.muted, 'min-h-screen')}>
-      <div className="max-w-[1200px] mx-auto p-7 space-y-6">{step}</div>
+      {/* v16 `.main` — full-width flex column, padding 32px 40px 80px (top/x/bottom). The 40px
+          left padding sits flush against the 296px sidebar so content begins at 336px, matching v16. */}
+      <div className="px-10 pt-8 pb-20 space-y-6">{step}</div>
     </main>
   );
 };
