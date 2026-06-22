@@ -74,7 +74,7 @@ describe('ConnectionTestCard', () => {
     try {
       renderCard([makeResource({ credentialId: 'Key1' })]);
       expect(screen.getByText('Pending')).toBeTruthy();
-      // Pre-test: 설정 + 완료 승인 요청 are gated on a successful connection.
+      // Pre-test: the logical-DB and completion-approval buttons are gated on a successful connection.
       expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
       expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
 

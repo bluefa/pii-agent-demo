@@ -47,9 +47,9 @@ const ConnectionTestSection = ({
 };
 
 /**
- * Cloud WAITING_CONNECTION_TEST step — v16 consolidates this into ONE 연결 테스트 card
- * (`data-prov-view="azure gcp aws"`, HTML 6883). The former 연동 대상 정보 / 연결 테스트 패널 /
- * 논리 DB 확인 slots collapse into ConnectionTestCard; the ConfirmedIntegrationDataProvider
+ * Cloud WAITING_CONNECTION_TEST step — v16 consolidates this into ONE connection-test card
+ * (`data-prov-view="azure gcp aws"`, HTML 6883). The former confirmed-resources / connection-test
+ * panel / logical-DB-check slots collapse into ConnectionTestCard; the ConfirmedIntegrationDataProvider
  * wrapper is preserved as the shared data source.
  */
 export const WaitingConnectionTestStep = ({
