@@ -202,7 +202,7 @@ WaitingApprovalStep.tsx
 
 `cancelApprovalRequest`:
 1. `app/lib/api/index.ts :: cancelApprovalRequest` → `fetchInfraJson('/target-sources/{id}/approval-requests/cancel', POST)`
-2. route `…/approval-requests/cancel/route.ts :: POST` → `bff.confirm.cancelApprovalRequest(id)`
+2. route `…/approval-requests/cancel/route.ts :: POST` → `bff.confirm.cancelApprovalRequest(id)`, then best-effort `bff.confirm.getApprovalHistory(id, 0, 1)`
 3. mock `confirm.cancelApprovalRequest` → `lib/bff/mock/confirm.ts :: cancelApprovalRequest`
    (real `httpBff` → `post('/target-sources/{id}/approval-requests/cancel', {})`); client maps to `{success:true}`.
 

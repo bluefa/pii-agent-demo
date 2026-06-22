@@ -155,10 +155,10 @@ is shared with cloud and runs the cancel mutation via `useApiMutation`.
 - **`getIdcResources`:** same chain as Step 1 (`idc.ts` → `resources/route.ts:GET` → `bff.idc.getResources`
   → `lib/bff/mock/idc.ts:mockIdc.getResources` → `lib/mock-idc.ts:getIdcResources`).
 - **`cancelApprovalRequest` (shared):** `app/lib/api/index.ts:cancelApprovalRequest` →
-  `target-sources/[targetSourceId]/approval-requests/cancel/route.ts:POST` → `bff.confirm.cancelApprovalRequest`
+  `target-sources/[targetSourceId]/approval-requests/cancel/route.ts:POST` → `bff.confirm.cancelApprovalRequest` (then best-effort `bff.confirm.getApprovalHistory(id, 0, 1)`)
   → `lib/bff/mock/confirm.ts` (resets project to WAITING_TARGET_CONFIRMATION).
 - **`getProcessStatus` (shared):** `app/lib/api/index.ts:getProcessStatus` →
-  `target-sources/[targetSourceId]/process-status/route.ts:GET` → `bff.confirm.getProcessStatus` →
+  `target-sources/[targetSourceId]/process-status/route.ts:GET` → `bff.confirm.getProcessStatus` + `bff.targetSources.get` (route derives `process_status` from the project) →
   `lib/bff/mock/confirm.ts`.
 
 ---

@@ -155,10 +155,10 @@ divergences and traces the full adapter chain (CSR client → Next route → bff
   `lib/bff/mock/confirm.ts#getApprovalRequestLatest` → `lib/mock-data.ts`.
 - **`cancelApprovalRequest`**: `app/lib/api/index.ts#cancelApprovalRequest` (maps to
   `{success:true}`) → route `.../approval-requests/cancel/route.ts (POST)` →
-  `bff.confirm.cancelApprovalRequest` → `lib/bff/mock/confirm.ts#cancelApprovalRequest` →
+  `bff.confirm.cancelApprovalRequest` (then best-effort `bff.confirm.getApprovalHistory(id, 0, 1)`) → `lib/bff/mock/confirm.ts#cancelApprovalRequest` →
   `lib/mock-data.ts` (revert to step 1).
 - **`getProcessStatus`**: `app/lib/api/index.ts#getProcessStatus` → route
-  `.../process-status/route.ts (GET)` → `bff.confirm.getProcessStatus` →
+  `.../process-status/route.ts (GET)` → `bff.confirm.getProcessStatus` + `bff.targetSources.get` (route derives `process_status` from the project via `extractTargetSource`) →
   `lib/bff/mock/confirm.ts#getProcessStatus` → `lib/mock-data.ts`.
 
 ---
