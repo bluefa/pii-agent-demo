@@ -1,8 +1,9 @@
 'use client';
 
-import { CopyButton } from '@/app/components/ui/CopyButton';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { bgColors, cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
+import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
 import { deriveHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
@@ -107,16 +108,9 @@ export const ConfirmedIntegrationTable = ({
             const [targetCount, excludedCount] = deriveLogicalDbCounts(resource.resourceId);
             return (
               <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-                <td className={cellClass}>{resource.databaseType ?? '-'}</td>
-                <td className={monoCellClass}>
-                  <span className="inline-flex items-center gap-1">
-                    <span>{resource.resourceId}</span>
-                    <CopyButton
-                      value={resource.resourceId}
-                      label={`${resource.resourceId} 복사`}
-                      className="opacity-0 group-hover:opacity-100"
-                    />
-                  </span>
+                <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
+                <td className={cellClass}>
+                  <ResourceIdCell value={resource.resourceId} label="Resource ID" />
                 </td>
                 <td className={monoCellClass}>{resource.region ?? '-'}</td>
                 <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
@@ -161,16 +155,9 @@ export const ConfirmedIntegrationTable = ({
             resource.connectionStatus === 'DISCONNECTED' || resource.resourceId === demoPendingId;
           return (
           <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-            <td className={cellClass}>{resource.databaseType ?? '-'}</td>
-            <td className={monoCellClass}>
-              <span className="inline-flex items-center gap-1">
-                <span>{resource.resourceId}</span>
-                <CopyButton
-                  value={resource.resourceId}
-                  label={`${resource.resourceId} 복사`}
-                  className="opacity-0 group-hover:opacity-100"
-                />
-              </span>
+            <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
+            <td className={cellClass}>
+              <ResourceIdCell value={resource.resourceId} label="Resource ID" />
             </td>
             <td className={monoCellClass}>{resource.region ?? '-'}</td>
             <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>

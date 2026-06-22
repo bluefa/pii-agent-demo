@@ -25,7 +25,9 @@ export const ResourceIdCell = ({
     <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden">
       <span
         className={cn(
-          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-left [direction:ltr]',
+          // v16 .res-id-text: rtl direction + left align truncates from the LEFT, keeping the
+          // distinguishing tail (…/servers/mysql-prod-01) visible instead of the common prefix.
+          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px] text-left [direction:rtl]',
           textColors.secondary,
         )}
       >
