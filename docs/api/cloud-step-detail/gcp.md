@@ -74,7 +74,7 @@ list is empty (seed has no resources), so the table shows the empty/scan state.
 | mount | `GET /integration/api/v1/target-sources/1002/resources` | load candidates |
 | `"승인 요청"` (submit `IdcSubmitModal`) | `POST /integration/api/v1/target-sources/1002/approval-requests` | mutation |
 | after submit | `GET /integration/api/v1/target-sources/1002` (`refreshProject`) | **→ WAITING_APPROVAL** |
-| scan trigger (`Run Infra Scan`) | `POST /integration/api/v1/target-sources/1002/scan` | `startScan` (v1 API); polling `GET …/1002/scanJob/latest` |
+| scan trigger (`Run Infra Scan`) | `POST /integration/api/v1/target-sources/1002/scan` | `startScan` (v1 API); polling `GET …/1002/scanJob/latest`. 완료 시 `handleScanComplete` → `getConfirmResources` 재조회 **+ `refreshProject` (`getProject`)** |
 | fetch error `"다시 시도"` | `GET /integration/api/v1/target-sources/1002/resources` | `getConfirmResources` refetch |
 
 Advance is **action→refetch**: on a successful `createApprovalRequest`, `refreshProject()`
@@ -132,8 +132,8 @@ Data: `CandidateResourceSection` itself (no hook) — `getConfirmResources` in a
 `startScan` (Run Infra Scan, v1 API): `app/lib/api/scan.ts :: startScan` → route
 `…/target-sources/[targetSourceId]/scan/route.ts :: POST` → `bff.scan.create`. Polling:
 `app/lib/api/scan.ts :: getLatestScanJob` → `…/scanJob/latest/route.ts :: GET` → `bff.scan.getStatus`.
-`ScanController` (`features/scan/ScanPanel`) owns the trigger/poll and re-runs `getConfirmResources`
-on completion.
+`ScanController` (`features/scan/ScanPanel`) owns the trigger/poll; on completion
+`CandidateResourceSection#handleScanComplete` re-runs `getConfirmResources` **and** `refreshProject` (`getProject`).
 
 > **GCP divergence:** none in the client/adapter chain — step 1 is shared cloud plumbing
 > (`/target-sources/{id}/resources` + `/scan` + `/approval-requests`). The only GCP-specific fact is
@@ -430,8 +430,10 @@ result, plus a logical-DB slot. `"연결 테스트 수행"` triggers an async te
 
 Advance: this step does **not** auto-transition via `ProcessStatusCard` (INSTALLED is not a
 polled status). The test panel polls `getTestConnectionLatest` (`useTestConnectionPolling`,
-`interval = 4_000`, stops when `!job || job.status !== 'PENDING'`); a result refreshes the
-project (`onResourceUpdate = refreshProject`).
+`interval = 4_000`, stops when `!job || job.status !== 'PENDING'`). On the `PENDING → SUCCESS`
+transition `ConnectionTestPanel` calls `onResourceUpdate` (= `refreshProject` → `getProject`);
+the mock (`lib/mock-test-connection.ts`) has already flipped `processStatus` to
+`CONNECTION_VERIFIED`, so the refetch advances to step 6. A `FAIL` does **not** refetch.
 
 ### UI 컴포넌트
 
@@ -553,7 +555,7 @@ toast stubs**.
 
 | Action | API call | Transition |
 |--------|----------|------------|
-| page load (SSR) | `GET /integration/api/v1/target-sources/2012` (`getProject` / `bff.targetSources.get`) | `processStatus: 7` |
+| page load (SSR) | (no HTTP hop) `page.tsx` Server Component calls `bff.targetSources.get(2012)` **directly** + `extractTargetSource` | route.ts/`getProject` 미경유; `processStatus: 7` |
 | mount | `GET /integration/api/v1/target-sources/2012/confirmed-integration` | load complete list + health |
 | `"인프라 변경"` | none — `toast.info('인프라 변경 기능 준비중입니다.')` | — |
 | `"연결 테스트 재실행"` | none — toast stub | — |
@@ -577,7 +579,7 @@ Health: `confirmed/HealthBadge.tsx` + `confirmed/health-status.ts :: aggregateHe
 
 ### API Client
 
-- `getProject(id)` (initial SSR load; `processStatus: 7`).
+- Initial page load is **not** a client DAL call: `page.tsx` (Server Component) imports `bff` from `@/lib/bff/client`, calls `bff.targetSources.get(id)` then `extractTargetSource` directly (no `getProject`/route.ts HTTP hop). `processStatus: 7`.
 - (shared) `getConfirmedIntegration(id, {signal})` (via provider; `variant="complete"` adds health/integration columns).
 - Defined but **not** wired to a visible button: `confirmInstallation`
   (`POST /target-sources/{id}/pii-agent-installation/confirm`) exists in the DAL for the admin
@@ -585,10 +587,12 @@ Health: `confirmed/HealthBadge.tsx` + `confirmed/health-status.ts :: aggregateHe
 
 ### Adapter 계층
 
-`getProject` (SSR): `bff.targetSources.get(id)` → mock `lib/bff/mock-adapter.ts ::
+initial SSR load: `app/integration/target-sources/[targetSourceId]/page.tsx` →
+`bff.targetSources.get(id)` (`@/lib/bff/client`) → mock `lib/bff/mock-adapter.ts ::
 targetSources.get` → `lib/bff/mock/target-sources.ts :: get` → `lib/mock-data.ts`
-(real `lib/bff/http.ts :: targetSources.get`). On the client `app/lib/api/index.ts ::
-getProject` hits route `…/[targetSourceId]/route.ts :: GET`.
+(real `lib/bff/http.ts :: targetSources.get`) → `lib/target-source-response.ts :: extractTargetSource`.
+No `/integration/api/v1` request. The CSR `getProject` → route `…/[targetSourceId]/route.ts :: GET`
+→ `bff.targetSources.get` chain is the `refreshProject` refetch path only.
 
 `getConfirmedIntegration` — same chain as Steps 4/5/6.
 

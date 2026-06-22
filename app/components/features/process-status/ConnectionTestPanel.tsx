@@ -56,9 +56,11 @@ export const ConnectionTestPanel = ({
     if (prev === 'PENDING' && (uiState === 'SUCCESS' || uiState === 'FAIL')) {
       queueMicrotask(() => setIsShaking(true));
       const timer = setTimeout(() => setIsShaking(false), 500);
+      // 연결 테스트 성공 시 프로젝트를 재조회하여 다음 단계로 진행
+      if (uiState === 'SUCCESS') onResourceUpdate?.();
       return () => clearTimeout(timer);
     }
-  }, [uiState]);
+  }, [uiState, onResourceUpdate]);
 
   // Credential 모달 상태
   const [credModalOpen, setCredModalOpen] = useState(false);
