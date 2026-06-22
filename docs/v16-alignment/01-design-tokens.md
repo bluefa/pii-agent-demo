@@ -138,5 +138,20 @@ already covered by `IdcConnBadge`. Cloud `ConfirmedIntegrationTable[pre-install]
 6/7 cols (extend, not rebuild); IDC `IdcResourceView` already has credentialId+connection (ADR
 boundary intact — no new wire fields).
 
-**Status:** DRAFT. Round-3 freeze pending token-verify-add + element-inventory; §B3 dropped, §B6
-clarified. step5 tokens settled enough to start Phase D on step5 in parallel.
+### Round 2 — opus token-verify-add: ALL 9 ADD tokens byte-exact ✓
+§A3/§A5/§A6/§A7/§A8/§A10/§A12/§A13/§A14 all CORRECT vs v16 block 2; none collide with theme.ts —
+safe to write as-is. RECONCILE values (§B3→#EF4444 generic / §B6 #0064FF / §B10) also confirmed.
+Remaining omissions to ADD before a full-screen freeze (NOT all needed per-cell): `connProgress`
+(**now ADDED** — `idcStyles.connProgress`, commit for IDC step5), `.th-tip` source-ip tooltip,
+credSelect chevron stroke `#667085` (**fixed**) + `.empty` (**added** `credSelectEmpty`), req-modal
+body padding 20/26/4 inline override.
+
+### Round 2 — element-inventory: ~470 distinct selectors; doc covers ~25 (delta set, by design)
+screen-4 + modals use ≈470 CSS selectors; this doc is a byte-exact **delta** (ADD/RECONCILE), not a
+full inventory — ~90% (the JS-rendered layer: pbar, Athena tables, IDC rows, conn-progress, floating
+tips, modal bodies) is intentionally added **per-cell as each is built**, not upfront. Captured as
+html-analysis skill **L9** (completeness method). Full inventory lives in the element-inventory report.
+
+**Token policy (locked):** add the token for each primitive AS its cell is implemented + screenshot-
+verified + Codex/opus-reviewed — NOT all 470 upfront. step5 tokens (IDC) FROZEN & shipped. Cloud
+step5 tokens reuse the same set.
