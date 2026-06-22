@@ -68,10 +68,15 @@ public class ObservationWriter {
                 row.setApiResult(ApiResult.OK);
                 row.setExternalHandle(a.handle());
             }
-            // IM_REJECTED is attributed to the attempt by the tick; backpressure is the (ERROR, error_code=null)
-            // marker — both leave error_code null here.
-            case DispatchOutcome.Rejected ignored -> row.setApiResult(ApiResult.ERROR);
-            case DispatchOutcome.Backpressure ignored -> row.setApiResult(ApiResult.ERROR);
+            // A hard reject carries error_code=IM_REJECTED on the observation so the NEXT tick can tell it
+            // apart from the (ERROR, observed=null, error_code=null) backpressure marker — the async single
+            // writer reads the committed row, not a return value (state-machine 114/115). The attempt is
+            // ALSO closed IM_REJECTED by the tick (the row is the ledger; the attempt is the fail home).
+            case DispatchOutcome.Rejected ignored -> {
+                row.setApiResult(ApiResult.ERROR);
+                row.setErrorCode(ErrorCode.IM_REJECTED);
+            }
+            case DispatchOutcome.Backpressure ignored -> row.setApiResult(ApiResult.ERROR); // (ERROR, null, null) marker
             case DispatchOutcome.CallTimeout ignored -> {
                 row.setApiResult(ApiResult.ERROR);
                 row.setErrorCode(ErrorCode.CALL_TIMEOUT);

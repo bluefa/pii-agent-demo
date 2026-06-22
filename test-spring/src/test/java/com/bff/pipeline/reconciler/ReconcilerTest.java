@@ -43,7 +43,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -77,12 +80,14 @@ class ReconcilerTest {
     @Autowired private TaskRepository tasks;
     @Autowired private TaskAttemptRepository attempts;
     @Autowired private TaskCheckRepository checks;
+    @Autowired private ManualCallExecutor callExecutor;
     @Autowired private FakeTf tf;
     @Autowired private FakeLeader leader;
 
     @AfterEach
     void cleanup() {
         leader.isLeader = true;
+        callExecutor.drain(); // discard any un-drained queued call so it cannot leak into the next test
         events.deleteAll();
         checks.deleteAll();
         attempts.deleteAll();
@@ -97,7 +102,8 @@ class ReconcilerTest {
         Task older = seedRunningTask(NOW.minus(Duration.ofSeconds(60))); // more overdue → serviced first
         Task newer = seedRunningTask(NOW.minus(Duration.ofSeconds(10)));
 
-        reconciler.tick();
+        reconciler.tick();    // fires the older task's poll (queued); the newer is starved by the budget
+        callExecutor.drain(); // call thread writes the older task's observation
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(older.getId())).isNotEmpty();
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(newer.getId())).isEmpty(); // starved by the budget
@@ -194,12 +200,42 @@ class ReconcilerTest {
             return new FakeExecutor();
         }
 
+        /** The fire-and-forget pool ({@link ExternalCalls} @Qualifier): queue the call so it runs AFTER the
+         *  firing tick commits (drained by the test), modelling production's async boundary. */
+        @Bean Executor pipelineCallExecutor() {
+            return new ManualCallExecutor();
+        }
+
         @Bean FakeTf fakeTf() {
             return new FakeTf();
         }
 
         @Bean FakeCond fakeCond() {
             return new FakeCond();
+        }
+    }
+
+    /**
+     * Models the fire-and-forget pool ({@code pipelineCallExecutor}): a fired external call is QUEUED, not run
+     * inline. {@link #drain()} runs every queued call — the call thread running AFTER the firing tick has
+     * committed (so the observation's REQUIRES_NEW write commits cleanly).
+     */
+    static final class ManualCallExecutor implements Executor {
+        private final Deque<Runnable> queued = new ArrayDeque<>();
+
+        @Override
+        public void execute(Runnable command) {
+            queued.add(command);
+        }
+
+        /** run every queued external call — the call thread running AFTER the tick commits. */
+        int drain() {
+            int n = 0;
+            while (!queued.isEmpty()) {
+                queued.poll().run();
+                n++;
+            }
+            return n;
         }
     }
 

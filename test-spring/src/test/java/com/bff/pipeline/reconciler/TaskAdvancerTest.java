@@ -35,6 +35,7 @@ import com.bff.pipeline.service.ExternalCallExecutor;
 import com.bff.pipeline.service.ExternalCalls;
 import com.bff.pipeline.service.ObservationWriter;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -47,7 +48,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,8 +61,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The reconciler state machine ({@link TaskAdvancer} + {@link PipelineDeriver}). Each advance is its own
  * REQUIRES-NEW-driven committed transaction, so the @DataJpaTest wrapper is suppressed (NOT_SUPPORTED) and
  * rows are seeded/asserted through the repos; {@link #cleanup()} clears the committed rows. The real
- * {@link ExternalCalls}/{@link ObservationWriter} run, driven by a fixed clock, a settable fake executor,
+ * {@link ExternalCalls}/{@link ObservationWriter} run, driven by a mutable clock, a settable fake executor,
  * and settable fake handlers; time-based paths are triggered by seeding timestamps in the past.
+ *
+ * <p>External calls are fire-and-forget (D-T2): {@link TaskAdvancer} FIRES a dispatch/poll/check at the END of
+ * {@code advance()} via the {@code pipelineCallExecutor} and returns; the call's committed observation is read
+ * to drive a transition on a LATER tick. The test models the call thread with a {@link ManualCallExecutor}
+ * that QUEUES the fired call so it runs AFTER the firing tick commits (drained with {@code callExecutor.drain()}).
+ * So a call-driven transition takes two advances: tick 1 fires the call, {@code drain()} writes the committed
+ * observation, then tick 2 reads it and transitions. The clock {@link MutableClock} advances between ticks so
+ * each attempt/observation gets a strictly-monotonic timestamp (as production's wall clock does) — the current
+ * attempt's observation scoping stays correct across re-attempts.
  */
 @DataJpaTest
 @Import({
@@ -75,6 +89,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TaskAdvancerTest {
 
     private static final Instant NOW = Instant.parse("2026-06-21T10:15:30Z");
+    private static final Duration STEP = Duration.ofSeconds(1);
     private static final String TARGET = "ts-tick-1";
 
     @Autowired private TaskAdvancer advancer;
@@ -86,12 +101,20 @@ class TaskAdvancerTest {
     @Autowired private TaskAttemptRepository attempts;
     @Autowired private TaskCheckRepository checks;
     @Autowired private FakeExecutor executor;
+    @Autowired private ManualCallExecutor callExecutor;
+    @Autowired private MutableClock clock;
     @Autowired private FakeTf tf;
     @Autowired private FakeCond cond;
+
+    @BeforeEach
+    void resetClock() {
+        clock.set(NOW);
+    }
 
     @AfterEach
     void cleanup() {
         executor.reset();
+        callExecutor.drain(); // discard any un-drained queued call so it cannot leak into the next test
         events.deleteAll();
         checks.deleteAll();
         attempts.deleteAll();
@@ -204,7 +227,8 @@ class TaskAdvancerTest {
         TaskAttempt attempt = seedAttempt(task.getId(), 1, null, NOW, null); // open, response null
         tf.dispatch = new DispatchOutcome.Accepted("job-42");
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick fires the dispatch (queued)
+        callExecutor.drain();                             // call thread adopts the response, writes the OK row
 
         assertThat(attempts.findById(attempt.getId()).orElseThrow().getResponse()).isEqualTo("job-42");
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DISPATCHING); // RUNNING happens next tick
@@ -217,7 +241,10 @@ class TaskAdvancerTest {
         TaskAttempt attempt = seedAttempt(task.getId(), 1, null, NOW, null);
         tf.dispatch = new DispatchOutcome.Rejected("nope");
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires dispatch (queued)
+        callExecutor.drain();                             // call thread writes the (ERROR, IM_REJECTED) row
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads the reject → fails attempt, opens no_2
 
         assertThat(attempts.findById(attempt.getId()).orElseThrow().getErrorCode()).isEqualTo(ErrorCode.IM_REJECTED);
         assertThat(reload(task).getFailCount()).isEqualTo(1);
@@ -232,7 +259,10 @@ class TaskAdvancerTest {
         seedAttempt(task.getId(), 3, null, NOW, null);
         tf.dispatch = new DispatchOutcome.Rejected("nope");
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires dispatch (queued)
+        callExecutor.drain();                             // call thread writes the (ERROR, IM_REJECTED) row
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads the reject → FAILED at max
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.FAILED);
         assertThat(reload(task).getFailCount()).isEqualTo(3);
@@ -263,7 +293,10 @@ class TaskAdvancerTest {
         TaskAttempt attempt = seedAttempt(task.getId(), 1, "job-9", NOW, null);
         tf.poll = new PollOutcome.Status(Observed.SUCCEEDED);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires poll (queued)
+        callExecutor.drain();                             // call thread writes the SUCCEEDED observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads SUCCEEDED → DONE
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DONE);
         assertThat(attempts.findById(attempt.getId()).orElseThrow().getResult().name()).isEqualTo("OK");
@@ -275,13 +308,19 @@ class TaskAdvancerTest {
         Task underMax = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.RUNNING, FakeTf.KEY, 0, 3);
         seedAttempt(underMax.getId(), 1, "job-9", NOW, null);
         tf.poll = new PollOutcome.Status(Observed.FAILED);
-        advancer.advance(pipeline, underMax, true, budget());
+        advancer.advance(pipeline, underMax, true, budget()); // tick 1: fires poll (queued)
+        callExecutor.drain();                                 // call thread writes the FAILED observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(underMax), true, budget()); // tick 2: reads FAILED → requeue
         assertThat(reload(underMax).getStatus()).isEqualTo(TaskStatus.READY); // slot released, requeue
         assertThat(reload(underMax).getFailCount()).isEqualTo(1);
 
         Task atMax = seedTask(pipeline.getId(), 1, TaskKind.TERRAFORM_JOB, TaskStatus.RUNNING, FakeTf.KEY, 2, 3);
         seedAttempt(atMax.getId(), 3, "job-9", NOW, null);
-        advancer.advance(pipeline, atMax, true, budget());
+        advancer.advance(pipeline, atMax, true, budget()); // tick 1: fires poll (queued)
+        callExecutor.drain();                              // call thread writes the FAILED observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(atMax), true, budget()); // tick 2: reads FAILED → FAILED at max
         assertThat(reload(atMax).getStatus()).isEqualTo(TaskStatus.FAILED);
     }
 
@@ -292,7 +331,10 @@ class TaskAdvancerTest {
         seedAttempt(task.getId(), 1, "job-9", NOW, null);
         tf.poll = new PollOutcome.CallFailed(ErrorCode.CHECK_ERROR);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires poll (queued)
+        callExecutor.drain();                             // call thread writes the (ERROR, CHECK_ERROR) read-error obs
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads the read-error → still RUNNING, no fail
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.RUNNING);
         assertThat(reload(task).getFailCount()).isZero(); // job not read ≠ job failed
@@ -305,9 +347,12 @@ class TaskAdvancerTest {
         task.setDeadlineAt(NOW.minus(Duration.ofSeconds(1))); // already past
         tasks.save(task);
         seedAttempt(task.getId(), 1, "job-9", NOW, null);
-        tf.poll = new PollOutcome.Status(Observed.RUNNING); // not terminal → timeout applies
+        tf.poll = new PollOutcome.Status(Observed.RUNNING); // not terminal → timeout applies after a confirming poll
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires the confirming poll (checkedAt = now ≥ deadline)
+        callExecutor.drain();                             // call thread writes the non-terminal RUNNING observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: poll-past-deadline still non-terminal → timeout
 
         assertThat(reload(task).getFailCount()).isEqualTo(1);
         assertThat(attempts.findFirstByTaskIdOrderByAttemptNoDesc(task.getId()).orElseThrow().getErrorCode())
@@ -322,6 +367,7 @@ class TaskAdvancerTest {
         tf.poll = new PollOutcome.Status(Observed.SUCCEEDED);
 
         advancer.advance(pipeline, task, true, new TickBudget(0));
+        callExecutor.drain(); // nothing was queued (budget starved the fire)
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.RUNNING); // not polled
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).isEmpty();
@@ -335,7 +381,10 @@ class TaskAdvancerTest {
         Task task = seedTask(pipeline.getId(), 0, TaskKind.CONDITION_CHECK, TaskStatus.WAITING_EXTERNAL, FakeCond.KEY);
         cond.check = new CheckOutcome.Condition(Observed.MET);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires check (queued)
+        callExecutor.drain();                             // call thread writes the MET observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads MET → DONE
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DONE);
     }
@@ -346,7 +395,10 @@ class TaskAdvancerTest {
         Task task = seedTask(pipeline.getId(), 0, TaskKind.CONDITION_CHECK, TaskStatus.WAITING_EXTERNAL, FakeCond.KEY, 0, 3);
         cond.check = new CheckOutcome.Condition(Observed.NOT_MET);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires check (queued)
+        callExecutor.drain();                             // call thread writes the NOT_MET observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: NOT_MET is not a failure → stays WAITING
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.WAITING_EXTERNAL);
         assertThat(reload(task).getFailCount()).isZero();
@@ -359,7 +411,10 @@ class TaskAdvancerTest {
         checks.save(conditionCheckError(task.getId(), 2)); // two prior failed CHECK calls in the durable ledger
         cond.check = new CheckOutcome.CallFailed(ErrorCode.CHECK_ERROR);
 
-        advancer.advance(pipeline, task, true, budget()); // the 3rd failed call → maxFailCount → FAILED
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires the 3rd check (queued)
+        callExecutor.drain();                             // call thread folds the 3rd CHECK_ERROR into the ledger
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: recompute = 3 → maxFailCount → FAILED
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.FAILED);
         assertThat(reload(task).getFailCount()).isEqualTo(3);
@@ -371,10 +426,10 @@ class TaskAdvancerTest {
         // back so fail_count is stale at 0. The recompute must terminalize FAILED — a later MET must not rescue it.
         Pipeline pipeline = seedPipeline(PipelineStatus.RUNNING);
         Task task = seedTask(pipeline.getId(), 0, TaskKind.CONDITION_CHECK, TaskStatus.WAITING_EXTERNAL, FakeCond.KEY, 0, 3);
-        checks.save(conditionCheckError(task.getId(), 3));
+        checks.save(conditionCheckError(task.getId(), 3)); // ledger already at max BEFORE this tick
         cond.check = new CheckOutcome.Condition(Observed.MET);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // ledger recompute fires first → FAILED on this tick
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.FAILED);
         assertThat(reload(task).getFailCount()).isEqualTo(3);
@@ -388,7 +443,10 @@ class TaskAdvancerTest {
         tasks.save(task);
         cond.check = new CheckOutcome.Condition(Observed.NOT_MET);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires the confirming check (checkedAt = now ≥ TTL)
+        callExecutor.drain();                             // call thread writes the non-MET observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: check-past-TTL still non-MET → EXPIRED
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.EXPIRED);
     }
@@ -416,7 +474,10 @@ class TaskAdvancerTest {
         seedAttempt(task.getId(), 1, "job-9", NOW, null);
         tf.poll = new PollOutcome.Status(Observed.SUCCEEDED);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: drain fires the poll (queued)
+        callExecutor.drain();                             // call thread writes the SUCCEEDED observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads SUCCEEDED → DONE
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DONE); // drained to its real terminal
     }
@@ -431,6 +492,7 @@ class TaskAdvancerTest {
         tf.poll = new PollOutcome.Status(Observed.SUCCEEDED); // would succeed if it could be polled
 
         advancer.advance(pipeline, task, true, new TickBudget(0)); // no budget → defer, do not timeout blind
+        callExecutor.drain(); // nothing queued
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.RUNNING);
     }
@@ -509,10 +571,16 @@ class TaskAdvancerTest {
         Task task = seedTask(pipeline.getId(), 0, TaskKind.TERRAFORM_JOB, TaskStatus.DISPATCHING, FakeTf.KEY, 0, 3);
         seedAttempt(task.getId(), 1, null, NOW, null);
         tf.dispatch = new DispatchOutcome.Rejected("nope");
-        advancer.advance(pipeline, task, true, budget()); // attempt 1 fails, attempt 2 opens
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires the reject (queued)
+        callExecutor.drain();                             // call thread writes attempt 1's (ERROR, IM_REJECTED) row
+
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads reject → attempt 1 fails, attempt 2 opens (later startedAt)
 
         tf.dispatch = new DispatchOutcome.Accepted("job-redispatch");
-        advancer.advance(pipeline, reload(task), true, budget()); // NOT stalled by the prior (ERROR,null) row
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 3: attempt 2 NOT stalled by the prior reject (scoped out) → fires
+        callExecutor.drain();                                     // call thread adopts attempt 2's response
 
         TaskAttempt latest = attempts.findFirstByTaskIdOrderByAttemptNoDesc(task.getId()).orElseThrow();
         assertThat(latest.getAttemptNo()).isEqualTo(2);
@@ -528,7 +596,10 @@ class TaskAdvancerTest {
         seedAttempt(task.getId(), 1, "job-9", NOW, null);
         tf.poll = new PollOutcome.Status(Observed.SUCCEEDED);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: fires poll (queued)
+        callExecutor.drain();                             // call thread writes the SUCCEEDED observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: SUCCEEDED beats the passed deadline → DONE
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.DONE); // completed observation beats timeout
     }
@@ -540,7 +611,10 @@ class TaskAdvancerTest {
         TaskAttempt attempt = seedAttempt(task.getId(), 1, "job-9", NOW, null);
         tf.poll = new PollOutcome.Status(Observed.FAILED);
 
-        advancer.advance(pipeline, task, true, budget());
+        advancer.advance(pipeline, task, true, budget()); // tick 1: drain fires the poll (queued)
+        callExecutor.drain();                             // call thread writes the FAILED observation
+        clock.advance(STEP);
+        advancer.advance(pipeline, reload(task), true, budget()); // tick 2: reads FAILED → FAILED (drain: no requeue)
 
         assertThat(reload(task).getStatus()).isEqualTo(TaskStatus.FAILED); // real failure recorded, no requeue
         assertThat(reload(task).getFailCount()).isEqualTo(1);
@@ -655,8 +729,8 @@ class TaskAdvancerTest {
 
     @TestConfiguration
     static class Wiring {
-        @Bean Clock clock() {
-            return Clock.fixed(NOW, ZoneOffset.UTC);
+        @Bean MutableClock clock() {
+            return new MutableClock(NOW);
         }
 
         @Bean PipelineSettings pipelineSettings() {
@@ -673,12 +747,79 @@ class TaskAdvancerTest {
             return new FakeExecutor();
         }
 
+        /** The fire-and-forget pool ({@link ExternalCalls} @Qualifier): queue the call so it runs AFTER the
+         *  firing tick commits (drained by the test), modelling production's async boundary. */
+        @Bean Executor pipelineCallExecutor() {
+            return new ManualCallExecutor();
+        }
+
         @Bean FakeTf fakeTf() {
             return new FakeTf();
         }
 
         @Bean FakeCond fakeCond() {
             return new FakeCond();
+        }
+    }
+
+    /**
+     * Models the fire-and-forget pool ({@code pipelineCallExecutor}): a fired external call is QUEUED, not run
+     * inline. {@link #drain()} runs every queued call — the call thread running AFTER the firing tick has
+     * committed (so the observation's REQUIRES_NEW write commits cleanly, with no nested-in-tick lock contention
+     * and no commit-order inversion against the tick's schedule write).
+     */
+    static final class ManualCallExecutor implements Executor {
+        private final Deque<Runnable> queued = new ArrayDeque<>();
+
+        @Override
+        public void execute(Runnable command) {
+            queued.add(command);
+        }
+
+        /** run every queued external call — the call thread running AFTER the tick commits. */
+        int drain() {
+            int n = 0;
+            while (!queued.isEmpty()) {
+                queued.poll().run();
+                n++;
+            }
+            return n;
+        }
+    }
+
+    /**
+     * A mutable {@link Clock}: a shared singleton the test advances between ticks so each attempt/observation
+     * gets a strictly-monotonic timestamp (as production's wall clock does). Reset to {@link #NOW} before each
+     * test; single-tick tests never advance it and behave exactly like a fixed clock.
+     */
+    static final class MutableClock extends Clock {
+        private Instant now;
+
+        MutableClock(Instant start) {
+            this.now = start;
+        }
+
+        void set(Instant t) {
+            this.now = t;
+        }
+
+        void advance(Duration d) {
+            this.now = this.now.plus(d);
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
         }
     }
 

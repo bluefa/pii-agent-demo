@@ -46,3 +46,4 @@
   - `pipeline(target_source_id) WHERE status NOT IN (DONE,FAILED,CANCELLED)` **unique** — target당 non-terminal pipeline 1건 강제·중복 생성 차단(결정 5)
   - `task(pipeline_id, seq)` **unique** — 순차 chain 순서·중복 seq 방지(결정 2; `depends_on` 배열 대신 seq predecessor)
 - **Retention** — `task_check`(CHECK)는 RLE라 폴 수가 아니라 **구별되는 관측 run 수에 비례**해 증가(동일 관측은 poll_count로 접힘 — 후속17); 그래도 보존 기간(기본 90일) 후 reconciler가 prune. `pipeline`·`task`·`task_attempt`·`pipeline_event`는 무기한 보존(결정 1.3; 결정 5 확장 경로 전제).
+- **JSON 컬럼 저장형 (v1=TEXT)** — `spec`·`payload`·`response`(위 prose의 "jsonb")는 v1 구현에서 **TEXT(snake_case JSON 문자열)** 로 저장한다. v1은 이 컬럼들을 **불투명 blob으로 통째 읽어 앱에서 파싱**할 뿐 jsonb 연산자(`->`,`@>`,GIN 인덱스)를 전혀 쓰지 않으므로 TEXT로 충분하고, 엔티티가 `String` 매핑이라 `ddl-auto=validate`와도 정합(jsonb는 JDBC `OTHER`라 String=`VARCHAR`과 불일치). **jsonb 승격은 v2 deferred** — JSON 내부를 인덱싱/질의해야 하는 조회가 생길 때 컬럼 타입 + 엔티티 매핑(`@JdbcTypeCode(JSON)` 또는 JsonNode)을 함께 전환한다(내용은 동일 snake_case라 무손실 마이그레이션).

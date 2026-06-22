@@ -35,23 +35,28 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The call-thread ({@link ExternalCalls}) + its write side ({@link ObservationWriter}, REQUIRES_NEW). Each
- * call returns the handler outcome AND commits the {@code task_check} observation / dispatch response /
- * backpressure {@code next_check_at} in an independent transaction.
+ * The call-thread ({@link ExternalCalls}) + its write side ({@link ObservationWriter}, REQUIRES_NEW). The
+ * dispatch/poll/check methods are fire-and-forget (D-T2): they FIRE the call on the {@code pipelineCallExecutor}
+ * and return void. The committed {@code task_check} observation / dispatch response / backpressure
+ * {@code next_check_at} ARE the contract — asserted after the fired call runs.
  *
- * <p>Because {@code ObservationWriter} is {@code REQUIRES_NEW}, its writes COMMIT independently; a test
- * wrapping transaction would mask that (the docs' one exception to "no @Transactional in tests": we suppress
- * the wrapper with {@link Propagation#NOT_SUPPORTED} to un-mask the real commit). Seeds and assertions
- * therefore go through the repos (each its own committed tx), and {@link #cleanup()} deletes every committed
- * row so it cannot leak into another test. The {@link Wiring} fixes the {@link Clock} and supplies a
- * synchronous {@link ExternalCallExecutor} whose latency/timeout is settable per test — when it does not time
- * out it returns {@code work.get()} so the FAKE HANDLER decides the outcome.
+ * <p>The {@link ManualCallExecutor} queues the fired call so the test runs it explicitly with
+ * {@code callExecutor.drain()}; because {@code ObservationWriter} is {@code REQUIRES_NEW}, its writes COMMIT
+ * independently of any test transaction (the docs' one exception to "no @Transactional in tests": we suppress
+ * the wrapper with {@link Propagation#NOT_SUPPORTED} to un-mask the real commit). Seeds and assertions go
+ * through the repos (each its own committed tx), and {@link #cleanup()} deletes every committed row so it
+ * cannot leak into another test. The {@link Wiring} fixes the {@link Clock} and supplies a synchronous
+ * {@link ExternalCallExecutor} whose latency/timeout is settable per test — when it does not time out it
+ * returns {@code work.get()} so the FAKE HANDLER decides the outcome.
  */
 @DataJpaTest
 @Import({
@@ -78,6 +83,8 @@ class ExternalCallsObservationTest {
     @Autowired
     private FakeExecutor executor;
     @Autowired
+    private ManualCallExecutor callExecutor;
+    @Autowired
     private FakeTerraformHandler tfHandler;
     @Autowired
     private FakeConditionHandler condHandler;
@@ -85,6 +92,7 @@ class ExternalCallsObservationTest {
     @AfterEach
     void cleanup() {
         executor.reset();
+        callExecutor.drain(); // discard any un-drained queued call so it cannot leak into the next test
         checks.deleteAll();
         attempts.deleteAll();
         tasks.deleteAll();
@@ -99,9 +107,9 @@ class ExternalCallsObservationTest {
         executor.setLatencyMs(42);
         tfHandler.setDispatch(new DispatchOutcome.Accepted(HANDLE));
 
-        DispatchOutcome outcome = externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isEqualTo(new DispatchOutcome.Accepted(HANDLE));
         List<TaskCheck> rows = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
         assertThat(rows).singleElement().satisfies(row -> {
             assertThat(row.getKind()).isEqualTo(CheckKind.DISPATCH);
@@ -116,34 +124,36 @@ class ExternalCallsObservationTest {
     }
 
     @Test
-    void dispatchRejectedRecordsErrorDispatchRowWithoutErrorCodeOrResponse() {
+    void dispatchRejectedRecordsErrorDispatchRowWithImRejectedAndNoResponse() {
         Task task = seedTask(TaskStatus.DISPATCHING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedOpenAttempt(task.getId());
         tfHandler.setDispatch(new DispatchOutcome.Rejected("boom"));
 
-        DispatchOutcome outcome = externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isInstanceOf(DispatchOutcome.Rejected.class);
+        // The reject row carries error_code=IM_REJECTED so the next tick tells it apart from the
+        // (ERROR, observed=null, error_code=null) backpressure marker (the async single writer reads the row).
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(row -> {
             assertThat(row.getKind()).isEqualTo(CheckKind.DISPATCH);
             assertThat(row.getApiResult()).isEqualTo(ApiResult.ERROR);
-            assertThat(row.getErrorCode()).isNull();
+            assertThat(row.getErrorCode()).isEqualTo(ErrorCode.IM_REJECTED);
             assertThat(row.getExternalHandle()).isNull();
         });
         assertThat(attempts.findById(attempt.getId()).orElseThrow().getResponse()).isNull();
     }
 
     @Test
-    void dispatchCallTimeoutReturnsCallTimeoutAndRecordsCallTimeoutErrorCode() {
+    void dispatchCallTimeoutRecordsCallTimeoutErrorCode() {
         Task task = seedTask(TaskStatus.DISPATCHING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedOpenAttempt(task.getId());
         // The handler would have Accepted, but the executor deadline fires first → outcome is CallTimeout.
         tfHandler.setDispatch(new DispatchOutcome.Accepted(HANDLE));
         executor.setTimedOut(true);
 
-        DispatchOutcome outcome = externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isInstanceOf(DispatchOutcome.CallTimeout.class);
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(row -> {
             assertThat(row.getApiResult()).isEqualTo(ApiResult.ERROR);
             assertThat(row.getErrorCode()).isEqualTo(ErrorCode.CALL_TIMEOUT);
@@ -157,9 +167,10 @@ class ExternalCallsObservationTest {
         TaskAttempt attempt = seedOpenAttempt(task.getId());
         tfHandler.setDispatch(new DispatchOutcome.Backpressure(Duration.ofSeconds(10)));
 
-        DispatchOutcome outcome = externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        externalCalls.dispatch(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isInstanceOf(DispatchOutcome.Backpressure.class);
+        // Backpressure is the (ERROR, observed=null, error_code=null) marker — distinct from the reject row.
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(row -> {
             assertThat(row.getApiResult()).isEqualTo(ApiResult.ERROR);
             assertThat(row.getErrorCode()).isNull();
@@ -177,12 +188,17 @@ class ExternalCallsObservationTest {
         Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
 
+        // Drain after EACH poll: a queued call reads the handler outcome at run time, so the call thread must
+        // run before the next outcome is scripted (faithful to one fired call per drain).
         tfHandler.setPoll(new PollOutcome.Status(Observed.RUNNING));
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
         tfHandler.setPoll(new PollOutcome.Status(Observed.SUCCEEDED));
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
         List<TaskCheck> runs = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
         assertThat(runs).hasSize(2);
@@ -208,8 +224,10 @@ class ExternalCallsObservationTest {
 
         executor.setLatencyMs(100);
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
         executor.setLatencyMs(250);
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
             assertThat(run.getPollCount()).isEqualTo(2);
@@ -223,9 +241,9 @@ class ExternalCallsObservationTest {
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
         tfHandler.setPoll(new PollOutcome.CallFailed(ErrorCode.CHECK_ERROR));
 
-        PollOutcome outcome = externalCalls.poll(task, attempt, tfHandler, TARGET);
+        externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isEqualTo(new PollOutcome.CallFailed(ErrorCode.CHECK_ERROR));
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
             assertThat(run.getKind()).isEqualTo(CheckKind.CHECK);
             assertThat(run.getApiResult()).isEqualTo(ApiResult.ERROR);
@@ -239,13 +257,18 @@ class ExternalCallsObservationTest {
         Task task = seedTask(TaskStatus.RUNNING, TaskKind.TERRAFORM_JOB);
         TaskAttempt attempt = seedAttemptWithResponse(task.getId(), HANDLE);
 
+        // Drain after EACH poll so each call observes its scripted outcome (one fired call per drain).
         tfHandler.setPoll(new PollOutcome.Status(Observed.RUNNING));
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
         tfHandler.setPoll(new PollOutcome.Status(Observed.SUCCEEDED));
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
         externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
         // Two runs, each folding two polls. Under the fixed clock both runs share started_at, so the
         // 4th poll (SUCCEEDED) must collapse into the LATEST run by the id tiebreak — not reopen against
@@ -265,9 +288,9 @@ class ExternalCallsObservationTest {
         tfHandler.setPoll(new PollOutcome.Status(Observed.RUNNING)); // would-be value; the deadline fires first
         executor.setTimedOut(true);
 
-        PollOutcome outcome = externalCalls.poll(task, attempt, tfHandler, TARGET);
+        externalCalls.poll(task, attempt, tfHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isEqualTo(new PollOutcome.CallFailed(ErrorCode.CALL_TIMEOUT));
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
             assertThat(run.getKind()).isEqualTo(CheckKind.CHECK);
             assertThat(run.getApiResult()).isEqualTo(ApiResult.ERROR);
@@ -281,12 +304,16 @@ class ExternalCallsObservationTest {
     void notMetChecksCollapseThenMetOpensANewRun() {
         Task task = seedTask(TaskStatus.WAITING_EXTERNAL, TaskKind.CONDITION_CHECK);
 
+        // Drain after EACH check so each call observes its scripted outcome (one fired call per drain).
         condHandler.setCheck(new CheckOutcome.Condition(Observed.NOT_MET));
         externalCalls.check(task, condHandler, TARGET);
+        callExecutor.drain();
         externalCalls.check(task, condHandler, TARGET);
+        callExecutor.drain();
 
         condHandler.setCheck(new CheckOutcome.Condition(Observed.MET));
         externalCalls.check(task, condHandler, TARGET);
+        callExecutor.drain();
 
         List<TaskCheck> runs = checks.findByTaskIdOrderByStartedAtAsc(task.getId());
         assertThat(runs).hasSize(2);
@@ -308,9 +335,9 @@ class ExternalCallsObservationTest {
         Task task = seedTask(TaskStatus.WAITING_EXTERNAL, TaskKind.CONDITION_CHECK);
         condHandler.setCheck(new CheckOutcome.Backpressure(Duration.ofSeconds(5)));
 
-        CheckOutcome outcome = externalCalls.check(task, condHandler, TARGET);
+        externalCalls.check(task, condHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isInstanceOf(CheckOutcome.Backpressure.class);
         // next_check_at = now + max(Retry-After 5s, conditionPollingGuard 10m) = now + 10m.
         assertThat(tasks.findById(task.getId()).orElseThrow().getNextCheckAt())
                 .isEqualTo(FIXED.plus(Duration.ofMinutes(10)));
@@ -322,9 +349,9 @@ class ExternalCallsObservationTest {
         condHandler.setCheck(new CheckOutcome.Condition(Observed.NOT_MET)); // would-be value; deadline fires first
         executor.setTimedOut(true);
 
-        CheckOutcome outcome = externalCalls.check(task, condHandler, TARGET);
+        externalCalls.check(task, condHandler, TARGET);
+        callExecutor.drain();
 
-        assertThat(outcome).isEqualTo(new CheckOutcome.CallFailed(ErrorCode.CALL_TIMEOUT));
         assertThat(checks.findByTaskIdOrderByStartedAtAsc(task.getId())).singleElement().satisfies(run -> {
             assertThat(run.getKind()).isEqualTo(CheckKind.CHECK);
             assertThat(run.getApiResult()).isEqualTo(ApiResult.ERROR);
@@ -363,8 +390,9 @@ class ExternalCallsObservationTest {
 
     /**
      * Test wiring: a fixed {@link Clock}, default {@link PipelineSettings} (perCallDeadline 30s,
-     * jobPollCadence 45s, conditionPollingGuard 10m), the settable synchronous executor, and the two settable
-     * fake handlers. Handlers are stateless stubs whose returned outcome is set by the test before each call.
+     * jobPollCadence 45s, conditionPollingGuard 10m), the queueing {@link ManualCallExecutor} for the
+     * fire-and-forget pool, the settable synchronous {@link ExternalCallExecutor}, and the two settable fake
+     * handlers. Handlers are stateless stubs whose returned outcome is set by the test before each call.
      */
     @TestConfiguration
     static class Wiring {
@@ -384,6 +412,13 @@ class ExternalCallsObservationTest {
             return new FakeExecutor();
         }
 
+        /** The fire-and-forget pool ({@link ExternalCalls} @Qualifier): queue the call so the test runs it
+         *  explicitly with {@code drain()}, modelling production's async boundary. */
+        @Bean
+        Executor pipelineCallExecutor() {
+            return new ManualCallExecutor();
+        }
+
         @Bean
         FakeTerraformHandler fakeTerraformHandler() {
             return new FakeTerraformHandler();
@@ -392,6 +427,29 @@ class ExternalCallsObservationTest {
         @Bean
         FakeConditionHandler fakeConditionHandler() {
             return new FakeConditionHandler();
+        }
+    }
+
+    /**
+     * Models the fire-and-forget pool ({@code pipelineCallExecutor}): a fired external call is QUEUED, not run
+     * inline. {@link #drain()} runs every queued call so its REQUIRES_NEW observation write commits.
+     */
+    static final class ManualCallExecutor implements Executor {
+        private final Deque<Runnable> queued = new ArrayDeque<>();
+
+        @Override
+        public void execute(Runnable command) {
+            queued.add(command);
+        }
+
+        /** run every queued external call. */
+        int drain() {
+            int n = 0;
+            while (!queued.isEmpty()) {
+                queued.poll().run();
+                n++;
+            }
+            return n;
         }
     }
 

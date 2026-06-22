@@ -14,11 +14,8 @@ import com.bff.pipeline.domain.TaskAttempt;
 import com.bff.pipeline.domain.TaskCheck;
 import com.bff.pipeline.domain.TaskKind;
 import com.bff.pipeline.domain.TaskStatus;
-import com.bff.pipeline.handler.CheckOutcome;
 import com.bff.pipeline.handler.ConditionCheckHandler;
-import com.bff.pipeline.handler.DispatchOutcome;
 import com.bff.pipeline.handler.PipelineHandler;
-import com.bff.pipeline.handler.PollOutcome;
 import com.bff.pipeline.handler.TerraformJobHandler;
 import com.bff.pipeline.handler.HandlerRegistry;
 import com.bff.pipeline.repo.PipelineRepository;
@@ -39,8 +36,12 @@ import java.util.List;
  * Advances ONE task one tick — the single-writer state machine (state-machine §Task, orchestrator §1.1).
  * The tick owns task/attempt STATUS, fail_count, attempt lifecycle (create on dispatch, close on terminal),
  * pipeline_event, and the normal schedule (next_check_at/last_checked_at/deadline_at). External calls are
- * fired through {@link ExternalCalls} (the call-thread, which owns task_check + attempt.response +
- * backpressure next_check_at); the tick acts on the RETURNED outcome.
+ * FIRED async through {@link ExternalCalls} (D-T2 — the loop never blocks on the call); the call thread owns
+ * task_check + attempt.response + the backpressure next_check_at. Every transition the tick makes is derived
+ * from a COMMITTED observation read this tick — never from a call return value (D-T4 single writer): a call
+ * fired this tick is read on a LATER tick. So each call-driven status (DISPATCHING/RUNNING/WAITING_EXTERNAL)
+ * first reads the latest committed observation and transitions, then (only if still pending and due) fires
+ * the next call.
  *
  * <p>Evaluation order per task: ① pipeline CANCELLING → cancel rules ▸ ② handler resolve (serviceable task,
  * miss → immediate FAILED + synthetic task_check) ▸ ③ completed observation beats ④ timeout ▸ ⑤ normal.
@@ -142,116 +143,114 @@ public class TaskAdvancer {
         if (attempt == null) {
             return;
         }
-        if (attempt.getResponse() != null) { // step 5: response adopted by the call-thread
+        if (attempt.getResponse() != null) { // step 5: response adopted by the call-thread → RUNNING
             if (tasks.casStatus(task.getId(), TaskStatus.DISPATCHING, TaskStatus.RUNNING) > 0) {
                 onTransition(pipeline, task, "TASK:RUNNING", Severity.INFO);
             }
             return;
         }
-        // Recovery: response never persisted past the recovery timeout → fail the attempt. The backpressure
-        // exception (last DISPATCH observation = 429/503 = the (ERROR,null) marker) suppresses ONLY this fail,
-        // NEVER the re-dispatch — backpressure already deferred next_check_at, so the task simply is not due
-        // yet. (A hard reject writes the same (ERROR,null) row but is handled synchronously by the returned
-        // outcome, so it must not also block the next attempt's re-dispatch — that was the stall bug.)
+        // Read the committed DISPATCH observation of THIS attempt. A hard reject (ERROR, error_code=IM_REJECTED)
+        // fails the attempt now; backpressure (ERROR, null) and a single CALL_TIMEOUT (ERROR, CALL_TIMEOUT) hold
+        // DISPATCHING and fall through to the time-based recovery / backoff re-dispatch below.
+        TaskCheck lastDispatch = checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(task.getId(), CheckKind.DISPATCH)
+                .filter(c -> !c.getStartedAt().isBefore(attempt.getStartedAt())) // scope to the current attempt
+                .orElse(null);
+        if (lastDispatch != null && lastDispatch.getApiResult() == ApiResult.ERROR
+                && lastDispatch.getErrorCode() == ErrorCode.IM_REJECTED) {
+            failDispatch(pipeline, task, attempt, ErrorCode.IM_REJECTED);
+            return;
+        }
+        // Recovery: response never persisted past the recovery timeout → fail the attempt (DISPATCH_NO_RESPONSE).
+        // Suppressed ONLY while the last observation is the backpressure marker — "later" is not "no response",
+        // so backpressure holds the same attempt and only the backoff re-dispatch fires (state-machine 102/115).
         boolean recoveryDue = !now.isBefore(attempt.getStartedAt().plus(settings.getDispatchRecoveryTimeout()));
         if (recoveryDue && !isLastDispatchBackpressure(task.getId())) {
             failDispatch(pipeline, task, attempt, ErrorCode.DISPATCH_NO_RESPONSE);
             return;
         }
-        if (due) { // (re-)fire dispatch when due (at-least-once; dispatch is idempotent)
-            handleDispatchOutcome(pipeline, task, attempt,
-                    externalCalls.dispatch(task, attempt, handler, pipeline.getTargetSourceId()));
-        }
-    }
-
-    private void handleDispatchOutcome(Pipeline pipeline, Task task, TaskAttempt attempt, DispatchOutcome outcome) {
-        // Accepted/Backpressure/CallTimeout: leave DISPATCHING (next tick → RUNNING on response, or recovery).
-        // Backpressure vs hard reject is distinguished here by the RETURNED outcome (the rows are identical).
-        if (outcome instanceof DispatchOutcome.Rejected) {
-            failDispatch(pipeline, task, attempt, ErrorCode.IM_REJECTED);
+        if (due) { // fire the dispatch async (at-least-once; dispatch is idempotent), then defer re-evaluation
+            // past the recovery window so an in-flight call is not re-fired — next_check_at is the dedup (not the
+            // PENDING row), and a backpressure response pulls it back in sooner (call thread sets Retry-After).
+            tasks.setSchedule(task.getId(), now, now.plus(settings.getDispatchRecoveryTimeout()));
+            externalCalls.dispatch(task, attempt, handler, pipeline.getTargetSourceId());
         }
     }
 
     private void advanceRunning(Pipeline pipeline, Task task, TerraformJobHandler handler, boolean due, TickBudget budget) {
+        pollJob(pipeline, task, handler, due, budget, false);
+    }
+
+    /**
+     * One RUNNING TERRAFORM_JOB tick (also the CANCELLING drain). Read the latest committed poll observation of
+     * the current attempt and act on a terminal one — SUCCEEDED → DONE, FAILED → JOB_FAILED — which BEATS the
+     * execution timeout; otherwise, once a poll taken AT/AFTER the deadline still shows non-terminal, fail
+     * EXECUTION_TIMEOUT (confirm-before-timeout, decision 4a); otherwise fire the next poll when due (or to
+     * confirm a just-passed deadline), budget permitting. A poll read error / backpressure is NOT a job failure
+     * — TERRAFORM_JOB poll never consumes fail_count (the job was not READ, not failed), so those observations
+     * simply keep the job polling. {@code drain}=true (pipeline CANCELLING) closes a real failure terminally
+     * with no requeue (forward edge gated, decision 4c).
+     */
+    private void pollJob(Pipeline pipeline, Task task, TerraformJobHandler handler, boolean due, TickBudget budget, boolean drain) {
         Instant now = clock.instant();
         TaskAttempt attempt = currentAttempt(task.getId());
         if (attempt == null) {
             return; // invariant: a RUNNING task always has an attempt (created at admission); defensive
         }
-        boolean deadlinePassed = timedOut(task, now);
-        // Poll when due OR when the deadline has passed — a fresh poll must confirm the job did NOT already
-        // SUCCEED before we declare an execution timeout (completed observation beats timeout). With the budget
-        // spent we DEFER rather than fail a possibly-finished job blind. The returned value IS the just-committed
-        // observation; one poll per tick = at most one fail_count (per-call accounting the fail matrix needs);
-        // a rolled-back terminal self-heals since the next tick re-polls the still-SUCCEEDED job (terminal-once).
-        if ((due || deadlinePassed) && budget.tryConsume()) {
-            PollOutcome outcome = externalCalls.poll(task, attempt, handler, pipeline.getTargetSourceId());
-            if (applyPoll(pipeline, task, attempt, outcome, now)) {
-                return; // SUCCEEDED → DONE / FAILED → fail (beats timeout)
+        TaskCheck latest = latestCheckForAttempt(task.getId(), attempt);
+        if (latest != null && latest.getObserved() == Observed.SUCCEEDED) {
+            attempts.closeOk(attempt.getId(), now);
+            if (tasks.casStatusTerminal(task.getId(), TaskStatus.RUNNING, TaskStatus.DONE, now) > 0) {
+                onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
             }
-            if (deadlinePassed) {
-                runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, false);
-            }
+            return;
         }
-    }
-
-    /** @return true if a terminal/requeue transition fired (so the caller skips the timeout check). */
-    private boolean applyPoll(Pipeline pipeline, Task task, TaskAttempt attempt, PollOutcome outcome, Instant now) {
-        return switch (outcome) {
-            case PollOutcome.Status status -> switch (status.observed()) {
-                case SUCCEEDED -> {
-                    attempts.closeOk(attempt.getId(), now);
-                    if (tasks.casStatusTerminal(task.getId(), TaskStatus.RUNNING, TaskStatus.DONE, now) > 0) {
-                        onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
-                    }
-                    yield true;
-                }
-                case FAILED -> {
-                    runningFailure(pipeline, task, attempt, ErrorCode.JOB_FAILED, now, false);
-                    yield true;
-                }
-                default -> { // RUNNING: keep polling, no fail
-                    tasks.setSchedule(task.getId(), now, now.plus(settings.getJobPollCadence()));
-                    yield false;
-                }
-            };
-            // poll read error (CHECK_ERROR/CALL_TIMEOUT) = job not read ≠ job failed → no fail, keep polling.
-            case PollOutcome.CallFailed ignored -> {
-                tasks.setSchedule(task.getId(), now, now.plus(settings.getJobPollCadence()));
-                yield false;
-            }
-            case PollOutcome.Backpressure ignored -> false; // call-thread set next_check_at; no fail
-        };
+        if (latest != null && latest.getObserved() == Observed.FAILED) {
+            runningFailure(pipeline, task, attempt, ErrorCode.JOB_FAILED, now, drain); // beats timeout
+            return;
+        }
+        // Execution timeout — only once a poll taken AT/AFTER the deadline still shows non-terminal; a
+        // budget-starved tick defers (fires no confirming poll) rather than fail a possibly-finished job blind.
+        boolean deadlinePassed = timedOut(task, now);
+        if (deadlinePassed && polledPastDeadline(latest, task)) {
+            runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, drain);
+            return;
+        }
+        if ((due || deadlinePassed) && budget.tryConsume()) {
+            tasks.setSchedule(task.getId(), now, now.plus(settings.getJobPollCadence()));
+            externalCalls.poll(task, attempt, handler, pipeline.getTargetSourceId());
+        }
     }
 
     private void advanceWaiting(Pipeline pipeline, Task task, ConditionCheckHandler handler, boolean due, TickBudget budget) {
         Instant now = clock.instant();
         // CONDITION_CHECK fail_count is recomputed from the durable observation ledger before anything else —
-        // see conditionFailedAtMax. This recovers a fail that was observed (committed) but whose tick rolled
-        // back, so a committed failed call is never lost and never double-counted.
+        // see conditionFailedAtMax. Idempotent, so a fail that was observed (committed) but whose tick rolled
+        // back is never lost and never double-counted → FAILED at maxFailCount.
         if (conditionFailedAtMax(pipeline, task, now)) {
             return;
         }
+        // The latest committed check observation: MET → DONE (beats the TTL). A condition check has no
+        // attempt/handle, so the latest CHECK run for the task IS the current observation.
+        TaskCheck latest = checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(task.getId(), CheckKind.CHECK).orElse(null);
+        if (latest != null && latest.getObserved() == Observed.MET) {
+            if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.DONE, now) > 0) {
+                onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
+            }
+            return;
+        }
+        // TTL — only once a check taken AT/AFTER the TTL still shows non-MET (confirm-before-EXPIRED).
         boolean ttlPassed = timedOut(task, now);
-        // Check when due OR when the TTL has passed — a fresh check must confirm the condition is not already
-        // MET before declaring EXPIRED (completed observation beats timeout); with no budget, defer.
-        if ((due || ttlPassed) && budget.tryConsume()) {
-            CheckOutcome outcome = externalCalls.check(task, handler, pipeline.getTargetSourceId());
-            if (outcome instanceof CheckOutcome.Condition met && met.observed() == Observed.MET) {
-                if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.DONE, now) > 0) {
-                    onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
-                }
-                return;
-            }
-            if (outcome instanceof CheckOutcome.CallFailed && conditionFailedAtMax(pipeline, task, now)) {
-                return; // this call pushed the durable failure count to maxFailCount → FAILED
-            }
-            if (!(outcome instanceof CheckOutcome.Backpressure)) { // NOT_MET or a sub-max error → keep polling
-                tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard()));
-            }
-            if (ttlPassed && tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.EXPIRED, now) > 0) {
+        if (ttlPassed && polledPastDeadline(latest, task)) {
+            if (tasks.casStatusTerminal(task.getId(), TaskStatus.WAITING_EXTERNAL, TaskStatus.EXPIRED, now) > 0) {
                 onTransition(pipeline, task, "TASK:EXPIRED", Severity.CRITICAL); // TTL_EXPIRED derived from status
             }
+            return;
+        }
+        // Fire the next check when due (or to confirm a just-passed TTL), budget permitting. The tick sets the
+        // ≥10m polling-guard cadence; the call thread overrides next_check_at only on backpressure (Retry-After).
+        if ((due || ttlPassed) && budget.tryConsume()) {
+            tasks.setSchedule(task.getId(), now, now.plus(settings.getConditionPollingGuard()));
+            externalCalls.check(task, handler, pipeline.getTargetSourceId());
         }
     }
 
@@ -328,7 +327,7 @@ public class TaskAdvancer {
         switch (task.getStatus()) {
             case BLOCKED, READY, WAITING_EXTERNAL -> cancelImmediate(pipeline, task, now); // undispatched / no in-flight job
             case DISPATCHING -> cancelDispatching(pipeline, task, now);
-            case RUNNING -> drain(pipeline, task, due, budget, now); // TF: drain the un-killable job to terminal
+            case RUNNING -> drain(pipeline, task, due, budget); // TF: drain the un-killable job to terminal
             default -> { /* terminal */ }
         }
     }
@@ -349,47 +348,32 @@ public class TaskAdvancer {
         }
     }
 
-    private void drain(Pipeline pipeline, Task task, boolean due, TickBudget budget, Instant now) {
+    /** CANCELLING drain of an un-killable RUNNING TF job: identical poll/observe/timeout logic as the normal
+     *  RUNNING path, but {@code drain}=true so a real failure/timeout closes terminally with no requeue. */
+    private void drain(Pipeline pipeline, Task task, boolean due, TickBudget budget) {
         TerraformJobHandler handler = (TerraformJobHandler) registry.find(task.getHandlerKey()).orElse(null);
         if (handler == null) {
             return; // can't poll; the orphan job ends on its own — leave RUNNING until handler returns
         }
-        TaskAttempt attempt = currentAttempt(task.getId());
-        boolean deadlinePassed = timedOut(task, now);
-        // Same confirm-before-timeout rule as the normal RUNNING path (P1): a fresh poll must confirm the job
-        // did not already SUCCEED before we declare an execution timeout, and a budget-starved tick defers
-        // rather than fail a possibly-finished drain.
-        if ((due || deadlinePassed) && budget.tryConsume()) {
-            PollOutcome outcome = externalCalls.poll(task, attempt, handler, pipeline.getTargetSourceId());
-            if (applyDrainPoll(pipeline, task, attempt, outcome, now)) {
-                return; // SUCCEEDED → DONE / FAILED → FAILED (beats timeout)
-            }
-            if (deadlinePassed) {
-                runningFailure(pipeline, task, attempt, ErrorCode.EXECUTION_TIMEOUT, now, true);
-            }
-        }
-    }
-
-    /** Drain poll: SUCCEEDED→DONE, FAILED→FAILED (real, no requeue — forward edge gated); else keep polling. */
-    private boolean applyDrainPoll(Pipeline pipeline, Task task, TaskAttempt attempt, PollOutcome outcome, Instant now) {
-        if (outcome instanceof PollOutcome.Status status) {
-            if (status.observed() == Observed.SUCCEEDED) {
-                attempts.closeOk(attempt.getId(), now);
-                if (tasks.casStatusTerminal(task.getId(), TaskStatus.RUNNING, TaskStatus.DONE, now) > 0) {
-                    onTransition(pipeline, task, "TASK:DONE", Severity.INFO);
-                }
-                return true;
-            }
-            if (status.observed() == Observed.FAILED) {
-                runningFailure(pipeline, task, attempt, ErrorCode.JOB_FAILED, now, true);
-                return true;
-            }
-        }
-        tasks.setSchedule(task.getId(), now, now.plus(settings.getJobPollCadence()));
-        return false;
+        pollJob(pipeline, task, handler, due, budget, true);
     }
 
     // ---- helpers ----
+
+    /** The latest CHECK observation that belongs to the current attempt (started at/after it). Older runs from
+     *  a prior attempt's handle are scoped out so a stale FAILED/SUCCEEDED is never re-consumed (no double-count). */
+    private TaskCheck latestCheckForAttempt(Long taskId, TaskAttempt attempt) {
+        return checks.findFirstByTaskIdAndKindOrderByStartedAtDescIdDesc(taskId, CheckKind.CHECK)
+                .filter(c -> !c.getStartedAt().isBefore(attempt.getStartedAt()))
+                .orElse(null);
+    }
+
+    /** true once the current observation's last poll/check happened at/after the deadline — a fresh confirm
+     *  that the job/condition did not reach a terminal observation before we declare a timeout/expiry. */
+    private static boolean polledPastDeadline(TaskCheck latest, Task task) {
+        return latest != null && latest.getCheckedAt() != null && task.getDeadlineAt() != null
+                && !latest.getCheckedAt().isBefore(task.getDeadlineAt());
+    }
 
     private boolean predecessorDone(Task task) {
         if (task.getSeq() == 0) {
