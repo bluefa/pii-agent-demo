@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { bgColors, cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
 import { deriveHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
+import { deriveLogicalDbCounts, stableHash } from '@/lib/logical-db-counts';
 
 export type ConfirmedIntegrationTableVariant = 'pre-install' | 'complete';
 
@@ -16,28 +17,6 @@ interface ConfirmedIntegrationTableProps {
   confirmed: readonly ConfirmedResource[];
   variant?: ConfirmedIntegrationTableVariant;
 }
-
-// v15 shows real logical-DB counts per row (연동 대상 / 연동 제외): 12/3, 8/1, 5/2…
-// The BFF contract does not yet carry these counts, so derive a stable demo pair
-// from the resourceId. Replace this helper once the schema exposes the counts.
-const LOGICAL_DB_PAIRS: ReadonlyArray<readonly [number, number]> = [
-  [12, 3],
-  [8, 1],
-  [5, 2],
-  [10, 2],
-  [6, 1],
-];
-
-const stableHash = (key: string): number => {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-};
-
-const deriveLogicalDbCounts = (resourceId: string): readonly [number, number] =>
-  LOGICAL_DB_PAIRS[stableHash(resourceId) % LOGICAL_DB_PAIRS.length];
 
 // v15 shows a mixed Status column — most rows Healthy with one Unhealthy. A
 // DISCONNECTED resource is always Unhealthy (real signal); otherwise, to mirror
@@ -70,8 +49,9 @@ export const ConfirmedIntegrationTable = ({
 }: ConfirmedIntegrationTableProps) => {
   // Display-only pagination, mirroring IdcResourceTable. Hooks run before the
   // empty-state early return so hook order stays stable across renders.
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
+    initialPageSize: 10,
+  });
 
   if (confirmed.length === 0) {
     return (
@@ -80,9 +60,6 @@ export const ConfirmedIntegrationTable = ({
       </div>
     );
   }
-
-  const safePage = Math.min(page, Math.max(0, Math.ceil(confirmed.length / pageSize) - 1));
-  const pageRows = confirmed.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   const headerCellClass = cn(
     tableStyles.headerCell,
@@ -143,14 +120,11 @@ export const ConfirmedIntegrationTable = ({
       </table>
       </div>
       <Pagination
-        page={safePage}
+        page={page}
         pageSize={pageSize}
         totalCount={confirmed.length}
         onPageChange={setPage}
-        onPageSizeChange={(next) => {
-          setPageSize(next);
-          setPage(0);
-        }}
+        onPageSizeChange={setPageSize}
         pageSizeOptions={[10, 20, 50, 100]}
       />
       </>
@@ -201,14 +175,11 @@ export const ConfirmedIntegrationTable = ({
     </table>
     </div>
     <Pagination
-      page={safePage}
+      page={page}
       pageSize={pageSize}
       totalCount={confirmed.length}
       onPageChange={setPage}
-      onPageSizeChange={(next) => {
-        setPageSize(next);
-        setPage(0);
-      }}
+      onPageSizeChange={setPageSize}
       pageSizeOptions={[10, 20, 50, 100]}
     />
     </>

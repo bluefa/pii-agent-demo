@@ -13,6 +13,7 @@ import {
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import { bgColors, cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { LoadingState, ErrorState, EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -66,8 +67,9 @@ export const IdcStep1TargetInput = ({
   const [rows, setRows] = useState<IdcStep1Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const { page, pageSize, setPage, setPageSize, pageItems: pagedRows } = usePagination(rows, {
+    initialPageSize: PAGE_SIZE_OPTIONS[0],
+  });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -218,8 +220,6 @@ export const IdcStep1TargetInput = ({
     }
   };
 
-  const pagedRows = rows.slice(page * pageSize, page * pageSize + pageSize);
-
   return (
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
@@ -282,10 +282,7 @@ export const IdcStep1TargetInput = ({
                 pageSize={pageSize}
                 totalCount={total}
                 onPageChange={setPage}
-                onPageSizeChange={(next) => {
-                  setPageSize(next);
-                  setPage(0);
-                }}
+                onPageSizeChange={setPageSize}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
               <div className="mt-4 flex items-center justify-between">

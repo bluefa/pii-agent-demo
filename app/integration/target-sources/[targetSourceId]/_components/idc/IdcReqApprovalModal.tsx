@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { cn, idcStyles, interactiveColors, modalStyles, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { StatTile } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import {
   IdcConnStatusCell,
@@ -38,18 +39,17 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
     };
   }, [isOpen, onClose]);
 
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(5);
+  const live = resources.filter((r) => !r.excluded);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(live, {
+    initialPageSize: 5,
+  });
 
   if (!isOpen) return null;
 
-  const live = resources.filter((r) => !r.excluded);
   const total = live.length;
   const ok = live.filter((r) => !!r.credentialId && r.connection === 'SUCCESS').length;
   const waiting = total - ok;
   const blocked = waiting > 0;
-  const safePage = Math.min(page, Math.max(0, Math.ceil(total / pageSize) - 1));
-  const pageRows = live.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   return (
     <div
@@ -130,14 +130,11 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
           </div>
           {total > 0 && (
             <Pagination
-              page={safePage}
+              page={page}
               pageSize={pageSize}
               totalCount={total}
               onPageChange={setPage}
-              onPageSizeChange={(next) => {
-                setPageSize(next);
-                setPage(0);
-              }}
+              onPageSizeChange={setPageSize}
             />
           )}
           {blocked && (

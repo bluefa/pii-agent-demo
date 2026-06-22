@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { cn, idcStyles, interactiveColors, modalStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { StatTile } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import { deriveLogicalDbCounts } from '@/lib/logical-db-counts';
 
 interface CloudReqApprovalModalProps {
   isOpen: boolean;
@@ -14,30 +16,6 @@ interface CloudReqApprovalModalProps {
   providerLabel: string;
   onSubmit: () => void;
 }
-
-// v16 raRender surfaces per-resource logical-DB counts (total / excluded). The BFF
-// contract does not carry these yet, so mirror ConfirmedIntegrationTable's stable
-// hash → [target, excluded] pair.
-// ponytail: duplicated ~12 lines from ConfirmedIntegrationTable; fold into one shared
-// util once the schema exposes real counts (kept local now to avoid touching that file).
-const LOGICAL_DB_PAIRS: ReadonlyArray<readonly [number, number]> = [
-  [12, 3],
-  [8, 1],
-  [5, 2],
-  [10, 2],
-  [6, 1],
-];
-
-const stableHash = (key: string): number => {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-};
-
-const deriveLogicalDbCounts = (resourceId: string): readonly [number, number] =>
-  LOGICAL_DB_PAIRS[stableHash(resourceId) % LOGICAL_DB_PAIRS.length];
 
 /**
  * Cloud completion-approval modal — v16 `#reqApprovalModal` (760px). Logical-DB
@@ -65,8 +43,9 @@ export const CloudReqApprovalModal = ({
     };
   }, [isOpen, onClose]);
 
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(5);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(resources, {
+    initialPageSize: 5,
+  });
 
   if (!isOpen) return null;
 
@@ -74,9 +53,6 @@ export const CloudReqApprovalModal = ({
   const totalRes = resources.length;
   const totalTarget = counts.reduce((sum, [target]) => sum + target, 0);
   const totalExcl = counts.reduce((sum, [, excluded]) => sum + excluded, 0);
-
-  const safePage = Math.min(page, Math.max(0, Math.ceil(totalRes / pageSize) - 1));
-  const pageRows = resources.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   return (
     <div
@@ -170,14 +146,11 @@ export const CloudReqApprovalModal = ({
           </div>
           {totalRes > 0 && (
             <Pagination
-              page={safePage}
+              page={page}
               pageSize={pageSize}
               totalCount={totalRes}
               onPageChange={setPage}
-              onPageSizeChange={(next) => {
-                setPageSize(next);
-                setPage(0);
-              }}
+              onPageSizeChange={setPageSize}
             />
           )}
         </div>

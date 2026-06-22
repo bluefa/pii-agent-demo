@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { cn, modalStyles, textColors } from '@/lib/theme';
 import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 
-export type ConfirmStepKind = 'infra' | 'retest';
+export type ConfirmRewindKind = 'infra' | 'retest';
 
 interface ConfirmStepContent {
   title: string;
@@ -14,7 +14,7 @@ interface ConfirmStepContent {
 
 // v16 openConfirmStep content map (HTML 10131). `infra` rewinds to step 1, `retest`
 // rewinds to step 5; both reset the downstream progress.
-const CONTENT: Record<ConfirmStepKind, ConfirmStepContent> = {
+const CONTENT: Record<ConfirmRewindKind, ConfirmStepContent> = {
   retest: {
     title: '연결 테스트를 다시 실행할까요?',
     desc: (
@@ -37,10 +37,10 @@ const CONTENT: Record<ConfirmStepKind, ConfirmStepContent> = {
   },
 };
 
-interface ConfirmStepModalProps {
-  kind: ConfirmStepKind | null;
+interface ConfirmRewindModalProps {
+  kind: ConfirmRewindKind | null;
   onClose: () => void;
-  onConfirm: (kind: ConfirmStepKind) => void;
+  onConfirm: (kind: ConfirmRewindKind) => void;
 }
 
 /**
@@ -48,7 +48,7 @@ interface ConfirmStepModalProps {
  * 연결 테스트 재실행 actions open this amber warning dialog before rewinding the step.
  * Open when `kind` is non-null.
  */
-export const ConfirmStepModal = ({ kind, onClose, onConfirm }: ConfirmStepModalProps) => {
+export const ConfirmRewindModal = ({ kind, onClose, onConfirm }: ConfirmRewindModalProps) => {
   useEffect(() => {
     if (!kind) return;
     const onKey = (e: KeyboardEvent) => {

@@ -5,6 +5,7 @@ import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { useModal } from '@/app/hooks/useModal';
+import { usePagination } from '@/app/hooks/usePagination';
 import { useToast } from '@/app/components/ui/toast';
 import {
   ConnProgressStrip,
@@ -70,8 +71,9 @@ export const ConnectionTestCard = ({
   const [rows, setRows] = useState<ConnRow[]>(() => seedRows(confirmed));
   const [testing, setTesting] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
+    initialPageSize: 10,
+  });
   const testTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logicalModal = useModal<LogicalModalTarget>();
   const toast = useToast();
@@ -131,8 +133,6 @@ export const ConnectionTestCard = ({
   // no test is in flight. The footer hint promises this, and it mirrors the IDC modal gate.
   const canRequestApproval = total > 0 && okCount === total && !testing;
 
-  const safePage = Math.min(page, Math.max(0, Math.ceil(total / pageSize) - 1));
-  const pageRows = rows.slice(safePage * pageSize, safePage * pageSize + pageSize);
   const progressState: ConnProgressState = testing
     ? 'running'
     : total > 0 && pendingCount === 0
@@ -261,14 +261,11 @@ export const ConnectionTestCard = ({
         </div>
         {total > 0 && (
           <Pagination
-            page={safePage}
+            page={page}
             pageSize={pageSize}
             totalCount={total}
             onPageChange={setPage}
-            onPageSizeChange={(next) => {
-              setPageSize(next);
-              setPage(0);
-            }}
+            onPageSizeChange={setPageSize}
             pageSizeOptions={[10, 20, 50, 100]}
           />
         )}

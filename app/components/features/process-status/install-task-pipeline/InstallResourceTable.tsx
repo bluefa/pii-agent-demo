@@ -1,6 +1,5 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
 import {
   bgColors,
   borderColors,
@@ -20,6 +19,7 @@ import {
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 
 interface InstallResourceTableProps {
   rows: InstallResourceRow[];
@@ -50,20 +50,9 @@ const RESOURCE_STATUS_COLUMN_LABEL: Record<CloudProvider, string> = {
 };
 
 export const InstallResourceTable = ({ rows, provider }: InstallResourceTableProps) => {
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const safePage = Math.min(page, totalPages - 1);
-  const visibleRows = useMemo(
-    () => rows.slice(safePage * pageSize, safePage * pageSize + pageSize),
-    [rows, safePage, pageSize],
-  );
-
-  const handlePageSizeChange = useCallback((next: number) => {
-    setPageSize(next);
-    setPage(0);
-  }, []);
+  const { page, pageSize, setPage, setPageSize, pageItems: visibleRows } = usePagination(rows, {
+    initialPageSize: DEFAULT_PAGE_SIZE,
+  });
 
   if (rows.length === 0) {
     return (
@@ -136,11 +125,11 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
         </table>
       </div>
       <Pagination
-        page={safePage}
+        page={page}
         pageSize={pageSize}
         totalCount={rows.length}
         onPageChange={setPage}
-        onPageSizeChange={handlePageSizeChange}
+        onPageSizeChange={setPageSize}
         pageSizeOptions={[10, 20, 50, 100]}
       />
     </div>

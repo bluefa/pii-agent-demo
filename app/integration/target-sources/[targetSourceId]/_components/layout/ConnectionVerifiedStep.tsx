@@ -16,9 +16,9 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button';
 import {
-  ConfirmStepModal,
-  type ConfirmStepKind,
-} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmStepModal';
+  ConfirmRewindModal,
+  type ConfirmRewindKind,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
 import { ConfirmedIntegrationDataProvider } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 
@@ -32,7 +32,7 @@ interface ConnectionVerifiedStepProps {
 
 const ConnectionVerifiedRetestButton = () => {
   const toast = useToast();
-  const [confirmKind, setConfirmKind] = useState<ConfirmStepKind | null>(null);
+  const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
 
   // v16 opens the confirm-rewind modal; the rewind endpoint is not in the contract
   // yet, so confirming surfaces a placeholder until the BFF wires it.
@@ -51,7 +51,7 @@ const ConnectionVerifiedRetestButton = () => {
         <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
-      <ConfirmStepModal
+      <ConfirmRewindModal
         kind={confirmKind}
         onClose={() => setConfirmKind(null)}
         onConfirm={handleConfirm}

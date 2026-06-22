@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
@@ -12,6 +11,7 @@ import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId
 import { VmDatabaseConfigPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
+import { usePagination } from '@/app/hooks/usePagination';
 import { getResourceDisplayName } from '@/lib/resource';
 import {
   bgColors,
@@ -29,15 +29,7 @@ import type {
   EndpointConfigDraft,
 } from '@/lib/types/resources';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
-
-// Stable per-row hash so demo display values stay deterministic across renders.
-const stableHash = (key: string): number => {
-  let hash = 0;
-  for (let index = 0; index < key.length; index += 1) {
-    hash = (hash * 31 + key.charCodeAt(index)) | 0;
-  }
-  return Math.abs(hash);
-};
+import { stableHash } from '@/lib/logical-db-counts';
 
 // v15 shows the 연동 완료 여부 column as a per-row mix of 연동 완료 / 연동 진행중 / —.
 // Ineligible rows render — (matches v15 row 3); eligible rows alternate between
@@ -80,8 +72,9 @@ export const CandidateResourceTable = ({
 
   // Display-only pagination; selection/approval gating runs over the full list in
   // the parent section, so slicing the view here is safe (mirrors IdcResourceTable).
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(candidates, {
+    initialPageSize: 10,
+  });
 
   if (totalCount === 0) {
     return (
@@ -90,9 +83,6 @@ export const CandidateResourceTable = ({
       </div>
     );
   }
-
-  const safePage = Math.min(page, Math.max(0, Math.ceil(totalCount / pageSize) - 1));
-  const pageRows = candidates.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
   return (
     <div>
@@ -131,14 +121,11 @@ export const CandidateResourceTable = ({
         </div>
       </div>
       <Pagination
-        page={safePage}
+        page={page}
         pageSize={pageSize}
         totalCount={totalCount}
         onPageChange={setPage}
-        onPageSizeChange={(next) => {
-          setPageSize(next);
-          setPage(0);
-        }}
+        onPageSizeChange={setPageSize}
         pageSizeOptions={[10, 20, 50, 100]}
       />
 

@@ -15,9 +15,9 @@ import {
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import {
-  ConfirmStepModal,
-  type ConfirmStepKind,
-} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmStepModal';
+  ConfirmRewindModal,
+  type ConfirmRewindKind,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
@@ -25,7 +25,7 @@ import { useIdcResources } from '@/app/hooks/useIdcResources';
 /** 연결 테스트 재실행 — opens the confirm-rewind modal (mirrors cloud siblings). */
 const ConnectionVerifiedRetestButton = () => {
   const toast = useToast();
-  const [confirmKind, setConfirmKind] = useState<ConfirmStepKind | null>(null);
+  const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
 
   // v16 opens the confirm-rewind modal; the rewind endpoint is not in the contract
   // yet, so confirming surfaces a placeholder until the BFF wires it.
@@ -44,7 +44,7 @@ const ConnectionVerifiedRetestButton = () => {
         <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
-      <ConfirmStepModal
+      <ConfirmRewindModal
         kind={confirmKind}
         onClose={() => setConfirmKind(null)}
         onConfirm={handleConfirm}

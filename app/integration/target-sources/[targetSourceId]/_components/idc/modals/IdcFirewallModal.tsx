@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -29,11 +29,9 @@ interface IdcFirewallModalProps {
 export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModalProps) => {
   const rows = resources.filter((r) => !r.excluded);
 
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-
-  const safePage = Math.min(page, Math.max(0, Math.ceil(rows.length / pageSize) - 1));
-  const pageRows = rows.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
+    initialPageSize: 10,
+  });
 
   return (
     <Modal
@@ -87,14 +85,11 @@ export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModa
           </div>
           {rows.length > 0 && (
             <Pagination
-              page={safePage}
+              page={page}
               pageSize={pageSize}
               totalCount={rows.length}
               onPageChange={setPage}
-              onPageSizeChange={(next) => {
-                setPageSize(next);
-                setPage(0);
-              }}
+              onPageSizeChange={setPageSize}
               pageSizeOptions={[10, 20, 50, 100]}
             />
           )}
