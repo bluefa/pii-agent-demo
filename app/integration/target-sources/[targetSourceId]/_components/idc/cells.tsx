@@ -156,7 +156,7 @@ export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
 export const IDC_CRED_OPTIONS = ['Key1', 'Key2', 'Key3', 'idc_svc_mysql', 'idc_svc_oracle', 'idc_svc_pg'] as const;
 
 const SELECT_CHEVRON =
-  "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\") right 8px center no-repeat";
+  "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\") right 9px center no-repeat";
 
 /** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). */
 export const IdcCredSelectCell = ({

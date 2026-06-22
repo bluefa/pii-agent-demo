@@ -111,6 +111,16 @@ of the skill.
 - **L8 — Verify "missing" against existing impl.** Some mockup primitives already have impl
   components/tokens (`Pagination`, `ResourceIdCell`, most `idcStyles`). **Rule:** grep
   `lib/theme.ts` and the impl components before declaring a primitive missing; reuse beats re-add.
+- **L9 — The JS-rendered layer is the biggest blind spot (≈90% of elements).** An exhaustive
+  inventory of one screen found ≈470 distinct CSS selectors; a delta token-spec named ≈25. The
+  uncovered bulk is RUNTIME-ONLY: the progress stepper (`.pbar`), nested grouped tables (Athena,
+  ≈71 selectors), the per-row table renderer, `.conn-progress`, floating hover tooltips, and every
+  modal body — none appear in static markup. **Rule (completeness pass — do ALL four):**
+  (1) walk every `data-stepc` × `data-prov-view` combination; (2) grep the `<script>` for
+  `innerHTML` / `className =` / `classList` / template-literal `` class="..." `` to catch JS-only
+  elements; (3) enumerate every `id="*Modal"` independently and analyze each modal body; (4) treat
+  `data-state` / `data-status` / `data-*-mode` / `data-idc-cols` attribute-variants as DISTINCT
+  visual states. A "byte-exact" claim from reading static markup alone is false by ~90%.
 
 ## When HTML analysis fails
 
