@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
-import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ErrorState, LoadingState } from '@/app/components/ui/state';
+import {
+  ConnProgressStrip,
+  type ConnProgressState,
+} from '@/app/components/features/process-status/ConnProgressStrip';
 import { useToast } from '@/app/components/ui/toast';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -120,6 +123,21 @@ export const IdcStep5ConnectionTest = ({
   // Run Test gate: every live target must have a credential selected first (v16 runIdcConnTest guard).
   const allCredsSet = liveResources.length > 0 && liveResources.every((r) => !!r.credentialId);
 
+  // Match IdcConnStatusCell: a target counts as connected only with a credential AND Success.
+  const okCount = liveResources.filter((r) => !!r.credentialId && r.connection === 'SUCCESS').length;
+  const pendingCount = liveResources.length - okCount;
+  const progressPct = liveResources.length > 0 ? Math.round((okCount / liveResources.length) * 100) : 0;
+  const progressState: ConnProgressState = testing
+    ? 'running'
+    : liveResources.length > 0 && pendingCount === 0
+      ? 'success'
+      : 'idle';
+  const progressLabel = testing
+    ? '연결 테스트 진행 중 — 각 대상의 Connection Status를 확인하고 있어요'
+    : progressState === 'success'
+      ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
+      : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
+
   const toast = useToast();
   // ponytail: per-resource logical-DB modal is a deferred subsystem (token §A16) — placeholder for now.
   const handleLogicalOpen = useCallback(() => {
@@ -177,18 +195,20 @@ export const IdcStep5ConnectionTest = ({
           </button>
         </header>
         <div className={cn(cardStyles.body, 'space-y-4')}>
-          {testing && (
-            <StepBanner variant="info">
-              <strong>연결 테스트 진행 중...</strong>
-              &nbsp;각 연동 대상의 Connection Status를 확인하고 있어요.
-            </StepBanner>
-          )}
           {state.status === 'loading' && <LoadingState label="연동 대상을 불러오는 중..." />}
           {state.status === 'error' && (
             <ErrorState message="연동 대상을 불러오지 못했습니다." />
           )}
           {ready && (
             <>
+              <ConnProgressStrip
+                state={progressState}
+                label={progressLabel}
+                ok={okCount}
+                fail={0}
+                pending={pendingCount}
+                pct={progressPct}
+              />
               <IdcResourceTable
                 resources={state.resources}
                 cols={['src', 'cred', 'conn', 'logical']}

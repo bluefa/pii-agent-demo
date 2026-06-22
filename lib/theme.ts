@@ -643,6 +643,46 @@ export const idcStyles = {
     /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
     statLabel: 'text-[11.5px]',
   },
+  /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
+  connProgress: {
+    base: 'rounded-xl border px-4 pt-[13px] pb-3.5 mb-3.5 transition-colors',
+    state: {
+      idle: 'bg-[#F7F8FA] border-[#EBEEF2]',
+      running: 'bg-[#F0F6FF] border-[#D5E5FF]',
+      pending: 'bg-[#FFF8EC] border-[#FBE6BF]',
+      success: 'bg-[#ECFAF2] border-[#C7EED9]',
+      fail: 'bg-[#FEF1F1] border-[#F8D2D0]',
+    },
+    head: 'flex items-center justify-between gap-3 mb-[11px]',
+    title: 'flex items-center gap-2 text-[13.5px] font-bold tracking-[-0.01em]',
+    titleColor: {
+      idle: 'text-[#191F28]',
+      running: 'text-[#191F28]',
+      pending: 'text-[#B45309]',
+      success: 'text-[#197A3F]',
+      fail: 'text-[#B42318]',
+    },
+    accent: {
+      idle: 'text-[#8B95A1]',
+      running: 'text-[#0064FF]',
+      pending: 'text-[#B45309]',
+      success: 'text-[#197A3F]',
+      fail: 'text-[#B42318]',
+    },
+    icon: 'inline-grid place-items-center w-[18px] h-[18px] flex-shrink-0',
+    meta: 'flex items-center gap-3.5',
+    counts: 'text-[12px] font-medium text-[#8B95A1] [font-variant-numeric:tabular-nums]',
+    pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
+    track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
+    fill: 'relative h-full rounded-full transition-[width] duration-500',
+    fillColor: {
+      idle: 'bg-[#0064FF]',
+      running: 'bg-[#0064FF]',
+      pending: 'bg-[#E8A03A]',
+      success: 'bg-[#21A157]',
+      fail: 'bg-[#E5483D]',
+    },
+  },
   /** Toss textarea — borderless #F7F8FA fill / radius 12. */
   textarea: 'w-full rounded-xl border-0 bg-[#F7F8FA] px-3.5 py-3 text-[15px] font-medium leading-[1.6] text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] resize-none',
   /** Skeleton shimmer bar (loading frames) — pair with size/radius utilities. */
