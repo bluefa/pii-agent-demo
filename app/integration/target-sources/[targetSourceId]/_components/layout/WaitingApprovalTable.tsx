@@ -17,13 +17,15 @@ export interface WaitingApprovalResource {
   exclusionReason?: string;
   /** Optional metadata line shown beneath the reason text in the tooltip — typically registrant and date. */
   exclusionMeta?: string;
-  /** Per-resource integration history (반영 이력) — only rendered in the `applying` variant (step 3). */
+  /** Display db-engine source — prefer endpoint_config.db_type over resource_type (e.g. VM rows). */
+  displayDbType?: string;
+  /** Per-resource integration history — only rendered in the `applying` variant (step 3). */
   integrationStatus?: ResourceIntegrationStatus | null;
 }
 
 /**
- * `waiting` (step 2 · 승인 대기): 연동 대상 여부 + 제외 사유 as two columns.
- * `applying` (step 3 · 반영중): 연동 대상 / 제외 사유 merged + a 연동 이력 column.
+ * `waiting` (step 2): target column + exclusion-reason column, separate.
+ * `applying` (step 3): merged target/reason column + an integration-history column.
  */
 type ApprovalTableVariant = 'waiting' | 'applying';
 
@@ -37,9 +39,6 @@ interface WaitingApprovalTableProps {
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
 const PLACEHOLDER = '—';
-
-// v15 .approval-table tr.row-excluded — gray td bg + muted text.
-const EXCLUDED_ROW = 'bg-[#F9FAFB]';
 
 const TargetPill = ({ excluded }: { excluded: boolean }) => {
   const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
@@ -58,7 +57,7 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
     <span className={textColors.quaternary}>{PLACEHOLDER}</span>
   );
 
-// 연동 이력 (step 3) — INTEGRATED → Integrated(green), else Pending(orange); excluded → —.
+// Integration history (step 3) — INTEGRATED -> Integrated(green), else Pending(orange); excluded -> dash.
 const IntegrationHistoryCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   if (!resource.selected) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
   const integrated = resource.integrationStatus === 'INTEGRATED';
@@ -85,7 +84,7 @@ export const WaitingApprovalTable = memo(
     const monoCell = cn('font-mono text-[12px]', textColors.secondary);
 
     return (
-      <div className="overflow-hidden rounded-xl border border-[#EBEEF2]">
+      <div className={idcStyles.table.frame}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className={idcStyles.table.header}>
@@ -104,11 +103,11 @@ export const WaitingApprovalTable = memo(
                 return (
                   <tr
                     key={resource.resourceId}
-                    className={cn('group', excluded ? EXCLUDED_ROW : idcStyles.table.row)}
+                    className={cn('group', excluded ? idcStyles.table.rowExcluded : idcStyles.table.row)}
                   >
                     <td className={idcStyles.table.cell}>
                       <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>
-                        {getDatabaseShortLabel(resource.resourceType)}
+                        {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
                       </span>
                     </td>
                     <td className={idcStyles.table.cell}>

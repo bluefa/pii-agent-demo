@@ -44,6 +44,7 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   region: item.database_region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
+  displayDbType: item.endpoint_config?.db_type ?? item.resource_type,
   integrationStatus: item.integration_status ?? null,
 });
 

@@ -405,7 +405,8 @@ export interface ConnectionTestHistory {
 
 // Credential이 필요한지 확인하는 헬퍼
 export const needsCredential = (databaseType: DatabaseType): boolean => {
-  return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
+  // db type is lowercase-canonical but legacy data is uppercase — compare case-insensitively.
+  return ['mysql', 'postgresql', 'redshift'].includes(databaseType.toLowerCase());
 };
 
 /** 설치 불가 리소스 판별 (integrationCategory 기반) */

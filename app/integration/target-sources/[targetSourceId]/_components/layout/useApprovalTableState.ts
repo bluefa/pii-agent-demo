@@ -21,10 +21,9 @@ const collectOptions = (
 };
 
 /**
- * Search / filter / pagination state shared by the step-2 (승인 대기) and step-3
- * (반영중) approval tables. Pure derivation over the supplied resource list — both
- * cards fetch their own data, then drive the identical toolbar + table + pagination
- * from this hook.
+ * Search / filter / pagination state shared by the step-2 and step-3 approval tables.
+ * Pure derivation over the supplied resource list — both cards fetch their own data,
+ * then drive the identical toolbar + table + pagination from this hook.
  */
 export const useApprovalTableState = (resources: readonly WaitingApprovalResource[]) => {
   const [searchValue, setSearchValue] = useState('');

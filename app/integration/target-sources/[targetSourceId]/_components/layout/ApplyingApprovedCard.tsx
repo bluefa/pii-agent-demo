@@ -37,6 +37,7 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   region: item.database_region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
+  displayDbType: item.endpoint_config?.db_type ?? item.resource_type,
   integrationStatus: item.integration_status ?? null,
 });
 
@@ -60,9 +61,9 @@ interface ApplyingView {
 const EMPTY_VIEW: ApplyingView = { resources: [], approvedAt: null, approver: null };
 
 /**
- * Step 3 (연동 대상 반영중) — the step-2 rich approval table re-skinned for the
- * "applying" state: 승인일시/승인자 subtitle, green success banner, a 연동 이력 column,
- * and no cancel action (advance to step 4 is driven by ProcessStatusCard polling).
+ * Step 3 (applying) — the step-2 rich approval table re-skinned for the applying
+ * state: approved-at/approver subtitle, green success banner, an integration-history
+ * column, and no cancel action (advance to step 4 is driven by ProcessStatusCard polling).
  */
 export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardProps) => {
   const [state, setState] = useState<AsyncState<ApplyingView>>({ status: 'loading' });

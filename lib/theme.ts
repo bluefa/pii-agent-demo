@@ -633,6 +633,10 @@ export const idcStyles = {
     body: 'divide-y divide-[#EBEEF2]',
     row: 'hover:bg-[#F7F8FA] transition-colors',
     cell: 'px-4 py-3.5',
+    /** Table wrapper — `.db-list-table` border + radius (v16 1850–1869). */
+    frame: 'overflow-hidden rounded-xl border border-[#EBEEF2]',
+    /** Excluded (비대상) row tint — v16 `.approval-table tr.row-excluded`. */
+    rowExcluded: 'bg-[#F9FAFB]',
   },
 } as const;
 
