@@ -614,7 +614,7 @@ export const idcStyles = {
   modalBtn: {
     primary: 'inline-flex h-[52px] items-center justify-center rounded-[14px] bg-[#0064FF] px-7 text-[15px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
     outline: 'inline-flex h-[52px] items-center justify-center rounded-[14px] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#4E5968] transition-colors hover:bg-[#EBEEF2]',
-    /** Filled gray modal button — v16 `.modal-footer .btn.gray` (취소). */
+    /** Filled gray modal button — v16 `.modal-footer .btn.gray` (cancel). */
     gray: 'inline-flex h-[52px] items-center justify-center rounded-[14px] border-0 bg-[#F7F8FA] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#191F28] transition-colors hover:bg-[#EBEEF2]',
   },
   /** In-card / step CTA buttons — `.btn` base (h40 / radius12 / 14px / 700) + variants. */
@@ -622,16 +622,16 @@ export const idcStyles = {
     primary: 'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0064FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
     soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0064FF] transition-colors hover:bg-[#D6E7FF]',
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
-    /** Small blue ghost — v16 `.btn.sm.ghost` (논리 DB 확인 "설정"). Disabled = opacity-45. */
+    /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
     ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
   /** In-cell DB Credential select — v16 `.idc-cred-select` (h32 / #E5E7EB / mono 12 / chevron via style prop). */
   credSelect: 'h-8 max-w-[150px] cursor-pointer appearance-none rounded-lg border border-[#E5E7EB] bg-white pl-[11px] pr-7 font-mono text-[12px] font-semibold text-[#111827] transition-colors hover:border-[#0064FF] focus:border-[#0064FF] focus:outline-none',
-  /** `.idc-cred-select` placeholder (자격 증명 선택) state — non-mono, muted. */
+  /** `.idc-cred-select` unselected/placeholder state — non-mono, muted. */
   credSelectEmpty: 'font-sans font-medium text-[#6B7280]',
-  /** 완료 승인 요청 modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
+  /** Completion-approval modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
   reqModal: {
     eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',
     eyebrowDot: 'h-1.5 w-1.5 rounded-full bg-[#0064FF]',

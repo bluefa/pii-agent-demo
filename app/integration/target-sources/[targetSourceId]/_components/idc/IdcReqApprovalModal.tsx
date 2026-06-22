@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
-import { cn, idcStyles, interactiveColors, modalStyles } from '@/lib/theme';
+import { cn, idcStyles, interactiveColors, modalStyles, textColors } from '@/lib/theme';
 import { StatTile } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
-import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import {
+  IdcConnStatusCell,
+  IdcDbTypeCell,
+  IdcEndpointCell,
+  IdcKindBadge,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/idc/cells';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 
 interface IdcReqApprovalModalProps {
@@ -14,7 +19,7 @@ interface IdcReqApprovalModalProps {
 }
 
 /**
- * IDC 완료 승인 요청 modal — v16 `#idcReqApprovalModal` (820px). Summary stats +
+ * IDC completion-approval modal — v16 `#idcReqApprovalModal` (820px). Summary stats +
  * read-only target table + a red warn when any live target is not yet connected.
  * Submit is gated: every live target must have a credential AND a Success connection.
  */
@@ -79,12 +84,43 @@ export const IdcReqApprovalModal = ({ isOpen, onClose, resources, onSubmit }: Id
 
         <div className={modalStyles.toss.body}>
           <div className="mb-[18px] grid grid-cols-3 gap-3">
-            <StatTile label="전체 연동 대상" value={total} unit="건" />
-            <StatTile label="연결 성공" value={ok} unit="건" swatch="target" />
-            <StatTile label="연결 대기" value={waiting} unit="건" swatch="exclude" />
+            <StatTile label="전체 연동 대상" value={total} unit="건" variant="modal" />
+            <StatTile label="연결 성공" value={ok} unit="건" swatch="target" variant="modal" />
+            <StatTile label="연결 대기" value={waiting} unit="건" swatch="exclude" variant="modal" />
           </div>
           <div className={idcStyles.table.frame}>
-            <IdcResourceTable resources={resources} cols={['conn']} />
+            <table className="w-full">
+              <thead className={idcStyles.table.header}>
+                <tr>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[96px]')}>구분</th>
+                  <th className={idcStyles.table.headerCell}>연동 대상</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[72px]')}>Port</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[130px]')}>Database Type</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[120px]')}>상태</th>
+                </tr>
+              </thead>
+              <tbody className={idcStyles.table.body}>
+                {live.map((r) => (
+                  <tr key={r.resourceId} className={idcStyles.table.row}>
+                    <td className={idcStyles.table.cell}>
+                      <IdcKindBadge kind={r.kind} />
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <IdcEndpointCell resource={r} />
+                    </td>
+                    <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
+                      {r.port}
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <IdcDbTypeCell resource={r} />
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <IdcConnStatusCell resource={r} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           {blocked && (
             <div className={idcStyles.reqModal.warn}>

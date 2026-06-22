@@ -182,7 +182,7 @@ export const IdcCredSelectCell = ({
   </select>
 );
 
-/** Credential-aware connection status — no cred → 자격 증명 필요(gray); SUCCESS → green; else Pending(gray). */
+/** Credential-aware connection status — no cred -> credential-required (gray); SUCCESS -> green; else Pending (gray). */
 export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
   if (!resource.credentialId) {
     return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
@@ -194,7 +194,7 @@ export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) =
   );
 };
 
-/** 논리 DB 관리 "설정" button — disabled until credential set AND connection SUCCESS. */
+/** Logical-DB manage button (the "set" action) — disabled until credential set AND connection SUCCESS. */
 export const IdcLogicalButtonCell = ({
   resource,
   onOpen,

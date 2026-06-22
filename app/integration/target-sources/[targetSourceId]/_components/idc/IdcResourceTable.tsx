@@ -78,7 +78,7 @@ export const IdcResourceTable = ({
             <th className={cn(idcStyles.table.headerCell, 'w-[80px]')}>Port</th>
             <th className={idcStyles.table.headerCell}>Database Type</th>
             {has('src') && (
-              <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>
+              <th className={cn(idcStyles.table.headerCell, 'w-[190px]')}>
                 <SourceIpHeader />
               </th>
             )}

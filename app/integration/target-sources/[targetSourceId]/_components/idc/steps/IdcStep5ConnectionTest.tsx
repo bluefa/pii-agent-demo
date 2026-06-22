@@ -127,7 +127,7 @@ export const IdcStep5ConnectionTest = ({
   }, [toast]);
 
   const [approvalOpen, setApprovalOpen] = useState(false);
-  // 완료 승인 요청 → refetch advances to step 6 when the process status flips (locked: transition = refetch).
+  // Completion-approval submit -> refetch advances to step 6 when the process status flips (locked: transition = refetch).
   const handleSubmitApproval = useCallback(async () => {
     setApprovalOpen(false);
     const updated = await getProject(project.targetSourceId);

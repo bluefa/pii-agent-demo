@@ -29,10 +29,12 @@ export interface StatTileProps {
   unit: string;
   pct?: number;
   swatch?: 'target' | 'exclude';
+  /** `card` (default, 26px num) vs `modal` (v16 req-modal override, 30px num). */
+  variant?: 'card' | 'modal';
 }
 
-/** Single approval-stat tile — v16 `.approval-stat` (reused by the 완료 승인 요청 modals). */
-export const StatTile = ({ label, value, unit, pct, swatch }: StatTileProps) => (
+/** Single approval-stat tile — v16 `.approval-stat` (reused by the completion-approval modals). */
+export const StatTile = ({ label, value, unit, pct, swatch, variant = 'card' }: StatTileProps) => (
   <div className="flex flex-col gap-1.5 rounded-xl bg-[#F7F8FA] px-5 py-[18px] transition-colors duration-150 hover:bg-[#ECEEF1]">
     <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#8B95A1]">
       {swatch && (
@@ -45,7 +47,8 @@ export const StatTile = ({ label, value, unit, pct, swatch }: StatTileProps) => 
     <div className="flex items-baseline">
       <span
         className={cn(
-          'text-[26px] font-extrabold leading-[1.1] tracking-[-0.03em] text-[#191F28]',
+          'font-extrabold leading-[1.1] text-[#191F28]',
+          variant === 'modal' ? 'text-[30px] tracking-[-0.035em]' : 'text-[26px] tracking-[-0.03em]',
           numericFeatures.tabular,
         )}
       >
