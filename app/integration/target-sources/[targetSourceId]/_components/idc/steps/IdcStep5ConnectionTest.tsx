@@ -15,7 +15,9 @@ import {
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
+import { IdcReqApprovalModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcReqApprovalModal';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
+import { getProject } from '@/app/lib/api';
 import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
 
 type ResourcesState =
@@ -25,20 +27,6 @@ type ResourcesState =
 
 /** v15 runIdcConnTest: cells show "Testing…" then settle to Success after ~1.8s. */
 const TEST_DURATION_MS = 1800;
-
-/** Approval-request CTA — intentionally a toast stub (mirrors cloud siblings). */
-const ApproveRequestButton = () => {
-  const toast = useToast();
-  return (
-    <button
-      type="button"
-      className={idcStyles.triggerBtn.primary}
-      onClick={() => toast.info('완료 승인 요청 기능 준비중입니다.')}
-    >
-      완료 승인 요청
-    </button>
-  );
-};
 
 /**
  * IDC Step 5 — 연결 테스트.
@@ -138,6 +126,14 @@ export const IdcStep5ConnectionTest = ({
     toast.info('논리 DB 설정은 준비 중입니다.');
   }, [toast]);
 
+  const [approvalOpen, setApprovalOpen] = useState(false);
+  // 완료 승인 요청 → refetch advances to step 6 when the process status flips (locked: transition = refetch).
+  const handleSubmitApproval = useCallback(async () => {
+    setApprovalOpen(false);
+    const updated = await getProject(project.targetSourceId);
+    onProjectUpdate(updated);
+  }, [onProjectUpdate, project.targetSourceId]);
+
   return (
     <>
       <ProjectPageMeta
@@ -203,8 +199,20 @@ export const IdcStep5ConnectionTest = ({
                 <p className={cn('text-[12px]', textColors.tertiary)}>
                   ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.
                 </p>
-                <ApproveRequestButton />
+                <button
+                  type="button"
+                  onClick={() => setApprovalOpen(true)}
+                  className={idcStyles.triggerBtn.primary}
+                >
+                  완료 승인 요청
+                </button>
               </div>
+              <IdcReqApprovalModal
+                isOpen={approvalOpen}
+                onClose={() => setApprovalOpen(false)}
+                resources={state.resources}
+                onSubmit={handleSubmitApproval}
+              />
             </>
           )}
         </div>

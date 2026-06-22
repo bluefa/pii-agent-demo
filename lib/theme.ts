@@ -631,6 +631,14 @@ export const idcStyles = {
   credSelect: 'h-8 max-w-[150px] cursor-pointer appearance-none rounded-lg border border-[#E5E7EB] bg-white pl-[11px] pr-7 font-mono text-[12px] font-semibold text-[#111827] transition-colors hover:border-[#0064FF] focus:border-[#0064FF] focus:outline-none',
   /** `.idc-cred-select` placeholder (자격 증명 선택) state — non-mono, muted. */
   credSelectEmpty: 'font-sans font-medium text-[#6B7280]',
+  /** 완료 승인 요청 modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
+  reqModal: {
+    eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',
+    eyebrowDot: 'h-1.5 w-1.5 rounded-full bg-[#0064FF]',
+    title: 'mt-2 text-[23px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
+    sub: 'mt-1.5 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
+    warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
+  },
   /** Toss textarea — borderless #F7F8FA fill / radius 12. */
   textarea: 'w-full rounded-xl border-0 bg-[#F7F8FA] px-3.5 py-3 text-[15px] font-medium leading-[1.6] text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] resize-none',
   /** Skeleton shimmer bar (loading frames) — pair with size/radius utilities. */
