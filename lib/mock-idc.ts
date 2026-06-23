@@ -24,7 +24,7 @@ const cloneSeed = (seed: IdcResourceInput[]): IdcResourceInput[] =>
   seed.map((r) => ({ ...r, ips: r.ips ? [...r.ips] : undefined, source_ips: r.source_ips ? [...r.source_ips] : undefined }));
 
 /** Step-progression demo seed — the v15 `idcTargets` (3 rows). */
-const IDC_SEED: IdcResourceInput[] = [
+export const IDC_SEED: IdcResourceInput[] = [
   {
     resource_id: 'idc-r1',
     name: '10.20.30.40',
@@ -32,6 +32,10 @@ const IDC_SEED: IdcResourceInput[] = [
     ips: ['10.20.30.40'],
     port: 3306,
     database_type: 'MYSQL',
+    // v16 seeds row1's assigned read-only credential (HTML idcTargets row1 `cred:'idc_svc_mysql'`);
+    // row2/row3 stay credential-less so step-6 shows '자격 증명 필요' and step-5's Run Test gate
+    // (every live target needs a credential) opens in its pre-test state.
+    credential_id: 'idc_svc_mysql',
     source_ips: ['172.16.0.11'],
     firewall_open: true,
     connection_status: 'SUCCESS',

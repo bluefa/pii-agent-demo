@@ -71,6 +71,18 @@ describe('WaitingApprovalCard', () => {
     getApprovalRequestLatestMock.mockRejectedValue(new Error('not mocked'));
   });
 
+  it('step-2 toolbar keeps the Region filter and omits the 연동 상태 filter', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01')).toBeTruthy();
+    });
+    expect(screen.getByLabelText('Region 필터')).toBeTruthy();
+    expect(screen.getByLabelText('DB Type 필터')).toBeTruthy();
+    expect(screen.queryByLabelText('연동 상태 필터')).toBeNull();
+  });
+
   it('renders the card title with the cardStyles.cardTitle token', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);

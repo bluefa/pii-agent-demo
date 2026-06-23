@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, type ReactNode } from 'react';
-import { ProcessStatus, type CloudProvider, type CloudTargetSource } from '@/lib/types';
-import { cn, providerColors, textColors } from '@/lib/theme';
+import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import { getProject } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -22,30 +21,6 @@ interface CloudInstallingStepProps {
   action: ReactNode;
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
-
-const PROVIDER_BADGE_CLASS = cn(
-  'inline-flex items-center gap-2',
-  'text-[16px] font-bold tracking-[-0.02em]',
-  textColors.primary,
-);
-
-const ProviderBadge = ({
-  provider,
-  label,
-}: {
-  provider: CloudProvider;
-  label: string;
-}) => (
-  <span className={PROVIDER_BADGE_CLASS}>
-    <span
-      className={cn('h-2 w-2 rounded-full', providerColors[provider].bar)}
-      aria-hidden="true"
-    />
-    <span>
-      <strong>Provider:</strong> {label}
-    </span>
-  </span>
-);
 
 export const CloudInstallingStep = ({
   project,
@@ -71,12 +46,7 @@ export const CloudInstallingStep = ({
         project={project}
         providerLabel={providerLabel}
         identity={identity}
-        action={
-          <div className="flex items-center gap-3">
-            <ProviderBadge provider={project.cloudProvider} label={providerLabel} />
-            {action}
-          </div>
-        }
+        action={action}
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}

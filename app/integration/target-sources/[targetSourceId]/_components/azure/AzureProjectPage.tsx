@@ -21,8 +21,9 @@ export const AzureProjectPage = ({
     monitoringMethod: 'Azure Agent',
     jiraLink: null,
     identifiers: [
+      // v16 identity bar carries only Subscription ID (HTML 5778-5786 / setProvider meta
+      // HTML 9426). Tenant ID lives solely in the credential-registration modal (f1, HTML 8895).
       { label: 'Subscription ID', value: project.subscriptionId ?? null, mono: true },
-      { label: 'Tenant ID', value: project.tenantId ?? null, mono: true },
     ],
   };
 

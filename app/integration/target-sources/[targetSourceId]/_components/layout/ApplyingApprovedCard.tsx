@@ -176,6 +176,7 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
           <div className="mt-4">
             {/* v16: toolbar (top-rounded) + approval table (bottom-rounded) join as one connected card — no gap. */}
             <WaitingApprovalToolbar
+              variant="applying"
               searchValue={table.searchValue}
               onSearchChange={table.onSearchChange}
               filter={table.filter}
@@ -184,8 +185,11 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
               onDbTypeChange={table.onDbTypeChange}
               region={table.region}
               onRegionChange={table.onRegionChange}
+              integrationStatus={table.integrationStatus}
+              onIntegrationStatusChange={table.onIntegrationStatusChange}
               dbTypeOptions={table.dbTypeOptions}
               regionOptions={table.regionOptions}
+              integrationStatusOptions={table.integrationStatusOptions}
               countsByFilter={table.countsByFilter}
               visibleStart={table.visibleStart}
               visibleEnd={table.visibleEnd}

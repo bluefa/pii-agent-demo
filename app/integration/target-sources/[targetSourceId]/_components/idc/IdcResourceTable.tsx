@@ -152,7 +152,14 @@ export const IdcResourceTable = ({
                 )}
                 {has('conn') && (
                   <td className={cn(idcStyles.table.cell, dim)}>
-                    {has('cred') ? <IdcConnStatusCell resource={r} /> : <IdcConnBadge state={r.connection} />}
+                    {/* Credential-aware status whenever a credential column is present (step-5 `cred`,
+                        step-6 `credro`): no cred -> '자격 증명 필요', cred+SUCCESS -> Success, else Pending
+                        (v16 idcConnBadge). Steps without a credential column keep the plain badge. */}
+                    {has('cred') || has('credro') ? (
+                      <IdcConnStatusCell resource={r} />
+                    ) : (
+                      <IdcConnBadge state={r.connection} />
+                    )}
                   </td>
                 )}
                 {has('logical') && (

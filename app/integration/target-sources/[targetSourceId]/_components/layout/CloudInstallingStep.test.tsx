@@ -110,12 +110,15 @@ describe('CloudInstallingStep GuideCard mount', () => {
   });
 });
 
-describe('CloudInstallingStep Provider tag', () => {
-  it('renders the Provider tag in the meta action slot', () => {
-    renderStep({ providerLabel: 'Azure Infrastructure' });
+describe('CloudInstallingStep identity action slot', () => {
+  it('forwards the action without injecting a "Provider:" badge (not in v16 HTML 5765-5793)', () => {
+    renderStep({
+      providerLabel: 'Azure Infrastructure',
+      action: <button type="button">인프라 삭제</button>,
+    });
     const action = screen.getByTestId('page-meta-action');
-    expect(action.textContent).toContain('Provider:');
-    expect(action.textContent).toContain('Azure Infrastructure');
+    expect(action.textContent).toContain('인프라 삭제');
+    expect(action.textContent).not.toContain('Provider:');
   });
 });
 

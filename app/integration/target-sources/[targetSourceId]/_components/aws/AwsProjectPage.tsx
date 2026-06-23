@@ -23,10 +23,9 @@ export const AwsProjectPage = ({
     monitoringMethod: 'AWS Agent',
     jiraLink: null,
     identifiers: [
+      // v16 identity bar carries only the Account ID (HTML 9428); it has no second
+      // identifier (e.g. Region Type), so none is added here.
       { label: 'AWS Account ID', value: project.awsAccountId ?? null, mono: true },
-      ...(project.awsRegionType
-        ? [{ label: 'Region Type', value: project.awsRegionType === 'china' ? 'China' : 'Global' }]
-        : []),
     ],
   };
 
