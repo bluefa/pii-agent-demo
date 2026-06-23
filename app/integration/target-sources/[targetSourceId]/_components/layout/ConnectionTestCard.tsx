@@ -46,6 +46,7 @@ const seedRows = (confirmed: readonly ConfirmedResource[]): ConnRow[] =>
   }));
 
 interface ConnectionTestCardProps {
+  targetSourceId: number;
   confirmed: readonly ConfirmedResource[];
   providerLabel: string;
   /** Refetch the project — advances to step 6 when the process status flips. */
@@ -64,6 +65,7 @@ interface ConnectionTestCardProps {
  * path is exercised by the step6/7 retest flow, not here.
  */
 export const ConnectionTestCard = ({
+  targetSourceId,
   confirmed,
   providerLabel,
   refreshProject,
@@ -113,10 +115,18 @@ export const ConnectionTestCard = ({
     );
   }, []);
 
-  const handleSave = useCallback(() => {
-    toast.info('논리 DB 정보 저장은 BFF 연동 후 활성화됩니다.');
+  // On save the skip policy persists, which flips completion-status
+  // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
+  // refreshProject re-reads so the badge updates.
+  const handleSaved = useCallback(() => {
+    toast.success('논리 DB 제외 정책을 저장했습니다.');
     logicalModal.close();
-  }, [logicalModal, toast]);
+    refreshProject();
+  }, [logicalModal, toast, refreshProject]);
+
+  const handleSaveError = useCallback(() => {
+    toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
+  }, [toast]);
 
   const handleSubmitApproval = useCallback(() => {
     setApprovalOpen(false);
@@ -293,9 +303,11 @@ export const ConnectionTestCard = ({
         {logicalModal.data && (
           <LogicalDbModalLoader
             open={logicalModal.isOpen}
+            targetSourceId={targetSourceId}
             resourceId={logicalModal.data.resourceId}
             resourceName={logicalModal.data.resourceName}
-            onSave={handleSave}
+            onSaved={handleSaved}
+            onError={handleSaveError}
             onClose={logicalModal.close}
           />
         )}

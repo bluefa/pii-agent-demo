@@ -5,9 +5,8 @@ import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
-  getIdcResources,
+  getIdcPreviousRequest,
   idcDbTypeWireFromLabel,
-  updateIdcResources,
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
@@ -91,7 +90,7 @@ export const IdcStep1TargetInput = ({
     setRows([]);
     setError(null);
 
-    getIdcResources(targetSourceId, { signal: controller.signal })
+    getIdcPreviousRequest(targetSourceId, { signal: controller.signal })
       .then((views) => {
         if (requestedId !== currentIdRef.current) return;
         setRows(views.map(toRow));
@@ -196,12 +195,11 @@ export const IdcStep1TargetInput = ({
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      // Persist the working list, then request approval through the shared flow.
-      // createApprovalRequest routes every submission to WAITING_APPROVAL
-      // (Step 2, 승인 대기) for manual admin approval — same as cloud providers
-      // (auto-approval is disabled in the demo flow).
-      const persisted = await updateIdcResources(targetSourceId, rows);
-      const resourceInputs = persisted.map((r) =>
+      // Step 1 is manual input held in UI state — there is no IDC `/resources`
+      // PUT in the contract; submission rides createApprovalRequest, which routes
+      // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
+      // approval — same as cloud providers (auto-approval is disabled in the demo).
+      const resourceInputs = rows.map((r) =>
         r.excluded
           ? {
               resource_id: r.resourceId,

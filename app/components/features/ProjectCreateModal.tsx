@@ -5,10 +5,10 @@ import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { useToast } from '@/app/components/ui/toast';
 import {
-  createProject,
-  previewTargetSourceRegistration,
-  type RegistrationPreviewItem,
-  type RegistrationPreviewRequest,
+  createTargetSource,
+  getCreationCandidates,
+  type CreationCandidatesInput,
+  type TargetSourceCreationCandidate,
 } from '@/app/lib/api';
 import {
   cn,
@@ -62,9 +62,10 @@ interface FormState {
   fields: Record<string, string>;
 }
 
-const apiToCloudProvider = (api: ApiProvider): CloudProvider => api;
-
-const buildPreviewRequest = (form: FormState, dbTypes: DbType[]): RegistrationPreviewRequest => {
+const buildCreationCandidatesInput = (
+  form: FormState,
+  dbTypes: DbType[],
+): CreationCandidatesInput => {
   const { fields } = form;
   const description = fields.description?.trim();
   switch (form.apiProvider) {
@@ -72,7 +73,6 @@ const buildPreviewRequest = (form: FormState, dbTypes: DbType[]): RegistrationPr
       return {
         cloudProvider: 'AWS',
         awsAccountId: fields.payerAccount,
-        ...(fields.linkedAccount ? { awsLinkedAccountId: fields.linkedAccount } : {}),
         isChinaRegion: form.awsRegion === 'china',
         isTerraformExecutionGranted: form.installMode === 'auto',
         ...(description ? { description } : {}),
@@ -102,46 +102,6 @@ const buildPreviewRequest = (form: FormState, dbTypes: DbType[]): RegistrationPr
   }
 };
 
-const buildCreateDto = (
-  form: FormState,
-  dbType: DbType,
-  serviceCode: string,
-): Parameters<typeof createProject>[0] => {
-  const cloudProvider = apiToCloudProvider(form.apiProvider);
-  const { fields } = form;
-  const description = fields.description?.trim();
-  const base = {
-    serviceCode,
-    cloudProvider,
-    dbType,
-    ...(description ? { description } : {}),
-  };
-  switch (form.apiProvider) {
-    case 'AWS':
-      return {
-        ...base,
-        awsAccountId: fields.payerAccount,
-        ...(fields.linkedAccount ? { awsLinkedAccountId: fields.linkedAccount } : {}),
-        awsRegionType: form.awsRegion,
-        isChinaRegion: form.awsRegion === 'china',
-        isTerraformExecutionGranted: form.installMode === 'auto',
-      };
-    case 'Azure':
-      return {
-        ...base,
-        tenantId: fields.tenantId,
-        subscriptionId: fields.subscriptionId,
-      };
-    case 'GCP':
-      return {
-        ...base,
-        gcpProjectId: fields.projectId,
-      };
-    case 'IDC':
-      return base;
-  }
-};
-
 const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
   AWS: 'AWS',
   AZURE: 'Azure',
@@ -152,16 +112,17 @@ const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
 
 const toCloudProvider = (raw: string): CloudProvider => PROVIDER_FROM_RAW[raw] ?? 'AWS';
 
-const identifierLabel = (item: RegistrationPreviewItem): string => {
-  switch (item.cloud_provider.toUpperCase()) {
+const identifierLabel = (item: TargetSourceCreationCandidate): string => {
+  const { metadata } = item;
+  switch (item.cloudType) {
     case 'AWS':
-      return item.aws_account_id ? `Payer ${item.aws_account_id}` : '—';
+      return metadata.awsAccountId ? `Payer ${metadata.awsAccountId}` : '—';
     case 'AZURE':
-      return item.subscription_id ? `Sub ${item.subscription_id}` : '—';
+      return metadata.subscriptionId ? `Sub ${metadata.subscriptionId}` : '—';
     case 'GCP':
-      return item.gcp_project_id ? `Project ${item.gcp_project_id}` : '—';
+      return metadata.projectId ? `Project ${metadata.projectId}` : '—';
     case 'IDC':
-      return item.description || '—';
+      return metadata.description || '—';
     default:
       return '—';
   }
@@ -185,7 +146,7 @@ export const ProjectCreateModal = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // mountedRef gates async setState after unmount — handleRegister fans out N
-  // createProject calls in parallel, and the modal can close mid-batch.
+  // createTargetSource calls in parallel, and the modal can close mid-batch.
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -238,12 +199,13 @@ export const ProjectCreateModal = ({
     setSubmitError(null);
     setBusy(true);
     try {
-      const response = await previewTargetSourceRegistration(
+      const candidates = await getCreationCandidates(
         selectedServiceCode,
-        buildPreviewRequest(buildForm(), dbTypes),
+        buildCreationCandidatesInput(buildForm(), dbTypes),
       );
       if (!mountedRef.current) return;
-      const rows: PreviewRow[] = response.items.map((item, idx) => ({
+      // Server returns one candidate per database_types[i], in request order.
+      const rows: PreviewRow[] = candidates.map((item, idx) => ({
         item,
         dbType: dbTypes[idx],
       }));
@@ -265,8 +227,7 @@ export const ProjectCreateModal = ({
 
   const handleRegister = async () => {
     if (busy) return;
-    const form = buildForm();
-    const addRows = previewRows.filter((row) => row.item.type === 'ADD');
+    const addRows = previewRows.filter((row) => row.item.status === 'ADD');
     if (addRows.length === 0) {
       toast.info('신규 등록 대상이 없습니다.');
       return;
@@ -274,9 +235,9 @@ export const ProjectCreateModal = ({
 
     const initial: ProgressRow[] = addRows.map((row, idx) => ({
       key: `row-${idx}`,
-      cloudProvider: toCloudProvider(row.item.cloud_provider),
-      isSdu: row.item.is_sdu_type,
-      primaryLabel: `${row.item.cloud_provider} · ${row.dbType}`,
+      cloudProvider: toCloudProvider(row.item.cloudType),
+      isSdu: row.item.isSduType,
+      primaryLabel: `${row.item.cloudType} · ${row.dbType}`,
       secondaryLabel: identifierLabel(row.item),
       status: 'in-progress',
     }));
@@ -295,7 +256,8 @@ export const ProjectCreateModal = ({
       addRows.map(async (row, idx) => {
         const key = `row-${idx}`;
         try {
-          await createProject(buildCreateDto(form, row.dbType as DbType, selectedServiceCode));
+          // createTargetSource (36): post the selected candidate back verbatim.
+          await createTargetSource(selectedServiceCode, row.item);
           updateRow(key, 'done');
         } catch (err) {
           updateRow(key, 'failed', err instanceof Error ? err.message : '등록 실패');
@@ -309,7 +271,7 @@ export const ProjectCreateModal = ({
   };
 
   const phase1Valid = dbTypes.length > 0 && validateCredentials(chipKey, fields) === null;
-  const addRowCount = previewRows.filter((row) => row.item.type === 'ADD').length;
+  const addRowCount = previewRows.filter((row) => row.item.status === 'ADD').length;
   const duplicateCount = previewRows.length - addRowCount;
   const progressDone = progressRows.filter((r) => r.status === 'done').length;
   const progressFailed = progressRows.filter((r) => r.status === 'failed').length;

@@ -516,9 +516,19 @@ export const mockProjects = {
       );
     }
 
+    // ADR-019 E6: swagger getTargetSourceSecrets returns a bare array of
+    // SecretResponse { name, create_time, create_time_str } (snake wire).
     const credentials = await mockData.getCredentials();
+    const secrets = credentials.map((c) => {
+      const createdMs = Date.parse(c.createdAt);
+      return {
+        name: c.name,
+        create_time: Number.isFinite(createdMs) ? createdMs : 0,
+        create_time_str: c.createdAt,
+      };
+    });
 
-    return NextResponse.json({ credentials });
+    return NextResponse.json(secrets);
   },
 
   history: async (targetSourceId: string, query: { type: string; limit: string; offset: string }) => {

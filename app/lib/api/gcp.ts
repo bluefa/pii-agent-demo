@@ -10,6 +10,10 @@ export const getGcpInstallationStatus = async (
 // Other GCP APIs maintain original endpoint structure
 const BASE_URL = '/gcp/target-sources';
 
+/**
+ * TODO(L3): /gcp/.../check-installation is NOT in install-v1.yaml (removed
+ * endpoint). Refresh = re-GET installation-status; remove this fn + its callers.
+ */
 export const checkGcpInstallation = async (
   targetSourceId: number
 ): Promise<GcpInstallationStatusResponse> =>

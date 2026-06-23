@@ -1,29 +1,27 @@
 /**
- * BFF data-access interface (ADR-011).
+ * BFF data-access interface (ADR-011 + ADR-019 /install/v1 migration).
  *
  * Implementations:
- *   - mockBff: wraps the in-memory `lib/api-client/mock/*` handlers
+ *   - mockBff: wraps the in-memory `lib/bff/mock/*` handlers
  *   - httpBff: calls the upstream BFF over HTTP
  *
- * Per ADR-011 §"Cross-cutting decisions" #1 (B-1): v1 transforms
- * (`extractTargetSource`, `normalizeUserMeResponse`, etc.) stay in the
- * route layer. BFF methods return the raw upstream wire shape.
+ * ADR-019 governing rule: `docs/swagger/install-v1.yaml` is the sole authority.
+ * Methods that called endpoints absent from the swagger were REMOVED (no stubs):
+ * idc resources, {aws,gcp,azure,idc}/check-installation, installation-mode,
+ * approval system-reset, services settings/aws/*, authorized-users add/remove,
+ * legacy /projects/* and /aws/projects/*.
  *
- * Casing per ADR-011 README §"Observable Behavior Invariants" I-3:
- *   - GET responses are camelCase (proxyGet runs camelCaseKeys)
- *   - POST/PUT/DELETE responses are raw passthrough (snake_case)
+ * Casing (ADR-019 D1/D2):
+ *   - Most GET responses are camelCased once at the proxy (`get` runs camelCaseKeys).
+ *   - Domains that own their own boundary (IDC mapper; logical-DB / test-connection
+ *     route normalizers) request the raw snake wire (`getSnakeRaw`/`{ raw: true }`)
+ *     so casing is owned in exactly one place.
  */
 import type {
-  AwsCheckInstallationResult,
   AwsInstallationStatusResponse,
-  AwsSetInstallationModeBody,
-  AwsSetInstallationModeResult,
-  AwsTerraformScriptResponse,
-  AwsVerifyTfRoleBody,
-  AwsVerifyTfRoleResult,
+  AwsRoleVerificationResponse,
 } from '@/lib/bff/types/aws';
 import type {
-  AzureCheckInstallationResult,
   AzureInstallationStatusResponse,
   AzureScanAppResponse,
   AzureSubnetGuideResponse,
@@ -32,37 +30,16 @@ import type {
   AzureVmTerraformScriptResponse,
 } from '@/lib/bff/types/azure';
 import type {
-  GcpCheckInstallationResult,
   GcpInstallationStatusResponse,
   GcpScanServiceAccountResponse,
   GcpTerraformServiceAccountResponse,
 } from '@/lib/bff/types/gcp';
 import type {
-  CreateTargetSourceBody,
-  CreateTargetSourceResult,
-  RegistrationPreviewRequest,
-  RegistrationPreviewResponse,
-  ServicesTargetSourcesResponse,
+  TargetSourceCreationCandidateResponseWire,
   TargetSourceDetailResponse,
+  TargetSourceInfoWire,
+  TargetSourcesByServiceResponseWire,
 } from '@/lib/bff/types/target-sources';
-import type {
-  ProjectApprovalResult,
-  ProjectCompleteInstallationResult,
-  ProjectConfirmCompletionResult,
-  ProjectConfirmTargetsResult,
-  ProjectCreateResult,
-  ProjectCredentialsResponse,
-  ProjectGetResponse,
-  ProjectHistoryResponse,
-  ProjectMutationResult,
-  ProjectRejectionResult,
-  ProjectResourceCredentialResult,
-  ProjectResourceExclusionsResponse,
-  ProjectResourcesResponse,
-  ProjectScanTriggerResult,
-  ProjectTerraformStatusResponse,
-  ProjectTestConnectionResult,
-} from '@/lib/bff/types/projects';
 import type {
   TestConnectionCompletionStatusResponseWire,
   TestConnectionConfirmationResponseWire,
@@ -72,19 +49,16 @@ import type {
   UpdateTestConnectionConfirmationRequestWire,
 } from '@/lib/bff/types/test-connection';
 import type {
+  SkipLogicalDatabaseResponseWire,
+  TestedLogicalDatabasesResponseWire,
+  UpdateSkipLogicalDatabaseRequestWire,
+} from '@/lib/bff/types/logical-db';
+import type {
+  PageServiceItem,
   UserMeResponse,
   UserSearchResponse,
-  UserServicesPageResponse,
-  UserServicesResponse,
 } from '@/lib/bff/types/users';
-import type {
-  ServiceAuthorizedUsersResponse,
-  ServicePermissionAddResult,
-  ServicePermissionRemoveResult,
-  ServiceSettingsAwsResponse,
-  ServiceSettingsAwsUpdateResult,
-  ServiceSettingsAwsVerifyScanRoleResult,
-} from '@/lib/bff/types/services';
+import type { ServiceAuthorizedUsersResponse } from '@/lib/bff/types/services';
 import type {
   DashboardSummaryResponse,
   DashboardSystemsResponse,
@@ -108,61 +82,36 @@ import type {
 } from '@/lib/bff/types/confirm';
 import type { GuideGetResponse, GuidePutResult } from '@/lib/bff/types/guides';
 import type {
-  IdcConfirmFirewallResponse,
-  IdcInstallationStatus,
-  IdcResourcesResponse,
-  IdcSourceIpRecommendation,
+  IdcInstallationStatusResponseWire,
+  IdcPreviousRequestResponseWire,
+  NlbOccupiedResourceResponseWire,
+  NlbTableResponseWire,
 } from '@/lib/bff/types/idc';
 
 export interface BffClient {
   targetSources: {
     get: (id: number) => Promise<TargetSourceDetailResponse>;
-    list: (serviceCode: string) => Promise<ServicesTargetSourcesResponse>;
-    create: (body: CreateTargetSourceBody) => Promise<CreateTargetSourceResult>;
-    previewRegistration: (
+    // Wire snake (37) — the route handler owns the casing boundary.
+    list: (serviceCode: string) => Promise<TargetSourcesByServiceResponseWire>;
+    // 201 TargetSourceInfo (36) — candidate posted back verbatim.
+    create: (serviceCode: string, candidate: unknown) => Promise<TargetSourceInfoWire>;
+    // 200 bare array of creation candidates (35).
+    getCreationCandidates: (
       serviceCode: string,
-      body: RegistrationPreviewRequest,
-    ) => Promise<RegistrationPreviewResponse>;
-  };
-
-  projects: {
-    get: (id: number) => Promise<ProjectGetResponse>;
-    delete: (id: number) => Promise<ProjectMutationResult>;
-    create: (body: unknown) => Promise<ProjectCreateResult>;
-    approve: (id: number, body: unknown) => Promise<ProjectApprovalResult>;
-    reject: (id: number, body: unknown) => Promise<ProjectRejectionResult>;
-    confirmTargets: (id: number, body: unknown) => Promise<ProjectConfirmTargetsResult>;
-    completeInstallation: (id: number) => Promise<ProjectCompleteInstallationResult>;
-    confirmCompletion: (id: number) => Promise<ProjectConfirmCompletionResult>;
-    credentials: (id: number) => Promise<ProjectCredentialsResponse>;
-    history: (id: number, query: { type?: string; limit?: string; offset?: string }) => Promise<ProjectHistoryResponse>;
-    resourceCredential: (id: number, body: unknown) => Promise<ProjectResourceCredentialResult>;
-    resourceExclusions: (id: number) => Promise<ProjectResourceExclusionsResponse>;
-    resources: (id: number) => Promise<ProjectResourcesResponse>;
-    scan: (id: number) => Promise<ProjectScanTriggerResult>;
-    terraformStatus: (id: number) => Promise<ProjectTerraformStatusResponse>;
-    testConnection: (id: number, body: unknown) => Promise<ProjectTestConnectionResult>;
+      body: unknown,
+    ) => Promise<TargetSourceCreationCandidateResponseWire[]>;
+    getSecrets: (id: number) => Promise<unknown>;
   };
 
   users: {
     search: (query: string, excludeIds: string[]) => Promise<UserSearchResponse>;
     me: () => Promise<UserMeResponse>;
-    getServices: () => Promise<UserServicesResponse>;
-    getServicesPage: (page: number, size: number, query?: string) => Promise<UserServicesPageResponse>;
+    getServicesPage: (page: number, size: number, query?: string) => Promise<PageServiceItem>;
   };
 
   services: {
     permissions: {
       list: (serviceCode: string) => Promise<ServiceAuthorizedUsersResponse>;
-      add: (serviceCode: string, body: unknown) => Promise<ServicePermissionAddResult>;
-      remove: (serviceCode: string, userId: string) => Promise<ServicePermissionRemoveResult>;
-    };
-    settings: {
-      aws: {
-        get: (serviceCode: string) => Promise<ServiceSettingsAwsResponse>;
-        update: (serviceCode: string, body: unknown) => Promise<ServiceSettingsAwsUpdateResult>;
-        verifyScanRole: (serviceCode: string) => Promise<ServiceSettingsAwsVerifyScanRoleResult>;
-      };
     };
   };
 
@@ -194,15 +143,15 @@ export interface BffClient {
   };
 
   aws: {
-    checkInstallation: (id: number) => Promise<AwsCheckInstallationResult>;
-    setInstallationMode: (id: number, body: AwsSetInstallationModeBody) => Promise<AwsSetInstallationModeResult>;
     getInstallationStatus: (id: number) => Promise<AwsInstallationStatusResponse>;
-    getTerraformScript: (id: number) => Promise<AwsTerraformScriptResponse>;
-    verifyTfRole: (id: number, body?: AwsVerifyTfRoleBody) => Promise<AwsVerifyTfRoleResult>;
+    // swagger: GET …/aws/terraform-script/download → application/octet-stream
+    // (binary zip). Returns the raw Response; the route streams the body (D6 getRaw).
+    getTerraformScript: (id: number) => Promise<Response>;
+    verifyScanRole: (id: number) => Promise<AwsRoleVerificationResponse>;
+    verifyExecutionRole: (id: number) => Promise<AwsRoleVerificationResponse>;
   };
 
   azure: {
-    checkInstallation: (id: number) => Promise<AzureCheckInstallationResult>;
     getInstallationStatus: (id: number) => Promise<AzureInstallationStatusResponse>;
     getSubnetGuide: (id: number) => Promise<AzureSubnetGuideResponse>;
     getScanApp: (id: number) => Promise<AzureScanAppResponse>;
@@ -212,20 +161,32 @@ export interface BffClient {
   };
 
   gcp: {
-    checkInstallation: (id: number) => Promise<GcpCheckInstallationResult>;
     getInstallationStatus: (id: number) => Promise<GcpInstallationStatusResponse>;
     getScanServiceAccount: (id: number) => Promise<GcpScanServiceAccountResponse>;
     getTerraformServiceAccount: (id: number) => Promise<GcpTerraformServiceAccountResponse>;
   };
 
   idc: {
-    getInstallationStatus: (id: number) => Promise<IdcInstallationStatus>;
-    checkInstallation: (id: number) => Promise<IdcInstallationStatus>;
-    confirmFirewall: (id: number) => Promise<IdcConfirmFirewallResponse>;
-    getResources: (id: number) => Promise<IdcResourcesResponse>;
-    getPreviousRequest: (id: number) => Promise<IdcResourcesResponse>;
-    updateResources: (id: number, body: unknown) => Promise<IdcResourcesResponse>;
-    getSourceIpRecommendation: (ipType: string) => Promise<IdcSourceIpRecommendation>;
+    getInstallationStatus: (id: number) => Promise<IdcInstallationStatusResponseWire>;
+    getPreviousRequest: (id: number) => Promise<IdcPreviousRequestResponseWire>;
+    getOccupiedResources: (nlbIndex: number) => Promise<NlbOccupiedResourceResponseWire[]>;
+    getNlbTable: () => Promise<NlbTableResponseWire[]>;
+  };
+
+  logicalDb: {
+    getTestedByResourceId: (
+      id: number,
+      resourceId: string,
+    ) => Promise<TestedLogicalDatabasesResponseWire>;
+    getExcludedByResourceId: (
+      id: number,
+      resourceId: string,
+    ) => Promise<SkipLogicalDatabaseResponseWire>;
+    updateExcludedByResourceId: (
+      id: number,
+      resourceId: string,
+      body: UpdateSkipLogicalDatabaseRequestWire,
+    ) => Promise<SkipLogicalDatabaseResponseWire>;
   };
 
   confirm: {
@@ -239,8 +200,9 @@ export interface BffClient {
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;
-    systemResetApprovalRequest: (id: number) => Promise<unknown>;
-    confirmInstallation: (id: number) => Promise<unknown>;
+    markApprovalRequestUnavailable: (id: number, body: unknown) => Promise<unknown>;
+    confirmApprovalUnavailable: (id: number) => Promise<unknown>;
+    confirmInstallation: (id: number, body: unknown) => Promise<unknown>;
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
     testConnection: (id: number, collectorImageTag?: string) => Promise<TestConnectionTriggerResponseWire>;
     getTestConnectionLatest: (id: number) => Promise<TestConnectionVersionResultWire>;

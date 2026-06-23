@@ -1,34 +1,66 @@
 'use client';
 
+import { useCallback, useState } from 'react';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { cn, statusColors, textColors } from '@/lib/theme';
 import { LogicalDbModal } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModal';
 import { useLogicalDatabases } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/useLogicalDatabases';
-import type { LogicalDbModalDraft } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
+import { draftToExcludedItems } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
+import { updateExcludedLogicalDatabases } from '@/app/lib/api/logical-db';
+import type { LogicalDatabase, LogicalDbModalDraft } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 
 interface LogicalDbModalLoaderProps {
   open: boolean;
+  targetSourceId: number;
   resourceId: string;
   resourceName: string;
-  onSave: (draft: LogicalDbModalDraft) => void;
+  /** Called after the skip policy is persisted (success toast + refetch + close). */
+  onSaved: () => void;
+  /** Called when the PUT fails (failure toast). */
+  onError: () => void;
   onClose: () => void;
 }
 
 /**
- * Thin wrapper that calls the data hook and feeds the result into
- * LogicalDbModal. Loading and error states are rendered as the Modal
+ * Wrapper that loads the modal data and owns the save: it holds the adapted
+ * `databases` + the target/resource keys, so it serializes the draft to the
+ * snake skip-set (full replace) and PUTs it, then hands control back to the
+ * parent via `onSaved`/`onError`. Loading/error states render inside the Modal
  * frame so the open/close transition stays consistent.
  */
 export const LogicalDbModalLoader = ({
   open,
+  targetSourceId,
   resourceId,
   resourceName,
-  onSave,
+  onSaved,
+  onError,
   onClose,
 }: LogicalDbModalLoaderProps) => {
-  const { state, retry } = useLogicalDatabases(resourceId);
+  const { state, retry } = useLogicalDatabases(targetSourceId, resourceId);
+  const [saving, setSaving] = useState(false);
+
+  const databases: LogicalDatabase[] =
+    state.status === 'ready' ? state.databases : [];
+
+  const handleSave = useCallback(
+    async (draft: LogicalDbModalDraft) => {
+      if (saving) return;
+      setSaving(true);
+      try {
+        const items = draftToExcludedItems(databases, draft);
+        await updateExcludedLogicalDatabases(targetSourceId, resourceId, items);
+        onSaved();
+      } catch {
+        onError();
+      } finally {
+        setSaving(false);
+      }
+    },
+    [saving, databases, targetSourceId, resourceId, onSaved, onError],
+  );
 
   if (state.status === 'ready') {
     return (
@@ -36,7 +68,8 @@ export const LogicalDbModalLoader = ({
         open={open}
         resourceName={resourceName}
         databases={state.databases}
-        onSave={onSave}
+        initialDraft={state.initialDraft}
+        onSave={handleSave}
         onClose={onClose}
       />
     );

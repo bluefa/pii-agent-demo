@@ -19,7 +19,7 @@ interface IdcSubmitModalProps {
   excluded: number;
   /** Disable the submit button while the mutation is in flight. */
   submitting: boolean;
-  /** 제출하기 — parent runs updateIdcResources + refreshProject. */
+  /** 제출하기 — parent runs createApprovalRequest + refreshProject. */
   onSubmit: () => void;
   /** 머무르기 / close. */
   onClose: () => void;

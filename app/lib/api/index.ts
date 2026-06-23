@@ -1,7 +1,6 @@
 import {
   ServiceCode,
   ProjectSummary,
-  User,
   CloudProvider,
   TargetSource,
   ProcessStatus,
@@ -17,11 +16,24 @@ import {
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
+import { snakeCaseKeys } from '@/lib/object-case';
 import {
   extractTargetSource,
   normalizeTargetSourceProcessStatus,
   type TargetSourceDetailResponse,
 } from '@/lib/target-source-response';
+import type {
+  TargetSourceCloudType,
+  TargetSourceCreationCandidate,
+  TargetSourceInfo,
+} from '@/lib/target-source-creation';
+// Re-export the create-flow domain types so create-modal consumers import from
+// one place (mirrors the test-connection re-exports below).
+export type {
+  TargetSourceCloudType,
+  TargetSourceCreationCandidate,
+  TargetSourceInfo,
+};
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
 import type {
   TestConnectionAgentResult,
@@ -44,16 +56,30 @@ export type {
   TestConnectionVersionResult,
 };
 import {
-  normalizeApprovalActionResponse,
-  normalizeApprovalHistoryPage,
-  normalizeApprovalRequestBody,
-  normalizeApprovalRequestSummary,
   normalizeApprovedIntegration,
   normalizeProcessStatusResponse,
-  type ApprovalStatus,
   type ExcludedResourceInfoDto,
   type ResourceConfigDto,
 } from '@/lib/approval-bff';
+import type {
+  ApprovalRequestStatus,
+  ApprovalRequestSummary,
+  ApprovalRequestLatest,
+  ApprovalHistoryPage,
+  ApprovalActionResponse,
+  ApprovalUnavailableResponse,
+  ApprovalUnavailableConfirmResponse,
+} from '@/lib/approval-response';
+// Re-export the approval domain types so `@/app/lib/api` consumers (Step2 UI)
+// keep importing from one place.
+export type {
+  ApprovalRequestStatus,
+  ApprovalRequestLatest,
+  ApprovalHistoryPage,
+  ApprovalActionResponse,
+  ApprovalUnavailableResponse,
+  ApprovalUnavailableConfirmResponse,
+} from '@/lib/approval-response';
 
 
 export interface CurrentUser {
@@ -64,16 +90,6 @@ export interface CurrentUser {
 
 export const getCurrentUser = (): Promise<CurrentUser> =>
   fetchInfraCamelJson<CurrentUser>('/user/me');
-
-export const getServices = async (): Promise<ServiceCode[]> => {
-  const data = await fetchInfraCamelJson<{
-    services: Array<{ serviceCode: string; serviceName: string }>;
-  }>('/user/services');
-  return data.services.map((service) => ({
-    code: service.serviceCode,
-    name: service.serviceName,
-  }));
-};
 
 export interface ServicePageResponse {
   content: ServiceCode[];
@@ -108,17 +124,6 @@ const parseTargetSourceId = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
   return null;
-};
-
-const toBffCloudProvider = (cloudProvider: CloudProvider): 'AWS' | 'GCP' | 'AZURE' | 'IDC' => {
-  switch (cloudProvider) {
-    case 'Azure':
-      return 'AZURE';
-    case 'IDC':
-      return 'IDC';
-    default:
-      return cloudProvider;
-  }
 };
 
 const toProjectSummary = (value: unknown): ProjectSummary | null => {
@@ -161,46 +166,25 @@ export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]
     .filter((project): project is ProjectSummary => project !== null);
 };
 
-export const createProject = async (payload: {
-  serviceCode: string;
-  cloudProvider: CloudProvider;
-  description?: string;
-  awsAccountId?: string;
-  awsLinkedAccountId?: string;
-  isChinaRegion?: boolean;
-  isTerraformExecutionGranted?: boolean;
-  awsRegionType?: 'global' | 'china';
-  tenantId?: string;
-  subscriptionId?: string;
-  gcpProjectId?: string;
-  dbType?: string;
-}): Promise<void> => {
-  const body = {
-    ...(payload.description?.trim() ? { description: payload.description.trim() } : {}),
-    cloudProvider: toBffCloudProvider(payload.cloudProvider),
-    ...(payload.awsAccountId ? { awsAccountId: payload.awsAccountId } : {}),
-    ...(payload.awsLinkedAccountId ? { awsLinkedAccountId: payload.awsLinkedAccountId } : {}),
-    ...(typeof payload.isChinaRegion === 'boolean' ? { isChinaRegion: payload.isChinaRegion } : {}),
-    ...(typeof payload.isTerraformExecutionGranted === 'boolean'
-      ? { isTerraformExecutionGranted: payload.isTerraformExecutionGranted }
-      : {}),
-    ...(payload.awsRegionType ? { awsRegionType: payload.awsRegionType } : {}),
-    ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
-    ...(payload.subscriptionId ? { subscriptionId: payload.subscriptionId } : {}),
-    ...(payload.gcpProjectId ? { gcpProjectId: payload.gcpProjectId } : {}),
-    ...(payload.dbType ? { dbType: payload.dbType } : {}),
-  };
-
-  await fetchInfraJson(`/services/${payload.serviceCode}/target-sources`, {
-    method: 'POST',
-    body,
-  });
+// Lowercase request `cloud_type` enum (35 request — distinct from the UPPERCASE
+// response enum). `others` is unused by the UI (only the 4 real providers).
+const toRequestCloudType = (cloudProvider: CloudProvider): 'aws' | 'azure' | 'gcp' | 'idc' => {
+  switch (cloudProvider) {
+    case 'AWS':
+      return 'aws';
+    case 'Azure':
+      return 'azure';
+    case 'GCP':
+      return 'gcp';
+    case 'IDC':
+      return 'idc';
+  }
 };
 
-export interface RegistrationPreviewRequest {
-  cloudProvider: 'AWS' | 'Azure' | 'GCP' | 'IDC';
+/** UI-facing form input for the creation-candidates request (35). */
+export interface CreationCandidatesInput {
+  cloudProvider: CloudProvider;
   awsAccountId?: string;
-  awsLinkedAccountId?: string;
   isChinaRegion?: boolean;
   isTerraformExecutionGranted?: boolean;
   tenantId?: string;
@@ -210,54 +194,64 @@ export interface RegistrationPreviewRequest {
   dbTypes: string[];
 }
 
-export interface RegistrationPreviewItemCommon {
-  cloud_provider: string;
-  aws_account_id?: string;
-  aws_linked_account_id?: string;
-  is_china_region: boolean;
-  is_sdu_type: boolean;
-  is_terraform_execution_granted: boolean;
-  tenant_id?: string;
-  subscription_id?: string;
-  gcp_project_id?: string;
-  description?: string;
-}
-
-export type RegistrationPreviewItem =
-  | (RegistrationPreviewItemCommon & { type: 'ADD' })
-  | (RegistrationPreviewItemCommon & { type: 'DUPLICATE'; existing_target_source_id: number });
-
-export interface RegistrationPreviewResponse {
-  items: RegistrationPreviewItem[];
-}
-
-export const previewTargetSourceRegistration = async (
+/**
+ * POST creation-candidates (35). Builds the snake `TargetSourceCreationCandidateRequest`
+ * (request casing is snake, D3 — no camel intermediate) and returns the camel
+ * candidate domain array (the route owns the wire→domain boundary).
+ */
+export const getCreationCandidates = async (
   serviceCode: string,
-  input: RegistrationPreviewRequest,
-): Promise<RegistrationPreviewResponse> =>
-  fetchInfraJson<RegistrationPreviewResponse>(
-    `/services/${serviceCode}/target-sources/registration-preview`,
-    { method: 'POST', body: input },
+  input: CreationCandidatesInput,
+): Promise<TargetSourceCreationCandidate[]> => {
+  const description = input.description?.trim();
+  const body = {
+    cloud_type: toRequestCloudType(input.cloudProvider),
+    is_china_region: input.isChinaRegion === true,
+    database_types: input.dbTypes,
+    ...(typeof input.isTerraformExecutionGranted === 'boolean'
+      ? { grant_service_terraform_execution_permission: input.isTerraformExecutionGranted }
+      : {}),
+    metadata: {
+      ...(input.awsAccountId ? { aws_account_id: input.awsAccountId } : {}),
+      ...(input.tenantId ? { tenant_id: input.tenantId } : {}),
+      ...(input.subscriptionId ? { subscription_id: input.subscriptionId } : {}),
+      // GCP project id is `project_id` in the candidate request metadata.
+      ...(input.gcpProjectId ? { project_id: input.gcpProjectId } : {}),
+      ...(description ? { description } : {}),
+    },
+  };
+  return fetchInfraJson<TargetSourceCreationCandidate[]>(
+    `/services/${serviceCode}/creation-candidates`,
+    { method: 'POST', body },
   );
+};
 
-export const getPermissions = async (serviceCode: string): Promise<User[]> => {
-  const data = await fetchInfraCamelJson<{ users: User[] }>(
+/**
+ * POST createTargetSource (36). The selected candidate is posted back verbatim:
+ * the camel domain candidate is re-serialized to the snake wire body
+ * (`TargetSourceCreationCandidateResponse`) via `snakeCaseKeys`. Returns the
+ * created `TargetSourceInfo` (camel, route-normalized).
+ */
+export const createTargetSource = async (
+  serviceCode: string,
+  candidate: TargetSourceCreationCandidate,
+): Promise<TargetSourceInfo> =>
+  fetchInfraJson<TargetSourceInfo>(`/services/${serviceCode}/target-sources`, {
+    method: 'POST',
+    body: snakeCaseKeys(candidate),
+  });
+
+export interface AuthorizedUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const getPermissions = async (serviceCode: string): Promise<AuthorizedUser[]> => {
+  const data = await fetchInfraCamelJson<{ users?: AuthorizedUser[] }>(
     `/services/${serviceCode}/authorized-users`,
   );
-  return data.users;
-};
-
-export const addPermission = async (serviceCode: string, userId: string): Promise<void> => {
-  await fetchInfraJson(`/services/${serviceCode}/authorized-users`, {
-    method: 'POST',
-    body: { userId },
-  });
-};
-
-export const deletePermission = async (serviceCode: string, userId: string): Promise<void> => {
-  await fetchInfraJson(`/services/${serviceCode}/authorized-users/${userId}`, {
-    method: 'DELETE',
-  });
+  return data.users ?? [];
 };
 
 export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
@@ -355,7 +349,7 @@ interface LegacyApprovalRequestInput {
 export interface ApprovalRequestResult {
   id: string;
   targetSourceId: number;
-  status: ApprovalStatus;
+  status: ApprovalRequestStatus;
   requestedAt: string;
   requestedBy: string;
   resourceTotalCount: number;
@@ -394,22 +388,21 @@ export const createApprovalRequest = async (
   targetSourceId: number,
   input: ApprovalRequestInput | LegacyApprovalRequestInput,
 ): Promise<ApprovalRequestResult> => {
-  const payload = normalizeApprovalRequestSummary(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests`, {
-      method: 'POST',
-      body: normalizeApprovalRequestBody(input),
-    }),
-    { targetSourceId },
+  // Route normalizes both the (out-of-contract) request body and the
+  // ApprovalRequestSummaryDto response to camel (ADR-019 D1 boundary).
+  const summary = await fetchInfraJson<ApprovalRequestSummary>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,
+    { method: 'POST', body: input },
   );
 
   return {
-    id: String(payload.id ?? ''),
-    targetSourceId: payload.target_source_id ?? targetSourceId,
-    status: payload.status ?? 'PENDING',
-    requestedAt: payload.requested_at ?? '',
-    requestedBy: payload.requested_by?.user_id ?? '',
-    resourceTotalCount: payload.resource_total_count ?? 0,
-    resourceSelectedCount: payload.resource_selected_count ?? 0,
+    id: String(summary.id || ''),
+    targetSourceId: summary.targetSourceId || targetSourceId,
+    status: summary.status,
+    requestedAt: summary.requestedAt,
+    requestedBy: summary.requestedBy?.userId ?? '',
+    resourceTotalCount: summary.resourceTotalCount,
+    resourceSelectedCount: summary.resourceSelectedCount,
   };
 };
 
@@ -481,7 +474,7 @@ export interface ApprovalHistoryResponse {
       id: string;
       requested_at: string;
       requested_by: string;
-      status?: ApprovalStatus;
+      status?: ApprovalRequestStatus;
       resource_total_count: number;
       resource_selected_count: number;
       input_data: {
@@ -505,20 +498,23 @@ export const getApprovalHistory = async (
   page = 0,
   size = 10
 ): Promise<ApprovalHistoryResponse> => {
-  const payload = normalizeApprovalHistoryPage(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`),
-    targetSourceId,
+  // Route normalizes the flat Spring Page → camel ApprovalHistoryPage
+  // (ADR-019 D1 boundary). Public shape below stays legacy for admin consumers;
+  // `input_data` is no longer carried by the contract (swagger Page.content is
+  // untyped) so it is left empty (was already `[]`).
+  const payload = await fetchInfraJson<ApprovalHistoryPage>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`,
   );
 
   return {
     content: payload.content.map((item) => ({
       request: {
-        id: String(item.request.id ?? ''),
-        requested_at: item.request.requested_at ?? '',
-        requested_by: item.request.requested_by?.user_id ?? '',
-        ...(item.request.status ? { status: item.request.status } : {}),
-        resource_total_count: item.request.resource_total_count ?? 0,
-        resource_selected_count: item.request.resource_selected_count ?? 0,
+        id: String(item.request.id || ''),
+        requested_at: item.request.requestedAt,
+        requested_by: item.request.requestedBy?.userId ?? '',
+        status: item.request.status,
+        resource_total_count: item.request.resourceTotalCount,
+        resource_selected_count: item.request.resourceSelectedCount,
         input_data: {
           resource_inputs: [],
         },
@@ -526,13 +522,13 @@ export const getApprovalHistory = async (
       ...(item.result
         ? {
             result: {
-              id: String(item.result.request_id ?? item.request.id ?? ''),
-              request_id: String(item.result.request_id ?? item.request.id ?? ''),
-              result: item.result.status ?? 'UNAVAILABLE',
-              processed_at: item.result.processed_at ?? '',
+              id: String(item.result.requestId || item.request.id || ''),
+              request_id: String(item.result.requestId || item.request.id || ''),
+              result: item.result.status,
+              processed_at: item.result.processedAt,
               process_info: {
-                user_id: item.result.processed_by?.user_id ?? null,
-                reason: item.result.reason ?? null,
+                user_id: item.result.processedBy?.userId ?? null,
+                reason: item.result.reason || null,
               },
             },
           }
@@ -551,17 +547,16 @@ export const approveApprovalRequestV1 = async (
   targetSourceId: number,
   comment?: string
 ): Promise<{ success: boolean; result: string; processed_at: string }> => {
-  const payload = normalizeApprovalActionResponse(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`, {
-      method: 'POST',
-      body: { comment },
-    }),
+  // Route returns camel ApprovalActionResponse (ADR-019 D1 boundary).
+  const payload = await fetchInfraJson<ApprovalActionResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`,
+    { method: 'POST', body: { comment } },
   );
 
   return {
     success: true,
-    result: payload.status ?? 'APPROVED',
-    processed_at: payload.processed_at ?? '',
+    result: payload.status,
+    processed_at: payload.processedAt,
   };
 };
 
@@ -569,41 +564,25 @@ export const rejectApprovalRequestV1 = async (
   targetSourceId: number,
   reason: string
 ): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> => {
-  const payload = normalizeApprovalActionResponse(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`, {
-      method: 'POST',
-      body: { reason },
-    }),
+  // Route returns camel ApprovalActionResponse (ADR-019 D1 boundary).
+  const payload = await fetchInfraJson<ApprovalActionResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`,
+    { method: 'POST', body: { reason } },
   );
 
   return {
     success: true,
-    result: payload.status ?? 'REJECTED',
-    processed_at: payload.processed_at ?? '',
-    reason: payload.reason ?? reason,
+    result: payload.status,
+    processed_at: payload.processedAt,
+    reason: payload.reason || reason,
   };
 };
 
-// === Approval Request Latest (BFF 실제 응답 구조) ===
+// === Approval Request Latest (swagger ApprovalRequestLatestDto, camel @ boundary) ===
 
-export interface ApprovalRequestLatestResponse {
-  request: {
-    id: number;
-    target_source_id: number;
-    status: string;
-    requested_by: { user_id: string };
-    requested_at: string;
-    resource_total_count: number;
-    resource_selected_count: number;
-  };
-  result: {
-    request_id: number | null;
-    status: string;
-    processed_by: { user_id: string };
-    processed_at: string;
-    reason: string | null;
-  };
-}
+// Public alias kept for existing Step2 consumers; the route now returns the
+// camel ApprovalRequestLatest domain shape (request/resources/result).
+export type ApprovalRequestLatestResponse = ApprovalRequestLatest;
 
 export const getApprovalRequestLatest = async (
   targetSourceId: number,
@@ -617,24 +596,34 @@ export const getApprovalRequestLatest = async (
 export const cancelApprovalRequest = async (
   targetSourceId: number
 ): Promise<{ success: boolean }> => {
-  await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`, {
-    method: 'POST',
-  });
+  // Route returns camel ApprovalActionResponse; callers only need success.
+  await fetchInfraJson<ApprovalActionResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`,
+    { method: 'POST' },
+  );
   return {
     success: true,
   };
 };
 
-export const systemResetApprovalRequest = async (
-  targetSourceId: number
-): Promise<{ success: boolean }> => {
-  await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/approval-requests/system-reset`, {
-    method: 'POST',
-  });
-  return {
-    success: true,
-  };
-};
+// 연동 불가 판정 (swagger approval-unavailable, #7) — body { reason } required.
+export const markApprovalRequestUnavailable = async (
+  targetSourceId: number,
+  reason: string,
+): Promise<ApprovalUnavailableResponse> =>
+  fetchInfraJson<ApprovalUnavailableResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable`,
+    { method: 'POST', body: { reason } },
+  );
+
+// 연동 불가 담당자 확인 (swagger approval-unavailable/confirm, #8) — no body.
+export const confirmApprovalUnavailable = async (
+  targetSourceId: number,
+): Promise<ApprovalUnavailableConfirmResponse> =>
+  fetchInfraJson<ApprovalUnavailableConfirmResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable/confirm`,
+    { method: 'POST' },
+  );
 
 export type BffProcessStatus = 'IDLE' | 'PENDING' | 'CONFIRMING' | 'CONFIRMED' | 'INSTALLED' | 'CONNECTED' | 'COMPLETED';
 

@@ -107,16 +107,16 @@ interface NormalizedData {
 }
 
 const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): NormalizedData => {
-  const totalCount = response.request.resource_total_count;
-  const selectedCount = response.request.resource_selected_count;
+  const totalCount = response.request?.resourceTotalCount ?? 0;
+  const selectedCount = response.request?.resourceSelectedCount ?? 0;
   return {
-    requestId: String(response.request.id),
-    requestedBy: response.request.requested_by?.user_id ?? response.request.requested_by ?? 'Unknown',
-    requestedAt: response.request.requested_at,
-    resultStatus: response.result.status,
-    processedAt: response.result.processed_at,
-    processedBy: response.result.processed_by?.user_id ?? response.result.processed_by ?? null,
-    reason: response.result.reason,
+    requestId: String(response.request?.id ?? ''),
+    requestedBy: response.request?.requestedBy?.userId ?? 'Unknown',
+    requestedAt: response.request?.requestedAt ?? '',
+    resultStatus: response.result?.status,
+    processedAt: response.result?.processedAt,
+    processedBy: response.result?.processedBy?.userId ?? null,
+    reason: response.result?.reason ?? null,
     totalCount,
     selectedCount,
     excludedCount: Math.max(totalCount - selectedCount, 0),

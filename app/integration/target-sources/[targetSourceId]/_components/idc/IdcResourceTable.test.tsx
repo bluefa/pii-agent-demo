@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { IDC_SEED } from '@/lib/mock-idc';
-import { toIdcResourceView, type IdcResourceView } from '@/app/lib/api/idc';
+import { type IdcResourceView } from '@/app/lib/api/idc';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 
 // Stub the tooltip/pagination chrome so only the table cells under test render.
@@ -56,15 +55,5 @@ describe('IdcResourceTable — step-6 credro/conn', () => {
     expect(screen.getByText('자격 증명 필요')).toBeTruthy();
     // No-cred credro cell renders the em-dash placeholder, never 'Pending'.
     expect(screen.queryByText('Pending')).toBeNull();
-  });
-});
-
-/** The IDC mock seed must carry row1's read-only credential (v16 idcTargets row1). */
-describe('IDC_SEED credential seeding', () => {
-  it('seeds idc_svc_mysql on row1 only, leaving the other rows credential-less', () => {
-    const views = IDC_SEED.map((r, i) => toIdcResourceView(r, i));
-    expect(views[0].credentialId).toBe('idc_svc_mysql');
-    expect(views[1].credentialId).toBeUndefined();
-    expect(views[2].credentialId).toBeUndefined();
   });
 });

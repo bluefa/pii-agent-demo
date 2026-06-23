@@ -43,3 +43,16 @@ export interface AwsVerifyTfRoleBody {
   roleArn?: string;
   accountId?: string;
 }
+
+/**
+ * GET /target-sources/{id}/aws/verify-{scan,execution}-role — swagger
+ * `AwsRoleVerificationResponse` (camel domain). `status`/`fail_reason` are free
+ * strings in the contract; the UI maps known values (ADR-019 G §G4/§G13).
+ */
+export interface AwsRoleVerificationResponse {
+  status?: string;
+  roleArn?: string;
+  failReason?: string;
+  failMessage?: string;
+  lastVerifiedAt?: string;
+}

@@ -20,6 +20,7 @@ export const mockUsers = {
       );
     }
 
+    // Wire: UserSearchResponse { users: UserInfo[] } — case-neutral keys.
     return NextResponse.json({
       users: users.map((u) => ({
         id: u.id,
@@ -39,26 +40,12 @@ export const mockUsers = {
       );
     }
 
-    return NextResponse.json({ user });
-  },
-
-  getServices: async () => {
-    const user = await mockData.getCurrentUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
-        { status: 401 }
-      );
-    }
-
-    const allServiceCodes = mockData.mockServiceCodes;
-    const services =
-      user.role === 'ADMIN'
-        ? allServiceCodes
-        : allServiceCodes.filter((s) => user.serviceCodePermissions.includes(s.code));
-
-    return NextResponse.json({ services });
+    // Wire: UserMeResponse is FLAT { id, name, email } (50) — no `{ user }` wrapper.
+    return NextResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    });
   },
 
   getServicesPage: async (page: number, size: number, query?: string) => {
@@ -89,17 +76,30 @@ export const mockUsers = {
     const start = page * size;
     const content = filtered.slice(start, start + size);
 
+    // Wire: PageServiceItem (49) — Spring Page envelope. Envelope keys are
+    // camelCase on the wire; only `content[].service_code/service_name` is snake.
     return NextResponse.json({
       content: content.map((s) => ({
-        serviceCode: s.code,
-        serviceName: s.name,
+        service_code: s.code,
+        service_name: s.name,
       })),
-      page: {
-        page,
-        size,
-        totalElements,
-        totalPages,
+      totalElements,
+      totalPages,
+      number: page,
+      size,
+      first: page === 0,
+      last: page >= totalPages - 1,
+      numberOfElements: content.length,
+      empty: content.length === 0,
+      pageable: {
+        paged: true,
+        pageNumber: page,
+        pageSize: size,
+        unpaged: false,
+        offset: page * size,
+        sort: [],
       },
+      sort: [],
     });
   },
 };

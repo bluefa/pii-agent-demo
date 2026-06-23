@@ -34,11 +34,12 @@ const ConnectionTestSection = ({
   providerLabel: string;
   refreshProject: () => void;
 }) => {
-  const { state, retry } = useConfirmedIntegration();
+  const { targetSourceId, state, retry } = useConfirmedIntegration();
   if (state.status === 'loading') return <LoadingRow message="불러오는 중..." />;
   if (state.status === 'error') return <ErrorRow message={state.message} onRetry={retry} />;
   return (
     <ConnectionTestCard
+      targetSourceId={targetSourceId}
       confirmed={state.data}
       providerLabel={providerLabel}
       refreshProject={refreshProject}

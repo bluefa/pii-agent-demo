@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AppError } from '@/lib/errors';
-import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
+import { getIdcPreviousRequest, type IdcResourceView } from '@/app/lib/api/idc';
 
 /**
  * Discriminated state for an IDC "read resources" fetch (ADR-017 §5 fetch-high).
@@ -17,6 +17,10 @@ const isAbort = (err: unknown): boolean => err instanceof AppError && err.code =
 
 /**
  * Shared "read resources" fetch for read-only IDC steps (2/3/6/7).
+ *
+ * The contract exposes no live-list GET (`/idc/.../resources` was removed); the
+ * submitted request (`getIdcPreviousRequest`) is the read source for these
+ * post-submission steps.
  *
  * Behavior (idc-v15 §DR):
  *   - initial `loading` state,
@@ -35,7 +39,7 @@ export function useIdcResources(targetSourceId: number): { state: ResourcesState
   useEffect(() => {
     const controller = new AbortController();
 
-    void getIdcResources(targetSourceId, { signal: controller.signal })
+    void getIdcPreviousRequest(targetSourceId, { signal: controller.signal })
       .then((resources) => {
         if (controller.signal.aborted) return; // cleanup aborted this request (DR3)
         setState({ status: 'ready', resources });

@@ -17,6 +17,10 @@ export const getAzureInstallationStatus = (
 ): Promise<AzureV1InstallationStatus> =>
   fetchInfraCamelJson<AzureV1InstallationStatus>(`${BASE_URL}/${targetSourceId}/installation-status`);
 
+/**
+ * TODO(L3): /azure/.../check-installation is NOT in install-v1.yaml (removed
+ * endpoint). Refresh = re-GET installation-status; remove this fn + its callers.
+ */
 export const checkAzureInstallation = (
   targetSourceId: number,
 ): Promise<AzureV1InstallationStatus> =>

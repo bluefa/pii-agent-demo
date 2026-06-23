@@ -845,8 +845,9 @@ export const mockProjects: Project[] = [
 ];
 
 // ===== IDC 데모 프로젝트 (Step 1~7) =====
-// IDC 리소스 데이터는 lib/mock-idc.ts 의 idcStore 가 보유한다. 프로젝트의
-// resources 는 비워 두고 processStatus 만 단계별로 시드해 각 화면을 데모한다.
+// IDC 리소스 데이터는 lib/mock-idc.ts 가 wire 형태로 제공한다(previous-request /
+// installation-status). 프로젝트의 resources 는 비워 두고 processStatus 만
+// 단계별로 시드해 각 화면을 데모한다.
 const makeIdcProject = (
   targetSourceId: number,
   step: ProcessStatus,

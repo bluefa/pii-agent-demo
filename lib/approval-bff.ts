@@ -29,15 +29,6 @@ export interface ApprovalRequestCreateBody {
   exclusion_reason_default?: string;
 }
 
-export type ApprovalStatus =
-  | 'PENDING'
-  | 'APPROVED'
-  | 'AUTO_APPROVED'
-  | 'REJECTED'
-  | 'CANCELLED'
-  | 'UNAVAILABLE'
-  | 'CONFIRMED';
-
 export type BffApprovalProcessStatus =
   | 'IDLE'
   | 'PENDING'
@@ -77,50 +68,6 @@ export interface ExcludedResourceInfoDto {
   database_region?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
-}
-
-export interface ApprovalRequestSummaryDto {
-  id?: number;
-  target_source_id?: number;
-  status?: ApprovalStatus;
-  requested_by?: ApprovalActorDto;
-  requested_at?: string;
-  resource_total_count?: number;
-  resource_selected_count?: number;
-}
-
-export interface ApprovalActionResponseDto {
-  request_id?: number;
-  status?: ApprovalStatus;
-  processed_by?: ApprovalActorDto;
-  processed_at?: string;
-  reason?: string;
-}
-
-export interface ApprovalHistoryItemDto {
-  request: ApprovalRequestSummaryDto;
-  result?: ApprovalActionResponseDto;
-}
-
-export interface ApprovalHistoryPageDto {
-  totalPages: number;
-  totalElements: number;
-  pageable: {
-    paged: boolean;
-    pageNumber: number;
-    pageSize: number;
-    unpaged: boolean;
-    offset: number;
-    sort: [];
-  };
-  first: boolean;
-  last: boolean;
-  size: number;
-  content: ApprovalHistoryItemDto[];
-  number: number;
-  sort: [];
-  numberOfElements: number;
-  empty: boolean;
 }
 
 export interface ApprovedIntegrationResponseDto {
@@ -181,28 +128,6 @@ const toIntegrationStatus = (value: unknown): ResourceIntegrationStatus | undefi
   return undefined;
 };
 
-const mapApprovalStatus = (value: unknown): ApprovalStatus | undefined => {
-  switch (String(value).toUpperCase()) {
-    case 'PENDING':
-      return 'PENDING';
-    case 'APPROVED':
-      return 'APPROVED';
-    case 'AUTO_APPROVED':
-      return 'AUTO_APPROVED';
-    case 'REJECTED':
-      return 'REJECTED';
-    case 'CANCELLED':
-      return 'CANCELLED';
-    case 'UNAVAILABLE':
-      return 'UNAVAILABLE';
-    case 'CONFIRMED':
-    case 'COMPLETED':
-      return 'CONFIRMED';
-    default:
-      return undefined;
-  }
-};
-
 const mapProcessStatus = (value: unknown): BffApprovalProcessStatus | undefined => {
   switch (String(value).toUpperCase()) {
     case 'IDLE':
@@ -247,20 +172,6 @@ const getLegacyApprovalInput = (value: unknown): JsonRecord | null => {
   return isRecord(value.input_data) ? value.input_data : null;
 };
 
-const countLegacyResourceInputs = (value: unknown): {
-  total: number;
-  selected: number;
-} => {
-  const input = getLegacyApprovalInput(value);
-  const resourceInputs = Array.isArray(input?.resource_inputs) ? input.resource_inputs : [];
-  const selected = resourceInputs.filter((item) => isRecord(item) && item.selected === true).length;
-
-  return {
-    total: resourceInputs.length,
-    selected,
-  };
-};
-
 const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
   if (!isRecord(value)) return {};
 
@@ -296,6 +207,69 @@ const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
     ...(resourceName ? { resource_name: resourceName } : {}),
     ...(scanStatus ? { scan_status: scanStatus } : {}),
     ...(integrationStatus ? { integration_status: integrationStatus } : {}),
+  };
+};
+
+// ADR-019 E5/D-4: swagger ApprovedIntegrationResponseDto carries `resources`
+// (TargetSourceResourceItemDto), not the legacy `resource_infos` (ResourceConfigDto).
+// The item's connection fields live under `metadata.*`; the top level only has
+// resource_id / resource_name / resource_type / integration_category / exclusion_reason.
+// Dual-read snake (mock path, no camelCaseKeys) + camel (real path, get camelizes).
+const SWAGGER_EXCLUDED_CATEGORIES = new Set(['NO_INSTALL_NEEDED', 'INSTALL_INELIGIBLE']);
+
+const toResourceConfigFromItem = (value: unknown): ResourceConfigDto => {
+  if (!isRecord(value)) return {};
+
+  const metadata = isRecord(value.metadata) ? value.metadata : {};
+  const resourceId = toStringOrUndefined(value.resource_id) ?? toStringOrUndefined(value.resourceId);
+  const resourceType = toStringOrUndefined(value.resource_type) ?? toStringOrUndefined(value.resourceType);
+  const resourceName = toStringOrUndefined(value.resource_name) ?? toStringOrUndefined(value.resourceName);
+  const databaseType =
+    toStringOrUndefined(metadata.database_type) ?? toStringOrUndefined(metadata.databaseType);
+  const port = toNumberOrUndefined(metadata.port);
+  const host = toStringOrUndefined(metadata.host);
+  const oracleServiceId =
+    toStringOrUndefined(metadata.oracle_service_id) ?? toStringOrUndefined(metadata.oracleServiceId);
+  const networkInterfaceId =
+    toStringOrUndefined(metadata.network_interface_id) ?? toStringOrUndefined(metadata.networkInterfaceId);
+  const ipConfiguration =
+    toStringOrUndefined(metadata.ip_configuration) ?? toStringOrUndefined(metadata.ipConfiguration);
+  const credentialId =
+    toStringOrUndefined(metadata.credential_id) ?? toStringOrUndefined(metadata.credentialId);
+  const databaseRegion = toStringOrUndefined(metadata.region);
+
+  return {
+    ...(resourceId ? { resource_id: resourceId } : {}),
+    ...(resourceType ? { resource_type: resourceType } : {}),
+    ...(databaseType ? { database_type: databaseType } : {}),
+    ...(port !== undefined ? { port } : {}),
+    ...(host ? { host } : {}),
+    ...(oracleServiceId ? { oracle_service_id: oracleServiceId } : {}),
+    ...(networkInterfaceId ? { network_interface_id: networkInterfaceId } : {}),
+    ...(ipConfiguration ? { ip_configuration: ipConfiguration } : {}),
+    ...(credentialId ? { credential_id: credentialId } : {}),
+    ...(databaseRegion ? { database_region: databaseRegion } : {}),
+    ...(resourceName ? { resource_name: resourceName } : {}),
+  };
+};
+
+const toExcludedInfoFromItem = (value: unknown): ExcludedResourceInfoDto => {
+  const record = isRecord(value) ? value : {};
+  const metadata = isRecord(record.metadata) ? record.metadata : {};
+  const resourceId = toStringOrUndefined(record.resource_id) ?? toStringOrUndefined(record.resourceId);
+  const exclusionReason =
+    toStringOrUndefined(record.exclusion_reason) ?? toStringOrUndefined(record.exclusionReason);
+  const resourceName = toStringOrUndefined(record.resource_name) ?? toStringOrUndefined(record.resourceName);
+  const databaseType =
+    toStringOrUndefined(metadata.database_type) ?? toStringOrUndefined(metadata.databaseType);
+  const databaseRegion = toStringOrUndefined(metadata.region);
+
+  return {
+    ...(resourceId ? { resource_id: resourceId } : {}),
+    ...(exclusionReason ? { exclusion_reason: exclusionReason } : {}),
+    ...(resourceName ? { resource_name: resourceName } : {}),
+    ...(databaseType ? { database_type: databaseType } : {}),
+    ...(databaseRegion ? { database_region: databaseRegion } : {}),
   };
 };
 
@@ -393,134 +367,50 @@ export const normalizeApprovalRequestBody = (body: unknown): ApprovalRequestCrea
   };
 };
 
-export const normalizeApprovalRequestSummary = (
-  value: unknown,
-  options: {
-    targetSourceId?: number;
-    fallbackStatus?: ApprovalStatus;
-    fallbackTotalCount?: number;
-    fallbackSelectedCount?: number;
-  } = {},
-): ApprovalRequestSummaryDto => {
-  const payload = isRecord(value) && isRecord(value.approval_request) ? value.approval_request : value;
-  const record = isRecord(payload) ? payload : {};
-  const counts = countLegacyResourceInputs(record);
-  const id = toNumberOrUndefined(record.id);
-  const targetSourceId = toNumberOrUndefined(record.target_source_id) ?? options.targetSourceId;
-  const status = mapApprovalStatus(record.status) ?? options.fallbackStatus;
-  const requestedBy = toActorDto(record.requested_by);
-  const requestedAt = toStringOrUndefined(record.requested_at);
-  const resourceTotalCount =
-    toNumberOrUndefined(record.resource_total_count) ?? options.fallbackTotalCount ?? counts.total;
-  const resourceSelectedCount =
-    toNumberOrUndefined(record.resource_selected_count) ?? options.fallbackSelectedCount ?? counts.selected;
-
-  return {
-    ...(id !== undefined ? { id } : {}),
-    ...(targetSourceId !== undefined ? { target_source_id: targetSourceId } : {}),
-    ...(status ? { status } : {}),
-    ...(requestedBy ? { requested_by: requestedBy } : {}),
-    ...(requestedAt ? { requested_at: requestedAt } : {}),
-    ...(resourceTotalCount > 0 ? { resource_total_count: resourceTotalCount } : {}),
-    ...(resourceSelectedCount > 0 ? { resource_selected_count: resourceSelectedCount } : {}),
-  };
-};
-
-export const normalizeApprovalActionResponse = (
-  value: unknown,
-  options: {
-    fallbackRequestId?: number;
-    fallbackStatus?: ApprovalStatus;
-  } = {},
-): ApprovalActionResponseDto => {
-  const record = isRecord(value) ? value : {};
-  const processInfo = isRecord(record.process_info) ? record.process_info : null;
-  const requestId = toNumberOrUndefined(record.request_id) ?? options.fallbackRequestId;
-  const status = mapApprovalStatus(record.status) ?? mapApprovalStatus(record.result) ?? options.fallbackStatus;
-  const processedBy = toActorDto(record.processed_by) ?? toActorDto(processInfo?.user_id);
-  const processedAt = toStringOrUndefined(record.processed_at);
-  const reason = toStringOrUndefined(record.reason) ?? toStringOrUndefined(processInfo?.reason);
-
-  return {
-    ...(requestId !== undefined ? { request_id: requestId } : {}),
-    ...(status ? { status } : {}),
-    ...(processedBy ? { processed_by: processedBy } : {}),
-    ...(processedAt ? { processed_at: processedAt } : {}),
-    ...(reason ? { reason } : {}),
-  };
-};
-
-export const buildApprovalHistoryPage = (
-  content: ApprovalHistoryItemDto[],
-  value: unknown,
-): ApprovalHistoryPageDto => {
-  const source = isRecord(value) ? value : {};
-  const page = isRecord(source.page) ? source.page : source;
-  const number = toNumberOrUndefined(page.number) ?? 0;
-  const size = toNumberOrUndefined(page.size) ?? content.length;
-  const totalElements = toNumberOrUndefined(page.totalElements) ?? toNumberOrUndefined(page.total_elements) ?? content.length;
-  const totalPages = toNumberOrUndefined(page.totalPages) ?? toNumberOrUndefined(page.total_pages) ?? (size > 0 ? Math.ceil(totalElements / size) : 1);
-
-  return {
-    totalPages,
-    totalElements,
-    pageable: {
-      paged: true,
-      pageNumber: number,
-      pageSize: size,
-      unpaged: false,
-      offset: number * size,
-      sort: [],
-    },
-    first: number === 0,
-    last: number >= Math.max(totalPages - 1, 0),
-    size,
-    content,
-    number,
-    sort: [],
-    numberOfElements: content.length,
-    empty: content.length === 0,
-  };
-};
-
-export const normalizeApprovalHistoryPage = (
-  value: unknown,
-  targetSourceId: number,
-): ApprovalHistoryPageDto => {
-  const record = isRecord(value) ? value : {};
-  const rawContent = Array.isArray(record.content) ? record.content : [];
-  const content = rawContent
-    .filter(isRecord)
-    .map((item) => {
-      const result = isRecord(item.result)
-        ? normalizeApprovalActionResponse(item.result)
-        : undefined;
-      const request = normalizeApprovalRequestSummary(item.request, {
-        targetSourceId,
-        fallbackStatus: result?.status ?? 'PENDING',
-      });
-
-      return {
-        request,
-        ...(result ? { result } : {}),
-      };
-    });
-
-  return buildApprovalHistoryPage(content, record);
-};
-
 export const normalizeApprovedIntegration = (
   value: unknown,
 ): ApprovedIntegrationResponseDto => {
+  // Legacy mock still wraps in `approved_integration`; swagger is flat (D-10).
   const payload = isRecord(value) && isRecord(value.approved_integration) ? value.approved_integration : value;
   const record = isRecord(payload) ? payload : {};
+  const id = toNumberOrUndefined(record.id);
+  const requestId = toNumberOrUndefined(record.request_id) ?? toNumberOrUndefined(record.requestId);
+  const approvedAt = toStringOrUndefined(record.approved_at) ?? toStringOrUndefined(record.approvedAt);
+  const approvedBy = toActorDto(record.approved_by ?? record.approvedBy);
+
+  // ADR-019 E5/D-4: swagger key is `resources` (TargetSourceResourceItemDto).
+  // Split selected/excluded by per-item `integration_category`; connection fields
+  // are mapped from `metadata.*`. Legacy `resource_infos` + top-level
+  // `excluded_resource_infos`/`excluded_resource_ids` remain a fallback (D6).
+  const resources = Array.isArray(record.resources) ? record.resources : null;
+  if (resources) {
+    const selected: ResourceConfigDto[] = [];
+    const excluded: ExcludedResourceInfoDto[] = [];
+    for (const item of resources) {
+      const category =
+        (isRecord(item) &&
+          (toStringOrUndefined(item.integration_category) ??
+            toStringOrUndefined(item.integrationCategory))) ||
+        undefined;
+      if (category && SWAGGER_EXCLUDED_CATEGORIES.has(category)) {
+        excluded.push(toExcludedInfoFromItem(item));
+      } else {
+        selected.push(toResourceConfigFromItem(item));
+      }
+    }
+    return {
+      ...(id !== undefined ? { id } : {}),
+      ...(requestId !== undefined ? { request_id: requestId } : {}),
+      ...(approvedAt ? { approved_at: approvedAt } : {}),
+      ...(approvedBy ? { approved_by: approvedBy } : {}),
+      resource_infos: selected,
+      ...(excluded.length > 0 ? { excluded_resource_infos: excluded } : {}),
+    };
+  }
+
   const resourceInfos = Array.isArray(record.resource_infos)
     ? record.resource_infos.map(toResourceConfigDto)
     : [];
-  const id = toNumberOrUndefined(record.id);
-  const requestId = toNumberOrUndefined(record.request_id);
-  const approvedAt = toStringOrUndefined(record.approved_at);
-  const approvedBy = toActorDto(record.approved_by);
   const excludedResourceInfos = toExcludedResourceInfos(record);
 
   return {

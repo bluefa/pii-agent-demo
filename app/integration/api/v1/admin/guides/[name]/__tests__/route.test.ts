@@ -41,7 +41,7 @@ describe('admin/guides/[name] route', () => {
     mockedPut.mockResolvedValue({
       name: 'AWS_APPLYING',
       contents: { ko: '<p>k</p>', en: '<p>e</p>' },
-      updated_at: '2026-04-25T00:00:00Z',
+      updatedAt: '2026-04-25T00:00:00Z',
     });
     const req = new Request(
       'http://localhost/integration/api/v1/admin/guides/AWS_APPLYING',
@@ -63,7 +63,7 @@ describe('admin/guides/[name] route', () => {
     mockedPut.mockResolvedValue({
       name: 'AWS_APPLYING',
       contents: { ko: '', en: '' },
-      updated_at: '2026-04-25T00:00:00Z',
+      updatedAt: '2026-04-25T00:00:00Z',
     });
     const req = new Request(
       'http://localhost/integration/api/v1/admin/guides/AWS_APPLYING',

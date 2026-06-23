@@ -3,11 +3,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '@/lib/errors';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
-import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
+import { getIdcPreviousRequest, type IdcResourceView } from '@/app/lib/api/idc';
 
-vi.mock('@/app/lib/api/idc', () => ({ getIdcResources: vi.fn() }));
+vi.mock('@/app/lib/api/idc', () => ({ getIdcPreviousRequest: vi.fn() }));
 
-const mockGet = vi.mocked(getIdcResources);
+const mockGet = vi.mocked(getIdcPreviousRequest);
 
 /**
  * The shared IDC read. The abort/error discriminator gates all four read-only

@@ -19,7 +19,7 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
     vi.clearAllMocks();
   });
 
-  it('BFF 형식의 latest 응답을 그대로 반환한다', async () => {
+  it('snake 와이어 응답을 camel 도메인 형식으로 정규화한다', async () => {
     const bffResponse = {
       request: {
         id: 100,
@@ -46,7 +46,25 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]/approval-reque
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(bffResponse);
+    await expect(response.json()).resolves.toEqual({
+      request: {
+        id: 100,
+        targetSourceId: 1003,
+        status: 'APPROVED',
+        requestedBy: { userId: '홍길동' },
+        requestedAt: '2026-03-29T10:00:00Z',
+        resourceTotalCount: 10,
+        resourceSelectedCount: 3,
+      },
+      resources: [],
+      result: {
+        requestId: 100,
+        status: 'APPROVED',
+        processedBy: { userId: 'admin' },
+        processedAt: '2026-03-29T10:10:00Z',
+        reason: '',
+      },
+    });
     expect(mockedGetApprovalRequestLatest).toHaveBeenCalledWith(1003);
   });
 

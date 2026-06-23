@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
-import { AppError } from '@/lib/errors';
-import { cardStyles, cn } from '@/lib/theme';
-import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
+import { cardStyles, cn, idcStyles, numericFeatures, textColors } from '@/lib/theme';
+import {
+  IDC_INSTALL_TASK_STATUS,
+  idcInstallStatusLabel,
+  type IdcInstallStatus,
+  type IdcResourceInstallView,
+} from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -13,37 +16,37 @@ import {
   InstallTaskPipeline,
   type InstallTaskPipelineItem,
 } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import type { InstallTaskStatus } from '@/lib/constants/gcp';
-import type { IdcTfStatus } from '@/app/lib/api/idc';
+import type { InstallTaskStatus } from '@/lib/constants/install-task';
 import {
   ProjectPageMeta,
   RejectionAlert,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
-import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
-import { IdcFirewallModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/modals/IdcFirewallModal';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { LoadingState } from '@/app/components/ui/state';
 
-/** v15 `bdc_tf` → install-task pill state (L6582 done / L6590 running). */
-const BDC_TASK_STATUS: Record<IdcTfStatus, InstallTaskStatus> = {
-  COMPLETED: 'done',
-  IN_PROGRESS: 'running',
-  FAILED: 'failed',
-  PENDING: 'pending',
+/**
+ * Aggregate a set of per-resource install statuses into one card bucket:
+ * any FAIL → failed; else every status resolved (done bucket) → done; else
+ * running. UNKNOWN resolves to the `running` bucket via IDC_INSTALL_TASK_STATUS
+ * (it is work-in-progress), so a card with any UNKNOWN/IN_PROGRESS reads running.
+ */
+const aggregateCardStatus = (statuses: IdcInstallStatus[]): InstallTaskStatus => {
+  if (statuses.length === 0) return 'pending';
+  const buckets = statuses.map((s) => IDC_INSTALL_TASK_STATUS[s]);
+  if (buckets.includes('failed')) return 'failed';
+  if (buckets.includes('running')) return 'running';
+  return 'done';
 };
 
-const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
-
 /**
- * IDC Step 4 — Agent 설치 (v15 `data-prov-view="idc"`, L6579~6634).
+ * IDC Step 4 — Agent 설치.
  *
- * Two-task install pipeline (BDC 리소스 설치 + 방화벽 확인) over the live
- * installation status, plus the read-only 연동 대상 목록 (`src`,`fw` columns)
- * and a click-through 방화벽 확인 모달.
- *
- * Status comes from `useIdcInstallationStatus` (already DR3 abort + DR4 reset +
- * DR5 stale-guard). The resource list is fetched here with its own
- * AbortController + stale-guard so a target switch cannot leak rows (§DR).
+ * Two-task install pipeline derived from the new installation-status contract's
+ * three per-resource step DTOs (ADR-019):
+ *   card 1 "BDC 측 리소스 설치 진행" ← aggregate of cxTerraform + bdpTerraform,
+ *   card 2 "방화벽 확인"           ← aggregate of firewallCheck.
+ * A per-resource status list surfaces the resource-level `installation_status`
+ * (UNKNOWN → "작업중"). Status comes from `useIdcInstallationStatus` (DR-safe).
  */
 export const IdcStep4Installing = ({
   project,
@@ -56,42 +59,12 @@ export const IdcStep4Installing = ({
   const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLING);
   const { status, loading } = useIdcInstallationStatus(targetSourceId);
 
-  const [resources, setResources] = useState<IdcResourceView[]>([]);
-  const [firewallOpen, setFirewallOpen] = useState(false);
+  const resources: IdcResourceInstallView[] = status?.resources ?? [];
 
-  // §DR3/DR5 — abort on switch/unmount, discard stale responses, scope by id.
-  useEffect(() => {
-    const controller = new AbortController();
-    let active = true;
-
-    void getIdcResources(targetSourceId, { signal: controller.signal })
-      .then((data) => {
-        if (active) setResources(data);
-      })
-      .catch((err) => {
-        if (isAbort(err) || !active) return;
-        if (active) setResources([]);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [targetSourceId]);
-
-  const bdcStatus: InstallTaskStatus = status ? BDC_TASK_STATUS[status.bdcTf] : 'pending';
-  const firewallOpened = status?.firewallOpened ?? false;
-
-  // Per-resource Source IP / firewall state is surfaced by installation-status
-  // (contract §6 G6), not by /resources. Merge it into the displayed rows so a
-  // backend that follows the contract — where /resources omits these fields —
-  // still renders Step 4 correctly. In mock both carry the same values, so the
-  // demo is unchanged; this only removes the cutover risk.
-  const statusById = new Map((status?.resources ?? []).map((r) => [r.resourceId, r]));
-  const mergedResources: IdcResourceView[] = resources.map((r) => {
-    const s = statusById.get(r.resourceId);
-    return s ? { ...r, sourceIps: s.sourceIps, firewallOpen: s.firewallOpen } : r;
-  });
+  const bdcStatus = aggregateCardStatus(
+    resources.flatMap((r) => [r.cxTerraform.status, r.bdpTerraform.status]),
+  );
+  const firewallStatus = aggregateCardStatus(resources.map((r) => r.firewallCheck.status));
 
   const tasks: InstallTaskPipelineItem[] = [
     {
@@ -104,8 +77,7 @@ export const IdcStep4Installing = ({
       key: 'firewall',
       title: '방화벽 확인',
       sub: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계',
-      status: firewallOpened ? 'done' : 'running',
-      onClick: () => setFirewallOpen(true),
+      status: firewallStatus,
     },
   ];
 
@@ -128,31 +100,60 @@ export const IdcStep4Installing = ({
               승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
             </p>
           </div>
-          {/* v16 L6588 — provider indicator (not a control), short provider name. */}
           <span className="text-[11.5px] text-[#8B95A1]">
             Provider: <strong className="text-[#191F28]">IDC</strong>
           </span>
         </header>
         <div className={cardStyles.body}>
-          <InstallTaskPipeline items={tasks} columns={2} />
+          {loading && resources.length === 0 ? (
+            <LoadingState label="설치 정보를 불러오는 중입니다." />
+          ) : (
+            <>
+              <InstallTaskPipeline items={tasks} columns={2} />
 
-          <div className="mt-6">
-            {loading && resources.length === 0 ? (
-              <LoadingState label="설치 정보를 불러오는 중입니다." />
-            ) : (
-              <IdcResourceTable resources={mergedResources} cols={['src', 'fw']} />
-            )}
-          </div>
+              {resources.length > 0 && (
+                <div className={cn('mt-6', idcStyles.table.frame)}>
+                  <table className="w-full">
+                    <tbody className={idcStyles.table.body}>
+                      {resources.map((r) => (
+                        <tr key={r.resourceId}>
+                          <td
+                            className={cn(
+                              idcStyles.table.cell,
+                              'font-mono text-[12px]',
+                              textColors.primary,
+                              numericFeatures.tabular,
+                            )}
+                          >
+                            {r.resourceId}
+                          </td>
+                          <td
+                            className={cn(
+                              idcStyles.table.cell,
+                              'text-right text-[12px]',
+                              textColors.secondary,
+                            )}
+                          >
+                            {idcInstallStatusLabel(r.installationStatus)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {status?.lastCheck?.checkedAt && (
+                <p className={cn('mt-4 text-[12px]', textColors.tertiary)}>
+                  마지막 확인: {new Date(status.lastCheck.checkedAt).toLocaleString('ko-KR')}
+                </p>
+              )}
+            </>
+          )}
         </div>
       </section>
 
       <RejectionAlert project={project} />
-
-      <IdcFirewallModal
-        isOpen={firewallOpen}
-        onClose={() => setFirewallOpen(false)}
-        resources={mergedResources}
-      />
     </>
   );
 };

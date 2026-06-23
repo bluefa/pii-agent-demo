@@ -9,6 +9,7 @@ import type { AsyncState } from '@/app/integration/target-sources/[targetSourceI
 import type { ConfirmedResource } from '@/lib/types/resources';
 
 export interface ConfirmedIntegrationContextValue {
+  targetSourceId: number;
   state: AsyncState<readonly ConfirmedResource[]>;
   retry: () => void;
 }
@@ -61,7 +62,7 @@ export const ConfirmedIntegrationDataProvider: FC<ProviderProps> = ({ targetSour
   }, []);
 
   return (
-    <ConfirmedIntegrationContext.Provider value={{ state, retry }}>
+    <ConfirmedIntegrationContext.Provider value={{ targetSourceId, state, retry }}>
       {children}
     </ConfirmedIntegrationContext.Provider>
   );

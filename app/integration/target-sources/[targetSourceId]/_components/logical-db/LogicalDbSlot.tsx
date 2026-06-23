@@ -26,14 +26,19 @@ interface LogicalDbModalTarget {
  * the reviewer that persistence lands with the BFF endpoint.
  */
 export const LogicalDbSlot = () => {
-  const { state } = useConfirmedIntegration();
+  const { targetSourceId, state, retry } = useConfirmedIntegration();
   const modal = useModal<LogicalDbModalTarget>();
   const toast = useToast();
 
-  const handleSave = useCallback(() => {
-    toast.info('논리 DB 정보 저장은 BFF 연동 후 활성화됩니다.');
+  const handleSaved = useCallback(() => {
+    toast.success('논리 DB 제외 정책을 저장했습니다.');
     modal.close();
-  }, [modal, toast]);
+    retry();
+  }, [modal, toast, retry]);
+
+  const handleError = useCallback(() => {
+    toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
+  }, [toast]);
 
   if (state.status !== 'ready' || state.data.length === 0) {
     return null;
@@ -131,9 +136,11 @@ export const LogicalDbSlot = () => {
       {modal.data && (
         <LogicalDbModalLoader
           open={modal.isOpen}
+          targetSourceId={targetSourceId}
           resourceId={modal.data.resourceId}
           resourceName={modal.data.resourceName}
-          onSave={handleSave}
+          onSaved={handleSaved}
+          onError={handleError}
           onClose={modal.close}
         />
       )}

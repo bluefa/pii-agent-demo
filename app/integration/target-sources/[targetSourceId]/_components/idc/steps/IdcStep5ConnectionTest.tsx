@@ -23,7 +23,7 @@ import { IdcReqApprovalModal } from '@/app/integration/target-sources/[targetSou
 import { LogicalDbModalLoader } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
-import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
+import { getIdcPreviousRequest, type IdcResourceView } from '@/app/lib/api/idc';
 
 type ResourcesState =
   | { status: 'loading' }
@@ -74,7 +74,7 @@ export const IdcStep5ConnectionTest = ({
   useEffect(() => {
     const controller = new AbortController();
 
-    void getIdcResources(project.targetSourceId, { signal: controller.signal })
+    void getIdcPreviousRequest(project.targetSourceId, { signal: controller.signal })
       .then((resources) => {
         if (controller.signal.aborted) return;
         // Step 5 is definitionally pre-test: nothing is connected until Run Test
@@ -168,11 +168,18 @@ export const IdcStep5ConnectionTest = ({
     },
     [logicalModal],
   );
-  // Save is a no-op until the BFF endpoint is wired (same as ConnectionTestCard).
-  const handleLogicalSave = useCallback(() => {
-    toast.info('논리 DB 정보 저장은 BFF 연동 후 활성화됩니다.');
+  // On save the skip policy persists, which flips completion-status (spec §7);
+  // refetch the project so the badge re-reads.
+  const handleLogicalSaved = useCallback(async () => {
+    toast.success('논리 DB 제외 정책을 저장했습니다.');
     logicalModal.close();
-  }, [logicalModal, toast]);
+    const updated = await getProject(project.targetSourceId);
+    onProjectUpdate(updated);
+  }, [logicalModal, toast, onProjectUpdate, project.targetSourceId]);
+
+  const handleLogicalError = useCallback(() => {
+    toast.error('논리 DB 제외 정책 저장에 실패했습니다.');
+  }, [toast]);
 
   const [approvalOpen, setApprovalOpen] = useState(false);
   // Completion-approval submit -> refetch advances to step 6 when the process status flips (locked: transition = refetch).
@@ -272,9 +279,11 @@ export const IdcStep5ConnectionTest = ({
               {logicalModal.data && (
                 <LogicalDbModalLoader
                   open={logicalModal.isOpen}
+                  targetSourceId={project.targetSourceId}
                   resourceId={logicalModal.data.resourceId}
                   resourceName={logicalModal.data.resourceName}
-                  onSave={handleLogicalSave}
+                  onSaved={handleLogicalSaved}
+                  onError={handleLogicalError}
                   onClose={logicalModal.close}
                 />
               )}

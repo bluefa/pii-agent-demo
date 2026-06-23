@@ -12,9 +12,10 @@ import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
 import type {
-  CreateTargetSourceBody,
-  RegistrationPreviewItemCommon,
-  RegistrationPreviewRequest,
+  TargetSourceCreationCandidateMetadataWire,
+  TargetSourceCreationCandidateRequest,
+  TargetSourceCreationCandidateResponseWire,
+  TargetSourceMetadataWire,
 } from '@/lib/bff/types/target-sources';
 
 type BffCloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
@@ -112,6 +113,33 @@ const toBffTargetSourceDetail = (project: Project) => ({
 
 const toTargetSourceInfoCloudProvider = (cloudProvider: CloudProvider): string =>
   toBffCloudProvider(cloudProvider);
+
+// swagger `TargetSourceInfo` (36, 201): camelCase top-level + snake `metadata`.
+// Distinct from `toBffTargetSourceInfo` (the rich E-domain detail shape used by
+// `get`) — the create response carries only the contract fields.
+const toBffTargetSourceCreatedInfo = (project: Project) => {
+  const metadata: TargetSourceMetadataWire = {
+    ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
+    ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
+    ...(project.gcpProjectId ? { gcp_project_id: project.gcpProjectId } : {}),
+    ...(project.awsAccountId ? { aws_account_id: project.awsAccountId } : {}),
+    ...(project.isChinaRegion !== undefined ? { is_china_region: project.isChinaRegion } : {}),
+    ...(project.isTerraformExecutionGranted !== undefined
+      ? { grant_service_terraform_execution_permission: project.isTerraformExecutionGranted }
+      : {}),
+  };
+  return {
+    targetSourceId: project.targetSourceId,
+    description: project.description,
+    cloudProvider: toBffCloudProvider(project.cloudProvider),
+    createdAt: project.createdAt,
+    serviceCode: project.serviceCode,
+    serviceName:
+      mockServiceCodes.find((s) => s.code === project.serviceCode)?.name ?? project.serviceCode,
+    updatedAt: project.updatedAt,
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+  };
+};
 
 const toBffTargetSourceInfo = (project: Project) => ({
   id: project.id,
@@ -224,121 +252,131 @@ const validationError = (message: string): NextResponse =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0;
 
+// Maps the lowercase request `cloud_type` (aws|azure|gcp|idc|others) to the
+// canonical internal provider used for duplicate matching.
+const cloudTypeToCanonical = (cloudType?: string): CanonicalProvider | null => {
+  switch (cloudType?.toLowerCase()) {
+    case 'aws':
+      return 'AWS';
+    case 'azure':
+      return 'Azure';
+    case 'gcp':
+      return 'GCP';
+    case 'idc':
+      return 'IDC';
+    default:
+      return null;
+  }
+};
+
+// Maps canonical provider → UPPERCASE response `cloud_type` (35 response enum).
+const canonicalToResponseCloudType = (provider: CanonicalProvider): BffCloudProvider => {
+  switch (provider) {
+    case 'Azure':
+      return 'AZURE';
+    case 'AWS':
+      return 'AWS';
+    case 'GCP':
+      return 'GCP';
+    case 'IDC':
+      return 'IDC';
+    case 'SDU':
+      return 'UNKNOWN';
+  }
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+
 const validatePreviewRequest = (
   body: unknown,
 ):
-  | { ok: true; request: RegistrationPreviewRequest; provider: CanonicalProvider }
+  | {
+      ok: true;
+      request: TargetSourceCreationCandidateRequest;
+      provider: CanonicalProvider;
+    }
   | { ok: false; response: NextResponse } => {
   if (!body || typeof body !== 'object') {
     return { ok: false, response: validationError('요청 본문이 올바르지 않습니다.') };
   }
   const raw = body as Record<string, unknown>;
+  const metadata = asRecord(raw.metadata);
 
-  if (!isNonEmptyString(raw.cloudProvider)) {
-    return { ok: false, response: validationError('cloudProvider 는 필수입니다.') };
+  if (!isNonEmptyString(raw.cloud_type)) {
+    return { ok: false, response: validationError('cloud_type 는 필수입니다.') };
   }
-  const provider = toCanonicalProvider(raw.cloudProvider);
+  const provider = cloudTypeToCanonical(raw.cloud_type);
   if (!provider) {
-    return { ok: false, response: validationError('지원하지 않는 cloudProvider 입니다.') };
-  }
-  if (provider === 'SDU') {
-    return {
-      ok: false,
-      response: validationError('SDU 는 미리보기 직접 입력을 지원하지 않습니다.'),
-    };
+    return { ok: false, response: validationError('지원하지 않는 cloud_type 입니다.') };
   }
   if (
-    !Array.isArray(raw.dbTypes)
-    || raw.dbTypes.length === 0
-    || !raw.dbTypes.every((item) => isNonEmptyString(item))
+    !Array.isArray(raw.database_types)
+    || raw.database_types.length === 0
+    || !raw.database_types.every((item) => isNonEmptyString(item))
   ) {
     return {
       ok: false,
-      response: validationError('dbTypes 는 1개 이상의 문자열이어야 합니다.'),
+      response: validationError('database_types 는 1개 이상의 문자열이어야 합니다.'),
+    };
+  }
+  if (typeof raw.is_china_region !== 'boolean') {
+    return {
+      ok: false,
+      response: validationError('is_china_region (boolean) 은 필수입니다.'),
     };
   }
 
   switch (provider) {
     case 'AWS':
-      if (!isNonEmptyString(raw.awsAccountId) || !/^\d{12}$/.test(raw.awsAccountId)) {
+      if (!isNonEmptyString(metadata.aws_account_id) || !/^\d{12}$/.test(metadata.aws_account_id)) {
         return { ok: false, response: validationError('AWS Account ID 는 12자리 숫자여야 합니다.') };
-      }
-      if (typeof raw.isChinaRegion !== 'boolean') {
-        return {
-          ok: false,
-          response: validationError('AWS 는 isChinaRegion (boolean) 이 필수입니다.'),
-        };
-      }
-      if (raw.awsLinkedAccountId !== undefined) {
-        if (!isNonEmptyString(raw.awsLinkedAccountId) || !/^\d{12}$/.test(raw.awsLinkedAccountId)) {
-          return {
-            ok: false,
-            response: validationError('AWS Linked Account ID 는 12자리 숫자여야 합니다.'),
-          };
-        }
-      }
-      if (raw.isTerraformExecutionGranted !== undefined && typeof raw.isTerraformExecutionGranted !== 'boolean') {
-        return {
-          ok: false,
-          response: validationError('isTerraformExecutionGranted 는 boolean 이어야 합니다.'),
-        };
       }
       break;
     case 'Azure':
-      if (!isNonEmptyString(raw.tenantId) || !isNonEmptyString(raw.subscriptionId)) {
+      if (!isNonEmptyString(metadata.tenant_id) || !isNonEmptyString(metadata.subscription_id)) {
         return {
           ok: false,
-          response: validationError('Azure 는 tenantId, subscriptionId 가 필수입니다.'),
+          response: validationError('Azure 는 tenant_id, subscription_id 가 필수입니다.'),
         };
       }
       break;
     case 'GCP':
-      if (!isNonEmptyString(raw.gcpProjectId)) {
-        return { ok: false, response: validationError('GCP 는 gcpProjectId 가 필수입니다.') };
+      if (!isNonEmptyString(metadata.project_id)) {
+        return { ok: false, response: validationError('GCP 는 metadata.project_id 가 필수입니다.') };
       }
       break;
     case 'IDC':
-      if (!isNonEmptyString(raw.description) || !trim(raw.description)) {
-        return { ok: false, response: validationError('IDC 는 description 이 필수입니다.') };
+      if (!isNonEmptyString(metadata.description) || !trim(metadata.description)) {
+        return { ok: false, response: validationError('IDC 는 metadata.description 이 필수입니다.') };
       }
       break;
+    case 'SDU':
+      return {
+        ok: false,
+        response: validationError('SDU 는 미리보기 직접 입력을 지원하지 않습니다.'),
+      };
   }
 
-  if (raw.description !== undefined && typeof raw.description !== 'string') {
-    return {
-      ok: false,
-      response: validationError('description 은 문자열이어야 합니다.'),
-    };
-  }
-
-  return { ok: true, request: raw as unknown as RegistrationPreviewRequest, provider };
+  return { ok: true, request: raw as unknown as TargetSourceCreationCandidateRequest, provider };
 };
 
-const buildPreviewCommon = (
-  request: RegistrationPreviewRequest,
+const buildCandidateMetadata = (
+  request: TargetSourceCreationCandidateRequest,
   provider: CanonicalProvider,
-): RegistrationPreviewItemCommon => {
-  const accountId = trim(request.awsAccountId);
-  // Spec §I-1: when awsLinkedAccountId is omitted, Payer = Linked.
-  const linkedAccountId = trim(request.awsLinkedAccountId) || accountId;
-  const tenantId = trim(request.tenantId);
-  const subscriptionId = trim(request.subscriptionId);
-  const gcpProjectId = trim(request.gcpProjectId);
-  const description = trim(request.description);
+): TargetSourceCreationCandidateMetadataWire => {
+  const m = request.metadata ?? {};
+  const accountId = trim(m.aws_account_id);
+  const tenantId = trim(m.tenant_id);
+  const subscriptionId = trim(m.subscription_id);
+  const projectId = trim(m.project_id);
+  const description = trim(m.description);
 
   return {
-    cloud_provider: provider,
     ...(provider === 'AWS' && accountId ? { aws_account_id: accountId } : {}),
-    ...(provider === 'AWS' && linkedAccountId
-      ? { aws_linked_account_id: linkedAccountId }
-      : {}),
-    is_china_region: provider === 'AWS' && request.isChinaRegion === true,
-    is_sdu_type: false,
-    is_terraform_execution_granted:
-      provider === 'AWS' && request.isTerraformExecutionGranted === true,
     ...(provider === 'Azure' && tenantId ? { tenant_id: tenantId } : {}),
     ...(provider === 'Azure' && subscriptionId ? { subscription_id: subscriptionId } : {}),
-    ...(provider === 'GCP' && gcpProjectId ? { gcp_project_id: gcpProjectId } : {}),
+    ...(provider === 'GCP' && projectId ? { project_id: projectId } : {}),
     ...(description ? { description } : {}),
   };
 };
@@ -379,7 +417,10 @@ export const mockTargetSources = {
     return NextResponse.json({ targetSource: toBffTargetSourceInfo(project) });
   },
 
-  create: async (body: unknown) => {
+  // createTargetSource (36): body is the selected TargetSourceCreationCandidateResponse
+  // (snake) posted back verbatim; serviceCode is the path param. Returns 201
+  // TargetSourceInfo (camel top + snake metadata).
+  create: async (serviceCode: string, body: unknown) => {
     const user = getCurrentUser();
     if (!user || user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -388,22 +429,8 @@ export const mockTargetSources = {
       );
     }
 
-    const {
-      serviceCode,
-      description,
-      cloudProvider,
-      awsAccountId,
-      awsLinkedAccountId,
-      isChinaRegion,
-      isTerraformExecutionGranted,
-      awsRegionType,
-      tenantId,
-      subscriptionId,
-      gcpProjectId,
-      dbType,
-    } = (body ?? {}) as CreateTargetSourceBody;
-
-    const normalizedProvider = toInternalCloudProvider(cloudProvider);
+    const candidate = (body ?? {}) as TargetSourceCreationCandidateResponseWire;
+    const normalizedProvider = toInternalCloudProvider(candidate.cloud_type);
 
     if (!serviceCode || !normalizedProvider) {
       return NextResponse.json(
@@ -419,33 +446,23 @@ export const mockTargetSources = {
       );
     }
 
+    const metadata = candidate.metadata ?? {};
+    const awsAccountId = trim(metadata.aws_account_id) || undefined;
+    const tenantId = trim(metadata.tenant_id) || undefined;
+    const subscriptionId = trim(metadata.subscription_id) || undefined;
+    // Candidate metadata uses `project_id` for the GCP project (request casing);
+    // the internal Project field is `gcpProjectId`.
+    const gcpProjectId = trim(metadata.project_id) || undefined;
+    const description = trim(metadata.description);
+    const isChinaRegion = candidate.is_china_region === true;
+    const grantTf = candidate.grant_service_terraform_execution_permission === true;
+
     if (awsAccountId && !/^\d{12}$/.test(awsAccountId)) {
       return NextResponse.json(
         { error: 'VALIDATION_ERROR', message: 'AWS Account ID는 12자리 숫자여야 합니다.' },
         { status: 400 },
       );
     }
-
-    if (awsLinkedAccountId && !/^\d{12}$/.test(awsLinkedAccountId)) {
-      return validationError('AWS Linked Account ID는 12자리 숫자여야 합니다.');
-    }
-
-    if (awsRegionType && !['global', 'china'].includes(awsRegionType)) {
-      return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'AWS 리전 타입은 global 또는 china만 허용됩니다.' },
-        { status: 400 },
-      );
-    }
-
-    // Boolean isChinaRegion is authoritative when present; awsRegionType is the
-    // deprecated fallback path, retained so older clients still write a value.
-    const resolvedIsChinaRegion =
-      typeof isChinaRegion === 'boolean' ? isChinaRegion : awsRegionType === 'china';
-    const resolvedAwsRegionType =
-      awsRegionType
-      ?? (typeof isChinaRegion === 'boolean'
-        ? (isChinaRegion ? 'china' : 'global')
-        : undefined);
 
     const now = new Date().toISOString();
     const targetSourceId = generateTargetSourceId();
@@ -455,7 +472,7 @@ export const mockTargetSources = {
       targetSourceId,
       projectCode: internalProjectCode,
       name: internalProjectCode,
-      description: description ?? '',
+      description,
       serviceCode,
       cloudProvider: normalizedProvider,
       processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
@@ -468,21 +485,17 @@ export const mockTargetSources = {
       updatedAt: now,
       isRejected: false,
       ...(awsAccountId ? { awsAccountId } : {}),
-      ...(awsLinkedAccountId ? { awsLinkedAccountId } : {}),
-      ...(resolvedAwsRegionType ? { awsRegionType: resolvedAwsRegionType } : {}),
-      ...(normalizedProvider === 'AWS' ? { isChinaRegion: resolvedIsChinaRegion } : {}),
-      ...(typeof isTerraformExecutionGranted === 'boolean'
-        ? { isTerraformExecutionGranted }
-        : {}),
+      ...(normalizedProvider === 'AWS' ? { awsRegionType: isChinaRegion ? 'china' : 'global' } : {}),
+      ...(normalizedProvider === 'AWS' ? { isChinaRegion } : {}),
+      ...(grantTf ? { isTerraformExecutionGranted: true } : {}),
       ...(tenantId ? { tenantId } : {}),
       ...(subscriptionId ? { subscriptionId } : {}),
       ...(gcpProjectId ? { gcpProjectId } : {}),
-      ...(dbType ? { dbType } : {}),
     };
 
     addProject(project);
 
-    return NextResponse.json(toBffTargetSourceInfo(project), { status: 201 });
+    return NextResponse.json(toBffTargetSourceCreatedInfo(project), { status: 201 });
   },
 
   previewRegistration: async (serviceCode: string, body: unknown) => {
@@ -511,33 +524,44 @@ export const mockTargetSources = {
     const { request, provider } = validation;
 
     const existing = getProjectsByServiceCode(serviceCode);
-    const common = buildPreviewCommon(request, provider);
+    const metadata = buildCandidateMetadata(request, provider);
+    const cloudType = canonicalToResponseCloudType(provider);
+    const isChinaRegion = provider === 'AWS' && request.is_china_region === true;
+    const grantTf = request.grant_service_terraform_execution_permission === true;
 
-    const items = request.dbTypes.map((dbType) => {
-      const requestedKey = duplicateIdentity(provider, {
-        awsAccountId: request.awsAccountId,
-        isChinaRegion: request.isChinaRegion,
-        subscriptionId: request.subscriptionId,
-        gcpProjectId: request.gcpProjectId,
-        description: request.description,
-        dbType,
-      });
+    // 35 response: a BARE ARRAY of TargetSourceCreationCandidateResponse (snake),
+    // one element per database_types[i] (index-matched to the request).
+    const candidates: TargetSourceCreationCandidateResponseWire[] = request.database_types.map(
+      (dbType) => {
+        const requestedKey = duplicateIdentity(provider, {
+          awsAccountId: request.metadata?.aws_account_id,
+          isChinaRegion: request.is_china_region,
+          subscriptionId: request.metadata?.subscription_id,
+          gcpProjectId: request.metadata?.project_id,
+          description: request.metadata?.description,
+          dbType,
+        });
 
-      const match =
-        requestedKey === null
-          ? undefined
-          : existing.find((project) => projectIdentity(project, dbType) === requestedKey);
+        const match =
+          requestedKey === null
+            ? undefined
+            : existing.find((project) => projectIdentity(project, dbType) === requestedKey);
 
-      if (match) {
-        return {
-          type: 'DUPLICATE' as const,
-          ...common,
-          existing_target_source_id: match.targetSourceId,
+        const base: TargetSourceCreationCandidateResponseWire = {
+          status: match ? 'DUPLICATE' : 'ADD',
+          cloud_type: cloudType,
+          is_sdu_type: false,
+          is_china_region: isChinaRegion,
+          metadata,
+          ...(grantTf ? { grant_service_terraform_execution_permission: true } : {}),
         };
-      }
-      return { type: 'ADD' as const, ...common };
-    });
+        if (match) {
+          base.existing_target_source_id = match.targetSourceId;
+        }
+        return base;
+      },
+    );
 
-    return NextResponse.json({ items });
+    return NextResponse.json(candidates);
   },
 };

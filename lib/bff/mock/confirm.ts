@@ -620,17 +620,18 @@ export const mockConfirm = {
       updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', '시스템(자동승인)');
     }
 
+    // ADR-019: swagger ApprovalRequestSummaryDto (snake wire); 200, not 201.
     return NextResponse.json(
       {
-        success: true,
-        approval_request: {
-          id: requestId,
-          requested_at: now,
-          requested_by: user.name,
-          input_data: inputDataSnapshot,
-        },
+        id: project.targetSourceId,
+        target_source_id: project.targetSourceId,
+        status: autoApprovalResult.shouldAutoApprove ? 'AUTO_APPROVED' : 'PENDING',
+        requested_by: { user_id: user.name },
+        requested_at: now,
+        resource_total_count: selectedCount + excludedCount,
+        resource_selected_count: selectedCount,
       },
-      { status: 201 },
+      { status: 200 },
     );
   },
 
@@ -804,97 +805,119 @@ export const mockConfirm = {
       };
     });
 
-    const toRequestEntry = (historyItem: typeof allHistory[number]) => {
-      const inputData = historyItem.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
+    // ADR-019: swagger Page.content items are { request: ApprovalRequestSummaryDto,
+    // result?: ApprovalActionResponseDto } (snake wire). `input_data` is no longer
+    // carried by the contract; counts derive from the stored snapshot/current state.
+    type ApprovalSummaryWire = {
+      id: number;
+      target_source_id: number;
+      status: string;
+      requested_by: { user_id: string };
+      requested_at: string;
+      resource_total_count: number;
+      resource_selected_count: number;
+    };
+    type ApprovalActionWire = {
+      request_id: number;
+      status: string;
+      processed_by: { user_id: string };
+      processed_at: string;
+      reason?: string | null;
+    };
 
+    const countsFor = (historyItem: typeof allHistory[number]) => {
+      const inputs = Array.isArray(historyItem.details.inputData?.resource_inputs)
+        ? historyItem.details.inputData.resource_inputs
+        : buildCurrentResourceInputs();
+      const selected = inputs.filter((ri) => ri.selected === true).length;
+      return { total: inputs.length, selected };
+    };
+
+    const numericId = (rawId: string): number =>
+      parseInt(String(rawId).replace(/\D/g, '') || '0', 10) || project.targetSourceId;
+
+    const toRequestEntry = (historyItem: typeof allHistory[number]): ApprovalSummaryWire => {
+      const counts = countsFor(historyItem);
       return {
-        id: historyItem.id,
+        id: numericId(historyItem.id),
+        target_source_id: project.targetSourceId,
+        status: 'PENDING',
+        requested_by: { user_id: historyItem.actor.name },
         requested_at: historyItem.timestamp,
-        requested_by: historyItem.actor.name,
-        input_data: inputData,
+        resource_total_count: counts.total,
+        resource_selected_count: counts.selected,
       };
     };
 
-    const toResultEntry = (historyItem: typeof allHistory[number]) => {
-      if (historyItem.type === 'APPROVAL') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'APPROVED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: historyItem.actor.id, reason: null },
-        };
-      }
-      if (historyItem.type === 'AUTO_APPROVED') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'AUTO_APPROVED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: null, reason: null },
-        };
-      }
+    const toResultEntry = (
+      historyItem: typeof allHistory[number],
+    ): ApprovalActionWire | undefined => {
+      const base = {
+        request_id: numericId(historyItem.id),
+        processed_by: { user_id: historyItem.actor.name },
+        processed_at: historyItem.timestamp,
+      };
+      if (historyItem.type === 'APPROVAL') return { ...base, status: 'APPROVED' };
+      if (historyItem.type === 'AUTO_APPROVED') return { ...base, status: 'AUTO_APPROVED' };
       if (historyItem.type === 'REJECTION') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'REJECTED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: historyItem.actor.id, reason: historyItem.details.reason ?? null },
-        };
+        return { ...base, status: 'REJECTED', reason: historyItem.details.reason ?? null };
       }
-      if (historyItem.type === 'APPROVAL_CANCELLED') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'CANCELLED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: historyItem.actor.id, reason: null },
-        };
-      }
-
+      if (historyItem.type === 'APPROVAL_CANCELLED') return { ...base, status: 'CANCELLED' };
       return undefined;
     };
 
+    const emptyPage = (content: Array<{ request: ApprovalSummaryWire; result?: ApprovalActionWire }>, total: number) => ({
+      totalPages: Math.ceil(total / size) || 1,
+      totalElements: total,
+      pageable: { paged: true, pageNumber: page, pageSize: size, unpaged: false, offset: page * size, sort: [] },
+      first: page === 0,
+      last: page >= Math.max((Math.ceil(total / size) || 1) - 1, 0),
+      size,
+      content,
+      number: page,
+      sort: [],
+      numberOfElements: content.length,
+      empty: content.length === 0,
+    });
+
     // If WAITING_APPROVAL but no approval history yet, synthesize a PENDING request entry
     if (allHistory.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
-      const pendingRequest = {
-        id: `req-pending-${project.id}`,
+      const selected = project.resources.filter((r) => r.isSelected).length;
+      const pendingRequest: ApprovalSummaryWire = {
+        id: project.targetSourceId,
+        target_source_id: project.targetSourceId,
+        status: 'PENDING',
+        requested_by: { user_id: user.name },
         requested_at: project.updatedAt,
-        requested_by: user.name,
-        input_data: { resource_inputs: buildCurrentResourceInputs() },
+        resource_total_count: project.resources.length,
+        resource_selected_count: selected,
       };
-      return NextResponse.json({
-        content: [{ request: pendingRequest }],
-        page: { totalElements: 1, totalPages: 1, number: page, size },
-      });
+      return NextResponse.json(emptyPage([{ request: pendingRequest }], 1));
     }
 
     const groupedContent = [...allHistory]
       .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime())
-      .reduce<Array<{
-        request: ReturnType<typeof toRequestEntry>;
-        result?: ReturnType<typeof toResultEntry>;
-      }>>((acc, historyItem) => {
-        const result = toResultEntry(historyItem);
+      .reduce<Array<{ request: ApprovalSummaryWire; result?: ApprovalActionWire }>>(
+        (acc, historyItem) => {
+          const result = toResultEntry(historyItem);
 
-        if (!result) {
-          acc.push({ request: toRequestEntry(historyItem) });
+          if (!result) {
+            acc.push({ request: toRequestEntry(historyItem) });
+            return acc;
+          }
+
+          const openRequest = [...acc].reverse().find((entry) => !entry.result);
+          if (openRequest) {
+            openRequest.result = result;
+            openRequest.request.status = result.status;
+            return acc;
+          }
+
+          acc.push({ request: { ...toRequestEntry(historyItem), status: result.status }, result });
           return acc;
-        }
-
-        const openRequest = [...acc].reverse().find((entry) => !entry.result);
-        if (openRequest) {
-          openRequest.result = result;
-          return acc;
-        }
-
-        acc.push({
-          request: toRequestEntry(historyItem),
-          result,
-        });
-        return acc;
-      }, []);
+        },
+        [],
+      );
 
     const total = groupedContent.length;
     const content = groupedContent
@@ -902,15 +925,7 @@ export const mockConfirm = {
       .reverse()
       .slice(page * size, page * size + size);
 
-    return NextResponse.json({
-      content,
-      page: {
-        totalElements: total,
-        totalPages: Math.ceil(total / size) || 1,
-        number: page,
-        size,
-      },
-    });
+    return NextResponse.json(emptyPage(content, total));
   },
 
   getApprovalRequestLatest: async (targetSourceId: string) => {
@@ -1060,6 +1075,8 @@ export const mockConfirm = {
         return NextResponse.json({
           target_source_id: updated.targetSourceId,
           process_status: computeProcessStatus(updated),
+          // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
+          healthy: 'HEALTHY',
           status_inputs: {
             has_confirmed_integration: updated.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(updated.id),
             has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
@@ -1074,6 +1091,8 @@ export const mockConfirm = {
       return NextResponse.json({
         target_source_id: project.targetSourceId,
         process_status: computeProcessStatus(project),
+        // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
+        healthy: 'HEALTHY',
         status_inputs: {
           has_confirmed_integration: false,
           has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
@@ -1088,6 +1107,8 @@ export const mockConfirm = {
     return NextResponse.json({
       target_source_id: project.targetSourceId,
       process_status: computeProcessStatus(project),
+      // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
+      healthy: 'HEALTHY',
       status_inputs: {
         has_confirmed_integration: project.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(project.id),
         has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
@@ -1177,9 +1198,11 @@ export const mockConfirm = {
     // Queue Board 연동: 승인 → IN_PROGRESS
     updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', user.name);
 
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
-      success: true,
-      result: 'APPROVED',
+      request_id: project.targetSourceId,
+      status: 'APPROVED',
+      processed_by: { user_id: user.name },
       processed_at: now,
     });
   },
@@ -1239,9 +1262,11 @@ export const mockConfirm = {
     // Queue Board 연동: 반려 → REJECTED
     updateQueueItemStatus(project.targetSourceId, 'REJECTED', user.name, reason);
 
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
-      success: true,
-      result: 'REJECTED',
+      request_id: project.targetSourceId,
+      status: 'REJECTED',
+      processed_by: { user_id: user.name },
       processed_at: now,
       reason,
     });
@@ -1335,10 +1360,111 @@ export const mockConfirm = {
 
     mockHistory.addApprovalCancelledHistory(Number(targetSourceId), { id: user.id, name: user.name });
 
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
-      success: true,
-      result: 'CANCELLED',
+      request_id: project.targetSourceId,
+      status: 'CANCELLED',
+      processed_by: { user_id: user.name },
       processed_at: now,
+    });
+  },
+
+  // ADR-019 #7: 연동 불가 판정 → ApprovalUnavailableResponseDto (snake wire).
+  markApprovalRequestUnavailable: async (targetSourceId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '관리자만 연동 불가 처리할 수 있습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const { reason } = (body ?? {}) as { reason?: string };
+    if (!reason || !reason.trim()) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '연동 불가 사유를 입력해주세요.' } },
+        { status: 400 },
+      );
+    }
+
+    const now = new Date().toISOString();
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      approval: { status: 'UNAVAILABLE', rejectedAt: now, rejectionReason: reason },
+    };
+
+    mockData.updateProject(project.id, {
+      processStatus: getCurrentStep(updatedStatus),
+      status: updatedStatus,
+      isRejected: true,
+      rejectionReason: reason,
+      rejectedAt: now,
+    });
+
+    return NextResponse.json({
+      request_id: project.targetSourceId,
+      status: 'UNAVAILABLE',
+      processed_by: { user_id: user.name },
+      processed_at: now,
+      reason,
+    });
+  },
+
+  // ADR-019 #8: 연동 불가 담당자 확인 → ApprovalUnavailableConfirmResponseDto (snake).
+  // Resets the target source to its initial state (mirrors the system-reset reset).
+  confirmApprovalUnavailable: async (targetSourceId: string) => {
+    const user = mockData.getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    if (project.status.approval.status !== 'UNAVAILABLE') {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '연동 불가 상태가 아닙니다.' } },
+        { status: 409 },
+      );
+    }
+
+    const now = new Date().toISOString();
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
+      approval: { status: 'CANCELLED' },
+    };
+
+    mockData.updateProject(project.id, {
+      processStatus: getCurrentStep(updatedStatus),
+      status: updatedStatus,
+      resources: project.resources.map((r) => ({ ...r, isSelected: false, exclusion: undefined })),
+      isRejected: false,
+      rejectionReason: undefined,
+      rejectedAt: undefined,
+    });
+
+    return NextResponse.json({
+      target_source_id: project.targetSourceId,
+      confirm_status: 'IDLE',
+      processed_at: now,
+      confirmed_by: user.name,
     });
   },
 

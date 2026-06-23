@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppError } from '@/lib/errors';
 import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
-  checkIdcInstallation,
   getIdcInstallationStatus,
   type IdcInstallationView,
 } from '@/app/lib/api/idc';
@@ -14,7 +13,7 @@ export interface UseIdcInstallationStatusResult {
   loading: boolean;
   refreshing: boolean;
   error: string | null;
-  /** Force-refresh via check-installation (DR5-guarded). */
+  /** Force-refresh by re-GETting installation-status (DR5-guarded). */
   refresh: () => Promise<void>;
 }
 
@@ -65,7 +64,8 @@ export function useIdcInstallationStatus(targetSourceId: number): UseIdcInstalla
     setRefreshing(true);
     setError(null);
     try {
-      const data = await checkIdcInstallation(targetSourceId);
+      // check-installation left the contract — refresh is a plain re-GET.
+      const data = await getIdcInstallationStatus(targetSourceId);
       if (requestedId === currentIdRef.current) setStatus(data); // DR5
     } catch (err) {
       if (!isAbort(err) && requestedId === currentIdRef.current) setError(toMessage(err));

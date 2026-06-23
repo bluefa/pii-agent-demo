@@ -32,7 +32,7 @@ const makeResource = (overrides: Partial<ConfirmedResource> = {}): ConfirmedReso
 
 const renderCard = (confirmed: ConfirmedResource[]) =>
   render(
-    <ConnectionTestCard confirmed={confirmed} providerLabel="Azure Infrastructure" refreshProject={() => {}} />,
+    <ConnectionTestCard targetSourceId={1} confirmed={confirmed} providerLabel="Azure Infrastructure" refreshProject={() => {}} />,
   );
 
 describe('ConnectionTestCard', () => {

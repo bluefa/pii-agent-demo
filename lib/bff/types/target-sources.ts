@@ -1,130 +1,102 @@
 /**
- * Typed shapes for `bff.targetSources` methods (ADR-011 setup spec adr011-01).
+ * Wire (snake) shapes for `bff.targetSources` methods — Spec F (ADR-019).
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
- *
- * Specs 02-04 extend `BffClient` and import these types. This file declares
- * shapes only — no implementation, no `BffClient` interface change.
+ * Source of truth: `docs/swagger/install-v1.yaml`. Responses are snake on the
+ * wire → `camelCaseKeys` + normalizer at the route handler (the single casing
+ * boundary, ADR-019 D1/D6). The camel DOMAIN shapes live in
+ * `@/lib/target-source-creation`; this file declares the wire + request shapes
+ * (mocks author these; `getSnakeRaw`/raw passthrough forward them verbatim).
  */
 
 import type { TargetSource } from '@/lib/types';
 
 export type { TargetSourceDetailResponse } from '@/lib/target-source-response';
 
-/** GET /target-sources/services/{serviceCode} (camelCase) */
-export interface ServicesTargetSourcesItem {
-  id?: string;
-  targetSourceId: number;
-  projectCode?: string;
-  serviceCode?: string;
-  cloudProvider: string;
-  processStatus: number | string;
-  description?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  isRejected?: boolean;
-  rejectionReason?: string;
-}
-
-export type ServicesTargetSourcesResponse =
-  | ServicesTargetSourcesItem[]
-  | { targetSources: ServicesTargetSourcesItem[] };
+type BffCloudTypeUpper = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
+type BffProcessStatus =
+  | 'IDLE'
+  | 'PENDING'
+  | 'CONFIRMING'
+  | 'CONFIRMED'
+  | 'INSTALLED'
+  | 'CONNECTED'
+  | 'COMPLETED';
 
 /**
- * POST /services/{serviceCode}/target-sources request body (camelCase).
- * Mirrors swagger `CreateTargetSourceRequest`. `dbType` is singular here;
- * `dbTypes[]` is preview-only.
+ * swagger `TargetSourceCreationCandidateRequest` (35) — request body, snake.
+ * `cloud_type` is LOWERCASE on the request (uppercase on the response).
  */
-export interface CreateTargetSourceBody {
-  serviceCode?: string;
-  description?: string;
-  cloudProvider: string;
-  awsAccountId?: string;
-  awsLinkedAccountId?: string;
-  isChinaRegion?: boolean;
-  isTerraformExecutionGranted?: boolean;
-  awsRegionType?: 'global' | 'china';
-  tenantId?: string;
-  subscriptionId?: string;
-  gcpProjectId?: string;
-  dbType?: string;
-}
-
-/** POST /target-sources (snake_case raw passthrough) */
-export interface CreateTargetSourceResult {
-  target_source_id: number;
-  project_code?: string;
-  service_code?: string;
-  cloud_provider?: string;
-  process_status?: string;
-  created_at?: string;
+export interface TargetSourceCreationCandidateMetadataWire {
   aws_account_id?: string;
-  aws_linked_account_id?: string;
-  is_china_region?: boolean;
-  is_terraform_execution_granted?: boolean;
   tenant_id?: string;
   subscription_id?: string;
-  gcp_project_id?: string;
-  db_type?: string;
-}
-
-/**
- * POST /services/{serviceCode}/target-sources/registration-preview request
- * body (camelCase).
- *
- * `dbTypes` is 1+ items; BFF expands the input into `dbTypes.length` rows.
- * Index matching: response `items[i]` ↔ request `dbTypes[i]`.
- *
- * Conditional required (BFF validates with 400):
- *   - AWS → awsAccountId, isChinaRegion
- *   - Azure → tenantId, subscriptionId
- *   - GCP → gcpProjectId
- *   - IDC → description (trim non-empty)
- */
-export interface RegistrationPreviewRequest {
-  cloudProvider: string;
-  awsAccountId?: string;
-  awsLinkedAccountId?: string;
-  isChinaRegion?: boolean;
-  isTerraformExecutionGranted?: boolean;
-  tenantId?: string;
-  subscriptionId?: string;
-  gcpProjectId?: string;
+  project_id?: string;
   description?: string;
-  dbTypes: string[];
 }
 
-export interface RegistrationPreviewItemCommon {
-  cloud_provider: string;
-  aws_account_id?: string;
-  aws_linked_account_id?: string;
+export interface TargetSourceCreationCandidateRequest {
+  cloud_type: 'aws' | 'azure' | 'gcp' | 'idc' | 'others';
   is_china_region: boolean;
+  database_types: string[];
+  grant_service_terraform_execution_permission?: boolean;
+  metadata: TargetSourceCreationCandidateMetadataWire;
+}
+
+/**
+ * swagger `TargetSourceCreationCandidateResponse` (35 item / 36 request body),
+ * snake. The 200 of (35) is a BARE ARRAY of these; the selected element is
+ * posted back verbatim to (36). `cloud_type` is UPPERCASE here.
+ */
+export interface TargetSourceCreationCandidateResponseWire {
+  status: 'ADD' | 'DUPLICATE';
+  cloud_type: BffCloudTypeUpper;
   is_sdu_type: boolean;
-  is_terraform_execution_granted: boolean;
+  is_china_region: boolean;
+  metadata: TargetSourceCreationCandidateMetadataWire;
+  existing_target_source_id?: number | null;
+  grant_service_terraform_execution_permission?: boolean | null;
+}
+
+/** swagger `TargetSourceMetadata` (snake nested metadata of Info/Detail). */
+export interface TargetSourceMetadataWire {
   tenant_id?: string;
   subscription_id?: string;
   gcp_project_id?: string;
+  aws_account_id?: string;
+  is_sdu_type?: boolean;
+  is_china_region?: boolean;
+  grant_service_terraform_execution_permission?: boolean;
+}
+
+/**
+ * swagger `TargetSourceInfo` (36, 201). Top-level keys are camelCase on the
+ * wire; only the nested `metadata` is snake. `camelCaseKeys` at the route makes
+ * the whole thing uniform camel.
+ */
+export interface TargetSourceInfoWire {
+  targetSourceId?: number;
   description?: string;
+  cloudProvider?: BffCloudTypeUpper;
+  createdAt?: string;
+  serviceCode?: string;
+  serviceName?: string;
+  updatedAt?: string;
+  metadata?: TargetSourceMetadataWire;
 }
 
-export interface RegistrationPreviewItemAdd extends RegistrationPreviewItemCommon {
-  type: 'ADD';
+/** swagger `TargetSourceDetail` (37 item), snake. 200 is a BARE ARRAY. */
+export interface TargetSourceDetailWire {
+  description?: string;
+  target_source_id?: number;
+  service_code?: string;
+  service_name?: string;
+  process_status?: BffProcessStatus;
+  cloud_provider?: BffCloudTypeUpper;
+  created_at?: string;
+  metadata?: TargetSourceMetadataWire;
 }
 
-export interface RegistrationPreviewItemDuplicate extends RegistrationPreviewItemCommon {
-  type: 'DUPLICATE';
-  existing_target_source_id: number;
-}
-
-export type RegistrationPreviewItem =
-  | RegistrationPreviewItemAdd
-  | RegistrationPreviewItemDuplicate;
-
-export interface RegistrationPreviewResponse {
-  items: RegistrationPreviewItem[];
-}
+export type TargetSourcesByServiceResponseWire = TargetSourceDetailWire[];
 
 /** Domain model produced by `extractTargetSource` — re-exported for callers. */
 export type { TargetSource };
