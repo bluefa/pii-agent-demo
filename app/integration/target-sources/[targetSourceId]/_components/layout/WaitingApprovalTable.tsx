@@ -34,7 +34,17 @@ interface WaitingApprovalTableProps {
   variant?: ApprovalTableVariant;
   /** Custom empty message shown when `resources` is empty. Defaults to the source-level empty copy. */
   emptyMessage?: string;
+  /**
+   * When true, render the table as v16 `.approval-table-wrap`: borderless and bottom-rounded
+   * only, so it joins directly under the toolbar (top-rounded) as one connected card. Defaults
+   * to the standalone framed table (rounded-xl + border + shadow).
+   */
+  connected?: boolean;
 }
+
+// v16 `.approval-table-wrap` (CSS ~2846): border:0; border-radius:0 0 inner inner; overflow:hidden;
+// background:#fff — joins flush under the top-rounded toolbar with no gap or top border.
+const CONNECTED_FRAME = 'overflow-hidden rounded-b-xl bg-white';
 
 const DEFAULT_EMPTY_MESSAGE = '표시할 리소스가 없습니다.';
 
@@ -69,7 +79,7 @@ const IntegrationHistoryCell = ({ resource }: { resource: WaitingApprovalResourc
 };
 
 export const WaitingApprovalTable = memo(
-  ({ resources, variant = 'waiting', emptyMessage }: WaitingApprovalTableProps) => {
+  ({ resources, variant = 'waiting', emptyMessage, connected = false }: WaitingApprovalTableProps) => {
     if (resources.length === 0) {
       return (
         <div className={cn('px-6 py-10 text-center text-sm', textColors.tertiary)}>
@@ -84,7 +94,7 @@ export const WaitingApprovalTable = memo(
     const monoCell = cn('font-mono text-[12px]', textColors.secondary);
 
     return (
-      <div className={idcStyles.table.frame}>
+      <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className={idcStyles.table.header}>

@@ -70,15 +70,11 @@ export const InstallTaskCard = ({
   title,
   sub,
   status,
-  completedCount,
-  activeCount,
   onClick,
   showConnector,
 }: InstallTaskCardProps) => {
-  const showCount = status === 'running' && typeof activeCount === 'number';
-  const pillText = showCount
-    ? `${PILL_LABEL[status]} (${completedCount ?? 0}/${activeCount})`
-    : PILL_LABEL[status];
+  // v16 `.status-pill` is a plain label ('진행중'/'완료') with no count suffix.
+  const pillText = PILL_LABEL[status];
 
   const containerClass = cn(
     'flex flex-col items-start text-left gap-3 px-[22px] py-6',

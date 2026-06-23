@@ -4,14 +4,12 @@ import { createPortal } from 'react-dom';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { Pagination } from '@/app/components/ui/Pagination';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { VmDatabaseConfigPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
-import { usePagination } from '@/app/hooks/usePagination';
 import { getResourceDisplayName } from '@/lib/resource';
 import {
   bgColors,
@@ -70,12 +68,6 @@ export const CandidateResourceTable = ({
   const selectedCount = selectedIds.size;
   const showCheckboxColumn = !readonly;
 
-  // Display-only pagination; selection/approval gating runs over the full list in
-  // the parent section, so slicing the view here is safe (mirrors IdcResourceTable).
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(candidates, {
-    initialPageSize: 10,
-  });
-
   if (totalCount === 0) {
     return (
       <div className={cn('rounded-lg border px-6 py-10 text-center text-sm', bgColors.surface, borderColors.default, textColors.tertiary)}>
@@ -102,7 +94,7 @@ export const CandidateResourceTable = ({
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
-              {pageRows.map((candidate) => (
+              {candidates.map((candidate) => (
                 <CandidateResourceRow
                   key={candidate.id}
                   candidate={candidate}
@@ -120,14 +112,6 @@ export const CandidateResourceTable = ({
           </table>
         </div>
       </div>
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        totalCount={totalCount}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        pageSizeOptions={[10, 20, 50, 100]}
-      />
 
       {!readonly && (
         <div className="flex justify-between items-center pt-4">

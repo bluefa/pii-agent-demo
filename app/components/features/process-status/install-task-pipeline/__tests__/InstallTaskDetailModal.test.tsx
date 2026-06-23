@@ -191,7 +191,7 @@ describe('InstallTaskDetailModal — render', () => {
       />,
     );
     expect(html).toContain('Resource ID');
-    expect(html).toContain('DB Type');
+    expect(html).toContain('Database Type');
     expect(html).toContain('Region');
     expect(html).toContain('진행 완료 여부');
   });

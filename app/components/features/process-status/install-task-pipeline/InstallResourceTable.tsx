@@ -18,6 +18,7 @@ import {
   TABLE_TAG_PILL,
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 import { CopyButton } from '@/app/components/ui/CopyButton';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 
@@ -74,7 +75,7 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
         <table className="w-full text-sm">
           <thead className={bgColors.muted}>
             <tr>
-              <th className={TABLE_HEADER_CELL}>DB Type</th>
+              <th className={TABLE_HEADER_CELL}>Database Type</th>
               <th className={TABLE_HEADER_CELL}>Resource ID</th>
               <th className={TABLE_HEADER_CELL}>Region</th>
               <th className={TABLE_HEADER_CELL}>Resource Name</th>
@@ -91,7 +92,9 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
               >
                 <td className={TABLE_BODY_CELL}>
                   {row.databaseType ? (
-                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>{row.databaseType}</span>
+                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>
+                      {getDatabaseShortLabel(row.databaseType)}
+                    </span>
                   ) : (
                     <span className={textColors.tertiary}>—</span>
                   )}

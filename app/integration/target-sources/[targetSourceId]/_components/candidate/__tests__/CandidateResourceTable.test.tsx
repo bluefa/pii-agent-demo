@@ -82,4 +82,17 @@ describe('CandidateResourceTable', () => {
     expect(button.className).toContain('opacity-0');
     expect(button.className).toContain('group-hover/resid:opacity-100');
   });
+
+  it('does not render a pagination row, and shows every candidate (v16 cloud step-1 has no pager)', () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      candidateFixture({ id: `c-${i}`, resourceId: `res-${i}` }),
+    );
+    render(<CandidateResourceTable {...defaultProps} candidates={many} />);
+    // No page-size selector → no pagination row at all.
+    expect(screen.queryByLabelText('페이지당 표시 건수')).toBeNull();
+    // All 12 rows render (no 10-per-page slicing).
+    expect(screen.getAllByRole('button', { name: 'Resource ID 복사' })).toHaveLength(12);
+    // Count + approve footer stays intact.
+    expect(screen.getByRole('button', { name: '연동 대상 승인 요청' })).toBeTruthy();
+  });
 });

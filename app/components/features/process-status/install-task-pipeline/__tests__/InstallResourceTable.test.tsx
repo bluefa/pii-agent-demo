@@ -39,7 +39,7 @@ describe('InstallResourceTable — column headers', () => {
     const html = renderToStaticMarkup(
       <InstallResourceTable rows={[row()]} provider="GCP" />,
     );
-    const dbTypeIdx = html.indexOf('DB Type');
+    const dbTypeIdx = html.indexOf('Database Type');
     const resourceIdx = html.indexOf('Resource ID');
     const regionIdx = html.indexOf('Region');
     const resourceNameIdx = html.indexOf('Resource Name');

@@ -65,12 +65,14 @@ describe('InstallTaskPipeline', () => {
     expect(html).not.toMatch(/left:\s*\d/);
   });
 
-  it('passes M/N count through to running cards', () => {
+  it('renders plain 진행중 (no M/N count suffix) on running cards', () => {
     const items: InstallTaskPipelineItem[] = [
       { key: 'a', title: 't1', status: 'running', completedCount: 2, activeCount: 7 },
     ];
     const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
-    expect(html).toContain('진행중 (2/7)');
+    expect(html).toContain('진행중');
+    expect(html).not.toContain('진행중 (');
+    expect(html).not.toContain('(2/7)');
   });
 
   it('renders a button for items with onClick', () => {

@@ -89,7 +89,7 @@ export const IdcStep7Complete = ({
           <div>
             <h2 className={cardStyles.cardTitle}>PII 모니터링 모듈 연동 완료</h2>
             <p className={cn('mt-2.5', cardStyles.subtitle)}>
-              PII가 사용되어 있을 가능성이 있어요. 사용 단어 빈도가 표시되며, 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
+              PII가 사용되어 있을 가능성이 있어요. 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
             </p>
           </div>
           <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.healthy.text)}>

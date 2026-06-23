@@ -36,18 +36,13 @@ describe('InstallTaskCard — status pill labels', () => {
     expect(html).not.toContain('진행중 (');
   });
 
-  it('renders 진행중 (M/N) for running with activeCount', () => {
+  it('renders plain 진행중 (no count suffix) even when counts are passed', () => {
     const html = renderToStaticMarkup(
       <InstallTaskCard {...baseProps} status="running" completedCount={2} activeCount={5} />,
     );
-    expect(html).toContain('진행중 (2/5)');
-  });
-
-  it('treats missing completedCount as 0 in M/N pill', () => {
-    const html = renderToStaticMarkup(
-      <InstallTaskCard {...baseProps} status="running" activeCount={3} />,
-    );
-    expect(html).toContain('진행중 (0/3)');
+    expect(html).toContain('진행중');
+    expect(html).not.toContain('진행중 (');
+    expect(html).not.toContain('(2/5)');
   });
 });
 

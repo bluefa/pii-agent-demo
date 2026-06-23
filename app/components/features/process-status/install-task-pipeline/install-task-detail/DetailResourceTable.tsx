@@ -50,7 +50,7 @@ export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps)
         <thead className={bgColors.muted}>
           <tr>
             <th className={TABLE_HEADER_CELL}>Resource ID</th>
-            <th className={TABLE_HEADER_CELL}>DB Type</th>
+            <th className={TABLE_HEADER_CELL}>Database Type</th>
             <th className={TABLE_HEADER_CELL}>Region</th>
             <th className={TABLE_HEADER_CELL}>진행 완료 여부</th>
           </tr>

@@ -173,7 +173,8 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="mt-4">
+            {/* v16: toolbar (top-rounded) + approval table (bottom-rounded) join as one connected card — no gap. */}
             <WaitingApprovalToolbar
               searchValue={table.searchValue}
               onSearchChange={table.onSearchChange}
@@ -193,16 +194,19 @@ export const ApplyingApprovedCard = ({ targetSourceId }: ApplyingApprovedCardPro
             <WaitingApprovalTable
               resources={table.visibleResources}
               variant="applying"
+              connected
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
             {table.filteredCount > 0 && (
-              <Pagination
-                page={table.safePage}
-                pageSize={table.pageSize}
-                totalCount={table.filteredCount}
-                onPageChange={table.onPageChange}
-                onPageSizeChange={table.onPageSizeChange}
-              />
+              <div className="mt-3">
+                <Pagination
+                  page={table.safePage}
+                  pageSize={table.pageSize}
+                  totalCount={table.filteredCount}
+                  onPageChange={table.onPageChange}
+                  onPageSizeChange={table.onPageSizeChange}
+                />
+              </div>
             )}
           </div>
         )}

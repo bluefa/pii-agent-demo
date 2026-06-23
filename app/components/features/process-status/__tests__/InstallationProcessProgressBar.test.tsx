@@ -9,6 +9,7 @@ vi.mock(
   '@/app/components/features/process-status/motion/stepperMotionEngine',
   () => ({
     runStepperMotion: vi.fn(() => () => undefined),
+    resetStepperToStates: vi.fn(),
   }),
 );
 

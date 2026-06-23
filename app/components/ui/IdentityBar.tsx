@@ -18,7 +18,8 @@ interface IdentityBarProps {
   /** Resolved per-provider accent hex (see `providerAccent`). Drives stripe + icon/agent tints. */
   accent: string;
   providerName: string;
-  providerSub: string;
+  /** Sub-line under the provider name (e.g. "Cloud Provider"). Omitted when empty — IDC has no cloud account, so v16 hides it (HTML 9439). */
+  providerSub?: string;
   /** Provider glyph rendered inside the 38px accent-tinted icon box. */
   icon: ReactNode;
   fields: IdentityBarField[];
@@ -46,7 +47,7 @@ export const IdentityBar = ({
       </span>
       <div className="min-w-0">
         <div className={identityBarStyles.providerName}>{providerName}</div>
-        <div className={identityBarStyles.providerSub}>{providerSub}</div>
+        {providerSub ? <div className={identityBarStyles.providerSub}>{providerSub}</div> : null}
       </div>
     </div>
 

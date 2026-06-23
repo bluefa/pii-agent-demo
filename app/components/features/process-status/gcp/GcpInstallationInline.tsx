@@ -4,7 +4,6 @@ import {
   borderColors,
   cardStyles,
   cn,
-  interactiveColors,
   statusColors,
   textColors,
 } from '@/lib/theme';
@@ -33,7 +32,7 @@ export const GcpInstallationInline = ({
   const detailModal = useModal<GcpStepKey>();
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
-  const { status, loading, refreshing, error, fetchStatus, refresh } =
+  const { status, loading, error, fetchStatus } =
     useInstallationStatus<GcpInstallationStatusResponse>({
       targetSourceId,
       getFn: getGcpInstallationStatus,
@@ -54,9 +53,6 @@ export const GcpInstallationInline = ({
   }));
 
   const lastCheck = status?.lastCheck;
-  const checkedAt = lastCheck?.checkedAt
-    ? new Date(lastCheck.checkedAt).toLocaleString('ko-KR')
-    : null;
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -67,28 +63,12 @@ export const GcpInstallationInline = ({
             승인된 인프라에 PII Agent를 배포하기 위한 설치 작업을 진행합니다.
           </p>
         </div>
-        <button
-          onClick={refresh}
-          disabled={refreshing}
-          className={cn('p-1 rounded transition-colors disabled:opacity-50', interactiveColors.closeButton)}
-          title="새로고침"
-        >
-          {refreshing ? (
-            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          )}
-        </button>
+        {/* v16 L6606 — provider indicator (not a control), short provider name. */}
+        <span className="text-[11.5px] text-[#8B95A1]">
+          Provider: <strong className="text-[#191F28]">GCP</strong>
+        </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        {checkedAt && (
-          <span className={cn('block text-xs', textColors.tertiary)}>
-            마지막 확인: {checkedAt}
-          </span>
-        )}
-
         {lastCheck?.status === 'FAILED' && lastCheck.failReason && (
           <div className={cn('px-4 py-2 rounded-lg border text-sm', statusColors.error.bg, statusColors.error.border, statusColors.error.textDark)}>
             상태 확인 실패: {lastCheck.failReason}
