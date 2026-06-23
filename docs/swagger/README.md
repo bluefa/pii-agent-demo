@@ -1,3 +1,19 @@
+# Swagger Sources
+
+## Authoritative contract (ADR-019 migration)
+
+`install-v1.yaml` is the **single source of truth** for the `/install/v1/**` contract
+(consolidated, 50 endpoints). All client paths/schemas/mocks must match it verbatim.
+Migration tracked in [`../reports/adr019-api-migration/PLAN.md`](../reports/adr019-api-migration/PLAN.md);
+per-endpoint contract verification in
+[`../reports/adr019-api-migration/contract-verification.md`](../reports/adr019-api-migration/contract-verification.md).
+
+The per-section files below (`confirm.yaml`, `test-connection.yaml`, `logical-db-status.yaml`,
+`idc.yaml`, `install-v1-client.yaml`, …) are **superseded** by `install-v1.yaml` and are
+removed phase-by-phase as their endpoints migrate (PLAN §8 P7). Do not author new code against them.
+
+---
+
 # Swagger Sources (Issue #122)
 
 이 디렉터리는 GitHub Issue #122에 등록된 Swagger 초안을 섹션별로 분리해 반영한 결과입니다.
