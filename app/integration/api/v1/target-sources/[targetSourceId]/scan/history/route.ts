@@ -14,8 +14,6 @@ export const GET = withV1(async (request, { requestId, params }) => {
   const offset = page * size;
 
   const data = await bff.scan.getHistory(parsed.value, { limit: size, offset });
-  const totalElements = data.totalElements;
-  const totalPages = Math.ceil(totalElements / size);
 
   const content = data.content.map((item) => ({
     id: item.id,
@@ -30,13 +28,15 @@ export const GET = withV1(async (request, { requestId, params }) => {
     scanError: item.scanError,
   }));
 
+  // Read the flat Spring Page fields straight off the wire (PageScanJobResponse)
+  // — no recompute. Preserve the route→CSR `{content, page}` 2-hop envelope.
   return NextResponse.json({
     content,
     page: {
-      totalElements,
-      totalPages,
-      number: page,
-      size,
+      totalElements: data.totalElements,
+      totalPages: data.totalPages,
+      number: data.number,
+      size: data.size,
     },
   });
 });

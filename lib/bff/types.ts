@@ -22,12 +22,10 @@ import type {
   AwsRoleVerificationResponse,
 } from '@/lib/bff/types/aws';
 import type {
+  AzureHealthCheckResult,
   AzureInstallationStatusResponse,
   AzureScanAppResponse,
   AzureSubnetGuideResponse,
-  AzureVmCheckInstallationResult,
-  AzureVmInstallationStatusResponse,
-  AzureVmTerraformScriptResponse,
 } from '@/lib/bff/types/azure';
 import type {
   GcpInstallationStatusResponse,
@@ -155,9 +153,8 @@ export interface BffClient {
     getInstallationStatus: (id: number) => Promise<AzureInstallationStatusResponse>;
     getSubnetGuide: (id: number) => Promise<AzureSubnetGuideResponse>;
     getScanApp: (id: number) => Promise<AzureScanAppResponse>;
-    vmCheckInstallation: (id: number) => Promise<AzureVmCheckInstallationResult>;
-    vmGetInstallationStatus: (id: number) => Promise<AzureVmInstallationStatusResponse>;
-    vmGetTerraformScript: (id: number) => Promise<AzureVmTerraformScriptResponse>;
+    // G8 — swagger getAzurePrivateLinkHealthCheck (/infra/ infix; wire camel).
+    getPrivateLinkHealthCheck: (id: number) => Promise<AzureHealthCheckResult>;
   };
 
   gcp: {

@@ -7,7 +7,7 @@ import { InstallTaskPipeline } from '@/app/components/features/process-status/in
 import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
 import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
 import { joinAzureResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
-import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
+import { getAzureInstallationStatus } from '@/app/lib/api/azure';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useModal } from '@/app/hooks/useModal';
 import { buildAzurePipelineItems } from '@/lib/constants/azure-install';
@@ -81,7 +81,8 @@ export const AzureInstallationInline = ({
     useInstallationStatus<AzureV1InstallationStatus>({
       targetSourceId,
       getFn: getAzureInstallationStatus,
-      checkFn: checkAzureInstallation,
+      // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
+      checkFn: getAzureInstallationStatus,
     });
 
   const unifiedResources: UnifiedInstallResource[] = useMemo(() => {

@@ -3,6 +3,16 @@ import * as mockData from '@/lib/mock-data';
 import * as azureFns from '@/lib/mock-azure';
 import { AZURE_ERROR_CODES } from '@/lib/constants/azure';
 
+/**
+ * Azure cloud-status mocks (ADR-019 Spec G). installation-status authors the
+ * **swagger snake wire** `AzureInstallationStatusResponse` with `vm_installation`
+ * embedded per resource (the real BFF returns the unified shape — the legacy
+ * separate VM merge is gone). scan-app stays the sanctioned snake passthrough
+ * (Issue #222). private-link-health-check (G8) is new; its wire is already
+ * camelCase per swagger. Endpoints absent from install-v1.yaml (check-installation,
+ * vm/*) were removed.
+ */
+
 const authorize = async (projectId: string) => {
   const user = await mockData.getCurrentUser();
   if (!user) {
@@ -41,18 +51,43 @@ const handleResult = (result: { error?: { code: string; message: string; status:
 };
 
 export const mockAzure = {
-  checkInstallation: async (projectId: string) => {
-    const auth = await authorize(projectId);
-    if (auth.error) return auth.error;
-
-    return handleResult(azureFns.checkAzureInstallation(Number(projectId)));
-  },
-
+  // GET …/azure/installation-status → AzureInstallationStatusResponse (snake wire).
   getInstallationStatus: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(azureFns.getAzureInstallationStatus(Number(projectId)));
+    const dbResult = azureFns.getAzureInstallationStatus(Number(projectId));
+    if (dbResult.error) return handleResult(dbResult);
+    const vmResult = azureFns.getAzureVmInstallationStatus(Number(projectId));
+    const vmById = new Map((vmResult.data?.vms ?? []).map((vm) => [vm.vmId, vm]));
+
+    const resources = (dbResult.data?.resources ?? []).map((r) => {
+      const vm = vmById.get(r.resourceId);
+      return {
+        resource_id: r.resourceId,
+        resource_name: r.resourceName,
+        resource_type: r.resourceType,
+        private_endpoint: r.privateEndpoint
+          ? { id: r.privateEndpoint.id, name: r.privateEndpoint.name, status: r.privateEndpoint.status }
+          : null,
+        vm_installation: vm
+          ? {
+              subnet_exists: vm.subnetExists,
+              // load_balancer passes through opaque (ADR-019 D2.3).
+              load_balancer: { name: vm.loadBalancer.name, installed: vm.loadBalancer.installed },
+            }
+          : null,
+      };
+    });
+
+    return NextResponse.json({
+      last_check: {
+        status: dbResult.data?.installed ? 'COMPLETED' : 'IN_PROGRESS',
+        checked_at: '2026-06-23T10:00:00Z',
+        fail_reason: null,
+      },
+      resources,
+    });
   },
 
   getSubnetGuide: async (projectId: string) => {
@@ -62,20 +97,7 @@ export const mockAzure = {
     return handleResult(azureFns.getAzureSubnetGuide(Number(projectId)));
   },
 
-  vmCheckInstallation: async (projectId: string) => {
-    const auth = await authorize(projectId);
-    if (auth.error) return auth.error;
-
-    return handleResult(azureFns.checkAzureVmInstallation(Number(projectId)));
-  },
-
-  vmGetInstallationStatus: async (projectId: string) => {
-    const auth = await authorize(projectId);
-    if (auth.error) return auth.error;
-
-    return handleResult(azureFns.getAzureVmInstallationStatus(Number(projectId)));
-  },
-
+  // GET …/azure/scan-app → AzureServicePrincipalVerificationResponse (snake passthrough).
   getScanApp: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
@@ -85,16 +107,29 @@ export const mockAzure = {
 
     const scanApp = result.data!.scanApp;
     const data = scanApp.registered
-      ? { app_id: scanApp.appId, status: scanApp.status ?? 'HEALTHY', fail_reason: null, fail_message: null, last_verified_at: scanApp.lastVerifiedAt ?? new Date().toISOString() }
-      : { app_id: null, status: 'UNREGISTERED', fail_reason: null, fail_message: null, last_verified_at: null };
+      ? { app_id: scanApp.appId, status: scanApp.status ?? 'VALID', fail_reason: null, fail_message: null, last_verified_at: scanApp.lastVerifiedAt ?? new Date().toISOString() }
+      : { app_id: null, status: 'UNVERIFIED', fail_reason: null, fail_message: null, last_verified_at: null };
 
     return NextResponse.json(data);
   },
 
-  vmGetTerraformScript: async (projectId: string) => {
+  // GET /infra/…/azure-private-link-health-check → AzureHealthCheckResult (G8).
+  // Wire is already camelCase per swagger.
+  getPrivateLinkHealthCheck: async (projectId: string) => {
     const auth = await authorize(projectId);
     if (auth.error) return auth.error;
 
-    return handleResult(azureFns.getAzureVmTerraformScript(Number(projectId)));
+    return NextResponse.json({
+      healthCheckStatus: 'HEALTHY',
+      azurePrivateLinkHealthResultList: [
+        {
+          provisioningState: 'Succeeded',
+          resourceId: `/subscriptions/${auth.project!.id}/privateEndpoints/pe-1`,
+          privateLinkId: 'pls-1',
+          resourceType: 'AZURE_PRIVATE_ENDPOINT',
+          healthCheckStatus: 'HEALTHY',
+        },
+      ],
+    });
   },
 };

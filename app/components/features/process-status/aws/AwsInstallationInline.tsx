@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   getAwsInstallationStatus,
-  checkAwsInstallation,
   getAwsTerraformScript,
 } from '@/app/lib/api/aws';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
@@ -68,7 +67,8 @@ export const AwsInstallationInline = ({
   const { status, loading, error, fetchStatus } = useInstallationStatus<AwsInstallationStatus>({
     targetSourceId,
     getFn: getAwsInstallationStatus,
-    checkFn: checkAwsInstallation,
+    // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
+    checkFn: getAwsInstallationStatus,
     isComplete: isFullyCompleted,
     onComplete: () => {
       if (!completionNotifiedRef.current) {
@@ -85,16 +85,20 @@ export const AwsInstallationInline = ({
   );
 
   const handleDownload = async () => {
-    // Open the tab synchronously (inside the click) so the popup blocker allows
-    // it; navigate it once the signed URL resolves.
-    const tab = window.open('', '_blank');
+    // swagger returns the zip bytes directly (…/terraform-script/download); save
+    // the blob via a transient object URL instead of navigating to a signed URL.
     setDownloading(true);
     try {
-      const res = await getAwsTerraformScript(targetSourceId);
-      if (tab) tab.location.href = res.downloadUrl;
-      else window.open(res.downloadUrl, '_blank');
+      const blob = await getAwsTerraformScript(targetSourceId);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `terraform-${targetSourceId}.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
     } catch {
-      tab?.close();
       toast.error('Terraform 스크립트 다운로드에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setDownloading(false);

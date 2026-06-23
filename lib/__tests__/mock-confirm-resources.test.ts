@@ -23,7 +23,10 @@ interface MockResourceCatalogResponse {
     metadata: {
       provider: string;
       resourceType: string;
+      rawResourceType?: string;
       region?: string;
+      host?: string;
+      port?: number;
     };
   }>;
   total_count: number;
@@ -114,6 +117,8 @@ describe('mockConfirm.getResources', () => {
         resource_type: 'AZURE_VM',
         database_type: 'ORACLE',
         integration_category: 'NO_INSTALL_NEEDED',
+        // host/port/oracle_service_id/network_interface_id are read from metadata.*
+        // (swagger TargetSourceResourceItemDto), surfaced flat by extractResourceCatalog.
         host: 'db.internal',
         port: 1521,
         oracle_service_id: 'ORCL',
@@ -123,7 +128,10 @@ describe('mockConfirm.getResources', () => {
         metadata: {
           provider: 'Azure',
           resourceType: 'AZURE_VM',
+          rawResourceType: 'AZURE_VM',
           region: 'ap-northeast-1',
+          host: 'db.internal',
+          port: 1521,
         },
       },
       {
@@ -142,6 +150,7 @@ describe('mockConfirm.getResources', () => {
         metadata: {
           provider: 'Azure',
           resourceType: 'AZURE_POSTGRESQL',
+          rawResourceType: 'AZURE_POSTGRESQL',
           region: 'ap-northeast-1',
         },
       },

@@ -1,47 +1,69 @@
 /**
- * Typed shapes for `bff.aws` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.aws` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * ADR-019 /install/v1 migration (Spec G — cloud-status). GET responses are the
+ * swagger camel domain (httpBff.get runs camelCaseKeys at the one boundary);
+ * the BffClient contract is the *swagger* response shape, so mocks author the
+ * snake wire and the same hand-written transforms run for mock and real BFF.
+ *
+ * Source of truth: docs/swagger/install-v1.yaml
+ *   - AwsInstallationStatusResponse (L5639)
+ *   - AwsResourceInstallationStatusDto (L5650)
+ *   - AwsTerraformExecutionRoleVerifyDto (L5671)
+ *   - LastCheckInfoDto / CloudInstallationStepStatusDto (shared)
+ *   - AwsRoleVerificationResponse (L5625)
  */
 
-import type {
-  LegacyAwsInstallationStatus,
-  LegacyCheckInstallationResponse,
-  TerraformScriptResponse,
-  VerifyTfRoleResponse,
-} from '@/lib/types';
+/** Shared 5-value step/installation status (swagger CloudInstallationStepStatusDto.status). */
+export type CloudStepStatus =
+  | 'COMPLETED'
+  | 'FAIL'
+  | 'IN_PROGRESS'
+  | 'SKIP'
+  | 'UNKNOWN';
 
-export type { LegacyAwsInstallationStatus, LegacyCheckInstallationResponse };
+/** Shared last-check status (swagger LastCheckInfoDto.status, 5 values). */
+export type LastCheckStatus =
+  | 'NEVER_CHECKED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'SUCCESS';
 
-/** POST /aws/projects/{id}/check-installation (snake_case raw passthrough). */
-export type AwsCheckInstallationResult = LegacyCheckInstallationResponse;
-
-/** POST /aws/projects/{id}/installation-mode (snake_case raw passthrough). */
-export interface AwsSetInstallationModeResult {
-  success: boolean;
-  mode?: 'AUTO' | 'MANUAL';
+/** swagger CloudInstallationStepStatusDto (shared per-step DTO). */
+export interface CloudInstallationStepStatus {
+  status: CloudStepStatus;
+  guide?: string;
 }
 
-/** GET /aws/projects/{id}/installation-status (camelCase). */
-export type AwsInstallationStatusResponse = LegacyAwsInstallationStatus;
-
-/** GET /aws/projects/{id}/terraform-script (camelCase). */
-export type AwsTerraformScriptResponse = TerraformScriptResponse;
-
-/** POST /aws/verify-tf-role (snake_case raw passthrough). */
-export type AwsVerifyTfRoleResult = VerifyTfRoleResponse;
-
-/** POST /aws/projects/{id}/installation-mode request body. */
-export interface AwsSetInstallationModeBody {
-  mode: 'AUTO' | 'MANUAL';
+/** swagger LastCheckInfoDto (shared by AWS/Azure/GCP installation-status). */
+export interface LastCheckInfo {
+  status: LastCheckStatus;
+  checkedAt?: string;
+  failReason?: string;
 }
 
-/** POST /aws/verify-tf-role request body. */
-export interface AwsVerifyTfRoleBody {
+/** swagger AwsResourceInstallationStatusDto. */
+export interface AwsResourceInstallationStatus {
+  resourceId: string;
+  resourceName?: string;
+  installationStatus: CloudStepStatus;
+  serviceTerraform: CloudInstallationStepStatus;
+  bdcServiceTerraform: CloudInstallationStepStatus;
+  bdcCommonTerraform: CloudInstallationStepStatus;
+}
+
+/** swagger AwsTerraformExecutionRoleVerifyDto. */
+export interface AwsTerraformExecutionRoleVerify {
+  status: CloudStepStatus;
   roleArn?: string;
-  accountId?: string;
+}
+
+/** GET …/aws/installation-status — swagger AwsInstallationStatusResponse (camel domain). */
+export interface AwsInstallationStatusResponse {
+  lastCheck: LastCheckInfo;
+  resources: AwsResourceInstallationStatus[];
+  terraformExecutionRoleVerify?: AwsTerraformExecutionRoleVerify;
 }
 
 /**

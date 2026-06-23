@@ -90,6 +90,13 @@ export const mockScan = {
 
     const { history, total } = scanFns.getScanHistory(targetSourceId, query.limit, query.offset);
 
+    const size = query.limit > 0 ? query.limit : 10;
+    const number = size > 0 ? Math.floor(query.offset / size) : 0;
+    const totalPages = size > 0 ? Math.ceil(total / size) : 0;
+
+    // Full Spring PageScanJobResponse. Top-level page meta is camelCase on the
+    // wire (Spring); content items mirror the camel ScanJob the GET boundary
+    // produces. The route reads totalElements/totalPages/number/size flat.
     return NextResponse.json({
       content: history.map((h) => ({
         id: parseNumericId(h.scanId),
@@ -104,6 +111,22 @@ export const mockScan = {
         scanError: h.error ?? null,
       })),
       totalElements: total,
+      totalPages,
+      number,
+      size,
+      numberOfElements: history.length,
+      first: number === 0,
+      last: number >= totalPages - 1,
+      empty: history.length === 0,
+      pageable: {
+        paged: true,
+        unpaged: false,
+        pageNumber: number,
+        pageSize: size,
+        offset: query.offset,
+        sort: [],
+      },
+      sort: [],
     });
   },
 

@@ -8,6 +8,7 @@ import {
   mockServiceCodes,
 } from '@/lib/mock-data';
 import { mockProjects } from '@/lib/bff/mock/projects';
+import { camelCaseKeys } from '@/lib/object-case';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
@@ -100,9 +101,14 @@ const getBffMetadata = (project: Project) => ({
   ...(project.subscriptionId ? { subscription_id: project.subscriptionId } : {}),
 });
 
+// swagger `TargetSourceDetail` (snake wire) — flat, used by 37 (`list`) and the
+// detail `get`. `service_code`/`service_name` are part of the swagger DTO.
 const toBffTargetSourceDetail = (project: Project) => ({
   description: project.description,
   target_source_id: project.targetSourceId,
+  service_code: project.serviceCode,
+  service_name:
+    mockServiceCodes.find((s) => s.code === project.serviceCode)?.name ?? project.serviceCode,
   process_status: toBffApprovalProcessStatus(project.processStatus),
   cloud_provider: toBffCloudProvider(project.cloudProvider),
   created_at: project.createdAt,
@@ -111,12 +117,8 @@ const toBffTargetSourceDetail = (project: Project) => ({
     : {}),
 });
 
-const toTargetSourceInfoCloudProvider = (cloudProvider: CloudProvider): string =>
-  toBffCloudProvider(cloudProvider);
-
 // swagger `TargetSourceInfo` (36, 201): camelCase top-level + snake `metadata`.
-// Distinct from `toBffTargetSourceInfo` (the rich E-domain detail shape used by
-// `get`) — the create response carries only the contract fields.
+// The create response carries only the contract fields.
 const toBffTargetSourceCreatedInfo = (project: Project) => {
   const metadata: TargetSourceMetadataWire = {
     ...(project.tenantId ? { tenant_id: project.tenantId } : {}),
@@ -140,43 +142,6 @@ const toBffTargetSourceCreatedInfo = (project: Project) => {
     ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
   };
 };
-
-const toBffTargetSourceInfo = (project: Project) => ({
-  id: project.id,
-  targetSourceId: project.targetSourceId,
-  projectCode: project.projectCode,
-  serviceCode: project.serviceCode,
-  cloudProvider: toTargetSourceInfoCloudProvider(project.cloudProvider),
-  processStatus: project.processStatus,
-  createdAt: project.createdAt,
-  updatedAt: project.updatedAt,
-  name: project.name,
-  description: project.description,
-  isRejected: project.isRejected,
-  ...(project.rejectionReason ? { rejectionReason: project.rejectionReason } : {}),
-  ...(project.rejectedAt ? { rejectedAt: project.rejectedAt } : {}),
-  ...(project.approvalComment ? { approvalComment: project.approvalComment } : {}),
-  ...(project.approvedAt ? { approvedAt: project.approvedAt } : {}),
-  ...(project.piiAgentInstalled !== undefined ? { piiAgentInstalled: project.piiAgentInstalled } : {}),
-  ...(project.piiAgentConnectedAt ? { piiAgentConnectedAt: project.piiAgentConnectedAt } : {}),
-  ...(project.completionConfirmedAt ? { completionConfirmedAt: project.completionConfirmedAt } : {}),
-  ...(project.connectionTestHistory ? { connectionTestHistory: project.connectionTestHistory } : {}),
-  ...(project.awsInstallationMode ? { awsInstallationMode: project.awsInstallationMode } : {}),
-  ...(project.awsAccountId ? { awsAccountId: project.awsAccountId } : {}),
-  ...(project.awsLinkedAccountId ? { awsLinkedAccountId: project.awsLinkedAccountId } : {}),
-  ...(project.awsRegionType ? { awsRegionType: project.awsRegionType } : {}),
-  ...(project.isChinaRegion !== undefined ? { isChinaRegion: project.isChinaRegion } : {}),
-  ...(project.isTerraformExecutionGranted !== undefined
-    ? { isTerraformExecutionGranted: project.isTerraformExecutionGranted }
-    : {}),
-  ...(project.tenantId ? { tenantId: project.tenantId } : {}),
-  ...(project.subscriptionId ? { subscriptionId: project.subscriptionId } : {}),
-  ...(project.gcpProjectId ? { gcpProjectId: project.gcpProjectId } : {}),
-  ...(project.dbType ? { dbType: project.dbType } : {}),
-  ...(Object.keys(getBffMetadata(project)).length > 0
-    ? { metadata: getBffMetadata(project) }
-    : {}),
-});
 
 const trim = (value?: string): string => (value ?? '').trim();
 const normalizeDbType = (value?: string): string => trim(value).toUpperCase();
@@ -414,7 +379,10 @@ export const mockTargetSources = {
     const response = await mockProjects.get(targetSourceId);
     if (!response.ok) return response;
     const { project } = (await response.json()) as { project: Project };
-    return NextResponse.json({ targetSource: toBffTargetSourceInfo(project) });
+    // swagger is a FLAT TargetSourceDetail (snake). Author the wire DTO, then
+    // camelCaseKeys it to mirror httpBff's GET boundary (the mock-adapter uses
+    // raw `unwrap` for this method, so the conversion happens here).
+    return NextResponse.json(camelCaseKeys(toBffTargetSourceDetail(project)));
   },
 
   // createTargetSource (36): body is the selected TargetSourceCreationCandidateResponse

@@ -18,6 +18,7 @@ import type {
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
+import { camelCaseKeys } from '@/lib/object-case';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
 import { mockUsers } from '@/lib/bff/mock/users';
@@ -38,12 +39,10 @@ import type {
   AwsRoleVerificationResponse,
 } from '@/lib/bff/types/aws';
 import type {
+  AzureHealthCheckResult,
   AzureInstallationStatusResponse,
   AzureScanAppResponse,
   AzureSubnetGuideResponse,
-  AzureVmCheckInstallationResult,
-  AzureVmInstallationStatusResponse,
-  AzureVmTerraformScriptResponse,
 } from '@/lib/bff/types/azure';
 import type {
   GcpInstallationStatusResponse,
@@ -74,6 +73,23 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
     throw bffErrorFromBody(response.status, body);
   }
   return await response.json() as T;
+}
+
+/**
+ * Mock parity for camel-boundary methods (PLAN P1): mocks author the swagger
+ * snake wire, so the adapter must `camelCaseKeys` exactly like `httpBff.get`
+ * does for real BFF — otherwise the BffClient would return snake keys under a
+ * camel type (the bug this migration removes). Used only by the cloud
+ * installation-status / role-verify / service-account / health-check methods;
+ * snake-passthrough domains (IDC, logical-DB, test-connection, azure scan-app)
+ * keep raw `unwrap` because their own downstream boundary owns the conversion.
+ */
+async function unwrapCamel<T>(response: NextResponse): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw bffErrorFromBody(response.status, body);
+  }
+  return camelCaseKeys(await response.json()) as T;
 }
 
 export const mockBff: BffClient = {
@@ -122,38 +138,36 @@ export const mockBff: BffClient = {
   },
 
   aws: {
+    // unwrapCamel: mock authors snake wire → camelCaseKeys (matches httpBff.get).
     getInstallationStatus: async (id) =>
-      unwrap<AwsInstallationStatusResponse>(await mockAws.getInstallationStatus(String(id))),
+      unwrapCamel<AwsInstallationStatusResponse>(await mockAws.getInstallationStatus(String(id))),
     // Binary download — return the raw Response (NextResponse extends Response).
     getTerraformScript: async (id) => mockAws.getTerraformScript(String(id)),
     verifyScanRole: async (id) =>
-      unwrap<AwsRoleVerificationResponse>(await mockAws.verifyTfRole(String(id))),
+      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyScanRole(String(id))),
     verifyExecutionRole: async (id) =>
-      unwrap<AwsRoleVerificationResponse>(await mockAws.verifyTfRole(String(id))),
+      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyExecutionRole(String(id))),
   },
 
   azure: {
     getInstallationStatus: async (id) =>
-      unwrap<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
+      unwrapCamel<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
     getSubnetGuide: async (id) =>
-      unwrap<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
+      unwrapCamel<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
+    // scan-app is sanctioned snake passthrough (Issue #222) — raw unwrap.
     getScanApp: async (id) =>
       unwrap<AzureScanAppResponse>(await mockAzure.getScanApp(String(id))),
-    vmCheckInstallation: async (id) =>
-      unwrap<AzureVmCheckInstallationResult>(await mockAzure.vmCheckInstallation(String(id))),
-    vmGetInstallationStatus: async (id) =>
-      unwrap<AzureVmInstallationStatusResponse>(await mockAzure.vmGetInstallationStatus(String(id))),
-    vmGetTerraformScript: async (id) =>
-      unwrap<AzureVmTerraformScriptResponse>(await mockAzure.vmGetTerraformScript(String(id))),
+    getPrivateLinkHealthCheck: async (id) =>
+      unwrapCamel<AzureHealthCheckResult>(await mockAzure.getPrivateLinkHealthCheck(String(id))),
   },
 
   gcp: {
     getInstallationStatus: async (id) =>
-      unwrap<GcpInstallationStatusResponse>(await mockGcp.getInstallationStatus(String(id))),
+      unwrapCamel<GcpInstallationStatusResponse>(await mockGcp.getInstallationStatus(String(id))),
     getScanServiceAccount: async (id) =>
-      unwrap<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
+      unwrapCamel<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
     getTerraformServiceAccount: async (id) =>
-      unwrap<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
+      unwrapCamel<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
   },
 
   idc: {

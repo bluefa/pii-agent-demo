@@ -197,9 +197,11 @@ export const httpBff: BffClient = {
     getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
     // Issue #222: snake_case raw passthrough — getSnakeRaw is the greppable D6 opt-out.
     getScanApp: (id) => getSnakeRaw(`/target-sources/${id}/azure/scan-app`),
-    vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
-    vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
-    vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),
+    // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix and
+    // that the wire is already camelCase (camelCaseKeys is a no-op, routed through
+    // `get` for uniformity).
+    getPrivateLinkHealthCheck: (id) =>
+      get(`/infra/target-sources/${id}/azure-private-link-health-check`),
   },
 
   gcp: {

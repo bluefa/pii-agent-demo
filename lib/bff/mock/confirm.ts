@@ -8,6 +8,10 @@ import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
+import {
+  extractResourceCatalog,
+  type ResourceCatalogResponsePayload,
+} from '@/lib/resource-catalog-response';
 import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
 import type {
   MockResource,
@@ -16,14 +20,11 @@ import type {
   ConnectionStatus,
   ConnectionTestResult,
   ConnectionTestHistory,
-  DatabaseType,
-  IntegrationCategory,
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
   BffConfirmedIntegration,
   BffExcludedResourceInfo,
-  ConfirmResourceMetadata,
   EndpointConfigInputData,
   ResourceIntegrationStatus,
   ResourceScanStatus,
@@ -77,22 +78,6 @@ export const _setApprovedIntegration = (targetSourceId: string) => {
 interface ResourceCredentialInput {
   resourceId: string;
   credentialId?: string;
-}
-
-interface ResourceCatalogItem {
-  id: string;
-  resource_id: string;
-  name: string;
-  resource_type: string;
-  database_type: DatabaseType;
-  integration_category: IntegrationCategory;
-  host: string | null;
-  port: number | null;
-  oracle_service_id: string | null;
-  network_interface_id: string | null;
-  ip_configuration_name: string | null;
-  scan_status: ResourceScanStatus | null;
-  metadata: ConfirmResourceMetadata;
 }
 
 // --- Helpers ---
@@ -179,28 +164,41 @@ const demoResourceName = (provider: Project['cloudProvider'], resource: MockReso
 const demoCredential = (resource: MockResource): string =>
   resource.selectedCredentialId ?? (stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
 
-function buildMetadata(resource: MockResource, project: Project): ConfirmResourceMetadata {
+// Swagger TargetSourceResourceMetadataDto (snake wire). host/port/
+// oracle_service_id/network_interface_id live HERE, not on the item — the real
+// BFF authors them under metadata, so the mock must too (else extractResourceCatalog
+// reading metadata.* would silently see nothing against the real wire).
+function buildMetadata(resource: MockResource, project: Project): Record<string, unknown> {
   const region = demoRegion(project.cloudProvider, resource);
+  const vm = resource.vmDatabaseConfig;
+  const vmFields = {
+    ...(vm?.host !== undefined ? { host: vm.host } : {}),
+    ...(vm?.port !== undefined ? { port: vm.port } : {}),
+    ...(vm?.oracleServiceId ? { oracle_service_id: vm.oracleServiceId } : {}),
+    ...(vm?.selectedNicId ? { network_interface_id: vm.selectedNicId } : {}),
+  };
 
   switch (project.cloudProvider) {
     case 'AWS':
       return {
         provider: 'AWS',
-        resourceType: resource.awsType ?? resource.type,
+        resource_type: resource.awsType ?? resource.type,
         region,
-        ...(resource.vpcId && { vpcId: resource.vpcId }),
+        ...(resource.vpcId && { vpc_id: resource.vpcId }),
+        ...vmFields,
       };
     case 'Azure':
-      return { provider: 'Azure', resourceType: resource.type, region };
+      return { provider: 'AZURE', resource_type: resource.type, region, ...vmFields };
     case 'GCP':
       return {
         provider: 'GCP',
-        resourceType: resource.type,
+        resource_type: resource.type,
         region,
-        projectId: project.gcpProjectId ?? '',
+        project_id: project.gcpProjectId ?? '',
+        ...vmFields,
       };
     default:
-      return { provider: project.cloudProvider, resourceType: resource.type, region };
+      return { provider: project.cloudProvider, resource_type: resource.type, region, ...vmFields };
   }
 }
 
@@ -216,19 +214,20 @@ const deriveCandidateScanStatus = (resource: MockResource): ResourceScanStatus =
   return stableIndex(resource.resourceId, 3) === 0 ? 'UNCHANGED' : 'NEW_SCAN';
 };
 
-function toResourceCatalogItem(resource: MockResource, project: Project): ResourceCatalogItem {
+// Swagger TargetSourceResourceItemDto (snake wire). The item carries no
+// host/port/oracle_service_id/network_interface_id — those are on metadata.* —
+// so `getResources` routes this through `extractResourceCatalog`, the same
+// normalizer httpBff uses, to land the domain shape.
+function toResourceCatalogItem(
+  resource: MockResource,
+  project: Project,
+): ResourceCatalogResponsePayload['resources'][number] {
   return {
-    id: resource.resourceId,
     resource_id: resource.resourceId,
     name: demoResourceName(project.cloudProvider, resource),
     resource_type: resource.type,
     database_type: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
     integration_category: resource.integrationCategory,
-    host: resource.vmDatabaseConfig?.host ?? null,
-    port: resource.vmDatabaseConfig?.port ?? null,
-    oracle_service_id: resource.vmDatabaseConfig?.oracleServiceId ?? null,
-    network_interface_id: resource.vmDatabaseConfig?.selectedNicId ?? null,
-    ip_configuration_name: null,
     scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
   };
@@ -367,7 +366,9 @@ export const mockConfirm = {
 
     const resources = project.resources.map((resource) => toResourceCatalogItem(resource, project));
 
-    return NextResponse.json({ resources, total_count: resources.length });
+    // Author the swagger wire (snake, metadata.* host/port/…) then run the same
+    // normalizer httpBff uses so the mock exercises the real boundary.
+    return NextResponse.json(extractResourceCatalog({ resources, total_count: resources.length }));
   },
 
   createApprovalRequest: async (targetSourceId: string, body: unknown) => {
@@ -1465,76 +1466,6 @@ export const mockConfirm = {
       confirm_status: 'IDLE',
       processed_at: now,
       confirmed_by: user.name,
-    });
-  },
-
-  systemResetApprovalRequest: async (targetSourceId: string) => {
-    const user = mockData.getCurrentUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: 'UNAUTHORIZED', message: '로그인이 필요합니다.' },
-        { status: 401 },
-      );
-    }
-
-    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
-    if (!project) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
-        { status: 404 },
-      );
-    }
-
-    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
-      return NextResponse.json(
-        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
-        { status: 403 },
-      );
-    }
-
-    const approvalStatus = project.status.approval.status;
-    if (!project.isRejected && approvalStatus !== 'UNAVAILABLE') {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'APPROVAL_REQUEST_NOT_RESETTABLE',
-            message: 'REJECTED 또는 UNAVAILABLE 상태에서만 system-reset 호출 가능합니다.',
-          },
-        },
-        { status: 409 },
-      );
-    }
-
-    const now = new Date().toISOString();
-
-    const updatedStatus: ProjectStatus = {
-      ...project.status,
-      targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
-      approval: { status: 'CANCELLED' },
-    };
-
-    const updatedResources = project.resources.map((r) => ({
-      ...r,
-      isSelected: false,
-      exclusion: undefined,
-    }));
-
-    mockData.updateProject(project.id, {
-      processStatus: getCurrentStep(updatedStatus),
-      status: updatedStatus,
-      resources: updatedResources,
-      isRejected: false,
-      rejectionReason: undefined,
-      rejectedAt: undefined,
-    });
-
-    mockHistory.addApprovalCancelledHistory(Number(targetSourceId), { id: user.id, name: user.name });
-
-    return NextResponse.json({
-      success: true,
-      result: 'CANCELLED',
-      processed_at: now,
-      reason: 'system-reset',
     });
   },
 

@@ -5,6 +5,10 @@ import {
 } from '@/lib/resource-catalog-response';
 import type { ResourceScanStatus } from '@/lib/types';
 
+// host/port/oracle_service_id/network_interface_id live under `metadata.*` on the
+// swagger wire (TargetSourceResourceItemDto); extractResourceCatalog surfaces them
+// flat. oracleServiceId/networkInterfaceId are not retained in the normalized
+// metadata (not in the metadata whitelist), only on the flat item.
 const normalizedCatalog: ResourceCatalogResponse = {
   resources: [
     {
@@ -24,6 +28,8 @@ const normalizedCatalog: ResourceCatalogResponse = {
         provider: 'Azure',
         resourceType: 'AZURE_VM',
         rawResourceType: 'AZURE_VM',
+        host: 'db.internal',
+        port: 1521,
       },
     },
   ],
@@ -31,11 +37,32 @@ const normalizedCatalog: ResourceCatalogResponse = {
 };
 
 describe('extractResourceCatalog', () => {
-  it('returns the normalized resource catalog payload as-is', () => {
-    expect(extractResourceCatalog(normalizedCatalog)).toEqual(normalizedCatalog);
+  it('surfaces metadata.* host/port/ids flat from a snake_case wire payload', () => {
+    expect(
+      extractResourceCatalog({
+        resources: [
+          {
+            resource_id: 'vm-db-001',
+            name: 'vm-db-001',
+            resource_type: 'AZURE_VM',
+            database_type: 'ORACLE',
+            integration_category: 'NO_INSTALL_NEEDED',
+            metadata: {
+              provider: 'AZURE',
+              resource_type: 'AZURE_VM',
+              host: 'db.internal',
+              port: 1521,
+              oracle_service_id: 'ORCL',
+              network_interface_id: 'nic-1',
+            },
+          },
+        ],
+        total_count: 1,
+      }),
+    ).toEqual(normalizedCatalog);
   });
 
-  it('normalizes a legacy camelCase catalog payload to the new snake_case contract', () => {
+  it('reads metadata.* ids from a camelCase metadata payload', () => {
     expect(
       extractResourceCatalog({
         resources: [
@@ -46,16 +73,14 @@ describe('extractResourceCatalog', () => {
             name: 'vm-db-001',
             databaseType: 'ORACLE',
             integrationCategory: 'NO_INSTALL_NEEDED',
-            host: 'db.internal',
-            port: 1521,
-            oracleServiceId: 'ORCL',
-            networkInterfaceId: 'nic-1',
-            ipConfigurationName: null,
             selectedCredentialId: 'cred-1',
             metadata: {
               provider: 'Azure',
               resourceType: 'AZURE_VM',
-              rawResourceType: 'AZURE_VM',
+              host: 'db.internal',
+              port: 1521,
+              oracleServiceId: 'ORCL',
+              networkInterfaceId: 'nic-1',
             },
           },
         ],
