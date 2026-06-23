@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { joinGcpResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
+import {
+  joinAzureResources,
+  joinGcpResources,
+} from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import type {
+  InstallStep,
+  UnifiedInstallResource,
+} from '@/app/components/features/process-status/azure/AzureInstallationInline';
 
 const installResource = (
   resourceId: string,
@@ -26,6 +33,8 @@ const confirmedResource = (
   resourceId,
   type: 'CLOUD_SQL',
   databaseType,
+  region: null,
+  resourceName: resourceId,
   host: null,
   port: null,
   oracleServiceId: null,
@@ -72,24 +81,41 @@ describe('joinGcpResources', () => {
     expect(result[0].databaseType).toBeNull();
   });
 
-  it('uses GcpResourceStatus.resourceName for databaseName', () => {
+  it('shortens GcpResourceStatus.resourceName to its last path segment for databaseName', () => {
     const result = joinGcpResources(
       [
-        installResource('r1', 'service-db-prod', 'COMPLETED'),
+        installResource('r1', 'projects/p/instances/service-db-prod', 'COMPLETED'),
         installResource('r2', undefined, 'IN_PROGRESS'),
       ],
       [],
     );
     expect(result[0].databaseName).toBe('service-db-prod');
-    expect(result[1].databaseName).toBeNull();
+    // No name + no confirmed match → fall back to the resourceId's short name.
+    expect(result[1].databaseName).toBe('r2');
   });
 
-  it('region is null pending later wave (ConfirmedResource lacks the field)', () => {
+  it('prefers confirmed resourceName for databaseName when matched', () => {
+    const result = joinGcpResources(
+      [installResource('r1', 'projects/p/instances/raw-name', 'COMPLETED')],
+      [{ ...confirmedResource('r1', 'MYSQL'), resourceName: 'live · default' }],
+    );
+    expect(result[0].databaseName).toBe('live · default');
+  });
+
+  it('falls back to the GCP default region when confirmed lacks one', () => {
     const result = joinGcpResources(
       [installResource('r1', 'name', 'COMPLETED')],
       [confirmedResource('r1', 'MYSQL')],
     );
-    expect(result[0].region).toBeNull();
+    expect(result[0].region).toBe('asia-northeast3');
+  });
+
+  it('prefers confirmed region when present', () => {
+    const result = joinGcpResources(
+      [installResource('r1', 'name', 'COMPLETED')],
+      [{ ...confirmedResource('r1', 'MYSQL'), region: 'asia-northeast1' }],
+    );
+    expect(result[0].region).toBe('asia-northeast1');
   });
 
   it('preserves source GcpResourceStatus reference for downstream step lookup', () => {
@@ -98,9 +124,10 @@ describe('joinGcpResources', () => {
       bdc: 'FAIL',
     });
     const result = joinGcpResources([installation], []);
-    expect(result[0].source).toBe(installation);
-    expect(result[0].source.serviceSideTerraformApply.status).toBe('IN_PROGRESS');
-    expect(result[0].source.bdcSideTerraformApply.status).toBe('FAIL');
+    const source = result[0].source;
+    expect(source).toBe(installation);
+    expect(source?.serviceSideTerraformApply.status).toBe('IN_PROGRESS');
+    expect(source?.bdcSideTerraformApply.status).toBe('FAIL');
   });
 
   it('confirmed entries without matching installation are dropped (installation drives output)', () => {
@@ -113,5 +140,77 @@ describe('joinGcpResources', () => {
     );
     expect(result).toHaveLength(1);
     expect(result[0].resourceId).toBe('r1');
+  });
+});
+
+const unifiedResource = (
+  id: string,
+  step: InstallStep,
+  overrides: Partial<UnifiedInstallResource> = {},
+): UnifiedInstallResource => ({
+  id,
+  name: id,
+  resourceType: 'AZURE_MSSQL',
+  isVm: false,
+  step,
+  isCompleted: step === 'COMPLETED',
+  ...overrides,
+});
+
+describe('joinAzureResources', () => {
+  it('maps step to installationStatus (COMPLETED / PE_REJECTED → FAIL / else IN_PROGRESS)', () => {
+    const result = joinAzureResources(
+      [
+        unifiedResource('done', 'COMPLETED'),
+        unifiedResource('rejected', 'PE_REJECTED'),
+        unifiedResource('pending', 'PE_PENDING'),
+        unifiedResource('subnet', 'SUBNET_REQUIRED'),
+      ],
+      [],
+    );
+    expect(result.map((r) => r.installationStatus)).toEqual([
+      'COMPLETED',
+      'FAIL',
+      'IN_PROGRESS',
+      'IN_PROGRESS',
+    ]);
+  });
+
+  it('fills databaseType and region from matched confirmed resource', () => {
+    const confirmed: ConfirmedResource = {
+      ...confirmedResource('r1', 'MYSQL'),
+      type: 'AZURE_MSSQL',
+      region: 'koreacentral',
+    };
+    const result = joinAzureResources([unifiedResource('r1', 'COMPLETED')], [confirmed]);
+    expect(result[0]).toMatchObject({
+      resourceId: 'r1',
+      databaseType: 'MYSQL',
+      region: 'koreacentral',
+      installationStatus: 'COMPLETED',
+    });
+  });
+
+  it('falls back to null databaseType/region and uses name for databaseName when unmatched', () => {
+    const result = joinAzureResources(
+      [unifiedResource('r1', 'PE_PENDING', { name: 'mssql-prod-01' })],
+      [],
+    );
+    expect(result[0].databaseType).toBeNull();
+    expect(result[0].region).toBeNull();
+    expect(result[0].databaseName).toBe('mssql-prod-01');
+  });
+
+  it('carries no GCP per-step source (Azure has no detail breakdown)', () => {
+    const result = joinAzureResources([unifiedResource('r1', 'COMPLETED')], []);
+    expect(result[0].source).toBeNull();
+  });
+
+  it('preserves installation order', () => {
+    const result = joinAzureResources(
+      [unifiedResource('z', 'COMPLETED'), unifiedResource('a', 'PE_PENDING')],
+      [],
+    );
+    expect(result.map((r) => r.resourceId)).toEqual(['z', 'a']);
   });
 });

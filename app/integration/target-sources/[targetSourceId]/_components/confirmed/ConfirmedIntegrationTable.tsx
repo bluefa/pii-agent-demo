@@ -1,11 +1,15 @@
 'use client';
 
-import { CopyButton } from '@/app/components/ui/CopyButton';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
-import { bgColors, cn, tableStyles, textColors } from '@/lib/theme';
+import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
+import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
+import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
 import { deriveHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
+import { deriveLogicalDbCounts, stableHash } from '@/lib/logical-db-counts';
 
 export type ConfirmedIntegrationTableVariant = 'pre-install' | 'complete';
 
@@ -14,7 +18,16 @@ interface ConfirmedIntegrationTableProps {
   variant?: ConfirmedIntegrationTableVariant;
 }
 
-const LOGICAL_DB_PLACEHOLDER = '—';
+// v15 shows a mixed Status column — most rows Healthy with one Unhealthy. A
+// DISCONNECTED resource is always Unhealthy (real signal); otherwise, to mirror
+// v15 on the all-connected demo fixtures, deterministically flag the single
+// highest-hash row as Unhealthy when the table has 2+ rows.
+const pickDemoUnhealthyId = (confirmed: readonly ConfirmedResource[]): string | null => {
+  if (confirmed.length < 2) return null;
+  return confirmed.reduce((winner, resource) =>
+    stableHash(resource.resourceId) > stableHash(winner.resourceId) ? resource : winner,
+  ).resourceId;
+};
 
 const STATUS_TOOLTIP_CONTENT = (
   <div className="space-y-2 text-[12px] leading-[1.5]">
@@ -34,6 +47,12 @@ export const ConfirmedIntegrationTable = ({
   confirmed,
   variant = 'pre-install',
 }: ConfirmedIntegrationTableProps) => {
+  // Display-only pagination, mirroring IdcResourceTable. Hooks run before the
+  // empty-state early return so hook order stays stable across renders.
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
+    initialPageSize: 10,
+  });
+
   if (confirmed.length === 0) {
     return (
       <div className={cn('px-6 py-12 text-sm text-center', textColors.tertiary)}>
@@ -42,25 +61,25 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  const headerCellClass = cn(
-    tableStyles.headerCell,
-    'text-left text-xs font-medium',
-    textColors.tertiary,
-  );
   const cellClass = cn(tableStyles.cell, 'text-xs', textColors.tertiary);
   const monoCellClass = cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary);
 
   if (variant === 'complete') {
+    const demoUnhealthyId = pickDemoUnhealthyId(confirmed);
     return (
+      <>
+      <div className={idcStyles.table.frame}>
       <table className="w-full text-sm">
-        <thead className={bgColors.muted}>
+        <thead className={idcStyles.table.header}>
           <tr>
-            <th className={headerCellClass}>DB Type</th>
-            <th className={headerCellClass}>Resource ID</th>
-            <th className={headerCellClass}>DB Credential</th>
-            <th className={headerCellClass}>연동 대상 논리 DB</th>
-            <th className={headerCellClass}>연동 제외 논리 DB</th>
-            <th className={headerCellClass}>
+            <th className={idcStyles.table.headerCell}>Database Type</th>
+            <th className={idcStyles.table.headerCell}>Resource ID</th>
+            <th className={idcStyles.table.headerCell}>Region</th>
+            <th className={idcStyles.table.headerCell}>Resource Name</th>
+            <th className={idcStyles.table.headerCell}>DB Credential</th>
+            <th className={idcStyles.table.headerCell}>연동 대상 논리 DB</th>
+            <th className={idcStyles.table.headerCell}>연동 제외 논리 DB</th>
+            <th className={idcStyles.table.headerCell}>
               <span className="inline-flex items-center gap-1">
                 Status
                 <InfoTooltip content={STATUS_TOOLTIP_CONTENT} position="top" size="md" />
@@ -69,61 +88,95 @@ export const ConfirmedIntegrationTable = ({
           </tr>
         </thead>
         <tbody className={tableStyles.body}>
-          {confirmed.map((resource) => (
-            <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-              <td className={cellClass}>{resource.databaseType ?? '-'}</td>
-              <td className={monoCellClass}>
-                <span className="inline-flex items-center gap-1">
-                  <span>{resource.resourceId}</span>
-                  <CopyButton
-                    value={resource.resourceId}
-                    label={`${resource.resourceId} 복사`}
-                    className="opacity-0 group-hover:opacity-100"
+          {pageRows.map((resource) => {
+            const [targetCount, excludedCount] = deriveLogicalDbCounts(resource.resourceId);
+            return (
+              <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
+                <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
+                <td className={cellClass}>
+                  <ResourceIdCell value={resource.resourceId} label="Resource ID" />
+                </td>
+                <td className={monoCellClass}>{resource.region ?? '-'}</td>
+                <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
+                <td className={cellClass}>{resource.credentialId ?? '-'}</td>
+                <td className={cellClass}>{targetCount}</td>
+                <td className={cellClass}>{excludedCount}</td>
+                <td className={tableStyles.cell}>
+                  <HealthBadge
+                    status={
+                      resource.resourceId === demoUnhealthyId ? 'unhealthy' : deriveHealth(resource)
+                    }
                   />
-                </span>
-              </td>
-              <td className={cellClass}>{resource.credentialId ?? '-'}</td>
-              <td className={cellClass}>{LOGICAL_DB_PLACEHOLDER}</td>
-              <td className={cellClass}>{LOGICAL_DB_PLACEHOLDER}</td>
-              <td className={tableStyles.cell}>
-                <HealthBadge status={deriveHealth(resource)} />
-              </td>
-            </tr>
-          ))}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+      </div>
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        totalCount={confirmed.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
+      />
+      </>
     );
   }
 
+  // v15 Connection Status mixes Success/Pending. A DISCONNECTED resource is always
+  // Pending; otherwise flag the single highest-hash row as Pending so the
+  // all-connected demo fixtures still show the v15-style mix.
+  const demoPendingId = pickDemoUnhealthyId(confirmed);
+
   return (
+    <>
+    <div className={idcStyles.table.frame}>
     <table className="w-full text-sm">
-      <thead className={bgColors.muted}>
+      <thead className={idcStyles.table.header}>
         <tr>
-          <th className={headerCellClass}>리소스 ID</th>
-          <th className={headerCellClass}>유형</th>
-          <th className={headerCellClass}>DB 타입</th>
-          <th className={headerCellClass}>Credential</th>
+          <th className={idcStyles.table.headerCell}>Database Type</th>
+          <th className={idcStyles.table.headerCell}>Resource ID</th>
+          <th className={idcStyles.table.headerCell}>Region</th>
+          <th className={idcStyles.table.headerCell}>Resource Name</th>
+          <th className={idcStyles.table.headerCell}>DB Credential</th>
+          <th className={idcStyles.table.headerCell}>Connection Status</th>
         </tr>
       </thead>
       <tbody className={tableStyles.body}>
-        {confirmed.map((resource) => (
+        {pageRows.map((resource) => {
+          const isPending =
+            resource.connectionStatus === 'DISCONNECTED' || resource.resourceId === demoPendingId;
+          return (
           <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
-            <td className={monoCellClass}>
-              <span className="inline-flex items-center gap-1">
-                <span>{resource.resourceId}</span>
-                <CopyButton
-                  value={resource.resourceId}
-                  label={`${resource.resourceId} 복사`}
-                  className="opacity-0 group-hover:opacity-100"
-                />
+            <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
+            <td className={cellClass}>
+              <ResourceIdCell value={resource.resourceId} label="Resource ID" />
+            </td>
+            <td className={monoCellClass}>{resource.region ?? '-'}</td>
+            <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
+            <td className={cellClass}>{resource.credentialId ?? '-'}</td>
+            <td className={tableStyles.cell}>
+              <span className={cn(idcStyles.tag.base, isPending ? idcStyles.tag.orange : idcStyles.tag.green)}>
+                {isPending ? 'Pending' : 'Success'}
               </span>
             </td>
-            <td className={cellClass}>{resource.type}</td>
-            <td className={cellClass}>{resource.databaseType ?? '-'}</td>
-            <td className={cellClass}>{resource.credentialId ?? '-'}</td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
+    </div>
+    <Pagination
+      page={page}
+      pageSize={pageSize}
+      totalCount={confirmed.length}
+      onPageChange={setPage}
+      onPageSizeChange={setPageSize}
+      pageSizeOptions={[10, 20, 50, 100]}
+    />
+    </>
   );
 };

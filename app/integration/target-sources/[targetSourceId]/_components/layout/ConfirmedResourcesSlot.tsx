@@ -10,10 +10,24 @@ import { useConfirmedIntegration } from '@/app/integration/target-sources/[targe
 
 interface ConfirmedResourcesSlotProps {
   variant?: ConfirmedIntegrationTableVariant;
+  bare?: boolean;
 }
 
-export const ConfirmedResourcesSlot = ({ variant }: ConfirmedResourcesSlotProps = {}) => {
+export const ConfirmedResourcesSlot = ({ variant, bare }: ConfirmedResourcesSlotProps = {}) => {
   const { state, retry } = useConfirmedIntegration();
+
+  const body =
+    state.status === 'loading' ? (
+      <LoadingRow message="불러오는 중..." />
+    ) : state.status === 'error' ? (
+      <ErrorRow message={state.message} onRetry={retry} />
+    ) : (
+      <ConfirmedIntegrationTable confirmed={state.data} variant={variant} />
+    );
+
+  if (bare) {
+    return <div data-testid="confirmed-resources">{body}</div>;
+  }
 
   return (
     <div data-testid="confirmed-resources">
@@ -26,13 +40,7 @@ export const ConfirmedResourcesSlot = ({ variant }: ConfirmedResourcesSlotProps 
             관리자 확정된 연동 대상 DB 목록입니다.
           </p>
         </header>
-        {state.status === 'loading' ? (
-          <LoadingRow message="불러오는 중..." />
-        ) : state.status === 'error' ? (
-          <ErrorRow message={state.message} onRetry={retry} />
-        ) : (
-          <ConfirmedIntegrationTable confirmed={state.data} variant={variant} />
-        )}
+        {body}
       </section>
     </div>
   );

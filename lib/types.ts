@@ -34,10 +34,14 @@ export const normalizeCloudProvider = (value: unknown): CloudProvider => {
   return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'AWS';
 };
 
-export type DatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'DYNAMODB' | 'ATHENA' | 'REDSHIFT' | 'COSMOSDB' | 'BIGQUERY' | 'MONGODB' | 'ORACLE';
+// DB type is an open string (lowercase-canonical). The historical uppercase literals
+// are kept only as inline docs; pretty display ("MySQL") is a UI-only, exact-match
+// concern — see getDatabaseLabel. Per user directive: accept/store/output lowercase,
+// prettify in the UI only on exact match.
+export type DatabaseType = string;
 
 // VM 전용 데이터베이스 타입
-export type VmDatabaseType = 'MYSQL' | 'POSTGRESQL' | 'MSSQL' | 'MONGODB' | 'ORACLE';
+export type VmDatabaseType = string;
 
 // VM 데이터베이스 설정
 export interface VmDatabaseConfig {
@@ -401,7 +405,8 @@ export interface ConnectionTestHistory {
 
 // Credential이 필요한지 확인하는 헬퍼
 export const needsCredential = (databaseType: DatabaseType): boolean => {
-  return ['MYSQL', 'POSTGRESQL', 'REDSHIFT'].includes(databaseType);
+  // db type is lowercase-canonical but legacy data is uppercase — compare case-insensitively.
+  return ['mysql', 'postgresql', 'redshift'].includes(databaseType.toLowerCase());
 };
 
 /** 설치 불가 리소스 판별 (integrationCategory 기반) */
@@ -849,6 +854,8 @@ export interface ConfirmedIntegrationResourceInfo {
   resource_id: string;
   resource_type: string;
   database_type: DatabaseType | null;
+  database_region: string | null;
+  resource_name: string | null;
   port: number | null;
   host: string | null;
   oracle_service_id: string | null;

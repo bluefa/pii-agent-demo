@@ -5,11 +5,25 @@
  * BFF endpoints land.
  */
 
+/**
+ * A logical-DB entry is either a whole database (`'db'`) or a single
+ * schema within one (`'schema'`). Mirrors the v16 mockup data model
+ * (`type` / `dbName` / `schemaName`), surfaced here as discrete
+ * `type` / `database` / `schema` fields the modal renders per row.
+ */
+export type LogicalDatabaseType = 'db' | 'schema';
+
 export interface LogicalDatabase {
-  /** unique identifier — typically `<server>.<database>` */
+  /** unique identifier — typically `<server>.<database>[.<schema>]` */
   id: string;
-  /** display name shown in the panel */
+  /** display name shown in the panel — `database` or `database.schema` */
   name: string;
+  /** whether this row represents a database or a schema */
+  type: LogicalDatabaseType;
+  /** physical/logical database name */
+  database: string;
+  /** schema name — present only when `type` is `'schema'` */
+  schema?: string;
   /** when present, an existing deny policy already excludes this entry */
   existingDenyReason?: string;
 }

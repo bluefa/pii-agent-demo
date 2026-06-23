@@ -1,6 +1,8 @@
 'use client';
 
 import { Modal } from '@/app/components/ui/Modal';
+import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
@@ -27,6 +29,10 @@ interface IdcFirewallModalProps {
 export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModalProps) => {
   const rows = resources.filter((r) => !r.excluded);
 
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
+    initialPageSize: 10,
+  });
+
   return (
     <Modal
       isOpen={isOpen}
@@ -42,40 +48,52 @@ export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModa
           확인할 연동 대상이 없습니다.
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className={idcStyles.table.header}>
-              <tr>
-                <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>Source IP</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[30px]')} aria-hidden="true" />
-                <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>연동 대상</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[70px]')}>Port</th>
-                <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>오픈 여부</th>
-              </tr>
-            </thead>
-            <tbody className={idcStyles.table.body}>
-              {rows.map((r) => (
-                <tr key={r.resourceId} className={idcStyles.table.row}>
-                  <td className={idcStyles.table.cell}>
-                    <IdcSourceIpCell sourceIps={r.sourceIps} />
-                  </td>
-                  <td className={cn(idcStyles.table.cell, 'text-center', textColors.quaternary)}>
-                    →
-                  </td>
-                  <td className={idcStyles.table.cell}>
-                    <IdcEndpointCell resource={r} />
-                  </td>
-                  <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
-                    {r.port}
-                  </td>
-                  <td className={idcStyles.table.cell}>
-                    <IdcFirewallBadge open={r.firewallOpen} />
-                  </td>
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className={idcStyles.table.header}>
+                <tr>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[160px]')}>Source IP</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[30px]')} aria-hidden="true" />
+                  <th className={cn(idcStyles.table.headerCell, 'w-[220px]')}>연동 대상</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[70px]')}>Port</th>
+                  <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>오픈 여부</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className={idcStyles.table.body}>
+                {pageRows.map((r) => (
+                  <tr key={r.resourceId} className={idcStyles.table.row}>
+                    <td className={idcStyles.table.cell}>
+                      <IdcSourceIpCell sourceIps={r.sourceIps} />
+                    </td>
+                    <td className={cn(idcStyles.table.cell, 'text-center', textColors.quaternary)}>
+                      →
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <IdcEndpointCell resource={r} />
+                    </td>
+                    <td className={cn(idcStyles.table.cell, 'font-mono text-[12px]', textColors.secondary)}>
+                      {r.port}
+                    </td>
+                    <td className={idcStyles.table.cell}>
+                      <IdcFirewallBadge open={r.firewallOpen} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {rows.length > 0 && (
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              totalCount={rows.length}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10, 20, 50, 100]}
+            />
+          )}
+        </>
       )}
     </Modal>
   );

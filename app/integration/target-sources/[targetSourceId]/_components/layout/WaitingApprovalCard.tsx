@@ -20,10 +20,8 @@ import {
   WaitingApprovalTable,
   type WaitingApprovalResource,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalTable';
-import {
-  WaitingApprovalToolbar,
-  type ApprovalFilter,
-} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { WaitingApprovalToolbar } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalToolbar';
+import { useApprovalTableState } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/useApprovalTableState';
 import {
   ErrorRow,
   LoadingRow,
@@ -39,7 +37,6 @@ interface WaitingApprovalCardProps {
 
 const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
-const DEFAULT_PAGE_SIZE = 10;
 
 const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id,
@@ -47,7 +44,8 @@ const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalRe
   region: item.database_region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
-  scanStatus: item.scan_status ?? null,
+  displayDbType: item.endpoint_config?.db_type ?? item.resource_type,
+  integrationStatus: item.integration_status ?? null,
 });
 
 const toExcludedRow = (
@@ -58,7 +56,6 @@ const toExcludedRow = (
   region: item.database_region ?? '',
   resourceName: item.resource_name ?? '',
   selected: false,
-  scanStatus: item.scan_status ?? null,
   exclusionReason: item.exclusion_reason ?? undefined,
 });
 
@@ -74,20 +71,6 @@ const toRequestSummary = (response: ApprovalRequestLatestResponse): RequestSumma
   return { requestedAt, requestedBy };
 };
 
-const collectOptions = (
-  resources: readonly WaitingApprovalResource[],
-  accessor: (resource: WaitingApprovalResource) => string,
-): ReadonlyArray<{ value: string; label: string }> => {
-  const unique = new Set<string>();
-  for (const resource of resources) {
-    const value = accessor(resource).trim();
-    if (value) unique.add(value);
-  }
-  return Array.from(unique)
-    .sort((a, b) => a.localeCompare(b))
-    .map((value) => ({ value, label: value }));
-};
-
 export const WaitingApprovalCard = ({
   targetSourceId,
   cancelSlot,
@@ -96,13 +79,6 @@ export const WaitingApprovalCard = ({
   const [state, setState] = useState<AsyncState<WaitingApprovalResource[]>>({ status: 'loading' });
   const [retryNonce, setRetryNonce] = useState(0);
   const [requestSummary, setRequestSummary] = useState<RequestSummary | null>(null);
-
-  const [searchValue, setSearchValue] = useState('');
-  const [filter, setFilter] = useState<ApprovalFilter>('all');
-  const [dbType, setDbType] = useState('');
-  const [region, setRegion] = useState('');
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -149,77 +125,10 @@ export const WaitingApprovalCard = ({
     [state],
   );
 
-  const dbTypeOptions = useMemo(
-    () => collectOptions(resources, (resource) => resource.resourceType),
-    [resources],
-  );
-  const regionOptions = useMemo(
-    () => collectOptions(resources, (resource) => resource.region),
-    [resources],
-  );
-
-  const countsByFilter = useMemo(() => {
-    let target = 0;
-    let excluded = 0;
-    for (const resource of resources) {
-      if (resource.selected) target += 1;
-      else excluded += 1;
-    }
-    return { all: resources.length, target, excluded };
-  }, [resources]);
-
-  const filteredResources = useMemo(() => {
-    const search = searchValue.trim().toLowerCase();
-    return resources.filter((resource) => {
-      if (dbType && resource.resourceType !== dbType) return false;
-      if (region && resource.region !== region) return false;
-      if (filter === 'target' && !resource.selected) return false;
-      if (filter === 'excluded' && resource.selected) return false;
-      if (search) {
-        const hayId = resource.resourceId.toLowerCase();
-        const hayName = resource.resourceName.toLowerCase();
-        if (!hayId.includes(search) && !hayName.includes(search)) return false;
-      }
-      return true;
-    });
-  }, [resources, dbType, region, filter, searchValue]);
-
-  const filteredCount = filteredResources.length;
-  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
-  const safePage = Math.min(page, totalPages - 1);
-  const sliceStart = safePage * pageSize;
-  const sliceEnd = Math.min(filteredCount, sliceStart + pageSize);
-  const visibleResources = filteredResources.slice(sliceStart, sliceEnd);
-  const visibleStart = filteredCount === 0 ? 0 : sliceStart + 1;
-  const visibleEnd = sliceEnd;
-
-  const handleFilterChange = useCallback((next: ApprovalFilter) => {
-    setFilter(next);
-    setPage(0);
-  }, []);
-
-  const handleSearchChange = useCallback((next: string) => {
-    setSearchValue(next);
-    setPage(0);
-  }, []);
-
-  const handleDbTypeChange = useCallback((next: string) => {
-    setDbType(next);
-    setPage(0);
-  }, []);
-
-  const handleRegionChange = useCallback((next: string) => {
-    setRegion(next);
-    setPage(0);
-  }, []);
-
-  const handlePageSizeChange = useCallback((next: number) => {
-    setPageSize(next);
-    setPage(0);
-  }, []);
+  const table = useApprovalTableState(resources);
 
   const showFilterEmpty =
-    state.status === 'ready' && resources.length > 0 && filteredCount === 0;
+    state.status === 'ready' && resources.length > 0 && table.filteredCount === 0;
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -228,7 +137,7 @@ export const WaitingApprovalCard = ({
           <h2 className={cn(cardStyles.cardTitle)}>
             연동 대상 승인 대기
           </h2>
-          <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+          <p className={cn('mt-2.5', cardStyles.subtitle)}>
             요청하신 DB 목록을 관리자가 확인하고 있어요.
             {requestSummary && (
               <>
@@ -267,40 +176,48 @@ export const WaitingApprovalCard = ({
         ) : state.status === 'error' ? (
           <ErrorRow message={state.message} onRetry={handleRetry} />
         ) : (
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="mt-4">
             <WaitingApprovalStats
-              totalCount={countsByFilter.all}
-              selectedCount={countsByFilter.target}
-              excludedCount={countsByFilter.excluded}
+              totalCount={table.countsByFilter.all}
+              selectedCount={table.countsByFilter.target}
+              excludedCount={table.countsByFilter.excluded}
             />
+            {/* v16: toolbar (top-rounded) + approval table (bottom-rounded) join as one connected card — no gap. */}
             <WaitingApprovalToolbar
-              searchValue={searchValue}
-              onSearchChange={handleSearchChange}
-              filter={filter}
-              onFilterChange={handleFilterChange}
-              dbType={dbType}
-              onDbTypeChange={handleDbTypeChange}
-              region={region}
-              onRegionChange={handleRegionChange}
-              dbTypeOptions={dbTypeOptions}
-              regionOptions={regionOptions}
-              countsByFilter={countsByFilter}
-              visibleStart={visibleStart}
-              visibleEnd={visibleEnd}
-              totalCount={filteredCount}
+              variant="waiting"
+              searchValue={table.searchValue}
+              onSearchChange={table.onSearchChange}
+              filter={table.filter}
+              onFilterChange={table.onFilterChange}
+              dbType={table.dbType}
+              onDbTypeChange={table.onDbTypeChange}
+              region={table.region}
+              onRegionChange={table.onRegionChange}
+              integrationStatus={table.integrationStatus}
+              onIntegrationStatusChange={table.onIntegrationStatusChange}
+              dbTypeOptions={table.dbTypeOptions}
+              regionOptions={table.regionOptions}
+              integrationStatusOptions={table.integrationStatusOptions}
+              countsByFilter={table.countsByFilter}
+              visibleStart={table.visibleStart}
+              visibleEnd={table.visibleEnd}
+              totalCount={table.filteredCount}
             />
             <WaitingApprovalTable
-              resources={visibleResources}
+              resources={table.visibleResources}
+              connected
               emptyMessage={showFilterEmpty ? FILTER_EMPTY_MESSAGE : undefined}
             />
-            {filteredCount > 0 && (
-              <Pagination
-                page={safePage}
-                pageSize={pageSize}
-                totalCount={filteredCount}
-                onPageChange={setPage}
-                onPageSizeChange={handlePageSizeChange}
-              />
+            {table.filteredCount > 0 && (
+              <div className="mt-3">
+                <Pagination
+                  page={table.safePage}
+                  pageSize={table.pageSize}
+                  totalCount={table.filteredCount}
+                  onPageChange={table.onPageChange}
+                  onPageSizeChange={table.onPageSizeChange}
+                />
+              </div>
             )}
           </div>
         )}

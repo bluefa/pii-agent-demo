@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
 import { useIdcPreviousRequest } from '@/app/hooks/useIdcPreviousRequest';
+import { usePagination } from '@/app/hooks/usePagination';
 import { type IdcResourceView } from '@/app/lib/api/idc';
 import { IDC_LOAD_PER } from '@/lib/constants/idc';
 import {
@@ -47,13 +47,15 @@ export const IdcLoadRequestModal = ({
   onClose,
 }: IdcLoadRequestModalProps) => {
   const { resources, loading, error } = useIdcPreviousRequest(targetSourceId);
-  const [page, setPage] = useState(0);
+  // Fixed page size (IDC_LOAD_PER) with the modal's own prev/next/numbered controls;
+  // the hook supplies the clamped page + slice, the bespoke footer stays below.
+  const { page: safePage, setPage, pageItems: pageRows } = usePagination(resources, {
+    initialPageSize: IDC_LOAD_PER,
+  });
 
   const hasRows = resources.length > 0;
   const totalPages = Math.max(1, Math.ceil(resources.length / IDC_LOAD_PER));
-  const safePage = Math.min(page, totalPages - 1);
   const start = safePage * IDC_LOAD_PER;
-  const pageRows = resources.slice(start, start + IDC_LOAD_PER);
   const excludedCount = resources.filter((r) => r.excluded).length;
   const liveCount = resources.length - excludedCount;
 
@@ -135,7 +137,10 @@ export const IdcLoadRequestModal = ({
                       </td>
                       <td className="w-[180px] px-4 py-3">
                         {r.excluded ? (
-                          <span className="inline-flex items-center gap-2">
+                          // flex + min-w-0 bounds the reason chip to the column so a long
+                          // 제외 사유 truncates (with ellipsis) instead of spilling past the
+                          // row; the full text stays in the chip's hover tip.
+                          <span className="flex min-w-0 items-center gap-2">
                             <IdcTargetPill excluded />
                             {r.exclusionReason ? <ReasonChipInline reason={r.exclusionReason} /> : null}
                           </span>

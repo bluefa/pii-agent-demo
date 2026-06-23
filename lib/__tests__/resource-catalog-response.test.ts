@@ -3,6 +3,7 @@ import {
   extractResourceCatalog,
   type ResourceCatalogResponse,
 } from '@/lib/resource-catalog-response';
+import type { ResourceScanStatus } from '@/lib/types';
 
 const normalizedCatalog: ResourceCatalogResponse = {
   resources: [
@@ -18,6 +19,7 @@ const normalizedCatalog: ResourceCatalogResponse = {
       oracle_service_id: 'ORCL',
       network_interface_id: 'nic-1',
       ip_configuration_name: null,
+      scan_status: null,
       metadata: {
         provider: 'Azure',
         resourceType: 'AZURE_VM',
@@ -97,6 +99,7 @@ describe('extractResourceCatalog', () => {
           oracle_service_id: null,
           network_interface_id: null,
           ip_configuration_name: null,
+          scan_status: null,
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_MSSQL',
@@ -110,5 +113,24 @@ describe('extractResourceCatalog', () => {
       ],
       total_count: 1,
     });
+  });
+
+  it('passes a documented scan_status through and coerces unknown values to null', () => {
+    const result = extractResourceCatalog({
+      resources: [
+        { resource_id: 'a', resource_type: 'RDS', name: 'a', scan_status: 'UNCHANGED' },
+        { resource_id: 'b', resource_type: 'RDS', name: 'b', scanStatus: 'NEW_SCAN' },
+        { resource_id: 'c', resource_type: 'RDS', name: 'c' },
+        // Off-contract value (e.g. the legacy invented enum) must coerce to null.
+        { resource_id: 'd', resource_type: 'RDS', name: 'd', scan_status: 'CHANGED' as unknown as ResourceScanStatus },
+      ],
+      total_count: 4,
+    });
+    expect(result.resources.map((resource) => resource.scan_status)).toEqual([
+      'UNCHANGED',
+      'NEW_SCAN',
+      null,
+      null,
+    ]);
   });
 });

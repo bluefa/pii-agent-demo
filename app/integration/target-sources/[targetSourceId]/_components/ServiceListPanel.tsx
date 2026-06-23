@@ -181,7 +181,7 @@ export const ServiceListPanel = () => {
     return (
       <aside
         className={cn(
-          'w-[280px] shrink-0 shadow-sm flex items-center justify-center',
+          'w-[296px] shrink-0 shadow-sm flex items-center justify-center',
           bgColors.surface,
         )}
       >
@@ -200,7 +200,7 @@ export const ServiceListPanel = () => {
     return (
       <aside
         className={cn(
-          'w-[280px] shrink-0 shadow-sm flex flex-col items-center justify-center px-4 gap-3',
+          'w-[296px] shrink-0 shadow-sm flex flex-col items-center justify-center px-4 gap-3',
           bgColors.surface,
         )}
       >

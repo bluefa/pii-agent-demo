@@ -4,6 +4,7 @@ vi.mock('@/lib/bff/client', () => ({
   bff: {
     azure: {
       getInstallationStatus: vi.fn(),
+      vmGetInstallationStatus: vi.fn(),
     },
   },
 }));
@@ -12,13 +13,25 @@ import { GET } from '@/app/integration/api/v1/azure/target-sources/[targetSource
 import { bff } from '@/lib/bff/client';
 
 const mockedGetInstallationStatus = vi.mocked(bff.azure.getInstallationStatus);
+const mockedVmGetInstallationStatus = vi.mocked(bff.azure.vmGetInstallationStatus);
 
 describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installation-status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('Issue #222 계약에 맞게 snake_case Azure 설치 상태를 반환한다', async () => {
+  it('Issue #222 계약에 맞게 snake_case Azure 설치 상태를 반환한다 (DB + VM 병합)', async () => {
+    mockedVmGetInstallationStatus.mockResolvedValue({
+      vms: [
+        {
+          vmId: 'vm-001',
+          vmName: 'vm-001',
+          subnetExists: true,
+          loadBalancer: { installed: true, name: 'lb-001' },
+        },
+      ],
+      lastCheckedAt: '2026-03-30T00:00:00Z',
+    });
     mockedGetInstallationStatus.mockResolvedValue({
       provider: 'Azure',
       installed: false,
@@ -69,7 +82,10 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
             name: 'pe-vm-001',
             status: 'APPROVED',
           },
-          vmInstallation: null,
+          vmInstallation: {
+            subnetExists: true,
+            loadBalancer: { installed: true, name: 'lb-001' },
+          },
         },
         {
           resourceId: 'mysql-001',

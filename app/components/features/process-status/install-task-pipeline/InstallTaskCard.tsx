@@ -1,17 +1,7 @@
 'use client';
 
-import type { InstallTaskStatus } from '@/lib/constants/gcp';
-import {
-  bgColors,
-  borderColors,
-  cn,
-  primaryColors,
-  statusColors,
-  tagStyles,
-  textColors,
-} from '@/lib/theme';
-
-export type InstallTaskCardPosition = 'first' | 'middle' | 'last';
+import type { InstallTaskStatus } from '@/lib/constants/install-task';
+import { cn } from '@/lib/theme';
 
 interface InstallTaskCardProps {
   num: number;
@@ -21,41 +11,58 @@ interface InstallTaskCardProps {
   completedCount?: number;
   activeCount?: number;
   onClick?: () => void;
-  position: InstallTaskCardPosition;
   showConnector?: boolean;
 }
 
+/**
+ * Step-number badge. v15 `.install-task .num` — 32px circle, 14/800, base
+ * #fff bg / #8B95A1 text; done #45CB85/#fff; running #0064FF/#fff + halo.
+ */
 const NUM_STYLES: Record<InstallTaskStatus, string> = {
-  pending: cn(bgColors.muted, textColors.tertiary),
-  done: cn(statusColors.success.dot, textColors.inverse),
-  running: cn(primaryColors.bg, textColors.inverse, primaryColors.haloRing),
-  failed: cn(statusColors.error.dot, textColors.inverse),
+  pending: 'bg-white text-[#8B95A1] shadow-[0_1px_2px_rgba(17,24,39,0.04)]',
+  done: 'bg-[#45CB85] text-white',
+  running: 'bg-[#0064FF] text-white shadow-[0_0_0_4px_rgba(0,100,255,0.15)]',
+  failed: 'bg-[#991B1B] text-white',
 };
 
+/**
+ * Status pill. v15 `.status-pill` base (대기) = #fff / #8B95A1; 완료 #fff /
+ * #2A7D52; 진행중 #0064FF bg / #fff text; 실패 #fff / #991B1B.
+ */
 const PILL_STYLES: Record<InstallTaskStatus, string> = {
-  pending: tagStyles.neutral,
-  done: tagStyles.success,
-  running: tagStyles.info,
-  failed: tagStyles.error,
+  pending: 'bg-white text-[#8B95A1]',
+  done: 'bg-white text-[#2A7D52]',
+  running: 'bg-[#0064FF] text-white',
+  failed: 'bg-white text-[#991B1B]',
 };
 
 const PILL_LABEL: Record<InstallTaskStatus, string> = {
-  pending: '해당없음',
+  pending: '대기',
   done: '완료',
   running: '진행중',
   failed: '실패',
 };
 
-const POSITION_CLASS: Record<InstallTaskCardPosition, string> = {
-  first: 'rounded-l-[10px] border-r-0',
-  middle: 'border-r-0',
-  last: 'rounded-r-[10px]',
+/**
+ * Card-level background. v15: base #F7F8FA; `.done` #ECFDF5;
+ * `.running` #EFF6FF + inset 1.5px ring rgba(0,100,255,0.12).
+ * `.failed` keeps the base surface (no card-level rule in v15).
+ */
+const CARD_BG: Record<InstallTaskStatus, string> = {
+  pending: 'bg-[#F7F8FA]',
+  done: 'bg-[#ECFDF5]',
+  running: 'bg-[#EFF6FF] shadow-[inset_0_0_0_1.5px_rgba(0,100,255,0.12)]',
+  failed: 'bg-[#F7F8FA]',
 };
 
+/**
+ * Connector glyph. v15 `.install-task:not(:last-child)::after` — `›` chevron
+ * (U+203A), right -14, color #B0B8C1, 22px / 700 / line-height 1.
+ */
 const CONNECTOR_CLASS = cn(
-  'absolute right-[-7px] top-1/2 w-3.5 h-3.5 rotate-45',
-  '-translate-y-1/2 pointer-events-none z-10',
-  'border-t border-r',
+  'absolute right-[-14px] top-1/2 -translate-y-1/2 z-[2]',
+  'flex items-center justify-center pointer-events-none',
+  'text-[22px] font-bold leading-none text-[#B0B8C1]',
 );
 
 export const InstallTaskCard = ({
@@ -63,56 +70,48 @@ export const InstallTaskCard = ({
   title,
   sub,
   status,
-  completedCount,
-  activeCount,
   onClick,
-  position,
   showConnector,
 }: InstallTaskCardProps) => {
-  const showCount = status === 'running' && typeof activeCount === 'number';
-  const pillText = showCount
-    ? `${PILL_LABEL[status]} (${completedCount ?? 0}/${activeCount})`
-    : PILL_LABEL[status];
+  // v16 `.status-pill` is a plain label ('진행중'/'완료') with no count suffix.
+  const pillText = PILL_LABEL[status];
 
   const containerClass = cn(
-    'flex flex-col items-center text-center gap-3 px-[18px] pt-[22px] pb-5',
-    'border relative',
-    bgColors.surface,
-    borderColors.default,
-    POSITION_CLASS[position],
-    onClick && cn('cursor-pointer', bgColors.mutedHover),
+    'flex flex-col items-start text-left gap-3 px-[22px] py-6',
+    'border-0 rounded-xl relative',
+    CARD_BG[status],
+    onClick && 'cursor-pointer hover:bg-white',
   );
 
   const numClass = cn(
-    'w-[30px] h-[30px] rounded-full grid place-items-center',
-    'text-[13px] font-bold flex-shrink-0',
+    'w-8 h-8 rounded-full grid place-items-center',
+    'text-[14px] font-extrabold flex-shrink-0',
     NUM_STYLES[status],
   );
 
   const pillClass = cn(
-    'mt-1 text-[11px] font-semibold px-3 py-1 rounded-full',
+    'mt-1 text-[12px] font-bold px-3 py-[5px] rounded-full tracking-[-0.01em]',
     PILL_STYLES[status],
   );
 
   const innerContent = (
     <>
       <span className={numClass}>{num}</span>
-      <div className="w-full min-w-0 flex flex-col items-center gap-1.5">
-        <div className={cn('text-[15px] font-bold leading-snug', textColors.primary)}>
+      <div className="w-full min-w-0 flex flex-col items-start gap-1.5">
+        <div className="text-[16px] font-bold leading-[1.35] tracking-[-0.02em] text-[#191F28]">
           {title}
         </div>
         {sub ? (
-          <div className={cn('text-xs leading-relaxed', textColors.tertiary)}>
+          <div className="text-[13px] font-medium leading-[1.55] text-[#4E5968]">
             {sub}
           </div>
         ) : null}
         <span className={pillClass}>{pillText}</span>
       </div>
       {showConnector ? (
-        <span
-          aria-hidden="true"
-          className={cn(CONNECTOR_CLASS, bgColors.surface, borderColors.default)}
-        />
+        <span aria-hidden="true" className={CONNECTOR_CLASS}>
+          ›
+        </span>
       ) : null}
     </>
   );

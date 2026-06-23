@@ -4,6 +4,7 @@ import {
   type ConfirmResourceMetadata,
   type DatabaseType,
   type IntegrationCategory,
+  type ResourceScanStatus,
   type ResourceSnapshot,
   type VmDatabaseConfig,
   type VmDatabaseType,
@@ -34,6 +35,7 @@ export interface CatalogItem {
   oracleServiceId: string | null;
   networkInterfaceId: string | null;
   ipConfigurationName: string | null;
+  scanStatus: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -89,6 +91,7 @@ export const catalogToCandidates = (
       integrationCategory: item.integrationCategory,
       behaviorKey: pickBehaviorKey(item),
       ...(endpointConfig ? { endpointConfig } : {}),
+      ...(item.scanStatus ? { scanStatus: item.scanStatus } : {}),
       metadata: item.metadata,
     };
   });
@@ -114,6 +117,8 @@ export const confirmedIntegrationToConfirmed = (
     resourceId: info.resource_id,
     type: info.resource_type,
     databaseType: info.database_type,
+    region: info.database_region,
+    resourceName: info.resource_name,
     host: info.host,
     port: info.port,
     oracleServiceId: info.oracle_service_id,

@@ -1,6 +1,6 @@
-import { cn, statusColors, textColors } from '@/lib/theme';
+import type { CSSProperties } from 'react';
 
-export type ScanPillState = 'integrated' | 'pending' | 'new' | 'changed' | 'none';
+export type ScanPillState = 'new' | 'changed' | 'kept' | 'integrated' | 'none';
 
 interface ScanPillProps {
   state: ScanPillState;
@@ -9,54 +9,50 @@ interface ScanPillProps {
 interface ScanPillPalette {
   bg: string;
   text: string;
-  dot: string;
   label: string;
 }
 
-// 'pending' and 'changed' share the warning palette by design — prototype
-// renders both in orange. The two states are semantically distinct
-// (in-flight vs. "different from last scan"); only the label diverges.
+// Literal hex per design/v15-extract/03-status-tag-pill.md §7 (.scan-pill).
+// No dot — v15 renders the label text only (icon, when present, is an svg).
 const PALETTE: Record<Exclude<ScanPillState, 'none'>, ScanPillPalette> = {
-  integrated: {
-    bg: statusColors.success.bg,
-    text: statusColors.success.textDark,
-    dot: statusColors.success.dot,
-    label: 'Integrated',
-  },
-  pending: {
-    bg: statusColors.warning.bg,
-    text: statusColors.warning.textDark,
-    dot: statusColors.warning.dot,
-    label: 'Pending',
-  },
-  new: {
-    bg: statusColors.info.bg,
-    text: statusColors.info.textDark,
-    dot: statusColors.info.dot,
-    label: 'New',
-  },
-  changed: {
-    bg: statusColors.warning.bg,
-    text: statusColors.warning.textDark,
-    dot: statusColors.warning.dot,
-    label: 'Changed',
-  },
+  new: { bg: '#DBEAFE', text: '#1E40AF', label: 'New' },
+  changed: { bg: '#FEF3C7', text: '#92400E', label: 'Changed' },
+  kept: { bg: '#F3F4F6', text: '#374151', label: 'Kept' },
+  integrated: { bg: '#D1FAE5', text: '#065F46', label: 'Integrated' },
+};
+
+// Base .scan-pill geometry (lines 2918–2924). letter-spacing is declared
+// locally (0.01em) — the global inherited -0.018em does NOT apply here.
+const BASE_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '5px',
+  padding: '2px 8px',
+  borderRadius: '4px',
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.01em',
 };
 
 export const ScanPill = ({ state }: ScanPillProps) => {
   if (state === 'none') {
-    return <span className={cn('text-[12px]', textColors.quaternary)}>—</span>;
+    // .scan-pill.none — transparent bg, #9CA3AF (--fg-4), padding 0.
+    return (
+      <span
+        style={{
+          ...BASE_STYLE,
+          padding: 0,
+          background: 'transparent',
+          color: '#9CA3AF',
+        }}
+      >
+        —
+      </span>
+    );
   }
   const palette = PALETTE[state];
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-medium',
-        palette.bg,
-        palette.text,
-      )}
-    >
-      <span className={cn('h-1.5 w-1.5 rounded-full', palette.dot)} />
+    <span style={{ ...BASE_STYLE, background: palette.bg, color: palette.text }}>
       {palette.label}
     </span>
   );

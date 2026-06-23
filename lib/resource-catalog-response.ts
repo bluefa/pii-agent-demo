@@ -9,6 +9,12 @@ import {
   normalizeCloudProvider,
   normalizeResourceType,
 } from '@/lib/types';
+import type { ResourceScanStatus } from '@/lib/types';
+
+const normalizeCandidateScanStatus = (value: unknown): ResourceScanStatus | null => {
+  if (value === 'NEW_SCAN' || value === 'UNCHANGED') return value;
+  return null;
+};
 
 export interface ResourceCatalogItemResponse {
   id: string;
@@ -22,6 +28,7 @@ export interface ResourceCatalogItemResponse {
   oracle_service_id: string | null;
   network_interface_id: string | null;
   ip_configuration_name: string | null;
+  scan_status: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -51,6 +58,8 @@ interface LegacyResourceCatalogItem {
   ipConfigurationName?: string | null;
   selected_credential_id?: string | null;
   selectedCredentialId?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  scanStatus?: ResourceScanStatus | null;
   metadata?: unknown;
 }
 
@@ -206,6 +215,9 @@ const normalizeResourceCatalogItem = (
       resource.ip_configuration_name
       ?? resource.ipConfigurationName
       ?? null,
+    scan_status: normalizeCandidateScanStatus(
+      resource.scan_status ?? resource.scanStatus,
+    ),
     metadata: normalizeMetadata(resource.metadata, resourceType),
   };
 };

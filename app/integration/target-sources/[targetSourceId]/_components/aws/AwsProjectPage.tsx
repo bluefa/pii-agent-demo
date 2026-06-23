@@ -23,16 +23,18 @@ export const AwsProjectPage = ({
     monitoringMethod: 'AWS Agent',
     jiraLink: null,
     identifiers: [
-      { label: 'AWS Account ID', value: project.awsAccountId ?? null, mono: true },
-      ...(project.awsRegionType
-        ? [{ label: 'Region Type', value: project.awsRegionType === 'china' ? 'China' : 'Global' }]
-        : []),
+      // v16 identity bar carries only the Account ID (HTML 9428); it has no second
+      // identifier (e.g. Region Type), so none is added here. The label is the bare
+      // 'Account ID' (aws.idLabel, HTML 9428) — no provider prefix.
+      { label: 'Account ID', value: project.awsAccountId ?? null, mono: true },
     ],
   };
 
   if (!project.awsInstallationMode) {
+    // Mode-selector pre-screen: same full-width 40/32/80 padding as
+    // CloudTargetSourceLayout / IDC (body supplies the #F4F4FB bg).
     return (
-      <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <main className="px-10 pt-8 pb-20 space-y-6">
         <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
         <AwsInstallationModeSelector
           targetSourceId={project.targetSourceId}

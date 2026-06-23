@@ -25,6 +25,34 @@ export const colorRaw = {
   white: '#FFFFFF',
 } as const;
 
+/**
+ * Toss surface/text tokens (v15 2nd `:root`, design/v15-extract/00-tokens.md).
+ * The target-source screens are "Toss-flavored" and consume THESE exact hexes;
+ * previously scattered inline across components. Named here as the SSOT.
+ */
+export const tossColors = {
+  /** Toss black — strongest text. */
+  strongText: '#191F28',
+  /** Medium body text. */
+  mediumText: '#4E5968',
+  /** Weak text — captions, table headers, keys. */
+  weakText: '#8B95A1',
+  /** Faint text — connectors, separators. */
+  faintText: '#B0B8C1',
+  /** Nested surface inside cards. */
+  innerBg: '#F7F8FA',
+  /** Divider between rows / cells. */
+  divider: '#EBEEF2',
+} as const;
+
+/**
+ * Toss 2-layer card shadow (--toss-shadow-sm, 00-tokens.md). Arbitrary-value
+ * utility string for consumption via Tailwind `shadow-[...]`.
+ */
+export const tossShadow = {
+  sm: 'shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
+} as const;
+
 // =============================================================================
 // 색상 (Colors)
 // =============================================================================
@@ -197,7 +225,8 @@ export const interactiveColors = {
  * 버튼 스타일
  */
 export const buttonStyles = {
-  base: 'px-4 py-2 rounded-lg font-medium transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed',
+  /** v15 .btn — radius 12, weight 700, h40, 14px, ls -0.01em, :active scale(.97). */
+  base: 'px-4 h-10 rounded-[12px] font-bold text-[14px] tracking-[-0.01em] transition-all duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed',
   variants: {
     primary: 'bg-[#0064FF] text-white hover:bg-[#0050D6] shadow-sm hover:shadow',
     secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
@@ -208,9 +237,12 @@ export const buttonStyles = {
     soft: 'bg-blue-50 text-[#0064FF] hover:bg-blue-100',
     /** Warn outline — amber outline for overwrite/reload actions (결정 #42). */
     warnOutline: 'bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100',
+    /** v15 danger-outline — soft red fill, no border (#FEF2F2 / #991B1B / 600). */
+    dangerOutline: 'bg-[#FEF2F2] text-[#991B1B] font-semibold border-0 hover:bg-[#FEE2E2]',
   },
   sizes: {
-    sm: 'px-3 py-1.5 text-sm',
+    /** v15 .btn.sm — radius 10, h32, 13px. */
+    sm: 'px-3 h-8 rounded-[10px] text-[13px]',
     md: 'px-4 py-2',
     lg: 'px-6 py-3 text-lg',
   },
@@ -220,24 +252,28 @@ export const buttonStyles = {
  * 카드 스타일
  */
 export const cardStyles = {
-  base: 'bg-white rounded-xl shadow-sm',
+  /** v15 Toss card — radius 20 + 2-layer toss-shadow-sm. */
+  base: 'bg-white rounded-[20px] shadow-[0_1px_2px_rgba(17,24,39,0.04),0_4px_16px_-8px_rgba(17,24,39,0.06)]',
   padding: {
     none: '',
     sm: 'p-4',
     default: 'p-6',
     lg: 'p-8',
   },
-  header: 'px-6 py-4 border-b border-gray-100',
+  /** v15 header — 28/28/12 padding, no base border. */
+  header: 'pt-[28px] px-[28px] pb-[12px]',
+  /** v15 card body — 16/28/28 padding. */
+  body: 'pt-[16px] px-[28px] pb-[28px]',
   /** @deprecated Use cardStyles.eyebrow for the small uppercase header role. */
   title: 'text-sm font-semibold text-gray-500 uppercase tracking-wide',
   /** Small uppercase header above a card display title (ADR-014 card-eyebrow). */
   eyebrow: 'text-[12px] font-bold text-[#0064FF] tracking-[0.02em]',
   /** Large display heading inside a card header (ADR-014 card-display-title). */
-  displayTitle: 'text-[26px] font-extrabold text-gray-900 tracking-[-0.045em] leading-[1.2]',
-  /** In-card section title — prototype --type-h1 (22 / 700 / -0.01em). Distinct from displayTitle (page-level). */
-  cardTitle: 'text-[22px] font-bold tracking-[-0.01em] leading-[1.25] text-gray-900',
-  /** Paragraph beneath a display title (ADR-014 card-subtitle). */
-  subtitle: 'text-[13.5px] font-medium text-gray-500 leading-[1.55]',
+  displayTitle: 'text-[26px] font-extrabold text-[#191F28] tracking-[-0.045em] leading-[1.2]',
+  /** In-card section / step-card title — v15 display geometry (26 / 800 / -0.045em / #191F28). */
+  cardTitle: 'text-[26px] font-extrabold tracking-[-0.045em] leading-[1.2] text-[#191F28]',
+  /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
+  subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
   editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
   /** Toolbar surface — muted bg sitting above the Tiptap area */
@@ -295,12 +331,47 @@ export const pageChromeStyles = {
  * Page-meta horizontal kv strip (Toss display variant).
  * See ADR-014 D1; consumer rollout starts in Wave 1.
  */
-export const pageMetaStyles = {
-  container: 'flex flex-wrap gap-9',
-  item: 'flex flex-col gap-1',
-  key: 'text-[13px] font-medium text-gray-500',
-  value: 'text-[15px] font-semibold tracking-[-0.01em] text-gray-900',
-  mono: 'font-mono',
+/**
+ * Per-provider brand accent for the v15 `.identity-bar` `--ib-accent` local var
+ * (00-tokens.md `--color-provider-*`). Consumed via inline `style` so the
+ * accent-derived `color-mix(...)` backgrounds + stripe recolor per provider.
+ * Keyed by lowercased CloudProvider; falls back to the Azure default (v15 line 753).
+ */
+export const providerAccent: Record<string, string> = {
+  aws: '#FF9900',
+  azure: '#0078D4',
+  gcp: '#4285F4',
+  idc: '#374151',
+  sdu: '#9333EA',
+};
+export const providerAccentDefault = providerAccent.azure;
+
+/**
+ * v15 `.identity-bar` provider/ID/agent strip (01-chrome.md 752–855). Structural
+ * + accent classes only; the per-provider accent is injected as the `--ib-accent`
+ * CSS var via inline `style` on the bar (see IdentityBar.tsx). All `color-mix`
+ * backgrounds + stripe reference that var, so no raw provider hex lives here.
+ */
+export const identityBarStyles = {
+  bar: 'relative flex items-center gap-8 flex-wrap overflow-hidden rounded-[14px] bg-white py-4 pr-[22px] pl-7 mt-4 mb-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_1px_3px_rgba(17,24,39,0.04)] before:content-[""] before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-[var(--ib-accent)]',
+  provider: 'flex items-center gap-3 flex-shrink-0',
+  providerIcon:
+    'grid place-items-center w-[38px] h-[38px] rounded-[10px] flex-shrink-0 bg-[color-mix(in_srgb,var(--ib-accent)_12%,transparent)] text-[var(--ib-accent)]',
+  providerName: 'text-[17px] font-bold tracking-[-0.025em] leading-[1.2] text-[#191F28]',
+  providerSub: 'mt-[3px] text-[12px] font-semibold tracking-normal text-[#8B95A1]',
+  divider: 'self-stretch w-px my-1 flex-shrink-0 bg-[#EBEEF2]',
+  field: 'flex flex-col gap-1 min-w-0',
+  key: 'text-[12px] font-semibold tracking-normal text-[#8B95A1]',
+  idRow: 'inline-flex items-center gap-1.5',
+  mono: 'font-mono text-[13px] font-semibold tracking-normal leading-[1.3] text-[#191F28]',
+  copyBase:
+    'inline-grid place-items-center w-6 h-6 rounded-md border-0 bg-transparent cursor-pointer transition-[background-color,color] duration-[120ms]',
+  copyIdle: 'text-[#8B95A1] hover:bg-[#F7F8FA] hover:text-[#191F28]',
+  copyCopied: 'text-[#14B96E]',
+  spacer: 'flex-1',
+  agent:
+    'inline-flex items-center gap-[7px] flex-shrink-0 px-[13px] py-[7px] rounded-full leading-none text-[13px] font-bold tracking-[-0.005em] bg-[color-mix(in_srgb,var(--ib-accent)_10%,transparent)] text-[var(--ib-accent)]',
+  agentIcon: 'w-[13px] h-[13px]',
 } as const;
 
 /**
@@ -357,11 +428,13 @@ export const modalStyles = {
  * 테이블 스타일
  */
 export const tableStyles = {
-  header: 'bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
-  headerCell: 'px-6 py-3',
-  body: 'divide-y divide-gray-100',
+  /** v15 thead — #F7F8FA bg, 600, #8B95A1; NO uppercase / NO tracking-wider. */
+  header: 'bg-[#F7F8FA] text-left text-xs font-semibold text-[#8B95A1]',
+  headerCell: 'px-[18px] py-[12px]',
+  body: 'divide-y divide-[#EBEEF2]',
   row: 'hover:bg-gray-50 transition-colors',
-  cell: 'px-6 py-4',
+  /** v15 td — 16/18 padding, #191F28 / weight 500. */
+  cell: 'px-[18px] py-[16px] text-[#191F28] font-medium',
 } as const;
 
 /**
@@ -405,8 +478,9 @@ export const confirmModalStyles = {
   note: {
     warning: 'bg-amber-50 border-amber-300 text-amber-800',
   },
+  /** v15 cancel/danger-outline — radius 12, border 0, weight 600, #991B1B. */
   dangerOutlineButton:
-    'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
+    'inline-flex items-center justify-center px-4 py-2 rounded-[12px] text-sm font-semibold border-0 bg-red-50 text-[#991B1B] hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
   outlineButton:
     'inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors',
 } as const;
@@ -415,12 +489,13 @@ export const confirmModalStyles = {
  * Step banner — 단계 본문 위 안내 배너 (시안 SIT Prototype v3 line 1832)
  */
 export const bannerStyles = {
-  base: 'flex items-center gap-3 px-4 py-3 mb-4 rounded-[10px] border text-[13px]',
+  /** v15 StepBanner — radius 12, 18/22 padding, no border, 500, font 14, gap 14, mb 20. */
+  base: 'flex items-center gap-[14px] px-[22px] py-[18px] mb-5 rounded-[12px] font-medium text-[14px]',
   variants: {
-    info: 'bg-blue-50 border-blue-200 text-blue-900',
-    warn: 'bg-amber-50 border-amber-300 text-amber-900',
-    success: 'bg-emerald-50 border-emerald-300 text-emerald-900',
-    error: 'bg-red-50 border-red-200 text-red-900',
+    info: 'bg-blue-50 text-[#1E40AF]',
+    warn: 'bg-amber-50 text-amber-900',
+    success: 'bg-emerald-50 text-[#065F46]',
+    error: 'bg-red-50 text-red-900',
   },
 } as const;
 
@@ -483,6 +558,7 @@ export const idcStyles = {
     green: 'bg-[#E5F8EE] text-[#197A3F]',
     red: 'bg-[#FEECEC] text-[#B42318]',
     orange: 'bg-[#FEF0E1] text-[#7A3F0E]',
+    gray: 'bg-[#F7F8FA] text-[#4E5968]',
   },
   /** Health/connection status — `.status` (bare text + dot, 12.5px / 500 / dot 8px; NO bg/pad/radius). */
   status: {
@@ -490,6 +566,21 @@ export const idcStyles = {
     dot: 'w-2 h-2 rounded-full',
     healthy: { text: 'text-[#2A7D52]', dot: 'bg-[#45CB85]' },
     unhealthy: { text: 'text-[#991B1B]', dot: 'bg-[#991B1B]' },
+    /** `.status.partial` — orange pending-approval inline label (03-status-tag-pill §2). */
+    partial: { text: 'text-[#9A3412]', dot: 'bg-[#F97316]' },
+  },
+  /** Target yes/no pill — `.target-pill` (3px 9px / radius 999 / 11.5px / 600 / dot 6px). */
+  targetPill: {
+    base: 'inline-flex items-center gap-1.5 rounded-full border px-[9px] py-[3px] text-[11.5px] font-semibold whitespace-nowrap',
+    dot: 'w-1.5 h-1.5 rounded-full',
+    yes: { box: 'bg-[#F0FDF4] text-[#15803D] border-[#BBF7D0]', dot: 'bg-[#10B981]' },
+    no: { box: 'bg-white text-[#6B7280] border-[#E5E7EB]', dot: 'bg-[#9CA3AF]' },
+  },
+  /** Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help). */
+  reasonChip: {
+    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',
+    text: 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
+    icon: 'flex-shrink-0 text-[#C2410C] opacity-80',
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */
   statusPill: 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
@@ -523,15 +614,77 @@ export const idcStyles = {
   modalBtn: {
     primary: 'inline-flex h-[52px] items-center justify-center rounded-[14px] bg-[#0064FF] px-7 text-[15px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
     outline: 'inline-flex h-[52px] items-center justify-center rounded-[14px] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#4E5968] transition-colors hover:bg-[#EBEEF2]',
+    /** Filled gray modal button — v16 `.modal-footer .btn.gray` (cancel). */
+    gray: 'inline-flex h-[52px] items-center justify-center rounded-[14px] border-0 bg-[#F7F8FA] px-[22px] text-[15px] font-semibold tracking-[-0.01em] text-[#191F28] transition-colors hover:bg-[#EBEEF2]',
   },
   /** In-card / step CTA buttons — `.btn` base (h40 / radius12 / 14px / 700) + variants. */
   triggerBtn: {
     primary: 'inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0064FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#0050D6] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]',
     soft: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#E8F1FF] px-[18px] text-[14px] font-bold tracking-[-0.01em] text-[#0064FF] transition-colors hover:bg-[#D6E7FF]',
     warnOutline: 'inline-flex h-10 items-center gap-1.5 rounded-xl bg-[#FEF3C7] px-[18px] text-[14px] font-semibold tracking-[-0.01em] text-[#92400E] transition-colors hover:bg-[#FDE68A]',
+    /** Small blue ghost — v16 `.btn.sm.ghost` (the in-table "set" action). Disabled = opacity-45. */
+    ghostSm: 'inline-flex h-8 items-center justify-center gap-1 rounded-[10px] px-3 text-[13px] font-bold text-[#0064FF] transition-colors hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent',
   },
   /** Toss form input — `.field input/select` (52px / borderless #F7F8FA fill / radius 12 / 15px). */
   input: 'w-full h-[52px] rounded-xl border-0 bg-[#F7F8FA] px-3.5 text-[15px] font-medium text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF]',
+  /** In-cell DB Credential select — v16 `.idc-cred-select` (h32 / #E5E7EB / mono 12 / chevron via style prop). */
+  credSelect: 'h-8 max-w-[150px] cursor-pointer appearance-none rounded-lg border border-[#E5E7EB] bg-white pl-[11px] pr-7 font-mono text-[12px] font-semibold text-[#111827] transition-colors hover:border-[#0064FF] focus:border-[#0064FF] focus:outline-none',
+  /** `.idc-cred-select` unselected/placeholder state — non-mono, muted. */
+  credSelectEmpty: 'font-sans font-medium text-[#6B7280]',
+  /** Completion-approval modal (`.req-modal`) header + warn — v16 2647–2698 / 8202. */
+  reqModal: {
+    eyebrow: 'inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-[#0064FF]',
+    eyebrowDot: 'h-1.5 w-1.5 rounded-full bg-[#0064FF]',
+    title: 'mt-2 text-[23px] font-extrabold leading-[1.25] tracking-[-0.03em] text-[#191F28]',
+    sub: 'mt-1.5 max-w-[60ch] text-[13px] font-medium leading-[1.6] text-[#6B7280]',
+    warn: 'mt-3 rounded-[10px] border border-[#F8D2D0] bg-[#FEF1F1] px-3.5 py-[11px] text-[12.5px] leading-[1.5] text-[#B42318]',
+    /** `.req-modal .db-list-table th` override — 11px uppercase #9CA3AF (v16 2682). */
+    thHeader: 'bg-[#FAFBFC] text-left text-[11px] font-bold uppercase tracking-[0.05em] text-[#9CA3AF]',
+    /** `.req-modal .approval-stat .lbl` — 11.5px (v16 req override). */
+    statLabel: 'text-[11.5px]',
+    /** `.rm-num` excluded logical-DB count — amber (v16 raRender exclCell #B45309). */
+    exclNum: 'font-semibold text-[#B45309]',
+  },
+  /** `.conn-progress` step-5 progress strip — v16 2552–2645 (5 data-states). */
+  connProgress: {
+    base: 'rounded-xl border px-4 pt-[13px] pb-3.5 mb-3.5 transition-colors',
+    state: {
+      idle: 'bg-[#F7F8FA] border-[#EBEEF2]',
+      running: 'bg-[#F0F6FF] border-[#D5E5FF]',
+      pending: 'bg-[#FFF8EC] border-[#FBE6BF]',
+      success: 'bg-[#ECFAF2] border-[#C7EED9]',
+      fail: 'bg-[#FEF1F1] border-[#F8D2D0]',
+    },
+    head: 'flex items-center justify-between gap-3 mb-[11px]',
+    title: 'flex items-center gap-2 text-[13.5px] font-bold tracking-[-0.01em]',
+    titleColor: {
+      idle: 'text-[#191F28]',
+      running: 'text-[#191F28]',
+      pending: 'text-[#B45309]',
+      success: 'text-[#197A3F]',
+      fail: 'text-[#B42318]',
+    },
+    accent: {
+      idle: 'text-[#8B95A1]',
+      running: 'text-[#0064FF]',
+      pending: 'text-[#B45309]',
+      success: 'text-[#197A3F]',
+      fail: 'text-[#B42318]',
+    },
+    icon: 'inline-grid place-items-center w-[18px] h-[18px] flex-shrink-0',
+    meta: 'flex items-center gap-3.5',
+    counts: 'text-[12px] font-medium text-[#8B95A1] [font-variant-numeric:tabular-nums]',
+    pct: 'min-w-[46px] text-right text-[16px] font-extrabold tracking-[-0.02em] [font-variant-numeric:tabular-nums]',
+    track: 'relative h-2 overflow-hidden rounded-full bg-[#E4E7EC]',
+    fill: 'relative h-full rounded-full transition-[width] duration-500',
+    fillColor: {
+      idle: 'bg-[#0064FF]',
+      running: 'bg-[#0064FF]',
+      pending: 'bg-[#E8A03A]',
+      success: 'bg-[#21A157]',
+      fail: 'bg-[#E5483D]',
+    },
+  },
   /** Toss textarea — borderless #F7F8FA fill / radius 12. */
   textarea: 'w-full rounded-xl border-0 bg-[#F7F8FA] px-3.5 py-3 text-[15px] font-medium leading-[1.6] text-[#191F28] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0064FF] resize-none',
   /** Skeleton shimmer bar (loading frames) — pair with size/radius utilities. */
@@ -543,6 +696,17 @@ export const idcStyles = {
     body: 'divide-y divide-[#EBEEF2]',
     row: 'hover:bg-[#F7F8FA] transition-colors',
     cell: 'px-4 py-3.5',
+    /** Table wrapper — `.db-list-table` border + radius + shadow (v16 1850–1869). */
+    frame:
+      'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
+    /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
+    rowExcluded: 'bg-[#F9FAFB]',
+    /** Approval-table header — v16 `.approval-table thead th` (12px/600 #8B95A1, bg #F7F8FA; distinct from the db-list-table 13px/700 header). */
+    approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#8B95A1]',
+    /** Approval-table header cell padding — v16 12px V / 18px H. */
+    approvalHeaderCell: 'px-[18px] py-3',
+    /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
+    approvalCell: 'px-[18px] py-4',
   },
 } as const;
 
@@ -573,7 +737,8 @@ export const spacing = {
  * 테두리 라운딩 (Border Radius)
  */
 export const borderRadius = {
-  card: 'rounded-xl',
+  /** v15 Toss big-surface radius (--toss-radius-card 20px). */
+  card: 'rounded-[20px]',
   button: 'rounded-lg',
   badge: 'rounded-full',
   input: 'rounded-lg',
@@ -659,4 +824,3 @@ export type ButtonVariant = keyof typeof buttonStyles.variants;
 export type ButtonSize = keyof typeof buttonStyles.sizes;
 export type CardPadding = keyof typeof cardStyles.padding;
 export type ModalSize = keyof typeof modalStyles.sizes;
-export type PageMetaItemKey = keyof typeof pageMetaStyles;

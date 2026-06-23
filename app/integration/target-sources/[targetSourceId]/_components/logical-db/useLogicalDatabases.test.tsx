@@ -22,11 +22,18 @@ describe('useLogicalDatabases', () => {
 
     expect(result.current.state.status).toBe('ready');
     if (result.current.state.status === 'ready') {
-      expect(result.current.state.databases).toHaveLength(12);
+      // 5 databases + 4 schemas (see MOCK_TOPOLOGY).
+      expect(result.current.state.databases).toHaveLength(9);
       expect(result.current.state.databases[0]).toMatchObject({
-        id: 'srv-prod-01.db_01',
-        name: 'db_01',
+        id: 'srv-prod-01.live',
+        name: 'live',
+        type: 'db',
+        database: 'live',
       });
+      const schemaRow = result.current.state.databases.find(
+        (d) => d.type === 'schema',
+      );
+      expect(schemaRow).toMatchObject({ type: 'schema', database: 'live', schema: 'public' });
     }
   });
 

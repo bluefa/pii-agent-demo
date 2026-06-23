@@ -21,7 +21,8 @@ export const GcpProjectPage = ({
     monitoringMethod: 'GCP Agent',
     jiraLink: null,
     identifiers: [
-      { label: 'GCP Project ID', value: project.gcpProjectId ?? null, mono: true },
+      // v16 id label is the bare 'Project ID' (gcp.idLabel, HTML 9427) — no provider prefix.
+      { label: 'Project ID', value: project.gcpProjectId ?? null, mono: true },
     ],
   };
 

@@ -1,6 +1,7 @@
 import type { GcpResourceStatus, GcpStepStatusValue } from '@/app/api/_lib/v1-types';
 
-export type InstallTaskStatus = 'done' | 'running' | 'failed' | 'pending';
+export type { InstallTaskStatus } from '@/lib/constants/install-task';
+import type { InstallTaskStatus } from '@/lib/constants/install-task';
 
 // ===== GCP Step Keys =====
 

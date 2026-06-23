@@ -10,13 +10,7 @@ interface ScanErrorStateProps {
 
 export const ScanErrorState = ({ onRetry }: ScanErrorStateProps) => (
   <div className="py-[60px] px-5 text-center">
-    <div
-      className={cn(
-        'mx-auto mb-5 max-w-[480px] rounded-[10px] border px-[18px] py-[14px] flex items-start gap-3 text-left',
-        statusColors.error.bg,
-        statusColors.error.border,
-      )}
-    >
+    <div className="mx-auto mb-5 max-w-[480px] rounded-[10px] border border-[#FECACA] bg-[#FEF2F2] px-[18px] py-[14px] flex items-start gap-3 text-left">
       <svg
         className={cn('w-5 h-5 mt-0.5 flex-shrink-0', statusColors.error.text)}
         viewBox="0 0 24 24"
@@ -35,7 +29,7 @@ export const ScanErrorState = ({ onRetry }: ScanErrorStateProps) => (
         <h4 className={cn('mb-1 text-[13.5px] font-semibold', statusColors.error.textDark)}>
           인프라 스캔에 실패하였어요
         </h4>
-        <p className={cn('text-[12.5px]', statusColors.error.textDark)}>
+        <p className="text-[12.5px] text-[#7F1D1D]">
           보안 설정 또는 권한 문제로 스캔에 실패하였어요.{' '}
           <Link href="#" className="underline hover:no-underline">가이드 문서</Link>
           를 확인 후 권한 재설정 후 다시 시도해 주세요.

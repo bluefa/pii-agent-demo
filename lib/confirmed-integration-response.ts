@@ -58,6 +58,8 @@ const normalizeConfirmedResourceInfo = (
       resource_type: resourceInfo.resource_type,
       database_type:
         endpointConfig?.db_type ?? DATABASE_TYPE_BY_RESOURCE_TYPE[resourceInfo.resource_type] ?? null,
+      database_region: resourceInfo.database_region ?? null,
+      resource_name: resourceInfo.resource_name ?? null,
       port: endpointConfig?.port ?? null,
       host: endpointConfig?.host ?? null,
       oracle_service_id: endpointConfig?.oracleServiceId ?? null,
@@ -72,6 +74,8 @@ const normalizeConfirmedResourceInfo = (
     resource_type: resourceInfo.resource_type,
     database_type:
       resourceInfo.database_type ?? DATABASE_TYPE_BY_RESOURCE_TYPE[resourceInfo.resource_type] ?? null,
+    database_region: resourceInfo.database_region ?? null,
+    resource_name: resourceInfo.resource_name ?? null,
     port: resourceInfo.port ?? null,
     host: resourceInfo.host ?? null,
     oracle_service_id: resourceInfo.oracle_service_id ?? null,

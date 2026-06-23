@@ -2,6 +2,7 @@ import type {
   ConfirmResourceMetadata,
   DatabaseType,
   IntegrationCategory,
+  ResourceScanStatus,
   VmDatabaseConfig,
 } from '@/lib/types';
 
@@ -18,5 +19,7 @@ export interface CandidateResource {
   integrationCategory: IntegrationCategory;
   behaviorKey: CandidateBehaviorKey;
   endpointConfig?: EndpointConfigDraft;
+  /** Step-1 scan-status tag — 직전 스캔 대비 본 리소스의 발견 상태 (신규/변경). */
+  scanStatus?: ResourceScanStatus;
   metadata: ConfirmResourceMetadata;
 }

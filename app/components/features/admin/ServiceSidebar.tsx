@@ -1,7 +1,7 @@
 'use client';
 
 import { ServiceCode } from '@/lib/types';
-import { primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
+import { borderColors, bgColors, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
 
 const footerLinkClass = cn(
   'flex items-center gap-2 text-[13px] py-1.5 transition-colors',
@@ -10,7 +10,7 @@ const footerLinkClass = cn(
 );
 
 const sidebarFooter = (
-  <nav className="border-t border-gray-100 px-5 py-3 flex flex-col gap-1">
+  <nav className={cn('border-t px-5 py-3 flex flex-col gap-1', borderColors.light)}>
     <a href="#" className={footerLinkClass}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -70,12 +70,13 @@ export const ServiceSidebar = ({
   const pageNumbers = Array.from({ length: paginationEnd - paginationStart }, (_, i) => paginationStart + i);
 
   return (
-    <aside className="w-[280px] shrink-0 bg-white shadow-sm flex flex-col">
-      <div className="px-4 py-3 border-b border-gray-100">
+    // v16 `.sidebar` — fixed 296px width (measured), shrink-0 so the main column owns the rest.
+    <aside className="w-[296px] shrink-0 bg-white shadow-sm flex flex-col">
+      <div className={cn('px-4 py-3 border-b', borderColors.light)}>
         <h2 className={cn('text-[15px] font-semibold', textColors.primary)}>Service List</h2>
       </div>
 
-      <div className="px-3 py-2 border-b border-gray-100">
+      <div className={cn('px-3 py-2 border-b', borderColors.light)}>
         <input
           type="text"
           value={searchQuery}
@@ -102,7 +103,7 @@ export const ServiceSidebar = ({
                   'mx-2 mb-0.5 cursor-pointer rounded-lg transition-all duration-150',
                   isSelected
                     ? cn('px-[13px] py-[11px] border', primaryColors.bgLight, primaryColors.border)
-                    : 'px-[14px] py-3 hover:bg-gray-50',
+                    : cn('px-[14px] py-3', bgColors.mutedHover),
                 )}
               >
                 <div className={cn('text-[13px] font-semibold', isSelected ? primaryColors.text : textColors.primary)}>
@@ -118,7 +119,7 @@ export const ServiceSidebar = ({
       </ul>
 
       {totalPages > 1 && (
-        <div className="px-3 py-3 border-t border-gray-100">
+        <div className={cn('px-3 py-3 border-t', borderColors.light)}>
           <p className={cn('text-xs mb-2 text-center', textColors.quaternary)}>
             총 {totalElements}개 서비스
           </p>
@@ -128,9 +129,8 @@ export const ServiceSidebar = ({
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
               className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F3F4F6]',
                 textColors.tertiary,
-                'hover:bg-gray-100',
               )}
               aria-label="이전 페이지"
             >
@@ -147,7 +147,7 @@ export const ServiceSidebar = ({
                   'w-7 h-7 text-xs rounded-md transition-colors flex items-center justify-center',
                   n === currentPage
                     ? `${primaryColors.bg} text-white`
-                    : `${textColors.tertiary} hover:bg-gray-100`,
+                    : cn(textColors.tertiary, 'hover:bg-[#F3F4F6]'),
                 )}
               >
                 {n + 1}
@@ -158,9 +158,8 @@ export const ServiceSidebar = ({
               onClick={() => onPageChange(Math.min(totalPages - 1, currentPage + 1))}
               disabled={currentPage >= totalPages - 1}
               className={cn(
-                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed',
+                'w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#F3F4F6]',
                 textColors.tertiary,
-                'hover:bg-gray-100',
               )}
               aria-label="다음 페이지"
             >

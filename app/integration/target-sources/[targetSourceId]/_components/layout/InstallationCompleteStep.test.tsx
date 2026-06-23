@@ -66,6 +66,8 @@ const makeResource = (
   resourceId: 'res-1',
   type: 'RDS',
   databaseType: 'MYSQL',
+  region: 'ap-northeast-2',
+  resourceName: 'res-1',
   host: 'localhost',
   port: 3306,
   oracleServiceId: null,
@@ -168,20 +170,18 @@ describe('InstallationCompleteStep', () => {
     expect(screen.getByRole('button', { name: /연결 테스트 재실행/ })).toBeTruthy();
   });
 
-  it('fires toast.info when 인프라 변경 is clicked', () => {
+  it('opens the infra-change confirm modal when 인프라 변경 is clicked', () => {
     providerState = { status: 'ready', data: [] };
-    toastInfo.mockClear();
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /인프라 변경/ }));
-    expect(toastInfo).toHaveBeenCalledWith('인프라 변경 기능 준비중입니다.');
+    expect(screen.getByText('인프라를 변경하시겠어요?')).toBeTruthy();
   });
 
-  it('fires toast.info when 연결 테스트 재실행 is clicked', () => {
+  it('opens the retest confirm modal when 연결 테스트 재실행 is clicked', () => {
     providerState = { status: 'ready', data: [] };
-    toastInfo.mockClear();
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
-    expect(toastInfo).toHaveBeenCalledWith('연결 테스트 재실행 기능 준비중입니다.');
+    expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
   });
 
   it('mounts GuideCardContainer when the resolver returns a slot key', () => {
@@ -194,11 +194,11 @@ describe('InstallationCompleteStep', () => {
     expect(guide.getAttribute('data-slot-key')).toBe(slotKey);
   });
 
-  it('renders the card title with the cardTitle token (22px / font-bold)', () => {
+  it('renders the card title with the cardTitle token (v15 26px / font-extrabold)', () => {
     providerState = { status: 'ready', data: [] };
     renderStep();
     const h2 = screen.getByRole('heading', { level: 2, name: /PII 모니터링 모듈 연동 완료/ });
-    expect(h2.className).toContain('text-[22px]');
-    expect(h2.className).toContain('font-bold');
+    expect(h2.className).toContain('text-[26px]');
+    expect(h2.className).toContain('font-extrabold');
   });
 });

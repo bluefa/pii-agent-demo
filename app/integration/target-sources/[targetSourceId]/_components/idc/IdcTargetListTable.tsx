@@ -4,7 +4,6 @@ import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { DeleteIcon, EditIcon } from '@/app/components/ui/icons';
 import type { IdcResourceView } from '@/app/lib/api/idc';
 import {
-  bgColors,
   cn,
   idcStyles,
   primaryColors,
@@ -54,8 +53,8 @@ export const IdcTargetListTable = ({
   onEdit,
   onDelete,
 }: IdcTargetListTableProps) => (
-  <div className="overflow-x-auto">
-    <table className="w-full">
+  <div className="mt-3 overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]">
+    <table className="w-full text-[13px]">
       <thead className={idcStyles.table.header}>
         <tr>
           {HEADERS.map((h, i) => (
@@ -69,7 +68,7 @@ export const IdcTargetListTable = ({
         {rows.map((row) => {
           const dim = row.excluded ? 'opacity-50' : '';
           return (
-            <tr key={row.resourceId} className={cn('group', idcStyles.table.row, row.excluded && bgColors.muted)}>
+            <tr key={row.resourceId} className={cn('group', idcStyles.table.row, row.excluded && 'bg-[#F7F8FA]')}>
               <td className="px-4 py-3.5">
                 <input
                   type="checkbox"

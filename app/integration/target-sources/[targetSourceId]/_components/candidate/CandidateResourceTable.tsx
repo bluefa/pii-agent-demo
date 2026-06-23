@@ -3,10 +3,10 @@
 import { createPortal } from 'react-dom';
 import { Badge } from '@/app/components/ui/Badge';
 import { Button } from '@/app/components/ui/Button';
-import { CopyButton } from '@/app/components/ui/CopyButton';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
 import { StatusWarningIcon } from '@/app/components/ui/icons';
+import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { VmDatabaseConfigPanel } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VmDatabaseConfigPanel';
 import { VnetIntegrationGuideModal } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/VnetIntegrationGuideModal';
 import { useModal } from '@/app/hooks/useModal';
@@ -15,6 +15,7 @@ import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   primaryColors,
   statusColors,
   tableStyles,
@@ -26,6 +27,17 @@ import type {
   EndpointConfigDraft,
 } from '@/lib/types/resources';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
+import { stableHash } from '@/lib/logical-db-counts';
+
+// v15 shows the 연동 완료 여부 column as a per-row mix of 연동 완료 / 연동 진행중 / —.
+// Ineligible rows render — (matches v15 row 3); eligible rows alternate between
+// 연동 완료 and 연동 진행중.
+type IntegrationProgress = 'COMPLETED' | 'IN_PROGRESS' | 'NONE';
+
+const deriveIntegrationProgress = (candidate: CandidateResource): IntegrationProgress => {
+  if (candidate.integrationCategory === 'INSTALL_INELIGIBLE') return 'NONE';
+  return stableHash(candidate.resourceId) % 2 === 0 ? 'COMPLETED' : 'IN_PROGRESS';
+};
 
 interface CandidateResourceTableProps {
   candidates: CandidateResource[];
@@ -66,21 +78,22 @@ export const CandidateResourceTable = ({
 
   return (
     <div>
-      <div className={cn('rounded-lg border shadow-sm overflow-hidden', bgColors.surface, borderColors.default)}>
+      <div className={idcStyles.table.frame}>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead>
-              <tr className={cn('whitespace-nowrap', tableStyles.header)}>
-                {showCheckboxColumn && <th className="px-6 py-3 w-10" />}
-                <th className="px-6 py-3">연동 대상 여부</th>
-                <th className="px-6 py-3">Database Type</th>
-                <th className="px-6 py-3">Resource ID</th>
-                <th className="px-6 py-3">Region</th>
-                <th className="px-6 py-3">Resource Name</th>
-                <th className="px-6 py-3">연동 완료 여부</th>
+            <thead className={idcStyles.table.header}>
+              <tr className="whitespace-nowrap">
+                {showCheckboxColumn && <th className={cn(idcStyles.table.headerCell, 'w-10')} />}
+                <th className={idcStyles.table.headerCell}>연동 대상 여부</th>
+                <th className={idcStyles.table.headerCell}>Database Type</th>
+                <th className={idcStyles.table.headerCell}>Resource ID</th>
+                <th className={idcStyles.table.headerCell}>Region</th>
+                <th className={idcStyles.table.headerCell}>Resource Name</th>
+                <th className={idcStyles.table.headerCell}>스캔 상태</th>
+                <th className={idcStyles.table.headerCell}>연동 완료 여부</th>
               </tr>
             </thead>
-            <tbody className={tableStyles.body}>
+            <tbody className={idcStyles.table.body}>
               {candidates.map((candidate) => (
                 <CandidateResourceRow
                   key={candidate.id}
@@ -113,7 +126,7 @@ export const CandidateResourceTable = ({
             className="flex items-center gap-2"
           >
             {approvalSubmitting && <LoadingSpinner />}
-            연동 대상 확정 승인 요청
+            연동 대상 승인 요청
           </Button>
         </div>
       )}
@@ -153,6 +166,7 @@ const CandidateResourceRow = ({
   const canExpand = requiresEndpointConfig && isSelected && !readonly;
   const region = candidate.metadata.region ?? '—';
   const displayName = getResourceDisplayName(candidate);
+  const integrationProgress = deriveIntegrationProgress(candidate);
   const effectiveDbType = drafts.endpointDrafts[candidate.id]?.databaseType
     ?? candidate.endpointConfig?.databaseType
     ?? candidate.databaseType;
@@ -185,7 +199,7 @@ const CandidateResourceRow = ({
         onClick={handleRowClick}
       >
         {showCheckboxColumn && (
-          <td className="px-6 py-3 w-10" onClick={(event) => event.stopPropagation()}>
+          <td className={cn(idcStyles.table.cell, 'w-10')} onClick={(event) => event.stopPropagation()}>
             <input
               type="checkbox"
               checked={isSelected}
@@ -196,13 +210,13 @@ const CandidateResourceRow = ({
           </td>
         )}
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           {isIneligible
             ? <Badge variant="pending" size="sm">비대상</Badge>
             : <Badge variant="success" size="sm">대상</Badge>}
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <div className="flex items-center gap-1.5">
             <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
             {showConfigNeeded && (
@@ -211,15 +225,10 @@ const CandidateResourceRow = ({
           </div>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <div className="flex items-center gap-2">
-            <span className={cn('font-mono text-xs', textColors.tertiary)}>{candidate.resourceId}</span>
             <span onClick={(event) => event.stopPropagation()}>
-              <CopyButton
-                value={candidate.resourceId}
-                label={`${candidate.resourceId} 복사`}
-                className="opacity-0 group-hover:opacity-100"
-              />
+              <ResourceIdCell value={candidate.resourceId} label="Resource ID" />
             </span>
             {isIneligible && (
               <button
@@ -234,16 +243,42 @@ const CandidateResourceRow = ({
           </div>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <span className={cn('font-mono text-xs', textColors.tertiary)}>{region}</span>
         </td>
 
-        <td className="px-6 py-3">
+        <td className={idcStyles.table.cell}>
           <span className={cn('font-mono text-xs', textColors.secondary)}>{displayName}</span>
         </td>
 
-        <td className="px-6 py-3">
-          <span className={cn('text-xs', textColors.quaternary)}>—</span>
+        <td className={idcStyles.table.cell}>
+          {candidate.scanStatus
+            ? (
+                <span
+                  className={cn(
+                    idcStyles.tag.base,
+                    candidate.scanStatus === 'NEW_SCAN' ? idcStyles.tag.blue : idcStyles.tag.orange,
+                  )}
+                >
+                  {candidate.scanStatus === 'NEW_SCAN' ? '신규' : '변경'}
+                </span>
+              )
+            : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
+        </td>
+
+        <td className={idcStyles.table.cell}>
+          {integrationProgress === 'NONE'
+            ? <span className={cn('text-xs', textColors.quaternary)}>—</span>
+            : (
+                <span
+                  className={cn(
+                    idcStyles.tag.base,
+                    integrationProgress === 'COMPLETED' ? idcStyles.tag.green : idcStyles.tag.orange,
+                  )}
+                >
+                  {integrationProgress === 'COMPLETED' ? '연동 완료' : '연동 진행중'}
+                </span>
+              )}
         </td>
       </tr>
 

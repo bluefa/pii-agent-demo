@@ -26,7 +26,7 @@ describe('WaitingApprovalCancelButton', () => {
     );
 
     expect(screen.queryByRole('dialog')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /연동 대상 승인 요청 취소/ }));
+    fireEvent.click(screen.getByRole('button', { name: /전체 요청 취소/ }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(
       screen.getByText('연동 대상 승인 요청을 취소할까요?'),
@@ -41,7 +41,7 @@ describe('WaitingApprovalCancelButton', () => {
       <WaitingApprovalCancelButton targetSourceId={1003} onSuccess={onSuccess} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /연동 대상 승인 요청 취소/ }));
+    fireEvent.click(screen.getByRole('button', { name: /전체 요청 취소/ }));
     fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
 
     await waitFor(() => {
@@ -63,7 +63,7 @@ describe('WaitingApprovalCancelButton', () => {
       <WaitingApprovalCancelButton targetSourceId={1003} onSuccess={onSuccess} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /연동 대상 승인 요청 취소/ }));
+    fireEvent.click(screen.getByRole('button', { name: /전체 요청 취소/ }));
     fireEvent.click(screen.getByRole('button', { name: '요청 취소' }));
 
     await waitFor(() => {

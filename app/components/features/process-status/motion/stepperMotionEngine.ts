@@ -31,33 +31,53 @@ const stateColor = (s: StepState): string =>
 const stateTextColor = (s: StepState): string =>
   s === 'pending' ? motion.colors.pendingText : motion.colors.activeText;
 
+export interface StepperRefs {
+  states: readonly StepState[];
+  fillRefs: ReadonlyArray<HTMLElement | null>;
+  circleRefs: ReadonlyArray<HTMLElement | null>;
+  iconNumberRefs: ReadonlyArray<HTMLElement | null>;
+  iconCheckRefs: ReadonlyArray<HTMLElement | null>;
+}
+
+// Snap every ref to the visual rest state for `states`, with no animation.
 // Fills and icon spans have no className fallback for transform/opacity — only
 // the JSX inline style sets them. React skips re-applying an inline style prop
 // when the rendered value matches its tracked state, so clearing them here
 // would leave the DOM at CSS defaults (scaleX(1), opacity 1): every connector
 // would appear filled, and both number and check spans would render at once.
-// Circles use Tailwind classes for color, so clearing falls back cleanly.
-const finalize = (run: MotionRun): void => {
-  run.circleRefs.forEach((el) => {
+// Circles use Tailwind classes for color, so clearing falls back cleanly — this
+// also wipes any partial inline color a cancelled run left behind, which is what
+// keeps reduced-motion (and interrupted) renders from sticking at the t=0 color.
+export const resetStepperToStates = (refs: StepperRefs): void => {
+  refs.circleRefs.forEach((el) => {
     if (!el) return;
     el.style.backgroundColor = '';
     el.style.color = '';
     el.style.transform = '';
   });
-  run.fillRefs.forEach((el, i) => {
+  refs.fillRefs.forEach((el, i) => {
     if (!el) return;
     el.style.transform =
-      run.toStates[i] === 'completed' ? 'scaleX(1)' : 'scaleX(0)';
+      refs.states[i] === 'completed' ? 'scaleX(1)' : 'scaleX(0)';
   });
-  run.iconNumberRefs.forEach((el, i) => {
+  refs.iconNumberRefs.forEach((el, i) => {
     if (!el) return;
-    el.style.opacity = run.toStates[i] === 'completed' ? '0' : '1';
+    el.style.opacity = refs.states[i] === 'completed' ? '0' : '1';
   });
-  run.iconCheckRefs.forEach((el, i) => {
+  refs.iconCheckRefs.forEach((el, i) => {
     if (!el) return;
-    el.style.opacity = run.toStates[i] === 'completed' ? '1' : '0';
+    el.style.opacity = refs.states[i] === 'completed' ? '1' : '0';
   });
 };
+
+const finalize = (run: MotionRun): void =>
+  resetStepperToStates({
+    states: run.toStates,
+    fillRefs: run.fillRefs,
+    circleRefs: run.circleRefs,
+    iconNumberRefs: run.iconNumberRefs,
+    iconCheckRefs: run.iconCheckRefs,
+  });
 
 export const runStepperMotion = (run: MotionRun): (() => void) => {
   const {

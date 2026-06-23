@@ -71,13 +71,25 @@ describe('WaitingApprovalCard', () => {
     getApprovalRequestLatestMock.mockRejectedValue(new Error('not mocked'));
   });
 
+  it('step-2 toolbar keeps the Region filter and omits the 연동 상태 filter', async () => {
+    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    render(<WaitingApprovalCard targetSourceId={1003} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('mysql-prod-01')).toBeTruthy();
+    });
+    expect(screen.getByLabelText('Region 필터')).toBeTruthy();
+    expect(screen.getByLabelText('DB Type 필터')).toBeTruthy();
+    expect(screen.queryByLabelText('연동 상태 필터')).toBeNull();
+  });
+
   it('renders the card title with the cardStyles.cardTitle token', async () => {
     getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     const heading = screen.getByRole('heading', { name: '연동 대상 승인 대기' });
-    expect(heading.className).toContain('text-[22px]');
-    expect(heading.className).toContain('font-bold');
+    expect(heading.className).toContain('text-[26px]');
+    expect(heading.className).toContain('font-extrabold');
 
     await waitFor(() => {
       expect(screen.getByText('mysql-prod-01')).toBeTruthy();
@@ -150,7 +162,7 @@ describe('WaitingApprovalCard', () => {
     await waitFor(() => {
       expect(screen.getByText('전체 요청')).toBeTruthy();
     });
-    expect(screen.getByText('연동 대상')).toBeTruthy();
+    expect(screen.getAllByText('연동 대상').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('비대상').length).toBeGreaterThanOrEqual(1);
 
     const tiles = screen.getAllByText(/^\d+$/);

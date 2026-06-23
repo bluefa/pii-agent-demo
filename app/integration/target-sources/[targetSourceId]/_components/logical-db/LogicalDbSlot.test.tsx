@@ -61,6 +61,8 @@ const sampleResource: ConfirmedResource = {
   resourceId: 'sea-live-space-prod',
   type: 'azure-mysql',
   databaseType: 'MYSQL',
+  region: 'ap-northeast-1',
+  resourceName: 'sea-live-space-prod',
   host: '10.0.0.1',
   port: 3306,
   oracleServiceId: null,

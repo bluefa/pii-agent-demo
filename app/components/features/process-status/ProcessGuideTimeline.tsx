@@ -23,7 +23,7 @@ export const ProcessGuideTimeline = ({ steps, currentStepNumber, onStepClick }: 
             <button
               onClick={() => onStepClick(step.stepNumber)}
               aria-current={isCurrent ? 'step' : undefined}
-              aria-label={`Step ${step.stepNumber}: ${step.label} - ${status === 'completed' ? '완료' : status === 'current' ? '진행중' : '대기'}`}
+              aria-label={`Step ${step.stepNumber}: ${step.label} - ${isCompleted ? '완료' : isCurrent ? '진행중' : '대기'}`}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
             >
               {/* 원형 아이콘 */}

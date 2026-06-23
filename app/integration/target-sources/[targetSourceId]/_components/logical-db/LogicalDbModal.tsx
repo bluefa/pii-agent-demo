@@ -82,8 +82,10 @@ export const LogicalDbModal = ({
     <Modal
       isOpen={open}
       onClose={onClose}
-      size="2xl"
-      title={`논리 DB 확인 · ${resourceName}`}
+      size="logical"
+      // 'bare' chrome drops the shared header (empty title bar + close-X). The
+      // "논리 DB 확인" title block below is the first element in the modal.
+      chrome="bare"
       footer={
         <div className="flex w-full items-center justify-between gap-2">
           <span className={cn('text-[12px]', textColors.tertiary)}>
@@ -115,6 +117,34 @@ export const LogicalDbModal = ({
         </div>
       }
     >
+      {/*
+        v16 `.lg-title` — 20px / 700 / -0.02em / line-height 1.2 / #191F28.
+        With `chrome="bare"` the Modal renders no header, so this is the first
+        element at the very top of the modal. Rendered here (not via Modal's
+        title) because the shared default header locks its title at 18px and
+        keeps a close-X; other Modal callers must not regress.
+      */}
+      <h2 className="mb-2 text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[#191F28]">
+        논리 DB 확인
+      </h2>
+      {/* v16 `.lg-resource` — uppercase 12px/700 key + mono 12px/600 primary value */}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span
+          className={cn(
+            'shrink-0 text-[12px] font-bold uppercase tracking-[0.06em]',
+            textColors.tertiary,
+          )}
+        >
+          Resource
+        </span>
+        <span className={cn('font-mono text-[12px] font-semibold', primaryColors.text)}>
+          {resourceName}
+        </span>
+      </div>
+      {/* v16 `.logical-modal .modal-sub` — 12px / line-height 1.5 / weak text */}
+      <p className={cn('mb-3.5 text-[12px] font-medium leading-[1.5] text-[#8B95A1]')}>
+        Test Connection으로 발견된 논리 DB와 제외 정책을 한 화면에서 관리해요.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <Panel
           label="연동 대상 후보"
@@ -175,10 +205,16 @@ const Panel = ({
         borderColors.light,
       )}
     >
-      <span className={cn('text-[13px] font-semibold', textColors.primary)}>
+      <span className={cn('text-[13px] font-bold', textColors.primary)}>
         {label}
       </span>
-      <span className={cn('text-[11.5px] tabular-nums', textColors.tertiary)}>
+      {/* v16 `.lg-panel-title .count` — 11px/700 pill, tinted bg, secondary text */}
+      <span
+        className={cn(
+          'rounded-full bg-[#F3F4F6] px-[7px] py-px text-[11px] font-bold tabular-nums',
+          textColors.secondary,
+        )}
+      >
         {count}개
       </span>
     </header>
@@ -194,41 +230,117 @@ const Panel = ({
         <input
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="DB 이름 검색"
-          className="h-7 w-full bg-transparent text-[12px] outline-none"
+          placeholder="Database / Schema 검색"
+          className="h-7 w-full bg-transparent text-[12.5px] outline-none"
           aria-label={`${label} 검색`}
         />
       </div>
     </div>
-    <ul className="flex-1 overflow-y-auto">
-      {items.length === 0 ? (
-        <li className={cn('px-3 py-6 text-center text-[12px]', textColors.quaternary)}>
-          {emptyMessage}
-        </li>
-      ) : (
-        items.map((it) => (
-          <li
-            key={it.id}
+    <div className="flex-1 overflow-y-auto">
+      <table className="w-full border-collapse text-left">
+        <thead>
+          <tr
             className={cn(
-              'flex items-center justify-between px-3 py-2 text-[12.5px]',
-              bgColors.mutedHover,
+              'sticky top-0 border-b',
+              bgColors.muted,
+              borderColors.light,
             )}
           >
-            <span className={cn('font-mono', textColors.secondary)}>
-              {it.name}
-            </span>
-            <button
-              type="button"
-              onClick={() => onItemClick(it.id)}
-              className={cn('text-[11.5px] hover:underline', primaryColors.text)}
+            <th
+              scope="col"
+              className={cn(
+                'w-[88px] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em]',
+                textColors.tertiary,
+              )}
             >
-              {actionLabel}
-            </button>
-          </li>
-        ))
-      )}
-    </ul>
+              Type
+            </th>
+            <th
+              scope="col"
+              className={cn(
+                'px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em]',
+                textColors.tertiary,
+              )}
+            >
+              Database
+            </th>
+            <th
+              scope="col"
+              className={cn(
+                'px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.04em]',
+                textColors.tertiary,
+              )}
+            >
+              Schema
+            </th>
+            <th
+              scope="col"
+              className={cn(
+                'w-[64px] px-3 py-1.5 text-right text-[11px] font-semibold uppercase tracking-[0.04em]',
+                textColors.tertiary,
+              )}
+            >
+              <span className="sr-only">Action</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td
+                colSpan={4}
+                className={cn(
+                  'px-3 py-6 text-center text-[12px]',
+                  textColors.quaternary,
+                )}
+              >
+                {emptyMessage}
+              </td>
+            </tr>
+          ) : (
+            items.map((it) => (
+              <tr
+                key={it.id}
+                className={cn('border-b text-[12.5px]', borderColors.light, bgColors.mutedHover)}
+              >
+                <td className="px-3 py-2">
+                  <TypePill type={it.type} />
+                </td>
+                <td className={cn('px-3 py-2 font-mono', textColors.primary)}>
+                  {it.database}
+                </td>
+                <td className={cn('px-3 py-2 font-mono', textColors.secondary)}>
+                  {it.schema ?? '—'}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onItemClick(it.id)}
+                    className={cn('text-[11.5px] hover:underline', primaryColors.text)}
+                  >
+                    {actionLabel}
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
   </div>
+);
+
+const TypePill = ({ type }: { type: LogicalDatabase['type'] }) => (
+  <span
+    className={cn(
+      'inline-flex items-center rounded px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.02em]',
+      type === 'db'
+        ? 'bg-[#DBEAFE] text-[#1E40AF]'
+        : 'bg-[#EDE9FE] text-[#5B21B6]',
+    )}
+  >
+    {type === 'db' ? 'Database' : 'Schema'}
+  </span>
 );
 
 const splitPanels = (

@@ -47,11 +47,36 @@ export const useLogicalDatabases = (resourceId: string): LogicalDbDataHook => {
   };
 };
 
+/** Mock topology mirroring the v16 dataset: databases, some with schemas. */
+const MOCK_TOPOLOGY: ReadonlyArray<{ database: string; schemas: string[] }> = [
+  { database: 'live', schemas: ['public', 'analytics'] },
+  { database: 'prd', schemas: ['temp'] },
+  { database: 'stg', schemas: [] },
+  { database: 'dev', schemas: [] },
+  { database: 'reporting', schemas: ['public'] },
+];
+
 const buildFakeDatabases = (resourceId: string): LogicalDatabase[] => {
   // Deterministic fake list keyed on resourceId so the modal looks plausible.
-  // Length 12 to exercise scroll + search + pagination paths.
-  return Array.from({ length: 12 }, (_, i) => ({
-    id: `${resourceId}.db_${String(i + 1).padStart(2, '0')}`,
-    name: `db_${String(i + 1).padStart(2, '0')}`,
-  }));
+  // Each database emits a 'db' row plus a 'schema' row per schema, matching
+  // the v16 Type / Database / Schema layout.
+  const rows: LogicalDatabase[] = [];
+  for (const { database, schemas } of MOCK_TOPOLOGY) {
+    rows.push({
+      id: `${resourceId}.${database}`,
+      name: database,
+      type: 'db',
+      database,
+    });
+    for (const schema of schemas) {
+      rows.push({
+        id: `${resourceId}.${database}.${schema}`,
+        name: `${database}.${schema}`,
+        type: 'schema',
+        database,
+        schema,
+      });
+    }
+  }
+  return rows;
 };

@@ -13,7 +13,6 @@ const fixture: WaitingApprovalResource[] = [
     region: 'ap-northeast-1',
     resourceName: 'sea-live-space-prod',
     selected: true,
-    scanStatus: 'NEW_SCAN',
   },
   {
     resourceId: 'mysql-stg-02',
@@ -21,7 +20,6 @@ const fixture: WaitingApprovalResource[] = [
     region: 'ap-northeast-1',
     resourceName: 'sea-live-space-stg',
     selected: true,
-    scanStatus: 'UNCHANGED',
   },
   {
     resourceId: 'pg-analytics-03',
@@ -29,32 +27,21 @@ const fixture: WaitingApprovalResource[] = [
     region: 'ap-northeast-1',
     resourceName: 'sea-live-space-prd',
     selected: false,
-    scanStatus: null,
   },
 ];
 
 describe('WaitingApprovalTable', () => {
-  it('renders the 8 column headers in order', () => {
+  it('renders the 6 column headers in order', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
-      '#',
-      'DB Type',
+      'Database Type',
       'Resource ID',
       'Region',
       'Resource Name',
-      '연동 대상 여부',
-      '스캔 이력',
+      '연동 대상',
       '제외 사유',
     ]);
-  });
-
-  it('renders 1-based row index', () => {
-    render(<WaitingApprovalTable resources={fixture} />);
-    const rows = screen.getAllByRole('row').slice(1); // skip header row
-    expect(within(rows[0]).getByText('1')).toBeTruthy();
-    expect(within(rows[1]).getByText('2')).toBeTruthy();
-    expect(within(rows[2]).getByText('3')).toBeTruthy();
   });
 
   it('maps selected boolean to 대상/비대상', () => {
@@ -65,14 +52,11 @@ describe('WaitingApprovalTable', () => {
     expect(within(rows[2]).getByText('비대상')).toBeTruthy();
   });
 
-  it('maps scanStatus enum to label', () => {
+  it('renders the em-dash placeholder for an excluded row without an exclusion reason', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
-    expect(within(rows[0]).getByText('신규')).toBeTruthy();
-    expect(within(rows[1]).getByText('변경')).toBeTruthy();
-    // null scanStatus and missing exclusionReason both render the em-dash;
-    // row[2] is the excluded fixture row with both, so we expect 2 placeholders.
-    expect(within(rows[2]).getAllByText('—').length).toBe(2);
+    // row[2] is the excluded fixture row with no exclusionReason → 제외 사유 placeholder.
+    expect(within(rows[2]).getAllByText('—').length).toBe(1);
   });
 
   it('shows empty state when no resources', () => {
@@ -85,13 +69,13 @@ describe('WaitingApprovalTable', () => {
     render(<WaitingApprovalTable resources={fixture} />);
     const rows = screen.getAllByRole('row').slice(1);
     const cells = within(rows[0]).getAllByRole('cell');
-    // index 2: Resource ID, 3: Region, 4: Resource Name
+    // v15: Resource ID mono lives inside the ellipsis ResourceIdCell span; Region/Name cells carry mono.
+    expect(within(cells[1]).getByText('mysql-prod-01').className).toContain('font-mono');
     expect(cells[2].className).toContain('font-mono');
     expect(cells[3].className).toContain('font-mono');
-    expect(cells[4].className).toContain('font-mono');
   });
 
-  it('mounts a hover-revealed CopyButton on Resource ID, Region, and Resource Name cells', () => {
+  it('mounts a single hover-revealed CopyButton on the Resource ID cell only (v15)', () => {
     const resources: WaitingApprovalResource[] = [
       {
         resourceId: 'res-1',
@@ -103,27 +87,9 @@ describe('WaitingApprovalTable', () => {
     ];
     render(<WaitingApprovalTable resources={resources} />);
     const buttons = screen.getAllByRole('button', { name: /복사$/ });
-    expect(buttons).toHaveLength(3);
-    expect(screen.getByRole('button', { name: 'res-1 복사' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'us-east-1 복사' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'orders-db 복사' })).toBeTruthy();
-    buttons.forEach((b) => {
-      expect(b.className).toContain('opacity-0');
-      expect(b.className).toContain('group-hover:opacity-100');
-    });
-  });
-
-  it('omits CopyButton when region or resourceName is empty', () => {
-    const resources: WaitingApprovalResource[] = [
-      {
-        resourceId: 'res-2',
-        resourceType: 'MySQL',
-        region: '',
-        resourceName: '',
-        selected: true,
-      },
-    ];
-    render(<WaitingApprovalTable resources={resources} />);
-    expect(screen.getAllByRole('button', { name: /복사$/ })).toHaveLength(1);
+    expect(buttons).toHaveLength(1);
+    const copy = screen.getByRole('button', { name: 'Resource ID 복사' });
+    expect(copy.className).toContain('opacity-0');
+    expect(copy.className).toContain('group-hover/resid:opacity-100');
   });
 });

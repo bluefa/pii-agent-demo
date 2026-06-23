@@ -1,6 +1,6 @@
 'use client';
 
-import { cn, primaryColors, textColors } from '@/lib/theme';
+import { cn, textColors } from '@/lib/theme';
 
 interface ScanRunningStateProps {
   progress: number;
@@ -11,13 +11,7 @@ export const ScanRunningState = ({ progress }: ScanRunningStateProps) => {
 
   return (
     <div className="py-[60px] px-5 text-center">
-      <div
-        className={cn(
-          'w-16 h-16 mx-auto mb-5 rounded-2xl grid place-items-center',
-          primaryColors.bgLight,
-          primaryColors.text,
-        )}
-      >
+      <div className="w-16 h-16 mx-auto mb-5 rounded-2xl grid place-items-center bg-[#F9FAFB] text-[#9CA3AF]">
         <div className="animate-spin">
           <svg
             className="w-8 h-8"
@@ -41,7 +35,7 @@ export const ScanRunningState = ({ progress }: ScanRunningStateProps) => {
       </p>
       <div className="mx-auto mt-6 max-w-[520px] bg-slate-100 rounded-full h-[10px] overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#0064FF] to-indigo-500 transition-all duration-300 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-[#0064FF] to-[#4F46E5] transition-[width] duration-[400ms] ease-out"
           style={{ width: `${clamped}%` }}
         />
       </div>

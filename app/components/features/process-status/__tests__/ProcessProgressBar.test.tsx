@@ -9,11 +9,14 @@ import {
 } from '@/app/components/features/process-status/ProcessProgressBar';
 
 const runStepperMotionMock = vi.fn();
+const resetStepperToStatesMock = vi.fn();
 
 vi.mock(
   '@/app/components/features/process-status/motion/stepperMotionEngine',
   () => ({
     runStepperMotion: (...args: unknown[]) => runStepperMotionMock(...args),
+    resetStepperToStates: (...args: unknown[]) =>
+      resetStepperToStatesMock(...args),
   }),
 );
 
@@ -25,6 +28,7 @@ beforeEach(() => {
   mqListeners.clear();
   runStepperMotionMock.mockReset();
   runStepperMotionMock.mockReturnValue(() => undefined);
+  resetStepperToStatesMock.mockReset();
   vi.stubGlobal('matchMedia', (_q: string) => ({
     matches,
     media: _q,
@@ -100,6 +104,28 @@ describe('ProcessProgressBar', () => {
       <ProcessProgressBar steps={buildSteps(7, 2)} ariaLabel="install" />,
     );
     expect(runStepperMotionMock).not.toHaveBeenCalled();
+  });
+
+  it('snaps refs to the final states under reduced motion (no stuck inline color)', () => {
+    // Regression: a motion run that started under a transient reduced=false
+    // (SSR hydration reports false before matchMedia resolves) leaves
+    // transitioning circles stuck at their t=0 inline color. The reduced-motion
+    // path must reset every ref to the final rest state instead.
+    matches = true;
+    render(
+      <ProcessProgressBar steps={buildSteps(7, 2)} ariaLabel="install" />,
+    );
+    expect(resetStepperToStatesMock).toHaveBeenCalled();
+    const arg = resetStepperToStatesMock.mock.calls[0][0];
+    expect(arg.states).toEqual([
+      'completed',
+      'completed',
+      'current',
+      'pending',
+      'pending',
+      'pending',
+      'pending',
+    ]);
   });
 
   it('calls runStepperMotion when active index changes', () => {

@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
 import {
   bgColors,
   borderColors,
   cn,
+  idcStyles,
   tagStyles,
   textColors,
 } from '@/lib/theme';
@@ -18,7 +18,9 @@ import {
   TABLE_TAG_PILL,
 } from '@/app/components/features/process-status/install-task-pipeline/table-styles';
 import { CopyButton } from '@/app/components/ui/CopyButton';
+import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 
 interface InstallResourceTableProps {
   rows: InstallResourceRow[];
@@ -39,28 +41,19 @@ const STATUS_TAG: Record<GcpInstallationStatusValue, string> = {
   FAIL: tagStyles.error,
 };
 
+// v16 `.db-list-table` status column header per provider (HTML 6811–6813):
+// Azure = 'Private Link 상태', GCP = '서비스 리소스 상태', AWS = 'VPC Endpoint 상태'.
 const RESOURCE_STATUS_COLUMN_LABEL: Record<CloudProvider, string> = {
-  AWS: 'Service 상태',
+  AWS: 'VPC Endpoint 상태',
   Azure: 'Private Link 상태',
   GCP: '서비스 리소스 상태',
   IDC: '서비스 리소스 상태',
 };
 
 export const InstallResourceTable = ({ rows, provider }: InstallResourceTableProps) => {
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
-
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-  const safePage = Math.min(page, totalPages - 1);
-  const visibleRows = useMemo(
-    () => rows.slice(safePage * pageSize, safePage * pageSize + pageSize),
-    [rows, safePage, pageSize],
-  );
-
-  const handlePageSizeChange = useCallback((next: number) => {
-    setPageSize(next);
-    setPage(0);
-  }, []);
+  const { page, pageSize, setPage, setPageSize, pageItems: visibleRows } = usePagination(rows, {
+    initialPageSize: DEFAULT_PAGE_SIZE,
+  });
 
   if (rows.length === 0) {
     return (
@@ -78,15 +71,15 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
 
   return (
     <div className="flex flex-col gap-2">
-      <div className={cn('overflow-hidden rounded-lg border', bgColors.surface, borderColors.default)}>
+      <div className={idcStyles.table.frame}>
         <table className="w-full text-sm">
           <thead className={bgColors.muted}>
             <tr>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Type</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Name</th>
-              <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>
+              <th className={TABLE_HEADER_CELL}>Database Type</th>
+              <th className={TABLE_HEADER_CELL}>Resource ID</th>
+              <th className={TABLE_HEADER_CELL}>Region</th>
+              <th className={TABLE_HEADER_CELL}>Resource Name</th>
+              <th className={TABLE_HEADER_CELL}>
                 {RESOURCE_STATUS_COLUMN_LABEL[provider]}
               </th>
             </tr>
@@ -95,18 +88,22 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
             {visibleRows.map((row) => (
               <tr
                 key={row.resourceId}
-                className={cn('border-t group', borderColors.light)}
+                className="border-t border-[#EBEEF2] group"
               >
                 <td className={TABLE_BODY_CELL}>
                   {row.databaseType ? (
-                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>{row.databaseType}</span>
+                    <span className={cn(TABLE_TAG_PILL, tagStyles.info)}>
+                      {getDatabaseShortLabel(row.databaseType)}
+                    </span>
                   ) : (
                     <span className={textColors.tertiary}>—</span>
                   )}
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   <span className="inline-flex items-center gap-1.5">
-                    <span>{row.resourceId}</span>
+                    <span className="max-w-[280px] overflow-hidden text-ellipsis whitespace-nowrap [direction:rtl] text-left">
+                      {row.resourceId}
+                    </span>
                     <CopyButton
                       value={row.resourceId}
                       label={`${row.resourceId} 복사`}
@@ -114,10 +111,10 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
                     />
                   </span>
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   {row.region ?? '—'}
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   {row.databaseName ?? '—'}
                 </td>
                 <td className={TABLE_BODY_CELL}>
@@ -130,15 +127,14 @@ export const InstallResourceTable = ({ rows, provider }: InstallResourceTablePro
           </tbody>
         </table>
       </div>
-      {rows.length > pageSize && (
-        <Pagination
-          page={safePage}
-          pageSize={pageSize}
-          totalCount={rows.length}
-          onPageChange={setPage}
-          onPageSizeChange={handlePageSizeChange}
-        />
-      )}
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        totalCount={rows.length}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={[10, 20, 50, 100]}
+      />
     </div>
   );
 };

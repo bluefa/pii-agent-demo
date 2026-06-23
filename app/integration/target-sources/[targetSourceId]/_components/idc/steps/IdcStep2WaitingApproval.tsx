@@ -1,7 +1,7 @@
 'use client';
 
 import { ProcessStatus } from '@/lib/types';
-import { cardStyles, cn, idcStyles, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { LoadingState, ErrorState } from '@/app/components/ui/state';
@@ -49,18 +49,12 @@ export const IdcStep2WaitingApproval = ({
         <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
           <div>
             <h2 className={cardStyles.cardTitle}>연동 대상 승인 대기</h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <p className={cn('mt-2.5', cardStyles.subtitle)}>
               요청하신 DB 목록을 관리자가 확인하고 있어요.
             </p>
           </div>
-          <span
-            className={cn(
-              idcStyles.statusPill,
-              statusColors.warning.bg,
-              statusColors.warning.textDark,
-            )}
-          >
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
+            <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
             승인 대기
           </span>
         </header>

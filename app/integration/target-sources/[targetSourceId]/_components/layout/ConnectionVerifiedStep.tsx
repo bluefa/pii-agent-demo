@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -8,13 +8,17 @@ import { resolveStepSlot } from '@/app/components/features/process-status/GuideC
 import { StepBanner } from '@/app/components/ui/StepBanner';
 import { ClockIcon, ReloadIcon } from '@/app/components/ui/icons';
 import { useToast } from '@/app/components/ui/toast';
-import { cardStyles, cn, statusColors, textColors } from '@/lib/theme';
+import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import {
   ProjectPageMeta,
   RejectionAlert,
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { WARNING_OUTLINE_BUTTON_CLASS } from '@/app/integration/target-sources/[targetSourceId]/_components/common/warning-outline-button';
+import {
+  ConfirmRewindModal,
+  type ConfirmRewindKind,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
 import { ConfirmedIntegrationDataProvider } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
 import { ConfirmedResourcesSlot } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmedResourcesSlot';
 
@@ -28,16 +32,30 @@ interface ConnectionVerifiedStepProps {
 
 const ConnectionVerifiedRetestButton = () => {
   const toast = useToast();
+  const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
+
+  // v16 opens the confirm-rewind modal; the rewind endpoint is not in the contract
+  // yet, so confirming surfaces a placeholder until the BFF wires it.
+  const handleConfirm = () => {
+    setConfirmKind(null);
+    toast.info('연결 테스트 재실행(5단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.');
+  };
+
   return (
     <div className="flex justify-end mt-4">
       <button
         type="button"
         className={WARNING_OUTLINE_BUTTON_CLASS}
-        onClick={() => toast.info('연결 테스트 재실행 기능 준비중입니다.')}
+        onClick={() => setConfirmKind('retest')}
       >
-        <ReloadIcon className="w-3.5 h-3.5" />
+        <ReloadIcon className="w-[13px] h-[13px]" />
         연결 테스트 재실행
       </button>
+      <ConfirmRewindModal
+        kind={confirmKind}
+        onClose={() => setConfirmKind(null)}
+        onConfirm={handleConfirm}
+      />
     </div>
   );
 };
@@ -71,18 +89,12 @@ export const ConnectionVerifiedStep = ({
             <h2 className={cardStyles.cardTitle}>
               완료 여부 관리자 승인 대기
             </h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <p className={cn('mt-2.5', cardStyles.subtitle)}>
               PII Agent 운영팀의 최종 승인이 완료되면 모니터링이 시작됩니다.
             </p>
           </div>
-          <span
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-              statusColors.warning.bg,
-              statusColors.warning.textDark,
-            )}
-          >
-            <span className={cn('w-1.5 h-1.5 rounded-full', statusColors.warning.dot)} />
+          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.partial.text)}>
+            <span className={cn(idcStyles.status.dot, idcStyles.status.partial.dot)} />
             승인 대기
           </span>
         </header>
@@ -91,7 +103,7 @@ export const ConnectionVerifiedStep = ({
             <strong className="font-semibold">최종 관리자 승인을 기다리고 있어요.</strong>
             {' '}승인이 완료되면 모니터링이 즉시 시작됩니다.
           </StepBanner>
-          <ConfirmedResourcesSlot />
+          <ConfirmedResourcesSlot bare />
           <ConnectionVerifiedRetestButton />
         </div>
       </section>

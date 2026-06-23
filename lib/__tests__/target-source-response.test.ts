@@ -66,4 +66,22 @@ describe('extractTargetSource', () => {
     });
     expect(result.cloudProvider).toBe('Azure');
   });
+
+  it('preserves awsInstallationMode so AwsProjectPage shows the install grid, not the mode selector', () => {
+    const result = extractTargetSource({
+      id: 'aws-1',
+      targetSourceId: 1010,
+      projectCode: 'AWS-001',
+      serviceCode: 'SERVICE-A',
+      cloudProvider: 'AWS',
+      processStatus: ProcessStatus.INSTALLING,
+      createdAt: '2026-02-16T10:00:00Z',
+      updatedAt: '2026-02-16T10:10:00Z',
+      name: 'aws-1',
+      description: '',
+      isRejected: false,
+      awsInstallationMode: 'MANUAL',
+    });
+    expect(result.awsInstallationMode).toBe('MANUAL');
+  });
 });

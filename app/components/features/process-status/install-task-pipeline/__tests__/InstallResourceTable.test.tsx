@@ -39,16 +39,16 @@ describe('InstallResourceTable — column headers', () => {
     const html = renderToStaticMarkup(
       <InstallResourceTable rows={[row()]} provider="GCP" />,
     );
-    const dbTypeIdx = html.indexOf('DB Type');
+    const dbTypeIdx = html.indexOf('Database Type');
     const resourceIdx = html.indexOf('Resource ID');
     const regionIdx = html.indexOf('Region');
-    const dbNameIdx = html.indexOf('DB Name');
+    const resourceNameIdx = html.indexOf('Resource Name');
     const statusIdx = html.indexOf('서비스 리소스 상태');
     expect(dbTypeIdx).toBeGreaterThan(0);
     expect(resourceIdx).toBeGreaterThan(dbTypeIdx);
     expect(regionIdx).toBeGreaterThan(resourceIdx);
-    expect(dbNameIdx).toBeGreaterThan(regionIdx);
-    expect(statusIdx).toBeGreaterThan(dbNameIdx);
+    expect(resourceNameIdx).toBeGreaterThan(regionIdx);
+    expect(statusIdx).toBeGreaterThan(resourceNameIdx);
   });
 });
 
@@ -130,11 +130,11 @@ describe('InstallResourceTable — multiple rows', () => {
 });
 
 describe('InstallResourceTable — provider-aware status column label', () => {
-  it('AWS provider shows "Service 상태"', () => {
+  it('AWS provider shows "VPC Endpoint 상태"', () => {
     const html = renderToStaticMarkup(
       <InstallResourceTable rows={[row()]} provider="AWS" />,
     );
-    expect(html).toContain('Service 상태');
+    expect(html).toContain('VPC Endpoint 상태');
     expect(html).not.toContain('Private Link 상태');
     expect(html).not.toContain('서비스 리소스 상태');
   });
@@ -144,7 +144,7 @@ describe('InstallResourceTable — provider-aware status column label', () => {
       <InstallResourceTable rows={[row()]} provider="Azure" />,
     );
     expect(html).toContain('Private Link 상태');
-    expect(html).not.toContain('Service 상태');
+    expect(html).not.toContain('VPC Endpoint 상태');
   });
 
   it('GCP provider shows "서비스 리소스 상태"', () => {

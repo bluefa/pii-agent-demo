@@ -97,14 +97,14 @@ export const mockUsers: User[] = [
     name: '홍길동',
     email: 'hong@company.com',
     role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['SERVICE-A', 'SERVICE-B'],
+    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp'],
   },
   {
     id: 'user-2',
     name: '김철수',
     email: 'kim@company.com',
     role: 'SERVICE_MANAGER',
-    serviceCodePermissions: ['SERVICE-A'],
+    serviceCodePermissions: ['azure', 'aws', 'idc', 'gcp'],
   },
   {
     id: 'admin-1',
@@ -129,19 +129,24 @@ export const getCurrentUser = (): User | undefined => {
 // ===== Mock Service Codes =====
 export const mockServiceCodes: ServiceCode[] = [
   {
-    code: 'SERVICE-A',
-    name: '서비스 A',
-    description: '고객 데이터 분석 서비스',
+    code: 'azure',
+    name: 'Azure',
+    description: 'Azure 클라우드 PII Agent 연동',
   },
   {
-    code: 'SERVICE-B',
-    name: '서비스 B',
-    description: '마케팅 자동화 서비스',
+    code: 'aws',
+    name: 'AWS',
+    description: 'AWS 클라우드 PII Agent 연동',
   },
   {
-    code: 'SERVICE-C',
-    name: '서비스 C',
-    description: '내부 운영 시스템',
+    code: 'idc',
+    name: 'IDC',
+    description: 'IDC 온프레미스 PII Agent 연동',
+  },
+  {
+    code: 'gcp',
+    name: 'GCP',
+    description: 'GCP 클라우드 PII Agent 연동',
   },
 ];
 
@@ -154,7 +159,7 @@ export const mockProjects: Project[] = [
     projectCode: 'GCP-001',
     name: 'GCP PII Agent - Cloud SQL / BigQuery',
     description: 'GCP Cloud SQL, BigQuery 리소스에 PII Agent 설치',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'gcp',
     cloudProvider: 'GCP',
     gcpProjectId: 'pii-agent-prod-12345',
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
@@ -174,39 +179,77 @@ export const mockProjects: Project[] = [
     projectCode: 'AZURE-001',
     name: 'Azure PII Agent - DB 연동',
     description: 'Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',
     processStatus: ProcessStatus.INSTALLING,
-    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 3 }),
+    status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 4, excludedCount: 2 }),
     resources: [
       {
         id: 'azure-res-1',
-        type: 'AZURE_MSSQL',
-        resourceId: 'mssql-prod-001',
-        databaseType: 'MSSQL',
+        type: 'AZURE_MYSQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-prod-01',
+        databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
         integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-2',
-        type: 'AZURE_POSTGRESQL',
-        resourceId: 'pg-analytics-001',
-        databaseType: 'POSTGRESQL',
+        type: 'AZURE_MYSQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforMySQL/flexibleServers/mysql-stg-02',
+        databaseType: 'MYSQL',
         connectionStatus: 'PENDING',
         isSelected: true,
         integrationCategory: 'TARGET',
       },
       {
         id: 'azure-res-3',
-        type: 'AZURE_MYSQL',
-        resourceId: 'mysql-app-001',
-        databaseType: 'MYSQL',
+        type: 'AZURE_POSTGRESQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-analytics-03',
+        databaseType: 'POSTGRESQL',
         connectionStatus: 'PENDING',
         isSelected: true,
         integrationCategory: 'TARGET',
+      },
+      {
+        id: 'azure-res-9',
+        type: 'AZURE_MSSQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-prod-app/providers/Microsoft.Sql/servers/mssql-payments-04',
+        databaseType: 'MSSQL',
+        connectionStatus: 'PENDING',
+        isSelected: true,
+        integrationCategory: 'TARGET',
+      },
+      // 비대상 (excluded) — v15 step2/3 show 비대상 rows with reason chips
+      {
+        id: 'azure-res-10',
+        type: 'AZURE_POSTGRESQL',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-stg/providers/Microsoft.DBforPostgreSQL/flexibleServers/pg-stg-05',
+        databaseType: 'POSTGRESQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: 'Stg 환경 DB · PII 데이터 미보유',
+          excludedAt: '2026-01-20T09:00:00Z',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+        },
+      },
+      {
+        id: 'azure-res-11',
+        type: 'AZURE_MARIADB',
+        resourceId: '/subscriptions/2867a4f9-1234-5678-90ab-cdef12345678/resourceGroups/rg-legacy/providers/Microsoft.DBforMariaDB/servers/mariadb-legacy-archive-2019',
+        databaseType: 'MYSQL',
+        connectionStatus: 'PENDING',
+        isSelected: false,
+        integrationCategory: 'TARGET',
+        exclusion: {
+          reason: 'Legacy archive · 2024년 EOL 예정으로 연동 제외',
+          excludedAt: '2026-01-20T09:00:00Z',
+          excludedBy: { id: 'admin-1', name: '관리자' },
+        },
       },
     ],
     terraformState: {
@@ -222,7 +265,7 @@ export const mockProjects: Project[] = [
     projectCode: 'AZURE-002',
     name: 'Azure PII Agent - VM 포함',
     description: 'Azure DB + VM 리소스에 PII Agent 설치 (Case 2)',
-    serviceCode: 'SERVICE-B',
+    serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
     subscriptionId: '23456789-bcde-f012-3456-789abcdef012',
@@ -278,7 +321,7 @@ export const mockProjects: Project[] = [
     projectCode: 'AZURE-003',
     name: 'Azure PII Agent - VM+MySQL 스캔 완료',
     description: 'VM 1대 + MySQL 1대, 스캔 완료 후 연동 대상 확정 전',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'azure',
     cloudProvider: 'Azure',
     tenantId: 'c3d4e5f6-a7b8-9012-cdef-123456789012',
     subscriptionId: '34567890-cdef-0123-4567-89abcdef0123',
@@ -343,7 +386,7 @@ export const mockProjects: Project[] = [
     projectCode: 'N-IRP-001',
     name: 'PII Agent 설치 - 고객 DB',
     description: '자동 승인 테스트: res-excluded를 제외하고 나머지를 모두 선택하면 자동 승인됩니다.',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
@@ -523,7 +566,7 @@ export const mockProjects: Project[] = [
     projectCode: 'N-IRP-002',
     name: 'PII Agent 설치 - 로그 분석 계정',
     description: '스캔된 신규 리소스를 연동 대상으로 확정하고 관리자 승인을 대기합니다.',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
@@ -591,7 +634,7 @@ export const mockProjects: Project[] = [
     projectCode: 'OTHER-003',
     name: 'PII Agent 설치 - 이벤트 적재 파이프라인',
     description: '승인 완료 후 설치가 진행 중입니다. (데모: 설치중 상태 표시)',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
@@ -640,7 +683,7 @@ export const mockProjects: Project[] = [
     projectCode: 'DATA-005',
     name: 'PII Agent 설치 - 데이터 마트',
     description: '설치가 완료되어 연결 테스트가 필요합니다. 끊김/신규 리소스도 함께 표시합니다.',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
@@ -701,7 +744,7 @@ export const mockProjects: Project[] = [
     projectCode: 'DATA-006',
     name: 'PII Agent 설치 - 결제 데이터',
     description: '연결 테스트까지 끝나 최종 관리자 승인 대기 중입니다.',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
@@ -747,7 +790,7 @@ export const mockProjects: Project[] = [
     projectCode: 'DATA-007',
     name: 'PII Agent 모니터링 운영',
     description: '연동 설치가 완료되어 PII 모니터링이 실행 중입니다.',
-    serviceCode: 'SERVICE-A',
+    serviceCode: 'aws',
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
@@ -814,7 +857,7 @@ const makeIdcProject = (
   projectCode: `IDC-${String(targetSourceId).slice(-3)}`,
   name,
   description: 'IDC 온프레미스 DB에 PII Agent 연동',
-  serviceCode: 'SERVICE-A',
+  serviceCode: 'idc',
   cloudProvider: 'IDC',
   processStatus: step,
   status: createStatusForProcessStatus(step, { selectedCount: 2, excludedCount: 1 }),
@@ -833,6 +876,121 @@ mockProjects.push(
   makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트'),
   makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인'),
   makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료'),
+);
+
+// ===== Cloud step-coverage seed (detail page) =====
+// One target source per (cloud × processStatus) so every step 1~7 is viewable on
+// the target-source detail page for azure / aws / gcp (IDC is seeded above).
+// Cloud step screens read `project.resources`, so GCP (whose only seed has none)
+// gets a small demo set; azure/aws clones inherit their base's resources.
+const gcpDemoResources: Project['resources'] = [
+  {
+    id: 'gcp-res-1',
+    type: 'GCP_SQL',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/services/bigquery/datasets/sea_bdp_prd',
+    databaseType: 'MYSQL',
+    connectionStatus: 'PENDING',
+    isSelected: true,
+    integrationCategory: 'TARGET',
+  },
+  {
+    id: 'gcp-res-2',
+    type: 'GCP_SQL',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/sql-analytics-01',
+    databaseType: 'MYSQL',
+    connectionStatus: 'PENDING',
+    isSelected: true,
+    integrationCategory: 'TARGET',
+  },
+  {
+    id: 'gcp-res-3',
+    type: 'GCP_SQL',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-main',
+    databaseType: 'POSTGRESQL',
+    connectionStatus: 'PENDING',
+    isSelected: true,
+    integrationCategory: 'TARGET',
+  },
+  // 비대상 (excluded) — v15 step2/3 show 비대상 rows with reason chips
+  {
+    id: 'gcp-res-4',
+    type: 'GCP_SQL',
+    resourceId: 'projects/sea-bdp-prd/locations/asia-northeast3/instances/cloudsql-stg-02',
+    databaseType: 'POSTGRESQL',
+    connectionStatus: 'PENDING',
+    isSelected: false,
+    integrationCategory: 'TARGET',
+    exclusion: {
+      reason: 'Stg 환경 DB · PII 데이터 미보유',
+      excludedAt: '2026-02-01T09:00:00Z',
+      excludedBy: { id: 'admin-1', name: '관리자' },
+    },
+  },
+];
+
+const cloneForStep = (
+  baseId: string,
+  over: {
+    id: string;
+    targetSourceId: number;
+    projectCode: string;
+    name: string;
+    status: ProcessStatus;
+    resources?: Project['resources'];
+  },
+): Project => {
+  const base = mockProjects.find((p) => p.id === baseId);
+  if (!base) throw new Error(`step-coverage base not found: ${baseId}`);
+  const sourceResources = over.resources ?? base.resources;
+  // Steps 6/7 (CONNECTION_VERIFIED, INSTALLATION_COMPLETE) render the confirmed
+  // table, which only surfaces CONNECTED resources. The azure/gcp demo seeds carry
+  // PENDING connections, so mark selected targets CONNECTED for those clones to
+  // keep the confirmed-integration table populated (matches v15).
+  const requiresConnection =
+    over.status === ProcessStatus.CONNECTION_VERIFIED ||
+    over.status === ProcessStatus.INSTALLATION_COMPLETE;
+  const resources = requiresConnection
+    ? sourceResources.map((r) =>
+        r.isSelected && r.integrationCategory === 'TARGET'
+          ? { ...r, connectionStatus: 'CONNECTED' as const }
+          : r,
+      )
+    : sourceResources;
+  return {
+    ...base,
+    id: over.id,
+    targetSourceId: over.targetSourceId,
+    projectCode: over.projectCode,
+    name: over.name,
+    processStatus: over.status,
+    status: createStatusForProcessStatus(over.status, { selectedCount: 2 }),
+    resources,
+    isRejected: false,
+  };
+};
+
+mockProjects.push(
+  // AWS — fills the missing APPLYING_APPROVED step
+  cloneForStep('proj-3', {
+    id: 'aws-proj-applying',
+    targetSourceId: 2001,
+    projectCode: 'AWS-APPLYING',
+    name: 'AWS PII Agent - 반영 중',
+    status: ProcessStatus.APPLYING_APPROVED,
+  }),
+  // Azure — fills steps 2/3/5/6/7 (base azure-proj-1 carries full resources)
+  cloneForStep('azure-proj-1', { id: 'azure-proj-approval', targetSourceId: 2002, projectCode: 'AZURE-APPROVAL', name: 'Azure PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-applying', targetSourceId: 2003, projectCode: 'AZURE-APPLYING', name: 'Azure PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-test', targetSourceId: 2004, projectCode: 'AZURE-TEST', name: 'Azure PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-verified', targetSourceId: 2005, projectCode: 'AZURE-VERIFIED', name: 'Azure PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED }),
+  cloneForStep('azure-proj-1', { id: 'azure-proj-complete', targetSourceId: 2006, projectCode: 'AZURE-COMPLETE', name: 'Azure PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE }),
+  // GCP — fills steps 2/3/4/5/6/7 (gcp-proj-1 has no resources, so inject a demo set)
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-approval', targetSourceId: 2007, projectCode: 'GCP-APPROVAL', name: 'GCP PII Agent - 승인 대기', status: ProcessStatus.WAITING_APPROVAL, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-applying', targetSourceId: 2008, projectCode: 'GCP-APPLYING', name: 'GCP PII Agent - 반영 중', status: ProcessStatus.APPLYING_APPROVED, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-installing', targetSourceId: 2009, projectCode: 'GCP-INSTALLING', name: 'GCP PII Agent - 설치 진행', status: ProcessStatus.INSTALLING, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-test', targetSourceId: 2010, projectCode: 'GCP-TEST', name: 'GCP PII Agent - 연결 테스트', status: ProcessStatus.WAITING_CONNECTION_TEST, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-verified', targetSourceId: 2011, projectCode: 'GCP-VERIFIED', name: 'GCP PII Agent - 완료 승인 대기', status: ProcessStatus.CONNECTION_VERIFIED, resources: gcpDemoResources }),
+  cloneForStep('gcp-proj-1', { id: 'gcp-proj-complete', targetSourceId: 2012, projectCode: 'GCP-COMPLETE', name: 'GCP PII Agent - 연동 완료', status: ProcessStatus.INSTALLATION_COMPLETE, resources: gcpDemoResources }),
 );
 
 // ===== Helper Functions =====

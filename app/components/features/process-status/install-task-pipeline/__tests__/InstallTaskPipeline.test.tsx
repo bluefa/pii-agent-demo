@@ -40,11 +40,11 @@ describe('InstallTaskPipeline', () => {
       item('c', 't3', 2),
     ];
     const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
-    const chevronMatches = html.match(/right-\[-7px\]/g) ?? [];
+    const chevronMatches = html.match(/right-\[-14px\]/g) ?? [];
     expect(chevronMatches).toHaveLength(2);
   });
 
-  it('uses grid-cols-3 for 3 items', () => {
+  it('uses grid-cols-3 with gap-3 for 3 items (v15 12px gap)', () => {
     const items: InstallTaskPipelineItem[] = [
       item('a', 't1', 0),
       item('b', 't2', 1),
@@ -52,6 +52,7 @@ describe('InstallTaskPipeline', () => {
     ];
     const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
     expect(html).toContain('grid-cols-3');
+    expect(html).toContain('gap-3');
   });
 
   it('does not use inline left:% style anywhere (AP-E2)', () => {
@@ -64,12 +65,14 @@ describe('InstallTaskPipeline', () => {
     expect(html).not.toMatch(/left:\s*\d/);
   });
 
-  it('passes M/N count through to running cards', () => {
+  it('renders plain 진행중 (no M/N count suffix) on running cards', () => {
     const items: InstallTaskPipelineItem[] = [
       { key: 'a', title: 't1', status: 'running', completedCount: 2, activeCount: 7 },
     ];
     const html = renderToStaticMarkup(<InstallTaskPipeline items={items} />);
-    expect(html).toContain('진행중 (2/7)');
+    expect(html).toContain('진행중');
+    expect(html).not.toContain('진행중 (');
+    expect(html).not.toContain('(2/7)');
   });
 
   it('renders a button for items with onClick', () => {

@@ -45,6 +45,32 @@ describe('CandidateResourceTable', () => {
     expect(screen.queryByRole('columnheader', { name: '스캔 이력' })).toBeNull();
   });
 
+  it('renders the 스캔 상태 column with 신규/변경 tags reflecting scanStatus', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[
+          candidateFixture({ id: 'c-new', resourceId: 'res-new', scanStatus: 'NEW_SCAN' }),
+          candidateFixture({ id: 'c-changed', resourceId: 'res-changed', scanStatus: 'UNCHANGED' }),
+        ]}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: '스캔 상태' })).toBeTruthy();
+    expect(screen.getByText('신규')).toBeTruthy();
+    expect(screen.getByText('변경')).toBeTruthy();
+  });
+
+  it('renders — in the 스캔 상태 cell when scanStatus is absent', () => {
+    render(
+      <CandidateResourceTable
+        {...defaultProps}
+        candidates={[candidateFixture({ scanStatus: undefined })]}
+      />,
+    );
+    expect(screen.queryByText('신규')).toBeNull();
+    expect(screen.queryByText('변경')).toBeNull();
+  });
+
   it('renders a hover-revealed CopyButton on each Resource ID cell', () => {
     render(
       <CandidateResourceTable
@@ -52,8 +78,21 @@ describe('CandidateResourceTable', () => {
         candidates={[candidateFixture({ resourceId: 'res-1' })]}
       />,
     );
-    const button = screen.getByRole('button', { name: 'res-1 복사' });
+    const button = screen.getByRole('button', { name: 'Resource ID 복사' });
     expect(button.className).toContain('opacity-0');
-    expect(button.className).toContain('group-hover:opacity-100');
+    expect(button.className).toContain('group-hover/resid:opacity-100');
+  });
+
+  it('does not render a pagination row, and shows every candidate (v16 cloud step-1 has no pager)', () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      candidateFixture({ id: `c-${i}`, resourceId: `res-${i}` }),
+    );
+    render(<CandidateResourceTable {...defaultProps} candidates={many} />);
+    // No page-size selector → no pagination row at all.
+    expect(screen.queryByLabelText('페이지당 표시 건수')).toBeNull();
+    // All 12 rows render (no 10-per-page slicing).
+    expect(screen.getAllByRole('button', { name: 'Resource ID 복사' })).toHaveLength(12);
+    // Count + approve footer stays intact.
+    expect(screen.getByRole('button', { name: '연동 대상 승인 요청' })).toBeTruthy();
   });
 });

@@ -4,10 +4,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 
-vi.mock('@/app/components/features/process-status/ApprovalApplyingBanner', () => ({
-  ApprovalApplyingBanner: () => <div data-testid="approval-applying-stub" />,
-}));
-
 vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
 }));
@@ -22,9 +18,12 @@ vi.mock('@/app/components/features/process-status/GuideCard/resolve-step-slot', 
   resolveStepSlot: vi.fn(() => 'stub-slot-key'),
 }));
 
-vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/approved', () => ({
-  ApprovedIntegrationSection: () => <div data-testid="approved-integration-section" />,
-}));
+vi.mock(
+  '@/app/integration/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedCard',
+  () => ({
+    ApplyingApprovedCard: () => <div data-testid="applying-approved-card" />,
+  }),
+);
 
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/common',
@@ -39,10 +38,6 @@ vi.mock(
     };
   },
 );
-
-vi.mock('@/app/lib/api', () => ({
-  getProject: vi.fn().mockResolvedValue(undefined),
-}));
 
 import { ApplyingApprovedStep } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedStep';
 
@@ -85,7 +80,7 @@ describe('ApplyingApprovedStep DOM order', () => {
     expect(guide.getAttribute('data-slot-key')).toBe('stub-slot-key');
   });
 
-  it('renders guide-card before approval-applying before approved-integration-section', () => {
+  it('renders guide-card before the applying-approved card', () => {
     render(
       <ApplyingApprovedStep
         project={azureApplyingApprovedFixture}
@@ -97,13 +92,9 @@ describe('ApplyingApprovedStep DOM order', () => {
     );
 
     const guide = screen.getByTestId('guide-card-container');
-    const applying = screen.getByTestId('approval-applying');
-    const approved = screen.getByTestId('approved-integration-section');
+    const applying = screen.getByTestId('applying-approved-card');
 
     const guideBeforeApplying = guide.compareDocumentPosition(applying);
     expect(guideBeforeApplying & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    const applyingBeforeApproved = applying.compareDocumentPosition(approved);
-    expect(applyingBeforeApproved & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

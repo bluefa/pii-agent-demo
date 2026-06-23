@@ -8,20 +8,25 @@ export interface ModalProps {
   isOpen: boolean;
   /** 모달 닫기 콜백 */
   onClose: () => void;
-  /** 모달 제목 */
-  title: string;
+  /**
+   * 모달 제목. With `chrome="bare"` the shared header is not rendered, so the
+   * caller supplies its own title block in `children`; `title` may be omitted.
+   */
+  title?: string;
   /** 모달 부제목 (선택) */
   subtitle?: string;
   /** 헤더 아이콘 (선택) */
   icon?: ReactNode;
   /** 모달 크기 */
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'logical';
   /**
    * Modal chrome. 'default' keeps the shared app styling — byte-identical for
    * existing callers (AWS/Azure/GCP). 'toss' opts into the IDC-only prototype
-   * styling (radius 24, 26px title, white footer).
+   * styling (radius 24, 26px title, white footer). 'bare' renders no header at
+   * all (no title bar, no close-X); the caller owns the title block inside
+   * `children`. ESC / backdrop close still work.
    */
-  chrome?: 'default' | 'toss';
+  chrome?: 'default' | 'toss' | 'bare';
   /** Header icon-circle tone (meaningful with toss chrome). 'warn' is the amber warning color. */
   tone?: 'info' | 'warn';
   /** 모달 본문 */
@@ -40,6 +45,8 @@ const SIZE_CLASSES: Record<string, string> = {
   lg: 'max-w-lg',
   xl: 'max-w-xl',
   '2xl': 'max-w-2xl',
+  // v16 `.logical-modal` — 1040px wide (논리 DB 확인). Additive: no existing size changes.
+  logical: 'max-w-[1040px]',
 };
 
 /**
@@ -77,19 +84,27 @@ export const Modal = ({
 }: ModalProps) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // ESC 키로 닫기
+  // Keep the latest onClose in a ref so the keydown listener doesn't re-bind on
+  // every parent render (onClose is often an inline closure).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // ESC 키로 닫기 — re-bind only when isOpen/closeOnEscape change (rare); read
+  // the latest onClose from the ref so identity churn never re-binds.
   useEffect(() => {
     if (!closeOnEscape) return;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        onClose();
+        onCloseRef.current();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose, closeOnEscape]);
+  }, [isOpen, closeOnEscape]);
 
   // 모달 열릴 때 body 스크롤 방지
   useEffect(() => {
@@ -113,6 +128,9 @@ export const Modal = ({
   // Default (non-toss) branch reproduces the original byte-for-byte class strings
   // (tokens compose in the original order) so AWS/Azure/GCP modals are unchanged.
   const isToss = chrome === 'toss';
+  // 'bare' suppresses the shared header (title bar + close-X); the caller renders
+  // its own title block in `children`. Container/body keep the default styling.
+  const isBare = chrome === 'bare';
   const containerCls = isToss
     ? cn('bg-white shadow-xl w-full mx-4 overflow-hidden', modalStyles.toss.container, SIZE_CLASSES[size])
     : cn('bg-white rounded-xl shadow-xl w-full', SIZE_CLASSES[size], 'mx-4 overflow-hidden');
@@ -132,28 +150,36 @@ export const Modal = ({
 
   return (
     <div ref={overlayRef} className={modalStyles.overlay} onClick={handleBackdropClick}>
-      <div className={containerCls} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        {/* Header */}
-        <div className={headerCls}>
-          <div className={iconGroupCls}>
-            {icon && <div className={iconCls}>{icon}</div>}
-            <div>
-              <h2 id="modal-title" className={titleCls}>
-                {title}
-              </h2>
-              {subtitle && <p className={subtitleCls}>{subtitle}</p>}
+      <div
+        className={containerCls}
+        role="dialog"
+        aria-modal="true"
+        // 'bare' chrome renders no header, so there is no `#modal-title` to point at.
+        aria-labelledby={isBare ? undefined : 'modal-title'}
+      >
+        {/* Header — omitted entirely for 'bare' chrome (no title bar, no close-X). */}
+        {!isBare && (
+          <div className={headerCls}>
+            <div className={iconGroupCls}>
+              {icon && <div className={iconCls}>{icon}</div>}
+              <div>
+                <h2 id="modal-title" className={titleCls}>
+                  {title}
+                </h2>
+                {subtitle && <p className={subtitleCls}>{subtitle}</p>}
+              </div>
             </div>
+            <button
+              onClick={onClose}
+              className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
+              aria-label="닫기"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className={cn('p-2', interactiveColors.closeButton, 'rounded-lg transition-colors')}
-            aria-label="닫기"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        )}
 
         {/* Content */}
         <div className={bodyCls}>{children}</div>

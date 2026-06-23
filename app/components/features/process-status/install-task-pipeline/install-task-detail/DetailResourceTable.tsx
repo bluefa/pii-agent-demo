@@ -23,7 +23,14 @@ interface DetailResourceTableProps {
 }
 
 export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps) => {
-  if (rows.length === 0) {
+  // Only GCP rows carry a per-step `source`; rows without one have no step
+  // breakdown to display in this detail view.
+  const stepRows = rows.filter(
+    (row): row is InstallResourceRow & { source: NonNullable<InstallResourceRow['source']> } =>
+      row.source !== null,
+  );
+
+  if (stepRows.length === 0) {
     return (
       <div
         className={cn(
@@ -42,18 +49,18 @@ export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps)
       <table className="w-full text-sm">
         <thead className={bgColors.muted}>
           <tr>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Resource ID</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>DB Type</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>Region</th>
-            <th className={cn(TABLE_HEADER_CELL, textColors.tertiary)}>진행 완료 여부</th>
+            <th className={TABLE_HEADER_CELL}>Resource ID</th>
+            <th className={TABLE_HEADER_CELL}>Database Type</th>
+            <th className={TABLE_HEADER_CELL}>Region</th>
+            <th className={TABLE_HEADER_CELL}>진행 완료 여부</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {stepRows.map((row) => {
             const stepStatus = row.source[stepKey].status;
             return (
-              <tr key={row.resourceId} className={cn('border-t', borderColors.light)}>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+              <tr key={row.resourceId} className="border-t border-[#EBEEF2]">
+                <td className={TABLE_MONO_CELL}>
                   {row.resourceId}
                 </td>
                 <td className={TABLE_BODY_CELL}>
@@ -65,7 +72,7 @@ export const DetailResourceTable = ({ rows, stepKey }: DetailResourceTableProps)
                     <span className={textColors.tertiary}>—</span>
                   )}
                 </td>
-                <td className={cn(TABLE_MONO_CELL, textColors.secondary)}>
+                <td className={TABLE_MONO_CELL}>
                   {row.region ?? '—'}
                 </td>
                 <td className={TABLE_BODY_CELL}>

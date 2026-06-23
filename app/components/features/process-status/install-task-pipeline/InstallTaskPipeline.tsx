@@ -23,7 +23,8 @@ export const InstallTaskPipeline = ({ items, columns = 3 }: InstallTaskPipelineP
   if (items.length === 0) return null;
 
   const lastIndex = items.length - 1;
-  const gridCls = columns === 2 ? 'grid grid-cols-2 gap-0' : 'grid grid-cols-3 gap-0';
+  // v15 `.install-tasks`: grid, gap 12px (cols-2 modifier switches to 2 cols).
+  const gridCls = columns === 2 ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-3 gap-3';
 
   return (
     <div className={gridCls}>
@@ -37,7 +38,6 @@ export const InstallTaskPipeline = ({ items, columns = 3 }: InstallTaskPipelineP
           completedCount={item.completedCount}
           activeCount={item.activeCount}
           onClick={item.onClick}
-          position={idx === 0 ? 'first' : idx === lastIndex ? 'last' : 'middle'}
           showConnector={idx < lastIndex}
         />
       ))}

@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
-import { StatusWarningIcon } from '@/app/components/ui/icons';
-import { cn, confirmModalStyles, modalStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, modalStyles } from '@/lib/theme';
 
-type IconVariant = 'warn' | 'danger';
 type ConfirmVariant = 'warn' | 'danger';
 
 export interface ConfirmStepModalProps {
@@ -18,8 +16,14 @@ export interface ConfirmStepModalProps {
   cancelLabel?: string;
   confirmVariant?: ConfirmVariant;
   isPending?: boolean;
-  iconVariant?: IconVariant;
 }
+
+/** v16 destructive-confirm chrome (`.adm-banner.amber` warn + red `.btn.primary`). */
+const dangerConfirmButton =
+  'inline-flex h-[52px] items-center justify-center rounded-[14px] bg-[#DC2626] px-7 text-[15px] font-bold tracking-[-0.01em] text-white transition-colors hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:bg-[#EBEEF2] disabled:text-[#8B95A1]';
+
+const warnBanner =
+  'rounded-[12px] bg-[#FEF3C7] px-4 py-[13px] text-[13px] leading-[1.55] tracking-[-0.01em] text-[#92400E]';
 
 export const ConfirmStepModal = ({
   open,
@@ -32,7 +36,6 @@ export const ConfirmStepModal = ({
   cancelLabel = '머무르기',
   confirmVariant = 'warn',
   isPending = false,
-  iconVariant = 'warn',
 }: ConfirmStepModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -97,27 +100,20 @@ export const ConfirmStepModal = ({
         aria-modal="true"
         aria-labelledby="confirm-step-modal-title"
         aria-describedby="confirm-step-modal-desc"
-        className={cn(modalStyles.container, 'w-[440px] max-w-[calc(100vw-2rem)]')}
+        className={cn(
+          modalStyles.container,
+          modalStyles.toss.container,
+          'w-[480px] max-w-[calc(100vw-2rem)]',
+        )}
       >
-        <div className="flex items-start gap-3.5 px-7 pt-7 pb-3">
-          <div
-            className={cn(
-              'flex-shrink-0 w-[38px] h-[38px] rounded-full flex items-center justify-center',
-              confirmModalStyles.iconCircle[iconVariant],
-            )}
-          >
-            <StatusWarningIcon className="w-5 h-5" />
-          </div>
+        <div className={modalStyles.toss.header}>
           <div>
-            <h2
-              id="confirm-step-modal-title"
-              className={cn('text-base font-semibold mb-1.5', textColors.primary)}
-            >
+            <h2 id="confirm-step-modal-title" className={modalStyles.toss.title}>
               {title}
             </h2>
             <p
               id="confirm-step-modal-desc"
-              className={cn('text-[13px] leading-[1.55]', textColors.tertiary)}
+              className={cn(modalStyles.toss.subtitle, 'mt-2')}
             >
               {description}
             </p>
@@ -125,23 +121,16 @@ export const ConfirmStepModal = ({
         </div>
 
         {note && (
-          <div className="px-7 pb-1">
-            <div
-              className={cn(
-                'rounded-lg border px-3 py-2.5 text-[12px] leading-[1.55]',
-                confirmModalStyles.note.warning,
-              )}
-            >
-              {note}
-            </div>
+          <div className={modalStyles.toss.body}>
+            <div className={warnBanner}>{note}</div>
           </div>
         )}
 
-        <div className="flex justify-end gap-2 px-7 pt-4 pb-7">
+        <div className={modalStyles.toss.footer}>
           <button
             ref={cancelRef}
             type="button"
-            className={confirmModalStyles.outlineButton}
+            className={idcStyles.modalBtn.gray}
             onClick={onClose}
             disabled={isPending}
           >
@@ -152,8 +141,8 @@ export const ConfirmStepModal = ({
             type="button"
             className={
               confirmVariant === 'danger'
-                ? confirmModalStyles.dangerOutlineButton
-                : confirmModalStyles.outlineButton
+                ? dangerConfirmButton
+                : idcStyles.modalBtn.primary
             }
             onClick={onConfirm}
             disabled={isPending}

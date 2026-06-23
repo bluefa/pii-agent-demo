@@ -105,6 +105,13 @@ const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): T
     : undefined;
   const gcpProjectId = asString(value.gcpProjectId)
     ?? (metadata ? asString(metadata.gcpProjectId) : undefined);
+  // AWS install mode is an irreversible project-level commitment; it gates
+  // AwsProjectPage (selector vs install grid), so it must survive normalization.
+  const awsInstallationModeRaw = asString(value.awsInstallationMode);
+  const awsInstallationMode =
+    awsInstallationModeRaw === 'AUTO' || awsInstallationModeRaw === 'MANUAL'
+      ? awsInstallationModeRaw
+      : undefined;
 
   return {
     ...base,
@@ -114,6 +121,7 @@ const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): T
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(awsRegionType ? { awsRegionType } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(awsInstallationMode ? { awsInstallationMode } : {}),
   };
 };
 

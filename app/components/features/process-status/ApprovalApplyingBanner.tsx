@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { getApprovalRequestLatest } from '@/app/lib/api';
 import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
-import { useModal } from '@/app/hooks/useModal';
 import { useAbortableEffect } from '@/app/hooks/useAbortableEffect';
 import { AppError } from '@/lib/errors';
-import { ApprovalRequestDetailModal } from '@/app/components/features/process-status/ApprovalRequestDetailModal';
-import { cn, statusColors, getButtonClass } from '@/lib/theme';
+import { StepBanner } from '@/app/components/ui/StepBanner';
+import { CheckIcon } from '@/app/components/ui/icons';
 
 interface ApprovalApplyingBannerProps {
   targetSourceId?: number;
@@ -16,7 +15,6 @@ interface ApprovalApplyingBannerProps {
 export const ApprovalApplyingBanner = ({
   targetSourceId,
 }: ApprovalApplyingBannerProps) => {
-  const detailModal = useModal();
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
   const totalCount = latestResponse?.request?.resource_selected_count ?? 0;
 
@@ -29,57 +27,20 @@ export const ApprovalApplyingBanner = ({
       })
       .catch((err) => {
         if (err instanceof AppError && err.code === 'ABORTED') throw err;
-        // Intentional silent ignore — failure here only disables the summary button.
+        // Intentional silent ignore — failure here only hides the count summary.
       });
   }, [targetSourceId]);
 
   return (
-    <>
-      <div className={cn(
-        'w-full p-4 rounded-lg border mb-3',
-        statusColors.info.bg,
-        statusColors.info.border,
-      )}>
-        <div className="flex items-start gap-3">
-          <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0', statusColors.info.bg)}>
-            <svg className={cn('w-5 h-5', statusColors.info.textDark)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <p className={cn('font-medium', statusColors.info.textDark)}>
-              승인이 완료되어 연동을 반영하고 있습니다
-            </p>
-            <p className={cn('text-sm mt-1', statusColors.info.text)}>
-              반영은 최대 하루 소요될 수 있습니다. 완료 시 알림을 보내드립니다.
-              {totalCount > 0 && (
-                <>
-                  {' · '}전체{' '}
-                  <strong className={cn('font-semibold tabular-nums', statusColors.info.textDark)}>
-                    {totalCount}
-                  </strong>
-                  건
-                </>
-              )}
-            </p>
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => detailModal.open()}
-                disabled={!latestResponse}
-                className={getButtonClass('ghost', 'sm')}
-              >
-                승인 요약 보기
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <ApprovalRequestDetailModal
-        isOpen={detailModal.isOpen}
-        onClose={detailModal.close}
-        latestResponse={latestResponse}
-      />
-    </>
+    <StepBanner variant="success" icon={<CheckIcon className="w-[18px] h-[18px]" />}>
+      <strong className="font-bold">승인이 완료되어 시스템에 반영 중입니다.</strong>
+      {totalCount > 0 ? (
+        <>
+          {' '}전체 <span className="tabular-nums">{totalCount}</span>건 · 평균 5분 내외 소요
+        </>
+      ) : (
+        <>{' '}평균 5분 내외 소요</>
+      )}
+    </StepBanner>
   );
 };

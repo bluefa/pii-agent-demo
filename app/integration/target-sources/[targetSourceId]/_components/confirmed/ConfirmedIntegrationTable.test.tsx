@@ -13,6 +13,8 @@ const makeResource = (
   resourceId: 'res-1',
   type: 'RDS',
   databaseType: 'MYSQL',
+  region: 'ap-northeast-2',
+  resourceName: 'res-1',
   host: 'localhost',
   port: 3306,
   oracleServiceId: null,
@@ -30,14 +32,31 @@ describe('ConfirmedIntegrationTable', () => {
   });
 
   describe('variant=pre-install (default)', () => {
-    it('renders pre-install columns: 리소스 ID / 유형 / DB 타입 / Credential', () => {
+    it('renders the 6 v15 columns: Database Type / Resource ID / Region / Resource Name / DB Credential / Connection Status', () => {
       render(
         <ConfirmedIntegrationTable confirmed={[makeResource()]} />,
       );
-      expect(screen.getByText('리소스 ID')).toBeTruthy();
-      expect(screen.getByText('유형')).toBeTruthy();
-      expect(screen.getByText('DB 타입')).toBeTruthy();
-      expect(screen.getByText('Credential')).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Region' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'DB Credential' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Connection Status' })).toBeTruthy();
+    });
+
+    it('renders Region and Resource Name values', () => {
+      render(
+        <ConfirmedIntegrationTable
+          confirmed={[makeResource({ region: 'ap-northeast-1', resourceName: 'sea-live-space-prod' })]}
+        />,
+      );
+      expect(screen.getByText('ap-northeast-1')).toBeTruthy();
+      expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
+    });
+
+    it('renders Connection Status as a "Success" chip', () => {
+      render(<ConfirmedIntegrationTable confirmed={[makeResource()]} />);
+      expect(screen.getByText('Success')).toBeTruthy();
     });
 
     it('does not render Status, 연동 대상 논리 DB, 연동 제외 논리 DB columns', () => {
@@ -49,16 +68,18 @@ describe('ConfirmedIntegrationTable', () => {
   });
 
   describe('variant=complete', () => {
-    it('renders Status + logical DB columns', () => {
+    it('renders the v15 columns incl. Region + Resource Name + logical DB + Status', () => {
       render(
         <ConfirmedIntegrationTable
           confirmed={[makeResource()]}
           variant="complete"
         />,
       );
-      expect(screen.getByText('DB Type')).toBeTruthy();
-      expect(screen.getByText('Resource ID')).toBeTruthy();
-      expect(screen.getByText('DB Credential')).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Database Type' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource ID' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Region' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'Resource Name' })).toBeTruthy();
+      expect(screen.getByRole('columnheader', { name: 'DB Credential' })).toBeTruthy();
       expect(screen.getByText('연동 대상 논리 DB')).toBeTruthy();
       expect(screen.getByText('연동 제외 논리 DB')).toBeTruthy();
       expect(screen.getByText('Status')).toBeTruthy();
@@ -94,7 +115,7 @@ describe('ConfirmedIntegrationTable', () => {
       expect(screen.getByText('Unhealthy')).toBeTruthy();
     });
 
-    it('renders — placeholder for both logical DB count cells', () => {
+    it('renders real (non-dash) logical DB counts derived from resourceId', () => {
       const { container } = render(
         <ConfirmedIntegrationTable
           confirmed={[makeResource()]}
@@ -106,9 +127,12 @@ describe('ConfirmedIntegrationTable', () => {
       const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map(
         (cell) => cell.textContent,
       );
-      // cells: DB Type / Resource ID / DB Credential / target logical DB / excluded logical DB / Status
-      expect(cellTexts[3]).toBe('—');
-      expect(cellTexts[4]).toBe('—');
+      // cells: Database Type / Resource ID / Region / Resource Name / DB Credential
+      //        / target logical DB / excluded logical DB / Status
+      expect(cellTexts[5]).toMatch(/^\d+$/);
+      expect(cellTexts[6]).toMatch(/^\d+$/);
+      expect(cellTexts[5]).not.toBe('—');
+      expect(cellTexts[6]).not.toBe('—');
     });
   });
 
@@ -122,8 +146,8 @@ describe('ConfirmedIntegrationTable', () => {
         variant={variant}
       />,
     );
-    const button = screen.getByRole('button', { name: 'conf-x 복사' });
+    const button = screen.getByRole('button', { name: 'Resource ID 복사' });
     expect(button.className).toContain('opacity-0');
-    expect(button.className).toContain('group-hover:opacity-100');
+    expect(button.className).toContain('group-hover/resid:opacity-100');
   });
 });

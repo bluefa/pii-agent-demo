@@ -3,7 +3,6 @@
 import type { ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
-import { ApprovalApplyingBanner } from '@/app/components/features/process-status/ApprovalApplyingBanner';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
 import {
@@ -11,7 +10,7 @@ import {
   RejectionAlert,
   type ProjectIdentity,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
-import { ApprovedIntegrationSection } from '@/app/integration/target-sources/[targetSourceId]/_components/approved';
+import { ApplyingApprovedCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ApplyingApprovedCard';
 
 interface ApplyingApprovedStepProps {
   project: CloudTargetSource;
@@ -44,10 +43,7 @@ export const ApplyingApprovedStep = ({
       />
       <ProcessStatusCard project={project} onProjectUpdate={onProjectUpdate} />
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
-      <div data-testid="approval-applying">
-        <ApprovalApplyingBanner targetSourceId={project.targetSourceId} />
-      </div>
-      <ApprovedIntegrationSection targetSourceId={project.targetSourceId} />
+      <ApplyingApprovedCard targetSourceId={project.targetSourceId} />
       <RejectionAlert project={project} />
     </>
   );

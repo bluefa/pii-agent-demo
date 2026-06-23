@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
 import {
   createApprovalRequest,
   getConfirmResources,
@@ -19,10 +18,7 @@ import { ScanController, type ScanUiState } from '@/app/components/features/scan
 import { ScanEmptyState } from '@/app/components/features/scan/ScanEmptyState';
 import { ScanErrorState } from '@/app/components/features/scan/ScanErrorState';
 import { ScanRunningState } from '@/app/components/features/scan/ScanRunningState';
-import type {
-  ApprovalRequestFormData,
-  ApprovalRequestResource,
-} from '@/app/components/features/process-status/ApprovalRequestModal';
+import type { ApprovalRequestFormData } from '@/app/components/features/process-status/ApprovalRequestModal';
 import {
   cardStyles,
   cn,
@@ -40,18 +36,8 @@ import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSo
 import { getCandidateErrorMessage } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/errors';
 import { CandidateResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import { selectPhase } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/phase';
-import {
-  buildResourceInputs,
-  toModalResources,
-} from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/approval-payload';
-
-const ApprovalRequestModal = dynamic(
-  () =>
-    import('@/app/components/features/process-status/ApprovalRequestModal').then(
-      (module) => ({ default: module.ApprovalRequestModal }),
-    ),
-  { ssr: false },
-);
+import { buildResourceInputs } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/approval-payload';
+import { IdcSubmitModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 
 interface CandidateResourceSectionProps {
   targetSourceId: number;
@@ -61,7 +47,6 @@ interface CandidateResourceSectionProps {
 
 const EMPTY_DRAFTS: CandidateDraftState = { endpointDrafts: {} };
 const EMPTY_CANDIDATES: CandidateResource[] = [];
-const EMPTY_MODAL_RESOURCES: ApprovalRequestResource[] = [];
 
 export const CandidateResourceSection = ({
   targetSourceId,
@@ -123,10 +108,6 @@ export const CandidateResourceSection = ({
     },
   );
 
-  const approvalError = approval.error
-    ? approval.error.message || '승인 요청에 실패했습니다.'
-    : null;
-
   const handleToggleSelected = useCallback((resourceId: string, checked: boolean) => {
     setSelectedIds((previous) => {
       const next = new Set(previous);
@@ -171,17 +152,9 @@ export const CandidateResourceSection = ({
     await refreshProject();
   }, [refetch, refreshProject]);
 
-  const handleApprovalSubmit = useCallback((formData: ApprovalRequestFormData) => {
-    void approval.mutate({ formData });
+  const handleApprovalConfirm = useCallback(() => {
+    void approval.mutate({ formData: {} });
   }, [approval]);
-
-  const modalResources = useMemo(
-    () =>
-      approvalModal.isOpen
-        ? toModalResources(candidates, selectedIds, drafts)
-        : EMPTY_MODAL_RESOURCES,
-    [approvalModal.isOpen, candidates, drafts, selectedIds],
-  );
 
   const renderBody = (scanState: ScanUiState, progress: number, startScan: () => void) => {
     const phase = selectPhase({
@@ -245,7 +218,7 @@ export const CandidateResourceSection = ({
               <header className={cn('flex flex-wrap items-start justify-between gap-3', cardStyles.header)}>
                 <div className="flex-shrink-0">
                   <h2 className={cn(cardStyles.cardTitle, 'whitespace-nowrap')}>연동 대상 DB 선택</h2>
-                  <p className={cn('mt-1 text-xs', textColors.tertiary)}>
+                  <p className={cn('mt-2.5', cardStyles.subtitle)}>
                     Infra Scan을 통해 부위 DB 조회 후 Agent 연동 대상 DB를 선택하세요.
                   </p>
                 </div>
@@ -257,7 +230,7 @@ export const CandidateResourceSection = ({
                     </span>
                   )}
                   <Button
-                    variant={initialLoading ? 'secondary' : candidates.length > 0 ? 'secondary' : 'primary'}
+                    variant="primary"
                     disabled={initialLoading || !canStart || readonly}
                     onClick={startScan}
                     className="inline-flex items-center gap-1.5 text-sm py-1.5"
@@ -289,13 +262,14 @@ export const CandidateResourceSection = ({
       </ScanController>
 
       {!readonly && (
-        <ApprovalRequestModal
+        <IdcSubmitModal
           isOpen={approvalModal.isOpen}
+          total={candidates.length}
+          live={selectedIds.size}
+          excluded={Math.max(0, candidates.length - selectedIds.size)}
+          submitting={approval.loading}
+          onSubmit={handleApprovalConfirm}
           onClose={approvalModal.close}
-          onSubmit={handleApprovalSubmit}
-          resources={modalResources}
-          loading={approval.loading}
-          error={approvalError}
         />
       )}
     </>

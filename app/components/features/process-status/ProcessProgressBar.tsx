@@ -12,6 +12,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import {
+  resetStepperToStates,
   runStepperMotion,
   type StepState,
 } from '@/app/components/features/process-status/motion/stepperMotionEngine';
@@ -80,6 +81,17 @@ export const ProcessProgressBar = ({
     let isEntry = false;
     if (!entryDoneRef.current) {
       if (activeIndex < 1 || reduced) {
+        // Snap to the final rest state. Without this, a motion run that started
+        // under a transient reduced=false (SSR hydration reports false before
+        // matchMedia resolves) leaves transitioning circles stuck at their t=0
+        // inline color, overriding the correct Tailwind classes.
+        resetStepperToStates({
+          states: currentStates,
+          fillRefs: fillRefs.current,
+          circleRefs: circleRefs.current,
+          iconNumberRefs: iconNumberRefs.current,
+          iconCheckRefs: iconCheckRefs.current,
+        });
         entryDoneRef.current = true;
         prevSnapshotRef.current = {
           idx: activeIndex,
@@ -111,6 +123,13 @@ export const ProcessProgressBar = ({
     cleanupRef.current?.();
 
     if (reduced) {
+      resetStepperToStates({
+        states: currentStates,
+        fillRefs: fillRefs.current,
+        circleRefs: circleRefs.current,
+        iconNumberRefs: iconNumberRefs.current,
+        iconCheckRefs: iconCheckRefs.current,
+      });
       if (isEntry) entryDoneRef.current = true;
       prevSnapshotRef.current = {
         idx: activeIndex,

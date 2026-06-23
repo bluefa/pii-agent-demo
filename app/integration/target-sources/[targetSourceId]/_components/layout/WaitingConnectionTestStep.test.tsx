@@ -4,20 +4,24 @@ import { describe, it, expect, vi } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 
-vi.mock('@/app/components/features/process-status', () => ({
-  ConnectionTestPanel: () => null,
-}));
-
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider',
   () => ({
     ConfirmedIntegrationDataProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useConfirmedIntegration: () => ({
-      state: { status: 'ready', data: [] } as const,
+      state: { status: 'ready', data: [{ resourceId: 'res-1' }] } as const,
       retry: () => {},
     }),
   }),
 );
+
+const connectionTestCardProps = vi.fn();
+vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard', () => ({
+  ConnectionTestCard: (props: { confirmed: unknown[]; providerLabel: string }) => {
+    connectionTestCardProps(props);
+    return <div data-testid="connection-test-card" data-count={props.confirmed.length} />;
+  },
+}));
 
 vi.mock('@/app/components/features/ProcessStatusCard', () => ({
   ProcessStatusCard: () => null,
@@ -51,31 +55,11 @@ vi.mock(
   },
 );
 
-vi.mock('@/lib/theme', () => ({
-  cardStyles: { base: '', header: '' },
-  cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
-  textColors: { primary: '', tertiary: '' },
-}));
-
-vi.mock(
-  '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/ConfirmedIntegrationTable',
-  () => ({
-    ConfirmedIntegrationTable: () => null,
-  }),
-);
-
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/shared/async-state-views',
   () => ({
     LoadingRow: () => null,
     ErrorRow: () => null,
-  }),
-);
-
-vi.mock(
-  '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbSlot',
-  () => ({
-    LogicalDbSlot: () => null,
   }),
 );
 
@@ -106,8 +90,9 @@ const identityFixture: ProjectIdentity = {
   identifiers: [],
 };
 
-describe('WaitingConnectionTestStep DOM order', () => {
-  it('renders confirmed-resources before connection-test', () => {
+describe('WaitingConnectionTestStep', () => {
+  it('renders the consolidated ConnectionTestCard fed by the confirmed-integration context', () => {
+    connectionTestCardProps.mockClear();
     render(
       <WaitingConnectionTestStep
         project={azureWaitingConnectionTestFixture}
@@ -118,10 +103,11 @@ describe('WaitingConnectionTestStep DOM order', () => {
       />,
     );
 
-    const confirmed = screen.getByTestId('confirmed-resources');
-    const connection = screen.getByTestId('connection-test');
-    const ordering = confirmed.compareDocumentPosition(connection);
-    expect(ordering & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const card = screen.getByTestId('connection-test-card');
+    expect(card.getAttribute('data-count')).toBe('1');
+    expect(connectionTestCardProps).toHaveBeenCalledWith(
+      expect.objectContaining({ providerLabel: 'Azure Infrastructure' }),
+    );
   });
 
   it('mounts GuideCardContainer when the resolver returns a slot key', () => {

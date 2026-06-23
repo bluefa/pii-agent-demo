@@ -32,35 +32,13 @@ describe('Pagination', () => {
     return { ...utils, onPageChange, onPageSizeChange };
   };
 
-  it('disables First/Prev on page 0', () => {
-    renderPagination({ page: 0, pageSize: 10, totalCount: 100 });
-    expect(screen.getByLabelText('처음 페이지').hasAttribute('disabled')).toBe(true);
-    expect(screen.getByLabelText('이전 페이지').hasAttribute('disabled')).toBe(true);
-    expect(screen.getByLabelText('다음 페이지').hasAttribute('disabled')).toBe(false);
-    expect(screen.getByLabelText('끝 페이지').hasAttribute('disabled')).toBe(false);
-  });
-
-  it('disables Next/Last on the last page', () => {
-    renderPagination({ page: 9, pageSize: 10, totalCount: 100 });
-    expect(screen.getByLabelText('처음 페이지').hasAttribute('disabled')).toBe(false);
-    expect(screen.getByLabelText('이전 페이지').hasAttribute('disabled')).toBe(false);
-    expect(screen.getByLabelText('다음 페이지').hasAttribute('disabled')).toBe(true);
-    expect(screen.getByLabelText('끝 페이지').hasAttribute('disabled')).toBe(true);
-  });
-
-  it('calls onPageChange with the expected index for each navigation button', () => {
+  it('calls onPageChange with the clicked page index (v15 numbered buttons only)', () => {
     const { onPageChange } = renderPagination({ page: 5, pageSize: 10, totalCount: 100 });
 
-    fireEvent.click(screen.getByLabelText('처음 페이지'));
+    fireEvent.click(screen.getByLabelText('1 페이지'));
     expect(onPageChange).toHaveBeenLastCalledWith(0);
 
-    fireEvent.click(screen.getByLabelText('이전 페이지'));
-    expect(onPageChange).toHaveBeenLastCalledWith(4);
-
-    fireEvent.click(screen.getByLabelText('다음 페이지'));
-    expect(onPageChange).toHaveBeenLastCalledWith(6);
-
-    fireEvent.click(screen.getByLabelText('끝 페이지'));
+    fireEvent.click(screen.getByLabelText('10 페이지'));
     expect(onPageChange).toHaveBeenLastCalledWith(9);
   });
 
@@ -79,5 +57,30 @@ describe('Pagination', () => {
   it('renders 0–0 range when totalCount is 0', () => {
     renderPagination({ page: 0, pageSize: 10, totalCount: 0 });
     expect(screen.getByText(/0–0/)).toBeTruthy();
+  });
+
+  it('renders first/prev/next/last edge controls by default', () => {
+    renderPagination({ page: 1, pageSize: 10, totalCount: 100 });
+    expect(screen.getByLabelText('처음 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('끝 페이지')).toBeTruthy();
+  });
+
+  it('drops first/last double-chevrons with controls="prevNext" (v16 IDC pager)', () => {
+    render(
+      <Pagination
+        page={1}
+        pageSize={10}
+        totalCount={100}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+        controls="prevNext"
+      />,
+    );
+    expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
+    expect(screen.queryByLabelText('처음 페이지')).toBeNull();
+    expect(screen.queryByLabelText('끝 페이지')).toBeNull();
   });
 });

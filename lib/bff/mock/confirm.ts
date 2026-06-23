@@ -6,7 +6,6 @@ import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
-import { evaluateAutoApproval } from '@/lib/policies';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
 import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
@@ -92,6 +91,7 @@ interface ResourceCatalogItem {
   oracle_service_id: string | null;
   network_interface_id: string | null;
   ip_configuration_name: string | null;
+  scan_status: ResourceScanStatus | null;
   metadata: ConfirmResourceMetadata;
 }
 
@@ -132,39 +132,95 @@ const computeLastApprovalResult = (project: Project): LastApprovalResult => {
   return 'NONE';
 };
 
+// ===== Deterministic demo enrichment =====
+// v15 expects every confirmed/approved/approval row to carry a real Region,
+// Resource Name and DB Credential. The mock seed only stores resourceId
+// (and an AwsRegion for AWS), so derive stable demo values here — the single
+// central derive point shared by buildMetadata / toResourceSnapshot /
+// toExcludedResourceInfo / toConfirmedIntegrationResourceInfo. Values are keyed
+// off resourceId so they stay stable across re-renders and match the v15 sheet.
+
+// Region per provider (v15: AWS/Azure ap-northeast-1, GCP asia-northeast3).
+const demoRegion = (provider: Project['cloudProvider'], resource: MockResource): string => {
+  if (provider === 'AWS') return resource.region ?? 'ap-northeast-1';
+  if (provider === 'GCP') return 'asia-northeast3';
+  return 'ap-northeast-1';
+};
+
+// Friendly DB names from the v15 sheet. Assigned round-robin by a stable hash of
+// resourceId so each row gets a distinct, repeatable name (sea-live-space-prod, …).
+const DEMO_RESOURCE_NAMES = [
+  'sea-live-space-prod',
+  'sea-live-space-stg',
+  'sea-live-space-dev',
+  'sea-analytics-prod',
+  'sea-payments-prod',
+] as const;
+
+const GCP_RESOURCE_NAMES = ['live · default', 'live · analytics', 'prd · main'] as const;
+
+const stableIndex = (key: string, length: number): number => {
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash) % length;
+};
+
+const demoResourceName = (provider: Project['cloudProvider'], resource: MockResource): string => {
+  if (provider === 'GCP') {
+    return GCP_RESOURCE_NAMES[stableIndex(resource.id, GCP_RESOURCE_NAMES.length)];
+  }
+  return DEMO_RESOURCE_NAMES[stableIndex(resource.id, DEMO_RESOURCE_NAMES.length)];
+};
+
+// v15 shows DB Credential as Key1 / Key2 links. Preserve an explicit selection
+// when present, otherwise alternate Key1/Key2 by a stable hash.
+const demoCredential = (resource: MockResource): string =>
+  resource.selectedCredentialId ?? (stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
+
 function buildMetadata(resource: MockResource, project: Project): ConfirmResourceMetadata {
-  const base: ConfirmResourceMetadata = {
-    provider: project.cloudProvider,
-    resourceType: resource.type,
-  };
+  const region = demoRegion(project.cloudProvider, resource);
 
   switch (project.cloudProvider) {
     case 'AWS':
       return {
         provider: 'AWS',
         resourceType: resource.awsType ?? resource.type,
-        ...(resource.region && { region: resource.region }),
+        region,
         ...(resource.vpcId && { vpcId: resource.vpcId }),
       };
     case 'Azure':
-      return { provider: 'Azure', resourceType: resource.type, region: '' };
+      return { provider: 'Azure', resourceType: resource.type, region };
     case 'GCP':
       return {
         provider: 'GCP',
         resourceType: resource.type,
-        region: '',
+        region,
         projectId: project.gcpProjectId ?? '',
       };
     default:
-      return base;
+      return { provider: project.cloudProvider, resourceType: resource.type, region };
   }
 }
+
+// Step-1 scan-status tag (신규/변경). No upstream signal exists in the mock seed,
+// so derive a stable value from connectionStatus: previously-connected resources
+// read as UNCHANGED (re-scanned), everything else as NEW_SCAN. Mirrors the
+// sibling `deriveScanStatus` derivation so candidate scan_status stays on-contract.
+const deriveCandidateScanStatus = (resource: MockResource): ResourceScanStatus => {
+  if (resource.connectionStatus === 'CONNECTED') return 'UNCHANGED';
+  // v15 step-1 shows a mix of 신규(NEW_SCAN)/변경(UNCHANGED). No upstream re-scan
+  // signal exists in the seed, so derive a deterministic mix from resourceId:
+  // ~1 in 3 reads 변경 so the column is never uniformly 신규.
+  return stableIndex(resource.resourceId, 3) === 0 ? 'UNCHANGED' : 'NEW_SCAN';
+};
 
 function toResourceCatalogItem(resource: MockResource, project: Project): ResourceCatalogItem {
   return {
     id: resource.resourceId,
     resource_id: resource.resourceId,
-    name: resource.resourceId,
+    name: demoResourceName(project.cloudProvider, resource),
     resource_type: resource.type,
     database_type: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
     integration_category: resource.integrationCategory,
@@ -173,6 +229,7 @@ function toResourceCatalogItem(resource: MockResource, project: Project): Resour
     oracle_service_id: resource.vmDatabaseConfig?.oracleServiceId ?? null,
     network_interface_id: resource.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration_name: null,
+    scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
   };
 }
@@ -191,7 +248,7 @@ const deriveIntegrationStatus = (r: MockResource): ResourceIntegrationStatus | n
   return r.connectionStatus === 'CONNECTED' && r.isSelected ? 'INTEGRATED' : 'NOT_INTEGRATED';
 };
 
-function toResourceSnapshot(r: MockResource): ResourceSnapshot {
+function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot {
   let endpoint_config = null;
   if (r.vmDatabaseConfig) {
     endpoint_config = {
@@ -211,37 +268,39 @@ function toResourceSnapshot(r: MockResource): ResourceSnapshot {
     resource_id: r.resourceId,
     resource_type: r.type,
     endpoint_config,
-    credential_id: r.selectedCredentialId ?? null,
-    database_region: r.region ?? null,
-    resource_name: r.resourceId,
+    credential_id: demoCredential(r),
+    database_region: demoRegion(project.cloudProvider, r),
+    resource_name: demoResourceName(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),
     integration_status: deriveIntegrationStatus(r),
   };
 }
 
-function toExcludedResourceInfo(r: MockResource): BffExcludedResourceInfo {
+function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedResourceInfo {
   return {
     resource_id: r.resourceId,
     exclusion_reason: r.exclusion?.reason ?? '',
-    resource_name: r.resourceId,
+    resource_name: demoResourceName(project.cloudProvider, r),
     database_type: r.databaseType ?? null,
-    database_region: r.region ?? null,
+    database_region: demoRegion(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),
     integration_status: deriveIntegrationStatus(r),
   };
 }
 
-function toConfirmedIntegrationResourceInfo(r: MockResource): BffConfirmedIntegration['resource_infos'][number] {
+function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): BffConfirmedIntegration['resource_infos'][number] {
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
     database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+    database_region: demoRegion(project.cloudProvider, r),
+    resource_name: demoResourceName(project.cloudProvider, r),
     port: r.vmDatabaseConfig?.port ?? null,
     host: r.vmDatabaseConfig?.host ?? null,
     oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration_name: null,
-    credential_id: r.selectedCredentialId ?? null,
+    credential_id: demoCredential(r),
   };
 }
 
@@ -254,16 +313,18 @@ function toConfirmedIntegrationResourceInfo(r: MockResource): BffConfirmedIntegr
  */
 function deriveConfirmedResourceInfos(
   approvedIntegration: BffApprovedIntegration,
-  resources: MockResource[],
+  project: Project,
 ): BffConfirmedIntegration['resource_infos'] | null {
   const approvedResourceIds = new Set(
     approvedIntegration.resource_infos
       .map((resourceInfo) => resourceInfo.resource_id)
       .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0),
   );
-  const matched = resources.filter((r) => approvedResourceIds.has(r.id));
+  const matched = project.resources.filter(
+    (r) => approvedResourceIds.has(r.id) || approvedResourceIds.has(r.resourceId),
+  );
   if (matched.length === 0) return null;
-  return matched.map(toConfirmedIntegrationResourceInfo);
+  return matched.map((r) => toConfirmedIntegrationResourceInfo(r, project));
 }
 
 // --- Queue Board Integration Helpers ---
@@ -348,7 +409,7 @@ export const mockConfirm = {
       );
       if (connectedResources.length > 0) {
         confirmedIntegrationSnapshotStore.set(project.id, {
-          resource_infos: connectedResources.map(toConfirmedIntegrationResourceInfo),
+          resource_infos: connectedResources.map((r) => toConfirmedIntegrationResourceInfo(r, project)),
         });
       }
     }
@@ -435,10 +496,10 @@ export const mockConfirm = {
     const selectedCount = selectedInputs.length;
     const excludedCount = excludedInputs.length;
 
-    const autoApprovalResult = evaluateAutoApproval({
-      resources: project.resources,
-      selectedResourceIds,
-    });
+    // 데모 정책: cloud(aws/azure/gcp)도 IDC와 동일하게 연동 대상 제출 직후 항상
+    // '승인 대기'(WAITING_APPROVAL, 관리자 수동 승인) 단계로 진입한다. 자동 승인은
+    // 데모 플로우에서 비활성화한다 (자동 승인 정책 함수 자체는 보존).
+    const autoApprovalResult: { shouldAutoApprove: boolean } = { shouldAutoApprove: false };
 
     const updatedStatus: ProjectStatus = {
       ...project.status,
@@ -533,9 +594,9 @@ export const mockConfirm = {
         id: `ai-${project.id}-${Date.now()}`,
         request_id: requestId,
         approved_at: now,
-        resource_infos: selectedResources.map(toResourceSnapshot),
+        resource_infos: selectedResources.map((r) => toResourceSnapshot(r, project)),
         excluded_resource_ids: excludedResources.map((r) => r.resourceId),
-        excluded_resource_infos: excludedResources.map(toExcludedResourceInfo),
+        excluded_resource_infos: excludedResources.map((r) => toExcludedResourceInfo(r, project)),
         exclusion_reason: excludedResources[0]?.exclusion?.reason,
       });
       // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
@@ -605,7 +666,7 @@ export const mockConfirm = {
     //    (snapshot 가 set 되기 전 polling 타이밍 등 fallback 경로)
     const approvedIntegration = approvedIntegrationStore.get(project.id);
     if (approvedIntegration) {
-      const derived = deriveConfirmedResourceInfos(approvedIntegration, project.resources);
+      const derived = deriveConfirmedResourceInfos(approvedIntegration, project);
       if (derived) {
         return NextResponse.json({ resource_infos: derived } satisfies BffConfirmedIntegration);
       }
@@ -623,7 +684,7 @@ export const mockConfirm = {
     }
 
     return NextResponse.json({
-      resource_infos: eligibleResources.map(toConfirmedIntegrationResourceInfo),
+      resource_infos: eligibleResources.map((r) => toConfirmedIntegrationResourceInfo(r, project)),
     } satisfies BffConfirmedIntegration);
   },
 
@@ -646,11 +707,36 @@ export const mockConfirm = {
 
     // ADR-006: store에서 ApprovedIntegration 조회
     const approved = approvedIntegrationStore.get(project.id);
+
+    // Demo fallback: seeded WAITING_APPROVAL / APPLYING_APPROVED fixtures never
+    // populate the store (no live approve call), so synthesize the approved view
+    // directly from the project's selected/excluded resources. Without this the
+    // step-2 (승인 대기) and step-3 (반영 중) tables render empty.
     if (!approved) {
-      return NextResponse.json(
-        { error: 'NOT_FOUND', message: '승인된 연동 정보가 없습니다.' },
-        { status: 404 },
-      );
+      const showsApprovalView =
+        project.processStatus === ProcessStatus.WAITING_APPROVAL ||
+        project.processStatus === ProcessStatus.APPLYING_APPROVED;
+      const selectedResources = project.resources.filter((r) => r.isSelected);
+      if (!showsApprovalView || selectedResources.length === 0) {
+        return NextResponse.json(
+          { error: 'NOT_FOUND', message: '승인된 연동 정보가 없습니다.' },
+          { status: 404 },
+        );
+      }
+      const excludedResources = project.resources.filter((r) => !r.isSelected);
+      const approvedAt = project.status.approval.approvedAt ?? project.updatedAt;
+      return NextResponse.json({
+        approved_integration: {
+          id: `ai-demo-${project.id}`,
+          request_id: `req-demo-${project.id}`,
+          approved_at: approvedAt,
+          approved_by: { user_id: '김보안 (kim.security)' },
+          resource_infos: selectedResources.map((r) => toResourceSnapshot(r, project)),
+          excluded_resource_ids: excludedResources.map((r) => r.resourceId),
+          excluded_resource_infos: excludedResources.map((r) => toExcludedResourceInfo(r, project)),
+          exclusion_reason: excludedResources[0]?.exclusion?.reason,
+        },
+      });
     }
 
     // PR #420: enrich excluded_resource_infos so Step 3 table can render full rows.
@@ -658,7 +744,7 @@ export const mockConfirm = {
     const excludedResourceInfos: BffExcludedResourceInfo[] = approved.excluded_resource_ids.map((id) => {
       const projectResource = project.resources.find((r) => r.resourceId === id);
       return projectResource
-        ? toExcludedResourceInfo(projectResource)
+        ? toExcludedResourceInfo(projectResource, project)
         : { resource_id: id, exclusion_reason: approved.exclusion_reason ?? '' };
     });
 
@@ -965,7 +1051,7 @@ export const mockConfirm = {
         // 변경요청 이전-스냅샷 보존 (createApprovalRequest 경로) 과 충돌하지 않도록 has 가드.
         const approvedIntegration = approvedIntegrationStore.get(updated.id);
         if (approvedIntegration && !confirmedIntegrationSnapshotStore.has(updated.id)) {
-          const derived = deriveConfirmedResourceInfos(approvedIntegration, updated.resources);
+          const derived = deriveConfirmedResourceInfos(approvedIntegration, updated);
           if (derived) {
             confirmedIntegrationSnapshotStore.set(updated.id, { resource_infos: derived });
           }
@@ -1077,9 +1163,9 @@ export const mockConfirm = {
       id: `ai-${project.id}-${Date.now()}`,
       request_id: requestId,
       approved_at: now,
-      resource_infos: selectedResources.map(toResourceSnapshot),
+      resource_infos: selectedResources.map((r) => toResourceSnapshot(r, project)),
       excluded_resource_ids: excludedResources.map((r) => r.resourceId),
-      excluded_resource_infos: excludedResources.map(toExcludedResourceInfo),
+      excluded_resource_infos: excludedResources.map((r) => toExcludedResourceInfo(r, project)),
       exclusion_reason: excludedResources[0]?.exclusion?.reason,
     });
 
@@ -1451,9 +1537,9 @@ export const mockConfirm = {
 
       approvedIntegrationStore.set(project.id, {
         ...approvedIntegration,
-        resource_infos: selectedResources.map(toResourceSnapshot),
+        resource_infos: selectedResources.map((r) => toResourceSnapshot(r, project)),
         excluded_resource_ids: excludedResources.map((resource) => resource.resourceId),
-        excluded_resource_infos: excludedResources.map(toExcludedResourceInfo),
+        excluded_resource_infos: excludedResources.map((r) => toExcludedResourceInfo(r, project)),
       });
     }
 

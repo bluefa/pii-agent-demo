@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Badge } from '@/app/components/ui/Badge';
 import { CopyButton } from '@/app/components/ui/CopyButton';
 import { Tooltip } from '@/app/components/ui/Tooltip';
 import { cn, idcStyles, textColors } from '@/lib/theme';
@@ -14,7 +13,7 @@ import type {
 
 const KIND_LABEL: Record<IdcKind, string> = {
   SINGLE: 'Single',
-  MULTIPLE_IP: 'Multiple IP',
+  MULTIPLE_IP: 'Multi',
   DOMAIN: 'Domain',
 };
 const KIND_STYLE: Record<IdcKind, string> = {
@@ -37,9 +36,16 @@ const HostCell = ({
   label: string;
   maxWidthClass?: string;
 }) => (
-  <span className={cn('group/host inline-flex items-center gap-1 min-w-0', maxWidthClass)}>
-    <Tooltip content={value} size="md">
-      <span className={cn('truncate font-mono text-[12.5px]', textColors.primary)}>{value}</span>
+  <span className={cn('group/host inline-flex items-center gap-1.5 min-w-0', maxWidthClass)}>
+    <Tooltip content={value} size="md" triggerClassName="min-w-0 overflow-hidden">
+      <span
+        className={cn(
+          'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12.5px] text-left [direction:ltr]',
+          textColors.primary,
+        )}
+      >
+        {value}
+      </span>
     </Tooltip>
     <CopyButton
       value={value}
@@ -62,7 +68,7 @@ export const IdcEndpointCell = ({ resource }: { resource: IdcResourceView }) => 
   return (
     <span className="flex flex-col items-start gap-0.5">
       <HostCell value={hosts[0] ?? ''} label="Host" />
-      {expanded && hosts.slice(1).map((host, i) => <HostCell key={i} value={host} label="Host" />)}
+      {expanded && hosts.slice(1).map((host) => <HostCell key={host} value={host} label="Host" />)}
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -80,8 +86,13 @@ export const IdcDbTypeCell = ({ resource }: { resource: IdcResourceView }) => (
     {resource.oracleSid ? (
       <span className="group/sid inline-flex items-center gap-1 min-w-0 max-w-[170px]">
         <span className={idcStyles.sidKey}>SID</span>
-        <Tooltip content={resource.oracleSid} size="md">
-          <span className={cn('truncate font-mono text-[11.5px]', textColors.tertiary)}>
+        <Tooltip content={resource.oracleSid} size="md" triggerClassName="min-w-0 overflow-hidden">
+          <span
+            className={cn(
+              'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11.5px] text-left',
+              textColors.tertiary,
+            )}
+          >
             {resource.oracleSid}
           </span>
         </Tooltip>
@@ -131,9 +142,70 @@ export const IdcHealthBadge = ({ health }: { health: IdcHealth }) => {
   );
 };
 
-export const IdcTargetPill = ({ excluded }: { excluded: boolean }) =>
-  excluded ? (
-    <Badge variant="neutral" size="sm" dot>비대상</Badge>
-  ) : (
-    <Badge variant="success" size="sm" dot>대상</Badge>
+export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
+  const variant = excluded ? idcStyles.targetPill.no : idcStyles.targetPill.yes;
+  return (
+    <span className={cn(idcStyles.targetPill.base, variant.box)}>
+      <span className={cn(idcStyles.targetPill.dot, variant.dot)} />
+      {excluded ? '비대상' : '대상'}
+    </span>
   );
+};
+
+// v16 step5/6 DB Credential options — static demo list mirroring the prototype.
+export const IDC_CRED_OPTIONS = ['Key1', 'Key2', 'Key3', 'idc_svc_mysql', 'idc_svc_oracle', 'idc_svc_pg'] as const;
+
+const SELECT_CHEVRON =
+  "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\") right 9px center no-repeat";
+
+/** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). */
+export const IdcCredSelectCell = ({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    style={{ background: SELECT_CHEVRON }}
+    className={cn(idcStyles.credSelect, !value && idcStyles.credSelectEmpty)}
+    aria-label="DB Credential 선택"
+  >
+    <option value="">자격 증명 선택</option>
+    {IDC_CRED_OPTIONS.map((cred) => (
+      <option key={cred} value={cred}>
+        {cred}
+      </option>
+    ))}
+  </select>
+);
+
+/** Credential-aware connection status — no cred -> credential-required (gray); SUCCESS -> green; else Pending (gray). */
+export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
+  if (!resource.credentialId) {
+    return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
+  }
+  return resource.connection === 'SUCCESS' ? (
+    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+  ) : (
+    <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
+  );
+};
+
+/** Logical-DB manage button (the "set" action) — disabled until credential set AND connection SUCCESS. */
+export const IdcLogicalButtonCell = ({
+  resource,
+  onOpen,
+}: {
+  resource: IdcResourceView;
+  onOpen: () => void;
+}) => {
+  const enabled = !!resource.credentialId && resource.connection === 'SUCCESS';
+  return (
+    <button type="button" disabled={!enabled} onClick={onOpen} className={idcStyles.triggerBtn.ghostSm}>
+      설정
+    </button>
+  );
+};

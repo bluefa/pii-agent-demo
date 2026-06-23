@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
-import { getProject } from '@/app/lib/api';
+import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
   getIdcResources,
   idcDbTypeWireFromLabel,
@@ -11,8 +11,9 @@ import {
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
-import { bgColors, borderColors, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
+import { bgColors, cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
+import { usePagination } from '@/app/hooks/usePagination';
 import { LoadingState, ErrorState, EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -66,8 +67,9 @@ export const IdcStep1TargetInput = ({
   const [rows, setRows] = useState<IdcStep1Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const { page, pageSize, setPage, setPageSize, pageItems: pagedRows } = usePagination(rows, {
+    initialPageSize: PAGE_SIZE_OPTIONS[0],
+  });
 
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -194,10 +196,22 @@ export const IdcStep1TargetInput = ({
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await updateIdcResources(targetSourceId, rows);
+      // Persist the working list, then request approval through the shared flow.
+      // createApprovalRequest routes every submission to WAITING_APPROVAL
+      // (Step 2, 승인 대기) for manual admin approval — same as cloud providers
+      // (auto-approval is disabled in the demo flow).
+      const persisted = await updateIdcResources(targetSourceId, rows);
+      const resourceInputs = persisted.map((r) =>
+        r.excluded
+          ? {
+              resource_id: r.resourceId,
+              selected: false as const,
+              ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
+            }
+          : { resource_id: r.resourceId, selected: true as const },
+      );
+      await createApprovalRequest(targetSourceId, { resource_inputs: resourceInputs });
       await refreshProject();
-      // TODO(integration): advance processStatus → WAITING_APPROVAL via the
-      // shared approval flow once the IDC approval transition is wired in mock.
       setSubmitOpen(false);
     } catch {
       // surfaced by the mutation layer; keep the modal open
@@ -206,8 +220,6 @@ export const IdcStep1TargetInput = ({
     }
   };
 
-  const pagedRows = rows.slice(page * pageSize, page * pageSize + pageSize);
-
   return (
     <>
       <ProjectPageMeta project={project} providerLabel={providerLabel} identity={identity} action={action} />
@@ -215,10 +227,10 @@ export const IdcStep1TargetInput = ({
       {slotKey && <GuideCardContainer slotKey={slotKey} />}
 
       <div className={cn('rounded-xl shadow-sm', bgColors.surface)}>
-        <div className={cn('flex items-start justify-between gap-4 border-b p-6', borderColors.light)}>
+        <div className={cn(cardStyles.header, 'flex items-start justify-between gap-4')}>
           <div>
-            <h2 className={cn('text-[18px] font-bold', textColors.primary)}>연동 대상 DB 입력</h2>
-            <p className={cn('mt-1 text-[12px]', textColors.tertiary)}>
+            <h2 className={cardStyles.cardTitle}>연동 대상 DB 입력</h2>
+            <p className={cn('mt-1', cardStyles.subtitle)}>
               IDC 인프라는 자동 스캔이 지원되지 않아요. 연동할 DB 접속 정보를 직접 입력해주세요.
             </p>
           </div>
@@ -241,7 +253,7 @@ export const IdcStep1TargetInput = ({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className={cardStyles.body}>
           {loading ? (
             <LoadingState label="연동 대상을 불러오는 중…" />
           ) : error ? (
@@ -270,10 +282,7 @@ export const IdcStep1TargetInput = ({
                 pageSize={pageSize}
                 totalCount={total}
                 onPageChange={setPage}
-                onPageSizeChange={(next) => {
-                  setPageSize(next);
-                  setPage(0);
-                }}
+                onPageSizeChange={setPageSize}
                 pageSizeOptions={PAGE_SIZE_OPTIONS}
               />
               <div className="mt-4 flex items-center justify-between">

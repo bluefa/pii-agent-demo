@@ -62,6 +62,14 @@ const generateStepStatus = (resourceId: string, offset: number): StepStatusValue
   return statuses[hash % statuses.length];
 };
 
+// CLOUD_SQL/GCP_SQL demo은 v15 step-4 화면(card1 완료, card2/3 진행중 + 행별 완료/진행중)을
+// 그대로 보여주기 위해 결정론적 상태를 사용한다. Subnet 생성은 항상 완료, 서비스/BDC TF는
+// 리소스 해시 패리티로 절반은 완료·절반은 진행중으로 갈라 행 상태가 섞이도록 한다.
+const demoStepStatus = (resourceId: string, stepIndex: 0 | 1 | 2): StepStatusValue => {
+  if (stepIndex === 0) return 'COMPLETED';
+  return hashString(resourceId) % 2 === 0 ? 'COMPLETED' : 'IN_PROGRESS';
+};
+
 const deriveInstallationStatus = (steps: StepStatus[]): InstallationStatus => {
   const active = steps.filter(s => s.status !== 'SKIP');
   if (active.length === 0) return 'COMPLETED';
@@ -76,7 +84,14 @@ const STEP_MATRIX: Record<string, [boolean, boolean, boolean]> = {
   'CLOUD_SQL:PRIVATE_IP_MODE': [true, true, true],
   'CLOUD_SQL:PSC_MODE': [false, false, true],
   'CLOUD_SQL:BDC_PRIVATE_HOST_MODE': [false, false, false],
+  // GCP demo seed의 Cloud SQL 리소스(type=GCP_SQL)는 세 단계 모두 활성화한다.
+  'GCP_SQL:PRIVATE_IP_MODE': [true, true, true],
+  'GCP_SQL:PSC_MODE': [true, true, true],
+  'GCP_SQL:BDC_PRIVATE_HOST_MODE': [true, true, true],
 };
+
+// demo 결정론적 상태를 쓰는 GCP Cloud SQL 리소스 타입(데모 시드 전용).
+const DEMO_STEP_TYPES: ReadonlySet<string> = new Set(['GCP_SQL']);
 
 const FAIL_GUIDES = [
   'Subnet 생성에 실패했습니다. 네트워크 권한을 확인하세요.',
@@ -90,14 +105,27 @@ const buildStep = (active: boolean, resourceId: string, offset: number, failGuid
   return { status, guide: status === 'FAIL' ? failGuide : null };
 };
 
+// demo Cloud SQL 리소스용 결정론적 step (subnet 완료, service/bdc 패리티로 완료·진행중).
+const buildDemoStep = (active: boolean, resourceId: string, stepIndex: 0 | 1 | 2): StepStatus => {
+  if (!active) return { status: 'SKIP' };
+  return { status: demoStepStatus(resourceId, stepIndex), guide: null };
+};
+
 const buildInstallResource = (resource: MockResource): GcpInstallResource => {
   const resourceSubType = determineResourceSubType(resource);
   const key = `${resource.type}:${resourceSubType ?? ''}`;
   const [subnetActive, svcActive, bdcActive] = STEP_MATRIX[key] ?? [false, false, false];
+  const useDemoSteps = DEMO_STEP_TYPES.has(resource.type);
 
-  const subnetCreation = buildStep(subnetActive, resource.resourceId, 200, FAIL_GUIDES[0]);
-  const serviceTf = buildStep(svcActive, resource.resourceId, 0, FAIL_GUIDES[1]);
-  const bdcTf = buildStep(bdcActive, resource.resourceId, 100, FAIL_GUIDES[2]);
+  const subnetCreation = useDemoSteps
+    ? buildDemoStep(subnetActive, resource.resourceId, 0)
+    : buildStep(subnetActive, resource.resourceId, 200, FAIL_GUIDES[0]);
+  const serviceTf = useDemoSteps
+    ? buildDemoStep(svcActive, resource.resourceId, 1)
+    : buildStep(svcActive, resource.resourceId, 0, FAIL_GUIDES[1]);
+  const bdcTf = useDemoSteps
+    ? buildDemoStep(bdcActive, resource.resourceId, 2)
+    : buildStep(bdcActive, resource.resourceId, 100, FAIL_GUIDES[2]);
 
   return {
     resourceId: resource.resourceId,

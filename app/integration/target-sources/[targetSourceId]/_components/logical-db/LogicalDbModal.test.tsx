@@ -8,9 +8,15 @@ import type {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 
 const databases: LogicalDatabase[] = [
-  { id: 'srv.db_alpha', name: 'db_alpha' },
-  { id: 'srv.db_bravo', name: 'db_bravo' },
-  { id: 'srv.db_charlie', name: 'db_charlie' },
+  { id: 'srv.db_alpha', name: 'db_alpha', type: 'db', database: 'db_alpha' },
+  {
+    id: 'srv.db_bravo',
+    name: 'db_bravo.public',
+    type: 'schema',
+    database: 'db_bravo',
+    schema: 'public',
+  },
+  { id: 'srv.db_charlie', name: 'db_charlie', type: 'db', database: 'db_charlie' },
 ];
 
 const renderModal = (overrides: Partial<React.ComponentProps<typeof LogicalDbModal>> = {}) => {
@@ -48,6 +54,22 @@ describe('LogicalDbModal', () => {
     expect(within(panelB).getByText('0개')).toBeTruthy();
   });
 
+  it('renders Type / Database / Schema columns for each logical DB', () => {
+    renderModal();
+    const panelA = getPanel('연동 대상 후보');
+    // column headers
+    expect(within(panelA).getAllByText('Type').length).toBeGreaterThan(0);
+    expect(within(panelA).getAllByText('Database').length).toBeGreaterThan(0);
+    expect(within(panelA).getAllByText('Schema').length).toBeGreaterThan(0);
+    // a database row shows its type pill + database name
+    const dbRow = within(panelA).getByText('db_alpha').closest('tr') as HTMLElement;
+    expect(within(dbRow).getByText('Database')).toBeTruthy();
+    // a schema row shows the Schema pill, database, and schema name
+    const schemaRow = within(panelA).getByText('db_bravo').closest('tr') as HTMLElement;
+    expect(within(schemaRow).getByText('Schema')).toBeTruthy();
+    expect(within(schemaRow).getByText('public')).toBeTruthy();
+  });
+
   it('moves an item from Panel A to Panel B when 제외 is clicked', () => {
     renderModal();
     const panelA = getPanel('연동 대상 후보');
@@ -82,7 +104,7 @@ describe('LogicalDbModal', () => {
   it('filters items in the targeted panel using the search input', () => {
     renderModal();
     const panelA = getPanel('연동 대상 후보');
-    const searchInput = within(panelA).getByPlaceholderText('DB 이름 검색');
+    const searchInput = within(panelA).getByPlaceholderText('Database / Schema 검색');
     fireEvent.change(searchInput, { target: { value: 'bravo' } });
 
     expect(within(panelA).getByText('db_bravo')).toBeTruthy();
@@ -136,7 +158,7 @@ describe('LogicalDbModal', () => {
 
     // exclude db_bravo → added=1
     const panelA = getPanel('연동 대상 후보');
-    const bravoRow = within(panelA).getByText('db_bravo').closest('li');
+    const bravoRow = within(panelA).getByText('db_bravo').closest('tr');
     if (!bravoRow) throw new Error('bravo row missing');
     fireEvent.click(within(bravoRow as HTMLElement).getByRole('button', { name: '제외' }));
 

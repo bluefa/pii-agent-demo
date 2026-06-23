@@ -13,20 +13,18 @@ const sizeMap = {
 
 export const LoadingSpinner = ({ size = 'md', className = '' }: LoadingSpinnerProps) => {
   return (
-    <svg
-      aria-hidden="true"
-      className={cn(sizeMap[size], 'animate-spin', className)}
-      viewBox="0 0 24 24"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-        fill="none"
-        strokeDasharray="31.4 31.4"
-      />
-    </svg>
+    <div className={cn(sizeMap[size], 'animate-spin', className)}>
+      <svg aria-hidden="true" className="w-full h-full" viewBox="0 0 24 24">
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="4"
+          fill="none"
+          strokeDasharray="31.4 31.4"
+        />
+      </svg>
+    </div>
   );
 };
