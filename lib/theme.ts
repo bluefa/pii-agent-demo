@@ -701,6 +701,12 @@ export const idcStyles = {
       'overflow-hidden rounded-xl border border-[#EBEEF2] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04),0_6px_16px_-8px_rgba(17,24,39,0.08),inset_0_1px_0_rgba(255,255,255,0.6)]',
     /** Excluded-row tint — v16 `.approval-table tr.row-excluded`. */
     rowExcluded: 'bg-[#F9FAFB]',
+    /** Approval-table header — v16 `.approval-table thead th` (12px/600 #8B95A1, bg #F7F8FA; distinct from the db-list-table 13px/700 header). */
+    approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#8B95A1]',
+    /** Approval-table header cell padding — v16 12px V / 18px H. */
+    approvalHeaderCell: 'px-[18px] py-3',
+    /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
+    approvalCell: 'px-[18px] py-4',
   },
 } as const;
 

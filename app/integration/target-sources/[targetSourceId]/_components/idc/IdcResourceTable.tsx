@@ -91,7 +91,7 @@ export const IdcResourceTable = ({
                 <SourceIpHeader />
               </th>
             )}
-            {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[180px]')}>연동 대상 / 제외 사유</th>}
+            {has('excl') && <th className={cn(idcStyles.table.headerCell, 'w-[230px]')}>연동 대상 / 제외 사유</th>}
             {has('fw') && <th className={cn(idcStyles.table.headerCell, 'w-[170px]')}>방화벽 상태</th>}
             {has('cred') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}
             {has('credro') && <th className={cn(idcStyles.table.headerCell, 'w-[150px]')}>DB Credential</th>}

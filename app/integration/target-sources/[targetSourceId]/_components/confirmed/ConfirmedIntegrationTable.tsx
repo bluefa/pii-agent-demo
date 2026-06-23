@@ -4,7 +4,7 @@ import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
-import { bgColors, cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
+import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
@@ -61,11 +61,6 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  const headerCellClass = cn(
-    tableStyles.headerCell,
-    'text-left text-xs font-medium',
-    textColors.tertiary,
-  );
   const cellClass = cn(tableStyles.cell, 'text-xs', textColors.tertiary);
   const monoCellClass = cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary);
 
@@ -140,14 +135,14 @@ export const ConfirmedIntegrationTable = ({
     <>
     <div className={idcStyles.table.frame}>
     <table className="w-full text-sm">
-      <thead className={bgColors.muted}>
+      <thead className={idcStyles.table.header}>
         <tr>
-          <th className={headerCellClass}>Database Type</th>
-          <th className={headerCellClass}>Resource ID</th>
-          <th className={headerCellClass}>Region</th>
-          <th className={headerCellClass}>Resource Name</th>
-          <th className={headerCellClass}>DB Credential</th>
-          <th className={headerCellClass}>Connection Status</th>
+          <th className={idcStyles.table.headerCell}>Database Type</th>
+          <th className={idcStyles.table.headerCell}>Resource ID</th>
+          <th className={idcStyles.table.headerCell}>Region</th>
+          <th className={idcStyles.table.headerCell}>Resource Name</th>
+          <th className={idcStyles.table.headerCell}>DB Credential</th>
+          <th className={idcStyles.table.headerCell}>Connection Status</th>
         </tr>
       </thead>
       <tbody className={tableStyles.body}>

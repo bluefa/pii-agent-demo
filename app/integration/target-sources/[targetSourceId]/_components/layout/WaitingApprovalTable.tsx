@@ -97,14 +97,14 @@ export const WaitingApprovalTable = memo(
       <div className={connected ? CONNECTED_FRAME : idcStyles.table.frame}>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className={idcStyles.table.header}>
+            <thead className={idcStyles.table.approvalHeader}>
               <tr className="whitespace-nowrap">
-                <th className={idcStyles.table.headerCell}>Database Type</th>
-                <th className={idcStyles.table.headerCell}>Resource ID</th>
-                <th className={idcStyles.table.headerCell}>Region</th>
-                <th className={idcStyles.table.headerCell}>Resource Name</th>
-                <th className={idcStyles.table.headerCell}>{targetColumnLabel}</th>
-                <th className={idcStyles.table.headerCell}>{lastColumnLabel}</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Database Type</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Resource ID</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Region</th>
+                <th className={idcStyles.table.approvalHeaderCell}>Resource Name</th>
+                <th className={idcStyles.table.approvalHeaderCell}>{targetColumnLabel}</th>
+                <th className={idcStyles.table.approvalHeaderCell}>{lastColumnLabel}</th>
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
@@ -115,21 +115,21 @@ export const WaitingApprovalTable = memo(
                     key={resource.resourceId}
                     className={cn('group', excluded ? idcStyles.table.rowExcluded : idcStyles.table.row)}
                   >
-                    <td className={idcStyles.table.cell}>
+                    <td className={idcStyles.table.approvalCell}>
                       <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>
                         {getDatabaseShortLabel(resource.displayDbType ?? resource.resourceType)}
                       </span>
                     </td>
-                    <td className={idcStyles.table.cell}>
+                    <td className={idcStyles.table.approvalCell}>
                       <ResourceIdCell value={resource.resourceId} label="Resource ID" />
                     </td>
-                    <td className={cn(idcStyles.table.cell, monoCell)}>
+                    <td className={cn(idcStyles.table.approvalCell, monoCell)}>
                       {resource.region || PLACEHOLDER}
                     </td>
-                    <td className={cn(idcStyles.table.cell, 'font-mono text-[12.5px]', textColors.primary)}>
+                    <td className={cn(idcStyles.table.approvalCell, 'font-mono text-[12.5px]', textColors.primary)}>
                       {resource.resourceName || PLACEHOLDER}
                     </td>
-                    <td className={idcStyles.table.cell}>
+                    <td className={idcStyles.table.approvalCell}>
                       {applying ? (
                         <span className="flex flex-col items-start gap-1.5">
                           <TargetPill excluded={excluded} />
@@ -144,7 +144,7 @@ export const WaitingApprovalTable = memo(
                         <TargetPill excluded={excluded} />
                       )}
                     </td>
-                    <td className={cn(idcStyles.table.cell, 'text-sm')}>
+                    <td className={cn(idcStyles.table.approvalCell, 'text-sm')}>
                       {applying ? (
                         <IntegrationHistoryCell resource={resource} />
                       ) : (
