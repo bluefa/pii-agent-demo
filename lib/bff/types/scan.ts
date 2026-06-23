@@ -8,6 +8,7 @@
 
 import type { V1ScanJob } from '@/lib/types';
 import type { ScanHistoryResponse, ScanJob } from '@/app/api/_lib/v1-types';
+import type { OpaqueKeys } from '@/lib/object-case';
 
 export type { V1ScanJob, ScanHistoryResponse, ScanJob };
 
@@ -33,7 +34,7 @@ export interface ScanCreateResult {
   scan_version: number | null;
   scan_progress: number | null;
   duration_seconds: number;
-  resource_count_by_resource_type: Record<string, number> | null;
+  resource_count_by_resource_type: OpaqueKeys<Record<string, number> | null>;
   scan_error: string | null;
 }
 
