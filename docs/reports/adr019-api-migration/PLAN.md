@@ -176,7 +176,9 @@ Both are small, body/param-level, no path change:
 
 ---
 
-## 8. Phasing (PR breakdown — each its own worktree off latest main)
+## 8. Build order (SINGLE PR)
+
+> **The entire migration ships in ONE PR on one branch** (`docs/adr019-api-migration-plan` → PR #507). The phases below are the internal build + review **sequence within that single PR** — they are NOT separate PRs.
 
 | Phase | Scope | Gate |
 |---|---|---|
@@ -189,7 +191,7 @@ Both are small, body/param-level, no path change:
 | **P6 — remainder** | creation-candidates rename, scan, resources, secrets, gcp/aws/azure status, users, guides, infra | 3/3 clean |
 | **P7 — cleanup** | remove superseded swagger files + dead types; final whole-contract sweep (≥10th round) | zero open findings |
 
-Each phase: own worktree, `tsc`+`lint`+`test`+`build` green, codex+opus ≥3 per endpoint, immediate commit & push, PR.
+Per phase: `tsc`+`lint`+`test`+`build` green and codex+opus ≥3 per endpoint before advancing. Work is fanned out across **parallel subagents** (one per domain, disjoint files); shared foundation files (`object-case.ts`, `http.ts`, `mock-adapter.ts`) are done first to avoid conflicts. Everything lands in the **same branch / PR #507** — commit per phase for reviewability, open the PR once, grow it until complete.
 
 ---
 
