@@ -1,7 +1,5 @@
-export { CredentialSetupModal } from './CredentialSetupModal';
-export { ResultDetailModal } from './ResultDetailModal';
-export { TestConnectionHistoryModal } from './TestConnectionHistoryModal';
-export { HistoryJobCard } from './HistoryJobCard';
-export { ProgressBar } from './ProgressBar';
-export { ResourceResultRow } from './ResourceResultRow';
-export { ResultSummary } from './ResultSummary';
+export { CredentialSetupModal } from '@/app/components/features/process-status/connection-test/CredentialSetupModal';
+export { ResultDetailModal } from '@/app/components/features/process-status/connection-test/ResultDetailModal';
+export { ProgressBar } from '@/app/components/features/process-status/connection-test/ProgressBar';
+export { ResourceResultRow } from '@/app/components/features/process-status/connection-test/ResourceResultRow';
+export { ResultSummary } from '@/app/components/features/process-status/connection-test/ResultSummary';

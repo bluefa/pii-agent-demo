@@ -18,7 +18,6 @@ vi.mock('@/app/hooks/useTestConnectionPolling', () => ({
     uiState: pollingState.uiState,
     loading: false,
     triggerError: null,
-    hasHistory: pollingState.latestJob !== null,
     trigger: vi.fn(),
   }),
 }));

@@ -79,8 +79,10 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(job.id).toMatch(/^tc-\d+-[a-z0-9]+$/);
 
       const store = getStore();
-      expect(store.testConnectionJobs).toHaveLength(1);
-      expect(store.testConnectionJobs[0].id).toBe(job.id);
+      // filter by target — the store also carries the per-step SUCCESS seed.
+      const jobs = store.testConnectionJobs.filter((j) => j.target_source_id === AWS_TARGET_SOURCE_ID);
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].id).toBe(job.id);
     });
 
     it('selected 리소스가 없어도 job 생성 (빈 schedule)', () => {
@@ -100,7 +102,8 @@ describe('mock-test-connection behavior lock-in', () => {
       createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'b@example.com');
 
       const store = getStore();
-      expect(store.testConnectionJobs).toHaveLength(2);
+      const jobs = store.testConnectionJobs.filter((j) => j.target_source_id === AWS_TARGET_SOURCE_ID);
+      expect(jobs).toHaveLength(2);
     });
   });
 
@@ -263,8 +266,9 @@ describe('mock-test-connection behavior lock-in', () => {
       clearJobHistory(AWS_TARGET_SOURCE_ID);
 
       const store = getStore();
-      expect(store.testConnectionJobs).toHaveLength(1);
-      expect(store.testConnectionJobs[0].target_source_id).toBe(GCP_TARGET_SOURCE_ID);
+      // AWS jobs gone; GCP job retained (store also carries the per-step seed).
+      expect(store.testConnectionJobs.filter((j) => j.target_source_id === AWS_TARGET_SOURCE_ID)).toHaveLength(0);
+      expect(store.testConnectionJobs.filter((j) => j.target_source_id === GCP_TARGET_SOURCE_ID)).toHaveLength(1);
     });
 
     it('job 없는 project → no-op', () => {
@@ -307,7 +311,8 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(wire.connection_status).toBe('RUNNING');
       expect(wire.test_connection_version).toBe(1);
       expect(wire.requested_at).toBe(FIXED_ISO);
-      expect(wire.completed_at).toBe('');
+      // incomplete job → deterministic date-time placeholder (valid format:date-time, not '')
+      expect(wire.completed_at).toBe('1970-01-01T00:00:00.000Z');
       expect(wire.test_connection_agent_results).toEqual([]);
     });
 
@@ -387,6 +392,48 @@ describe('mock-test-connection behavior lock-in', () => {
       setConfirmation(AWS_TARGET_SOURCE_ID, false);
       expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status)
         .toBe('LATEST_TEST_CONNECTION_SUCCESS');
+    });
+  });
+
+  // Per-step seed: Step 5/6/7 targets must have a coherent completed-SUCCESS
+  // result present at store init (otherwise the pages 404). resetStore() in
+  // beforeEach re-seeds on the next getStore().
+  describe('per-step seed', () => {
+    const STEP5_TARGET = 1010; // WAITING_CONNECTION_TEST (AWS)
+    const STEP6_TARGET = 1011; // CONNECTION_VERIFIED
+    const STEP7_TARGET = 1012; // INSTALLATION_COMPLETE
+
+    it('Step 5 target → SUCCESS job + non-empty summaries + LATEST_TEST_CONNECTION_SUCCESS', () => {
+      const job = getLatestJob(STEP5_TARGET);
+      expect(job?.status).toBe('SUCCESS');
+      expect(job?.resource_results.length).toBeGreaterThan(0);
+
+      const wire = toVersionResultResponse(job!);
+      expect(wire.connection_status).toBe('SUCCESS');
+      expect(wire.test_connection_agent_results.length).toBeGreaterThan(0);
+
+      expect(toLatestResultSummaries(STEP5_TARGET).length).toBeGreaterThan(0);
+
+      const completion = getCompletionStatus(STEP5_TARGET);
+      expect(completion.latest_test_connection_success).toBe(true);
+      expect(completion.test_connection_status).toBe('LATEST_TEST_CONNECTION_SUCCESS');
+      expect(completion.test_connection_confirmed).toBe(false);
+    });
+
+    it('Step 6 + Step 7 targets → SUCCESS job + completion-status CONFIRMED', () => {
+      for (const target of [STEP6_TARGET, STEP7_TARGET]) {
+        expect(getLatestJob(target)?.status).toBe('SUCCESS');
+        const completion = getCompletionStatus(target);
+        expect(completion.latest_test_connection_success).toBe(true);
+        expect(completion.test_connection_confirmed).toBe(true);
+        expect(completion.test_connection_status).toBe('CONFIRMED');
+      }
+    });
+
+    it('deterministic: seed timestamps are fixed (no Date.now())', () => {
+      const job = getLatestJob(STEP5_TARGET);
+      expect(job?.requested_at).toBe('2026-06-01T00:00:00.000Z');
+      expect(job?.completed_at).toBe('2026-06-01T00:00:20.000Z');
     });
   });
 });

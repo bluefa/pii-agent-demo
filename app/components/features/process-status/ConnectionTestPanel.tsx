@@ -10,7 +10,6 @@ import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { statusColors, textColors, borderColors, bgColors, getButtonClass, cn } from '@/lib/theme';
 import { ProgressBar } from '@/app/components/features/process-status/connection-test/ProgressBar';
 import { ResultSummary } from '@/app/components/features/process-status/connection-test/ResultSummary';
-import { TEXT_LINK_CLASS } from '@/app/components/features/process-status/connection-test/constants';
 
 const CredentialSetupModal = dynamic(
   () => import('@/app/components/features/process-status/connection-test/CredentialSetupModal').then(m => ({ default: m.CredentialSetupModal })),
@@ -18,10 +17,6 @@ const CredentialSetupModal = dynamic(
 );
 const ResultDetailModal = dynamic(
   () => import('@/app/components/features/process-status/connection-test/ResultDetailModal').then(m => ({ default: m.ResultDetailModal })),
-  { ssr: false },
-);
-const TestConnectionHistoryModal = dynamic(
-  () => import('@/app/components/features/process-status/connection-test/TestConnectionHistoryModal').then(m => ({ default: m.TestConnectionHistoryModal })),
   { ssr: false },
 );
 
@@ -42,7 +37,6 @@ export const ConnectionTestPanel = ({
     uiState,
     loading,
     triggerError,
-    hasHistory,
     trigger,
   } = useTestConnectionPolling(targetSourceId);
 
@@ -69,7 +63,6 @@ export const ConnectionTestPanel = ({
   const [missingCredResources, setMissingCredResources] = useState<ConfirmedResource[]>([]);
 
   // 모달 상태
-  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const handleTriggerClick = useCallback(async () => {
@@ -137,11 +130,6 @@ export const ConnectionTestPanel = ({
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h4 className={cn('text-sm font-semibold', textColors.primary)}>연결 테스트</h4>
-        {hasHistory && !isPending && (
-          <button onClick={() => setHistoryModalOpen(true)} className={TEXT_LINK_CLASS}>
-            전체 내역 →
-          </button>
-        )}
       </div>
 
       {/* 가이드 */}
@@ -202,12 +190,6 @@ export const ConnectionTestPanel = ({
           job={latestJob}
         />
       )}
-
-      <TestConnectionHistoryModal
-        isOpen={historyModalOpen}
-        onClose={() => setHistoryModalOpen(false)}
-        targetSourceId={targetSourceId}
-      />
     </div>
   );
 };

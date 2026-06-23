@@ -10,6 +10,8 @@
 
 Deprecate every divergent existing API client path/schema and align the whole stack to the new swagger. **This is mechanically straightforward but contract-critical** — the value is exactness, not cleverness.
 
+> **GOVERNING RULE (user, 2026-06-24): `install-v1.yaml` is the SOLE authority. If an endpoint is NOT in it, it does not exist — REMOVE the code that calls it. Do not keep anything as an "out-of-contract helper".** This resolves every "keep vs drop" flag uniformly to DROP. Confirmed removals (each impl agent verifies absence against `install-v1.yaml` first): `idc.getResources`/`updateResources` + all `/idc/target-sources/...` idcBase paths; `test-connection/results` (paged history); `approval-requests/system-reset`; `{aws,gcp,azure,idc}/check-installation` (refresh = re-GET installation-status); `services/{code}/settings/aws/*`; `authorized-users` add/remove (only GET exists); legacy `/projects/*` and `/aws/projects/*`; azure `subnet-guide`/`vm/*` and gcp extras if absent. The only sanctioned non-removal is genuinely separate surfaces outside the install flow (e.g. admin dashboard) — and only if they have their own contract.
+
 Top-priority invariants:
 1. **Path exactness** — every client path matches the swagger path verbatim (incl. `by-resource-id`, `latest_version` vs `latest-results`, `target_source_id` path param on `azure/scan-app`).
 2. **Schema exactness** — request/response wire shapes match swagger field-for-field, incl. enum spellings (`TEMP` not `TMP`) and casing.
@@ -132,7 +134,7 @@ Decisions (per ADR-019):
 These are why per-API review matters. Each must reach an explicit resolution in the verification log (§7).
 
 1. **`skip_reason`: `TEMP` (swagger) vs `TMP` (domain doc).** → swagger authoritative; use `TEMP`. Confirm with BFF that emitted value is `TEMP`.
-2. **`idc/resources` GET/PUT (Step 1 save) — absent in swagger.** Step 1 must save the DB list somehow. Candidates: generic `…/resources`, or a not-yet-published endpoint. **Blocker for Step 1 write path** — verify before implementing.
+2. **`idc/resources` GET/PUT — RESOLVED (user, 2026-06-24): the endpoint does NOT exist and must not.** It lives only in the deprecated `idc.yaml` (`/idc/target-sources/{id}/resources`); the provided `install-v1.yaml` has no such path. IDC Step 1 is **direct manual input** (user types DB info, held in UI state) — no server fetch/save of a resources list. The only IDC reads are `idc/previous-request` (reload a prior submission) and `idc/installation-status` (Step 4). Submission goes through `POST …/approval-requests` (createApprovalRequest) with the entered resources. **Action: DEPRECATE/REMOVE `idc.getResources`/`updateResources` (and the `/idc/target-sources/...` idcBase paths); do NOT migrate them.**
 3. **`test-connection/history?page` (Step 5 past records) — absent in swagger.** Source of paginated history? Possibly dropped in favor of `latest-results`. Verify.
 4. **`approval-requests/system-reset` (current `http.ts`) — absent in swagger.** Keep (out-of-contract dev helper) or drop? Verify.
 5. **`latest-results` reshape.** Was paginated `results`; now `TestConnectionLatestResultSummaryResponse` (per-resource `logical_database_count` / `excluded_logical_database_count`). The FinalLogicalDbApprovalModal table maps to this — confirm field mapping.

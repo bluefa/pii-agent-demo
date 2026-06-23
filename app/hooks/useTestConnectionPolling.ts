@@ -14,16 +14,16 @@ export interface UseTestConnectionPollingReturn {
   uiState: TestConnectionUIState;
   loading: boolean;
   triggerError: string | null;
-  hasHistory: boolean;
   trigger: () => Promise<void>;
 }
 
 // ADR-019: connection_status gains RUNNING — both PENDING and RUNNING are
-// in-progress (polling continues); SUCCESS/FAIL settle.
-const isInProgress = (status: TestConnectionVersionResult['connectionStatus']): boolean =>
+// in-progress (polling continues); SUCCESS/FAIL settle. Exported for direct
+// unit testing of the new enum handling.
+export const isInProgress = (status: TestConnectionVersionResult['connectionStatus']): boolean =>
   status === 'PENDING' || status === 'RUNNING';
 
-const computeUIState = (job: TestConnectionVersionResult | null): TestConnectionUIState => {
+export const computeUIState = (job: TestConnectionVersionResult | null): TestConnectionUIState => {
   if (!job) return 'IDLE';
   switch (job.connectionStatus) {
     case 'PENDING':
@@ -34,6 +34,10 @@ const computeUIState = (job: TestConnectionVersionResult | null): TestConnection
     default: return 'IDLE';
   }
 };
+
+// Stop polling once there is no job or it has settled (not PENDING/RUNNING).
+export const shouldStopPolling = (job: TestConnectionVersionResult | null): boolean =>
+  !job || !isInProgress(job.connectionStatus);
 
 const fetchLatestTest = async (
   targetSourceId: number,
@@ -59,7 +63,7 @@ export const useTestConnectionPolling = (
   );
 
   const shouldStop = useCallback(
-    (job: TestConnectionVersionResult | null) => !job || !isInProgress(job.connectionStatus),
+    (job: TestConnectionVersionResult | null) => shouldStopPolling(job),
     [],
   );
 
@@ -99,14 +103,12 @@ export const useTestConnectionPolling = (
   }, [targetSourceId, baseRefresh, start]);
 
   const uiState = computeUIState(latestJob);
-  const hasHistory = latestJob !== null;
 
   return {
     latestJob,
     uiState,
     loading,
     triggerError,
-    hasHistory,
     trigger,
   };
 };
