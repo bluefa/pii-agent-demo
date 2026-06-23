@@ -137,7 +137,10 @@ export const IdcLoadRequestModal = ({
                       </td>
                       <td className="w-[180px] px-4 py-3">
                         {r.excluded ? (
-                          <span className="inline-flex items-center gap-2">
+                          // flex + min-w-0 bounds the reason chip to the column so a long
+                          // 제외 사유 truncates (with ellipsis) instead of spilling past the
+                          // row; the full text stays in the chip's hover tip.
+                          <span className="flex min-w-0 items-center gap-2">
                             <IdcTargetPill excluded />
                             {r.exclusionReason ? <ReasonChipInline reason={r.exclusionReason} /> : null}
                           </span>

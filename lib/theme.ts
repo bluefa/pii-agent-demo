@@ -578,8 +578,8 @@ export const idcStyles = {
   },
   /** Exclusion-reason chip — `.reason-chip-inline` (3px 9px / radius 6 / 11.5px / 500 / cursor help). */
   reasonChip: {
-    base: 'inline-flex max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',
-    text: 'overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
+    base: 'inline-flex min-w-0 max-w-full items-center gap-[5px] rounded-[6px] border border-[#FED7AA] bg-[#FFF7ED] px-[9px] py-[3px] text-[11.5px] font-medium text-[#9A3412] cursor-help transition-[background-color,border-color] duration-[120ms] hover:bg-[#FFEDD5] hover:border-[#FDBA74]',
+    text: 'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-w-[180px]',
     icon: 'flex-shrink-0 text-[#C2410C] opacity-80',
   },
   /** Header status pill (mirrors cloud sibling pill; combine with statusColors.{warning,success}). */

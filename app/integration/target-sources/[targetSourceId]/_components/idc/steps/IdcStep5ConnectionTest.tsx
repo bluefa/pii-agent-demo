@@ -239,12 +239,18 @@ export const IdcStep5ConnectionTest = ({
                 pending={pendingCount}
                 pct={progressPct}
               />
-              <IdcResourceTable
-                resources={state.resources}
-                cols={['src', 'cred', 'conn', 'logical']}
-                onCredChange={handleCredChange}
-                onLogicalOpen={handleLogicalOpen}
-              />
+              {/* Keep the table frame flush with its attached footer pagination
+                  (Pagination is a border-t-0 / rounded-b table footer). Without this
+                  wrapper the section's space-y-4 inserts a 16px gap between them and
+                  the footer bar visibly detaches from the table. */}
+              <div>
+                <IdcResourceTable
+                  resources={state.resources}
+                  cols={['src', 'cred', 'conn', 'logical']}
+                  onCredChange={handleCredChange}
+                  onLogicalOpen={handleLogicalOpen}
+                />
+              </div>
               <div className="flex items-center justify-between mt-4">
                 <p className={cn('text-[12px]', textColors.tertiary)}>
                   ※ 모든 DB의 Connection Status가 Success여야 다음 단계로 진행할 수 있어요.
