@@ -6,6 +6,10 @@ import {
   hasPendingJob,
   clearJobHistory,
   toJobResponse,
+  toVersionResultResponse,
+  toLatestResultSummaries,
+  getCompletionStatus,
+  setConfirmation,
 } from '@/lib/mock-test-connection';
 import { getStore, resetStore } from '@/lib/mock-store';
 import type { Project } from '@/lib/types';
@@ -287,6 +291,102 @@ describe('mock-test-connection behavior lock-in', () => {
       expect(response).not.toHaveProperty('projectId');
       expect(response).not.toHaveProperty('estimated_end_at');
       expect(response).not.toHaveProperty('resource_schedule');
+    });
+  });
+
+  // ===== ADR-019 /install/v1 wire projections =====
+
+  describe('toVersionResultResponse', () => {
+    it('PENDING job → connection_status RUNNING + version cursor', () => {
+      const project = getAwsProjectWithSelectedResources();
+      const job = createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+
+      const wire = toVersionResultResponse(job);
+
+      expect(wire.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
+      expect(wire.connection_status).toBe('RUNNING');
+      expect(wire.test_connection_version).toBe(1);
+      expect(wire.requested_at).toBe(FIXED_ISO);
+      expect(wire.completed_at).toBe('');
+      expect(wire.test_connection_agent_results).toEqual([]);
+    });
+
+    it('SUCCESS job → per-agent results in wire shape', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getAwsProjectWithSelectedResources();
+      const selectedCount = project.resources.filter((r) => r.isSelected).length;
+      createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 1000));
+
+      const job = getLatestJob(AWS_TARGET_SOURCE_ID);
+      const wire = toVersionResultResponse(job!);
+
+      expect(wire.connection_status).toBe('SUCCESS');
+      expect(wire.test_connection_agent_results).toHaveLength(selectedCount);
+      wire.test_connection_agent_results.forEach((agent) => {
+        expect(agent.connection_status).toBe('SUCCESS');
+        expect(agent.agent_id).toMatch(/^agent-/);
+        expect(agent.resource_id).toBeTruthy();
+        expect(agent.gcp_region).toBe('');
+        expect(agent.database_uri_list.length).toBeGreaterThan(0);
+      });
+    });
+  });
+
+  describe('toLatestResultSummaries', () => {
+    it('non-success latest run → empty array', () => {
+      const project = getAwsProjectWithSelectedResources();
+      createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      expect(toLatestResultSummaries(AWS_TARGET_SOURCE_ID)).toEqual([]);
+    });
+
+    it('SUCCESS run → per-resource logical-DB counts', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getAwsProjectWithSelectedResources();
+      const selectedCount = project.resources.filter((r) => r.isSelected).length;
+      createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 1000));
+      getLatestJob(AWS_TARGET_SOURCE_ID);
+
+      const summaries = toLatestResultSummaries(AWS_TARGET_SOURCE_ID);
+      expect(summaries).toHaveLength(selectedCount);
+      summaries.forEach((s) => {
+        expect(s.resource_id).toBeTruthy();
+        expect(s.agent_id).toMatch(/^agent-/);
+        expect(s.logical_database_count).toBeGreaterThanOrEqual(0);
+        expect(s.excluded_logical_database_count).toBeGreaterThanOrEqual(0);
+      });
+    });
+  });
+
+  describe('getCompletionStatus / setConfirmation', () => {
+    it('no passed run → TEST_CONNECTION_REQUIRED', () => {
+      getAwsProjectWithSelectedResources();
+      const status = getCompletionStatus(AWS_TARGET_SOURCE_ID);
+      expect(status.test_connection_status).toBe('TEST_CONNECTION_REQUIRED');
+      expect(status.latest_test_connection_success).toBe(false);
+      expect(status.test_connection_confirmed).toBe(false);
+    });
+
+    it('passed run, unconfirmed → LATEST_TEST_CONNECTION_SUCCESS; confirm → CONFIRMED; rollback → back', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const project = getAwsProjectWithSelectedResources();
+      const selectedCount = project.resources.filter((r) => r.isSelected).length;
+      createTestConnectionJob(project, AWS_TARGET_SOURCE_ID, 'a@example.com');
+      vi.setSystemTime(new Date(FIXED_DATE.getTime() + selectedCount * 5000 + 1000));
+      getLatestJob(AWS_TARGET_SOURCE_ID); // settle to PASSED
+
+      expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status)
+        .toBe('LATEST_TEST_CONNECTION_SUCCESS');
+
+      const confirmed = setConfirmation(AWS_TARGET_SOURCE_ID, true);
+      expect(confirmed.confirmed).toBe(true);
+      expect(confirmed.target_source_id).toBe(AWS_TARGET_SOURCE_ID);
+      expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status).toBe('CONFIRMED');
+
+      setConfirmation(AWS_TARGET_SOURCE_ID, false);
+      expect(getCompletionStatus(AWS_TARGET_SOURCE_ID).test_connection_status)
+        .toBe('LATEST_TEST_CONNECTION_SUCCESS');
     });
   });
 });

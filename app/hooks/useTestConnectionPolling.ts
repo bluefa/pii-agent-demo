@@ -3,14 +3,14 @@ import {
   triggerTestConnection,
   getTestConnectionLatest,
 } from '@/app/lib/api';
-import type { TestConnectionJob } from '@/app/lib/api';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
 
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
 
 export interface UseTestConnectionPollingReturn {
-  latestJob: TestConnectionJob | null;
+  latestJob: TestConnectionVersionResult | null;
   uiState: TestConnectionUIState;
   loading: boolean;
   triggerError: string | null;
@@ -18,10 +18,17 @@ export interface UseTestConnectionPollingReturn {
   trigger: () => Promise<void>;
 }
 
-const computeUIState = (job: TestConnectionJob | null): TestConnectionUIState => {
+// ADR-019: connection_status gains RUNNING — both PENDING and RUNNING are
+// in-progress (polling continues); SUCCESS/FAIL settle.
+const isInProgress = (status: TestConnectionVersionResult['connectionStatus']): boolean =>
+  status === 'PENDING' || status === 'RUNNING';
+
+const computeUIState = (job: TestConnectionVersionResult | null): TestConnectionUIState => {
   if (!job) return 'IDLE';
-  switch (job.status) {
-    case 'PENDING': return 'PENDING';
+  switch (job.connectionStatus) {
+    case 'PENDING':
+    case 'RUNNING':
+      return 'PENDING';
     case 'SUCCESS': return 'SUCCESS';
     case 'FAIL': return 'FAIL';
     default: return 'IDLE';
@@ -30,7 +37,7 @@ const computeUIState = (job: TestConnectionJob | null): TestConnectionUIState =>
 
 const fetchLatestTest = async (
   targetSourceId: number,
-): Promise<TestConnectionJob | null> => {
+): Promise<TestConnectionVersionResult | null> => {
   try {
     return await getTestConnectionLatest(targetSourceId);
   } catch {
@@ -52,7 +59,7 @@ export const useTestConnectionPolling = (
   );
 
   const shouldStop = useCallback(
-    (job: TestConnectionJob | null) => !job || job.status !== 'PENDING',
+    (job: TestConnectionVersionResult | null) => !job || !isInProgress(job.connectionStatus),
     [],
   );
 
@@ -67,7 +74,7 @@ export const useTestConnectionPolling = (
     data: latestJob,
     refresh: baseRefresh,
     start,
-  } = usePollingBase<TestConnectionJob | null>({
+  } = usePollingBase<TestConnectionVersionResult | null>({
     interval,
     fetchOnce,
     shouldStop,

@@ -23,6 +23,26 @@ import {
   type TargetSourceDetailResponse,
 } from '@/lib/target-source-response';
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
+import type {
+  TestConnectionAgentResult,
+  TestConnectionCompletionStatus,
+  TestConnectionConfirmationResult,
+  TestConnectionLatestResultSummary,
+  TestConnectionStatus,
+  TestConnectionTriggerResult,
+  TestConnectionVersionResult,
+} from '@/lib/test-connection-response';
+// Re-export the test-connection domain types so `@/app/lib/api` consumers
+// (Step 5/6 UI) keep importing from one place.
+export type {
+  TestConnectionAgentResult,
+  TestConnectionCompletionStatus,
+  TestConnectionConfirmationResult,
+  TestConnectionLatestResultSummary,
+  TestConnectionStatus,
+  TestConnectionTriggerResult,
+  TestConnectionVersionResult,
+};
 import {
   normalizeApprovalActionResponse,
   normalizeApprovalHistoryPage,
@@ -637,81 +657,60 @@ export const getProcessStatus = async (
 export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
   fetchInfraCamelJson<SecretKey[]>(`${CONFIRM_BASE}/${targetSourceId}/secrets`);
 
-export interface TestConnectionTriggerResponse {
-  success: boolean;
-  id: string;
-}
+// Test Connection (Step 5/6) — ADR-019 /install/v1. The route handler is the
+// single casing boundary (camelCaseKeys + normalizer), so these CSR funcs fetch
+// the already-camel domain shape and only type it. Domain types live in
+// `lib/test-connection-response.ts` and are re-exported below.
 
-export type TestConnectionStatus = 'PENDING' | 'SUCCESS' | 'FAIL';
-export type TestConnectionErrorStatus = 'AUTH_FAIL' | 'CONNECTION_FAIL' | 'PERMISSION_DENIED';
-
-export interface TestConnectionResourceResult {
-  resource_id: string;
-  resource_type: string;
-  status: TestConnectionStatus;
-  error_status: TestConnectionErrorStatus | null;
-  guide: string | null;
-  agent_id: string | null;
-}
-
-export interface TestConnectionJob {
-  id: string;
-  target_source_id: number;
-  status: TestConnectionStatus;
-  requested_at: string | null;
-  completed_at: string | null;
-  requested_by: string;
-  resource_results: TestConnectionResourceResult[];
-}
-
-export interface TestConnectionResultsResponse {
-  content: TestConnectionJob[];
-  page: { totalElements: number; totalPages: number; number: number; size: number };
-}
-
-// 비동기 연결 테스트 트리거 — 202 Accepted
+// 비동기 연결 테스트 트리거 — 202 Accepted, no request body, optional collectorImageTag
 export const triggerTestConnection = async (
-  targetSourceId: number
-): Promise<TestConnectionTriggerResponse> =>
-  fetchInfraJson<TestConnectionTriggerResponse>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection`,
+  targetSourceId: number,
+  collectorImageTag?: string,
+): Promise<TestConnectionTriggerResult> => {
+  const query = collectorImageTag
+    ? `?${new URLSearchParams({ collectorImageTag }).toString()}`
+    : '';
+  return fetchInfraJson<TestConnectionTriggerResult>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/async${query}`,
     { method: 'POST' },
   );
+};
 
 // 최근 연결 테스트 결과 (polling용) — 404 if none
 export const getTestConnectionLatest = async (
-  targetSourceId: number
-): Promise<TestConnectionJob> =>
-  fetchInfraJson<TestConnectionJob>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest`,
+  targetSourceId: number,
+): Promise<TestConnectionVersionResult> =>
+  fetchInfraJson<TestConnectionVersionResult>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest_version`,
   );
 
-// 연결 테스트 이력 (pagination)
-export const getTestConnectionResults = async (
+// 최신 성공 run 의 resource/agent 별 논리 DB 요약
+export const getLatestTestConnectionResultSummaries = async (
   targetSourceId: number,
-  page = 0,
-  size = 10,
   options?: { signal?: AbortSignal },
-): Promise<TestConnectionResultsResponse> => {
-  const response = await fetchInfraJson<TestConnectionResultsResponse & {
-    page: {
-      total_elements?: number;
-      total_pages?: number;
-    };
-  }>(
-    `${CONFIRM_BASE}/${targetSourceId}/test-connection/results?page=${page}&size=${size}`,
+): Promise<TestConnectionLatestResultSummary[]> =>
+  fetchInfraJson<TestConnectionLatestResultSummary[]>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/latest-results`,
     options?.signal ? { signal: options.signal } : undefined,
   );
 
-  return {
-    ...response,
-    page: {
-      ...response.page,
-      totalElements: response.page.totalElements ?? response.page.total_elements ?? 0,
-      totalPages: response.page.totalPages ?? response.page.total_pages ?? 0,
-    },
-  };
-};
+// 완료 상태 (Step 5 배지 + 완료 승인 요청 버튼 게이트)
+export const getTestConnectionCompletionStatus = async (
+  targetSourceId: number,
+): Promise<TestConnectionCompletionStatus> =>
+  fetchInfraJson<TestConnectionCompletionStatus>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection/completion-status`,
+  );
+
+// 완료 확인 설정/롤백 — confirmed:true(완료 승인) / false(연결 테스트 재실행)
+export const updateTestConnectionConfirmation = async (
+  targetSourceId: number,
+  confirmed: boolean,
+): Promise<TestConnectionConfirmationResult> =>
+  fetchInfraJson<TestConnectionConfirmationResult>(
+    `${CONFIRM_BASE}/${targetSourceId}/test-connection-acknowledgment`,
+    { method: 'PUT', body: { confirmed } },
+  );
 
 // Credential 갱신 — v1
 export const updateResourceCredential = async (

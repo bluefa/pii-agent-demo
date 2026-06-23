@@ -277,3 +277,114 @@ export const toJobResponse = (job: TestConnectionJob) => ({
   requested_by: job.requested_by,
   resource_results: job.resource_results,
 });
+
+// ===== ADR-019 /install/v1 wire projections =====
+//
+// The simulation above keeps its internal job shape; these helpers project it
+// to the swagger wire DTOs (snake) so the mock output == the contract. The
+// per-job/per-agent enum gains RUNNING (PENDING/SUCCESS/FAIL → +RUNNING): a
+// still-pending job is reported RUNNING while its agents settle.
+
+type WireConnectionStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL';
+
+/** Monotonic run cursor for a target source (one job == one run). */
+const versionForTarget = (targetSourceId: number): number =>
+  getStore().testConnectionJobs.filter((j) => j.target_source_id === targetSourceId).length;
+
+/** `TestConnectionVersionResult` wire shape (getLatestTestConnectionStatus). */
+export const toVersionResultResponse = (job: TestConnectionJob) => {
+  const topStatus: WireConnectionStatus = job.status === 'PENDING' ? 'RUNNING' : job.status;
+  return {
+    target_source_id: job.target_source_id,
+    test_connection_version: versionForTarget(job.target_source_id),
+    connection_status: topStatus,
+    requested_at: job.requested_at,
+    completed_at: job.completed_at ?? '',
+    test_connection_agent_results: job.resource_results.map((r) => ({
+      agent_id: r.agent_id ?? `agent-${r.resource_id}`,
+      gcp_region: '',
+      resource_id: r.resource_id,
+      connection_status: r.status,
+      database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
+    })),
+  };
+};
+
+/**
+ * `TestConnectionLatestResultSummaryResponse[]` wire shape
+ * (getLatestTestConnectionResultSummaries) — per-resource logical-DB counts for
+ * the latest SUCCESS run. The real counts come from the logical-DB domain; the
+ * mock derives deterministic placeholders keyed off the resource id so the table
+ * renders. Empty array when the latest run is not a success.
+ */
+export const toLatestResultSummaries = (targetSourceId: number) => {
+  const job = getLatestJob(targetSourceId);
+  if (!job || job.status !== 'SUCCESS') return [];
+  return job.resource_results
+    .filter((r) => r.status === 'SUCCESS')
+    .map((r) => {
+      const seed = r.resource_id.length;
+      const total = 8 + (seed % 8);
+      const excluded = seed % 4;
+      return {
+        resource_id: r.resource_id,
+        agent_id: r.agent_id ?? `agent-${r.resource_id}`,
+        logical_database_count: total - excluded,
+        excluded_logical_database_count: excluded,
+      };
+    });
+};
+
+const findProject = (targetSourceId: number): Project | undefined =>
+  getStore().projects.find((p) => p.targetSourceId === targetSourceId);
+
+/**
+ * `TestConnectionCompletionStatusResponse` wire shape. Derived from the
+ * project's connection-test status (set by the simulation on completion) and
+ * the `operationConfirmed` flag (toggled by updateTestConnectionConfirmation).
+ *
+ * `LOGICAL_DATABASE_RECENTLY_UPDATED` is owned by the excluded-DB (logical-DB)
+ * domain — there is no excluded-DB store here yet, so this mock never emits it.
+ */
+export const getCompletionStatus = (targetSourceId: number) => {
+  const project = findProject(targetSourceId);
+  const job = getLatestJob(targetSourceId);
+  const passed = project?.status.connectionTest.status === 'PASSED';
+  const confirmed = project?.status.connectionTest.operationConfirmed === true;
+
+  const status: 'CONFIRMED' | 'LATEST_TEST_CONNECTION_SUCCESS' | 'TEST_CONNECTION_REQUIRED' =
+    passed && confirmed
+      ? 'CONFIRMED'
+      : passed
+        ? 'LATEST_TEST_CONNECTION_SUCCESS'
+        : 'TEST_CONNECTION_REQUIRED';
+
+  return {
+    target_source_id: targetSourceId,
+    latest_test_connection_requested_at: job?.requested_at ?? '',
+    logical_database_updated_at: '',
+    latest_test_connection_success: passed,
+    test_connection_status: status,
+    test_connection_confirmed: confirmed,
+  };
+};
+
+/**
+ * Toggle the completion-confirmation flag (PUT test-connection-acknowledgment).
+ * `true` = 완료 승인 (Step 5 final approval); `false` = rollback (Step 6 re-run).
+ * Returns the `TestConnectionConfirmationResponse` wire shape.
+ */
+export const setConfirmation = (targetSourceId: number, confirmed: boolean) => {
+  const project = findProject(targetSourceId);
+  if (project) {
+    project.status.connectionTest = {
+      ...project.status.connectionTest,
+      operationConfirmed: confirmed,
+    };
+  }
+  return {
+    target_source_id: targetSourceId,
+    confirmed,
+    confirmed_at: new Date().toISOString(),
+  };
+};

@@ -1,20 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import type { TestConnectionJob } from '@/app/lib/api';
-import { statusColors, textColors, borderColors, cn } from '@/lib/theme';
-import { ResourceResultRow } from './ResourceResultRow';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
+import { statusColors, textColors, borderColors, bgColors, cn } from '@/lib/theme';
+import { ResourceResultRow } from '@/app/components/features/process-status/connection-test/ResourceResultRow';
 
 interface HistoryJobCardProps {
-  job: TestConnectionJob;
+  job: TestConnectionVersionResult;
 }
 
 export const HistoryJobCard = ({ job }: HistoryJobCardProps) => {
   const [expanded, setExpanded] = useState(false);
-  const isSuccess = job.status === 'SUCCESS';
-  const isFail = job.status === 'FAIL';
-  const failCount = isFail ? job.resource_results.filter((r) => r.status === 'FAIL').length : 0;
-  const dateStr = new Date(job.requested_at ?? job.completed_at ?? '').toLocaleString('ko-KR', {
+  const isSuccess = job.connectionStatus === 'SUCCESS';
+  const isFail = job.connectionStatus === 'FAIL';
+  const failCount = isFail ? job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'FAIL').length : 0;
+  const dateStr = new Date(job.requestedAt || job.completedAt || '').toLocaleString('ko-KR', {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
 
@@ -22,7 +22,7 @@ export const HistoryJobCard = ({ job }: HistoryJobCardProps) => {
     <div className={cn('border rounded-lg overflow-hidden', borderColors.default)}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center justify-between text-left bg-white hover:bg-gray-50 transition-colors"
+        className={cn('w-full px-4 py-3 flex items-center justify-between text-left transition-colors', bgColors.surface, bgColors.mutedHover)}
       >
         <div className="flex items-center gap-2">
           <span className={cn(
@@ -41,10 +41,10 @@ export const HistoryJobCard = ({ job }: HistoryJobCardProps) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      {expanded && job.resource_results.length > 0 && (
+      {expanded && job.testConnectionAgentResults.length > 0 && (
         <div className="max-h-[200px] overflow-auto">
-          {job.resource_results.map((r) => (
-            <ResourceResultRow key={r.resource_id} result={r} />
+          {job.testConnectionAgentResults.map((r) => (
+            <ResourceResultRow key={r.resourceId} result={r} />
           ))}
         </div>
       )}

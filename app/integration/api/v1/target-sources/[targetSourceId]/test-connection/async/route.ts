@@ -4,13 +4,13 @@ import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse } from '@/app/api/_lib/problem';
 
-export const POST = withV1(async (_request, { requestId, params }) => {
+// POST …/test-connection/async — no request body; optional collectorImageTag query.
+export const POST = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const data = await bff.confirm.testConnection(parsed.value, {});
-  return NextResponse.json(
-    { success: true, id: data.id ?? requestId },
-    { status: 202 },
-  );
+  const collectorImageTag = new URL(request.url).searchParams.get('collectorImageTag') ?? undefined;
+
+  const data = await bff.confirm.testConnection(parsed.value, collectorImageTag);
+  return NextResponse.json({ success: data.success }, { status: 202 });
 }, { expectedDuration: '600000ms' });

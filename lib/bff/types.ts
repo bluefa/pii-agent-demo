@@ -64,6 +64,14 @@ import type {
   ProjectTestConnectionResult,
 } from '@/lib/bff/types/projects';
 import type {
+  TestConnectionCompletionStatusResponseWire,
+  TestConnectionConfirmationResponseWire,
+  TestConnectionLatestResultSummaryResponseWire,
+  TestConnectionTriggerResponseWire,
+  TestConnectionVersionResultWire,
+  UpdateTestConnectionConfirmationRequestWire,
+} from '@/lib/bff/types/test-connection';
+import type {
   UserMeResponse,
   UserSearchResponse,
   UserServicesPageResponse,
@@ -234,8 +242,13 @@ export interface BffClient {
     systemResetApprovalRequest: (id: number) => Promise<unknown>;
     confirmInstallation: (id: number) => Promise<unknown>;
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
-    testConnection: (id: number, body: unknown) => Promise<{ id?: string }>;
-    getTestConnectionResults: (id: number, page: number, size: number) => Promise<unknown>;
-    getTestConnectionLatest: (id: number) => Promise<unknown>;
+    testConnection: (id: number, collectorImageTag?: string) => Promise<TestConnectionTriggerResponseWire>;
+    getTestConnectionLatest: (id: number) => Promise<TestConnectionVersionResultWire>;
+    getLatestTestConnectionResultSummaries: (id: number) => Promise<TestConnectionLatestResultSummaryResponseWire[]>;
+    getTestConnectionCompletionStatus: (id: number) => Promise<TestConnectionCompletionStatusResponseWire>;
+    updateTestConnectionConfirmation: (
+      id: number,
+      body: UpdateTestConnectionConfirmationRequestWire,
+    ) => Promise<TestConnectionConfirmationResponseWire>;
   };
 }

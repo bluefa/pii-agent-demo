@@ -59,6 +59,13 @@ import type {
   IdcResourcesResponse,
   IdcSourceIpRecommendation,
 } from '@/lib/bff/types/idc';
+import type {
+  TestConnectionCompletionStatusResponseWire,
+  TestConnectionConfirmationResponseWire,
+  TestConnectionLatestResultSummaryResponseWire,
+  TestConnectionTriggerResponseWire,
+  TestConnectionVersionResultWire,
+} from '@/lib/bff/types/test-connection';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -243,14 +250,30 @@ export const mockBff: BffClient = {
     updateResourceCredential: async (id, body) =>
       unwrap<unknown>(await mockConfirm.updateResourceCredential(String(id), body)),
 
-    testConnection: async (id, body) =>
-      unwrap<{ id?: string }>(await mockConfirm.testConnection(String(id), body)),
-
-    getTestConnectionResults: async (id, page, size) =>
-      unwrap<unknown>(await mockConfirm.getTestConnectionResults(String(id), page, size)),
+    testConnection: async (id, collectorImageTag) =>
+      unwrap<TestConnectionTriggerResponseWire>(
+        await mockConfirm.testConnection(String(id), collectorImageTag),
+      ),
 
     getTestConnectionLatest: async (id) =>
-      unwrap<unknown>(await mockConfirm.getTestConnectionLatest(String(id))),
+      unwrap<TestConnectionVersionResultWire>(
+        await mockConfirm.getTestConnectionLatest(String(id)),
+      ),
+
+    getLatestTestConnectionResultSummaries: async (id) =>
+      unwrap<TestConnectionLatestResultSummaryResponseWire[]>(
+        await mockConfirm.getLatestTestConnectionResultSummaries(String(id)),
+      ),
+
+    getTestConnectionCompletionStatus: async (id) =>
+      unwrap<TestConnectionCompletionStatusResponseWire>(
+        await mockConfirm.getTestConnectionCompletionStatus(String(id)),
+      ),
+
+    updateTestConnectionConfirmation: async (id, body) =>
+      unwrap<TestConnectionConfirmationResponseWire>(
+        await mockConfirm.updateTestConnectionConfirmation(String(id), body),
+      ),
   },
 
   guides: {

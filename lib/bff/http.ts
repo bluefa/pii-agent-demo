@@ -17,6 +17,13 @@ import type {
   ConfirmedIntegrationResponsePayload,
   ResourceCatalogResponsePayload,
 } from '@/lib/bff/types/confirm';
+import type {
+  TestConnectionCompletionStatusResponseWire,
+  TestConnectionConfirmationResponseWire,
+  TestConnectionLatestResultSummaryResponseWire,
+  TestConnectionTriggerResponseWire,
+  TestConnectionVersionResultWire,
+} from '@/lib/bff/types/test-connection';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
@@ -274,14 +281,37 @@ export const httpBff: BffClient = {
     updateResourceCredential: (id, body) =>
       put<unknown>(`/target-sources/${id}/resources/credential`, body),
 
-    testConnection: (id, body) =>
-      post<{ id?: string }>(`/target-sources/${id}/test-connection`, body),
+    // 202 — no request body; optional collectorImageTag query (ADR-019 D6).
+    testConnection: (id, collectorImageTag) =>
+      post<TestConnectionTriggerResponseWire>(
+        `/target-sources/${id}/test-connection/async${buildQuery({ collectorImageTag })}`,
+      ),
 
-    getTestConnectionResults: (id, page, size) =>
-      get<unknown>(`/target-sources/${id}/test-connection/results?page=${page}&size=${size}`),
-
+    // GETs returned raw (wire snake) so the route handler is the sole casing
+    // boundary (ADR-019 D1) — the BffClient contract is the upstream wire shape.
     getTestConnectionLatest: (id) =>
-      get<unknown>(`/target-sources/${id}/test-connection/latest`),
+      get<TestConnectionVersionResultWire>(
+        `/target-sources/${id}/test-connection/latest_version`,
+        { raw: true },
+      ),
+
+    getLatestTestConnectionResultSummaries: (id) =>
+      get<TestConnectionLatestResultSummaryResponseWire[]>(
+        `/target-sources/${id}/test-connection/latest-results`,
+        { raw: true },
+      ),
+
+    getTestConnectionCompletionStatus: (id) =>
+      get<TestConnectionCompletionStatusResponseWire>(
+        `/target-sources/${id}/test-connection/completion-status`,
+        { raw: true },
+      ),
+
+    updateTestConnectionConfirmation: (id, body) =>
+      put<TestConnectionConfirmationResponseWire>(
+        `/target-sources/${id}/test-connection-acknowledgment`,
+        body,
+      ),
   },
 
   guides: {

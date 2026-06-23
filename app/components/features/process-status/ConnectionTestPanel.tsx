@@ -7,21 +7,21 @@ import type { ConfirmedResource } from '@/lib/types/resources';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import { getSecrets } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { statusColors, textColors, getButtonClass, cn } from '@/lib/theme';
-import { ProgressBar } from './connection-test/ProgressBar';
-import { ResultSummary } from './connection-test/ResultSummary';
-import { TEXT_LINK_CLASS } from './connection-test/constants';
+import { statusColors, textColors, borderColors, bgColors, getButtonClass, cn } from '@/lib/theme';
+import { ProgressBar } from '@/app/components/features/process-status/connection-test/ProgressBar';
+import { ResultSummary } from '@/app/components/features/process-status/connection-test/ResultSummary';
+import { TEXT_LINK_CLASS } from '@/app/components/features/process-status/connection-test/constants';
 
 const CredentialSetupModal = dynamic(
-  () => import('./connection-test/CredentialSetupModal').then(m => ({ default: m.CredentialSetupModal })),
+  () => import('@/app/components/features/process-status/connection-test/CredentialSetupModal').then(m => ({ default: m.CredentialSetupModal })),
   { ssr: false },
 );
 const ResultDetailModal = dynamic(
-  () => import('./connection-test/ResultDetailModal').then(m => ({ default: m.ResultDetailModal })),
+  () => import('@/app/components/features/process-status/connection-test/ResultDetailModal').then(m => ({ default: m.ResultDetailModal })),
   { ssr: false },
 );
 const TestConnectionHistoryModal = dynamic(
-  () => import('./connection-test/TestConnectionHistoryModal').then(m => ({ default: m.TestConnectionHistoryModal })),
+  () => import('@/app/components/features/process-status/connection-test/TestConnectionHistoryModal').then(m => ({ default: m.TestConnectionHistoryModal })),
   { ssr: false },
 );
 
@@ -74,7 +74,7 @@ export const ConnectionTestPanel = ({
 
   const handleTriggerClick = useCallback(async () => {
     // 마지막 테스트 실패 시: credential 확인 모달 (review mode)
-    if (latestJob?.status === 'FAIL') {
+    if (latestJob?.connectionStatus === 'FAIL') {
       const credResources = confirmed.filter(
         (r) => r.databaseType !== null && needsCredential(r.databaseType),
       );
@@ -122,9 +122,9 @@ export const ConnectionTestPanel = ({
 
   if (loading) {
     return (
-      <div className="border border-gray-200 rounded-lg p-6 flex items-center justify-center">
+      <div className={cn('border rounded-lg p-6 flex items-center justify-center', borderColors.default)}>
         <LoadingSpinner />
-        <span className="ml-2 text-sm text-gray-500">연결 테스트 정보 로딩 중...</span>
+        <span className={cn('ml-2 text-sm', textColors.tertiary)}>연결 테스트 정보 로딩 중...</span>
       </div>
     );
   }
@@ -133,7 +133,7 @@ export const ConnectionTestPanel = ({
   const isCompleted = uiState === 'SUCCESS' || uiState === 'FAIL';
 
   return (
-    <div className="max-w-md bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+    <div className={cn('max-w-md border rounded-lg p-4 space-y-3', bgColors.muted, borderColors.default)}>
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <h4 className={cn('text-sm font-semibold', textColors.primary)}>연결 테스트</h4>

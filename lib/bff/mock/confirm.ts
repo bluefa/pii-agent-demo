@@ -1548,7 +1548,7 @@ export const mockConfirm = {
     return NextResponse.json({ success: true });
   },
 
-  testConnection: async (targetSourceId: string, _body: unknown) => {
+  testConnection: async (targetSourceId: string, _collectorImageTag?: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -1590,12 +1590,12 @@ export const mockConfirm = {
       );
     }
 
-    const job = tcFns.createTestConnectionJob(project, numericTargetSourceId, user.id);
+    tcFns.createTestConnectionJob(project, numericTargetSourceId, user.id);
 
-    return NextResponse.json({ id: job.id }, { status: 202 });
+    return NextResponse.json({ success: true }, { status: 202 });
   },
 
-  getTestConnectionResults: async (targetSourceId: string, page: number, size: number) => {
+  getLatestTestConnectionResultSummaries: async (targetSourceId: string) => {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
       return NextResponse.json(
@@ -1604,13 +1604,7 @@ export const mockConfirm = {
       );
     }
 
-    const { content, total } = tcFns.getJobHistory(Number(targetSourceId), page, size);
-    const totalPages = Math.ceil(total / size);
-
-    return NextResponse.json({
-      content: content.map(tcFns.toJobResponse),
-      page: { totalElements: total, totalPages, number: page, size },
-    });
+    return NextResponse.json(tcFns.toLatestResultSummaries(Number(targetSourceId)));
   },
 
   getTestConnectionLatest: async (targetSourceId: string) => {
@@ -1630,7 +1624,34 @@ export const mockConfirm = {
       );
     }
 
-    return NextResponse.json(tcFns.toJobResponse(job));
+    return NextResponse.json(tcFns.toVersionResultResponse(job));
+  },
+
+  getTestConnectionCompletionStatus: async (targetSourceId: string) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(tcFns.getCompletionStatus(Number(targetSourceId)));
+  },
+
+  updateTestConnectionConfirmation: async (
+    targetSourceId: string,
+    body: { confirmed: boolean },
+  ) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(tcFns.setConfirmation(Number(targetSourceId), body.confirmed === true));
   },
 
 };

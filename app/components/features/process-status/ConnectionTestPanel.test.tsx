@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { TestConnectionJob } from '@/app/lib/api';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type {
   TestConnectionUIState,
   UseTestConnectionPollingReturn,
 } from '@/app/hooks/useTestConnectionPolling';
 
-const pollingState: { uiState: TestConnectionUIState; latestJob: TestConnectionJob | null } = {
+const pollingState: { uiState: TestConnectionUIState; latestJob: TestConnectionVersionResult | null } = {
   uiState: 'PENDING',
   latestJob: null,
 };
@@ -29,7 +29,9 @@ vi.mock('@/app/lib/api', () => ({
 
 vi.mock('@/lib/theme', () => ({
   statusColors: { error: { text: '' } },
-  textColors: { primary: '', tertiary: '', quaternary: '' },
+  textColors: { primary: '', secondary: '', tertiary: '', quaternary: '' },
+  borderColors: { light: '', default: '', strong: '' },
+  bgColors: { muted: '', mutedHover: '', surface: '' },
   getButtonClass: () => '',
   cn: (...args: unknown[]) => args.filter(Boolean).join(' '),
 }));
@@ -43,14 +45,15 @@ vi.mock('@/app/components/features/process-status/connection-test/ResultSummary'
 
 import { ConnectionTestPanel } from '@/app/components/features/process-status/ConnectionTestPanel';
 
-const makeJob = (status: TestConnectionJob['status']): TestConnectionJob => ({
-  id: 'job-1',
-  target_source_id: 1010,
-  status,
-  requested_at: '2026-01-25T14:00:00Z',
-  completed_at: status === 'PENDING' ? null : '2026-01-25T14:01:00Z',
-  requested_by: 'tester',
-  resource_results: [],
+const makeJob = (
+  connectionStatus: TestConnectionVersionResult['connectionStatus'],
+): TestConnectionVersionResult => ({
+  targetSourceId: 1010,
+  testConnectionVersion: 1,
+  connectionStatus,
+  requestedAt: '2026-01-25T14:00:00Z',
+  completedAt: connectionStatus === 'PENDING' ? '' : '2026-01-25T14:01:00Z',
+  testConnectionAgentResults: [],
 });
 
 describe('ConnectionTestPanel SUCCESS refetch', () => {
