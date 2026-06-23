@@ -58,4 +58,29 @@ describe('Pagination', () => {
     renderPagination({ page: 0, pageSize: 10, totalCount: 0 });
     expect(screen.getByText(/0–0/)).toBeTruthy();
   });
+
+  it('renders first/prev/next/last edge controls by default', () => {
+    renderPagination({ page: 1, pageSize: 10, totalCount: 100 });
+    expect(screen.getByLabelText('처음 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('끝 페이지')).toBeTruthy();
+  });
+
+  it('drops first/last double-chevrons with controls="prevNext" (v16 IDC pager)', () => {
+    render(
+      <Pagination
+        page={1}
+        pageSize={10}
+        totalCount={100}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+        controls="prevNext"
+      />,
+    );
+    expect(screen.getByLabelText('이전 페이지')).toBeTruthy();
+    expect(screen.getByLabelText('다음 페이지')).toBeTruthy();
+    expect(screen.queryByLabelText('처음 페이지')).toBeNull();
+    expect(screen.queryByLabelText('끝 페이지')).toBeNull();
+  });
 });

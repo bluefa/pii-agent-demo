@@ -65,6 +65,31 @@ describe('ProjectPageMeta — collab-channel chip', () => {
   });
 });
 
+describe('ProjectPageMeta — identity-bar provider name vs breadcrumb crumb', () => {
+  it('shows the bare provider token in the identity bar, not the "{Provider} Infrastructure" label', () => {
+    const { container } = render(
+      <ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />,
+    );
+    // identity-bar provider name (.ib-provider-name) carries the bare token only (HTML 9428).
+    const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
+    expect(providerName?.textContent).toBe('AWS');
+  });
+
+  it('keeps "{Provider} Infrastructure" as the breadcrumb current crumb', () => {
+    render(<ProjectPageMeta project={projectFixture} providerLabel="AWS Infrastructure" identity={awsIdentity} />);
+    // breadcrumb current crumb (aria-current="page") stays the full label (HTML 5737).
+    expect(screen.getByText('AWS Infrastructure').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('shows the bare "IDC" token in the identity bar for IDC', () => {
+    const { container } = render(
+      <ProjectPageMeta project={projectFixture} providerLabel="IDC Infrastructure" identity={idcIdentity} />,
+    );
+    const providerName = container.querySelector('.font-bold.text-\\[\\#191F28\\]');
+    expect(providerName?.textContent).toBe('IDC');
+  });
+});
+
 describe('ProjectPageMeta — IDC sub-label suppression', () => {
   it('hides the "Cloud Provider" sub-label for IDC', () => {
     render(<ProjectPageMeta project={projectFixture} providerLabel="IDC Infrastructure" identity={idcIdentity} />);

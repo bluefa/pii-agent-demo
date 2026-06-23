@@ -77,7 +77,16 @@ export const IdcStep5ConnectionTest = ({
     void getIdcResources(project.targetSourceId, { signal: controller.signal })
       .then((resources) => {
         if (controller.signal.aborted) return;
-        setState({ status: 'ready', resources });
+        // Step 5 is definitionally pre-test: nothing is connected until Run Test
+        // runs, so force every row to PENDING on load and ignore any seeded
+        // `connection_status` (a placeholder shared with the post-test step 6/7
+        // views). Mirrors the cloud sibling `ConnectionTestCard` `seedRows`, and
+        // matches v16's idle conn-progress strip. The pre-selected credential is
+        // kept (v16 seeds row1's `idc_svc_mysql`).
+        setState({
+          status: 'ready',
+          resources: resources.map((r) => ({ ...r, connection: 'PENDING' as const })),
+        });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || (error instanceof AppError && error.code === 'ABORTED')) return;

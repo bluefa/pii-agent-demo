@@ -11,6 +11,12 @@ interface PaginationProps {
   onPageChange: (next: number) => void;
   onPageSizeChange: (next: number) => void;
   pageSizeOptions?: ReadonlyArray<number>;
+  /**
+   * Edge-control set. `full` (default) renders first/prev/next/last; `prevNext`
+   * renders single-chevron prev/next only — the v16 IDC step-table pager
+   * (`이전 / [1] / 다음`, no first/last double-chevrons).
+   */
+  controls?: 'full' | 'prevNext';
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -54,6 +60,7 @@ export const Pagination = ({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions,
+  controls = 'full',
 }: PaginationProps) => {
   const options = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -91,10 +98,14 @@ export const Pagination = ({
       </span>
       <div className="flex-1" />
       <div className="inline-flex gap-0.5">
-        {/* first/prev/next/last kept for usability (v15 mockup shows numbers only). */}
-        <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
-          ‹‹
-        </PageBtn>
+        {/* first/prev/next/last kept for usability (v15 mockup shows numbers only).
+            IDC step tables pass controls="prevNext" to drop the first/last
+            double-chevrons (v16 IDC pager is 이전 / [1] / 다음). */}
+        {controls === 'full' && (
+          <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(0)} ariaLabel="처음 페이지">
+            ‹‹
+          </PageBtn>
+        )}
         <PageBtn active={false} disabled={page <= 0} onClick={() => onPageChange(page - 1)} ariaLabel="이전 페이지">
           ‹
         </PageBtn>
@@ -121,9 +132,11 @@ export const Pagination = ({
         <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(page + 1)} ariaLabel="다음 페이지">
           ›
         </PageBtn>
-        <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel="끝 페이지">
-          ››
-        </PageBtn>
+        {controls === 'full' && (
+          <PageBtn active={false} disabled={page >= totalPages - 1} onClick={() => onPageChange(totalPages - 1)} ariaLabel="끝 페이지">
+            ››
+          </PageBtn>
+        )}
       </div>
     </div>
   );

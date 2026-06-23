@@ -230,7 +230,7 @@ export const CandidateResourceSection = ({
                     </span>
                   )}
                   <Button
-                    variant={initialLoading ? 'secondary' : candidates.length > 0 ? 'secondary' : 'primary'}
+                    variant="primary"
                     disabled={initialLoading || !canStart || readonly}
                     onClick={startScan}
                     className="inline-flex items-center gap-1.5 text-sm py-1.5"

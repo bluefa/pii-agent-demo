@@ -149,7 +149,10 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
       />
       <IdentityBar
         accent={accent}
-        providerName={providerLabel}
+        // v16 identity bar shows the BARE provider token ('GCP'/'Azure'/'AWS'/'IDC',
+        // HTML 9426-9429), not the '{Provider} Infrastructure' string used for the
+        // breadcrumb crumb above. `cloudProvider` already carries v16's exact casing.
+        providerName={identity.cloudProvider}
         providerSub={isIdc ? undefined : 'Cloud Provider'}
         icon={PROVIDER_ICON}
         fields={buildIdentityFields(identity)}

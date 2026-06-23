@@ -24,8 +24,9 @@ export const AwsProjectPage = ({
     jiraLink: null,
     identifiers: [
       // v16 identity bar carries only the Account ID (HTML 9428); it has no second
-      // identifier (e.g. Region Type), so none is added here.
-      { label: 'AWS Account ID', value: project.awsAccountId ?? null, mono: true },
+      // identifier (e.g. Region Type), so none is added here. The label is the bare
+      // 'Account ID' (aws.idLabel, HTML 9428) — no provider prefix.
+      { label: 'Account ID', value: project.awsAccountId ?? null, mono: true },
     ],
   };
 

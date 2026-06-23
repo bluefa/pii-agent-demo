@@ -185,6 +185,7 @@ export const IdcResourceTable = ({
       onPageChange={setPage}
       onPageSizeChange={setPageSize}
       pageSizeOptions={[10, 20, 50, 100]}
+      controls="prevNext"
     />
     </>
   );

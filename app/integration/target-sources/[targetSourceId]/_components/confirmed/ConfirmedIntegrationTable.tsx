@@ -75,16 +75,16 @@ export const ConfirmedIntegrationTable = ({
       <>
       <div className={idcStyles.table.frame}>
       <table className="w-full text-sm">
-        <thead className={bgColors.muted}>
+        <thead className={idcStyles.table.header}>
           <tr>
-            <th className={headerCellClass}>Database Type</th>
-            <th className={headerCellClass}>Resource ID</th>
-            <th className={headerCellClass}>Region</th>
-            <th className={headerCellClass}>Resource Name</th>
-            <th className={headerCellClass}>DB Credential</th>
-            <th className={headerCellClass}>연동 대상 논리 DB</th>
-            <th className={headerCellClass}>연동 제외 논리 DB</th>
-            <th className={headerCellClass}>
+            <th className={idcStyles.table.headerCell}>Database Type</th>
+            <th className={idcStyles.table.headerCell}>Resource ID</th>
+            <th className={idcStyles.table.headerCell}>Region</th>
+            <th className={idcStyles.table.headerCell}>Resource Name</th>
+            <th className={idcStyles.table.headerCell}>DB Credential</th>
+            <th className={idcStyles.table.headerCell}>연동 대상 논리 DB</th>
+            <th className={idcStyles.table.headerCell}>연동 제외 논리 DB</th>
+            <th className={idcStyles.table.headerCell}>
               <span className="inline-flex items-center gap-1">
                 Status
                 <InfoTooltip content={STATUS_TOOLTIP_CONTENT} position="top" size="md" />

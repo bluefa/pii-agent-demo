@@ -5,10 +5,13 @@ import { InstallationLoadingView } from '@/app/components/features/process-statu
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
 import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
+import { InstallTaskDetailModal } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskDetailModal';
 import { joinAzureResources } from '@/app/components/features/process-status/install-task-pipeline/join-installation-resources';
 import { getAzureInstallationStatus, checkAzureInstallation } from '@/app/lib/api/azure';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
+import { useModal } from '@/app/hooks/useModal';
 import { buildAzurePipelineItems } from '@/lib/constants/azure-install';
+import type { GcpStepKey } from '@/lib/constants/gcp';
 import { cardStyles, statusColors, cn } from '@/lib/theme';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import type { AzureV1InstallationStatus, AzureV1Resource, PrivateEndpointStatus } from '@/lib/types/azure';
@@ -73,6 +76,7 @@ export const AzureInstallationInline = ({
   confirmed,
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
+  const detailModal = useModal<GcpStepKey>();
   const { status, loading, error, fetchStatus } =
     useInstallationStatus<AzureV1InstallationStatus>({
       targetSourceId,
@@ -129,6 +133,16 @@ export const AzureInstallationInline = ({
 
   const joinedRows = joinAzureResources(unifiedResources, confirmed);
 
+  // v16 L6598 — only the COMPLETED (done) install phase is clickable; running
+  // phases stay non-interactive. The done phase title ('서비스 측 리소스 설치 진행')
+  // matches GCP_STEP_PIPELINE_LABELS['serviceSideTerraformApply'], so the shared
+  // detail modal renders the correct heading.
+  const pipelineItems = buildAzurePipelineItems(unifiedResources).map((item) =>
+    item.status === 'done'
+      ? { ...item, onClick: () => detailModal.open('serviceSideTerraformApply') }
+      : item,
+  );
+
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
       <header className={cn(cardStyles.header, 'flex items-center justify-between')}>
@@ -150,10 +164,17 @@ export const AzureInstallationInline = ({
           </div>
         )}
 
-        <InstallTaskPipeline columns={3} items={buildAzurePipelineItems(unifiedResources)} />
+        <InstallTaskPipeline columns={3} items={pipelineItems} />
 
         <InstallResourceTable rows={joinedRows} provider="Azure" />
       </div>
+
+      <InstallTaskDetailModal
+        open={detailModal.isOpen}
+        onClose={detailModal.close}
+        stepKey={detailModal.data ?? null}
+        rows={joinedRows}
+      />
     </section>
   );
 };
