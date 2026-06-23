@@ -31,8 +31,10 @@ export const AwsProjectPage = ({
   };
 
   if (!project.awsInstallationMode) {
+    // Mode-selector pre-screen: same full-width 40/32/80 padding as
+    // CloudTargetSourceLayout / IDC (body supplies the #F4F4FB bg).
     return (
-      <main className="max-w-[1200px] mx-auto p-7 space-y-6">
+      <main className="px-10 pt-8 pb-20 space-y-6">
         <ProjectPageMeta project={project} providerLabel="AWS Infrastructure" identity={identity} action={<DeleteInfrastructureButton />} />
         <AwsInstallationModeSelector
           targetSourceId={project.targetSourceId}
