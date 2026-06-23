@@ -692,7 +692,10 @@ export const idcStyles = {
   /** Table chrome — `.db-table` (header 13px/700 #4E5968, NO uppercase; 14/16 cells; #EBEEF2 dividers). */
   table: {
     header: 'bg-[#FAFBFC] text-left text-[13px] font-bold text-[#4E5968]',
-    headerCell: 'px-4 py-3.5',
+    // th carries the typography directly (not only via thead): browser th UA defaults
+    // (bold + center) override thead-inherited font-weight/align, and Tailwind v4 preflight
+    // does not reset th. Keeping it on both is harmless (th wins, identical values).
+    headerCell: 'px-4 py-3.5 text-left text-[13px] font-bold text-[#4E5968]',
     body: 'divide-y divide-[#EBEEF2]',
     row: 'hover:bg-[#F7F8FA] transition-colors',
     cell: 'px-4 py-3.5',
@@ -703,8 +706,9 @@ export const idcStyles = {
     rowExcluded: 'bg-[#F9FAFB]',
     /** Approval-table header — v16 `.approval-table thead th` (12px/600 #8B95A1, bg #F7F8FA; distinct from the db-list-table 13px/700 header). */
     approvalHeader: 'bg-[#F7F8FA] text-left text-[12px] font-semibold text-[#8B95A1]',
-    /** Approval-table header cell padding — v16 12px V / 18px H. */
-    approvalHeaderCell: 'px-[18px] py-3',
+    /** Approval-table header cell — v16 12px V / 18px H padding + th typography
+        (12px/600/#8B95A1/left); typography lives on the th, see the headerCell note. */
+    approvalHeaderCell: 'px-[18px] py-3 text-left text-[12px] font-semibold text-[#8B95A1]',
     /** Approval-table body cell padding — v16 `.approval-table tbody td` 16px V / 18px H. */
     approvalCell: 'px-[18px] py-4',
   },
