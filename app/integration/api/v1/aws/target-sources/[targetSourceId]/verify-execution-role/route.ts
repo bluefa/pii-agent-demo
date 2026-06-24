@@ -4,11 +4,11 @@ import { problemResponse } from '@/app/api/_lib/problem';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { bff } from '@/lib/bff/client';
 
-export const POST = withV1(async (request, { requestId, params }) => {
+// swagger: GET /target-sources/{id}/aws/verify-execution-role → AwsRoleVerificationResponse.
+export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const body = await request.json().catch(() => ({})) as { roleArn?: string };
-  const result = await bff.aws.verifyTfRole(parsed.value, body);
+  const result = await bff.aws.verifyExecutionRole(parsed.value);
   return NextResponse.json(result);
 }, { expectedDuration: '30000ms' });

@@ -7,7 +7,7 @@ import {
   statusColors,
   textColors,
 } from '@/lib/theme';
-import { getGcpInstallationStatus, checkGcpInstallation } from '@/app/lib/api/gcp';
+import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
@@ -36,7 +36,8 @@ export const GcpInstallationInline = ({
     useInstallationStatus<GcpInstallationStatusResponse>({
       targetSourceId,
       getFn: getGcpInstallationStatus,
-      checkFn: checkGcpInstallation,
+      // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
+      checkFn: getGcpInstallationStatus,
       isComplete: (data) => data.summary.allCompleted,
       onComplete: onInstallComplete,
     });

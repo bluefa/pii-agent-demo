@@ -37,39 +37,36 @@ export const mockIdc = {
     return handleResult(idcFns.getIdcInstallationStatus(Number(targetSourceId)));
   },
 
-  checkInstallation: async (targetSourceId: string) => {
-    const auth = authorize(targetSourceId);
-    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
-    return handleResult(idcFns.getIdcInstallationStatus(Number(targetSourceId)));
-  },
-
-  confirmFirewall: async (targetSourceId: string) => {
-    const auth = authorize(targetSourceId);
-    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
-    return handleResult(idcFns.confirmIdcFirewall(Number(targetSourceId)));
-  },
-
-  getResources: async (targetSourceId: string) => {
-    const auth = authorize(targetSourceId);
-    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
-    return handleResult(idcFns.getIdcResources(Number(targetSourceId)));
-  },
-
   getPreviousRequest: async (targetSourceId: string) => {
     const auth = authorize(targetSourceId);
     if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
     return handleResult(idcFns.getIdcPreviousRequest(Number(targetSourceId)));
   },
 
-  updateResources: async (targetSourceId: string, body: unknown) => {
-    const auth = authorize(targetSourceId);
-    if ('error' in auth && auth.error instanceof NextResponse) return auth.error;
-    return handleResult(idcFns.updateIdcResources(Number(targetSourceId), body));
-  },
-
-  getSourceIpRecommendation: async (ipType: string) => {
+  // ADR-019 NLB endpoints (camelCase ON THE WIRE per swagger). Array responses.
+  getOccupiedResources: async (_nlbIndex: string) => {
     const user = mockData.getCurrentUser();
     if (!user) return errorResponse(AUTH_ERRORS.UNAUTHORIZED);
-    return handleResult(idcFns.getIdcSourceIpRecommendation(ipType));
+    return NextResponse.json([
+      {
+        serviceCode: 'svc-a',
+        serviceName: 'Service A',
+        targetSourceId: 1001,
+        isLatest: true,
+        ipSet: ['10.20.30.40', '10.20.30.41'],
+        port: 3306,
+        databaseType: 'MYSQL',
+        databaseName: 'orders',
+      },
+    ]);
+  },
+
+  getNlbTable: async () => {
+    const user = mockData.getCurrentUser();
+    if (!user) return errorResponse(AUTH_ERRORS.UNAUTHORIZED);
+    return NextResponse.json([
+      { nlbIndex: 0, nlbIpList: ['172.16.10.10', '172.16.10.11'], occupiedListenerCount: 3 },
+      { nlbIndex: 1, nlbIpList: ['172.16.10.20'], occupiedListenerCount: 0 },
+    ]);
   },
 };

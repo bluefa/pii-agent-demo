@@ -3,34 +3,45 @@ import {
   triggerTestConnection,
   getTestConnectionLatest,
 } from '@/app/lib/api';
-import type { TestConnectionJob } from '@/app/lib/api';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import type { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
 
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
 
 export interface UseTestConnectionPollingReturn {
-  latestJob: TestConnectionJob | null;
+  latestJob: TestConnectionVersionResult | null;
   uiState: TestConnectionUIState;
   loading: boolean;
   triggerError: string | null;
-  hasHistory: boolean;
   trigger: () => Promise<void>;
 }
 
-const computeUIState = (job: TestConnectionJob | null): TestConnectionUIState => {
+// ADR-019: connection_status gains RUNNING — both PENDING and RUNNING are
+// in-progress (polling continues); SUCCESS/FAIL settle. Exported for direct
+// unit testing of the new enum handling.
+export const isInProgress = (status: TestConnectionVersionResult['connectionStatus']): boolean =>
+  status === 'PENDING' || status === 'RUNNING';
+
+export const computeUIState = (job: TestConnectionVersionResult | null): TestConnectionUIState => {
   if (!job) return 'IDLE';
-  switch (job.status) {
-    case 'PENDING': return 'PENDING';
+  switch (job.connectionStatus) {
+    case 'PENDING':
+    case 'RUNNING':
+      return 'PENDING';
     case 'SUCCESS': return 'SUCCESS';
     case 'FAIL': return 'FAIL';
     default: return 'IDLE';
   }
 };
 
+// Stop polling once there is no job or it has settled (not PENDING/RUNNING).
+export const shouldStopPolling = (job: TestConnectionVersionResult | null): boolean =>
+  !job || !isInProgress(job.connectionStatus);
+
 const fetchLatestTest = async (
   targetSourceId: number,
-): Promise<TestConnectionJob | null> => {
+): Promise<TestConnectionVersionResult | null> => {
   try {
     return await getTestConnectionLatest(targetSourceId);
   } catch {
@@ -52,7 +63,7 @@ export const useTestConnectionPolling = (
   );
 
   const shouldStop = useCallback(
-    (job: TestConnectionJob | null) => !job || job.status !== 'PENDING',
+    (job: TestConnectionVersionResult | null) => shouldStopPolling(job),
     [],
   );
 
@@ -67,7 +78,7 @@ export const useTestConnectionPolling = (
     data: latestJob,
     refresh: baseRefresh,
     start,
-  } = usePollingBase<TestConnectionJob | null>({
+  } = usePollingBase<TestConnectionVersionResult | null>({
     interval,
     fetchOnce,
     shouldStop,
@@ -92,14 +103,12 @@ export const useTestConnectionPolling = (
   }, [targetSourceId, baseRefresh, start]);
 
   const uiState = computeUIState(latestJob);
-  const hasHistory = latestJob !== null;
 
   return {
     latestJob,
     uiState,
     loading,
     triggerError,
-    hasHistory,
     trigger,
   };
 };

@@ -1,20 +1,20 @@
 'use client';
 
-import type { TestConnectionJob } from '@/app/lib/api';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { statusColors, textColors, borderColors, cn } from '@/lib/theme';
-import { TEXT_LINK_CLASS } from './constants';
+import { TEXT_LINK_CLASS } from '@/app/components/features/process-status/connection-test/constants';
 
 interface ResultSummaryProps {
-  job: TestConnectionJob;
+  job: TestConnectionVersionResult;
   isShaking: boolean;
   onShowDetail: () => void;
 }
 
 export const ResultSummary = ({ job, isShaking, onShowDetail }: ResultSummaryProps) => {
-  const successCount = job.resource_results.filter((r) => r.status === 'SUCCESS').length;
-  const failCount = job.resource_results.filter((r) => r.status === 'FAIL').length;
-  const isSuccess = job.status === 'SUCCESS';
-  const dateStr = new Date(job.completed_at ?? job.requested_at ?? '').toLocaleString('ko-KR', {
+  const successCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'SUCCESS').length;
+  const failCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'FAIL').length;
+  const isSuccess = job.connectionStatus === 'SUCCESS';
+  const dateStr = new Date(job.completedAt || job.requestedAt || '').toLocaleString('ko-KR', {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 

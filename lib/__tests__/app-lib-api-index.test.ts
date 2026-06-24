@@ -1,19 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createApprovalRequest,
-  createProject,
+  createTargetSource,
   getApprovalHistory,
   getApprovedIntegration,
   getConfirmResources,
   getConfirmedIntegration,
+  getCreationCandidates,
   getProcessStatus,
   getCurrentUser,
   getProject,
   getProjects,
-  getServices,
   searchUsers,
   updateResourceCredential,
 } from '@/app/lib/api';
+import type { TargetSourceCreationCandidate } from '@/app/lib/api';
 import { ProcessStatus } from '@/lib/types';
 
 describe('app/lib/api/index', () => {
@@ -57,30 +58,6 @@ describe('app/lib/api/index', () => {
     await searchUsers('');
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/users/search');
-  });
-
-  it('getServices는 v1 응답을 ServiceCode[] 형태로 매핑한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          services: [
-            { serviceCode: 'SERVICE-A', serviceName: 'Service Alpha' },
-            { serviceCode: 'SERVICE-B', serviceName: 'Service Beta' },
-          ],
-        }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      ),
-    );
-
-    const services = await getServices();
-
-    expect(services).toEqual([
-      { code: 'SERVICE-A', name: 'Service Alpha' },
-      { code: 'SERVICE-B', name: 'Service Beta' },
-    ]);
   });
 
   it('getCurrentUser는 flat user/me 응답을 그대로 읽는다', async () => {
@@ -278,17 +255,17 @@ describe('app/lib/api/index', () => {
     expect(project).not.toHaveProperty('terraformState');
   });
 
-  it('createApprovalRequest는 legacy input_data를 Issue #222 flat payload로 변환한다', async () => {
+  it('createApprovalRequest는 camel ApprovalRequestSummary 응답을 매핑한다 (요청 본문은 라우트가 정규화)', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
           id: 44,
-          target_source_id: 1001,
+          targetSourceId: 1001,
           status: 'PENDING',
-          requested_by: { user_id: 'alice' },
-          requested_at: '2026-03-29T00:00:00Z',
-          resource_total_count: 2,
-          resource_selected_count: 1,
+          requestedBy: { userId: 'alice' },
+          requestedAt: '2026-03-29T00:00:00Z',
+          resourceTotalCount: 2,
+          resourceSelectedCount: 1,
         }),
         {
           status: 200,
@@ -297,55 +274,21 @@ describe('app/lib/api/index', () => {
       ),
     );
 
-    const result = await createApprovalRequest(1001, {
-      input_data: {
-        resource_inputs: [
-          {
-            resource_id: 'vm-1',
-            selected: true,
-            resource_input: {
-              endpoint_config: {
-                db_type: 'ORACLE',
-                host: '10.0.0.7',
-                port: 1521,
-                oracleServiceId: 'ORCL',
-                selectedNicId: 'nic-1',
-              },
-            },
-          },
-          {
-            resource_id: 'sql-2',
-            selected: false,
-            exclusion_reason: 'skip',
-          },
-        ],
-      },
-    });
+    const input = {
+      resource_inputs: [
+        { resource_id: 'vm-1', selected: true as const },
+        { resource_id: 'sql-2', selected: false as const, exclusion_reason: 'skip' },
+      ],
+    };
+
+    const result = await createApprovalRequest(1001, input);
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/target-sources/1001/approval-requests');
+    // ADR-019: client posts the raw selection input; the route normalizes the
+    // (out-of-contract) request body before forwarding to the BFF.
     expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({
-        resource_inputs: [
-          {
-            resource_id: 'vm-1',
-            selected: true,
-            resource_input: {
-              resource_id: 'vm-1',
-              database_type: 'ORACLE',
-              port: 1521,
-              host: '10.0.0.7',
-              oracle_service_id: 'ORCL',
-              network_interface_id: 'nic-1',
-            },
-          },
-          {
-            resource_id: 'sql-2',
-            selected: false,
-            exclusion_reason: 'skip',
-          },
-        ],
-      }),
+      body: JSON.stringify(input),
     });
     expect(result).toEqual({
       id: '44',
@@ -435,12 +378,12 @@ describe('app/lib/api/index', () => {
             {
               request: {
                 id: 11,
-                target_source_id: 1001,
+                targetSourceId: 1001,
                 status: 'PENDING',
-                requested_by: { user_id: 'alice' },
-                requested_at: '2026-03-29T00:00:00Z',
-                resource_total_count: 3,
-                resource_selected_count: 2,
+                requestedBy: { userId: 'alice' },
+                requestedAt: '2026-03-29T00:00:00Z',
+                resourceTotalCount: 3,
+                resourceSelectedCount: 2,
               },
             },
           ],
@@ -549,41 +492,85 @@ describe('app/lib/api/index', () => {
     ]);
   });
 
-  it('createProject는 Issue #222 cloudProvider enum으로 요청을 직렬화한다', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
-      new Response(JSON.stringify({}), {
+  it('getCreationCandidates는 snake cloud_type/metadata 요청 본문을 직렬화한다 (35, D3)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await getCreationCandidates('SERVICE-A', {
+      cloudProvider: 'AWS',
+      awsAccountId: '123456789012',
+      isChinaRegion: true,
+      isTerraformExecutionGranted: true,
+      dbTypes: ['MYSQL', 'OTHERS'],
+    });
+
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(url).toBe('/integration/api/v1/services/SERVICE-A/creation-candidates');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toEqual({
+      cloud_type: 'aws',
+      is_china_region: true,
+      database_types: ['MYSQL', 'OTHERS'],
+      grant_service_terraform_execution_permission: true,
+      metadata: { aws_account_id: '123456789012' },
+    });
+  });
+
+  it('getCreationCandidates는 GCP project_id 를 metadata 에 매핑한다 (35)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await getCreationCandidates('SERVICE-A', {
+      cloudProvider: 'GCP',
+      gcpProjectId: 'gcp-proj-12345',
+      dbTypes: ['BIGQUERY'],
+    });
+
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
+    expect(body.cloud_type).toBe('gcp');
+    expect(body.is_china_region).toBe(false);
+    expect(body.metadata).toEqual({ project_id: 'gcp-proj-12345' });
+  });
+
+  it('createTargetSource는 선택된 candidate 를 snake 로 재직렬화해 그대로 POST 한다 (36 round-trip)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ targetSourceId: 9001, cloudProvider: 'AWS' }), {
         status: 201,
         headers: { 'content-type': 'application/json' },
       }),
     );
 
-    await createProject({
-      serviceCode: 'SERVICE-A',
-      cloudProvider: 'Azure',
-      tenantId: '11111111-1111-1111-1111-111111111111',
+    const candidate: TargetSourceCreationCandidate = {
+      status: 'ADD',
+      cloudType: 'AWS',
+      isSduType: false,
+      isChinaRegion: true,
+      metadata: { awsAccountId: '123456789012' },
+      grantServiceTerraformExecutionPermission: true,
+    };
+
+    const result = await createTargetSource('SERVICE-A', candidate);
+
+    const [url, init] = fetchSpy.mock.calls[0] ?? [];
+    expect(url).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
+    expect(init?.method).toBe('POST');
+    // Round-trip: camel domain → snake wire (TargetSourceCreationCandidateResponse).
+    expect(JSON.parse(String(init?.body))).toEqual({
+      status: 'ADD',
+      cloud_type: 'AWS',
+      is_sdu_type: false,
+      is_china_region: true,
+      metadata: { aws_account_id: '123456789012' },
+      grant_service_terraform_execution_permission: true,
     });
-
-    await createProject({
-      serviceCode: 'SERVICE-A',
-      cloudProvider: 'GCP',
-      gcpProjectId: 'gcp-proj-12345',
-    });
-
-    const [firstCallUrl, firstCallInit] = fetchSpy.mock.calls[0] ?? [];
-    const [secondCallUrl, secondCallInit] = fetchSpy.mock.calls[1] ?? [];
-
-    expect(firstCallUrl).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
-    expect(firstCallInit?.method).toBe('POST');
-    expect(firstCallInit?.body).toBe(JSON.stringify({
-      cloudProvider: 'AZURE',
-      tenantId: '11111111-1111-1111-1111-111111111111',
-    }));
-
-    expect(secondCallUrl).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
-    expect(secondCallInit?.method).toBe('POST');
-    expect(secondCallInit?.body).toBe(JSON.stringify({
-      cloudProvider: 'GCP',
-      gcpProjectId: 'gcp-proj-12345',
-    }));
+    expect(result.targetSourceId).toBe(9001);
   });
 });

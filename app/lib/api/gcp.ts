@@ -1,30 +1,24 @@
 import type { GcpInstallationStatusResponse, GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
 import { fetchInfraCamelJson } from '@/app/lib/api/infra';
 
-// GCP installation status uses existing endpoint structure
+const BASE_URL = '/gcp/target-sources';
+
+/**
+ * GCP 설치 상태 조회.
+ * Refresh is a re-GET of this endpoint (the old POST check-installation is not
+ * in install-v1.yaml — REMOVED).
+ */
 export const getGcpInstallationStatus = async (
   targetSourceId: number
 ): Promise<GcpInstallationStatusResponse> =>
-  fetchInfraCamelJson<GcpInstallationStatusResponse>(`/gcp/target-sources/${targetSourceId}/installation-status`);
-
-// Other GCP APIs maintain original endpoint structure
-const BASE_URL = '/gcp/target-sources';
-
-export const checkGcpInstallation = async (
-  targetSourceId: number
-): Promise<GcpInstallationStatusResponse> =>
-  fetchInfraCamelJson<GcpInstallationStatusResponse>(`${BASE_URL}/${targetSourceId}/check-installation`, {
-    method: 'POST',
-  });
+  fetchInfraCamelJson<GcpInstallationStatusResponse>(`${BASE_URL}/${targetSourceId}/installation-status`);
 
 export const getGcpScanServiceAccount = async (
   targetSourceId: number
-): Promise<GcpServiceAccountInfo> => {
-  return fetchInfraCamelJson<GcpServiceAccountInfo>(`/gcp/target-sources/${targetSourceId}/scan-service-account`);
-};
+): Promise<GcpServiceAccountInfo> =>
+  fetchInfraCamelJson<GcpServiceAccountInfo>(`${BASE_URL}/${targetSourceId}/scan-service-account`);
 
 export const getGcpTerraformServiceAccount = async (
   targetSourceId: number
-): Promise<GcpServiceAccountInfo> => {
-  return fetchInfraCamelJson<GcpServiceAccountInfo>(`/gcp/target-sources/${targetSourceId}/terraform-service-account`);
-};
+): Promise<GcpServiceAccountInfo> =>
+  fetchInfraCamelJson<GcpServiceAccountInfo>(`${BASE_URL}/${targetSourceId}/terraform-service-account`);

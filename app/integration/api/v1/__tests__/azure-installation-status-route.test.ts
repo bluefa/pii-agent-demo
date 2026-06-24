@@ -4,7 +4,6 @@ vi.mock('@/lib/bff/client', () => ({
   bff: {
     azure: {
       getInstallationStatus: vi.fn(),
-      vmGetInstallationStatus: vi.fn(),
     },
   },
 }));
@@ -13,49 +12,34 @@ import { GET } from '@/app/integration/api/v1/azure/target-sources/[targetSource
 import { bff } from '@/lib/bff/client';
 
 const mockedGetInstallationStatus = vi.mocked(bff.azure.getInstallationStatus);
-const mockedVmGetInstallationStatus = vi.mocked(bff.azure.vmGetInstallationStatus);
 
 describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installation-status', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('Issue #222 계약에 맞게 snake_case Azure 설치 상태를 반환한다 (DB + VM 병합)', async () => {
-    mockedVmGetInstallationStatus.mockResolvedValue({
-      vms: [
-        {
-          vmId: 'vm-001',
-          vmName: 'vm-001',
-          subnetExists: true,
-          loadBalancer: { installed: true, name: 'lb-001' },
-        },
-      ],
-      lastCheckedAt: '2026-03-30T00:00:00Z',
-    });
+  it('maps the swagger AzureInstallationStatusResponse (vm_installation embedded) to the UI domain', async () => {
+    // ADR-019: bff returns the swagger camel domain (vm_installation embedded per
+    // resource); the route maps last_check 5→3 values, private_endpoint.status
+    // (free string) → the UI enum, and reads load_balancer opaquely.
     mockedGetInstallationStatus.mockResolvedValue({
-      provider: 'Azure',
-      installed: false,
-      lastCheckedAt: '2026-03-30T00:00:00Z',
+      lastCheck: { status: 'IN_PROGRESS', checkedAt: '2026-03-30T00:00:00Z' },
       resources: [
         {
           resourceId: 'vm-001',
           resourceName: 'vm-001',
           resourceType: 'AZURE_VM',
-          privateEndpoint: {
-            id: 'pe-vm-001',
-            name: 'pe-vm-001',
-            status: 'APPROVED',
+          privateEndpoint: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'APPROVED' },
+          vmInstallation: {
+            subnetExists: true,
+            loadBalancer: { installed: true, name: 'lb-001' },
           },
         },
         {
           resourceId: 'mysql-001',
           resourceName: 'mysql-001',
           resourceType: 'AZURE_MYSQL',
-          privateEndpoint: {
-            id: 'pe-mysql-001',
-            name: 'pe-mysql-001',
-            status: 'NOT_REQUESTED',
-          },
+          privateEndpoint: { id: 'pe-mysql-001', name: 'pe-mysql-001', status: 'NOT_REQUESTED' },
         },
       ],
     });
@@ -70,7 +54,6 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
       lastCheck: {
         status: 'IN_PROGRESS',
         checkedAt: '2026-03-30T00:00:00Z',
-        failReason: null,
       },
       resources: [
         {
@@ -96,7 +79,6 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
             name: 'pe-mysql-001',
             status: 'NOT_REQUESTED',
           },
-          vmInstallation: null,
         },
       ],
     });

@@ -1,15 +1,22 @@
 /**
  * Real BFF API HTTP client. Used when USE_MOCK_DATA=false.
  *
- * Per ADR-011 README §"Observable Behavior Invariants" I-3, GET responses
- * are camelCased (matches legacy `proxyGet` behavior); POST/PUT/DELETE
- * responses are raw passthrough (matches legacy `proxyPost/Put/Delete`).
- * Resolving the asymmetry is a separate post-migration ADR.
+ * ADR-019 /install/v1 migration. Upstream paths match `docs/swagger/install-v1.yaml`
+ * VERBATIM. Endpoints absent from the swagger were removed (governing rule).
+ *
+ * Casing (ADR-019 D1/D2/D6):
+ *   - `get` runs `camelCaseKeys` (the one boundary for most GETs).
+ *   - `getSnakeRaw` is the greppable opt-out for sanctioned snake passthrough
+ *     (azure scan-app, Issue #222) and for domains whose own route/mapper owns
+ *     the boundary (IDC, logical-DB, test-connection) — casing in one place.
+ *   - `getRaw` returns the raw `Response` for non-JSON downloads (terraform zip).
+ *   - POST/PUT bodies are raw passthrough (I-3); request casing is per-endpoint (D3).
  */
 import type { BffClient } from '@/lib/bff/types';
 import type {
-  CreateTargetSourceResult,
-  RegistrationPreviewResponse,
+  TargetSourceCreationCandidateResponseWire,
+  TargetSourceInfoWire,
+  TargetSourcesByServiceResponseWire,
 } from '@/lib/bff/types/target-sources';
 import type {
   ApprovalRequestCreateBody,
@@ -17,6 +24,13 @@ import type {
   ConfirmedIntegrationResponsePayload,
   ResourceCatalogResponsePayload,
 } from '@/lib/bff/types/confirm';
+import type {
+  TestConnectionCompletionStatusResponseWire,
+  TestConnectionConfirmationResponseWire,
+  TestConnectionLatestResultSummaryResponseWire,
+  TestConnectionTriggerResponseWire,
+  TestConnectionVersionResultWire,
+} from '@/lib/bff/types/test-connection';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
@@ -24,9 +38,6 @@ import { extractConfirmedIntegration } from '@/lib/confirmed-integration-respons
 import { extractResourceCatalog } from '@/lib/resource-catalog-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
 
 async function throwBffError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
@@ -42,6 +53,14 @@ async function get<T>(path: string, opts?: { raw?: boolean }): Promise<T> {
   const data = await res.json();
   return (opts?.raw ? data : camelCaseKeys(data)) as T;
 }
+
+/**
+ * ADR-019 D6 greppable opt-out: returns the upstream JSON as-authored (snake),
+ * bypassing the `camelCaseKeys` boundary. Used where the casing boundary is
+ * owned downstream (route normalizer / IDC mapper) or for sanctioned snake
+ * passthrough (azure scan-app, Issue #222).
+ */
+const getSnakeRaw = <T>(path: string): Promise<T> => get<T>(path, { raw: true });
 
 async function getRaw(path: string): Promise<Response> {
   const fullPath = `${BFF_URL}${toUpstreamInfraApiPath(path)}`;
@@ -70,7 +89,6 @@ async function send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: u
 
 const post = <T>(path: string, body?: unknown) => send<T>('POST', path, body);
 const put = <T>(path: string, body?: unknown) => send<T>('PUT', path, body);
-const del = <T>(path: string) => send<T>('DELETE', path);
 
 const buildQuery = (params: Record<string, string | number | undefined>): string => {
   const search = new URLSearchParams();
@@ -85,38 +103,24 @@ const buildQuery = (params: Record<string, string | number | undefined>): string
 export const httpBff: BffClient = {
   targetSources: {
     get: (id) => get(`/target-sources/${id}`),
-    list: (serviceCode) => get(`/target-sources/services/${serviceCode}`),
-    create: (body) => {
-      if (isRecord(body) && typeof body.serviceCode === 'string') {
-        const { serviceCode, ...rest } = body;
-        return post<CreateTargetSourceResult>(`/target-sources/services/${serviceCode}/target-sources`, rest);
-      }
-      return post<CreateTargetSourceResult>('/target-sources', body);
-    },
-    previewRegistration: (serviceCode, body) =>
-      post<RegistrationPreviewResponse>(
-        `/target-sources/services/${serviceCode}/target-sources/registration-preview`,
+    // 37: wire snake forwarded raw — the route normalizer owns the boundary (D1).
+    list: (serviceCode) =>
+      getSnakeRaw<TargetSourcesByServiceResponseWire>(
+        `/target-sources/services/${serviceCode}`,
+      ),
+    // 36: the selected creation candidate is posted back verbatim → 201 TargetSourceInfo.
+    create: (serviceCode, candidate) =>
+      post<TargetSourceInfoWire>(
+        `/target-sources/services/${serviceCode}/target-sources`,
+        candidate,
+      ),
+    // 35: bare array of creation candidates (request body authored snake, D3).
+    getCreationCandidates: (serviceCode, body) =>
+      post<TargetSourceCreationCandidateResponseWire[]>(
+        `/target-sources/services/${serviceCode}/creation-candidates`,
         body,
       ),
-  },
-
-  projects: {
-    get: (id) => get(`/projects/${id}`),
-    delete: (id) => del(`/projects/${id}`),
-    create: (body) => post('/projects', body),
-    approve: (id, body) => post(`/projects/${id}/approve`, body),
-    reject: (id, body) => post(`/projects/${id}/reject`, body),
-    confirmTargets: (id, body) => post(`/projects/${id}/confirm-targets`, body),
-    completeInstallation: (id) => post(`/projects/${id}/complete-installation`, {}),
-    confirmCompletion: (id) => post(`/projects/${id}/confirm-completion`, {}),
-    credentials: (id) => get(`/target-sources/${id}/secrets`),
-    history: (id, query) => get(`/projects/${id}/history${buildQuery(query)}`),
-    resourceCredential: (id, body) => put(`/target-sources/${id}/resources/credential`, body),
-    resourceExclusions: (id) => get(`/projects/${id}/resources/exclusions`),
-    resources: (id) => get(`/projects/${id}/resources`),
-    scan: (id) => post(`/projects/${id}/scan`, {}),
-    terraformStatus: (id) => get(`/projects/${id}/terraform-status`),
-    testConnection: (id, body) => post(`/projects/${id}/test-connection`, body),
+    getSecrets: (id) => get(`/target-sources/${id}/secrets`),
   },
 
   users: {
@@ -128,7 +132,6 @@ export const httpBff: BffClient = {
       return get(`/users/search${qs ? `?${qs}` : ''}`);
     },
     me: () => get('/user/me'),
-    getServices: () => get('/user/services'),
     getServicesPage: (page, size, query) => {
       const params = new URLSearchParams();
       params.set('page', String(page));
@@ -141,15 +144,6 @@ export const httpBff: BffClient = {
   services: {
     permissions: {
       list: (serviceCode) => get(`/services/${serviceCode}/authorized-users`),
-      add: (serviceCode, body) => post(`/services/${serviceCode}/authorized-users`, body),
-      remove: (serviceCode, userId) => del(`/services/${serviceCode}/authorized-users/${userId}`),
-    },
-    settings: {
-      aws: {
-        get: (serviceCode) => get(`/services/${serviceCode}/settings/aws`),
-        update: (serviceCode, body) => put(`/services/${serviceCode}/settings/aws`, body),
-        verifyScanRole: (serviceCode) => post(`/services/${serviceCode}/settings/aws/verify-scan-role`, {}),
-      },
     },
   },
 
@@ -191,43 +185,61 @@ export const httpBff: BffClient = {
   },
 
   aws: {
-    checkInstallation: (id) => post(`/aws/projects/${id}/check-installation`, {}),
-    setInstallationMode: (id, body) => post(`/aws/projects/${id}/installation-mode`, body),
-    getInstallationStatus: (id) => get(`/aws/projects/${id}/installation-status`),
-    getTerraformScript: (id) => get(`/aws/projects/${id}/terraform-script`),
-    verifyTfRole: (_id, body) => post('/aws/verify-tf-role', body ?? {}),
+    getInstallationStatus: (id) => get(`/target-sources/${id}/aws/installation-status`),
+    // Non-JSON binary (zip) — getRaw returns the raw Response (D6, no camelCaseKeys).
+    getTerraformScript: (id) => getRaw(`/target-sources/${id}/aws/terraform-script/download`),
+    verifyScanRole: (id) => get(`/target-sources/${id}/aws/verify-scan-role`),
+    verifyExecutionRole: (id) => get(`/target-sources/${id}/aws/verify-execution-role`),
   },
 
   azure: {
-    checkInstallation: (id) => post(`/target-sources/${id}/azure/check-installation`, {}),
     getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
     getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
-    // Issue #222: snake_case raw passthrough — bypass camelCaseKeys.
-    getScanApp: (id) => get(`/target-sources/${id}/azure/scan-app`, { raw: true }),
-    vmCheckInstallation: (id) => post(`/target-sources/${id}/azure/vm/check-installation`, {}),
-    vmGetInstallationStatus: (id) => get(`/target-sources/${id}/azure/vm/installation-status`),
-    vmGetTerraformScript: (id) => get(`/target-sources/${id}/azure/vm/terraform-script`),
+    // Issue #222: snake_case raw passthrough — getSnakeRaw is the greppable D6 opt-out.
+    getScanApp: (id) => getSnakeRaw(`/target-sources/${id}/azure/scan-app`),
+    // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix and
+    // that the wire is already camelCase (camelCaseKeys is a no-op, routed through
+    // `get` for uniformity).
+    getPrivateLinkHealthCheck: (id) =>
+      get(`/infra/target-sources/${id}/azure-private-link-health-check`),
   },
 
   gcp: {
-    checkInstallation: (id) => post(`/target-sources/${id}/gcp/check-installation`, {}),
     getInstallationStatus: (id) => get(`/target-sources/${id}/gcp/installation-status`),
     getScanServiceAccount: (id) => get(`/target-sources/${id}/gcp/scan-service-account`),
     getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 
-  // IDC responses are raw snake passthrough — `{ raw: true }` bypasses
-  // camelCaseKeys so `app/lib/api/idc.ts` owns the conversion (§5). Upstream
-  // path lives only here; a path change touches this block alone.
+  // IDC responses are raw snake passthrough — the mapper (app/lib/api/idc.ts)
+  // owns conversion. NLB responses are raw CAMEL passthrough (camel on the wire
+  // per swagger). Upstream paths live only here; a path change touches this block.
   idc: {
-    getInstallationStatus: (id) => get(`/idc/target-sources/${id}/installation-status`, { raw: true }),
-    checkInstallation: (id) => post(`/idc/target-sources/${id}/check-installation`, {}),
-    confirmFirewall: (id) => post(`/idc/target-sources/${id}/confirm-firewall`, {}),
-    getResources: (id) => get(`/idc/target-sources/${id}/resources`, { raw: true }),
-    getPreviousRequest: (id) => get(`/idc/target-sources/${id}/previous-request`, { raw: true }),
-    updateResources: (id, body) => put(`/idc/target-sources/${id}/resources`, body),
-    getSourceIpRecommendation: (ipType) =>
-      get(`/idc/source-ip-recommendation?ipType=${encodeURIComponent(ipType)}`, { raw: true }),
+    getInstallationStatus: (id) =>
+      getSnakeRaw(`/target-sources/${id}/idc/installation-status`),
+    getPreviousRequest: (id) =>
+      getSnakeRaw(`/target-sources/${id}/idc/previous-request`),
+    getOccupiedResources: (nlbIndex) =>
+      getSnakeRaw(`/idc/nlb/${nlbIndex}/resources`),
+    getNlbTable: () => getSnakeRaw(`/idc/nlb/table`),
+  },
+
+  // Logical-DB: the CSR client (app/lib/api/logical-db.ts) owns the single camel
+  // boundary, so these forward raw snake (ADR-019 D1 one-boundary). PUT body is
+  // authored snake by the caller (D3).
+  logicalDb: {
+    getTestedByResourceId: (id, resourceId) =>
+      getSnakeRaw(
+        `/target-sources/${id}/tested-logical-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
+      ),
+    getExcludedByResourceId: (id, resourceId) =>
+      getSnakeRaw(
+        `/target-sources/${id}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
+      ),
+    updateExcludedByResourceId: (id, resourceId, body) =>
+      put(
+        `/target-sources/${id}/excluded-databases/by-resource-id?resourceId=${encodeURIComponent(resourceId)}`,
+        body,
+      ),
   },
 
   confirm: {
@@ -265,23 +277,46 @@ export const httpBff: BffClient = {
     cancelApprovalRequest: (id) =>
       post<unknown>(`/target-sources/${id}/approval-requests/cancel`, {}),
 
-    systemResetApprovalRequest: (id) =>
-      post<unknown>(`/target-sources/${id}/approval-requests/system-reset`, {}),
+    markApprovalRequestUnavailable: (id, body) =>
+      post<unknown>(`/target-sources/${id}/approval-unavailable`, body),
 
-    confirmInstallation: (id) =>
-      post<unknown>(`/target-sources/${id}/pii-agent-installation/confirm`, {}),
+    confirmApprovalUnavailable: (id) =>
+      post<unknown>(`/target-sources/${id}/approval-unavailable/confirm`, {}),
+
+    confirmInstallation: (id, body) =>
+      post<unknown>(`/target-sources/${id}/pii-agent-installation/confirm`, body),
 
     updateResourceCredential: (id, body) =>
       put<unknown>(`/target-sources/${id}/resources/credential`, body),
 
-    testConnection: (id, body) =>
-      post<{ id?: string }>(`/target-sources/${id}/test-connection`, body),
+    // 202 — no request body; optional collectorImageTag query (ADR-019 D6).
+    testConnection: (id, collectorImageTag) =>
+      post<TestConnectionTriggerResponseWire>(
+        `/target-sources/${id}/test-connection/async${buildQuery({ collectorImageTag })}`,
+      ),
 
-    getTestConnectionResults: (id, page, size) =>
-      get<unknown>(`/target-sources/${id}/test-connection/results?page=${page}&size=${size}`),
-
+    // GETs returned raw (wire snake) so the route handler is the sole casing
+    // boundary (ADR-019 D1) — the BffClient contract is the upstream wire shape.
     getTestConnectionLatest: (id) =>
-      get<unknown>(`/target-sources/${id}/test-connection/latest`),
+      getSnakeRaw<TestConnectionVersionResultWire>(
+        `/target-sources/${id}/test-connection/latest_version`,
+      ),
+
+    getLatestTestConnectionResultSummaries: (id) =>
+      getSnakeRaw<TestConnectionLatestResultSummaryResponseWire[]>(
+        `/target-sources/${id}/test-connection/latest-results`,
+      ),
+
+    getTestConnectionCompletionStatus: (id) =>
+      getSnakeRaw<TestConnectionCompletionStatusResponseWire>(
+        `/target-sources/${id}/test-connection/completion-status`,
+      ),
+
+    updateTestConnectionConfirmation: (id, body) =>
+      put<TestConnectionConfirmationResponseWire>(
+        `/target-sources/${id}/test-connection-acknowledgment`,
+        body,
+      ),
   },
 
   guides: {

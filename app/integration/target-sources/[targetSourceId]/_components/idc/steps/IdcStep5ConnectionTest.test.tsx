@@ -27,13 +27,13 @@ vi.mock('@/app/components/ui/toast', () => ({
   useToast: () => ({ info: vi.fn() }),
 }));
 
-// Seed mirrors lib/mock-idc IDC_SEED: row1 carries a credential AND a SUCCESS
-// connection_status; the other rows are credential-less. The card must IGNORE the
-// seeded SUCCESS (step5 is pre-test) and open every row PENDING.
-const getIdcResources = vi.fn(() => Promise.resolve<IdcResourceView[]>([]));
+// Row1 carries a pre-selected credential; the card must open every row PENDING
+// (step5 is pre-test). The read source is the confirmed list
+// (getIdcConfirmedResources), same as the cloud sibling.
+const getIdcConfirmedResources = vi.fn(() => Promise.resolve<IdcResourceView[]>([]));
 vi.mock('@/app/lib/api/idc', async () => {
   const actual = await vi.importActual<typeof import('@/app/lib/api/idc')>('@/app/lib/api/idc');
-  return { ...actual, getIdcResources: () => getIdcResources() };
+  return { ...actual, getIdcConfirmedResources: () => getIdcConfirmedResources() };
 });
 
 import { IdcStep5ConnectionTest } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/steps/IdcStep5ConnectionTest';
@@ -41,26 +41,20 @@ import { IdcStep5ConnectionTest } from '@/app/integration/target-sources/[target
 const seededRows: IdcResourceView[] = [
   toIdcResourceView(
     {
-      resource_id: 'idc-r1',
-      name: '10.20.30.40',
       input_format: 'IP',
       ips: ['10.20.30.40'],
       port: 3306,
       database_type: 'MYSQL',
       credential_id: 'idc_svc_mysql',
-      connection_status: 'SUCCESS',
     },
     0,
   ),
   toIdcResourceView(
     {
-      resource_id: 'idc-r2',
-      name: '10.20.31.10',
       input_format: 'IP',
       ips: ['10.20.31.10'],
       port: 1521,
       database_type: 'ORACLE',
-      connection_status: 'PENDING',
     },
     1,
   ),
@@ -71,6 +65,7 @@ const project: CloudTargetSource = {
   targetSourceId: 1020,
   projectCode: 'IDC-025',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
   createdAt: '2026-01-20T09:00:00Z',
   updatedAt: '2026-01-25T14:00:00Z',
@@ -100,7 +95,7 @@ const renderStep = () =>
 
 describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
   beforeEach(() => {
-    getIdcResources.mockResolvedValue(seededRows);
+    getIdcConfirmedResources.mockResolvedValue(seededRows);
   });
 
   it('opens the credentialed row as Pending, ignoring the seeded SUCCESS', async () => {

@@ -20,18 +20,32 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
+import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
+import { getIdcConfirmedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
 /** 연결 테스트 재실행 — opens the confirm-rewind modal (mirrors cloud siblings). */
-const ConnectionVerifiedRetestButton = () => {
+const ConnectionVerifiedRetestButton = ({
+  targetSourceId,
+  onProjectUpdate,
+}: {
+  targetSourceId: number;
+  onProjectUpdate: IdcStepProps['onProjectUpdate'];
+}) => {
   const toast = useToast();
   const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
 
-  // v16 opens the confirm-rewind modal; the rewind endpoint is not in the contract
-  // yet, so confirming surfaces a placeholder until the BFF wires it.
-  const handleConfirm = () => {
+  // 되돌아가기: roll back the completion acknowledgment (confirmed:false). The mock
+  // clears passedAt → the project returns to Step 5 (WAITING_CONNECTION_TEST); the
+  // refetch then re-renders the rewound step.
+  const handleConfirm = async () => {
     setConfirmKind(null);
-    toast.info('연결 테스트 재실행(5단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.');
+    try {
+      await updateTestConnectionConfirmation(targetSourceId, false);
+      onProjectUpdate(await getProject(targetSourceId));
+    } catch {
+      toast.error('연결 테스트 재실행에 실패했습니다.');
+    }
   };
 
   return (
@@ -68,7 +82,8 @@ export const IdcStep6ConnectionVerified = ({
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.CONNECTION_VERIFIED);
 
-  const { state } = useIdcResources(project.targetSourceId);
+  // Step 6 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
+  const { state } = useIdcResources(project.targetSourceId, getIdcConfirmedResources);
 
   return (
     <>
@@ -103,7 +118,10 @@ export const IdcStep6ConnectionVerified = ({
           {state.status === 'ready' && (
             <IdcResourceTable resources={state.resources} cols={['src', 'credro', 'conn']} />
           )}
-          <ConnectionVerifiedRetestButton />
+          <ConnectionVerifiedRetestButton
+            targetSourceId={project.targetSourceId}
+            onProjectUpdate={onProjectUpdate}
+          />
         </div>
       </section>
       <RejectionAlert project={project} />

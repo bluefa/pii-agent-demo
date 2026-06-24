@@ -172,7 +172,6 @@ const normalizeMetadata = (
 const normalizeResourceCatalogItem = (
   resource: LegacyResourceCatalogItem,
 ): ResourceCatalogItemResponse => {
-  const resourceRecord = resource as Record<string, unknown>;
   const camelMetadata = camelCaseKeys(resource.metadata);
   const metadataRecord = isRecord(camelMetadata)
     ? camelMetadata as Record<string, unknown>
@@ -188,6 +187,17 @@ const normalizeResourceCatalogItem = (
     ?? resource.id
     ?? resourceType;
 
+  // Per swagger TargetSourceResourceItemDto these live under `metadata.*`
+  // (camelized: host/port/oracleServiceId/networkInterfaceId), NOT on the item.
+  const host = metadataRecord ? readString(metadataRecord, 'host') : undefined;
+  const port = metadataRecord ? readNumber(metadataRecord, 'port') : undefined;
+  const oracleServiceId = metadataRecord
+    ? readString(metadataRecord, 'oracleServiceId')
+    : undefined;
+  const networkInterfaceId = metadataRecord
+    ? readString(metadataRecord, 'networkInterfaceId')
+    : undefined;
+
   return {
     id: resourceId,
     resource_id: resourceId,
@@ -201,16 +211,10 @@ const normalizeResourceCatalogItem = (
     integration_category: normalizeIntegrationCategory(
       resource.integration_category ?? resource.integrationCategory,
     ),
-    host: readString(resourceRecord, 'host') ?? null,
-    port: readNumber(resourceRecord, 'port') ?? null,
-    oracle_service_id:
-      resource.oracle_service_id
-      ?? resource.oracleServiceId
-      ?? null,
-    network_interface_id:
-      resource.network_interface_id
-      ?? resource.networkInterfaceId
-      ?? null,
+    host: host ?? null,
+    port: port ?? null,
+    oracle_service_id: oracleServiceId ?? null,
+    network_interface_id: networkInterfaceId ?? null,
     ip_configuration_name:
       resource.ip_configuration_name
       ?? resource.ipConfigurationName

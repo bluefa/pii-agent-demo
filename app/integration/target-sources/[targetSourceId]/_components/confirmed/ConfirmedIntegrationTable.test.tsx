@@ -54,9 +54,17 @@ describe('ConfirmedIntegrationTable', () => {
       expect(screen.getByText('sea-live-space-prod')).toBeTruthy();
     });
 
-    it('renders Connection Status as a "Success" chip', () => {
-      render(<ConfirmedIntegrationTable confirmed={[makeResource()]} />);
-      expect(screen.getByText('Success')).toBeTruthy();
+    it('renders Connection Status as "-" (not fabricated) — no test-connection result on this step', () => {
+      const { container } = render(<ConfirmedIntegrationTable confirmed={[makeResource()]} />);
+      // Connection Status is not in the confirmed-integration contract; no Success/Pending
+      // badge is invented here (that only comes from a Step 5 test-connection fetch).
+      expect(screen.queryByText('Success')).toBeNull();
+      expect(screen.queryByText('Pending')).toBeNull();
+      const dataRow = container.querySelector('tbody tr');
+      if (!(dataRow instanceof HTMLElement)) throw new Error('expected data row');
+      const cellTexts = Array.from(within(dataRow).getAllByRole('cell')).map((c) => c.textContent);
+      // cells: Database Type / Resource ID / Region / Resource Name / DB Credential / Connection Status
+      expect(cellTexts[5]).toBe('-');
     });
 
     it('does not render Status, 연동 대상 논리 DB, 연동 제외 논리 DB columns', () => {

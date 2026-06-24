@@ -1,20 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
-import { AppError } from '@/lib/errors';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
-  getIdcResources,
   idcDbTypeWireFromLabel,
-  updateIdcResources,
   type IdcResourceView,
 } from '@/app/lib/api/idc';
 import { IDC_EXCL_PRESETS } from '@/lib/constants/idc';
 import { bgColors, cardStyles, cn, idcStyles, primaryColors, statusColors, textColors } from '@/lib/theme';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
-import { LoadingState, ErrorState, EmptyState } from '@/app/components/ui/state';
+import { EmptyState } from '@/app/components/ui/state';
 import { DatabaseIcon, ReloadIcon, PlusIcon } from '@/app/components/ui/icons';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -64,9 +61,10 @@ export const IdcStep1TargetInput = ({
   const targetSourceId = project.targetSourceId;
   const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_TARGET_CONFIRMATION);
 
+  // Step 1 starts EMPTY: IDC is manual input, so the working list begins blank and
+  // the user either adds targets directly or loads a prior request on demand via
+  // "기존 연동 요청 정보 불러오기" (IdcLoadRequestModal). No previous-request fetch on mount.
   const [rows, setRows] = useState<IdcStep1Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { page, pageSize, setPage, setPageSize, pageItems: pagedRows } = usePagination(rows, {
     initialPageSize: PAGE_SIZE_OPTIONS[0],
   });
@@ -80,33 +78,6 @@ export const IdcStep1TargetInput = ({
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
   const tmpIdRef = useRef(0);
-  const currentIdRef = useRef(targetSourceId);
-  currentIdRef.current = targetSourceId;
-
-  // Seed the working list from the server (DR3 abort + DR4 reset + DR5 stale-guard).
-  useEffect(() => {
-    const controller = new AbortController();
-    const requestedId = targetSourceId;
-    setLoading(true);
-    setRows([]);
-    setError(null);
-
-    getIdcResources(targetSourceId, { signal: controller.signal })
-      .then((views) => {
-        if (requestedId !== currentIdRef.current) return;
-        setRows(views.map(toRow));
-      })
-      .catch((err: unknown) => {
-        if (err instanceof AppError && err.code === 'ABORTED') return;
-        if (requestedId !== currentIdRef.current) return;
-        setError('연동 대상을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
-      })
-      .finally(() => {
-        if (requestedId === currentIdRef.current) setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [targetSourceId]);
 
   const refreshProject = useCallback(async () => {
     const updated = await getProject(targetSourceId);
@@ -196,12 +167,11 @@ export const IdcStep1TargetInput = ({
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      // Persist the working list, then request approval through the shared flow.
-      // createApprovalRequest routes every submission to WAITING_APPROVAL
-      // (Step 2, 승인 대기) for manual admin approval — same as cloud providers
-      // (auto-approval is disabled in the demo flow).
-      const persisted = await updateIdcResources(targetSourceId, rows);
-      const resourceInputs = persisted.map((r) =>
+      // Step 1 is manual input held in UI state — there is no IDC `/resources`
+      // PUT in the contract; submission rides createApprovalRequest, which routes
+      // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
+      // approval — same as cloud providers (auto-approval is disabled in the demo).
+      const resourceInputs = rows.map((r) =>
         r.excluded
           ? {
               resource_id: r.resourceId,
@@ -254,11 +224,7 @@ export const IdcStep1TargetInput = ({
         </div>
 
         <div className={cardStyles.body}>
-          {loading ? (
-            <LoadingState label="연동 대상을 불러오는 중…" />
-          ) : error ? (
-            <ErrorState message={error} />
-          ) : rows.length === 0 ? (
+          {rows.length === 0 ? (
             <EmptyState
               variant="block"
               icon={<DatabaseIcon className="h-7 w-7" aria-hidden="true" />}

@@ -35,6 +35,7 @@ const awsBaseFixture: CloudTargetSource = {
   targetSourceId: 1008,
   projectCode: 'AWS-001',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   processStatus: ProcessStatus.INSTALLING,
   createdAt: '2026-01-20T09:00:00Z',
   updatedAt: '2026-01-25T14:00:00Z',

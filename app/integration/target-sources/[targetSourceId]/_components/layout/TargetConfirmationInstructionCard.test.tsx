@@ -9,6 +9,7 @@ const baseFixture: Omit<CloudTargetSource, 'cloudProvider'> = {
   targetSourceId: 1001,
   projectCode: 'PROJ-001',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
   createdAt: '2026-01-20T09:00:00Z',
   updatedAt: '2026-01-25T14:00:00Z',

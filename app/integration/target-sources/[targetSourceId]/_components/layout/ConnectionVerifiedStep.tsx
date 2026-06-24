@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import type { CloudTargetSource } from '@/lib/types';
+import { getProject, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
 import { resolveStepSlot } from '@/app/components/features/process-status/GuideCard/resolve-step-slot';
@@ -30,15 +31,32 @@ interface ConnectionVerifiedStepProps {
   onProjectUpdate: (project: CloudTargetSource) => void;
 }
 
-const ConnectionVerifiedRetestButton = () => {
+const ConnectionVerifiedRetestButton = ({
+  targetSourceId,
+  onRolledBack,
+}: {
+  targetSourceId: number;
+  onRolledBack: () => Promise<void>;
+}) => {
   const toast = useToast();
   const [confirmKind, setConfirmKind] = useState<ConfirmRewindKind | null>(null);
+  const [rollingBack, setRollingBack] = useState(false);
 
-  // v16 opens the confirm-rewind modal; the rewind endpoint is not in the contract
-  // yet, so confirming surfaces a placeholder until the BFF wires it.
-  const handleConfirm = () => {
-    setConfirmKind(null);
-    toast.info('연결 테스트 재실행(5단계로 되돌아가기)은 BFF 연동 후 활성화됩니다.');
+  // 되돌아가기 rolls back the completion acknowledgment (confirmed:false), which moves the
+  // process status back to step 5; awaiting onRolledBack (getProject + onProjectUpdate)
+  // ensures the UI transitions to the rewound step before the spinner clears.
+  const handleConfirm = async () => {
+    if (rollingBack) return;
+    setRollingBack(true);
+    try {
+      await updateTestConnectionConfirmation(targetSourceId, false);
+      setConfirmKind(null);
+      await onRolledBack();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '연결 테스트 재실행 요청에 실패했습니다.');
+    } finally {
+      setRollingBack(false);
+    }
   };
 
   return (
@@ -53,7 +71,7 @@ const ConnectionVerifiedRetestButton = () => {
       </button>
       <ConfirmRewindModal
         kind={confirmKind}
-        onClose={() => setConfirmKind(null)}
+        onClose={() => (rollingBack ? undefined : setConfirmKind(null))}
         onConfirm={handleConfirm}
       />
     </div>
@@ -72,6 +90,11 @@ export const ConnectionVerifiedStep = ({
     project.processStatus,
     project.awsInstallationMode,
   );
+
+  const refreshProject = useCallback(async () => {
+    const updated = await getProject(project.targetSourceId);
+    onProjectUpdate(updated);
+  }, [onProjectUpdate, project.targetSourceId]);
 
   return (
     <ConfirmedIntegrationDataProvider targetSourceId={project.targetSourceId}>
@@ -104,7 +127,10 @@ export const ConnectionVerifiedStep = ({
             {' '}승인이 완료되면 모니터링이 즉시 시작됩니다.
           </StepBanner>
           <ConfirmedResourcesSlot bare />
-          <ConnectionVerifiedRetestButton />
+          <ConnectionVerifiedRetestButton
+            targetSourceId={project.targetSourceId}
+            onRolledBack={refreshProject}
+          />
         </div>
       </section>
       <RejectionAlert project={project} />

@@ -1,13 +1,14 @@
 /**
- * Wraps the in-memory `lib/api-client/mock/*` handlers as `BffClient`.
+ * Wraps the in-memory `lib/bff/mock/*` handlers as `BffClient`.
  *
  * Mock business logic (auth, state transitions, validation) is reused
  * verbatim. The adapter only converts NextResponse → typed data, throwing
  * `BffError` on non-2xx so `withV1` can map it to ProblemDetails.
  *
- * Per ADR-011 §"Cross-cutting decisions" #3, mock-only `authorize()`
- * checks are preserved by default — tests asserting 401/403 from mocks
- * continue to pass via the BffError → ProblemDetails path.
+ * ADR-019 /install/v1 migration: dispatch only for swagger-backed methods.
+ * Mocks author the wire (snake) shape; where a domain owns its own boundary
+ * (IDC mapper / logical-DB / test-connection route normalizer) the mock returns
+ * the raw wire and the downstream boundary camelizes (PLAN §2 mock-parity).
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
@@ -17,6 +18,7 @@ import type {
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
+import { camelCaseKeys } from '@/lib/object-case';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
 import { mockUsers } from '@/lib/bff/mock/users';
@@ -29,36 +31,41 @@ import { mockAws } from '@/lib/bff/mock/aws';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
 import { mockIdc } from '@/lib/bff/mock/idc';
+import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockGuides } from '@/lib/bff/mock/guides';
 import type {
-  AwsCheckInstallationResult,
   AwsInstallationStatusResponse,
-  AwsSetInstallationModeResult,
-  AwsTerraformScriptResponse,
-  AwsVerifyTfRoleResult,
+  AwsRoleVerificationResponse,
 } from '@/lib/bff/types/aws';
 import type {
-  AzureCheckInstallationResult,
+  AzureHealthCheckResult,
   AzureInstallationStatusResponse,
   AzureScanAppResponse,
   AzureSubnetGuideResponse,
-  AzureVmCheckInstallationResult,
-  AzureVmInstallationStatusResponse,
-  AzureVmTerraformScriptResponse,
 } from '@/lib/bff/types/azure';
 import type {
-  GcpCheckInstallationResult,
   GcpInstallationStatusResponse,
   GcpScanServiceAccountResponse,
   GcpTerraformServiceAccountResponse,
 } from '@/lib/bff/types/gcp';
 import type {
-  IdcConfirmFirewallResponse,
-  IdcInstallationStatus,
-  IdcResourcesResponse,
-  IdcSourceIpRecommendation,
+  IdcInstallationStatusResponseWire,
+  IdcPreviousRequestResponseWire,
+  NlbOccupiedResourceResponseWire,
+  NlbTableResponseWire,
 } from '@/lib/bff/types/idc';
+import type {
+  SkipLogicalDatabaseResponseWire,
+  TestedLogicalDatabasesResponseWire,
+} from '@/lib/bff/types/logical-db';
+import type {
+  TestConnectionCompletionStatusResponseWire,
+  TestConnectionConfirmationResponseWire,
+  TestConnectionLatestResultSummaryResponseWire,
+  TestConnectionTriggerResponseWire,
+  TestConnectionVersionResultWire,
+} from '@/lib/bff/types/test-connection';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -68,57 +75,43 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
   return await response.json() as T;
 }
 
+/**
+ * Mock parity for camel-boundary methods (PLAN P1): mocks author the swagger
+ * snake wire, so the adapter must `camelCaseKeys` exactly like `httpBff.get`
+ * does for real BFF — otherwise the BffClient would return snake keys under a
+ * camel type (the bug this migration removes). Used only by the cloud
+ * installation-status / role-verify / service-account / health-check methods;
+ * snake-passthrough domains (IDC, logical-DB, test-connection, azure scan-app)
+ * keep raw `unwrap` because their own downstream boundary owns the conversion.
+ */
+async function unwrapCamel<T>(response: NextResponse): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw bffErrorFromBody(response.status, body);
+  }
+  return camelCaseKeys(await response.json()) as T;
+}
+
 export const mockBff: BffClient = {
   targetSources: {
     get: async (id) => unwrap(await mockTargetSources.get(String(id))),
     list: async (serviceCode) => unwrap(await mockTargetSources.list(serviceCode)),
-    create: async (body) => unwrap(await mockTargetSources.create(body)),
-    previewRegistration: async (serviceCode, body) =>
+    create: async (serviceCode, candidate) =>
+      unwrap(await mockTargetSources.create(serviceCode, candidate)),
+    getCreationCandidates: async (serviceCode, body) =>
       unwrap(await mockTargetSources.previewRegistration(serviceCode, body)),
-  },
-
-  projects: {
-    get: async (id) => unwrap(await mockProjects.get(String(id))),
-    delete: async (id) => unwrap(await mockProjects.delete(String(id))),
-    create: async (body) => unwrap(await mockProjects.create(body)),
-    approve: async (id, body) => unwrap(await mockProjects.approve(String(id), body)),
-    reject: async (id, body) => unwrap(await mockProjects.reject(String(id), body)),
-    confirmTargets: async (id, body) => unwrap(await mockProjects.confirmTargets(String(id), body)),
-    completeInstallation: async (id) => unwrap(await mockProjects.completeInstallation(String(id))),
-    confirmCompletion: async (id) => unwrap(await mockProjects.confirmCompletion(String(id))),
-    credentials: async (id) => unwrap(await mockProjects.credentials(String(id))),
-    history: async (id, query) => unwrap(await mockProjects.history(String(id), {
-      type: query.type ?? '',
-      limit: query.limit ?? '',
-      offset: query.offset ?? '',
-    })),
-    resourceCredential: async (id, body) => unwrap(await mockProjects.resourceCredential(String(id), body)),
-    resourceExclusions: async (id) => unwrap(await mockProjects.resourceExclusions(String(id))),
-    resources: async (id) => unwrap(await mockProjects.resources(String(id))),
-    scan: async (id) => unwrap(await mockProjects.scan(String(id))),
-    terraformStatus: async (id) => unwrap(await mockProjects.terraformStatus(String(id))),
-    testConnection: async (id, body) => unwrap(await mockProjects.testConnection(String(id), body)),
+    getSecrets: async (id) => unwrap(await mockProjects.credentials(String(id))),
   },
 
   users: {
     search: async (query, excludeIds) => unwrap(await mockUsers.search(query, excludeIds)),
     me: async () => unwrap(await mockUsers.getMe()),
-    getServices: async () => unwrap(await mockUsers.getServices()),
     getServicesPage: async (page, size, query) => unwrap(await mockUsers.getServicesPage(page, size, query)),
   },
 
   services: {
     permissions: {
       list: async (serviceCode) => unwrap(await mockServices.permissions.list(serviceCode)),
-      add: async (serviceCode, body) => unwrap(await mockServices.permissions.add(serviceCode, body)),
-      remove: async (serviceCode, userId) => unwrap(await mockServices.permissions.remove(serviceCode, userId)),
-    },
-    settings: {
-      aws: {
-        get: async (serviceCode) => unwrap(await mockServices.settings.aws.get(serviceCode)),
-        update: async (serviceCode, body) => unwrap(await mockServices.settings.aws.update(serviceCode, body)),
-        verifyScanRole: async (serviceCode) => unwrap(await mockServices.settings.aws.verifyScanRole(serviceCode)),
-      },
     },
   },
 
@@ -145,61 +138,61 @@ export const mockBff: BffClient = {
   },
 
   aws: {
-    checkInstallation: async (id) =>
-      unwrap<AwsCheckInstallationResult>(await mockAws.checkInstallation(String(id))),
-    setInstallationMode: async (id, body) =>
-      unwrap<AwsSetInstallationModeResult>(await mockAws.setInstallationMode(String(id), body)),
+    // unwrapCamel: mock authors snake wire → camelCaseKeys (matches httpBff.get).
     getInstallationStatus: async (id) =>
-      unwrap<AwsInstallationStatusResponse>(await mockAws.getInstallationStatus(String(id))),
-    getTerraformScript: async (id) =>
-      unwrap<AwsTerraformScriptResponse>(await mockAws.getTerraformScript(String(id))),
-    verifyTfRole: async (id, body) =>
-      unwrap<AwsVerifyTfRoleResult>(await mockAws.verifyTfRole(String(id), body)),
+      unwrapCamel<AwsInstallationStatusResponse>(await mockAws.getInstallationStatus(String(id))),
+    // Binary download — return the raw Response (NextResponse extends Response).
+    getTerraformScript: async (id) => mockAws.getTerraformScript(String(id)),
+    verifyScanRole: async (id) =>
+      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyScanRole(String(id))),
+    verifyExecutionRole: async (id) =>
+      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyExecutionRole(String(id))),
   },
 
   azure: {
-    checkInstallation: async (id) =>
-      unwrap<AzureCheckInstallationResult>(await mockAzure.checkInstallation(String(id))),
     getInstallationStatus: async (id) =>
-      unwrap<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
+      unwrapCamel<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
     getSubnetGuide: async (id) =>
-      unwrap<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
+      unwrapCamel<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
+    // scan-app is sanctioned snake passthrough (Issue #222) — raw unwrap.
     getScanApp: async (id) =>
       unwrap<AzureScanAppResponse>(await mockAzure.getScanApp(String(id))),
-    vmCheckInstallation: async (id) =>
-      unwrap<AzureVmCheckInstallationResult>(await mockAzure.vmCheckInstallation(String(id))),
-    vmGetInstallationStatus: async (id) =>
-      unwrap<AzureVmInstallationStatusResponse>(await mockAzure.vmGetInstallationStatus(String(id))),
-    vmGetTerraformScript: async (id) =>
-      unwrap<AzureVmTerraformScriptResponse>(await mockAzure.vmGetTerraformScript(String(id))),
+    getPrivateLinkHealthCheck: async (id) =>
+      unwrapCamel<AzureHealthCheckResult>(await mockAzure.getPrivateLinkHealthCheck(String(id))),
   },
 
   gcp: {
-    checkInstallation: async (id) =>
-      unwrap<GcpCheckInstallationResult>(await mockGcp.checkInstallation(String(id))),
     getInstallationStatus: async (id) =>
-      unwrap<GcpInstallationStatusResponse>(await mockGcp.getInstallationStatus(String(id))),
+      unwrapCamel<GcpInstallationStatusResponse>(await mockGcp.getInstallationStatus(String(id))),
     getScanServiceAccount: async (id) =>
-      unwrap<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
+      unwrapCamel<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
     getTerraformServiceAccount: async (id) =>
-      unwrap<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
+      unwrapCamel<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
   },
 
   idc: {
     getInstallationStatus: async (id) =>
-      unwrap<IdcInstallationStatus>(await mockIdc.getInstallationStatus(String(id))),
-    checkInstallation: async (id) =>
-      unwrap<IdcInstallationStatus>(await mockIdc.checkInstallation(String(id))),
-    confirmFirewall: async (id) =>
-      unwrap<IdcConfirmFirewallResponse>(await mockIdc.confirmFirewall(String(id))),
-    getResources: async (id) =>
-      unwrap<IdcResourcesResponse>(await mockIdc.getResources(String(id))),
+      unwrap<IdcInstallationStatusResponseWire>(await mockIdc.getInstallationStatus(String(id))),
     getPreviousRequest: async (id) =>
-      unwrap<IdcResourcesResponse>(await mockIdc.getPreviousRequest(String(id))),
-    updateResources: async (id, body) =>
-      unwrap<IdcResourcesResponse>(await mockIdc.updateResources(String(id), body)),
-    getSourceIpRecommendation: async (ipType) =>
-      unwrap<IdcSourceIpRecommendation>(await mockIdc.getSourceIpRecommendation(ipType)),
+      unwrap<IdcPreviousRequestResponseWire>(await mockIdc.getPreviousRequest(String(id))),
+    getOccupiedResources: async (nlbIndex) =>
+      unwrap<NlbOccupiedResourceResponseWire[]>(await mockIdc.getOccupiedResources(String(nlbIndex))),
+    getNlbTable: async () => unwrap<NlbTableResponseWire[]>(await mockIdc.getNlbTable()),
+  },
+
+  logicalDb: {
+    getTestedByResourceId: async (id, resourceId) =>
+      unwrap<TestedLogicalDatabasesResponseWire>(
+        await mockLogicalDb.getTestedByResourceId(String(id), resourceId),
+      ),
+    getExcludedByResourceId: async (id, resourceId) =>
+      unwrap<SkipLogicalDatabaseResponseWire>(
+        await mockLogicalDb.getExcludedByResourceId(String(id), resourceId),
+      ),
+    updateExcludedByResourceId: async (id, resourceId, body) =>
+      unwrap<SkipLogicalDatabaseResponseWire>(
+        await mockLogicalDb.updateExcludedByResourceId(String(id), resourceId, body),
+      ),
   },
 
   confirm: {
@@ -234,8 +227,11 @@ export const mockBff: BffClient = {
     cancelApprovalRequest: async (id) =>
       unwrap<unknown>(await mockConfirm.cancelApprovalRequest(String(id))),
 
-    systemResetApprovalRequest: async (id) =>
-      unwrap<unknown>(await mockConfirm.systemResetApprovalRequest(String(id))),
+    markApprovalRequestUnavailable: async (id, body) =>
+      unwrap<unknown>(await mockConfirm.markApprovalRequestUnavailable(String(id), body)),
+
+    confirmApprovalUnavailable: async (id) =>
+      unwrap<unknown>(await mockConfirm.confirmApprovalUnavailable(String(id))),
 
     confirmInstallation: async (id) =>
       unwrap<unknown>(await mockConfirm.confirmInstallation(String(id))),
@@ -243,14 +239,30 @@ export const mockBff: BffClient = {
     updateResourceCredential: async (id, body) =>
       unwrap<unknown>(await mockConfirm.updateResourceCredential(String(id), body)),
 
-    testConnection: async (id, body) =>
-      unwrap<{ id?: string }>(await mockConfirm.testConnection(String(id), body)),
-
-    getTestConnectionResults: async (id, page, size) =>
-      unwrap<unknown>(await mockConfirm.getTestConnectionResults(String(id), page, size)),
+    testConnection: async (id, collectorImageTag) =>
+      unwrap<TestConnectionTriggerResponseWire>(
+        await mockConfirm.testConnection(String(id), collectorImageTag),
+      ),
 
     getTestConnectionLatest: async (id) =>
-      unwrap<unknown>(await mockConfirm.getTestConnectionLatest(String(id))),
+      unwrap<TestConnectionVersionResultWire>(
+        await mockConfirm.getTestConnectionLatest(String(id)),
+      ),
+
+    getLatestTestConnectionResultSummaries: async (id) =>
+      unwrap<TestConnectionLatestResultSummaryResponseWire[]>(
+        await mockConfirm.getLatestTestConnectionResultSummaries(String(id)),
+      ),
+
+    getTestConnectionCompletionStatus: async (id) =>
+      unwrap<TestConnectionCompletionStatusResponseWire>(
+        await mockConfirm.getTestConnectionCompletionStatus(String(id)),
+      ),
+
+    updateTestConnectionConfirmation: async (id, body) =>
+      unwrap<TestConnectionConfirmationResponseWire>(
+        await mockConfirm.updateTestConnectionConfirmation(String(id), body),
+      ),
   },
 
   guides: {

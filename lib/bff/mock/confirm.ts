@@ -8,6 +8,10 @@ import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
+import {
+  extractResourceCatalog,
+  type ResourceCatalogResponsePayload,
+} from '@/lib/resource-catalog-response';
 import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
 import type {
   MockResource,
@@ -16,14 +20,11 @@ import type {
   ConnectionStatus,
   ConnectionTestResult,
   ConnectionTestHistory,
-  DatabaseType,
-  IntegrationCategory,
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
   BffConfirmedIntegration,
   BffExcludedResourceInfo,
-  ConfirmResourceMetadata,
   EndpointConfigInputData,
   ResourceIntegrationStatus,
   ResourceScanStatus,
@@ -77,22 +78,6 @@ export const _setApprovedIntegration = (targetSourceId: string) => {
 interface ResourceCredentialInput {
   resourceId: string;
   credentialId?: string;
-}
-
-interface ResourceCatalogItem {
-  id: string;
-  resource_id: string;
-  name: string;
-  resource_type: string;
-  database_type: DatabaseType;
-  integration_category: IntegrationCategory;
-  host: string | null;
-  port: number | null;
-  oracle_service_id: string | null;
-  network_interface_id: string | null;
-  ip_configuration_name: string | null;
-  scan_status: ResourceScanStatus | null;
-  metadata: ConfirmResourceMetadata;
 }
 
 // --- Helpers ---
@@ -179,28 +164,75 @@ const demoResourceName = (provider: Project['cloudProvider'], resource: MockReso
 const demoCredential = (resource: MockResource): string =>
   resource.selectedCredentialId ?? (stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
 
-function buildMetadata(resource: MockResource, project: Project): ConfirmResourceMetadata {
+// Default DB port by database type (demo). Confirmed-integration must surface a
+// non-null host/port; cloud seeds carry neither on the resource (only VM configs
+// do), so derive deterministic demo values when absent.
+const DEMO_PORT_BY_DB: Record<string, number> = {
+  MYSQL: 3306,
+  MARIADB: 3306,
+  POSTGRESQL: 5432,
+  ORACLE: 1521,
+  MSSQL: 1433,
+  MONGODB: 27017,
+  REDIS: 6379,
+  COSMOSDB: 443,
+  DYNAMODB: 443,
+  REDSHIFT: 5439,
+  BIGQUERY: 443,
+  ATHENA: 443,
+};
+
+const demoPort = (resource: MockResource): number => {
+  const db = resource.vmDatabaseConfig?.databaseType ?? resource.databaseType ?? '';
+  return DEMO_PORT_BY_DB[db] ?? 3306;
+};
+
+// Demo host: resource_name as an FQDN under a provider-ish suffix (deterministic).
+const demoHost = (provider: Project['cloudProvider'], resource: MockResource): string => {
+  const name = demoResourceName(provider, resource).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+  const suffix =
+    provider === 'AWS' ? 'rds.amazonaws.com'
+      : provider === 'Azure' ? 'database.azure.com'
+        : provider === 'GCP' ? 'cloudsql.gcp.internal'
+          : 'db.internal';
+  return `${name}.${suffix}`;
+};
+
+// Swagger TargetSourceResourceMetadataDto (snake wire). host/port/
+// oracle_service_id/network_interface_id live HERE, not on the item — the real
+// BFF authors them under metadata, so the mock must too (else extractResourceCatalog
+// reading metadata.* would silently see nothing against the real wire).
+function buildMetadata(resource: MockResource, project: Project): Record<string, unknown> {
   const region = demoRegion(project.cloudProvider, resource);
+  const vm = resource.vmDatabaseConfig;
+  const vmFields = {
+    ...(vm?.host !== undefined ? { host: vm.host } : {}),
+    ...(vm?.port !== undefined ? { port: vm.port } : {}),
+    ...(vm?.oracleServiceId ? { oracle_service_id: vm.oracleServiceId } : {}),
+    ...(vm?.selectedNicId ? { network_interface_id: vm.selectedNicId } : {}),
+  };
 
   switch (project.cloudProvider) {
     case 'AWS':
       return {
         provider: 'AWS',
-        resourceType: resource.awsType ?? resource.type,
+        resource_type: resource.awsType ?? resource.type,
         region,
-        ...(resource.vpcId && { vpcId: resource.vpcId }),
+        ...(resource.vpcId && { vpc_id: resource.vpcId }),
+        ...vmFields,
       };
     case 'Azure':
-      return { provider: 'Azure', resourceType: resource.type, region };
+      return { provider: 'AZURE', resource_type: resource.type, region, ...vmFields };
     case 'GCP':
       return {
         provider: 'GCP',
-        resourceType: resource.type,
+        resource_type: resource.type,
         region,
-        projectId: project.gcpProjectId ?? '',
+        project_id: project.gcpProjectId ?? '',
+        ...vmFields,
       };
     default:
-      return { provider: project.cloudProvider, resourceType: resource.type, region };
+      return { provider: project.cloudProvider, resource_type: resource.type, region, ...vmFields };
   }
 }
 
@@ -216,19 +248,20 @@ const deriveCandidateScanStatus = (resource: MockResource): ResourceScanStatus =
   return stableIndex(resource.resourceId, 3) === 0 ? 'UNCHANGED' : 'NEW_SCAN';
 };
 
-function toResourceCatalogItem(resource: MockResource, project: Project): ResourceCatalogItem {
+// Swagger TargetSourceResourceItemDto (snake wire). The item carries no
+// host/port/oracle_service_id/network_interface_id — those are on metadata.* —
+// so `getResources` routes this through `extractResourceCatalog`, the same
+// normalizer httpBff uses, to land the domain shape.
+function toResourceCatalogItem(
+  resource: MockResource,
+  project: Project,
+): ResourceCatalogResponsePayload['resources'][number] {
   return {
-    id: resource.resourceId,
     resource_id: resource.resourceId,
     name: demoResourceName(project.cloudProvider, resource),
     resource_type: resource.type,
     database_type: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
     integration_category: resource.integrationCategory,
-    host: resource.vmDatabaseConfig?.host ?? null,
-    port: resource.vmDatabaseConfig?.port ?? null,
-    oracle_service_id: resource.vmDatabaseConfig?.oracleServiceId ?? null,
-    network_interface_id: resource.vmDatabaseConfig?.selectedNicId ?? null,
-    ip_configuration_name: null,
     scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
   };
@@ -264,6 +297,7 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
       }),
     };
   }
+  const idc = r.idcConfig;
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
@@ -273,6 +307,11 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_name: demoResourceName(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),
     integration_status: deriveIntegrationStatus(r),
+    // Emit IDC fields only when present (IDC resources only).
+    ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+    ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+    ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+    ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
   };
 }
 
@@ -289,18 +328,29 @@ function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedR
 }
 
 function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): BffConfirmedIntegration['resource_infos'][number] {
+  const idc = r.idcConfig;
+  // host/port: VM config if present, else IDC endpoint (domain or first ip), else a
+  // deterministic demo value so confirmed-integration never surfaces null host/port.
+  const idcHost = idc ? (idc.inputFormat === 'HOST' ? idc.domain : idc.ips[0]) : undefined;
+  const host = r.vmDatabaseConfig?.host ?? idcHost ?? demoHost(project.cloudProvider, r);
+  const port = r.vmDatabaseConfig?.port ?? demoPort(r);
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
     database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
     database_region: demoRegion(project.cloudProvider, r),
     resource_name: demoResourceName(project.cloudProvider, r),
-    port: r.vmDatabaseConfig?.port ?? null,
-    host: r.vmDatabaseConfig?.host ?? null,
-    oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? null,
+    port,
+    host,
+    oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration_name: null,
     credential_id: demoCredential(r),
+    // Emit IDC fields only when present (IDC resources only).
+    ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+    ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+    ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+    ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
   };
 }
 
@@ -367,7 +417,9 @@ export const mockConfirm = {
 
     const resources = project.resources.map((resource) => toResourceCatalogItem(resource, project));
 
-    return NextResponse.json({ resources, total_count: resources.length });
+    // Author the swagger wire (snake, metadata.* host/port/…) then run the same
+    // normalizer httpBff uses so the mock exercises the real boundary.
+    return NextResponse.json(extractResourceCatalog({ resources, total_count: resources.length }));
   },
 
   createApprovalRequest: async (targetSourceId: string, body: unknown) => {
@@ -620,17 +672,18 @@ export const mockConfirm = {
       updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', '시스템(자동승인)');
     }
 
+    // ADR-019: swagger ApprovalRequestSummaryDto (snake wire); 200, not 201.
     return NextResponse.json(
       {
-        success: true,
-        approval_request: {
-          id: requestId,
-          requested_at: now,
-          requested_by: user.name,
-          input_data: inputDataSnapshot,
-        },
+        id: project.targetSourceId,
+        target_source_id: project.targetSourceId,
+        status: autoApprovalResult.shouldAutoApprove ? 'AUTO_APPROVED' : 'PENDING',
+        requested_by: { user_id: user.name },
+        requested_at: now,
+        resource_total_count: selectedCount + excludedCount,
+        resource_selected_count: selectedCount,
       },
-      { status: 201 },
+      { status: 200 },
     );
   },
 
@@ -672,13 +725,15 @@ export const mockConfirm = {
       }
     }
 
-    // 4. 최종 폴백: project.resources 의 selected 리소스 (connection-test 통과 후만)
-    const requiresConnection =
-      project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-      project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
-    const eligibleResources = project.resources.filter(
-      (r) => r.isSelected && (!requiresConnection || r.connectionStatus === 'CONNECTED'),
-    );
+    // 4. 최종 폴백: project.resources 의 selected 리소스.
+    // The confirmed integration is the selected resource set. Earlier this filtered
+    // step-6/7 to per-resource connectionStatus==='CONNECTED', but the live
+    // test-connection sim advances processStatus to CONNECTION_VERIFIED via
+    // status.connectionTest WITHOUT flipping per-resource connectionStatus — so that
+    // guard yielded 0 rows (→ 404) for any project that reached step 6/7 dynamically
+    // (and after a later FAILED retest). Reaching step 6/7 already means the
+    // integration was confirmed, so selection is the only filter here.
+    const eligibleResources = project.resources.filter((r) => r.isSelected);
     if (eligibleResources.length === 0) {
       return NextResponse.json(createEmptyConfirmedIntegration());
     }
@@ -804,97 +859,119 @@ export const mockConfirm = {
       };
     });
 
-    const toRequestEntry = (historyItem: typeof allHistory[number]) => {
-      const inputData = historyItem.details.inputData ?? { resource_inputs: buildCurrentResourceInputs() };
+    // ADR-019: swagger Page.content items are { request: ApprovalRequestSummaryDto,
+    // result?: ApprovalActionResponseDto } (snake wire). `input_data` is no longer
+    // carried by the contract; counts derive from the stored snapshot/current state.
+    type ApprovalSummaryWire = {
+      id: number;
+      target_source_id: number;
+      status: string;
+      requested_by: { user_id: string };
+      requested_at: string;
+      resource_total_count: number;
+      resource_selected_count: number;
+    };
+    type ApprovalActionWire = {
+      request_id: number;
+      status: string;
+      processed_by: { user_id: string };
+      processed_at: string;
+      reason?: string | null;
+    };
 
+    const countsFor = (historyItem: typeof allHistory[number]) => {
+      const inputs = Array.isArray(historyItem.details.inputData?.resource_inputs)
+        ? historyItem.details.inputData.resource_inputs
+        : buildCurrentResourceInputs();
+      const selected = inputs.filter((ri) => ri.selected === true).length;
+      return { total: inputs.length, selected };
+    };
+
+    const numericId = (rawId: string): number =>
+      parseInt(String(rawId).replace(/\D/g, '') || '0', 10) || project.targetSourceId;
+
+    const toRequestEntry = (historyItem: typeof allHistory[number]): ApprovalSummaryWire => {
+      const counts = countsFor(historyItem);
       return {
-        id: historyItem.id,
+        id: numericId(historyItem.id),
+        target_source_id: project.targetSourceId,
+        status: 'PENDING',
+        requested_by: { user_id: historyItem.actor.name },
         requested_at: historyItem.timestamp,
-        requested_by: historyItem.actor.name,
-        input_data: inputData,
+        resource_total_count: counts.total,
+        resource_selected_count: counts.selected,
       };
     };
 
-    const toResultEntry = (historyItem: typeof allHistory[number]) => {
-      if (historyItem.type === 'APPROVAL') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'APPROVED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: historyItem.actor.id, reason: null },
-        };
-      }
-      if (historyItem.type === 'AUTO_APPROVED') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'AUTO_APPROVED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: null, reason: null },
-        };
-      }
+    const toResultEntry = (
+      historyItem: typeof allHistory[number],
+    ): ApprovalActionWire | undefined => {
+      const base = {
+        request_id: numericId(historyItem.id),
+        processed_by: { user_id: historyItem.actor.name },
+        processed_at: historyItem.timestamp,
+      };
+      if (historyItem.type === 'APPROVAL') return { ...base, status: 'APPROVED' };
+      if (historyItem.type === 'AUTO_APPROVED') return { ...base, status: 'AUTO_APPROVED' };
       if (historyItem.type === 'REJECTION') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'REJECTED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: historyItem.actor.id, reason: historyItem.details.reason ?? null },
-        };
+        return { ...base, status: 'REJECTED', reason: historyItem.details.reason ?? null };
       }
-      if (historyItem.type === 'APPROVAL_CANCELLED') {
-        return {
-          id: `result-${historyItem.id}`,
-          request_id: historyItem.id,
-          result: 'CANCELLED' as const,
-          processed_at: historyItem.timestamp,
-          process_info: { user_id: historyItem.actor.id, reason: null },
-        };
-      }
-
+      if (historyItem.type === 'APPROVAL_CANCELLED') return { ...base, status: 'CANCELLED' };
       return undefined;
     };
 
+    const emptyPage = (content: Array<{ request: ApprovalSummaryWire; result?: ApprovalActionWire }>, total: number) => ({
+      totalPages: Math.ceil(total / size) || 1,
+      totalElements: total,
+      pageable: { paged: true, pageNumber: page, pageSize: size, unpaged: false, offset: page * size, sort: [] },
+      first: page === 0,
+      last: page >= Math.max((Math.ceil(total / size) || 1) - 1, 0),
+      size,
+      content,
+      number: page,
+      sort: [],
+      numberOfElements: content.length,
+      empty: content.length === 0,
+    });
+
     // If WAITING_APPROVAL but no approval history yet, synthesize a PENDING request entry
     if (allHistory.length === 0 && project.processStatus === ProcessStatus.WAITING_APPROVAL) {
-      const pendingRequest = {
-        id: `req-pending-${project.id}`,
+      const selected = project.resources.filter((r) => r.isSelected).length;
+      const pendingRequest: ApprovalSummaryWire = {
+        id: project.targetSourceId,
+        target_source_id: project.targetSourceId,
+        status: 'PENDING',
+        requested_by: { user_id: user.name },
         requested_at: project.updatedAt,
-        requested_by: user.name,
-        input_data: { resource_inputs: buildCurrentResourceInputs() },
+        resource_total_count: project.resources.length,
+        resource_selected_count: selected,
       };
-      return NextResponse.json({
-        content: [{ request: pendingRequest }],
-        page: { totalElements: 1, totalPages: 1, number: page, size },
-      });
+      return NextResponse.json(emptyPage([{ request: pendingRequest }], 1));
     }
 
     const groupedContent = [...allHistory]
       .sort((left, right) => new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime())
-      .reduce<Array<{
-        request: ReturnType<typeof toRequestEntry>;
-        result?: ReturnType<typeof toResultEntry>;
-      }>>((acc, historyItem) => {
-        const result = toResultEntry(historyItem);
+      .reduce<Array<{ request: ApprovalSummaryWire; result?: ApprovalActionWire }>>(
+        (acc, historyItem) => {
+          const result = toResultEntry(historyItem);
 
-        if (!result) {
-          acc.push({ request: toRequestEntry(historyItem) });
+          if (!result) {
+            acc.push({ request: toRequestEntry(historyItem) });
+            return acc;
+          }
+
+          const openRequest = [...acc].reverse().find((entry) => !entry.result);
+          if (openRequest) {
+            openRequest.result = result;
+            openRequest.request.status = result.status;
+            return acc;
+          }
+
+          acc.push({ request: { ...toRequestEntry(historyItem), status: result.status }, result });
           return acc;
-        }
-
-        const openRequest = [...acc].reverse().find((entry) => !entry.result);
-        if (openRequest) {
-          openRequest.result = result;
-          return acc;
-        }
-
-        acc.push({
-          request: toRequestEntry(historyItem),
-          result,
-        });
-        return acc;
-      }, []);
+        },
+        [],
+      );
 
     const total = groupedContent.length;
     const content = groupedContent
@@ -902,15 +979,7 @@ export const mockConfirm = {
       .reverse()
       .slice(page * size, page * size + size);
 
-    return NextResponse.json({
-      content,
-      page: {
-        totalElements: total,
-        totalPages: Math.ceil(total / size) || 1,
-        number: page,
-        size,
-      },
-    });
+    return NextResponse.json(emptyPage(content, total));
   },
 
   getApprovalRequestLatest: async (targetSourceId: string) => {
@@ -976,6 +1045,29 @@ export const mockConfirm = {
     const requestId = latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0;
     const processedAt = latestRequest?.timestamp ?? new Date().toISOString();
 
+    // swagger ApprovalRequestLatestDto.resources: TargetSourceResourceItemDto[] —
+    // carry idc_* fields under metadata so the IDC mapper (toIdcResourceViewFromItem)
+    // can surface Source IPs in the Step-2 table.
+    const resources = project.resources.map((r) => {
+      const idc = r.idcConfig;
+      const metadata: Record<string, unknown> = {
+        provider: project.cloudProvider,
+        ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+        ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+        ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+        ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
+      };
+      return {
+        resource_id: r.resourceId,
+        resource_type: r.type,
+        database_type: r.databaseType,
+        selected: r.isSelected,
+        integration_category: r.integrationCategory,
+        ...(r.exclusion?.reason ? { exclusion_reason: r.exclusion.reason } : {}),
+        metadata,
+      };
+    });
+
     return NextResponse.json({
       request: {
         id: requestId,
@@ -986,6 +1078,7 @@ export const mockConfirm = {
         resource_total_count: totalCount,
         resource_selected_count: selectedCount,
       },
+      resources,
       result: {
         request_id: latestRequest ? requestId : null,
         status: bffStatus,
@@ -1060,6 +1153,8 @@ export const mockConfirm = {
         return NextResponse.json({
           target_source_id: updated.targetSourceId,
           process_status: computeProcessStatus(updated),
+          // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
+          healthy: 'HEALTHY',
           status_inputs: {
             has_confirmed_integration: updated.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(updated.id),
             has_pending_approval_request: updated.processStatus === ProcessStatus.WAITING_APPROVAL,
@@ -1074,6 +1169,8 @@ export const mockConfirm = {
       return NextResponse.json({
         target_source_id: project.targetSourceId,
         process_status: computeProcessStatus(project),
+        // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
+        healthy: 'HEALTHY',
         status_inputs: {
           has_confirmed_integration: false,
           has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
@@ -1088,6 +1185,8 @@ export const mockConfirm = {
     return NextResponse.json({
       target_source_id: project.targetSourceId,
       process_status: computeProcessStatus(project),
+      // ADR-019 E2/D-1: swagger ProcessStatusResponseDto carries `healthy`.
+      healthy: 'HEALTHY',
       status_inputs: {
         has_confirmed_integration: project.status.installation.status === 'COMPLETED' && !approvedIntegrationStore.has(project.id),
         has_pending_approval_request: project.processStatus === ProcessStatus.WAITING_APPROVAL,
@@ -1177,9 +1276,11 @@ export const mockConfirm = {
     // Queue Board 연동: 승인 → IN_PROGRESS
     updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', user.name);
 
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
-      success: true,
-      result: 'APPROVED',
+      request_id: project.targetSourceId,
+      status: 'APPROVED',
+      processed_by: { user_id: user.name },
       processed_at: now,
     });
   },
@@ -1239,9 +1340,11 @@ export const mockConfirm = {
     // Queue Board 연동: 반려 → REJECTED
     updateQueueItemStatus(project.targetSourceId, 'REJECTED', user.name, reason);
 
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
-      success: true,
-      result: 'REJECTED',
+      request_id: project.targetSourceId,
+      status: 'REJECTED',
+      processed_by: { user_id: user.name },
       processed_at: now,
       reason,
     });
@@ -1335,14 +1438,67 @@ export const mockConfirm = {
 
     mockHistory.addApprovalCancelledHistory(Number(targetSourceId), { id: user.id, name: user.name });
 
+    // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
-      success: true,
-      result: 'CANCELLED',
+      request_id: project.targetSourceId,
+      status: 'CANCELLED',
+      processed_by: { user_id: user.name },
       processed_at: now,
     });
   },
 
-  systemResetApprovalRequest: async (targetSourceId: string) => {
+  // ADR-019 #7: 연동 불가 판정 → ApprovalUnavailableResponseDto (snake wire).
+  markApprovalRequestUnavailable: async (targetSourceId: string, body: unknown) => {
+    const user = mockData.getCurrentUser();
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: '관리자만 연동 불가 처리할 수 있습니다.' },
+        { status: 403 },
+      );
+    }
+
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: 'NOT_FOUND', message: '과제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
+    }
+
+    const { reason } = (body ?? {}) as { reason?: string };
+    if (!reason || !reason.trim()) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_FAILED', message: '연동 불가 사유를 입력해주세요.' } },
+        { status: 400 },
+      );
+    }
+
+    const now = new Date().toISOString();
+    const updatedStatus: ProjectStatus = {
+      ...project.status,
+      approval: { status: 'UNAVAILABLE', rejectedAt: now, rejectionReason: reason },
+    };
+
+    mockData.updateProject(project.id, {
+      processStatus: getCurrentStep(updatedStatus),
+      status: updatedStatus,
+      isRejected: true,
+      rejectionReason: reason,
+      rejectedAt: now,
+    });
+
+    return NextResponse.json({
+      request_id: project.targetSourceId,
+      status: 'UNAVAILABLE',
+      processed_by: { user_id: user.name },
+      processed_at: now,
+      reason,
+    });
+  },
+
+  // ADR-019 #8: 연동 불가 담당자 확인 → ApprovalUnavailableConfirmResponseDto (snake).
+  // Resets the target source to its initial state (mirrors the system-reset reset).
+  confirmApprovalUnavailable: async (targetSourceId: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -1359,56 +1515,34 @@ export const mockConfirm = {
       );
     }
 
-    if (user.role !== 'ADMIN' && !user.serviceCodePermissions.includes(project.serviceCode)) {
+    if (project.status.approval.status !== 'UNAVAILABLE') {
       return NextResponse.json(
-        { error: 'FORBIDDEN', message: '해당 과제에 대한 권한이 없습니다.' },
-        { status: 403 },
-      );
-    }
-
-    const approvalStatus = project.status.approval.status;
-    if (!project.isRejected && approvalStatus !== 'UNAVAILABLE') {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'APPROVAL_REQUEST_NOT_RESETTABLE',
-            message: 'REJECTED 또는 UNAVAILABLE 상태에서만 system-reset 호출 가능합니다.',
-          },
-        },
+        { error: { code: 'VALIDATION_FAILED', message: '연동 불가 상태가 아닙니다.' } },
         { status: 409 },
       );
     }
 
     const now = new Date().toISOString();
-
     const updatedStatus: ProjectStatus = {
       ...project.status,
       targets: { confirmed: false, selectedCount: 0, excludedCount: 0 },
       approval: { status: 'CANCELLED' },
     };
 
-    const updatedResources = project.resources.map((r) => ({
-      ...r,
-      isSelected: false,
-      exclusion: undefined,
-    }));
-
     mockData.updateProject(project.id, {
       processStatus: getCurrentStep(updatedStatus),
       status: updatedStatus,
-      resources: updatedResources,
+      resources: project.resources.map((r) => ({ ...r, isSelected: false, exclusion: undefined })),
       isRejected: false,
       rejectionReason: undefined,
       rejectedAt: undefined,
     });
 
-    mockHistory.addApprovalCancelledHistory(Number(targetSourceId), { id: user.id, name: user.name });
-
     return NextResponse.json({
-      success: true,
-      result: 'CANCELLED',
+      target_source_id: project.targetSourceId,
+      confirm_status: 'IDLE',
       processed_at: now,
-      reason: 'system-reset',
+      confirmed_by: user.name,
     });
   },
 
@@ -1548,7 +1682,7 @@ export const mockConfirm = {
     return NextResponse.json({ success: true });
   },
 
-  testConnection: async (targetSourceId: string, _body: unknown) => {
+  testConnection: async (targetSourceId: string, _collectorImageTag?: string) => {
     const user = mockData.getCurrentUser();
     if (!user) {
       return NextResponse.json(
@@ -1590,12 +1724,12 @@ export const mockConfirm = {
       );
     }
 
-    const job = tcFns.createTestConnectionJob(project, numericTargetSourceId, user.id);
+    tcFns.createTestConnectionJob(project, numericTargetSourceId, user.id);
 
-    return NextResponse.json({ id: job.id }, { status: 202 });
+    return NextResponse.json({ success: true }, { status: 202 });
   },
 
-  getTestConnectionResults: async (targetSourceId: string, page: number, size: number) => {
+  getLatestTestConnectionResultSummaries: async (targetSourceId: string) => {
     const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
     if (!project) {
       return NextResponse.json(
@@ -1604,13 +1738,7 @@ export const mockConfirm = {
       );
     }
 
-    const { content, total } = tcFns.getJobHistory(Number(targetSourceId), page, size);
-    const totalPages = Math.ceil(total / size);
-
-    return NextResponse.json({
-      content: content.map(tcFns.toJobResponse),
-      page: { totalElements: total, totalPages, number: page, size },
-    });
+    return NextResponse.json(tcFns.toLatestResultSummaries(Number(targetSourceId)));
   },
 
   getTestConnectionLatest: async (targetSourceId: string) => {
@@ -1630,7 +1758,34 @@ export const mockConfirm = {
       );
     }
 
-    return NextResponse.json(tcFns.toJobResponse(job));
+    return NextResponse.json(tcFns.toVersionResultResponse(job));
+  },
+
+  getTestConnectionCompletionStatus: async (targetSourceId: string) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(tcFns.getCompletionStatus(Number(targetSourceId)));
+  },
+
+  updateTestConnectionConfirmation: async (
+    targetSourceId: string,
+    body: { confirmed: boolean },
+  ) => {
+    const project = mockData.getProjectByTargetSourceId(Number(targetSourceId));
+    if (!project) {
+      return NextResponse.json(
+        { error: { code: 'TARGET_SOURCE_NOT_FOUND', message: '해당 ID의 Target Source가 존재하지 않습니다.' } },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(tcFns.setConfirmation(Number(targetSourceId), body.confirmed === true));
   },
 
 };

@@ -1,126 +1,82 @@
 /**
- * Azure v1 라우트 공통 변환 유틸
+ * Azure installation-status transform (ADR-019 Spec G).
  *
- * installation-status / check-installation 라우트에서 공유.
- * 레거시 DB/VM 응답을 Swagger v1 통합 스키마로 변환한다.
+ * Maps the swagger `AzureInstallationStatusResponse` (camel domain from the
+ * proxy boundary) → the Step-4 UI domain (`AzureV1InstallationStatus`).
+ * `vm_installation` is embedded per resource in the swagger response, so the
+ * legacy separate VM merge (vmGetInstallationStatus) is gone.
  */
 
-// ===== Legacy 타입 (BFF 응답 형태) =====
+import type {
+  AzureInstallationStatusResponse,
+  AzureResourceStatus,
+} from '@/lib/bff/types/azure';
+import type { LastCheckStatus } from '@/lib/bff/types/aws';
+import type {
+  AzureV1InstallationStatus,
+  AzureV1LastCheck,
+  AzureV1Resource,
+  PrivateEndpointStatus,
+} from '@/lib/types/azure';
 
-export interface LegacyPrivateEndpoint {
-  id: string | null;
-  name: string | null;
-  status: string;
-  requestedAt?: string;
-  approvedAt?: string;
-  rejectedAt?: string;
-}
-
-export interface LegacyResource {
-  resourceId: string;
-  resourceName: string;
-  resourceType: string;
-  privateEndpoint: LegacyPrivateEndpoint | null;
-}
-
-export interface LegacyInstallationStatus {
-  provider: string;
-  installed: boolean;
-  resources: LegacyResource[];
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
-}
-
-interface LegacyLoadBalancer {
-  installed: boolean;
-  name: string;
-}
-
-interface LegacyVmStatus {
-  vmId: string;
-  vmName: string;
-  subnetExists: boolean;
-  loadBalancer: LegacyLoadBalancer;
-  privateEndpoint?: LegacyPrivateEndpoint;
-}
-
-export interface LegacyVmInstallationStatus {
-  vms: LegacyVmStatus[];
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
-}
-
-// ===== 변환 함수 =====
-
-export const buildLastCheck = (lastCheckedAt?: string, error?: { code: string; message: string }) => {
-  if (error) {
-    return { status: 'FAILED' as const, checkedAt: lastCheckedAt, failReason: error.message };
-  }
-  return { 
-    status: 'IN_PROGRESS' as const, 
-    checkedAt: lastCheckedAt,
-    failReason: null 
-  };
+// swagger LastCheckInfoDto is 5-value; the UI AzureV1LastCheck is 3-value.
+const LAST_CHECK_TO_UI: Record<LastCheckStatus, AzureV1LastCheck['status']> = {
+  NEVER_CHECKED: 'IN_PROGRESS',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'SUCCESS',
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED',
 };
 
-/**
- * 레거시 DB + VM 응답을 v1 통합 리소스 배열로 변환.
- * VM 리소스에는 vmInstallation 필드를 병합한다.
- */
-export const buildV1Response = (
-  dbStatus: LegacyInstallationStatus,
-  vmStatus: LegacyVmInstallationStatus | null,
-) => {
-  const vmMap = new Map(
-    (vmStatus?.vms ?? []).map(vm => [vm.vmId, vm]),
-  );
+const PRIVATE_ENDPOINT_STATUSES: readonly PrivateEndpointStatus[] = [
+  'NOT_REQUESTED',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'REJECTED',
+];
 
-  const resources = dbStatus.resources.map(r => {
-    const isVm = r.resourceType === 'AZURE_VM';
-    const vm = isVm ? vmMap.get(r.resourceId) : undefined;
+// swagger PrivateEndpointDetail.status is a free string; map known UI enum
+// values, otherwise fall back to NOT_REQUESTED (do not narrow the wire type).
+const toPrivateEndpointStatus = (status?: string): PrivateEndpointStatus =>
+  PRIVATE_ENDPOINT_STATUSES.find((s) => s === status) ?? 'NOT_REQUESTED';
 
-    const base = {
-      resourceId: r.resourceId,
-      resourceName: r.resourceName,
-      resourceType: r.resourceType,
-      privateEndpoint: r.privateEndpoint
-        ? {
-            id: r.privateEndpoint.id,
-            name: r.privateEndpoint.name,
-            status: r.privateEndpoint.status,
-          }
-        : {
-            id: null,
-            name: null,
-            status: 'NOT_REQUESTED',
-          },
-      vmInstallation: null,
-    };
+const asBoolean = (value: unknown): boolean => value === true;
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
 
-    if (!vm) return base;
-
-    // VM: PE 정보를 VM 쪽에서 가져오고, vmInstallation 추가
-    return {
-      ...base,
-      privateEndpoint: vm.privateEndpoint
-        ? { 
-            id: vm.privateEndpoint.id, 
-            name: vm.privateEndpoint.name, 
-            status: vm.privateEndpoint.status 
-          }
-        : base.privateEndpoint,
+const toUiResource = (r: AzureResourceStatus): AzureV1Resource => {
+  const lb = r.vmInstallation?.loadBalancer;
+  return {
+    resourceId: r.resourceId,
+    resourceName: r.resourceName ?? r.resourceId,
+    resourceType: r.resourceType ?? '',
+    ...(r.privateEndpoint && {
+      privateEndpoint: {
+        id: r.privateEndpoint.id ?? '',
+        name: r.privateEndpoint.name ?? '',
+        status: toPrivateEndpointStatus(r.privateEndpoint.status),
+      },
+    }),
+    ...(r.vmInstallation && {
       vmInstallation: {
-        subnetExists: vm.subnetExists,
+        subnetExists: r.vmInstallation.subnetExists,
+        // load_balancer is an opaque object — read the conventional keys.
         loadBalancer: {
-          installed: vm.loadBalancer.installed,
-          name: vm.loadBalancer.name || undefined,
+          installed: asBoolean(lb?.installed),
+          ...(asString(lb?.name) !== undefined && { name: asString(lb?.name) }),
         },
       },
-    };
-  });
-
-  return {
-    lastCheck: buildLastCheck(dbStatus.lastCheckedAt, dbStatus.error),
-    resources,
+    }),
   };
 };
+
+export const buildV1Response = (
+  status: AzureInstallationStatusResponse,
+): AzureV1InstallationStatus => ({
+  lastCheck: {
+    status: LAST_CHECK_TO_UI[status.lastCheck.status],
+    ...(status.lastCheck.checkedAt && { checkedAt: status.lastCheck.checkedAt }),
+    ...(status.lastCheck.failReason && { failReason: status.lastCheck.failReason }),
+  },
+  resources: (status.resources ?? []).map(toUiResource),
+});

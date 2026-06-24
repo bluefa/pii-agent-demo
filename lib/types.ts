@@ -1,3 +1,4 @@
+import type { OpaqueKeys } from '@/lib/object-case';
 import type { AzureVmNic } from '@/lib/types/azure';
 
 // ===== Enums & Constants =====
@@ -283,6 +284,9 @@ export interface BaseTargetSource {
 
 export interface CloudTargetSource extends BaseTargetSource {
   cloudProvider: CloudProvider;
+  // Service the target source belongs to (swagger TargetSourceDetail.service_name).
+  // The page header renders this as "{serviceName} ({serviceCode})".
+  serviceName: string;
 
   awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;
@@ -529,7 +533,8 @@ export interface V1ScanJob {
   scanVersion: number;
   scanProgress: number | null;
   durationSeconds: number;
-  resourceCountByResourceType: Record<string, number>;
+  // Data-keyed map (keys are resource-type names) — must survive camelCaseKeys verbatim.
+  resourceCountByResourceType: OpaqueKeys<Record<string, number>>;
   scanError: string | null;
 }
 
@@ -836,6 +841,11 @@ export interface ResourceSnapshot {
   resource_name?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  // IDC-specific swagger fields (ResourceConfigDto.idc_*) — absent for cloud.
+  idc_host_format?: 'IP' | 'HOST';
+  idc_ips?: string[];
+  idc_host?: string;
+  idc_source_ips?: string[];
 }
 
 /** Excluded resource snapshot (Swagger ExcludedResourceInfo). */
@@ -862,6 +872,11 @@ export interface ConfirmedIntegrationResourceInfo {
   network_interface_id: string | null;
   ip_configuration_name: string | null;
   credential_id: string | null;
+  // IDC-specific swagger fields (ResourceConfigDto.idc_*) — optional, absent for cloud.
+  idc_host_format?: 'IP' | 'HOST';
+  idc_ips?: string[];
+  idc_host?: string;
+  idc_source_ips?: string[];
 }
 
 export interface ConfirmResourceMetadata {

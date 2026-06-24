@@ -1,55 +1,47 @@
 'use client';
 
-import { useState } from 'react';
 import { useModal } from '@/app/hooks/useModal';
-import { useToast } from '@/app/components/ui/toast';
-import { setAwsInstallationMode } from '@/app/lib/api/aws';
-import { cn, statusColors, primaryColors, getButtonClass } from '@/lib/theme';
+import {
+  borderColors,
+  cn,
+  primaryColors,
+  statusColors,
+  textColors,
+} from '@/lib/theme';
 import { TfRoleGuideModal } from '@/app/components/features/process-status/aws/TfRoleGuideModal';
 import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
-import type { AwsInstallationMode, CloudTargetSource } from '@/lib/types';
+import type { CloudTargetSource } from '@/lib/types';
 
 interface AwsInstallationModeSelectorProps {
   targetSourceId: number;
+  // Kept for the parent contract; the mode is no longer chosen via an API call.
   onModeSelected: (project: CloudTargetSource) => void;
 }
 
-export const AwsInstallationModeSelector = ({
-  targetSourceId,
-  onModeSelected,
-}: AwsInstallationModeSelectorProps) => {
-  const [selecting, setSelecting] = useState<AwsInstallationMode | null>(null);
-  const toast = useToast();
+/**
+ * REMOVED-no-swagger: POST …/aws/installation-mode is absent from
+ * install-v1.yaml, so the mode can no longer be persisted. The install flow
+ * defaults to AUTO (InstallationStatusSlot passes `awsInstallationMode ?? 'AUTO'`
+ * and AwsInstallationInline carries an in-card AUTO/MANUAL toggle). This screen
+ * now only surfaces the Role / Script guides; the previous "자동/수동 설치 선택"
+ * API buttons were removed with the endpoint.
+ */
+export const AwsInstallationModeSelector = (_props: AwsInstallationModeSelectorProps) => {
   const roleGuideModal = useModal();
   const scriptGuideModal = useModal();
 
-  const handleSelectMode = async (mode: AwsInstallationMode) => {
-    setSelecting(mode);
-    try {
-      const data = await setAwsInstallationMode(targetSourceId, mode);
-      onModeSelected(data.project as CloudTargetSource);
-    } catch (error) {
-      console.error('Failed to select installation mode:', error);
-      toast.error('설치 모드 선택에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setSelecting(null);
-    }
-  };
-
   return (
     <>
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-        {/* 헤더 */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">설치 모드 선택</h2>
+      <div className={cn('bg-white rounded-lg border shadow-sm', borderColors.default)}>
+        <div className={cn('px-6 py-4 border-b', borderColors.default)}>
+          <h2 className={cn('text-lg font-semibold', textColors.primary)}>설치 가이드</h2>
         </div>
 
-        {/* 본문 */}
         <div className="p-6">
-          <p className="text-sm text-gray-600 mb-2">
-            AWS PII Agent 설치 방식을 선택해주세요.
+          <p className={cn('text-sm mb-2', textColors.tertiary)}>
+            AWS PII Agent 설치는 기본적으로 자동 설치(AUTO) 방식으로 진행됩니다.
           </p>
-          <div className="flex items-center gap-2 text-sm text-amber-600 mb-6">
+          <div className={cn('flex items-center gap-2 text-sm mb-6', statusColors.warning.text)}>
             <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
@@ -57,101 +49,63 @@ export const AwsInstallationModeSelector = ({
                 clipRule="evenodd"
               />
             </svg>
-            <span>설치 모드는 프로젝트 생성 후 변경할 수 없습니다.</span>
+            <span>설치 방식은 설치 화면에서 전환할 수 있습니다.</span>
           </div>
 
-          {/* 카드 그리드 */}
           <div className="grid grid-cols-2 gap-6">
-            {/* 자동 설치 카드 */}
-            <div className={cn(`border-2 rounded-lg p-5 hover:border-blue-400 transition-colors bg-blue-50/30 flex flex-col`, statusColors.info.borderLight)}>
+            <div className={cn('border-2 rounded-lg p-5 flex flex-col', primaryColors.bgLight, primaryColors.borderLight)}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">⚡</span>
-                <h3 className="text-base font-semibold text-gray-900">자동 설치</h3>
+                <h3 className={cn('text-base font-semibold', textColors.primary)}>자동 설치</h3>
               </div>
-
-              <ul className="text-sm text-gray-600 space-y-2 mb-4 flex-1">
+              <ul className={cn('text-sm space-y-2 mb-4 flex-1', textColors.tertiary)}>
                 <li className="flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5">•</span>
+                  <span className={cn('mt-0.5', textColors.quaternary)}>•</span>
                   <span>TerraformExecutionRole 등록 필요</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5">•</span>
+                  <span className={cn('mt-0.5', textColors.quaternary)}>•</span>
                   <span>시스템이 자동으로 TF 실행</span>
                 </li>
               </ul>
-
-              <div className="text-center space-y-3">
-                <button
-                  type="button"
-                  onClick={() => roleGuideModal.open()}
-                  className={cn('text-sm', primaryColors.text, primaryColors.textHover, 'hover:underline')}
-                >
-                  Role 등록 가이드
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectMode('AUTO')}
-                  disabled={selecting !== null}
-                  className={cn(getButtonClass('primary'), 'w-full text-sm')}
-                >
-                  {selecting === 'AUTO' ? '선택 중...' : '자동 설치 선택'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => roleGuideModal.open()}
+                className={cn('text-sm', primaryColors.text, primaryColors.textHover, 'hover:underline')}
+              >
+                Role 등록 가이드
+              </button>
             </div>
 
-            {/* 수동 설치 카드 */}
-            <div className="border-2 border-gray-200 rounded-lg p-5 hover:border-gray-400 transition-colors bg-gray-50/30 flex flex-col">
+            <div className={cn('border-2 rounded-lg p-5 flex flex-col', borderColors.default)}>
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">📋</span>
-                <h3 className="text-base font-semibold text-gray-900">수동 설치</h3>
+                <h3 className={cn('text-base font-semibold', textColors.primary)}>수동 설치</h3>
               </div>
-
-              <ul className="text-sm text-gray-600 space-y-2 mb-4 flex-1">
+              <ul className={cn('text-sm space-y-2 mb-4 flex-1', textColors.tertiary)}>
                 <li className="flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5">•</span>
+                  <span className={cn('mt-0.5', textColors.quaternary)}>•</span>
                   <span>TF Script를 직접 실행</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5">•</span>
+                  <span className={cn('mt-0.5', textColors.quaternary)}>•</span>
                   <span>TF Role 불필요</span>
                 </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5">•</span>
-                  <span>담당자와 일정 조율 필요</span>
-                </li>
               </ul>
-
-              <div className="text-center space-y-3">
-                <button
-                  type="button"
-                  onClick={() => scriptGuideModal.open()}
-                  className="text-sm text-gray-600 hover:text-gray-800 hover:underline"
-                >
-                  Script 설치 가이드
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectMode('MANUAL')}
-                  disabled={selecting !== null}
-                  className="w-full px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {selecting === 'MANUAL' ? '선택 중...' : '수동 설치 선택'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => scriptGuideModal.open()}
+                className={cn('text-sm hover:underline', textColors.tertiary)}
+              >
+                Script 설치 가이드
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 모달 */}
-      {roleGuideModal.isOpen && (
-        <TfRoleGuideModal onClose={roleGuideModal.close} />
-      )}
-      {scriptGuideModal.isOpen && (
-        <TfScriptGuideModal onClose={scriptGuideModal.close} />
-      )}
+      {roleGuideModal.isOpen && <TfRoleGuideModal onClose={roleGuideModal.close} />}
+      {scriptGuideModal.isOpen && <TfScriptGuideModal onClose={scriptGuideModal.close} />}
     </>
   );
 };

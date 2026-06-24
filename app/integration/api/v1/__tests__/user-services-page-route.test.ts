@@ -11,7 +11,7 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET } from '@/app/integration/api/v1/user/services/page/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
-import type { UserServicesPageResponse } from '@/lib/bff/types/users';
+import type { PageServiceItem } from '@/lib/bff/types/users';
 
 const mockedGetServicesPage = vi.mocked(bff.users.getServicesPage);
 
@@ -26,7 +26,10 @@ describe('GET /integration/api/v1/user/services/page', () => {
         { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
         { code: 'SERVICE-B', name: '서비스 B' } as unknown as { serviceCode: string; serviceName: string },
       ],
-      page: { size: 10, totalElements: 2, totalPages: 1 },
+      totalElements: 2,
+      totalPages: 1,
+      number: 0,
+      size: 10,
     });
 
     const response = await GET(
@@ -44,15 +47,14 @@ describe('GET /integration/api/v1/user/services/page', () => {
     expect(mockedGetServicesPage).toHaveBeenCalledWith(0, 10, undefined);
   });
 
-  it('preserves flat top-level page metadata access for I-3 compatibility', async () => {
-    // Upstream that exposes flat top-level pagination — pre-ADR-011 wire shape.
+  it('reads flat Spring Page envelope into the route page metadata', async () => {
     mockedGetServicesPage.mockResolvedValue({
       content: [{ serviceCode: 'SERVICE-A', serviceName: '서비스 A' }],
       totalElements: 42,
       totalPages: 5,
       number: 1,
       size: 10,
-    } as unknown as UserServicesPageResponse);
+    } as PageServiceItem);
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/user/services/page?page=1&size=10'),

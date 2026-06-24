@@ -1,9 +1,11 @@
 /**
- * Local domain shape for the logical-DB modal. No BFF backing yet —
- * the shapes are declared here, not in `lib/types`, to make it explicit
- * that they will move to `lib/types` (or under `swagger/`) when the
- * BFF endpoints land.
+ * Local render/draft shape for the logical-DB modal. The BFF data is fetched and
+ * adapted in `useLogicalDatabases` (via `logical-db-deny.ts`); these types are the
+ * modal's UI contract, distinct from the camel domain models in
+ * `@/app/lib/api/logical-db`.
  */
+
+import type { SkipReason } from '@/app/lib/api/logical-db';
 
 /**
  * A logical-DB entry is either a whole database (`'db'`) or a single
@@ -24,15 +26,15 @@ export interface LogicalDatabase {
   database: string;
   /** schema name — present only when `type` is `'schema'` */
   schema?: string;
-  /** when present, an existing deny policy already excludes this entry */
-  existingDenyReason?: string;
+  /** when present, an existing skip policy already excludes this entry */
+  existingDenyReason?: SkipReason;
 }
 
 export interface LogicalDbModalDraft {
   /** ids the user has moved into Panel B (deny side) */
   excludedIds: ReadonlySet<string>;
-  /** optional per-id reason text the user entered */
-  reasons: Readonly<Record<string, string>>;
+  /** per-id skip reason — typed enum so it serializes to the PUT `skip_reason` */
+  reasons: Readonly<Record<string, SkipReason>>;
 }
 
 export interface LogicalDbModalProps {
@@ -48,7 +50,7 @@ export interface LogicalDbModalProps {
 
 export type LogicalDbDataState =
   | { status: 'loading' }
-  | { status: 'ready'; databases: LogicalDatabase[] }
+  | { status: 'ready'; databases: LogicalDatabase[]; initialDraft: LogicalDbModalDraft }
   | { status: 'error'; message: string };
 
 export interface LogicalDbDataHook {

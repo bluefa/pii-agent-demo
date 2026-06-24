@@ -8,6 +8,7 @@ const project: CloudTargetSource = {
   targetSourceId: 1001,
   projectCode: 'N-IRP-001',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   cloudProvider: 'Azure',
   processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
   createdAt: '2026-02-16T10:00:00Z',
@@ -38,6 +39,7 @@ describe('extractTargetSource', () => {
       targetSourceId: 4242,
       projectCode: '',
       serviceCode: '',
+      serviceName: '',
       cloudProvider: 'Azure',
       processStatus: ProcessStatus.INSTALLING,
       createdAt: '2026-03-29T00:00:00Z',
@@ -65,6 +67,38 @@ describe('extractTargetSource', () => {
       isRejected: false,
     });
     expect(result.cloudProvider).toBe('Azure');
+  });
+
+  it('maps serviceName (and serviceCode) so the page header is not empty parens', () => {
+    const result = extractTargetSource({
+      id: 'proj-2004',
+      targetSourceId: 2004,
+      serviceCode: 'azure',
+      serviceName: 'Azure',
+      cloudProvider: 'AZURE',
+      processStatus: 'INSTALLED',
+      createdAt: '2026-02-16T10:00:00Z',
+      updatedAt: '2026-02-16T10:10:00Z',
+      description: '',
+      isRejected: false,
+    });
+    expect(result.serviceName).toBe('Azure');
+    expect(result.serviceCode).toBe('azure');
+  });
+
+  it('falls serviceName back to serviceCode when only the code is present', () => {
+    const result = extractTargetSource({
+      id: 'proj-2005',
+      targetSourceId: 2005,
+      serviceCode: 'azure',
+      cloudProvider: 'AZURE',
+      processStatus: 'INSTALLED',
+      createdAt: '2026-02-16T10:00:00Z',
+      updatedAt: '2026-02-16T10:10:00Z',
+      description: '',
+      isRejected: false,
+    });
+    expect(result.serviceName).toBe('azure');
   });
 
   it('preserves awsInstallationMode so AwsProjectPage shows the install grid, not the mode selector', () => {

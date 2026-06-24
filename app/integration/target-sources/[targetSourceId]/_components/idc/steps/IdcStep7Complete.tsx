@@ -19,6 +19,7 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConfirmRewindModal';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
+import { getIdcConfirmedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
 /** 인프라 변경 / 연결 테스트 재실행 — open the confirm-rewind modal (mirror cloud siblings). */
@@ -72,7 +73,8 @@ export const IdcStep7Complete = ({
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.INSTALLATION_COMPLETE);
 
-  const { state } = useIdcResources(project.targetSourceId);
+  // Step 7 source: the confirmed list (confirmed-integration), same as cloud steps 4–7.
+  const { state } = useIdcResources(project.targetSourceId, getIdcConfirmedResources);
 
   return (
     <>

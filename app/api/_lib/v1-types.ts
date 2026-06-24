@@ -23,10 +23,6 @@ export interface UserService {
   serviceName: string;
 }
 
-export interface UserServicesResponse {
-  services: UserService[];
-}
-
 export interface UserSearchResponse {
   users: { id: string; name: string; email: string }[];
 }

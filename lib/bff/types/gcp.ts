@@ -1,55 +1,59 @@
 /**
  * Typed shapes for `bff.gcp` methods.
  *
- * Casing convention (per ADR-011 I-3):
- *   - GET responses are camelCase (httpBff.get runs camelCaseKeys).
- *   - POST/PUT/DELETE responses are snake_case raw passthrough.
+ * ADR-019 /install/v1 migration (Spec G — cloud-status). GET responses are the
+ * swagger camel domain (httpBff.get runs camelCaseKeys at the one boundary);
+ * mocks author the snake wire so mock == swagger == real BFF.
+ *
+ * Source of truth: docs/swagger/install-v1.yaml
+ *   - GcpInstallationStatusResponse (L5470) — no summary / resource_type
+ *   - GcpResourceInstallationStatusDto (L5481) — 5-value installation_status
+ *   - GcpServiceAccountInfoResponse (L5447) — 4-value fail_reason (no SA_KEY_EXPIRED)
  */
 
-import type { GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
+import type {
+  CloudInstallationStepStatus,
+  CloudStepStatus,
+  LastCheckInfo,
+} from '@/lib/bff/types/aws';
 
-export type { GcpServiceAccountInfo };
-
-export type LegacyGcpStepStatusValue = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS' | 'SKIP';
-export type LegacyGcpInstallationStatusValue = 'COMPLETED' | 'FAIL' | 'IN_PROGRESS';
-export type LegacyGcpResourceType = 'CLOUD_SQL' | 'BIGQUERY';
-export type LegacyGcpResourceSubType = 'PRIVATE_IP_MODE' | 'BDC_PRIVATE_HOST_MODE' | 'PSC_MODE';
-
-export interface LegacyGcpStepStatus {
-  status: LegacyGcpStepStatusValue;
-  guide?: string | null;
-}
-
-export interface LegacyGcpResource {
+/** swagger GcpResourceInstallationStatusDto. */
+export interface GcpResourceInstallationStatus {
   resourceId: string;
   resourceName?: string;
-  resourceType: LegacyGcpResourceType;
-  resourceSubType?: LegacyGcpResourceSubType | null;
-  installationStatus: LegacyGcpInstallationStatusValue;
-  serviceSideSubnetCreation: LegacyGcpStepStatus;
-  serviceSideTerraformApply: LegacyGcpStepStatus;
-  bdcSideTerraformApply: LegacyGcpStepStatus;
+  installationStatus: CloudStepStatus;
+  serviceSideSubnetCreation: CloudInstallationStepStatus;
+  serviceSideTerraformApply: CloudInstallationStepStatus;
+  bdcSideTerraformApply: CloudInstallationStepStatus;
 }
 
-export interface LegacyGcpInstallationStatus {
-  provider: 'GCP';
-  resources: LegacyGcpResource[];
-  lastCheckedAt?: string;
-  error?: { code: string; message: string };
+/** GET …/gcp/installation-status — swagger GcpInstallationStatusResponse (camel domain). */
+export interface GcpInstallationStatusResponse {
+  lastCheck: LastCheckInfo;
+  resources: GcpResourceInstallationStatus[];
 }
 
-/**
- * POST /target-sources/{id}/gcp/check-installation.
- * Upstream returns the full installation status (camelCase) — route transforms
- * it via `transformInstallationStatus`.
- */
-export type GcpCheckInstallationResult = LegacyGcpInstallationStatus;
+/** swagger GcpServiceAccountInfoResponse.status. */
+export type GcpServiceAccountStatus = 'VALID' | 'INVALID' | 'UNVERIFIED';
 
-/** GET /target-sources/{id}/gcp/installation-status (camelCase). */
-export type GcpInstallationStatusResponse = LegacyGcpInstallationStatus;
+/** swagger GcpServiceAccountInfoResponse.fail_reason (4 values, no SA_KEY_EXPIRED). */
+export type GcpServiceAccountFailReason =
+  | 'SA_NOT_CONFIGURED'
+  | 'SA_NOT_FOUND'
+  | 'SA_INSUFFICIENT_PERMISSIONS'
+  | 'SCAN_SA_UNAVAILABLE';
 
-/** GET /target-sources/{id}/gcp/scan-service-account (camelCase). */
+/** swagger GcpServiceAccountInfoResponse (camel domain). */
+export interface GcpServiceAccountInfo {
+  gcpProjectId: string;
+  status: GcpServiceAccountStatus;
+  failReason?: GcpServiceAccountFailReason | null;
+  failMessage?: string | null;
+  lastVerifiedAt?: string;
+}
+
+/** GET …/gcp/scan-service-account — swagger GcpServiceAccountInfoResponse (camel). */
 export type GcpScanServiceAccountResponse = GcpServiceAccountInfo;
 
-/** GET /target-sources/{id}/gcp/terraform-service-account (camelCase). */
+/** GET …/gcp/terraform-service-account — swagger GcpServiceAccountInfoResponse (camel). */
 export type GcpTerraformServiceAccountResponse = GcpServiceAccountInfo;

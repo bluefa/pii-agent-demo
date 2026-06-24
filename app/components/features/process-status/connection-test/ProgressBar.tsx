@@ -1,16 +1,16 @@
 'use client';
 
-import type { TestConnectionJob } from '@/app/lib/api';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { primaryColors, cn } from '@/lib/theme';
+import { primaryColors, textColors, bgColors, cn } from '@/lib/theme';
 
 interface ProgressBarProps {
-  job: TestConnectionJob;
+  job: TestConnectionVersionResult;
   totalResources: number;
 }
 
 export const ProgressBar = ({ job, totalResources }: ProgressBarProps) => {
-  const completed = job.resource_results.length;
+  const completed = job.testConnectionAgentResults.length;
   const total = totalResources || completed || 1;
   const percent = Math.round((completed / total) * 100);
 
@@ -19,11 +19,11 @@ export const ProgressBar = ({ job, totalResources }: ProgressBarProps) => {
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-2">
           <LoadingSpinner size="sm" className={primaryColors.text} />
-          <span className="text-gray-700 font-medium">연결 테스트 진행 중...</span>
+          <span className={cn('font-medium', textColors.secondary)}>연결 테스트 진행 중...</span>
         </div>
-        <span className="text-gray-500">{completed}/{total} 리소스 완료</span>
+        <span className={textColors.tertiary}>{completed}/{total} 리소스 완료</span>
       </div>
-      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className={cn('w-full h-2 rounded-full overflow-hidden', bgColors.divider)}>
         <div
           className={cn('h-full rounded-full transition-all duration-500', primaryColors.bg)}
           style={{ width: `${percent}%` }}

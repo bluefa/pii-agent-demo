@@ -1,44 +1,24 @@
-import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
-import type {
-  AwsInstallationStatus,
-  AwsSettings,
-  TerraformScriptResponse,
-} from '@/lib/types';
+import { fetchInfra, fetchInfraCamelJson } from '@/app/lib/api/infra';
+import type { AwsInstallationStatus } from '@/lib/types';
 
 const BASE = '/aws/target-sources';
 
 /**
- * AWS 설정 조회 (Execution Role + Scan Role)
- */
-export const getAwsSettings = (targetSourceId: number): Promise<AwsSettings> =>
-  fetchInfraCamelJson<AwsSettings>(`${BASE}/${targetSourceId}/settings`);
-
-/**
- * AWS 설치 상태 조회
+ * AWS 설치 상태 조회.
+ * Refresh is a re-GET of this endpoint (the old POST check-installation is not
+ * in install-v1.yaml — REMOVED).
  */
 export const getAwsInstallationStatus = (targetSourceId: number): Promise<AwsInstallationStatus> =>
   fetchInfraCamelJson<AwsInstallationStatus>(`${BASE}/${targetSourceId}/installation-status`);
 
 /**
- * AWS 설치 상태 실시간 동기화 (새로고침)
+ * TF Script 다운로드 (수동 설치용).
+ * swagger getAwsTerraformScript returns a binary download
+ * (…/aws/terraform-script/download → application/octet-stream); the internal
+ * route streams it. Returns the response Blob for the caller to save.
  */
-export const checkAwsInstallation = (targetSourceId: number): Promise<AwsInstallationStatus> =>
-  fetchInfraCamelJson<AwsInstallationStatus>(`${BASE}/${targetSourceId}/check-installation`, { method: 'POST' });
-
-/**
- * TF Script 다운로드 URL 조회 (수동 설치용)
- */
-export const getAwsTerraformScript = (targetSourceId: number): Promise<TerraformScriptResponse> =>
-  fetchInfraCamelJson<TerraformScriptResponse>(`${BASE}/${targetSourceId}/terraform-script`);
-
-/**
- * AWS 설치 모드 설정 (AUTO/MANUAL)
- */
-export const setAwsInstallationMode = (
-  targetSourceId: number,
-  mode: 'AUTO' | 'MANUAL'
-): Promise<{ success: boolean; project: unknown }> =>
-  fetchInfraJson(`${BASE}/${targetSourceId}/installation-mode`, {
-    method: 'POST',
-    body: { mode },
-  });
+export const getAwsTerraformScript = async (targetSourceId: number): Promise<Blob> => {
+  const res = await fetchInfra(`${BASE}/${targetSourceId}/terraform-script`);
+  if (!res.ok) throw new Error(`terraform-script download failed (${res.status})`);
+  return res.blob();
+};

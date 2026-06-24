@@ -77,12 +77,16 @@ const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): T
   const projectCode = asString(value.projectCode)?.trim() ?? '';
   const name = asString(value.name) ?? (projectCode || `TS-${targetSourceId}`);
   const rejectionReason = asString(value.rejectionReason);
+  const serviceCode = asString(value.serviceCode)?.trim() ?? '';
+  // swagger TargetSourceDetail.service_name — fall back to the code so the page
+  // header never renders an empty "( )" when only the code is present.
+  const serviceName = asString(value.serviceName)?.trim() || serviceCode;
 
   const base: BaseTargetSource = {
     id: asString(value.id) ?? `target-source-${targetSourceId}`,
     targetSourceId,
     projectCode,
-    serviceCode: asString(value.serviceCode)?.trim() ?? '',
+    serviceCode,
     processStatus,
     createdAt,
     updatedAt: asString(value.updatedAt) ?? createdAt,
@@ -116,6 +120,7 @@ const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): T
   return {
     ...base,
     cloudProvider,
+    serviceName,
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),

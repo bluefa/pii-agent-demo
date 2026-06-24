@@ -1,5 +1,6 @@
 import { getStore } from '@/lib/mock-store';
 import { getCurrentStep } from '@/lib/process';
+import { ProcessStatus } from '@/lib/types';
 import type { Project, MockResource, ConnectionErrorType } from '@/lib/types';
 
 // ===== Types =====
@@ -193,12 +194,14 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
     };
     updateJobInStore(completed);
 
-    // 프로세스 상태 전환
+    // 프로세스 상태 전환. 테스트 성공은 결과만 기록한다 — Step5→6 전환은 완료 승인 요청
+    // (test-connection-acknowledgment PUT, confirmed:true → setConfirmation)이 게이트라
+    // 여기서 passedAt 을 세팅하지 않는다(성공해도 승인 전엔 Step5 유지).
     if (finalStatus === 'SUCCESS') {
       project.status.connectionTest = {
+        ...project.status.connectionTest,
         status: 'PASSED',
         lastTestedAt: completedAt,
-        passedAt: completedAt,
       };
     } else {
       project.status.connectionTest = {
@@ -277,3 +280,191 @@ export const toJobResponse = (job: TestConnectionJob) => ({
   requested_by: job.requested_by,
   resource_results: job.resource_results,
 });
+
+// ===== ADR-019 /install/v1 wire projections =====
+//
+// The simulation above keeps its internal job shape; these helpers project it
+// to the swagger wire DTOs (snake) so the mock output == the contract. The
+// per-job/per-agent enum gains RUNNING (PENDING/SUCCESS/FAIL → +RUNNING): a
+// still-pending job is reported RUNNING while its agents settle.
+
+type WireConnectionStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL';
+
+// Deterministic date-time placeholder for wire fields that have no real value
+// yet (swagger types them format:date-time, so '' would be an invalid example).
+// A fixed constant keeps the mock a valid schema example without Date.now()
+// nondeterminism in tests.
+const WIRE_DATE_PLACEHOLDER = '1970-01-01T00:00:00.000Z';
+
+/** Monotonic run cursor for a target source (one job == one run). */
+const versionForTarget = (targetSourceId: number): number =>
+  getStore().testConnectionJobs.filter((j) => j.target_source_id === targetSourceId).length;
+
+/** `TestConnectionVersionResult` wire shape (getLatestTestConnectionStatus). */
+export const toVersionResultResponse = (job: TestConnectionJob) => {
+  const topStatus: WireConnectionStatus = job.status === 'PENDING' ? 'RUNNING' : job.status;
+  return {
+    target_source_id: job.target_source_id,
+    test_connection_version: versionForTarget(job.target_source_id),
+    connection_status: topStatus,
+    requested_at: job.requested_at,
+    completed_at: job.completed_at ?? WIRE_DATE_PLACEHOLDER,
+    test_connection_agent_results: job.resource_results.map((r) => ({
+      agent_id: r.agent_id ?? `agent-${r.resource_id}`,
+      gcp_region: '',
+      resource_id: r.resource_id,
+      connection_status: r.status,
+      database_uri_list: r.status === 'SUCCESS' ? [`mysql://${r.resource_id}/db`] : [],
+    })),
+  };
+};
+
+/**
+ * `TestConnectionLatestResultSummaryResponse[]` wire shape
+ * (getLatestTestConnectionResultSummaries) — per-resource logical-DB counts for
+ * the latest SUCCESS run. The real counts come from the logical-DB domain; the
+ * mock derives deterministic placeholders keyed off the resource id so the table
+ * renders. Empty array when the latest run is not a success.
+ */
+export const toLatestResultSummaries = (targetSourceId: number) => {
+  const job = getLatestJob(targetSourceId);
+  if (!job || job.status !== 'SUCCESS') return [];
+  return job.resource_results
+    .filter((r) => r.status === 'SUCCESS')
+    .map((r) => {
+      const seed = r.resource_id.length;
+      const total = 8 + (seed % 8);
+      const excluded = seed % 4;
+      return {
+        resource_id: r.resource_id,
+        agent_id: r.agent_id ?? `agent-${r.resource_id}`,
+        logical_database_count: total - excluded,
+        excluded_logical_database_count: excluded,
+      };
+    });
+};
+
+// Steps that should already have a completed Test Connection result present.
+const TESTED_STEPS: ReadonlySet<ProcessStatus> = new Set([
+  ProcessStatus.WAITING_CONNECTION_TEST, // Step 5 — tested, awaiting 완료 승인
+  ProcessStatus.CONNECTION_VERIFIED, // Step 6 — confirmed
+  ProcessStatus.INSTALLATION_COMPLETE, // Step 7 — confirmed
+]);
+
+// Deterministic timestamps for seeded jobs (no Date.now()).
+const SEED_REQUESTED_AT = '2026-06-01T00:00:00.000Z';
+const SEED_COMPLETED_AT = '2026-06-01T00:00:20.000Z';
+
+/**
+ * Build the per-step seed: one completed-SUCCESS TestConnectionJob for every
+ * project already at a Test-Connection step (5/6/7), derived from that project's
+ * selected resources so resource_ids line up with confirmed-integration. This is
+ * what makes latest_version / latest-results / completion-status coherent per
+ * step. Deterministic (fixed timestamps). Does NOT touch connectionTest.passedAt
+ * — that field drives getCurrentStep's step transition, so a seeded Step-5 result
+ * must not flip the project to Step 6.
+ *
+ * Pure (takes projects, no getStore) so it can run inside the store initializer
+ * without an import cycle.
+ */
+export const buildSeedTestConnectionJobs = (projects: Project[]): TestConnectionJob[] =>
+  projects
+    .filter((p) => p.targetSourceId !== undefined && TESTED_STEPS.has(p.processStatus))
+    .map((project) => {
+      const selected = project.resources.filter((r) => r.isSelected);
+      return {
+        id: `tc-seed-${project.targetSourceId}`,
+        target_source_id: project.targetSourceId as number,
+        status: 'SUCCESS',
+        requested_at: SEED_REQUESTED_AT,
+        completed_at: SEED_COMPLETED_AT,
+        requested_by: 'seed@pii-agent.dev',
+        resource_results: selected.map((r) => ({
+          resource_id: r.resourceId,
+          resource_type: r.type,
+          status: 'SUCCESS',
+          error_status: null,
+          guide: null,
+          agent_id: `agent-${r.resourceId}`,
+        })),
+      };
+    });
+
+const findProject = (targetSourceId: number): Project | undefined =>
+  getStore().projects.find((p) => p.targetSourceId === targetSourceId);
+
+/**
+ * `TestConnectionCompletionStatusResponse` wire shape. Success is derived from
+ * the latest test-connection JOB (a successful run does not auto-advance the
+ * process — the 완료 승인 acknowledgment does), and confirmation from the
+ * project's `operationConfirmed` flag (toggled by updateTestConnectionConfirmation):
+ *   - SUCCESS job + confirmed              → CONFIRMED        (Step 6/7)
+ *   - SUCCESS job + not confirmed          → LATEST_TEST_CONNECTION_SUCCESS (Step 5, CTA enabled)
+ *   - no successful job                    → TEST_CONNECTION_REQUIRED       (pre-test)
+ *
+ * `LOGICAL_DATABASE_RECENTLY_UPDATED` is owned by the excluded-DB (logical-DB)
+ * domain — there is no excluded-DB store here yet, so this mock never emits it.
+ */
+export const getCompletionStatus = (targetSourceId: number) => {
+  const project = findProject(targetSourceId);
+  const job = getLatestJob(targetSourceId);
+  const succeeded = job?.status === 'SUCCESS';
+  // 완료 여부는 완료 승인 요청 PUT(confirmed:true)이 세팅하는 passedAt 으로 판별한다.
+  // 테스트 성공만으로는 confirmed 가 아니다(승인 전 = LATEST_TEST_CONNECTION_SUCCESS).
+  const confirmed = project?.status.connectionTest.passedAt != null;
+
+  const status: 'CONFIRMED' | 'LATEST_TEST_CONNECTION_SUCCESS' | 'TEST_CONNECTION_REQUIRED' =
+    succeeded && confirmed
+      ? 'CONFIRMED'
+      : succeeded
+        ? 'LATEST_TEST_CONNECTION_SUCCESS'
+        : 'TEST_CONNECTION_REQUIRED';
+
+  // test_ack: 완료 승인 요청 PUT(confirmed:true)으로 제어된다 — 승인되면 passedAt 이
+  // 세팅되어 true. 테스트 성공만으로는 false(승인 대기).
+  const testAck = confirmed;
+
+  return {
+    target_source_id: targetSourceId,
+    latest_test_connection_requested_at: job?.requested_at ?? WIRE_DATE_PLACEHOLDER,
+    logical_database_updated_at: WIRE_DATE_PLACEHOLDER,
+    latest_test_connection_success: succeeded,
+    test_ack: testAck,
+    test_connection_status: status,
+    test_connection_confirmed: confirmed,
+  };
+};
+
+/**
+ * Toggle the completion-confirmation flag (PUT test-connection-acknowledgment).
+ * `true` = 완료 승인 (Step 5 final approval); `false` = rollback (Step 6 re-run).
+ * Returns the `TestConnectionConfirmationResponse` wire shape.
+ */
+export const setConfirmation = (targetSourceId: number, confirmed: boolean) => {
+  const project = findProject(targetSourceId);
+  if (project) {
+    const ct = project.status.connectionTest;
+    const now = new Date().toISOString();
+    if (confirmed) {
+      // 완료 승인 — advance ONE step. Step 5→6 sets passedAt (the
+      // test-connection-acknowledgment gate); Step 6→7 sets operationConfirmed.
+      project.status.connectionTest = !ct.passedAt
+        ? { ...ct, passedAt: now }
+        : { ...ct, operationConfirmed: true };
+    } else {
+      // 되돌아가기 — roll back ONE step. Step 7→6 clears operationConfirmed;
+      // Step 6→5 clears passedAt (passedAt is the WAITING_CONNECTION_TEST gate,
+      // so clearing it is what actually returns the project to Step 5 — clearing
+      // operationConfirmed alone leaves it stuck at Step 6).
+      project.status.connectionTest = ct.operationConfirmed
+        ? { ...ct, operationConfirmed: false }
+        : { ...ct, passedAt: undefined };
+    }
+    project.processStatus = getCurrentStep(project.status);
+  }
+  return {
+    target_source_id: targetSourceId,
+    confirmed,
+    confirmed_at: new Date().toISOString(),
+  };
+};

@@ -83,6 +83,7 @@ const projectFixture: CloudTargetSource = {
   targetSourceId: 3001,
   projectCode: 'TEST-001',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   processStatus: ProcessStatus.INSTALLATION_COMPLETE,
   createdAt: '2026-01-20T09:00:00Z',
   updatedAt: '2026-01-25T14:00:00Z',

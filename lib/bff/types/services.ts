@@ -1,26 +1,23 @@
 /**
- * Typed shapes for `bff.services` methods (ADR-011 setup spec adr011-01).
+ * Typed shapes for `bff.services` methods.
  *
- * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
- *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
+ * Casing (ADR-019 D1/D2): responses are snake on the wire → `camelCaseKeys`
+ * at the route-handler boundary → camel domain. These BffClient result types
+ * are the post-`camelCaseKeys` (camel) domain shapes.
+ *
+ * Source of truth: `docs/swagger/install-v1.yaml` (operationId
+ * getServiceAuthorizedUsers). Spec F §4.
  */
 
-import type { ProjectSummary, User } from '@/lib/types';
+import type { ProjectSummary } from '@/lib/types';
+import type { UserInfo } from '@/lib/bff/types/users';
 
-/** GET /services/{code}/authorized-users (camelCase). */
+/**
+ * GET /services/{serviceCode}/authorized-users → `AuthorizedUsersResponse` (38).
+ * `UserInfo` keys are case-neutral, so `camelCaseKeys` is a no-op.
+ */
 export interface ServiceAuthorizedUsersResponse {
-  users: User[];
-}
-
-/** POST /services/{code}/authorized-users (snake_case raw passthrough). */
-export interface ServicePermissionAddResult {
-  success: boolean;
-}
-
-/** DELETE /services/{code}/authorized-users/{userId} (snake_case raw passthrough). */
-export interface ServicePermissionRemoveResult {
-  success: boolean;
+  users?: UserInfo[];
 }
 
 /** GET /services/{code}/projects (camelCase). */

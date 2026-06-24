@@ -1,27 +1,39 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AppError } from '@/lib/errors';
+import {
+  getExcludedLogicalDatabases,
+  getTestedLogicalDatabases,
+} from '@/app/lib/api/logical-db';
+import { buildModalData } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/logical-db-deny';
 import type {
-  LogicalDatabase,
   LogicalDbDataHook,
   LogicalDbDataState,
 } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/logical-db-types';
 
 /**
- * Local stub for logical-database data.
+ * Loads the Step 5 logical-DB modal data: the discovered (tested) DBs for the
+ * left panel and the current skip policy for the right panel, fetched in
+ * parallel by `resourceId` (the modal's only key — spec B §6 D-1). The adapter
+ * (`buildModalData`) maps them to the modal's render rows + a seeded initial
+ * draft (existing skips pre-applied / greyed-out).
  *
- * BFF endpoint is not implemented. This hook returns a deterministic
- * fake list keyed on resourceId so the modal renders for any row. When
- * the BFF endpoint lands, replace the body with a real fetch call —
- * the hook's return shape is the BFF integration contract.
+ * Keeps the loading/ready/error state machine + retry/abort idiom: the active
+ * key (`targetSourceId#resourceId#nonce`) resets state to `loading` during
+ * render on change, and each fetch is cancelled via an AbortController.
  */
-export const useLogicalDatabases = (resourceId: string): LogicalDbDataHook => {
+export const useLogicalDatabases = (
+  targetSourceId: number,
+  resourceId: string,
+): LogicalDbDataHook => {
   const [retryNonce, setRetryNonce] = useState(0);
   const [state, setState] = useState<LogicalDbDataState>({ status: 'loading' });
+
   // Track the key the current state corresponds to so we can reset to 'loading'
-  // during render when the resourceId or retry nonce changes — avoids a
+  // during render when the target/resource or retry nonce changes — avoids a
   // synchronous setState inside useEffect.
-  const fetchKey = `${resourceId}#${retryNonce}`;
+  const fetchKey = `${targetSourceId}#${resourceId}#${retryNonce}`;
   const [activeKey, setActiveKey] = useState(fetchKey);
   if (fetchKey !== activeKey) {
     setActiveKey(fetchKey);
@@ -29,54 +41,28 @@ export const useLogicalDatabases = (resourceId: string): LogicalDbDataHook => {
   }
 
   useEffect(() => {
-    let cancelled = false;
-    const id = window.setTimeout(() => {
-      if (cancelled) return;
-      const databases = buildFakeDatabases(resourceId);
-      setState({ status: 'ready', databases });
-    }, 200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(id);
-    };
-  }, [resourceId, retryNonce]);
+    const controller = new AbortController();
+
+    void Promise.all([
+      getTestedLogicalDatabases(targetSourceId, resourceId, { signal: controller.signal }),
+      getExcludedLogicalDatabases(targetSourceId, resourceId, { signal: controller.signal }),
+    ])
+      .then(([tested, excluded]) => {
+        if (controller.signal.aborted) return;
+        const { databases, initialDraft } = buildModalData(tested, excluded);
+        setState({ status: 'ready', databases, initialDraft });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof AppError && error.code === 'ABORTED') return;
+        if (controller.signal.aborted) return;
+        setState({ status: 'error', message: '논리 DB 정보를 불러오지 못했습니다.' });
+      });
+
+    return () => controller.abort();
+  }, [targetSourceId, resourceId, retryNonce]);
 
   return {
     state,
     retry: () => setRetryNonce((n) => n + 1),
   };
-};
-
-/** Mock topology mirroring the v16 dataset: databases, some with schemas. */
-const MOCK_TOPOLOGY: ReadonlyArray<{ database: string; schemas: string[] }> = [
-  { database: 'live', schemas: ['public', 'analytics'] },
-  { database: 'prd', schemas: ['temp'] },
-  { database: 'stg', schemas: [] },
-  { database: 'dev', schemas: [] },
-  { database: 'reporting', schemas: ['public'] },
-];
-
-const buildFakeDatabases = (resourceId: string): LogicalDatabase[] => {
-  // Deterministic fake list keyed on resourceId so the modal looks plausible.
-  // Each database emits a 'db' row plus a 'schema' row per schema, matching
-  // the v16 Type / Database / Schema layout.
-  const rows: LogicalDatabase[] = [];
-  for (const { database, schemas } of MOCK_TOPOLOGY) {
-    rows.push({
-      id: `${resourceId}.${database}`,
-      name: database,
-      type: 'db',
-      database,
-    });
-    for (const schema of schemas) {
-      rows.push({
-        id: `${resourceId}.${database}.${schema}`,
-        name: `${database}.${schema}`,
-        type: 'schema',
-        database,
-        schema,
-      });
-    }
-  }
-  return rows;
 };

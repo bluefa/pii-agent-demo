@@ -11,6 +11,7 @@ import {
   primaryColors,
   textColors,
 } from '@/lib/theme';
+import type { SkipReason } from '@/app/lib/api/logical-db';
 import type {
   LogicalDatabase,
   LogicalDbModalDraft,
@@ -33,7 +34,7 @@ export const LogicalDbModal = ({
   const [excludedIds, setExcludedIds] = useState<ReadonlySet<string>>(
     initialDraft.excludedIds,
   );
-  const [reasons, setReasons] = useState<Readonly<Record<string, string>>>(
+  const [reasons, setReasons] = useState<Readonly<Record<string, SkipReason>>>(
     initialDraft.reasons,
   );
   const [searchA, setSearchA] = useState('');
@@ -66,7 +67,7 @@ export const LogicalDbModal = ({
     });
     setReasons((prev) => {
       if (!(id in prev)) return prev;
-      const next: Record<string, string> = {};
+      const next: Record<string, SkipReason> = {};
       for (const key of Object.keys(prev)) {
         if (key !== id) next[key] = prev[key];
       }

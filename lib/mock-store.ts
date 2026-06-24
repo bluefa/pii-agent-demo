@@ -1,5 +1,6 @@
 import type { Project, User, ServiceCode, DBCredential, ScanJob, ScanHistory, ProjectHistory, LegacyAwsInstallationStatus, LegacyAwsServiceSettings } from '@/lib/types';
 import type { TestConnectionJob } from '@/lib/mock-test-connection';
+import { buildSeedTestConnectionJobs } from '@/lib/mock-test-connection';
 import { mockUsers, mockServiceCodes, mockProjects as initialProjects, mockCredentials as initialCredentials, mockAwsInstallations, mockAwsServiceSettings } from '@/lib/mock-data';
 
 type Store = {
@@ -28,10 +29,11 @@ declare global {
 
 export const getStore = (): Store => {
     if (!globalThis.__piiAgentMockStore) {
+        const projects = [...initialProjects];
         globalThis.__piiAgentMockStore = {
             users: mockUsers,
             serviceCodes: mockServiceCodes,
-            projects: [...initialProjects],
+            projects,
             credentials: [...initialCredentials],
             currentUserId: 'admin-1',
             // v2 Scan 관련
@@ -39,8 +41,10 @@ export const getStore = (): Store => {
             scanHistory: [],
             // Project History
             projectHistory: [],
-            // Test Connection
-            testConnectionJobs: [],
+            // Test Connection — per-step seed: Step 5/6/7 targets start with a
+            // completed-SUCCESS job so latest_version / latest-results /
+            // completion-status are coherent (otherwise those pages 404).
+            testConnectionJobs: buildSeedTestConnectionJobs(projects),
             // AWS 설치 상태 (초기 데이터 로드)
             awsInstallations: new Map(mockAwsInstallations),
             // AWS 서비스 설정 (초기 데이터 로드)

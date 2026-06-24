@@ -1,29 +1,19 @@
 /**
- * IDC Provider — BFF wire DTOs (snake_case).
+ * IDC Provider — BFF wire DTOs.
  *
- * Source of truth: `docs/swagger/idc.yaml` (v1.0.0, provisional — Forward
- * Compatibility). These types mirror the wire shape 1:1; the snake→domain
- * conversion lives ONLY in `app/lib/api/idc.ts` (`toIdcResourceView`), so a
- * response-shape change touches this file + that mapper and nothing else
- * (see `design/idc-implementation-plan.md` §5).
+ * Source of truth: `docs/swagger/install-v1.yaml`. These types mirror the wire
+ * shape 1:1; the wire→domain conversion lives ONLY in `app/lib/api/idc.ts`, so a
+ * response-shape change touches this file + that mapper and nothing else.
  *
- * Casing: IDC GET responses are raw snake passthrough (httpBff uses
- * `get(path, { raw: true })`), matching the mock and this file. The mapper
- * owns camel conversion — do not camelCase at the BFF layer for IDC.
- *
- * idc.yaml is reconciled to these DTOs 1:1 (no remaining schema divergence):
- *   - database_type: 7 values                     — G5 (yaml updated)
- *   - ips: up to 6                                — G2 (yaml updated)
- *   - exclusion_reason on the resource           — G3 (yaml updated)
- *   - per-resource source_ips / firewall_open    — G6 (installation-status.resources)
- * Remaining backend-dependent items (G1 approval transition, Step 5 test-connection
- * wiring) are tracked in `design/idc-implementation-plan.md` §6.
+ * Casing (ADR-019 D6 IDC carve-out): previous-request / installation-status are
+ * raw snake passthrough; the NLB endpoints are raw camel passthrough (the
+ * swagger authors those schemas camelCase on the wire). The mapper owns the
+ * conversion — do not camelCase at the BFF layer for IDC.
  */
-
-export type IdcTfStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
 
 export type IdcInputFormatWire = 'IP' | 'HOST';
 
+/** Domain-side label lookup only — swagger `database_type` is a plain string. */
 export type IdcDatabaseTypeWire =
   | 'MYSQL'
   | 'POSTGRESQL'
@@ -33,85 +23,84 @@ export type IdcDatabaseTypeWire =
   | 'MONGODB'
   | 'REDIS';
 
-export type IdcConnectionStatusWire = 'PENDING' | 'SUCCESS';
+// ---------------------------------------------------------------------------
+// ADR-019 /install/v1 wire DTOs (verbatim from docs/swagger/install-v1.yaml).
+// The IDC mapper (app/lib/api/idc.ts) owns the wire→domain conversion.
+// ---------------------------------------------------------------------------
 
-export type IdcHealthWire = 'HEALTHY' | 'UNHEALTHY';
+/** Shared 5-value install enum — all IDC install status/step fields use it. */
+export type IdcInstallStatusWire =
+  | 'COMPLETED'
+  | 'FAIL'
+  | 'IN_PROGRESS'
+  | 'SKIP'
+  | 'UNKNOWN';
 
-/**
- * One IDC integration target. Fields above `exclusion_reason` are the user
- * input (swagger `IdcResourceInput`); fields below are server-assigned and
- * present from Step 2 onward. For the v15 demo the mock co-locates the
- * server-assigned fields here; in the real contract source_ips/firewall_open
- * are surfaced via installation-status (§6 G6/G7).
- */
-export interface IdcResourceInput {
-  /** Assigned after confirm; absent for newly entered (temp) input. */
-  resource_id?: string;
-  name: string;
-  input_format: IdcInputFormatWire;
-  /** input_format=IP. Up to 6 (§6 G2). */
+/** swagger `IdcResourceInput` (previous-request item). `database_type` is a plain string. */
+export interface IdcResourceInputWire {
   ips?: string[];
-  /** input_format=HOST. Max length 100 (§6 decision #56). */
   host?: string;
-  port: number;
-  database_type: IdcDatabaseTypeWire;
-  /** Oracle only — required when database_type=ORACLE. */
+  port?: number;
+  selected?: boolean;
+  input_format?: IdcInputFormatWire;
+  database_type?: string;
   service_id?: string;
   credential_id?: string;
-  /** Present when the target is excluded from integration (§6 G3). */
   exclusion_reason?: string;
-  // ---- server-assigned, present from Step 2 (§6 G6/G7) ----
-  source_ips?: string[];
-  firewall_open?: boolean;
-  connection_status?: IdcConnectionStatusWire;
-  health?: IdcHealthWire;
-  /** Step 1 "연동 완료 여부" display value (e.g. "연동 완료" / "연동 진행중" / "—"). */
-  done?: string;
 }
 
-/**
- * Read-response resource — swagger `IdcResource` (allOf `IdcResourceInput` +
- * required `resource_id`). GET `/resources` and `/previous-request` return these,
- * so the id Step 4 merges by / edit-update keys on is guaranteed at the type
- * level. Write requests still use `IdcResourceInput` (new rows have no id).
- *
- * `app/lib/api/idc.ts` keeps an index fallback as runtime defense — `fetchInfraJson`
- * does not validate, so a non-conformant backend could still omit it at runtime.
- */
-export interface IdcResourceWire extends IdcResourceInput {
-  resource_id: string;
+/** 200 of getIdcPreviousRequest. */
+export interface IdcPreviousRequestResponseWire {
+  resources?: IdcResourceInputWire[];
 }
 
-export interface IdcResourcesResponse {
-  resources: IdcResourceWire[];
+// Steps 2–7 read the SHARED approved/confirmed domain types (app/lib/api/idc.ts
+// adapts them to IdcResourceView), so no IDC-specific post-submission wire types
+// are needed here — only previous-request + installation-status + NLB below.
+
+/** swagger `CloudInstallationStepStatusDto`. */
+export interface IdcStepStatusWire {
+  status?: IdcInstallStatusWire;
+  guide?: string;
 }
 
-/** Per-resource install detail (§6 G6) — basis for the firewall column/modal. */
-export interface IdcResourceInstallStatus {
-  resource_id: string;
-  source_ips: string[];
-  firewall_open: boolean;
+/** swagger `IdcLastCheckDto`. */
+export interface IdcLastCheckWire {
+  status?: IdcInstallStatusWire;
+  checked_at?: string;
+  fail_reason?: string;
 }
 
-export interface IdcInstallationStatus {
-  provider: 'IDC';
-  /** BDC Terraform install — Step 4 task 1. */
-  bdc_tf: IdcTfStatus;
-  /** Roll-up: true only when every resource path is open — Step 4 task 2. */
-  firewall_opened: boolean;
-  /** Per-resource firewall/source-ip detail (§6 G6). */
-  resources?: IdcResourceInstallStatus[];
-  last_checked_at?: string;
-  error?: { code: string; message: string };
+/** swagger `IdcResourceInstallationStatusDto`. */
+export interface IdcResourceInstallationStatusWire {
+  resource_id?: string;
+  installation_status?: IdcInstallStatusWire;
+  bdc_side_cx_terraform_apply?: IdcStepStatusWire;
+  bdc_side_bdp_terraform_apply?: IdcStepStatusWire;
+  firewall_check?: IdcStepStatusWire;
 }
 
-export interface IdcSourceIpRecommendation {
-  source_ips: string[];
-  port: number;
-  description: string;
+/** 200 of getIdcInstallationStatus. */
+export interface IdcInstallationStatusResponseWire {
+  last_check?: IdcLastCheckWire;
+  resources?: IdcResourceInstallationStatusWire[];
 }
 
-export interface IdcConfirmFirewallResponse {
-  confirmed: boolean;
-  confirmed_at: string;
+/** 200 item of getOccupiedResources — camelCase ON THE WIRE (per swagger). */
+export interface NlbOccupiedResourceResponseWire {
+  serviceCode?: string;
+  serviceName?: string;
+  targetSourceId?: number;
+  isLatest?: boolean;
+  ipSet?: string[];
+  port?: number;
+  databaseType?: string;
+  databaseName?: string;
+}
+
+/** 200 item of getNlbTable — camelCase ON THE WIRE (per swagger). */
+export interface NlbTableResponseWire {
+  nlbIndex?: number;
+  nlbIpList?: string[];
+  occupiedListenerCount?: number;
 }

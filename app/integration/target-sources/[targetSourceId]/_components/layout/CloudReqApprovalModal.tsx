@@ -1,10 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { cn, idcStyles, interactiveColors, modalStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
+import { useToast } from '@/app/components/ui/toast';
+import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
+import { updateTestConnectionConfirmation } from '@/app/lib/api';
 import { StatTile } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { deriveLogicalDbCounts } from '@/lib/logical-db-counts';
@@ -14,22 +17,41 @@ interface CloudReqApprovalModalProps {
   onClose: () => void;
   resources: readonly ConfirmedResource[];
   providerLabel: string;
+  targetSourceId: number;
   onSubmit: () => void;
 }
 
 /**
  * Cloud completion-approval modal — v16 `#reqApprovalModal` (760px). Logical-DB
- * summary stats + a read-only resource table. Submit is ungated (the card's
- * completion-approval button gates on connection state before this opens) and advances
- * the step via refetch, matching v16 `submitReqApproval` → `setStep(6)`.
+ * summary stats + a read-only resource table. 요청하기 PUTs the completion
+ * acknowledgment (confirmed:true) then advances the step via refetch (onSubmit),
+ * matching v16 `submitReqApproval` → `setStep(6)`. The card gates which targets reach
+ * this modal, so the request itself is only acknowledgment + refetch.
  */
 export const CloudReqApprovalModal = ({
   isOpen,
   onClose,
   resources,
   providerLabel,
+  targetSourceId,
   onSubmit,
 }: CloudReqApprovalModalProps) => {
+  const toast = useToast();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await updateTestConnectionConfirmation(targetSourceId, true);
+      onSubmit();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '완료 승인 요청에 실패했습니다.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -156,10 +178,16 @@ export const CloudReqApprovalModal = ({
         </div>
 
         <div className={modalStyles.toss.footer}>
-          <button type="button" onClick={onClose} className={idcStyles.modalBtn.gray}>
+          <button type="button" onClick={onClose} disabled={submitting} className={idcStyles.modalBtn.gray}>
             취소
           </button>
-          <button type="button" onClick={onSubmit} className={idcStyles.modalBtn.primary}>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className={cn(idcStyles.modalBtn.primary, 'flex items-center gap-2')}
+          >
+            {submitting && <LoadingSpinner />}
             요청하기
           </button>
         </div>

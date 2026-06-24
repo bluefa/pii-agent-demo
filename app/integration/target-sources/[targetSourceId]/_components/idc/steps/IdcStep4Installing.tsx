@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react';
 import { ProcessStatus } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 import { cardStyles, cn } from '@/lib/theme';
-import { getIdcResources, type IdcResourceView } from '@/app/lib/api/idc';
+import {
+  getIdcConfirmedResources,
+  IDC_INSTALL_TASK_STATUS,
+  type IdcInstallStatus,
+  type IdcResourceView,
+} from '@/app/lib/api/idc';
 import { useIdcInstallationStatus } from '@/app/hooks/useIdcInstallationStatus';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
 import { GuideCardContainer } from '@/app/components/features/process-status/GuideCard/GuideCardContainer';
@@ -13,8 +18,7 @@ import {
   InstallTaskPipeline,
   type InstallTaskPipelineItem,
 } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
-import type { InstallTaskStatus } from '@/lib/constants/gcp';
-import type { IdcTfStatus } from '@/app/lib/api/idc';
+import type { InstallTaskStatus } from '@/lib/constants/install-task';
 import {
   ProjectPageMeta,
   RejectionAlert,
@@ -24,15 +28,20 @@ import { IdcFirewallModal } from '@/app/integration/target-sources/[targetSource
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { LoadingState } from '@/app/components/ui/state';
 
-/** v15 `bdc_tf` → install-task pill state (L6582 done / L6590 running). */
-const BDC_TASK_STATUS: Record<IdcTfStatus, InstallTaskStatus> = {
-  COMPLETED: 'done',
-  IN_PROGRESS: 'running',
-  FAILED: 'failed',
-  PENDING: 'pending',
-};
-
 const isAbort = (err: unknown): boolean => err instanceof AppError && err.code === 'ABORTED';
+
+/**
+ * Aggregate per-resource install statuses into one card bucket: a FAIL present
+ * → failed; else a still-running (IN_PROGRESS/UNKNOWN) present → running; else done.
+ * UNKNOWN shares the running bucket via IDC_INSTALL_TASK_STATUS (work-in-progress).
+ */
+const aggregateCardStatus = (statuses: IdcInstallStatus[]): InstallTaskStatus => {
+  if (statuses.length === 0) return 'pending';
+  const buckets = statuses.map((s) => IDC_INSTALL_TASK_STATUS[s]);
+  if (buckets.includes('failed')) return 'failed';
+  if (buckets.includes('running')) return 'running';
+  return 'done';
+};
 
 /**
  * IDC Step 4 — Agent 설치 (v15 `data-prov-view="idc"`, L6579~6634).
@@ -41,9 +50,12 @@ const isAbort = (err: unknown): boolean => err instanceof AppError && err.code =
  * installation status, plus the read-only 연동 대상 목록 (`src`,`fw` columns)
  * and a click-through 방화벽 확인 모달.
  *
- * Status comes from `useIdcInstallationStatus` (already DR3 abort + DR4 reset +
- * DR5 stale-guard). The resource list is fetched here with its own
- * AbortController + stale-guard so a target switch cannot leak rows (§DR).
+ * Data sources (ADR-019, data-layer only — design preserved from origin/main):
+ *   - install STATUS ← `useIdcInstallationStatus` (installation-status contract;
+ *     UNKNOWN → "작업중"/running bucket), driving the two pipeline cards;
+ *   - RESOURCE LIST ← confirmed integration (`getIdcConfirmedResources`), fetched
+ *     here with its own AbortController + stale-guard so a target switch cannot
+ *     leak rows (§DR). Source IP / firewall columns come from the confirmed rows.
  */
 export const IdcStep4Installing = ({
   project,
@@ -64,7 +76,7 @@ export const IdcStep4Installing = ({
     const controller = new AbortController();
     let active = true;
 
-    void getIdcResources(targetSourceId, { signal: controller.signal })
+    void getIdcConfirmedResources(targetSourceId, { signal: controller.signal })
       .then((data) => {
         if (active) setResources(data);
       })
@@ -79,19 +91,14 @@ export const IdcStep4Installing = ({
     };
   }, [targetSourceId]);
 
-  const bdcStatus: InstallTaskStatus = status ? BDC_TASK_STATUS[status.bdcTf] : 'pending';
-  const firewallOpened = status?.firewallOpened ?? false;
-
-  // Per-resource Source IP / firewall state is surfaced by installation-status
-  // (contract §6 G6), not by /resources. Merge it into the displayed rows so a
-  // backend that follows the contract — where /resources omits these fields —
-  // still renders Step 4 correctly. In mock both carry the same values, so the
-  // demo is unchanged; this only removes the cutover risk.
-  const statusById = new Map((status?.resources ?? []).map((r) => [r.resourceId, r]));
-  const mergedResources: IdcResourceView[] = resources.map((r) => {
-    const s = statusById.get(r.resourceId);
-    return s ? { ...r, sourceIps: s.sourceIps, firewallOpen: s.firewallOpen } : r;
-  });
+  // The two install cards aggregate the per-resource installation-status steps:
+  // BDC ← cxTerraform + bdpTerraform; 방화벽 ← firewallCheck. A backend mid-install
+  // reports UNKNOWN, which buckets to "작업중"/running (not done/failed).
+  const installResources = status?.resources ?? [];
+  const bdcStatus = aggregateCardStatus(
+    installResources.flatMap((r) => [r.cxTerraform.status, r.bdpTerraform.status]),
+  );
+  const firewallStatus = aggregateCardStatus(installResources.map((r) => r.firewallCheck.status));
 
   const tasks: InstallTaskPipelineItem[] = [
     {
@@ -104,7 +111,7 @@ export const IdcStep4Installing = ({
       key: 'firewall',
       title: '방화벽 확인',
       sub: 'Source IP → 연동 대상 방화벽 오픈 여부를 점검하는 단계',
-      status: firewallOpened ? 'done' : 'running',
+      status: firewallStatus,
       onClick: () => setFirewallOpen(true),
     },
   ];
@@ -140,7 +147,7 @@ export const IdcStep4Installing = ({
             {loading && resources.length === 0 ? (
               <LoadingState label="설치 정보를 불러오는 중입니다." />
             ) : (
-              <IdcResourceTable resources={mergedResources} cols={['src', 'fw']} />
+              <IdcResourceTable resources={resources} cols={['src', 'fw']} />
             )}
           </div>
         </div>
@@ -151,7 +158,7 @@ export const IdcStep4Installing = ({
       <IdcFirewallModal
         isOpen={firewallOpen}
         onClose={() => setFirewallOpen(false)}
-        resources={mergedResources}
+        resources={resources}
       />
     </>
   );

@@ -125,10 +125,11 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
   // v16 hides the "Cloud Provider" sub-line for IDC — it has no cloud account (HTML 9439).
   const isIdc = provider === 'idc';
 
-  // v16 `.page-title` = stable NAME + a gray, weight-500 code in parens (e.g. "Big Data Platform (999)").
-  // Strip the step-specific " - {step}" suffix so the title stays stable across steps, and render the
-  // projectCode (e.g. "IDC-025") as a gray span rather than baking it into a flat string.
-  const stableName = (project.name || project.projectCode).split(' - ')[0];
+  // v16 `.page-title` = service NAME + a gray, weight-500 service code in parens
+  // (e.g. "Big Data Platform (BDP)"). Both come from swagger TargetSourceDetail
+  // (service_name / service_code); the normalizer falls serviceName back to the
+  // code, so the parens are never empty.
+  const serviceTitle = project.serviceName || project.serviceCode;
 
   return (
     <>
@@ -136,8 +137,8 @@ export const ProjectPageMeta = ({ project, providerLabel, identity, action }: Pr
       <PageHeader
         title={
           <>
-            {stableName}{' '}
-            <span className="font-medium text-[#8B95A1]">({project.projectCode})</span>
+            {serviceTitle}{' '}
+            <span className="font-medium text-[#8B95A1]">({project.serviceCode})</span>
           </>
         }
         action={

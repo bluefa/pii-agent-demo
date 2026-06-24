@@ -16,6 +16,7 @@ import { WaitingApprovalCancelButton } from '@/app/integration/target-sources/[t
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
+import { getIdcApprovalRequestResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
 /**
@@ -33,7 +34,8 @@ export const IdcStep2WaitingApproval = ({
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.WAITING_APPROVAL);
 
-  const { state } = useIdcResources(project.targetSourceId);
+  // Step 2 source: the requested list (approval-requests/latest), not previous-request.
+  const { state } = useIdcResources(project.targetSourceId, getIdcApprovalRequestResources);
 
   return (
     <>

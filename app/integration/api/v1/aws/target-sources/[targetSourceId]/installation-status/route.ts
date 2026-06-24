@@ -9,6 +9,6 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
 
-  const legacy = await bff.aws.getInstallationStatus(parsed.value);
-  return NextResponse.json(transformAwsInstallationStatus(legacy));
+  const status = await bff.aws.getInstallationStatus(parsed.value);
+  return NextResponse.json(transformAwsInstallationStatus(status));
 }, { expectedDuration: '5000ms' });

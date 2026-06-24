@@ -17,6 +17,7 @@ export const mockServices = {
         );
       }
 
+      // Wire: AuthorizedUsersResponse { users: UserInfo[] } (38) — case-neutral keys.
       const allUsers = mockData.mockUsers;
       const usersWithPermission = allUsers
         .filter((u) => u.serviceCodePermissions.includes(serviceCode))
@@ -27,84 +28,6 @@ export const mockServices = {
         }));
 
       return NextResponse.json({ users: usersWithPermission });
-    },
-
-    add: async (serviceCode: string, body: unknown) => {
-      const user = await mockData.getCurrentUser();
-
-      if (!user || user.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'FORBIDDEN', message: '관리자만 권한을 추가할 수 있습니다.' },
-          { status: 403 }
-        );
-      }
-
-      if (!(mockData.mockServiceCodes.find((s) => s.code === serviceCode))) {
-        return NextResponse.json(
-          { error: 'NOT_FOUND', message: '존재하지 않는 서비스 코드입니다.' },
-          { status: 404 }
-        );
-      }
-
-      const { userId } = (body ?? {}) as { userId: string };
-
-      const allUsers = mockData.mockUsers;
-      const targetUser = allUsers.find((u) => u.id === userId);
-
-      if (!targetUser) {
-        return NextResponse.json(
-          { error: 'NOT_FOUND', message: '해당 사용자를 찾을 수 없습니다.' },
-          { status: 404 }
-        );
-      }
-
-      if (targetUser.serviceCodePermissions.includes(serviceCode)) {
-        return NextResponse.json(
-          { error: 'ALREADY_EXISTS', message: '이미 해당 서비스에 대한 권한이 있습니다.' },
-          { status: 400 }
-        );
-      }
-
-      targetUser.serviceCodePermissions.push(serviceCode);
-
-      return NextResponse.json({
-        success: true,
-        user: { id: targetUser.id, name: targetUser.name, email: targetUser.email },
-      });
-    },
-
-    remove: async (serviceCode: string, userId: string) => {
-      const user = await mockData.getCurrentUser();
-
-      if (!user || user.role !== 'ADMIN') {
-        return NextResponse.json(
-          { error: 'FORBIDDEN', message: '관리자만 권한을 제거할 수 있습니다.' },
-          { status: 403 }
-        );
-      }
-
-      const allUsers = mockData.mockUsers;
-      const targetUser = allUsers.find((u) => u.id === userId);
-
-      if (!targetUser) {
-        return NextResponse.json(
-          { error: 'NOT_FOUND', message: '사용자를 찾을 수 없습니다.' },
-          { status: 404 }
-        );
-      }
-
-      const index = targetUser.serviceCodePermissions.indexOf(serviceCode);
-
-      if (index === -1) {
-        return NextResponse.json(
-          { error: 'NOT_FOUND', message: '해당 사용자는 이 서비스에 대한 권한이 없습니다.' },
-          { status: 404 }
-        );
-      }
-
-      targetUser.serviceCodePermissions.splice(index, 1);
-
-      return NextResponse.json({ success: true });
     },
   },
 

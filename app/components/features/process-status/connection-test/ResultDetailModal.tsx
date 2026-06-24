@@ -1,20 +1,20 @@
 'use client';
 
-import type { TestConnectionJob } from '@/app/lib/api';
+import type { TestConnectionVersionResult } from '@/app/lib/api';
 import { Modal } from '@/app/components/ui/Modal';
 import { statusColors, cn } from '@/lib/theme';
-import { ResourceResultRow } from './ResourceResultRow';
+import { ResourceResultRow } from '@/app/components/features/process-status/connection-test/ResourceResultRow';
 
 interface ResultDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  job: TestConnectionJob;
+  job: TestConnectionVersionResult;
 }
 
 export const ResultDetailModal = ({ isOpen, onClose, job }: ResultDetailModalProps) => {
-  const failCount = job.resource_results.filter((r) => r.status === 'FAIL').length;
-  const successCount = job.resource_results.filter((r) => r.status === 'SUCCESS').length;
-  const dateStr = new Date(job.completed_at ?? job.requested_at ?? '').toLocaleString('ko-KR', {
+  const failCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'FAIL').length;
+  const successCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'SUCCESS').length;
+  const dateStr = new Date(job.completedAt || job.requestedAt || '').toLocaleString('ko-KR', {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
@@ -38,8 +38,8 @@ export const ResultDetailModal = ({ isOpen, onClose, job }: ResultDetailModalPro
       }
     >
       <div className="max-h-[400px] overflow-auto">
-        {job.resource_results.map((r) => (
-          <ResourceResultRow key={r.resource_id} result={r} />
+        {job.testConnectionAgentResults.map((r) => (
+          <ResourceResultRow key={r.resourceId} result={r} />
         ))}
       </div>
     </Modal>
