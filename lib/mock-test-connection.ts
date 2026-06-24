@@ -194,12 +194,14 @@ const calculateJobStatus = (job: TestConnectionJob): TestConnectionJob => {
     };
     updateJobInStore(completed);
 
-    // 프로세스 상태 전환
+    // 프로세스 상태 전환. 테스트 성공은 결과만 기록한다 — Step5→6 전환은 완료 승인 요청
+    // (test-connection-acknowledgment PUT, confirmed:true → setConfirmation)이 게이트라
+    // 여기서 passedAt 을 세팅하지 않는다(성공해도 승인 전엔 Step5 유지).
     if (finalStatus === 'SUCCESS') {
       project.status.connectionTest = {
+        ...project.status.connectionTest,
         status: 'PASSED',
         lastTestedAt: completedAt,
-        passedAt: completedAt,
       };
     } else {
       project.status.connectionTest = {
@@ -407,15 +409,9 @@ export const getCompletionStatus = (targetSourceId: number) => {
   const project = findProject(targetSourceId);
   const job = getLatestJob(targetSourceId);
   const succeeded = job?.status === 'SUCCESS';
-  // Confirmed once the 완료 승인 acknowledgment ({confirmed:true}) ran. The
-  // effective step (getCurrentStep — the system-authoritative status) is past
-  // that gate at CONNECTION_VERIFIED / INSTALLATION_COMPLETE; operationConfirmed
-  // also covers the in-session toggle (setConfirmation) before the step advances.
-  const effectiveStep = project ? getCurrentStep(project.status) : undefined;
-  const confirmed =
-    project?.status.connectionTest.operationConfirmed === true ||
-    effectiveStep === ProcessStatus.CONNECTION_VERIFIED ||
-    effectiveStep === ProcessStatus.INSTALLATION_COMPLETE;
+  // 완료 여부는 완료 승인 요청 PUT(confirmed:true)이 세팅하는 passedAt 으로 판별한다.
+  // 테스트 성공만으로는 confirmed 가 아니다(승인 전 = LATEST_TEST_CONNECTION_SUCCESS).
+  const confirmed = project?.status.connectionTest.passedAt != null;
 
   const status: 'CONFIRMED' | 'LATEST_TEST_CONNECTION_SUCCESS' | 'TEST_CONNECTION_REQUIRED' =
     succeeded && confirmed
@@ -424,10 +420,9 @@ export const getCompletionStatus = (targetSourceId: number) => {
         ? 'LATEST_TEST_CONNECTION_SUCCESS'
         : 'TEST_CONNECTION_REQUIRED';
 
-  // test_ack: the latest test-connection run has a SUCCESS result that is
-  // authoritative for step advancement. True when the job succeeded, regardless
-  // of whether the operator has already confirmed (confirmed = already past step 5).
-  const testAck = succeeded;
+  // test_ack: 완료 승인 요청 PUT(confirmed:true)으로 제어된다 — 승인되면 passedAt 이
+  // 세팅되어 true. 테스트 성공만으로는 false(승인 대기).
+  const testAck = confirmed;
 
   return {
     target_source_id: targetSourceId,
@@ -449,8 +444,13 @@ export const setConfirmation = (targetSourceId: number, confirmed: boolean) => {
   const project = findProject(targetSourceId);
   if (project) {
     const ct = project.status.connectionTest;
+    const now = new Date().toISOString();
     if (confirmed) {
-      project.status.connectionTest = { ...ct, operationConfirmed: true };
+      // 완료 승인 — advance ONE step. Step 5→6 sets passedAt (the
+      // test-connection-acknowledgment gate); Step 6→7 sets operationConfirmed.
+      project.status.connectionTest = !ct.passedAt
+        ? { ...ct, passedAt: now }
+        : { ...ct, operationConfirmed: true };
     } else {
       // 되돌아가기 — roll back ONE step. Step 7→6 clears operationConfirmed;
       // Step 6→5 clears passedAt (passedAt is the WAITING_CONNECTION_TEST gate,

@@ -15,6 +15,7 @@ import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import {
   getTestConnectionCompletionStatus,
   updateResourceCredential,
+  updateTestConnectionConfirmation,
   type TestConnectionStatus,
 } from '@/app/lib/api';
 import { ProcessStatusCard } from '@/app/components/features/ProcessStatusCard';
@@ -189,11 +190,11 @@ export const IdcStep5ConnectionTest = ({
     await trigger();
   }, [ready, testing, savingCreds, allCredsSet, state, creds, targetSourceId, trigger, toast]);
 
-  // Changing a credential invalidates the prior test result for that row.
+  // Changing a credential only updates the selection. The latest poll result still
+  // stands (a credential change is not a re-test), so it must NOT disable the 완료 승인
+  // 요청 CTA; Run Test is what resets the gate when a new run is triggered.
   const handleCredChange = useCallback((resourceId: string, cred: string) => {
     setCreds((prev) => ({ ...prev, [resourceId]: cred }));
-    setTested(false);
-    setApprovalEnabled(false);
   }, []);
 
   const progressState: ConnProgressState = testing
@@ -234,9 +235,11 @@ export const IdcStep5ConnectionTest = ({
   }, [toast]);
 
   const canRequestApproval = liveResources.length > 0 && okCount === liveResources.length && !testing && approvalEnabled;
-  // Completion-approval submit -> refetch advances to step 6 when the process status flips.
+  // 완료 승인 요청: acknowledge (confirmed:true) → the mock sets passedAt → Step 6,
+  // then the refetch advances the screen. (Without the PUT the project never changes.)
   const handleSubmitApproval = useCallback(async () => {
     setApprovalOpen(false);
+    await updateTestConnectionConfirmation(targetSourceId, true);
     const updated = await getProject(targetSourceId);
     onProjectUpdate(updated);
   }, [onProjectUpdate, targetSourceId]);
