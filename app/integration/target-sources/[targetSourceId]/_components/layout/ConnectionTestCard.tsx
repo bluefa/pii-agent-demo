@@ -61,9 +61,6 @@ export const ConnectionTestCard = ({
 }: ConnectionTestCardProps) => {
   const { latestJob, uiState, trigger, triggerError } = useTestConnectionPolling(targetSourceId);
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
-  // Credentials persisted/test triggered — true once Run Test starts, gates the per-row
-  // status read on the poll instead of the pre-test PENDING seed.
-  const [tested, setTested] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
     initialPageSize: 10,
@@ -78,10 +75,13 @@ export const ConnectionTestCard = ({
   if (seededFrom !== confirmed) {
     setSeededFrom(confirmed);
     setCreds(seedCreds(confirmed));
-    setTested(false);
   }
 
   const testing = uiState === 'PENDING';
+
+  // hasResult: the hook fetches latest_version on mount, so a prior settled run
+  // is visible immediately on a cold load — no Run Test click required (B3).
+  const hasResult = uiState === 'SUCCESS' || uiState === 'FAIL';
 
   // Per-resource connection status from the latest poll, keyed by resourceId.
   const statusByResource = useMemo(() => {
@@ -92,11 +92,12 @@ export const ConnectionTestCard = ({
     return map;
   }, [latestJob]);
 
-  // A row is connected only with a credential AND a SUCCESS result from the run.
+  // A row is connected when the latest settled run (mount-hydrated or post-Run-Test)
+  // returned SUCCESS for this resource.
   const rowConnected = useCallback(
     (resourceId: string): boolean =>
-      tested && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
-    [tested, creds, statusByResource],
+      hasResult && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
+    [hasResult, creds, statusByResource],
   );
 
   // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
@@ -109,7 +110,6 @@ export const ConnectionTestCard = ({
 
   const runTest = useCallback(async () => {
     if (testing || !allCredsSet) return;
-    setTested(true);
     await trigger();
   }, [testing, allCredsSet, trigger]);
 
@@ -122,7 +122,6 @@ export const ConnectionTestCard = ({
       return;
     }
     setCreds((prev) => ({ ...prev, [resourceId]: cred }));
-    setTested(false);
   }, [targetSourceId, toast]);
 
   // On save the skip policy persists, which flips completion-status
@@ -145,7 +144,7 @@ export const ConnectionTestCard = ({
 
   const okCount = confirmed.filter((r) => rowConnected(r.resourceId)).length;
   const failCount = confirmed.filter(
-    (r) => tested && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
+    (r) => hasResult && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
   ).length;
   const pendingCount = total - okCount;
   const progressPct = total > 0 ? Math.round((okCount / total) * 100) : 0;
@@ -230,7 +229,7 @@ export const ConnectionTestCard = ({
                 const cred = creds[resource.resourceId] ?? '';
                 const status = statusByResource[resource.resourceId];
                 const connected = rowConnected(resource.resourceId);
-                const failed = tested && !!cred && status === 'FAIL';
+                const failed = hasResult && !!cred && status === 'FAIL';
                 return (
                   <tr key={resource.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>

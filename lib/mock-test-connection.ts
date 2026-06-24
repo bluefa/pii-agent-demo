@@ -448,10 +448,19 @@ export const getCompletionStatus = (targetSourceId: number) => {
 export const setConfirmation = (targetSourceId: number, confirmed: boolean) => {
   const project = findProject(targetSourceId);
   if (project) {
-    project.status.connectionTest = {
-      ...project.status.connectionTest,
-      operationConfirmed: confirmed,
-    };
+    const ct = project.status.connectionTest;
+    if (confirmed) {
+      project.status.connectionTest = { ...ct, operationConfirmed: true };
+    } else {
+      // 되돌아가기 — roll back ONE step. Step 7→6 clears operationConfirmed;
+      // Step 6→5 clears passedAt (passedAt is the WAITING_CONNECTION_TEST gate,
+      // so clearing it is what actually returns the project to Step 5 — clearing
+      // operationConfirmed alone leaves it stuck at Step 6).
+      project.status.connectionTest = ct.operationConfirmed
+        ? { ...ct, operationConfirmed: false }
+        : { ...ct, passedAt: undefined };
+    }
+    project.processStatus = getCurrentStep(project.status);
   }
   return {
     target_source_id: targetSourceId,

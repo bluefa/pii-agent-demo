@@ -198,16 +198,28 @@ describe('ConnectionTestCard', () => {
     return () => rerender(element());
   };
 
+  it('hydrates row statuses from latest_version on mount without Run Test click (B3)', async () => {
+    // Simulate a prior SUCCESS result already in the mock on cold load.
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
+    renderCard(confirmed);
+    // Row must show Success and CTA must be enabled — no Run Test click.
+    expect(await screen.findByText('Success')).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+    );
+    expect(triggerMock).not.toHaveBeenCalled();
+  });
+
   it('enables 완료 승인 요청 when latest_version.connectionStatus is SUCCESS (B2)', async () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     const rerender = renderStable(confirmed);
 
-    // Run Test → tested flag flips so the poll drives the row status.
+    // Poll settles SUCCESS after Run Test — approval gate reads uiState directly.
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
     });
-
-    // Poll settles SUCCESS — approval gate reads uiState directly, no extra fetch.
     pollingState.uiState = 'SUCCESS';
     pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
     act(() => rerender());
@@ -218,20 +230,7 @@ describe('ConnectionTestCard', () => {
     );
   });
 
-  it('keeps 완료 승인 요청 disabled when latest_version.connectionStatus is FAIL', async () => {
-    const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
-    const rerender = renderStable(confirmed);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
-    });
-    pollingState.uiState = 'FAIL';
-    pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
-    act(() => rerender());
-    expect(await screen.findByText('Fail')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
-  });
-
-  it('shows Fail when the poll reports a FAIL agent result', async () => {
+  it('shows Fail and keeps 완료 승인 요청 disabled when latest_version.connectionStatus is FAIL', async () => {
     const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
     const rerender = renderStable(confirmed);
     await act(async () => {

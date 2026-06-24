@@ -107,6 +107,10 @@ export const IdcStep5ConnectionTest = ({
   const ready = state.status === 'ready';
   const liveResources = ready ? state.resources.filter((r) => !r.excluded) : [];
   const testing = uiState === 'PENDING';
+  // B3: useTestConnectionPolling fetches latest_version on mount, so a settled
+  // prior run must render immediately on a cold load/refresh — not stay PENDING
+  // until a Run Test click this session.
+  const hasResult = tested || uiState === 'SUCCESS' || uiState === 'FAIL';
 
   // Per-resource connection status from the latest poll, keyed by resourceId.
   const statusByResource = useMemo(() => {
@@ -120,8 +124,8 @@ export const IdcStep5ConnectionTest = ({
   // A row counts as connected only with a credential AND a SUCCESS result from the run.
   const rowConnected = useCallback(
     (resourceId: string): boolean =>
-      tested && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
-    [tested, creds, statusByResource],
+      hasResult && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
+    [hasResult, creds, statusByResource],
   );
 
   // Project the live status onto the rows the table renders (cred + conn columns).
@@ -138,7 +142,7 @@ export const IdcStep5ConnectionTest = ({
 
   const okCount = liveResources.filter((r) => rowConnected(r.resourceId)).length;
   const failCount = liveResources.filter(
-    (r) => tested && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
+    (r) => hasResult && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
   ).length;
   const pendingCount = liveResources.length - okCount;
   const progressPct = liveResources.length > 0 ? Math.round((okCount / liveResources.length) * 100) : 0;
