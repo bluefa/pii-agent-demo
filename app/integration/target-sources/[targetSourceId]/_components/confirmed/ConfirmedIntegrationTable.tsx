@@ -126,11 +126,10 @@ export const ConfirmedIntegrationTable = ({
     );
   }
 
-  // v15 Connection Status mixes Success/Pending. A DISCONNECTED resource is always
-  // Pending; otherwise flag the single highest-hash row as Pending so the
-  // all-connected demo fixtures still show the v15-style mix.
-  const demoPendingId = pickDemoUnhealthyId(confirmed);
-
+  // Connection Status is NOT part of the confirmed-integration contract — it only
+  // exists once a test-connection run is fetched (Step 5's latest_version agent
+  // results). On the steps that render this table (cloud Step 6) no test-connection
+  // result is fetched, so the column shows "-" rather than a fabricated badge.
   return (
     <>
     <div className={idcStyles.table.frame}>
@@ -146,10 +145,7 @@ export const ConfirmedIntegrationTable = ({
         </tr>
       </thead>
       <tbody className={tableStyles.body}>
-        {pageRows.map((resource) => {
-          const isPending =
-            resource.connectionStatus === 'DISCONNECTED' || resource.resourceId === demoPendingId;
-          return (
+        {pageRows.map((resource) => (
           <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
             <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
             <td className={cellClass}>
@@ -158,14 +154,9 @@ export const ConfirmedIntegrationTable = ({
             <td className={monoCellClass}>{resource.region ?? '-'}</td>
             <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
             <td className={cellClass}>{resource.credentialId ?? '-'}</td>
-            <td className={tableStyles.cell}>
-              <span className={cn(idcStyles.tag.base, isPending ? idcStyles.tag.orange : idcStyles.tag.green)}>
-                {isPending ? 'Pending' : 'Success'}
-              </span>
-            </td>
+            <td className={cn(tableStyles.cell, textColors.quaternary)}>-</td>
           </tr>
-          );
-        })}
+        ))}
       </tbody>
     </table>
     </div>

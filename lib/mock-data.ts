@@ -11,6 +11,7 @@ import {
   LegacyAwsInstallationStatus,
   LegacyAwsServiceSettings,
   ProjectStatus,
+  MockResource,
 } from '@/lib/types';
 import { getStore } from '@/lib/mock-store';
 import { createInitialProjectStatus } from '@/lib/process';
@@ -845,13 +846,59 @@ export const mockProjects: Project[] = [
 ];
 
 // ===== IDC 데모 프로젝트 (Step 1~7) =====
-// IDC 리소스 데이터는 lib/mock-idc.ts 가 wire 형태로 제공한다(previous-request /
-// installation-status). 프로젝트의 resources 는 비워 두고 processStatus 만
-// 단계별로 시드해 각 화면을 데모한다.
+// Step 2~7 read the STANDARD integration endpoints (approval-requests/latest,
+// approved-integration, confirmed-integration), whose mocks derive rows from
+// `project.resources` (filter isSelected). So IDC projects carry a seeded
+// resource set — 5 integration targets (idcConfig.sourceIps = the PII-Agent
+// server IPs surfaced in the Source IP column) + 2 excluded — exactly like the
+// cloud demo projects. Step 1 (1020) stays empty (manual input). Installation
+// status still comes from idc installation-status (lib/mock-idc.ts).
+const IDC_DEMO_RESOURCES: MockResource[] = [
+  {
+    id: 'idc-res-001', type: 'IDC_RESOURCE', resourceId: 'idc-res-001',
+    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MYSQL', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'IP', ips: ['10.20.30.40'], domain: '', sourceIps: ['10.10.0.21'], firewallOpen: true },
+  },
+  {
+    id: 'idc-res-002', type: 'IDC_RESOURCE', resourceId: 'idc-res-002',
+    connectionStatus: 'PENDING', isSelected: true, databaseType: 'ORACLE', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'IP', ips: ['10.20.31.10', '10.20.31.11'], domain: '', oracleSid: 'ORCL', sourceIps: ['10.10.0.21', '10.10.0.22'], firewallOpen: true },
+  },
+  {
+    id: 'idc-res-003', type: 'IDC_RESOURCE', resourceId: 'idc-res-003',
+    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MYSQL', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'IP', ips: ['10.20.32.7'], domain: '', sourceIps: ['10.10.0.21'], firewallOpen: false },
+  },
+  {
+    id: 'idc-res-004', type: 'IDC_RESOURCE', resourceId: 'idc-res-004',
+    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MONGODB', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'IP', ips: ['10.20.32.8'], domain: '', sourceIps: ['10.10.0.22'], firewallOpen: true },
+  },
+  {
+    id: 'idc-res-005', type: 'IDC_RESOURCE', resourceId: 'idc-res-005',
+    connectionStatus: 'PENDING', isSelected: true, databaseType: 'MSSQL', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'IP', ips: ['10.20.33.2'], domain: '', sourceIps: ['10.10.0.22'], firewallOpen: true },
+  },
+  // Excluded (비대상) — surfaced in Step 2/3 with their reason chips.
+  {
+    id: 'idc-res-006', type: 'IDC_RESOURCE', resourceId: 'idc-res-006',
+    connectionStatus: 'PENDING', isSelected: false, databaseType: 'POSTGRESQL', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'HOST', ips: [], domain: 'db.svc-a.io', sourceIps: [], firewallOpen: false },
+    exclusion: { reason: 'StageDB', excludedBy: { id: 'admin-1', name: '관리자' }, excludedAt: '2026-03-01T09:00:00Z' },
+  },
+  {
+    id: 'idc-res-007', type: 'IDC_RESOURCE', resourceId: 'idc-res-007',
+    connectionStatus: 'PENDING', isSelected: false, databaseType: 'REDIS', integrationCategory: 'TARGET',
+    idcConfig: { inputFormat: 'HOST', ips: [], domain: 'cache.svc-a.io', sourceIps: [], firewallOpen: false },
+    exclusion: { reason: '캐시 전용 DB로 PII 데이터를 보관하지 않아 제외합니다.', excludedBy: { id: 'admin-1', name: '관리자' }, excludedAt: '2026-03-01T09:00:00Z' },
+  },
+];
+
 const makeIdcProject = (
   targetSourceId: number,
   step: ProcessStatus,
   name: string,
+  resources: MockResource[],
 ): Project => ({
   id: `idc-proj-${targetSourceId}`,
   targetSourceId,
@@ -861,22 +908,36 @@ const makeIdcProject = (
   serviceCode: 'idc',
   cloudProvider: 'IDC',
   processStatus: step,
-  status: createStatusForProcessStatus(step, { selectedCount: 2, excludedCount: 1 }),
-  resources: [],
+  status: createStatusForProcessStatus(step, { selectedCount: 5, excludedCount: 2 }),
+  resources,
   terraformState: { bdcTf: step >= ProcessStatus.INSTALLING ? 'COMPLETED' : 'PENDING' },
   createdAt: '2026-03-01T09:00:00Z',
   updatedAt: '2026-03-01T09:00:00Z',
   isRejected: false,
 });
 
+// Steps 6/7 render the confirmed table, which only surfaces CONNECTED targets
+// (getConfirmedIntegration path-4 requires connection at CONNECTION_VERIFIED /
+// INSTALLATION_COMPLETE). Mark selected targets CONNECTED for those steps.
+const idcResourcesForStep = (step: ProcessStatus): MockResource[] => {
+  const connected =
+    step === ProcessStatus.CONNECTION_VERIFIED || step === ProcessStatus.INSTALLATION_COMPLETE;
+  return connected
+    ? IDC_DEMO_RESOURCES.map((r) =>
+        r.isSelected ? { ...r, connectionStatus: 'CONNECTED' as const } : r,
+      )
+    : IDC_DEMO_RESOURCES;
+};
+
 mockProjects.push(
-  makeIdcProject(1020, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력'),
-  makeIdcProject(1021, ProcessStatus.WAITING_APPROVAL, 'IDC PII Agent - 승인 대기'),
-  makeIdcProject(1022, ProcessStatus.APPLYING_APPROVED, 'IDC PII Agent - 반영 중'),
-  makeIdcProject(1023, ProcessStatus.INSTALLING, 'IDC PII Agent - 설치 진행'),
-  makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트'),
-  makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인'),
-  makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료'),
+  // Step 1 stays empty (manual input — no seeded targets).
+  makeIdcProject(1020, ProcessStatus.WAITING_TARGET_CONFIRMATION, 'IDC PII Agent - 연동 대상 입력', []),
+  makeIdcProject(1021, ProcessStatus.WAITING_APPROVAL, 'IDC PII Agent - 승인 대기', idcResourcesForStep(ProcessStatus.WAITING_APPROVAL)),
+  makeIdcProject(1022, ProcessStatus.APPLYING_APPROVED, 'IDC PII Agent - 반영 중', idcResourcesForStep(ProcessStatus.APPLYING_APPROVED)),
+  makeIdcProject(1023, ProcessStatus.INSTALLING, 'IDC PII Agent - 설치 진행', idcResourcesForStep(ProcessStatus.INSTALLING)),
+  makeIdcProject(1024, ProcessStatus.WAITING_CONNECTION_TEST, 'IDC PII Agent - 연결 테스트', idcResourcesForStep(ProcessStatus.WAITING_CONNECTION_TEST)),
+  makeIdcProject(1025, ProcessStatus.CONNECTION_VERIFIED, 'IDC PII Agent - 연결 확인', idcResourcesForStep(ProcessStatus.CONNECTION_VERIFIED)),
+  makeIdcProject(1026, ProcessStatus.INSTALLATION_COMPLETE, 'IDC PII Agent - 설치 완료', idcResourcesForStep(ProcessStatus.INSTALLATION_COMPLETE)),
 );
 
 // ===== Cloud step-coverage seed (detail page) =====

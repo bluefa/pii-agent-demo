@@ -164,6 +164,40 @@ const demoResourceName = (provider: Project['cloudProvider'], resource: MockReso
 const demoCredential = (resource: MockResource): string =>
   resource.selectedCredentialId ?? (stableIndex(resource.id, 2) === 0 ? 'Key1' : 'Key2');
 
+// Default DB port by database type (demo). Confirmed-integration must surface a
+// non-null host/port; cloud seeds carry neither on the resource (only VM configs
+// do), so derive deterministic demo values when absent.
+const DEMO_PORT_BY_DB: Record<string, number> = {
+  MYSQL: 3306,
+  MARIADB: 3306,
+  POSTGRESQL: 5432,
+  ORACLE: 1521,
+  MSSQL: 1433,
+  MONGODB: 27017,
+  REDIS: 6379,
+  COSMOSDB: 443,
+  DYNAMODB: 443,
+  REDSHIFT: 5439,
+  BIGQUERY: 443,
+  ATHENA: 443,
+};
+
+const demoPort = (resource: MockResource): number => {
+  const db = resource.vmDatabaseConfig?.databaseType ?? resource.databaseType ?? '';
+  return DEMO_PORT_BY_DB[db] ?? 3306;
+};
+
+// Demo host: resource_name as an FQDN under a provider-ish suffix (deterministic).
+const demoHost = (provider: Project['cloudProvider'], resource: MockResource): string => {
+  const name = demoResourceName(provider, resource).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+  const suffix =
+    provider === 'AWS' ? 'rds.amazonaws.com'
+      : provider === 'Azure' ? 'database.azure.com'
+        : provider === 'GCP' ? 'cloudsql.gcp.internal'
+          : 'db.internal';
+  return `${name}.${suffix}`;
+};
+
 // Swagger TargetSourceResourceMetadataDto (snake wire). host/port/
 // oracle_service_id/network_interface_id live HERE, not on the item — the real
 // BFF authors them under metadata, so the mock must too (else extractResourceCatalog
@@ -263,6 +297,7 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
       }),
     };
   }
+  const idc = r.idcConfig;
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
@@ -272,6 +307,11 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_name: demoResourceName(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),
     integration_status: deriveIntegrationStatus(r),
+    // Emit IDC fields only when present (IDC resources only).
+    ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+    ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+    ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+    ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
   };
 }
 
@@ -288,18 +328,29 @@ function toExcludedResourceInfo(r: MockResource, project: Project): BffExcludedR
 }
 
 function toConfirmedIntegrationResourceInfo(r: MockResource, project: Project): BffConfirmedIntegration['resource_infos'][number] {
+  const idc = r.idcConfig;
+  // host/port: VM config if present, else IDC endpoint (domain or first ip), else a
+  // deterministic demo value so confirmed-integration never surfaces null host/port.
+  const idcHost = idc ? (idc.inputFormat === 'HOST' ? idc.domain : idc.ips[0]) : undefined;
+  const host = r.vmDatabaseConfig?.host ?? idcHost ?? demoHost(project.cloudProvider, r);
+  const port = r.vmDatabaseConfig?.port ?? demoPort(r);
   return {
     resource_id: r.resourceId,
     resource_type: r.type,
     database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
     database_region: demoRegion(project.cloudProvider, r),
     resource_name: demoResourceName(project.cloudProvider, r),
-    port: r.vmDatabaseConfig?.port ?? null,
-    host: r.vmDatabaseConfig?.host ?? null,
-    oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? null,
+    port,
+    host,
+    oracle_service_id: r.vmDatabaseConfig?.oracleServiceId ?? idc?.oracleSid ?? null,
     network_interface_id: r.vmDatabaseConfig?.selectedNicId ?? null,
     ip_configuration_name: null,
     credential_id: demoCredential(r),
+    // Emit IDC fields only when present (IDC resources only).
+    ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+    ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+    ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+    ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
   };
 }
 
@@ -674,13 +725,15 @@ export const mockConfirm = {
       }
     }
 
-    // 4. 최종 폴백: project.resources 의 selected 리소스 (connection-test 통과 후만)
-    const requiresConnection =
-      project.processStatus === ProcessStatus.CONNECTION_VERIFIED ||
-      project.processStatus === ProcessStatus.INSTALLATION_COMPLETE;
-    const eligibleResources = project.resources.filter(
-      (r) => r.isSelected && (!requiresConnection || r.connectionStatus === 'CONNECTED'),
-    );
+    // 4. 최종 폴백: project.resources 의 selected 리소스.
+    // The confirmed integration is the selected resource set. Earlier this filtered
+    // step-6/7 to per-resource connectionStatus==='CONNECTED', but the live
+    // test-connection sim advances processStatus to CONNECTION_VERIFIED via
+    // status.connectionTest WITHOUT flipping per-resource connectionStatus — so that
+    // guard yielded 0 rows (→ 404) for any project that reached step 6/7 dynamically
+    // (and after a later FAILED retest). Reaching step 6/7 already means the
+    // integration was confirmed, so selection is the only filter here.
+    const eligibleResources = project.resources.filter((r) => r.isSelected);
     if (eligibleResources.length === 0) {
       return NextResponse.json(createEmptyConfirmedIntegration());
     }
@@ -992,6 +1045,29 @@ export const mockConfirm = {
     const requestId = latestRequest ? parseInt(String(latestRequest.id).replace(/\D/g, '') || '0', 10) : 0;
     const processedAt = latestRequest?.timestamp ?? new Date().toISOString();
 
+    // swagger ApprovalRequestLatestDto.resources: TargetSourceResourceItemDto[] —
+    // carry idc_* fields under metadata so the IDC mapper (toIdcResourceViewFromItem)
+    // can surface Source IPs in the Step-2 table.
+    const resources = project.resources.map((r) => {
+      const idc = r.idcConfig;
+      const metadata: Record<string, unknown> = {
+        provider: project.cloudProvider,
+        ...(idc ? { idc_host_format: idc.inputFormat } : {}),
+        ...(idc?.inputFormat === 'IP' && idc.ips.length > 0 ? { idc_ips: idc.ips } : {}),
+        ...(idc?.inputFormat === 'HOST' && idc.domain ? { idc_host: idc.domain } : {}),
+        ...(idc?.sourceIps && idc.sourceIps.length > 0 ? { idc_source_ips: idc.sourceIps } : {}),
+      };
+      return {
+        resource_id: r.resourceId,
+        resource_type: r.type,
+        database_type: r.databaseType,
+        selected: r.isSelected,
+        integration_category: r.integrationCategory,
+        ...(r.exclusion?.reason ? { exclusion_reason: r.exclusion.reason } : {}),
+        metadata,
+      };
+    });
+
     return NextResponse.json({
       request: {
         id: requestId,
@@ -1002,6 +1078,7 @@ export const mockConfirm = {
         resource_total_count: totalCount,
         resource_selected_count: selectedCount,
       },
+      resources,
       result: {
         request_id: latestRequest ? requestId : null,
         status: bffStatus,

@@ -32,6 +32,7 @@ const azureBaseFixture: CloudTargetSource = {
   name: 'Azure PII Agent - DB 연동',
   description: 'Azure SQL, PostgreSQL, MySQL 리소스에 PII Agent 설치',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   cloudProvider: 'Azure',
   tenantId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   subscriptionId: '12345678-abcd-ef01-2345-6789abcdef01',

@@ -382,6 +382,11 @@ const toApprovedIntegrationResourceSnapshot = (
   resource_name: resource.resource_name ?? null,
   scan_status: resource.scan_status ?? null,
   integration_status: resource.integration_status ?? null,
+  // Pass IDC fields through — absent for cloud resources.
+  ...(resource.idc_host_format ? { idc_host_format: resource.idc_host_format } : {}),
+  ...(resource.idc_ips ? { idc_ips: resource.idc_ips } : {}),
+  ...(resource.idc_host ? { idc_host: resource.idc_host } : {}),
+  ...(resource.idc_source_ips ? { idc_source_ips: resource.idc_source_ips } : {}),
 });
 
 export const createApprovalRequest = async (

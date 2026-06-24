@@ -58,6 +58,12 @@ export interface ResourceConfigDto {
   resource_name?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
+  // IDC-specific swagger fields (ResourceConfigDto.idc_*) — absent for cloud.
+  idc_host_format?: 'IP' | 'HOST';
+  idc_ips?: string[];
+  idc_host?: string;
+  idc_source_ips?: string[];
+  nlb_index?: number;
 }
 
 export interface ExcludedResourceInfoDto {
@@ -172,6 +178,17 @@ const getLegacyApprovalInput = (value: unknown): JsonRecord | null => {
   return isRecord(value.input_data) ? value.input_data : null;
 };
 
+const toIdcHostFormat = (value: unknown): 'IP' | 'HOST' | undefined => {
+  if (value === 'IP' || value === 'HOST') return value;
+  return undefined;
+};
+
+const toStringArray = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const result = value.filter((v): v is string => typeof v === 'string');
+  return result.length > 0 ? result : undefined;
+};
+
 const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
   if (!isRecord(value)) return {};
 
@@ -192,6 +209,10 @@ const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
   const resourceName = toStringOrUndefined(value.resource_name);
   const scanStatus = toScanStatus(value.scan_status);
   const integrationStatus = toIntegrationStatus(value.integration_status);
+  const idcHostFormat = toIdcHostFormat(value.idc_host_format);
+  const idcIps = toStringArray(value.idc_ips);
+  const idcHost = toStringOrUndefined(value.idc_host);
+  const idcSourceIps = toStringArray(value.idc_source_ips);
 
   return {
     ...(resourceId ? { resource_id: resourceId } : {}),
@@ -207,6 +228,10 @@ const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
     ...(resourceName ? { resource_name: resourceName } : {}),
     ...(scanStatus ? { scan_status: scanStatus } : {}),
     ...(integrationStatus ? { integration_status: integrationStatus } : {}),
+    ...(idcHostFormat ? { idc_host_format: idcHostFormat } : {}),
+    ...(idcIps ? { idc_ips: idcIps } : {}),
+    ...(idcHost ? { idc_host: idcHost } : {}),
+    ...(idcSourceIps ? { idc_source_ips: idcSourceIps } : {}),
   };
 };
 
@@ -237,6 +262,11 @@ const toResourceConfigFromItem = (value: unknown): ResourceConfigDto => {
   const credentialId =
     toStringOrUndefined(metadata.credential_id) ?? toStringOrUndefined(metadata.credentialId);
   const databaseRegion = toStringOrUndefined(metadata.region);
+  // IDC-specific fields live under metadata (TargetSourceResourceMetadataDto.idc_*)
+  const idcHostFormat = toIdcHostFormat(metadata.idc_host_format ?? metadata.idcHostFormat);
+  const idcIps = toStringArray(metadata.idc_ips ?? metadata.idcIps);
+  const idcHost = toStringOrUndefined(metadata.idc_host ?? metadata.idcHost);
+  const idcSourceIps = toStringArray(metadata.idc_source_ips ?? metadata.idcSourceIps);
 
   return {
     ...(resourceId ? { resource_id: resourceId } : {}),
@@ -250,6 +280,10 @@ const toResourceConfigFromItem = (value: unknown): ResourceConfigDto => {
     ...(credentialId ? { credential_id: credentialId } : {}),
     ...(databaseRegion ? { database_region: databaseRegion } : {}),
     ...(resourceName ? { resource_name: resourceName } : {}),
+    ...(idcHostFormat ? { idc_host_format: idcHostFormat } : {}),
+    ...(idcIps ? { idc_ips: idcIps } : {}),
+    ...(idcHost ? { idc_host: idcHost } : {}),
+    ...(idcSourceIps ? { idc_source_ips: idcSourceIps } : {}),
   };
 };
 
@@ -441,6 +475,11 @@ export const normalizeConfirmedIntegration = (
       ...(resource.network_interface_id ? { network_interface_id: resource.network_interface_id } : {}),
       ...(resource.ip_configuration_name ? { ip_configuration: resource.ip_configuration_name } : {}),
       ...(resource.credential_id ? { credential_id: resource.credential_id } : {}),
+      // Pass IDC fields through — absent for cloud resources.
+      ...(resource.idc_host_format ? { idc_host_format: resource.idc_host_format } : {}),
+      ...(resource.idc_ips ? { idc_ips: resource.idc_ips } : {}),
+      ...(resource.idc_host ? { idc_host: resource.idc_host } : {}),
+      ...(resource.idc_source_ips ? { idc_source_ips: resource.idc_source_ips } : {}),
     })),
   };
 };

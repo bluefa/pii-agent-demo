@@ -83,6 +83,11 @@ const normalizeConfirmedResourceInfo = (
     ip_configuration_name:
       ('ip_configuration_name' in resourceInfo ? resourceInfo.ip_configuration_name : resourceInfo.ip_configuration) ?? null,
     credential_id: resourceInfo.credential_id ?? null,
+    // Pass IDC fields through — absent for cloud resources.
+    ...(resourceInfo.idc_host_format ? { idc_host_format: resourceInfo.idc_host_format } : {}),
+    ...(resourceInfo.idc_ips ? { idc_ips: resourceInfo.idc_ips } : {}),
+    ...(resourceInfo.idc_host ? { idc_host: resourceInfo.idc_host } : {}),
+    ...(resourceInfo.idc_source_ips ? { idc_source_ips: resourceInfo.idc_source_ips } : {}),
   };
 };
 

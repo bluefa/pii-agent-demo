@@ -2,26 +2,24 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppError } from '@/lib/errors';
-import { useIdcResources } from '@/app/hooks/useIdcResources';
-import { getIdcPreviousRequest, type IdcResourceView } from '@/app/lib/api/idc';
-
-vi.mock('@/app/lib/api/idc', () => ({ getIdcPreviousRequest: vi.fn() }));
-
-const mockGet = vi.mocked(getIdcPreviousRequest);
+import { useIdcResources, type IdcResourceSource } from '@/app/hooks/useIdcResources';
+import type { IdcResourceView } from '@/app/lib/api/idc';
 
 /**
- * The shared IDC read. The abort/error discriminator gates all four read-only
- * steps (2/3/6/7), so it is tested with both an `AppError(ABORTED)` (swallowed)
- * and an unrelated rejection (surfaced as `error`).
+ * The shared IDC read. The read source is injected per step (Step 2 approval,
+ * Step 3 approved, Step 6/7 confirmed), so the hook is tested with a stub source.
+ * The abort/error discriminator gates all four read-only steps, so it is tested
+ * with both an `AppError(ABORTED)` (swallowed) and an unrelated rejection
+ * (surfaced as `error`).
  */
 describe('useIdcResources', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('resolves to ready with the fetched resources', async () => {
     const resources = [{ resourceId: 'r1' }] as unknown as IdcResourceView[];
-    mockGet.mockResolvedValue(resources);
+    const source: IdcResourceSource = vi.fn().mockResolvedValue(resources);
 
-    const { result } = renderHook(() => useIdcResources(1));
+    const { result } = renderHook(() => useIdcResources(1, source));
     expect(result.current.state.status).toBe('loading');
 
     await waitFor(() => expect(result.current.state.status).toBe('ready'));
@@ -29,18 +27,18 @@ describe('useIdcResources', () => {
   });
 
   it('resolves to error on a non-abort failure', async () => {
-    mockGet.mockRejectedValue(new Error('boom'));
+    const source: IdcResourceSource = vi.fn().mockRejectedValue(new Error('boom'));
 
-    const { result } = renderHook(() => useIdcResources(1));
+    const { result } = renderHook(() => useIdcResources(1, source));
     await waitFor(() => expect(result.current.state.status).toBe('error'));
   });
 
   it('swallows an AppError(ABORTED) and stays loading', async () => {
-    mockGet.mockRejectedValue(
+    const source: IdcResourceSource = vi.fn().mockRejectedValue(
       new AppError({ status: 0, code: 'ABORTED', message: 'aborted', retriable: false }),
     );
 
-    const { result } = renderHook(() => useIdcResources(1));
+    const { result } = renderHook(() => useIdcResources(1, source));
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();

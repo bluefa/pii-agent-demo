@@ -28,12 +28,12 @@ vi.mock('@/app/components/ui/toast', () => ({
 }));
 
 // Row1 carries a pre-selected credential; the card must open every row PENDING
-// (step5 is pre-test). The read source is now the submitted request
-// (getIdcPreviousRequest) — the contract has no live-list GET.
-const getIdcPreviousRequest = vi.fn(() => Promise.resolve<IdcResourceView[]>([]));
+// (step5 is pre-test). The read source is the confirmed list
+// (getIdcConfirmedResources), same as the cloud sibling.
+const getIdcConfirmedResources = vi.fn(() => Promise.resolve<IdcResourceView[]>([]));
 vi.mock('@/app/lib/api/idc', async () => {
   const actual = await vi.importActual<typeof import('@/app/lib/api/idc')>('@/app/lib/api/idc');
-  return { ...actual, getIdcPreviousRequest: () => getIdcPreviousRequest() };
+  return { ...actual, getIdcConfirmedResources: () => getIdcConfirmedResources() };
 });
 
 import { IdcStep5ConnectionTest } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/steps/IdcStep5ConnectionTest';
@@ -65,6 +65,7 @@ const project: CloudTargetSource = {
   targetSourceId: 1020,
   projectCode: 'IDC-025',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
   createdAt: '2026-01-20T09:00:00Z',
   updatedAt: '2026-01-25T14:00:00Z',
@@ -94,7 +95,7 @@ const renderStep = () =>
 
 describe('IdcStep5ConnectionTest — pre-test idle strip (regression)', () => {
   beforeEach(() => {
-    getIdcPreviousRequest.mockResolvedValue(seededRows);
+    getIdcConfirmedResources.mockResolvedValue(seededRows);
   });
 
   it('opens the credentialed row as Pending, ignoring the seeded SUCCESS', async () => {

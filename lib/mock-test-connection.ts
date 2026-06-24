@@ -424,11 +424,17 @@ export const getCompletionStatus = (targetSourceId: number) => {
         ? 'LATEST_TEST_CONNECTION_SUCCESS'
         : 'TEST_CONNECTION_REQUIRED';
 
+  // test_ack: the latest test-connection run has a SUCCESS result that is
+  // authoritative for step advancement. True when the job succeeded, regardless
+  // of whether the operator has already confirmed (confirmed = already past step 5).
+  const testAck = succeeded;
+
   return {
     target_source_id: targetSourceId,
     latest_test_connection_requested_at: job?.requested_at ?? WIRE_DATE_PLACEHOLDER,
     logical_database_updated_at: WIRE_DATE_PLACEHOLDER,
     latest_test_connection_success: succeeded,
+    test_ack: testAck,
     test_connection_status: status,
     test_connection_confirmed: confirmed,
   };

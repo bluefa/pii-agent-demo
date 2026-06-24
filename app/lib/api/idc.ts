@@ -17,6 +17,9 @@
  */
 
 import { fetchInfraJson } from '@/app/lib/api/infra';
+import { getApprovedIntegration, getConfirmedIntegration } from '@/app/lib/api';
+import type { ConfirmedIntegrationResourceInfo, ResourceSnapshot } from '@/lib/types';
+import type { ExcludedResourceInfoDto } from '@/lib/approval-bff';
 import { idcDbTypeByLabel, idcDbTypeByWire } from '@/lib/constants/idc';
 import type { InstallTaskStatus } from '@/lib/constants/install-task';
 import type {
@@ -183,6 +186,143 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
   exclusionReason: wire.exclusion_reason,
 });
 
+// ---------------------------------------------------------------------------
+// Post-submission integration mappers (Step 2–7). The IDC steps render
+// IdcResourceView, so these adapt the SHARED approved/confirmed domain shapes
+// (and the excluded list) returned by the standard endpoints. The shared
+// approved/confirmed normalizers preserve the swagger idc_* fields
+// (idc_host_format/idc_ips/idc_host/idc_source_ips), so IDC rows surface real
+// kind/hosts/Source IPs; non-IDC rows fall back to host/port.
+// ---------------------------------------------------------------------------
+
+/** The idc_* subset shared by the confirmed/approved domain rows. */
+interface IdcWireFields {
+  idc_host_format?: 'IP' | 'HOST';
+  idc_ips?: string[];
+  idc_host?: string;
+  idc_source_ips?: string[];
+}
+
+/** kind from the idc fields: HOST→DOMAIN, >1 ip→MULTIPLE_IP, else SINGLE. */
+const deriveKindFromIdcFields = (fields: IdcWireFields): IdcKind => {
+  if (fields.idc_host_format === 'HOST') return 'DOMAIN';
+  return (fields.idc_ips?.length ?? 0) > 1 ? 'MULTIPLE_IP' : 'SINGLE';
+};
+
+/** Hosts (no port) from the idc fields: ips for IP mode, [host] for domain mode. */
+const hostsFromIdcFields = (fields: IdcWireFields): string[] =>
+  fields.idc_host_format === 'IP'
+    ? (fields.idc_ips ?? [])
+    : fields.idc_host
+      ? [fields.idc_host]
+      : [];
+
+/**
+ * Shared `ConfirmedIntegrationResourceInfo` (confirmed-integration, Step 4–7) →
+ * domain view. Confirmed rows are always integration targets. IDC rows carry
+ * idc_* fields (host format, ips, host, source_ips) passed through by the
+ * confirmed normalizer; non-IDC rows fall back to host/port.
+ */
+export const toIdcResourceViewFromConfirmed = (
+  wire: ConfirmedIntegrationResourceInfo,
+  index = 0,
+): IdcResourceView => {
+  const dbWire = toDbTypeWire(wire.database_type ?? undefined);
+  const idcFields: IdcWireFields = {
+    idc_host_format: wire.idc_host_format,
+    idc_ips: wire.idc_ips,
+    idc_host: wire.idc_host,
+    idc_source_ips: wire.idc_source_ips,
+  };
+  const hasIdcFields = !!wire.idc_host_format;
+  return {
+    resourceId: wire.resource_id || `idc-confirmed-${index}`,
+    persisted: !!wire.resource_id,
+    kind: hasIdcFields ? deriveKindFromIdcFields(idcFields) : 'SINGLE',
+    hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : wire.host ? [wire.host] : [],
+    port: wire.port ?? 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? wire.database_type ?? '',
+    databaseTypeWire: dbWire,
+    oracleSid: wire.oracle_service_id ?? undefined,
+    credentialId: wire.credential_id ?? undefined,
+    sourceIps: wire.idc_source_ips ?? [],
+    firewallOpen: false,
+    connection: 'PENDING',
+    health: 'HEALTHY',
+    done: '—',
+    excluded: false,
+    exclusionReason: undefined,
+  };
+};
+
+/**
+ * Shared `ResourceSnapshot` (approved-integration, Step 3) → domain view. IDC
+ * rows carry idc_* fields passed through by the approved-integration normalizer;
+ * non-IDC rows fall back to endpoint_config host/port.
+ */
+export const toIdcResourceViewFromSnapshot = (
+  wire: ResourceSnapshot,
+  index = 0,
+): IdcResourceView => {
+  const ec = wire.endpoint_config;
+  const idcFields: IdcWireFields = {
+    idc_host_format: wire.idc_host_format,
+    idc_ips: wire.idc_ips,
+    idc_host: wire.idc_host,
+    idc_source_ips: wire.idc_source_ips,
+  };
+  const hasIdcFields = !!wire.idc_host_format;
+  const dbWire = toDbTypeWire(ec?.db_type);
+  return {
+    resourceId: wire.resource_id || `idc-approved-${index}`,
+    persisted: !!wire.resource_id,
+    kind: hasIdcFields ? deriveKindFromIdcFields(idcFields) : 'SINGLE',
+    hosts: hasIdcFields ? hostsFromIdcFields(idcFields) : ec?.host ? [ec.host] : [],
+    port: ec?.port ?? 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? ec?.db_type ?? '',
+    databaseTypeWire: dbWire,
+    oracleSid: ec?.oracleServiceId,
+    credentialId: wire.credential_id ?? undefined,
+    sourceIps: wire.idc_source_ips ?? [],
+    firewallOpen: false,
+    connection: 'PENDING',
+    health: 'HEALTHY',
+    done: '—',
+    excluded: false,
+    exclusionReason: undefined,
+  };
+};
+
+/**
+ * Shared `ExcludedResourceInfoDto` (approved-integration excluded list, Step 2/3)
+ * → domain view (비대상 row). Only id/name/type/reason are available; endpoint and
+ * source-IP fields are absent for excluded rows (the `excl` column shows the reason).
+ */
+export const toIdcResourceViewFromExcluded = (
+  wire: ExcludedResourceInfoDto,
+  index = 0,
+): IdcResourceView => {
+  const dbWire = toDbTypeWire(wire.database_type ?? undefined);
+  return {
+    resourceId: wire.resource_id || `idc-excluded-${index}`,
+    persisted: !!wire.resource_id,
+    kind: 'SINGLE',
+    hosts: [],
+    port: 0,
+    databaseTypeLabel: idcDbTypeByWire(dbWire)?.label ?? wire.database_type ?? '',
+    databaseTypeWire: dbWire,
+    oracleSid: undefined,
+    credentialId: undefined,
+    sourceIps: [],
+    firewallOpen: false,
+    connection: 'PENDING',
+    health: 'HEALTHY',
+    done: '—',
+    excluded: true,
+    exclusionReason: wire.exclusion_reason,
+  };
+};
+
 /** Convert a display DB-type label (e.g. "MySQL") to its wire enum. */
 export const idcDbTypeWireFromLabel = (label: string): IdcDatabaseTypeWire | undefined =>
   idcDbTypeByLabel(label)?.wire;
@@ -250,6 +390,50 @@ export const getIdcPreviousRequest = async (
     { signal: opts?.signal },
   );
   return (res.resources ?? []).map((r, i) => toIdcResourceView(r, i));
+};
+
+// The post-submission integration reads (Step 2–7) call the STANDARD swagger
+// endpoints (the same ones cloud uses) via the shared client funcs, then adapt
+// the response to IdcResourceView so the IDC tables keep their existing design.
+// These funcs are thin adapters; the row data is seeded into project.resources
+// (lib/mock-data.ts) so the shared confirmed/approved/approval mocks return it.
+//
+// NOTE (source IP): the shared approved/confirmed normalizers currently drop the
+// idc_* fields (idc_source_ips/idc_host_format/...), so `sourceIps` is empty for
+// Step 3–7 until that passthrough is added at the shared layer.
+
+/** Step 2 (승인 대기) + Step 3 (반영중) both source the approved integration, which
+ *  carries the requested set: `resource_infos` (targets) + `excluded_resource_infos`
+ *  (비대상 rows with their reasons, shown in the `excl` column). Mirrors the cloud
+ *  WaitingApprovalCard, whose rows come from getApprovedIntegration (approval-latest
+ *  carries only the summary). */
+const getIdcApprovedView = async (
+  targetSourceId: number,
+  opts?: { signal?: AbortSignal },
+): Promise<IdcResourceView[]> => {
+  const res = await getApprovedIntegration(targetSourceId, opts);
+  const approved = res.approved_integration;
+  if (!approved) return [];
+  const targets = approved.resource_infos.map((r, i) => toIdcResourceViewFromSnapshot(r, i));
+  const excluded = approved.excluded_resource_infos.map((r, i) =>
+    toIdcResourceViewFromExcluded(r, i),
+  );
+  return [...targets, ...excluded];
+};
+
+/** Step 2 source — the requested list (targets + excluded), via approved-integration. */
+export const getIdcApprovalRequestResources = getIdcApprovedView;
+
+/** Step 3 source — the approved list (targets + excluded), via approved-integration. */
+export const getIdcApprovedResources = getIdcApprovedView;
+
+/** confirmed-integration (Step 4–7 source) — shared ConfirmedIntegration rows → IdcResourceView. */
+export const getIdcConfirmedResources = async (
+  targetSourceId: number,
+  opts?: { signal?: AbortSignal },
+): Promise<IdcResourceView[]> => {
+  const res = await getConfirmedIntegration(targetSourceId, opts);
+  return res.resource_infos.map((r, i) => toIdcResourceViewFromConfirmed(r, i));
 };
 
 /** GET …/idc/installation-status — Step 4 install progress (per-resource steps). */

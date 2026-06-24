@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessStatus, type CloudTargetSource } from '@/lib/types';
 import type { ProjectIdentity } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
+
+const updateConfirmationMock = vi.fn();
+const getProjectMock = vi.fn();
+vi.mock('@/app/lib/api', () => ({
+  updateTestConnectionConfirmation: (...args: unknown[]) => updateConfirmationMock(...args),
+  getProject: (...args: unknown[]) => getProjectMock(...args),
+}));
 
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider',
@@ -57,6 +64,7 @@ const projectFixture: CloudTargetSource = {
   targetSourceId: 2001,
   projectCode: 'TEST-001',
   serviceCode: 'SERVICE-A',
+  serviceName: 'Service A',
   processStatus: ProcessStatus.CONNECTION_VERIFIED,
   createdAt: '2026-01-20T09:00:00Z',
   updatedAt: '2026-01-25T14:00:00Z',
@@ -74,14 +82,21 @@ const identityFixture: ProjectIdentity = {
 };
 
 describe('ConnectionVerifiedStep', () => {
-  const renderStep = () =>
+  beforeEach(() => {
+    updateConfirmationMock.mockReset();
+    updateConfirmationMock.mockResolvedValue({ targetSourceId: 2001, confirmed: false, confirmedAt: '' });
+    getProjectMock.mockReset();
+    getProjectMock.mockResolvedValue(projectFixture);
+  });
+
+  const renderStep = (onProjectUpdate: (p: CloudTargetSource) => void = () => {}) =>
     render(
       <ConnectionVerifiedStep
         project={projectFixture}
         identity={identityFixture}
         providerLabel="Azure Infrastructure"
         action={null}
-        onProjectUpdate={() => {}}
+        onProjectUpdate={onProjectUpdate}
       />,
     );
 
@@ -114,6 +129,18 @@ describe('ConnectionVerifiedStep', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
     expect(screen.getByText('연결 테스트를 다시 실행할까요?')).toBeTruthy();
+  });
+
+  it('되돌아가기 rolls back the acknowledgment (confirmed:false) then refetches the project', async () => {
+    const onProjectUpdate = vi.fn();
+    renderStep(onProjectUpdate);
+    fireEvent.click(screen.getByRole('button', { name: /연결 테스트 재실행/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '되돌아가기' }));
+    });
+    expect(updateConfirmationMock).toHaveBeenCalledWith(2001, false);
+    await waitFor(() => expect(getProjectMock).toHaveBeenCalledWith(2001));
+    await waitFor(() => expect(onProjectUpdate).toHaveBeenCalledWith(projectFixture));
   });
 
   it('mounts GuideCardContainer when the resolver returns a slot key', () => {

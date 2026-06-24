@@ -49,10 +49,14 @@ export const getIdcPreviousRequest = (
 });
 
 /**
- * Installation-status — new contract shape. Always includes at least one
- * resource with `installation_status: "UNKNOWN"` (and a step-level UNKNOWN) so
- * the →"작업중" mapping is exercised.
+ * Installation-status — new contract shape. resource_ids align with the seeded
+ * IDC integration targets (lib/mock-data.ts IDC_DEMO_RESOURCES) so the Step 4
+ * install cards aggregate over the same resources the confirmed table renders.
+ * The second row is UNKNOWN (with a step-level UNKNOWN) so the →"작업중" mapping
+ * is exercised; the rest COMPLETED.
  */
+const IDC_INSTALL_RESOURCE_IDS = ['idc-res-001', 'idc-res-002', 'idc-res-003', 'idc-res-004', 'idc-res-005'];
+
 export const getIdcInstallationStatus = (
   _targetSourceId: number,
 ): MockIdcResult<IdcInstallationStatusResponseWire> => ({
@@ -61,21 +65,12 @@ export const getIdcInstallationStatus = (
       status: 'IN_PROGRESS',
       checked_at: new Date().toISOString(),
     },
-    resources: [
-      {
-        resource_id: 'idc-r1',
-        installation_status: 'COMPLETED',
-        bdc_side_cx_terraform_apply: { status: 'COMPLETED' },
-        bdc_side_bdp_terraform_apply: { status: 'COMPLETED' },
-        firewall_check: { status: 'COMPLETED' },
-      },
-      {
-        resource_id: 'idc-r2',
-        installation_status: 'UNKNOWN',
-        bdc_side_cx_terraform_apply: { status: 'IN_PROGRESS' },
-        bdc_side_bdp_terraform_apply: { status: 'UNKNOWN' },
-        firewall_check: { status: 'IN_PROGRESS' },
-      },
-    ],
+    resources: IDC_INSTALL_RESOURCE_IDS.map((resourceId, i) => ({
+      resource_id: resourceId,
+      installation_status: i === 1 ? 'UNKNOWN' : 'COMPLETED',
+      bdc_side_cx_terraform_apply: { status: i === 1 ? 'IN_PROGRESS' : 'COMPLETED' },
+      bdc_side_bdp_terraform_apply: { status: i === 1 ? 'UNKNOWN' : 'COMPLETED' },
+      firewall_check: { status: i === 1 ? 'IN_PROGRESS' : 'COMPLETED' },
+    })),
   },
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -11,39 +11,28 @@ import {
   ConnProgressStrip,
   type ConnProgressState,
 } from '@/app/components/features/process-status/ConnProgressStrip';
+import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import {
+  updateResourceCredential,
+} from '@/app/lib/api';
+import type { TestConnectionStatus } from '@/app/lib/api';
 import { IdcCredSelectCell } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/cells';
 import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import { LogicalDbModalLoader } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import { CloudReqApprovalModal } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal';
 import type { ConfirmedResource } from '@/lib/types/resources';
 
-/** v16 runConnTest: cells show Running then settle to Success after ~1.8s. */
-const TEST_DURATION_MS = 1800;
-
 interface LogicalModalTarget {
   resourceId: string;
   resourceName: string;
 }
 
-// Local connection-test row — credential + connection are mutated locally (the
-// confirmed list from the BFF is the seed).
-interface ConnRow {
-  resource: ConfirmedResource;
-  credentialId: string;
-  connection: 'SUCCESS' | 'PENDING';
-}
+// Local credential edits — the confirmed list from the BFF seeds these, and Run Test
+// persists any change via updateResourceCredential before triggering the async test.
+type CredMap = Record<string, string>;
 
-// Step 5 is definitionally pre-test, so every row opens PENDING and Run Test
-// establishes SUCCESS — mirroring IDC step5 (`connection_status ?? 'PENDING'`) and
-// v16's idle conn-progress. ConfirmedResource.connectionStatus is a hardcoded
-// CONNECTED placeholder shared with the post-test step 6/7 views, so it is not the
-// pre-test signal here.
-const seedRows = (confirmed: readonly ConfirmedResource[]): ConnRow[] =>
-  confirmed.map((resource) => ({
-    resource,
-    credentialId: resource.credentialId ?? '',
-    connection: 'PENDING',
-  }));
+const seedCreds = (confirmed: readonly ConfirmedResource[]): CredMap =>
+  Object.fromEntries(confirmed.map((r) => [r.resourceId, r.credentialId ?? '']));
 
 interface ConnectionTestCardProps {
   targetSourceId: number;
@@ -59,10 +48,10 @@ interface ConnectionTestCardProps {
  * card that mirrors the IDC step5 layout: conn-progress strip + a single table (cred select +
  * Connection Status + logical-DB-check) + a gated completion-approval request → CloudReqApprovalModal.
  *
- * Run Test is a demo simulation matching the approved IDC sibling: it flips a local
- * `testing` flag for ~1.8s, then settles every credentialed row to SUCCESS.
- * ponytail: skips v16's first-attempt-fail demo + per-row animation; the fail/retest
- * path is exercised by the step6/7 retest flow, not here.
+ * Live wiring (ADR-019): Run Test persists changed credentials then triggers the async
+ * connection test (`useTestConnectionPolling`); per-resource Connection Status is read from
+ * the latest poll's agent results. Once the run settles SUCCESS the completion-status is
+ * fetched and the 완료 승인 요청 CTA opens only when it reads LATEST_TEST_CONNECTION_SUCCESS.
  */
 export const ConnectionTestCard = ({
   targetSourceId,
@@ -70,50 +59,71 @@ export const ConnectionTestCard = ({
   providerLabel,
   refreshProject,
 }: ConnectionTestCardProps) => {
-  const [rows, setRows] = useState<ConnRow[]>(() => seedRows(confirmed));
-  const [testing, setTesting] = useState(false);
+  const { latestJob, uiState, trigger, triggerError } = useTestConnectionPolling(targetSourceId);
+  const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
+  // Credentials persisted/test triggered — true once Run Test starts, gates the per-row
+  // status read on the poll instead of the pre-test PENDING seed.
+  const [tested, setTested] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
-  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
+  const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
     initialPageSize: 10,
   });
-  const testTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logicalModal = useModal<LogicalModalTarget>();
   const toast = useToast();
 
-  // Re-seed when the confirmed list changes (provider retry / target switch).
-  useEffect(() => {
-    setRows(seedRows(confirmed));
-  }, [confirmed]);
+  // Re-seed credentials when the confirmed list changes (provider retry / target switch).
+  // Adjusting state during render (the React "previous props" pattern) instead of an
+  // effect — avoids the cascading-render an effect-body setState would cause.
+  const [seededFrom, setSeededFrom] = useState(confirmed);
+  if (seededFrom !== confirmed) {
+    setSeededFrom(confirmed);
+    setCreds(seedCreds(confirmed));
+    setTested(false);
+  }
 
-  useEffect(
-    () => () => {
-      if (testTimerRef.current) clearTimeout(testTimerRef.current);
-    },
-    [],
+  const testing = uiState === 'PENDING';
+
+  // Per-resource connection status from the latest poll, keyed by resourceId.
+  const statusByResource = useMemo(() => {
+    const map: Record<string, TestConnectionStatus> = {};
+    for (const agent of latestJob?.testConnectionAgentResults ?? []) {
+      map[agent.resourceId] = agent.connectionStatus;
+    }
+    return map;
+  }, [latestJob]);
+
+  // A row is connected only with a credential AND a SUCCESS result from the run.
+  const rowConnected = useCallback(
+    (resourceId: string): boolean =>
+      tested && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
+    [tested, creds, statusByResource],
   );
 
-  const runTest = useCallback(() => {
-    if (testing) return;
-    setTesting(true);
-    testTimerRef.current = setTimeout(() => {
-      testTimerRef.current = null;
-      setTesting(false);
-      setRows((prev) =>
-        prev.map((row) => (row.credentialId ? { ...row, connection: 'SUCCESS' } : row)),
-      );
-    }, TEST_DURATION_MS);
-  }, [testing]);
+  // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
+  // only open it when latest_version.connectionStatus === 'SUCCESS' (B2).
+  const approvalEnabled = uiState === 'SUCCESS';
 
-  // v16 onCloudCredChange: clearing/altering a credential invalidates the prior test.
-  const handleCredChange = useCallback((resourceId: string, cred: string) => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row.resource.resourceId === resourceId
-          ? { ...row, credentialId: cred, connection: 'PENDING' }
-          : row,
-      ),
-    );
-  }, []);
+  // Run Test gate (v16 updateConnRunBtn): every row must have a credential selected.
+  const total = confirmed.length;
+  const allCredsSet = total > 0 && confirmed.every((r) => creds[r.resourceId]);
+
+  const runTest = useCallback(async () => {
+    if (testing || !allCredsSet) return;
+    setTested(true);
+    await trigger();
+  }, [testing, allCredsSet, trigger]);
+
+  // Changing a credential fires a PUT immediately; local state updates only on success.
+  const handleCredChange = useCallback(async (resourceId: string, cred: string) => {
+    try {
+      await updateResourceCredential(targetSourceId, resourceId, cred);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+      return;
+    }
+    setCreds((prev) => ({ ...prev, [resourceId]: cred }));
+    setTested(false);
+  }, [targetSourceId, toast]);
 
   // On save the skip policy persists, which flips completion-status
   // (LATEST_TEST_CONNECTION_SUCCESS → LOGICAL_DATABASE_RECENTLY_UPDATED, spec §7);
@@ -133,26 +143,29 @@ export const ConnectionTestCard = ({
     refreshProject();
   }, [refreshProject]);
 
-  const total = rows.length;
-  // Run Test gate (v16 updateConnRunBtn): every row must have a credential selected.
-  const allCredsSet = total > 0 && rows.every((r) => r.credentialId);
-  const okCount = rows.filter((r) => r.credentialId && r.connection === 'SUCCESS').length;
+  const okCount = confirmed.filter((r) => rowConnected(r.resourceId)).length;
+  const failCount = confirmed.filter(
+    (r) => tested && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
+  ).length;
   const pendingCount = total - okCount;
   const progressPct = total > 0 ? Math.round((okCount / total) * 100) : 0;
-  // Completion-approval gate (v16 connApproveBtn): only when every target is connected and
-  // no test is in flight. The footer hint promises this, and it mirrors the IDC modal gate.
-  const canRequestApproval = total > 0 && okCount === total && !testing;
+  // Completion-approval gate: every target connected, latest_version settled SUCCESS, no test in flight.
+  const canRequestApproval = total > 0 && okCount === total && !testing && approvalEnabled;
 
   const progressState: ConnProgressState = testing
     ? 'running'
-    : total > 0 && pendingCount === 0
-      ? 'success'
-      : 'idle';
+    : failCount > 0
+      ? 'fail'
+      : total > 0 && pendingCount === 0
+        ? 'success'
+        : 'idle';
   const progressLabel = testing
     ? '연결 테스트 진행 중 — 각 대상의 Connection Status를 확인하고 있어요'
     : progressState === 'success'
       ? '연결 테스트 완료 — 모든 대상이 연결되었어요'
-      : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
+      : progressState === 'fail'
+        ? '연결 테스트 실패 — 실패한 대상의 Credential 또는 네트워크를 점검해 주세요'
+        : '연결 테스트 대기 중 — Run Test를 실행해 주세요';
 
   return (
     <section className={cn(cardStyles.base, 'overflow-hidden')}>
@@ -192,10 +205,13 @@ export const ConnectionTestCard = ({
           state={progressState}
           label={progressLabel}
           ok={okCount}
-          fail={0}
+          fail={failCount}
           pending={pendingCount}
           pct={progressPct}
         />
+        {triggerError && (
+          <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
+        )}
         <div className={idcStyles.table.frame}>
           <table className="w-full">
             <thead className={idcStyles.table.header}>
@@ -210,9 +226,11 @@ export const ConnectionTestCard = ({
               </tr>
             </thead>
             <tbody className={idcStyles.table.body}>
-              {pageRows.map((row) => {
-                const { resource } = row;
-                const connected = !!row.credentialId && row.connection === 'SUCCESS';
+              {pageRows.map((resource) => {
+                const cred = creds[resource.resourceId] ?? '';
+                const status = statusByResource[resource.resourceId];
+                const connected = rowConnected(resource.resourceId);
+                const failed = tested && !!cred && status === 'FAIL';
                 return (
                   <tr key={resource.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>
@@ -235,15 +253,17 @@ export const ConnectionTestCard = ({
                     </td>
                     <td className={idcStyles.table.cell}>
                       <IdcCredSelectCell
-                        value={row.credentialId}
-                        onChange={(cred) => handleCredChange(resource.resourceId, cred)}
+                        value={cred}
+                        onChange={(next) => handleCredChange(resource.resourceId, next)}
                       />
                     </td>
                     <td className={idcStyles.table.cell}>
-                      {!row.credentialId ? (
+                      {!cred ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
                       ) : connected ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
+                      ) : failed ? (
+                        <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
                       ) : (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Pending</span>
                       )}
@@ -298,6 +318,7 @@ export const ConnectionTestCard = ({
           onClose={() => setApprovalOpen(false)}
           resources={confirmed}
           providerLabel={providerLabel}
+          targetSourceId={targetSourceId}
           onSubmit={handleSubmitApproval}
         />
         {logicalModal.data && (

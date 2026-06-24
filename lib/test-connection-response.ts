@@ -55,6 +55,8 @@ export interface TestConnectionCompletionStatus {
   latestTestConnectionRequestedAt: string;
   logicalDatabaseUpdatedAt: string;
   latestTestConnectionSuccess: boolean;
+  /** Mock-level ack: true when the latest run has a SUCCESS result (gates the Step 5 CTA). */
+  testAck: boolean;
   testConnectionStatus: TestConnectionCompletionStatusType;
   testConnectionConfirmed: boolean;
 }
@@ -158,6 +160,7 @@ export const normalizeTestConnectionCompletionStatus = (
     latestTestConnectionRequestedAt: asString(r.latestTestConnectionRequestedAt),
     logicalDatabaseUpdatedAt: asString(r.logicalDatabaseUpdatedAt),
     latestTestConnectionSuccess: asBoolean(r.latestTestConnectionSuccess),
+    testAck: asBoolean(r.testAck),
     testConnectionStatus: asCompletionStatus(r.testConnectionStatus),
     testConnectionConfirmed: asBoolean(r.testConnectionConfirmed),
   };

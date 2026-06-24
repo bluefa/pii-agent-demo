@@ -147,6 +147,7 @@ describe('normalizeTestConnectionCompletionStatus', () => {
       latestTestConnectionRequestedAt: '2026-06-23T01:00:00.000Z',
       logicalDatabaseUpdatedAt: '2026-06-23T00:50:00.000Z',
       latestTestConnectionSuccess: true,
+      testAck: false,
       testConnectionStatus: 'LATEST_TEST_CONNECTION_SUCCESS',
       testConnectionConfirmed: false,
     });

@@ -15,6 +15,7 @@ import {
 } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 import { IdcResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/IdcResourceTable';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
+import { getIdcApprovedResources } from '@/app/lib/api/idc';
 import { useIdcResources } from '@/app/hooks/useIdcResources';
 
 /**
@@ -32,7 +33,8 @@ export const IdcStep3Applying = ({
 }: IdcStepProps) => {
   const slotKey = resolveStepSlot('IDC', ProcessStatus.APPLYING_APPROVED);
 
-  const { state } = useIdcResources(project.targetSourceId);
+  // Step 3 source: the approved list (approved-integration).
+  const { state } = useIdcResources(project.targetSourceId, getIdcApprovedResources);
 
   return (
     <>

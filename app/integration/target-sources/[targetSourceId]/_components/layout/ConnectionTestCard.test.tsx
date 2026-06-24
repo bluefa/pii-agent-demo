@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
+import type {
+  TestConnectionVersionResult,
+  TestConnectionStatus,
+} from '@/app/lib/api';
+import type {
+  TestConnectionUIState,
+  UseTestConnectionPollingReturn,
+} from '@/app/hooks/useTestConnectionPolling';
 
 vi.mock('@/app/components/ui/toast', () => ({
   useToast: () => ({ info: vi.fn(), success: vi.fn(), error: vi.fn() }),
@@ -11,6 +19,37 @@ vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader',
   () => ({ LogicalDbModalLoader: () => null }),
 );
+
+// CloudReqApprovalModal imports the api; stub it so this test focuses on the card's
+// gating + the "open approval" intent (the modal's own PUT is covered separately).
+const approvalModalProps = vi.fn();
+vi.mock('@/app/integration/target-sources/[targetSourceId]/_components/layout/CloudReqApprovalModal', () => ({
+  CloudReqApprovalModal: (props: { isOpen: boolean }) => {
+    approvalModalProps(props);
+    return props.isOpen ? <div data-testid="approval-modal" /> : null;
+  },
+}));
+
+const triggerMock = vi.fn();
+const pollingState: {
+  uiState: TestConnectionUIState;
+  latestJob: TestConnectionVersionResult | null;
+} = { uiState: 'IDLE', latestJob: null };
+
+vi.mock('@/app/hooks/useTestConnectionPolling', () => ({
+  useTestConnectionPolling: (): UseTestConnectionPollingReturn => ({
+    latestJob: pollingState.latestJob,
+    uiState: pollingState.uiState,
+    loading: false,
+    triggerError: null,
+    trigger: triggerMock,
+  }),
+}));
+
+const updateResourceCredentialMock = vi.fn();
+vi.mock('@/app/lib/api', () => ({
+  updateResourceCredential: (...args: unknown[]) => updateResourceCredentialMock(...args),
+}));
 
 import { ConnectionTestCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard';
 
@@ -30,12 +69,50 @@ const makeResource = (overrides: Partial<ConfirmedResource> = {}): ConfirmedReso
   ...overrides,
 });
 
+const agentResult = (
+  resourceId: string,
+  connectionStatus: TestConnectionStatus,
+) => ({
+  agentId: `agent-${resourceId}`,
+  gcpRegion: 'ap-northeast-2',
+  resourceId,
+  connectionStatus,
+  databaseUriList: [],
+});
+
+const makeJob = (
+  connectionStatus: TestConnectionStatus,
+  agents: ReturnType<typeof agentResult>[],
+): TestConnectionVersionResult => ({
+  targetSourceId: 1,
+  testConnectionVersion: 1,
+  connectionStatus,
+  requestedAt: '2026-01-25T14:00:00Z',
+  completedAt: connectionStatus === 'PENDING' ? '' : '2026-01-25T14:01:00Z',
+  testConnectionAgentResults: agents,
+});
+
 const renderCard = (confirmed: ConfirmedResource[]) =>
   render(
-    <ConnectionTestCard targetSourceId={1} confirmed={confirmed} providerLabel="Azure Infrastructure" refreshProject={() => {}} />,
+    <ConnectionTestCard
+      targetSourceId={1}
+      confirmed={confirmed}
+      providerLabel="Azure Infrastructure"
+      refreshProject={() => {}}
+    />,
   );
 
 describe('ConnectionTestCard', () => {
+  beforeEach(() => {
+    pollingState.uiState = 'IDLE';
+    pollingState.latestJob = null;
+    triggerMock.mockReset();
+    triggerMock.mockResolvedValue(undefined);
+    updateResourceCredentialMock.mockReset();
+    updateResourceCredentialMock.mockResolvedValue({ success: true });
+    approvalModalProps.mockClear();
+  });
+
   it('renders the 7 v16 connection-test columns', () => {
     renderCard([makeResource()]);
     for (const header of [
@@ -52,7 +129,7 @@ describe('ConnectionTestCard', () => {
   });
 
   it('opens every credentialed row as Pending (step5 is pre-test)', () => {
-    renderCard([makeResource({ credentialId: 'Key1', connectionStatus: 'CONNECTED' })]);
+    renderCard([makeResource({ credentialId: 'Key1' })]);
     expect(screen.getByText('Pending')).toBeTruthy();
     expect(screen.queryByText('Success')).toBeNull();
   });
@@ -69,25 +146,101 @@ describe('ConnectionTestCard', () => {
     expect(screen.getByRole('button', { name: /Run Test/ })).toHaveProperty('disabled', false);
   });
 
-  it('gates 완료 승인 요청 until every row connects, then enables it after Run Test', async () => {
-    vi.useFakeTimers();
-    try {
-      renderCard([makeResource({ credentialId: 'Key1' })]);
-      expect(screen.getByText('Pending')).toBeTruthy();
-      // Pre-test: the logical-DB and completion-approval buttons are gated on a successful connection.
-      expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', true);
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
-
+  it('Run Test triggers the async test (no local credential change → no credential PUT)', async () => {
+    renderCard([makeResource({ credentialId: 'Key1' })]);
+    await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
-      await act(async () => {
-        vi.advanceTimersByTime(1800);
-      });
+    });
+    expect(triggerMock).toHaveBeenCalledTimes(1);
+    expect(updateResourceCredentialMock).not.toHaveBeenCalled();
+  });
 
-      expect(screen.getByText('Success')).toBeTruthy();
-      expect(screen.getByRole('button', { name: '설정' })).toHaveProperty('disabled', false);
-      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false);
-    } finally {
-      vi.useRealTimers();
-    }
+  it('fires updateResourceCredential immediately on credential selection, before Run Test', async () => {
+    renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    // The PUT fires on the change event itself, not on Run Test click.
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
+    });
+    expect(updateResourceCredentialMock).toHaveBeenCalledWith(1, 'res-9', 'Key2');
+    // Run Test then triggers the test without a second PUT.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+    });
+    expect(updateResourceCredentialMock).toHaveBeenCalledTimes(1);
+    expect(triggerMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not update local credential state when the PUT fails', async () => {
+    updateResourceCredentialMock.mockRejectedValueOnce(new Error('서버 오류'));
+    renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
+    });
+    // Local state did not flip — row still shows Pending (cred still seeded as Key1).
+    expect(screen.getByText('Pending')).toBeTruthy();
+  });
+
+  // The card re-seeds local credential state whenever the `confirmed` reference
+  // changes, so a poll-driven re-render must keep the SAME array instance (in
+  // production it comes from the stable confirmed-integration context). A fresh
+  // element is built each rerender (an identical element instance makes React
+  // bail out) while the array reference stays stable.
+  const renderStable = (confirmed: ConfirmedResource[]) => {
+    const element = () => (
+      <ConnectionTestCard
+        targetSourceId={1}
+        confirmed={confirmed}
+        providerLabel="Azure Infrastructure"
+        refreshProject={() => {}}
+      />
+    );
+    const { rerender } = render(element());
+    return () => rerender(element());
+  };
+
+  it('enables 완료 승인 요청 when latest_version.connectionStatus is SUCCESS (B2)', async () => {
+    const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
+    const rerender = renderStable(confirmed);
+
+    // Run Test → tested flag flips so the poll drives the row status.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+    });
+
+    // Poll settles SUCCESS — approval gate reads uiState directly, no extra fetch.
+    pollingState.uiState = 'SUCCESS';
+    pollingState.latestJob = makeJob('SUCCESS', [agentResult('res-1', 'SUCCESS')]);
+    act(() => rerender());
+
+    expect(await screen.findByText('Success')).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', false),
+    );
+  });
+
+  it('keeps 완료 승인 요청 disabled when latest_version.connectionStatus is FAIL', async () => {
+    const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
+    const rerender = renderStable(confirmed);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+    });
+    pollingState.uiState = 'FAIL';
+    pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
+    act(() => rerender());
+    expect(await screen.findByText('Fail')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
+  });
+
+  it('shows Fail when the poll reports a FAIL agent result', async () => {
+    const confirmed = [makeResource({ resourceId: 'res-1', credentialId: 'Key1' })];
+    const rerender = renderStable(confirmed);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Run Test/ }));
+    });
+    pollingState.uiState = 'FAIL';
+    pollingState.latestJob = makeJob('FAIL', [agentResult('res-1', 'FAIL')]);
+    act(() => rerender());
+    expect(await screen.findByText('Fail')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '완료 승인 요청' })).toHaveProperty('disabled', true);
   });
 });

@@ -54,6 +54,10 @@ export interface IdcPreviousRequestResponseWire {
   resources?: IdcResourceInputWire[];
 }
 
+// Steps 2–7 read the SHARED approved/confirmed domain types (app/lib/api/idc.ts
+// adapts them to IdcResourceView), so no IDC-specific post-submission wire types
+// are needed here — only previous-request + installation-status + NLB below.
+
 /** swagger `CloudInstallationStepStatusDto`. */
 export interface IdcStepStatusWire {
   status?: IdcInstallStatusWire;
