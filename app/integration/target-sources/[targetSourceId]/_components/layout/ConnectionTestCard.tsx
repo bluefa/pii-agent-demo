@@ -83,11 +83,11 @@ export const ConnectionTestCard = ({
   // is visible immediately on a cold load — no Run Test click required (B3).
   const hasResult = uiState === 'SUCCESS' || uiState === 'FAIL';
 
-  // Per-resource connection status from the latest poll, keyed by resourceId.
+  // Per-resource connection status from the latest poll, keyed by resource_id.
   const statusByResource = useMemo(() => {
     const map: Record<string, TestConnectionStatus> = {};
-    for (const agent of latestJob?.testConnectionAgentResults ?? []) {
-      map[agent.resourceId] = agent.connectionStatus;
+    for (const agent of latestJob?.test_connection_agent_results ?? []) {
+      map[agent.resource_id] = agent.connection_status;
     }
     return map;
   }, [latestJob]);

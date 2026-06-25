@@ -11,11 +11,10 @@
  * approval system-reset, services settings/aws/*, authorized-users add/remove,
  * legacy /projects/* and /aws/projects/*.
  *
- * Casing (ADR-019 D1/D2):
+ * Casing (ADR-019 D1/D2 revised, zod-codegen amendment):
  *   - Most GET responses are camelCased once at the proxy (`get` runs camelCaseKeys).
- *   - Domains that own their own boundary (IDC mapper; logical-DB / test-connection
- *     route normalizers) request the raw snake wire (`getSnakeRaw`/`{ raw: true }`)
- *     so casing is owned in exactly one place.
+ *   - TC domain: BFF methods return the raw snake wire; the route validates with
+ *     schemas.X.parse(raw) and the snake type flows to the CSR layer.
  */
 import type {
   AwsInstallationStatusResponse,
@@ -38,14 +37,8 @@ import type {
   TargetSourceInfoWire,
   TargetSourcesByServiceResponseWire,
 } from '@/lib/bff/types/target-sources';
-import type {
-  TestConnectionCompletionStatusResponseWire,
-  TestConnectionConfirmationResponseWire,
-  TestConnectionLatestResultSummaryResponseWire,
-  TestConnectionTriggerResponseWire,
-  TestConnectionVersionResultWire,
-  UpdateTestConnectionConfirmationRequestWire,
-} from '@/lib/bff/types/test-connection';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import type {
   SkipLogicalDatabaseResponseWire,
   TestedLogicalDatabasesResponseWire,
@@ -201,13 +194,13 @@ export interface BffClient {
     confirmApprovalUnavailable: (id: number) => Promise<unknown>;
     confirmInstallation: (id: number, body: unknown) => Promise<unknown>;
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
-    testConnection: (id: number, collectorImageTag?: string) => Promise<TestConnectionTriggerResponseWire>;
-    getTestConnectionLatest: (id: number) => Promise<TestConnectionVersionResultWire>;
-    getLatestTestConnectionResultSummaries: (id: number) => Promise<TestConnectionLatestResultSummaryResponseWire[]>;
-    getTestConnectionCompletionStatus: (id: number) => Promise<TestConnectionCompletionStatusResponseWire>;
+    testConnection: (id: number, collectorImageTag?: string) => Promise<z.infer<typeof schemas.TestConnectionTriggerResponse>>;
+    getTestConnectionLatest: (id: number) => Promise<z.infer<typeof schemas.TestConnectionVersionResult>>;
+    getLatestTestConnectionResultSummaries: (id: number) => Promise<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>;
+    getTestConnectionCompletionStatus: (id: number) => Promise<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>;
     updateTestConnectionConfirmation: (
       id: number,
-      body: UpdateTestConnectionConfirmationRequestWire,
-    ) => Promise<TestConnectionConfirmationResponseWire>;
+      body: z.infer<typeof schemas.UpdateTestConnectionConfirmationRequest>,
+    ) => Promise<z.infer<typeof schemas.TestConnectionConfirmationResponse>>;
   };
 }

@@ -113,11 +113,11 @@ export const IdcStep5ConnectionTest = ({
   // until a Run Test click this session.
   const hasResult = tested || uiState === 'SUCCESS' || uiState === 'FAIL';
 
-  // Per-resource connection status from the latest poll, keyed by resourceId.
+  // Per-resource connection status from the latest poll, keyed by resource_id.
   const statusByResource = useMemo(() => {
     const map: Record<string, TestConnectionStatus> = {};
-    for (const agent of latestJob?.testConnectionAgentResults ?? []) {
-      map[agent.resourceId] = agent.connectionStatus;
+    for (const agent of latestJob?.test_connection_agent_results ?? []) {
+      map[agent.resource_id] = agent.connection_status;
     }
     return map;
   }, [latestJob]);
@@ -157,7 +157,7 @@ export const IdcStep5ConnectionTest = ({
     let active = true;
     void getTestConnectionCompletionStatus(targetSourceId)
       .then((status) => {
-        if (active) setApprovalEnabled(status.testConnectionStatus === 'LATEST_TEST_CONNECTION_SUCCESS');
+        if (active) setApprovalEnabled(status.test_connection_status === 'LATEST_TEST_CONNECTION_SUCCESS');
       })
       .catch(() => {
         if (active) setApprovalEnabled(false);

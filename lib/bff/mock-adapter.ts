@@ -59,13 +59,8 @@ import type {
   SkipLogicalDatabaseResponseWire,
   TestedLogicalDatabasesResponseWire,
 } from '@/lib/bff/types/logical-db';
-import type {
-  TestConnectionCompletionStatusResponseWire,
-  TestConnectionConfirmationResponseWire,
-  TestConnectionLatestResultSummaryResponseWire,
-  TestConnectionTriggerResponseWire,
-  TestConnectionVersionResultWire,
-} from '@/lib/bff/types/test-connection';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -240,27 +235,27 @@ export const mockBff: BffClient = {
       unwrap<unknown>(await mockConfirm.updateResourceCredential(String(id), body)),
 
     testConnection: async (id, collectorImageTag) =>
-      unwrap<TestConnectionTriggerResponseWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionTriggerResponse>>(
         await mockConfirm.testConnection(String(id), collectorImageTag),
       ),
 
     getTestConnectionLatest: async (id) =>
-      unwrap<TestConnectionVersionResultWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionVersionResult>>(
         await mockConfirm.getTestConnectionLatest(String(id)),
       ),
 
     getLatestTestConnectionResultSummaries: async (id) =>
-      unwrap<TestConnectionLatestResultSummaryResponseWire[]>(
+      unwrap<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         await mockConfirm.getLatestTestConnectionResultSummaries(String(id)),
       ),
 
     getTestConnectionCompletionStatus: async (id) =>
-      unwrap<TestConnectionCompletionStatusResponseWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>(
         await mockConfirm.getTestConnectionCompletionStatus(String(id)),
       ),
 
     updateTestConnectionConfirmation: async (id, body) =>
-      unwrap<TestConnectionConfirmationResponseWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionConfirmationResponse>>(
         await mockConfirm.updateTestConnectionConfirmation(String(id), body),
       ),
   },

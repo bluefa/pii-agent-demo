@@ -11,16 +11,16 @@ import {
 // SUCCESS/FAIL. These are the pure predicates that encode that.
 
 const makeJob = (
-  connectionStatus: TestConnectionVersionResult['connectionStatus'],
+  connection_status: TestConnectionVersionResult['connection_status'],
 ): TestConnectionVersionResult => ({
-  targetSourceId: 1,
-  testConnectionVersion: 1,
-  connectionStatus,
-  requestedAt: '2026-06-23T01:00:00.000Z',
-  completedAt: connectionStatus === 'PENDING' || connectionStatus === 'RUNNING'
+  target_source_id: 1,
+  test_connection_version: 1,
+  connection_status,
+  requested_at: '2026-06-23T01:00:00.000Z',
+  completed_at: connection_status === 'PENDING' || connection_status === 'RUNNING'
     ? ''
     : '2026-06-23T01:00:20.000Z',
-  testConnectionAgentResults: [],
+  test_connection_agent_results: [],
 });
 
 describe('isInProgress', () => {
@@ -60,3 +60,4 @@ describe('shouldStopPolling', () => {
     expect(shouldStopPolling(null)).toBe(true);
   });
 });
+

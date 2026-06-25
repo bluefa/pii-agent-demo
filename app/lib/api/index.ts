@@ -35,26 +35,17 @@ export type {
   TargetSourceInfo,
 };
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
-import type {
-  TestConnectionAgentResult,
-  TestConnectionCompletionStatus,
-  TestConnectionConfirmationResult,
-  TestConnectionLatestResultSummary,
-  TestConnectionStatus,
-  TestConnectionTriggerResult,
-  TestConnectionVersionResult,
-} from '@/lib/test-connection-response';
-// Re-export the test-connection domain types so `@/app/lib/api` consumers
-// (Step 5/6 UI) keep importing from one place.
-export type {
-  TestConnectionAgentResult,
-  TestConnectionCompletionStatus,
-  TestConnectionConfirmationResult,
-  TestConnectionLatestResultSummary,
-  TestConnectionStatus,
-  TestConnectionTriggerResult,
-  TestConnectionVersionResult,
-};
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+// Re-export test-connection wire types (zod-codegen, snake) so consumers import
+// from one place. Field access is snake_case; use adapters for join/reshape/compute.
+export type TestConnectionVersionResult = z.infer<typeof schemas.TestConnectionVersionResult>;
+export type TestConnectionAgentResult = z.infer<typeof schemas.TestConnectionAgentResult>;
+export type TestConnectionLatestResultSummary = z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>;
+export type TestConnectionCompletionStatus = z.infer<typeof schemas.TestConnectionCompletionStatusResponse>;
+export type TestConnectionConfirmationResult = z.infer<typeof schemas.TestConnectionConfirmationResponse>;
+export type TestConnectionTriggerResult = z.infer<typeof schemas.TestConnectionTriggerResponse>;
+export type TestConnectionStatus = TestConnectionVersionResult['connection_status'];
 import {
   normalizeApprovedIntegration,
   normalizeProcessStatusResponse,
@@ -651,10 +642,9 @@ export const getProcessStatus = async (
 export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
   fetchInfraCamelJson<SecretKey[]>(`${CONFIRM_BASE}/${targetSourceId}/secrets`);
 
-// Test Connection (Step 5/6) — ADR-019 /install/v1. The route handler is the
-// single casing boundary (camelCaseKeys + normalizer), so these CSR funcs fetch
-// the already-camel domain shape and only type it. Domain types live in
-// `lib/test-connection-response.ts` and are re-exported below.
+// Test Connection (Step 5/6) — ADR-019 zod-codegen. Routes validate with
+// schemas.X.parse(raw); these CSR funcs return the generated wire type (snake).
+// Field access at the call site is snake_case; use adapters for join/reshape/compute.
 
 // 비동기 연결 테스트 트리거 — 202 Accepted, no request body, optional collectorImageTag
 export const triggerTestConnection = async (

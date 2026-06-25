@@ -4329,6 +4329,10 @@ components:
           type: boolean
     TestConnectionConfirmationResponse:
       type: object
+      required:
+      - target_source_id
+      - confirmed
+      - confirmed_at
       properties:
         target_source_id:
           type: integer
@@ -4424,6 +4428,8 @@ components:
           format: date-time
     TestConnectionTriggerResponse:
       type: object
+      required:
+      - success
       properties:
         success:
           type: boolean
@@ -4999,7 +5005,6 @@ components:
       type: object
       properties:
         cloud_type:
-          pattern: (?i)^(aws|azure|gcp|idc|others)$
           type: string
           example: aws
           enum:
@@ -5193,6 +5198,12 @@ components:
             $ref: "#/components/schemas/TestedLogicalDatabaseItem"
     TestConnectionAgentResult:
       type: object
+      required:
+      - agent_id
+      - gcp_region
+      - resource_id
+      - connection_status
+      - database_uri_list
       properties:
         agent_id:
           type: string
@@ -5213,6 +5224,13 @@ components:
             type: string
     TestConnectionVersionResult:
       type: object
+      required:
+      - target_source_id
+      - test_connection_version
+      - connection_status
+      - requested_at
+      - completed_at
+      - test_connection_agent_results
       properties:
         target_source_id:
           type: integer
@@ -5239,6 +5257,11 @@ components:
             $ref: "#/components/schemas/TestConnectionAgentResult"
     TestConnectionLatestResultSummaryResponse:
       type: object
+      required:
+      - resource_id
+      - agent_id
+      - logical_database_count
+      - excluded_logical_database_count
       properties:
         resource_id:
           type: string
@@ -5252,6 +5275,11 @@ components:
           format: int64
     TestConnectionCompletionStatusResponse:
       type: object
+      required:
+      - target_source_id
+      - latest_test_connection_success
+      - test_connection_status
+      - test_connection_confirmed
       properties:
         target_source_id:
           type: integer

@@ -420,16 +420,11 @@ export const getCompletionStatus = (targetSourceId: number) => {
         ? 'LATEST_TEST_CONNECTION_SUCCESS'
         : 'TEST_CONNECTION_REQUIRED';
 
-  // test_ack: 완료 승인 요청 PUT(confirmed:true)으로 제어된다 — 승인되면 passedAt 이
-  // 세팅되어 true. 테스트 성공만으로는 false(승인 대기).
-  const testAck = confirmed;
-
   return {
     target_source_id: targetSourceId,
     latest_test_connection_requested_at: job?.requested_at ?? WIRE_DATE_PLACEHOLDER,
     logical_database_updated_at: WIRE_DATE_PLACEHOLDER,
     latest_test_connection_success: succeeded,
-    test_ack: testAck,
     test_connection_status: status,
     test_connection_confirmed: confirmed,
   };

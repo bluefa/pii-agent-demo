@@ -70,26 +70,26 @@ const makeResource = (overrides: Partial<ConfirmedResource> = {}): ConfirmedReso
 });
 
 const agentResult = (
-  resourceId: string,
-  connectionStatus: TestConnectionStatus,
+  resource_id: string,
+  connection_status: TestConnectionStatus,
 ) => ({
-  agentId: `agent-${resourceId}`,
-  gcpRegion: 'ap-northeast-2',
-  resourceId,
-  connectionStatus,
-  databaseUriList: [],
+  agent_id: `agent-${resource_id}`,
+  gcp_region: 'ap-northeast-2',
+  resource_id,
+  connection_status,
+  database_uri_list: [],
 });
 
 const makeJob = (
-  connectionStatus: TestConnectionStatus,
+  connection_status: TestConnectionStatus,
   agents: ReturnType<typeof agentResult>[],
 ): TestConnectionVersionResult => ({
-  targetSourceId: 1,
-  testConnectionVersion: 1,
-  connectionStatus,
-  requestedAt: '2026-01-25T14:00:00Z',
-  completedAt: connectionStatus === 'PENDING' ? '' : '2026-01-25T14:01:00Z',
-  testConnectionAgentResults: agents,
+  target_source_id: 1,
+  test_connection_version: 1,
+  connection_status,
+  requested_at: '2026-01-25T14:00:00Z',
+  completed_at: connection_status === 'PENDING' ? '' : '2026-01-25T14:01:00Z',
+  test_connection_agent_results: agents,
 });
 
 const renderCard = (confirmed: ConfirmedResource[]) =>

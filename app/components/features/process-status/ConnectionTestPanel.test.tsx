@@ -45,14 +45,14 @@ vi.mock('@/app/components/features/process-status/connection-test/ResultSummary'
 import { ConnectionTestPanel } from '@/app/components/features/process-status/ConnectionTestPanel';
 
 const makeJob = (
-  connectionStatus: TestConnectionVersionResult['connectionStatus'],
+  connection_status: TestConnectionVersionResult['connection_status'],
 ): TestConnectionVersionResult => ({
-  targetSourceId: 1010,
-  testConnectionVersion: 1,
-  connectionStatus,
-  requestedAt: '2026-01-25T14:00:00Z',
-  completedAt: connectionStatus === 'PENDING' ? '' : '2026-01-25T14:01:00Z',
-  testConnectionAgentResults: [],
+  target_source_id: 1010,
+  test_connection_version: 1,
+  connection_status,
+  requested_at: '2026-01-25T14:00:00Z',
+  completed_at: connection_status === 'PENDING' ? '' : '2026-01-25T14:01:00Z',
+  test_connection_agent_results: [],
 });
 
 describe('ConnectionTestPanel SUCCESS refetch', () => {

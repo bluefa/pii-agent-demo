@@ -24,13 +24,8 @@ import type {
   ConfirmedIntegrationResponsePayload,
   ResourceCatalogResponsePayload,
 } from '@/lib/bff/types/confirm';
-import type {
-  TestConnectionCompletionStatusResponseWire,
-  TestConnectionConfirmationResponseWire,
-  TestConnectionLatestResultSummaryResponseWire,
-  TestConnectionTriggerResponseWire,
-  TestConnectionVersionResultWire,
-} from '@/lib/bff/types/test-connection';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
@@ -291,29 +286,28 @@ export const httpBff: BffClient = {
 
     // 202 — no request body; optional collectorImageTag query (ADR-019 D6).
     testConnection: (id, collectorImageTag) =>
-      post<TestConnectionTriggerResponseWire>(
+      post<z.infer<typeof schemas.TestConnectionTriggerResponse>>(
         `/target-sources/${id}/test-connection/async${buildQuery({ collectorImageTag })}`,
       ),
 
-    // GETs returned raw (wire snake) so the route handler is the sole casing
-    // boundary (ADR-019 D1) — the BffClient contract is the upstream wire shape.
+    // GETs returned raw (wire snake) — route validates with schemas.X.parse(raw).
     getTestConnectionLatest: (id) =>
-      getSnakeRaw<TestConnectionVersionResultWire>(
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionVersionResult>>(
         `/target-sources/${id}/test-connection/latest_version`,
       ),
 
     getLatestTestConnectionResultSummaries: (id) =>
-      getSnakeRaw<TestConnectionLatestResultSummaryResponseWire[]>(
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         `/target-sources/${id}/test-connection/latest-results`,
       ),
 
     getTestConnectionCompletionStatus: (id) =>
-      getSnakeRaw<TestConnectionCompletionStatusResponseWire>(
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>(
         `/target-sources/${id}/test-connection/completion-status`,
       ),
 
     updateTestConnectionConfirmation: (id, body) =>
-      put<TestConnectionConfirmationResponseWire>(
+      put<z.infer<typeof schemas.TestConnectionConfirmationResponse>>(
         `/target-sources/${id}/test-connection-acknowledgment`,
         body,
       ),
