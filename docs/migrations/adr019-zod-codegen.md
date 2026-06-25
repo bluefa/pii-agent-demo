@@ -54,17 +54,18 @@ BFF raw JSON (snake)
 
 ## 2. Codegen workflow
 
-- `npm run gen:api` regenerates `lib/generated/install-v1.ts` from the swagger. Never edit
-  the generated file by hand.
+- `npm run gen:api` (`scripts/gen-api.mjs`) regenerates `lib/generated/install-v1.ts` from the
+  swagger. **NEVER edit `docs/swagger/install-v1.yaml`** — it is the source of truth, owned by
+  the BFF/spec author. Never hand-edit the generated file either.
 - zod is **v3** (`zod@^3`) — the generator emits v3 syntax (`z.record(v)`, `.passthrough()`).
-- **`required` discipline:** a schema with no `required` in swagger generates `.partial()`
-  (every field optional) → validation catches almost nothing. When a response's fields are
-  genuinely always present, declare them `required:` in the swagger schema so the generated
-  type is non-optional and the adapter needs no `?`/defaults. Add `required` as part of the
-  domain's migration; note any field left optional and why.
-- **Generator-hostile swagger** (already hit once): a `pattern` with inline `(?i)` flags on
-  an `enum` breaks codegen. Fix at source (the enum already constrains). Re-run `gen:api`;
-  if it throws or tsc fails on the generated file, fix the swagger, never post-process.
+- **Optionality is handled in code, not the spec.** A schema with no `required` in swagger
+  generates `.partial()` (every field optional). Consumers absorb that in the adapter
+  (`?? []`, `if (field)` guards) — do **not** add `required` to the swagger to make fields
+  non-optional. (If stricter validation is wanted, the spec owner adds `required` at source.)
+- **Generator-hostile swagger is fixed in the generated OUTPUT, not the spec.** `cloud_type`
+  carries a `(?i)` inline-flag `pattern` (invalid ECMA regex) that makes the generator emit
+  non-compiling `.enum().regex(/(?i).../)`. `scripts/gen-api.mjs` strips that `.regex(...)`
+  from the output (the enum already constrains the value). The swagger is untouched.
 
 ## 3. Domain partition (work units)
 

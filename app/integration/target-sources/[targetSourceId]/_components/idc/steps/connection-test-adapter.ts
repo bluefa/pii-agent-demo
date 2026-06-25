@@ -29,7 +29,10 @@ export const buildConnectionTestRows = (
 ): ConnectionTestRow[] => {
   const statusByResourceId: Record<string, TestConnectionStatus> = {};
   for (const agent of latestJob?.test_connection_agent_results ?? []) {
-    statusByResourceId[agent.resource_id] = agent.connection_status;
+    // schema is .partial() (no `required` in swagger) — fields are optional on the wire.
+    if (agent.resource_id && agent.connection_status) {
+      statusByResourceId[agent.resource_id] = agent.connection_status;
+    }
   }
   return resourceIds.map((resourceId) => ({
     resourceId,

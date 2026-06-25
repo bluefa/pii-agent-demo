@@ -117,7 +117,7 @@ export const IdcStep5ConnectionTest = ({
   const statusByResource = useMemo(() => {
     const map: Record<string, TestConnectionStatus> = {};
     for (const agent of latestJob?.test_connection_agent_results ?? []) {
-      map[agent.resource_id] = agent.connection_status;
+      if (agent.resource_id && agent.connection_status) map[agent.resource_id] = agent.connection_status;
     }
     return map;
   }, [latestJob]);

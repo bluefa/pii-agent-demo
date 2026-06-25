@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "gen:api": "openapi-zod-client docs/swagger/install-v1.yaml -o lib/generated/install-v1.ts -t node_modules/openapi-zod-client/src/templates/schemas-only.hbs --export-schemas",
+    "gen:api": "node scripts/gen-api.mjs",
     "design:lint": "npx --no-install @google/design.md lint DESIGN.md",
     "design:check": "npm run design:lint"
   },

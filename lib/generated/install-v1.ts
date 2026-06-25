@@ -218,7 +218,8 @@ const TargetSourceCreationCandidateResponse = z
   .passthrough();
 const TargetSourceCreationCandidateRequest = z
   .object({
-    cloud_type: z.enum(["aws", "azure", "gcp", "idc", "others"]),
+    cloud_type: z
+      .enum(["aws", "azure", "gcp", "idc", "others"]),
     is_china_region: z.boolean(),
     database_types: z.array(z.string()),
     grant_service_terraform_execution_permission: z.boolean().optional(),
@@ -315,6 +316,7 @@ const TestConnectionConfirmationResponse = z
     confirmed: z.boolean(),
     confirmed_at: z.string().datetime({ offset: true }),
   })
+  .partial()
   .passthrough();
 const UpdateCredentialResponse = z
   .object({ success: z.boolean() })
@@ -338,6 +340,7 @@ const GuideDetail = z
   .passthrough();
 const TestConnectionTriggerResponse = z
   .object({ success: z.boolean() })
+  .partial()
   .passthrough();
 const ScanJobResponse = z
   .object({
@@ -611,6 +614,7 @@ const TestConnectionAgentResult = z
     connection_status: z.enum(["PENDING", "RUNNING", "SUCCESS", "FAIL"]),
     database_uri_list: z.array(z.string()),
   })
+  .partial()
   .passthrough();
 const TestConnectionVersionResult = z
   .object({
@@ -621,6 +625,7 @@ const TestConnectionVersionResult = z
     completed_at: z.string().datetime({ offset: true }),
     test_connection_agent_results: z.array(TestConnectionAgentResult),
   })
+  .partial()
   .passthrough();
 const TestConnectionLatestResultSummaryResponse = z
   .object({
@@ -629,18 +634,13 @@ const TestConnectionLatestResultSummaryResponse = z
     logical_database_count: z.number().int(),
     excluded_logical_database_count: z.number().int(),
   })
+  .partial()
   .passthrough();
 const TestConnectionCompletionStatusResponse = z
   .object({
     target_source_id: z.number().int(),
-    latest_test_connection_requested_at: z
-      .string()
-      .datetime({ offset: true })
-      .optional(),
-    logical_database_updated_at: z
-      .string()
-      .datetime({ offset: true })
-      .optional(),
+    latest_test_connection_requested_at: z.string().datetime({ offset: true }),
+    logical_database_updated_at: z.string().datetime({ offset: true }),
     latest_test_connection_success: z.boolean(),
     test_connection_status: z.enum([
       "CONFIRMED",
@@ -650,6 +650,7 @@ const TestConnectionCompletionStatusResponse = z
     ]),
     test_connection_confirmed: z.boolean(),
   })
+  .partial()
   .passthrough();
 const SecretResponse = z
   .object({
