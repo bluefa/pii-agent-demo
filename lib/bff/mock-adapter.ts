@@ -12,11 +12,7 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
-import type {
-  ApprovalRequestCreateBody,
-  BffConfirmedIntegration,
-  ResourceCatalogResponse,
-} from '@/lib/bff/types/confirm';
+import type { ApprovalRequestCreateBody } from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
@@ -35,10 +31,6 @@ import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockGuides } from '@/lib/bff/mock/guides';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import type {
-  SkipLogicalDatabaseResponseWire,
-  TestedLogicalDatabasesResponseWire,
-} from '@/lib/bff/types/logical-db';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -140,32 +132,36 @@ export const mockBff: BffClient = {
 
   logicalDb: {
     getTestedByResourceId: async (id, resourceId) =>
-      unwrap<TestedLogicalDatabasesResponseWire>(
+      unwrap<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>(
         await mockLogicalDb.getTestedByResourceId(String(id), resourceId),
       ),
     getExcludedByResourceId: async (id, resourceId) =>
-      unwrap<SkipLogicalDatabaseResponseWire>(
+      unwrap<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
         await mockLogicalDb.getExcludedByResourceId(String(id), resourceId),
       ),
     updateExcludedByResourceId: async (id, resourceId, body) =>
-      unwrap<SkipLogicalDatabaseResponseWire>(
+      unwrap<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
         await mockLogicalDb.updateExcludedByResourceId(String(id), resourceId, body),
       ),
   },
 
   confirm: {
     getResources: async (id) =>
-      unwrap<ResourceCatalogResponse>(await mockConfirm.getResources(String(id))),
+      unwrap<z.infer<typeof schemas.CloudResourceResponse>>(await mockConfirm.getResources(String(id))),
 
     createApprovalRequest: async (id, body: ApprovalRequestCreateBody) =>
       unwrap<unknown>(await mockConfirm.createApprovalRequest(String(id), body)),
 
-    getConfirmedIntegration: async (id): Promise<BffConfirmedIntegration> =>
-      // Mock returns the flat shape; httpBff owns envelope unwrapping.
-      unwrap<BffConfirmedIntegration>(await mockConfirm.getConfirmedIntegration(String(id))),
+    getConfirmedIntegration: async (id) =>
+      // Mock returns the snake wire shape; the route validates with schemas.X.parse().
+      unwrap<z.infer<typeof schemas.ConfirmedIntegrationResponse>>(
+        await mockConfirm.getConfirmedIntegration(String(id)),
+      ),
 
     getApprovedIntegration: async (id) =>
-      unwrap<unknown>(await mockConfirm.getApprovedIntegration(String(id))),
+      unwrap<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
+        await mockConfirm.getApprovedIntegration(String(id)),
+      ),
 
     getApprovalHistory: async (id, page, size) =>
       unwrap<unknown>(await mockConfirm.getApprovalHistory(String(id), page, size)),
@@ -174,7 +170,7 @@ export const mockBff: BffClient = {
       unwrap<unknown>(await mockConfirm.getApprovalRequestLatest(String(id))),
 
     getProcessStatus: async (id) =>
-      unwrap<unknown>(await mockConfirm.getProcessStatus(String(id))),
+      unwrap<z.infer<typeof schemas.ProcessStatusResponseDto>>(await mockConfirm.getProcessStatus(String(id))),
 
     approveApprovalRequest: async (id, body) =>
       unwrap<unknown>(await mockConfirm.approveApprovalRequest(String(id), body)),

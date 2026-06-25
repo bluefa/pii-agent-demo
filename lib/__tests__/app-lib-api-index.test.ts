@@ -111,14 +111,14 @@ describe('app/lib/api/index', () => {
 
     const confirmedIntegration = await getConfirmedIntegration(1001);
 
+    // ADR-019: pass-through — response is returned as-is (BffConfirmedIntegration snake shape).
+    // No null-padding of absent fields.
     expect(confirmedIntegration).toEqual({
       resource_infos: [
         {
           resource_id: 'res-1',
           resource_type: 'ORACLE_DB',
           database_type: 'ORACLE',
-          database_region: null,
-          resource_name: null,
           host: 'db.internal',
           port: 1521,
           oracle_service_id: 'ORCL',
@@ -130,28 +130,25 @@ describe('app/lib/api/index', () => {
     });
   });
 
-  it('getConfirmResources는 확장된 resource catalog 응답을 camelCase로 변환한다', async () => {
+  it('getConfirmResources는 확장된 resource catalog 응답을 camelCase로 변환한다 (ADR-019)', async () => {
+    // ADR-019: CloudResourceResponse items have connection fields under metadata (snake).
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
           resources: [
             {
-              id: 'vm-db-001',
               resource_id: 'vm-db-001',
-              name: 'vm-db-001',
+              resource_name: 'vm-db-001',
               resource_type: 'AZURE_VM',
               database_type: 'ORACLE',
               integration_category: 'NO_INSTALL_NEEDED',
-              host: 'db.internal',
-              port: 1521,
-              oracle_service_id: 'ORCL',
-              network_interface_id: 'nic-1',
-              ip_configuration_name: null,
               metadata: {
                 provider: 'Azure',
-                resourceType: 'AZURE_VM',
-                rawResourceType: 'AZURE_VM',
-                region: '',
+                resource_type: 'AZURE_VM',
+                host: 'db.internal',
+                port: 1521,
+                oracle_service_id: 'ORCL',
+                network_interface_id: 'nic-1',
               },
             },
           ],
@@ -180,11 +177,13 @@ describe('app/lib/api/index', () => {
           oracleServiceId: 'ORCL',
           networkInterfaceId: 'nic-1',
           ipConfigurationName: null,
+          scanStatus: null,
           metadata: {
             provider: 'Azure',
             resourceType: 'AZURE_VM',
             rawResourceType: 'AZURE_VM',
-            region: '',
+            host: 'db.internal',
+            port: 1521,
           },
         },
       ],
@@ -241,9 +240,10 @@ describe('app/lib/api/index', () => {
 
     const project = await getProject(1013);
 
+    // ADR-019: projectCode falls back to 'TS-{id}' when service_code is absent.
     expect(project).toEqual(expect.objectContaining({
       targetSourceId: 1013,
-      projectCode: '',
+      projectCode: 'TS-1013',
       serviceCode: '',
       cloudProvider: 'Azure',
       processStatus: ProcessStatus.CONNECTION_VERIFIED,
@@ -302,29 +302,23 @@ describe('app/lib/api/index', () => {
     });
   });
 
-  it('getApprovedIntegration은 Issue #222 응답을 기존 UI 스냅샷으로 감싼다', async () => {
+  it('getApprovedIntegration은 flat ApprovedIntegrationResponseDto를 UI 스냅샷으로 감싼다 (ADR-019)', async () => {
+    // ADR-019: route emits flat snake ApprovedIntegrationResponseDto.
+    // resources (TargetSourceResourceItemDto[]) maps to resource_infos in the UI view.
+    const wireResource = {
+      resource_id: 'vm-1',
+      resource_type: 'AZURE_VM',
+      resource_name: 'My VM',
+      integration_category: 'INSTALL_NEEDED',
+    };
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
           id: 17,
           request_id: 22,
           approved_at: '2026-03-29T00:00:00Z',
-          resource_infos: [
-            {
-              resource_id: 'vm-1',
-              resource_type: 'AZURE_VM',
-              database_type: 'POSTGRESQL',
-              port: 5432,
-              host: '10.0.0.9',
-              network_interface_id: 'nic-9',
-            },
-          ],
-          excluded_resource_infos: [
-            {
-              resource_id: 'sql-2',
-              exclusion_reason: 'skip',
-            },
-          ],
+          approved_by: { user_id: 'alice' },
+          resources: [wireResource],
         }),
         {
           status: 200,
@@ -340,33 +334,10 @@ describe('app/lib/api/index', () => {
         id: '17',
         request_id: '22',
         approved_at: '2026-03-29T00:00:00Z',
-        approved_by: null,
-        resource_infos: [
-          {
-            resource_id: 'vm-1',
-            resource_type: 'AZURE_VM',
-            endpoint_config: {
-              resource_id: 'vm-1',
-              db_type: 'POSTGRESQL',
-              port: 5432,
-              host: '10.0.0.9',
-              selectedNicId: 'nic-9',
-            },
-            credential_id: null,
-            database_region: null,
-            resource_name: null,
-            scan_status: null,
-            integration_status: null,
-          },
-        ],
-        excluded_resource_ids: ['sql-2'],
-        excluded_resource_infos: [
-          {
-            resource_id: 'sql-2',
-            exclusion_reason: 'skip',
-          },
-        ],
-        exclusion_reason: 'skip',
+        approved_by: 'alice',
+        resource_infos: [wireResource],
+        excluded_resource_ids: [],
+        excluded_resource_infos: [],
       },
     });
   });

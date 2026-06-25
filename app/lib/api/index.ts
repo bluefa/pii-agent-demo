@@ -5,25 +5,20 @@ import {
   ProcessStatus,
   DatabaseType,
   IntegrationCategory,
-  ConfirmedIntegrationResourceInfo,
   BffConfirmedIntegration,
+  ConfirmedIntegrationResourceInfo,
   ConfirmResourceMetadata,
   EndpointConfigInputData,
   ResourceScanStatus,
+  ResourceIntegrationStatus,
   ResourceSnapshot,
   normalizeCloudProvider,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
-import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
-import {
-  extractTargetSource,
-  normalizeTargetSourceProcessStatus,
-  type TargetSourceDetailResponse,
-} from '@/lib/target-source-response';
+import { fetchInfraJson } from '@/app/lib/api/infra';
 import type { TargetSourceCloudType } from '@/lib/target-source-creation';
 // Re-export TargetSourceCloudType so consumers keep importing from one place.
 export type { TargetSourceCloudType };
-import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 // Re-export test-connection wire types (zod-codegen, snake) so consumers import
@@ -35,12 +30,6 @@ export type TestConnectionCompletionStatus = z.infer<typeof schemas.TestConnecti
 export type TestConnectionConfirmationResult = z.infer<typeof schemas.TestConnectionConfirmationResponse>;
 export type TestConnectionTriggerResult = z.infer<typeof schemas.TestConnectionTriggerResponse>;
 export type TestConnectionStatus = TestConnectionVersionResult['connection_status'];
-import {
-  normalizeApprovedIntegration,
-  normalizeProcessStatusResponse,
-  type ExcludedResourceInfoDto,
-  type ResourceConfigDto,
-} from '@/lib/approval-bff';
 // Re-export approval wire types (zod-codegen, snake) so consumers import from one place.
 export type ApprovalRequestSummaryDto = z.infer<typeof schemas.ApprovalRequestSummaryDto>;
 export type ApprovalActionResponseDto = z.infer<typeof schemas.ApprovalActionResponseDto>;
@@ -194,11 +183,83 @@ export const createTargetSource = async (
 export const getPermissions = (serviceCode: string): Promise<AuthorizedUsersResponse> =>
   fetchInfraJson<AuthorizedUsersResponse>(`/services/${serviceCode}/authorized-users`);
 
+// Maps BFF process_status strings to internal ProcessStatus enum.
+const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
+  switch (String(value).trim().toUpperCase()) {
+    case 'WAITING_APPROVAL':
+    case 'PENDING':
+      return ProcessStatus.WAITING_APPROVAL;
+    case 'APPLYING_APPROVED':
+    case 'CONFIRMING':
+      return ProcessStatus.APPLYING_APPROVED;
+    case 'CONFIRMED':
+      return ProcessStatus.INSTALLING;
+    case 'INSTALLED':
+      return ProcessStatus.WAITING_CONNECTION_TEST;
+    case 'CONNECTED':
+      return ProcessStatus.CONNECTION_VERIFIED;
+    case 'TARGET_CONFIRMED':
+    case 'COMPLETED':
+      return ProcessStatus.INSTALLATION_COMPLETE;
+    case 'REQUEST_REQUIRED':
+    case 'IDLE':
+    default:
+      return ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  }
+};
+
+// Adapter: TargetSourceDetail (snake wire, .passthrough()) → TargetSource (camel domain model).
+// Reads snake fields, computes derived values (processStatus, fallback codes).
+const toTargetSource = (raw: TargetSourceDetail): TargetSource => {
+  // .passthrough() means extra fields exist at runtime but are typed `unknown`.
+  const item = raw as Record<string, unknown>;
+  const asStr = (v: unknown): string | undefined => typeof v === 'string' ? v : undefined;
+
+  const id = typeof item.target_source_id === 'number' ? item.target_source_id : 0;
+  const fallbackCode = `TS-${id}`;
+  const serviceCode = asStr(item.service_code)?.trim() ?? '';
+  const processStatus = normalizeTargetSourceProcessStatus(asStr(item.process_status));
+  const metadata = (typeof item.metadata === 'object' && item.metadata !== null)
+    ? item.metadata as Record<string, unknown>
+    : null;
+
+  const tenantId = asStr(metadata?.tenant_id);
+  const subscriptionId = asStr(metadata?.subscription_id);
+  const awsAccountId = asStr(metadata?.aws_account_id);
+  const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const awsInstallationModeRaw = asStr(item.aws_installation_mode);
+  const awsInstallationMode =
+    awsInstallationModeRaw === 'AUTO' || awsInstallationModeRaw === 'MANUAL'
+      ? awsInstallationModeRaw
+      : undefined;
+  const createdAt = asStr(item.created_at) ?? new Date().toISOString();
+
+  return {
+    id: fallbackCode,
+    targetSourceId: id,
+    projectCode: serviceCode || fallbackCode,
+    serviceCode,
+    serviceName: asStr(item.service_name)?.trim() || serviceCode,
+    processStatus,
+    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    createdAt,
+    updatedAt: asStr(item.updated_at) ?? createdAt,
+    name: fallbackCode,
+    description: asStr(item.description) ?? '',
+    isRejected: false,
+    ...(tenantId ? { tenantId } : {}),
+    ...(subscriptionId ? { subscriptionId } : {}),
+    ...(awsAccountId ? { awsAccountId } : {}),
+    ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(awsInstallationMode ? { awsInstallationMode } : {}),
+  };
+};
+
 export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
-  const data = await fetchInfraCamelJson<TargetSourceDetailResponse>(
+  const data = await fetchInfraJson<TargetSourceDetail>(
     `/target-sources/${targetSourceId}`,
   );
-  return extractTargetSource(data);
+  return toTargetSource(data);
 };
 
 export const searchUsers = (
@@ -240,14 +301,88 @@ export interface ConfirmResourcesResponse {
   totalCount: number;
 }
 
+// Adapter helpers: snake TargetSourceResourceMetadataDto → camel ConfirmResourceMetadata.
+const inferProvider = (resourceType: string): CloudProvider => {
+  if (resourceType.startsWith('AZURE_')) return 'Azure';
+  if (resourceType.startsWith('GCP_')) return 'GCP';
+  return 'AWS';
+};
+
+const normalizeIntegrationCategory = (value: unknown): IntegrationCategory => {
+  if (value === 'NO_INSTALL_NEEDED' || value === 'INSTALL_INELIGIBLE') return value;
+  return 'TARGET';
+};
+
+const normalizeCandidateScanStatus = (value: unknown): ResourceScanStatus | null => {
+  if (value === 'NEW_SCAN' || value === 'UNCHANGED') return value;
+  return null;
+};
+
+const toConfirmResourceMetadata = (
+  meta: Record<string, unknown>,
+  resourceType: string,
+): ConfirmResourceMetadata => {
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
+  const provider = str(meta.provider)
+    ? normalizeCloudProvider(str(meta.provider))
+    : inferProvider(resourceType);
+  return {
+    provider,
+    resourceType: str(meta.resource_type) ?? resourceType,
+    rawResourceType: str(meta.resource_type) ?? resourceType,
+    ...(str(meta.region) ? { region: str(meta.region) } : {}),
+    ...(str(meta.vpc_id) ? { vpcId: str(meta.vpc_id) } : {}),
+    ...(str(meta.project_id) ? { projectId: str(meta.project_id) } : {}),
+    ...(str(meta.subscription_id) ? { subscriptionId: str(meta.subscription_id) } : {}),
+    ...(str(meta.resource_group) ? { resourceGroup: str(meta.resource_group) } : {}),
+    ...(str(meta.server_name) ? { serverName: str(meta.server_name) } : {}),
+    ...(str(meta.host) ? { host: str(meta.host) } : {}),
+    ...(num(meta.port) !== undefined ? { port: num(meta.port) } : {}),
+  };
+};
+
+// Adapter: snake TargetSourceResourceItemDto → camel ConfirmResourceItem.
+const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceItem => {
+  const meta = (typeof item.metadata === 'object' && item.metadata !== null)
+    ? item.metadata as Record<string, unknown>
+    : {};
+  const resourceId = (item.resource_id as string | undefined) ?? '';
+  const resourceType = (item.resource_type as string | undefined) ?? 'UNKNOWN';
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
+
+  return {
+    id: resourceId,
+    resourceId,
+    name: str(item.resource_name) ?? resourceId,
+    resourceType,
+    databaseType: (str(item.database_type) as DatabaseType | undefined) ?? 'MYSQL',
+    integrationCategory: normalizeIntegrationCategory(item.integration_category),
+    host: str(meta.host) ?? null,
+    port: num(meta.port) ?? null,
+    oracleServiceId: str(meta.oracle_service_id) ?? null,
+    networkInterfaceId: str(meta.network_interface_id) ?? null,
+    ipConfigurationName: null,
+    scanStatus: normalizeCandidateScanStatus(item.scan_status),
+    metadata: toConfirmResourceMetadata(meta, resourceType),
+  };
+};
+
 export const getConfirmResources = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
-): Promise<ConfirmResourcesResponse> =>
-  fetchInfraCamelJson<ConfirmResourcesResponse>(
+): Promise<ConfirmResourcesResponse> => {
+  const raw = await fetchInfraJson<z.infer<typeof schemas.CloudResourceResponse>>(
     `${CONFIRM_BASE}/${targetSourceId}/resources`,
     options?.signal ? { signal: options.signal } : undefined,
   );
+  const items = Array.isArray(raw.resources) ? raw.resources as Record<string, unknown>[] : [];
+  return {
+    resources: items.map(toConfirmResourceItem),
+    totalCount: typeof raw.total_count === 'number' ? raw.total_count : items.length,
+  };
+};
 
 export interface ApprovalResourceInputData {
   credential_id?: string;
@@ -278,38 +413,6 @@ interface LegacyApprovalRequestInput {
   input_data: ApprovalRequestInput;
 }
 
-const toEndpointConfigSnapshot = (resource: ResourceConfigDto): ResourceSnapshot['endpoint_config'] => {
-  if (!resource.database_type || resource.port === undefined || !resource.host) {
-    return null;
-  }
-
-  return {
-    resource_id: resource.resource_id ?? '',
-    db_type: resource.database_type as EndpointConfigInputData['db_type'],
-    port: resource.port,
-    host: resource.host,
-    ...(resource.oracle_service_id ? { oracleServiceId: resource.oracle_service_id } : {}),
-    ...(resource.network_interface_id ? { selectedNicId: resource.network_interface_id } : {}),
-  };
-};
-
-const toApprovedIntegrationResourceSnapshot = (
-  resource: ResourceConfigDto,
-): ApprovedIntegrationResourceItem => ({
-  resource_id: resource.resource_id ?? '',
-  resource_type: resource.resource_type ?? '',
-  endpoint_config: toEndpointConfigSnapshot(resource),
-  credential_id: resource.credential_id ?? null,
-  database_region: resource.database_region ?? null,
-  resource_name: resource.resource_name ?? null,
-  scan_status: resource.scan_status ?? null,
-  integration_status: resource.integration_status ?? null,
-  // Pass IDC fields through — absent for cloud resources.
-  ...(resource.idc_host_format ? { idc_host_format: resource.idc_host_format } : {}),
-  ...(resource.idc_ips ? { idc_ips: resource.idc_ips } : {}),
-  ...(resource.idc_host ? { idc_host: resource.idc_host } : {}),
-  ...(resource.idc_source_ips ? { idc_source_ips: resource.idc_source_ips } : {}),
-});
 
 export const createApprovalRequest = async (
   targetSourceId: number,
@@ -323,20 +426,32 @@ export const createApprovalRequest = async (
 export type ConfirmedIntegrationResourceItem = ConfirmedIntegrationResourceInfo;
 export type ApprovedIntegrationResourceItem = ResourceSnapshot;
 
+// ADR-019: route emits snake ConfirmedIntegrationResponse; pass through.
+// BffConfirmedIntegration.resource_infos is structurally compatible (both snake).
 export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 
 export const getConfirmedIntegration = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
 ): Promise<ConfirmedIntegrationResponse> =>
-  extractConfirmedIntegration(
-    await fetchInfraJson<ConfirmedIntegrationResponsePayload>(
-      `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`,
-      options?.signal ? { signal: options.signal } : undefined,
-    ),
+  fetchInfraJson<ConfirmedIntegrationResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`,
+    options?.signal ? { signal: options.signal } : undefined,
   );
 
-export type ApprovedIntegrationExcludedResourceItem = ExcludedResourceInfoDto;
+// ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
+// Reshape to the UI shape: wrap in approved_integration, rename resources→resource_infos,
+// excluded fields not in the new schema default to empty.
+// This type is compatible with the deleted ExcludedResourceInfoDto from @/lib/approval-bff.
+export type ApprovedIntegrationExcludedResourceItem = {
+  resource_id?: string;
+  exclusion_reason?: string;
+  resource_name?: string | null;
+  database_type?: string | null;
+  database_region?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  integration_status?: ResourceIntegrationStatus | null;
+};
 
 export interface ApprovedIntegrationResponse {
   approved_integration: {
@@ -355,29 +470,21 @@ export const getApprovedIntegration = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
 ): Promise<ApprovedIntegrationResponse> => {
-  const payload = normalizeApprovedIntegration(
-    await fetchInfraJson<unknown>(
-      `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
-      options?.signal ? { signal: options.signal } : undefined,
-    ),
+  const raw = await fetchInfraJson<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
+    `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
+    options?.signal ? { signal: options.signal } : undefined,
   );
-
-  const excludedResourceInfos = payload.excluded_resource_infos ?? [];
 
   return {
     approved_integration: {
-      id: String(payload.id ?? ''),
-      request_id: String(payload.request_id ?? ''),
-      approved_at: payload.approved_at ?? '',
-      approved_by: payload.approved_by?.user_id ?? null,
-      resource_infos: payload.resource_infos.map(toApprovedIntegrationResourceSnapshot),
-      excluded_resource_ids: excludedResourceInfos
-        .map((item) => item.resource_id)
-        .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0),
-      excluded_resource_infos: excludedResourceInfos,
-      exclusion_reason: excludedResourceInfos
-        .map((item) => item.exclusion_reason)
-        .find((reason): reason is string => typeof reason === 'string' && reason.length > 0),
+      id: String(raw.id ?? ''),
+      request_id: String(raw.request_id ?? ''),
+      approved_at: raw.approved_at ?? '',
+      approved_by: (raw.approved_by as { user_id?: string } | undefined)?.user_id ?? null,
+      // ADR-019: resources (new schema, TargetSourceResourceItemDto[]) maps to resource_infos (UI view).
+      resource_infos: Array.isArray(raw.resources) ? (raw.resources as unknown as ApprovedIntegrationResourceItem[]) : [],
+      excluded_resource_ids: [],
+      excluded_resource_infos: [],
     },
   };
 };
@@ -456,17 +563,25 @@ export interface ProcessStatusResponse {
   evaluated_at: string;
 }
 
+// ADR-019: route emits snake ProcessStatusResponseDto; pass through directly.
 export const getProcessStatus = async (
-  targetSourceId: number
+  targetSourceId: number,
 ): Promise<ProcessStatusResponse> =>
-  normalizeProcessStatusResponse(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/process-status`),
-  );
+  fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
 // ===== Connection Test API (Async) =====
 
-export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
-  fetchInfraCamelJson<SecretKey[]>(`${CONFIRM_BASE}/${targetSourceId}/secrets`);
+// ADR-019: route emits snake SecretResponse[]; adapter reshapes create_time_str → createTimeStr.
+export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> => {
+  const raw = await fetchInfraJson<z.infer<typeof schemas.SecretResponse>[]>(
+    `${CONFIRM_BASE}/${targetSourceId}/secrets`,
+  );
+  return raw.map((s) => ({
+    name: s.name ?? '',
+    createTime: s.create_time ?? '',
+    createTimeStr: s.create_time_str ?? '',
+  }));
+};
 
 // Test Connection (Step 5/6) — ADR-019 zod-codegen. Routes validate with
 // schemas.X.parse(raw); these CSR funcs return the generated wire type (snake).
@@ -543,9 +658,9 @@ export interface InstallationConfirmResult {
 }
 
 export const confirmInstallation = async (
-  targetSourceId: number
+  targetSourceId: number,
 ): Promise<InstallationConfirmResult> =>
-  fetchInfraCamelJson<InstallationConfirmResult>(
+  fetchInfraJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST' },
   );

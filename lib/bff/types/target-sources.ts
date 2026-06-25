@@ -10,8 +10,6 @@
 
 import type { TargetSource } from '@/lib/types';
 
-export type { TargetSourceDetailResponse } from '@/lib/target-source-response';
-
 type BffCloudTypeUpper = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
 type BffProcessStatus =
   | 'IDLE'

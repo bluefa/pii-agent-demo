@@ -18,17 +18,11 @@
  */
 import type {
   TargetSourceCreationCandidateResponseWire,
-  TargetSourceDetailResponse,
   TargetSourceInfoWire,
   TargetSourcesByServiceResponseWire,
 } from '@/lib/bff/types/target-sources';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import type {
-  SkipLogicalDatabaseResponseWire,
-  TestedLogicalDatabasesResponseWire,
-  UpdateSkipLogicalDatabaseRequestWire,
-} from '@/lib/bff/types/logical-db';
 import type {
   DashboardSummaryResponse,
   DashboardSystemsResponse,
@@ -39,15 +33,11 @@ import type {
 } from '@/lib/bff/types/dev';
 import type { TaskAdminApprovalRequestsResponse } from '@/lib/bff/types/task-admin';
 import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
-import type {
-  ApprovalRequestCreateBody,
-  BffConfirmedIntegration,
-  ResourceCatalogResponse,
-} from '@/lib/bff/types/confirm';
+import type { ApprovalRequestCreateBody } from '@/lib/bff/types/confirm';
 
 export interface BffClient {
   targetSources: {
-    get: (id: number) => Promise<TargetSourceDetailResponse>;
+    get: (id: number) => Promise<z.infer<typeof schemas.TargetSourceDetail>>;
     // Wire snake (37) — the route handler owns the casing boundary.
     list: (serviceCode: string) => Promise<TargetSourcesByServiceResponseWire>;
     // 201 TargetSourceInfo (36) — candidate posted back verbatim.
@@ -57,7 +47,7 @@ export interface BffClient {
       serviceCode: string,
       body: unknown,
     ) => Promise<TargetSourceCreationCandidateResponseWire[]>;
-    getSecrets: (id: number) => Promise<unknown>;
+    getSecrets: (id: number) => Promise<z.infer<typeof schemas.SecretResponse>[]>;
   };
 
   users: {
@@ -134,26 +124,26 @@ export interface BffClient {
     getTestedByResourceId: (
       id: number,
       resourceId: string,
-    ) => Promise<TestedLogicalDatabasesResponseWire>;
+    ) => Promise<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>;
     getExcludedByResourceId: (
       id: number,
       resourceId: string,
-    ) => Promise<SkipLogicalDatabaseResponseWire>;
+    ) => Promise<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>;
     updateExcludedByResourceId: (
       id: number,
       resourceId: string,
-      body: UpdateSkipLogicalDatabaseRequestWire,
-    ) => Promise<SkipLogicalDatabaseResponseWire>;
+      body: z.infer<typeof schemas.UpdateSkipLogicalDatabaseRequest>,
+    ) => Promise<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>;
   };
 
   confirm: {
-    getResources: (id: number) => Promise<ResourceCatalogResponse>;
+    getResources: (id: number) => Promise<z.infer<typeof schemas.CloudResourceResponse>>;
     createApprovalRequest: (id: number, body: ApprovalRequestCreateBody) => Promise<unknown>;
-    getConfirmedIntegration: (id: number) => Promise<BffConfirmedIntegration>;
-    getApprovedIntegration: (id: number) => Promise<unknown>;
+    getConfirmedIntegration: (id: number) => Promise<z.infer<typeof schemas.ConfirmedIntegrationResponse>>;
+    getApprovedIntegration: (id: number) => Promise<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>;
     getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;
     getApprovalRequestLatest: (id: number) => Promise<unknown>;
-    getProcessStatus: (id: number) => Promise<unknown>;
+    getProcessStatus: (id: number) => Promise<z.infer<typeof schemas.ProcessStatusResponseDto>>;
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;

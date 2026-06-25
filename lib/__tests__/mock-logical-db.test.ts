@@ -3,10 +3,11 @@ import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { resetStore } from '@/lib/mock-store';
 import { getProjectByTargetSourceId } from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
-import type {
-  SkipLogicalDatabaseResponseWire,
-  TestedLogicalDatabasesResponseWire,
-} from '@/lib/bff/types/logical-db';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+
+type SkipLogicalDatabaseResponseWire = z.infer<typeof schemas.SkipLogicalDatabaseResponse>;
+type TestedLogicalDatabasesResponseWire = z.infer<typeof schemas.TestedLogicalDatabasesResponse>;
 
 // A cloud project seeded at WAITING_CONNECTION_TEST (a connection-test step, so a
 // test connection has run and logical DBs are discovered).

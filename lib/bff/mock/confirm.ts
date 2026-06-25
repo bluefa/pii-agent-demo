@@ -7,11 +7,6 @@ import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
-import { createEmptyConfirmedIntegration } from '@/lib/confirmed-integration-response';
-import {
-  extractResourceCatalog,
-  type ResourceCatalogResponsePayload,
-} from '@/lib/resource-catalog-response';
 import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
 import type {
   MockResource,
@@ -248,17 +243,15 @@ const deriveCandidateScanStatus = (resource: MockResource): ResourceScanStatus =
   return stableIndex(resource.resourceId, 3) === 0 ? 'UNCHANGED' : 'NEW_SCAN';
 };
 
-// Swagger TargetSourceResourceItemDto (snake wire). The item carries no
-// host/port/oracle_service_id/network_interface_id — those are on metadata.* —
-// so `getResources` routes this through `extractResourceCatalog`, the same
-// normalizer httpBff uses, to land the domain shape.
+// Swagger TargetSourceResourceItemDto (snake wire). The route validates with
+// schemas.CloudResourceResponse.parse(raw) — emit the wire shape directly.
 function toResourceCatalogItem(
   resource: MockResource,
   project: Project,
-): ResourceCatalogResponsePayload['resources'][number] {
+): Record<string, unknown> {
   return {
     resource_id: resource.resourceId,
-    name: demoResourceName(project.cloudProvider, resource),
+    resource_name: demoResourceName(project.cloudProvider, resource),
     resource_type: resource.type,
     database_type: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
     integration_category: resource.integrationCategory,
@@ -417,9 +410,9 @@ export const mockConfirm = {
 
     const resources = project.resources.map((resource) => toResourceCatalogItem(resource, project));
 
-    // Author the swagger wire (snake, metadata.* host/port/…) then run the same
-    // normalizer httpBff uses so the mock exercises the real boundary.
-    return NextResponse.json(extractResourceCatalog({ resources, total_count: resources.length }));
+    // ADR-019: emit raw snake wire (CloudResourceResponse); the route validates
+    // with schemas.CloudResourceResponse.parse(raw).
+    return NextResponse.json({ resources, total_count: resources.length });
   },
 
   createApprovalRequest: async (targetSourceId: string, body: unknown) => {
@@ -712,7 +705,7 @@ export const mockConfirm = {
 
     // 2. installation 미진행 상태(PENDING) 면 확정 정보 없음
     if (project.status.installation.status === 'PENDING') {
-      return NextResponse.json(createEmptyConfirmedIntegration());
+      return NextResponse.json({ resource_infos: [] } satisfies BffConfirmedIntegration);
     }
 
     // 3. installation 진행 중 / 완료 상태에서 ApprovedIntegration 으로부터 derive
@@ -735,7 +728,7 @@ export const mockConfirm = {
     // integration was confirmed, so selection is the only filter here.
     const eligibleResources = project.resources.filter((r) => r.isSelected);
     if (eligibleResources.length === 0) {
-      return NextResponse.json(createEmptyConfirmedIntegration());
+      return NextResponse.json({ resource_infos: [] } satisfies BffConfirmedIntegration);
     }
 
     return NextResponse.json({
@@ -778,33 +771,23 @@ export const mockConfirm = {
           { status: 404 },
         );
       }
-      const excludedResources = project.resources.filter((r) => !r.isSelected);
       const approvedAt = project.status.approval.approvedAt ?? project.updatedAt;
+      // ADR-019: emit flat ApprovedIntegrationResponseDto (snake wire).
+      // The route validates with schemas.ApprovedIntegrationResponseDto.parse(raw).
       return NextResponse.json({
-        approved_integration: {
-          id: `ai-demo-${project.id}`,
-          request_id: `req-demo-${project.id}`,
-          approved_at: approvedAt,
-          approved_by: { user_id: '김보안 (kim.security)' },
-          resource_infos: selectedResources.map((r) => toResourceSnapshot(r, project)),
-          excluded_resource_ids: excludedResources.map((r) => r.resourceId),
-          excluded_resource_infos: excludedResources.map((r) => toExcludedResourceInfo(r, project)),
-          exclusion_reason: excludedResources[0]?.exclusion?.reason,
-        },
+        approved_at: approvedAt,
+        approved_by: { user_id: '김보안 (kim.security)' },
+        resources: selectedResources.map((r) => toResourceSnapshot(r, project)),
       });
     }
 
-    // PR #420: enrich excluded_resource_infos so Step 3 table can render full rows.
-    // Stored shape only carries IDs; resolve each against project.resources here.
-    const excludedResourceInfos: BffExcludedResourceInfo[] = approved.excluded_resource_ids.map((id) => {
-      const projectResource = project.resources.find((r) => r.resourceId === id);
-      return projectResource
-        ? toExcludedResourceInfo(projectResource, project)
-        : { resource_id: id, exclusion_reason: approved.exclusion_reason ?? '' };
-    });
-
+    // ADR-019: flat ApprovedIntegrationResponseDto; the stored `resource_infos` maps
+    // to the swagger `resources` array; excluded fields not in the new schema are omitted.
     return NextResponse.json({
-      approved_integration: { ...approved, excluded_resource_infos: excludedResourceInfos },
+      id: approved.id,
+      request_id: approved.request_id,
+      approved_at: approved.approved_at,
+      resources: approved.resource_infos,
     });
   },
 

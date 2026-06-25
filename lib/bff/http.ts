@@ -18,19 +18,12 @@ import type {
   TargetSourceInfoWire,
   TargetSourcesByServiceResponseWire,
 } from '@/lib/bff/types/target-sources';
-import type {
-  ApprovalRequestCreateBody,
-  BffConfirmedIntegration,
-  ConfirmedIntegrationResponsePayload,
-  ResourceCatalogResponsePayload,
-} from '@/lib/bff/types/confirm';
+import type { ApprovalRequestCreateBody } from '@/lib/bff/types/confirm';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
-import { extractConfirmedIntegration } from '@/lib/confirmed-integration-response';
-import { extractResourceCatalog } from '@/lib/resource-catalog-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
@@ -97,7 +90,8 @@ const buildQuery = (params: Record<string, string | number | undefined>): string
 
 export const httpBff: BffClient = {
   targetSources: {
-    get: (id) => get(`/target-sources/${id}`),
+    // ADR-019 zod-codegen: route owns the parse boundary — return raw snake wire.
+    get: (id) => getSnakeRaw<z.infer<typeof schemas.TargetSourceDetail>>(`/target-sources/${id}`),
     // 37: wire snake forwarded raw — the route normalizer owns the boundary (D1).
     list: (serviceCode) =>
       getSnakeRaw<TargetSourcesByServiceResponseWire>(
@@ -115,7 +109,8 @@ export const httpBff: BffClient = {
         `/target-sources/services/${serviceCode}/creation-candidates`,
         body,
       ),
-    getSecrets: (id) => get(`/target-sources/${id}/secrets`),
+    getSecrets: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.SecretResponse>[]>(`/target-sources/${id}/secrets`),
   },
 
   // USER/services: raw snake passthrough — routes validate with schemas.X.parse(raw).
@@ -245,21 +240,22 @@ export const httpBff: BffClient = {
   },
 
   confirm: {
-    getResources: async (id) => {
-      const payload = await get<ResourceCatalogResponsePayload>(`/target-sources/${id}/resources`);
-      return extractResourceCatalog(payload);
-    },
+    // ADR-019 zod-codegen: routes own the parse boundary — return raw snake wire.
+    getResources: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.CloudResourceResponse>>(`/target-sources/${id}/resources`),
 
     createApprovalRequest: (id, body: ApprovalRequestCreateBody) =>
       post<unknown>(`/target-sources/${id}/approval-requests`, body),
 
-    getConfirmedIntegration: async (id): Promise<BffConfirmedIntegration> => {
-      const payload = await get<ConfirmedIntegrationResponsePayload>(`/target-sources/${id}/confirmed-integration`);
-      return extractConfirmedIntegration(payload);
-    },
+    getConfirmedIntegration: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.ConfirmedIntegrationResponse>>(
+        `/target-sources/${id}/confirmed-integration`,
+      ),
 
     getApprovedIntegration: (id) =>
-      get<unknown>(`/target-sources/${id}/approved-integration`),
+      getSnakeRaw<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
+        `/target-sources/${id}/approved-integration`,
+      ),
 
     getApprovalHistory: (id, page, size) =>
       getSnakeRaw<unknown>(`/target-sources/${id}/approval-history?page=${page}&size=${size}`),
@@ -268,7 +264,9 @@ export const httpBff: BffClient = {
       getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest`),
 
     getProcessStatus: (id) =>
-      get<unknown>(`/target-sources/${id}/process-status`),
+      getSnakeRaw<z.infer<typeof schemas.ProcessStatusResponseDto>>(
+        `/target-sources/${id}/process-status`,
+      ),
 
     approveApprovalRequest: (id, body) =>
       post<unknown>(`/target-sources/${id}/approval-requests/approve`, body),

@@ -1,4 +1,3 @@
-import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
 import type {
   EndpointConfigInputData,
   ResourceScanStatus,
@@ -29,22 +28,8 @@ export interface ApprovalRequestCreateBody {
   exclusion_reason_default?: string;
 }
 
-export type BffApprovalProcessStatus =
-  | 'IDLE'
-  | 'PENDING'
-  | 'CONFIRMING'
-  | 'CONFIRMED'
-  | 'INSTALLED'
-  | 'CONNECTED'
-  | 'COMPLETED';
-
-export type ApprovalHealthStatus = 'UNKNOWN' | 'HEALTHY' | 'UNHEALTHY' | 'DEGRADED';
-
-export interface ApprovalActorDto {
-  user_id?: string;
-}
-
-export interface ResourceConfigDto {
+/** Private shape returned by toResourceConfigDto — used only by toApprovalRequestResourceInput. */
+type ResourceConfigDtoLocal = {
   resource_id?: string;
   resource_type?: string;
   database_type?: string;
@@ -58,43 +43,11 @@ export interface ResourceConfigDto {
   resource_name?: string | null;
   scan_status?: ResourceScanStatus | null;
   integration_status?: ResourceIntegrationStatus | null;
-  // IDC-specific swagger fields (ResourceConfigDto.idc_*) — absent for cloud.
   idc_host_format?: 'IP' | 'HOST';
   idc_ips?: string[];
   idc_host?: string;
   idc_source_ips?: string[];
-  nlb_index?: number;
-}
-
-export interface ExcludedResourceInfoDto {
-  resource_id?: string;
-  exclusion_reason?: string;
-  resource_name?: string | null;
-  database_type?: string | null;
-  database_region?: string | null;
-  scan_status?: ResourceScanStatus | null;
-  integration_status?: ResourceIntegrationStatus | null;
-}
-
-export interface ApprovedIntegrationResponseDto {
-  id?: number;
-  request_id?: number;
-  approved_at?: string;
-  approved_by?: ApprovalActorDto;
-  resource_infos: ResourceConfigDto[];
-  excluded_resource_infos?: ExcludedResourceInfoDto[];
-}
-
-export interface ConfirmedIntegrationApprovalResponse {
-  resource_infos: ResourceConfigDto[];
-}
-
-export interface ProcessStatusResponseDto {
-  target_source_id: number;
-  process_status: BffApprovalProcessStatus;
-  healthy: ApprovalHealthStatus;
-  evaluated_at: string;
-}
+};
 
 const isRecord = (value: unknown): value is JsonRecord =>
   typeof value === 'object' && value !== null;
@@ -113,17 +66,6 @@ const toNumberOrUndefined = (value: unknown): number | undefined => {
 
 const toBoolean = (value: unknown): boolean => value === true;
 
-const toActorDto = (value: unknown): ApprovalActorDto | undefined => {
-  if (typeof value === 'string' && value.length > 0) {
-    return { user_id: value };
-  }
-
-  if (!isRecord(value)) return undefined;
-
-  const userId = toStringOrUndefined(value.user_id) ?? toStringOrUndefined(value.id);
-  return userId ? { user_id: userId } : undefined;
-};
-
 const toScanStatus = (value: unknown): ResourceScanStatus | undefined => {
   if (value === 'UNCHANGED' || value === 'NEW_SCAN') return value;
   return undefined;
@@ -132,44 +74,6 @@ const toScanStatus = (value: unknown): ResourceScanStatus | undefined => {
 const toIntegrationStatus = (value: unknown): ResourceIntegrationStatus | undefined => {
   if (value === 'INTEGRATED' || value === 'NOT_INTEGRATED') return value;
   return undefined;
-};
-
-const mapProcessStatus = (value: unknown): BffApprovalProcessStatus | undefined => {
-  switch (String(value).toUpperCase()) {
-    case 'IDLE':
-    case 'REQUEST_REQUIRED':
-      return 'IDLE';
-    case 'PENDING':
-    case 'WAITING_APPROVAL':
-      return 'PENDING';
-    case 'CONFIRMING':
-    case 'APPLYING_APPROVED':
-      return 'CONFIRMING';
-    case 'CONFIRMED':
-    case 'TARGET_CONFIRMED':
-      return 'CONFIRMED';
-    case 'INSTALLED':
-      return 'INSTALLED';
-    case 'CONNECTED':
-      return 'CONNECTED';
-    case 'COMPLETED':
-      return 'COMPLETED';
-    default:
-      return undefined;
-  }
-};
-
-const mapHealthStatus = (value: unknown): ApprovalHealthStatus => {
-  switch (String(value).toUpperCase()) {
-    case 'HEALTHY':
-      return 'HEALTHY';
-    case 'UNHEALTHY':
-      return 'UNHEALTHY';
-    case 'DEGRADED':
-      return 'DEGRADED';
-    default:
-      return 'UNKNOWN';
-  }
 };
 
 const getLegacyApprovalInput = (value: unknown): JsonRecord | null => {
@@ -189,7 +93,7 @@ const toStringArray = (value: unknown): string[] | undefined => {
   return result.length > 0 ? result : undefined;
 };
 
-const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
+const toResourceConfigDto = (value: unknown): ResourceConfigDtoLocal => {
   if (!isRecord(value)) return {};
 
   const endpointConfig = isRecord(value.endpoint_config) ? value.endpoint_config : null;
@@ -233,120 +137,6 @@ const toResourceConfigDto = (value: unknown): ResourceConfigDto => {
     ...(idcHost ? { idc_host: idcHost } : {}),
     ...(idcSourceIps ? { idc_source_ips: idcSourceIps } : {}),
   };
-};
-
-// ADR-019 E5/D-4: swagger ApprovedIntegrationResponseDto carries `resources`
-// (TargetSourceResourceItemDto), not the legacy `resource_infos` (ResourceConfigDto).
-// The item's connection fields live under `metadata.*`; the top level only has
-// resource_id / resource_name / resource_type / integration_category / exclusion_reason.
-// Dual-read snake (mock path, no camelCaseKeys) + camel (real path, get camelizes).
-const SWAGGER_EXCLUDED_CATEGORIES = new Set(['NO_INSTALL_NEEDED', 'INSTALL_INELIGIBLE']);
-
-const toResourceConfigFromItem = (value: unknown): ResourceConfigDto => {
-  if (!isRecord(value)) return {};
-
-  const metadata = isRecord(value.metadata) ? value.metadata : {};
-  const resourceId = toStringOrUndefined(value.resource_id) ?? toStringOrUndefined(value.resourceId);
-  const resourceType = toStringOrUndefined(value.resource_type) ?? toStringOrUndefined(value.resourceType);
-  const resourceName = toStringOrUndefined(value.resource_name) ?? toStringOrUndefined(value.resourceName);
-  const databaseType =
-    toStringOrUndefined(metadata.database_type) ?? toStringOrUndefined(metadata.databaseType);
-  const port = toNumberOrUndefined(metadata.port);
-  const host = toStringOrUndefined(metadata.host);
-  const oracleServiceId =
-    toStringOrUndefined(metadata.oracle_service_id) ?? toStringOrUndefined(metadata.oracleServiceId);
-  const networkInterfaceId =
-    toStringOrUndefined(metadata.network_interface_id) ?? toStringOrUndefined(metadata.networkInterfaceId);
-  const ipConfiguration =
-    toStringOrUndefined(metadata.ip_configuration) ?? toStringOrUndefined(metadata.ipConfiguration);
-  const credentialId =
-    toStringOrUndefined(metadata.credential_id) ?? toStringOrUndefined(metadata.credentialId);
-  const databaseRegion = toStringOrUndefined(metadata.region);
-  // IDC-specific fields live under metadata (TargetSourceResourceMetadataDto.idc_*)
-  const idcHostFormat = toIdcHostFormat(metadata.idc_host_format ?? metadata.idcHostFormat);
-  const idcIps = toStringArray(metadata.idc_ips ?? metadata.idcIps);
-  const idcHost = toStringOrUndefined(metadata.idc_host ?? metadata.idcHost);
-  const idcSourceIps = toStringArray(metadata.idc_source_ips ?? metadata.idcSourceIps);
-
-  return {
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    ...(resourceType ? { resource_type: resourceType } : {}),
-    ...(databaseType ? { database_type: databaseType } : {}),
-    ...(port !== undefined ? { port } : {}),
-    ...(host ? { host } : {}),
-    ...(oracleServiceId ? { oracle_service_id: oracleServiceId } : {}),
-    ...(networkInterfaceId ? { network_interface_id: networkInterfaceId } : {}),
-    ...(ipConfiguration ? { ip_configuration: ipConfiguration } : {}),
-    ...(credentialId ? { credential_id: credentialId } : {}),
-    ...(databaseRegion ? { database_region: databaseRegion } : {}),
-    ...(resourceName ? { resource_name: resourceName } : {}),
-    ...(idcHostFormat ? { idc_host_format: idcHostFormat } : {}),
-    ...(idcIps ? { idc_ips: idcIps } : {}),
-    ...(idcHost ? { idc_host: idcHost } : {}),
-    ...(idcSourceIps ? { idc_source_ips: idcSourceIps } : {}),
-  };
-};
-
-const toExcludedInfoFromItem = (value: unknown): ExcludedResourceInfoDto => {
-  const record = isRecord(value) ? value : {};
-  const metadata = isRecord(record.metadata) ? record.metadata : {};
-  const resourceId = toStringOrUndefined(record.resource_id) ?? toStringOrUndefined(record.resourceId);
-  const exclusionReason =
-    toStringOrUndefined(record.exclusion_reason) ?? toStringOrUndefined(record.exclusionReason);
-  const resourceName = toStringOrUndefined(record.resource_name) ?? toStringOrUndefined(record.resourceName);
-  const databaseType =
-    toStringOrUndefined(metadata.database_type) ?? toStringOrUndefined(metadata.databaseType);
-  const databaseRegion = toStringOrUndefined(metadata.region);
-
-  return {
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    ...(exclusionReason ? { exclusion_reason: exclusionReason } : {}),
-    ...(resourceName ? { resource_name: resourceName } : {}),
-    ...(databaseType ? { database_type: databaseType } : {}),
-    ...(databaseRegion ? { database_region: databaseRegion } : {}),
-  };
-};
-
-const toExcludedResourceInfos = (value: unknown): ExcludedResourceInfoDto[] | undefined => {
-  if (!isRecord(value)) return undefined;
-
-  const excludedResourceInfos = Array.isArray(value.excluded_resource_infos)
-    ? value.excluded_resource_infos
-        .filter(isRecord)
-        .map((item): ExcludedResourceInfoDto => {
-          const resourceId = toStringOrUndefined(item.resource_id);
-          const exclusionReason = toStringOrUndefined(item.exclusion_reason);
-          const resourceName = toStringOrUndefined(item.resource_name);
-          const databaseType = toStringOrUndefined(item.database_type);
-          const databaseRegion = toStringOrUndefined(item.database_region);
-          const scanStatus = toScanStatus(item.scan_status);
-          const integrationStatus = toIntegrationStatus(item.integration_status);
-          return {
-            ...(resourceId ? { resource_id: resourceId } : {}),
-            ...(exclusionReason ? { exclusion_reason: exclusionReason } : {}),
-            ...(resourceName ? { resource_name: resourceName } : {}),
-            ...(databaseType ? { database_type: databaseType } : {}),
-            ...(databaseRegion ? { database_region: databaseRegion } : {}),
-            ...(scanStatus ? { scan_status: scanStatus } : {}),
-            ...(integrationStatus ? { integration_status: integrationStatus } : {}),
-          };
-        })
-    : null;
-
-  if (excludedResourceInfos && excludedResourceInfos.length > 0) return excludedResourceInfos;
-
-  if (!Array.isArray(value.excluded_resource_ids)) return undefined;
-
-  const exclusionReason = toStringOrUndefined(value.exclusion_reason);
-  const fallbackInfos = value.excluded_resource_ids
-    .map((item) => toStringOrUndefined(item))
-    .filter((item): item is string => item !== undefined)
-    .map((resourceId) => ({
-      resource_id: resourceId,
-      ...(exclusionReason ? { exclusion_reason: exclusionReason } : {}),
-    }));
-
-  return fallbackInfos.length > 0 ? fallbackInfos : undefined;
 };
 
 const toApprovalRequestResourceInput = (item: JsonRecord): ApprovalRequestResourceInput | null => {
@@ -401,103 +191,3 @@ export const normalizeApprovalRequestBody = (body: unknown): ApprovalRequestCrea
   };
 };
 
-export const normalizeApprovedIntegration = (
-  value: unknown,
-): ApprovedIntegrationResponseDto => {
-  // Legacy mock still wraps in `approved_integration`; swagger is flat (D-10).
-  const payload = isRecord(value) && isRecord(value.approved_integration) ? value.approved_integration : value;
-  const record = isRecord(payload) ? payload : {};
-  const id = toNumberOrUndefined(record.id);
-  const requestId = toNumberOrUndefined(record.request_id) ?? toNumberOrUndefined(record.requestId);
-  const approvedAt = toStringOrUndefined(record.approved_at) ?? toStringOrUndefined(record.approvedAt);
-  const approvedBy = toActorDto(record.approved_by ?? record.approvedBy);
-
-  // ADR-019 E5/D-4: swagger key is `resources` (TargetSourceResourceItemDto).
-  // Split selected/excluded by per-item `integration_category`; connection fields
-  // are mapped from `metadata.*`. Legacy `resource_infos` + top-level
-  // `excluded_resource_infos`/`excluded_resource_ids` remain a fallback (D6).
-  const resources = Array.isArray(record.resources) ? record.resources : null;
-  if (resources) {
-    const selected: ResourceConfigDto[] = [];
-    const excluded: ExcludedResourceInfoDto[] = [];
-    for (const item of resources) {
-      const category =
-        (isRecord(item) &&
-          (toStringOrUndefined(item.integration_category) ??
-            toStringOrUndefined(item.integrationCategory))) ||
-        undefined;
-      if (category && SWAGGER_EXCLUDED_CATEGORIES.has(category)) {
-        excluded.push(toExcludedInfoFromItem(item));
-      } else {
-        selected.push(toResourceConfigFromItem(item));
-      }
-    }
-    return {
-      ...(id !== undefined ? { id } : {}),
-      ...(requestId !== undefined ? { request_id: requestId } : {}),
-      ...(approvedAt ? { approved_at: approvedAt } : {}),
-      ...(approvedBy ? { approved_by: approvedBy } : {}),
-      resource_infos: selected,
-      ...(excluded.length > 0 ? { excluded_resource_infos: excluded } : {}),
-    };
-  }
-
-  const resourceInfos = Array.isArray(record.resource_infos)
-    ? record.resource_infos.map(toResourceConfigDto)
-    : [];
-  const excludedResourceInfos = toExcludedResourceInfos(record);
-
-  return {
-    ...(id !== undefined ? { id } : {}),
-    ...(requestId !== undefined ? { request_id: requestId } : {}),
-    ...(approvedAt ? { approved_at: approvedAt } : {}),
-    ...(approvedBy ? { approved_by: approvedBy } : {}),
-    resource_infos: resourceInfos,
-    ...(excludedResourceInfos ? { excluded_resource_infos: excludedResourceInfos } : {}),
-  };
-};
-
-export const normalizeConfirmedIntegration = (
-  value: unknown,
-): ConfirmedIntegrationApprovalResponse => {
-  const confirmedIntegration = extractConfirmedIntegration(value as ConfirmedIntegrationResponsePayload);
-
-  return {
-    resource_infos: confirmedIntegration.resource_infos.map((resource) => ({
-      resource_id: resource.resource_id,
-      resource_type: resource.resource_type,
-      ...(resource.database_type ? { database_type: resource.database_type } : {}),
-      ...(resource.database_region ? { database_region: resource.database_region } : {}),
-      ...(resource.resource_name ? { resource_name: resource.resource_name } : {}),
-      ...(resource.port !== null ? { port: resource.port } : {}),
-      ...(resource.host !== null ? { host: resource.host } : {}),
-      ...(resource.oracle_service_id ? { oracle_service_id: resource.oracle_service_id } : {}),
-      ...(resource.network_interface_id ? { network_interface_id: resource.network_interface_id } : {}),
-      ...(resource.ip_configuration_name ? { ip_configuration: resource.ip_configuration_name } : {}),
-      ...(resource.credential_id ? { credential_id: resource.credential_id } : {}),
-      // Pass IDC fields through — absent for cloud resources.
-      ...(resource.idc_host_format ? { idc_host_format: resource.idc_host_format } : {}),
-      ...(resource.idc_ips ? { idc_ips: resource.idc_ips } : {}),
-      ...(resource.idc_host ? { idc_host: resource.idc_host } : {}),
-      ...(resource.idc_source_ips ? { idc_source_ips: resource.idc_source_ips } : {}),
-    })),
-  };
-};
-
-export const normalizeProcessStatusResponse = (
-  value: unknown,
-  fallback: Partial<ProcessStatusResponseDto> = {},
-): ProcessStatusResponseDto => {
-  const record = isRecord(value) ? value : {};
-
-  return {
-    target_source_id:
-      toNumberOrUndefined(record.target_source_id)
-      ?? toNumberOrUndefined(record.targetSourceId)
-      ?? fallback.target_source_id
-      ?? 0,
-    process_status: mapProcessStatus(record.process_status) ?? fallback.process_status ?? 'IDLE',
-    healthy: mapHealthStatus(record.healthy ?? record.health),
-    evaluated_at: toStringOrUndefined(record.evaluated_at) ?? fallback.evaluated_at ?? new Date().toISOString(),
-  };
-};

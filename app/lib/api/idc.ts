@@ -18,8 +18,10 @@ import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import { getApprovedIntegration, getConfirmedIntegration } from '@/app/lib/api';
+import type {
+  ApprovedIntegrationExcludedResourceItem,
+} from '@/app/lib/api';
 import type { ConfirmedIntegrationResourceInfo, ResourceSnapshot } from '@/lib/types';
-import type { ExcludedResourceInfoDto } from '@/lib/approval-bff';
 import { idcDbTypeByLabel, idcDbTypeByWire } from '@/lib/constants/idc';
 import type { InstallTaskStatus } from '@/lib/constants/install-task';
 
@@ -309,7 +311,7 @@ export const toIdcResourceViewFromSnapshot = (
  * source-IP fields are absent for excluded rows (the `excl` column shows the reason).
  */
 export const toIdcResourceViewFromExcluded = (
-  wire: ExcludedResourceInfoDto,
+  wire: ApprovedIntegrationExcludedResourceItem,
   index = 0,
 ): IdcResourceView => {
   const dbWire = toDbTypeWire(wire.database_type ?? undefined);
@@ -443,7 +445,7 @@ export const getIdcConfirmedResources = async (
   opts?: { signal?: AbortSignal },
 ): Promise<IdcResourceView[]> => {
   const res = await getConfirmedIntegration(targetSourceId, opts);
-  return res.resource_infos.map((r, i) => toIdcResourceViewFromConfirmed(r, i));
+  return (res.resource_infos ?? []).map((r, i) => toIdcResourceViewFromConfirmed(r, i));
 };
 
 /** GET …/idc/installation-status — Step 4 install progress (per-resource steps). */

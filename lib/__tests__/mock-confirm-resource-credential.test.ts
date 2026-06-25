@@ -80,7 +80,8 @@ describe('mockConfirm.updateResourceCredential', () => {
     const approvedResponse = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
     const approvedBody = await approvedResponse.json();
 
-    expect(approvedBody.approved_integration.resource_infos).toEqual([
+    // ADR-019: flat shape — no approved_integration wrapper; resources = selected snapshots.
+    expect(approvedBody.resources).toEqual([
       {
         resource_id: 'azure-sql-1',
         resource_type: 'AZURE_MSSQL',
