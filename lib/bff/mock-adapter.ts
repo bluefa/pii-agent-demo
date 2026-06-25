@@ -36,12 +36,6 @@ import { mockGuides } from '@/lib/bff/mock/guides';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import type {
-  IdcInstallationStatusResponseWire,
-  IdcPreviousRequestResponseWire,
-  NlbOccupiedResourceResponseWire,
-  NlbTableResponseWire,
-} from '@/lib/bff/types/idc';
-import type {
   SkipLogicalDatabaseResponseWire,
   TestedLogicalDatabasesResponseWire,
 } from '@/lib/bff/types/logical-db';
@@ -136,12 +130,12 @@ export const mockBff: BffClient = {
 
   idc: {
     getInstallationStatus: async (id) =>
-      unwrap<IdcInstallationStatusResponseWire>(await mockIdc.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.IdcInstallationStatusResponse>>(await mockIdc.getInstallationStatus(String(id))),
     getPreviousRequest: async (id) =>
-      unwrap<IdcPreviousRequestResponseWire>(await mockIdc.getPreviousRequest(String(id))),
+      unwrap<z.infer<typeof schemas.IdcPreviousRequestResponse>>(await mockIdc.getPreviousRequest(String(id))),
     getOccupiedResources: async (nlbIndex) =>
-      unwrap<NlbOccupiedResourceResponseWire[]>(await mockIdc.getOccupiedResources(String(nlbIndex))),
-    getNlbTable: async () => unwrap<NlbTableResponseWire[]>(await mockIdc.getNlbTable()),
+      unwrap<z.infer<typeof schemas.NlbOccupiedResourceResponse>[]>(await mockIdc.getOccupiedResources(String(nlbIndex))),
+    getNlbTable: async () => unwrap<z.infer<typeof schemas.NlbTableResponse>[]>(await mockIdc.getNlbTable()),
   },
 
   logicalDb: {

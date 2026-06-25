@@ -37,12 +37,6 @@ import type {
   DevGetUsersResponse,
   DevSwitchUserResult,
 } from '@/lib/bff/types/dev';
-import type {
-  ScanCreateResult,
-  ScanGetResponse,
-  ScanHistoryPageResponse,
-  ScanLatestStatusResponse,
-} from '@/lib/bff/types/scan';
 import type { TaskAdminApprovalRequestsResponse } from '@/lib/bff/types/task-admin';
 import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
 import type {
@@ -50,13 +44,6 @@ import type {
   BffConfirmedIntegration,
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
-import type { GuideGetResponse, GuidePutResult } from '@/lib/bff/types/guides';
-import type {
-  IdcInstallationStatusResponseWire,
-  IdcPreviousRequestResponseWire,
-  NlbOccupiedResourceResponseWire,
-  NlbTableResponseWire,
-} from '@/lib/bff/types/idc';
 
 export interface BffClient {
   targetSources: {
@@ -97,10 +84,11 @@ export interface BffClient {
   };
 
   scan: {
-    get: (id: number, scanId: string) => Promise<ScanGetResponse>;
-    getHistory: (id: number, query: { limit: number; offset: number }) => Promise<ScanHistoryPageResponse>;
-    create: (id: number, body: unknown) => Promise<ScanCreateResult>;
-    getStatus: (id: number) => Promise<ScanLatestStatusResponse>;
+    // swagger: GET/POST routes validate with schemas.X.parse(raw); methods return raw snake wire.
+    get: (id: number, scanId: string) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
+    getHistory: (id: number, query: { limit: number; offset: number }) => Promise<z.infer<typeof schemas.PageScanJobResponse>>;
+    create: (id: number, body: unknown) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
+    getStatus: (id: number) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
   };
 
   taskAdmin: {
@@ -108,8 +96,8 @@ export interface BffClient {
   };
 
   guides: {
-    get: (name: string) => Promise<GuideGetResponse>;
-    put: (name: string, body: unknown) => Promise<GuidePutResult>;
+    get: (name: string) => Promise<z.infer<typeof schemas.GuideDetail>>;
+    put: (name: string, body: unknown) => Promise<z.infer<typeof schemas.GuideDetail>>;
   };
 
   aws: {
@@ -136,10 +124,10 @@ export interface BffClient {
   };
 
   idc: {
-    getInstallationStatus: (id: number) => Promise<IdcInstallationStatusResponseWire>;
-    getPreviousRequest: (id: number) => Promise<IdcPreviousRequestResponseWire>;
-    getOccupiedResources: (nlbIndex: number) => Promise<NlbOccupiedResourceResponseWire[]>;
-    getNlbTable: () => Promise<NlbTableResponseWire[]>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.IdcInstallationStatusResponse>>;
+    getPreviousRequest: (id: number) => Promise<z.infer<typeof schemas.IdcPreviousRequestResponse>>;
+    getOccupiedResources: (nlbIndex: number) => Promise<z.infer<typeof schemas.NlbOccupiedResourceResponse>[]>;
+    getNlbTable: () => Promise<z.infer<typeof schemas.NlbTableResponse>[]>;
   };
 
   logicalDb: {

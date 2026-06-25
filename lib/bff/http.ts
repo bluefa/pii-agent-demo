@@ -160,11 +160,12 @@ export const httpBff: BffClient = {
     switchUser: (body) => post('/dev/switch-user', body),
   },
 
+  // SCAN: raw snake passthrough — routes validate with schemas.X.parse(raw).
   scan: {
-    get: (id, scanId) => get(`/target-sources/${id}/scans/${scanId}`),
-    getHistory: (id, query) => get(`/target-sources/${id}/scan/history${buildQuery(query)}`),
+    get: (id, scanId) => getSnakeRaw(`/target-sources/${id}/scans/${scanId}`),
+    getHistory: (id, query) => getSnakeRaw(`/target-sources/${id}/scan/history${buildQuery(query)}`),
     create: (id, body) => post(`/target-sources/${id}/scan`, body),
-    getStatus: (id) => get(`/target-sources/${id}/scanJob/latest`),
+    getStatus: (id) => getSnakeRaw(`/target-sources/${id}/scanJob/latest`),
   },
 
   taskAdmin: {
@@ -319,8 +320,9 @@ export const httpBff: BffClient = {
       ),
   },
 
+  // Guides: raw snake passthrough — route validates with schemas.GuideDetail.parse(raw).
   guides: {
-    get: (name) => get(`/admin/guides/${encodeURIComponent(name)}`),
+    get: (name) => getSnakeRaw(`/admin/guides/${encodeURIComponent(name)}`),
     put: (name, body) => put(`/admin/guides/${encodeURIComponent(name)}`, body),
   },
 };

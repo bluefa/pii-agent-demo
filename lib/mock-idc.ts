@@ -10,10 +10,11 @@
  * correct here (it is the mock "database", not React UI state).
  */
 
-import type {
-  IdcInstallationStatusResponseWire,
-  IdcResourceInputWire,
-} from '@/lib/bff/types/idc';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+
+type IdcInstallationStatusResponseWire = z.infer<typeof schemas.IdcInstallationStatusResponse>;
+type IdcResourceInputWire = z.infer<typeof schemas.IdcResourceInput>;
 
 export interface MockIdcError {
   code: string;

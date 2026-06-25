@@ -19,7 +19,7 @@ describe('POST /integration/api/v1/target-sources/[id]/scan', () => {
     vi.clearAllMocks();
   });
 
-  it('snake_case BFF 응답을 camelCase로 변환해 모든 필드를 보존한다', async () => {
+  it('BFF 응답을 schemas.ScanJobResponse.parse() 결과 그대로 반환한다 (snake_case)', async () => {
     mockedCreate.mockResolvedValue({
       id: 42,
       scan_status: 'SCANNING',
@@ -30,7 +30,6 @@ describe('POST /integration/api/v1/target-sources/[id]/scan', () => {
       scan_progress: 25,
       duration_seconds: 12,
       resource_count_by_resource_type: { RDS: 4 },
-      scan_error: null,
     });
 
     const response = await POST(
@@ -39,43 +38,17 @@ describe('POST /integration/api/v1/target-sources/[id]/scan', () => {
     );
 
     expect(response.status).toBe(202);
-    await expect(response.json()).resolves.toEqual({
-      id: 42,
-      scanStatus: 'SCANNING',
-      targetSourceId: 1001,
-      createdAt: '2026-04-25T00:00:00Z',
-      updatedAt: '2026-04-25T00:00:01Z',
-      scanVersion: 3,
-      scanProgress: 25,
-      durationSeconds: 12,
-      resourceCountByResourceType: { RDS: 4 },
-      scanError: null,
-    });
-    expect(mockedCreate).toHaveBeenCalledWith(1001, {});
-  });
-
-  it('null scanVersion에 1을 채우고 null resourceCountByResourceType은 빈 객체로 변환한다', async () => {
-    mockedCreate.mockResolvedValue({
-      id: 1,
-      scan_status: 'SCANNING',
-      target_source_id: 1001,
-      created_at: '2026-04-25T00:00:00Z',
-      updated_at: '2026-04-25T00:00:00Z',
-      scan_version: null,
-      scan_progress: null,
-      duration_seconds: 0,
-      resource_count_by_resource_type: null,
-      scan_error: null,
-    });
-
-    const response = await POST(
-      new Request('http://localhost', { method: 'POST', body: '{}' }),
-      { params: Promise.resolve({ targetSourceId: '1001' }) },
-    );
-
     const body = await response.json();
-    expect(body.scanVersion).toBe(1);
-    expect(body.resourceCountByResourceType).toEqual({});
+    expect(body.id).toBe(42);
+    expect(body.scan_status).toBe('SCANNING');
+    expect(body.target_source_id).toBe(1001);
+    expect(body.created_at).toBe('2026-04-25T00:00:00Z');
+    expect(body.updated_at).toBe('2026-04-25T00:00:01Z');
+    expect(body.scan_version).toBe(3);
+    expect(body.scan_progress).toBe(25);
+    expect(body.duration_seconds).toBe(12);
+    expect(body.resource_count_by_resource_type).toEqual({ RDS: 4 });
+    expect(mockedCreate).toHaveBeenCalledWith(1001, {});
   });
 
   it('BffError가 throw되면 ProblemDetails로 변환한다', async () => {

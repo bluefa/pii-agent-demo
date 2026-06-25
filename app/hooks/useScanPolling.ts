@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLatestScanJob } from '@/app/lib/api/scan';
 import type { AppError } from '@/lib/errors';
-import type { V1ScanJob } from '@/lib/types';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
+
+type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
 export type ScanUIState = 'IDLE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
 
@@ -14,7 +17,7 @@ export interface UseScanPollingOptions {
 }
 
 export interface UseScanPollingReturn {
-  latestJob: V1ScanJob | null;
+  latestJob: ScanJob | null;
   uiState: ScanUIState;
   isPolling: boolean;
   loading: boolean;
@@ -24,9 +27,9 @@ export interface UseScanPollingReturn {
   stopPolling: () => void;
 }
 
-const computeUIState = (job: V1ScanJob | null): ScanUIState => {
+const computeUIState = (job: ScanJob | null): ScanUIState => {
   if (!job) return 'IDLE';
-  switch (job.scanStatus) {
+  switch (job.scan_status) {
     case 'SCANNING': return 'IN_PROGRESS';
     case 'SUCCESS': return 'COMPLETED';
     case 'FAIL':
@@ -36,7 +39,7 @@ const computeUIState = (job: V1ScanJob | null): ScanUIState => {
   }
 };
 
-const fetchLatestScan = async (targetSourceId: number): Promise<V1ScanJob | null> => {
+const fetchLatestScan = async (targetSourceId: number): Promise<ScanJob | null> => {
   try {
     return await getLatestScanJob(targetSourceId);
   } catch (err) {
@@ -54,7 +57,7 @@ export const useScanPolling = (
 
   const [loading, setLoading] = useState(autoStart);
   const [error, setError] = useState<AppError | null>(null);
-  const prevScanStatusRef = useRef<V1ScanJob['scanStatus'] | null>(null);
+  const prevScanStatusRef = useRef<ScanJob['scan_status'] | null>(null);
   const firstFetchRef = useRef(true);
 
   const onScanCompleteRef = useRef(onScanComplete);
@@ -70,15 +73,15 @@ export const useScanPolling = (
   );
 
   const shouldStop = useCallback(
-    (job: V1ScanJob | null) => !job || job.scanStatus !== 'SCANNING',
+    (job: ScanJob | null) => !job || job.scan_status !== 'SCANNING',
     [],
   );
 
-  const handleUpdate = useCallback((job: V1ScanJob | null) => {
-    if (prevScanStatusRef.current === 'SCANNING' && job?.scanStatus !== 'SCANNING') {
+  const handleUpdate = useCallback((job: ScanJob | null) => {
+    if (prevScanStatusRef.current === 'SCANNING' && job?.scan_status !== 'SCANNING') {
       onScanCompleteRef.current?.();
     }
-    prevScanStatusRef.current = job?.scanStatus ?? null;
+    prevScanStatusRef.current = job?.scan_status ?? null;
     setError(null);
     if (firstFetchRef.current) {
       firstFetchRef.current = false;
@@ -93,7 +96,7 @@ export const useScanPolling = (
     refresh: baseRefresh,
     start,
     stop,
-  } = usePollingBase<V1ScanJob | null>({
+  } = usePollingBase<ScanJob | null>({
     interval,
     fetchOnce,
     shouldStop,
@@ -118,7 +121,7 @@ export const useScanPolling = (
   }, [baseRefresh]);
 
   useEffect(() => {
-    if (latestJob?.scanStatus === 'SCANNING' && !isPolling) {
+    if (latestJob?.scan_status === 'SCANNING' && !isPolling) {
       start();
     }
   }, [latestJob, isPolling, start]);

@@ -94,21 +94,20 @@ export const mockScan = {
     const number = size > 0 ? Math.floor(query.offset / size) : 0;
     const totalPages = size > 0 ? Math.ceil(total / size) : 0;
 
-    // Full Spring PageScanJobResponse. Top-level page meta is camelCase on the
-    // wire (Spring); content items mirror the camel ScanJob the GET boundary
-    // produces. The route reads totalElements/totalPages/number/size flat.
+    // Full Spring PageScanJobResponse. The route validates with
+    // schemas.PageScanJobResponse.parse(raw) — content items must be snake wire.
     return NextResponse.json({
       content: history.map((h) => ({
         id: parseNumericId(h.scanId),
-        scanStatus: h.status,
-        targetSourceId,
-        createdAt: h.startedAt,
-        updatedAt: h.completedAt,
-        scanVersion: 1,
-        scanProgress: null,
-        durationSeconds: h.duration,
-        resourceCountByResourceType: toResourceCountMap(h.result),
-        scanError: h.error ?? null,
+        scan_status: h.status,
+        target_source_id: targetSourceId,
+        created_at: h.startedAt,
+        updated_at: h.completedAt,
+        scan_version: 1,
+        scan_progress: null,
+        duration_seconds: h.duration,
+        resource_count_by_resource_type: toResourceCountMap(h.result),
+        scan_error: h.error ?? null,
       })),
       totalElements: total,
       totalPages,
@@ -221,15 +220,15 @@ export const mockScan = {
       if (updated.status === 'SCANNING') {
         return NextResponse.json({
           id: parseNumericId(updated.id),
-          scanStatus: updated.status,
-          targetSourceId,
-          createdAt: updated.startedAt,
-          updatedAt: updated.startedAt,
-          scanVersion: 1,
-          scanProgress: updated.progress,
-          durationSeconds: 0,
-          resourceCountByResourceType: null,
-          scanError: null,
+          scan_status: updated.status,
+          target_source_id: targetSourceId,
+          created_at: updated.startedAt,
+          updated_at: updated.startedAt,
+          scan_version: 1,
+          scan_progress: updated.progress,
+          duration_seconds: 0,
+          resource_count_by_resource_type: null,
+          scan_error: null,
         });
       }
     }
@@ -239,29 +238,29 @@ export const mockScan = {
       const last = history[0];
       return NextResponse.json({
         id: parseNumericId(last.scanId),
-        scanStatus: last.status,
-        targetSourceId,
-        createdAt: last.startedAt,
-        updatedAt: last.completedAt,
-        scanVersion: 1,
-        scanProgress: null,
-        durationSeconds: last.duration,
-        resourceCountByResourceType: toResourceCountMap(last.result),
-        scanError: last.error ?? null,
+        scan_status: last.status,
+        target_source_id: targetSourceId,
+        created_at: last.startedAt,
+        updated_at: last.completedAt,
+        scan_version: 1,
+        scan_progress: null,
+        duration_seconds: last.duration,
+        resource_count_by_resource_type: toResourceCountMap(last.result),
+        scan_error: last.error ?? null,
       });
     }
 
     return NextResponse.json({
       id: 0,
-      scanStatus: 'NO_SCAN',
-      targetSourceId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      scanVersion: null,
-      scanProgress: null,
-      durationSeconds: 0,
-      resourceCountByResourceType: null,
-      scanError: null,
+      scan_status: 'NO_SCAN',
+      target_source_id: targetSourceId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      scan_version: null,
+      scan_progress: null,
+      duration_seconds: 0,
+      resource_count_by_resource_type: null,
+      scan_error: null,
     });
   },
 };
