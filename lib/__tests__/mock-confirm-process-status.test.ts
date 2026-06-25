@@ -93,19 +93,19 @@ const getProjectInstallationStatus = () => {
 };
 
 const createApprovalRequestBody = (selectedIds: string[], excludedIds: string[] = []) => ({
-  input_data: {
-    resource_inputs: [
-      ...selectedIds.map((id) => ({
-        resource_id: id,
-        selected: true as const,
-      })),
-      ...excludedIds.map((id) => ({
-        resource_id: id,
-        selected: false as const,
-        exclusion_reason: '연동 불필요',
-      })),
-    ],
-  },
+  resources: [
+    ...selectedIds.map((id) => ({
+      resource_id: id,
+      selected: true as const,
+      metadata: {},
+    })),
+    ...excludedIds.map((id) => ({
+      resource_id: id,
+      selected: false as const,
+      exclusion_reason: '연동 불필요',
+      metadata: {},
+    })),
+  ],
 });
 
 // --- Tests ---

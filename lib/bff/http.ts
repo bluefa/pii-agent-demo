@@ -13,7 +13,6 @@
  *   - POST/PUT bodies are raw passthrough (I-3); request casing is per-endpoint (D3).
  */
 import type { BffClient } from '@/lib/bff/types';
-import type { ApprovalRequestCreateBody } from '@/lib/approval-bff';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
@@ -208,7 +207,7 @@ export const httpBff: BffClient = {
     getResources: (id) =>
       getSnakeRaw<z.infer<typeof schemas.CloudResourceResponse>>(`/target-sources/${id}/resources`),
 
-    createApprovalRequest: (id, body: ApprovalRequestCreateBody) =>
+    createApprovalRequest: (id, body) =>
       post<unknown>(`/target-sources/${id}/approval-requests`, body),
 
     getConfirmedIntegration: (id) =>

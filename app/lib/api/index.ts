@@ -8,7 +8,6 @@ import {
   BffConfirmedIntegration,
   ConfirmedIntegrationResourceInfo,
   ConfirmResourceMetadata,
-  EndpointConfigInputData,
   ResourceScanStatus,
   ResourceIntegrationStatus,
   ResourceSnapshot,
@@ -384,39 +383,9 @@ export const getConfirmResources = async (
   };
 };
 
-export interface ApprovalResourceInputData {
-  credential_id?: string;
-  endpoint_config?: EndpointConfigInputData;
-  resource_id?: string;
-  resource_type?: string;
-  database_type?: DatabaseType;
-  port?: number;
-  host?: string;
-  oracle_service_id?: string;
-  network_interface_id?: string;
-  ip_configuration?: string;
-}
-
-export interface ApprovalResourceInput {
-  resource_id: string;
-  selected: boolean;
-  resource_input?: ApprovalResourceInputData;
-  exclusion_reason?: string;
-}
-
-export interface ApprovalRequestInput {
-  resource_inputs: ApprovalResourceInput[];
-  exclusion_reason_default?: string;
-}
-
-interface LegacyApprovalRequestInput {
-  input_data: ApprovalRequestInput;
-}
-
-
 export const createApprovalRequest = async (
   targetSourceId: number,
-  input: ApprovalRequestInput | LegacyApprovalRequestInput,
+  input: z.infer<typeof schemas.ApprovalRequestInputDto>,
 ): Promise<ApprovalRequestSummaryDto> =>
   fetchInfraJson<ApprovalRequestSummaryDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,
@@ -442,7 +411,6 @@ export const getConfirmedIntegration = async (
 // ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
 // Reshape to the UI shape: wrap in approved_integration, rename resources→resource_infos,
 // excluded fields not in the new schema default to empty.
-// This type is compatible with the deleted ExcludedResourceInfoDto from @/lib/approval-bff.
 export type ApprovedIntegrationExcludedResourceItem = {
   resource_id?: string;
   exclusion_reason?: string;

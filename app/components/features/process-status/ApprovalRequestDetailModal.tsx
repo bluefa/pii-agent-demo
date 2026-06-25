@@ -10,9 +10,6 @@ interface ApprovalHistoryItem {
     requested_at: string;
     resource_total_count?: number;
     resource_selected_count?: number;
-    input_data?: {
-      resource_inputs?: Array<{ selected?: boolean }>;
-    };
   };
   result?: {
     result?: string;
@@ -122,7 +119,8 @@ interface NormalizedData {
   excludedCount: number;
 }
 
-const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): NormalizedData => {
+// Output adapter: contract ApprovalRequestLatestDto → view-model (counts from contract fields).
+const toSummaryViewFromLatest = (response: ApprovalRequestLatestResponse): NormalizedData => {
   const totalCount = response.request?.resource_total_count ?? 0;
   const selectedCount = response.request?.resource_selected_count ?? 0;
   return {
@@ -139,11 +137,11 @@ const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): N
   };
 };
 
-const normalizeFromHistoryItem = (item: ApprovalHistoryItem): NormalizedData => {
-  const resourceInputs = item.request.input_data?.resource_inputs ?? [];
-  const selectedCountFromSnapshot = resourceInputs.filter((r) => r.selected).length;
-  const totalCount = item.request.resource_total_count ?? resourceInputs.length;
-  const selectedCount = item.request.resource_selected_count ?? selectedCountFromSnapshot;
+// Output adapter: contract ApprovalRequestSummaryDto (history item) → view-model.
+// Counts come straight from the contract; the response carries no resource list.
+const toSummaryViewFromHistory = (item: ApprovalHistoryItem): NormalizedData => {
+  const totalCount = item.request.resource_total_count ?? 0;
+  const selectedCount = item.request.resource_selected_count ?? 0;
   return {
     requestId: String(item.request.id),
     requestedBy: item.request.requested_by,
@@ -167,8 +165,8 @@ export const ApprovalRequestDetailModal = ({
   if (!item && !latestResponse) return null;
 
   const data = latestResponse
-    ? normalizeFromLatestResponse(latestResponse)
-    : normalizeFromHistoryItem(item!);
+    ? toSummaryViewFromLatest(latestResponse)
+    : toSummaryViewFromHistory(item!);
 
   const hasRequestSummary = data.totalCount > 0 || data.selectedCount > 0;
   const resultMeta = getResultMeta(data.resultStatus);

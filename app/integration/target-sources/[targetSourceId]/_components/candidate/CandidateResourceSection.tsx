@@ -36,7 +36,7 @@ import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSo
 import { getCandidateErrorMessage } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/errors';
 import { CandidateResourceTable } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/CandidateResourceTable';
 import { selectPhase } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/phase';
-import { buildResourceInputs } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/approval-payload';
+import { toApprovalRequestInput } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/approval-payload';
 import { IdcSubmitModal } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/modals/IdcSubmitModal';
 
 interface CandidateResourceSectionProps {
@@ -89,13 +89,8 @@ export const CandidateResourceSection = ({
 
   const approval = useApiMutation(
     async (payload: { formData: ApprovalRequestFormData }) => {
-      const resourceInputs = buildResourceInputs(candidates, selectedIds, drafts, payload.formData);
-      await createApprovalRequest(targetSourceId, {
-        resource_inputs: resourceInputs,
-        ...(payload.formData.exclusion_reason_default
-          ? { exclusion_reason_default: payload.formData.exclusion_reason_default }
-          : {}),
-      });
+      const input = toApprovalRequestInput(candidates, selectedIds, drafts, payload.formData);
+      await createApprovalRequest(targetSourceId, input);
       await refreshProject();
     },
     {

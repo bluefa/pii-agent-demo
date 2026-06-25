@@ -275,17 +275,16 @@ describe('app/lib/api/index', () => {
     );
 
     const input = {
-      resource_inputs: [
-        { resource_id: 'vm-1', selected: true as const },
-        { resource_id: 'sql-2', selected: false as const, exclusion_reason: 'skip' },
+      resources: [
+        { resource_id: 'vm-1', selected: true as const, metadata: {} },
+        { resource_id: 'sql-2', selected: false as const, exclusion_reason: 'skip', metadata: {} },
       ],
     };
 
     const result = await createApprovalRequest(1001, input);
 
     expect(fetchSpy.mock.calls[0]?.[0]).toBe('/integration/api/v1/target-sources/1001/approval-requests');
-    // ADR-019: client posts the raw selection input; the route normalizes the
-    // (out-of-contract) request body before forwarding to the BFF.
+    // Contract shape: { resources: TargetSourceResourceItemDto[] } forwarded verbatim.
     expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
       body: JSON.stringify(input),

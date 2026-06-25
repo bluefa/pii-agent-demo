@@ -19,7 +19,6 @@
  */
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import type { ApprovalRequestCreateBody } from '@/lib/approval-bff';
 
 export interface BffClient {
   targetSources: {
@@ -108,7 +107,7 @@ export interface BffClient {
 
   confirm: {
     getResources: (id: number) => Promise<z.infer<typeof schemas.CloudResourceResponse>>;
-    createApprovalRequest: (id: number, body: ApprovalRequestCreateBody) => Promise<unknown>;
+    createApprovalRequest: (id: number, body: z.infer<typeof schemas.ApprovalRequestInputDto>) => Promise<unknown>;
     getConfirmedIntegration: (id: number) => Promise<z.infer<typeof schemas.ConfirmedIntegrationResponse>>;
     getApprovedIntegration: (id: number) => Promise<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>;
     getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;

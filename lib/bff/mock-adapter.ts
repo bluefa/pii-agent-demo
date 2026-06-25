@@ -12,7 +12,6 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
-import type { ApprovalRequestCreateBody } from '@/lib/approval-bff';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
@@ -129,7 +128,7 @@ export const mockBff: BffClient = {
     getResources: async (id) =>
       unwrap<z.infer<typeof schemas.CloudResourceResponse>>(await mockConfirm.getResources(String(id))),
 
-    createApprovalRequest: async (id, body: ApprovalRequestCreateBody) =>
+    createApprovalRequest: async (id, body) =>
       unwrap<unknown>(await mockConfirm.createApprovalRequest(String(id), body)),
 
     getConfirmedIntegration: async (id) =>

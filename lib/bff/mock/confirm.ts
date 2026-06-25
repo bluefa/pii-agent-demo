@@ -6,20 +6,16 @@ import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
-import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
+import { schemas } from '@/lib/generated/install-v1';
 import type {
   MockResource,
   Project,
   ProjectStatus,
-  ConnectionStatus,
-  ConnectionTestResult,
-  ConnectionTestHistory,
   VmDatabaseConfig,
   ResourceExclusion,
   BffApprovedIntegration,
   BffConfirmedIntegration,
   BffExcludedResourceInfo,
-  EndpointConfigInputData,
   ResourceIntegrationStatus,
   ResourceScanStatus,
   ResourceSnapshot,
@@ -440,23 +436,21 @@ export const mockConfirm = {
       }
     }
 
-    const { resource_inputs, exclusion_reason_default } = normalizeApprovalRequestBody(body);
+    // Parse body as contract shape: { resources: TargetSourceResourceItemDto[] }
+    const parsed = schemas.ApprovalRequestInputDto.parse(body);
+    const resources = parsed.resources ?? [];
 
-    const selectedInputs = resource_inputs.filter(
-      (ri): ri is Extract<typeof ri, { selected: true }> => ri.selected === true,
-    );
-    const excludedInputs = resource_inputs.filter(
-      (ri): ri is Extract<typeof ri, { selected: false }> => ri.selected === false,
-    );
+    const selectedItems = resources.filter((item) => item.selected === true);
+    const excludedItems = resources.filter((item) => item.selected === false);
 
-    if (selectedInputs.length === 0) {
+    if (selectedItems.length === 0) {
       return NextResponse.json(
         { error: 'VALIDATION_FAILED', message: '연동 대상이 1개 이상이어야 합니다.' },
         { status: 400 },
       );
     }
 
-    // Build endpoint config map from selected resources
+    // Build endpoint config and credential maps from selected items' metadata
     const endpointConfigMap = new Map<string, VmDatabaseConfig>();
     const credentialMap = new Map<string, string>();
     const resolveInternalResourceId = (resourceId: string): string => (
@@ -465,12 +459,13 @@ export const mockConfirm = {
       ))?.id ?? resourceId
     );
 
-    for (const si of selectedInputs) {
-      const internalResourceId = resolveInternalResourceId(si.resource_id);
-      const endpointConfig = si.resource_input?.endpoint_config;
-      const databaseType = si.resource_input?.database_type ?? endpointConfig?.db_type;
-      const port = si.resource_input?.port ?? endpointConfig?.port;
-      const host = si.resource_input?.host ?? endpointConfig?.host;
+    for (const item of selectedItems) {
+      if (!item.resource_id) continue;
+      const internalResourceId = resolveInternalResourceId(item.resource_id);
+      const meta = item.metadata ?? {};
+      const databaseType = typeof meta.database_type === 'string' ? meta.database_type : undefined;
+      const port = typeof meta.port === 'number' ? meta.port : undefined;
+      const host = typeof meta.host === 'string' ? meta.host : undefined;
 
       if (databaseType && port !== undefined && host) {
         const vmConfig: VmDatabaseConfig = {
@@ -478,28 +473,31 @@ export const mockConfirm = {
           databaseType: databaseType as VmDatabaseConfig['databaseType'],
           port,
         };
-        const oracleServiceId = si.resource_input?.oracle_service_id ?? endpointConfig?.oracleServiceId;
-        const networkInterfaceId = si.resource_input?.network_interface_id ?? endpointConfig?.selectedNicId;
-
+        const oracleServiceId = typeof meta.oracle_service_id === 'string' ? meta.oracle_service_id : undefined;
+        const networkInterfaceId = typeof meta.network_interface_id === 'string' ? meta.network_interface_id : undefined;
         if (oracleServiceId) vmConfig.oracleServiceId = oracleServiceId;
         if (networkInterfaceId) vmConfig.selectedNicId = networkInterfaceId;
         endpointConfigMap.set(internalResourceId, vmConfig);
       }
-      if (si.resource_input?.credential_id) {
-        credentialMap.set(internalResourceId, si.resource_input.credential_id);
+      const credentialId = typeof meta.credential_id === 'string' ? meta.credential_id : undefined;
+      if (credentialId) {
+        credentialMap.set(internalResourceId, credentialId);
       }
     }
 
-    // Build exclusion map
+    // Build exclusion map from excluded items
     const excludedMap = new Map<string, string | undefined>();
-    for (const ei of excludedInputs) {
+    for (const item of excludedItems) {
+      if (!item.resource_id) continue;
       excludedMap.set(
-        resolveInternalResourceId(ei.resource_id),
-        ei.exclusion_reason ?? exclusion_reason_default,
+        resolveInternalResourceId(item.resource_id),
+        typeof item.exclusion_reason === 'string' ? item.exclusion_reason : undefined,
       );
     }
 
-    const selectedResourceIds = selectedInputs.map((si) => resolveInternalResourceId(si.resource_id));
+    const selectedResourceIds = selectedItems
+      .filter((item) => !!item.resource_id)
+      .map((item) => resolveInternalResourceId(item.resource_id!));
     const selectedSet = new Set(selectedResourceIds);
     const now = new Date().toISOString();
     const excludedBy = { id: user.id, name: user.name };
@@ -519,8 +517,8 @@ export const mockConfirm = {
       return { ...r, isSelected, exclusion, vmDatabaseConfig, selectedCredentialId };
     });
 
-    const selectedCount = selectedInputs.length;
-    const excludedCount = excludedInputs.length;
+    const selectedCount = selectedItems.length;
+    const excludedCount = excludedItems.length;
 
     // 데모 정책: cloud(aws/azure/gcp)도 IDC와 동일하게 연동 대상 제출 직후 항상
     // '승인 대기'(WAITING_APPROVAL, 관리자 수동 승인) 단계로 진입한다. 자동 승인은
@@ -567,49 +565,9 @@ export const mockConfirm = {
       mockInstallation.initializeInstallation(awsTargetSourceId, hasTfPermission);
     }
 
-    // Store input_data snapshot for approval-history (P2: 요청 시점 스냅샷 보존)
-    const inputDataSnapshot = {
-      resource_inputs: resource_inputs.map((resourceInput) => (
-        resourceInput.selected
-          ? {
-              resource_id: resourceInput.resource_id,
-              selected: true as const,
-              ...(resourceInput.resource_input
-                ? {
-                    resource_input: {
-                      ...(resourceInput.resource_input.credential_id
-                        ? { credential_id: resourceInput.resource_input.credential_id }
-                        : {}),
-                      ...(resourceInput.resource_input.database_type
-                        && resourceInput.resource_input.port !== undefined
-                        && resourceInput.resource_input.host
-                        ? {
-                            endpoint_config: {
-                              db_type: resourceInput.resource_input.database_type as EndpointConfigInputData['db_type'],
-                              port: resourceInput.resource_input.port,
-                              host: resourceInput.resource_input.host,
-                              ...(resourceInput.resource_input.oracle_service_id
-                                ? { oracleServiceId: resourceInput.resource_input.oracle_service_id }
-                                : {}),
-                              ...(resourceInput.resource_input.network_interface_id
-                                ? { selectedNicId: resourceInput.resource_input.network_interface_id }
-                                : {}),
-                            },
-                          }
-                        : {}),
-                    },
-                  }
-                : {}),
-            }
-          : {
-              resource_id: resourceInput.resource_id,
-              selected: false as const,
-              ...(resourceInput.exclusion_reason ? { exclusion_reason: resourceInput.exclusion_reason } : {}),
-            }
-      )),
-      ...(exclusion_reason_default ? { exclusion_reason_default } : {}),
-    };
-    await mockHistory.addTargetConfirmedHistory(Number(targetSourceId), actor, selectedCount, excludedCount, inputDataSnapshot);
+    // Selected/excluded counts are persisted on the history entry; approval-history
+    // derives its summary counts from them (the contract carries no resource list).
+    await mockHistory.addTargetConfirmedHistory(Number(targetSourceId), actor, selectedCount, excludedCount);
     const requestId = `req-${Date.now()}`;
 
     // ADR-006: 자동 승인 시에도 ApprovedIntegration 스냅샷 생성
@@ -778,35 +736,6 @@ export const mockConfirm = {
       type: 'approval',
     });
 
-    // Helper: build resource_inputs from current project state (fallback for entries without stored snapshot)
-    const buildCurrentResourceInputs = () => project.resources.map((r) => {
-      if (r.isSelected) {
-        const input: Record<string, unknown> = {};
-        if (r.vmDatabaseConfig) {
-          input.endpoint_config = {
-            db_type: r.vmDatabaseConfig.databaseType,
-            port: r.vmDatabaseConfig.port,
-            host: r.vmDatabaseConfig.host ?? '',
-            ...(r.vmDatabaseConfig.oracleServiceId && { oracleServiceId: r.vmDatabaseConfig.oracleServiceId }),
-            ...(r.vmDatabaseConfig.selectedNicId && { selectedNicId: r.vmDatabaseConfig.selectedNicId }),
-          };
-        }
-        if (r.selectedCredentialId) {
-          input.credential_id = r.selectedCredentialId;
-        }
-        return {
-          resource_id: r.resourceId,
-          selected: true as const,
-          ...(Object.keys(input).length > 0 && { resource_input: input }),
-        };
-      }
-      return {
-        resource_id: r.resourceId,
-        selected: false as const,
-        ...(r.exclusion?.reason && { exclusion_reason: r.exclusion.reason }),
-      };
-    });
-
     // ADR-019: swagger Page.content items are { request: ApprovalRequestSummaryDto,
     // result?: ApprovalActionResponseDto } (snake wire). `input_data` is no longer
     // carried by the contract; counts derive from the stored snapshot/current state.
@@ -827,12 +756,16 @@ export const mockConfirm = {
       reason?: string | null;
     };
 
+    // Counts from the stored history entry (selected = resourceCount, excluded =
+    // excludedResourceCount); fall back to current project state for entries
+    // without stored counts (e.g. approval/rejection actions).
     const countsFor = (historyItem: typeof allHistory[number]) => {
-      const inputs = Array.isArray(historyItem.details.inputData?.resource_inputs)
-        ? historyItem.details.inputData.resource_inputs
-        : buildCurrentResourceInputs();
-      const selected = inputs.filter((ri) => ri.selected === true).length;
-      return { total: inputs.length, selected };
+      const { resourceCount, excludedResourceCount } = historyItem.details;
+      if (typeof resourceCount === 'number') {
+        return { total: resourceCount + (excludedResourceCount ?? 0), selected: resourceCount };
+      }
+      const selected = project.resources.filter((r) => r.isSelected).length;
+      return { total: project.resources.length, selected };
     };
 
     const numericId = (rawId: string): number =>

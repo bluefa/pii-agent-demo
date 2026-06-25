@@ -1,5 +1,5 @@
 import { getStore } from '@/lib/mock-store';
-import { ProjectHistory, ProjectHistoryType, ProjectHistoryActor, ApprovalRequestInputSnapshot } from '@/lib/types';
+import { ProjectHistory, ProjectHistoryType, ProjectHistoryActor } from '@/lib/types';
 
 // ===== Helper Functions =====
 
@@ -64,7 +64,6 @@ export interface AddHistoryOptions {
     reason?: string;
     resourceCount?: number;
     excludedResourceCount?: number;
-    inputData?: ApprovalRequestInputSnapshot;
   };
 }
 
@@ -93,13 +92,12 @@ export const addTargetConfirmedHistory = (
   actor: ProjectHistoryActor,
   resourceCount: number,
   excludedResourceCount: number,
-  inputData?: ApprovalRequestInputSnapshot,
 ): ProjectHistory => {
   return addProjectHistory({
     targetSourceId,
     type: 'TARGET_CONFIRMED',
     actor,
-    details: { resourceCount, excludedResourceCount, inputData },
+    details: { resourceCount, excludedResourceCount },
   });
 };
 
