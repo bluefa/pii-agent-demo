@@ -1,16 +1,25 @@
-import type { ServicePageResponse } from '@/app/lib/api';
-import type { ServiceCode } from '@/lib/types';
+import type { PageServiceItem } from '@/app/lib/api';
+
+type ServiceItem = NonNullable<PageServiceItem['content']>[number];
+
+// Page metadata extracted from the flat Spring Page envelope.
+interface ServicePageInfo {
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
 
 export interface ServiceListState {
-  services: ServiceCode[];
+  services: ServiceItem[];
   selectedService: string | null;
   query: string;
   pageNum: number;
-  pageInfo: ServicePageResponse['page'];
+  pageInfo: ServicePageInfo;
 }
 
 export type ServiceListAction =
-  | { type: 'SET_SERVICES'; services: ServiceCode[]; pageInfo: ServicePageResponse['page'] }
+  | { type: 'SET_SERVICES'; services: ServiceItem[]; pageInfo: ServicePageInfo }
   | { type: 'SET_SELECTED'; serviceCode: string | null }
   | { type: 'SET_QUERY'; query: string }
   | { type: 'SET_PAGE'; pageNum: number }

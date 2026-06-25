@@ -12,25 +12,10 @@
  * legacy /projects/* and /aws/projects/*.
  *
  * Casing (ADR-019 D1/D2 revised, zod-codegen amendment):
- *   - Most GET responses are camelCased once at the proxy (`get` runs camelCaseKeys).
- *   - TC domain: BFF methods return the raw snake wire; the route validates with
- *     schemas.X.parse(raw) and the snake type flows to the CSR layer.
+ *   - AWS, AZURE, GCP: BFF methods return the raw snake wire; the route validates
+ *     with schemas.X.parse(raw); CSR adapters own any snake→camel reshape.
+ *   - TC domain: same pattern.
  */
-import type {
-  AwsInstallationStatusResponse,
-  AwsRoleVerificationResponse,
-} from '@/lib/bff/types/aws';
-import type {
-  AzureHealthCheckResult,
-  AzureInstallationStatusResponse,
-  AzureScanAppResponse,
-  AzureSubnetGuideResponse,
-} from '@/lib/bff/types/azure';
-import type {
-  GcpInstallationStatusResponse,
-  GcpScanServiceAccountResponse,
-  GcpTerraformServiceAccountResponse,
-} from '@/lib/bff/types/gcp';
 import type {
   TargetSourceCreationCandidateResponseWire,
   TargetSourceDetailResponse,
@@ -44,12 +29,6 @@ import type {
   TestedLogicalDatabasesResponseWire,
   UpdateSkipLogicalDatabaseRequestWire,
 } from '@/lib/bff/types/logical-db';
-import type {
-  PageServiceItem,
-  UserMeResponse,
-  UserSearchResponse,
-} from '@/lib/bff/types/users';
-import type { ServiceAuthorizedUsersResponse } from '@/lib/bff/types/services';
 import type {
   DashboardSummaryResponse,
   DashboardSystemsResponse,
@@ -95,14 +74,14 @@ export interface BffClient {
   };
 
   users: {
-    search: (query: string, excludeIds: string[]) => Promise<UserSearchResponse>;
-    me: () => Promise<UserMeResponse>;
-    getServicesPage: (page: number, size: number, query?: string) => Promise<PageServiceItem>;
+    search: (query: string, excludeIds: string[]) => Promise<z.infer<typeof schemas.UserSearchResponse>>;
+    me: () => Promise<z.infer<typeof schemas.UserMeResponse>>;
+    getServicesPage: (page: number, size: number, query?: string) => Promise<z.infer<typeof schemas.PageServiceItem>>;
   };
 
   services: {
     permissions: {
-      list: (serviceCode: string) => Promise<ServiceAuthorizedUsersResponse>;
+      list: (serviceCode: string) => Promise<z.infer<typeof schemas.AuthorizedUsersResponse>>;
     };
   };
 
@@ -134,26 +113,26 @@ export interface BffClient {
   };
 
   aws: {
-    getInstallationStatus: (id: number) => Promise<AwsInstallationStatusResponse>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.AwsInstallationStatusResponse>>;
     // swagger: GET …/aws/terraform-script/download → application/octet-stream
     // (binary zip). Returns the raw Response; the route streams the body (D6 getRaw).
     getTerraformScript: (id: number) => Promise<Response>;
-    verifyScanRole: (id: number) => Promise<AwsRoleVerificationResponse>;
-    verifyExecutionRole: (id: number) => Promise<AwsRoleVerificationResponse>;
+    verifyScanRole: (id: number) => Promise<z.infer<typeof schemas.AwsRoleVerificationResponse>>;
+    verifyExecutionRole: (id: number) => Promise<z.infer<typeof schemas.AwsRoleVerificationResponse>>;
   };
 
   azure: {
-    getInstallationStatus: (id: number) => Promise<AzureInstallationStatusResponse>;
-    getSubnetGuide: (id: number) => Promise<AzureSubnetGuideResponse>;
-    getScanApp: (id: number) => Promise<AzureScanAppResponse>;
-    // G8 — swagger getAzurePrivateLinkHealthCheck (/infra/ infix; wire camel).
-    getPrivateLinkHealthCheck: (id: number) => Promise<AzureHealthCheckResult>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.AzureInstallationStatusResponse>>;
+    getSubnetGuide: (id: number) => Promise<unknown>; // no swagger schema — subnet-guide absent from install-v1.yaml
+    getScanApp: (id: number) => Promise<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>>;
+    // G8 — swagger getAzurePrivateLinkHealthCheck (/infra/ infix; wire camelCase).
+    getPrivateLinkHealthCheck: (id: number) => Promise<z.infer<typeof schemas.AzureHealthCheckResult>>;
   };
 
   gcp: {
-    getInstallationStatus: (id: number) => Promise<GcpInstallationStatusResponse>;
-    getScanServiceAccount: (id: number) => Promise<GcpScanServiceAccountResponse>;
-    getTerraformServiceAccount: (id: number) => Promise<GcpTerraformServiceAccountResponse>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.GcpInstallationStatusResponse>>;
+    getScanServiceAccount: (id: number) => Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>;
+    getTerraformServiceAccount: (id: number) => Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>;
   };
 
   idc: {

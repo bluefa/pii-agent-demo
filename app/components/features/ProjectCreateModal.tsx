@@ -8,7 +8,7 @@ import {
   createTargetSource,
   getCreationCandidates,
   type CreationCandidatesInput,
-  type TargetSourceCreationCandidate,
+  type TargetSourceCreationCandidateResponse,
 } from '@/app/lib/api';
 import {
   cn,
@@ -112,17 +112,17 @@ const PROVIDER_FROM_RAW: Record<string, CloudProvider> = {
 
 const toCloudProvider = (raw: string): CloudProvider => PROVIDER_FROM_RAW[raw] ?? 'AWS';
 
-const identifierLabel = (item: TargetSourceCreationCandidate): string => {
+const identifierLabel = (item: TargetSourceCreationCandidateResponse): string => {
   const { metadata } = item;
-  switch (item.cloudType) {
+  switch (item.cloud_type) {
     case 'AWS':
-      return metadata.awsAccountId ? `Payer ${metadata.awsAccountId}` : '—';
+      return metadata?.aws_account_id ? `Payer ${metadata.aws_account_id}` : '—';
     case 'AZURE':
-      return metadata.subscriptionId ? `Sub ${metadata.subscriptionId}` : '—';
+      return metadata?.subscription_id ? `Sub ${metadata.subscription_id}` : '—';
     case 'GCP':
-      return metadata.projectId ? `Project ${metadata.projectId}` : '—';
+      return metadata?.project_id ? `Project ${metadata.project_id}` : '—';
     case 'IDC':
-      return metadata.description || '—';
+      return metadata?.description || '—';
     default:
       return '—';
   }
@@ -235,9 +235,9 @@ export const ProjectCreateModal = ({
 
     const initial: ProgressRow[] = addRows.map((row, idx) => ({
       key: `row-${idx}`,
-      cloudProvider: toCloudProvider(row.item.cloudType),
-      isSdu: row.item.isSduType,
-      primaryLabel: `${row.item.cloudType} · ${row.dbType}`,
+      cloudProvider: toCloudProvider(row.item.cloud_type ?? ''),
+      isSdu: row.item.is_sdu_type ?? false,
+      primaryLabel: `${row.item.cloud_type ?? ''} · ${row.dbType}`,
       secondaryLabel: identifierLabel(row.item),
       status: 'in-progress',
     }));

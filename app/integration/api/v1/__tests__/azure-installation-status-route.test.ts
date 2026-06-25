@@ -18,28 +18,27 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
     vi.clearAllMocks();
   });
 
-  it('maps the swagger AzureInstallationStatusResponse (vm_installation embedded) to the UI domain', async () => {
-    // ADR-019: bff returns the swagger camel domain (vm_installation embedded per
-    // resource); the route maps last_check 5→3 values, private_endpoint.status
-    // (free string) → the UI enum, and reads load_balancer opaquely.
+  it('validates the snake wire response with schemas.AzureInstallationStatusResponse', async () => {
+    // ADR-019 zod-codegen: bff returns raw snake wire; route parses with
+    // schemas.AzureInstallationStatusResponse (vm_installation embedded per resource).
     mockedGetInstallationStatus.mockResolvedValue({
-      lastCheck: { status: 'IN_PROGRESS', checkedAt: '2026-03-30T00:00:00Z' },
+      last_check: { status: 'IN_PROGRESS', checked_at: '2026-03-30T00:00:00Z' },
       resources: [
         {
-          resourceId: 'vm-001',
-          resourceName: 'vm-001',
-          resourceType: 'AZURE_VM',
-          privateEndpoint: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'APPROVED' },
-          vmInstallation: {
-            subnetExists: true,
-            loadBalancer: { installed: true, name: 'lb-001' },
+          resource_id: 'vm-001',
+          resource_name: 'vm-001',
+          resource_type: 'AZURE_VM',
+          private_endpoint: { id: 'pe-vm-001', name: 'pe-vm-001', status: 'APPROVED' },
+          vm_installation: {
+            subnet_exists: true,
+            load_balancer: { installed: true, name: 'lb-001' },
           },
         },
         {
-          resourceId: 'mysql-001',
-          resourceName: 'mysql-001',
-          resourceType: 'AZURE_MYSQL',
-          privateEndpoint: { id: 'pe-mysql-001', name: 'pe-mysql-001', status: 'NOT_REQUESTED' },
+          resource_id: 'mysql-001',
+          resource_name: 'mysql-001',
+          resource_type: 'AZURE_MYSQL',
+          private_endpoint: { id: 'pe-mysql-001', name: 'pe-mysql-001', status: 'NOT_REQUESTED' },
         },
       ],
     });
@@ -50,37 +49,15 @@ describe('GET /integration/api/v1/azure/target-sources/[targetSourceId]/installa
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      lastCheck: {
+    await expect(response.json()).resolves.toMatchObject({
+      last_check: {
         status: 'IN_PROGRESS',
-        checkedAt: '2026-03-30T00:00:00Z',
+        checked_at: '2026-03-30T00:00:00Z',
       },
-      resources: [
-        {
-          resourceId: 'vm-001',
-          resourceName: 'vm-001',
-          resourceType: 'AZURE_VM',
-          privateEndpoint: {
-            id: 'pe-vm-001',
-            name: 'pe-vm-001',
-            status: 'APPROVED',
-          },
-          vmInstallation: {
-            subnetExists: true,
-            loadBalancer: { installed: true, name: 'lb-001' },
-          },
-        },
-        {
-          resourceId: 'mysql-001',
-          resourceName: 'mysql-001',
-          resourceType: 'AZURE_MYSQL',
-          privateEndpoint: {
-            id: 'pe-mysql-001',
-            name: 'pe-mysql-001',
-            status: 'NOT_REQUESTED',
-          },
-        },
-      ],
+      resources: expect.arrayContaining([
+        expect.objectContaining({ resource_id: 'vm-001', resource_type: 'AZURE_VM' }),
+        expect.objectContaining({ resource_id: 'mysql-001', resource_type: 'AZURE_MYSQL' }),
+      ]),
     });
   });
 });

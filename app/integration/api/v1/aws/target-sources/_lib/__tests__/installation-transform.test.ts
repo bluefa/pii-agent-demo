@@ -1,30 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  AwsInstallationStatusResponse,
-  AwsResourceInstallationStatus,
-} from '@/lib/bff/types/aws';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import { transformAwsInstallationStatus } from '@/app/integration/api/v1/aws/target-sources/_lib/installation-transform';
 
+type AwsInstallationStatusResponse = z.infer<typeof schemas.AwsInstallationStatusResponse>;
+type AwsResourceInstallationStatusDto = z.infer<typeof schemas.AwsResourceInstallationStatusDto>;
+
 const buildResource = (
-  overrides: Partial<AwsResourceInstallationStatus> = {},
-): AwsResourceInstallationStatus => ({
-  resourceId: 'arn:aws:rds:ap-northeast-2:123456789012:db:demo',
-  resourceName: 'demo',
-  installationStatus: 'COMPLETED',
-  serviceTerraform: { status: 'COMPLETED' },
-  bdcServiceTerraform: { status: 'COMPLETED' },
-  bdcCommonTerraform: { status: 'COMPLETED' },
+  overrides: Partial<AwsResourceInstallationStatusDto> = {},
+): AwsResourceInstallationStatusDto => ({
+  resource_id: 'arn:aws:rds:ap-northeast-2:123456789012:db:demo',
+  resource_name: 'demo',
+  installation_status: 'COMPLETED',
+  service_terraform: { status: 'COMPLETED' },
+  bdc_service_terraform: { status: 'COMPLETED' },
+  bdc_common_terraform: { status: 'COMPLETED' },
   ...overrides,
 });
 
 const buildResponse = (
   overrides: Partial<AwsInstallationStatusResponse> = {},
 ): AwsInstallationStatusResponse => ({
-  lastCheck: { status: 'SUCCESS', checkedAt: '2026-03-02T00:00:00Z' },
+  last_check: { status: 'SUCCESS', checked_at: '2026-03-02T00:00:00Z' },
   resources: [buildResource()],
-  terraformExecutionRoleVerify: {
+  terraform_execution_role_verify: {
     status: 'COMPLETED',
-    roleArn: 'arn:aws:iam::123456789012:role/TerraformExecutionRole',
+    role_arn: 'arn:aws:iam::123456789012:role/TerraformExecutionRole',
   },
   ...overrides,
 });
@@ -35,20 +36,20 @@ describe('installation-transform (swagger AwsInstallationStatusResponse → UI d
       buildResponse({
         resources: [
           buildResource({
-            resourceId: 'r-1',
-            resourceName: 'Script-1',
-            installationStatus: 'COMPLETED',
-            serviceTerraform: { status: 'COMPLETED' },
-            bdcServiceTerraform: { status: 'IN_PROGRESS' },
-            bdcCommonTerraform: { status: 'COMPLETED' },
+            resource_id: 'r-1',
+            resource_name: 'Script-1',
+            installation_status: 'COMPLETED',
+            service_terraform: { status: 'COMPLETED' },
+            bdc_service_terraform: { status: 'IN_PROGRESS' },
+            bdc_common_terraform: { status: 'COMPLETED' },
           }),
           buildResource({
-            resourceId: 'r-2',
-            resourceName: 'Script-2',
-            installationStatus: 'IN_PROGRESS',
-            serviceTerraform: { status: 'IN_PROGRESS' },
-            bdcServiceTerraform: { status: 'UNKNOWN' },
-            bdcCommonTerraform: { status: 'UNKNOWN' },
+            resource_id: 'r-2',
+            resource_name: 'Script-2',
+            installation_status: 'IN_PROGRESS',
+            service_terraform: { status: 'IN_PROGRESS' },
+            bdc_service_terraform: { status: 'UNKNOWN' },
+            bdc_common_terraform: { status: 'UNKNOWN' },
           }),
         ],
       }),
@@ -92,9 +93,9 @@ describe('installation-transform (swagger AwsInstallationStatusResponse → UI d
   it('FAILED last_check + unverified role → hasExecutionPermission false, lastCheck FAILED', () => {
     const result = transformAwsInstallationStatus(
       buildResponse({
-        lastCheck: { status: 'FAILED', checkedAt: '2026-03-02T02:00:00Z', failReason: '검증 실패' },
-        resources: [buildResource({ serviceTerraform: { status: 'FAIL' }, bdcServiceTerraform: { status: 'FAIL' } })],
-        terraformExecutionRoleVerify: { status: 'IN_PROGRESS' },
+        last_check: { status: 'FAILED', checked_at: '2026-03-02T02:00:00Z', fail_reason: '검증 실패' },
+        resources: [buildResource({ service_terraform: { status: 'FAIL' }, bdc_service_terraform: { status: 'FAIL' } })],
+        terraform_execution_role_verify: { status: 'IN_PROGRESS' },
       }),
     );
 

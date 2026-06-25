@@ -10,7 +10,7 @@ import {
   providerColors,
   primaryColors,
 } from '@/lib/theme';
-import type { TargetSourceCreationCandidate } from '@/app/lib/api';
+import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
 import { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';
 import { integrationRoutes } from '@/lib/routes';
 import type { CloudProvider } from '@/lib/types';
@@ -27,24 +27,24 @@ const PROVIDER_CANONICAL: Record<string, CloudProvider> = {
 const toCloudProvider = (cloudType: string): CloudProvider =>
   PROVIDER_CANONICAL[cloudType.toUpperCase()] ?? 'AWS';
 
-const formatIdentifierLabel = (item: TargetSourceCreationCandidate): string => {
+const formatIdentifierLabel = (item: TargetSourceCreationCandidateResponse): string => {
   const { metadata } = item;
-  switch (item.cloudType) {
+  switch (item.cloud_type) {
     case 'AWS':
-      return metadata.awsAccountId ? `Payer ${metadata.awsAccountId}` : '—';
+      return metadata?.aws_account_id ? `Payer ${metadata.aws_account_id}` : '—';
     case 'AZURE':
-      return metadata.subscriptionId ? `Sub ${metadata.subscriptionId}` : '—';
+      return metadata?.subscription_id ? `Sub ${metadata.subscription_id}` : '—';
     case 'GCP':
-      return metadata.projectId ? `Project ${metadata.projectId}` : '—';
+      return metadata?.project_id ? `Project ${metadata.project_id}` : '—';
     case 'IDC':
-      return metadata.description || '—';
+      return metadata?.description || '—';
     default:
       return '—';
   }
 };
 
 export interface PreviewRow {
-  item: TargetSourceCreationCandidate;
+  item: TargetSourceCreationCandidateResponse;
   dbType: string;
 }
 
@@ -52,7 +52,7 @@ interface RegistrationPreviewCardListProps {
   rows: PreviewRow[];
 }
 
-const StatusBadge = ({ item }: { item: TargetSourceCreationCandidate }) => {
+const StatusBadge = ({ item }: { item: TargetSourceCreationCandidateResponse }) => {
   if (item.status === 'DUPLICATE') {
     return (
       <div className="flex flex-col items-end gap-1">
@@ -65,9 +65,9 @@ const StatusBadge = ({ item }: { item: TargetSourceCreationCandidate }) => {
         >
           이미 등록된 인프라
         </span>
-        {item.existingTargetSourceId != null && (
+        {item.existing_target_source_id != null && (
           <Link
-            href={integrationRoutes.targetSource(item.existingTargetSourceId)}
+            href={integrationRoutes.targetSource(item.existing_target_source_id!)}
             className={cn('text-[11px] font-medium underline', primaryColors.text)}
             onClick={(e) => e.stopPropagation()}
           >
@@ -90,9 +90,9 @@ const StatusBadge = ({ item }: { item: TargetSourceCreationCandidate }) => {
   );
 };
 
-const RegionChip = ({ item }: { item: TargetSourceCreationCandidate }) => {
-  if (item.cloudType !== 'AWS') return null;
-  if (item.isChinaRegion) {
+const RegionChip = ({ item }: { item: TargetSourceCreationCandidateResponse }) => {
+  if (item.cloud_type !== 'AWS') return null;
+  if (item.is_china_region) {
     return (
       <span
         className={cn(
@@ -118,9 +118,9 @@ const RegionChip = ({ item }: { item: TargetSourceCreationCandidate }) => {
   );
 };
 
-const InstallModeChip = ({ item }: { item: TargetSourceCreationCandidate }) => {
-  if (item.cloudType !== 'AWS') return null;
-  if (item.grantServiceTerraformExecutionPermission) {
+const InstallModeChip = ({ item }: { item: TargetSourceCreationCandidateResponse }) => {
+  if (item.cloud_type !== 'AWS') return null;
+  if (item.grant_service_terraform_execution_permission) {
     return (
       <span
         className={cn(
@@ -146,8 +146,8 @@ const InstallModeChip = ({ item }: { item: TargetSourceCreationCandidate }) => {
   );
 };
 
-const SduTag = ({ item }: { item: TargetSourceCreationCandidate }) =>
-  item.isSduType ? (
+const SduTag = ({ item }: { item: TargetSourceCreationCandidateResponse }) =>
+  item.is_sdu_type ? (
     <span
       className={cn(
         'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold',
@@ -171,7 +171,7 @@ export const RegistrationPreviewCardList = ({ rows }: RegistrationPreviewCardLis
   return (
     <div className="space-y-2.5">
       {rows.map((row, idx) => {
-        const provider = toCloudProvider(row.item.cloudType);
+        const provider = toCloudProvider(row.item.cloud_type ?? '');
         return (
           <div
             key={`${row.dbType}-${idx}`}
@@ -182,11 +182,11 @@ export const RegistrationPreviewCardList = ({ rows }: RegistrationPreviewCardLis
               row.item.status === 'DUPLICATE' && 'opacity-80',
             )}
           >
-            <ProviderLogo provider={provider} isSdu={row.item.isSduType} />
+            <ProviderLogo provider={provider} isSdu={row.item.is_sdu_type ?? false} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={cn('text-sm font-semibold', textColors.primary)}>
-                  {row.item.cloudType}
+                  {row.item.cloud_type}
                 </span>
                 <span className={cn('text-xs', textColors.tertiary)}>·</span>
                 <span className={cn('text-xs font-medium', textColors.secondary)}>

@@ -14,7 +14,7 @@ import {
   searchUsers,
   updateResourceCredential,
 } from '@/app/lib/api';
-import type { TargetSourceCreationCandidate } from '@/app/lib/api';
+import type { TargetSourceCreationCandidateResponse } from '@/app/lib/api';
 import { ProcessStatus } from '@/lib/types';
 
 describe('app/lib/api/index', () => {
@@ -548,13 +548,14 @@ describe('app/lib/api/index', () => {
       }),
     );
 
-    const candidate: TargetSourceCreationCandidate = {
+    // ADR-019 D3: candidate is already snake wire; createTargetSource posts verbatim.
+    const candidate: TargetSourceCreationCandidateResponse = {
       status: 'ADD',
-      cloudType: 'AWS',
-      isSduType: false,
-      isChinaRegion: true,
-      metadata: { awsAccountId: '123456789012' },
-      grantServiceTerraformExecutionPermission: true,
+      cloud_type: 'AWS',
+      is_sdu_type: false,
+      is_china_region: true,
+      metadata: { aws_account_id: '123456789012' },
+      grant_service_terraform_execution_permission: true,
     };
 
     const result = await createTargetSource('SERVICE-A', candidate);
@@ -562,7 +563,7 @@ describe('app/lib/api/index', () => {
     const [url, init] = fetchSpy.mock.calls[0] ?? [];
     expect(url).toBe('/integration/api/v1/services/SERVICE-A/target-sources');
     expect(init?.method).toBe('POST');
-    // Round-trip: camel domain → snake wire (TargetSourceCreationCandidateResponse).
+    // Round-trip: snake wire candidate posted back verbatim (no conversion).
     expect(JSON.parse(String(init?.body))).toEqual({
       status: 'ADD',
       cloud_type: 'AWS',

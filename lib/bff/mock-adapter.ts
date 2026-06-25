@@ -18,7 +18,6 @@ import type {
   ResourceCatalogResponse,
 } from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
-import { camelCaseKeys } from '@/lib/object-case';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
 import { mockUsers } from '@/lib/bff/mock/users';
@@ -34,21 +33,8 @@ import { mockIdc } from '@/lib/bff/mock/idc';
 import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockGuides } from '@/lib/bff/mock/guides';
-import type {
-  AwsInstallationStatusResponse,
-  AwsRoleVerificationResponse,
-} from '@/lib/bff/types/aws';
-import type {
-  AzureHealthCheckResult,
-  AzureInstallationStatusResponse,
-  AzureScanAppResponse,
-  AzureSubnetGuideResponse,
-} from '@/lib/bff/types/azure';
-import type {
-  GcpInstallationStatusResponse,
-  GcpScanServiceAccountResponse,
-  GcpTerraformServiceAccountResponse,
-} from '@/lib/bff/types/gcp';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import type {
   IdcInstallationStatusResponseWire,
   IdcPreviousRequestResponseWire,
@@ -59,8 +45,6 @@ import type {
   SkipLogicalDatabaseResponseWire,
   TestedLogicalDatabasesResponseWire,
 } from '@/lib/bff/types/logical-db';
-import type { z } from 'zod';
-import type { schemas } from '@/lib/generated/install-v1';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -68,23 +52,6 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
     throw bffErrorFromBody(response.status, body);
   }
   return await response.json() as T;
-}
-
-/**
- * Mock parity for camel-boundary methods (PLAN P1): mocks author the swagger
- * snake wire, so the adapter must `camelCaseKeys` exactly like `httpBff.get`
- * does for real BFF — otherwise the BffClient would return snake keys under a
- * camel type (the bug this migration removes). Used only by the cloud
- * installation-status / role-verify / service-account / health-check methods;
- * snake-passthrough domains (IDC, logical-DB, test-connection, azure scan-app)
- * keep raw `unwrap` because their own downstream boundary owns the conversion.
- */
-async function unwrapCamel<T>(response: NextResponse): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw bffErrorFromBody(response.status, body);
-  }
-  return camelCaseKeys(await response.json()) as T;
 }
 
 export const mockBff: BffClient = {
@@ -133,36 +100,38 @@ export const mockBff: BffClient = {
   },
 
   aws: {
-    // unwrapCamel: mock authors snake wire → camelCaseKeys (matches httpBff.get).
+    // ADR-019 zod-codegen: mock authors snake wire; route owns parse boundary.
     getInstallationStatus: async (id) =>
-      unwrapCamel<AwsInstallationStatusResponse>(await mockAws.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.AwsInstallationStatusResponse>>(await mockAws.getInstallationStatus(String(id))),
     // Binary download — return the raw Response (NextResponse extends Response).
     getTerraformScript: async (id) => mockAws.getTerraformScript(String(id)),
     verifyScanRole: async (id) =>
-      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyScanRole(String(id))),
+      unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyScanRole(String(id))),
     verifyExecutionRole: async (id) =>
-      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyExecutionRole(String(id))),
+      unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyExecutionRole(String(id))),
   },
 
+  // Azure mock returns raw snake wire; the route validates with schemas.X.parse().
   azure: {
     getInstallationStatus: async (id) =>
-      unwrapCamel<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.AzureInstallationStatusResponse>>(await mockAzure.getInstallationStatus(String(id))),
     getSubnetGuide: async (id) =>
-      unwrapCamel<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
+      unwrap(await mockAzure.getSubnetGuide(String(id))),
     // scan-app is sanctioned snake passthrough (Issue #222) — raw unwrap.
     getScanApp: async (id) =>
-      unwrap<AzureScanAppResponse>(await mockAzure.getScanApp(String(id))),
+      unwrap<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>>(await mockAzure.getScanApp(String(id))),
     getPrivateLinkHealthCheck: async (id) =>
-      unwrapCamel<AzureHealthCheckResult>(await mockAzure.getPrivateLinkHealthCheck(String(id))),
+      unwrap<z.infer<typeof schemas.AzureHealthCheckResult>>(await mockAzure.getPrivateLinkHealthCheck(String(id))),
   },
 
+  // GCP mock returns raw snake wire; the route validates with schemas.X.parse().
   gcp: {
     getInstallationStatus: async (id) =>
-      unwrapCamel<GcpInstallationStatusResponse>(await mockGcp.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.GcpInstallationStatusResponse>>(await mockGcp.getInstallationStatus(String(id))),
     getScanServiceAccount: async (id) =>
-      unwrapCamel<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
+      unwrap<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>(await mockGcp.getScanServiceAccount(String(id))),
     getTerraformServiceAccount: async (id) =>
-      unwrapCamel<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
+      unwrap<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>(await mockGcp.getTerraformServiceAccount(String(id))),
   },
 
   idc: {

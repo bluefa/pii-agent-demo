@@ -21,14 +21,12 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-sca
     vi.clearAllMocks();
   });
 
-  it('AwsRoleVerificationResponse를 그대로 통과시킨다', async () => {
-    // swagger AwsRoleVerificationResponse: status/fail_reason are free strings.
+  it('AwsRoleVerificationResponse를 snake wire로 통과시킨다', async () => {
+    // BFF returns snake wire; route validates with schemas.AwsRoleVerificationResponse.parse().
     mockedVerifyScanRole.mockResolvedValue({
       status: 'VALID',
-      roleArn: 'arn:aws:iam::123:role/scan',
-      failReason: undefined,
-      failMessage: undefined,
-      lastVerifiedAt: '2026-06-23T10:00:00Z',
+      role_arn: 'arn:aws:iam::123:role/scan',
+      last_verified_at: '2026-06-23T10:00:00Z',
     });
 
     const response = await getScanRole(
@@ -37,10 +35,10 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-sca
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       status: 'VALID',
-      roleArn: 'arn:aws:iam::123:role/scan',
-      lastVerifiedAt: '2026-06-23T10:00:00Z',
+      role_arn: 'arn:aws:iam::123:role/scan',
+      last_verified_at: '2026-06-23T10:00:00Z',
     });
     expect(mockedVerifyScanRole).toHaveBeenCalledWith(42);
   });
@@ -61,13 +59,13 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-exe
     vi.clearAllMocks();
   });
 
-  it('실패한 execution-role 검증 결과를 그대로 통과시킨다', async () => {
+  it('실패한 execution-role 검증 결과를 snake wire로 통과시킨다', async () => {
     mockedVerifyExecutionRole.mockResolvedValue({
       status: 'INVALID',
-      roleArn: 'arn:aws:iam::123:role/exec',
-      failReason: 'ROLE_NOT_FOUND',
-      failMessage: 'Execution role is not assumable.',
-      lastVerifiedAt: '2026-06-23T10:00:00Z',
+      role_arn: 'arn:aws:iam::123:role/exec',
+      fail_reason: 'ROLE_NOT_FOUND',
+      fail_message: 'Execution role is not assumable.',
+      last_verified_at: '2026-06-23T10:00:00Z',
     });
 
     const response = await getExecutionRole(
@@ -76,12 +74,12 @@ describe('GET /integration/api/v1/aws/target-sources/[targetSourceId]/verify-exe
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       status: 'INVALID',
-      roleArn: 'arn:aws:iam::123:role/exec',
-      failReason: 'ROLE_NOT_FOUND',
-      failMessage: 'Execution role is not assumable.',
-      lastVerifiedAt: '2026-06-23T10:00:00Z',
+      role_arn: 'arn:aws:iam::123:role/exec',
+      fail_reason: 'ROLE_NOT_FOUND',
+      fail_message: 'Execution role is not assumable.',
+      last_verified_at: '2026-06-23T10:00:00Z',
     });
     expect(mockedVerifyExecutionRole).toHaveBeenCalledWith(42);
   });

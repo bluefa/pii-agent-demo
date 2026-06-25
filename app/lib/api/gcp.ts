@@ -1,24 +1,24 @@
-import type { GcpInstallationStatusResponse, GcpServiceAccountInfo } from '@/app/api/_lib/v1-types';
-import { fetchInfraCamelJson } from '@/app/lib/api/infra';
+import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 
 const BASE_URL = '/gcp/target-sources';
 
 /**
- * GCP 설치 상태 조회.
- * Refresh is a re-GET of this endpoint (the old POST check-installation is not
- * in install-v1.yaml — REMOVED).
+ * GCP 설치 상태 조회 (ADR-019 zod-codegen).
+ * Returns the raw snake wire type; consumers call the CSR adapter for reshape.
  */
 export const getGcpInstallationStatus = async (
   targetSourceId: number
-): Promise<GcpInstallationStatusResponse> =>
-  fetchInfraCamelJson<GcpInstallationStatusResponse>(`${BASE_URL}/${targetSourceId}/installation-status`);
+): Promise<z.infer<typeof schemas.GcpInstallationStatusResponse>> =>
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/installation-status`);
 
 export const getGcpScanServiceAccount = async (
   targetSourceId: number
-): Promise<GcpServiceAccountInfo> =>
-  fetchInfraCamelJson<GcpServiceAccountInfo>(`${BASE_URL}/${targetSourceId}/scan-service-account`);
+): Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>> =>
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/scan-service-account`);
 
 export const getGcpTerraformServiceAccount = async (
   targetSourceId: number
-): Promise<GcpServiceAccountInfo> =>
-  fetchInfraCamelJson<GcpServiceAccountInfo>(`${BASE_URL}/${targetSourceId}/terraform-service-account`);
+): Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>> =>
+  fetchInfraJson(`${BASE_URL}/${targetSourceId}/terraform-service-account`);

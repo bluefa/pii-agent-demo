@@ -1,15 +1,22 @@
-import { fetchInfra, fetchInfraCamelJson } from '@/app/lib/api/infra';
+import { fetchInfra, fetchInfraJson } from '@/app/lib/api/infra';
 import type { AwsInstallationStatus } from '@/lib/types';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+import { transformAwsInstallationStatus } from '@/app/integration/api/v1/aws/target-sources/_lib/installation-transform';
 
 const BASE = '/aws/target-sources';
 
 /**
  * AWS 설치 상태 조회.
- * Refresh is a re-GET of this endpoint (the old POST check-installation is not
- * in install-v1.yaml — REMOVED).
+ * Route validates raw BFF response with schemas.AwsInstallationStatusResponse.parse();
+ * this CSR function applies the reshape adapter (snake wire → UI domain).
  */
-export const getAwsInstallationStatus = (targetSourceId: number): Promise<AwsInstallationStatus> =>
-  fetchInfraCamelJson<AwsInstallationStatus>(`${BASE}/${targetSourceId}/installation-status`);
+export const getAwsInstallationStatus = async (targetSourceId: number): Promise<AwsInstallationStatus> => {
+  const raw = await fetchInfraJson<z.infer<typeof schemas.AwsInstallationStatusResponse>>(
+    `${BASE}/${targetSourceId}/installation-status`,
+  );
+  return transformAwsInstallationStatus(raw);
+};
 
 /**
  * TF Script 다운로드 (수동 설치용).

@@ -67,9 +67,16 @@ export const AdminDashboard = () => {
     try {
       const data = await getServicesPage(page, 10, searchQuery || undefined, { signal: controller.signal });
       if (controller.signal.aborted) return;
-      dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
-      if (page === 0 && data.content.length > 0 && !skipAutoSelectRef.current) {
-        dispatch({ type: 'SET_SELECTED', serviceCode: data.content[0].code });
+      const content = data.content ?? [];
+      const pageInfo = {
+        totalElements: data.totalElements ?? 0,
+        totalPages: data.totalPages ?? 0,
+        number: data.number ?? 0,
+        size: data.size ?? 10,
+      };
+      dispatch({ type: 'SET_SERVICES', services: content, pageInfo });
+      if (page === 0 && content.length > 0 && !skipAutoSelectRef.current) {
+        dispatch({ type: 'SET_SELECTED', serviceCode: content[0].service_code ?? '' });
       }
       skipAutoSelectRef.current = false;
     } catch (err) {
@@ -260,7 +267,7 @@ export const AdminDashboard = () => {
     setApprovalModal({ status: 'closed' });
   }, []);
 
-  const selectedServiceObj = services.find((s) => s.code === selectedService);
+  const selectedServiceObj = services.find((s) => s.service_code === selectedService);
   const approvalDetail =
     approvalModal.status === 'view' || approvalModal.status === 'submitting'
       ? approvalModal.detail
@@ -317,7 +324,7 @@ export const AdminDashboard = () => {
               />
               <ServiceHeaderV7
                 serviceCode={selectedService}
-                serviceName={selectedServiceObj?.name ?? ''}
+                serviceName={selectedServiceObj?.service_name ?? ''}
                 totalInfraCount={projects.length}
                 lastUpdatedAt={null}
                 onAddInfra={openCreateModal}
@@ -353,7 +360,7 @@ export const AdminDashboard = () => {
       {approvalModal.status === 'create' && selectedService && (
         <ProjectCreateModal
           selectedServiceCode={selectedService}
-          serviceName={selectedServiceObj?.name || ''}
+          serviceName={selectedServiceObj?.service_name || ''}
           onClose={closeAnyModal}
           onCreated={refreshProjects}
         />

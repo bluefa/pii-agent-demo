@@ -118,27 +118,28 @@ export const httpBff: BffClient = {
     getSecrets: (id) => get(`/target-sources/${id}/secrets`),
   },
 
+  // USER/services: raw snake passthrough — routes validate with schemas.X.parse(raw).
   users: {
     search: (query, excludeIds) => {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
       excludeIds.forEach((id) => params.append('excludeIds', id));
       const qs = params.toString();
-      return get(`/users/search${qs ? `?${qs}` : ''}`);
+      return getSnakeRaw(`/users/search${qs ? `?${qs}` : ''}`);
     },
-    me: () => get('/user/me'),
+    me: () => getSnakeRaw('/user/me'),
     getServicesPage: (page, size, query) => {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
       if (query) params.set('query', query);
-      return get(`/user/services/page?${params.toString()}`);
+      return getSnakeRaw(`/user/services/page?${params.toString()}`);
     },
   },
 
   services: {
     permissions: {
-      list: (serviceCode) => get(`/services/${serviceCode}/authorized-users`),
+      list: (serviceCode) => getSnakeRaw(`/services/${serviceCode}/authorized-users`),
     },
   },
 
@@ -180,29 +181,34 @@ export const httpBff: BffClient = {
   },
 
   aws: {
-    getInstallationStatus: (id) => get(`/target-sources/${id}/aws/installation-status`),
+    // ADR-019 zod-codegen: routes own the parse boundary — return raw snake wire.
+    getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/aws/installation-status`),
     // Non-JSON binary (zip) — getRaw returns the raw Response (D6, no camelCaseKeys).
     getTerraformScript: (id) => getRaw(`/target-sources/${id}/aws/terraform-script/download`),
-    verifyScanRole: (id) => get(`/target-sources/${id}/aws/verify-scan-role`),
-    verifyExecutionRole: (id) => get(`/target-sources/${id}/aws/verify-execution-role`),
+    verifyScanRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-scan-role`),
+    verifyExecutionRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-execution-role`),
   },
 
+  // Azure responses are raw snake passthrough — the route validates with
+  // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
+  // (AzureHealthCheckResult wire is already camelCase per swagger; getSnakeRaw is a
+  // no-op camelize; the route's schemas.AzureHealthCheckResult.parse() validates.)
   azure: {
-    getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
-    getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
+    getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/azure/installation-status`),
+    getSubnetGuide: (id) => getSnakeRaw(`/target-sources/${id}/azure/subnet-guide`),
     // Issue #222: snake_case raw passthrough — getSnakeRaw is the greppable D6 opt-out.
     getScanApp: (id) => getSnakeRaw(`/target-sources/${id}/azure/scan-app`),
-    // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix and
-    // that the wire is already camelCase (camelCaseKeys is a no-op, routed through
-    // `get` for uniformity).
+    // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix.
     getPrivateLinkHealthCheck: (id) =>
-      get(`/infra/target-sources/${id}/azure-private-link-health-check`),
+      getSnakeRaw(`/infra/target-sources/${id}/azure-private-link-health-check`),
   },
 
+  // GCP responses are raw snake passthrough — the route validates with
+  // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
   gcp: {
-    getInstallationStatus: (id) => get(`/target-sources/${id}/gcp/installation-status`),
-    getScanServiceAccount: (id) => get(`/target-sources/${id}/gcp/scan-service-account`),
-    getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
+    getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/gcp/installation-status`),
+    getScanServiceAccount: (id) => getSnakeRaw(`/target-sources/${id}/gcp/scan-service-account`),
+    getTerraformServiceAccount: (id) => getSnakeRaw(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 
   // IDC responses are raw snake passthrough — the mapper (app/lib/api/idc.ts)

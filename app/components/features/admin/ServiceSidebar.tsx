@@ -1,6 +1,6 @@
 'use client';
 
-import { ServiceCode } from '@/lib/types';
+import type { PageServiceItem } from '@/app/lib/api';
 import { borderColors, bgColors, primaryColors, textColors, cn, getInputClass } from '@/lib/theme';
 
 const footerLinkClass = cn(
@@ -43,8 +43,10 @@ interface ServicePageInfo {
   size: number;
 }
 
+type ServiceItem = NonNullable<PageServiceItem['content']>[number];
+
 interface ServiceSidebarProps {
-  services: ServiceCode[];
+  services: ServiceItem[];
   selectedService: string | null;
   onSelectService: (code: string) => void;
   projectCount: number;
@@ -94,11 +96,13 @@ export const ServiceSidebar = ({
           </li>
         ) : (
           services.map((service) => {
-            const isSelected = selectedService === service.code;
+            const code = service.service_code ?? '';
+            const name = service.service_name ?? '';
+            const isSelected = selectedService === code;
             return (
               <li
-                key={service.code}
-                onClick={() => onSelectService(service.code)}
+                key={code}
+                onClick={() => onSelectService(code)}
                 className={cn(
                   'mx-2 mb-0.5 cursor-pointer rounded-lg transition-all duration-150',
                   isSelected
@@ -107,10 +111,10 @@ export const ServiceSidebar = ({
                 )}
               >
                 <div className={cn('text-[13px] font-semibold', isSelected ? primaryColors.text : textColors.primary)}>
-                  {service.code}
+                  {code}
                 </div>
                 <div className={cn('text-xs mt-0.5', textColors.tertiary)}>
-                  {service.name}
+                  {name}
                 </div>
               </li>
             );

@@ -1,5 +1,4 @@
 import {
-  ServiceCode,
   ProjectSummary,
   CloudProvider,
   TargetSource,
@@ -16,24 +15,14 @@ import {
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
 import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
-import { snakeCaseKeys } from '@/lib/object-case';
 import {
   extractTargetSource,
   normalizeTargetSourceProcessStatus,
   type TargetSourceDetailResponse,
 } from '@/lib/target-source-response';
-import type {
-  TargetSourceCloudType,
-  TargetSourceCreationCandidate,
-  TargetSourceInfo,
-} from '@/lib/target-source-creation';
-// Re-export the create-flow domain types so create-modal consumers import from
-// one place (mirrors the test-connection re-exports below).
-export type {
-  TargetSourceCloudType,
-  TargetSourceCreationCandidate,
-  TargetSourceInfo,
-};
+import type { TargetSourceCloudType } from '@/lib/target-source-creation';
+// Re-export TargetSourceCloudType so consumers keep importing from one place.
+export type { TargetSourceCloudType };
 import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
@@ -73,43 +62,32 @@ export type {
 } from '@/lib/approval-response';
 
 
-export interface CurrentUser {
-  id: string;
-  name: string;
-  email: string;
-}
+// Re-export USER/services wire types (zod-codegen, snake) so consumers import
+// from one place. Field access is snake_case; use adapters for join/reshape/compute.
+export type UserMeResponse = z.infer<typeof schemas.UserMeResponse>;
+export type PageServiceItem = z.infer<typeof schemas.PageServiceItem>;
+export type UserSearchResponse = z.infer<typeof schemas.UserSearchResponse>;
+export type AuthorizedUsersResponse = z.infer<typeof schemas.AuthorizedUsersResponse>;
+export type TargetSourceCreationCandidateResponse = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
+export type TargetSourceDetail = z.infer<typeof schemas.TargetSourceDetail>;
+export type TargetSourceInfoWire = z.infer<typeof schemas.TargetSourceInfo>;
 
-export const getCurrentUser = (): Promise<CurrentUser> =>
-  fetchInfraCamelJson<CurrentUser>('/user/me');
+export const getCurrentUser = (): Promise<UserMeResponse> =>
+  fetchInfraJson<UserMeResponse>('/user/me');
 
-export interface ServicePageResponse {
-  content: ServiceCode[];
-  page: { totalElements: number; totalPages: number; number: number; size: number };
-}
-
-export const getServicesPage = async (
+export const getServicesPage = (
   page = 0,
   size = 10,
   query?: string,
   options?: { signal?: AbortSignal },
-): Promise<ServicePageResponse> => {
+): Promise<PageServiceItem> => {
   const params = new URLSearchParams({ page: String(page), size: String(size) });
   if (query) params.set('query', query);
-  const data = await fetchInfraCamelJson<{
-    content: Array<{ serviceCode: string; serviceName: string }>;
-    page: { totalElements: number; totalPages: number; number: number; size: number };
-  }>(
+  return fetchInfraJson<PageServiceItem>(
     `/user/services/page?${params}`,
     options?.signal ? { signal: options.signal } : undefined,
   );
-  return {
-    content: data.content.map((s) => ({ code: s.serviceCode, name: s.serviceName })),
-    page: data.page,
-  };
 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
 
 const parseTargetSourceId = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -117,42 +95,37 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const toProjectSummary = (value: unknown): ProjectSummary | null => {
-  if (!isRecord(value)) return null;
-
-  const targetSourceId = parseTargetSourceId(value.targetSourceId ?? value.id);
+// Adapter: TargetSourceDetail (snake wire) → ProjectSummary (camel view).
+// Computes derived fields (connectionTestComplete, fallback codes) not present
+// in the wire contract — genuine join/reshape justifies the adapter (§1.3).
+const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
+  const targetSourceId = parseTargetSourceId(item.target_source_id);
   if (targetSourceId === null) return null;
 
-  const processStatus = normalizeTargetSourceProcessStatus(value.processStatus);
+  const processStatus = normalizeTargetSourceProcessStatus(item.process_status);
   const fallbackCode = `TS-${targetSourceId}`;
 
   return {
-    id: typeof value.id === 'string' && value.id ? value.id : fallbackCode,
+    id: fallbackCode,
     targetSourceId,
-    projectCode: typeof value.projectCode === 'string' && value.projectCode ? value.projectCode : fallbackCode,
+    projectCode: item.service_code ?? fallbackCode,
     processStatus,
-    cloudProvider: normalizeCloudProvider(value.cloudProvider),
-    resourceCount: typeof value.resourceCount === 'number' ? value.resourceCount : 0,
-    hasDisconnected: typeof value.hasDisconnected === 'boolean' ? value.hasDisconnected : false,
-    hasNew: typeof value.hasNew === 'boolean' ? value.hasNew : false,
-    description: typeof value.description === 'string' ? value.description : '',
-    isRejected: typeof value.isRejected === 'boolean' ? value.isRejected : false,
-    rejectionReason: typeof value.rejectionReason === 'string' ? value.rejectionReason : undefined,
-    connectionTestComplete: typeof value.connectionTestComplete === 'boolean'
-      ? value.connectionTestComplete
-      : processStatus >= ProcessStatus.CONNECTION_VERIFIED,
+    cloudProvider: normalizeCloudProvider(item.cloud_provider),
+    resourceCount: 0,
+    hasDisconnected: false,
+    hasNew: false,
+    description: item.description ?? '',
+    isRejected: false,
+    connectionTestComplete: processStatus >= ProcessStatus.CONNECTION_VERIFIED,
   };
 };
 
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
-  const payload = await fetchInfraCamelJson<unknown>(`/services/${serviceCode}/target-sources`);
-  const targetSources = Array.isArray(payload)
-    ? payload
-    : isRecord(payload) && Array.isArray(payload.targetSources)
-      ? payload.targetSources
-      : [];
-
-  return targetSources
+  const payload = await fetchInfraJson<TargetSourceDetail[]>(
+    `/services/${serviceCode}/target-sources`,
+  );
+  const items = Array.isArray(payload) ? payload : [];
+  return items
     .map(toProjectSummary)
     .filter((project): project is ProjectSummary => project !== null);
 };
@@ -187,13 +160,13 @@ export interface CreationCandidatesInput {
 
 /**
  * POST creation-candidates (35). Builds the snake `TargetSourceCreationCandidateRequest`
- * (request casing is snake, D3 — no camel intermediate) and returns the camel
- * candidate domain array (the route owns the wire→domain boundary).
+ * (request casing is snake, D3 — no camel intermediate) and returns the snake wire
+ * candidate array (zod-codegen). Field access is snake_case on the caller side.
  */
 export const getCreationCandidates = async (
   serviceCode: string,
   input: CreationCandidatesInput,
-): Promise<TargetSourceCreationCandidate[]> => {
+): Promise<TargetSourceCreationCandidateResponse[]> => {
   const description = input.description?.trim();
   const body = {
     cloud_type: toRequestCloudType(input.cloudProvider),
@@ -211,39 +184,27 @@ export const getCreationCandidates = async (
       ...(description ? { description } : {}),
     },
   };
-  return fetchInfraJson<TargetSourceCreationCandidate[]>(
+  return fetchInfraJson<TargetSourceCreationCandidateResponse[]>(
     `/services/${serviceCode}/creation-candidates`,
     { method: 'POST', body },
   );
 };
 
 /**
- * POST createTargetSource (36). The selected candidate is posted back verbatim:
- * the camel domain candidate is re-serialized to the snake wire body
- * (`TargetSourceCreationCandidateResponse`) via `snakeCaseKeys`. Returns the
- * created `TargetSourceInfo` (camel, route-normalized).
+ * POST createTargetSource (36). The selected snake candidate is posted back verbatim
+ * (request authored snake, D3). Returns the created `TargetSourceInfo` (snake wire).
  */
 export const createTargetSource = async (
   serviceCode: string,
-  candidate: TargetSourceCreationCandidate,
-): Promise<TargetSourceInfo> =>
-  fetchInfraJson<TargetSourceInfo>(`/services/${serviceCode}/target-sources`, {
+  candidate: TargetSourceCreationCandidateResponse,
+): Promise<TargetSourceInfoWire> =>
+  fetchInfraJson<TargetSourceInfoWire>(`/services/${serviceCode}/target-sources`, {
     method: 'POST',
-    body: snakeCaseKeys(candidate),
+    body: candidate,
   });
 
-export interface AuthorizedUser {
-  id: string;
-  name: string;
-  email: string;
-}
-
-export const getPermissions = async (serviceCode: string): Promise<AuthorizedUser[]> => {
-  const data = await fetchInfraCamelJson<{ users?: AuthorizedUser[] }>(
-    `/services/${serviceCode}/authorized-users`,
-  );
-  return data.users ?? [];
-};
+export const getPermissions = (serviceCode: string): Promise<AuthorizedUsersResponse> =>
+  fetchInfraJson<AuthorizedUsersResponse>(`/services/${serviceCode}/authorized-users`);
 
 export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
   const data = await fetchInfraCamelJson<TargetSourceDetailResponse>(
@@ -252,25 +213,17 @@ export const getProject = async (targetSourceId: number): Promise<TargetSource> 
   return extractTargetSource(data);
 };
 
-export interface UserSearchResult {
-  id: string;
-  name: string;
-  email: string;
-}
-
-export const searchUsers = async (
+export const searchUsers = (
   query: string,
-  excludeIds: string[] = []
-): Promise<UserSearchResult[]> => {
+  excludeIds: string[] = [],
+): Promise<UserSearchResponse> => {
   const params = new URLSearchParams();
   if (query) params.set('q', query);
   excludeIds.forEach((excludeId) => params.append('excludeIds', excludeId));
-
   const queryString = params.toString();
-  const data = await fetchInfraCamelJson<{ users: UserSearchResult[] }>(
+  return fetchInfraJson<UserSearchResponse>(
     queryString ? `/users/search?${queryString}` : '/users/search',
   );
-  return data.users;
 };
 
 

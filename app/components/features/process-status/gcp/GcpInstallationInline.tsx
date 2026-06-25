@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import {
   borderColors,
   cardStyles,
@@ -8,6 +9,7 @@ import {
   textColors,
 } from '@/lib/theme';
 import { getGcpInstallationStatus } from '@/app/lib/api/gcp';
+import { buildGcpInstallationStatus } from '@/app/components/features/process-status/gcp/installation-status-adapter';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
@@ -32,12 +34,19 @@ export const GcpInstallationInline = ({
   const detailModal = useModal<GcpStepKey>();
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
+  // Compose the API call with the CSR adapter so useInstallationStatus works
+  // against the camel UI type (GcpInstallationStatusResponse from v1-types).
+  const getInstallationStatusView = useCallback(
+    (id: number) => getGcpInstallationStatus(id).then(buildGcpInstallationStatus),
+    [],
+  );
+
   const { status, loading, error, fetchStatus } =
     useInstallationStatus<GcpInstallationStatusResponse>({
       targetSourceId,
-      getFn: getGcpInstallationStatus,
+      getFn: getInstallationStatusView,
       // Refresh = re-GET installation-status (POST check-installation REMOVED-no-swagger).
-      checkFn: getGcpInstallationStatus,
+      checkFn: getInstallationStatusView,
       isComplete: (data) => data.summary.allCompleted,
       onComplete: onInstallComplete,
     });

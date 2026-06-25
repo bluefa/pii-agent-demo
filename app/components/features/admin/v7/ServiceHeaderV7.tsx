@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/app/components/ui/Button';
-import { getPermissions, type UserSearchResult } from '@/app/lib/api';
+import { getPermissions, type AuthorizedUsersResponse } from '@/app/lib/api';
 import { useToast } from '@/app/components/ui/toast';
 import {
   cn,
@@ -36,9 +36,11 @@ const formatRelativeTime = (iso?: string | null): string => {
   return `${days}일 전`;
 };
 
-const renderManagers = (managers: UserSearchResult[]): string => {
+type UserInfo = NonNullable<AuthorizedUsersResponse['users']>[number];
+
+const renderManagers = (managers: UserInfo[]): string => {
   if (managers.length === 0) return '담당자 없음';
-  const names = managers.slice(0, 3).map((u) => u.name);
+  const names = managers.slice(0, 3).map((u) => u.name ?? '');
   const suffix = managers.length > 3 ? ` 외 ${managers.length - 3}명` : '';
   return names.join(' · ') + suffix;
 };
@@ -51,7 +53,7 @@ export const ServiceHeaderV7 = ({
   onAddInfra,
 }: ServiceHeaderV7Props) => {
   const toast = useToast();
-  const [managers, setManagers] = useState<UserSearchResult[]>([]);
+  const [managers, setManagers] = useState<UserInfo[]>([]);
   // Derived-state-from-prop: drop stale managers during render when serviceCode
   // changes, so the meta row never displays the previous service's data while
   // the new fetch is in flight. Equivalent to a setState in effect but without
@@ -66,8 +68,8 @@ export const ServiceHeaderV7 = ({
     let cancelled = false;
     (async () => {
       try {
-        const users = await getPermissions(serviceCode);
-        if (!cancelled) setManagers(users);
+        const result = await getPermissions(serviceCode);
+        if (!cancelled) setManagers(result.users ?? []);
       } catch (err) {
         if (!cancelled) toast.error(err instanceof Error ? err.message : '담당자 조회 실패');
       }
