@@ -1,18 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { setCurrentUser } from '@/lib/mock-data';
-import { camelCaseKeys } from '@/lib/object-case';
-import {
-  normalizeTargetSourceCreationCandidates,
-  normalizeTargetSourceInfo,
-} from '@/lib/target-source-creation';
-import type { z } from 'zod';
-import type { schemas } from '@/lib/generated/install-v1';
+import { z } from 'zod';
+import { schemas } from '@/lib/generated/install-v1';
 type TargetSourceCreationCandidateResponseWire = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
 
-// The mock authors the swagger WIRE (snake) shape; the route layer applies
-// camelCaseKeys + normalizer. These tests assert the raw wire is contract-shaped
-// (Spec F 35/36) and that it survives the same boundary the route uses.
+// The mock authors the swagger WIRE (snake) shape. These tests assert the raw wire
+// is contract-shaped (Spec F 35/36) and that it survives the route boundary —
+// `schemas.X.parse()` (the generated zod schema is the contract).
 
 beforeEach(() => {
   globalThis.__piiAgentMockStore = undefined;
@@ -44,10 +39,10 @@ describe('mockTargetSources.previewRegistration (35) — creation candidates', (
     expect(first.metadata).toEqual({ aws_account_id: '999888777666' });
     expect(first.grant_service_terraform_execution_permission).toBe(true);
 
-    // Survives the route boundary (camelCaseKeys + normalizer).
-    const domain = normalizeTargetSourceCreationCandidates(camelCaseKeys(body));
-    expect(domain[0].cloudType).toBe('AWS');
-    expect(domain[0].metadata.awsAccountId).toBe('999888777666');
+    // Survives the route boundary: the generated zod schema validates the raw wire.
+    expect(() =>
+      z.array(schemas.TargetSourceCreationCandidateResponse).parse(body),
+    ).not.toThrow();
   });
 
   it('rejects a request missing the required is_china_region (400)', async () => {
@@ -99,11 +94,8 @@ describe('mockTargetSources.create (36) — round-trip → TargetSourceInfo', ()
       grant_service_terraform_execution_permission: true,
     });
 
-    // Survives the route boundary.
-    const domain = normalizeTargetSourceInfo(camelCaseKeys(body));
-    expect(domain.cloudProvider).toBe('AWS');
-    expect(domain.metadata?.awsAccountId).toBe('123456789012');
-    expect(domain.metadata?.isChinaRegion).toBe(true);
+    // Survives the route boundary: the generated zod schema validates the raw wire.
+    expect(() => schemas.TargetSourceInfo.parse(body)).not.toThrow();
   });
 
   it('a created AWS target then appears as DUPLICATE on a re-preview (round-trip identity)', async () => {
