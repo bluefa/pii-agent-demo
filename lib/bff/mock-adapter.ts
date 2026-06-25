@@ -12,16 +12,13 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
-import type { ApprovalRequestCreateBody } from '@/lib/bff/types/confirm';
+import type { ApprovalRequestCreateBody } from '@/lib/approval-bff';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
 import { mockUsers } from '@/lib/bff/mock/users';
 import { mockServices } from '@/lib/bff/mock/services';
-import { mockDashboard } from '@/lib/bff/mock/dashboard';
-import { mockDev } from '@/lib/bff/mock/dev';
 import { mockScan } from '@/lib/bff/mock/scan';
-import { mockQueueBoard } from '@/lib/bff/mock/queue-board';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
@@ -63,26 +60,11 @@ export const mockBff: BffClient = {
     },
   },
 
-  dashboard: {
-    summary: async () => unwrap(await mockDashboard.summary()),
-    systems: async (params) => unwrap(await mockDashboard.systems(params)),
-    systemsExport: async (params) => mockDashboard.systemsExport(params),
-  },
-
-  dev: {
-    getUsers: async () => unwrap(await mockDev.getUsers()),
-    switchUser: async (body) => unwrap(await mockDev.switchUser(body)),
-  },
-
   scan: {
     get: async (id, scanId) => unwrap(await mockScan.get(String(id), scanId)),
     getHistory: async (id, query) => unwrap(await mockScan.getHistory(String(id), query)),
     create: async (id, body) => unwrap(await mockScan.create(String(id), body)),
     getStatus: async (id) => unwrap(await mockScan.getStatus(String(id))),
-  },
-
-  taskAdmin: {
-    getApprovalRequestQueue: async (params) => unwrap(await mockQueueBoard.getApprovalRequestQueue(params)),
   },
 
   aws: {
@@ -101,8 +83,6 @@ export const mockBff: BffClient = {
   azure: {
     getInstallationStatus: async (id) =>
       unwrap<z.infer<typeof schemas.AzureInstallationStatusResponse>>(await mockAzure.getInstallationStatus(String(id))),
-    getSubnetGuide: async (id) =>
-      unwrap(await mockAzure.getSubnetGuide(String(id))),
     // scan-app is sanctioned snake passthrough (Issue #222) — raw unwrap.
     getScanApp: async (id) =>
       unwrap<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>>(await mockAzure.getScanApp(String(id))),

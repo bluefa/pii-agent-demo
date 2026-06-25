@@ -6,7 +6,6 @@ import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
 import { ProcessStatus } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
-import { addQueueItem, updateQueueItemStatus } from '@/lib/bff/mock/queue-board';
 import { normalizeApprovalRequestBody } from '@/lib/approval-bff';
 import type {
   MockResource,
@@ -370,24 +369,6 @@ function deriveConfirmedResourceInfos(
   return matched.map((r) => toConfirmedIntegrationResourceInfo(r, project));
 }
 
-// --- Queue Board Integration Helpers ---
-
-const getCloudInfo = (project: Project): string => {
-  switch (project.cloudProvider) {
-    case 'AWS':
-      return project.awsAccountId ?? '';
-    case 'Azure':
-      return [project.tenantId, project.subscriptionId].filter(Boolean).join(' / ');
-    case 'GCP':
-      return project.gcpProjectId ?? '';
-    default:
-      return project.cloudProvider;
-  }
-};
-
-const getServiceName = (serviceCode: string): string =>
-  mockData.mockServiceCodes.find((s) => s.code === serviceCode)?.name ?? serviceCode;
-
 // --- Mock Confirm Module ---
 
 export const mockConfirm = {
@@ -647,22 +628,6 @@ export const mockConfirm = {
       // 설치 반영 소요시간 시뮬레이션: 승인 시각 기록
       approvalTimestampStore.set(project.id, Date.now());
       await mockHistory.addAutoApprovedHistory(Number(targetSourceId));
-    }
-
-    // Queue Board 연동: 승인 요청 생성 시 Admin Tasks에 항목 추가
-    addQueueItem({
-      targetSourceId: project.targetSourceId,
-      requestType: 'TARGET_CONFIRMATION',
-      serviceCode: project.serviceCode,
-      serviceName: getServiceName(project.serviceCode),
-      provider: project.cloudProvider,
-      cloudInfo: getCloudInfo(project),
-      requestedBy: user.name,
-    });
-
-    // 자동 승인인 경우 즉시 IN_PROGRESS로 전환
-    if (autoApprovalResult.shouldAutoApprove) {
-      updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', '시스템(자동승인)');
     }
 
     // ADR-019: swagger ApprovalRequestSummaryDto (snake wire); 200, not 201.
@@ -1258,9 +1223,6 @@ export const mockConfirm = {
 
     mockHistory.addApprovalHistory(Number(targetSourceId), { id: user.id, name: user.name });
 
-    // Queue Board 연동: 승인 → IN_PROGRESS
-    updateQueueItemStatus(project.targetSourceId, 'IN_PROGRESS', user.name);
-
     // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({
       request_id: project.targetSourceId,
@@ -1321,9 +1283,6 @@ export const mockConfirm = {
     });
 
     mockHistory.addRejectionHistory(Number(targetSourceId), { id: user.id, name: user.name }, reason || '');
-
-    // Queue Board 연동: 반려 → REJECTED
-    updateQueueItemStatus(project.targetSourceId, 'REJECTED', user.name, reason);
 
     // ADR-019: swagger ApprovalActionResponseDto (snake wire).
     return NextResponse.json({

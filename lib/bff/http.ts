@@ -13,12 +13,7 @@
  *   - POST/PUT bodies are raw passthrough (I-3); request casing is per-endpoint (D3).
  */
 import type { BffClient } from '@/lib/bff/types';
-import type {
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceInfoWire,
-  TargetSourcesByServiceResponseWire,
-} from '@/lib/bff/types/target-sources';
-import type { ApprovalRequestCreateBody } from '@/lib/bff/types/confirm';
+import type { ApprovalRequestCreateBody } from '@/lib/approval-bff';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
@@ -94,18 +89,18 @@ export const httpBff: BffClient = {
     get: (id) => getSnakeRaw<z.infer<typeof schemas.TargetSourceDetail>>(`/target-sources/${id}`),
     // 37: wire snake forwarded raw — the route normalizer owns the boundary (D1).
     list: (serviceCode) =>
-      getSnakeRaw<TargetSourcesByServiceResponseWire>(
+      getSnakeRaw<z.infer<typeof schemas.TargetSourceDetail>[]>(
         `/target-sources/services/${serviceCode}`,
       ),
     // 36: the selected creation candidate is posted back verbatim → 201 TargetSourceInfo.
     create: (serviceCode, candidate) =>
-      post<TargetSourceInfoWire>(
+      post<z.infer<typeof schemas.TargetSourceInfo>>(
         `/target-sources/services/${serviceCode}/target-sources`,
         candidate,
       ),
     // 35: bare array of creation candidates (request body authored snake, D3).
     getCreationCandidates: (serviceCode, body) =>
-      post<TargetSourceCreationCandidateResponseWire[]>(
+      post<z.infer<typeof schemas.TargetSourceCreationCandidateResponse>[]>(
         `/target-sources/services/${serviceCode}/creation-candidates`,
         body,
       ),
@@ -138,42 +133,12 @@ export const httpBff: BffClient = {
     },
   },
 
-  dashboard: {
-    summary: () => get('/admin/dashboard/summary'),
-    systems: (params) => {
-      const qs = params.toString();
-      return get(`/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
-    },
-    systemsExport: (params) => {
-      const qs = params.toString();
-      return getRaw(`/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
-    },
-  },
-
-  dev: {
-    getUsers: () => get('/dev/users'),
-    switchUser: (body) => post('/dev/switch-user', body),
-  },
-
   // SCAN: raw snake passthrough — routes validate with schemas.X.parse(raw).
   scan: {
     get: (id, scanId) => getSnakeRaw(`/target-sources/${id}/scans/${scanId}`),
     getHistory: (id, query) => getSnakeRaw(`/target-sources/${id}/scan/history${buildQuery(query)}`),
     create: (id, body) => post(`/target-sources/${id}/scan`, body),
     getStatus: (id) => getSnakeRaw(`/target-sources/${id}/scanJob/latest`),
-  },
-
-  taskAdmin: {
-    getApprovalRequestQueue: (params) => {
-      const searchParams = new URLSearchParams();
-      searchParams.set('status', params.status);
-      if (params.requestType) searchParams.set('requestType', params.requestType);
-      if (params.search) searchParams.set('search', params.search);
-      if (params.page !== undefined) searchParams.set('page', String(params.page));
-      if (params.size !== undefined) searchParams.set('size', String(params.size));
-      if (params.sort) searchParams.set('sort', params.sort);
-      return get(`/task-admin/approval-requests?${searchParams.toString()}`);
-    },
   },
 
   aws: {
@@ -191,7 +156,6 @@ export const httpBff: BffClient = {
   // no-op camelize; the route's schemas.AzureHealthCheckResult.parse() validates.)
   azure: {
     getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/azure/installation-status`),
-    getSubnetGuide: (id) => getSnakeRaw(`/target-sources/${id}/azure/subnet-guide`),
     // Issue #222: snake_case raw passthrough — getSnakeRaw is the greppable D6 opt-out.
     getScanApp: (id) => getSnakeRaw(`/target-sources/${id}/azure/scan-app`),
     // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix.

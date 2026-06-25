@@ -11,12 +11,12 @@ import { mockProjects } from '@/lib/bff/mock/projects';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
-import type {
-  TargetSourceCreationCandidateMetadataWire,
-  TargetSourceCreationCandidateRequest,
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceMetadataWire,
-} from '@/lib/bff/types/target-sources';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+type TargetSourceCreationCandidateMetadataWire = z.infer<typeof schemas.TargetSourceCreationCandidateMetadata>;
+type TargetSourceCreationCandidateRequest = z.infer<typeof schemas.TargetSourceCreationCandidateRequest>;
+type TargetSourceCreationCandidateResponseWire = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
+type TargetSourceMetadataWire = z.infer<typeof schemas.TargetSourceMetadata>;
 
 type BffCloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
 type BffApprovalProcessStatus =

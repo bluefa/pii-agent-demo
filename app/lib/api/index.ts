@@ -676,6 +676,3 @@ export * from '@/app/lib/api/gcp';
 
 // ===== Scan API =====
 export * from '@/app/lib/api/scan';
-
-// ===== Admin Dashboard API =====
-export * from '@/app/lib/api/dashboard';

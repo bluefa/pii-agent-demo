@@ -6,7 +6,9 @@ import {
   normalizeTargetSourceCreationCandidates,
   normalizeTargetSourceInfo,
 } from '@/lib/target-source-creation';
-import type { TargetSourceCreationCandidateResponseWire } from '@/lib/bff/types/target-sources';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+type TargetSourceCreationCandidateResponseWire = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
 
 // The mock authors the swagger WIRE (snake) shape; the route layer applies
 // camelCaseKeys + normalizer. These tests assert the raw wire is contract-shaped

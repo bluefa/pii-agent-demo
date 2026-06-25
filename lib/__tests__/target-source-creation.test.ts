@@ -5,11 +5,11 @@ import {
   normalizeTargetSourceInfo,
   normalizeTargetSourceDetails,
 } from '@/lib/target-source-creation';
-import type {
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceInfoWire,
-  TargetSourceDetailWire,
-} from '@/lib/bff/types/target-sources';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+type TargetSourceCreationCandidateResponseWire = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
+type TargetSourceInfoWire = z.infer<typeof schemas.TargetSourceInfo>;
+type TargetSourceDetailWire = z.infer<typeof schemas.TargetSourceDetail>;
 
 // Exercises the ADR-019 D1/D6 casing boundary exactly as the route handlers do:
 // a swagger-shaped WIRE (snake) payload → camelCaseKeys → normalizeX → camel

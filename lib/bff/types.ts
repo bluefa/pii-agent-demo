@@ -9,44 +9,30 @@
  * Methods that called endpoints absent from the swagger were REMOVED (no stubs):
  * idc resources, {aws,gcp,azure,idc}/check-installation, installation-mode,
  * approval system-reset, services settings/aws/*, authorized-users add/remove,
- * legacy /projects/* and /aws/projects/*.
+ * legacy /projects/* and /aws/projects/*; dashboard, dev, taskAdmin (not in
+ * install-v1.yaml).
  *
  * Casing (ADR-019 D1/D2 revised, zod-codegen amendment):
  *   - AWS, AZURE, GCP: BFF methods return the raw snake wire; the route validates
  *     with schemas.X.parse(raw); CSR adapters own any snake→camel reshape.
  *   - TC domain: same pattern.
  */
-import type {
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceInfoWire,
-  TargetSourcesByServiceResponseWire,
-} from '@/lib/bff/types/target-sources';
 import type { z } from 'zod';
 import type { schemas } from '@/lib/generated/install-v1';
-import type {
-  DashboardSummaryResponse,
-  DashboardSystemsResponse,
-} from '@/lib/bff/types/dashboard';
-import type {
-  DevGetUsersResponse,
-  DevSwitchUserResult,
-} from '@/lib/bff/types/dev';
-import type { TaskAdminApprovalRequestsResponse } from '@/lib/bff/types/task-admin';
-import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
-import type { ApprovalRequestCreateBody } from '@/lib/bff/types/confirm';
+import type { ApprovalRequestCreateBody } from '@/lib/approval-bff';
 
 export interface BffClient {
   targetSources: {
     get: (id: number) => Promise<z.infer<typeof schemas.TargetSourceDetail>>;
     // Wire snake (37) — the route handler owns the casing boundary.
-    list: (serviceCode: string) => Promise<TargetSourcesByServiceResponseWire>;
+    list: (serviceCode: string) => Promise<z.infer<typeof schemas.TargetSourceDetail>[]>;
     // 201 TargetSourceInfo (36) — candidate posted back verbatim.
-    create: (serviceCode: string, candidate: unknown) => Promise<TargetSourceInfoWire>;
+    create: (serviceCode: string, candidate: unknown) => Promise<z.infer<typeof schemas.TargetSourceInfo>>;
     // 200 bare array of creation candidates (35).
     getCreationCandidates: (
       serviceCode: string,
       body: unknown,
-    ) => Promise<TargetSourceCreationCandidateResponseWire[]>;
+    ) => Promise<z.infer<typeof schemas.TargetSourceCreationCandidateResponse>[]>;
     getSecrets: (id: number) => Promise<z.infer<typeof schemas.SecretResponse>[]>;
   };
 
@@ -62,27 +48,12 @@ export interface BffClient {
     };
   };
 
-  dashboard: {
-    summary: () => Promise<DashboardSummaryResponse>;
-    systems: (params: URLSearchParams) => Promise<DashboardSystemsResponse>;
-    systemsExport: (params: URLSearchParams) => Promise<Response>;
-  };
-
-  dev: {
-    getUsers: () => Promise<DevGetUsersResponse>;
-    switchUser: (body: unknown) => Promise<DevSwitchUserResult>;
-  };
-
   scan: {
     // swagger: GET/POST routes validate with schemas.X.parse(raw); methods return raw snake wire.
     get: (id: number, scanId: string) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
     getHistory: (id: number, query: { limit: number; offset: number }) => Promise<z.infer<typeof schemas.PageScanJobResponse>>;
     create: (id: number, body: unknown) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
     getStatus: (id: number) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
-  };
-
-  taskAdmin: {
-    getApprovalRequestQueue: (params: QueueBoardQueryParams) => Promise<TaskAdminApprovalRequestsResponse>;
   };
 
   guides: {
@@ -101,7 +72,6 @@ export interface BffClient {
 
   azure: {
     getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.AzureInstallationStatusResponse>>;
-    getSubnetGuide: (id: number) => Promise<unknown>; // no swagger schema — subnet-guide absent from install-v1.yaml
     getScanApp: (id: number) => Promise<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>>;
     // G8 — swagger getAzurePrivateLinkHealthCheck (/infra/ infix; wire camelCase).
     getPrivateLinkHealthCheck: (id: number) => Promise<z.infer<typeof schemas.AzureHealthCheckResult>>;

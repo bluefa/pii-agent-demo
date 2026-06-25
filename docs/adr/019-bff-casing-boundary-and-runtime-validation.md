@@ -2,7 +2,22 @@
 
 ## Status
 
-Proposed (2026-06-20) — **Amends [ADR-011](./011-typed-bff-client-consolidation.md)** (does not supersede). Complements [ADR-008](./008-error-handling-strategy.md).
+**Amended 2026-06-26 — zod-codegen adopted; D1/D2/D4 revised (see "Amendment" below).** Originally Proposed (2026-06-20) — **Amends [ADR-011](./011-typed-bff-client-consolidation.md)** (does not supersede). Complements [ADR-008](./008-error-handling-strategy.md).
+
+## Amendment (2026-06-26): swagger-driven zod codegen; snake passthrough replaces camelCaseKeys-default
+
+The original D1/D2/D4 chose a central `camelCaseKeys`-by-default boundary plus **camelCase** zod schemas validated as `schema.parse(camelCaseKeys(data))`. Implementation pivoted to a **codegen-from-swagger** model. This amendment revises the casing/validation decisions; the rest of the ADR (Problems 1–4, D3, D5, D6, rejected alternatives) stands.
+
+- **Single source of truth = `docs/swagger/install-v1.yaml`.** It is the *only* API contract. All other swagger specs were deleted. An endpoint absent from `install-v1.yaml` does not exist — its route and full chain (BFF method, mock, CSR fn, hand types, exclusive UI) are removed, not left as an unvalidated passthrough.
+- **Codegen.** `npm run gen:api` regenerates `lib/generated/install-v1.ts` (zod schemas, `openapi-zod-client` schemas-only template, zod v3). Never hand-edit the generated file. `z.infer<typeof schemas.X>` replaces every hand-written `*Wire` DTO.
+- **D1 revised — the boundary is the route's `schemas.X.parse(raw)`, not central `camelCaseKeys`.** Each route returns `NextResponse.json(schemas.X.parse(rawFromBff))`. BFF response casing is **not** transformed centrally; the generated schema *is* the contract (snake, verbatim). `lib/bff/http` exposes responses via `getSnakeRaw` (no `camelCaseKeys`).
+- **D2 revised — no camelCase-by-default.** The API client returns the generated zod Response type (`z.infer`, snake) verbatim. snake→camel happens **only** inside per-need CSR *adapters* that already perform a join/reshape/compute (the IDC D2.2/D6 sanctioned-mapper pattern, generalized to the default). **No rename-only adapters.**
+- **D4 revised — schemas are codegen'd from swagger (snake), validated as `schemas.X.parse(raw)`** at the route (supersedes "camelCase schema + `parse(camelCaseKeys(data))`"). `ZodError` → `ProblemDetails` via the existing ADR-008 pipeline (**loud-fail**: a contract violation surfaces at the boundary, not as a late `undefined`).
+- **D7 (new) — codegen freshness gate.** CI runs `npm run gen:api` and fails if `git diff lib/generated/install-v1.ts` is non-empty (a stale generated file is a drift footgun).
+- **D8 (new) — `required` discipline.** A swagger schema with no `required:` generates `.partial()` (all-optional → weak validation). Always-present fields must be declared `required:` so the generated type is non-optional and adapters need no defaults; fields left optional are a logged gap.
+
+Known deferred contract gaps at amendment time: `POST approval-requests` body uses `resource_inputs[]` (UI) vs `resources[]` (`ApprovalRequestInputDto`) — a request reshape kept on the write path; `scan_error` needs `nullable: true`.
+
 
 This ADR does two things ADR-011 explicitly left open:
 

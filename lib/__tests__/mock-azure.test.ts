@@ -5,7 +5,6 @@ import {
   getAzureVmInstallationStatus,
   checkAzureVmInstallation,
   getAzureVmTerraformScript,
-  getAzureSubnetGuide,
   getAzureServiceSettings,
   resetAzureStore,
   hasVmResources,
@@ -321,26 +320,6 @@ describe('mock-azure', () => {
       store.projects.push(createAwsProject());
 
       const result = getAzureVmTerraformScript(AWS_TARGET_SOURCE_ID);
-      expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
-    });
-  });
-
-  describe('getAzureSubnetGuide', () => {
-    it('Azure 프로젝트는 가이드 정보 반환', () => {
-      const store = getStore();
-      store.projects.push(createAzureProject());
-
-      const result = getAzureSubnetGuide(AZURE_TARGET_SOURCE_ID);
-      expect(result.error).toBeUndefined();
-      expect(result.data?.description).toBeDefined();
-      expect(result.data?.documentUrl).toBeDefined();
-    });
-
-    it('AWS 프로젝트는 NOT_AZURE_PROJECT 에러 반환', () => {
-      const store = getStore();
-      store.projects.push(createAwsProject());
-
-      const result = getAzureSubnetGuide(AWS_TARGET_SOURCE_ID);
       expect(result.error?.code).toBe('NOT_AZURE_PROJECT');
     });
   });
