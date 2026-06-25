@@ -41,25 +41,13 @@ import {
   type ExcludedResourceInfoDto,
   type ResourceConfigDto,
 } from '@/lib/approval-bff';
-import type {
-  ApprovalRequestStatus,
-  ApprovalRequestSummary,
-  ApprovalRequestLatest,
-  ApprovalHistoryPage,
-  ApprovalActionResponse,
-  ApprovalUnavailableResponse,
-  ApprovalUnavailableConfirmResponse,
-} from '@/lib/approval-response';
-// Re-export the approval domain types so `@/app/lib/api` consumers (Step2 UI)
-// keep importing from one place.
-export type {
-  ApprovalRequestStatus,
-  ApprovalRequestLatest,
-  ApprovalHistoryPage,
-  ApprovalActionResponse,
-  ApprovalUnavailableResponse,
-  ApprovalUnavailableConfirmResponse,
-} from '@/lib/approval-response';
+// Re-export approval wire types (zod-codegen, snake) so consumers import from one place.
+export type ApprovalRequestSummaryDto = z.infer<typeof schemas.ApprovalRequestSummaryDto>;
+export type ApprovalActionResponseDto = z.infer<typeof schemas.ApprovalActionResponseDto>;
+export type ApprovalRequestLatestDto = z.infer<typeof schemas.ApprovalRequestLatestDto>;
+export type ApprovalUnavailableResponseDto = z.infer<typeof schemas.ApprovalUnavailableResponseDto>;
+export type ApprovalUnavailableConfirmResponseDto = z.infer<typeof schemas.ApprovalUnavailableConfirmResponseDto>;
+export type ApprovalRequestLatestResponse = z.infer<typeof schemas.ApprovalRequestLatestDto>;
 
 
 // Re-export USER/services wire types (zod-codegen, snake) so consumers import
@@ -290,16 +278,6 @@ interface LegacyApprovalRequestInput {
   input_data: ApprovalRequestInput;
 }
 
-export interface ApprovalRequestResult {
-  id: string;
-  targetSourceId: number;
-  status: ApprovalRequestStatus;
-  requestedAt: string;
-  requestedBy: string;
-  resourceTotalCount: number;
-  resourceSelectedCount: number;
-}
-
 const toEndpointConfigSnapshot = (resource: ResourceConfigDto): ResourceSnapshot['endpoint_config'] => {
   if (!resource.database_type || resource.port === undefined || !resource.host) {
     return null;
@@ -336,24 +314,11 @@ const toApprovedIntegrationResourceSnapshot = (
 export const createApprovalRequest = async (
   targetSourceId: number,
   input: ApprovalRequestInput | LegacyApprovalRequestInput,
-): Promise<ApprovalRequestResult> => {
-  // Route normalizes both the (out-of-contract) request body and the
-  // ApprovalRequestSummaryDto response to camel (ADR-019 D1 boundary).
-  const summary = await fetchInfraJson<ApprovalRequestSummary>(
+): Promise<ApprovalRequestSummaryDto> =>
+  fetchInfraJson<ApprovalRequestSummaryDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,
     { method: 'POST', body: input },
   );
-
-  return {
-    id: String(summary.id || ''),
-    targetSourceId: summary.targetSourceId || targetSourceId,
-    status: summary.status,
-    requestedAt: summary.requestedAt,
-    requestedBy: summary.requestedBy?.userId ?? '',
-    resourceTotalCount: summary.resourceTotalCount,
-    resourceSelectedCount: summary.resourceSelectedCount,
-  };
-};
 
 export type ConfirmedIntegrationResourceItem = ConfirmedIntegrationResourceInfo;
 export type ApprovedIntegrationResourceItem = ResourceSnapshot;
@@ -417,150 +382,58 @@ export const getApprovedIntegration = async (
   };
 };
 
-export interface ApprovalHistoryResponse {
-  content: Array<{
-    request: {
-      id: string;
-      requested_at: string;
-      requested_by: string;
-      status?: ApprovalRequestStatus;
-      resource_total_count: number;
-      resource_selected_count: number;
-      input_data: {
-        resource_inputs: ApprovalResourceInput[];
-        exclusion_reason_default?: string;
-      };
-    };
-    result?: {
-      id: string;
-      request_id: string;
-      result: string;
-      processed_at: string;
-      process_info: { user_id: string | null; reason: string | null };
-    };
-  }>;
-  page: { totalElements: number; totalPages: number; number: number; size: number };
-}
-
 export const getApprovalHistory = async (
   targetSourceId: number,
   page = 0,
-  size = 10
-): Promise<ApprovalHistoryResponse> => {
-  // Route normalizes the flat Spring Page → camel ApprovalHistoryPage
-  // (ADR-019 D1 boundary). Public shape below stays legacy for admin consumers;
-  // `input_data` is no longer carried by the contract (swagger Page.content is
-  // untyped) so it is left empty (was already `[]`).
-  const payload = await fetchInfraJson<ApprovalHistoryPage>(
+  size = 10,
+): Promise<z.infer<typeof schemas.Page>> =>
+  fetchInfraJson<z.infer<typeof schemas.Page>>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`,
   );
 
-  return {
-    content: payload.content.map((item) => ({
-      request: {
-        id: String(item.request.id || ''),
-        requested_at: item.request.requestedAt,
-        requested_by: item.request.requestedBy?.userId ?? '',
-        status: item.request.status,
-        resource_total_count: item.request.resourceTotalCount,
-        resource_selected_count: item.request.resourceSelectedCount,
-        input_data: {
-          resource_inputs: [],
-        },
-      },
-      ...(item.result
-        ? {
-            result: {
-              id: String(item.result.requestId || item.request.id || ''),
-              request_id: String(item.result.requestId || item.request.id || ''),
-              result: item.result.status,
-              processed_at: item.result.processedAt,
-              process_info: {
-                user_id: item.result.processedBy?.userId ?? null,
-                reason: item.result.reason || null,
-              },
-            },
-          }
-        : {}),
-    })),
-    page: {
-      totalElements: payload.totalElements,
-      totalPages: payload.totalPages,
-      number: payload.number,
-      size: payload.size,
-    },
-  };
-};
-
 export const approveApprovalRequestV1 = async (
   targetSourceId: number,
-  comment?: string
-): Promise<{ success: boolean; result: string; processed_at: string }> => {
-  // Route returns camel ApprovalActionResponse (ADR-019 D1 boundary).
-  const payload = await fetchInfraJson<ApprovalActionResponse>(
+  comment?: string,
+): Promise<ApprovalActionResponseDto> =>
+  fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`,
     { method: 'POST', body: { comment } },
   );
 
-  return {
-    success: true,
-    result: payload.status,
-    processed_at: payload.processedAt,
-  };
-};
-
 export const rejectApprovalRequestV1 = async (
   targetSourceId: number,
-  reason: string
-): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> => {
-  // Route returns camel ApprovalActionResponse (ADR-019 D1 boundary).
-  const payload = await fetchInfraJson<ApprovalActionResponse>(
+  reason: string,
+): Promise<ApprovalActionResponseDto> =>
+  fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`,
     { method: 'POST', body: { reason } },
   );
 
-  return {
-    success: true,
-    result: payload.status,
-    processed_at: payload.processedAt,
-    reason: payload.reason || reason,
-  };
-};
-
-// === Approval Request Latest (swagger ApprovalRequestLatestDto, camel @ boundary) ===
-
-// Public alias kept for existing Step2 consumers; the route now returns the
-// camel ApprovalRequestLatest domain shape (request/resources/result).
-export type ApprovalRequestLatestResponse = ApprovalRequestLatest;
-
 export const getApprovalRequestLatest = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
-): Promise<ApprovalRequestLatestResponse> =>
-  fetchInfraJson<ApprovalRequestLatestResponse>(
+): Promise<ApprovalRequestLatestDto> =>
+  fetchInfraJson<ApprovalRequestLatestDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`,
     options?.signal ? { signal: options.signal } : undefined,
   );
 
 export const cancelApprovalRequest = async (
-  targetSourceId: number
+  targetSourceId: number,
 ): Promise<{ success: boolean }> => {
-  // Route returns camel ApprovalActionResponse; callers only need success.
-  await fetchInfraJson<ApprovalActionResponse>(
+  await fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`,
     { method: 'POST' },
   );
-  return {
-    success: true,
-  };
+  return { success: true };
 };
 
 // 연동 불가 판정 (swagger approval-unavailable, #7) — body { reason } required.
 export const markApprovalRequestUnavailable = async (
   targetSourceId: number,
   reason: string,
-): Promise<ApprovalUnavailableResponse> =>
-  fetchInfraJson<ApprovalUnavailableResponse>(
+): Promise<ApprovalUnavailableResponseDto> =>
+  fetchInfraJson<ApprovalUnavailableResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable`,
     { method: 'POST', body: { reason } },
   );
@@ -568,8 +441,8 @@ export const markApprovalRequestUnavailable = async (
 // 연동 불가 담당자 확인 (swagger approval-unavailable/confirm, #8) — no body.
 export const confirmApprovalUnavailable = async (
   targetSourceId: number,
-): Promise<ApprovalUnavailableConfirmResponse> =>
-  fetchInfraJson<ApprovalUnavailableConfirmResponse>(
+): Promise<ApprovalUnavailableConfirmResponseDto> =>
+  fetchInfraJson<ApprovalUnavailableConfirmResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable/confirm`,
     { method: 'POST' },
   );

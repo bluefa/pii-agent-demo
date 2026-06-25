@@ -4,10 +4,13 @@ import type { ProjectSummary } from '@/lib/types';
 export type ApprovalDetail = {
   project: ProjectSummary;
   approvalRequest: {
-    id: string;
+    id: string | number;
     requested_at: string;
     requested_by: string;
-    input_data: {
+    status?: string;
+    resource_total_count?: number;
+    resource_selected_count?: number;
+    input_data?: {
       resource_inputs: ApprovalResourceInput[];
       exclusion_reason_default?: string;
     };

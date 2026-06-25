@@ -262,10 +262,10 @@ export const httpBff: BffClient = {
       get<unknown>(`/target-sources/${id}/approved-integration`),
 
     getApprovalHistory: (id, page, size) =>
-      get<unknown>(`/target-sources/${id}/approval-history?page=${page}&size=${size}`),
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-history?page=${page}&size=${size}`),
 
     getApprovalRequestLatest: (id) =>
-      get<unknown>(`/target-sources/${id}/approval-requests/latest`),
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest`),
 
     getProcessStatus: (id) =>
       get<unknown>(`/target-sources/${id}/process-status`),

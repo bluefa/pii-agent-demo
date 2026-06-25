@@ -30,6 +30,7 @@ import {
   serviceListReducer,
   buildInitialServiceListState,
   type ApprovalModalState,
+  type ApprovalDetail,
 } from '@/app/components/features/admin-dashboard';
 
 export const AdminDashboard = () => {
@@ -184,14 +185,15 @@ export const AdminDashboard = () => {
     e.stopPropagation();
     try {
       const historyResponse = await getApprovalHistory(project.targetSourceId, 0, 1);
-      const latest = historyResponse.content[0];
+      const latest = historyResponse.content?.[0] as Record<string, unknown> | undefined;
       if (!latest) {
         toast.info('승인 요청 이력이 없습니다.');
         return;
       }
       setApprovalModal({
         status: 'view',
-        detail: { project, approvalRequest: latest.request },
+        // Page.content items are untyped (swagger); request fields match snake wire.
+        detail: { project, approvalRequest: latest.request as ApprovalDetail['approvalRequest'] },
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '승인 요청 조회 실패');

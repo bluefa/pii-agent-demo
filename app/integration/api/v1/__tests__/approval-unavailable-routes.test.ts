@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe('POST …/approval-unavailable (#7)', () => {
-  it('normalizes the snake ApprovalUnavailableResponseDto to camel', async () => {
+  it('returns the snake ApprovalUnavailableResponseDto from schemas.parse', async () => {
     mockedMark.mockResolvedValue({
       request_id: 1024,
       status: 'UNAVAILABLE',
@@ -43,11 +43,11 @@ describe('POST …/approval-unavailable (#7)', () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      requestId: 1024,
+    await expect(response.json()).resolves.toMatchObject({
+      request_id: 1024,
       status: 'UNAVAILABLE',
-      processedBy: { userId: 'admin@corp' },
-      processedAt: '2026-06-23T07:00:00Z',
+      processed_by: { user_id: 'admin@corp' },
+      processed_at: '2026-06-23T07:00:00Z',
       reason: '방화벽 정책상 연동 불가',
     });
     expect(mockedMark).toHaveBeenCalledWith(42, { reason: '방화벽 정책상 연동 불가' });
@@ -65,7 +65,7 @@ describe('POST …/approval-unavailable (#7)', () => {
 });
 
 describe('POST …/approval-unavailable/confirm (#8)', () => {
-  it('normalizes the snake ApprovalUnavailableConfirmResponseDto to camel', async () => {
+  it('returns the snake ApprovalUnavailableConfirmResponseDto from schemas.parse', async () => {
     mockedConfirm.mockResolvedValue({
       target_source_id: 42,
       confirm_status: 'IDLE',
@@ -79,18 +79,18 @@ describe('POST …/approval-unavailable/confirm (#8)', () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      targetSourceId: 42,
-      confirmStatus: 'IDLE',
-      processedAt: '2026-06-23T07:10:00Z',
-      confirmedBy: 'alice@corp',
+    await expect(response.json()).resolves.toMatchObject({
+      target_source_id: 42,
+      confirm_status: 'IDLE',
+      processed_at: '2026-06-23T07:10:00Z',
+      confirmed_by: 'alice@corp',
     });
     expect(mockedConfirm).toHaveBeenCalledWith(42);
   });
 });
 
 describe('POST …/approval-requests/cancel', () => {
-  it('returns the normalized action response directly (no history re-fetch)', async () => {
+  it('returns the snake ApprovalActionResponseDto directly (no history re-fetch)', async () => {
     mockedCancel.mockResolvedValue({
       request_id: 1024,
       status: 'CANCELLED',
@@ -104,12 +104,11 @@ describe('POST …/approval-requests/cancel', () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      requestId: 1024,
+    await expect(response.json()).resolves.toMatchObject({
+      request_id: 1024,
       status: 'CANCELLED',
-      processedBy: { userId: 'alice@corp' },
-      processedAt: '2026-06-23T05:02:00Z',
-      reason: '',
+      processed_by: { user_id: 'alice@corp' },
+      processed_at: '2026-06-23T05:02:00Z',
     });
     // Only the cancel call — the prior getApprovalHistory workaround is gone.
     expect(mockedCancel).toHaveBeenCalledWith(42);

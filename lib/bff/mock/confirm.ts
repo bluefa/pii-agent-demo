@@ -1080,11 +1080,13 @@ export const mockConfirm = {
       },
       resources,
       result: {
-        request_id: latestRequest ? requestId : null,
+        request_id: latestRequest ? requestId : undefined,
         status: bffStatus,
         processed_by: { user_id: requestActor.name ?? requestActor.id },
         processed_at: processedAt,
-        reason: project.status.approval.rejectionReason ?? null,
+        ...(project.status.approval.rejectionReason
+          ? { reason: project.status.approval.rejectionReason }
+          : {}),
       },
     });
   },

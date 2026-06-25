@@ -11,7 +11,7 @@ import type { ApprovalResourceInput } from '@/app/lib/api';
 import { ProcessStatus } from '@/lib/types';
 
 interface ApprovalRequest {
-  id: string;
+  id: string | number;
   requested_at: string;
   requested_by: string;
   status?: string;

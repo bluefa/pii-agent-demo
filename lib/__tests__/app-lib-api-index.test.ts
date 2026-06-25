@@ -255,17 +255,17 @@ describe('app/lib/api/index', () => {
     expect(project).not.toHaveProperty('terraformState');
   });
 
-  it('createApprovalRequest는 camel ApprovalRequestSummary 응답을 매핑한다 (요청 본문은 라우트가 정규화)', async () => {
+  it('createApprovalRequest는 snake ApprovalRequestSummaryDto 응답을 그대로 반환한다 (zod-codegen)', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
           id: 44,
-          targetSourceId: 1001,
+          target_source_id: 1001,
           status: 'PENDING',
-          requestedBy: { userId: 'alice' },
-          requestedAt: '2026-03-29T00:00:00Z',
-          resourceTotalCount: 2,
-          resourceSelectedCount: 1,
+          requested_by: { user_id: 'alice' },
+          requested_at: '2026-03-29T00:00:00Z',
+          resource_total_count: 2,
+          resource_selected_count: 1,
         }),
         {
           status: 200,
@@ -290,14 +290,15 @@ describe('app/lib/api/index', () => {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    expect(result).toEqual({
-      id: '44',
-      targetSourceId: 1001,
+    // zod-codegen: snake wire passthrough — field access is snake_case.
+    expect(result).toMatchObject({
+      id: 44,
+      target_source_id: 1001,
       status: 'PENDING',
-      requestedAt: '2026-03-29T00:00:00Z',
-      requestedBy: 'alice',
-      resourceTotalCount: 2,
-      resourceSelectedCount: 1,
+      requested_by: { user_id: 'alice' },
+      requested_at: '2026-03-29T00:00:00Z',
+      resource_total_count: 2,
+      resource_selected_count: 1,
     });
   });
 
@@ -370,7 +371,7 @@ describe('app/lib/api/index', () => {
     });
   });
 
-  it('getApprovalHistory는 Issue #222 page 응답을 기존 UI 요약 구조로 변환한다', async () => {
+  it('getApprovalHistory는 snake Page 응답을 그대로 반환한다 (zod-codegen)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -378,12 +379,12 @@ describe('app/lib/api/index', () => {
             {
               request: {
                 id: 11,
-                targetSourceId: 1001,
+                target_source_id: 1001,
                 status: 'PENDING',
-                requestedBy: { userId: 'alice' },
-                requestedAt: '2026-03-29T00:00:00Z',
-                resourceTotalCount: 3,
-                resourceSelectedCount: 2,
+                requested_by: { user_id: 'alice' },
+                requested_at: '2026-03-29T00:00:00Z',
+                resource_total_count: 3,
+                resource_selected_count: 2,
               },
             },
           ],
@@ -401,29 +402,12 @@ describe('app/lib/api/index', () => {
 
     const history = await getApprovalHistory(1001);
 
-    expect(history).toEqual({
-      content: [
-        {
-          request: {
-            id: '11',
-            requested_at: '2026-03-29T00:00:00Z',
-            requested_by: 'alice',
-            status: 'PENDING',
-            resource_total_count: 3,
-            resource_selected_count: 2,
-            input_data: {
-              resource_inputs: [],
-            },
-          },
-        },
-      ],
-      page: {
-        totalElements: 1,
-        totalPages: 1,
-        number: 0,
-        size: 10,
-      },
-    });
+    // zod-codegen: Page.content is untyped (swagger), snake wire passthrough.
+    expect(history.totalElements).toBe(1);
+    expect(history.totalPages).toBe(1);
+    expect(history.number).toBe(0);
+    expect(history.size).toBe(10);
+    expect(history.content).toHaveLength(1);
   });
 
   it('getProcessStatus는 Issue #222 process-status 응답을 그대로 사용한다', async () => {

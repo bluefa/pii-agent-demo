@@ -2,13 +2,12 @@
  * Typed shapes for `bff.confirm` methods (ADR-011).
  *
  * Conventions (per adr011-README §"Observable Behavior Invariants" I-3):
- *   - GET responses use camelCase (`proxyGet` runs `camelCaseKeys`).
+ *   - GET responses use snake_case (raw wire, validated by schemas.X.parse at route).
  *   - POST/PUT/DELETE responses use snake_case (raw passthrough).
  */
 
 export type {
   ApprovalRequestCreateBody,
-  ApprovalRequestResourceInput,
   BffApprovalProcessStatus,
   ApprovalHealthStatus,
   ApprovalActorDto,
