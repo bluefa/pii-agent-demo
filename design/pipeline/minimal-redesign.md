@@ -93,8 +93,8 @@ Dropped vs ADR-016: `task_check` (observation ledger), `task_attempt` (attempt
 history), `pipeline_event` (outbox), `pipeline_def_snapshot`.
 
 The execution model (ADR-021) adds coordination columns `next_due_at`, `claimed_by`,
-`claimed_until` to `pipeline` — lease/claim metadata for multi-worker safety. Listed
-for completeness; they are not domain state.
+`claimed_until`, and `cancel_requested` to `pipeline` — lease/claim plus cooperative-cancel
+metadata for multi-worker safety. Listed for completeness; they are not domain state.
 
 ## 7. Enums — reduce the CONCEPT, never the representation
 
