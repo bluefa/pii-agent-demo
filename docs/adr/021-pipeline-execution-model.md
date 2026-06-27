@@ -151,10 +151,11 @@ writes the new `next_due_at`. Without this release a pipeline that finishes a st
 `RUNNING` stays locked until `claimed_until` passes, blocking all other workers from picking it
 up. `next_due_at` is always written by tx2 on a successful report; it is seeded at pipeline
 creation by the trigger endpoint. When the current task reaches `DONE`, the same tx2 flips the
-next task `BLOCKED → READY`. tx2 also records the call's `last_http_status` and
-`last_response_raw` on the task (a last-write observability snapshot); all of these writes
-happen under the verified pipeline claim, so **no task-level claim is needed** — the pipeline
-claim already serializes every write to that pipeline's task rows.
+next task `BLOCKED → READY`. on dispatch the worker writes a `task_attempt` row (the attempt's job_id/result), and on
+each poll it UPDATEs that attempt's `task_check` summary (counts + last response) in place;
+both are written under the verified pipeline claim (single writer, no task-level claim
+needed), and **the reconciler never reads them to make decisions** — they are
+observation-only, so they do not affect the claim/transition logic or correctness.
 
 **Duplicate external-call windows.** The two-transaction split creates several bounded windows
 where a duplicate call to InfraManager may occur:
@@ -165,11 +166,12 @@ where a duplicate call to InfraManager may occur:
 - **(c) Lease expiry while stalled** — a worker thread-pool queue wait or GC pause exceeds the
   lease; another worker re-claims and dispatches the same pipeline.
 
-In all three cases the duplicate **external call** is made safe by **idempotency (ADR-016)** —
-InfraManager's contract ensures a repeated call for the same logical operation produces no
-additional side-effect. The guarded DB write addresses a separate concern: it prevents a stale
-straggler from clobbering DB state once its ownership has expired. The two safety knobs are
-complementary, not interchangeable.
+In all three cases the duplicate **external call** is made safe by **infra-idempotency** —
+TF APIs are duplicate-harmless: a re-dispatch may create a harmless duplicate job with no
+adverse side-effect. InfraManager does not dedup; the `job_id` recorded in `task_attempt`
+is the latest dispatch's id. The guarded DB write addresses a separate concern: it prevents a
+stale straggler from clobbering DB state once its ownership has expired. The two safety knobs
+are complementary, not interchangeable.
 
 ### 5. Crash recovery via lease expiry
 
