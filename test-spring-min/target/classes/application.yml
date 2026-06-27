@@ -1,0 +1,21 @@
+# Minimal pipeline reference config (minimal-redesign.md). The reconciler knobs are bound by @Value into
+# PipelineSettings; tests use PipelineSettings.defaults() (a no-Spring instance) and override per case.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:pipeline;DB_CLOSE_DELAY=-1
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.jdbc.time_zone: UTC
+
+pipeline:
+  tick-interval: PT15S           # reconciler cadence
+  per-call-timeout: PT30S        # abandon one slow IM dispatch/poll call
+  execution-timeout: PT30M       # default TERRAFORM_JOB dispatch->terminal deadline
+  ttl: P7D                       # default CONDITION_CHECK total-residence deadline
+  polling-interval: PT10M        # default CONDITION_CHECK re-poll cadence
+  max-fail-count: 3              # default retries before a task FAILS
+  worker-pool-size: 8            # bounded pool for synchronous IM calls

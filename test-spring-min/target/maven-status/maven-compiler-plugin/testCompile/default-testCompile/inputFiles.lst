@@ -1,0 +1,4 @@
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring-min/src/test/java/com/bff/pipeline/create/PipelineUniquenessTest.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring-min/src/test/java/com/bff/pipeline/im/FakeImClient.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring-min/src/test/java/com/bff/pipeline/reconcile/ReconcilerTest.java
+/Users/study/pii-agent-demo-adr-016-pipeline-architecture/test-spring-min/src/test/java/com/bff/pipeline/reconcile/ReconciliationTransactionTest.java
