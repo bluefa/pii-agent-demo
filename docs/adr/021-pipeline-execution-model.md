@@ -91,9 +91,10 @@ different relative ordering. This is acceptable because pipelines are independen
 whose leases are held by other workers. The scan loop must not treat a zero-row result as an
 idle signal; it should proceed to the next poll iteration normally.
 
-**Execution schema note.** This model adds three execution-coordination columns to the
-`pipeline` table — `next_due_at`, `claimed_by`, `claimed_until` — which are execution
-metadata owned by this ADR, distinct from ADR-016's domain state columns.
+**Execution schema note.** This model adds four execution-coordination columns to the
+`pipeline` table — `next_due_at`, `claimed_by`, `claimed_until`, and `cancel_requested`
+(boolean) — which are execution metadata owned by this ADR, distinct from ADR-016's domain
+state columns.
 
 ### 3. Two-transaction split
 
@@ -106,7 +107,7 @@ that window would block every other worker that wants to scan the same row. The 
 split avoids this: tx1 claims the pipeline and commits immediately; the external call runs
 unlocked; tx2 commits the result.
 
-### 4. Guarded write-back (state-guarded + ownership-guarded)
+### 4. Guarded write-back (ownership-guarded)
 
 The report transaction (tx2) transitions the task and pipeline with:
 
@@ -114,24 +115,25 @@ The report transaction (tx2) transitions the task and pipeline with:
 UPDATE pipeline
    SET status = :new_status, ...
  WHERE id = :pipeline_id
-   AND status = :expected_status
    AND claimed_by = :claim_token;
 ```
 
-Two guards operate independently:
+One guard defends correctness:
 
 - **`claimed_by` guard** — a lease-expired straggler that resumes after its pipeline was
   reclaimed by another worker will find `claimed_by` no longer matches and its update
   no-ops. No clobbering.
-- **`status` guard** — if the Admin/API path issued a CANCEL while the worker was
-  mid-tick, the task/pipeline is already in a terminal state. The worker's `AND status =
-  :expected_status` condition is false; the update no-ops instead of resurrecting a
-  terminal task. This directly enforces ADR-016's **no-terminal-resurrection** invariant.
 
-**Per-task writes use the same guard form.** Each task-level transition within tx2 uses the
-identical double-guarded form (`UPDATE task SET ... WHERE id = :task_id AND status =
-:expected_status AND claimed_by = :claim_token` on the owning pipeline). Both the task and
-pipeline writes in tx2 are state-guarded **and** ownership-guarded.
+A `status = :expected_status` guard is **not required** for cancel-safety. Because cancel
+is cooperative (Decision 6) and never writes `status`, the claim-holding worker is the sole
+`status` writer. There is no concurrent cancel writer that could put the pipeline into a
+terminal state while the worker holds the claim.
+
+**Ownership verification in tx2 is pipeline-level, not per-row.** In tx2 the worker
+verifies pipeline ownership once (the `claimed_by = :claim_token` check on the locked
+pipeline row); the task and pipeline status writes then happen under that verified,
+single-writer claim, so they need no additional per-row claim guard. The `task` table
+carries no `claimed_by` column.
 
 **On success, tx2 releases the claim and advances `next_due_at` atomically.** The same
 transaction that advances task/pipeline state also clears `claimed_by`/`claimed_until` and
@@ -168,11 +170,30 @@ A claimed pipeline can sit in the worker thread-pool queue before its external c
 starts; that queue wait consumes lease time just as the call itself does. The lease must cover
 the full elapsed wall-clock time from claim to tx2 commit, including any queuing delay.
 
-### 6. Cancel as a concurrent writer
+### 6. Cancel as a cooperative request (flag)
 
-Cancel is issued by the Admin/API path in its own short transaction (sets pipeline + tasks to
-`CANCELLED`). Correctness is guaranteed by the guarded writes in Decision 4, not by any
-single-writer assumption.
+Cancel does not write `status` and does not touch `claimed_by`. It runs a short transaction
+that sets a flag and wakes the pipeline:
+
+```sql
+UPDATE pipeline SET cancel_requested = true, next_due_at = now()
+ WHERE id = :pid AND status = 'RUNNING';
+```
+
+The **claim-holding worker is the sole writer of task/pipeline status.** It reads
+`cancel_requested` at its safe points — right after claiming, before dispatch, and inside
+the report transaction (tx2) — and if set, transitions the current task and the pipeline to
+`CANCELLED` itself, then releases the claim.
+
+`next_due_at = now()` wakes a sleeping pipeline (e.g. one in a long poll/condition wait)
+so the next scan claims it promptly; cancel latency for an in-flight pipeline is at most the
+remaining per-call timeout (the worker honors the flag at report). An already-dispatched
+external job is left to complete (idempotent infra); issuing an InfraManager-side cancel is
+a separate follow-up concern, not required for correctness.
+
+Because cancel writes only `cancel_requested` (a different column) and the claim holder is
+the only `status` writer, **no per-write `status` guard is required** to prevent terminal
+resurrection.
 
 ### Safety mechanisms & tuning knobs (not architectural decisions)
 
@@ -210,7 +231,7 @@ Their exact values live in operational config, not in this ADR:
 - **Multi-process safe by construction**: the DB claim is the coordination primitive, not a
   process count.
 - **HA and horizontal scale** with no leader to operate or debug.
-- **Cancel-safe**: concurrent CANCEL wins via the `status` guard; no resurrection possible.
+- **Cancel-safe**: single status writer + cooperative flag (`cancel_requested`); the claim-holding worker applies `CANCELLED` itself. No per-write status guard required; no resurrection possible.
 - **Crash recovery** is automatic via lease expiry — no recovery journal, no manual step.
 
 ### Costs we accept
@@ -230,9 +251,10 @@ Their exact values live in operational config, not in this ADR:
 
 ## Glossary
 
-- **Claim** — the act of stamping a per-claim fencing token (a fresh UUID minted at claim time) into `claimed_by`, plus a deadline into `claimed_until`, in a short committed transaction (tx1). Each claim generates a new unique token; the same worker re-claiming the same pipeline after lease expiry receives a different token, ensuring any in-flight tx2 from the prior claim is rejected by the ownership guard.
+- **Claim** — the act of stamping a per-claim fencing token (a fresh UUID minted at claim time) into `claimed_by`, plus a deadline into `claimed_until`, in a short committed transaction (tx1). Each claim generates a new unique token; the same worker re-claiming the same pipeline after lease expiry receives a different token, ensuring any in-flight tx2 from the prior claim is rejected by the ownership guard. On claim, the worker also checks `cancel_requested` before proceeding.
+- **Cooperative cancel** — the cancel model in which the Admin/API path writes only `cancel_requested = true` (and sets `next_due_at = now()` to wake a sleeping pipeline); the claim-holding worker reads this flag at its safe points and applies the terminal `CANCELLED` transition itself. The sole `status` writer remains the worker; no per-write status guard is needed to prevent terminal resurrection.
 - **Due pipeline** — one whose `next_due_at <= now()` and whose lease has expired (or was never set).
-- **Guarded write-back** — an `UPDATE ... WHERE id = :id AND status = :expected AND claimed_by = :token` that no-ops if either guard fails.
+- **Guarded write-back** — an `UPDATE ... WHERE id = :id AND claimed_by = :token` that no-ops if the ownership guard fails. Defends against lease-expired straggler clobber; a `status` guard is not required because cancel is cooperative and `status` has a single writer (Decision 6).
 - **Lease** — the `claimed_until` timestamp; expiry automatically releases the claim for reclaim by any worker.
 - **Two-transaction split** — tx1 (claim) and tx2 (report) are separate committed transactions; the external call runs between them, outside any transaction.
 
