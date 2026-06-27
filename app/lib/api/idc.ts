@@ -194,7 +194,13 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
   connection: 'PENDING',
   health: 'HEALTHY',
   done: '—',
-  excluded: wire.exclusion_reason !== undefined && wire.exclusion_reason !== '',
+  // `selected` is the contract source of truth (selected=false → 제외 대상). Fall
+  // back to the exclusion reason only when `selected` is absent (legacy payloads).
+  excluded:
+    wire.selected === false ||
+    (wire.selected === undefined &&
+      wire.exclusion_reason !== undefined &&
+      wire.exclusion_reason !== ''),
   exclusionReason: wire.exclusion_reason,
 });
 
