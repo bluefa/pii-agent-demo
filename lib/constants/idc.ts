@@ -50,8 +50,9 @@ const DB_TYPE_BY_WIRE = new Map(IDC_DB_TYPES.map((d) => [d.wire, d]));
 export const idcDbTypeByLabel = (label: string): IdcDbTypeDef | undefined =>
   DB_TYPE_BY_LABEL.get(label);
 
-export const idcDbTypeByWire = (wire: IdcDatabaseTypeWire): IdcDbTypeDef | undefined =>
-  DB_TYPE_BY_WIRE.get(wire);
+export const idcDbTypeByWire = (
+  wire: IdcDatabaseTypeWire | undefined,
+): IdcDbTypeDef | undefined => (wire === undefined ? undefined : DB_TYPE_BY_WIRE.get(wire));
 
 /** Display label for a wire enum (falls back to the wire value). */
 export const idcDbTypeLabel = (wire: IdcDatabaseTypeWire): string =>

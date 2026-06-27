@@ -356,7 +356,9 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     resourceId,
     name: str(item.resource_name) ?? resourceId,
     resourceType,
-    databaseType: (str(item.database_type) as DatabaseType | undefined) ?? 'MYSQL',
+    // Keep the real database_type (DatabaseType is a plain string); never coerce an
+    // unknown/missing value to MYSQL — that masks the actual DB type in the UI.
+    databaseType: (str(item.database_type) as DatabaseType | undefined) ?? '',
     integrationCategory: normalizeIntegrationCategory(item.integration_category),
     host: str(meta.host) ?? null,
     port: num(meta.port) ?? null,

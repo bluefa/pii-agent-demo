@@ -64,7 +64,8 @@ export interface IdcResourceView {
   hosts: string[];
   port: number;
   databaseTypeLabel: string;
-  databaseTypeWire: IdcDatabaseTypeWire;
+  /** Known wire enum, or `undefined` for an unrecognized DB type (label keeps the raw value). */
+  databaseTypeWire: IdcDatabaseTypeWire | undefined;
   oracleSid?: string;
   credentialId?: string;
   /** Assigned from Step 2 (1..2). */
@@ -166,11 +167,15 @@ const IDC_DB_TYPE_WIRES: readonly IdcDatabaseTypeWire[] = [
 ];
 
 /** swagger `database_type` is a plain string; narrow to the known wire union for
- *  the domain (label lookup) and fall back to MYSQL for an unrecognized value. */
-const toDbTypeWire = (value: string | undefined): IdcDatabaseTypeWire =>
-  IDC_DB_TYPE_WIRES.includes(value as IdcDatabaseTypeWire)
-    ? (value as IdcDatabaseTypeWire)
-    : 'MYSQL';
+ *  the domain (label lookup). Matching is case-insensitive (requests now send
+ *  lowercase, seed/response data is uppercase). An unrecognized value returns
+ *  `undefined` so callers surface the RAW string instead of masking it as MySQL. */
+const toDbTypeWire = (value: string | undefined): IdcDatabaseTypeWire | undefined => {
+  const upper = value?.toUpperCase();
+  return IDC_DB_TYPE_WIRES.includes(upper as IdcDatabaseTypeWire)
+    ? (upper as IdcDatabaseTypeWire)
+    : undefined;
+};
 
 /**
  * swagger `IdcResourceInput` (previous-request item) → domain view. The schema
