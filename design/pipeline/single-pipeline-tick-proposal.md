@@ -13,7 +13,8 @@
 
 - 단일 writer는 **claim(lock)이 구조적으로 보장** → D-T4의 "관측↔상태" 두-writer 분리가 **통째로 불필요**.
 - 삭제: D-T2 async fire · D-T4 two-writer 분리 · `task_check` 관측 원장 · RLE · `task_attempt`.
-- API 동시성 한계 = **워커 풀 크기 N**. TF 잡 동시성 한계 = `slotCap` **counter-CAS**.
+- API call **동시성** 상한 = `min(총 워커 수, RUNNING pipeline 수)`. **QPS hard limit은 V1 밖**(429/503 backoff). TF 잡 = `slotCap` **soft admission target**.
+- **멀티-pod 네이티브**(claim=SKIP LOCKED) → **leader election·replicas=1 제약 불필요**. 대가 = soft cap의 bounded overshoot(최악 `M+N−1`).
 
 ---
 
@@ -49,7 +50,7 @@ while (running) {
 
   task = currentTask(pipeline);                    // 현재 task = 최소 seq non-terminal 1개
   if (task.kind == TERRAFORM_JOB && task.status == READY) {
-      if (!tryAcquireSlot()) {                     // ② TF slot 게이트 (counter-CAS)
+      if (!tryAcquireSlot()) {                     // ② TF slot soft 게이트 (count-read; §4.3)
           reschedule(pipeline, now + slotRetry);   //    만석 → next_due_at 미루고
           releaseClaim(pipeline);                  //    claim 놓고 다음으로
           continue;
@@ -72,10 +73,10 @@ while (running) {
 
 | # | 컴포넌트 | 역할 | 기존 대비 |
 |---|---|---|---|
-| 1 | **Worker Pool (N)** | 연속 루프 스레드 N개. tick을 대체. **N = API 호출 동시성 한계** | 30s tick + async fire 삭제 |
+| 1 | **Worker Pool (N)** | 연속 루프 스레드 N개. tick을 대체. **API 동시성 상한 = min(N, RUNNING pipeline 수)** (§4.1) | 30s tick + async fire 삭제 |
 | 2 | **Pipeline Claim** | `FOR UPDATE SKIP LOCKED`로 due 파이프라인 1개 점유 + lease 마킹. **dequeue 역할** | 신규 (lease 3컬럼) |
 | 3 | **TaskMachine.advance** | 현재 task가 dispatch냐 poll이냐 판정 → 호출 → 전이 계산 | minimal과 거의 동일 |
-| 4 | **TF Slot Gate** | `slotCap` counter-CAS 세마포어. in-flight TERRAFORM_JOB 상한 | slot 회계가 단일-tick→CAS로 이동 |
+| 4 | **TF Slot Gate** | `slotCap` **soft admission target** (TF 실행 압력 완화; hard cap이면 counter-CAS, §4.3) | slot 회계가 단일-tick → soft admit으로 이동 |
 | 5 | **Report (tx2)** | 전이 + slot 반납 + claim 릴리스. **ownership CAS 가드** | task_check 적재 → 직접 전이로 대체 |
 | 6 | **Backpressure** | 429/503 → `next_due_at` backoff + 릴리스 (reactive rate limit) | D-T7 유지, claim 모델에 정합 |
 | 7 | **DB 스키마** | `pipeline`(+3컬럼) · `task` · `tf_slot_counter`(1행) | `task_check`·`task_attempt`·outbox 삭제 |
@@ -95,23 +96,50 @@ tf_slot_counter (used int, cap int)        -- 1행. TF in-flight 세마포어
 
 ## 4. 동시성 한계 관리
 
-두 limit은 **서로 다른 자원·다른 시간축**이다.
+세 개의 서로 다른 상한이 있다. **혼동 금지: concurrency ≠ QPS, soft target ≠ hard cap.**
 
-| | 점유 대상 | 점유 기간 | 관리 방식 |
-|---|---|---|---|
-| **API Call Limit** | 워커 스레드 (HTTP 중) | 호출 1건 (ms~수십초) | **= 워커 풀 크기 N** (구조적). rate는 429 backoff |
-| **TF Worker Job Limit** (`slotCap`) | 논리 slot (TF 잡 실행 중) | dispatch→terminal (수 분) | **counter-CAS** 세마포어 |
+### 4.1 API call concurrency (≠ QPS)
+
+- **워커 수는 API call concurrency 상한이지 QPS 상한이 아니다.** V1은 별도 hard QPS limiter를 제공하지 않는다.
+- 한 워커는 한 번에 호출 1건, 한 RUNNING pipeline은 현재 task 1개 = 동시 호출 ≤1건. 따라서:
+
+  ```
+  maxConcurrentApiCalls ≤ min(totalWorkerCount, runningPipelineCount)
+  totalWorkerCount       = activePodCount × workerPerPod          (워커가 pod-local이면)
+  ```
+
+- **QPS는 보장되지 않는다** — 실제 QPS는 API latency와 워커 loop cycle time에 좌우된다(빠른 호출이면 워커 1개가 초당 수 건). 그래서 *"초당 API call ≤ 워커 수"*, *"워커 수로 global QPS 보장"* 같은 표현은 **틀리다.**
+- rate 협조는 **reactive**다: 429/503 → 호출 스레드가 `next_due_at`을 `Retry-After`만큼 미루고 릴리스(§6). 명시적 QPS 제한이 필요하면 **endpoint별 pod-local token bucket 또는 distributed rate limiter를 후속 결정**으로 추가(§6, V1 밖).
+
+### 4.2 runningPipelineCap — soft admission target (hard cap 아님)
+
+RUNNING pipeline 수 자체를 제한하려면 `runningPipelineCap = M`(선택적)을 둔다. **V1에서 이는 hard invariant가 아니라 soft admission target이다** — count-read 기반 admission이라 multi-pod race에서 bounded overshoot를 허용한다.
+
+- 현재 RUNNING이 `M−1`일 때 pod `N`개가 동시에 신규 pipeline을 RUNNING으로 올리면 최악 RUNNING 수 = **`M + N − 1`** (각 pod가 같은 race window에서 최대 1개 승격 가정).
+- 따라서 pipeline 수 관점 상한: `maxConcurrentApiCalls ≤ min(totalWorkerCount, M + N − 1)`.
+- ⚠️ *"RUNNING 수는 항상 M 이하"는 틀리다.* 정확히는 **soft target M + bounded overshoot ≤ N−1**.
+- **hard cap이 필요하면** count-read를 `pipeline_admission_counter` CAS 또는 DB constraint 기반 admission으로 승격한다.
+
+### 4.3 TF slot (`slotCap`) — 역시 soft admission target
+
+TF dispatch/poll/check는 **API call**(§4.1 포함)이지만, **TF slot은 API 동시성이 아니라 Terraform job 실행 압력을 누르는 별개 개념**이다:
+
+| 개념 | 정체 | 점유 기간 |
+|---|---|---|
+| TF dispatch API call | IM에 job 생성을 요청하는 HTTP call | ms~수초 |
+| TF poll/check API call | TF job 상태 조회 HTTP call | ms~수초 |
+| **TF slot** | dispatch 이후 terminal 전까지 **실제 TF job 실행 중인 기간** | 수 분 |
+
+- **`slotCap`은 V1에서 BFF-side soft admission target이다.** count-read admission이라 multi-pod에서 bounded overshoot 허용 — 정확한 hard cap이 아니다.
+- 만석이면 TF task는 READY 유지 + `next_due_at` 미뤄 재큐(§6).
+- **hard cap이 필요하면** `tf_slot_counter` CAS를 필수화하거나 **Infra Manager-side admission limit으로 승격**한다(ADR도 IM-side 제한은 보류 — BFF가 유일 caller·다운스트림 멱등이라 V1은 soft로 충분).
 
 ```sql
--- TF admit 게이트 (단일 statement CAS)
-UPDATE tf_slot_counter SET used = used + 1 WHERE used < cap;
---   rows=1 → slot 획득, dispatch 진행 / rows=0 → 만석, READY 유지 + 재큐
--- TF 잡 terminal 시:  UPDATE tf_slot_counter SET used = used - 1;
+-- V1 soft admit (count-read; bounded overshoot 허용)
+-- hard cap이 필요할 때만 단일 statement CAS로 승격:
+UPDATE tf_slot_counter SET used = used + 1 WHERE used < cap;   -- rows=1 획득 / rows=0 만석
+-- TF 잡 terminal 시:  used = used - 1;  (drift는 주기적 used = 실제 in-flight count로 reconcile)
 ```
-
-> **trade-off (정직하게):** 기존 단일 tick은 admit이 자연 직렬화돼 slot 회계가 race-free였다. claim-pull은 워커가 **동시에** admit하므로 slot 카운트에 CAS 한 겹이 필요하다. **이것이 claim-pull이 도로 무는 유일한 비용** — 그래도 single-statement CAS라, 삭제한 관측 원장에 비하면 새 발이다. 카운터 drift는 주기적으로 `used = 실제 in-flight TF count`로 reconcile.
->
-> `slotCap`이 hard cap이 아니라 "IM 안 넘치게" soft ceiling이면(ADR도 IM-side 제한은 보류, BFF가 유일 caller, 다운스트림 멱등) **bounded 오버슛 감수하고 락 생략**도 가능.
 
 ---
 
@@ -166,6 +194,21 @@ COMMIT;
 
 - **dispatch만** 외부 side-effect라 "시도했음" 이력이 필요하면 그때만 D-T5식 선기록(호출 직전 마킹). CHECK/poll은 read 멱등이라 불요.
 
+### 7.1 claim/lease가 보장하는 것 / 보장하지 않는 것 (과장 금지)
+
+**claim/lease는 stale write를 막는 single-writer 장치이지, duplicate external call을 절대적으로 제거하는 장치가 아니다.**
+
+- ✅ 같은 pipeline에 대한 **single writer** 보장 (claim).
+- ✅ report()의 **ownership CAS**가 stale write(뺏긴 lease의 늦은 보고)를 막음.
+- ❌ **lease가 API 호출 중 만료되면 duplicate external call이 발생할 수 있다** — 워커A 호출 중 lease 만료 → 워커B 재claim·재호출.
+
+따라서 **duplicate side effect 방지는 별도 제약**으로 관리한다:
+
+1. **`leaseDuration > maxApiCallTimeout + safetyMargin`** (필수 불변식) — lease가 호출보다 먼저 만료되지 않게.
+2. **모든 외부 호출에 timeout**(`maxApiCallTimeout` 유한)이 있어야 한다.
+3. **dispatch 계열**: idempotency key 또는 dispatch-before marker(D-T5식 선기록)로 중복 제출을 무해화 (다운스트림 멱등이 1차 방어선, key/marker가 2차).
+4. **poll/check 계열**: read-idempotent라 중복 호출 무해.
+
 ---
 
 ## 8. 기존 대비 trade-off 정리
@@ -176,14 +219,22 @@ COMMIT;
 - `task_check` 관측 원장 + RLE 압축 + retention pruner
 - `task_attempt` 테이블
 - outbox / 이벤트
-- (replicas=1로 가면) leader election
+- **leader election** (claim=SKIP LOCKED이 멀티-pod 조정을 대신; §8.1) — **replicas=1 제약도 소멸**
 
 **추가**
 - Pipeline claim (lease 3컬럼) + `FOR UPDATE SKIP LOCKED`
 - TF slot counter-CAS (1행 테이블)
 - slot-fill poll 지연 (분 단위 timescale이라 무관)
 
-**순효과:** 머릿속에 드는 개념 수 급감 · latency에 견고 · 단일 writer는 lock이 보장 · API 동시성은 "워커 수"라는 한 노브로 명시.
+**순효과:** 머릿속에 드는 개념 수 급감 · latency에 견고 · 단일 writer는 lock이 보장 · API 동시성은 `min(워커 수, RUNNING pipeline 수)`로 상한.
+
+### 8.1 Single Leader / replicas=1 제약이 사라진다
+
+기존 30s tick은 **단일 리더**(advisory lock 또는 replicas=1)가 필수였다 — N개 pod가 동시에 tick을 돌리면 같은 task를 중복 전진시키니까. Claim-Pull은 **claim(`FOR UPDATE SKIP LOCKED`)이 멀티-pod에서 네이티브로 안전**하다: 여러 pod의 워커가 동시에 claim해도 한 pipeline은 한 워커만 잡는다.
+
+- → **leader election 불필요** (claim이 대체).
+- → **replicas=1 제약 불필요** (멀티-pod 네이티브; 수평 확장 = 워커/pod 추가).
+- **대가**: soft cap(`runningPipelineCap`·`slotCap`)에 multi-pod admission overshoot(≤ `N−1`, §4.2/4.3). hard cap이 필요하면 counter-CAS/DB constraint로 승격.
 
 ---
 
@@ -191,5 +242,19 @@ COMMIT;
 
 - **튜닝 노브:** 워커 수 N(API 동시성), `slotCap`(TF 동시성), `slotRetry`(빈 slot 채우는 지연), lease 길이(호출 최대시간보다 충분히 길게).
 - **연속 워커 vs `@Scheduled` 위임:** 연속 워커 추천. `@Scheduled`가 claim 돌려 풀에 위임하는 형태도 가능하나 이점 없음.
-- **replicas=1 + Recreate로 leader election 제거** 여부는 별도 결정(배포 토폴로지). claim(SKIP LOCKED)은 멀티 워커/멀티 pod 모두에서 안전하므로 이 제안과 독립.
+- **배포 토폴로지:** 멀티-pod 네이티브(§8.1)라 leader election·replicas=1 **둘 다 불필요**. soft cap의 hard화가 필요할 때만 counter-CAS/DB constraint로 승격.
 - **채택 시:** 이 제안은 ADR-016 / `minimal-redesign.md`의 **실행 모델 교체**다. 채택되면 `minimal-redesign.md §3`(reconciler tick)을 claim-pull로 갱신하거나, 후속 ADR로 승격.
+
+---
+
+## 10. V1 보장 범위 (정확성 계약)
+
+- **실행 모델** = Claim-Pull Worker (워커가 pipeline 1개를 동기로 소유).
+- **API call concurrency** = `min(총 워커 수, RUNNING pipeline 수)`로 제한.
+- **API QPS hard limit** = **V1 범위 밖** (429/503 backoff; 필요 시 token bucket/distributed limiter 후속).
+- **runningPipelineCap** = soft admission target. multi-pod race에서 최대 `N−1` overshoot (최악 RUNNING = `M+N−1`).
+- **slotCap** = TF 실행 압력을 누르는 soft admission target (역시 bounded overshoot).
+- **hard cap이 필요한 경우** = counter-CAS 또는 downstream-side(IM) admission limit으로 승격.
+- **claim/lease** = single writer + stale write 방지 장치. **duplicate external call을 절대 제거하지는 않음.**
+- **duplicate external call 방지** = `leaseDuration > maxApiCallTimeout + safetyMargin` + 모든 호출 timeout + dispatch idempotency key/marker (poll/check는 read-idempotent).
+- **멀티-pod 네이티브** = leader election·replicas=1 제약 불필요 (claim=SKIP LOCKED).
