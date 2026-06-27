@@ -7,6 +7,7 @@ import { cn, idcStyles, textColors } from '@/lib/theme';
 import type {
   IdcConnState,
   IdcHealth,
+  IdcInstallStatus,
   IdcKind,
   IdcResourceView,
 } from '@/app/lib/api/idc';
@@ -117,12 +118,24 @@ export const IdcSourceIpCell = ({ sourceIps }: { sourceIps: string[] }) => {
   );
 };
 
-export const IdcFirewallBadge = ({ open }: { open: boolean }) =>
-  open ? (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>방화벽 오픈</span>
-  ) : (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>방화벽 오픈되지 않음</span>
-  );
+/**
+ * Step-4 per-row firewall badge, driven by the installation-status
+ * `firewall_check.status` of the SAME resource (joined by resource_id).
+ * Anything that is not exactly COMPLETED/FAIL/IN_PROGRESS (UNKNOWN, SKIP, a
+ * missing join, or an unrecognized value) renders the neutral "BDC측 확인 필요".
+ */
+export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefined }) => {
+  switch (status) {
+    case 'COMPLETED':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>방화벽 오픈</span>;
+    case 'FAIL':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>방화벽 오픈되지 않음</span>;
+    case 'IN_PROGRESS':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>방화벽 확인 중</span>;
+    default:
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>BDC측 확인 필요</span>;
+  }
+};
 
 export const IdcConnBadge = ({ state }: { state: IdcConnState }) =>
   state === 'SUCCESS' ? (
@@ -131,7 +144,13 @@ export const IdcConnBadge = ({ state }: { state: IdcConnState }) =>
     <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Pending</span>
   );
 
-export const IdcHealthBadge = ({ health }: { health: IdcHealth }) => {
+/**
+ * Per-resource health badge. There is no per-resource health API source
+ * (`health` is null), so a null value renders a neutral em-dash placeholder
+ * instead of a fabricated Healthy/Unhealthy state.
+ */
+export const IdcHealthBadge = ({ health }: { health: IdcHealth | null }) => {
+  if (health === null) return <span className={textColors.quaternary}>—</span>;
   const healthy = health !== 'UNHEALTHY';
   const tone = healthy ? idcStyles.status.healthy : idcStyles.status.unhealthy;
   return (

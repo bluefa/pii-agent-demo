@@ -107,7 +107,11 @@ export const IdcTargetListTable = ({
                   <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
                 )}
               </td>
-              <td className={cn('px-4 py-3.5 text-[12.5px]', textColors.secondary, dim)}>{row.done}</td>
+              {/* "연동 완료 여부" has no API source — render a neutral em-dash when
+                  null instead of a fabricated value (B.5). */}
+              <td className={cn('px-4 py-3.5 text-[12.5px]', textColors.quaternary, dim)}>
+                {row.done ?? '—'}
+              </td>
               <td className="px-4 py-3.5">
                 <span className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <RowActionButton label="수정" onClick={() => onEdit(row.resourceId)}>

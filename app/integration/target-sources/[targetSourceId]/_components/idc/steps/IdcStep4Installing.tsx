@@ -100,6 +100,14 @@ export const IdcStep4Installing = ({
   );
   const firewallStatus = aggregateCardStatus(installResources.map((r) => r.firewallCheck.status));
 
+  // Per-row firewall status for the `fw` column: join the installation-status
+  // firewall_check.status to the confirmed-integration rows by resource_id (the
+  // confirmed rows carry no firewall field). A row with no install entry falls
+  // through to the neutral "BDC측 확인 필요" badge in IdcFirewallBadge.
+  const firewallStatusByResource: Record<string, IdcInstallStatus> = Object.fromEntries(
+    installResources.map((r) => [r.resourceId, r.firewallCheck.status]),
+  );
+
   const tasks: InstallTaskPipelineItem[] = [
     {
       key: 'bdc',
@@ -147,7 +155,11 @@ export const IdcStep4Installing = ({
             {loading && resources.length === 0 ? (
               <LoadingState label="설치 정보를 불러오는 중입니다." />
             ) : (
-              <IdcResourceTable resources={resources} cols={['src', 'fw']} />
+              <IdcResourceTable
+                resources={resources}
+                cols={['src', 'fw']}
+                firewallStatusByResource={firewallStatusByResource}
+              />
             )}
           </div>
         </div>
@@ -159,6 +171,7 @@ export const IdcStep4Installing = ({
         isOpen={firewallOpen}
         onClose={() => setFirewallOpen(false)}
         resources={resources}
+        firewallStatusByResource={firewallStatusByResource}
       />
     </>
   );

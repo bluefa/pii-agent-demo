@@ -4,8 +4,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConfirmedResource } from '@/lib/types/resources';
 
 const updateConfirmationMock = vi.fn();
+const getSummariesMock = vi.fn();
 vi.mock('@/app/lib/api', () => ({
   updateTestConnectionConfirmation: (...args: unknown[]) => updateConfirmationMock(...args),
+  getLatestTestConnectionResultSummaries: (...args: unknown[]) => getSummariesMock(...args),
 }));
 
 const toastError = vi.fn();
@@ -47,6 +49,8 @@ const renderModal = (onSubmit = vi.fn()) => {
 describe('CloudReqApprovalModal', () => {
   beforeEach(() => {
     updateConfirmationMock.mockReset();
+    getSummariesMock.mockReset();
+    getSummariesMock.mockResolvedValue([]);
     toastError.mockReset();
   });
 

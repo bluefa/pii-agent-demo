@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { InfoTooltip } from '@/app/components/ui/Tooltip';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
@@ -8,26 +9,19 @@ import { cn, idcStyles, tableStyles, textColors } from '@/lib/theme';
 import { ResourceIdCell } from '@/app/integration/target-sources/[targetSourceId]/_components/shared/ResourceIdCell';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { HealthBadge } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/HealthBadge';
-import { deriveHealth } from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/health-status';
-import { deriveLogicalDbCounts, stableHash } from '@/lib/logical-db-counts';
+import { getLatestTestConnectionResultSummaries } from '@/app/lib/api';
+import {
+  buildLogicalDbCountMap,
+  type LogicalDbCountMap,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
 export type ConfirmedIntegrationTableVariant = 'pre-install' | 'complete';
 
 interface ConfirmedIntegrationTableProps {
   confirmed: readonly ConfirmedResource[];
   variant?: ConfirmedIntegrationTableVariant;
+  targetSourceId: number;
 }
-
-// v15 shows a mixed Status column — most rows Healthy with one Unhealthy. A
-// DISCONNECTED resource is always Unhealthy (real signal); otherwise, to mirror
-// v15 on the all-connected demo fixtures, deterministically flag the single
-// highest-hash row as Unhealthy when the table has 2+ rows.
-const pickDemoUnhealthyId = (confirmed: readonly ConfirmedResource[]): string | null => {
-  if (confirmed.length < 2) return null;
-  return confirmed.reduce((winner, resource) =>
-    stableHash(resource.resourceId) > stableHash(winner.resourceId) ? resource : winner,
-  ).resourceId;
-};
 
 const STATUS_TOOLTIP_CONTENT = (
   <div className="space-y-2 text-[12px] leading-[1.5]">
@@ -46,12 +40,31 @@ const STATUS_TOOLTIP_CONTENT = (
 export const ConfirmedIntegrationTable = ({
   confirmed,
   variant = 'pre-install',
+  targetSourceId,
 }: ConfirmedIntegrationTableProps) => {
   // Display-only pagination, mirroring IdcResourceTable. Hooks run before the
   // empty-state early return so hook order stays stable across renders.
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
     initialPageSize: 10,
   });
+
+  // Real per-resource logical-DB counts (연동 대상 / 연동 제외). Only the complete
+  // variant renders these columns, so fetch the latest test-connection result
+  // summaries there; a resource with no summary entry renders "—".
+  const [logicalDbCounts, setLogicalDbCounts] = useState<LogicalDbCountMap>(new Map());
+  useEffect(() => {
+    if (variant !== 'complete') return;
+    const controller = new AbortController();
+    void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
+      .then((summaries) => {
+        if (controller.signal.aborted) return;
+        setLogicalDbCounts(buildLogicalDbCountMap(summaries));
+      })
+      .catch(() => {
+        // No summaries available → leave the map empty so cells render "—".
+      });
+    return () => controller.abort();
+  }, [variant, targetSourceId]);
 
   if (confirmed.length === 0) {
     return (
@@ -65,7 +78,6 @@ export const ConfirmedIntegrationTable = ({
   const monoCellClass = cn(tableStyles.cell, 'font-mono text-xs', textColors.secondary);
 
   if (variant === 'complete') {
-    const demoUnhealthyId = pickDemoUnhealthyId(confirmed);
     return (
       <>
       <div className={idcStyles.table.frame}>
@@ -89,7 +101,7 @@ export const ConfirmedIntegrationTable = ({
         </thead>
         <tbody className={tableStyles.body}>
           {pageRows.map((resource) => {
-            const [targetCount, excludedCount] = deriveLogicalDbCounts(resource.resourceId);
+            const counts = logicalDbCounts.get(resource.resourceId);
             return (
               <tr key={resource.resourceId} className={cn(tableStyles.row, 'group')}>
                 <td className={cellClass}>{resource.databaseType ? <span className={cn(idcStyles.tag.base, idcStyles.tag.blue)}>{getDatabaseShortLabel(resource.databaseType)}</span> : '-'}</td>
@@ -99,15 +111,10 @@ export const ConfirmedIntegrationTable = ({
                 <td className={monoCellClass}>{resource.region ?? '-'}</td>
                 <td className={monoCellClass}>{resource.resourceName ?? '-'}</td>
                 <td className={cellClass}>{resource.credentialId ?? '-'}</td>
-                <td className={cellClass}>{targetCount}</td>
-                <td className={cellClass}>{excludedCount}</td>
-                <td className={tableStyles.cell}>
-                  <HealthBadge
-                    status={
-                      resource.resourceId === demoUnhealthyId ? 'unhealthy' : deriveHealth(resource)
-                    }
-                  />
-                </td>
+                <td className={cellClass}>{counts ? counts.target : '—'}</td>
+                <td className={cellClass}>{counts ? counts.excluded : '—'}</td>
+                {/* No per-resource health field in the confirmed-integration contract — render "—". */}
+                <td className={cn(tableStyles.cell, textColors.quaternary)}>—</td>
               </tr>
             );
           })}

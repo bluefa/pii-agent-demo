@@ -72,9 +72,10 @@ export interface IdcResourceView {
   sourceIps: string[];
   firewallOpen: boolean;
   connection: IdcConnState;
-  health: IdcHealth;
-  /** Step 1 "연동 완료 여부" display value. */
-  done: string;
+  /** Per-resource health has no API source; always null (rendered as —). */
+  health: IdcHealth | null;
+  /** "연동 완료 여부" has no API source; always null (rendered as —). */
+  done: string | null;
   excluded: boolean;
   exclusionReason?: string;
 }
@@ -197,8 +198,8 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
   sourceIps: [],
   firewallOpen: false,
   connection: 'PENDING',
-  health: 'HEALTHY',
-  done: '—',
+  health: null,
+  done: null,
   // `selected` is the contract source of truth (selected=false → 제외 대상). Fall
   // back to the exclusion reason only when `selected` is absent (legacy payloads).
   excluded:
@@ -271,8 +272,8 @@ export const toIdcResourceViewFromConfirmed = (
     sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
-    health: 'HEALTHY',
-    done: '—',
+    health: null,
+    done: null,
     excluded: false,
     exclusionReason: undefined,
   };
@@ -309,8 +310,8 @@ export const toIdcResourceViewFromSnapshot = (
     sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
-    health: 'HEALTHY',
-    done: '—',
+    health: null,
+    done: null,
     excluded: false,
     exclusionReason: undefined,
   };
@@ -339,8 +340,8 @@ export const toIdcResourceViewFromExcluded = (
     sourceIps: [],
     firewallOpen: false,
     connection: 'PENDING',
-    health: 'HEALTHY',
-    done: '—',
+    health: null,
+    done: null,
     excluded: true,
     exclusionReason: wire.exclusion_reason,
   };

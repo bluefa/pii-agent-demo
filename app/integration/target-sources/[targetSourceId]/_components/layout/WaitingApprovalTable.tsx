@@ -67,9 +67,11 @@ const ReasonCell = ({ resource }: { resource: WaitingApprovalResource }) =>
     <span className={textColors.quaternary}>{PLACEHOLDER}</span>
   );
 
-// Integration history (step 3) — INTEGRATED -> Integrated(green), else Pending(orange); excluded -> dash.
+// Integration history (step 3) — no API source for integrationStatus in TargetSourceResourceItemDto;
+// render — for all rows until the contract provides a value.
 const IntegrationHistoryCell = ({ resource }: { resource: WaitingApprovalResource }) => {
   if (!resource.selected) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
+  if (resource.integrationStatus == null) return <span className={textColors.quaternary}>{PLACEHOLDER}</span>;
   const integrated = resource.integrationStatus === 'INTEGRATED';
   return (
     <span className={cn(idcStyles.tag.base, integrated ? idcStyles.tag.green : idcStyles.tag.orange)}>

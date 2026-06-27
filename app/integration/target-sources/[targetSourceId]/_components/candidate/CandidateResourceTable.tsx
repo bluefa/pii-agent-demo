@@ -27,17 +27,6 @@ import type {
   EndpointConfigDraft,
 } from '@/lib/types/resources';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
-import { stableHash } from '@/lib/logical-db-counts';
-
-// v15 shows the 연동 완료 여부 column as a per-row mix of 연동 완료 / 연동 진행중 / —.
-// Ineligible rows render — (matches v15 row 3); eligible rows alternate between
-// 연동 완료 and 연동 진행중.
-type IntegrationProgress = 'COMPLETED' | 'IN_PROGRESS' | 'NONE';
-
-const deriveIntegrationProgress = (candidate: CandidateResource): IntegrationProgress => {
-  if (candidate.integrationCategory === 'INSTALL_INELIGIBLE') return 'NONE';
-  return stableHash(candidate.resourceId) % 2 === 0 ? 'COMPLETED' : 'IN_PROGRESS';
-};
 
 interface CandidateResourceTableProps {
   candidates: CandidateResource[];
@@ -166,7 +155,6 @@ const CandidateResourceRow = ({
   const canExpand = requiresEndpointConfig && isSelected && !readonly;
   const region = candidate.metadata.region ?? '—';
   const displayName = getResourceDisplayName(candidate);
-  const integrationProgress = deriveIntegrationProgress(candidate);
   const effectiveDbType = drafts.endpointDrafts[candidate.id]?.databaseType
     ?? candidate.endpointConfig?.databaseType
     ?? candidate.databaseType;
@@ -267,18 +255,7 @@ const CandidateResourceRow = ({
         </td>
 
         <td className={idcStyles.table.cell}>
-          {integrationProgress === 'NONE'
-            ? <span className={cn('text-xs', textColors.quaternary)}>—</span>
-            : (
-                <span
-                  className={cn(
-                    idcStyles.tag.base,
-                    integrationProgress === 'COMPLETED' ? idcStyles.tag.green : idcStyles.tag.orange,
-                  )}
-                >
-                  {integrationProgress === 'COMPLETED' ? '연동 완료' : '연동 진행중'}
-                </span>
-              )}
+          <span className={cn('text-xs', textColors.quaternary)}>—</span>
         </td>
       </tr>
 

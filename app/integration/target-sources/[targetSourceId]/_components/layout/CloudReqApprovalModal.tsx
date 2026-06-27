@@ -7,10 +7,13 @@ import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { useToast } from '@/app/components/ui/toast';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { updateTestConnectionConfirmation } from '@/app/lib/api';
+import { getLatestTestConnectionResultSummaries, updateTestConnectionConfirmation } from '@/app/lib/api';
 import { StatTile } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalStats';
 import type { ConfirmedResource } from '@/lib/types/resources';
-import { deriveLogicalDbCounts } from '@/lib/logical-db-counts';
+import {
+  buildLogicalDbCountMap,
+  type LogicalDbCountMap,
+} from '@/app/integration/target-sources/[targetSourceId]/_components/confirmed/logical-db-summaries';
 
 interface CloudReqApprovalModalProps {
   isOpen: boolean;
@@ -38,6 +41,23 @@ export const CloudReqApprovalModal = ({
 }: CloudReqApprovalModalProps) => {
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
+
+  // Real per-resource logical-DB counts (연동 / 제외) from the latest test-connection
+  // run. A resource with no summary entry renders "—" rather than a fabricated value.
+  const [logicalDbCounts, setLogicalDbCounts] = useState<LogicalDbCountMap>(new Map());
+  useEffect(() => {
+    if (!isOpen) return;
+    const controller = new AbortController();
+    void getLatestTestConnectionResultSummaries(targetSourceId, { signal: controller.signal })
+      .then((summaries) => {
+        if (controller.signal.aborted) return;
+        setLogicalDbCounts(buildLogicalDbCountMap(summaries));
+      })
+      .catch(() => {
+        // No summaries available → leave the map empty so cells render "—".
+      });
+    return () => controller.abort();
+  }, [isOpen, targetSourceId]);
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -71,10 +91,17 @@ export const CloudReqApprovalModal = ({
 
   if (!isOpen) return null;
 
-  const counts = resources.map((r) => deriveLogicalDbCounts(r.resourceId));
   const totalRes = resources.length;
-  const totalTarget = counts.reduce((sum, [target]) => sum + target, 0);
-  const totalExcl = counts.reduce((sum, [, excluded]) => sum + excluded, 0);
+  const totals = resources.reduce(
+    (acc, r) => {
+      const counts = logicalDbCounts.get(r.resourceId);
+      if (!counts) return acc;
+      return { target: acc.target + counts.target, excluded: acc.excluded + counts.excluded };
+    },
+    { target: 0, excluded: 0 },
+  );
+  const totalTarget = totals.target;
+  const totalExcl = totals.excluded;
 
   return (
     <div
@@ -132,7 +159,7 @@ export const CloudReqApprovalModal = ({
               </thead>
               <tbody className={idcStyles.table.body}>
                 {pageRows.map((r) => {
-                  const [target, excluded] = deriveLogicalDbCounts(r.resourceId);
+                  const counts = logicalDbCounts.get(r.resourceId);
                   return (
                     <tr key={r.resourceId} className={idcStyles.table.row}>
                       <td className={idcStyles.table.cell}>
@@ -151,11 +178,13 @@ export const CloudReqApprovalModal = ({
                         {r.region ?? '-'}
                       </td>
                       <td className={cn(idcStyles.table.cell, 'text-right font-semibold', textColors.secondary)}>
-                        {target + excluded}
+                        {counts ? counts.target + counts.excluded : '—'}
                       </td>
                       <td className={cn(idcStyles.table.cell, 'text-right')}>
-                        {excluded > 0 ? (
-                          <span className={idcStyles.reqModal.exclNum}>{excluded}</span>
+                        {!counts ? (
+                          <span className={cn('font-medium', textColors.quaternary)}>—</span>
+                        ) : counts.excluded > 0 ? (
+                          <span className={idcStyles.reqModal.exclNum}>{counts.excluded}</span>
                         ) : (
                           <span className={cn('font-medium', textColors.quaternary)}>0</span>
                         )}
