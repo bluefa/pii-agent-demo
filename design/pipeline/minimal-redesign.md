@@ -1,7 +1,8 @@
 # Minimal Installation Pipeline — Redesign Draft
 
-> Status: DRAFT proposal. Supersedes the maximal parts of ADR-016 if approved.
-> Owner decision pending. No code is rebuilt until this draft is signed off.
+> Status: Adopted minimal direction (owner-approved, 2026-06). Supersedes the maximal
+> parts of ADR-016 — ADR-016 is rewritten to match. Execution model: a single dedicated
+> server (see PR #509). Still pre-merge (PR #494).
 
 ## 0. Why re-scope
 
@@ -34,7 +35,8 @@ Pipeline:  RUNNING ───────────────▶ DONE | FAILE
 - **IN_PROGRESS** — dispatched and polling. The task `kind` selects the poll
   logic (TF job status vs. condition probe). One state for both kinds.
 - **DONE / FAILED / CANCELLED** — terminal. FAILED carries an `errorCode`
-  (`JOB_FAILED | TIMEOUT | CHECK_FAILED | EXPIRED`); the timeout/expiry flavors
+  (`JOB_FAILED | EXECUTION_TIMEOUT | TTL_EXPIRED | CHECK_ERROR | CALL_TIMEOUT`, the §7
+  canonical set); the timeout/expiry flavors
   are folded here, not separate states.
 - Pipeline cancel is applied synchronously to its tasks — no intermediate
   `CANCELLING` state.
