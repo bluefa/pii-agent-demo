@@ -57,7 +57,7 @@ A single dedicated server runs a durable state machine. The database row **is** 
 state — there is no in-memory authority to lose. On restart the server reads the
 rows and resumes. This is the one decision everything else depends on.
 
-### 2. The database is a small, derived state machine (2 tables)
+### 2. The database is a small, durable state machine (2 tables)
 
 `pipeline` and `task` (schema in the spec). The **current task** is the lowest-`seq`
 non-terminal task of a running pipeline — "blocked by a predecessor" is derived, not
@@ -205,4 +205,4 @@ worker pool gives concurrency without it) and the multi-pod claim/lease coordina
   admission, definition snapshots). Detail removed; see git history if needed.
 - 2026-06-27: re-scoped to the minimal spec and a single-server execution model;
   orchestration moved from the BFF to a dedicated server; throttle/sizing knobs demoted
-  to Safety mechanisms; audit trail moved to logs/metrics + an attempt marker.
+  to Safety mechanisms; audit trail moved to logs and metrics.

@@ -1,4 +1,4 @@
-# Minimal Installation Pipeline — Redesign Draft
+# Minimal Installation Pipeline — Redesign
 
 > Status: Adopted minimal direction (owner-approved, 2026-06). Supersedes the maximal
 > parts of ADR-016 — ADR-016 is rewritten to match. Execution model: a single dedicated
@@ -49,9 +49,9 @@ For each RUNNING pipeline's current task (lowest-seq non-terminal):
   for a TF task).
 - **IN_PROGRESS** → poll:
   - TF: `SUCCEEDED` → DONE; `FAILED` → retry-or-fail; still running past
-    `executionTimeout` → `TIMEOUT` → retry-or-fail.
+    `executionTimeout` → `EXECUTION_TIMEOUT` → retry-or-fail.
   - CONDITION: met → DONE; not met → reschedule `next_check_at`; past `ttl` →
-    `EXPIRED` → FAILED.
+    `TTL_EXPIRED` → FAILED.
 - Task DONE → next-seq task becomes current. Task FAILED → pipeline FAILED. All
   tasks DONE → pipeline DONE.
 
@@ -122,9 +122,9 @@ Surviving concepts (each stays a clean enum):
 | Worker-outage / queue-wait alerts | deferred | operational alerting |
 | Knob freeze at creation | global settings (or a plain per-task copy) | in-flight isolation from a config change |
 
-**Kept:** durable DB state, per-target uniqueness, the reconciler tick, retry +
-timeouts, and the single-reconciler leader (always-true single-node, advisory
-lock optional — Leader is fine per owner).
+**Kept:** durable DB state, per-target uniqueness, the reconciler scan, retry +
+timeouts, and single-node execution — the one dedicated server is the only writer,
+so no leader election is needed (V1; active-active is the documented upgrade path).
 
 ## 9. Estimated size
 
