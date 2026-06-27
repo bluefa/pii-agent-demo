@@ -9,7 +9,7 @@ the data model, the uniqueness rule, the failure semantics, and the lifecycle. T
 **execution model** — how the state machine is driven forward (the runner, its worker
 pool, concurrency, crash recovery) — is a separate, independently-revisable decision in
 [ADR-021](021-pipeline-execution-model.md). Splitting them lets the execution strategy
-evolve (the execution strategy can change) without re-opening the domain model.
+evolve without re-opening the domain model.
 
 The canonical spec is [minimal-redesign.md](../../design/pipeline/minimal-redesign.md).
 This supersedes the earlier "maximal" draft (a BFF-internal design with an asynchronous
@@ -101,13 +101,13 @@ Two task kinds only — `TERRAFORM_JOB` and `CONDITION_CHECK`. **Retry is a fres
 a resume. **Cancel** stops forward progress directly and converges to `CANCELLED` — there
 is no intermediate `CANCELLING` state.
 
-Cancel is a **concurrent, out-of-band writer**: it arrives from the Admin/API path while a
-worker may simultaneously be reporting a result. Therefore every task/pipeline state
-transition is **state-guarded** — it applies only if the row is still in its expected
-pre-transition state (`UPDATE ... WHERE status = :expected`). This guarantees the
-no-terminal-resurrection invariant: whichever writer wins, the row ends in one terminal
-state and the other writer's update is a no-op. The execution mechanism (claim + guarded
-write) lives in ADR-021; this is the **domain invariant** those mechanics implement.
+Cancel is a **cooperative request**: it is recorded out-of-band as a flag (which also wakes
+the pipeline) and does not write task/pipeline status directly. The claim-holding worker is
+the **single writer** of task/pipeline status and applies `CANCELLED` itself when it observes
+the flag. The domain invariant — cancel converges to `CANCELLED`; no `CANCELLING` state; no
+terminal resurrection — is therefore upheld by single-writer cooperation, not by guarding
+every write against a concurrent status writer. The execution mechanism (the
+`cancel_requested` flag and worker application) lives in ADR-021.
 
 ## Considered Options
 

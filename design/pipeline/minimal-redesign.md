@@ -40,9 +40,8 @@ Pipeline:  RUNNING ───────────────▶ DONE | FAILE
   are folded here, not separate states.
 - Pipeline cancel is applied synchronously to its tasks — no intermediate
   `CANCELLING` state.
-- Because cancel arrives concurrently (a second writer from the Admin/API path),
-  every state transition is conditional on the expected pre-state — a worker's
-  late report is a no-op if cancel already reached terminal.
+- Cancel is recorded as a flag (cooperative request); the single claim-holding worker
+  applies `CANCELLED` — no concurrent second writer, no terminal resurrection.
 
 ## 3. Reconciler loop (one tick, every N seconds)
 
