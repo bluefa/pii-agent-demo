@@ -53,18 +53,22 @@ rows and resumes. Every decision below depends on this.
 ### 2. The database is a small, durable state machine (2 tables)
 
 `pipeline` and `task` (schema in the spec). The **current task** is the lowest-`seq`
-non-terminal task of a running pipeline — "blocked by a predecessor" is derived, not
-stored. Pipeline status is a stored projection, updated in the same transaction as the task
-transition that changes it, so a scan can filter on it cheaply.
+startable (`READY`) task of a running pipeline; tasks ahead of it are explicitly `BLOCKED`
+until their predecessor reaches `DONE` (a task is created BLOCKED and flips to READY; the
+first task starts READY). Pipeline status is a stored projection, updated in the same
+transaction as the task transition that changes it, so a scan can filter on it cheaply.
 
 ```
-Task:      READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
-Pipeline:  RUNNING ───────────────▶ DONE | FAILED | CANCELLED
+Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
+Pipeline:  RUNNING ─────────────────────────▶ DONE | FAILED | CANCELLED
 ```
 
-Five enums total (`TaskStatus`, `PipelineStatus`, `TaskKind`, `PipelineType`, `ErrorCode`);
-the spec's §7 table is the canonical value list. A pipeline's recipe (its ordered task
-list) is a code default per `(type, provider)`.
+Five core enums (`TaskStatus`, `PipelineStatus`, `TaskKind`, `PipelineType`, `ErrorCode`),
+plus a conditional `TaskOperation` when the operation set is closed; the spec's §7 table is
+the canonical value list. A pipeline's recipe (its ordered task list) is a code default per
+`(type, provider)`. Each task carries a `kind` (which **executor**) and an `operation` (the
+**domain action** within it); an open/configured operation set is validated through a registry
+rather than an enum.
 
 ### 3. One active pipeline per target
 
@@ -101,13 +105,14 @@ Two task kinds only — `TERRAFORM_JOB` and `CONDITION_CHECK`. **Retry is a fres
 a resume. **Cancel** stops forward progress directly and converges to `CANCELLED` — there
 is no intermediate `CANCELLING` state.
 
-Cancel is a **cooperative request**: it is recorded out-of-band as a flag (which also wakes
-the pipeline) and does not write task/pipeline status directly. The claim-holding worker is
-the **single writer** of task/pipeline status and applies `CANCELLED` itself when it observes
-the flag. The domain invariant — cancel converges to `CANCELLED`; no `CANCELLING` state; no
-terminal resurrection — is therefore upheld by single-writer cooperation, not by guarding
-every write against a concurrent status writer. The execution mechanism (the
-`cancel_requested` flag and worker application) lives in ADR-021.
+How cancel is applied depends on whether a worker currently holds the pipeline. An
+**unclaimed** pipeline is cancelled **immediately** by a guarded write — a CAS on
+`status='RUNNING'` with no live claim, terminalizing its tasks in the same transaction. A
+**claimed** pipeline is recorded out-of-band as a `cancel_requested` flag (which also wakes
+it) and applied by the claim-holding worker — the **single writer** of status — at its next
+safe point. Either path keeps a single status writer, so the invariant (converges to
+`CANCELLED`; no `CANCELLING` state; no terminal resurrection) holds without guarding every
+write against a concurrent writer. The execution mechanism lives in ADR-021.
 
 ## Considered Options
 
@@ -131,9 +136,9 @@ every write against a concurrent status writer. The execution mechanism (the
 ### Costs we accept
 
 - The maximal design's **full per-call audit ledger and event outbox are dropped.** V1's
-  audit answer is logs and metrics plus the `pipeline`/`task` rows. Worker-outage and
-  queue-wait alerts are deferred. If row-level "attempted vs not attempted" evidence is
-  later needed, an optional `last_requested_at` task column can be added (not in V1 schema).
+  audit answer is logs and metrics plus the `pipeline`/`task` rows — the `task` row also keeps
+  the **last** call's `last_http_status` and `last_response_raw` (a last-write snapshot, not the
+  full per-call ledger). Worker-outage and queue-wait alerts are deferred.
 - Per-target uniqueness means a concurrent INSTALL and DELETE for the same target is
   rejected by construction. That is intended (it is nonsensical), not a limitation.
 

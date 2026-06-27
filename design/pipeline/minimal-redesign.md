@@ -25,13 +25,15 @@ fail it. Cancel a running pipeline.
 ## 2. State machine
 
 ```
-Task:      READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
-Pipeline:  RUNNING ───────────────▶ DONE | FAILED | CANCELLED
+Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
+Pipeline:  RUNNING ─────────────────────────▶ DONE | FAILED | CANCELLED
 ```
 
-- **READY** — the lowest-`seq` non-terminal task of a RUNNING pipeline. "Blocked
-  by a predecessor" is *derived* (a higher-seq task is simply not picked), never
-  stored.
+- **BLOCKED** — a non-terminal task whose predecessor has not completed. Explicit
+  (stored), not derived: a task is created BLOCKED and flips to READY when the prior
+  task reaches DONE. The first task of a pipeline starts READY.
+- **READY** — the current task: the lowest-`seq` startable task (predecessor DONE).
+  Exactly one READY task per RUNNING pipeline at a time.
 - **IN_PROGRESS** — dispatched and polling. The task `kind` selects the poll
   logic (TF job status vs. condition probe). One state for both kinds.
 - **DONE / FAILED / CANCELLED** — terminal. FAILED carries an `errorCode`
@@ -40,8 +42,10 @@ Pipeline:  RUNNING ───────────────▶ DONE | FAILE
   are folded here, not separate states.
 - Pipeline cancel is applied synchronously to its tasks — no intermediate
   `CANCELLING` state.
-- Cancel is recorded as a flag (cooperative request); the single claim-holding worker
-  applies `CANCELLED` — no concurrent second writer, no terminal resurrection.
+- Cancel: an **unclaimed** RUNNING pipeline is terminated immediately by CAS (`WHERE
+  status='RUNNING'` and no live claim); a **claimed** one is flagged (`cancel_requested`)
+  and the single claim-holding worker applies `CANCELLED` at report. No concurrent second
+  writer, no terminal resurrection either way.
 
 ## 3. Reconciler loop (one tick, every N seconds)
 
@@ -54,8 +58,8 @@ For each RUNNING pipeline's current task (lowest-seq non-terminal):
     `executionTimeout` → `EXECUTION_TIMEOUT` → retry-or-fail.
   - CONDITION: met → DONE; not met → reschedule `next_check_at`; past `ttl` →
     `TTL_EXPIRED` → FAILED.
-- Task DONE → next-seq task becomes current. Task FAILED → pipeline FAILED. All
-  tasks DONE → pipeline DONE.
+- Task DONE → next-seq task flips `BLOCKED → READY` (becomes current). Task FAILED →
+  pipeline FAILED. All tasks DONE → pipeline DONE.
 
 Dispatch/poll are **synchronous calls with a per-call timeout**, run in a bounded
 worker pool. How work is claimed and made multi-worker-safe (claim/lease/guarded
@@ -86,8 +90,14 @@ write) is the execution model — see ADR-021.
 
 - `pipeline(id, type, target, status, created_at, last_activity_at)`
 - `task(id, pipeline_id, seq, kind, operation, status, job_id, fail_count,
-  error_code, started_at, ready_at, finished_at, next_check_at,
-  ttl, polling_interval, execution_timeout, max_fail_count)`
+  error_code, last_http_status, last_response_raw, started_at, ready_at, finished_at,
+  next_check_at, ttl, polling_interval, execution_timeout, max_fail_count)`
+
+`kind` selects the **executor** (`TERRAFORM_JOB` | `CONDITION_CHECK`); `operation` selects the
+**domain action** within that executor. A closed operation set is represented as a
+`TaskOperation` enum; an open/configured set must be validated through a registry.
+`last_http_status` / `last_response_raw` hold the **last** call's outcome — a last-write
+snapshot, not a per-call ledger.
 
 Dropped vs ADR-016: `task_check` (observation ledger), `task_attempt` (attempt
 history), `pipeline_event` (outbox), `pipeline_def_snapshot`.
@@ -110,7 +120,7 @@ Surviving concepts (each stays a clean enum):
 
 | enum | values | concept |
 |------|--------|---------|
-| `TaskStatus` | READY, IN_PROGRESS, DONE, FAILED, CANCELLED | task lifecycle |
+| `TaskStatus` | BLOCKED, READY, IN_PROGRESS, DONE, FAILED, CANCELLED | task lifecycle |
 | `PipelineStatus` | RUNNING, DONE, FAILED, CANCELLED | pipeline lifecycle |
 | `TaskKind` | TERRAFORM_JOB, CONDITION_CHECK | what a task does |
 | `PipelineType` | INSTALL, DELETE | install vs delete |
