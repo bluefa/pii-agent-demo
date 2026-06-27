@@ -66,7 +66,7 @@ SELECT id FROM pipeline
  LIMIT 1
  FOR UPDATE SKIP LOCKED;
 UPDATE pipeline
-   SET claimed_by = :worker_token,
+   SET claimed_by = :claim_token,
        claimed_until = now() + (:lease_seconds * interval '1 second')
  WHERE id = :pipeline_id;
 COMMIT;
@@ -75,6 +75,21 @@ COMMIT;
 `SKIP LOCKED` ensures two workers racing the same scan claim different pipelines without
 blocking each other. The `claimed_by` / `claimed_until` stamp — not a process count — is what
 guarantees one pipeline is owned by one worker at a time, **across processes and pods**.
+
+**`claimed_by` is a per-claim fencing token** — a fresh UUID minted at the moment of each
+claim (`:claim_token` in the SQL above), not a reused pod id or thread name. This matters for
+stale-straggler rejection: if a worker's lease expires and the same pod later re-claims the
+same pipeline, it receives a *different* token. Any in-flight tx2 from the prior claim holds
+the old token and therefore no-ops on the `claimed_by = :claim_token` guard. A reused stable
+identity would pass that guard and allow the stale write through.
+
+**`ORDER BY next_due_at` + `SKIP LOCKED` yields approximate/fair FIFO, not strict ordering.**
+Rows currently held by other workers are skipped, so different concurrent workers may observe
+different relative ordering. This is acceptable because pipelines are independent of each other.
+
+**An empty claim result does NOT mean the backlog is empty.** `SKIP LOCKED` silently omits rows
+whose leases are held by other workers. The scan loop must not treat a zero-row result as an
+idle signal; it should proceed to the next poll iteration normally.
 
 **Execution schema note.** This model adds three execution-coordination columns to the
 `pipeline` table — `next_due_at`, `claimed_by`, `claimed_until` — which are execution
@@ -100,7 +115,7 @@ UPDATE pipeline
    SET status = :new_status, ...
  WHERE id = :pipeline_id
    AND status = :expected_status
-   AND claimed_by = :worker_token;
+   AND claimed_by = :claim_token;
 ```
 
 Two guards operate independently:
@@ -113,14 +128,45 @@ Two guards operate independently:
   :expected_status` condition is false; the update no-ops instead of resurrecting a
   terminal task. This directly enforces ADR-016's **no-terminal-resurrection** invariant.
 
+**Per-task writes use the same guard form.** Each task-level transition within tx2 uses the
+identical double-guarded form (`UPDATE task SET ... WHERE id = :task_id AND status =
+:expected_status AND claimed_by = :claim_token` on the owning pipeline). Both the task and
+pipeline writes in tx2 are state-guarded **and** ownership-guarded.
+
+**On success, tx2 releases the claim and advances `next_due_at` atomically.** The same
+transaction that advances task/pipeline state also clears `claimed_by`/`claimed_until` and
+writes the new `next_due_at`. Without this release a pipeline that finishes a step but remains
+`RUNNING` stays locked until `claimed_until` passes, blocking all other workers from picking it
+up. `next_due_at` is always written by tx2 on a successful report; it is seeded at pipeline
+creation by the trigger endpoint.
+
+**Duplicate external-call windows.** The two-transaction split creates several bounded windows
+where a duplicate call to InfraManager may occur:
+
+- **(a) Client timeout** — the caller times out but InfraManager already accepted the job.
+- **(b) Crash after dispatch** — the worker dispatches and crashes before tx2 records the
+  returned `job_id`.
+- **(c) Lease expiry while stalled** — a worker thread-pool queue wait or GC pause exceeds the
+  lease; another worker re-claims and dispatches the same pipeline.
+
+In all three cases the duplicate **external call** is made safe by **idempotency (ADR-016)** —
+InfraManager's contract ensures a repeated call for the same logical operation produces no
+additional side-effect. The guarded DB write addresses a separate concern: it prevents a stale
+straggler from clobbering DB state once its ownership has expired. The two safety knobs are
+complementary, not interchangeable.
+
 ### 5. Crash recovery via lease expiry
 
 A crashed worker's claimed pipeline becomes due again once `claimed_until < now()`. No leader,
 no human intervention — the next scan reclaims it. Hard constraint:
 
 ```
-lease_seconds > max_single_call_timeout + scheduling_margin
+lease_seconds > max_single_call_timeout + pool_queue_wait + scheduling_margin
 ```
+
+A claimed pipeline can sit in the worker thread-pool queue before its external call even
+starts; that queue wait consumes lease time just as the call itself does. The lease must cover
+the full elapsed wall-clock time from claim to tx2 commit, including any queuing delay.
 
 ### 6. Cancel as a concurrent writer
 
@@ -135,9 +181,15 @@ Their exact values live in operational config, not in this ADR:
 - **Worker count `N`** caps *concurrent external calls* (`≤ min(N, due pipelines)`). It is
   **not** a requests-per-second guarantee — `429`/`503` back off by pushing `next_due_at`
   forward.
-- **Lease duration** (`lease_seconds`) must exceed max single-call timeout plus a scheduling
-  margin. Tune conservatively; a lease that is too short causes double-work (safe, because
-  guarded writes make the duplicate a no-op), not corruption.
+- **Lease duration** (`lease_seconds`) must exceed max single-call timeout plus pool queue-wait
+  plus a scheduling margin (see Decision 5). Tune conservatively; a too-short lease has two
+  distinct effects: (1) the **guarded write** prevents the stale straggler from clobbering DB
+  state; (2) **idempotency (ADR-016)** makes the duplicate *external call* to InfraManager
+  harmless. Neither causes corruption, but redundant InfraManager calls consume quota.
+- **Claim-predicate index** — the claim predicate (`status='RUNNING' AND next_due_at <= now()
+  AND (claimed_until IS NULL OR claimed_until < now())`) needs a supporting index; without one,
+  every claim degrades to a full sequential scan + sort under concurrent multi-worker polling.
+  A partial btree index on `(next_due_at) WHERE status = 'RUNNING'` covers the hot path.
 - **Terraform-job concurrency cap (`slotCap`)** is **deferred**. InfraManager's fixed pool is
   the real ceiling; over-submission only deepens its idempotent queue. Add a client-side cap
   only if a concrete need appears.
@@ -178,7 +230,7 @@ Their exact values live in operational config, not in this ADR:
 
 ## Glossary
 
-- **Claim** — the act of stamping `claimed_by` / `claimed_until` on a pipeline row in a short transaction, establishing exclusive ownership for one lease window.
+- **Claim** — the act of stamping a per-claim fencing token (a fresh UUID minted at claim time) into `claimed_by`, plus a deadline into `claimed_until`, in a short committed transaction (tx1). Each claim generates a new unique token; the same worker re-claiming the same pipeline after lease expiry receives a different token, ensuring any in-flight tx2 from the prior claim is rejected by the ownership guard.
 - **Due pipeline** — one whose `next_due_at <= now()` and whose lease has expired (or was never set).
 - **Guarded write-back** — an `UPDATE ... WHERE id = :id AND status = :expected AND claimed_by = :token` that no-ops if either guard fails.
 - **Lease** — the `claimed_until` timestamp; expiry automatically releases the claim for reclaim by any worker.
