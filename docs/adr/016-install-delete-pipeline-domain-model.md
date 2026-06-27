@@ -9,7 +9,7 @@ the data model, the uniqueness rule, the failure semantics, and the lifecycle. T
 **execution model** — how the state machine is driven forward (the runner, its worker
 pool, concurrency, crash recovery) — is a separate, independently-revisable decision in
 [ADR-021](021-pipeline-execution-model.md). Splitting them lets the execution strategy
-evolve (e.g. single-server → active-active) without re-opening the domain model.
+evolve (the execution strategy can change) without re-opening the domain model.
 
 The canonical spec is [minimal-redesign.md](../../design/pipeline/minimal-redesign.md).
 This supersedes the earlier "maximal" draft (a BFF-internal design with an asynchronous
@@ -125,8 +125,8 @@ write) lives in ADR-021; this is the **domain invariant** those mechanics implem
 - **Self-heals** across crashes and redeploys — idempotency (Decision 4) makes re-dispatch
   safe, so the execution model never needs exactly-once machinery.
 - A small model: two tables, five enums, two task kinds, retry = fresh run.
-- The domain model is **stable under execution changes** — single-server today, active-active
-  later (ADR-021) reuses these exact tables and states.
+- The domain model is **stable under execution changes** — whatever execution strategy ADR-021
+  uses (it is currently multi-worker claim-pull), these exact tables and states are unchanged.
 
 ### Costs we accept
 
