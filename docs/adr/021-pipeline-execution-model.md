@@ -148,7 +148,11 @@ transaction that advances task/pipeline state also clears `claimed_by`/`claimed_
 writes the new `next_due_at`. Without this release a pipeline that finishes a step but remains
 `RUNNING` stays locked until `claimed_until` passes, blocking all other workers from picking it
 up. `next_due_at` is always written by tx2 on a successful report; it is seeded at pipeline
-creation by the trigger endpoint.
+creation by the trigger endpoint. When the current task reaches `DONE`, the same tx2 flips the
+next task `BLOCKED → READY`. tx2 also records the call's `last_http_status` and
+`last_response_raw` on the task (a last-write observability snapshot); all of these writes
+happen under the verified pipeline claim, so **no task-level claim is needed** — the pipeline
+claim already serializes every write to that pipeline's task rows.
 
 **Duplicate external-call windows.** The two-transaction split creates several bounded windows
 where a duplicate call to InfraManager may occur:
@@ -180,13 +184,25 @@ the full elapsed wall-clock time from claim to tx2 commit, including any queuing
 
 ### 6. Cancel as a cooperative request (flag)
 
-Cancel does not write `status` and does not touch `claimed_by`. It runs a short transaction
-that sets a flag and wakes the pipeline:
+How cancel is applied depends on whether a worker currently holds the pipeline. The cancel
+request **first attempts an immediate terminate by CAS**, and falls back to the cooperative
+flag only if a live worker owns the claim:
 
 ```sql
+-- (1) unclaimed → terminate immediately (and CANCEL its non-terminal tasks in the same tx)
+UPDATE pipeline SET status = 'CANCELLED'
+ WHERE id = :pid AND status = 'RUNNING'
+   AND (claimed_by IS NULL OR claimed_until < now());
+-- (2) if 0 rows (a live worker holds the claim) → cooperative flag
 UPDATE pipeline SET cancel_requested = true, next_due_at = now()
  WHERE id = :pid AND status = 'RUNNING';
 ```
+
+An **unclaimed** pipeline — the common "waiting / not yet picked up" case — is cancelled
+**immediately**, no worker round-trip. The CAS is race-safe against a concurrent claim: both
+contend on the pipeline row, so whichever commits first wins (a claim no longer sees `RUNNING`
+once cancelled; the immediate-terminate no longer sees a free claim once claimed). For a
+**claimed** pipeline, path (2) sets the flag and the worker applies it:
 
 The **claim-holding worker is the sole writer of task/pipeline status.** It reads
 `cancel_requested` at its safe points — right after claiming, before dispatch, and inside
@@ -238,13 +254,15 @@ Their exact values live in operational config, not in this ADR:
 
 ### 7. Admission control and TF slot gate (soft caps)
 
-**`runningPipelineCap`** is a **soft admission target**, not a hard invariant. Before
-admitting a new pipeline into `RUNNING` state, a pod checks whether the current `RUNNING`
-count is below the cap. Concurrent admission can **overshoot**: for cap `M` and `C` concurrent
-admission actors (each reads the count, then inserts), worst-case `RUNNING` is `M + C − 1`. `C`
-counts the admission transactions racing the same check-then-insert window — bounded by the
-number of concurrent admitters, not by pod count alone. This bounded overshoot is **accepted in
-V1**. A hard cap would require atomic admission (e.g.
+**`runningPipelineCap`** is a **soft pickup target**, not a hard invariant, and it gates
+**claiming, not creation.** Pipeline creation enforces only per-target uniqueness (ADR-016) —
+a created pipeline enters `RUNNING` immediately. The cap limits how many `RUNNING` pipelines
+are **concurrently claimed for work**: before claiming beyond the cap, a worker checks the
+count of actively-claimed pipelines. Pipelines over the cap simply stay **unclaimed in
+`RUNNING`** and are picked up later via `next_due_at` ordering as slots free — there is **no
+`QUEUED` or `WAITING_SLOT` state**. The check is a count-read, so it can **overshoot**: for cap
+`M` and `C` concurrent claiming workers, worst-case concurrently-claimed is `M + C − 1`. This
+bounded overshoot is **accepted in V1**. A hard cap would require atomic admission (e.g.
 `UPDATE pipeline_admission_counter SET used = used + 1 WHERE used < cap`, released on
 terminal) — **deferred**.
 
