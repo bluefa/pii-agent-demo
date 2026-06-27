@@ -16,6 +16,7 @@
 | [ADR-011](./011-typed-bff-client-consolidation.md) | Typed BFF Client Consolidation | 승인됨 (Amendment proposed: ADR-019) | 2026-04-25 |
 | [ADR-012](./012-target-source-page-layout.md) | Target Source Page Layout Registry | Proposed | 2026-04-25 |
 | [ADR-013](./013-i18n-architecture.md) | Internationalization Architecture (Cookie + Full Reload + Layered Translation Contract) | Proposed | 2026-04-27 |
+| [ADR-016](./016-install-delete-pipeline-domain-model.md) | Install/Delete Pipeline — Durable State-Machine Domain Model | Proposed | 2026-06-27 |
 | [ADR-017](./017-frontend-component-layering.md) | Frontend Component Layering and the Presentational Contract | Accepted (Amendment proposed: ADR-020) | 2026-06-20 |
 | [ADR-018](./018-state-view-components.md) | State-View Components (Empty / Error / Permission) | Accepted | 2026-06-20 |
 | [ADR-019](./019-bff-casing-boundary-and-runtime-validation.md) | BFF Casing Boundary Consolidation + Runtime Schema Validation | Proposed | 2026-06-20 |
