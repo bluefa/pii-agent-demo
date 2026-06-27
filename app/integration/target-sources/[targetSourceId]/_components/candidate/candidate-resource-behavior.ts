@@ -1,4 +1,5 @@
-import type { ApprovalResourceInputData } from '@/app/lib/api';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import type {
   CandidateBehaviorKey,
   CandidateDraftState,
@@ -7,40 +8,40 @@ import type {
   EndpointConfigDraft,
 } from '@/lib/types/resources';
 
+type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
+
 const resolveEndpoint = (
   resource: CandidateResource,
   draft: CandidateDraftState,
 ): EndpointConfigDraft | undefined =>
   draft.endpointDrafts[resource.id] ?? resource.endpointConfig;
 
-const endpointInputData = (endpoint: EndpointConfigDraft): ApprovalResourceInputData => ({
-  endpoint_config: {
-    db_type: endpoint.databaseType,
-    port: endpoint.port,
-    host: endpoint.host ?? '',
-    ...(endpoint.oracleServiceId ? { oracleServiceId: endpoint.oracleServiceId } : {}),
-    ...(endpoint.selectedNicId ? { selectedNicId: endpoint.selectedNicId } : {}),
-  },
+const endpointMetadataFields = (endpoint: EndpointConfigDraft): MetadataFields => ({
+  database_type: endpoint.databaseType,
+  port: endpoint.port,
+  ...(endpoint.host ? { host: endpoint.host } : {}),
+  ...(endpoint.oracleServiceId ? { oracle_service_id: endpoint.oracleServiceId } : {}),
+  ...(endpoint.selectedNicId ? { network_interface_id: endpoint.selectedNicId } : {}),
 });
 
 const defaultBehavior: CandidateResourceBehavior = {
   configKind: 'none',
   isConfigured: () => true,
-  buildApprovalInput: () => undefined,
+  buildMetadataFields: () => ({}),
 };
 
 const credentialBehavior: CandidateResourceBehavior = {
   configKind: 'credential',
   isConfigured: () => true,
-  buildApprovalInput: () => undefined,
+  buildMetadataFields: () => ({}),
 };
 
 const endpointBehavior: CandidateResourceBehavior = {
   configKind: 'endpoint',
   isConfigured: (resource, draft) => resolveEndpoint(resource, draft) !== undefined,
-  buildApprovalInput: (resource, draft) => {
+  buildMetadataFields: (resource, draft) => {
     const endpoint = resolveEndpoint(resource, draft);
-    return endpoint ? endpointInputData(endpoint) : undefined;
+    return endpoint ? endpointMetadataFields(endpoint) : {};
   },
 };
 

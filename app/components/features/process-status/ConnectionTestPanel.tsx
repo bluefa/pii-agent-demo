@@ -67,7 +67,7 @@ export const ConnectionTestPanel = ({
 
   const handleTriggerClick = useCallback(async () => {
     // 마지막 테스트 실패 시: credential 확인 모달 (review mode)
-    if (latestJob?.connectionStatus === 'FAIL') {
+    if (latestJob?.connection_status === 'FAIL') {
       const credResources = confirmed.filter(
         (r) => r.databaseType !== null && needsCredential(r.databaseType),
       );

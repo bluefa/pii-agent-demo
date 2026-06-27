@@ -11,7 +11,10 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET } from '@/app/integration/api/v1/user/me/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
-import type { UserMeResponse } from '@/lib/bff/types/users';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+
+type UserMeResponse = z.infer<typeof schemas.UserMeResponse>;
 
 const mockedMe = vi.mocked(bff.users.me);
 
@@ -20,45 +23,23 @@ describe('GET /integration/api/v1/user/me', () => {
     vi.clearAllMocks();
   });
 
-  it('returns the flat Issue #222 payload as-is', async () => {
+  it('returns the flat UserMeResponse validated by zod schema', async () => {
     mockedMe.mockResolvedValue({
       id: 'user-1',
       name: '홍길동',
       email: 'hong@company.com',
-    } as unknown as UserMeResponse);
+    } as UserMeResponse);
 
     const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
       params: Promise.resolve({}),
     });
 
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       id: 'user-1',
       name: '홍길동',
       email: 'hong@company.com',
     });
     expect(response.headers.get('x-expected-duration')).toBe('50ms ~ 200ms');
-  });
-
-  it('unwraps legacy nested payloads and trims extra fields', async () => {
-    mockedMe.mockResolvedValue({
-      user: {
-        id: 'user-1',
-        name: '홍길동',
-        email: 'hong@company.com',
-        role: 'ADMIN',
-        serviceCodePermissions: ['SERVICE-A'],
-      },
-    } as unknown as UserMeResponse);
-
-    const response = await GET(new Request('http://localhost/integration/api/v1/user/me'), {
-      params: Promise.resolve({}),
-    });
-
-    await expect(response.json()).resolves.toEqual({
-      id: 'user-1',
-      name: '홍길동',
-      email: 'hong@company.com',
-    });
   });
 
   it('BffError가 throw되면 problem+json으로 변환한다', async () => {

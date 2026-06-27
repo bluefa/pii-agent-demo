@@ -1,32 +1,18 @@
-import type { BaseTargetSource, TargetSource } from '@/lib/types';
+/**
+ * TargetSourceDetail (snake wire) → TargetSource domain model.
+ *
+ * ADR-019: bff.targetSources.get returns raw snake TargetSourceDetail.
+ * extractTargetSourceFromSnake is the single boundary for SSR pages that call
+ * the BFF directly. CSR callers use getProject in app/lib/api/index.ts.
+ */
+import type { TargetSource } from '@/lib/types';
 import { ProcessStatus, normalizeCloudProvider } from '@/lib/types';
+import type { schemas } from '@/lib/generated/install-v1';
+import type { z } from 'zod';
 
-export interface TargetSourceEnvelopeResponse {
-  targetSource: TargetSource | Record<string, unknown>;
-}
-
-export type TargetSourceDetailResponse =
-  | TargetSource
-  | Record<string, unknown>
-  | TargetSourceEnvelopeResponse;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const asString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
-
-const parseTargetSourceId = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
-  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
-  return null;
-};
+type TargetSourceDetailWire = z.infer<typeof schemas.TargetSourceDetail>;
 
 export const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
-  if (typeof value === 'number' && ProcessStatus[value] !== undefined) {
-    return value as ProcessStatus;
-  }
-
   switch (String(value).trim().toUpperCase()) {
     case 'WAITING_APPROVAL':
     case 'PENDING':
@@ -50,85 +36,47 @@ export const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatu
   }
 };
 
-const unwrapTargetSourcePayload = (
-  payload: TargetSourceDetailResponse,
-): TargetSource | Record<string, unknown> => {
-  if (isRecord(payload) && 'targetSource' in payload && isRecord(payload.targetSource)) {
-    return payload.targetSource;
-  }
+/** SSR adapter: snake TargetSourceDetail (from bff.targetSources.get) → TargetSource. */
+export const extractTargetSourceFromSnake = (raw: TargetSourceDetailWire): TargetSource => {
+  const item = raw as Record<string, unknown>;
+  const asStr = (v: unknown): string | undefined => typeof v === 'string' ? v : undefined;
 
-  return payload as TargetSource | Record<string, unknown>;
-};
+  const id = typeof item.target_source_id === 'number' ? item.target_source_id : 0;
+  const fallbackCode = `TS-${id}`;
+  const serviceCode = asStr(item.service_code)?.trim() ?? '';
+  const processStatus = normalizeTargetSourceProcessStatus(asStr(item.process_status));
+  const metadata = (typeof item.metadata === 'object' && item.metadata !== null)
+    ? item.metadata as Record<string, unknown>
+    : null;
 
-const normalizeTargetSource = (value: TargetSource | Record<string, unknown>): TargetSource => {
-  if (!isRecord(value)) {
-    throw new Error('target source payload must be an object');
-  }
-
-  const targetSourceId = parseTargetSourceId(value.targetSourceId);
-  if (targetSourceId === null) {
-    throw new Error('targetSourceId is missing from target source payload');
-  }
-
-  const createdAt = asString(value.createdAt) ?? new Date().toISOString();
-  const processStatus = normalizeTargetSourceProcessStatus(value.processStatus);
-  const cloudProvider = normalizeCloudProvider(value.cloudProvider);
-  const metadata = isRecord(value.metadata) ? value.metadata : null;
-  const projectCode = asString(value.projectCode)?.trim() ?? '';
-  const name = asString(value.name) ?? (projectCode || `TS-${targetSourceId}`);
-  const rejectionReason = asString(value.rejectionReason);
-  const serviceCode = asString(value.serviceCode)?.trim() ?? '';
-  // swagger TargetSourceDetail.service_name — fall back to the code so the page
-  // header never renders an empty "( )" when only the code is present.
-  const serviceName = asString(value.serviceName)?.trim() || serviceCode;
-
-  const base: BaseTargetSource = {
-    id: asString(value.id) ?? `target-source-${targetSourceId}`,
-    targetSourceId,
-    projectCode,
-    serviceCode,
-    processStatus,
-    createdAt,
-    updatedAt: asString(value.updatedAt) ?? createdAt,
-    name,
-    description: asString(value.description) ?? '',
-    isRejected: Boolean(value.isRejected),
-    ...(rejectionReason ? { rejectionReason } : {}),
-  };
-
-  const tenantId = asString(value.tenantId)
-    ?? (metadata ? asString(metadata.tenantId) : undefined);
-  const subscriptionId = asString(value.subscriptionId)
-    ?? (metadata ? asString(metadata.subscriptionId) : undefined);
-  const awsAccountId = asString(value.awsAccountId)
-    ?? (metadata ? asString(metadata.awsAccountId) : undefined);
-  const awsRegionTypeRaw = asString(value.awsRegionType)
-    ?? (metadata ? asString(metadata.awsRegionType) : undefined);
-  const awsRegionType = awsRegionTypeRaw === 'china' || awsRegionTypeRaw === 'global'
-    ? awsRegionTypeRaw
-    : undefined;
-  const gcpProjectId = asString(value.gcpProjectId)
-    ?? (metadata ? asString(metadata.gcpProjectId) : undefined);
-  // AWS install mode is an irreversible project-level commitment; it gates
-  // AwsProjectPage (selector vs install grid), so it must survive normalization.
-  const awsInstallationModeRaw = asString(value.awsInstallationMode);
+  const tenantId = asStr(metadata?.tenant_id);
+  const subscriptionId = asStr(metadata?.subscription_id);
+  const awsAccountId = asStr(metadata?.aws_account_id);
+  const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const awsInstallationModeRaw = asStr(item.aws_installation_mode);
   const awsInstallationMode =
     awsInstallationModeRaw === 'AUTO' || awsInstallationModeRaw === 'MANUAL'
       ? awsInstallationModeRaw
       : undefined;
+  const createdAt = asStr(item.created_at) ?? new Date().toISOString();
 
   return {
-    ...base,
-    cloudProvider,
-    serviceName,
+    id: fallbackCode,
+    targetSourceId: id,
+    projectCode: serviceCode || fallbackCode,
+    serviceCode,
+    serviceName: asStr(item.service_name)?.trim() || serviceCode,
+    processStatus,
+    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    createdAt,
+    updatedAt: asStr(item.updated_at) ?? createdAt,
+    name: fallbackCode,
+    description: asStr(item.description) ?? '',
+    isRejected: false,
     ...(tenantId ? { tenantId } : {}),
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
-    ...(awsRegionType ? { awsRegionType } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
     ...(awsInstallationMode ? { awsInstallationMode } : {}),
   };
 };
-
-export const extractTargetSource = (payload: TargetSourceDetailResponse): TargetSource =>
-  normalizeTargetSource(unwrapTargetSourcePayload(payload));

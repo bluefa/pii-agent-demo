@@ -6,28 +6,16 @@ import { createInitialProjectStatus } from '@/lib/process/calculator';
 import { ProcessStatus } from '@/lib/types';
 import type { Project, MockResource } from '@/lib/types';
 
+// ADR-019: mock emits raw snake CloudResourceResponse wire (TargetSourceResourceItemDto items).
 interface MockResourceCatalogResponse {
   resources: Array<{
-    id: string;
     resource_id: string;
-    name: string;
+    resource_name: string;
     resource_type: string;
     database_type: string;
     integration_category: string;
-    host: string | null;
-    port: number | null;
-    oracle_service_id: string | null;
-    network_interface_id: string | null;
-    ip_configuration_name: string | null;
     scan_status: string | null;
-    metadata: {
-      provider: string;
-      resourceType: string;
-      rawResourceType?: string;
-      region?: string;
-      host?: string;
-      port?: number;
-    };
+    metadata: Record<string, unknown>;
   }>;
   total_count: number;
 }
@@ -100,7 +88,9 @@ describe('mockConfirm.getResources', () => {
     _resetApprovedIntegrationStore();
   });
 
-  it('returns the expanded /resources catalog shape without selection-only fields', async () => {
+  it('ADR-019: returns raw snake CloudResourceResponse wire (TargetSourceResourceItemDto)', async () => {
+    // ADR-019: mock emits snake wire directly; route validates with
+    // schemas.CloudResourceResponse.parse; CSR toConfirmResourceItem reshapes to camel.
     const store = getStore();
     store.projects.push(createTestProject());
 
@@ -108,53 +98,41 @@ describe('mockConfirm.getResources', () => {
     const body = await parseResponse<MockResourceCatalogResponse>(response);
 
     expect(body.total_count).toBe(2);
-    expect(body.resources).toEqual([
-      {
-        id: 'vm-db-001',
-        resource_id: 'vm-db-001',
-        // name is a demo-derived friendly DB label (v15), keyed off the internal id.
-        name: 'sea-live-space-stg',
+
+    // vm-db-001 (AZURE_VM with vmDatabaseConfig)
+    expect(body.resources[0]).toMatchObject({
+      resource_id: 'vm-db-001',
+      resource_type: 'AZURE_VM',
+      database_type: 'ORACLE',
+      integration_category: 'NO_INSTALL_NEEDED',
+      scan_status: expect.any(String),
+      metadata: expect.objectContaining({
+        provider: 'AZURE',
         resource_type: 'AZURE_VM',
-        database_type: 'ORACLE',
-        integration_category: 'NO_INSTALL_NEEDED',
-        // host/port/oracle_service_id/network_interface_id are read from metadata.*
-        // (swagger TargetSourceResourceItemDto), surfaced flat by extractResourceCatalog.
+        region: 'ap-northeast-1',
         host: 'db.internal',
         port: 1521,
         oracle_service_id: 'ORCL',
         network_interface_id: 'nic-1',
-        ip_configuration_name: null,
-        scan_status: 'UNCHANGED',
-        metadata: {
-          provider: 'Azure',
-          resourceType: 'AZURE_VM',
-          rawResourceType: 'AZURE_VM',
-          region: 'ap-northeast-1',
-          host: 'db.internal',
-          port: 1521,
-        },
-      },
-      {
-        id: 'pg-flex-001',
-        resource_id: 'pg-flex-001',
-        name: 'sea-live-space-dev',
-        resource_type: 'AZURE_POSTGRESQL',
-        database_type: 'POSTGRESQL',
-        integration_category: 'TARGET',
-        host: null,
-        port: null,
-        oracle_service_id: null,
-        network_interface_id: null,
-        ip_configuration_name: null,
-        scan_status: 'UNCHANGED',
-        metadata: {
-          provider: 'Azure',
-          resourceType: 'AZURE_POSTGRESQL',
-          rawResourceType: 'AZURE_POSTGRESQL',
-          region: 'ap-northeast-1',
-        },
-      },
-    ]);
+      }),
+    });
+    // no legacy top-level fields (from extractResourceCatalog)
+    expect(body.resources[0]).not.toHaveProperty('id');
+    expect(body.resources[0]).not.toHaveProperty('name');
+    expect(body.resources[0]).not.toHaveProperty('host');
     expect(body.resources[0]).not.toHaveProperty('selected_credential_id');
+
+    // pg-flex-001 (AZURE_POSTGRESQL, no vmDatabaseConfig)
+    expect(body.resources[1]).toMatchObject({
+      resource_id: 'pg-flex-001',
+      resource_type: 'AZURE_POSTGRESQL',
+      database_type: 'POSTGRESQL',
+      integration_category: 'TARGET',
+      metadata: expect.objectContaining({
+        provider: 'AZURE',
+        resource_type: 'AZURE_POSTGRESQL',
+        region: 'ap-northeast-1',
+      }),
+    });
   });
 });

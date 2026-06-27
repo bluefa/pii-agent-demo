@@ -90,13 +90,6 @@ export const mockAzure = {
     });
   },
 
-  getSubnetGuide: async (projectId: string) => {
-    const auth = await authorize(projectId);
-    if (auth.error) return auth.error;
-
-    return handleResult(azureFns.getAzureSubnetGuide(Number(projectId)));
-  },
-
   // GET …/azure/scan-app → AzureServicePrincipalVerificationResponse (snake passthrough).
   getScanApp: async (projectId: string) => {
     const auth = await authorize(projectId);

@@ -6,7 +6,7 @@
  * follow 결정 #54.
  */
 
-import type { IdcDatabaseTypeWire } from '@/lib/bff/types/idc';
+import type { IdcDatabaseTypeWire } from '@/app/lib/api/idc';
 
 /** Max IP rows in the target form (결정 #52; yaml maxItems 3 → 6, §6 G2). */
 export const IDC_MAX_IPS = 6;

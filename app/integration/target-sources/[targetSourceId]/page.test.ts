@@ -33,10 +33,15 @@ describe('GET /integration/target-sources/[targetSourceId]', () => {
     vi.clearAllMocks();
   });
 
-  it('current user 조회 없이 프로젝트만 전달한다', async () => {
-    const project = { targetSourceId: 321 } as unknown as Project;
-
-    getTargetSourceMock.mockResolvedValue(project);
+  it('current user 조회 없이 프로젝트만 전달한다 (ADR-019: snake wire → TargetSource)', async () => {
+    // ADR-019: bff.targetSources.get returns raw snake TargetSourceDetail.
+    // Page calls extractTargetSourceFromSnake to produce the TargetSource domain model.
+    getTargetSourceMock.mockResolvedValue({
+      target_source_id: 321,
+      cloud_provider: 'AWS',
+      process_status: 'IDLE',
+      created_at: '2026-04-01T00:00:00Z',
+    });
 
     const element = await ProjectDetailPage({
       params: Promise.resolve({ targetSourceId: '321' }),
@@ -46,8 +51,9 @@ describe('GET /integration/target-sources/[targetSourceId]', () => {
 
     expect(getTargetSourceMock).toHaveBeenCalledWith(321);
     expect(getCurrentUserMock).not.toHaveBeenCalled();
+    // Page transforms snake wire via extractTargetSourceFromSnake.
     expect(element.props).toMatchObject({
-      initialProject: project,
+      initialProject: expect.objectContaining({ targetSourceId: 321 }),
     });
     expect(element.props).not.toHaveProperty('initialUser');
     expect(element.props).not.toHaveProperty('initialCredentials');

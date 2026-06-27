@@ -13,29 +13,11 @@
  *   - POST/PUT bodies are raw passthrough (I-3); request casing is per-endpoint (D3).
  */
 import type { BffClient } from '@/lib/bff/types';
-import type {
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceInfoWire,
-  TargetSourcesByServiceResponseWire,
-} from '@/lib/bff/types/target-sources';
-import type {
-  ApprovalRequestCreateBody,
-  BffConfirmedIntegration,
-  ConfirmedIntegrationResponsePayload,
-  ResourceCatalogResponsePayload,
-} from '@/lib/bff/types/confirm';
-import type {
-  TestConnectionCompletionStatusResponseWire,
-  TestConnectionConfirmationResponseWire,
-  TestConnectionLatestResultSummaryResponseWire,
-  TestConnectionTriggerResponseWire,
-  TestConnectionVersionResultWire,
-} from '@/lib/bff/types/test-connection';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
 import { toUpstreamInfraApiPath } from '@/lib/infra-api';
 import { camelCaseKeys } from '@/lib/object-case';
-import { extractConfirmedIntegration } from '@/lib/confirmed-integration-response';
-import { extractResourceCatalog } from '@/lib/resource-catalog-response';
 
 const BFF_URL = process.env.BFF_API_URL ?? '';
 
@@ -102,112 +84,90 @@ const buildQuery = (params: Record<string, string | number | undefined>): string
 
 export const httpBff: BffClient = {
   targetSources: {
-    get: (id) => get(`/target-sources/${id}`),
+    // ADR-019 zod-codegen: route owns the parse boundary — return raw snake wire.
+    get: (id) => getSnakeRaw<z.infer<typeof schemas.TargetSourceDetail>>(`/target-sources/${id}`),
     // 37: wire snake forwarded raw — the route normalizer owns the boundary (D1).
     list: (serviceCode) =>
-      getSnakeRaw<TargetSourcesByServiceResponseWire>(
+      getSnakeRaw<z.infer<typeof schemas.TargetSourceDetail>[]>(
         `/target-sources/services/${serviceCode}`,
       ),
     // 36: the selected creation candidate is posted back verbatim → 201 TargetSourceInfo.
     create: (serviceCode, candidate) =>
-      post<TargetSourceInfoWire>(
+      post<z.infer<typeof schemas.TargetSourceInfo>>(
         `/target-sources/services/${serviceCode}/target-sources`,
         candidate,
       ),
     // 35: bare array of creation candidates (request body authored snake, D3).
     getCreationCandidates: (serviceCode, body) =>
-      post<TargetSourceCreationCandidateResponseWire[]>(
+      post<z.infer<typeof schemas.TargetSourceCreationCandidateResponse>[]>(
         `/target-sources/services/${serviceCode}/creation-candidates`,
         body,
       ),
-    getSecrets: (id) => get(`/target-sources/${id}/secrets`),
+    getSecrets: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.SecretResponse>[]>(`/target-sources/${id}/secrets`),
   },
 
+  // USER/services: raw snake passthrough — routes validate with schemas.X.parse(raw).
   users: {
     search: (query, excludeIds) => {
       const params = new URLSearchParams();
       if (query) params.set('q', query);
       excludeIds.forEach((id) => params.append('excludeIds', id));
       const qs = params.toString();
-      return get(`/users/search${qs ? `?${qs}` : ''}`);
+      return getSnakeRaw(`/users/search${qs ? `?${qs}` : ''}`);
     },
-    me: () => get('/user/me'),
+    me: () => getSnakeRaw('/user/me'),
     getServicesPage: (page, size, query) => {
       const params = new URLSearchParams();
       params.set('page', String(page));
       params.set('size', String(size));
       if (query) params.set('query', query);
-      return get(`/user/services/page?${params.toString()}`);
+      return getSnakeRaw(`/user/services/page?${params.toString()}`);
     },
   },
 
   services: {
     permissions: {
-      list: (serviceCode) => get(`/services/${serviceCode}/authorized-users`),
+      list: (serviceCode) => getSnakeRaw(`/services/${serviceCode}/authorized-users`),
     },
   },
 
-  dashboard: {
-    summary: () => get('/admin/dashboard/summary'),
-    systems: (params) => {
-      const qs = params.toString();
-      return get(`/admin/dashboard/systems${qs ? `?${qs}` : ''}`);
-    },
-    systemsExport: (params) => {
-      const qs = params.toString();
-      return getRaw(`/admin/dashboard/systems/export${qs ? `?${qs}` : ''}`);
-    },
-  },
-
-  dev: {
-    getUsers: () => get('/dev/users'),
-    switchUser: (body) => post('/dev/switch-user', body),
-  },
-
+  // SCAN: raw snake passthrough — routes validate with schemas.X.parse(raw).
   scan: {
-    get: (id, scanId) => get(`/target-sources/${id}/scans/${scanId}`),
-    getHistory: (id, query) => get(`/target-sources/${id}/scan/history${buildQuery(query)}`),
+    get: (id, scanId) => getSnakeRaw(`/target-sources/${id}/scans/${scanId}`),
+    getHistory: (id, query) => getSnakeRaw(`/target-sources/${id}/scan/history${buildQuery(query)}`),
     create: (id, body) => post(`/target-sources/${id}/scan`, body),
-    getStatus: (id) => get(`/target-sources/${id}/scanJob/latest`),
-  },
-
-  taskAdmin: {
-    getApprovalRequestQueue: (params) => {
-      const searchParams = new URLSearchParams();
-      searchParams.set('status', params.status);
-      if (params.requestType) searchParams.set('requestType', params.requestType);
-      if (params.search) searchParams.set('search', params.search);
-      if (params.page !== undefined) searchParams.set('page', String(params.page));
-      if (params.size !== undefined) searchParams.set('size', String(params.size));
-      if (params.sort) searchParams.set('sort', params.sort);
-      return get(`/task-admin/approval-requests?${searchParams.toString()}`);
-    },
+    getStatus: (id) => getSnakeRaw(`/target-sources/${id}/scanJob/latest`),
   },
 
   aws: {
-    getInstallationStatus: (id) => get(`/target-sources/${id}/aws/installation-status`),
+    // ADR-019 zod-codegen: routes own the parse boundary — return raw snake wire.
+    getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/aws/installation-status`),
     // Non-JSON binary (zip) — getRaw returns the raw Response (D6, no camelCaseKeys).
     getTerraformScript: (id) => getRaw(`/target-sources/${id}/aws/terraform-script/download`),
-    verifyScanRole: (id) => get(`/target-sources/${id}/aws/verify-scan-role`),
-    verifyExecutionRole: (id) => get(`/target-sources/${id}/aws/verify-execution-role`),
+    verifyScanRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-scan-role`),
+    verifyExecutionRole: (id) => getSnakeRaw(`/target-sources/${id}/aws/verify-execution-role`),
   },
 
+  // Azure responses are raw snake passthrough — the route validates with
+  // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
+  // (AzureHealthCheckResult wire is already camelCase per swagger; getSnakeRaw is a
+  // no-op camelize; the route's schemas.AzureHealthCheckResult.parse() validates.)
   azure: {
-    getInstallationStatus: (id) => get(`/target-sources/${id}/azure/installation-status`),
-    getSubnetGuide: (id) => get(`/target-sources/${id}/azure/subnet-guide`),
+    getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/azure/installation-status`),
     // Issue #222: snake_case raw passthrough — getSnakeRaw is the greppable D6 opt-out.
     getScanApp: (id) => getSnakeRaw(`/target-sources/${id}/azure/scan-app`),
-    // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix and
-    // that the wire is already camelCase (camelCaseKeys is a no-op, routed through
-    // `get` for uniformity).
+    // G8 — swagger getAzurePrivateLinkHealthCheck. Note the `/infra/` infix.
     getPrivateLinkHealthCheck: (id) =>
-      get(`/infra/target-sources/${id}/azure-private-link-health-check`),
+      getSnakeRaw(`/infra/target-sources/${id}/azure-private-link-health-check`),
   },
 
+  // GCP responses are raw snake passthrough — the route validates with
+  // schemas.X.parse(raw) and the CSR adapter owns the camel conversion.
   gcp: {
-    getInstallationStatus: (id) => get(`/target-sources/${id}/gcp/installation-status`),
-    getScanServiceAccount: (id) => get(`/target-sources/${id}/gcp/scan-service-account`),
-    getTerraformServiceAccount: (id) => get(`/target-sources/${id}/gcp/terraform-service-account`),
+    getInstallationStatus: (id) => getSnakeRaw(`/target-sources/${id}/gcp/installation-status`),
+    getScanServiceAccount: (id) => getSnakeRaw(`/target-sources/${id}/gcp/scan-service-account`),
+    getTerraformServiceAccount: (id) => getSnakeRaw(`/target-sources/${id}/gcp/terraform-service-account`),
   },
 
   // IDC responses are raw snake passthrough — the mapper (app/lib/api/idc.ts)
@@ -243,30 +203,33 @@ export const httpBff: BffClient = {
   },
 
   confirm: {
-    getResources: async (id) => {
-      const payload = await get<ResourceCatalogResponsePayload>(`/target-sources/${id}/resources`);
-      return extractResourceCatalog(payload);
-    },
+    // ADR-019 zod-codegen: routes own the parse boundary — return raw snake wire.
+    getResources: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.CloudResourceResponse>>(`/target-sources/${id}/resources`),
 
-    createApprovalRequest: (id, body: ApprovalRequestCreateBody) =>
+    createApprovalRequest: (id, body) =>
       post<unknown>(`/target-sources/${id}/approval-requests`, body),
 
-    getConfirmedIntegration: async (id): Promise<BffConfirmedIntegration> => {
-      const payload = await get<ConfirmedIntegrationResponsePayload>(`/target-sources/${id}/confirmed-integration`);
-      return extractConfirmedIntegration(payload);
-    },
+    getConfirmedIntegration: (id) =>
+      getSnakeRaw<z.infer<typeof schemas.ConfirmedIntegrationResponse>>(
+        `/target-sources/${id}/confirmed-integration`,
+      ),
 
     getApprovedIntegration: (id) =>
-      get<unknown>(`/target-sources/${id}/approved-integration`),
+      getSnakeRaw<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
+        `/target-sources/${id}/approved-integration`,
+      ),
 
     getApprovalHistory: (id, page, size) =>
-      get<unknown>(`/target-sources/${id}/approval-history?page=${page}&size=${size}`),
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-history?page=${page}&size=${size}`),
 
     getApprovalRequestLatest: (id) =>
-      get<unknown>(`/target-sources/${id}/approval-requests/latest`),
+      getSnakeRaw<unknown>(`/target-sources/${id}/approval-requests/latest`),
 
     getProcessStatus: (id) =>
-      get<unknown>(`/target-sources/${id}/process-status`),
+      getSnakeRaw<z.infer<typeof schemas.ProcessStatusResponseDto>>(
+        `/target-sources/${id}/process-status`,
+      ),
 
     approveApprovalRequest: (id, body) =>
       post<unknown>(`/target-sources/${id}/approval-requests/approve`, body),
@@ -291,36 +254,36 @@ export const httpBff: BffClient = {
 
     // 202 — no request body; optional collectorImageTag query (ADR-019 D6).
     testConnection: (id, collectorImageTag) =>
-      post<TestConnectionTriggerResponseWire>(
+      post<z.infer<typeof schemas.TestConnectionTriggerResponse>>(
         `/target-sources/${id}/test-connection/async${buildQuery({ collectorImageTag })}`,
       ),
 
-    // GETs returned raw (wire snake) so the route handler is the sole casing
-    // boundary (ADR-019 D1) — the BffClient contract is the upstream wire shape.
+    // GETs returned raw (wire snake) — route validates with schemas.X.parse(raw).
     getTestConnectionLatest: (id) =>
-      getSnakeRaw<TestConnectionVersionResultWire>(
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionVersionResult>>(
         `/target-sources/${id}/test-connection/latest_version`,
       ),
 
     getLatestTestConnectionResultSummaries: (id) =>
-      getSnakeRaw<TestConnectionLatestResultSummaryResponseWire[]>(
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         `/target-sources/${id}/test-connection/latest-results`,
       ),
 
     getTestConnectionCompletionStatus: (id) =>
-      getSnakeRaw<TestConnectionCompletionStatusResponseWire>(
+      getSnakeRaw<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>(
         `/target-sources/${id}/test-connection/completion-status`,
       ),
 
     updateTestConnectionConfirmation: (id, body) =>
-      put<TestConnectionConfirmationResponseWire>(
+      put<z.infer<typeof schemas.TestConnectionConfirmationResponse>>(
         `/target-sources/${id}/test-connection-acknowledgment`,
         body,
       ),
   },
 
+  // Guides: raw snake passthrough — route validates with schemas.GuideDetail.parse(raw).
   guides: {
-    get: (name) => get(`/admin/guides/${encodeURIComponent(name)}`),
+    get: (name) => getSnakeRaw(`/admin/guides/${encodeURIComponent(name)}`),
     put: (name, body) => put(`/admin/guides/${encodeURIComponent(name)}`, body),
   },
 };

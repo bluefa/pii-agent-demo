@@ -3,13 +3,17 @@
 import { useScanPolling } from '@/app/hooks/useScanPolling';
 import { useApiAction } from '@/app/hooks/useApiMutation';
 import { startScan } from '@/app/lib/api/scan';
-import type { V1ScanJob, ScanResult, ResourceType } from '@/lib/types';
+import type { ScanResult, ResourceType } from '@/lib/types';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+
+type ScanJob = z.infer<typeof schemas.ScanJobResponse>;
 
 export type ScanUiState = 'EMPTY' | 'IN_PROGRESS' | 'SUCCESS' | 'FAILED';
 
 export interface ScanControllerRenderProps {
   state: ScanUiState;
-  latestJob: V1ScanJob | null;
+  latestJob: ScanJob | null;
   lastResult: ScanResult | null;
   lastScanAt: string | undefined;
   progress: number;
@@ -27,8 +31,8 @@ interface ScanControllerProps {
   children: (props: ScanControllerRenderProps) => React.ReactNode;
 }
 
-const scanJobToResult = (job: V1ScanJob): ScanResult | null => {
-  const entries = Object.entries(job.resourceCountByResourceType);
+const scanJobToResult = (job: ScanJob): ScanResult | null => {
+  const entries = Object.entries(job.resource_count_by_resource_type ?? {});
   if (entries.length === 0) return null;
   return {
     totalFound: entries.reduce((sum, [, count]) => sum + count, 0),
@@ -69,11 +73,11 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
 
   const isInProgress = uiState === 'IN_PROGRESS';
   const canStart = !starting && !isInProgress;
-  const lastResult = latestJob && latestJob.scanStatus === 'SUCCESS' ? scanJobToResult(latestJob) : null;
-  const lastScanAt = latestJob?.scanStatus === 'SUCCESS' ? latestJob.updatedAt : undefined;
+  const lastResult = latestJob && latestJob.scan_status === 'SUCCESS' ? scanJobToResult(latestJob) : null;
+  const lastScanAt = latestJob?.scan_status === 'SUCCESS' ? latestJob.updated_at : undefined;
   const state = uiStateToScanUiState(uiState);
   const progress = isInProgress
-    ? (latestJob?.scanProgress ?? 0)
+    ? (latestJob?.scan_progress ?? 0)
     : state === 'SUCCESS' ? 100 : 0;
 
   return <>{children({

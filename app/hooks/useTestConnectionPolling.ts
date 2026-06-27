@@ -20,12 +20,12 @@ export interface UseTestConnectionPollingReturn {
 // ADR-019: connection_status gains RUNNING — both PENDING and RUNNING are
 // in-progress (polling continues); SUCCESS/FAIL settle. Exported for direct
 // unit testing of the new enum handling.
-export const isInProgress = (status: TestConnectionVersionResult['connectionStatus']): boolean =>
+export const isInProgress = (status: TestConnectionVersionResult['connection_status']): boolean =>
   status === 'PENDING' || status === 'RUNNING';
 
 export const computeUIState = (job: TestConnectionVersionResult | null): TestConnectionUIState => {
   if (!job) return 'IDLE';
-  switch (job.connectionStatus) {
+  switch (job.connection_status) {
     case 'PENDING':
     case 'RUNNING':
       return 'PENDING';
@@ -37,7 +37,7 @@ export const computeUIState = (job: TestConnectionVersionResult | null): TestCon
 
 // Stop polling once there is no job or it has settled (not PENDING/RUNNING).
 export const shouldStopPolling = (job: TestConnectionVersionResult | null): boolean =>
-  !job || !isInProgress(job.connectionStatus);
+  !job || !isInProgress(job.connection_status);
 
 const fetchLatestTest = async (
   targetSourceId: number,

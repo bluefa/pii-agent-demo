@@ -11,10 +11,11 @@ interface ResultSummaryProps {
 }
 
 export const ResultSummary = ({ job, isShaking, onShowDetail }: ResultSummaryProps) => {
-  const successCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'SUCCESS').length;
-  const failCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'FAIL').length;
-  const isSuccess = job.connectionStatus === 'SUCCESS';
-  const dateStr = new Date(job.completedAt || job.requestedAt || '').toLocaleString('ko-KR', {
+  const agents = job.test_connection_agent_results ?? [];
+  const successCount = agents.filter((r) => r.connection_status === 'SUCCESS').length;
+  const failCount = agents.filter((r) => r.connection_status === 'FAIL').length;
+  const isSuccess = job.connection_status === 'SUCCESS';
+  const dateStr = new Date(job.completed_at || job.requested_at || '').toLocaleString('ko-KR', {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 

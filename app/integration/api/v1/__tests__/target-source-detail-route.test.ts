@@ -19,16 +19,15 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
     vi.clearAllMocks();
   });
 
-  it('TargetSource detail을 추출해 반환한다', async () => {
+  it('TargetSource detail을 snake wire 그대로 반환한다 (ADR-019)', async () => {
+    // ADR-019: bff.targetSources.get returns raw snake TargetSourceDetail.
+    // Route validates with schemas.TargetSourceDetail.parse and returns snake wire to CSR.
     mockedGet.mockResolvedValue({
-      targetSource: {
-        targetSourceId: 1001,
-        cloudProvider: 'AWS',
-        createdAt: '2026-04-01T00:00:00Z',
-        processStatus: 'PENDING',
-        projectCode: 'TS-1001',
-        serviceCode: 'SERVICE-A',
-      },
+      target_source_id: 1001,
+      cloud_provider: 'AWS',
+      created_at: '2026-04-01T00:00:00Z',
+      process_status: 'PENDING',
+      service_code: 'SERVICE-A',
     } as unknown as Awaited<ReturnType<typeof bff.targetSources.get>>);
 
     const response = await GET(
@@ -39,9 +38,8 @@ describe('GET /integration/api/v1/target-sources/[targetSourceId]', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body).toMatchObject({
-      targetSourceId: 1001,
-      projectCode: 'TS-1001',
-      serviceCode: 'SERVICE-A',
+      target_source_id: 1001,
+      service_code: 'SERVICE-A',
     });
     expect(mockedGet).toHaveBeenCalledWith(1001);
   });

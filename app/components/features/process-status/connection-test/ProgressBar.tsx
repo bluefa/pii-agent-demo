@@ -10,7 +10,7 @@ interface ProgressBarProps {
 }
 
 export const ProgressBar = ({ job, totalResources }: ProgressBarProps) => {
-  const completed = job.testConnectionAgentResults.length;
+  const completed = (job.test_connection_agent_results ?? []).length;
   const total = totalResources || completed || 1;
   const percent = Math.round((completed / total) * 100);
 

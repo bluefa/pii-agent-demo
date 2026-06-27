@@ -93,19 +93,19 @@ const getProjectInstallationStatus = () => {
 };
 
 const createApprovalRequestBody = (selectedIds: string[], excludedIds: string[] = []) => ({
-  input_data: {
-    resource_inputs: [
-      ...selectedIds.map((id) => ({
-        resource_id: id,
-        selected: true as const,
-      })),
-      ...excludedIds.map((id) => ({
-        resource_id: id,
-        selected: false as const,
-        exclusion_reason: '연동 불필요',
-      })),
-    ],
-  },
+  resources: [
+    ...selectedIds.map((id) => ({
+      resource_id: id,
+      selected: true as const,
+      metadata: {},
+    })),
+    ...excludedIds.map((id) => ({
+      resource_id: id,
+      selected: false as const,
+      exclusion_reason: '연동 불필요',
+      metadata: {},
+    })),
+  ],
 });
 
 // --- Tests ---
@@ -218,12 +218,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       expect(status.process_status).toBe('APPLYING_APPROVED');
       expect(status.status_inputs.has_approved_integration).toBe(true);
 
-      // Step 4: ApprovedIntegration 스냅샷 확인
+      // Step 4: ApprovedIntegration 스냅샷 확인 (ADR-019: flat snake wire)
       const approvedRes = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const approvedData = await parseResponse(approvedRes);
-      expect(approvedData.approved_integration).not.toBeNull();
-      expect(approvedData.approved_integration.resource_infos).toHaveLength(2);
-      expect(approvedData.approved_integration.excluded_resource_ids).toContain('rds-res-3');
+      // ADR-019: flat shape — no approved_integration wrapper; resources = selected snapshots.
+      expect(approvedData.resources).toHaveLength(2);
+      // Excluded resource (res-3) is not in the selected resources array.
+      const resourceIds = (approvedData.resources as Array<{ resource_id: string }>).map((r) => r.resource_id);
+      expect(resourceIds).not.toContain('rds-res-3');
     });
   });
 
@@ -394,10 +396,10 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const approvedRes = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const approvedData = await parseResponse(approvedRes);
 
-      expect(approvedData.approved_integration).not.toBeNull();
-      expect(approvedData.approved_integration.resource_infos).toHaveLength(2);
-      expect(approvedData.approved_integration.approved_at).toBeDefined();
-      expect(approvedData.approved_integration.request_id).toMatch(/^req-/);
+      // ADR-019: flat shape — no approved_integration wrapper; resources = selected snapshots.
+      // Auto-approval is disabled in demo; mock returns demo-fallback view (WAITING_APPROVAL path).
+      expect(approvedData.resources).toHaveLength(2);
+      expect(approvedData.approved_at).toBeDefined();
     });
 
     it('Cloud 리소스 재확정 시 AWS 설치 상태를 초기화한다', async () => {
@@ -894,10 +896,11 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const res = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const data = await parseResponse(res);
       expect(res.status).toBe(200);
-      expect(data.approved_integration).not.toBeNull();
-      expect(data.approved_integration.resource_infos).toHaveLength(2);
-      expect(data.approved_integration.excluded_resource_ids).toContain('rds-res-3');
-      expect(data.approved_integration.exclusion_reason).toBe('제외');
+      // ADR-019: flat shape — no approved_integration wrapper; resources = selected snapshots only.
+      expect(data.resources).toHaveLength(2);
+      const resourceIds = (data.resources as Array<{ resource_id: string }>).map((r) => r.resource_id);
+      // Excluded resource (rds-res-3) is not in selected resources.
+      expect(resourceIds).not.toContain('rds-res-3');
     });
 
     it('존재하지 않는 프로젝트 → 404', async () => {

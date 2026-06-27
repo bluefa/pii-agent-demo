@@ -8,16 +8,15 @@ import {
   mockServiceCodes,
 } from '@/lib/mock-data';
 import { mockProjects } from '@/lib/bff/mock/projects';
-import { camelCaseKeys } from '@/lib/object-case';
 import { createInitialProjectStatus } from '@/lib/process';
 import { ProcessStatus } from '@/lib/types';
 import type { CloudProvider, Project } from '@/lib/types';
-import type {
-  TargetSourceCreationCandidateMetadataWire,
-  TargetSourceCreationCandidateRequest,
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceMetadataWire,
-} from '@/lib/bff/types/target-sources';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+type TargetSourceCreationCandidateMetadataWire = z.infer<typeof schemas.TargetSourceCreationCandidateMetadata>;
+type TargetSourceCreationCandidateRequest = z.infer<typeof schemas.TargetSourceCreationCandidateRequest>;
+type TargetSourceCreationCandidateResponseWire = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
+type TargetSourceMetadataWire = z.infer<typeof schemas.TargetSourceMetadata>;
 
 type BffCloudProvider = 'AWS' | 'GCP' | 'AZURE' | 'IDC' | 'UNKNOWN';
 type BffApprovalProcessStatus =
@@ -379,10 +378,9 @@ export const mockTargetSources = {
     const response = await mockProjects.get(targetSourceId);
     if (!response.ok) return response;
     const { project } = (await response.json()) as { project: Project };
-    // swagger is a FLAT TargetSourceDetail (snake). Author the wire DTO, then
-    // camelCaseKeys it to mirror httpBff's GET boundary (the mock-adapter uses
-    // raw `unwrap` for this method, so the conversion happens here).
-    return NextResponse.json(camelCaseKeys(toBffTargetSourceDetail(project)));
+    // swagger is a FLAT TargetSourceDetail (snake). Author the wire DTO and return
+    // it raw — the route validates with schemas.TargetSourceDetail.parse(raw).
+    return NextResponse.json(toBffTargetSourceDetail(project));
   },
 
   // createTargetSource (36): body is the selected TargetSourceCreationCandidateResponse

@@ -45,25 +45,22 @@ const buildResponse = () => ({
   },
 });
 
-// ADR-019: getApprovalRequestLatest now returns the camel ApprovalRequestLatest
-// domain shape (route owns the wire→domain boundary).
 const buildApprovalRequestLatest = () => ({
   request: {
     id: 1,
-    targetSourceId: 1003,
+    target_source_id: 1003,
     status: 'PENDING' as const,
-    requestedBy: { userId: 'tester' },
-    requestedAt: '2026-04-29T05:30:00Z',
-    resourceTotalCount: 2,
-    resourceSelectedCount: 1,
+    requested_by: { user_id: 'tester' },
+    requested_at: '2026-04-29T05:30:00Z',
+    resource_total_count: 2,
+    resource_selected_count: 1,
   },
   resources: [],
   result: {
-    requestId: 0,
+    request_id: 0,
     status: 'PENDING' as const,
-    processedBy: null,
-    processedAt: '',
-    reason: '',
+    processed_by: { user_id: '' },
+    processed_at: '',
   },
 });
 

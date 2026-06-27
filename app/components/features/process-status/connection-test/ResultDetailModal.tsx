@@ -12,9 +12,10 @@ interface ResultDetailModalProps {
 }
 
 export const ResultDetailModal = ({ isOpen, onClose, job }: ResultDetailModalProps) => {
-  const failCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'FAIL').length;
-  const successCount = job.testConnectionAgentResults.filter((r) => r.connectionStatus === 'SUCCESS').length;
-  const dateStr = new Date(job.completedAt || job.requestedAt || '').toLocaleString('ko-KR', {
+  const agents = job.test_connection_agent_results ?? [];
+  const failCount = agents.filter((r) => r.connection_status === 'FAIL').length;
+  const successCount = agents.filter((r) => r.connection_status === 'SUCCESS').length;
+  const dateStr = new Date(job.completed_at || job.requested_at || '').toLocaleString('ko-KR', {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
@@ -38,8 +39,8 @@ export const ResultDetailModal = ({ isOpen, onClose, job }: ResultDetailModalPro
       }
     >
       <div className="max-h-[400px] overflow-auto">
-        {job.testConnectionAgentResults.map((r) => (
-          <ResourceResultRow key={r.resourceId} result={r} />
+        {agents.map((r) => (
+          <ResourceResultRow key={r.resource_id} result={r} />
         ))}
       </div>
     </Modal>

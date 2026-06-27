@@ -7,7 +7,6 @@ import {
   AzureVmStatus,
   AzureServiceSettings,
   AzureTerraformScript,
-  AzureSubnetGuide,
   PrivateEndpointStatus,
 } from '@/lib/types/azure';
 import {
@@ -320,33 +319,6 @@ export const getAzureVmTerraformScript = (
   };
 };
 
-/**
- * Azure Subnet 가이드 조회
- */
-export const getAzureSubnetGuide = (
-  targetSourceId: number
-): { data?: AzureSubnetGuide; error?: { code: string; message: string; status: number } } => {
-  const project = getProjectByTargetSourceId(targetSourceId);
-
-  if (!project) {
-    return {
-      error: { code: 'NOT_FOUND', message: '프로젝트를 찾을 수 없습니다.', status: 404 },
-    };
-  }
-
-  if (!isAzureProject(project)) {
-    return {
-      error: { code: 'NOT_AZURE_PROJECT', message: 'Azure 프로젝트가 아닙니다.', status: 400 },
-    };
-  }
-
-  return {
-    data: {
-      description: 'PII Agent VM이 연결될 서브넷을 구성하는 방법을 안내합니다.',
-      documentUrl: AZURE_GUIDE_URLS.SUBNET_CONFIGURATION,
-    },
-  };
-};
 
 /**
  * Azure 서비스 설정 조회

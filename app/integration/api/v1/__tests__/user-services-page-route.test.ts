@@ -11,7 +11,10 @@ vi.mock('@/lib/bff/client', () => ({
 import { GET } from '@/app/integration/api/v1/user/services/page/route';
 import { bff } from '@/lib/bff/client';
 import { BffError } from '@/lib/bff/errors';
-import type { PageServiceItem } from '@/lib/bff/types/users';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+
+type PageServiceItem = z.infer<typeof schemas.PageServiceItem>;
 
 const mockedGetServicesPage = vi.mocked(bff.users.getServicesPage);
 
@@ -20,17 +23,17 @@ describe('GET /integration/api/v1/user/services/page', () => {
     vi.clearAllMocks();
   });
 
-  it('returns content normalized through resolveUserService', async () => {
+  it('returns snake wire PageServiceItem validated by zod schema', async () => {
     mockedGetServicesPage.mockResolvedValue({
       content: [
-        { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
-        { code: 'SERVICE-B', name: '서비스 B' } as unknown as { serviceCode: string; serviceName: string },
+        { service_code: 'SERVICE-A', service_name: '서비스 A' },
+        { service_code: 'SERVICE-B', service_name: '서비스 B' },
       ],
       totalElements: 2,
       totalPages: 1,
       number: 0,
       size: 10,
-    });
+    } as PageServiceItem);
 
     const response = await GET(
       new Request('http://localhost/integration/api/v1/user/services/page?page=0&size=10'),
@@ -40,16 +43,16 @@ describe('GET /integration/api/v1/user/services/page', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       content: [
-        { serviceCode: 'SERVICE-A', serviceName: '서비스 A' },
-        { serviceCode: 'SERVICE-B', serviceName: '서비스 B' },
+        { service_code: 'SERVICE-A', service_name: '서비스 A' },
+        { service_code: 'SERVICE-B', service_name: '서비스 B' },
       ],
     });
     expect(mockedGetServicesPage).toHaveBeenCalledWith(0, 10, undefined);
   });
 
-  it('reads flat Spring Page envelope into the route page metadata', async () => {
+  it('reads Spring Page envelope metadata', async () => {
     mockedGetServicesPage.mockResolvedValue({
-      content: [{ serviceCode: 'SERVICE-A', serviceName: '서비스 A' }],
+      content: [{ service_code: 'SERVICE-A', service_name: '서비스 A' }],
       totalElements: 42,
       totalPages: 5,
       number: 1,
@@ -62,7 +65,10 @@ describe('GET /integration/api/v1/user/services/page', () => {
     );
 
     await expect(response.json()).resolves.toMatchObject({
-      page: { totalElements: 42, totalPages: 5, number: 1, size: 10 },
+      totalElements: 42,
+      totalPages: 5,
+      number: 1,
+      size: 10,
     });
   });
 

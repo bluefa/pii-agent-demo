@@ -65,8 +65,8 @@ interface RequestSummary {
 }
 
 const toRequestSummary = (response: ApprovalRequestLatestResponse): RequestSummary | null => {
-  const requestedAt = response.request?.requestedAt;
-  const requestedBy = response.request?.requestedBy?.userId;
+  const requestedAt = response.request?.requested_at;
+  const requestedBy = response.request?.requested_by?.user_id;
   if (!requestedAt || !requestedBy) return null;
   return { requestedAt, requestedBy };
 };

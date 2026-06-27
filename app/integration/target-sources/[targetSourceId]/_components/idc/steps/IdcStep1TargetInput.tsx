@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import { ProcessStatus } from '@/lib/types';
 import { createApprovalRequest, getProject } from '@/app/lib/api';
 import {
@@ -39,6 +41,26 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 const toRow = (view: IdcResourceView): IdcStep1Row => ({
   ...view,
   exclusionCustom: view.excluded && !!view.exclusionReason && !IDC_EXCL_PRESETS.includes(view.exclusionReason as (typeof IDC_EXCL_PRESETS)[number]),
+});
+
+/**
+ * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. IDC has no
+ * `/resources` PUT in the contract, so submission carries only selection/exclusion
+ * ("select와 같이 선택/미선택 여부"). metadata is empty — there is no per-row metadata here.
+ */
+const toIdcApprovalRequestInput = (
+  rows: readonly IdcStep1Row[],
+): z.infer<typeof schemas.ApprovalRequestInputDto> => ({
+  resources: rows.map((r) =>
+    r.excluded
+      ? {
+          resource_id: r.resourceId,
+          selected: false as const,
+          ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
+          metadata: {},
+        }
+      : { resource_id: r.resourceId, selected: true as const, metadata: {} },
+  ),
 });
 
 const defaultSourceIps = (kind: IdcResourceView['kind']): string[] =>
@@ -171,16 +193,7 @@ export const IdcStep1TargetInput = ({
       // PUT in the contract; submission rides createApprovalRequest, which routes
       // every submission to WAITING_APPROVAL (Step 2, 승인 대기) for manual admin
       // approval — same as cloud providers (auto-approval is disabled in the demo).
-      const resourceInputs = rows.map((r) =>
-        r.excluded
-          ? {
-              resource_id: r.resourceId,
-              selected: false as const,
-              ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
-            }
-          : { resource_id: r.resourceId, selected: true as const },
-      );
-      await createApprovalRequest(targetSourceId, { resource_inputs: resourceInputs });
+      await createApprovalRequest(targetSourceId, toIdcApprovalRequestInput(rows));
       await refreshProject();
       setSubmitOpen(false);
     } catch {

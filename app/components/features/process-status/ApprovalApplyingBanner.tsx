@@ -16,7 +16,7 @@ export const ApprovalApplyingBanner = ({
   targetSourceId,
 }: ApprovalApplyingBannerProps) => {
   const [latestResponse, setLatestResponse] = useState<ApprovalRequestLatestResponse | null>(null);
-  const totalCount = latestResponse?.request?.resourceSelectedCount ?? 0;
+  const totalCount = latestResponse?.request?.resource_selected_count ?? 0;
 
   useAbortableEffect((signal) => {
     if (!targetSourceId) return undefined;

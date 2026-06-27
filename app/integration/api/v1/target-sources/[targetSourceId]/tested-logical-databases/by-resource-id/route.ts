@@ -3,10 +3,11 @@ import { withV1 } from '@/app/api/_lib/handler';
 import { bff } from '@/lib/bff/client';
 import { parseTargetSourceId } from '@/app/api/_lib/target-source';
 import { problemResponse, createProblem } from '@/app/api/_lib/problem';
+import { schemas } from '@/lib/generated/install-v1';
 
 // GET …/tested-logical-databases/by-resource-id?resourceId=… — discovered DB/Schema
-// from the last Test Connection (left panel). The CSR client owns the single camel
-// boundary, so the BFF response is forwarded as raw snake (ADR-019 D1/D8).
+// from the last Test Connection (left panel). Validated with
+// schemas.TestedLogicalDatabasesResponse.parse(raw).
 export const GET = withV1(async (request, { requestId, params }) => {
   const parsed = parseTargetSourceId(params.targetSourceId, requestId);
   if (!parsed.ok) return problemResponse(parsed.problem);
@@ -19,5 +20,5 @@ export const GET = withV1(async (request, { requestId, params }) => {
   }
 
   const data = await bff.logicalDb.getTestedByResourceId(parsed.value, resourceId);
-  return NextResponse.json(data);
+  return NextResponse.json(schemas.TestedLogicalDatabasesResponse.parse(data));
 }, { expectedDuration: '50ms' });

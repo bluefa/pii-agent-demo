@@ -1,5 +1,5 @@
 import { bff } from '@/lib/bff/client';
-import { extractTargetSource } from '@/lib/target-source-response';
+import { extractTargetSourceFromSnake } from '@/lib/target-source-response';
 import { ProjectDetail } from '@/app/integration/target-sources/[targetSourceId]/_components/ProjectDetail';
 import { ErrorState } from '@/app/integration/target-sources/[targetSourceId]/_components/common';
 
@@ -15,7 +15,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   }
 
   const data = await bff.targetSources.get(targetSourceId);
-  const project = extractTargetSource(data);
+  const project = extractTargetSourceFromSnake(data);
 
   return <ProjectDetail initialProject={project} />;
 }

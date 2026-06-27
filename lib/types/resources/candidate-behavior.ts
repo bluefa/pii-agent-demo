@@ -1,4 +1,5 @@
-import type { ApprovalResourceInputData } from '@/app/lib/api';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import type {
   CandidateConfigKind,
   CandidateResource,
@@ -9,11 +10,13 @@ export interface CandidateDraftState {
   endpointDrafts: Record<string, EndpointConfigDraft>;
 }
 
+type MetadataFields = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
+
 export interface CandidateResourceBehavior {
   configKind: CandidateConfigKind;
   isConfigured(resource: CandidateResource, draft: CandidateDraftState): boolean;
-  buildApprovalInput(
+  buildMetadataFields(
     resource: CandidateResource,
     draft: CandidateDraftState,
-  ): ApprovalResourceInputData | undefined;
+  ): MetadataFields;
 }

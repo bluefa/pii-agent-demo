@@ -26,13 +26,14 @@
 import { NextResponse } from 'next/server';
 import * as mockData from '@/lib/mock-data';
 import { ProcessStatus } from '@/lib/types';
-import type {
-  SkipLogicalDatabaseItemWire,
-  SkipLogicalDatabaseResponseWire,
-  TestedLogicalDatabaseItemWire,
-  TestedLogicalDatabasesResponseWire,
-  UpdateSkipLogicalDatabaseRequestWire,
-} from '@/lib/bff/types/logical-db';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+
+type SkipLogicalDatabaseItemWire = NonNullable<z.infer<typeof schemas.SkipLogicalDatabaseResponse>['skip_logical_database_list']>[number];
+type SkipLogicalDatabaseResponseWire = z.infer<typeof schemas.SkipLogicalDatabaseResponse>;
+type TestedLogicalDatabaseItemWire = NonNullable<z.infer<typeof schemas.TestedLogicalDatabasesResponse>['logical_database_list']>[number];
+type TestedLogicalDatabasesResponseWire = z.infer<typeof schemas.TestedLogicalDatabasesResponse>;
+type UpdateSkipLogicalDatabaseRequestWire = z.infer<typeof schemas.UpdateSkipLogicalDatabaseRequest>;
 
 // ===== Auth (mirrors lib/bff/mock/idc.ts) =====
 

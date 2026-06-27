@@ -99,13 +99,6 @@ export interface AzureTerraformScript {
   generatedAt: string;
 }
 
-// ===== Azure Subnet 가이드 =====
-
-export interface AzureSubnetGuide {
-  description: string;
-  documentUrl?: string;
-}
-
 // ===== Azure v1 API 응답 타입 =====
 
 export interface AzureV1LastCheck {

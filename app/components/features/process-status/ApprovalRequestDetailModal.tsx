@@ -1,9 +1,22 @@
 import { Badge } from '@/app/components/ui/Badge';
 import { Modal } from '@/app/components/ui/Modal';
-import type { ApprovalHistoryResponse, ApprovalRequestLatestResponse } from '@/app/lib/api';
+import type { ApprovalRequestLatestResponse } from '@/app/lib/api';
 import { cn, statusColors, getButtonClass, textColors, bgColors, borderColors } from '@/lib/theme';
 
-type ApprovalHistoryItem = ApprovalHistoryResponse['content'][number];
+interface ApprovalHistoryItem {
+  request: {
+    id: string | number;
+    requested_by: string;
+    requested_at: string;
+    resource_total_count?: number;
+    resource_selected_count?: number;
+  };
+  result?: {
+    result?: string;
+    processed_at?: string;
+    process_info: { user_id?: string; reason?: string };
+  };
+}
 
 interface ApprovalRequestDetailModalProps {
   isOpen: boolean;
@@ -106,16 +119,17 @@ interface NormalizedData {
   excludedCount: number;
 }
 
-const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): NormalizedData => {
-  const totalCount = response.request?.resourceTotalCount ?? 0;
-  const selectedCount = response.request?.resourceSelectedCount ?? 0;
+// Output adapter: contract ApprovalRequestLatestDto → view-model (counts from contract fields).
+const toSummaryViewFromLatest = (response: ApprovalRequestLatestResponse): NormalizedData => {
+  const totalCount = response.request?.resource_total_count ?? 0;
+  const selectedCount = response.request?.resource_selected_count ?? 0;
   return {
     requestId: String(response.request?.id ?? ''),
-    requestedBy: response.request?.requestedBy?.userId ?? 'Unknown',
-    requestedAt: response.request?.requestedAt ?? '',
+    requestedBy: response.request?.requested_by?.user_id ?? 'Unknown',
+    requestedAt: response.request?.requested_at ?? '',
     resultStatus: response.result?.status,
-    processedAt: response.result?.processedAt,
-    processedBy: response.result?.processedBy?.userId ?? null,
+    processedAt: response.result?.processed_at,
+    processedBy: response.result?.processed_by?.user_id ?? null,
     reason: response.result?.reason ?? null,
     totalCount,
     selectedCount,
@@ -123,11 +137,11 @@ const normalizeFromLatestResponse = (response: ApprovalRequestLatestResponse): N
   };
 };
 
-const normalizeFromHistoryItem = (item: ApprovalHistoryItem): NormalizedData => {
-  const resourceInputs = item.request.input_data?.resource_inputs ?? [];
-  const selectedCountFromSnapshot = resourceInputs.filter((r) => r.selected).length;
-  const totalCount = item.request.resource_total_count ?? resourceInputs.length;
-  const selectedCount = item.request.resource_selected_count ?? selectedCountFromSnapshot;
+// Output adapter: contract ApprovalRequestSummaryDto (history item) → view-model.
+// Counts come straight from the contract; the response carries no resource list.
+const toSummaryViewFromHistory = (item: ApprovalHistoryItem): NormalizedData => {
+  const totalCount = item.request.resource_total_count ?? 0;
+  const selectedCount = item.request.resource_selected_count ?? 0;
   return {
     requestId: String(item.request.id),
     requestedBy: item.request.requested_by,
@@ -151,8 +165,8 @@ export const ApprovalRequestDetailModal = ({
   if (!item && !latestResponse) return null;
 
   const data = latestResponse
-    ? normalizeFromLatestResponse(latestResponse)
-    : normalizeFromHistoryItem(item!);
+    ? toSummaryViewFromLatest(latestResponse)
+    : toSummaryViewFromHistory(item!);
 
   const hasRequestSummary = data.totalCount > 0 || data.selectedCount > 0;
   const resultMeta = getResultMeta(data.resultStatus);

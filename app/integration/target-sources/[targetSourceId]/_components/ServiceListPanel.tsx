@@ -92,8 +92,15 @@ export const ServiceListPanel = () => {
         { signal: controller.signal },
       );
       if (controller.signal.aborted) return;
+      const content = data.content ?? [];
+      const pageInfo = {
+        totalElements: data.totalElements ?? 0,
+        totalPages: data.totalPages ?? 0,
+        number: data.number ?? 0,
+        size: data.size ?? SERVICE_PAGE_SIZE,
+      };
       // Page out-of-range fallback: reset to page 0 and refetch with the same query.
-      if (page > 0 && page >= data.page.totalPages) {
+      if (page > 0 && page >= pageInfo.totalPages) {
         dispatch({ type: 'SET_PAGE', pageNum: 0 });
         lastAttemptedRef.current = { page: 0, query: searchQuery };
         const fallbackController = new AbortController();
@@ -105,10 +112,17 @@ export const ServiceListPanel = () => {
           { signal: fallbackController.signal },
         );
         if (fallbackController.signal.aborted) return;
-        dispatch({ type: 'SET_SERVICES', services: fallback.content, pageInfo: fallback.page });
+        const fallbackContent = fallback.content ?? [];
+        const fallbackPageInfo = {
+          totalElements: fallback.totalElements ?? 0,
+          totalPages: fallback.totalPages ?? 0,
+          number: fallback.number ?? 0,
+          size: fallback.size ?? SERVICE_PAGE_SIZE,
+        };
+        dispatch({ type: 'SET_SERVICES', services: fallbackContent, pageInfo: fallbackPageInfo });
         return;
       }
-      dispatch({ type: 'SET_SERVICES', services: data.content, pageInfo: data.page });
+      dispatch({ type: 'SET_SERVICES', services: content, pageInfo });
     } catch (err) {
       if (controller.signal.aborted) return;
       dispatch({
@@ -135,9 +149,9 @@ export const ServiceListPanel = () => {
   }, []);
 
   const handleSelectService = useCallback((code: string) => {
-    const svc = services.find((s) => s.code === code);
+    const svc = services.find((s) => s.service_code === code);
     if (!svc) return;
-    confirmModal.open({ code: svc.code, name: svc.name });
+    confirmModal.open({ code: svc.service_code ?? '', name: svc.service_name ?? '' });
   }, [services, confirmModal]);
 
   const handleSearchChange = useCallback((newQuery: string) => {

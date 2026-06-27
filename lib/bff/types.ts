@@ -9,191 +9,110 @@
  * Methods that called endpoints absent from the swagger were REMOVED (no stubs):
  * idc resources, {aws,gcp,azure,idc}/check-installation, installation-mode,
  * approval system-reset, services settings/aws/*, authorized-users add/remove,
- * legacy /projects/* and /aws/projects/*.
+ * legacy /projects/* and /aws/projects/*; dashboard, dev, taskAdmin (not in
+ * install-v1.yaml).
  *
- * Casing (ADR-019 D1/D2):
- *   - Most GET responses are camelCased once at the proxy (`get` runs camelCaseKeys).
- *   - Domains that own their own boundary (IDC mapper; logical-DB / test-connection
- *     route normalizers) request the raw snake wire (`getSnakeRaw`/`{ raw: true }`)
- *     so casing is owned in exactly one place.
+ * Casing (ADR-019 D1/D2 revised, zod-codegen amendment):
+ *   - AWS, AZURE, GCP: BFF methods return the raw snake wire; the route validates
+ *     with schemas.X.parse(raw); CSR adapters own any snake→camel reshape.
+ *   - TC domain: same pattern.
  */
-import type {
-  AwsInstallationStatusResponse,
-  AwsRoleVerificationResponse,
-} from '@/lib/bff/types/aws';
-import type {
-  AzureHealthCheckResult,
-  AzureInstallationStatusResponse,
-  AzureScanAppResponse,
-  AzureSubnetGuideResponse,
-} from '@/lib/bff/types/azure';
-import type {
-  GcpInstallationStatusResponse,
-  GcpScanServiceAccountResponse,
-  GcpTerraformServiceAccountResponse,
-} from '@/lib/bff/types/gcp';
-import type {
-  TargetSourceCreationCandidateResponseWire,
-  TargetSourceDetailResponse,
-  TargetSourceInfoWire,
-  TargetSourcesByServiceResponseWire,
-} from '@/lib/bff/types/target-sources';
-import type {
-  TestConnectionCompletionStatusResponseWire,
-  TestConnectionConfirmationResponseWire,
-  TestConnectionLatestResultSummaryResponseWire,
-  TestConnectionTriggerResponseWire,
-  TestConnectionVersionResultWire,
-  UpdateTestConnectionConfirmationRequestWire,
-} from '@/lib/bff/types/test-connection';
-import type {
-  SkipLogicalDatabaseResponseWire,
-  TestedLogicalDatabasesResponseWire,
-  UpdateSkipLogicalDatabaseRequestWire,
-} from '@/lib/bff/types/logical-db';
-import type {
-  PageServiceItem,
-  UserMeResponse,
-  UserSearchResponse,
-} from '@/lib/bff/types/users';
-import type { ServiceAuthorizedUsersResponse } from '@/lib/bff/types/services';
-import type {
-  DashboardSummaryResponse,
-  DashboardSystemsResponse,
-} from '@/lib/bff/types/dashboard';
-import type {
-  DevGetUsersResponse,
-  DevSwitchUserResult,
-} from '@/lib/bff/types/dev';
-import type {
-  ScanCreateResult,
-  ScanGetResponse,
-  ScanHistoryPageResponse,
-  ScanLatestStatusResponse,
-} from '@/lib/bff/types/scan';
-import type { TaskAdminApprovalRequestsResponse } from '@/lib/bff/types/task-admin';
-import type { QueueBoardQueryParams } from '@/lib/types/queue-board';
-import type {
-  ApprovalRequestCreateBody,
-  BffConfirmedIntegration,
-  ResourceCatalogResponse,
-} from '@/lib/bff/types/confirm';
-import type { GuideGetResponse, GuidePutResult } from '@/lib/bff/types/guides';
-import type {
-  IdcInstallationStatusResponseWire,
-  IdcPreviousRequestResponseWire,
-  NlbOccupiedResourceResponseWire,
-  NlbTableResponseWire,
-} from '@/lib/bff/types/idc';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 
 export interface BffClient {
   targetSources: {
-    get: (id: number) => Promise<TargetSourceDetailResponse>;
+    get: (id: number) => Promise<z.infer<typeof schemas.TargetSourceDetail>>;
     // Wire snake (37) — the route handler owns the casing boundary.
-    list: (serviceCode: string) => Promise<TargetSourcesByServiceResponseWire>;
+    list: (serviceCode: string) => Promise<z.infer<typeof schemas.TargetSourceDetail>[]>;
     // 201 TargetSourceInfo (36) — candidate posted back verbatim.
-    create: (serviceCode: string, candidate: unknown) => Promise<TargetSourceInfoWire>;
+    create: (serviceCode: string, candidate: unknown) => Promise<z.infer<typeof schemas.TargetSourceInfo>>;
     // 200 bare array of creation candidates (35).
     getCreationCandidates: (
       serviceCode: string,
       body: unknown,
-    ) => Promise<TargetSourceCreationCandidateResponseWire[]>;
-    getSecrets: (id: number) => Promise<unknown>;
+    ) => Promise<z.infer<typeof schemas.TargetSourceCreationCandidateResponse>[]>;
+    getSecrets: (id: number) => Promise<z.infer<typeof schemas.SecretResponse>[]>;
   };
 
   users: {
-    search: (query: string, excludeIds: string[]) => Promise<UserSearchResponse>;
-    me: () => Promise<UserMeResponse>;
-    getServicesPage: (page: number, size: number, query?: string) => Promise<PageServiceItem>;
+    search: (query: string, excludeIds: string[]) => Promise<z.infer<typeof schemas.UserSearchResponse>>;
+    me: () => Promise<z.infer<typeof schemas.UserMeResponse>>;
+    getServicesPage: (page: number, size: number, query?: string) => Promise<z.infer<typeof schemas.PageServiceItem>>;
   };
 
   services: {
     permissions: {
-      list: (serviceCode: string) => Promise<ServiceAuthorizedUsersResponse>;
+      list: (serviceCode: string) => Promise<z.infer<typeof schemas.AuthorizedUsersResponse>>;
     };
   };
 
-  dashboard: {
-    summary: () => Promise<DashboardSummaryResponse>;
-    systems: (params: URLSearchParams) => Promise<DashboardSystemsResponse>;
-    systemsExport: (params: URLSearchParams) => Promise<Response>;
-  };
-
-  dev: {
-    getUsers: () => Promise<DevGetUsersResponse>;
-    switchUser: (body: unknown) => Promise<DevSwitchUserResult>;
-  };
-
   scan: {
-    get: (id: number, scanId: string) => Promise<ScanGetResponse>;
-    getHistory: (id: number, query: { limit: number; offset: number }) => Promise<ScanHistoryPageResponse>;
-    create: (id: number, body: unknown) => Promise<ScanCreateResult>;
-    getStatus: (id: number) => Promise<ScanLatestStatusResponse>;
-  };
-
-  taskAdmin: {
-    getApprovalRequestQueue: (params: QueueBoardQueryParams) => Promise<TaskAdminApprovalRequestsResponse>;
+    // swagger: GET/POST routes validate with schemas.X.parse(raw); methods return raw snake wire.
+    get: (id: number, scanId: string) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
+    getHistory: (id: number, query: { limit: number; offset: number }) => Promise<z.infer<typeof schemas.PageScanJobResponse>>;
+    create: (id: number, body: unknown) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
+    getStatus: (id: number) => Promise<z.infer<typeof schemas.ScanJobResponse>>;
   };
 
   guides: {
-    get: (name: string) => Promise<GuideGetResponse>;
-    put: (name: string, body: unknown) => Promise<GuidePutResult>;
+    get: (name: string) => Promise<z.infer<typeof schemas.GuideDetail>>;
+    put: (name: string, body: unknown) => Promise<z.infer<typeof schemas.GuideDetail>>;
   };
 
   aws: {
-    getInstallationStatus: (id: number) => Promise<AwsInstallationStatusResponse>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.AwsInstallationStatusResponse>>;
     // swagger: GET …/aws/terraform-script/download → application/octet-stream
     // (binary zip). Returns the raw Response; the route streams the body (D6 getRaw).
     getTerraformScript: (id: number) => Promise<Response>;
-    verifyScanRole: (id: number) => Promise<AwsRoleVerificationResponse>;
-    verifyExecutionRole: (id: number) => Promise<AwsRoleVerificationResponse>;
+    verifyScanRole: (id: number) => Promise<z.infer<typeof schemas.AwsRoleVerificationResponse>>;
+    verifyExecutionRole: (id: number) => Promise<z.infer<typeof schemas.AwsRoleVerificationResponse>>;
   };
 
   azure: {
-    getInstallationStatus: (id: number) => Promise<AzureInstallationStatusResponse>;
-    getSubnetGuide: (id: number) => Promise<AzureSubnetGuideResponse>;
-    getScanApp: (id: number) => Promise<AzureScanAppResponse>;
-    // G8 — swagger getAzurePrivateLinkHealthCheck (/infra/ infix; wire camel).
-    getPrivateLinkHealthCheck: (id: number) => Promise<AzureHealthCheckResult>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.AzureInstallationStatusResponse>>;
+    getScanApp: (id: number) => Promise<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>>;
+    // G8 — swagger getAzurePrivateLinkHealthCheck (/infra/ infix; wire camelCase).
+    getPrivateLinkHealthCheck: (id: number) => Promise<z.infer<typeof schemas.AzureHealthCheckResult>>;
   };
 
   gcp: {
-    getInstallationStatus: (id: number) => Promise<GcpInstallationStatusResponse>;
-    getScanServiceAccount: (id: number) => Promise<GcpScanServiceAccountResponse>;
-    getTerraformServiceAccount: (id: number) => Promise<GcpTerraformServiceAccountResponse>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.GcpInstallationStatusResponse>>;
+    getScanServiceAccount: (id: number) => Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>;
+    getTerraformServiceAccount: (id: number) => Promise<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>;
   };
 
   idc: {
-    getInstallationStatus: (id: number) => Promise<IdcInstallationStatusResponseWire>;
-    getPreviousRequest: (id: number) => Promise<IdcPreviousRequestResponseWire>;
-    getOccupiedResources: (nlbIndex: number) => Promise<NlbOccupiedResourceResponseWire[]>;
-    getNlbTable: () => Promise<NlbTableResponseWire[]>;
+    getInstallationStatus: (id: number) => Promise<z.infer<typeof schemas.IdcInstallationStatusResponse>>;
+    getPreviousRequest: (id: number) => Promise<z.infer<typeof schemas.IdcPreviousRequestResponse>>;
+    getOccupiedResources: (nlbIndex: number) => Promise<z.infer<typeof schemas.NlbOccupiedResourceResponse>[]>;
+    getNlbTable: () => Promise<z.infer<typeof schemas.NlbTableResponse>[]>;
   };
 
   logicalDb: {
     getTestedByResourceId: (
       id: number,
       resourceId: string,
-    ) => Promise<TestedLogicalDatabasesResponseWire>;
+    ) => Promise<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>;
     getExcludedByResourceId: (
       id: number,
       resourceId: string,
-    ) => Promise<SkipLogicalDatabaseResponseWire>;
+    ) => Promise<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>;
     updateExcludedByResourceId: (
       id: number,
       resourceId: string,
-      body: UpdateSkipLogicalDatabaseRequestWire,
-    ) => Promise<SkipLogicalDatabaseResponseWire>;
+      body: z.infer<typeof schemas.UpdateSkipLogicalDatabaseRequest>,
+    ) => Promise<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>;
   };
 
   confirm: {
-    getResources: (id: number) => Promise<ResourceCatalogResponse>;
-    createApprovalRequest: (id: number, body: ApprovalRequestCreateBody) => Promise<unknown>;
-    getConfirmedIntegration: (id: number) => Promise<BffConfirmedIntegration>;
-    getApprovedIntegration: (id: number) => Promise<unknown>;
+    getResources: (id: number) => Promise<z.infer<typeof schemas.CloudResourceResponse>>;
+    createApprovalRequest: (id: number, body: z.infer<typeof schemas.ApprovalRequestInputDto>) => Promise<unknown>;
+    getConfirmedIntegration: (id: number) => Promise<z.infer<typeof schemas.ConfirmedIntegrationResponse>>;
+    getApprovedIntegration: (id: number) => Promise<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>;
     getApprovalHistory: (id: number, page: number, size: number) => Promise<unknown>;
     getApprovalRequestLatest: (id: number) => Promise<unknown>;
-    getProcessStatus: (id: number) => Promise<unknown>;
+    getProcessStatus: (id: number) => Promise<z.infer<typeof schemas.ProcessStatusResponseDto>>;
     approveApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     rejectApprovalRequest: (id: number, body: unknown) => Promise<unknown>;
     cancelApprovalRequest: (id: number) => Promise<unknown>;
@@ -201,13 +120,13 @@ export interface BffClient {
     confirmApprovalUnavailable: (id: number) => Promise<unknown>;
     confirmInstallation: (id: number, body: unknown) => Promise<unknown>;
     updateResourceCredential: (id: number, body: unknown) => Promise<unknown>;
-    testConnection: (id: number, collectorImageTag?: string) => Promise<TestConnectionTriggerResponseWire>;
-    getTestConnectionLatest: (id: number) => Promise<TestConnectionVersionResultWire>;
-    getLatestTestConnectionResultSummaries: (id: number) => Promise<TestConnectionLatestResultSummaryResponseWire[]>;
-    getTestConnectionCompletionStatus: (id: number) => Promise<TestConnectionCompletionStatusResponseWire>;
+    testConnection: (id: number, collectorImageTag?: string) => Promise<z.infer<typeof schemas.TestConnectionTriggerResponse>>;
+    getTestConnectionLatest: (id: number) => Promise<z.infer<typeof schemas.TestConnectionVersionResult>>;
+    getLatestTestConnectionResultSummaries: (id: number) => Promise<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>;
+    getTestConnectionCompletionStatus: (id: number) => Promise<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>;
     updateTestConnectionConfirmation: (
       id: number,
-      body: UpdateTestConnectionConfirmationRequestWire,
-    ) => Promise<TestConnectionConfirmationResponseWire>;
+      body: z.infer<typeof schemas.UpdateTestConnectionConfirmationRequest>,
+    ) => Promise<z.infer<typeof schemas.TestConnectionConfirmationResponse>>;
   };
 }

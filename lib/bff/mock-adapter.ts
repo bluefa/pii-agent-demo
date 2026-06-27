@@ -12,21 +12,12 @@
  */
 import type { NextResponse } from 'next/server';
 import type { BffClient } from '@/lib/bff/types';
-import type {
-  ApprovalRequestCreateBody,
-  BffConfirmedIntegration,
-  ResourceCatalogResponse,
-} from '@/lib/bff/types/confirm';
 import { bffErrorFromBody } from '@/app/api/_lib/problem';
-import { camelCaseKeys } from '@/lib/object-case';
 import { mockTargetSources } from '@/lib/bff/mock/target-sources';
 import { mockProjects } from '@/lib/bff/mock/projects';
 import { mockUsers } from '@/lib/bff/mock/users';
 import { mockServices } from '@/lib/bff/mock/services';
-import { mockDashboard } from '@/lib/bff/mock/dashboard';
-import { mockDev } from '@/lib/bff/mock/dev';
 import { mockScan } from '@/lib/bff/mock/scan';
-import { mockQueueBoard } from '@/lib/bff/mock/queue-board';
 import { mockAws } from '@/lib/bff/mock/aws';
 import { mockAzure } from '@/lib/bff/mock/azure';
 import { mockGcp } from '@/lib/bff/mock/gcp';
@@ -34,38 +25,8 @@ import { mockIdc } from '@/lib/bff/mock/idc';
 import { mockLogicalDb } from '@/lib/bff/mock/logical-db';
 import { mockConfirm } from '@/lib/bff/mock/confirm';
 import { mockGuides } from '@/lib/bff/mock/guides';
-import type {
-  AwsInstallationStatusResponse,
-  AwsRoleVerificationResponse,
-} from '@/lib/bff/types/aws';
-import type {
-  AzureHealthCheckResult,
-  AzureInstallationStatusResponse,
-  AzureScanAppResponse,
-  AzureSubnetGuideResponse,
-} from '@/lib/bff/types/azure';
-import type {
-  GcpInstallationStatusResponse,
-  GcpScanServiceAccountResponse,
-  GcpTerraformServiceAccountResponse,
-} from '@/lib/bff/types/gcp';
-import type {
-  IdcInstallationStatusResponseWire,
-  IdcPreviousRequestResponseWire,
-  NlbOccupiedResourceResponseWire,
-  NlbTableResponseWire,
-} from '@/lib/bff/types/idc';
-import type {
-  SkipLogicalDatabaseResponseWire,
-  TestedLogicalDatabasesResponseWire,
-} from '@/lib/bff/types/logical-db';
-import type {
-  TestConnectionCompletionStatusResponseWire,
-  TestConnectionConfirmationResponseWire,
-  TestConnectionLatestResultSummaryResponseWire,
-  TestConnectionTriggerResponseWire,
-  TestConnectionVersionResultWire,
-} from '@/lib/bff/types/test-connection';
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 
 async function unwrap<T>(response: NextResponse): Promise<T> {
   if (!response.ok) {
@@ -73,23 +34,6 @@ async function unwrap<T>(response: NextResponse): Promise<T> {
     throw bffErrorFromBody(response.status, body);
   }
   return await response.json() as T;
-}
-
-/**
- * Mock parity for camel-boundary methods (PLAN P1): mocks author the swagger
- * snake wire, so the adapter must `camelCaseKeys` exactly like `httpBff.get`
- * does for real BFF — otherwise the BffClient would return snake keys under a
- * camel type (the bug this migration removes). Used only by the cloud
- * installation-status / role-verify / service-account / health-check methods;
- * snake-passthrough domains (IDC, logical-DB, test-connection, azure scan-app)
- * keep raw `unwrap` because their own downstream boundary owns the conversion.
- */
-async function unwrapCamel<T>(response: NextResponse): Promise<T> {
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw bffErrorFromBody(response.status, body);
-  }
-  return camelCaseKeys(await response.json()) as T;
 }
 
 export const mockBff: BffClient = {
@@ -115,17 +59,6 @@ export const mockBff: BffClient = {
     },
   },
 
-  dashboard: {
-    summary: async () => unwrap(await mockDashboard.summary()),
-    systems: async (params) => unwrap(await mockDashboard.systems(params)),
-    systemsExport: async (params) => mockDashboard.systemsExport(params),
-  },
-
-  dev: {
-    getUsers: async () => unwrap(await mockDev.getUsers()),
-    switchUser: async (body) => unwrap(await mockDev.switchUser(body)),
-  },
-
   scan: {
     get: async (id, scanId) => unwrap(await mockScan.get(String(id), scanId)),
     getHistory: async (id, query) => unwrap(await mockScan.getHistory(String(id), query)),
@@ -133,81 +66,81 @@ export const mockBff: BffClient = {
     getStatus: async (id) => unwrap(await mockScan.getStatus(String(id))),
   },
 
-  taskAdmin: {
-    getApprovalRequestQueue: async (params) => unwrap(await mockQueueBoard.getApprovalRequestQueue(params)),
-  },
-
   aws: {
-    // unwrapCamel: mock authors snake wire → camelCaseKeys (matches httpBff.get).
+    // ADR-019 zod-codegen: mock authors snake wire; route owns parse boundary.
     getInstallationStatus: async (id) =>
-      unwrapCamel<AwsInstallationStatusResponse>(await mockAws.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.AwsInstallationStatusResponse>>(await mockAws.getInstallationStatus(String(id))),
     // Binary download — return the raw Response (NextResponse extends Response).
     getTerraformScript: async (id) => mockAws.getTerraformScript(String(id)),
     verifyScanRole: async (id) =>
-      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyScanRole(String(id))),
+      unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyScanRole(String(id))),
     verifyExecutionRole: async (id) =>
-      unwrapCamel<AwsRoleVerificationResponse>(await mockAws.verifyExecutionRole(String(id))),
+      unwrap<z.infer<typeof schemas.AwsRoleVerificationResponse>>(await mockAws.verifyExecutionRole(String(id))),
   },
 
+  // Azure mock returns raw snake wire; the route validates with schemas.X.parse().
   azure: {
     getInstallationStatus: async (id) =>
-      unwrapCamel<AzureInstallationStatusResponse>(await mockAzure.getInstallationStatus(String(id))),
-    getSubnetGuide: async (id) =>
-      unwrapCamel<AzureSubnetGuideResponse>(await mockAzure.getSubnetGuide(String(id))),
+      unwrap<z.infer<typeof schemas.AzureInstallationStatusResponse>>(await mockAzure.getInstallationStatus(String(id))),
     // scan-app is sanctioned snake passthrough (Issue #222) — raw unwrap.
     getScanApp: async (id) =>
-      unwrap<AzureScanAppResponse>(await mockAzure.getScanApp(String(id))),
+      unwrap<z.infer<typeof schemas.AzureServicePrincipalVerificationResponse>>(await mockAzure.getScanApp(String(id))),
     getPrivateLinkHealthCheck: async (id) =>
-      unwrapCamel<AzureHealthCheckResult>(await mockAzure.getPrivateLinkHealthCheck(String(id))),
+      unwrap<z.infer<typeof schemas.AzureHealthCheckResult>>(await mockAzure.getPrivateLinkHealthCheck(String(id))),
   },
 
+  // GCP mock returns raw snake wire; the route validates with schemas.X.parse().
   gcp: {
     getInstallationStatus: async (id) =>
-      unwrapCamel<GcpInstallationStatusResponse>(await mockGcp.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.GcpInstallationStatusResponse>>(await mockGcp.getInstallationStatus(String(id))),
     getScanServiceAccount: async (id) =>
-      unwrapCamel<GcpScanServiceAccountResponse>(await mockGcp.getScanServiceAccount(String(id))),
+      unwrap<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>(await mockGcp.getScanServiceAccount(String(id))),
     getTerraformServiceAccount: async (id) =>
-      unwrapCamel<GcpTerraformServiceAccountResponse>(await mockGcp.getTerraformServiceAccount(String(id))),
+      unwrap<z.infer<typeof schemas.GcpServiceAccountInfoResponse>>(await mockGcp.getTerraformServiceAccount(String(id))),
   },
 
   idc: {
     getInstallationStatus: async (id) =>
-      unwrap<IdcInstallationStatusResponseWire>(await mockIdc.getInstallationStatus(String(id))),
+      unwrap<z.infer<typeof schemas.IdcInstallationStatusResponse>>(await mockIdc.getInstallationStatus(String(id))),
     getPreviousRequest: async (id) =>
-      unwrap<IdcPreviousRequestResponseWire>(await mockIdc.getPreviousRequest(String(id))),
+      unwrap<z.infer<typeof schemas.IdcPreviousRequestResponse>>(await mockIdc.getPreviousRequest(String(id))),
     getOccupiedResources: async (nlbIndex) =>
-      unwrap<NlbOccupiedResourceResponseWire[]>(await mockIdc.getOccupiedResources(String(nlbIndex))),
-    getNlbTable: async () => unwrap<NlbTableResponseWire[]>(await mockIdc.getNlbTable()),
+      unwrap<z.infer<typeof schemas.NlbOccupiedResourceResponse>[]>(await mockIdc.getOccupiedResources(String(nlbIndex))),
+    getNlbTable: async () => unwrap<z.infer<typeof schemas.NlbTableResponse>[]>(await mockIdc.getNlbTable()),
   },
 
   logicalDb: {
     getTestedByResourceId: async (id, resourceId) =>
-      unwrap<TestedLogicalDatabasesResponseWire>(
+      unwrap<z.infer<typeof schemas.TestedLogicalDatabasesResponse>>(
         await mockLogicalDb.getTestedByResourceId(String(id), resourceId),
       ),
     getExcludedByResourceId: async (id, resourceId) =>
-      unwrap<SkipLogicalDatabaseResponseWire>(
+      unwrap<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
         await mockLogicalDb.getExcludedByResourceId(String(id), resourceId),
       ),
     updateExcludedByResourceId: async (id, resourceId, body) =>
-      unwrap<SkipLogicalDatabaseResponseWire>(
+      unwrap<z.infer<typeof schemas.SkipLogicalDatabaseResponse>>(
         await mockLogicalDb.updateExcludedByResourceId(String(id), resourceId, body),
       ),
   },
 
   confirm: {
     getResources: async (id) =>
-      unwrap<ResourceCatalogResponse>(await mockConfirm.getResources(String(id))),
+      unwrap<z.infer<typeof schemas.CloudResourceResponse>>(await mockConfirm.getResources(String(id))),
 
-    createApprovalRequest: async (id, body: ApprovalRequestCreateBody) =>
+    createApprovalRequest: async (id, body) =>
       unwrap<unknown>(await mockConfirm.createApprovalRequest(String(id), body)),
 
-    getConfirmedIntegration: async (id): Promise<BffConfirmedIntegration> =>
-      // Mock returns the flat shape; httpBff owns envelope unwrapping.
-      unwrap<BffConfirmedIntegration>(await mockConfirm.getConfirmedIntegration(String(id))),
+    getConfirmedIntegration: async (id) =>
+      // Mock returns the snake wire shape; the route validates with schemas.X.parse().
+      unwrap<z.infer<typeof schemas.ConfirmedIntegrationResponse>>(
+        await mockConfirm.getConfirmedIntegration(String(id)),
+      ),
 
     getApprovedIntegration: async (id) =>
-      unwrap<unknown>(await mockConfirm.getApprovedIntegration(String(id))),
+      unwrap<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
+        await mockConfirm.getApprovedIntegration(String(id)),
+      ),
 
     getApprovalHistory: async (id, page, size) =>
       unwrap<unknown>(await mockConfirm.getApprovalHistory(String(id), page, size)),
@@ -216,7 +149,7 @@ export const mockBff: BffClient = {
       unwrap<unknown>(await mockConfirm.getApprovalRequestLatest(String(id))),
 
     getProcessStatus: async (id) =>
-      unwrap<unknown>(await mockConfirm.getProcessStatus(String(id))),
+      unwrap<z.infer<typeof schemas.ProcessStatusResponseDto>>(await mockConfirm.getProcessStatus(String(id))),
 
     approveApprovalRequest: async (id, body) =>
       unwrap<unknown>(await mockConfirm.approveApprovalRequest(String(id), body)),
@@ -240,27 +173,27 @@ export const mockBff: BffClient = {
       unwrap<unknown>(await mockConfirm.updateResourceCredential(String(id), body)),
 
     testConnection: async (id, collectorImageTag) =>
-      unwrap<TestConnectionTriggerResponseWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionTriggerResponse>>(
         await mockConfirm.testConnection(String(id), collectorImageTag),
       ),
 
     getTestConnectionLatest: async (id) =>
-      unwrap<TestConnectionVersionResultWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionVersionResult>>(
         await mockConfirm.getTestConnectionLatest(String(id)),
       ),
 
     getLatestTestConnectionResultSummaries: async (id) =>
-      unwrap<TestConnectionLatestResultSummaryResponseWire[]>(
+      unwrap<z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>[]>(
         await mockConfirm.getLatestTestConnectionResultSummaries(String(id)),
       ),
 
     getTestConnectionCompletionStatus: async (id) =>
-      unwrap<TestConnectionCompletionStatusResponseWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionCompletionStatusResponse>>(
         await mockConfirm.getTestConnectionCompletionStatus(String(id)),
       ),
 
     updateTestConnectionConfirmation: async (id, body) =>
-      unwrap<TestConnectionConfirmationResponseWire>(
+      unwrap<z.infer<typeof schemas.TestConnectionConfirmationResponse>>(
         await mockConfirm.updateTestConnectionConfirmation(String(id), body),
       ),
   },

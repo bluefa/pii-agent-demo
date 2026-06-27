@@ -2,43 +2,53 @@
  * IDC Provider — client API + the single wire↔domain boundary.
  *
  * UI/hooks consume ONLY the domain models below (`IdcResourceView`,
- * `IdcInstallationView`). Wire shape (`lib/bff/types/idc.ts`) never leaks past
- * this file. A response-shape change touches the mappers here and the wire types
- * — nothing in the UI (`design/idc-implementation-plan.md` §5).
+ * `IdcInstallationView`). Wire shape (now zod-generated) never leaks past
+ * this file. A response-shape change touches the swagger, re-runs gen:api,
+ * and updates the mappers here — nothing in the UI.
  *
- * Casing (ADR-019 D6 IDC carve-out): all four IDC GETs use `fetchInfraJson`
- * (raw, no boundary camelCaseKeys) and this mapper owns the conversion — it IS
- * the documented sanctioned raw passthrough. Two shapes coexist on the wire:
- *   - previous-request / installation-status are raw **snake** passthrough;
- *   - the NLB endpoints (`/idc/nlb/...`) are raw **camel** passthrough (the
- *     swagger authors those schemas camelCase on the wire), so their mappers are
- *     a near-identity copy and never run camelCaseKeys (a second transform would
- *     violate the "mapper owns it" rule).
+ * Casing (ADR-019 zod-codegen): all four IDC GETs validate with
+ * schemas.X.parse() at the route (no camelCaseKeys). This mapper receives
+ * the validated snake shape and converts to domain models. Two wire shapes:
+ *   - previous-request / installation-status: snake (standard swagger);
+ *   - NLB endpoints: camelCase ON THE WIRE (per swagger), so NLB mappers are
+ *     a near-identity copy.
  */
 
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
 import { fetchInfraJson } from '@/app/lib/api/infra';
 import { getApprovedIntegration, getConfirmedIntegration } from '@/app/lib/api';
+import type {
+  ApprovedIntegrationExcludedResourceItem,
+} from '@/app/lib/api';
 import type { ConfirmedIntegrationResourceInfo, ResourceSnapshot } from '@/lib/types';
-import type { ExcludedResourceInfoDto } from '@/lib/approval-bff';
 import { idcDbTypeByLabel, idcDbTypeByWire } from '@/lib/constants/idc';
 import type { InstallTaskStatus } from '@/lib/constants/install-task';
-import type {
-  IdcDatabaseTypeWire,
-  IdcInstallationStatusResponseWire,
-  IdcInstallStatusWire,
-  IdcPreviousRequestResponseWire,
-  IdcResourceInputWire,
-  IdcStepStatusWire,
-  NlbOccupiedResourceResponseWire,
-  NlbTableResponseWire,
-} from '@/lib/bff/types/idc';
+
+// ---------------------------------------------------------------------------
+// Local type aliases for generated schema types used as mapper inputs
+// ---------------------------------------------------------------------------
+type IdcResourceInputWire = z.infer<typeof schemas.IdcResourceInput>;
+type IdcPreviousRequestResponseWire = z.infer<typeof schemas.IdcPreviousRequestResponse>;
+type IdcInstallationStatusResponseWire = z.infer<typeof schemas.IdcInstallationStatusResponse>;
+type IdcStepStatusWire = z.infer<typeof schemas.CloudInstallationStepStatusDto>;
+type NlbOccupiedResourceResponseWire = z.infer<typeof schemas.NlbOccupiedResourceResponse>;
+type NlbTableResponseWire = z.infer<typeof schemas.NlbTableResponse>;
 
 // ---------------------------------------------------------------------------
 // Domain models (UI contract — stable across wire changes)
 // ---------------------------------------------------------------------------
 
-/** Wire enums re-exported so CSR components import them here, not from @/lib/bff/* (boundaries.md). */
-export type { IdcDatabaseTypeWire } from '@/lib/bff/types/idc';
+/** Domain-side database type label lookup. swagger `database_type` is a plain
+ *  string; we narrow to the known set for label resolution. */
+export type IdcDatabaseTypeWire =
+  | 'MYSQL'
+  | 'POSTGRESQL'
+  | 'ORACLE'
+  | 'MSSQL'
+  | 'MARIADB'
+  | 'MONGODB'
+  | 'REDIS';
 
 export type IdcKind = 'SINGLE' | 'MULTIPLE_IP' | 'DOMAIN';
 export type IdcConnState = 'PENDING' | 'SUCCESS';
@@ -68,10 +78,12 @@ export interface IdcResourceView {
   exclusionReason?: string;
 }
 
-/** Shared 5-value install enum (kept verbatim from swagger). UNKNOWN is a real
+/** Shared 5-value install enum (verbatim from swagger). UNKNOWN is a real
  *  domain state, never collapsed at the domain layer — the →"작업중" collapse is
  *  UI-only (`idcInstallStatusLabel`) so the data stays faithful. */
-export type IdcInstallStatus = IdcInstallStatusWire;
+export type IdcInstallStatus = NonNullable<
+  z.infer<typeof schemas.IdcResourceInstallationStatusDto>['installation_status']
+>;
 
 export interface IdcInstallStepView {
   status: IdcInstallStatus;
@@ -299,7 +311,7 @@ export const toIdcResourceViewFromSnapshot = (
  * source-IP fields are absent for excluded rows (the `excl` column shows the reason).
  */
 export const toIdcResourceViewFromExcluded = (
-  wire: ExcludedResourceInfoDto,
+  wire: ApprovedIntegrationExcludedResourceItem,
   index = 0,
 ): IdcResourceView => {
   const dbWire = toDbTypeWire(wire.database_type ?? undefined);
@@ -433,7 +445,7 @@ export const getIdcConfirmedResources = async (
   opts?: { signal?: AbortSignal },
 ): Promise<IdcResourceView[]> => {
   const res = await getConfirmedIntegration(targetSourceId, opts);
-  return res.resource_infos.map((r, i) => toIdcResourceViewFromConfirmed(r, i));
+  return (res.resource_infos ?? []).map((r, i) => toIdcResourceViewFromConfirmed(r, i));
 };
 
 /** GET …/idc/installation-status — Step 4 install progress (per-resource steps). */

@@ -1,124 +1,69 @@
 import {
-  ServiceCode,
   ProjectSummary,
   CloudProvider,
   TargetSource,
   ProcessStatus,
   DatabaseType,
   IntegrationCategory,
-  ConfirmedIntegrationResourceInfo,
   BffConfirmedIntegration,
+  ConfirmedIntegrationResourceInfo,
   ConfirmResourceMetadata,
-  EndpointConfigInputData,
   ResourceScanStatus,
+  ResourceIntegrationStatus,
   ResourceSnapshot,
   normalizeCloudProvider,
 } from '@/lib/types';
 import type { SecretKey } from '@/lib/types';
-import { fetchInfraCamelJson, fetchInfraJson } from '@/app/lib/api/infra';
-import { snakeCaseKeys } from '@/lib/object-case';
-import {
-  extractTargetSource,
-  normalizeTargetSourceProcessStatus,
-  type TargetSourceDetailResponse,
-} from '@/lib/target-source-response';
-import type {
-  TargetSourceCloudType,
-  TargetSourceCreationCandidate,
-  TargetSourceInfo,
-} from '@/lib/target-source-creation';
-// Re-export the create-flow domain types so create-modal consumers import from
-// one place (mirrors the test-connection re-exports below).
-export type {
-  TargetSourceCloudType,
-  TargetSourceCreationCandidate,
-  TargetSourceInfo,
-};
-import { extractConfirmedIntegration, type ConfirmedIntegrationResponsePayload } from '@/lib/confirmed-integration-response';
-import type {
-  TestConnectionAgentResult,
-  TestConnectionCompletionStatus,
-  TestConnectionConfirmationResult,
-  TestConnectionLatestResultSummary,
-  TestConnectionStatus,
-  TestConnectionTriggerResult,
-  TestConnectionVersionResult,
-} from '@/lib/test-connection-response';
-// Re-export the test-connection domain types so `@/app/lib/api` consumers
-// (Step 5/6 UI) keep importing from one place.
-export type {
-  TestConnectionAgentResult,
-  TestConnectionCompletionStatus,
-  TestConnectionConfirmationResult,
-  TestConnectionLatestResultSummary,
-  TestConnectionStatus,
-  TestConnectionTriggerResult,
-  TestConnectionVersionResult,
-};
-import {
-  normalizeApprovedIntegration,
-  normalizeProcessStatusResponse,
-  type ExcludedResourceInfoDto,
-  type ResourceConfigDto,
-} from '@/lib/approval-bff';
-import type {
-  ApprovalRequestStatus,
-  ApprovalRequestSummary,
-  ApprovalRequestLatest,
-  ApprovalHistoryPage,
-  ApprovalActionResponse,
-  ApprovalUnavailableResponse,
-  ApprovalUnavailableConfirmResponse,
-} from '@/lib/approval-response';
-// Re-export the approval domain types so `@/app/lib/api` consumers (Step2 UI)
-// keep importing from one place.
-export type {
-  ApprovalRequestStatus,
-  ApprovalRequestLatest,
-  ApprovalHistoryPage,
-  ApprovalActionResponse,
-  ApprovalUnavailableResponse,
-  ApprovalUnavailableConfirmResponse,
-} from '@/lib/approval-response';
+import { fetchInfraJson } from '@/app/lib/api/infra';
+import type { TargetSourceCloudType } from '@/lib/target-source-creation';
+// Re-export TargetSourceCloudType so consumers keep importing from one place.
+export type { TargetSourceCloudType };
+import type { z } from 'zod';
+import type { schemas } from '@/lib/generated/install-v1';
+// Re-export test-connection wire types (zod-codegen, snake) so consumers import
+// from one place. Field access is snake_case; use adapters for join/reshape/compute.
+export type TestConnectionVersionResult = z.infer<typeof schemas.TestConnectionVersionResult>;
+export type TestConnectionAgentResult = z.infer<typeof schemas.TestConnectionAgentResult>;
+export type TestConnectionLatestResultSummary = z.infer<typeof schemas.TestConnectionLatestResultSummaryResponse>;
+export type TestConnectionCompletionStatus = z.infer<typeof schemas.TestConnectionCompletionStatusResponse>;
+export type TestConnectionConfirmationResult = z.infer<typeof schemas.TestConnectionConfirmationResponse>;
+export type TestConnectionTriggerResult = z.infer<typeof schemas.TestConnectionTriggerResponse>;
+export type TestConnectionStatus = TestConnectionVersionResult['connection_status'];
+// Re-export approval wire types (zod-codegen, snake) so consumers import from one place.
+export type ApprovalRequestSummaryDto = z.infer<typeof schemas.ApprovalRequestSummaryDto>;
+export type ApprovalActionResponseDto = z.infer<typeof schemas.ApprovalActionResponseDto>;
+export type ApprovalRequestLatestDto = z.infer<typeof schemas.ApprovalRequestLatestDto>;
+export type ApprovalUnavailableResponseDto = z.infer<typeof schemas.ApprovalUnavailableResponseDto>;
+export type ApprovalUnavailableConfirmResponseDto = z.infer<typeof schemas.ApprovalUnavailableConfirmResponseDto>;
+export type ApprovalRequestLatestResponse = z.infer<typeof schemas.ApprovalRequestLatestDto>;
 
 
-export interface CurrentUser {
-  id: string;
-  name: string;
-  email: string;
-}
+// Re-export USER/services wire types (zod-codegen, snake) so consumers import
+// from one place. Field access is snake_case; use adapters for join/reshape/compute.
+export type UserMeResponse = z.infer<typeof schemas.UserMeResponse>;
+export type PageServiceItem = z.infer<typeof schemas.PageServiceItem>;
+export type UserSearchResponse = z.infer<typeof schemas.UserSearchResponse>;
+export type AuthorizedUsersResponse = z.infer<typeof schemas.AuthorizedUsersResponse>;
+export type TargetSourceCreationCandidateResponse = z.infer<typeof schemas.TargetSourceCreationCandidateResponse>;
+export type TargetSourceDetail = z.infer<typeof schemas.TargetSourceDetail>;
+export type TargetSourceInfoWire = z.infer<typeof schemas.TargetSourceInfo>;
 
-export const getCurrentUser = (): Promise<CurrentUser> =>
-  fetchInfraCamelJson<CurrentUser>('/user/me');
+export const getCurrentUser = (): Promise<UserMeResponse> =>
+  fetchInfraJson<UserMeResponse>('/user/me');
 
-export interface ServicePageResponse {
-  content: ServiceCode[];
-  page: { totalElements: number; totalPages: number; number: number; size: number };
-}
-
-export const getServicesPage = async (
+export const getServicesPage = (
   page = 0,
   size = 10,
   query?: string,
   options?: { signal?: AbortSignal },
-): Promise<ServicePageResponse> => {
+): Promise<PageServiceItem> => {
   const params = new URLSearchParams({ page: String(page), size: String(size) });
   if (query) params.set('query', query);
-  const data = await fetchInfraCamelJson<{
-    content: Array<{ serviceCode: string; serviceName: string }>;
-    page: { totalElements: number; totalPages: number; number: number; size: number };
-  }>(
+  return fetchInfraJson<PageServiceItem>(
     `/user/services/page?${params}`,
     options?.signal ? { signal: options.signal } : undefined,
   );
-  return {
-    content: data.content.map((s) => ({ code: s.serviceCode, name: s.serviceName })),
-    page: data.page,
-  };
 };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
 
 const parseTargetSourceId = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -126,42 +71,37 @@ const parseTargetSourceId = (value: unknown): number | null => {
   return null;
 };
 
-const toProjectSummary = (value: unknown): ProjectSummary | null => {
-  if (!isRecord(value)) return null;
-
-  const targetSourceId = parseTargetSourceId(value.targetSourceId ?? value.id);
+// Adapter: TargetSourceDetail (snake wire) → ProjectSummary (camel view).
+// Computes derived fields (connectionTestComplete, fallback codes) not present
+// in the wire contract — genuine join/reshape justifies the adapter (§1.3).
+const toProjectSummary = (item: TargetSourceDetail): ProjectSummary | null => {
+  const targetSourceId = parseTargetSourceId(item.target_source_id);
   if (targetSourceId === null) return null;
 
-  const processStatus = normalizeTargetSourceProcessStatus(value.processStatus);
+  const processStatus = normalizeTargetSourceProcessStatus(item.process_status);
   const fallbackCode = `TS-${targetSourceId}`;
 
   return {
-    id: typeof value.id === 'string' && value.id ? value.id : fallbackCode,
+    id: fallbackCode,
     targetSourceId,
-    projectCode: typeof value.projectCode === 'string' && value.projectCode ? value.projectCode : fallbackCode,
+    projectCode: item.service_code ?? fallbackCode,
     processStatus,
-    cloudProvider: normalizeCloudProvider(value.cloudProvider),
-    resourceCount: typeof value.resourceCount === 'number' ? value.resourceCount : 0,
-    hasDisconnected: typeof value.hasDisconnected === 'boolean' ? value.hasDisconnected : false,
-    hasNew: typeof value.hasNew === 'boolean' ? value.hasNew : false,
-    description: typeof value.description === 'string' ? value.description : '',
-    isRejected: typeof value.isRejected === 'boolean' ? value.isRejected : false,
-    rejectionReason: typeof value.rejectionReason === 'string' ? value.rejectionReason : undefined,
-    connectionTestComplete: typeof value.connectionTestComplete === 'boolean'
-      ? value.connectionTestComplete
-      : processStatus >= ProcessStatus.CONNECTION_VERIFIED,
+    cloudProvider: normalizeCloudProvider(item.cloud_provider),
+    resourceCount: 0,
+    hasDisconnected: false,
+    hasNew: false,
+    description: item.description ?? '',
+    isRejected: false,
+    connectionTestComplete: processStatus >= ProcessStatus.CONNECTION_VERIFIED,
   };
 };
 
 export const getProjects = async (serviceCode: string): Promise<ProjectSummary[]> => {
-  const payload = await fetchInfraCamelJson<unknown>(`/services/${serviceCode}/target-sources`);
-  const targetSources = Array.isArray(payload)
-    ? payload
-    : isRecord(payload) && Array.isArray(payload.targetSources)
-      ? payload.targetSources
-      : [];
-
-  return targetSources
+  const payload = await fetchInfraJson<TargetSourceDetail[]>(
+    `/services/${serviceCode}/target-sources`,
+  );
+  const items = Array.isArray(payload) ? payload : [];
+  return items
     .map(toProjectSummary)
     .filter((project): project is ProjectSummary => project !== null);
 };
@@ -196,13 +136,13 @@ export interface CreationCandidatesInput {
 
 /**
  * POST creation-candidates (35). Builds the snake `TargetSourceCreationCandidateRequest`
- * (request casing is snake, D3 — no camel intermediate) and returns the camel
- * candidate domain array (the route owns the wire→domain boundary).
+ * (request casing is snake, D3 — no camel intermediate) and returns the snake wire
+ * candidate array (zod-codegen). Field access is snake_case on the caller side.
  */
 export const getCreationCandidates = async (
   serviceCode: string,
   input: CreationCandidatesInput,
-): Promise<TargetSourceCreationCandidate[]> => {
+): Promise<TargetSourceCreationCandidateResponse[]> => {
   const description = input.description?.trim();
   const body = {
     cloud_type: toRequestCloudType(input.cloudProvider),
@@ -220,66 +160,118 @@ export const getCreationCandidates = async (
       ...(description ? { description } : {}),
     },
   };
-  return fetchInfraJson<TargetSourceCreationCandidate[]>(
+  return fetchInfraJson<TargetSourceCreationCandidateResponse[]>(
     `/services/${serviceCode}/creation-candidates`,
     { method: 'POST', body },
   );
 };
 
 /**
- * POST createTargetSource (36). The selected candidate is posted back verbatim:
- * the camel domain candidate is re-serialized to the snake wire body
- * (`TargetSourceCreationCandidateResponse`) via `snakeCaseKeys`. Returns the
- * created `TargetSourceInfo` (camel, route-normalized).
+ * POST createTargetSource (36). The selected snake candidate is posted back verbatim
+ * (request authored snake, D3). Returns the created `TargetSourceInfo` (snake wire).
  */
 export const createTargetSource = async (
   serviceCode: string,
-  candidate: TargetSourceCreationCandidate,
-): Promise<TargetSourceInfo> =>
-  fetchInfraJson<TargetSourceInfo>(`/services/${serviceCode}/target-sources`, {
+  candidate: TargetSourceCreationCandidateResponse,
+): Promise<TargetSourceInfoWire> =>
+  fetchInfraJson<TargetSourceInfoWire>(`/services/${serviceCode}/target-sources`, {
     method: 'POST',
-    body: snakeCaseKeys(candidate),
+    body: candidate,
   });
 
-export interface AuthorizedUser {
-  id: string;
-  name: string;
-  email: string;
-}
+export const getPermissions = (serviceCode: string): Promise<AuthorizedUsersResponse> =>
+  fetchInfraJson<AuthorizedUsersResponse>(`/services/${serviceCode}/authorized-users`);
 
-export const getPermissions = async (serviceCode: string): Promise<AuthorizedUser[]> => {
-  const data = await fetchInfraCamelJson<{ users?: AuthorizedUser[] }>(
-    `/services/${serviceCode}/authorized-users`,
-  );
-  return data.users ?? [];
+// Maps BFF process_status strings to internal ProcessStatus enum.
+const normalizeTargetSourceProcessStatus = (value: unknown): ProcessStatus => {
+  switch (String(value).trim().toUpperCase()) {
+    case 'WAITING_APPROVAL':
+    case 'PENDING':
+      return ProcessStatus.WAITING_APPROVAL;
+    case 'APPLYING_APPROVED':
+    case 'CONFIRMING':
+      return ProcessStatus.APPLYING_APPROVED;
+    case 'CONFIRMED':
+      return ProcessStatus.INSTALLING;
+    case 'INSTALLED':
+      return ProcessStatus.WAITING_CONNECTION_TEST;
+    case 'CONNECTED':
+      return ProcessStatus.CONNECTION_VERIFIED;
+    case 'TARGET_CONFIRMED':
+    case 'COMPLETED':
+      return ProcessStatus.INSTALLATION_COMPLETE;
+    case 'REQUEST_REQUIRED':
+    case 'IDLE':
+    default:
+      return ProcessStatus.WAITING_TARGET_CONFIRMATION;
+  }
+};
+
+// Adapter: TargetSourceDetail (snake wire, .passthrough()) → TargetSource (camel domain model).
+// Reads snake fields, computes derived values (processStatus, fallback codes).
+const toTargetSource = (raw: TargetSourceDetail): TargetSource => {
+  // .passthrough() means extra fields exist at runtime but are typed `unknown`.
+  const item = raw as Record<string, unknown>;
+  const asStr = (v: unknown): string | undefined => typeof v === 'string' ? v : undefined;
+
+  const id = typeof item.target_source_id === 'number' ? item.target_source_id : 0;
+  const fallbackCode = `TS-${id}`;
+  const serviceCode = asStr(item.service_code)?.trim() ?? '';
+  const processStatus = normalizeTargetSourceProcessStatus(asStr(item.process_status));
+  const metadata = (typeof item.metadata === 'object' && item.metadata !== null)
+    ? item.metadata as Record<string, unknown>
+    : null;
+
+  const tenantId = asStr(metadata?.tenant_id);
+  const subscriptionId = asStr(metadata?.subscription_id);
+  const awsAccountId = asStr(metadata?.aws_account_id);
+  const gcpProjectId = asStr(metadata?.gcp_project_id);
+  const awsInstallationModeRaw = asStr(item.aws_installation_mode);
+  const awsInstallationMode =
+    awsInstallationModeRaw === 'AUTO' || awsInstallationModeRaw === 'MANUAL'
+      ? awsInstallationModeRaw
+      : undefined;
+  const createdAt = asStr(item.created_at) ?? new Date().toISOString();
+
+  return {
+    id: fallbackCode,
+    targetSourceId: id,
+    projectCode: serviceCode || fallbackCode,
+    serviceCode,
+    serviceName: asStr(item.service_name)?.trim() || serviceCode,
+    processStatus,
+    cloudProvider: normalizeCloudProvider(asStr(item.cloud_provider)),
+    createdAt,
+    updatedAt: asStr(item.updated_at) ?? createdAt,
+    name: fallbackCode,
+    description: asStr(item.description) ?? '',
+    isRejected: false,
+    ...(tenantId ? { tenantId } : {}),
+    ...(subscriptionId ? { subscriptionId } : {}),
+    ...(awsAccountId ? { awsAccountId } : {}),
+    ...(gcpProjectId ? { gcpProjectId } : {}),
+    ...(awsInstallationMode ? { awsInstallationMode } : {}),
+  };
 };
 
 export const getProject = async (targetSourceId: number): Promise<TargetSource> => {
-  const data = await fetchInfraCamelJson<TargetSourceDetailResponse>(
+  const data = await fetchInfraJson<TargetSourceDetail>(
     `/target-sources/${targetSourceId}`,
   );
-  return extractTargetSource(data);
+  return toTargetSource(data);
 };
 
-export interface UserSearchResult {
-  id: string;
-  name: string;
-  email: string;
-}
-
-export const searchUsers = async (
+export const searchUsers = (
   query: string,
-  excludeIds: string[] = []
-): Promise<UserSearchResult[]> => {
+  excludeIds: string[] = [],
+): Promise<UserSearchResponse> => {
   const params = new URLSearchParams();
   if (query) params.set('q', query);
   excludeIds.forEach((excludeId) => params.append('excludeIds', excludeId));
-
   const queryString = params.toString();
-  const data = await fetchInfraCamelJson<{ users: UserSearchResult[] }>(
+  return fetchInfraJson<UserSearchResponse>(
     queryString ? `/users/search?${queryString}` : '/users/search',
   );
-  return data.users;
 };
 
 
@@ -308,126 +300,126 @@ export interface ConfirmResourcesResponse {
   totalCount: number;
 }
 
-export const getConfirmResources = async (
-  targetSourceId: number,
-  options?: { signal?: AbortSignal },
-): Promise<ConfirmResourcesResponse> =>
-  fetchInfraCamelJson<ConfirmResourcesResponse>(
-    `${CONFIRM_BASE}/${targetSourceId}/resources`,
-    options?.signal ? { signal: options.signal } : undefined,
-  );
+// Adapter helpers: snake TargetSourceResourceMetadataDto → camel ConfirmResourceMetadata.
+const inferProvider = (resourceType: string): CloudProvider => {
+  if (resourceType.startsWith('AZURE_')) return 'Azure';
+  if (resourceType.startsWith('GCP_')) return 'GCP';
+  return 'AWS';
+};
 
-export interface ApprovalResourceInputData {
-  credential_id?: string;
-  endpoint_config?: EndpointConfigInputData;
-  resource_id?: string;
-  resource_type?: string;
-  database_type?: DatabaseType;
-  port?: number;
-  host?: string;
-  oracle_service_id?: string;
-  network_interface_id?: string;
-  ip_configuration?: string;
-}
+const normalizeIntegrationCategory = (value: unknown): IntegrationCategory => {
+  if (value === 'NO_INSTALL_NEEDED' || value === 'INSTALL_INELIGIBLE') return value;
+  return 'TARGET';
+};
 
-export interface ApprovalResourceInput {
-  resource_id: string;
-  selected: boolean;
-  resource_input?: ApprovalResourceInputData;
-  exclusion_reason?: string;
-}
+const normalizeCandidateScanStatus = (value: unknown): ResourceScanStatus | null => {
+  if (value === 'NEW_SCAN' || value === 'UNCHANGED') return value;
+  return null;
+};
 
-export interface ApprovalRequestInput {
-  resource_inputs: ApprovalResourceInput[];
-  exclusion_reason_default?: string;
-}
-
-interface LegacyApprovalRequestInput {
-  input_data: ApprovalRequestInput;
-}
-
-export interface ApprovalRequestResult {
-  id: string;
-  targetSourceId: number;
-  status: ApprovalRequestStatus;
-  requestedAt: string;
-  requestedBy: string;
-  resourceTotalCount: number;
-  resourceSelectedCount: number;
-}
-
-const toEndpointConfigSnapshot = (resource: ResourceConfigDto): ResourceSnapshot['endpoint_config'] => {
-  if (!resource.database_type || resource.port === undefined || !resource.host) {
-    return null;
-  }
-
+const toConfirmResourceMetadata = (
+  meta: Record<string, unknown>,
+  resourceType: string,
+): ConfirmResourceMetadata => {
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
+  const provider = str(meta.provider)
+    ? normalizeCloudProvider(str(meta.provider))
+    : inferProvider(resourceType);
   return {
-    resource_id: resource.resource_id ?? '',
-    db_type: resource.database_type as EndpointConfigInputData['db_type'],
-    port: resource.port,
-    host: resource.host,
-    ...(resource.oracle_service_id ? { oracleServiceId: resource.oracle_service_id } : {}),
-    ...(resource.network_interface_id ? { selectedNicId: resource.network_interface_id } : {}),
+    provider,
+    resourceType: str(meta.resource_type) ?? resourceType,
+    rawResourceType: str(meta.resource_type) ?? resourceType,
+    ...(str(meta.region) ? { region: str(meta.region) } : {}),
+    ...(str(meta.vpc_id) ? { vpcId: str(meta.vpc_id) } : {}),
+    ...(str(meta.project_id) ? { projectId: str(meta.project_id) } : {}),
+    ...(str(meta.subscription_id) ? { subscriptionId: str(meta.subscription_id) } : {}),
+    ...(str(meta.resource_group) ? { resourceGroup: str(meta.resource_group) } : {}),
+    ...(str(meta.server_name) ? { serverName: str(meta.server_name) } : {}),
+    ...(str(meta.host) ? { host: str(meta.host) } : {}),
+    ...(num(meta.port) !== undefined ? { port: num(meta.port) } : {}),
   };
 };
 
-const toApprovedIntegrationResourceSnapshot = (
-  resource: ResourceConfigDto,
-): ApprovedIntegrationResourceItem => ({
-  resource_id: resource.resource_id ?? '',
-  resource_type: resource.resource_type ?? '',
-  endpoint_config: toEndpointConfigSnapshot(resource),
-  credential_id: resource.credential_id ?? null,
-  database_region: resource.database_region ?? null,
-  resource_name: resource.resource_name ?? null,
-  scan_status: resource.scan_status ?? null,
-  integration_status: resource.integration_status ?? null,
-  // Pass IDC fields through — absent for cloud resources.
-  ...(resource.idc_host_format ? { idc_host_format: resource.idc_host_format } : {}),
-  ...(resource.idc_ips ? { idc_ips: resource.idc_ips } : {}),
-  ...(resource.idc_host ? { idc_host: resource.idc_host } : {}),
-  ...(resource.idc_source_ips ? { idc_source_ips: resource.idc_source_ips } : {}),
-});
+// Adapter: snake TargetSourceResourceItemDto → camel ConfirmResourceItem.
+const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceItem => {
+  const meta = (typeof item.metadata === 'object' && item.metadata !== null)
+    ? item.metadata as Record<string, unknown>
+    : {};
+  const resourceId = (item.resource_id as string | undefined) ?? '';
+  const resourceType = (item.resource_type as string | undefined) ?? 'UNKNOWN';
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
+
+  return {
+    id: resourceId,
+    resourceId,
+    name: str(item.resource_name) ?? resourceId,
+    resourceType,
+    databaseType: (str(item.database_type) as DatabaseType | undefined) ?? 'MYSQL',
+    integrationCategory: normalizeIntegrationCategory(item.integration_category),
+    host: str(meta.host) ?? null,
+    port: num(meta.port) ?? null,
+    oracleServiceId: str(meta.oracle_service_id) ?? null,
+    networkInterfaceId: str(meta.network_interface_id) ?? null,
+    ipConfigurationName: null,
+    scanStatus: normalizeCandidateScanStatus(item.scan_status),
+    metadata: toConfirmResourceMetadata(meta, resourceType),
+  };
+};
+
+export const getConfirmResources = async (
+  targetSourceId: number,
+  options?: { signal?: AbortSignal },
+): Promise<ConfirmResourcesResponse> => {
+  const raw = await fetchInfraJson<z.infer<typeof schemas.CloudResourceResponse>>(
+    `${CONFIRM_BASE}/${targetSourceId}/resources`,
+    options?.signal ? { signal: options.signal } : undefined,
+  );
+  const items = Array.isArray(raw.resources) ? raw.resources as Record<string, unknown>[] : [];
+  return {
+    resources: items.map(toConfirmResourceItem),
+    totalCount: typeof raw.total_count === 'number' ? raw.total_count : items.length,
+  };
+};
 
 export const createApprovalRequest = async (
   targetSourceId: number,
-  input: ApprovalRequestInput | LegacyApprovalRequestInput,
-): Promise<ApprovalRequestResult> => {
-  // Route normalizes both the (out-of-contract) request body and the
-  // ApprovalRequestSummaryDto response to camel (ADR-019 D1 boundary).
-  const summary = await fetchInfraJson<ApprovalRequestSummary>(
+  input: z.infer<typeof schemas.ApprovalRequestInputDto>,
+): Promise<ApprovalRequestSummaryDto> =>
+  fetchInfraJson<ApprovalRequestSummaryDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests`,
     { method: 'POST', body: input },
   );
 
-  return {
-    id: String(summary.id || ''),
-    targetSourceId: summary.targetSourceId || targetSourceId,
-    status: summary.status,
-    requestedAt: summary.requestedAt,
-    requestedBy: summary.requestedBy?.userId ?? '',
-    resourceTotalCount: summary.resourceTotalCount,
-    resourceSelectedCount: summary.resourceSelectedCount,
-  };
-};
-
 export type ConfirmedIntegrationResourceItem = ConfirmedIntegrationResourceInfo;
 export type ApprovedIntegrationResourceItem = ResourceSnapshot;
 
+// ADR-019: route emits snake ConfirmedIntegrationResponse; pass through.
+// BffConfirmedIntegration.resource_infos is structurally compatible (both snake).
 export type ConfirmedIntegrationResponse = BffConfirmedIntegration;
 
 export const getConfirmedIntegration = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
 ): Promise<ConfirmedIntegrationResponse> =>
-  extractConfirmedIntegration(
-    await fetchInfraJson<ConfirmedIntegrationResponsePayload>(
-      `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`,
-      options?.signal ? { signal: options.signal } : undefined,
-    ),
+  fetchInfraJson<ConfirmedIntegrationResponse>(
+    `${CONFIRM_BASE}/${targetSourceId}/confirmed-integration`,
+    options?.signal ? { signal: options.signal } : undefined,
   );
 
-export type ApprovedIntegrationExcludedResourceItem = ExcludedResourceInfoDto;
+// ADR-019: route emits flat ApprovedIntegrationResponseDto (snake, no envelope).
+// Reshape to the UI shape: wrap in approved_integration, rename resources→resource_infos,
+// excluded fields not in the new schema default to empty.
+export type ApprovedIntegrationExcludedResourceItem = {
+  resource_id?: string;
+  exclusion_reason?: string;
+  resource_name?: string | null;
+  database_type?: string | null;
+  database_region?: string | null;
+  scan_status?: ResourceScanStatus | null;
+  integration_status?: ResourceIntegrationStatus | null;
+};
 
 export interface ApprovedIntegrationResponse {
   approved_integration: {
@@ -446,177 +438,77 @@ export const getApprovedIntegration = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
 ): Promise<ApprovedIntegrationResponse> => {
-  const payload = normalizeApprovedIntegration(
-    await fetchInfraJson<unknown>(
-      `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
-      options?.signal ? { signal: options.signal } : undefined,
-    ),
+  const raw = await fetchInfraJson<z.infer<typeof schemas.ApprovedIntegrationResponseDto>>(
+    `${CONFIRM_BASE}/${targetSourceId}/approved-integration`,
+    options?.signal ? { signal: options.signal } : undefined,
   );
-
-  const excludedResourceInfos = payload.excluded_resource_infos ?? [];
 
   return {
     approved_integration: {
-      id: String(payload.id ?? ''),
-      request_id: String(payload.request_id ?? ''),
-      approved_at: payload.approved_at ?? '',
-      approved_by: payload.approved_by?.user_id ?? null,
-      resource_infos: payload.resource_infos.map(toApprovedIntegrationResourceSnapshot),
-      excluded_resource_ids: excludedResourceInfos
-        .map((item) => item.resource_id)
-        .filter((resourceId): resourceId is string => typeof resourceId === 'string' && resourceId.length > 0),
-      excluded_resource_infos: excludedResourceInfos,
-      exclusion_reason: excludedResourceInfos
-        .map((item) => item.exclusion_reason)
-        .find((reason): reason is string => typeof reason === 'string' && reason.length > 0),
+      id: String(raw.id ?? ''),
+      request_id: String(raw.request_id ?? ''),
+      approved_at: raw.approved_at ?? '',
+      approved_by: (raw.approved_by as { user_id?: string } | undefined)?.user_id ?? null,
+      // ADR-019: resources (new schema, TargetSourceResourceItemDto[]) maps to resource_infos (UI view).
+      resource_infos: Array.isArray(raw.resources) ? (raw.resources as unknown as ApprovedIntegrationResourceItem[]) : [],
+      excluded_resource_ids: [],
+      excluded_resource_infos: [],
     },
   };
 };
-
-export interface ApprovalHistoryResponse {
-  content: Array<{
-    request: {
-      id: string;
-      requested_at: string;
-      requested_by: string;
-      status?: ApprovalRequestStatus;
-      resource_total_count: number;
-      resource_selected_count: number;
-      input_data: {
-        resource_inputs: ApprovalResourceInput[];
-        exclusion_reason_default?: string;
-      };
-    };
-    result?: {
-      id: string;
-      request_id: string;
-      result: string;
-      processed_at: string;
-      process_info: { user_id: string | null; reason: string | null };
-    };
-  }>;
-  page: { totalElements: number; totalPages: number; number: number; size: number };
-}
 
 export const getApprovalHistory = async (
   targetSourceId: number,
   page = 0,
-  size = 10
-): Promise<ApprovalHistoryResponse> => {
-  // Route normalizes the flat Spring Page → camel ApprovalHistoryPage
-  // (ADR-019 D1 boundary). Public shape below stays legacy for admin consumers;
-  // `input_data` is no longer carried by the contract (swagger Page.content is
-  // untyped) so it is left empty (was already `[]`).
-  const payload = await fetchInfraJson<ApprovalHistoryPage>(
+  size = 10,
+): Promise<z.infer<typeof schemas.Page>> =>
+  fetchInfraJson<z.infer<typeof schemas.Page>>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-history?page=${page}&size=${size}`,
   );
 
-  return {
-    content: payload.content.map((item) => ({
-      request: {
-        id: String(item.request.id || ''),
-        requested_at: item.request.requestedAt,
-        requested_by: item.request.requestedBy?.userId ?? '',
-        status: item.request.status,
-        resource_total_count: item.request.resourceTotalCount,
-        resource_selected_count: item.request.resourceSelectedCount,
-        input_data: {
-          resource_inputs: [],
-        },
-      },
-      ...(item.result
-        ? {
-            result: {
-              id: String(item.result.requestId || item.request.id || ''),
-              request_id: String(item.result.requestId || item.request.id || ''),
-              result: item.result.status,
-              processed_at: item.result.processedAt,
-              process_info: {
-                user_id: item.result.processedBy?.userId ?? null,
-                reason: item.result.reason || null,
-              },
-            },
-          }
-        : {}),
-    })),
-    page: {
-      totalElements: payload.totalElements,
-      totalPages: payload.totalPages,
-      number: payload.number,
-      size: payload.size,
-    },
-  };
-};
-
 export const approveApprovalRequestV1 = async (
   targetSourceId: number,
-  comment?: string
-): Promise<{ success: boolean; result: string; processed_at: string }> => {
-  // Route returns camel ApprovalActionResponse (ADR-019 D1 boundary).
-  const payload = await fetchInfraJson<ApprovalActionResponse>(
+  comment?: string,
+): Promise<ApprovalActionResponseDto> =>
+  fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/approve`,
     { method: 'POST', body: { comment } },
   );
 
-  return {
-    success: true,
-    result: payload.status,
-    processed_at: payload.processedAt,
-  };
-};
-
 export const rejectApprovalRequestV1 = async (
   targetSourceId: number,
-  reason: string
-): Promise<{ success: boolean; result: string; processed_at: string; reason: string }> => {
-  // Route returns camel ApprovalActionResponse (ADR-019 D1 boundary).
-  const payload = await fetchInfraJson<ApprovalActionResponse>(
+  reason: string,
+): Promise<ApprovalActionResponseDto> =>
+  fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/reject`,
     { method: 'POST', body: { reason } },
   );
 
-  return {
-    success: true,
-    result: payload.status,
-    processed_at: payload.processedAt,
-    reason: payload.reason || reason,
-  };
-};
-
-// === Approval Request Latest (swagger ApprovalRequestLatestDto, camel @ boundary) ===
-
-// Public alias kept for existing Step2 consumers; the route now returns the
-// camel ApprovalRequestLatest domain shape (request/resources/result).
-export type ApprovalRequestLatestResponse = ApprovalRequestLatest;
-
 export const getApprovalRequestLatest = async (
   targetSourceId: number,
   options?: { signal?: AbortSignal },
-): Promise<ApprovalRequestLatestResponse> =>
-  fetchInfraJson<ApprovalRequestLatestResponse>(
+): Promise<ApprovalRequestLatestDto> =>
+  fetchInfraJson<ApprovalRequestLatestDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/latest`,
     options?.signal ? { signal: options.signal } : undefined,
   );
 
 export const cancelApprovalRequest = async (
-  targetSourceId: number
+  targetSourceId: number,
 ): Promise<{ success: boolean }> => {
-  // Route returns camel ApprovalActionResponse; callers only need success.
-  await fetchInfraJson<ApprovalActionResponse>(
+  await fetchInfraJson<ApprovalActionResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-requests/cancel`,
     { method: 'POST' },
   );
-  return {
-    success: true,
-  };
+  return { success: true };
 };
 
 // 연동 불가 판정 (swagger approval-unavailable, #7) — body { reason } required.
 export const markApprovalRequestUnavailable = async (
   targetSourceId: number,
   reason: string,
-): Promise<ApprovalUnavailableResponse> =>
-  fetchInfraJson<ApprovalUnavailableResponse>(
+): Promise<ApprovalUnavailableResponseDto> =>
+  fetchInfraJson<ApprovalUnavailableResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable`,
     { method: 'POST', body: { reason } },
   );
@@ -624,8 +516,8 @@ export const markApprovalRequestUnavailable = async (
 // 연동 불가 담당자 확인 (swagger approval-unavailable/confirm, #8) — no body.
 export const confirmApprovalUnavailable = async (
   targetSourceId: number,
-): Promise<ApprovalUnavailableConfirmResponse> =>
-  fetchInfraJson<ApprovalUnavailableConfirmResponse>(
+): Promise<ApprovalUnavailableConfirmResponseDto> =>
+  fetchInfraJson<ApprovalUnavailableConfirmResponseDto>(
     `${CONFIRM_BASE}/${targetSourceId}/approval-unavailable/confirm`,
     { method: 'POST' },
   );
@@ -639,22 +531,29 @@ export interface ProcessStatusResponse {
   evaluated_at: string;
 }
 
+// ADR-019: route emits snake ProcessStatusResponseDto; pass through directly.
 export const getProcessStatus = async (
-  targetSourceId: number
+  targetSourceId: number,
 ): Promise<ProcessStatusResponse> =>
-  normalizeProcessStatusResponse(
-    await fetchInfraJson<unknown>(`${CONFIRM_BASE}/${targetSourceId}/process-status`),
-  );
+  fetchInfraJson<ProcessStatusResponse>(`${CONFIRM_BASE}/${targetSourceId}/process-status`);
 
 // ===== Connection Test API (Async) =====
 
-export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> =>
-  fetchInfraCamelJson<SecretKey[]>(`${CONFIRM_BASE}/${targetSourceId}/secrets`);
+// ADR-019: route emits snake SecretResponse[]; adapter reshapes create_time_str → createTimeStr.
+export const getSecrets = async (targetSourceId: number): Promise<SecretKey[]> => {
+  const raw = await fetchInfraJson<z.infer<typeof schemas.SecretResponse>[]>(
+    `${CONFIRM_BASE}/${targetSourceId}/secrets`,
+  );
+  return raw.map((s) => ({
+    name: s.name ?? '',
+    createTime: s.create_time ?? '',
+    createTimeStr: s.create_time_str ?? '',
+  }));
+};
 
-// Test Connection (Step 5/6) — ADR-019 /install/v1. The route handler is the
-// single casing boundary (camelCaseKeys + normalizer), so these CSR funcs fetch
-// the already-camel domain shape and only type it. Domain types live in
-// `lib/test-connection-response.ts` and are re-exported below.
+// Test Connection (Step 5/6) — ADR-019 zod-codegen. Routes validate with
+// schemas.X.parse(raw); these CSR funcs return the generated wire type (snake).
+// Field access at the call site is snake_case; use adapters for join/reshape/compute.
 
 // 비동기 연결 테스트 트리거 — 202 Accepted, no request body, optional collectorImageTag
 export const triggerTestConnection = async (
@@ -727,9 +626,9 @@ export interface InstallationConfirmResult {
 }
 
 export const confirmInstallation = async (
-  targetSourceId: number
+  targetSourceId: number,
 ): Promise<InstallationConfirmResult> =>
-  fetchInfraCamelJson<InstallationConfirmResult>(
+  fetchInfraJson<InstallationConfirmResult>(
     `${CONFIRM_BASE}/${targetSourceId}/pii-agent-installation/confirm`,
     { method: 'POST' },
   );
@@ -745,6 +644,3 @@ export * from '@/app/lib/api/gcp';
 
 // ===== Scan API =====
 export * from '@/app/lib/api/scan';
-
-// ===== Admin Dashboard API =====
-export * from '@/app/lib/api/dashboard';
