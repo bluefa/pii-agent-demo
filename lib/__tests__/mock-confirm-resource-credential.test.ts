@@ -92,6 +92,7 @@ describe('mockConfirm.updateResourceCredential', () => {
         resource_name: 'sea-payments-prod',
         scan_status: 'UNCHANGED',
         integration_status: 'INTEGRATED',
+        selected: true,
       },
     ]);
   });

@@ -449,10 +449,21 @@ export const getApprovedIntegration = async (
       request_id: String(raw.request_id ?? ''),
       approved_at: raw.approved_at ?? '',
       approved_by: (raw.approved_by as { user_id?: string } | undefined)?.user_id ?? null,
-      // ADR-019: resources (new schema, TargetSourceResourceItemDto[]) maps to resource_infos (UI view).
-      resource_infos: Array.isArray(raw.resources) ? (raw.resources as unknown as ApprovedIntegrationResourceItem[]) : [],
-      excluded_resource_ids: [],
-      excluded_resource_infos: [],
+      // ADR-019: split resources by selected field (selected !== false →연동 대상; selected === false → 비대상).
+      ...((): {
+        resource_infos: ApprovedIntegrationResourceItem[];
+        excluded_resource_ids: string[];
+        excluded_resource_infos: ApprovedIntegrationExcludedResourceItem[];
+      } => {
+        const items = Array.isArray(raw.resources) ? raw.resources : [];
+        const excluded = items.filter((i) => i.selected === false);
+        const selected = items.filter((i) => i.selected !== false);
+        return {
+          resource_infos: selected as unknown as ApprovedIntegrationResourceItem[],
+          excluded_resource_ids: excluded.map((i) => i.resource_id).filter((id): id is string => !!id),
+          excluded_resource_infos: excluded as unknown as ApprovedIntegrationExcludedResourceItem[],
+        };
+      })(),
     },
   };
 };

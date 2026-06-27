@@ -221,11 +221,14 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       // Step 4: ApprovedIntegration 스냅샷 확인 (ADR-019: flat snake wire)
       const approvedRes = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const approvedData = await parseResponse(approvedRes);
-      // ADR-019: flat shape — no approved_integration wrapper; resources = selected snapshots.
-      expect(approvedData.resources).toHaveLength(2);
-      // Excluded resource (res-3) is not in the selected resources array.
-      const resourceIds = (approvedData.resources as Array<{ resource_id: string }>).map((r) => r.resource_id);
-      expect(resourceIds).not.toContain('rds-res-3');
+      // Flat shape — no wrapper; resources carry both selected (연동 대상) and excluded (비대상).
+      expect(approvedData.resources).toHaveLength(3);
+      const approvedItems = approvedData.resources as Array<{ resource_id: string; selected: boolean }>;
+      // res-1/res-2 are selected (selected:true); res-3 is excluded (selected:false).
+      const selectedIds = approvedItems.filter((r) => r.selected).map((r) => r.resource_id);
+      expect(selectedIds).toEqual(expect.arrayContaining(['rds-res-1', 'rds-res-2']));
+      const excludedItem = approvedItems.find((r) => r.resource_id === 'rds-res-3');
+      expect(excludedItem?.selected).toBe(false);
     });
   });
 
@@ -896,11 +899,48 @@ describe('연동 승인/확정 프로세스 상태 전이', () => {
       const res = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
       const data = await parseResponse(res);
       expect(res.status).toBe(200);
-      // ADR-019: flat shape — no approved_integration wrapper; resources = selected snapshots only.
-      expect(data.resources).toHaveLength(2);
-      const resourceIds = (data.resources as Array<{ resource_id: string }>).map((r) => r.resource_id);
-      // Excluded resource (rds-res-3) is not in selected resources.
-      expect(resourceIds).not.toContain('rds-res-3');
+      // Flat shape — resources carry both selected (연동 대상) and excluded (비대상).
+      expect(data.resources).toHaveLength(3);
+      const items = data.resources as Array<{ resource_id: string; selected: boolean }>;
+      // res-1/res-2 selected (selected:true); res-3 excluded (selected:false).
+      const selectedIds = items.filter((r) => r.selected).map((r) => r.resource_id);
+      expect(selectedIds).toEqual(expect.arrayContaining(['rds-res-1', 'rds-res-2']));
+      const excludedItem = items.find((r) => r.resource_id === 'rds-res-3');
+      expect(excludedItem?.selected).toBe(false);
+    });
+
+    it('제외 리소스 포함 회귀: selected:false + 사유 노출 & 총계=선택+제외', async () => {
+      const status: ProjectStatus = {
+        ...createInitialProjectStatus(),
+        scan: { status: 'COMPLETED' },
+        targets: { confirmed: true, selectedCount: 1, excludedCount: 1 },
+        approval: { status: 'PENDING' },
+      };
+      addTestProject({
+        processStatus: ProcessStatus.WAITING_APPROVAL,
+        status,
+        resources: [
+          createTestResource('res-1', { isSelected: true }),
+          createTestResource('res-2', {
+            isSelected: false,
+            exclusion: { reason: '연동 불필요', excludedAt: '2026-01-01T00:00:00Z', excludedBy: { id: 'u1', name: 'User' } },
+          }),
+        ],
+      });
+
+      const res = await mockConfirm.getApprovedIntegration(TEST_TARGET_SOURCE_ID_STR);
+      const data = await parseResponse(res);
+      expect(res.status).toBe(200);
+      const items = data.resources as Array<{ resource_id: string; selected: boolean; exclusion_reason?: string }>;
+      const excluded = items.find((r) => r.selected === false);
+      expect(excluded).toBeDefined();
+      expect(excluded?.exclusion_reason).toBeTruthy();
+
+      // 총계 = 선택 + 제외 (수동 승인 latest 응답의 resource_total_count).
+      const latestRes = await mockConfirm.getApprovalRequestLatest(TEST_TARGET_SOURCE_ID_STR);
+      const latest = await parseResponse(latestRes);
+      expect(latest.request.resource_total_count).toBe(2);
+      expect(latest.request.resource_selected_count).toBe(1);
     });
 
     it('존재하지 않는 프로젝트 → 404', async () => {
