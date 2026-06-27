@@ -152,46 +152,58 @@ export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
   );
 };
 
-// v16 step5/6 DB Credential options — static demo list mirroring the prototype.
-export const IDC_CRED_OPTIONS = ['Key1', 'Key2', 'Key3', 'idc_svc_mysql', 'idc_svc_oracle', 'idc_svc_pg'] as const;
-
 const SELECT_CHEVRON =
   "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\") right 9px center no-repeat";
 
-/** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). */
+/** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). Options are the
+ *  target-source secrets loaded from `GET .../secrets` (not a hardcoded list). The
+ *  current value is always shown even if absent from `options` (a stored credential
+ *  must remain selectable). */
 export const IdcCredSelectCell = ({
   value,
   onChange,
+  options,
 }: {
   value: string;
   onChange: (next: string) => void;
-}) => (
-  <select
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    style={{ background: SELECT_CHEVRON }}
-    className={cn(idcStyles.credSelect, !value && idcStyles.credSelectEmpty)}
-    aria-label="DB Credential 선택"
-  >
-    <option value="">자격 증명 선택</option>
-    {IDC_CRED_OPTIONS.map((cred) => (
-      <option key={cred} value={cred}>
-        {cred}
-      </option>
-    ))}
-  </select>
-);
+  options: string[];
+}) => {
+  const choices = value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ background: SELECT_CHEVRON }}
+      className={cn(idcStyles.credSelect, !value && idcStyles.credSelectEmpty)}
+      aria-label="DB Credential 선택"
+    >
+      <option value="">자격 증명 선택</option>
+      {choices.map((cred) => (
+        <option key={cred} value={cred}>
+          {cred}
+        </option>
+      ))}
+    </select>
+  );
+};
 
-/** Credential-aware connection status — no cred -> credential-required (gray); SUCCESS -> green; else Pending (gray). */
+/** Credential-aware connection status — reflects the live test-connection result:
+ *  no cred -> credential-required; SUCCESS -> green; FAIL -> red; RUNNING -> orange;
+ *  else Pending (gray). */
 export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
   if (!resource.credentialId) {
     return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
   }
-  return resource.connection === 'SUCCESS' ? (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
-  ) : (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
-  );
+  switch (resource.connection) {
+    case 'SUCCESS':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>;
+    case 'FAIL':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>;
+    case 'RUNNING':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>;
+    default:
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>;
+  }
 };
 
 /** Logical-DB manage button (the "set" action) — disabled until credential set AND connection SUCCESS. */

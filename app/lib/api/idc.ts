@@ -51,7 +51,7 @@ export type IdcDatabaseTypeWire =
   | 'REDIS';
 
 export type IdcKind = 'SINGLE' | 'MULTIPLE_IP' | 'DOMAIN';
-export type IdcConnState = 'PENDING' | 'SUCCESS';
+export type IdcConnState = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL';
 export type IdcHealth = 'HEALTHY' | 'UNHEALTHY';
 
 export interface IdcResourceView {

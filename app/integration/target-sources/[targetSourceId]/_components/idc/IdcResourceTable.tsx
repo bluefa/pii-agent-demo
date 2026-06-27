@@ -30,6 +30,8 @@ interface IdcResourceTableProps {
   emptyMessage?: string;
   /** Step-5: DB Credential select change (resourceId, credential). */
   onCredChange?: (resourceId: string, cred: string) => void;
+  /** Step-5: credential options loaded from `GET .../secrets`. */
+  credOptions?: readonly string[];
   /** Step-5/6: open the per-resource logical-DB modal. */
   onLogicalOpen?: (resource: IdcResourceView) => void;
 }
@@ -56,6 +58,7 @@ export const IdcResourceTable = ({
   cols,
   emptyMessage,
   onCredChange,
+  credOptions = [],
   onLogicalOpen,
 }: IdcResourceTableProps) => {
   const has = (c: IdcTableCol) => cols.includes(c);
@@ -135,6 +138,7 @@ export const IdcResourceTable = ({
                       <IdcCredSelectCell
                         value={r.credentialId ?? ''}
                         onChange={(cred) => onCredChange?.(r.resourceId, cred)}
+                        options={[...credOptions]}
                       />
                     )}
                   </td>
