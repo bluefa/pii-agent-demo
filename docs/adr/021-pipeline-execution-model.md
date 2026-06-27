@@ -124,10 +124,12 @@ One guard defends correctness:
   reclaimed by another worker will find `claimed_by` no longer matches and its update
   no-ops. No clobbering.
 
-A `status = :expected_status` guard is **not required** for cancel-safety. Because cancel
-is cooperative (Decision 6) and never writes `status`, the claim-holding worker is the sole
-`status` writer. There is no concurrent cancel writer that could put the pipeline into a
-terminal state while the worker holds the claim.
+A `status = :expected_status` guard is **not required** for cancel-safety. Cancel writes
+`status` only on the immediate path (Decision 6), and that path fires solely when the claim is
+null or expired **and clears `claimed_by` as it terminalizes** — so it can never share a live
+claim token with a worker's tx2. For a live-lease pipeline, cancel only sets a flag and the
+claim holder is the sole `status` writer. Either way the `claimed_by` guard alone fences every
+straggler; no concurrent writer holds a matching token while the row is being terminalized.
 
 **Ownership verification in tx2 is pipeline-level, not per-row.** In tx2 the worker
 verifies pipeline ownership once (the `claimed_by = :claim_token` check on the locked
@@ -189,8 +191,9 @@ request **first attempts an immediate terminate by CAS**, and falls back to the 
 flag only if a live worker owns the claim:
 
 ```sql
--- (1) unclaimed → terminate immediately (and CANCEL its non-terminal tasks in the same tx)
-UPDATE pipeline SET status = 'CANCELLED'
+-- (1) unclaimed OR expired → terminate immediately AND clear the claim, so an expired-lease
+--     straggler's tx2 fails its claimed_by guard (also CANCEL its non-terminal tasks in this tx)
+UPDATE pipeline SET status = 'CANCELLED', claimed_by = NULL, claimed_until = NULL
  WHERE id = :pid AND status = 'RUNNING'
    AND (claimed_by IS NULL OR claimed_until < now());
 -- (2) if 0 rows (a live worker holds the claim) → cooperative flag
@@ -199,10 +202,16 @@ UPDATE pipeline SET cancel_requested = true, next_due_at = now()
 ```
 
 An **unclaimed** pipeline — the common "waiting / not yet picked up" case — is cancelled
-**immediately**, no worker round-trip. The CAS is race-safe against a concurrent claim: both
-contend on the pipeline row, so whichever commits first wins (a claim no longer sees `RUNNING`
-once cancelled; the immediate-terminate no longer sees a free claim once claimed). For a
-**claimed** pipeline, path (2) sets the flag and the worker applies it:
+**immediately**, no worker round-trip. Two races are closed by construction:
+- **vs a concurrent claim**: both contend on the pipeline row, so whichever commits first wins
+  (a claim no longer sees `RUNNING` once cancelled; the immediate-terminate no longer sees a
+  free claim once claimed).
+- **vs an expired-lease straggler**: path (1) fires only when the claim is null or expired, and
+  it **clears `claimed_by`/`claimed_until`** in the same statement. A GC-paused straggler that
+  resumes finds its token gone, so its tx2 `claimed_by` guard no-ops — no resurrection. This is
+  why the immediate path is safe *without* re-introducing a `status` guard.
+
+For a **claimed** (live-lease) pipeline, path (2) sets the flag and the worker applies it:
 
 The **claim-holding worker is the sole writer of task/pipeline status.** It reads
 `cancel_requested` at its safe points — right after claiming, before dispatch, and inside
