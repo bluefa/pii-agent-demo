@@ -211,9 +211,63 @@ Their exact values live in operational config, not in this ADR:
   AND (claimed_until IS NULL OR claimed_until < now())`) needs a supporting index; without one,
   every claim degrades to a full sequential scan + sort under concurrent multi-worker polling.
   A partial btree index on `(next_due_at) WHERE status = 'RUNNING'` covers the hot path.
-- **Terraform-job concurrency cap (`slotCap`)** is **deferred**. InfraManager's fixed pool is
-  the real ceiling; over-submission only deepens its idempotent queue. Add a client-side cap
-  only if a concrete need appears.
+- **Terraform-job concurrency cap (`slotCap`)** — the soft gate behavior is defined in
+  Decision 7; hard-cap enforcement (counter-CAS) remains deferred. InfraManager's fixed pool
+  is the real ceiling; over-submission only deepens its idempotent queue.
+- **DB polling load control** — workers self-poll, so the claim loop needs explicit load
+  controls to avoid hammering the DB during quiet periods: no immediate retry after an empty
+  claim result; adaptive backoff with jitter (e.g. 200 ms → 500 ms → 1 s → 2–5 s, reset on
+  work found); when the nearest due pipeline time is known,
+  `sleep = min(nextDueAt − now(), maxIdleSleep)` to avoid over-polling; jitter spread across
+  the sleep to prevent synchronized wakeups across workers. (The claim-predicate partial index
+  already limits per-scan cost; this complements it.)
+
+### 7. Admission control and TF slot gate (soft caps)
+
+**`runningPipelineCap`** is a **soft admission target**, not a hard invariant. Before
+admitting a new pipeline into `RUNNING` state, a pod checks whether the current `RUNNING`
+count is below the cap. Under multi-pod deployments, count-read admission can **overshoot**:
+for cap `M` and `N` concurrently-admitting pods, worst-case `RUNNING` is `M + N − 1`. This
+bounded overshoot is **accepted in V1**. A hard cap would require atomic admission (e.g.
+`UPDATE pipeline_admission_counter SET used = used + 1 WHERE used < cap`, released on
+terminal) — **deferred**.
+
+**TF slot gate.** A TF *slot* is Terraform-job execution occupancy (minutes), a different
+resource from API-call concurrency (milliseconds to seconds). `slotCap` is a **soft admission
+target** that slows TF dispatch to relieve InfraManager/Terraform pressure. Soft gate behavior
+in the worker loop: before a TF dispatch, the worker checks slot availability; if available,
+it dispatches; if not, it keeps the task `READY`, sets `next_due_at = now() + slotRetry`, and
+**releases the claim** (so the worker frees itself to pick up other pipelines). Bounded
+overshoot is accepted for the same multi-pod reasons as `runningPipelineCap`; a hard cap would
+use a `tf_slot_counter` CAS or an InfraManager-side admission limit — **deferred**.
+
+**Multi-pod note.** `totalWorkerCount = activePodCount × workerPerPod`, so adding replicas
+raises global worker count and admission overshoot scales with the number of
+concurrently-admitting pods. `replicas = 1` is **not required** for correctness (the claim
+mechanism is multi-pod safe by construction) — it is only an operational simplification that
+eliminates overshoot.
+
+**Worker-loop pseudocode (illustrative; slot gate step shown):**
+
+```
+loop:
+  row = claim_one_due_pipeline()          // tx1: SKIP LOCKED + lease stamp
+  if row is None:
+    sleep(backoff_with_jitter())
+    continue
+
+  if row.cancel_requested:
+    cancel_pipeline(row)                  // tx2: set CANCELLED, release claim
+    continue
+
+  if is_tf_dispatch_step(row) and not slot_available():
+    reschedule(row, delay=slotRetry)      // tx2: release claim, push next_due_at
+    continue
+
+  result = execute_step(row)              // external call, outside any transaction
+
+  report_result(row, result)              // tx2: guarded write-back, release claim
+```
 
 ## Considered Options
 
@@ -242,6 +296,54 @@ Their exact values live in operational config, not in this ADR:
   external call, report tx must all be reasoned about separately.
 - **Lease-expiry window**: a crashed worker's pipeline pauses up to one lease period before
   reclaim.
+- **Soft admission targets** — both `runningPipelineCap` and `slotCap` are soft gates; under
+  multi-pod deployments, concurrent admission reads can overshoot by up to `N − 1` (where
+  `N` = number of concurrently-admitting pods). Hard caps require explicit counter-CAS
+  admission — deferred.
+
+## Operational reference (knobs & metrics)
+
+This section is a reference catalog only. Values live in operational config, not in this ADR.
+
+### Knobs
+
+| Knob | Meaning |
+|---|---|
+| `workerPerPod` | Thread-pool size per pod; caps concurrent external calls per replica |
+| `activePodCount` | Number of running pods/replicas |
+| `maxReplicas` | Upper bound for autoscaler |
+| `runningPipelineCap` | Soft admission target for concurrent `RUNNING` pipelines |
+| `slotCap` | Soft admission target for concurrent TF-dispatch slots |
+| `slotRetry` | Delay before re-checking slot availability when slot is full |
+| `leaseDuration` | Claim lease window; see required relationship below |
+| `apiCallTimeout` | Per-call timeout for InfraManager / condition-check calls |
+| `maxIdleSleep` | Upper bound on idle sleep between claim polls |
+| `backoffBase` | Initial backoff interval after an empty-claim result |
+| `backoffMax` | Maximum backoff interval (before jitter) |
+| `jitterRatio` | Fraction of the sleep interval to randomize (e.g. ±20 %) |
+
+Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safetyMargin`
+(same bound as Decision 5).
+
+### Key metrics
+
+- **active workers** — worker threads currently executing a step
+- **total worker count** — `activePodCount × workerPerPod`
+- **concurrent API calls** — in-flight external calls to InfraManager / condition checks
+- **RUNNING pipeline count** — current `status = 'RUNNING'` row count
+- **pipeline-cap overshoot count** — admissions above `runningPipelineCap`
+- **empty-claim rate** — fraction of claim polls that returned no row
+- **claim QPS** — claim-poll throughput
+- **claim latency** — p50/p99 duration of the tx1 claim query
+- **due-pipeline lag** — `now() − min(next_due_at)` for unclaimed due rows
+- **stale-report discard count** — tx2 no-ops where `claimed_by` guard failed
+- **lease-expired reclaim count** — pipelines reclaimed after lease timeout
+- **slot-full retry count** — TF dispatch deferred due to slot gate
+- **TF-slot overshoot count** — TF dispatches above `slotCap`
+- **429/503 count** — back-pressure responses from InfraManager
+- **API latency** — p50/p99 of external call durations
+- **DB lock wait** — time waiting for row lock during claim scan
+- **pipeline completion latency** — wall-clock time from pipeline creation to terminal state
 
 ## Links
 
