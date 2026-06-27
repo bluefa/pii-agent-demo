@@ -73,10 +73,21 @@ write) is the execution model — see ADR-021.
   `fail_count < maxFailCount` the task re-dispatches (a fresh run), else FAILED.
 - Two deadlines: a **per-call** timeout (abandon one slow IM call) and a
   **per-task** `executionTimeout` (TF) / `ttl` (condition).
-- Idempotency (O28): re-dispatching a TF job is safe — a duplicate submit is
-  harmless and "already in the desired state" counts as success. This is what
-  lets §2 drop the `DISPATCHING` state: a crash between "IM started the job" and
-  "we stored job_id" is recovered by an idempotent re-dispatch.
+- **Idempotency model (Model X):** TF Job dispatch uses only
+  **duplicate-harmless (infra-idempotent)** APIs — InfraManager does **not**
+  de-duplicate submissions. `(task_id, attempt_no)` is a **logical attempt
+  identity for our own records** (stored in `task_attempt`) — it is NOT an
+  InfraManager dedup/idempotency key; IM has no such mechanism.
+  - Re-dispatch may create a **duplicate TF job**; that is harmless because the
+    TF apply API converges the same infrastructure.
+  - **Crash recovery:** a crash between "IM created the job" and "we stored
+    `job_id`" means a fresh re-dispatch on restart; record the **latest** `job_id`
+    in `task_attempt.job_id` and `task.job_id`. The orphaned pre-crash job runs
+    harmlessly.
+  - Invariants that follow: a `TERRAFORM_JOB` task that is `IN_PROGRESS` has a
+    `job_id`; a `READY` TF task is a dispatch / re-dispatch target; **no
+    `DISPATCHING` state** is added. Do not write "get-or-create" or "reclaim
+    existing job" — IM cannot reclaim.
 
 ## 5. Idempotency & uniqueness
 
@@ -88,21 +99,44 @@ write) is the execution model — see ADR-021.
   resumes each IN_PROGRESS task by re-polling (TF, by `job_id`) or re-dispatching
   (idempotent).
 
-## 6. Data model (2 tables)
+## 6. Data model (4 tables)
+
+**Domain state tables (drive the state machine):** `pipeline`, `task`
+**Observation/debug summary tables (write-only; never read by the reconciler):** `task_attempt`, `task_check`
+
+Relationship: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`
 
 - `pipeline(id, type, target, status, created_at, last_activity_at)`
 - `task(id, pipeline_id, seq, kind, operation, status, job_id, fail_count,
-  error_code, last_http_status, last_response_raw, started_at, ready_at, finished_at,
+  error_code, started_at, ready_at, finished_at,
   next_check_at, ttl, polling_interval, execution_timeout, max_fail_count)`
+- `task_attempt(id, task_id, attempt_no, job_id, status, error_code,
+  dispatch_response_code, dispatch_response_summary, started_at, finished_at)`
+- `task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,
+  call_timeout_count, last_external_status, last_response_code,
+  last_response_summary, last_checked_at)`
 
 `kind` selects the **executor** (`TERRAFORM_JOB` | `CONDITION_CHECK`); `operation` selects the
 **domain action** within that executor. A closed operation set is represented as a
 `TaskOperation` enum; an open/configured set must be validated through a registry.
-`last_http_status` / `last_response_raw` hold the **last** call's outcome — a last-write
-snapshot, not a per-call ledger.
 
-Dropped vs ADR-016: `task_check` (observation ledger), `task_attempt` (attempt
-history), `pipeline_event` (outbox), `pipeline_def_snapshot`.
+`attempt_no` is derivable from `task.fail_count` (current attempt_no = fail_count + 1)
+and is recorded in `task_attempt` for convenience — no new counter column is added to
+`task`. `task_check` holds AT MOST ONE row per `task_attempt` (1:0..1) and is updated
+in-place on each poll: counters are incremented and `last_*` fields overwritten via
+UPDATE. Row count grows with attempts, not polls.
+
+### 6.1 Observation-table invariants
+
+1. **Write-only:** The reconciler/dispatch path NEVER reads `task_attempt` or
+   `task_check` to make decisions — correctness depends only on `pipeline` and `task`.
+2. **UPDATE-in-place:** `task_check` keeps one row per `task_attempt`; counters are
+   incremented, `last_*` fields overwritten. No per-poll row inserts, no RLE, no pruner
+   needed.
+3. **Losable:** Losing the observation tables degrades debuggability only — the state
+   machine, retry logic, and failure semantics are unaffected.
+
+Dropped vs ADR-016: `pipeline_event` (outbox), `pipeline_def_snapshot`.
 
 The execution model (ADR-021) adds coordination columns `next_due_at`, `claimed_by`,
 `claimed_until`, and `cancel_requested` to `pipeline` — lease/claim plus cooperative-cancel
@@ -135,7 +169,7 @@ Surviving concepts (each stays a clean enum):
 | Cut | Replacement | Lost |
 |-----|-------------|------|
 | Async single-writer split (D-T2/D-T4) | synchronous calls in a bounded pool | non-blocking tick under many concurrent slow calls (acceptable at small scale) |
-| Observation ledger (`task_check` / RLE / attempt correlation / pruner) | `status` + `error_code` on the task | full observation/audit history |
+| Full per-poll observation ledger (per-poll `task_check` rows, RLE, attempt-correlation history, pruner) | `task_attempt` (per-retry-attempt final outcome + job id) + `task_check` (1:0..1 per-attempt poll summary, UPDATE-in-place) | Full chronological poll/check history; all intermediate responses; fine-grained audit trail. **Gained:** per-attempt job/result tracking, first-cause classification (TTL-expired = NOT_MET vs API-failed), last-external-response for debugging. |
 | Backpressure 4-way + Retry-After | 429/503 treated as a retriable failure | graceful throttle cooperation |
 | Outbox events (same-tx `pipeline_event`) | optional log line | guaranteed event delivery to consumers |
 | Worker-outage / queue-wait alerts | deferred | operational alerting |
@@ -148,8 +182,14 @@ single-node execution.
 
 ## 9. Estimated size
 
-~25–30 files, ~1,800–2,200 lines (from 67 / 3,766). 5 enums / ~17 values
-(from 14 / 68). Holdable in one head:
+~27–33 files, ~1,900–2,400 lines (from 67 / 3,766). 5 enums / ~17 values (from 14 / 68).
+
+**4 tables** (pipeline, task, task_attempt, task_check) — up from 2. The state machine
+and enum count do **NOT** grow: still 6 task statuses
+(BLOCKED/READY/IN_PROGRESS/DONE/FAILED/CANCELLED) and 5 core enums. Only the
+data/observability layer grew (two simple INSERT/UPDATE paths on existing code paths).
+Holdable in one head:
 
 > A pipeline runs its tasks in order; each task dispatches or checks, polls to
-> done or fail, retries a few times. One DB row per task tells the whole story.
+> done or fail, retries a few times. The domain row (pipeline + task) tells the
+> whole story; task_attempt and task_check are the operator's debug lens.
