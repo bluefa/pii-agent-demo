@@ -4,8 +4,12 @@
 
 Proposed (개정 6판 후속, 2026-06-21)
 
-> 이 ADR은 **결정**(선택지·결정·근거·결과)만 담는다. 상세 설계·DB 모델·tick 흐름·운영·요구사항·
-> 긴 이력은 [`design/pipeline/`](../../design/pipeline/)로 분리했다 — 아래 **Links** 참조.
+> ⚠️ **개정 중 (2026-06).** 아래 Decision/Consequences는 **maximal 설계**(task_check 장부·task_attempt·
+> slotCap admission·advisory-lock 리더·30초 tick async 발사)를 기술한다. 현행 정본 스펙은
+> [minimal-redesign.md](../../design/pipeline/minimal-redesign.md)(2 테이블·5 enum)이고, 실행 모델은
+> [Single Pipeline Tick 제안](https://github.com/bluefa/pii-agent-demo/pull/509)으로 교체 논의 중이다.
+> 보조 설계 문서(orchestrator-design·state-machine·task-model 등)는 정리 단계에서 삭제했다 — 본문의
+> maximal 서술은 다음 ADR 개정에서 minimal로 맞춘다.
 
 ## Context
 
@@ -70,9 +74,8 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
   외부(ADR 밖) endpoint 코드에 의존하므로, **트리거 endpoint는 ③(23505→기존 non-terminal 반환) 계약의 통합
   테스트를 반드시 갖춘다**(계약 회귀 방지).
 
-> 상세 메커니즘(상태기계·DB 스키마·tick·dispatch 5단계 writer 분리·crash recovery·CANCELLING
-> precedence·slotCap admission)은 [orchestrator-design.md](../../design/pipeline/orchestrator-design.md),
-> TaskKind·멱등성 계약은 [task-model.md](../../design/pipeline/task-model.md) 참조.
+> 상세 메커니즘은 현행 정본 [minimal-redesign.md](../../design/pipeline/minimal-redesign.md) 참조
+> (구 maximal 보조 설계 문서는 정리 단계에서 삭제됨).
 
 ## Considered Options
 
@@ -115,7 +118,7 @@ Manager(연동·승인·target source) / Infra Manager(Terraform job API; 실행
 
 ## Requirements Satisfied
 
-This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/requirements.md)):
+This decision satisfies:
 
 - **FR-1** 브라우저 세션 없는 durable 설치/삭제 — DB durable state machine
 - **FR-2** target별 run history — `pipeline.target_source_id` + history API
@@ -130,16 +133,10 @@ This decision satisfies (전체 표 → [requirements.md](../../design/pipeline/
 
 | 문서 | 내용 |
 |---|---|
-| [orchestrator-design.md](../../design/pipeline/orchestrator-design.md) | 상태기계 설계(CAS·파생·단일 writer)·DB 모델·tick 흐름·dispatch 5단계·crash recovery·slotCap admission·CANCELLING |
-| [state-machine.md](../../design/pipeline/state-machine.md) | Pipeline·Task 전이도 (상태·트리거·guard 일람) |
-| [task-model.md](../../design/pipeline/task-model.md) | TaskKind 2종·작성 규칙·멱등성 계약 |
-| [api.md](../../design/pipeline/api.md) | Admin·History·cancel/retry API |
-| [operations.md](../../design/pipeline/operations.md) | 설정·알림·장애 대응·튜닝 |
-| [requirements.md](../../design/pipeline/requirements.md) | 기능/비기능/성능 요구사항 |
-| [migrations.md](../../design/pipeline/migrations.md) | DB migration·인덱스·retention |
-| [implementation-notes.md](../../design/pipeline/implementation-notes.md) | 구현 런북(Virtual Thread·pinning — 아키텍처 불변식 아님) |
-| [v2-deferred.md](../../design/pipeline/v2-deferred.md) | v2로 미룬 표면(scheduling·직렬화 큐·custom recipe·postCheck/O29·알림 라우팅·skip-completed·GENERAL_JOB) |
-| [decision-history.md](../../design/pipeline/decision-history.md) | 긴 변경 이력(재구성 내역·Resolved) |
+| [minimal-redesign.md](../../design/pipeline/minimal-redesign.md) | **현행 정본 스펙** — 최소 상태기계·2 테이블·5 enum |
+| [Single Pipeline Tick 제안 (PR #509)](https://github.com/bluefa/pii-agent-demo/pull/509) | Claim-Pull Worker 실행 모델 (tick async 발사 대체) |
+
+> 구 maximal 보조 문서(orchestrator-design·state-machine·task-model·api·operations·requirements·migrations·implementation-notes·v2-deferred·decision-history)는 2026-06 정리 단계에서 삭제했다.
 
 관련: ADR-006(3-object confirmation model), ADR-009(process status model) — 파이프라인은 CONFIRMED와
 INSTALLED 사이에서 동작한다.
@@ -162,5 +159,3 @@ INSTALLED 사이에서 동작한다.
 - **2026-06-21** v6 후속3 — 정밀도 정정(codex·opus 재리뷰 86~87/100): `pipeline.definition_version` 제거
   (snapshot 단일)·`last_activity_at` 정의(보드 정렬)·outbox at-least-once 정정·settings slotCap 모순 해소·
   task name=표시라벨 명확화·충돌반환 actor 감사·maxFailCount crash headroom 주석; 부록 A → implementation-notes.md 분리
-
-전체 사고 이력(재구성 내역·Resolved)은 [decision-history.md](../../design/pipeline/decision-history.md).
