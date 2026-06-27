@@ -135,6 +135,14 @@ pipeline row); the task and pipeline status writes then happen under that verifi
 single-writer claim, so they need no additional per-row claim guard. The `task` table
 carries no `claimed_by` column.
 
+**tx2 executes in a fixed order** inside the single transaction: (1) `SELECT ... FOR UPDATE`
+the pipeline row; (2) verify `claimed_by = :claim_token` — no-op the whole report if it fails;
+(3) read `cancel_requested`; (4) write the task and pipeline `status` (to `CANCELLED` if the
+flag is set, otherwise the normal transition); (5) write the next `next_due_at` and release the
+claim. Reading `cancel_requested` under the same row lock that the write takes is what makes the
+cooperative cancel (Decision 6) race-free — a cancel committing just before step 3 is observed,
+and one committing just after blocks until tx2 commits, then lands on the next claim.
+
 **On success, tx2 releases the claim and advances `next_due_at` atomically.** The same
 transaction that advances task/pipeline state also clears `claimed_by`/`claimed_until` and
 writes the new `next_due_at`. Without this release a pipeline that finishes a step but remains
@@ -191,6 +199,12 @@ remaining per-call timeout (the worker honors the flag at report). An already-di
 external job is left to complete (idempotent infra); issuing an InfraManager-side cancel is
 a separate follow-up concern, not required for correctness.
 
+Two latency edges are accepted: (i) work that is **claimed but still queued** in the worker
+pool observes the flag only when its tx2 runs, so its cancel latency is the queue wait —
+bounded by the lease, not just the per-call timeout; (ii) a cancel that arrives **after the
+worker's final pre-dispatch flag check** but before the dispatch still lets **one** external
+call fire — harmless by idempotency, and recorded as `CANCELLED` at tx2.
+
 Because cancel writes only `cancel_requested` (a different column) and the claim holder is
 the only `status` writer, **no per-write `status` guard is required** to prevent terminal
 resurrection.
@@ -226,9 +240,11 @@ Their exact values live in operational config, not in this ADR:
 
 **`runningPipelineCap`** is a **soft admission target**, not a hard invariant. Before
 admitting a new pipeline into `RUNNING` state, a pod checks whether the current `RUNNING`
-count is below the cap. Under multi-pod deployments, count-read admission can **overshoot**:
-for cap `M` and `N` concurrently-admitting pods, worst-case `RUNNING` is `M + N − 1`. This
-bounded overshoot is **accepted in V1**. A hard cap would require atomic admission (e.g.
+count is below the cap. Concurrent admission can **overshoot**: for cap `M` and `C` concurrent
+admission actors (each reads the count, then inserts), worst-case `RUNNING` is `M + C − 1`. `C`
+counts the admission transactions racing the same check-then-insert window — bounded by the
+number of concurrent admitters, not by pod count alone. This bounded overshoot is **accepted in
+V1**. A hard cap would require atomic admission (e.g.
 `UPDATE pipeline_admission_counter SET used = used + 1 WHERE used < cap`, released on
 terminal) — **deferred**.
 
@@ -238,12 +254,14 @@ target** that slows TF dispatch to relieve InfraManager/Terraform pressure. Soft
 in the worker loop: before a TF dispatch, the worker checks slot availability; if available,
 it dispatches; if not, it keeps the task `READY`, sets `next_due_at = now() + slotRetry`, and
 **releases the claim** (so the worker frees itself to pick up other pipelines). Bounded
-overshoot is accepted for the same multi-pod reasons as `runningPipelineCap`; a hard cap would
-use a `tf_slot_counter` CAS or an InfraManager-side admission limit — **deferred**.
+overshoot is accepted for the same reason as `runningPipelineCap`; here the racing actors `C`
+are the concurrent **workers** checking the slot (bounded by `totalWorkerCount`), not pods. A
+hard cap would use a `tf_slot_counter` CAS or an InfraManager-side admission limit — **deferred**.
 
 **Multi-pod note.** `totalWorkerCount = activePodCount × workerPerPod`, so adding replicas
 raises global worker count and admission overshoot scales with the number of
-concurrently-admitting pods. `replicas = 1` is **not required** for correctness (the claim
+concurrent admission actors `C` — admission transactions for `runningPipelineCap`, workers for
+the slot gate — not pod count alone. `replicas = 1` is **not required** for correctness (the claim
 mechanism is multi-pod safe by construction) — it is only an operational simplification that
 eliminates overshoot.
 
@@ -296,10 +314,10 @@ loop:
   external call, report tx must all be reasoned about separately.
 - **Lease-expiry window**: a crashed worker's pipeline pauses up to one lease period before
   reclaim.
-- **Soft admission targets** — both `runningPipelineCap` and `slotCap` are soft gates; under
-  multi-pod deployments, concurrent admission reads can overshoot by up to `N − 1` (where
-  `N` = number of concurrently-admitting pods). Hard caps require explicit counter-CAS
-  admission — deferred.
+- **Soft admission targets** — both `runningPipelineCap` and `slotCap` are soft gates;
+  concurrent admission reads can overshoot by up to `C − 1` (where `C` = number of concurrent
+  admission actors: admission transactions for `runningPipelineCap`, workers for the slot gate).
+  Hard caps require explicit counter-CAS admission — deferred.
 
 ## Operational reference (knobs & metrics)
 
