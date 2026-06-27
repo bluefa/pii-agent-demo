@@ -71,8 +71,9 @@ list) is a code default per `(type, provider)`.
 A database uniqueness rule allows only one non-terminal pipeline per target. A duplicate
 create — of any type — returns the existing active run rather than erroring (the trigger
 endpoint must honor this; it is a **contract**, not an implementation detail). Without it,
-"one runner per target" — the premise behind single-writer and idempotent reasoning in
-ADR-021 — breaks.
+"one active owner per pipeline" — the premise behind idempotent reasoning in ADR-021 (a
+worker claims a pipeline before driving it forward) — breaks. (ADR-021 enforces single
+ownership via a claim/lease; the uniqueness rule ensures only one pipeline exists to own.)
 
 ### 4. Correctness rests on idempotency, not exactly-once
 
@@ -99,6 +100,14 @@ work, which V1 accepts. This is the property that lets the execution model (ADR-
 Two task kinds only — `TERRAFORM_JOB` and `CONDITION_CHECK`. **Retry is a fresh run**, not
 a resume. **Cancel** stops forward progress directly and converges to `CANCELLED` — there
 is no intermediate `CANCELLING` state.
+
+Cancel is a **concurrent, out-of-band writer**: it arrives from the Admin/API path while a
+worker may simultaneously be reporting a result. Therefore every task/pipeline state
+transition is **state-guarded** — it applies only if the row is still in its expected
+pre-transition state (`UPDATE ... WHERE status = :expected`). This guarantees the
+no-terminal-resurrection invariant: whichever writer wins, the row ends in one terminal
+state and the other writer's update is a no-op. The execution mechanism (claim + guarded
+write) lives in ADR-021; this is the **domain invariant** those mechanics implement.
 
 ## Considered Options
 

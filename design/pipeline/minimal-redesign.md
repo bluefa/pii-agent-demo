@@ -1,8 +1,8 @@
 # Minimal Installation Pipeline — Redesign
 
 > Status: Adopted minimal direction (owner-approved, 2026-06). Supersedes the maximal
-> parts of ADR-016 — ADR-016 is rewritten to match. Execution model: a single dedicated
-> server (see PR #509). Still pre-merge (PR #494).
+> parts of ADR-016 — ADR-016 is rewritten to match. Execution model: multi-worker
+> claim-pull (ADR-021). Still pre-merge (PR #494).
 
 ## 0. Why re-scope
 
@@ -40,6 +40,9 @@ Pipeline:  RUNNING ───────────────▶ DONE | FAILE
   are folded here, not separate states.
 - Pipeline cancel is applied synchronously to its tasks — no intermediate
   `CANCELLING` state.
+- Because cancel arrives concurrently (a second writer from the Admin/API path),
+  every state transition is conditional on the expected pre-state — a worker's
+  late report is a no-op if cancel already reached terminal.
 
 ## 3. Reconciler loop (one tick, every N seconds)
 
@@ -56,7 +59,8 @@ For each RUNNING pipeline's current task (lowest-seq non-terminal):
   tasks DONE → pipeline DONE.
 
 Dispatch/poll are **synchronous calls with a per-call timeout**, run in a bounded
-worker pool. There is no tick/call single-writer split: the tick owns the task row.
+worker pool. How work is claimed and made multi-worker-safe (claim/lease/guarded
+write) is the execution model — see ADR-021.
 
 ## 4. Failure / retry / timeout
 
@@ -88,6 +92,10 @@ worker pool. There is no tick/call single-writer split: the tick owns the task r
 
 Dropped vs ADR-016: `task_check` (observation ledger), `task_attempt` (attempt
 history), `pipeline_event` (outbox), `pipeline_def_snapshot`.
+
+The execution model (ADR-021) adds coordination columns `next_due_at`, `claimed_by`,
+`claimed_until` to `pipeline` — lease/claim metadata for multi-worker safety. Listed
+for completeness; they are not domain state.
 
 ## 7. Enums — reduce the CONCEPT, never the representation
 
@@ -123,8 +131,9 @@ Surviving concepts (each stays a clean enum):
 | Knob freeze at creation | global settings (or a plain per-task copy) | in-flight isolation from a config change |
 
 **Kept:** durable DB state, per-target uniqueness, the reconciler scan, retry +
-timeouts, and single-node execution — the one dedicated server is the only writer,
-so no leader election is needed (V1; active-active is the documented upgrade path).
+timeouts. Execution is multi-worker claim-pull (ADR-021); cross-process safety comes
+from DB claim (`FOR UPDATE SKIP LOCKED`) + lease + guarded writes, not from
+single-node execution.
 
 ## 9. Estimated size
 
