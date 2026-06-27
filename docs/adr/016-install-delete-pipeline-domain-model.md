@@ -53,10 +53,11 @@ rows and resumes. Every decision below depends on this.
 ### 2. The database is a small, durable state machine (2 tables)
 
 `pipeline` and `task` (schema in the spec). The **current task** is the lowest-`seq`
-startable (`READY`) task of a running pipeline; tasks ahead of it are explicitly `BLOCKED`
-until their predecessor reaches `DONE` (a task is created BLOCKED and flips to READY; the
-first task starts READY). Pipeline status is a stored projection, updated in the same
-transaction as the task transition that changes it, so a scan can filter on it cheaply.
+non-terminal, non-`BLOCKED` task of a running pipeline (i.e. `READY` or `IN_PROGRESS`); tasks
+ahead of it are explicitly `BLOCKED` until their predecessor reaches `DONE` (a task is created
+BLOCKED and flips to READY; the first task starts READY). Pipeline status is a stored
+projection, updated in the same transaction as the task transition that changes it, so a scan
+can filter on it cheaply.
 
 ```
 Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
@@ -110,9 +111,13 @@ How cancel is applied depends on whether a worker currently holds the pipeline. 
 `status='RUNNING'` with no live claim, terminalizing its tasks in the same transaction. A
 **claimed** pipeline is recorded out-of-band as a `cancel_requested` flag (which also wakes
 it) and applied by the claim-holding worker — the **single writer** of status — at its next
-safe point. Either path keeps a single status writer, so the invariant (converges to
-`CANCELLED`; no `CANCELLING` state; no terminal resurrection) holds without guarding every
-write against a concurrent writer. The execution mechanism lives in ADR-021.
+safe point. The immediate path also **clears the claim** as it terminalizes, so an
+expired-lease straggler cannot resurrect it; either way the terminal write has no competing
+writer, so the invariant (converges to `CANCELLED`; no `CANCELLING` state; no terminal
+resurrection) holds. **Terminalizing a pipeline terminalizes its tasks**: cancel sets every
+non-terminal task (`BLOCKED`/`READY`/`IN_PROGRESS`) to `CANCELLED`; a `FAILED` pipeline marks
+the failing task `FAILED` and any remaining `BLOCKED`/`READY` tasks `CANCELLED`. The execution
+mechanism lives in ADR-021.
 
 ## Considered Options
 
@@ -129,7 +134,8 @@ write against a concurrent writer. The execution mechanism lives in ADR-021.
 - Current state is one rule: the row. The rest is logs/metrics.
 - **Self-heals** across crashes and redeploys — idempotency (Decision 4) makes re-dispatch
   safe, so the execution model never needs exactly-once machinery.
-- A small model: two tables, five enums, two task kinds, retry = fresh run.
+- A small model: two tables, five core enums (+ conditional `TaskOperation`), two task kinds,
+  retry = fresh run.
 - The domain model is **stable under execution changes** — whatever execution strategy ADR-021
   uses (it is currently multi-worker claim-pull), these exact tables and states are unchanged.
 

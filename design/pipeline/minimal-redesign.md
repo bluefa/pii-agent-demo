@@ -43,9 +43,10 @@ Pipeline:  RUNNING ────────────────────�
 - Pipeline cancel is applied synchronously to its tasks — no intermediate
   `CANCELLING` state.
 - Cancel: an **unclaimed** RUNNING pipeline is terminated immediately by CAS (`WHERE
-  status='RUNNING'` and no live claim); a **claimed** one is flagged (`cancel_requested`)
-  and the single claim-holding worker applies `CANCELLED` at report. No concurrent second
-  writer, no terminal resurrection either way.
+  status='RUNNING'` and no live claim, clearing the claim so a straggler can't resurrect it);
+  a **claimed** one is flagged (`cancel_requested`) and the single claim-holding worker applies
+  `CANCELLED` at report. Either way all non-terminal tasks (`BLOCKED`/`READY`/`IN_PROGRESS`) →
+  `CANCELLED`; no concurrent second writer, no terminal resurrection.
 
 ## 3. Reconciler loop (one tick, every N seconds)
 
@@ -59,7 +60,8 @@ For each RUNNING pipeline's current task (lowest-seq non-terminal):
   - CONDITION: met → DONE; not met → reschedule `next_check_at`; past `ttl` →
     `TTL_EXPIRED` → FAILED.
 - Task DONE → next-seq task flips `BLOCKED → READY` (becomes current). Task FAILED →
-  pipeline FAILED. All tasks DONE → pipeline DONE.
+  pipeline FAILED (remaining `BLOCKED`/`READY` tasks → CANCELLED). All tasks DONE →
+  pipeline DONE.
 
 Dispatch/poll are **synchronous calls with a per-call timeout**, run in a bounded
 worker pool. How work is claimed and made multi-worker-safe (claim/lease/guarded
