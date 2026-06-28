@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADR-016: Install/Delete Pipeline — Durable State-Machine Domain Model</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+    --bg:          #f8f8f7;
+    --surface:     #ffffff;
+    --border:      #ddd;
+    --border-light: #e8e8e6;
+    --text:        #1a1a1a;
+    --text-muted:  #555;
+    --text-faint:  #888;
+    --accent:      #2d5a8e;       /* steel blue — professional, not primary-loud */
+    --accent-dim:  #d9e6f2;
+    --callout-bg:  #f3f6fb;
+    --callout-border: #b0c8e0;
+    --code-bg:     #f0f0ee;
+    --pre-bg:      #1e1e1e;
+    --pre-text:    #d4d4d4;
+    --table-head:  #f0f0ee;
+    --table-alt:   #fafaf9;
+    --badge-bg:    #e8f0fa;
+    --badge-text:  #1a4a7a;
+    --badge-border:#a8c4e0;
+    --toc-width:   220px;
+    --content-max: 820px;
+  }
+
+  html { font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── TOC Sidebar ── */
+  #toc {
+    width: var(--toc-width);
+    min-width: var(--toc-width);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2rem 1rem 2rem 1.25rem;
+    border-right: 1px solid var(--border-light);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  #toc h2 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 0.9rem;
+    border: none;
+    padding: 0;
+  }
+
+  #toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #toc li {
+    margin-bottom: 0.2rem;
+  }
+
+  #toc a {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.18rem 0.5rem;
+    border-radius: 4px;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    line-height: 1.4;
+  }
+
+  #toc a:hover {
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  #toc a.active {
+    color: var(--accent);
+    font-weight: 600;
+    border-left-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  #toc .toc-sub {
+    padding-left: 1.1rem;
+  }
+
+  #toc .toc-sub a {
+    font-size: 0.76rem;
+    color: var(--text-faint);
+  }
+
+  /* ── Main Content ── */
+  #content {
+    flex: 1;
+    padding: 2.5rem 3rem;
+    max-width: calc(var(--content-max) + 6rem);
+    min-width: 0;
+  }
+
+  article {
+    max-width: var(--content-max);
+  }
+
+  /* ── Typography ── */
+  h1 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 2px solid var(--border-light);
+  }
+
+  h3 {
+    font-size: 0.97rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 1.6rem;
+    margin-bottom: 0.55rem;
+    letter-spacing: 0.01em;
+  }
+
+  p {
+    margin-bottom: 0.85rem;
+  }
+
+  a { color: var(--accent); }
+  a:hover { text-decoration: underline; }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  /* ── Status badge ── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    border: 1px solid var(--badge-border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem;
+    margin-bottom: 1.1rem;
+    vertical-align: middle;
+  }
+
+  .status-badge::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--badge-text);
+    opacity: 0.6;
+  }
+
+  .doc-meta {
+    color: var(--text-faint);
+    font-size: 0.82rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  /* ── Inline code ── */
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--code-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    padding: 0.1em 0.32em;
+    color: #333;
+  }
+
+  /* ── Pre / code blocks ── */
+  pre {
+    background: var(--pre-bg);
+    color: var(--pre-text);
+    border-radius: 6px;
+    padding: 1.1rem 1.25rem;
+    overflow-x: auto;
+    margin: 0.9rem 0 1.2rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* ── Lists ── */
+  ul, ol {
+    padding-left: 1.5rem;
+    margin-bottom: 0.85rem;
+  }
+
+  li {
+    margin-bottom: 0.3rem;
+  }
+
+  li p { margin-bottom: 0.3rem; }
+
+  /* ── Tables ── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 1rem 0 1.3rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  th {
+    background: var(--table-head);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+  }
+
+  td {
+    padding: 0.48rem 0.75rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: var(--table-alt); }
+
+  td:first-child { font-weight: 500; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    background: var(--callout-bg);
+    border: 1px solid var(--callout-border);
+    border-left: 4px solid var(--accent);
+    border-radius: 5px;
+    padding: 0.9rem 1.1rem;
+    margin: 1rem 0 1.3rem;
+  }
+
+  .callout-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  .callout ol, .callout ul {
+    margin-bottom: 0;
+  }
+
+  .callout li {
+    margin-bottom: 0.25rem;
+  }
+
+  /* ── Decision section headers ── */
+  .decision-section {
+    margin-top: 1.5rem;
+    padding-top: 0.1rem;
+  }
+
+  .decision-section h3 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+
+  .decision-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+    top: -0.05rem;
+    letter-spacing: 0;
+  }
+
+  /* ── Schema block ── */
+  .schema-block {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.75rem 1rem;
+    margin: 0.4rem 0 0.9rem;
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* ── Consequences styling ── */
+  .consequences-good, .consequences-cost {
+    margin-bottom: 1rem;
+  }
+
+  .consequences-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .consequences-good .consequences-label { color: #2a7a3b; }
+  .consequences-cost .consequences-label { color: #8a5f00; }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+    font-size: 0.76rem;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 860px) {
+    #toc { display: none; }
+    #content { padding: 1.5rem 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar TOC ── -->
+<nav id="toc" aria-label="Table of Contents">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#status">Status</a></li>
+    <li><a href="#context">Context</a></li>
+    <li><a href="#decision">Decision</a>
+      <ul class="toc-sub">
+        <li><a href="#d1">1. DB is the only state</a></li>
+        <li><a href="#d2">2. Two tables, state machine</a></li>
+        <li><a href="#d3">3. Observation separate</a></li>
+        <li><a href="#d4">4. One active pipeline</a></li>
+        <li><a href="#d5">5. Idempotency, not exactly-once</a></li>
+        <li><a href="#d6">6. Bounded waiting &amp; retry</a></li>
+        <li><a href="#d7">7. Minimal lifecycle</a></li>
+      </ul>
+    </li>
+    <li><a href="#options">Considered Options</a></li>
+    <li><a href="#consequences">Consequences</a></li>
+    <li><a href="#schema">Schema</a></li>
+    <li><a href="#links">Links</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ul>
+</nav>
+
+<!-- ── Main Content ── -->
+<div id="content">
+<article>
+
+  <h1>ADR-016: Install/Delete Pipeline — Durable State-Machine Domain Model</h1>
+
+  <!-- ── Status ── -->
+  <section id="status">
+    <span class="status-badge">Proposed</span>
+    <div class="doc-meta">Proposed — 2026-06-27</div>
+
+    <p>The <strong>domain half</strong> of the install/delete pipeline design: the durable state, data model,
+    uniqueness rule, failure semantics, and lifecycle. The <strong>execution model</strong> — how the state
+    machine is driven forward (runner, worker pool, concurrency, crash recovery) — is a separate,
+    independently-revisable decision in <a href="021-pipeline-execution-model.md">ADR-021</a>, so the
+    execution strategy can change without re-opening the domain model.</p>
+  </section>
+
+  <!-- ── Context ── -->
+  <h2 id="context">Context</h2>
+
+  <p>Today, installing or deleting a customer's infrastructure means an operator manually runs
+  Terraform jobs through <strong>InfraManager</strong> from a browser session. We want this automated: started
+  from the Admin console, then carried to completion on its own — surviving restarts — with a
+  visible run history.</p>
+
+  <ul>
+    <li><strong>Admin console</strong> creates a pipeline, then closes; no browser stays open.</li>
+    <li><strong>The orchestrator</strong> drives the pipeline forward (its runtime is <a href="021-pipeline-execution-model.md">ADR-021</a>).</li>
+    <li><strong>InfraManager</strong> runs Terraform jobs asynchronously: it returns a job id, and a Kubernetes
+      worker pod runs the apply later.</li>
+    <li><strong>BackendManager</strong> owns integration/approval and target-source data.</li>
+  </ul>
+
+  <p>Scale: ~2,000 targets; ~12 pipeline shapes (provider × install/delete). Terraform jobs run for
+  <strong>minutes</strong>; condition checks poll for seconds to days.</p>
+
+  <div class="callout">
+    <div class="callout-title">Constraints</div>
+    <ol>
+      <li>InfraManager has <strong>no de-duplication</strong> — the same job submitted twice runs twice — but every
+        execution API is <strong>idempotent</strong>, so the infrastructure result is unharmed.</li>
+      <li>Results can be lost (rare worker failure); we do not distinguish "still running" from "lost"
+        — an execution timeout absorbs both.</li>
+    </ol>
+  </div>
+
+  <!-- ── Decision ── -->
+  <h2 id="decision">Decision</h2>
+
+  <div class="decision-section" id="d1">
+    <h3><span class="decision-num">1</span> The database is the only state</h3>
+    <p>The pipeline's state lives in database rows; there is no in-memory authority to lose. Whatever
+    runs the pipeline (ADR-021) is stateless with respect to progress — it reads the rows and
+    resumes. Every decision below depends on this.</p>
+  </div>
+
+  <div class="decision-section" id="d2">
+    <h3><span class="decision-num">2</span> Two domain tables, a small durable state machine</h3>
+    <p><code>pipeline</code> and <code>task</code> are the <strong>domain state tables</strong> (full schema in the <strong>Schema</strong> section below).</p>
+
+<pre><code>Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
+Pipeline:  RUNNING ─────────────────────────▶ DONE | FAILED | CANCELLED</code></pre>
+
+    <p>The <strong>current task</strong> is the lowest-<code>seq</code> <code>READY</code>/<code>IN_PROGRESS</code> task; tasks ahead of it are
+    explicitly <code>BLOCKED</code> until their predecessor reaches <code>DONE</code> (a task is created BLOCKED and
+    flips to READY; the first task starts READY). Pipeline status is a stored projection, written
+    in the same transaction as the task transition that changes it, so a scan can filter on it
+    cheaply.</p>
+
+    <p>Five core enums (<code>TaskStatus</code>, <code>PipelineStatus</code>, <code>TaskKind</code>, <code>PipelineType</code>, <code>ErrorCode</code>), plus
+    a conditional <code>TaskOperation</code> when the operation set is closed (an open set is registry-validated).
+    A task's <code>kind</code> selects the executor; its <code>operation</code> selects the domain action within it. A
+    pipeline's recipe (its ordered task list) is a code default per <code>(type, provider)</code>.</p>
+  </div>
+
+  <div class="decision-section" id="d3">
+    <h3><span class="decision-num">3</span> Observation is separate from state</h3>
+    <p>Two <strong>observation tables</strong> — <code>task_attempt</code> (per-retry-attempt outcome) and <code>task_check</code>
+    (per-attempt poll summary) — carry what an operator needs to first-diagnose a failure: which job
+    ran per attempt, the final outcome, whether a TTL-expired condition was NOT_MET vs API-failed,
+    poll counts, the last external response. They are <strong>write-only</strong>: the reconciler never reads
+    them, and losing them costs only debuggability, never correctness (the three invariants are in
+    the <strong>Schema</strong> section). They add no state and no enum.</p>
+  </div>
+
+  <div class="decision-section" id="d4">
+    <h3><span class="decision-num">4</span> One active pipeline per target</h3>
+    <p>A uniqueness rule allows only one non-terminal pipeline per target. A duplicate create — of any
+    type — returns the existing active run rather than erroring; the trigger endpoint must honor
+    this <strong>contract</strong>. It is the premise that lets ADR-021 reason about a single owner per pipeline.</p>
+  </div>
+
+  <div class="decision-section" id="d5">
+    <h3><span class="decision-num">5</span> Correctness rests on idempotency, not exactly-once</h3>
+    <p>Every dispatch is idempotent: a duplicate submit still leaves the infrastructure correct
+    ("already in the desired state" counts as success). This lets the execution model be
+    <strong>at-least-once</strong> and still correct — a crash between "InfraManager started the job" and "we
+    stored the job id" is healed by re-dispatch — and lets the state machine drop a <code>DISPATCHING</code>
+    state. InfraManager does not de-duplicate (Constraint 1), so a re-dispatch may create a
+    <em>harmless duplicate</em> job — we record the latest <code>job_id</code> (a <code>TERRAFORM_JOB</code> that is
+    <code>IN_PROGRESS</code> always has one) and never "reclaim" a job. <code>(task_id, attempt_no)</code> is a logical
+    attempt identity for our records, not an InfraManager key.</p>
+  </div>
+
+  <div class="decision-section" id="d6">
+    <h3><span class="decision-num">6</span> Bounded waiting and retry</h3>
+    <ul>
+      <li><code>fail_count</code> per task. A failed dispatch or poll increments it; below <code>maxFailCount</code> the task
+        re-runs as a <strong>fresh run</strong> (completed work is a no-op — Terraform converges), at or above it
+        the task is <code>FAILED</code>.</li>
+      <li>Two deadlines: a <strong>per-call</strong> timeout and a <strong>per-task</strong> <code>executionTimeout</code> (TF) / <code>ttl</code>
+        (condition); both map to canonical <code>ErrorCode</code> values, not separate states.</li>
+      <li>No circuit breaker — a systemic failure is delay (timeout + retry + alert), not corruption.</li>
+    </ul>
+  </div>
+
+  <div class="decision-section" id="d7">
+    <h3><span class="decision-num">7</span> Minimal lifecycle</h3>
+    <p>Two task kinds (<code>TERRAFORM_JOB</code>, <code>CONDITION_CHECK</code>). <strong>Retry is a fresh run.</strong> <strong>Cancel</strong>
+    converges directly to <code>CANCELLED</code> — there is no <code>CANCELLING</code> state — and terminalizes every
+    non-terminal task (<code>BLOCKED</code>/<code>READY</code>/<code>IN_PROGRESS</code> → <code>CANCELLED</code>); a <code>FAILED</code> pipeline marks the
+    failing task <code>FAILED</code> and the rest <code>CANCELLED</code>. A terminal state is never resurrected. <em>How</em>
+    cancel is applied against a live worker is an execution concern (ADR-021).</p>
+  </div>
+
+  <!-- ── Considered Options ── -->
+  <h2 id="options">Considered Options</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Option</th>
+          <th>Verdict</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>A. Durable DB state machine — two domain tables, status is the row</strong></td>
+          <td><strong>Chosen</strong></td>
+          <td>The row <em>is</em> the state; restart-safe; idempotency makes at-least-once execution correct.</td>
+        </tr>
+        <tr>
+          <td>B. Maximal model (observation ledger, attempt log, event outbox, snapshots; 6 tables)</td>
+          <td>Rejected</td>
+          <td>Far too large for "run an ordered chain of two task kinds for one target" (see history).</td>
+        </tr>
+        <tr>
+          <td>C. One row with an embedded JSON task list</td>
+          <td>Rejected</td>
+          <td>Loses per-task query/index (current task, due scan, retry counts); a child <code>task</code> table is cheaper.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Consequences ── -->
+  <h2 id="consequences">Consequences</h2>
+
+  <div class="consequences-good">
+    <div class="consequences-label">Good</div>
+    <ul>
+      <li>Current state is one rule: the row. Self-heals across crashes and redeploys via idempotent
+        re-dispatch — no exactly-once machinery.</li>
+      <li>Small and stable: two domain tables, five core enums, two task kinds. The model is unchanged
+        when the execution strategy (ADR-021) changes.</li>
+    </ul>
+  </div>
+
+  <div class="consequences-cost">
+    <div class="consequences-label">Costs we accept</div>
+    <ul>
+      <li>No full per-call audit ledger or event outbox. Audit = logs/metrics + the <code>pipeline</code>/<code>task</code>
+        rows + the two observation tables. Worker-outage and queue-wait alerts are deferred.</li>
+      <li>Per-target uniqueness rejects a concurrent INSTALL and DELETE for the same target by
+        construction — intended, not a limitation.</li>
+    </ul>
+  </div>
+
+  <!-- ── Schema ── -->
+  <h2 id="schema">Schema</h2>
+
+  <p><strong>Domain state tables</strong></p>
+
+  <div class="schema-block">
+    pipeline(id, type, target, status, created_at, last_activity_at)<br>
+    &nbsp;&nbsp;— execution adds: next_due_at, claimed_by, claimed_until, cancel_requested (see ADR-021)
+  </div>
+
+  <div class="schema-block">
+    task(id, pipeline_id, seq, kind, operation, status, job_id, fail_count, error_code,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;started_at, ready_at, finished_at, next_check_at, ttl, polling_interval,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;execution_timeout, max_fail_count)
+  </div>
+
+  <p><strong>Observation tables</strong> (write-only; the reconciler never reads them)</p>
+
+  <div class="schema-block">
+    task_attempt(id, task_id, attempt_no, job_id, status, error_code, dispatch_response_code,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dispatch_response_summary, started_at, finished_at)<br>
+    &nbsp;&nbsp;— one row per retry attempt; attempt_no = task.fail_count + 1
+  </div>
+
+  <div class="schema-block">
+    task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;call_timeout_count, last_external_status, last_response_code,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last_response_summary, last_checked_at)<br>
+    &nbsp;&nbsp;— at most one row per attempt (1:0..1), UPDATE-in-place; row count grows with attempts,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;not polls. Summarizes the poll/check phase of an attempt for <strong>both</strong> task kinds<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;(TF-job status polling and condition checks).
+  </div>
+
+  <p>Relationships: <code>pipeline 1:N task 1:N task_attempt 1:0..1 task_check</code>.</p>
+
+  <div class="callout">
+    <div class="callout-title">Observation Invariants</div>
+    <ol>
+      <li>The reconciler/dispatch path never reads the observation tables — correctness depends only
+        on <code>pipeline</code>/<code>task</code>.</li>
+      <li><code>task_check</code> is UPDATE-in-place (one row per attempt): no per-poll inserts, no RLE, no pruner.</li>
+      <li>Losing the observation tables degrades debuggability only, never correctness.</li>
+    </ol>
+  </div>
+
+  <p><strong>Enums</strong> (canonical values)</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Enum</th>
+          <th>Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TaskStatus</code></td>
+          <td><code>BLOCKED</code>, <code>READY</code>, <code>IN_PROGRESS</code>, <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code></td>
+        </tr>
+        <tr>
+          <td><code>PipelineStatus</code></td>
+          <td><code>RUNNING</code>, <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code></td>
+        </tr>
+        <tr>
+          <td><code>TaskKind</code></td>
+          <td><code>TERRAFORM_JOB</code>, <code>CONDITION_CHECK</code></td>
+        </tr>
+        <tr>
+          <td><code>PipelineType</code></td>
+          <td><code>INSTALL</code>, <code>DELETE</code></td>
+        </tr>
+        <tr>
+          <td><code>ErrorCode</code></td>
+          <td><code>JOB_FAILED</code>, <code>EXECUTION_TIMEOUT</code>, <code>TTL_EXPIRED</code>, <code>CHECK_ERROR</code>, <code>CALL_TIMEOUT</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>TaskOperation</code> is a conditional sixth enum, present only when the operation set is closed; an
+  open/configured set uses a registry instead.</p>
+
+  <!-- ── Links ── -->
+  <h2 id="links">Links</h2>
+
+  <ul>
+    <li><a href="021-pipeline-execution-model.md">ADR-021</a> — the execution model that drives this state machine</li>
+    <li><a href="../../design/pipeline/adr-016-history.md">adr-016-history.md</a> — design history &amp; rationale (maximal → minimal, revisions)</li>
+    <li>Related: ADR-006 (confirmation model), ADR-009 (process status). A pipeline runs between CONFIRMED and INSTALLED.</li>
+  </ul>
+
+  <!-- ── Glossary ── -->
+  <h2 id="glossary">Glossary</h2>
+
+  <ul>
+    <li><strong>InfraManager</strong> — runs Terraform jobs (async; returns a job id; a worker pod runs the apply).</li>
+    <li><strong>BackendManager</strong> — the integration/approval and target-source service.</li>
+    <li><strong>Terraform job</strong> — one infrastructure apply; runs for minutes.</li>
+    <li><strong>Current task</strong> — the lowest-<code>seq</code> <code>READY</code>/<code>IN_PROGRESS</code> task of a RUNNING pipeline.</li>
+  </ul>
+
+  <footer>
+    Rendered from <code>docs/adr/016-install-delete-pipeline-domain-model.md</code> — source is authoritative.
+  </footer>
+
+</article>
+</div>
+
+<script>
+  // Scroll-highlight active TOC item
+  (function () {
+    var links = document.querySelectorAll('#toc a');
+    var sections = [];
+
+    links.forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) sections.push({ id: id, el: el, a: a });
+    });
+
+    function onScroll() {
+      var scrollY = window.scrollY + 90;
+      var active = sections[0];
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].el.getBoundingClientRect().top + window.scrollY <= scrollY) {
+          active = sections[i];
+        }
+      }
+      links.forEach(function (a) { a.classList.remove('active'); });
+      if (active) active.a.classList.add('active');
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
