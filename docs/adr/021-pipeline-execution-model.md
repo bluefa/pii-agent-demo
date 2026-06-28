@@ -10,8 +10,6 @@ The domain model (tables, states, uniqueness, lifecycle, idempotency contract) l
 ADR-016 and does not change when this decision changes. Keeping the runtime model in its own
 ADR means a future change supersedes **only this ADR**, leaving the domain model intact.
 
-Detailed mechanism: [single-pipeline-tick proposal (PR #509)](https://github.com/bluefa/pii-agent-demo/pull/509).
-
 ## Context
 
 ADR-016 establishes that the database row **is** the pipeline's state and that every
@@ -139,9 +137,10 @@ carries no `claimed_by` column.
 
 **tx2 executes in a fixed order** inside the single transaction: (1) `SELECT ... FOR UPDATE`
 the pipeline row; (2) verify `claimed_by = :claim_token` — no-op the whole report if it fails;
-(3) read `cancel_requested`; (4) write the task and pipeline `status` (to `CANCELLED` if the
-flag is set, otherwise the normal transition); (5) write the next `next_due_at` and release the
-claim. Reading `cancel_requested` under the same row lock that the write takes is what makes the
+(3) read `cancel_requested`; (4) write task and pipeline `status` — if the flag is set, drive the
+pipeline and **every non-terminal task** (the current task plus any still-`BLOCKED` successors) to
+`CANCELLED` per ADR-016 §7; otherwise apply the normal current-task transition; (5) write the next
+`next_due_at` and release the claim. Reading `cancel_requested` under the same row lock that the write takes is what makes the
 cooperative cancel (Decision 6) race-free — a cancel committing just before step 3 is observed,
 and one committing just after blocks until tx2 commits, then lands on the next claim.
 
@@ -217,8 +216,9 @@ For a **claimed** (live-lease) pipeline, path (2) sets the flag and the worker a
 
 The **claim-holding worker is the sole writer of task/pipeline status.** It reads
 `cancel_requested` at its safe points — right after claiming, before dispatch, and inside
-the report transaction (tx2) — and if set, transitions the current task and the pipeline to
-`CANCELLED` itself, then releases the claim.
+the report transaction (tx2) — and if set, terminalizes **every non-terminal task** (the current
+task plus any still-`BLOCKED` successors) and the pipeline to `CANCELLED` itself, then releases
+the claim.
 
 `next_due_at = now()` wakes a sleeping pipeline (e.g. one in a long poll/condition wait)
 so the next scan claims it promptly; cancel latency for an in-flight pipeline is at most the
@@ -287,12 +287,14 @@ overshoot is accepted for the same reason as `runningPipelineCap`; here the raci
 are the concurrent **workers** checking the slot (bounded by `totalWorkerCount`), not pods. A
 hard cap would use a `tf_slot_counter` CAS or an InfraManager-side admission limit — **deferred**.
 
-**Multi-pod note.** `totalWorkerCount = activePodCount × workerPerPod`, so adding replicas
-raises global worker count and admission overshoot scales with the number of
-concurrent admission actors `C` — admission transactions for `runningPipelineCap`, workers for
-the slot gate — not pod count alone. `replicas = 1` is **not required** for correctness (the claim
-mechanism is multi-pod safe by construction) — it is only an operational simplification that
-eliminates overshoot.
+**Pod count is not a correctness parameter.** The claim mechanism is multi-pod safe by
+construction — the DB claim, not a process count, is the coordination primitive — so this model
+is **indifferent to how many pods run**: one or many, correctness is unchanged and there is no
+`replicas` constraint either way. The only pod-count effect is on the **accepted** soft-cap
+overshoot: `totalWorkerCount = activePodCount × workerPerPod`, and overshoot scales with the
+number of concurrent admission actors `C` (admission transactions for `runningPipelineCap`,
+workers for the slot gate), which more pods can raise. That overshoot is accepted (Decision 7),
+so pod count needs no governance here.
 
 **Worker-loop pseudocode (illustrative; slot gate step shown):**
 
@@ -350,7 +352,10 @@ loop:
 
 ## Operational reference (knobs & metrics)
 
-This section is a reference catalog only. Values live in operational config, not in this ADR.
+This section is a reference catalog only. These are **static server config** (e.g. Spring
+`application.yaml`) — not API-mutable runtime knobs — and their values live in operational
+config, not in this ADR. The lease and concurrency values in particular are **tuned in
+operation** against observed InfraManager latency, not fixed at design time.
 
 ### Knobs
 
@@ -395,7 +400,6 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 ## Links
 
 - [ADR-016](016-install-delete-pipeline-domain-model.md) — the durable domain model this drives
-- [PR #509](https://github.com/bluefa/pii-agent-demo/pull/509) — single-pipeline-tick mechanism detail
 
 ## Glossary
 
