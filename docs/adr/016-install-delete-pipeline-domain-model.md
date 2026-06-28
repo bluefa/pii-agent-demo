@@ -19,8 +19,8 @@ visible run history.
 
 - **Admin console** creates a pipeline, then closes; no browser stays open.
 - **The orchestrator** drives the pipeline forward (its runtime is [ADR-021](021-pipeline-execution-model.md)).
-- **InfraManager** runs Terraform jobs asynchronously: it returns a job id, and a Kubernetes
-  worker pod runs the apply later.
+- **InfraManager** runs Terraform jobs asynchronously: one dispatch returns a **set of `N` job
+  ids**, and a Kubernetes worker pod runs each apply later.
 - **BackendManager** owns integration/approval and target-source data.
 
 Scale: ~2,000 targets; ~12 pipeline shapes (provider × install/delete). Terraform jobs run for
@@ -193,7 +193,7 @@ open/configured set uses a registry instead.
 
 ## Glossary
 
-- **InfraManager** — runs Terraform jobs (async; returns a job id; a worker pod runs the apply).
+- **InfraManager** — runs Terraform jobs (async; one dispatch returns a set of `N` job ids; a worker pod runs each apply).
 - **BackendManager** — the integration/approval and target-source service.
 - **Terraform job** — one infrastructure apply; runs for minutes.
 - **Current task** — the lowest-`seq` `READY`/`IN_PROGRESS` task of a RUNNING pipeline.
