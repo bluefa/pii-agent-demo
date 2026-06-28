@@ -43,7 +43,7 @@ resumes. Every decision below depends on this.
 
 ### 2. Two domain tables, a small durable state machine
 
-`pipeline` and `task` are the **domain state tables** (schema in spec §6).
+`pipeline` and `task` are the **domain state tables** (full schema in the **Schema** section below).
 
 ```
 Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
@@ -67,8 +67,8 @@ Two **observation tables** — `task_attempt` (per-retry-attempt outcome) and `t
 (per-attempt poll summary) — carry what an operator needs to first-diagnose a failure: which job
 ran per attempt, the final outcome, whether a TTL-expired condition was NOT_MET vs API-failed,
 poll counts, the last external response. They are **write-only**: the reconciler never reads
-them, and losing them costs only debuggability, never correctness (spec §6.1). They add no state
-and no enum.
+them, and losing them costs only debuggability, never correctness (the three invariants are in
+the **Schema** section). They add no state and no enum.
 
 ### 4. One active pipeline per target
 
@@ -82,7 +82,10 @@ Every dispatch is idempotent: a duplicate submit still leaves the infrastructure
 ("already in the desired state" counts as success). This lets the execution model be
 **at-least-once** and still correct — a crash between "InfraManager started the job" and "we
 stored the job id" is healed by re-dispatch — and lets the state machine drop a `DISPATCHING`
-state.
+state. InfraManager does not de-duplicate (Constraint 1), so a re-dispatch may create a
+*harmless duplicate* job — we record the latest `job_id` (a `TERRAFORM_JOB` that is
+`IN_PROGRESS` always has one) and never "reclaim" a job. `(task_id, attempt_no)` is a logical
+attempt identity for our records, not an InfraManager key.
 
 ### 6. Bounded waiting and retry
 
@@ -125,9 +128,51 @@ cancel is applied against a live worker is an execution concern (ADR-021).
 - Per-target uniqueness rejects a concurrent INSTALL and DELETE for the same target by
   construction — intended, not a limitation.
 
+## Schema
+
+**Domain state tables**
+
+- `pipeline(id, type, target, status, created_at, last_activity_at)` — execution adds
+  `next_due_at, claimed_by, claimed_until, cancel_requested` (see ADR-021).
+- `task(id, pipeline_id, seq, kind, operation, status, job_id, fail_count, error_code,
+  started_at, ready_at, finished_at, next_check_at, ttl, polling_interval, execution_timeout,
+  max_fail_count)`
+
+**Observation tables** (write-only; the reconciler never reads them)
+
+- `task_attempt(id, task_id, attempt_no, job_id, status, error_code, dispatch_response_code,
+  dispatch_response_summary, started_at, finished_at)` — one row per retry attempt;
+  `attempt_no = task.fail_count + 1`.
+- `task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,
+  call_timeout_count, last_external_status, last_response_code, last_response_summary,
+  last_checked_at)` — at most one row per attempt (1:0..1), UPDATE-in-place; row count grows
+  with attempts, not polls. Summarizes the poll/check phase of an attempt for **both** task
+  kinds (TF-job status polling and condition checks).
+
+Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
+
+**Observation invariants**
+
+1. The reconciler/dispatch path never reads the observation tables — correctness depends only
+   on `pipeline`/`task`.
+2. `task_check` is UPDATE-in-place (one row per attempt): no per-poll inserts, no RLE, no pruner.
+3. Losing the observation tables degrades debuggability only, never correctness.
+
+**Enums** (canonical values)
+
+| enum | values |
+|---|---|
+| `TaskStatus` | BLOCKED, READY, IN_PROGRESS, DONE, FAILED, CANCELLED |
+| `PipelineStatus` | RUNNING, DONE, FAILED, CANCELLED |
+| `TaskKind` | TERRAFORM_JOB, CONDITION_CHECK |
+| `PipelineType` | INSTALL, DELETE |
+| `ErrorCode` | JOB_FAILED, EXECUTION_TIMEOUT, TTL_EXPIRED, CHECK_ERROR, CALL_TIMEOUT |
+
+`TaskOperation` is a conditional sixth enum, present only when the operation set is closed; an
+open/configured set uses a registry instead.
+
 ## Links
 
-- [minimal-redesign.md](../../design/pipeline/minimal-redesign.md) — canonical spec (schema §6, invariants §6.1, enums §7)
 - [ADR-021](021-pipeline-execution-model.md) — the execution model that drives this state machine
 - [adr-016-history.md](../../design/pipeline/adr-016-history.md) — design history & rationale (maximal → minimal, revisions)
 - Related: ADR-006 (confirmation model), ADR-009 (process status). A pipeline runs between CONFIRMED and INSTALLED.

@@ -15,10 +15,9 @@ engineer's head.
 
 ## Re-scope to minimal + split (2026-06-27)
 
-We cut to the essential job (spec [minimal-redesign.md](minimal-redesign.md)): two domain
-tables, a 6-value `TaskStatus`, five core enums, retry = fresh run. Each removal names what was
-lost (spec §8). Separately, orchestration moved out of the BFF to a dedicated runner, and the
-design split into two ADRs:
+We cut to the essential job: two domain tables, a 6-value `TaskStatus`, five core enums, retry
+= fresh run — each removal naming what was lost. Separately, orchestration moved out of the BFF
+to a dedicated runner, and the design split into two ADRs:
 
 - **ADR-016** (the domain model) — the durable state that does **not** change when the
   execution strategy changes.
@@ -51,7 +50,7 @@ There is no "reclaim" / "get-or-create" and no `DISPATCHING` state.
 
 - **2026-06-11 → 06-21** — maximal drafts (durable state machine, async ledger, slot admission,
   snapshots). Detail in git history.
-- **2026-06-27** — re-scoped to the minimal spec; split into ADR-016 (domain) + ADR-021
+- **2026-06-27** — re-scoped to the minimal model; split into ADR-016 (domain) + ADR-021
   (execution); orchestration moved BFF → dedicated runner.
 - **2026-06-27** — execution model hardened: multi-worker claim-pull (`SKIP LOCKED` + lease +
   per-claim fencing token), cooperative/CAS cancel, admission as soft pickup-gating.
