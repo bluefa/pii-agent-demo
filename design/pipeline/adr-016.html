@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADR-016: Install/Delete Pipeline — 내구성 상태 머신 도메인 모델</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+    --bg:          #f8f8f7;
+    --surface:     #ffffff;
+    --border:      #ddd;
+    --border-light: #e8e8e6;
+    --text:        #1a1a1a;
+    --text-muted:  #555;
+    --text-faint:  #888;
+    --accent:      #2d5a8e;       /* steel blue — professional, not primary-loud */
+    --accent-dim:  #d9e6f2;
+    --callout-bg:  #f3f6fb;
+    --callout-border: #b0c8e0;
+    --code-bg:     #f0f0ee;
+    --pre-bg:      #1e1e1e;
+    --pre-text:    #d4d4d4;
+    --table-head:  #f0f0ee;
+    --table-alt:   #fafaf9;
+    --badge-bg:    #e8f0fa;
+    --badge-text:  #1a4a7a;
+    --badge-border:#a8c4e0;
+    --toc-width:   220px;
+    --content-max: 820px;
+  }
+
+  html { font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── TOC Sidebar ── */
+  #toc {
+    width: var(--toc-width);
+    min-width: var(--toc-width);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2rem 1rem 2rem 1.25rem;
+    border-right: 1px solid var(--border-light);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  #toc h2 {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 0.9rem;
+    border: none;
+    padding: 0;
+  }
+
+  #toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  #toc li {
+    margin-bottom: 0.2rem;
+  }
+
+  #toc a {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.18rem 0.5rem;
+    border-radius: 4px;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    line-height: 1.4;
+  }
+
+  #toc a:hover {
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  #toc a.active {
+    color: var(--accent);
+    font-weight: 600;
+    border-left-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  #toc .toc-sub {
+    padding-left: 1.1rem;
+  }
+
+  #toc .toc-sub a {
+    font-size: 0.76rem;
+    color: var(--text-faint);
+  }
+
+  /* ── Main Content ── */
+  #content {
+    flex: 1;
+    padding: 2.5rem 3rem;
+    max-width: calc(var(--content-max) + 6rem);
+    min-width: 0;
+  }
+
+  article {
+    max-width: var(--content-max);
+  }
+
+  /* ── Typography ── */
+  h1 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 2px solid var(--border-light);
+  }
+
+  h3 {
+    font-size: 0.97rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 1.6rem;
+    margin-bottom: 0.55rem;
+    letter-spacing: 0.01em;
+  }
+
+  p {
+    margin-bottom: 0.85rem;
+  }
+
+  a { color: var(--accent); }
+  a:hover { text-decoration: underline; }
+
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  /* ── Status badge ── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    border: 1px solid var(--badge-border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem;
+    margin-bottom: 1.1rem;
+    vertical-align: middle;
+  }
+
+  .status-badge::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--badge-text);
+    opacity: 0.6;
+  }
+
+  .doc-meta {
+    color: var(--text-faint);
+    font-size: 0.82rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  /* ── Inline code ── */
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--code-bg);
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    padding: 0.1em 0.32em;
+    color: #333;
+  }
+
+  /* ── Pre / code blocks ── */
+  pre {
+    background: var(--pre-bg);
+    color: var(--pre-text);
+    border-radius: 6px;
+    padding: 1.1rem 1.25rem;
+    overflow-x: auto;
+    margin: 0.9rem 0 1.2rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+  }
+
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  /* ── Lists ── */
+  ul, ol {
+    padding-left: 1.5rem;
+    margin-bottom: 0.85rem;
+  }
+
+  li {
+    margin-bottom: 0.3rem;
+  }
+
+  li p { margin-bottom: 0.3rem; }
+
+  /* ── Tables ── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 1rem 0 1.3rem;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+
+  th {
+    background: var(--table-head);
+    font-weight: 600;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+  }
+
+  td {
+    padding: 0.48rem 0.75rem;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: var(--table-alt); }
+
+  td:first-child { font-weight: 500; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    background: var(--callout-bg);
+    border: 1px solid var(--callout-border);
+    border-left: 4px solid var(--accent);
+    border-radius: 5px;
+    padding: 0.9rem 1.1rem;
+    margin: 1rem 0 1.3rem;
+  }
+
+  .callout-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+  }
+
+  .callout ol, .callout ul {
+    margin-bottom: 0;
+  }
+
+  .callout li {
+    margin-bottom: 0.25rem;
+  }
+
+  /* ── Decision section headers ── */
+  .decision-section {
+    margin-top: 1.5rem;
+    padding-top: 0.1rem;
+  }
+
+  .decision-section h3 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+
+  .decision-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+    top: -0.05rem;
+    letter-spacing: 0;
+  }
+
+  /* ── Schema block ── */
+  .schema-block {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.75rem 1rem;
+    margin: 0.4rem 0 0.9rem;
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* ── Consequences styling ── */
+  .consequences-good, .consequences-cost {
+    margin-bottom: 1rem;
+  }
+
+  .consequences-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .consequences-good .consequences-label { color: #2a7a3b; }
+  .consequences-cost .consequences-label { color: #8a5f00; }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+    font-size: 0.76rem;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 860px) {
+    #toc { display: none; }
+    #content { padding: 1.5rem 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar TOC ── -->
+<nav id="toc" aria-label="Table of Contents">
+  <h2>목차</h2>
+  <ul>
+    <li><a href="#status">상태</a></li>
+    <li><a href="#context">배경</a></li>
+    <li><a href="#decision">결정</a>
+      <ul class="toc-sub">
+        <li><a href="#d1">1. DB가 유일한 상태</a></li>
+        <li><a href="#d2">2. 두 테이블, 상태 머신</a></li>
+        <li><a href="#d3">3. 관측은 상태와 분리</a></li>
+        <li><a href="#d4">4. 타겟당 하나의 파이프라인</a></li>
+        <li><a href="#d5">5. 멱등성, exactly-once 아님</a></li>
+        <li><a href="#d6">6. 제한된 대기 &amp; 재시도</a></li>
+        <li><a href="#d7">7. 최소 lifecycle</a></li>
+      </ul>
+    </li>
+    <li><a href="#options">검토한 대안</a></li>
+    <li><a href="#consequences">결과</a></li>
+    <li><a href="#schema">스키마</a></li>
+    <li><a href="#links">링크</a></li>
+    <li><a href="#glossary">용어</a></li>
+  </ul>
+</nav>
+
+<!-- ── Main Content ── -->
+<div id="content">
+<article>
+
+  <h1>ADR-016: Install/Delete Pipeline — 내구성 상태 머신 도메인 모델</h1>
+
+  <!-- ── Status ── -->
+  <section id="status">
+    <span class="status-badge">제안됨</span>
+    <div class="doc-meta">제안됨 — 2026-06-27</div>
+
+    <p>install/delete 파이프라인 설계의 <strong>도메인 절반</strong>: 지속 상태, 데이터 모델,
+    유일성 규칙, 장애 시맨틱, lifecycle. <strong>실행 모델</strong> — 상태 머신이 어떻게 전진
+    구동되는지 (러너, 워커 풀, 동시성, 크래시 복구) — 은 <a href="021-pipeline-execution-model.md">ADR-021</a>에서
+    별도의 독립적으로 재검토 가능한 결정으로, 도메인 모델을 다시 열지 않고도 실행 전략을 변경할 수 있다.</p>
+  </section>
+
+  <!-- ── Context ── -->
+  <h2 id="context">배경</h2>
+
+  <p>현재 고객 인프라를 설치하거나 삭제하려면 운영자가 브라우저 세션에서 <strong>InfraManager</strong>를
+  통해 Terraform job을 수동으로 실행해야 한다. 이를 자동화하고자 한다: Admin 콘솔에서 시작한 후
+  재시작에도 살아남으며 스스로 완료되고, 실행 이력이 가시적으로 남는다.</p>
+
+  <ul>
+    <li><strong>Admin 콘솔</strong>은 파이프라인을 생성한 후 닫힌다; 브라우저가 계속 열려 있지 않는다.</li>
+    <li><strong>오케스트레이터</strong>가 파이프라인을 전진 구동한다 (런타임은 <a href="021-pipeline-execution-model.md">ADR-021</a>).</li>
+    <li><strong>InfraManager</strong>는 Terraform job을 비동기로 실행한다: job id를 반환하고,
+      Kubernetes worker pod가 나중에 apply를 실행한다.</li>
+    <li><strong>BackendManager</strong>는 통합/승인 및 타겟-소스 데이터를 소유한다.</li>
+  </ul>
+
+  <p>규모: ~2,000 타겟; ~12 파이프라인 형태 (provider × install/delete). Terraform job은
+  <strong>수 분</strong> 소요; 조건 확인은 수 초에서 수 일까지 폴링한다.</p>
+
+  <div class="callout">
+    <div class="callout-title">제약 사항</div>
+    <ol>
+      <li>InfraManager는 <strong>중복 제거가 없다</strong> — 동일 job을 두 번 제출하면 두 번 실행되지만,
+        모든 실행 API는 <strong>멱등적</strong>이므로 인프라 결과는 손상되지 않는다.</li>
+      <li>결과가 소실될 수 있다 (드문 워커 장애); '여전히 실행 중'과 '소실됨'을 구분하지 않는다
+        — 실행 타임아웃이 둘 모두를 흡수한다.</li>
+    </ol>
+  </div>
+
+  <!-- ── Decision ── -->
+  <h2 id="decision">결정</h2>
+
+  <div class="decision-section" id="d1">
+    <h3><span class="decision-num">1</span> DB가 유일한 상태</h3>
+    <p>파이프라인의 상태는 데이터베이스 행에 존재하며, 소실될 수 있는 인메모리 권위(authority)는 없다.
+    파이프라인을 구동하는 것(ADR-021)은 진행 상황에 대해 무상태(stateless)이며, 행을 읽고 재개한다.
+    아래의 모든 결정은 이 원칙에 의존한다.</p>
+  </div>
+
+  <div class="decision-section" id="d2">
+    <h3><span class="decision-num">2</span> 두 도메인 테이블, 소규모 내구성 상태 머신</h3>
+    <p><code>pipeline</code>과 <code>task</code>는 <strong>도메인 상태 테이블</strong>이다 (전체 스키마는 아래 <strong>스키마</strong> 섹션 참고).</p>
+
+<pre><code>Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
+Pipeline:  RUNNING ─────────────────────────▶ DONE | FAILED | CANCELLED</code></pre>
+
+    <p><strong>현재 태스크</strong>는 가장 낮은 <code>seq</code>를 가진 <code>READY</code>/<code>IN_PROGRESS</code> 태스크이며,
+    그 앞의 태스크들은 선행 태스크가 <code>DONE</code>에 도달할 때까지 명시적으로 <code>BLOCKED</code> 상태이다
+    (태스크는 BLOCKED로 생성되어 READY로 전환되며, 첫 번째 태스크는 READY로 시작). 파이프라인 상태는
+    저장된 프로젝션으로, 상태를 변경하는 태스크 전환과 동일한 트랜잭션에서 기록되어 스캔 시
+    저렴하게 필터링할 수 있다.</p>
+
+    <p>다섯 개의 핵심 enum (<code>TaskStatus</code>, <code>PipelineStatus</code>, <code>TaskKind</code>, <code>PipelineType</code>, <code>ErrorCode</code>),
+    그리고 연산 집합이 폐쇄(closed)일 때 조건부 <code>TaskOperation</code>이 추가된다 (개방 집합은 레지스트리로 검증).
+    태스크의 <code>kind</code>는 실행자(executor)를 선택하고, <code>operation</code>은 그 안에서 도메인 액션을 선택한다.
+    파이프라인의 레시피(정렬된 태스크 목록)는 <code>(type, provider)</code>별 코드 기본값이다.</p>
+  </div>
+
+  <div class="decision-section" id="d3">
+    <h3><span class="decision-num">3</span> 관측은 상태와 분리</h3>
+    <p>두 개의 <strong>관측 테이블</strong> — <code>task_attempt</code> (재시도 시도별 결과)와 <code>task_check</code>
+    (시도별 폴링 요약) — 은 운영자가 장애를 초기 진단하는 데 필요한 정보를 담는다: 시도별 실행된 job,
+    최종 결과, TTL 만료 조건이 NOT_MET인지 API 실패인지, 폴링 횟수, 마지막 외부 응답. 이 테이블들은
+    <strong>쓰기 전용</strong>이다: 리컨사일러는 절대 읽지 않으며, 소실되더라도 디버깅 가능성만 저하될 뿐
+    정확성에는 영향이 없다 (세 가지 불변 조건은 <strong>스키마</strong> 섹션에 있다). 상태나 enum을 추가하지 않는다.</p>
+  </div>
+
+  <div class="decision-section" id="d4">
+    <h3><span class="decision-num">4</span> 타겟당 하나의 활성 파이프라인</h3>
+    <p>유일성 규칙은 타겟당 하나의 비종단(non-terminal) 파이프라인만 허용한다. 중복 생성 요청은 — 어떤
+    유형이든 — 오류를 반환하는 대신 기존 활성 실행을 반환하며, 트리거 엔드포인트는 이 <strong>계약</strong>을
+    준수해야 한다. 이것이 ADR-021이 파이프라인당 단일 소유자로 추론할 수 있는 전제이다.</p>
+  </div>
+
+  <div class="decision-section" id="d5">
+    <h3><span class="decision-num">5</span> 정확성은 exactly-once가 아닌 멱등성에 의존</h3>
+    <p>모든 디스패치는 멱등적이다: 중복 제출이 발생해도 인프라는 여전히 올바른 상태를 유지한다
+    ("이미 원하는 상태"도 성공으로 간주). 이를 통해 실행 모델은 <strong>at-least-once</strong> 방식이면서도
+    정확할 수 있다 — "InfraManager가 job을 시작했다"와 "우리가 job_id를 저장했다" 사이에 크래시가
+    발생해도 재디스패치로 복구된다 — 그리고 상태 머신에서 <code>DISPATCHING</code> 상태를 제거할 수 있다.
+    InfraManager는 중복 제거를 하지 않으므로 (제약 1), 재디스패치로 <em>무해한 중복</em> job이 생성될 수 있다
+    — 우리는 최신 <code>job_id</code>를 기록하고 (<code>IN_PROGRESS</code> 상태의 <code>TERRAFORM_JOB</code>은 항상 하나를 가짐)
+    절대 job을 "재확보"하지 않는다. <code>(task_id, attempt_no)</code>는 우리 기록용 논리적 시도 식별자이며,
+    InfraManager 키가 아니다.</p>
+  </div>
+
+  <div class="decision-section" id="d6">
+    <h3><span class="decision-num">6</span> 제한된 대기와 재시도</h3>
+    <ul>
+      <li>태스크별 <code>fail_count</code>. 디스패치 또는 폴링 실패 시 증가하며, <code>maxFailCount</code> 미만이면
+        <strong>새로운 실행(fresh run)</strong>으로 재시도하고 (완료된 작업은 no-op — Terraform이 수렴),
+        이상이면 태스크는 <code>FAILED</code> 상태가 된다.</li>
+      <li>두 가지 데드라인: <strong>호출별</strong> 타임아웃과 <strong>태스크별</strong> <code>executionTimeout</code> (TF) / <code>ttl</code>
+        (조건); 둘 다 별도 상태가 아닌 정식 <code>ErrorCode</code> 값으로 매핑된다.</li>
+      <li>서킷 브레이커 없음 — 시스템적 장애는 지연(타임아웃 + 재시도 + 알림)이지 데이터 손상이 아니다.</li>
+    </ul>
+  </div>
+
+  <div class="decision-section" id="d7">
+    <h3><span class="decision-num">7</span> 최소 lifecycle</h3>
+    <p>두 가지 태스크 종류 (<code>TERRAFORM_JOB</code>, <code>CONDITION_CHECK</code>). <strong>재시도는 새로운 실행이다.</strong>
+    <strong>취소</strong>는 직접 <code>CANCELLED</code>로 수렴하며 — <code>CANCELLING</code> 상태는 없다 — 모든 비종단 태스크
+    (<code>BLOCKED</code>/<code>READY</code>/<code>IN_PROGRESS</code> → <code>CANCELLED</code>)를 종단화한다; <code>FAILED</code> 파이프라인은
+    실패 태스크를 <code>FAILED</code>로, 나머지를 <code>CANCELLED</code>로 표시한다. 종단 상태는 절대 부활하지 않는다.
+    취소가 실행 중인 워커에 어떻게 적용되는지는 실행 관심사이다 (ADR-021).</p>
+  </div>
+
+  <!-- ── Considered Options ── -->
+  <h2 id="options">검토한 대안</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>옵션</th>
+          <th>판정</th>
+          <th>이유</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>A. 내구성 DB 상태 머신 — 두 도메인 테이블, 상태는 행</strong></td>
+          <td><strong>채택</strong></td>
+          <td>행이 <em>곧</em> 상태이다; 재시작 안전; 멱등성으로 at-least-once 실행이 정확해진다.</td>
+        </tr>
+        <tr>
+          <td>B. 최대 모델 (관측 원장, 시도 로그, 이벤트 아웃박스, 스냅샷; 6 테이블)</td>
+          <td>기각</td>
+          <td>'두 가지 태스크 종류의 정렬된 체인을 하나의 타겟에 실행'하기에 지나치게 크다 (히스토리 참고).</td>
+        </tr>
+        <tr>
+          <td>C. 임베디드 JSON 태스크 목록이 있는 단일 행</td>
+          <td>기각</td>
+          <td>태스크별 쿼리/인덱스 손실 (현재 태스크, 기한 스캔, 재시도 횟수); 자식 <code>task</code> 테이블이 더 저렴하다.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Consequences ── -->
+  <h2 id="consequences">결과</h2>
+
+  <div class="consequences-good">
+    <div class="consequences-label">장점</div>
+    <ul>
+      <li>현재 상태는 하나의 규칙: 행. 멱등 재디스패치를 통해 크래시와 재배포에서 자가 복구 —
+        exactly-once 메커니즘 불필요.</li>
+      <li>소규모이고 안정적: 두 도메인 테이블, 다섯 핵심 enum, 두 태스크 종류. 실행 전략(ADR-021)이
+        변경되어도 모델은 변하지 않는다.</li>
+    </ul>
+  </div>
+
+  <div class="consequences-cost">
+    <div class="consequences-label">감수할 비용</div>
+    <ul>
+      <li>호출별 전체 감사 원장이나 이벤트 아웃박스 없음. 감사 = 로그/메트릭 + <code>pipeline</code>/<code>task</code>
+        행 + 두 관측 테이블. 워커 중단 및 큐 대기 알림은 연기됨.</li>
+      <li>타겟별 유일성은 동일 타겟에 대한 동시 INSTALL과 DELETE를 설계상 거부 — 의도된 동작이지
+        제한이 아니다.</li>
+    </ul>
+  </div>
+
+  <!-- ── Schema ── -->
+  <h2 id="schema">스키마</h2>
+
+  <p><strong>도메인 상태 테이블</strong></p>
+
+  <div class="schema-block">
+    pipeline(id, type, target, status, created_at, last_activity_at)<br>
+    &nbsp;&nbsp;— 실행 시 추가: next_due_at, claimed_by, claimed_until, cancel_requested (ADR-021 참고)
+  </div>
+
+  <div class="schema-block">
+    task(id, pipeline_id, seq, kind, operation, status, job_id, fail_count, error_code,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;started_at, ready_at, finished_at, next_check_at, ttl, polling_interval,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;execution_timeout, max_fail_count)
+  </div>
+
+  <p><strong>관측 테이블</strong> (쓰기 전용; 리컨사일러는 절대 읽지 않음)</p>
+
+  <div class="schema-block">
+    task_attempt(id, task_id, attempt_no, job_id, status, error_code, dispatch_response_code,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dispatch_response_summary, started_at, finished_at)<br>
+    &nbsp;&nbsp;— 재시도 시도당 하나의 행; attempt_no = task.fail_count + 1
+  </div>
+
+  <div class="schema-block">
+    task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;call_timeout_count, last_external_status, last_response_code,<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;last_response_summary, last_checked_at)<br>
+    &nbsp;&nbsp;— 시도당 최대 하나의 행 (1:0..1), 제자리 UPDATE; 행 수는 폴링이 아닌 시도 수와 함께 증가.<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;두 태스크 종류 <strong>모두</strong> (TF-job 상태 폴링 및 조건 확인)에 대한 시도의 폴링/확인 단계를 요약.
+  </div>
+
+  <p>관계: <code>pipeline 1:N task 1:N task_attempt 1:0..1 task_check</code>.</p>
+
+  <div class="callout">
+    <div class="callout-title">관측 불변 조건</div>
+    <ol>
+      <li>리컨사일러/디스패치 경로는 관측 테이블을 절대 읽지 않는다 — 정확성은 오직
+        <code>pipeline</code>/<code>task</code>에만 의존한다.</li>
+      <li><code>task_check</code>는 제자리 UPDATE (시도당 하나의 행): 폴링별 삽입 없음, RLE 없음, pruner 없음.</li>
+      <li>관측 테이블이 소실되면 디버깅 가능성만 저하될 뿐, 정확성에는 영향이 없다.</li>
+    </ol>
+  </div>
+
+  <p><strong>열거형</strong> (정식 값)</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>열거형</th>
+          <th>값</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TaskStatus</code></td>
+          <td><code>BLOCKED</code>, <code>READY</code>, <code>IN_PROGRESS</code>, <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code></td>
+        </tr>
+        <tr>
+          <td><code>PipelineStatus</code></td>
+          <td><code>RUNNING</code>, <code>DONE</code>, <code>FAILED</code>, <code>CANCELLED</code></td>
+        </tr>
+        <tr>
+          <td><code>TaskKind</code></td>
+          <td><code>TERRAFORM_JOB</code>, <code>CONDITION_CHECK</code></td>
+        </tr>
+        <tr>
+          <td><code>PipelineType</code></td>
+          <td><code>INSTALL</code>, <code>DELETE</code></td>
+        </tr>
+        <tr>
+          <td><code>ErrorCode</code></td>
+          <td><code>JOB_FAILED</code>, <code>EXECUTION_TIMEOUT</code>, <code>TTL_EXPIRED</code>, <code>CHECK_ERROR</code>, <code>CALL_TIMEOUT</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p><code>TaskOperation</code>은 조건부 여섯 번째 enum으로, 연산 집합이 폐쇄(closed)일 때만 존재하며,
+  개방/설정 집합은 레지스트리를 대신 사용한다.</p>
+
+  <!-- ── Links ── -->
+  <h2 id="links">링크</h2>
+
+  <ul>
+    <li><a href="021-pipeline-execution-model.md">ADR-021</a> — 이 상태 머신을 구동하는 실행 모델</li>
+    <li><a href="../../design/pipeline/adr-016-history.md">adr-016-history.md</a> — 설계 이력 및 근거 (최대 → 최소, 개정)</li>
+    <li>관련: ADR-006 (확인 모델), ADR-009 (프로세스 상태). 파이프라인은 CONFIRMED와 INSTALLED 사이에서 실행된다.</li>
+  </ul>
+
+  <!-- ── Glossary ── -->
+  <h2 id="glossary">용어</h2>
+
+  <ul>
+    <li><strong>InfraManager</strong> — Terraform job을 실행 (비동기; job id 반환; worker pod가 apply 수행).</li>
+    <li><strong>BackendManager</strong> — 통합/승인 및 타겟-소스 서비스.</li>
+    <li><strong>Terraform job</strong> — 하나의 인프라 apply; 수 분 소요.</li>
+    <li><strong>현재 태스크</strong> — RUNNING 파이프라인에서 가장 낮은 <code>seq</code>를 가진 <code>READY</code>/<code>IN_PROGRESS</code> 태스크.</li>
+  </ul>
+
+  <footer>
+    <code>docs/adr/016-install-delete-pipeline-domain-model.md</code>로부터 렌더링 — 원본 파일이 권위 있는 소스입니다.
+  </footer>
+
+</article>
+</div>
+
+<script>
+  // Scroll-highlight active TOC item
+  (function () {
+    var links = document.querySelectorAll('#toc a');
+    var sections = [];
+
+    links.forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) sections.push({ id: id, el: el, a: a });
+    });
+
+    function onScroll() {
+      var scrollY = window.scrollY + 90;
+      var active = sections[0];
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].el.getBoundingClientRect().top + window.scrollY <= scrollY) {
+          active = sections[i];
+        }
+      }
+      links.forEach(function (a) { a.classList.remove('active'); });
+      if (active) active.a.classList.add('active');
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
