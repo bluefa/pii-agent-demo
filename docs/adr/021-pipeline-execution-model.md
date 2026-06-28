@@ -49,7 +49,7 @@ this ADR is how those mechanisms work.
 |---|---|---|
 | **One owner per pipeline at a time** | `FOR UPDATE SKIP LOCKED` claim + lease stamp | Decision 2 |
 | **No stale clobber** (an expired-lease straggler can't overwrite state) | ownership-guarded write-back `WHERE claimed_by = :claim_token` + a fresh per-claim fencing token | Decision 2, 4 |
-| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | one `status` writer per cancel case + claim-clearing on the immediate cancel path — **no `status` guard needed** | Decision 4, 6 |
+| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (so **no `status` guard is needed**) | Decision 4, 6 |
 | **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
 | **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
 | **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost result → `executionTimeout` → fresh idempotent re-dispatch | Decision 4, ADR-016 §5 |
@@ -86,12 +86,12 @@ COMMIT;
 blocking each other. The `claimed_by` / `claimed_until` stamp — not a process count — is what
 guarantees one pipeline is owned by one worker at a time, **across processes and pods**.
 
-**`claimed_by` is a per-claim fencing token** — a fresh UUID minted at the moment of each
-claim (`:claim_token` in the SQL above), not a reused pod id or thread name. This matters for
-stale-straggler rejection: if a worker's lease expires and the same pod later re-claims the
-same pipeline, it receives a *different* token. Any in-flight tx2 from the prior claim holds
-the old token and therefore no-ops on the `claimed_by = :claim_token` guard. A reused stable
-identity would pass that guard and allow the stale write through.
+**Fencing token — a per-claim UUID, not a stable pod id.** `claimed_by` is a fresh UUID minted
+at the moment of each claim (`:claim_token` in the SQL above), not a reused pod id or thread
+name. This matters for stale-straggler rejection: if a worker's lease expires and the same pod
+later re-claims the same pipeline, it receives a *different* token, so any in-flight tx2 from the
+prior claim holds the old token and no-ops on the `claimed_by = :claim_token` guard. A reused
+stable identity would pass that guard and allow the stale write through.
 
 **`ORDER BY next_due_at` + `SKIP LOCKED` yields approximate/fair FIFO, not strict ordering.**
 Rows currently held by other workers are skipped, so different concurrent workers may observe
@@ -203,6 +203,11 @@ the full elapsed wall-clock time from claim to tx2 commit, including any queuing
 Cancel is issued by the **Admin/API path** (a separate process, its own short transaction). How
 it applies splits on one fact — **is a worker running this pipeline right now?**
 
+**In one line:** Case A (no live claim) — the API path writes terminal `status` itself; Case B
+(live claim) — the API path only raises `cancel_requested` and the sole claim-holding worker
+applies `CANCELLED`. Neither ever shares a live claim token with a worker's tx2, so **no
+`status` guard is needed**.
+
 **Case A — the pipeline is NOT being run (no claim, or the lease has expired): cancel immediately.**
 This is the common "waiting / not yet picked up" pipeline. The API path terminates it directly,
 in its own transaction, with no worker round-trip:
@@ -249,10 +254,6 @@ final pre-dispatch flag check** but before the dispatch still lets **one** exter
 harmless by idempotency, and recorded as `CANCELLED` at tx2. An already-dispatched job is left to
 complete (idempotent infra); an InfraManager-side cancel is a separate follow-up, not required
 for correctness.
-
-Because cancel writes `status` only under the same row contention (Case A) or via the sole-writer
-worker (Case B), and never shares a live claim token with a worker's tx2, **no per-write
-`status` guard is required** to prevent terminal resurrection.
 
 ### Safety mechanisms & tuning knobs (not architectural decisions)
 
