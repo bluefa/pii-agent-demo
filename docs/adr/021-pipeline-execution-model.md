@@ -342,7 +342,7 @@ loop:
 - **Multi-process safe by construction**: the DB claim is the coordination primitive, not a
   process count.
 - **HA and horizontal scale** with no leader to operate or debug.
-- **Cancel-safe**: single status writer + cooperative flag (`cancel_requested`); the claim-holding worker applies `CANCELLED` itself. No per-write status guard required; no resurrection possible.
+- **Cancel-safe** (two cases, no `status` guard): for a **live-lease** pipeline the claim-holding worker is the sole status writer and applies `CANCELLED` via the `cancel_requested` flag (Case B); for an **idle** pipeline the API path writes terminal status directly, but only after winning the pipeline-row contention with the claim null/expired and clearing it (Case A). Neither shares a live claim token with a worker's tx2, so no resurrection is possible.
 - **Crash recovery** is automatic via lease expiry — no recovery journal, no manual step.
 
 ### Costs we accept
@@ -412,7 +412,7 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 ## Glossary
 
 - **Claim** — the act of stamping a per-claim fencing token (a fresh UUID minted at claim time) into `claimed_by`, plus a deadline into `claimed_until`, in a short committed transaction (tx1). Each claim generates a new unique token; the same worker re-claiming the same pipeline after lease expiry receives a different token, ensuring any in-flight tx2 from the prior claim is rejected by the ownership guard. On claim, the worker also checks `cancel_requested` before proceeding.
-- **Cooperative cancel** — the cancel model in which the Admin/API path writes only `cancel_requested = true` (and sets `next_due_at = now()` to wake a sleeping pipeline); the claim-holding worker reads this flag at its safe points and applies the terminal `CANCELLED` transition itself. The sole `status` writer remains the worker; no per-write status guard is needed to prevent terminal resurrection.
+- **Cooperative cancel (Case B)** — for a pipeline under a live lease, the Admin/API path writes only `cancel_requested = true` (and sets `next_due_at = now()` to wake a sleeping pipeline); the claim-holding worker reads the flag at its safe points and applies the terminal `CANCELLED` transition itself, remaining the sole status writer for that live-lease pipeline. (An **idle** pipeline is instead terminated immediately by the API path — Case A in Decision 6.) Neither case needs a per-write `status` guard to prevent terminal resurrection.
 - **Due pipeline** — one whose `next_due_at <= now()` and whose lease has expired (or was never set).
 - **Guarded write-back** — an `UPDATE ... WHERE id = :id AND claimed_by = :token` that no-ops if the ownership guard fails. Defends against lease-expired straggler clobber; a `status` guard is not required because cancel is cooperative and `status` has a single writer (Decision 6).
 - **Lease** — the `claimed_until` timestamp; expiry automatically releases the claim for reclaim by any worker.
