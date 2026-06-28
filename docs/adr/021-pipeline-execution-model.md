@@ -150,25 +150,28 @@ writes the new `next_due_at`. Without this release a pipeline that finishes a st
 `RUNNING` stays locked until `claimed_until` passes, blocking all other workers from picking it
 up. `next_due_at` is always written by tx2 on a successful report; it is seeded at pipeline
 creation by the trigger endpoint. When the current task reaches `DONE`, the same tx2 flips the
-next task `BLOCKED → READY`. on dispatch the worker writes a `task_attempt` row (the attempt's job_id/result), and on
-each poll it UPDATEs that attempt's `task_check` summary (counts + last response) in place;
-both are written under the verified pipeline claim (single writer, no task-level claim
-needed), and **the reconciler never reads them to make decisions** — they are
-observation-only, so they do not affect the claim/transition logic or correctness.
+next task `BLOCKED → READY`. On dispatch the worker writes a `task_attempt` row (the attempt's
+`job_ids` set + responses), and on each poll it UPDATEs that attempt's `task_check` summary
+(counts + last response) in place; both are written under the verified pipeline claim (single
+writer, no task-level claim needed). Task completion is a code-level `check(attempt, task)` over
+the **latest** attempt row — the reconciler reads only that row, and only for the completion
+decision; claim, scheduling, and pipeline transitions never read the attempt tables. A lost
+attempt result does not stall the task: it falls through to `executionTimeout` and re-dispatches
+a fresh `N`-job run (idempotent).
 
 **Duplicate external-call windows.** The two-transaction split creates several bounded windows
 where a duplicate call to InfraManager may occur:
 
 - **(a) Client timeout** — the caller times out but InfraManager already accepted the job.
 - **(b) Crash after dispatch** — the worker dispatches and crashes before tx2 records the
-  returned `job_id`.
+  returned `job_ids`.
 - **(c) Lease expiry while stalled** — a worker thread-pool queue wait or GC pause exceeds the
   lease; another worker re-claims and dispatches the same pipeline.
 
 In all three cases the duplicate **external call** is made safe by **infra-idempotency** —
-TF APIs are duplicate-harmless: a re-dispatch may create a harmless duplicate job with no
-adverse side-effect. InfraManager does not dedup; the `job_id` recorded in `task_attempt`
-is the latest dispatch's id. The guarded DB write addresses a separate concern: it prevents a
+TF APIs are duplicate-harmless: a re-dispatch may create harmless duplicate jobs with no
+adverse side-effect. InfraManager does not dedup; the `job_ids` recorded for the attempt
+are the latest dispatch's set. The guarded DB write addresses a separate concern: it prevents a
 stale straggler from clobbering DB state once its ownership has expired. The two safety knobs
 are complementary, not interchangeable.
 
@@ -185,56 +188,61 @@ A claimed pipeline can sit in the worker thread-pool queue before its external c
 starts; that queue wait consumes lease time just as the call itself does. The lease must cover
 the full elapsed wall-clock time from claim to tx2 commit, including any queuing delay.
 
-### 6. Cancel as a cooperative request (flag)
+### 6. Cancel: immediate for an idle pipeline, cooperative for a running one
 
-How cancel is applied depends on whether a worker currently holds the pipeline. The cancel
-request **first attempts an immediate terminate by CAS**, and falls back to the cooperative
-flag only if a live worker owns the claim:
+Cancel is issued by the **Admin/API path** (a separate process, its own short transaction). How
+it applies splits on one fact — **is a worker running this pipeline right now?**
+
+**Case A — the pipeline is NOT being run (no claim, or the lease has expired): cancel immediately.**
+This is the common "waiting / not yet picked up" pipeline. The API path terminates it directly,
+in its own transaction, with no worker round-trip:
 
 ```sql
--- (1) unclaimed OR expired → terminate immediately AND clear the claim, so an expired-lease
---     straggler's tx2 fails its claimed_by guard (also CANCEL its non-terminal tasks in this tx)
+-- A1: terminate the pipeline AND clear the claim (so an expired-lease straggler's tx2 fails
+--     its claimed_by guard); fires only when no live worker owns the row
 UPDATE pipeline SET status = 'CANCELLED', claimed_by = NULL, claimed_until = NULL
  WHERE id = :pid AND status = 'RUNNING'
    AND (claimed_by IS NULL OR claimed_until < now());
--- (2) if 0 rows (a live worker holds the claim) → cooperative flag
+-- A2: terminalize every non-terminal task (runs only if A1 updated a row)
+UPDATE task SET status = 'CANCELLED'
+ WHERE pipeline_id = :pid AND status IN ('BLOCKED', 'READY', 'IN_PROGRESS');
+```
+
+**Case B — a worker is running the pipeline (live lease): cancel cooperatively.** The API path
+cannot write `status` (the worker is the sole status writer), so it only raises a flag and wakes
+the pipeline — this path fires when Case A's `A1` updated 0 rows:
+
+```sql
 UPDATE pipeline SET cancel_requested = true, next_due_at = now()
  WHERE id = :pid AND status = 'RUNNING';
 ```
 
-An **unclaimed** pipeline — the common "waiting / not yet picked up" case — is cancelled
-**immediately**, no worker round-trip. Two races are closed by construction:
-- **vs a concurrent claim**: both contend on the pipeline row, so whichever commits first wins
-  (a claim no longer sees `RUNNING` once cancelled; the immediate-terminate no longer sees a
-  free claim once claimed).
-- **vs an expired-lease straggler**: path (1) fires only when the claim is null or expired, and
-  it **clears `claimed_by`/`claimed_until`** in the same statement. A GC-paused straggler that
-  resumes finds its token gone, so its tx2 `claimed_by` guard no-ops — no resurrection. This is
-  why the immediate path is safe *without* re-introducing a `status` guard.
+The claim-holding worker reads `cancel_requested` at its safe points — right after claiming,
+before dispatch, and inside the report transaction (tx2) — and if set, terminalizes **every
+non-terminal task** (the current task plus any still-`BLOCKED` successors) and the pipeline to
+`CANCELLED` itself, then releases the claim. `next_due_at = now()` wakes a sleeping pipeline (e.g.
+one in a long poll/condition wait) so the next scan claims it promptly.
 
-For a **claimed** (live-lease) pipeline, path (2) sets the flag and the worker applies it:
+**Why both cases are race-free:**
+- **vs a concurrent claim** — both contend on the pipeline row, so whichever commits first wins:
+  a claim no longer sees `RUNNING` once Case A cancelled it; Case A's `A1` no longer sees a free
+  claim once a worker claimed it (so it updates 0 rows and falls through to Case B).
+- **vs an expired-lease straggler** — Case A fires only when the claim is null/expired and
+  **clears `claimed_by`/`claimed_until`** in the same statement, so a GC-paused straggler that
+  resumes finds its token gone and its tx2 `claimed_by` guard no-ops — no resurrection. This is
+  why neither case needs a `status` guard.
 
-The **claim-holding worker is the sole writer of task/pipeline status.** It reads
-`cancel_requested` at its safe points — right after claiming, before dispatch, and inside
-the report transaction (tx2) — and if set, terminalizes **every non-terminal task** (the current
-task plus any still-`BLOCKED` successors) and the pipeline to `CANCELLED` itself, then releases
-the claim.
+**Accepted latency edges (Case B):** (i) work that is **claimed but still queued** in the worker
+pool observes the flag only when its tx2 runs, so its cancel latency is the queue wait — bounded
+by the lease, not just the per-call timeout; (ii) a cancel that arrives **after the worker's
+final pre-dispatch flag check** but before the dispatch still lets **one** external call fire —
+harmless by idempotency, and recorded as `CANCELLED` at tx2. An already-dispatched job is left to
+complete (idempotent infra); an InfraManager-side cancel is a separate follow-up, not required
+for correctness.
 
-`next_due_at = now()` wakes a sleeping pipeline (e.g. one in a long poll/condition wait)
-so the next scan claims it promptly; cancel latency for an in-flight pipeline is at most the
-remaining per-call timeout (the worker honors the flag at report). An already-dispatched
-external job is left to complete (idempotent infra); issuing an InfraManager-side cancel is
-a separate follow-up concern, not required for correctness.
-
-Two latency edges are accepted: (i) work that is **claimed but still queued** in the worker
-pool observes the flag only when its tx2 runs, so its cancel latency is the queue wait —
-bounded by the lease, not just the per-call timeout; (ii) a cancel that arrives **after the
-worker's final pre-dispatch flag check** but before the dispatch still lets **one** external
-call fire — harmless by idempotency, and recorded as `CANCELLED` at tx2.
-
-Because cancel writes only `cancel_requested` (a different column) and the claim holder is
-the only `status` writer, **no per-write `status` guard is required** to prevent terminal
-resurrection.
+Because cancel writes `status` only under the same row contention (Case A) or via the sole-writer
+worker (Case B), and never shares a live claim token with a worker's tx2, **no per-write
+`status` guard is required** to prevent terminal resurrection.
 
 ### Safety mechanisms & tuning knobs (not architectural decisions)
 
