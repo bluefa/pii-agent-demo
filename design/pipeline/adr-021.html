@@ -823,8 +823,11 @@ UPDATE task SET status = 'CANCELLED'
     <ul>
       <li><strong>구조적으로 멀티프로세스 안전</strong>: DB 클레임이 조정 기본 요소이며, 프로세스 수가 아니다.</li>
       <li>운영하거나 디버깅할 리더 없는 <strong>고가용성과 수평 확장</strong>.</li>
-      <li><strong>취소 안전</strong>: 단일 status 쓰기자 + 협력적 플래그 (<code>cancel_requested</code>); 클레임
-        보유 워커가 <code>CANCELLED</code>를 직접 적용. 쓰기별 status 가드 불필요; 부활 불가.</li>
+      <li><strong>취소 안전</strong> (두 경우, <code>status</code> 가드 불필요): <strong>라이브 리스</strong> 파이프라인은
+        클레임 보유 워커가 유일한 status 쓰기자로서 <code>cancel_requested</code> 플래그를 통해 <code>CANCELLED</code>를
+        적용(Case B); <strong>유휴</strong> 파이프라인은 API 경로가 종단 status를 직접 쓰되, 클레임이 null/만료인 채로
+        파이프라인 행 경합에서 이기고 클레임을 비운 뒤에만 적용(Case A). 어느 쪽도 워커 tx2와 라이브 클레임 토큰을
+        공유하지 않으므로 부활은 불가능하다.</li>
       <li><strong>크래시 복구</strong>는 리스 만료를 통해 자동 — 복구 저널 없음, 수동 단계 없음.</li>
     </ul>
   </div>
@@ -957,11 +960,12 @@ UPDATE task SET status = 'CANCELLED'
       행위. 각 클레임은 새로운 고유 토큰을 생성하며; 리스 만료 후 동일 파이프라인을 재클레임하는
       동일 워커는 다른 토큰을 받아, 이전 클레임의 in-flight tx2가 소유권 가드에서 거부된다.
       클레임 시 워커는 진행 전에 <code>cancel_requested</code>도 확인한다.</li>
-    <li><strong>Cooperative cancel (협력적 취소)</strong> — Admin/API 경로가 <code>cancel_requested = true</code>만
-      쓰는 (그리고 슬리핑 파이프라인을 깨우기 위해 <code>next_due_at = now()</code>으로 설정하는) 취소
-      모델 (Case B); 클레임 보유 워커가 안전 지점에서 이 플래그를 읽고 종단 <code>CANCELLED</code> 전환을
-      직접 적용한다. 유일한 <code>status</code> 쓰기자는 워커로 유지; 종단 부활을 방지하기 위한 쓰기별
-      status 가드 불필요.</li>
+    <li><strong>Cooperative cancel (협력적 취소, Case B)</strong> — 라이브 리스 하의 파이프라인에 대해 Admin/API
+      경로가 <code>cancel_requested = true</code>만 쓰고 (그리고 슬리핑 파이프라인을 깨우기 위해
+      <code>next_due_at = now()</code>으로 설정); 클레임 보유 워커가 안전 지점에서 이 플래그를 읽고 종단
+      <code>CANCELLED</code> 전환을 직접 적용하며, 그 라이브 리스 파이프라인의 유일한 status 쓰기자로 남는다.
+      (<strong>유휴</strong> 파이프라인은 대신 API 경로가 즉시 종료 — 결정 6의 Case A.) 어느 경우든 종단 부활을
+      방지하기 위한 쓰기별 <code>status</code> 가드는 필요하지 않다.</li>
     <li><strong>Due pipeline (처리 대상 파이프라인)</strong> — <code>next_due_at &lt;= now()</code>이고 리스가
       만료되었거나 설정되지 않은 파이프라인.</li>
     <li><strong>Guarded write-back (가드된 쓰기백)</strong> — 소유권 가드 실패 시 no-op이 되는
