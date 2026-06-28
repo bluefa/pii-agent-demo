@@ -395,7 +395,6 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 ## Links
 
 - [ADR-016](016-install-delete-pipeline-domain-model.md) — the durable domain model this drives
-- [minimal-redesign.md](../../design/pipeline/minimal-redesign.md) — canonical spec (reconciler loop §3, failure/retry §4)
 - [PR #509](https://github.com/bluefa/pii-agent-demo/pull/509) — single-pipeline-tick mechanism detail
 
 ## Glossary
