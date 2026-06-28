@@ -42,6 +42,18 @@ Operational facts:
 
 ## Decision
 
+**Guarantees at a glance.** Each safety property is secured by exactly one mechanism; the rest of
+this ADR is how those mechanisms work.
+
+| Guarantee | Secured by | Where |
+|---|---|---|
+| **One owner per pipeline at a time** | `FOR UPDATE SKIP LOCKED` claim + lease stamp | Decision 2 |
+| **No stale clobber** (an expired-lease straggler can't overwrite state) | ownership-guarded write-back `WHERE claimed_by = :claim_token` + a fresh per-claim fencing token | Decision 2, 4 |
+| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | one `status` writer per cancel case + claim-clearing on the immediate cancel path — **no `status` guard needed** | Decision 4, 6 |
+| **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
+| **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
+| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost result → `executionTimeout` → fresh idempotent re-dispatch | Decision 4, ADR-016 §5 |
+
 ### 1. Workers pull work from the DB; no single-instance constraint, no leader election
 
 The orchestrator runs as its **own deployable server**. N worker threads — optionally across
@@ -107,7 +119,12 @@ unlocked; tx2 commits the result.
 
 ### 4. Guarded write-back (ownership-guarded)
 
-The report transaction (tx2) transitions the task and pipeline with:
+**In one line:** a report (tx2) lands only if the worker still owns the claim
+(`WHERE claimed_by = :claim_token`); otherwise it no-ops. That single ownership guard — plus the
+rule that `status` has one writer per cancel case — is the whole of write-back safety, so **no
+`status` guard is needed.**
+
+**The write.** The report transaction (tx2) transitions the task and pipeline with:
 
 ```sql
 UPDATE pipeline
@@ -116,51 +133,45 @@ UPDATE pipeline
    AND claimed_by = :claim_token;
 ```
 
-One guard defends correctness:
-
-- **`claimed_by` guard** — a lease-expired straggler that resumes after its pipeline was
-  reclaimed by another worker will find `claimed_by` no longer matches and its update
-  no-ops. No clobbering.
-
-A `status = :expected_status` guard is **not required** for cancel-safety. Cancel writes
-`status` only on the immediate path (Decision 6), and that path fires solely when the claim is
-null or expired **and clears `claimed_by` as it terminalizes** — so it can never share a live
-claim token with a worker's tx2. For a live-lease pipeline, cancel only sets a flag and the
-claim holder is the sole `status` writer. Either way the `claimed_by` guard alone fences every
-straggler; no concurrent writer holds a matching token while the row is being terminalized.
-
-**Ownership verification in tx2 is pipeline-level, not per-row.** In tx2 the worker
-verifies pipeline ownership once (the `claimed_by = :claim_token` check on the locked
-pipeline row); the task and pipeline status writes then happen under that verified,
-single-writer claim, so they need no additional per-row claim guard. The `task` table
-carries no `claimed_by` column.
-
 **tx2 executes in a fixed order** inside the single transaction: (1) `SELECT ... FOR UPDATE`
 the pipeline row; (2) verify `claimed_by = :claim_token` — no-op the whole report if it fails;
 (3) read `cancel_requested`; (4) write task and pipeline `status` — if the flag is set, drive the
 pipeline and **every non-terminal task** (the current task plus any still-`BLOCKED` successors) to
 `CANCELLED` per ADR-016 §7; otherwise apply the normal current-task transition; (5) write the next
-`next_due_at` and release the claim. Reading `cancel_requested` under the same row lock that the write takes is what makes the
-cooperative cancel (Decision 6) race-free — a cancel committing just before step 3 is observed,
-and one committing just after blocks until tx2 commits, then lands on the next claim.
+`next_due_at` and release the claim.
+
+**Ownership is verified once, at the pipeline level.** The `claimed_by` check is on the locked
+pipeline row; the task and pipeline writes then happen under that verified, single-writer claim,
+so they need no per-row claim guard — the `task` table carries no `claimed_by` column.
 
 **On success, tx2 releases the claim and advances `next_due_at` atomically.** The same
-transaction that advances task/pipeline state also clears `claimed_by`/`claimed_until` and
-writes the new `next_due_at`. Without this release a pipeline that finishes a step but remains
-`RUNNING` stays locked until `claimed_until` passes, blocking all other workers from picking it
-up. `next_due_at` is always written by tx2 on a successful report; it is seeded at pipeline
-creation by the trigger endpoint. When the current task reaches `DONE`, the same tx2 flips the
-next task `BLOCKED → READY`. On dispatch the worker writes a `task_attempt` row (the attempt's
-`job_ids` set + responses), and on each poll it UPDATEs that attempt's `task_check` summary
-(counts + last response) in place; both are written under the verified pipeline claim (single
-writer, no task-level claim needed). Task completion is a code-level `check(attempt, task)` over
-the **latest** attempt row — the reconciler reads only that row, and only for the completion
-decision; claim, scheduling, and pipeline transitions never read the attempt tables. A lost
-attempt result does not stall the task: it falls through to `executionTimeout` and re-dispatches
-a fresh `N`-job run (idempotent).
+transaction that advances task/pipeline state also clears `claimed_by`/`claimed_until` and writes
+the new `next_due_at` (seeded at creation by the trigger endpoint). Without this release a
+pipeline that finishes a step but stays `RUNNING` would sit locked until `claimed_until` passes,
+blocking other workers. When the current task reaches `DONE`, the same tx2 flips the next task
+`BLOCKED → READY`. On dispatch the worker writes a `task_attempt` row (the attempt's `job_ids`
+set + responses), and on each poll it UPDATEs that attempt's `task_check` summary (counts + last
+response) in place; both under the verified pipeline claim (single writer, no task-level claim
+needed). Task completion is a code-level `check(attempt, task)` over the **latest** attempt row —
+the reconciler reads only that row, and only for completion; claim, scheduling, and pipeline
+transitions never read the attempt tables. A lost attempt result does not stall the task: it
+falls through to `executionTimeout` and re-dispatches a fresh `N`-job run (idempotent).
 
-**Duplicate external-call windows.** The two-transaction split creates several bounded windows
-where a duplicate call to InfraManager may occur:
+*The above is the mechanism; the rest is why it is race-free.*
+
+**Why no `status` guard is needed.** The lone `claimed_by` guard fences every straggler: a
+lease-expired worker that resumes after its pipeline was reclaimed finds `claimed_by` no longer
+matches, so its update no-ops (no clobber). A `status = :expected_status` guard adds nothing,
+because no *other* writer ever holds a matching live token while the row is terminalized — cancel
+writes `status` only on the immediate path (Decision 6), which fires solely when the claim is
+null/expired **and clears `claimed_by` as it terminalizes**; for a live-lease pipeline cancel
+only sets a flag and the claim holder is the sole `status` writer. Reading `cancel_requested`
+under the same row lock tx2's write takes (step 3) is what makes the cooperative cancel race-free
+— a cancel committing just before step 3 is observed; one committing just after blocks until tx2
+commits, then lands on the next claim.
+
+**Why duplicate external calls are harmless.** The two-transaction split creates three bounded
+windows where InfraManager may be called twice:
 
 - **(a) Client timeout** — the caller times out but InfraManager already accepted the job.
 - **(b) Crash after dispatch** — the worker dispatches and crashes before tx2 records the
@@ -168,12 +179,11 @@ where a duplicate call to InfraManager may occur:
 - **(c) Lease expiry while stalled** — a worker thread-pool queue wait or GC pause exceeds the
   lease; another worker re-claims and dispatches the same pipeline.
 
-In all three cases the duplicate **external call** is made safe by **infra-idempotency** —
-TF APIs are duplicate-harmless: a re-dispatch may create harmless duplicate jobs with no
-adverse side-effect. InfraManager does not dedup; the `job_ids` recorded for the attempt
-are the latest dispatch's set. The guarded DB write addresses a separate concern: it prevents a
-stale straggler from clobbering DB state once its ownership has expired. The two safety knobs
-are complementary, not interchangeable.
+In all three the duplicate **external call** is safe by **infra-idempotency** — TF APIs are
+duplicate-harmless (a re-dispatch may create harmless duplicate jobs; the `job_ids` recorded for
+the attempt are the latest dispatch's set). The guarded DB write solves a *different* problem:
+stopping a stale straggler from clobbering DB state. The two are **complementary, not
+interchangeable** — idempotency covers the external duplicate, the guard covers the DB write.
 
 ### 5. Crash recovery via lease expiry
 
