@@ -189,12 +189,12 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
   resourceId: `idc-row-${index}`,
   persisted: false,
   kind: deriveKind(wire),
-  hosts: wire.input_format === 'IP' ? (wire.ips ?? []) : wire.host ? [wire.host] : [],
+  hosts: wire.input_format === 'IP' ? (wire.ips ?? []).filter((ip): ip is string => ip != null) : wire.host ? [wire.host] : [],
   port: wire.port ?? 0,
-  databaseTypeLabel: idcDbTypeByWire(toDbTypeWire(wire.database_type))?.label ?? wire.database_type ?? '',
-  databaseTypeWire: toDbTypeWire(wire.database_type),
-  oracleSid: wire.service_id,
-  credentialId: wire.credential_id,
+  databaseTypeLabel: idcDbTypeByWire(toDbTypeWire(wire.database_type ?? undefined))?.label ?? wire.database_type ?? '',
+  databaseTypeWire: toDbTypeWire(wire.database_type ?? undefined),
+  oracleSid: wire.service_id ?? undefined,
+  credentialId: wire.credential_id ?? undefined,
   sourceIps: [],
   firewallOpen: false,
   connection: 'PENDING',
@@ -207,7 +207,7 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
     (wire.selected === undefined &&
       wire.exclusion_reason !== undefined &&
       wire.exclusion_reason !== ''),
-  exclusionReason: wire.exclusion_reason,
+  exclusionReason: wire.exclusion_reason ?? undefined,
 });
 
 // ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ export const idcDbTypeWireFromLabel = (label: string): IdcDatabaseTypeWire | und
 const toStepView = (wire: IdcStepStatusWire | undefined): IdcInstallStepView => ({
   // A missing status is "작업중", never silently COMPLETED (faithful default).
   status: wire?.status ?? 'UNKNOWN',
-  guide: wire?.guide,
+  guide: wire?.guide ?? undefined,
 });
 
 export const toIdcInstallationView = (
@@ -363,8 +363,8 @@ export const toIdcInstallationView = (
   lastCheck: wire.last_check
     ? {
         status: wire.last_check.status ?? 'UNKNOWN',
-        checkedAt: wire.last_check.checked_at,
-        failReason: wire.last_check.fail_reason,
+        checkedAt: wire.last_check.checked_at ?? undefined,
+        failReason: wire.last_check.fail_reason ?? undefined,
       }
     : undefined,
   resources: (wire.resources ?? []).map((r) => ({
@@ -381,7 +381,7 @@ const toNlbOccupiedResource = (w: NlbOccupiedResourceResponseWire): NlbOccupiedR
   serviceName: w.serviceName ?? '',
   targetSourceId: w.targetSourceId ?? 0,
   isLatest: w.isLatest ?? false,
-  ips: w.ipSet ?? [],
+  ips: (w.ipSet ?? []).filter((x): x is string => x != null),
   port: w.port ?? 0,
   databaseType: w.databaseType ?? '',
   databaseName: w.databaseName ?? '',
@@ -389,7 +389,7 @@ const toNlbOccupiedResource = (w: NlbOccupiedResourceResponseWire): NlbOccupiedR
 
 const toNlbTableRow = (w: NlbTableResponseWire): NlbTableRow => ({
   nlbIndex: w.nlbIndex ?? 0,
-  nlbIpList: w.nlbIpList ?? [],
+  nlbIpList: (w.nlbIpList ?? []).filter((x): x is string => x != null),
   occupiedListenerCount: w.occupiedListenerCount ?? 0,
 });
 

@@ -68,7 +68,7 @@ const toUiStep = (step: WireStep): GcpStepStatus => ({
 
 const toUiResource = (r: WireResource): GcpResourceStatus => ({
   resourceId: r.resource_id ?? '',
-  resourceName: r.resource_name,
+  resourceName: r.resource_name ?? undefined,
   resourceType: 'CLOUD_SQL',
   resourceSubType: null,
   installationStatus: INSTALL_TO_UI[r.installation_status ?? 'UNKNOWN'],

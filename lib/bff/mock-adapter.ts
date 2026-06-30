@@ -194,7 +194,9 @@ export const mockBff: BffClient = {
 
     updateTestConnectionConfirmation: async (id, body) =>
       unwrap<z.infer<typeof schemas.TestConnectionConfirmationResponse>>(
-        await mockConfirm.updateTestConnectionConfirmation(String(id), body),
+        await mockConfirm.updateTestConnectionConfirmation(String(id), {
+          confirmed: body.confirmed ?? false,
+        }),
       ),
   },
 

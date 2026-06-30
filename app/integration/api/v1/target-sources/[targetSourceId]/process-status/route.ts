@@ -34,7 +34,7 @@ export const GET = withV1(async (_request, { requestId, params }) => {
   let projectProcessStatus: string | undefined;
   try {
     const detail = schemas.TargetSourceDetail.parse(await bff.targetSources.get(parsed.value));
-    projectProcessStatus = detail.process_status;
+    projectProcessStatus = detail.process_status ?? undefined;
   } catch (e) {
     if (!(e instanceof BffError)) throw e;
     // Project lookup is auxiliary — fall back to rawStatus from process-status BFF.

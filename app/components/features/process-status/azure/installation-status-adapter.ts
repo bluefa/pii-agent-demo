@@ -60,12 +60,12 @@ const toUiResource = (r: WireResource): AzureV1Resource => {
       privateEndpoint: {
         id: r.private_endpoint.id ?? '',
         name: r.private_endpoint.name ?? '',
-        status: toPrivateEndpointStatus(r.private_endpoint.status),
+        status: toPrivateEndpointStatus(r.private_endpoint.status ?? undefined),
       },
     }),
     ...(r.vm_installation && {
       vmInstallation: {
-        subnetExists: r.vm_installation.subnet_exists,
+        subnetExists: r.vm_installation.subnet_exists ?? false,
         // load_balancer is an opaque object — read the conventional keys.
         loadBalancer: {
           installed: asBoolean(lb?.installed),

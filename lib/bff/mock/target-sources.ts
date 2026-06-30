@@ -330,11 +330,11 @@ const buildCandidateMetadata = (
   provider: CanonicalProvider,
 ): TargetSourceCreationCandidateMetadataWire => {
   const m = request.metadata ?? {};
-  const accountId = trim(m.aws_account_id);
-  const tenantId = trim(m.tenant_id);
-  const subscriptionId = trim(m.subscription_id);
-  const projectId = trim(m.project_id);
-  const description = trim(m.description);
+  const accountId = trim(m.aws_account_id ?? undefined);
+  const tenantId = trim(m.tenant_id ?? undefined);
+  const subscriptionId = trim(m.subscription_id ?? undefined);
+  const projectId = trim(m.project_id ?? undefined);
+  const description = trim(m.description ?? undefined);
 
   return {
     ...(provider === 'AWS' && accountId ? { aws_account_id: accountId } : {}),
@@ -396,7 +396,7 @@ export const mockTargetSources = {
     }
 
     const candidate = (body ?? {}) as TargetSourceCreationCandidateResponseWire;
-    const normalizedProvider = toInternalCloudProvider(candidate.cloud_type);
+    const normalizedProvider = toInternalCloudProvider(candidate.cloud_type ?? undefined);
 
     if (!serviceCode || !normalizedProvider) {
       return NextResponse.json(
@@ -413,13 +413,13 @@ export const mockTargetSources = {
     }
 
     const metadata = candidate.metadata ?? {};
-    const awsAccountId = trim(metadata.aws_account_id) || undefined;
-    const tenantId = trim(metadata.tenant_id) || undefined;
-    const subscriptionId = trim(metadata.subscription_id) || undefined;
+    const awsAccountId = trim(metadata.aws_account_id ?? undefined) || undefined;
+    const tenantId = trim(metadata.tenant_id ?? undefined) || undefined;
+    const subscriptionId = trim(metadata.subscription_id ?? undefined) || undefined;
     // Candidate metadata uses `project_id` for the GCP project (request casing);
     // the internal Project field is `gcpProjectId`.
-    const gcpProjectId = trim(metadata.project_id) || undefined;
-    const description = trim(metadata.description);
+    const gcpProjectId = trim(metadata.project_id ?? undefined) || undefined;
+    const description = trim(metadata.description ?? undefined);
     const isChinaRegion = candidate.is_china_region === true;
     const grantTf = candidate.grant_service_terraform_execution_permission === true;
 
@@ -497,21 +497,21 @@ export const mockTargetSources = {
 
     // 35 response: a BARE ARRAY of TargetSourceCreationCandidateResponse (snake),
     // one element per database_types[i] (index-matched to the request).
-    const candidates: TargetSourceCreationCandidateResponseWire[] = request.database_types.map(
+    const candidates: TargetSourceCreationCandidateResponseWire[] = (request.database_types ?? []).map(
       (dbType) => {
         const requestedKey = duplicateIdentity(provider, {
-          awsAccountId: request.metadata?.aws_account_id,
-          isChinaRegion: request.is_china_region,
-          subscriptionId: request.metadata?.subscription_id,
-          gcpProjectId: request.metadata?.project_id,
-          description: request.metadata?.description,
-          dbType,
+          awsAccountId: request.metadata?.aws_account_id ?? undefined,
+          isChinaRegion: request.is_china_region ?? undefined,
+          subscriptionId: request.metadata?.subscription_id ?? undefined,
+          gcpProjectId: request.metadata?.project_id ?? undefined,
+          description: request.metadata?.description ?? undefined,
+          dbType: dbType ?? undefined,
         });
 
         const match =
           requestedKey === null
             ? undefined
-            : existing.find((project) => projectIdentity(project, dbType) === requestedKey);
+            : existing.find((project) => projectIdentity(project, dbType ?? '') === requestedKey);
 
         const base: TargetSourceCreationCandidateResponseWire = {
           status: match ? 'DUPLICATE' : 'ADD',

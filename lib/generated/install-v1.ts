@@ -1,128 +1,81 @@
 import { z } from "zod";
+const Str = z.string().nullable();
+const Num = z.number().nullable();
+const Bool = z.boolean().nullable();
+const Loose = z.record(z.unknown()).nullable();
 
 const UpdateTestConnectionConfirmationRequest = z
-  .object({ confirmed: z.boolean() })
-  .passthrough();
+  .object({ confirmed: Bool })
+  .partial().passthrough();
 const UpdateCredentialRequest = z
-  .object({ resourceId: z.string(), credentialId: z.string() })
-  .partial()
-  .passthrough();
+  .object({ resourceId: Str, credentialId: Str })
+  .partial().passthrough();
 const SkipLogicalDatabaseItem = z
   .object({
-    database_name: z.string(),
-    schema_name: z.string().optional(),
-    skip_reason: z.enum(["STG", "DEV", "TEMP"]),
-    type: z.enum(["DATABASE", "SCHEMA"]),
+    database_name: Str,
+    schema_name: Str.optional(),
+    skip_reason: Str,
+    type: Str,
   })
-  .passthrough();
+  .partial().passthrough();
 const UpdateSkipLogicalDatabaseRequest = z
-  .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem) })
-  .passthrough();
+  .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem).nullable() })
+  .partial().passthrough();
 const GuideContentRequest = z
   .object({
-    ko: z.object({}).partial().passthrough(),
-    en: z.object({}).partial().passthrough(),
+    ko: Loose,
+    en: Loose,
   })
-  .passthrough();
+  .partial().passthrough();
 const GuideUpdateRequest = z
   .object({ contents: GuideContentRequest })
-  .passthrough();
+  .partial().passthrough();
 const PiiAgentInstallationConfirmRequest = z
-  .object({ confirm: z.boolean() })
-  .passthrough();
+  .object({ confirm: Bool })
+  .partial().passthrough();
 const ApprovalRejectRequestDto = z
-  .object({ reason: z.string().min(0).max(1000) })
-  .passthrough();
+  .object({ reason: Str })
+  .partial().passthrough();
 const NetworkInterfaceDto = z
   .object({
-    networkInterfaceId: z.string(),
-    ipConfigurationName: z.array(z.string()),
+    networkInterfaceId: Str,
+    ipConfigurationName: z.array(Str).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceResourceMetadataDto = z
   .object({
-    provider: z.enum(["AWS", "GCP", "AZURE", "IDC", "UNKNOWN"]),
-    region: z.string(),
-    host: z.string(),
-    port: z.number().int(),
-    networkInterfaces: z.array(NetworkInterfaceDto),
-    resource_type: z.enum([
-      "AWS_ATHENA",
-      "AWS_ATHENA_DATABASE",
-      "AWS_DB_CLUSTER",
-      "AWS_DB_INSTANCE",
-      "AWS_REDSHIFT_CLUSTER",
-      "AWS_DYNAMO_DB_REGION",
-      "AWS_DYNAMO_DB_TABLE",
-      "AWS_DYNAMO_DB_GLOBAL_TABLE",
-      "AWS_NETWORK_INTERFACE",
-      "AWS_SUBNET",
-      "AWS_RDS_GLOBAL_CLUSTER",
-      "AWS_RDS_SUBNET_GROUP",
-      "AWS_RDS_PROXY",
-      "AWS_RDS_DB_CLUSTER_PARAMETER_GROUP",
-      "AWS_RDS_DB_PARAMETER_GROUP",
-      "AWS_REDSHIFT_SUBNET_GROUP",
-      "AWS_VPC_ENDPOINT_SERVICE",
-      "AWS_VPC_ENDPOINT",
-      "AWS_VPC_SECURITY_GROUP",
-      "AWS_IAM_ROLE",
-      "AWS_GLUE_RESOURCE_POLICY",
-      "AWS_ECR_POLICY",
-      "AWS_S3_BUCKET_POLICY",
-      "AWS_GLUE_TABLE",
-      "AWS_EC2_INSTANCE",
-      "AWS_EC2_REGION",
-      "AWS_OPEN_SEARCH_DOMAIN",
-      "AWS_KMS",
-      "AWS_AUTO_SCALING_GROUP",
-      "AZURE_SQL_SERVER",
-      "AZURE_SQL_SERVER_MANAGED_INSTANCE",
-      "AZURE_MYSQL_FLEXIBLE_SERVER",
-      "AZURE_MYSQL",
-      "AZURE_POSTGRESQL",
-      "AZURE_POSTGRESQL_FLEXIBLE_SERVER",
-      "AZURE_MARIADB",
-      "AZURE_COSMOSDB_NOSQL",
-      "AZURE_SERVICE_PRINCIPAL",
-      "AZURE_PRIVATE_ENDPOINT",
-      "AZURE_VIRTUAL_MACHINE",
-      "AZURE_VIRTUAL_SUBNET",
-      "AZURE_SYNAPSE_WORKSPACE",
-      "AZURE_NETWORK_INTERFACE",
-      "GCP_SQL",
-      "GCP_BIGQUERY_DATASET_REGION",
-      "GCP_VPC_NETWORK",
-      "IDC_RESOURCE",
-    ]),
-    database_type: z.string(),
-    oracle_service_id: z.string(),
-    credential_id: z.string(),
-    network_interface_id: z.string(),
-    ip_configuration: z.string(),
-    project_id: z.string(),
-    instance_name: z.string(),
-    host_network: z.string(),
-    host_project: z.string(),
-    cloud_sql_type: z.string(),
-    subscription_id: z.string(),
-    resource_group: z.string(),
-    server_name: z.string(),
-    idc_host_format: z.enum(["IP", "HOST"]),
-    idc_ips: z.array(z.string()),
-    idc_host: z.string(),
-    idc_source_ips: z.array(z.string()),
-    nlb_index: z.number().int(),
+    provider: Str,
+    region: Str,
+    host: Str,
+    port: Num,
+    networkInterfaces: z.array(NetworkInterfaceDto).nullable(),
+    resource_type: Str,
+    database_type: Str,
+    oracle_service_id: Str,
+    credential_id: Str,
+    network_interface_id: Str,
+    ip_configuration: Str,
+    project_id: Str,
+    instance_name: Str,
+    host_network: Str,
+    host_project: Str,
+    cloud_sql_type: Str,
+    subscription_id: Str,
+    resource_group: Str,
+    server_name: Str,
+    idc_host_format: Str,
+    idc_ips: z.array(Str).nullable(),
+    idc_host: Str,
+    idc_source_ips: z.array(Str).nullable(),
+    nlb_index: Num,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceResourceItemDto = z
   .object({
-    selected: z.boolean().optional(),
+    selected: Bool.optional(),
     metadata: TargetSourceResourceMetadataDto,
-    resource_id: z.string().optional(),
-    resource_name: z.string().optional(),
+    resource_id: Str.optional(),
+    resource_name: Str.optional(),
     resource_type: z
       .enum([
         "AWS_ATHENA",
@@ -184,877 +137,568 @@ const TargetSourceResourceItemDto = z
         "AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED",
       ])
       .optional(),
-    exclusion_reason: z.string().optional(),
+    exclusion_reason: Str.optional(),
   })
-  .passthrough();
+  .partial().passthrough();
 const ApprovalRequestInputDto = z
-  .object({ resources: z.array(TargetSourceResourceItemDto) })
-  .partial()
-  .passthrough();
+  .object({ resources: z.array(TargetSourceResourceItemDto).nullable() })
+  .partial().passthrough();
 const ApprovalApproveRequestDto = z
-  .object({ comment: z.string() })
-  .partial()
-  .passthrough();
+  .object({ comment: Str })
+  .partial().passthrough();
 const TargetSourceCreationCandidateMetadata = z
   .object({
-    aws_account_id: z.string().regex(/^[0-9]{12}$/),
-    tenant_id: z.string(),
-    subscription_id: z.string(),
-    project_id: z.string(),
-    description: z.string(),
+    aws_account_id: Str,
+    tenant_id: Str,
+    subscription_id: Str,
+    project_id: Str,
+    description: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceCreationCandidateResponse = z
   .object({
-    status: z.enum(["ADD", "DUPLICATE"]),
-    cloud_type: z.enum(["AWS", "GCP", "AZURE", "IDC", "UNKNOWN"]),
-    is_sdu_type: z.boolean(),
-    is_china_region: z.boolean(),
+    status: Str,
+    cloud_type: Str,
+    is_sdu_type: Bool,
+    is_china_region: Bool,
     metadata: TargetSourceCreationCandidateMetadata,
-    existing_target_source_id: z.number().int().nullish(),
-    grant_service_terraform_execution_permission: z.boolean().nullish(),
+    existing_target_source_id: Num.nullish(),
+    grant_service_terraform_execution_permission: Bool.nullish(),
   })
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceCreationCandidateRequest = z
   .object({
     cloud_type: z
       .enum(["aws", "azure", "gcp", "idc", "others"]),
-    is_china_region: z.boolean(),
-    database_types: z.array(z.string()),
-    grant_service_terraform_execution_permission: z.boolean().optional(),
+    is_china_region: Bool,
+    database_types: z.array(Str).nullable(),
+    grant_service_terraform_execution_permission: Bool.optional(),
     metadata: TargetSourceCreationCandidateMetadata,
   })
-  .passthrough();
+  .partial().passthrough();
 const Link = z
-  .object({ href: z.string(), templated: z.boolean() })
-  .partial()
-  .passthrough();
+  .object({ href: Str, templated: Bool })
+  .partial().passthrough();
 const ErrorMessage = z
   .object({
-    timestamp: z.string().datetime({ offset: true }),
-    status: z.enum([
-      "100 CONTINUE",
-      "101 SWITCHING_PROTOCOLS",
-      "102 PROCESSING",
-      "103 EARLY_HINTS",
-      "103 CHECKPOINT",
-      "200 OK",
-      "201 CREATED",
-      "202 ACCEPTED",
-      "203 NON_AUTHORITATIVE_INFORMATION",
-      "204 NO_CONTENT",
-      "205 RESET_CONTENT",
-      "206 PARTIAL_CONTENT",
-      "207 MULTI_STATUS",
-      "208 ALREADY_REPORTED",
-      "226 IM_USED",
-      "300 MULTIPLE_CHOICES",
-      "301 MOVED_PERMANENTLY",
-      "302 FOUND",
-      "302 MOVED_TEMPORARILY",
-      "303 SEE_OTHER",
-      "304 NOT_MODIFIED",
-      "305 USE_PROXY",
-      "307 TEMPORARY_REDIRECT",
-      "308 PERMANENT_REDIRECT",
-      "400 BAD_REQUEST",
-      "401 UNAUTHORIZED",
-      "402 PAYMENT_REQUIRED",
-      "403 FORBIDDEN",
-      "404 NOT_FOUND",
-      "405 METHOD_NOT_ALLOWED",
-      "406 NOT_ACCEPTABLE",
-      "407 PROXY_AUTHENTICATION_REQUIRED",
-      "408 REQUEST_TIMEOUT",
-      "409 CONFLICT",
-      "410 GONE",
-      "411 LENGTH_REQUIRED",
-      "412 PRECONDITION_FAILED",
-      "413 PAYLOAD_TOO_LARGE",
-      "413 REQUEST_ENTITY_TOO_LARGE",
-      "414 URI_TOO_LONG",
-      "414 REQUEST_URI_TOO_LONG",
-      "415 UNSUPPORTED_MEDIA_TYPE",
-      "416 REQUESTED_RANGE_NOT_SATISFIABLE",
-      "417 EXPECTATION_FAILED",
-      "418 I_AM_A_TEAPOT",
-      "419 INSUFFICIENT_SPACE_ON_RESOURCE",
-      "420 METHOD_FAILURE",
-      "421 DESTINATION_LOCKED",
-      "422 UNPROCESSABLE_ENTITY",
-      "423 LOCKED",
-      "424 FAILED_DEPENDENCY",
-      "425 TOO_EARLY",
-      "426 UPGRADE_REQUIRED",
-      "428 PRECONDITION_REQUIRED",
-      "429 TOO_MANY_REQUESTS",
-      "431 REQUEST_HEADER_FIELDS_TOO_LARGE",
-      "451 UNAVAILABLE_FOR_LEGAL_REASONS",
-      "500 INTERNAL_SERVER_ERROR",
-      "501 NOT_IMPLEMENTED",
-      "502 BAD_GATEWAY",
-      "503 SERVICE_UNAVAILABLE",
-      "504 GATEWAY_TIMEOUT",
-      "505 HTTP_VERSION_NOT_SUPPORTED",
-      "506 VARIANT_ALSO_NEGOTIATES",
-      "507 INSUFFICIENT_STORAGE",
-      "508 LOOP_DETECTED",
-      "509 BANDWIDTH_LIMIT_EXCEEDED",
-      "510 NOT_EXTENDED",
-      "511 NETWORK_AUTHENTICATION_REQUIRED",
-    ]),
-    code: z.string(),
-    message: z.string(),
-    path: z.string(),
+    timestamp: Str,
+    status: Str,
+    code: Str,
+    message: Str,
+    path: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestConnectionConfirmationResponse = z
   .object({
-    target_source_id: z.number().int(),
-    confirmed: z.boolean(),
-    confirmed_at: z.string().datetime({ offset: true }),
+    target_source_id: Num,
+    confirmed: Bool,
+    confirmed_at: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const UpdateCredentialResponse = z
-  .object({ success: z.boolean() })
-  .partial()
-  .passthrough();
+  .object({ success: Bool })
+  .partial().passthrough();
 const SkipLogicalDatabaseResponse = z
-  .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem) })
-  .partial()
-  .passthrough();
+  .object({ skip_logical_database_list: z.array(SkipLogicalDatabaseItem).nullable() })
+  .partial().passthrough();
 const GuideContents = z
-  .object({ ko: z.string(), en: z.string() })
-  .partial()
-  .passthrough();
+  .object({ ko: Str, en: Str })
+  .partial().passthrough();
 const GuideDetail = z
   .object({
-    name: z.string(),
+    name: Str,
     contents: GuideContents,
-    updatedAt: z.string().datetime({ offset: true }),
+    updatedAt: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestConnectionTriggerResponse = z
-  .object({ success: z.boolean() })
-  .partial()
-  .passthrough();
+  .object({ success: Bool })
+  .partial().passthrough();
 const ScanJobResponse = z
   .object({
-    id: z.number().int(),
-    scan_status: z.enum(["SCANNING", "FAIL", "CANCELED", "SUCCESS", "TIMEOUT"]),
-    target_source_id: z.number().int(),
-    created_at: z.string().datetime({ offset: true }),
-    updated_at: z.string().datetime({ offset: true }),
-    scan_version: z.number().int(),
-    scan_progress: z.number().int(),
-    duration_seconds: z.number(),
-    resource_count_by_resource_type: z.record(z.number().int()),
-    scan_error: z.enum([
-      "AUTH_PERMISSION_ERROR",
-      "RATE_LIMIT",
-      "NETWORK_ERROR",
-      "SERVICE_ERROR",
-      "UNKNOWN",
-    ]),
+    id: Num,
+    scan_status: Str,
+    target_source_id: Num,
+    created_at: Str,
+    updated_at: Str,
+    scan_version: Num,
+    scan_progress: Num,
+    duration_seconds: Num,
+    resource_count_by_resource_type: z.record(Num).nullable(),
+    scan_error: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ServiceInfoRefinedResponse = z
   .object({
-    code: z.string(),
-    serviceName: z.string(),
-    abbr: z.string(),
-    installed: z.boolean(),
-    isEosService: z.boolean(),
-    createdAt: z.string().datetime({ offset: true }),
-    updatedAt: z.string().datetime({ offset: true }),
+    code: Str,
+    serviceName: Str,
+    abbr: Str,
+    installed: Bool,
+    isEosService: Bool,
+    createdAt: Str,
+    updatedAt: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceResponse = z
   .object({
-    id: z.number().int(),
+    id: Num,
     serviceInfo: ServiceInfoRefinedResponse,
-    serviceType: z.string(),
-    division: z.string(),
-    cloudProvider: z.enum(["AWS", "GCP", "AZURE", "IDC", "UNKNOWN"]),
-    state: z.enum([
-      "CREATED",
-      "CONFIRMED",
-      "PROVISIONING",
-      "ACTIVE",
-      "CONFIRM_FAILED",
-      "PROVISION_FAILED",
-      "DESTROY_FAILED",
-    ]),
-    supportRawData: z.boolean(),
-    description: z.string(),
+    serviceType: Str,
+    division: Str,
+    cloudProvider: Str,
+    state: Str,
+    supportRawData: Bool,
+    description: Str,
     cloudResourceAccessList: z.array(
-      z.record(z.object({}).partial().passthrough())
-    ),
-    createdAt: z.string().datetime({ offset: true }),
-    updatedAt: z.string().datetime({ offset: true }),
-    confirmStatus: z.enum([
-      "IDLE",
-      "PENDING",
-      "UNAVAILABLE",
-      "CONFIRMING",
-      "RESOURCE_CLEANING",
-      "RESOURCE_CLEAN_FAILED",
-      "CONFIRMED",
-    ]),
-    piiAgentInstalledAt: z.string().datetime({ offset: true }),
+      z.record(Loose).nullable()
+    ).nullable(),
+    createdAt: Str,
+    updatedAt: Str,
+    confirmStatus: Str,
+    piiAgentInstalledAt: Str,
   })
-  .partial()
-  .passthrough();
-const ActorDto = z.object({ user_id: z.string() }).partial().passthrough();
+  .partial().passthrough();
+const ActorDto = z.object({ user_id: Str }).partial().passthrough();
 const ApprovalUnavailableResponseDto = z
   .object({
-    request_id: z.number().int(),
-    status: z.enum([
-      "PENDING",
-      "APPROVED",
-      "AUTO_APPROVED",
-      "REJECTED",
-      "CANCELLED",
-      "UNAVAILABLE",
-      "UNAVAILABLE_ACKNOWLEDGED",
-    ]),
+    request_id: Num,
+    status: Str,
     processed_by: ActorDto,
-    processed_at: z.string().datetime({ offset: true }),
-    reason: z.string(),
+    processed_at: Str,
+    reason: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ApprovalUnavailableConfirmResponseDto = z
   .object({
-    target_source_id: z.number().int(),
-    confirm_status: z.enum([
-      "IDLE",
-      "PENDING",
-      "UNAVAILABLE",
-      "CONFIRMING",
-      "RESOURCE_CLEANING",
-      "RESOURCE_CLEAN_FAILED",
-      "CONFIRMED",
-    ]),
-    processed_at: z.string().datetime({ offset: true }),
-    confirmed_by: z.string(),
+    target_source_id: Num,
+    confirm_status: Str,
+    processed_at: Str,
+    confirmed_by: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ApprovalRequestSummaryDto = z
   .object({
-    id: z.number().int(),
-    target_source_id: z.number().int(),
-    status: z.enum([
-      "PENDING",
-      "APPROVED",
-      "AUTO_APPROVED",
-      "REJECTED",
-      "CANCELLED",
-      "UNAVAILABLE",
-      "UNAVAILABLE_ACKNOWLEDGED",
-    ]),
+    id: Num,
+    target_source_id: Num,
+    status: Str,
     requested_by: ActorDto,
-    requested_at: z.string().datetime({ offset: true }),
-    resource_total_count: z.number().int(),
-    resource_selected_count: z.number().int(),
+    requested_at: Str,
+    resource_total_count: Num,
+    resource_selected_count: Num,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ApprovalActionResponseDto = z
   .object({
-    request_id: z.number().int(),
-    status: z.enum([
-      "PENDING",
-      "APPROVED",
-      "AUTO_APPROVED",
-      "REJECTED",
-      "CANCELLED",
-      "UNAVAILABLE",
-      "UNAVAILABLE_ACKNOWLEDGED",
-    ]),
+    request_id: Num,
+    status: Str,
     processed_by: ActorDto,
-    processed_at: z.string().datetime({ offset: true }),
-    reason: z.string(),
+    processed_at: Str,
+    reason: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceMetadata = z
   .object({
-    tenant_id: z.string(),
-    subscription_id: z.string(),
-    gcp_project_id: z.string(),
-    aws_account_id: z.string(),
-    is_sdu_type: z.boolean(),
-    is_china_region: z.boolean(),
-    grant_service_terraform_execution_permission: z.boolean(),
+    tenant_id: Str,
+    subscription_id: Str,
+    gcp_project_id: Str,
+    aws_account_id: Str,
+    is_sdu_type: Bool,
+    is_china_region: Bool,
+    grant_service_terraform_execution_permission: Bool,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceInfo = z
   .object({
-    targetSourceId: z.number().int(),
-    description: z.string(),
-    cloudProvider: z.enum(["AWS", "GCP", "AZURE", "IDC", "UNKNOWN"]),
-    createdAt: z.string().datetime({ offset: true }),
-    serviceCode: z.string(),
-    serviceName: z.string(),
-    updatedAt: z.string().datetime({ offset: true }),
+    targetSourceId: Num,
+    description: Str,
+    cloudProvider: Str,
+    createdAt: Str,
+    serviceCode: Str,
+    serviceName: Str,
+    updatedAt: Str,
     metadata: TargetSourceMetadata,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const UserInfo = z
-  .object({ id: z.string(), name: z.string(), email: z.string() })
-  .partial()
-  .passthrough();
+  .object({ id: Str, name: Str, email: Str })
+  .partial().passthrough();
 const UserSearchResponse = z
-  .object({ users: z.array(UserInfo) })
-  .partial()
-  .passthrough();
+  .object({ users: z.array(UserInfo).nullable() })
+  .partial().passthrough();
 const SortObject = z
   .object({
-    direction: z.string(),
-    nullHandling: z.string(),
-    ascending: z.boolean(),
-    property: z.string(),
-    ignoreCase: z.boolean(),
+    direction: Str,
+    nullHandling: Str,
+    ascending: Bool,
+    property: Str,
+    ignoreCase: Bool,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const PageableObject = z
   .object({
-    paged: z.boolean(),
-    pageNumber: z.number().int(),
-    pageSize: z.number().int(),
-    unpaged: z.boolean(),
-    offset: z.number().int(),
-    sort: z.array(SortObject),
+    paged: Bool,
+    pageNumber: Num,
+    pageSize: Num,
+    unpaged: Bool,
+    offset: Num,
+    sort: z.array(SortObject).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ServiceItem = z
-  .object({ service_code: z.string(), service_name: z.string() })
-  .partial()
-  .passthrough();
+  .object({ service_code: Str, service_name: Str })
+  .partial().passthrough();
 const PageServiceItem = z
   .object({
-    totalPages: z.number().int(),
-    totalElements: z.number().int(),
+    totalPages: Num,
+    totalElements: Num,
     pageable: PageableObject,
-    first: z.boolean(),
-    last: z.boolean(),
-    size: z.number().int(),
-    content: z.array(ServiceItem),
-    number: z.number().int(),
-    sort: z.array(SortObject),
-    numberOfElements: z.number().int(),
-    empty: z.boolean(),
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(ServiceItem).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const UserMeResponse = z
-  .object({ id: z.string(), name: z.string(), email: z.string() })
-  .partial()
-  .passthrough();
+  .object({ id: Str, name: Str, email: Str })
+  .partial().passthrough();
 const AzureServicePrincipalVerificationResponse = z
   .object({
-    app_id: z.string(),
-    status: z.string(),
-    fail_reason: z.string(),
-    fail_message: z.string(),
-    last_verified_at: z.string().datetime({ offset: true }),
+    app_id: Str,
+    status: Str,
+    fail_reason: Str,
+    fail_message: Str,
+    last_verified_at: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TargetSourceDetail = z
   .object({
-    description: z.string(),
-    target_source_id: z.number().int(),
-    service_code: z.string(),
-    service_name: z.string(),
-    process_status: z.enum([
-      "IDLE",
-      "PENDING",
-      "CONFIRMING",
-      "CONFIRMED",
-      "INSTALLED",
-      "CONNECTED",
-      "COMPLETED",
-    ]),
-    cloud_provider: z.enum(["AWS", "GCP", "AZURE", "IDC", "UNKNOWN"]),
-    created_at: z.string().datetime({ offset: true }),
+    description: Str,
+    target_source_id: Num,
+    service_code: Str,
+    service_name: Str,
+    process_status: Str,
+    cloud_provider: Str,
+    created_at: Str,
     metadata: TargetSourceMetadata,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestedLogicalDatabaseItem = z
   .object({
-    database_name: z.string(),
-    schema_name: z.string(),
-    type: z.enum(["DATABASE", "SCHEMA"]),
+    database_name: Str,
+    schema_name: Str,
+    type: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestedLogicalDatabasesResponse = z
-  .object({ logical_database_list: z.array(TestedLogicalDatabaseItem) })
-  .partial()
-  .passthrough();
+  .object({ logical_database_list: z.array(TestedLogicalDatabaseItem).nullable() })
+  .partial().passthrough();
 const TestConnectionAgentResult = z
   .object({
-    agent_id: z.string(),
-    gcp_region: z.string(),
-    resource_id: z.string(),
-    connection_status: z.enum(["PENDING", "RUNNING", "SUCCESS", "FAIL"]),
-    database_uri_list: z.array(z.string()),
+    agent_id: Str,
+    gcp_region: Str,
+    resource_id: Str,
+    connection_status: Str,
+    database_uri_list: z.array(Str).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestConnectionVersionResult = z
   .object({
-    target_source_id: z.number().int(),
-    test_connection_version: z.number().int(),
-    connection_status: z.enum(["PENDING", "RUNNING", "SUCCESS", "FAIL"]),
-    requested_at: z.string().datetime({ offset: true }),
-    completed_at: z.string().datetime({ offset: true }),
-    test_connection_agent_results: z.array(TestConnectionAgentResult),
+    target_source_id: Num,
+    test_connection_version: Num,
+    connection_status: Str,
+    requested_at: Str,
+    completed_at: Str,
+    test_connection_agent_results: z.array(TestConnectionAgentResult).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestConnectionLatestResultSummaryResponse = z
   .object({
-    resource_id: z.string(),
-    agent_id: z.string(),
-    logical_database_count: z.number().int(),
-    excluded_logical_database_count: z.number().int(),
+    resource_id: Str,
+    agent_id: Str,
+    logical_database_count: Num,
+    excluded_logical_database_count: Num,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const TestConnectionCompletionStatusResponse = z
   .object({
-    target_source_id: z.number().int(),
-    latest_test_connection_requested_at: z.string().datetime({ offset: true }),
-    logical_database_updated_at: z.string().datetime({ offset: true }),
-    latest_test_connection_success: z.boolean(),
-    test_connection_status: z.enum([
-      "CONFIRMED",
-      "LATEST_TEST_CONNECTION_SUCCESS",
-      "TEST_CONNECTION_REQUIRED",
-      "LOGICAL_DATABASE_RECENTLY_UPDATED",
-    ]),
-    test_connection_confirmed: z.boolean(),
+    target_source_id: Num,
+    latest_test_connection_requested_at: Str,
+    logical_database_updated_at: Str,
+    latest_test_connection_success: Bool,
+    test_connection_status: Str,
+    test_connection_confirmed: Bool,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const SecretResponse = z
   .object({
-    name: z.string(),
-    create_time: z.number().int(),
-    create_time_str: z.string(),
+    name: Str,
+    create_time: Num,
+    create_time_str: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const PageScanJobResponse = z
   .object({
-    totalPages: z.number().int(),
-    totalElements: z.number().int(),
+    totalPages: Num,
+    totalElements: Num,
     pageable: PageableObject,
-    first: z.boolean(),
-    last: z.boolean(),
-    size: z.number().int(),
-    content: z.array(ScanJobResponse),
-    number: z.number().int(),
-    sort: z.array(SortObject),
-    numberOfElements: z.number().int(),
-    empty: z.boolean(),
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(ScanJobResponse).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const CloudResourceResponse = z
   .object({
-    resources: z.array(TargetSourceResourceItemDto),
-    total_count: z.number().int(),
+    resources: z.array(TargetSourceResourceItemDto).nullable(),
+    total_count: Num,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ProcessStatusResponseDto = z
   .object({
-    target_source_id: z.number().int(),
-    process_status: z.enum([
-      "IDLE",
-      "PENDING",
-      "CONFIRMING",
-      "CONFIRMED",
-      "INSTALLED",
-      "CONNECTED",
-      "COMPLETED",
-    ]),
-    healthy: z.enum(["UNKNOWN", "HEALTHY", "UNHEALTHY", "DEGRADED"]),
-    evaluated_at: z.string().datetime({ offset: true }),
+    target_source_id: Num,
+    process_status: Str,
+    healthy: Str,
+    evaluated_at: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const IdcResourceInput = z
   .object({
-    ips: z.array(z.string()),
-    host: z.string(),
-    port: z.number().int(),
-    selected: z.boolean(),
-    input_format: z.enum(["IP", "HOST"]),
-    database_type: z.string(),
-    service_id: z.string(),
-    credential_id: z.string(),
-    exclusion_reason: z.string(),
+    ips: z.array(Str).nullable(),
+    host: Str,
+    port: Num,
+    selected: Bool,
+    input_format: Str,
+    database_type: Str,
+    service_id: Str,
+    credential_id: Str,
+    exclusion_reason: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const IdcPreviousRequestResponse = z
-  .object({ resources: z.array(IdcResourceInput) })
-  .partial()
-  .passthrough();
+  .object({ resources: z.array(IdcResourceInput).nullable() })
+  .partial().passthrough();
 const CloudInstallationStepStatusDto = z
   .object({
-    status: z.enum(["COMPLETED", "FAIL", "IN_PROGRESS", "SKIP", "UNKNOWN"]),
-    guide: z.string(),
+    status: Str,
+    guide: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const IdcLastCheckDto = z
   .object({
-    status: z.enum(["COMPLETED", "FAIL", "IN_PROGRESS", "SKIP", "UNKNOWN"]),
-    checked_at: z.string().datetime({ offset: true }),
-    fail_reason: z.string(),
+    status: Str,
+    checked_at: Str,
+    fail_reason: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const IdcResourceInstallationStatusDto = z
   .object({
-    resource_id: z.string(),
-    installation_status: z.enum([
-      "COMPLETED",
-      "FAIL",
-      "IN_PROGRESS",
-      "SKIP",
-      "UNKNOWN",
-    ]),
+    resource_id: Str,
+    installation_status: Str,
     bdc_side_cx_terraform_apply: CloudInstallationStepStatusDto,
     bdc_side_bdp_terraform_apply: CloudInstallationStepStatusDto,
     firewall_check: CloudInstallationStepStatusDto,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const IdcInstallationStatusResponse = z
   .object({
     last_check: IdcLastCheckDto,
-    resources: z.array(IdcResourceInstallationStatusDto),
+    resources: z.array(IdcResourceInstallationStatusDto).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const GcpServiceAccountInfoResponse = z
   .object({
-    gcp_project_id: z.string(),
-    status: z.enum(["VALID", "INVALID", "UNVERIFIED"]),
-    fail_reason: z.enum([
-      "SA_NOT_CONFIGURED",
-      "SA_NOT_FOUND",
-      "SA_INSUFFICIENT_PERMISSIONS",
-      "SCAN_SA_UNAVAILABLE",
-    ]),
-    fail_message: z.string(),
-    last_verified_at: z.string().datetime({ offset: true }),
+    gcp_project_id: Str,
+    status: Str,
+    fail_reason: Str,
+    fail_message: Str,
+    last_verified_at: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const LastCheckInfoDto = z
   .object({
-    status: z.enum([
-      "NEVER_CHECKED",
-      "IN_PROGRESS",
-      "COMPLETED",
-      "FAILED",
-      "SUCCESS",
-    ]),
-    checked_at: z.string().datetime({ offset: true }),
-    fail_reason: z.string(),
+    status: Str,
+    checked_at: Str,
+    fail_reason: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const GcpResourceInstallationStatusDto = z
   .object({
-    resource_id: z.string(),
-    resource_name: z.string(),
-    installation_status: z.enum([
-      "COMPLETED",
-      "FAIL",
-      "IN_PROGRESS",
-      "SKIP",
-      "UNKNOWN",
-    ]),
+    resource_id: Str,
+    resource_name: Str,
+    installation_status: Str,
     service_side_subnet_creation: CloudInstallationStepStatusDto,
     service_side_terraform_apply: CloudInstallationStepStatusDto,
     bdc_side_terraform_apply: CloudInstallationStepStatusDto,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const GcpInstallationStatusResponse = z
   .object({
     last_check: LastCheckInfoDto,
-    resources: z.array(GcpResourceInstallationStatusDto),
+    resources: z.array(GcpResourceInstallationStatusDto).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ResourceConfigDto = z
   .object({
-    resource_id: z.string(),
-    resource_type: z.string(),
-    database_type: z.string(),
-    port: z.number().int(),
-    host: z.string(),
-    oracle_service_id: z.string(),
-    network_interface_id: z.string(),
-    ip_configuration: z.string(),
-    credential_id: z.string(),
-    database_region: z.string(),
-    resource_name: z.string(),
-    agent_id: z.string(),
-    athena_region_resource_id: z.string(),
-    protocol: z.string(),
-    secret_info: z.string(),
-    db_target_ip_list: z.array(z.string()),
-    public_domain_name_list: z.array(z.string()),
-    private_domain_name_list: z.array(z.string()),
-    idc_host_format: z.enum(["IP", "HOST"]),
-    idc_ips: z.array(z.string()),
-    idc_host: z.string(),
-    idc_source_ips: z.array(z.string()),
-    nlb_index: z.number().int(),
+    resource_id: Str,
+    resource_type: Str,
+    database_type: Str,
+    port: Num,
+    host: Str,
+    oracle_service_id: Str,
+    network_interface_id: Str,
+    ip_configuration: Str,
+    credential_id: Str,
+    database_region: Str,
+    resource_name: Str,
+    agent_id: Str,
+    athena_region_resource_id: Str,
+    protocol: Str,
+    secret_info: Str,
+    db_target_ip_list: z.array(Str).nullable(),
+    public_domain_name_list: z.array(Str).nullable(),
+    private_domain_name_list: z.array(Str).nullable(),
+    idc_host_format: Str,
+    idc_ips: z.array(Str).nullable(),
+    idc_host: Str,
+    idc_source_ips: z.array(Str).nullable(),
+    nlb_index: Num,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ConfirmedIntegrationResponse = z
-  .object({ resource_infos: z.array(ResourceConfigDto) })
-  .partial()
-  .passthrough();
+  .object({ resource_infos: z.array(ResourceConfigDto).nullable() })
+  .partial().passthrough();
 const PrivateEndpointDetail = z
-  .object({ id: z.string(), name: z.string(), status: z.string() })
-  .partial()
-  .passthrough();
+  .object({ id: Str, name: Str, status: Str })
+  .partial().passthrough();
 const VmInstallationDetail = z
   .object({
-    subnet_exists: z.boolean(),
-    load_balancer: z.object({}).partial().passthrough(),
+    subnet_exists: Bool,
+    load_balancer: Loose,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AzureResourceStatus = z
   .object({
-    resource_id: z.string(),
-    resource_name: z.string(),
-    resource_type: z.string(),
+    resource_id: Str,
+    resource_name: Str,
+    resource_type: Str,
     private_endpoint: PrivateEndpointDetail,
     vm_installation: VmInstallationDetail,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AzureInstallationStatusResponse = z
   .object({
     last_check: LastCheckInfoDto,
-    resources: z.array(AzureResourceStatus),
+    resources: z.array(AzureResourceStatus).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AwsRoleVerificationResponse = z
   .object({
-    status: z.string(),
-    role_arn: z.string(),
-    fail_reason: z.string(),
-    fail_message: z.string(),
-    last_verified_at: z.string().datetime({ offset: true }),
+    status: Str,
+    role_arn: Str,
+    fail_reason: Str,
+    fail_message: Str,
+    last_verified_at: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AwsResourceInstallationStatusDto = z
   .object({
-    resource_id: z.string(),
-    resource_name: z.string(),
-    installation_status: z.enum([
-      "COMPLETED",
-      "FAIL",
-      "IN_PROGRESS",
-      "SKIP",
-      "UNKNOWN",
-    ]),
+    resource_id: Str,
+    resource_name: Str,
+    installation_status: Str,
     service_terraform: CloudInstallationStepStatusDto,
     bdc_service_terraform: CloudInstallationStepStatusDto,
     bdc_common_terraform: CloudInstallationStepStatusDto,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AwsTerraformExecutionRoleVerifyDto = z
   .object({
-    status: z.enum(["COMPLETED", "FAIL", "IN_PROGRESS", "SKIP", "UNKNOWN"]),
-    role_arn: z.string(),
+    status: Str,
+    role_arn: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AwsInstallationStatusResponse = z
   .object({
     last_check: LastCheckInfoDto,
-    resources: z.array(AwsResourceInstallationStatusDto),
+    resources: z.array(AwsResourceInstallationStatusDto).nullable(),
     terraform_execution_role_verify: AwsTerraformExecutionRoleVerifyDto,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ApprovedIntegrationResponseDto = z
   .object({
-    id: z.number().int(),
-    request_id: z.number().int(),
-    approved_at: z.string().datetime({ offset: true }),
+    id: Num,
+    request_id: Num,
+    approved_at: Str,
     approved_by: ActorDto,
-    resources: z.array(TargetSourceResourceItemDto),
+    resources: z.array(TargetSourceResourceItemDto).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const ApprovalRequestLatestDto = z
   .object({
     request: ApprovalRequestSummaryDto,
-    resources: z.array(TargetSourceResourceItemDto),
+    resources: z.array(TargetSourceResourceItemDto).nullable(),
     result: ApprovalActionResponseDto,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const Page = z
   .object({
-    totalPages: z.number().int(),
-    totalElements: z.number().int(),
+    totalPages: Num,
+    totalElements: Num,
     pageable: PageableObject,
-    first: z.boolean(),
-    last: z.boolean(),
-    size: z.number().int(),
-    content: z.array(z.object({}).partial().passthrough()),
-    number: z.number().int(),
-    sort: z.array(SortObject),
-    numberOfElements: z.number().int(),
-    empty: z.boolean(),
+    first: Bool,
+    last: Bool,
+    size: Num,
+    content: z.array(Loose).nullable(),
+    number: Num,
+    sort: z.array(SortObject).nullable(),
+    numberOfElements: Num,
+    empty: Bool,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AuthorizedUsersResponse = z
-  .object({ users: z.array(UserInfo) })
-  .partial()
-  .passthrough();
+  .object({ users: z.array(UserInfo).nullable() })
+  .partial().passthrough();
 const AzurePrivateLinkHealthResult = z
   .object({
-    provisioningState: z.string(),
-    resourceId: z.string(),
-    privateLinkId: z.string(),
-    resourceType: z.enum([
-      "AWS_ATHENA",
-      "AWS_ATHENA_DATABASE",
-      "AWS_DB_CLUSTER",
-      "AWS_DB_INSTANCE",
-      "AWS_REDSHIFT_CLUSTER",
-      "AWS_DYNAMO_DB_REGION",
-      "AWS_DYNAMO_DB_TABLE",
-      "AWS_DYNAMO_DB_GLOBAL_TABLE",
-      "AWS_NETWORK_INTERFACE",
-      "AWS_SUBNET",
-      "AWS_RDS_GLOBAL_CLUSTER",
-      "AWS_RDS_SUBNET_GROUP",
-      "AWS_RDS_PROXY",
-      "AWS_RDS_DB_CLUSTER_PARAMETER_GROUP",
-      "AWS_RDS_DB_PARAMETER_GROUP",
-      "AWS_REDSHIFT_SUBNET_GROUP",
-      "AWS_VPC_ENDPOINT_SERVICE",
-      "AWS_VPC_ENDPOINT",
-      "AWS_VPC_SECURITY_GROUP",
-      "AWS_IAM_ROLE",
-      "AWS_GLUE_RESOURCE_POLICY",
-      "AWS_ECR_POLICY",
-      "AWS_S3_BUCKET_POLICY",
-      "AWS_GLUE_TABLE",
-      "AWS_EC2_INSTANCE",
-      "AWS_EC2_REGION",
-      "AWS_OPEN_SEARCH_DOMAIN",
-      "AWS_KMS",
-      "AWS_AUTO_SCALING_GROUP",
-      "AZURE_SQL_SERVER",
-      "AZURE_SQL_SERVER_MANAGED_INSTANCE",
-      "AZURE_MYSQL_FLEXIBLE_SERVER",
-      "AZURE_MYSQL",
-      "AZURE_POSTGRESQL",
-      "AZURE_POSTGRESQL_FLEXIBLE_SERVER",
-      "AZURE_MARIADB",
-      "AZURE_COSMOSDB_NOSQL",
-      "AZURE_SERVICE_PRINCIPAL",
-      "AZURE_PRIVATE_ENDPOINT",
-      "AZURE_VIRTUAL_MACHINE",
-      "AZURE_VIRTUAL_SUBNET",
-      "AZURE_SYNAPSE_WORKSPACE",
-      "AZURE_NETWORK_INTERFACE",
-      "GCP_SQL",
-      "GCP_BIGQUERY_DATASET_REGION",
-      "GCP_VPC_NETWORK",
-      "IDC_RESOURCE",
-    ]),
-    healthCheckStatus: z.enum([
-      "HEALTHY",
-      "UPDATING",
-      "UNHEALTHY",
-      "UNHEALTHY_NEED_SERVICE_ACTION",
-      "UNHEALTHY_NEED_BDC_SIDE_ACTION",
-      "NEED_TERRAFORM_EXECUTION",
-      "NEED_SCAN_PERMISSION",
-      "INTERNAL_SERVER_ERROR",
-      "EMPTY",
-    ]),
+    provisioningState: Str,
+    resourceId: Str,
+    privateLinkId: Str,
+    resourceType: Str,
+    healthCheckStatus: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const AzureHealthCheckResult = z
   .object({
-    healthCheckStatus: z.enum([
-      "HEALTHY",
-      "UPDATING",
-      "UNHEALTHY",
-      "UNHEALTHY_NEED_SERVICE_ACTION",
-      "UNHEALTHY_NEED_BDC_SIDE_ACTION",
-      "NEED_TERRAFORM_EXECUTION",
-      "NEED_SCAN_PERMISSION",
-      "INTERNAL_SERVER_ERROR",
-      "EMPTY",
-    ]),
-    azurePrivateLinkHealthResultList: z.array(AzurePrivateLinkHealthResult),
+    healthCheckStatus: Str,
+    azurePrivateLinkHealthResultList: z.array(AzurePrivateLinkHealthResult).nullable(),
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const NlbOccupiedResourceResponse = z
   .object({
-    serviceCode: z.string(),
-    serviceName: z.string(),
-    targetSourceId: z.number().int(),
-    isLatest: z.boolean(),
-    ipSet: z.array(z.string()),
-    port: z.number().int(),
-    databaseType: z.string(),
-    databaseName: z.string(),
+    serviceCode: Str,
+    serviceName: Str,
+    targetSourceId: Num,
+    isLatest: Bool,
+    ipSet: z.array(Str).nullable(),
+    port: Num,
+    databaseType: Str,
+    databaseName: Str,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 const NlbTableResponse = z
   .object({
-    nlbIndex: z.number().int(),
-    nlbIpList: z.array(z.string()),
-    occupiedListenerCount: z.number().int(),
+    nlbIndex: Num,
+    nlbIpList: z.array(Str).nullable(),
+    occupiedListenerCount: Num,
   })
-  .partial()
-  .passthrough();
+  .partial().passthrough();
 
 export const schemas = {
   UpdateTestConnectionConfirmationRequest,

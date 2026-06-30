@@ -49,10 +49,10 @@ const toTestedLogicalDatabase = (item: TestedItemWire): TestedLogicalDatabase =>
 });
 
 const toExcludedLogicalDatabase = (item: SkipItemWire): ExcludedLogicalDatabase => ({
-  databaseName: item.database_name,
+  databaseName: item.database_name ?? '',
   ...(item.schema_name ? { schemaName: item.schema_name } : {}),
-  skipReason: item.skip_reason,
-  type: item.type,
+  skipReason: item.skip_reason as SkipReason,
+  type: item.type as LogicalDbType,
 });
 
 // ---------------------------------------------------------------------------
