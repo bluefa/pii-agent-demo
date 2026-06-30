@@ -62,7 +62,8 @@ let src = readFileSync(OUT, 'utf8')
   .replace(/\.(email|url|uuid)\(\)/g, '')
   .replace(/\.(min|max)\(\d+\)/g, '')
   // 2. enums -> plain string (unknown BFF enum values are still strings).
-  .replace(/z\.enum\(\[[^\]]*\]\)/g, 'z.string()')
+  //    Whitespace-tolerant: prettier line-breaks long enums as `z\n.enum([...])`.
+  .replace(/z\s*\.\s*enum\(\s*\[[^\]]*\]\s*\)/g, 'z.string()')
   // 3. free-form `z.object({})` (infers `{}`) -> indexable record. Must run before step 5 strips
   //    the `.partial()` this pattern keys on.
   .replace(/z\.object\(\{\}\)\.partial\(\)\.passthrough\(\)/g, 'Loose')
