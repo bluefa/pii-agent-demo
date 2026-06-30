@@ -35,10 +35,10 @@ const scanJobToResult = (job: ScanJob): ScanResult | null => {
   const entries = Object.entries(job.resource_count_by_resource_type ?? {});
   if (entries.length === 0) return null;
   return {
-    totalFound: entries.reduce((sum, [, count]) => sum + count, 0),
+    totalFound: entries.reduce((sum, [, count]) => sum + (count ?? 0), 0),
     byResourceType: entries.map(([resourceType, count]) => ({
       resourceType: resourceType as ResourceType,
-      count,
+      count: count ?? 0,
     })),
   };
 };
@@ -74,7 +74,7 @@ export const ScanController = ({ targetSourceId, onScanComplete, children }: Sca
   const isInProgress = uiState === 'IN_PROGRESS';
   const canStart = !starting && !isInProgress;
   const lastResult = latestJob && latestJob.scan_status === 'SUCCESS' ? scanJobToResult(latestJob) : null;
-  const lastScanAt = latestJob?.scan_status === 'SUCCESS' ? latestJob.updated_at : undefined;
+  const lastScanAt = latestJob?.scan_status === 'SUCCESS' ? (latestJob.updated_at ?? undefined) : undefined;
   const state = uiStateToScanUiState(uiState);
   const progress = isInProgress
     ? (latestJob?.scan_progress ?? 0)

@@ -31,7 +31,7 @@ import { IdcReqApprovalModal } from '@/app/integration/target-sources/[targetSou
 import { LogicalDbModalLoader } from '@/app/integration/target-sources/[targetSourceId]/_components/logical-db/LogicalDbModalLoader';
 import type { IdcStepProps } from '@/app/integration/target-sources/[targetSourceId]/_components/idc/types';
 import { getProject } from '@/app/lib/api';
-import { getIdcConfirmedResources, type IdcResourceView } from '@/app/lib/api/idc';
+import { getIdcConfirmedResources, type IdcConnState, type IdcResourceView } from '@/app/lib/api/idc';
 
 type ResourcesState =
   | { status: 'loading' }
@@ -42,6 +42,10 @@ interface LogicalModalTarget {
   resourceId: string;
   resourceName: string;
 }
+
+// The wire connection_status is a loose nullable string; keep only the
+// IdcConnState members so the table's `connection` stays typed (else PENDING).
+const IDC_CONN_STATES: readonly IdcConnState[] = ['PENDING', 'RUNNING', 'SUCCESS', 'FAIL'];
 
 /**
  * IDC Step 5 — 연결 테스트.
@@ -153,7 +157,7 @@ export const IdcStep5ConnectionTest = ({
     ? state.resources.map((r) => ({
         ...r,
         credentialId: creds[r.resourceId] || undefined,
-        connection: statusByResource[r.resourceId] ?? 'PENDING',
+        connection: IDC_CONN_STATES.find((s) => s === statusByResource[r.resourceId]) ?? 'PENDING',
       }))
     : [];
 

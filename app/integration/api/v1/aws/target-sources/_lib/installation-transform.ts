@@ -68,7 +68,7 @@ const toDisplayStatus = (status: CloudStepStatus | undefined): InstallationDispl
   status === 'COMPLETED' ? 'COMPLETED' : 'NOT_INSTALLED';
 
 const toServiceScript = (resource: AwsResourceDto): V1ServiceScript => ({
-  scriptId: resource.resource_id,
+  scriptId: resource.resource_id ?? undefined,
   scriptName: resource.resource_name ?? resource.resource_id ?? '',
   terraformScriptName: resource.resource_name ?? resource.resource_id ?? '',
   status: STEP_TO_SCRIPT_STATUS[resource.service_terraform?.status ?? 'UNKNOWN'],
@@ -76,10 +76,10 @@ const toServiceScript = (resource: AwsResourceDto): V1ServiceScript => ({
   resources: [
     {
       resourceId: resource.resource_id ?? '',
-      resource_id: resource.resource_id,
+      resource_id: resource.resource_id ?? undefined,
       type: '',
       name: resource.resource_name ?? resource.resource_id ?? '',
-      installationDisplayStatus: toDisplayStatus(resource.installation_status),
+      installationDisplayStatus: toDisplayStatus(resource.installation_status ?? undefined),
     },
   ],
 });
@@ -90,7 +90,7 @@ export const transformAwsInstallationStatus = (
   const resources = response.resources ?? [];
   const serviceScripts = resources.map(toServiceScript);
   const bdcStatus = aggregateStepStatus(
-    resources.flatMap((r) => [r.bdc_service_terraform?.status, r.bdc_common_terraform?.status]),
+    resources.flatMap((r) => [r.bdc_service_terraform?.status ?? undefined, r.bdc_common_terraform?.status ?? undefined]),
   );
 
   const roleVerify = response.terraform_execution_role_verify;
