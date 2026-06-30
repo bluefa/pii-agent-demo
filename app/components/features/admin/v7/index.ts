@@ -1,6 +1,5 @@
 export { AwsRegionToggle, type AwsRegion } from '@/app/components/features/admin/v7/AwsRegionToggle';
 export { InfraRow } from '@/app/components/features/admin/v7/InfraRow';
-export { InstallModeToggle, type InstallMode } from '@/app/components/features/admin/v7/InstallModeToggle';
 export { InfraRowList } from '@/app/components/features/admin/v7/InfraRowList';
 export { InfraListToolbar } from '@/app/components/features/admin/v7/InfraListToolbar';
 export { ProviderLogo } from '@/app/components/features/admin/v7/ProviderLogo';

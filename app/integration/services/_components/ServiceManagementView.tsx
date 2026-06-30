@@ -47,7 +47,6 @@ export const ServiceManagementView = () => {
   );
   const { services, query: serviceQuery, pageInfo: servicePageInfo } = serviceList;
 
-  const [deepLinkName, setDeepLinkName] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -55,6 +54,8 @@ export const ServiceManagementView = () => {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Surface the deep-linked service exactly once on entry (see init effect).
+  const initRef = useRef(false);
 
   const fetchServicesPage = useCallback(async (page: number, searchQuery?: string) => {
     abortRef.current?.abort();
@@ -82,11 +83,21 @@ export const ServiceManagementView = () => {
     }
   }, [toast]);
 
-  // Initial sidebar fetch. No auto-select — the right pane stays empty until a
-  // service is chosen via the URL.
+  // Initial sidebar load (runs once). When deep-linked with ?service_code=, the
+  // sidebar can't know which page the service lives on (no page-index API), so
+  // filter the list to that code so the selection surfaces and highlights on
+  // page 0. Plain entry loads page 0 unfiltered. After this one-shot, the user
+  // can search/paginate freely without the selection re-filtering the list.
   useEffect(() => {
-    void fetchServicesPage(0);
-  }, [fetchServicesPage]);
+    if (initRef.current) return;
+    initRef.current = true;
+    if (selectedService) {
+      dispatch({ type: 'SET_QUERY', query: selectedService });
+      void fetchServicesPage(0, selectedService);
+    } else {
+      void fetchServicesPage(0);
+    }
+  }, [selectedService, fetchServicesPage]);
 
   useEffect(() => {
     return () => {
@@ -95,29 +106,6 @@ export const ServiceManagementView = () => {
   }, []);
 
   const selectedServiceObj = services.find((s) => s.service_code === selectedService);
-
-  // No single-service GET exists; when deep-linked to a service that is not on
-  // the loaded page, resolve its name via a code-scoped search so the header
-  // shows the name (falls back to the code if not found).
-  useEffect(() => {
-    if (!selectedService || selectedServiceObj) {
-      setDeepLinkName(null);
-      return;
-    }
-    let cancelled = false;
-    getServicesPage(0, SERVICE_PAGE_SIZE, selectedService)
-      .then((data) => {
-        if (cancelled) return;
-        const match = (data.content ?? []).find((s) => s.service_code === selectedService);
-        setDeepLinkName(match?.service_name ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setDeepLinkName(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedService, selectedServiceObj]);
 
   // Fetch the selected service's target sources. Race guard: a stale in-flight
   // response for a previously-selected service must not overwrite the panel.
@@ -287,7 +275,7 @@ export const ServiceManagementView = () => {
     setApprovalModal({ status: 'closed' });
   }, []);
 
-  const selectedName = selectedServiceObj?.service_name ?? deepLinkName ?? '';
+  const selectedName = selectedServiceObj?.service_name ?? '';
   const approvalDetail =
     approvalModal.status === 'view' || approvalModal.status === 'submitting'
       ? approvalModal.detail
@@ -380,7 +368,6 @@ export const ServiceManagementView = () => {
       {approvalModal.status === 'create' && selectedService && (
         <ProjectCreateModal
           selectedServiceCode={selectedService}
-          serviceName={selectedName}
           onClose={closeAnyModal}
           onCreated={refreshProjects}
         />

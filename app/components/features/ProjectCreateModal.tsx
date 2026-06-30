@@ -35,11 +35,9 @@ import {
 } from '@/app/components/features/project-create';
 import {
   AwsRegionToggle,
-  InstallModeToggle,
   RegistrationPreviewCardList,
   RegistrationProgressList,
   type AwsRegion,
-  type InstallMode,
   type PreviewRow,
   type ProgressRow,
   type ProgressRowStatus,
@@ -47,7 +45,6 @@ import {
 
 interface ProjectCreateModalProps {
   selectedServiceCode: string;
-  serviceName: string;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -58,7 +55,6 @@ interface FormState {
   chipKey: ProviderChipKey;
   apiProvider: ApiProvider;
   awsRegion: AwsRegion;
-  installMode: InstallMode;
   fields: Record<string, string>;
 }
 
@@ -71,7 +67,6 @@ const buildCandidatesInput = (form: FormState, dbTypes: DbType[]): CreationCandi
         cloudProvider: 'AWS',
         awsAccountId: fields.payerAccount,
         isChinaRegion: form.awsRegion === 'china',
-        isTerraformExecutionGranted: form.installMode === 'auto',
         ...(description ? { description } : {}),
         dbTypes,
       };
@@ -128,7 +123,6 @@ const identifierLabel = (candidate: TargetSourceCreationCandidateResponse): stri
 
 export const ProjectCreateModal = ({
   selectedServiceCode,
-  serviceName,
   onClose,
   onCreated,
 }: ProjectCreateModalProps) => {
@@ -136,7 +130,6 @@ export const ProjectCreateModal = ({
   const [phase, setPhase] = useState<Phase>('input');
   const [chipKey, setChipKey] = useState<ProviderChipKey>('aws');
   const [awsRegion, setAwsRegion] = useState<AwsRegion>('global');
-  const [installMode, setInstallMode] = useState<InstallMode>('auto');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [dbTypes, setDbTypes] = useState<DbType[]>([]);
   const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
@@ -178,7 +171,6 @@ export const ProjectCreateModal = ({
     chipKey,
     apiProvider: chipDef.apiProvider,
     awsRegion,
-    installMode,
     fields,
   });
 
@@ -331,24 +323,6 @@ export const ProjectCreateModal = ({
         <div className="p-6 space-y-5 overflow-y-auto">
           {phase === 'input' && (
             <>
-              <div
-                className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-lg border',
-                  borderColors.default,
-                  bgColors.muted,
-                )}
-              >
-                <div className={cn('w-8 h-8 rounded-md flex items-center justify-center', bgColors.primary)}>
-                  <span className={cn('text-xs font-bold', textColors.inverse)}>
-                    {selectedServiceCode.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <div className={cn('font-medium', textColors.primary)}>{selectedServiceCode}</div>
-                  <div className={cn('text-sm', textColors.tertiary)}>{serviceName}</div>
-                </div>
-              </div>
-
               <section>
                 <h3 className={cn('mb-2 text-sm font-semibold', textColors.secondary)}>
                   <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>1</span>
@@ -368,14 +342,6 @@ export const ProjectCreateModal = ({
                     <span className={cn('mr-1.5 text-xs', textColors.tertiary)}>2</span>
                     인프라 정보
                   </h3>
-                  {isAws && (
-                    <div className="mb-3">
-                      <label className={cn('block text-sm font-medium mb-1.5', textColors.secondary)}>
-                        설치 모드
-                      </label>
-                      <InstallModeToggle value={installMode} onChange={setInstallMode} />
-                    </div>
-                  )}
                   <ProviderCredentialForm
                     chipKey={chipKey}
                     values={fields}
