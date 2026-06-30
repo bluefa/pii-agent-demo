@@ -30,7 +30,6 @@ export const ApplyingApprovedStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     project.processStatus,
-    project.awsInstallationMode,
   );
 
   return (

@@ -6,7 +6,7 @@
 import { GUIDE_SLOTS } from '@/lib/constants/guide-registry';
 
 import type { GuideSlotKey } from '@/lib/constants/guide-registry';
-import type { AwsInstallationMode, CloudProvider } from '@/lib/types';
+import type { CloudProvider } from '@/lib/types';
 import { ProcessStatus } from '@/lib/types';
 
 const isSlotKey = (key: string): key is GuideSlotKey => key in GUIDE_SLOTS;
@@ -18,13 +18,11 @@ const isInRange = (step: ProcessStatus): boolean =>
 export const resolveStepSlot = (
   provider: CloudProvider,
   currentStep: ProcessStatus,
-  installationMode?: AwsInstallationMode,
 ): GuideSlotKey | null => {
   if (!isInRange(currentStep)) return null;
 
   if (provider === 'AWS') {
-    const variant = installationMode === 'MANUAL' ? 'manual' : 'auto';
-    const key = `process.aws.${variant}.${currentStep}`;
+    const key = `process.aws.auto.${currentStep}`;
     return isSlotKey(key) ? key : null;
   }
 

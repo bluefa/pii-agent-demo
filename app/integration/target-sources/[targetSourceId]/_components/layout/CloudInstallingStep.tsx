@@ -32,7 +32,6 @@ export const CloudInstallingStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     ProcessStatus.INSTALLING,
-    project.awsInstallationMode,
   );
 
   const refreshProject = useCallback(async () => {

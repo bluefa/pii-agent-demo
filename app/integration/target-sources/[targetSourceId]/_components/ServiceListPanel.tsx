@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
 import { ServiceSidebar } from '@/app/components/features/admin/ServiceSidebar';
-import { setPendingAdminNavigation } from '@/app/components/features/admin-dashboard/pendingAdminNavigation';
 import {
   buildInitialServiceListState,
   serviceListReducer,
@@ -172,16 +171,13 @@ export const ServiceListPanel = () => {
 
   const handleConfirm = useCallback(() => {
     if (!confirmModal.data) return;
-    // setPendingAdminNavigation must be the immediate predecessor of
-    // router.push — no other code in between, so the payload is consumed
-    // by the same SPA instance during the soft navigation.
-    setPendingAdminNavigation({
-      selectedService: confirmModal.data.code,
-      searchQuery: query,
-      pageNumber: pageInfo.number,
-    });
-    router.push(integrationRoutes.admin);
-  }, [confirmModal.data, query, pageInfo.number, router]);
+    // URL-driven selection: the services page reads `?service_code=`. Preserve
+    // the original casing — the target-sources lookup is case-sensitive (404 on
+    // a wrong-case code).
+    router.push(
+      `${integrationRoutes.services}?service_code=${encodeURIComponent(confirmModal.data.code)}`,
+    );
+  }, [confirmModal.data, router]);
 
   const handleRetry = useCallback(() => {
     const attempted = lastAttemptedRef.current;

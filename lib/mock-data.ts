@@ -391,7 +391,6 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
-    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_TARGET_CONFIRMATION,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_TARGET_CONFIRMATION),
     resources: [
@@ -571,7 +570,6 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
-    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_APPROVAL,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_APPROVAL, { isRejected: true, selectedCount: 2, excludedCount: 1 }),
     resources: [
@@ -639,7 +637,6 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
-    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.INSTALLING,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLING, { selectedCount: 1, excludedCount: 1 }),
     resources: [
@@ -688,7 +685,6 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
-    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.WAITING_CONNECTION_TEST,
     status: createStatusForProcessStatus(ProcessStatus.WAITING_CONNECTION_TEST, { selectedCount: 2, excludedCount: 1 }),
     resources: [
@@ -749,7 +745,6 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
-    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.CONNECTION_VERIFIED,
     status: createStatusForProcessStatus(ProcessStatus.CONNECTION_VERIFIED, { selectedCount: 2, excludedCount: 0 }),
     resources: [
@@ -795,7 +790,6 @@ export const mockProjects: Project[] = [
     cloudProvider: 'AWS',
     awsAccountId: '123456789012',
     awsRegionType: 'global',
-    awsInstallationMode: 'AUTO',
     processStatus: ProcessStatus.INSTALLATION_COMPLETE,
     status: createStatusForProcessStatus(ProcessStatus.INSTALLATION_COMPLETE, { selectedCount: 3, excludedCount: 0 }),
     resources: [

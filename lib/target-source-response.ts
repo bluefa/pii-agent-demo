@@ -53,11 +53,6 @@ export const extractTargetSourceFromSnake = (raw: TargetSourceDetailWire): Targe
   const subscriptionId = asStr(metadata?.subscription_id);
   const awsAccountId = asStr(metadata?.aws_account_id);
   const gcpProjectId = asStr(metadata?.gcp_project_id);
-  const awsInstallationModeRaw = asStr(item.aws_installation_mode);
-  const awsInstallationMode =
-    awsInstallationModeRaw === 'AUTO' || awsInstallationModeRaw === 'MANUAL'
-      ? awsInstallationModeRaw
-      : undefined;
   const createdAt = asStr(item.created_at) ?? new Date().toISOString();
 
   return {
@@ -77,6 +72,5 @@ export const extractTargetSourceFromSnake = (raw: TargetSourceDetailWire): Targe
     ...(subscriptionId ? { subscriptionId } : {}),
     ...(awsAccountId ? { awsAccountId } : {}),
     ...(gcpProjectId ? { gcpProjectId } : {}),
-    ...(awsInstallationMode ? { awsInstallationMode } : {}),
   };
 };

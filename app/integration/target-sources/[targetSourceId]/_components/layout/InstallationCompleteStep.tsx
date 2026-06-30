@@ -92,7 +92,6 @@ export const InstallationCompleteStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     project.processStatus,
-    project.awsInstallationMode,
   );
 
   return (

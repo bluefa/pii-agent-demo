@@ -63,7 +63,6 @@ export const WaitingConnectionTestStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     project.processStatus,
-    project.awsInstallationMode,
   );
 
   const refreshProject = useCallback(async () => {
