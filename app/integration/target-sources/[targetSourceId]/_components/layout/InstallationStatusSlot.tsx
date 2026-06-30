@@ -20,7 +20,6 @@ export const InstallationStatusSlot = ({
         return (
           <AwsInstallationStatus
             targetSourceId={project.targetSourceId}
-            mode={project.awsInstallationMode ?? 'AUTO'}
             refreshProject={refreshProject}
           />
         );

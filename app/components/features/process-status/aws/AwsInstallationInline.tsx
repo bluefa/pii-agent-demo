@@ -1,28 +1,20 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import {
-  getAwsInstallationStatus,
-  getAwsTerraformScript,
-} from '@/app/lib/api/aws';
+import { useEffect, useMemo, useRef } from 'react';
+import { getAwsInstallationStatus } from '@/app/lib/api/aws';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
 import { InstallResourceTable } from '@/app/components/features/process-status/install-task-pipeline/InstallResourceTable';
-import { TfDownloadCard } from '@/app/components/features/process-status/install-task-pipeline/TfDownloadCard';
-import { AwsModeBar } from '@/app/components/features/process-status/aws/AwsModeBar';
-import { TfScriptGuideModal } from '@/app/components/features/process-status/aws/TfScriptGuideModal';
 import { joinAwsResources } from '@/app/components/features/process-status/aws/join-aws-install-resources';
-import { useToast } from '@/app/components/ui/toast';
 import { useInstallationStatus } from '@/app/hooks/useInstallationStatus';
 import { useConfirmedIntegration } from '@/app/integration/target-sources/[targetSourceId]/_components/data/ConfirmedIntegrationDataProvider';
-import { buildAwsAutoItems, buildAwsManualItems } from '@/lib/constants/aws-install';
+import { buildAwsAutoItems } from '@/lib/constants/aws-install';
 import { borderColors, cardStyles, cn, statusColors, textColors } from '@/lib/theme';
-import type { AwsInstallationStatus, AwsInstallationMode } from '@/lib/types';
+import type { AwsInstallationStatus } from '@/lib/types';
 
 interface AwsInstallationInlineProps {
   targetSourceId: number;
-  mode: AwsInstallationMode;
   onInstallComplete?: () => void;
 }
 
@@ -44,25 +36,14 @@ const isFullyCompleted = (status: AwsInstallationStatus): boolean => {
 
 export const AwsInstallationInline = ({
   targetSourceId,
-  mode,
   onInstallComplete,
 }: AwsInstallationInlineProps) => {
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  // In-card mode toggle (v16 `.aws-mode-bar`): the `mode` prop seeds the initial
-  // view; the segmented control drives which install branch renders thereafter.
-  const [installMode, setInstallMode] = useState<AwsInstallationMode>(mode);
   const completionNotifiedRef = useRef(false);
-  const toast = useToast();
   const { state: confirmedState, retry: retryConfirmed } = useConfirmedIntegration();
 
   useEffect(() => {
     completionNotifiedRef.current = false;
   }, [targetSourceId]);
-
-  useEffect(() => {
-    setInstallMode(mode);
-  }, [mode]);
 
   const { status, loading, error, fetchStatus } = useInstallationStatus<AwsInstallationStatus>({
     targetSourceId,
@@ -78,32 +59,11 @@ export const AwsInstallationInline = ({
     },
   });
 
-  const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
-  const joinedRows = useMemo(
-    () => (status ? joinAwsResources(status, confirmedResources) : []),
-    [status, confirmedResources],
-  );
-
-  const handleDownload = async () => {
-    // swagger returns the zip bytes directly (…/terraform-script/download); save
-    // the blob via a transient object URL instead of navigating to a signed URL.
-    setDownloading(true);
-    try {
-      const blob = await getAwsTerraformScript(targetSourceId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `terraform-${targetSourceId}.zip`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Terraform 스크립트 다운로드에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setDownloading(false);
-    }
-  };
+  const joinedRows = useMemo(() => {
+    if (!status) return [];
+    const confirmedResources = confirmedState.status === 'ready' ? confirmedState.data : [];
+    return joinAwsResources(status, confirmedResources);
+  }, [status, confirmedState]);
 
   if (loading) return <InstallationLoadingView provider="AWS" />;
   if (error) return <InstallationErrorView message={error} onRetry={fetchStatus} />;
@@ -124,20 +84,7 @@ export const AwsInstallationInline = ({
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
-        <AwsModeBar value={installMode} onChange={setInstallMode} />
-        {installMode === 'AUTO' ? (
-          <InstallTaskPipeline columns={3} items={buildAwsAutoItems(status)} />
-        ) : (
-          <>
-            <TfDownloadCard
-              sizeLabel="12.4 KB"
-              onGuide={() => setGuideOpen(true)}
-              onDownload={handleDownload}
-              downloading={downloading}
-            />
-            <InstallTaskPipeline columns={2} items={buildAwsManualItems(status)} />
-          </>
-        )}
+        <InstallTaskPipeline columns={3} items={buildAwsAutoItems(status)} />
 
         {confirmedState.status === 'loading' && (
           <div
@@ -170,8 +117,6 @@ export const AwsInstallationInline = ({
           </div>
         )}
         <InstallResourceTable rows={joinedRows} provider="AWS" />
-
-        {guideOpen && <TfScriptGuideModal onClose={() => setGuideOpen(false)} />}
       </div>
     </section>
   );

@@ -32,7 +32,6 @@ export const WaitingTargetConfirmationStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     ProcessStatus.WAITING_TARGET_CONFIRMATION,
-    project.awsInstallationMode,
   );
 
   const refreshProject = useCallback(async () => {

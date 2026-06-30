@@ -88,7 +88,6 @@ export const ConnectionVerifiedStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     project.processStatus,
-    project.awsInstallationMode,
   );
 
   const refreshProject = useCallback(async () => {

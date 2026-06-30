@@ -10,10 +10,6 @@ vi.mock(
   }),
 );
 
-vi.mock('@/app/components/features/process-status/aws/AwsInstallationModeSelector', () => ({
-  AwsInstallationModeSelector: () => <div data-testid="aws-installation-mode-selector-sentinel" />,
-}));
-
 vi.mock(
   '@/app/integration/target-sources/[targetSourceId]/_components/common',
   async (importOriginal) => {
@@ -44,7 +40,6 @@ const awsBaseFixture: CloudTargetSource = {
   isRejected: false,
   cloudProvider: 'AWS',
   awsAccountId: '123456789012',
-  awsInstallationMode: 'AUTO',
 };
 
 describe('AwsProjectPage routing', () => {
@@ -57,7 +52,7 @@ describe('AwsProjectPage routing', () => {
     ProcessStatus.CONNECTION_VERIFIED,
     ProcessStatus.INSTALLATION_COMPLETE,
   ])(
-    'mounts CloudTargetSourceLayout for processStatus=%s when awsInstallationMode is set',
+    'mounts CloudTargetSourceLayout for processStatus=%s',
     (status) => {
       render(
         <AwsProjectPage
@@ -66,33 +61,6 @@ describe('AwsProjectPage routing', () => {
         />,
       );
       expect(screen.getByTestId('cloud-target-source-layout-sentinel')).toBeTruthy();
-      expect(screen.queryByTestId('aws-installation-mode-selector-sentinel')).toBeNull();
     },
   );
-
-  it('mounts AwsInstallationModeSelector when awsInstallationMode is missing', () => {
-    render(
-      <AwsProjectPage
-        project={{ ...awsBaseFixture, awsInstallationMode: undefined }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('aws-installation-mode-selector-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
-  });
-
-  it('keeps AwsInstallationModeSelector even on WAITING_APPROVAL when awsInstallationMode is missing (defensive)', () => {
-    render(
-      <AwsProjectPage
-        project={{
-          ...awsBaseFixture,
-          processStatus: ProcessStatus.WAITING_APPROVAL,
-          awsInstallationMode: undefined,
-        }}
-        onProjectUpdate={() => {}}
-      />,
-    );
-    expect(screen.getByTestId('aws-installation-mode-selector-sentinel')).toBeTruthy();
-    expect(screen.queryByTestId('cloud-target-source-layout-sentinel')).toBeNull();
-  });
 });

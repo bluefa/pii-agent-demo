@@ -33,7 +33,6 @@ export const WaitingApprovalStep = ({
   const slotKey = resolveStepSlot(
     project.cloudProvider,
     ProcessStatus.WAITING_APPROVAL,
-    project.awsInstallationMode,
   );
 
   const refreshProject = useCallback(async () => {

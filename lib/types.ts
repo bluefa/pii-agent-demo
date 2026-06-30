@@ -19,8 +19,6 @@ export type TerraformStatus = 'COMPLETED' | 'FAILED' | 'PENDING';
 
 export type UserRole = 'SERVICE_MANAGER' | 'ADMIN';
 
-export type AwsInstallationMode = 'AUTO' | 'MANUAL';
-
 export type CloudProvider = 'AWS' | 'Azure' | 'GCP' | 'IDC';
 
 const CLOUD_PROVIDER_ALIASES: Record<string, CloudProvider> = {
@@ -288,7 +286,6 @@ export interface CloudTargetSource extends BaseTargetSource {
   // The page header renders this as "{serviceName} ({serviceCode})".
   serviceName: string;
 
-  awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;
   awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
@@ -314,7 +311,6 @@ export type Project = BaseTargetSource & {
   status: ProjectStatus;
   terraformState: TerraformState;
   resources: MockResource[];
-  awsInstallationMode?: AwsInstallationMode;
   awsAccountId?: string;
   awsLinkedAccountId?: string;
   awsRegionType?: 'global' | 'china';
