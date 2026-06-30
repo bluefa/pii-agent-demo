@@ -76,66 +76,11 @@ const TargetSourceResourceItemDto = z
     metadata: TargetSourceResourceMetadataDto,
     resource_id: Str.optional(),
     resource_name: Str.optional(),
-    resource_type: z
-      .enum([
-        "AWS_ATHENA",
-        "AWS_ATHENA_DATABASE",
-        "AWS_DB_CLUSTER",
-        "AWS_DB_INSTANCE",
-        "AWS_REDSHIFT_CLUSTER",
-        "AWS_DYNAMO_DB_REGION",
-        "AWS_DYNAMO_DB_TABLE",
-        "AWS_DYNAMO_DB_GLOBAL_TABLE",
-        "AWS_NETWORK_INTERFACE",
-        "AWS_SUBNET",
-        "AWS_RDS_GLOBAL_CLUSTER",
-        "AWS_RDS_SUBNET_GROUP",
-        "AWS_RDS_PROXY",
-        "AWS_RDS_DB_CLUSTER_PARAMETER_GROUP",
-        "AWS_RDS_DB_PARAMETER_GROUP",
-        "AWS_REDSHIFT_SUBNET_GROUP",
-        "AWS_VPC_ENDPOINT_SERVICE",
-        "AWS_VPC_ENDPOINT",
-        "AWS_VPC_SECURITY_GROUP",
-        "AWS_IAM_ROLE",
-        "AWS_GLUE_RESOURCE_POLICY",
-        "AWS_ECR_POLICY",
-        "AWS_S3_BUCKET_POLICY",
-        "AWS_GLUE_TABLE",
-        "AWS_EC2_INSTANCE",
-        "AWS_EC2_REGION",
-        "AWS_OPEN_SEARCH_DOMAIN",
-        "AWS_KMS",
-        "AWS_AUTO_SCALING_GROUP",
-        "AZURE_SQL_SERVER",
-        "AZURE_SQL_SERVER_MANAGED_INSTANCE",
-        "AZURE_MYSQL_FLEXIBLE_SERVER",
-        "AZURE_MYSQL",
-        "AZURE_POSTGRESQL",
-        "AZURE_POSTGRESQL_FLEXIBLE_SERVER",
-        "AZURE_MARIADB",
-        "AZURE_COSMOSDB_NOSQL",
-        "AZURE_SERVICE_PRINCIPAL",
-        "AZURE_PRIVATE_ENDPOINT",
-        "AZURE_VIRTUAL_MACHINE",
-        "AZURE_VIRTUAL_SUBNET",
-        "AZURE_SYNAPSE_WORKSPACE",
-        "AZURE_NETWORK_INTERFACE",
-        "GCP_SQL",
-        "GCP_BIGQUERY_DATASET_REGION",
-        "GCP_VPC_NETWORK",
-        "IDC_RESOURCE",
-      ])
+    resource_type: Str
       .optional(),
-    integration_category: z
-      .enum(["TARGET", "NO_INSTALL_NEEDED", "INSTALL_INELIGIBLE"])
+    integration_category: Str
       .optional(),
-    recommend_fail_reason: z
-      .enum([
-        "GCP_CLOUD_SQL_HAS_PUBLIC_IP",
-        "GCP_CLOUD_SQL_HAS_INTERNAL_HTTP_LOAD_BALANCER_SUBNET",
-        "AZURE_RESOURCE_PRIVATE_ENDPOINT_CONNECTION_FAILED",
-      ])
+    recommend_fail_reason: Str
       .optional(),
     exclusion_reason: Str.optional(),
   })
@@ -168,8 +113,7 @@ const TargetSourceCreationCandidateResponse = z
   .partial().passthrough();
 const TargetSourceCreationCandidateRequest = z
   .object({
-    cloud_type: z
-      .enum(["aws", "azure", "gcp", "idc", "others"]),
+    cloud_type: Str,
     is_china_region: Bool,
     database_types: z.array(Str).nullable(),
     grant_service_terraform_execution_permission: Bool.optional(),
