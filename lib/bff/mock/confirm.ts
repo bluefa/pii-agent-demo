@@ -697,20 +697,27 @@ export const mockConfirm = {
       const approvedAt = project.status.approval.approvedAt ?? project.updatedAt;
       // ADR-019: emit flat ApprovedIntegrationResponseDto (snake wire).
       // The route validates with schemas.ApprovedIntegrationResponseDto.parse(raw).
+      const excludedResources = project.resources.filter((r) => !!r.exclusion);
       return NextResponse.json({
         approved_at: approvedAt,
         approved_by: { user_id: '김보안 (kim.security)' },
-        resources: selectedResources.map((r) => toResourceSnapshot(r, project)),
+        resources: [
+          ...selectedResources.map((r) => ({ ...toResourceSnapshot(r, project), selected: true })),
+          ...excludedResources.map((r) => ({ ...toExcludedResourceInfo(r, project), selected: false })),
+        ],
       });
     }
 
     // ADR-019: flat ApprovedIntegrationResponseDto; the stored `resource_infos` maps
-    // to the swagger `resources` array; excluded fields not in the new schema are omitted.
+    // to the swagger `resources` array; excluded items tagged selected:false.
     return NextResponse.json({
       id: approved.id,
       request_id: approved.request_id,
       approved_at: approved.approved_at,
-      resources: approved.resource_infos,
+      resources: [
+        ...approved.resource_infos.map((s) => ({ ...s, selected: true })),
+        ...(approved.excluded_resource_infos ?? []).map((e) => ({ ...e, selected: false })),
+      ],
     });
   },
 
@@ -765,7 +772,8 @@ export const mockConfirm = {
         return { total: resourceCount + (excludedResourceCount ?? 0), selected: resourceCount };
       }
       const selected = project.resources.filter((r) => r.isSelected).length;
-      return { total: project.resources.length, selected };
+      const excluded = project.resources.filter((r) => !!r.exclusion).length;
+      return { total: selected + excluded, selected };
     };
 
     const numericId = (rawId: string): number =>
@@ -904,7 +912,8 @@ export const mockConfirm = {
     }
 
     const selectedCount = project.resources.filter((r) => r.isSelected).length;
-    const totalCount = project.resources.length;
+    const excludedCount = project.resources.filter((r) => !!r.exclusion).length;
+    const totalCount = selectedCount + excludedCount;
     const approvalStatus = project.status.approval.status;
 
     // BFF 실제 응답 형식으로 반환

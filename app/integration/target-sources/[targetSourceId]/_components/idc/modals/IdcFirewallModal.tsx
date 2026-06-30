@@ -4,7 +4,7 @@ import { Modal } from '@/app/components/ui/Modal';
 import { Pagination } from '@/app/components/ui/Pagination';
 import { usePagination } from '@/app/hooks/usePagination';
 import { cn, idcStyles, textColors } from '@/lib/theme';
-import type { IdcResourceView } from '@/app/lib/api/idc';
+import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcEndpointCell,
   IdcFirewallBadge,
@@ -16,17 +16,28 @@ interface IdcFirewallModalProps {
   onClose: () => void;
   /** Step 4 resource list (DR7 — injected, never fetched here). */
   resources: readonly IdcResourceView[];
+  /**
+   * Per-resource firewall step status keyed by resourceId, from the
+   * installation-status `firewall_check.status` (same join as the Step-4 `fw`
+   * column). A missing entry renders the neutral "BDC측 확인 필요" badge.
+   */
+  firewallStatusByResource?: Readonly<Record<string, IdcInstallStatus>>;
 }
 
 /**
  * IDC 방화벽 확인 모달 (v15 L8151~8178, `openIdcFirewallModal` L10333).
  *
  * One row per integration target (excluded rows dropped, #39). Each row reads
- * Source IP → 연동 대상 → Port → 오픈 여부. Open state is the row's own
- * `firewallOpen` (aggregation rule §6 G6/#22: a row is open only when its
- * firewallOpen is true).
+ * Source IP → 연동 대상 → Port → 오픈 여부. The 오픈 여부 badge is driven by the
+ * installation-status firewall_check.status of the SAME resource (joined by
+ * resource_id); the confirmed-integration rows carry no firewall field.
  */
-export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModalProps) => {
+export const IdcFirewallModal = ({
+  isOpen,
+  onClose,
+  resources,
+  firewallStatusByResource,
+}: IdcFirewallModalProps) => {
   const rows = resources.filter((r) => !r.excluded);
 
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(rows, {
@@ -76,7 +87,7 @@ export const IdcFirewallModal = ({ isOpen, onClose, resources }: IdcFirewallModa
                       {r.port}
                     </td>
                     <td className={idcStyles.table.cell}>
-                      <IdcFirewallBadge open={r.firewallOpen} />
+                      <IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} />
                     </td>
                   </tr>
                 ))}

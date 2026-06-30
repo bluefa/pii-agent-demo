@@ -17,7 +17,7 @@ const resolveEndpoint = (
   draft.endpointDrafts[resource.id] ?? resource.endpointConfig;
 
 const endpointMetadataFields = (endpoint: EndpointConfigDraft): MetadataFields => ({
-  database_type: endpoint.databaseType,
+  database_type: endpoint.databaseType.toLowerCase(),
   port: endpoint.port,
   ...(endpoint.host ? { host: endpoint.host } : {}),
   ...(endpoint.oracleServiceId ? { oracle_service_id: endpoint.oracleServiceId } : {}),

@@ -7,6 +7,7 @@ import { cn, idcStyles, textColors } from '@/lib/theme';
 import type {
   IdcConnState,
   IdcHealth,
+  IdcInstallStatus,
   IdcKind,
   IdcResourceView,
 } from '@/app/lib/api/idc';
@@ -117,12 +118,24 @@ export const IdcSourceIpCell = ({ sourceIps }: { sourceIps: string[] }) => {
   );
 };
 
-export const IdcFirewallBadge = ({ open }: { open: boolean }) =>
-  open ? (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>방화벽 오픈</span>
-  ) : (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>방화벽 오픈되지 않음</span>
-  );
+/**
+ * Step-4 per-row firewall badge, driven by the installation-status
+ * `firewall_check.status` of the SAME resource (joined by resource_id).
+ * Anything that is not exactly COMPLETED/FAIL/IN_PROGRESS (UNKNOWN, SKIP, a
+ * missing join, or an unrecognized value) renders the neutral "BDC측 확인 필요".
+ */
+export const IdcFirewallBadge = ({ status }: { status: IdcInstallStatus | undefined }) => {
+  switch (status) {
+    case 'COMPLETED':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>방화벽 오픈</span>;
+    case 'FAIL':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>방화벽 오픈되지 않음</span>;
+    case 'IN_PROGRESS':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>방화벽 확인 중</span>;
+    default:
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>BDC측 확인 필요</span>;
+  }
+};
 
 export const IdcConnBadge = ({ state }: { state: IdcConnState }) =>
   state === 'SUCCESS' ? (
@@ -131,7 +144,13 @@ export const IdcConnBadge = ({ state }: { state: IdcConnState }) =>
     <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Pending</span>
   );
 
-export const IdcHealthBadge = ({ health }: { health: IdcHealth }) => {
+/**
+ * Per-resource health badge. There is no per-resource health API source
+ * (`health` is null), so a null value renders a neutral em-dash placeholder
+ * instead of a fabricated Healthy/Unhealthy state.
+ */
+export const IdcHealthBadge = ({ health }: { health: IdcHealth | null }) => {
+  if (health === null) return <span className={textColors.quaternary}>—</span>;
   const healthy = health !== 'UNHEALTHY';
   const tone = healthy ? idcStyles.status.healthy : idcStyles.status.unhealthy;
   return (
@@ -152,46 +171,58 @@ export const IdcTargetPill = ({ excluded }: { excluded: boolean }) => {
   );
 };
 
-// v16 step5/6 DB Credential options — static demo list mirroring the prototype.
-export const IDC_CRED_OPTIONS = ['Key1', 'Key2', 'Key3', 'idc_svc_mysql', 'idc_svc_oracle', 'idc_svc_pg'] as const;
-
 const SELECT_CHEVRON =
   "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\") right 9px center no-repeat";
 
-/** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). */
+/** DB Credential `<select>` — v16 `.idc-cred-select` (step 5/6). Options are the
+ *  target-source secrets loaded from `GET .../secrets` (not a hardcoded list). The
+ *  current value is always shown even if absent from `options` (a stored credential
+ *  must remain selectable). */
 export const IdcCredSelectCell = ({
   value,
   onChange,
+  options,
 }: {
   value: string;
   onChange: (next: string) => void;
-}) => (
-  <select
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    style={{ background: SELECT_CHEVRON }}
-    className={cn(idcStyles.credSelect, !value && idcStyles.credSelectEmpty)}
-    aria-label="DB Credential 선택"
-  >
-    <option value="">자격 증명 선택</option>
-    {IDC_CRED_OPTIONS.map((cred) => (
-      <option key={cred} value={cred}>
-        {cred}
-      </option>
-    ))}
-  </select>
-);
+  options: string[];
+}) => {
+  const choices = value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ background: SELECT_CHEVRON }}
+      className={cn(idcStyles.credSelect, !value && idcStyles.credSelectEmpty)}
+      aria-label="DB Credential 선택"
+    >
+      <option value="">자격 증명 선택</option>
+      {choices.map((cred) => (
+        <option key={cred} value={cred}>
+          {cred}
+        </option>
+      ))}
+    </select>
+  );
+};
 
-/** Credential-aware connection status — no cred -> credential-required (gray); SUCCESS -> green; else Pending (gray). */
+/** Credential-aware connection status — reflects the live test-connection result:
+ *  no cred -> credential-required; SUCCESS -> green; FAIL -> red; RUNNING -> orange;
+ *  else Pending (gray). */
 export const IdcConnStatusCell = ({ resource }: { resource: IdcResourceView }) => {
   if (!resource.credentialId) {
     return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>;
   }
-  return resource.connection === 'SUCCESS' ? (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
-  ) : (
-    <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
-  );
+  switch (resource.connection) {
+    case 'SUCCESS':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>;
+    case 'FAIL':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>;
+    case 'RUNNING':
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>;
+    default:
+      return <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>;
+  }
 };
 
 /** Logical-DB manage button (the "set" action) — disabled until credential set AND connection SUCCESS. */

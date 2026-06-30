@@ -94,10 +94,9 @@ export const IdcStep7Complete = ({
               PII가 사용되어 있을 가능성이 있어요. 변경·추가 시 프로세스를 재수행하여 Agent 설치까지 진행됩니다.
             </p>
           </div>
-          <span className={cn(idcStyles.status.base, 'text-[12px]', idcStyles.status.healthy.text)}>
-            <span className={cn(idcStyles.status.dot, idcStyles.status.healthy.dot)} />
-            Healthy
-          </span>
+          {/* No per-target health API source — render a neutral em-dash instead
+              of a fabricated green "Healthy" pill (B.6). */}
+          <span className={cn('text-[12px]', textColors.quaternary)}>—</span>
         </header>
         <div className="p-6">
           <CompleteActions />

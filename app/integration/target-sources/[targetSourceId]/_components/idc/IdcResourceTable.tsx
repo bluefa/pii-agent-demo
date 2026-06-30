@@ -6,7 +6,7 @@ import { usePagination } from '@/app/hooks/usePagination';
 import { ReasonChipInline } from '@/app/components/ui/ReasonChipInline';
 import { cn, idcStyles, textColors } from '@/lib/theme';
 import { IDC_SOURCE_IP_TOOLTIP } from '@/lib/constants/idc';
-import type { IdcResourceView } from '@/app/lib/api/idc';
+import type { IdcInstallStatus, IdcResourceView } from '@/app/lib/api/idc';
 import {
   IdcConnBadge,
   IdcConnStatusCell,
@@ -30,8 +30,17 @@ interface IdcResourceTableProps {
   emptyMessage?: string;
   /** Step-5: DB Credential select change (resourceId, credential). */
   onCredChange?: (resourceId: string, cred: string) => void;
+  /** Step-5: credential options loaded from `GET .../secrets`. */
+  credOptions?: readonly string[];
   /** Step-5/6: open the per-resource logical-DB modal. */
   onLogicalOpen?: (resource: IdcResourceView) => void;
+  /**
+   * Step-4 `fw` column only: per-resource firewall step status keyed by
+   * resourceId, sourced from the installation-status `firewall_check.status`
+   * (the confirmed-integration rows have no firewall field). A missing entry
+   * renders the neutral "BDC측 확인 필요" badge.
+   */
+  firewallStatusByResource?: Readonly<Record<string, IdcInstallStatus>>;
 }
 
 const [TIP_TITLE, ...TIP_REST] = IDC_SOURCE_IP_TOOLTIP.split('\n');
@@ -56,7 +65,9 @@ export const IdcResourceTable = ({
   cols,
   emptyMessage,
   onCredChange,
+  credOptions = [],
   onLogicalOpen,
+  firewallStatusByResource,
 }: IdcResourceTableProps) => {
   const has = (c: IdcTableCol) => cols.includes(c);
   // Step 2·3 (`excl`) show excluded rows too; Step 4~7 show integration targets only.
@@ -126,7 +137,7 @@ export const IdcResourceTable = ({
                     )}
                   </td>
                 )}
-                {has('fw') && <td className={cn(idcStyles.table.cell, dim)}><IdcFirewallBadge open={r.firewallOpen} /></td>}
+                {has('fw') && <td className={cn(idcStyles.table.cell, dim)}><IdcFirewallBadge status={firewallStatusByResource?.[r.resourceId]} /></td>}
                 {has('cred') && (
                   <td className={idcStyles.table.cell}>
                     {r.excluded ? (
@@ -135,6 +146,7 @@ export const IdcResourceTable = ({
                       <IdcCredSelectCell
                         value={r.credentialId ?? ''}
                         onChange={(cred) => onCredChange?.(r.resourceId, cred)}
+                        options={[...credOptions]}
                       />
                     )}
                   </td>

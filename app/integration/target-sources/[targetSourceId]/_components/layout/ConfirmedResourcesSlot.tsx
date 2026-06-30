@@ -14,7 +14,7 @@ interface ConfirmedResourcesSlotProps {
 }
 
 export const ConfirmedResourcesSlot = ({ variant, bare }: ConfirmedResourcesSlotProps = {}) => {
-  const { state, retry } = useConfirmedIntegration();
+  const { state, retry, targetSourceId } = useConfirmedIntegration();
 
   const body =
     state.status === 'loading' ? (
@@ -22,7 +22,11 @@ export const ConfirmedResourcesSlot = ({ variant, bare }: ConfirmedResourcesSlot
     ) : state.status === 'error' ? (
       <ErrorRow message={state.message} onRetry={retry} />
     ) : (
-      <ConfirmedIntegrationTable confirmed={state.data} variant={variant} />
+      <ConfirmedIntegrationTable
+        confirmed={state.data}
+        variant={variant}
+        targetSourceId={targetSourceId}
+      />
     );
 
   if (bare) {

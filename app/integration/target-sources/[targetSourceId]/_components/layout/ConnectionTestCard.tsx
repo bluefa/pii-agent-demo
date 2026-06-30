@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cardStyles, cn, idcStyles, textColors } from '@/lib/theme';
 import { getDatabaseShortLabel } from '@/app/components/ui/DatabaseIcon';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -13,6 +13,7 @@ import {
 } from '@/app/components/features/process-status/ConnProgressStrip';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import {
+  getSecrets,
   updateResourceCredential,
 } from '@/app/lib/api';
 import type { TestConnectionStatus } from '@/app/lib/api';
@@ -68,6 +69,22 @@ export const ConnectionTestCard = ({
   const logicalModal = useModal<LogicalModalTarget>();
   const toast = useToast();
 
+  // DB Credential options from GET .../secrets (not a hardcoded list).
+  const [credOptions, setCredOptions] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    void getSecrets(targetSourceId)
+      .then((secrets) => {
+        if (active) setCredOptions(secrets.map((s) => s.name));
+      })
+      .catch(() => {
+        if (active) setCredOptions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [targetSourceId]);
+
   // Re-seed credentials when the confirmed list changes (provider retry / target switch).
   // Adjusting state during render (the React "previous props" pattern) instead of an
   // effect — avoids the cascading-render an effect-body setState would cause.
@@ -79,11 +96,9 @@ export const ConnectionTestCard = ({
 
   const testing = uiState === 'PENDING';
 
-  // hasResult: the hook fetches latest_version on mount, so a prior settled run
-  // is visible immediately on a cold load — no Run Test click required (B3).
-  const hasResult = uiState === 'SUCCESS' || uiState === 'FAIL';
-
-  // Per-resource connection status from the latest poll, keyed by resource_id.
+  // Per-resource connection status from the latest poll, keyed by resource_id. The
+  // poll streams results as each pipeline settles (and hydrates on mount, B3), so
+  // this map is the live source of truth for the table.
   const statusByResource = useMemo(() => {
     const map: Record<string, TestConnectionStatus> = {};
     for (const agent of latestJob?.test_connection_agent_results ?? []) {
@@ -92,12 +107,12 @@ export const ConnectionTestCard = ({
     return map;
   }, [latestJob]);
 
-  // A row is connected when the latest settled run (mount-hydrated or post-Run-Test)
-  // returned SUCCESS for this resource.
+  // A row is connected (for the approval gate) when the latest poll returned
+  // SUCCESS for this resource and it has a credential.
   const rowConnected = useCallback(
     (resourceId: string): boolean =>
-      hasResult && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
-    [hasResult, creds, statusByResource],
+      !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
+    [creds, statusByResource],
   );
 
   // Gate the 완료 승인 요청 CTA directly on the latest_version poll result:
@@ -142,12 +157,18 @@ export const ConnectionTestCard = ({
     refreshProject();
   }, [refreshProject]);
 
+  // Progress counts every settled pipeline (SUCCESS or FAIL) as done, not just the
+  // connected ones — done / total drives the percentage.
   const okCount = confirmed.filter((r) => rowConnected(r.resourceId)).length;
   const failCount = confirmed.filter(
-    (r) => hasResult && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
+    (r) => statusByResource[r.resourceId] === 'FAIL',
   ).length;
-  const pendingCount = total - okCount;
-  const progressPct = total > 0 ? Math.round((okCount / total) * 100) : 0;
+  const doneCount = confirmed.filter((r) => {
+    const s = statusByResource[r.resourceId];
+    return s === 'SUCCESS' || s === 'FAIL';
+  }).length;
+  const pendingCount = total - doneCount;
+  const progressPct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
   // Completion-approval gate: every target connected, latest_version settled SUCCESS, no test in flight.
   const canRequestApproval = total > 0 && okCount === total && !testing && approvalEnabled;
 
@@ -229,7 +250,6 @@ export const ConnectionTestCard = ({
                 const cred = creds[resource.resourceId] ?? '';
                 const status = statusByResource[resource.resourceId];
                 const connected = rowConnected(resource.resourceId);
-                const failed = hasResult && !!cred && status === 'FAIL';
                 return (
                   <tr key={resource.resourceId} className={idcStyles.table.row}>
                     <td className={idcStyles.table.cell}>
@@ -254,17 +274,20 @@ export const ConnectionTestCard = ({
                       <IdcCredSelectCell
                         value={cred}
                         onChange={(next) => handleCredChange(resource.resourceId, next)}
+                        options={credOptions}
                       />
                     </td>
                     <td className={idcStyles.table.cell}>
                       {!cred ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>자격 증명 필요</span>
-                      ) : connected ? (
+                      ) : status === 'SUCCESS' ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.green)}>Success</span>
-                      ) : failed ? (
+                      ) : status === 'FAIL' ? (
                         <span className={cn(idcStyles.tag.base, idcStyles.tag.red)}>Fail</span>
+                      ) : status === 'RUNNING' ? (
+                        <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Running</span>
                       ) : (
-                        <span className={cn(idcStyles.tag.base, idcStyles.tag.orange)}>Pending</span>
+                        <span className={cn(idcStyles.tag.base, idcStyles.tag.gray)}>Pending</span>
                       )}
                     </td>
                     <td className={idcStyles.table.cell}>

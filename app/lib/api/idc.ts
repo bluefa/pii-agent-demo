@@ -51,7 +51,7 @@ export type IdcDatabaseTypeWire =
   | 'REDIS';
 
 export type IdcKind = 'SINGLE' | 'MULTIPLE_IP' | 'DOMAIN';
-export type IdcConnState = 'PENDING' | 'SUCCESS';
+export type IdcConnState = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAIL';
 export type IdcHealth = 'HEALTHY' | 'UNHEALTHY';
 
 export interface IdcResourceView {
@@ -64,16 +64,18 @@ export interface IdcResourceView {
   hosts: string[];
   port: number;
   databaseTypeLabel: string;
-  databaseTypeWire: IdcDatabaseTypeWire;
+  /** Known wire enum, or `undefined` for an unrecognized DB type (label keeps the raw value). */
+  databaseTypeWire: IdcDatabaseTypeWire | undefined;
   oracleSid?: string;
   credentialId?: string;
   /** Assigned from Step 2 (1..2). */
   sourceIps: string[];
   firewallOpen: boolean;
   connection: IdcConnState;
-  health: IdcHealth;
-  /** Step 1 "연동 완료 여부" display value. */
-  done: string;
+  /** Per-resource health has no API source; always null (rendered as —). */
+  health: IdcHealth | null;
+  /** "연동 완료 여부" has no API source; always null (rendered as —). */
+  done: string | null;
   excluded: boolean;
   exclusionReason?: string;
 }
@@ -166,11 +168,15 @@ const IDC_DB_TYPE_WIRES: readonly IdcDatabaseTypeWire[] = [
 ];
 
 /** swagger `database_type` is a plain string; narrow to the known wire union for
- *  the domain (label lookup) and fall back to MYSQL for an unrecognized value. */
-const toDbTypeWire = (value: string | undefined): IdcDatabaseTypeWire =>
-  IDC_DB_TYPE_WIRES.includes(value as IdcDatabaseTypeWire)
-    ? (value as IdcDatabaseTypeWire)
-    : 'MYSQL';
+ *  the domain (label lookup). Matching is case-insensitive (requests now send
+ *  lowercase, seed/response data is uppercase). An unrecognized value returns
+ *  `undefined` so callers surface the RAW string instead of masking it as MySQL. */
+const toDbTypeWire = (value: string | undefined): IdcDatabaseTypeWire | undefined => {
+  const upper = value?.toUpperCase();
+  return IDC_DB_TYPE_WIRES.includes(upper as IdcDatabaseTypeWire)
+    ? (upper as IdcDatabaseTypeWire)
+    : undefined;
+};
 
 /**
  * swagger `IdcResourceInput` (previous-request item) → domain view. The schema
@@ -192,9 +198,15 @@ export const toIdcResourceView = (wire: IdcResourceInputWire, index = 0): IdcRes
   sourceIps: [],
   firewallOpen: false,
   connection: 'PENDING',
-  health: 'HEALTHY',
-  done: '—',
-  excluded: wire.exclusion_reason !== undefined && wire.exclusion_reason !== '',
+  health: null,
+  done: null,
+  // `selected` is the contract source of truth (selected=false → 제외 대상). Fall
+  // back to the exclusion reason only when `selected` is absent (legacy payloads).
+  excluded:
+    wire.selected === false ||
+    (wire.selected === undefined &&
+      wire.exclusion_reason !== undefined &&
+      wire.exclusion_reason !== ''),
   exclusionReason: wire.exclusion_reason,
 });
 
@@ -260,8 +272,8 @@ export const toIdcResourceViewFromConfirmed = (
     sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
-    health: 'HEALTHY',
-    done: '—',
+    health: null,
+    done: null,
     excluded: false,
     exclusionReason: undefined,
   };
@@ -298,8 +310,8 @@ export const toIdcResourceViewFromSnapshot = (
     sourceIps: wire.idc_source_ips ?? [],
     firewallOpen: false,
     connection: 'PENDING',
-    health: 'HEALTHY',
-    done: '—',
+    health: null,
+    done: null,
     excluded: false,
     exclusionReason: undefined,
   };
@@ -328,8 +340,8 @@ export const toIdcResourceViewFromExcluded = (
     sourceIps: [],
     firewallOpen: false,
     connection: 'PENDING',
-    health: 'HEALTHY',
-    done: '—',
+    health: null,
+    done: null,
     excluded: true,
     exclusionReason: wire.exclusion_reason,
   };

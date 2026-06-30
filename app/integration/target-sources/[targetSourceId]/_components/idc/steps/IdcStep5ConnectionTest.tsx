@@ -13,6 +13,7 @@ import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
 import {
+  getSecrets,
   getTestConnectionCompletionStatus,
   updateResourceCredential,
   updateTestConnectionConfirmation,
@@ -69,10 +70,12 @@ export const IdcStep5ConnectionTest = ({
 
   const [state, setState] = useState<ResourcesState>({ status: 'loading' });
   const [creds, setCreds] = useState<Record<string, string>>({});
-  // Credentials persisted/test triggered — gates per-row status on the poll
-  // instead of the pre-test PENDING seed.
-  const [tested, setTested] = useState(false);
-  const [savingCreds, setSavingCreds] = useState(false);
+  // DB Credential options from GET .../secrets (not a hardcoded list).
+  const [credOptions, setCredOptions] = useState<string[]>([]);
+  // In-flight credential PUT count — stays > 0 until every concurrent save settles,
+  // so Run Test cannot fire against a half-persisted credential set.
+  const [savingCount, setSavingCount] = useState(0);
+  const savingCreds = savingCount > 0;
   const [approvalEnabled, setApprovalEnabled] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
 
@@ -94,7 +97,6 @@ export const IdcStep5ConnectionTest = ({
         setCreds(
           Object.fromEntries(resources.map((r) => [r.resourceId, r.credentialId ?? ''])),
         );
-        setTested(false);
         setApprovalEnabled(false);
       })
       .catch((error: unknown) => {
@@ -105,15 +107,29 @@ export const IdcStep5ConnectionTest = ({
     return () => controller.abort();
   }, [targetSourceId]);
 
+  // Load the selectable DB Credential options from the target-source secrets.
+  useEffect(() => {
+    let active = true;
+    void getSecrets(targetSourceId)
+      .then((secrets) => {
+        if (active) setCredOptions(secrets.map((s) => s.name));
+      })
+      .catch(() => {
+        if (active) setCredOptions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [targetSourceId]);
+
   const ready = state.status === 'ready';
   const liveResources = ready ? state.resources.filter((r) => !r.excluded) : [];
   const testing = uiState === 'PENDING';
-  // B3: useTestConnectionPolling fetches latest_version on mount, so a settled
-  // prior run must render immediately on a cold load/refresh — not stay PENDING
-  // until a Run Test click this session.
-  const hasResult = tested || uiState === 'SUCCESS' || uiState === 'FAIL';
 
   // Per-resource connection status from the latest poll, keyed by resource_id.
+  // The poll streams results as each pipeline settles, so this map is the live
+  // source of truth for the table — no extra "tested" gate (B3: a settled prior
+  // run hydrates on mount, so it renders immediately on cold load too).
   const statusByResource = useMemo(() => {
     const map: Record<string, TestConnectionStatus> = {};
     for (const agent of latestJob?.test_connection_agent_results ?? []) {
@@ -122,31 +138,40 @@ export const IdcStep5ConnectionTest = ({
     return map;
   }, [latestJob]);
 
-  // A row counts as connected only with a credential AND a SUCCESS result from the run.
+  // A row counts as connected (for the approval gate) only with a credential AND a
+  // SUCCESS result from the latest poll.
   const rowConnected = useCallback(
     (resourceId: string): boolean =>
-      hasResult && !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
-    [hasResult, creds, statusByResource],
+      !!creds[resourceId] && statusByResource[resourceId] === 'SUCCESS',
+    [creds, statusByResource],
   );
 
-  // Project the live status onto the rows the table renders (cred + conn columns).
+  // Project the live poll status onto the rows the table renders. The status flows
+  // straight through (SUCCESS / FAIL / RUNNING / PENDING) so the table updates
+  // automatically as each pipeline settles.
   const viewResources: IdcResourceView[] = ready
     ? state.resources.map((r) => ({
         ...r,
         credentialId: creds[r.resourceId] || undefined,
-        connection: rowConnected(r.resourceId) ? 'SUCCESS' : 'PENDING',
+        connection: statusByResource[r.resourceId] ?? 'PENDING',
       }))
     : [];
 
   // Run Test gate: every live target must have a credential selected first.
   const allCredsSet = liveResources.length > 0 && liveResources.every((r) => !!creds[r.resourceId]);
 
+  // Progress counts every settled pipeline (SUCCESS or FAIL) as done, not just the
+  // running ones — done / total drives the percentage.
   const okCount = liveResources.filter((r) => rowConnected(r.resourceId)).length;
   const failCount = liveResources.filter(
-    (r) => hasResult && !!creds[r.resourceId] && statusByResource[r.resourceId] === 'FAIL',
+    (r) => statusByResource[r.resourceId] === 'FAIL',
   ).length;
-  const pendingCount = liveResources.length - okCount;
-  const progressPct = liveResources.length > 0 ? Math.round((okCount / liveResources.length) * 100) : 0;
+  const doneCount = liveResources.filter((r) => {
+    const s = statusByResource[r.resourceId];
+    return s === 'SUCCESS' || s === 'FAIL';
+  }).length;
+  const pendingCount = liveResources.length - doneCount;
+  const progressPct = liveResources.length > 0 ? Math.round((doneCount / liveResources.length) * 100) : 0;
 
   // After the run settles SUCCESS, read completion-status; the CTA only opens on
   // LATEST_TEST_CONNECTION_SUCCESS (every target connected + logical-DB up to date).
@@ -167,35 +192,27 @@ export const IdcStep5ConnectionTest = ({
     };
   }, [uiState, targetSourceId, latestJob]);
 
+  // Credentials are persisted on change (handleCredChange), so Run Test only
+  // resets the approval gate and triggers the run.
   const runTest = useCallback(async () => {
     if (!ready || testing || savingCreds || !allCredsSet) return;
-    setSavingCreds(true);
-    try {
-      // Persist every credential that diverged from the seed before triggering.
-      for (const r of state.resources) {
-        if (r.excluded) continue;
-        const next = creds[r.resourceId] ?? '';
-        if (next !== (r.credentialId ?? '')) {
-          await updateResourceCredential(targetSourceId, r.resourceId, next);
-        }
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Credential 설정에 실패했습니다.');
-      setSavingCreds(false);
-      return;
-    }
-    setSavingCreds(false);
     setApprovalEnabled(false);
-    setTested(true);
     await trigger();
-  }, [ready, testing, savingCreds, allCredsSet, state, creds, targetSourceId, trigger, toast]);
+  }, [ready, testing, savingCreds, allCredsSet, trigger]);
 
-  // Changing a credential only updates the selection. The latest poll result still
-  // stands (a credential change is not a re-test), so it must NOT disable the 완료 승인
-  // 요청 CTA; Run Test is what resets the gate when a new run is triggered.
-  const handleCredChange = useCallback((resourceId: string, cred: string) => {
-    setCreds((prev) => ({ ...prev, [resourceId]: cred }));
-  }, []);
+  // Changing a credential fires a PUT immediately (parity with the cloud card);
+  // local state updates only on success.
+  const handleCredChange = useCallback(async (resourceId: string, cred: string) => {
+    setSavingCount((c) => c + 1);
+    try {
+      await updateResourceCredential(targetSourceId, resourceId, cred);
+      setCreds((prev) => ({ ...prev, [resourceId]: cred }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Credential 변경에 실패했습니다.');
+    } finally {
+      setSavingCount((c) => c - 1);
+    }
+  }, [targetSourceId, toast]);
 
   const progressState: ConnProgressState = testing
     ? 'running'
@@ -313,6 +330,7 @@ export const IdcStep5ConnectionTest = ({
                   resources={viewResources}
                   cols={['src', 'cred', 'conn', 'logical']}
                   onCredChange={handleCredChange}
+                  credOptions={credOptions}
                   onLogicalOpen={handleLogicalOpen}
                 />
               </div>

@@ -47,8 +47,10 @@ vi.mock('@/app/hooks/useTestConnectionPolling', () => ({
 }));
 
 const updateResourceCredentialMock = vi.fn();
+const getSecretsMock = vi.fn(async (..._args: unknown[]) => [{ name: 'Key1' }, { name: 'Key2' }, { name: 'Key3' }]);
 vi.mock('@/app/lib/api', () => ({
   updateResourceCredential: (...args: unknown[]) => updateResourceCredentialMock(...args),
+  getSecrets: (...args: unknown[]) => getSecretsMock(...args),
 }));
 
 import { ConnectionTestCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/ConnectionTestCard';
@@ -157,6 +159,8 @@ describe('ConnectionTestCard', () => {
 
   it('fires updateResourceCredential immediately on credential selection, before Run Test', async () => {
     renderCard([makeResource({ resourceId: 'res-9', credentialId: 'Key1' })]);
+    // Wait for the secrets-backed options to load so 'Key2' is selectable.
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Key2' })).toBeTruthy());
     // The PUT fires on the change event itself, not on Run Test click.
     await act(async () => {
       fireEvent.change(screen.getByLabelText('DB Credential 선택'), { target: { value: 'Key2' } });
