@@ -67,16 +67,20 @@ export const mockAzure = {
         resource_id: r.resourceId,
         resource_name: r.resourceName,
         resource_type: r.resourceType,
-        private_endpoint: r.privateEndpoint
-          ? { id: r.privateEndpoint.id, name: r.privateEndpoint.name, status: r.privateEndpoint.status }
-          : null,
-        vm_installation: vm
+        // Object-typed wire fields are optional but NOT nullable (swagger $ref,
+        // no `nullable: true`) — omit when absent rather than emit null.
+        ...(r.privateEndpoint
+          ? { private_endpoint: { id: r.privateEndpoint.id, name: r.privateEndpoint.name, status: r.privateEndpoint.status } }
+          : {}),
+        ...(vm
           ? {
-              subnet_exists: vm.subnetExists,
-              // load_balancer passes through opaque (ADR-019 D2.3).
-              load_balancer: { name: vm.loadBalancer.name, installed: vm.loadBalancer.installed },
+              vm_installation: {
+                subnet_exists: vm.subnetExists,
+                // load_balancer passes through opaque (ADR-019 D2.3).
+                load_balancer: { name: vm.loadBalancer.name, installed: vm.loadBalancer.installed },
+              },
             }
-          : null,
+          : {}),
       };
     });
 
