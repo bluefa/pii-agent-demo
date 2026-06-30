@@ -1,6 +1,6 @@
 ---
 name: codex-review
-description: Cross-review the current branch with OpenAI Codex CLI (gpt-5.5, reasoning=xhigh). Use for major-decision sign-off, pre-PR second opinion, or any case where Claude's implementation should be validated by an external model.
+description: Cross-review the current branch with OpenAI Codex CLI (gpt-5.5, reasoning=xhigh). Use for major-decision sign-off, pre-PR second opinion, or any case where Claude's implementation should be validated by an external model. Pass `fast` arg to use reasoning=medium for quicker turnaround.
 ---
 
 # Codex Review Skill
@@ -10,7 +10,7 @@ Run the current branch's changes through Codex CLI as an independent reviewer. I
 ## Execution principles
 
 1. **Full access**: always pass `--dangerously-bypass-approvals-and-sandbox`. This is an explicit user preference — Codex must be able to read the full repo (especially `.claude/skills/**` and untracked files) for skill-aware review and uncommitted-scope reviews. The tradeoff (Codex can also write) is accepted; the SKILL.md itself prohibits auto-applying Codex's suggestions (see "Prohibitions" below).
-2. **Pinned model**: always pass `-c model="gpt-5.5" -c model_reasoning_effort="xhigh"` on the CLI. Do not rely on `~/.codex/config.toml` defaults — they can drift.
+2. **Pinned model**: always pass `-c model="gpt-5.5" -c model_reasoning_effort="xhigh"` on the CLI (or `"medium"` when the `fast` arg is present). Do not rely on `~/.codex/config.toml` defaults — they can drift.
 3. **Fresh base**: run `git fetch origin --quiet` before invoking Codex. Do NOT use `git fetch origin main` — that form only updates `FETCH_HEAD`, leaving `refs/remotes/origin/main` stale, which breaks the default `origin/main...HEAD` diff scope.
 4. **Foreground Bash with `timeout: 600000`** (10 min) and `</dev/null` redirection — Codex otherwise blocks reading stdin even when a prompt arg is provided. Pipe stdout directly to the user **verbatim**, then prepend a 1–3 line Claude summary.
 
@@ -22,19 +22,31 @@ Run the current branch's changes through Codex CLI as an independent reviewer. I
 | `/codex-review uncommitted` | Review staged + unstaged + untracked working tree |
 | `/codex-review commit <sha>` | Review a single commit |
 | `/codex-review base=<branch>` | Override the comparison base |
+| `/codex-review fast` | Use `model_reasoning_effort="medium"` — faster turnaround, slightly lower depth |
 | `/codex-review "<free text>"` | Appended as extra reviewer instructions |
 
-Combinable, e.g. `/codex-review uncommitted "focus on security"`.
+Combinable, e.g. `/codex-review uncommitted "focus on security"` or `/codex-review fast "focus on security"`.
 
 ## Command template
 
 Use generic `codex exec` (not `codex exec review`). In codex-cli 0.124.0, `codex exec review` rejects a custom `[PROMPT]` argument when combined with `--base`, `--uncommitted`, or `--commit` (error: `the argument '--base <BRANCH>' cannot be used with '[PROMPT]'`), which makes skill-aware review impossible through that path. With full access, Codex can gather the diff itself via shell commands inside the prompt.
 
 ```bash
+# Default (xhigh):
 codex exec \
   --dangerously-bypass-approvals-and-sandbox \
   -c model="gpt-5.5" \
   -c model_reasoning_effort="xhigh" \
+  "$(cat <<'PROMPT'
+<REVIEW_PROMPT with DIFF_SCOPE variable filled in>
+PROMPT
+)"
+
+# fast arg present — use medium effort for quicker turnaround:
+codex exec \
+  --dangerously-bypass-approvals-and-sandbox \
+  -c model="gpt-5.5" \
+  -c model_reasoning_effort="medium" \
   "$(cat <<'PROMPT'
 <REVIEW_PROMPT with DIFF_SCOPE variable filled in>
 PROMPT
