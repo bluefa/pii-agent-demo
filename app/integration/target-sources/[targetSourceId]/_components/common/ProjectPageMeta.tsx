@@ -15,7 +15,7 @@ interface ProjectPageMetaProps {
 
 const STATIC_HEAD_CRUMBS = [
   { label: 'SIT Home', href: '/' },
-  { label: 'Service List', href: integrationRoutes.admin },
+  { label: 'Service List', href: integrationRoutes.services },
 ];
 
 const JIRA_KEY_PATTERN = /\/browse\/([A-Z][A-Z0-9]+-\d+)/;
@@ -117,7 +117,7 @@ const buildIdentityFields = (identity: ProjectIdentity): IdentityBarField[] => {
 export const ProjectPageMeta = ({ project, providerLabel, identity, action }: ProjectPageMetaProps) => {
   const crumbs = [
     ...STATIC_HEAD_CRUMBS,
-    { label: project.serviceCode, href: integrationRoutes.admin },
+    { label: project.serviceCode, href: `${integrationRoutes.services}?service_code=${encodeURIComponent(project.serviceCode)}` },
     { label: providerLabel },
   ];
   const provider = String(identity.cloudProvider).toLowerCase();

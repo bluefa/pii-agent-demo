@@ -1,5 +1,5 @@
 export const integrationRoutes = {
-  admin: '/integration/admin',
+  services: '/integration/services',
   adminDashboard: '/integration/admin/dashboard',
   adminGuides: '/integration/admin/guides',
   taskAdmin: '/integration/task_admin',

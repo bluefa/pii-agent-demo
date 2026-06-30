@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { cn, navStyles } from '@/lib/theme';
+import { cn, navStyles, textColors } from '@/lib/theme';
 import { integrationRoutes } from '@/lib/routes';
 
 type NavItem = {
@@ -28,10 +28,9 @@ const iconProps = {
 const NAV_ITEMS: NavItem[] = [
   {
     label: 'Service List',
-    href: integrationRoutes.admin,
+    href: integrationRoutes.services,
     isActive: (pathname) =>
-      (pathname.startsWith('/integration/admin') &&
-        !pathname.startsWith('/integration/admin/guides')) ||
+      pathname.startsWith('/integration/services') ||
       pathname.startsWith('/integration/target-sources'),
     icon: (
       <svg {...iconProps} aria-hidden="true">
@@ -175,7 +174,11 @@ export const TopNav = () => {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm shadow-lg"
+          className={cn(
+            'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg',
+            navStyles.bg,
+            textColors.inverse,
+          )}
         >
           {toastMessage}
         </div>
