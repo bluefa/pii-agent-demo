@@ -85,11 +85,11 @@ button{font-family:inherit;letter-spacing:inherit}
   padding:3px 10px;border-radius:var(--toss-radius-pill)}
 .pill .dot{width:6px;height:6px;border-radius:50%}
 .pill.s-RUNNING,.pill.s-IN_PROGRESS{background:#EAF2FE;color:var(--color-info-dark)} .pill.s-RUNNING .dot,.pill.s-IN_PROGRESS .dot{background:var(--color-info)}
-.pill.s-READY{background:#EAF2FE;color:var(--color-info)} .pill.s-READY .dot{background:var(--color-info)}
+.pill.s-READY{background:var(--color-primary-light);color:var(--color-info-dark)} .pill.s-READY .dot{background:var(--color-info)}
 .pill.s-DONE{background:#E9F8F0;color:var(--color-success-dark)} .pill.s-DONE .dot{background:var(--color-success)}
 .pill.s-FAILED{background:#FDECEC;color:var(--color-error-dark)} .pill.s-FAILED .dot{background:var(--color-error)}
 .pill.s-CANCELLED{background:var(--gray-100);color:var(--color-pending-dark)} .pill.s-CANCELLED .dot{background:var(--color-pending)}
-.pill.s-BLOCKED{background:var(--gray-100);color:var(--toss-weak)} .pill.s-BLOCKED .dot{background:var(--toss-faint)}
+.pill.s-BLOCKED{background:var(--gray-100);color:var(--color-pending-dark)} .pill.s-BLOCKED .dot{background:var(--toss-faint)}
 
 /* ── ProviderTag ── */
 .ptag{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
@@ -316,8 +316,12 @@ const BY_TARGET = {};
 Object.values(PIPELINES).forEach(p=>{(BY_TARGET[p.target]=BY_TARGET[p.target]||[]).push(p.id)});
 Object.values(BY_TARGET).forEach(a=>a.sort((x,y)=>y-x));
 
-// 🆕 A1 live stats
-const LIVE = {runningCount:3, tfInProgress:5, slotLimit:null};
+// 🆕 A1 live stats — 실데이터 파생(✅ count는 정확). slotLimit 분모만 ❌
+const LIVE = {
+  runningCount: Object.values(PIPELINES).filter(p=>p.status==='RUNNING').length,
+  tfInProgress: Object.values(PIPELINES).flatMap(p=>p.tasks).filter(t=>t.kind==='TERRAFORM_JOB'&&t.status==='IN_PROGRESS').length,
+  slotLimit: null,
+};
 // 🆕 A2 period stats
 const PERIOD_STATS = {'1h':{running:3,failed:0,done:4}, '1d':{running:8,failed:2,done:41}, '7d':{running:12,failed:5,done:180}};
 
@@ -349,7 +353,15 @@ function currentTask(p){                                                   // (b
   const cand = p.tasks.filter(t=>t.status in order).sort((a,b)=>a.seq-b.seq)[0];
   return cand || null;
 }
-const finalSeq = p => Math.max(...p.tasks.map(t=>t.seq));
+const finalSeq = p => p.tasks.length ? Math.max(...p.tasks.map(t=>t.seq)) : 0;
+// (b) 현재 task 레이블: RUNNING이면 진행 중 task seq, 종단 상태면 상태 반영
+function currentTaskLabel(p){
+  const cur=currentTask(p);
+  if(cur) return `seq ${cur.seq}`;
+  if(p.status==='CANCELLED') return '취소됨';
+  if(p.status==='FAILED') return '실패';
+  return '완료';
+}
 const canCancel = p => p.status==='RUNNING';                              // (c)
 function targetButtons(ts){                                                // (d)
   const run = (BY_TARGET[ts.id]||[]).map(id=>PIPELINES[id]).find(p=>p.status==='RUNNING');
@@ -374,7 +386,8 @@ const naTag = '<span class="ftag na">미제공 ❌</span>';
 const app = {navState:{}, selectedServiceCode:null, selectedTaskId:null, modal:null};
 function nav(hash, navState){ if(navState) app.navState={...app.navState,...navState}; location.hash=hash; }
 function parseHash(){
-  const h = location.hash || '#/dashboard';
+  let h = location.hash;
+  if(!h || h==='#/' || h==='#') h='#/dashboard';
   const m = h.match(/^#\/(dashboard|services|target|pipeline)(?:\/(.+))?$/);
   if(!m) return {route:'404'};
   return {route:m[1], param:m[2]?decodeURIComponent(m[2]):null};
@@ -415,7 +428,7 @@ function wireNav(root){
   });
 }
 document.querySelectorAll('.sidebar [data-nav]').forEach(n=>n.addEventListener('click',()=>location.hash=n.getAttribute('data-nav')));
-window.addEventListener('hashchange',()=>{app.selectedTaskId=null;render();});
+window.addEventListener('hashchange',()=>{closeModal();app.selectedTaskId=null;render();});
 
 /* =========================================================================
  * View: 404
@@ -429,6 +442,7 @@ function view404(){
  * View 1: Dashboard (#/dashboard) — A1 live, A2 period, A3 list
  * ========================================================================= */
 let dashPeriod='1d', dashFilter={status:'',provider:'',q:''}, dashPage=1;
+let histState={id:null,page:1};
 const PAGE_SIZE=5;
 function viewDashboard(){
   const root=el(`<div>
@@ -511,7 +525,7 @@ function renderList(root){
     </div>`;
   wrap.querySelectorAll('tr[data-pid]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
-    const go=()=>{const p=PIPELINES[tr.dataset.pid]; nav(`#/pipeline/${p.id}`,{targetId:p.target, serviceCode:null}); };
+    const go=()=>{const p=PIPELINES[tr.dataset.pid]; nav(`#/pipeline/${p.id}`,{targetId:p.target, serviceCode:null, serviceName:null}); };
     tr.onclick=go; tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
   });
   const prev=wrap.querySelector('#prev'), next=wrap.querySelector('#next');
@@ -587,9 +601,9 @@ function viewTarget(id){
         <div class="kv" style="grid-template-columns:120px 1fr">
           <div class="k">Cloud Provider</div><div class="v">${provTag(ts.provider)} <span class="ftag na" style="background:#E9F8F0;color:var(--color-success-dark)">🔵 direct</span></div>
           <div class="k">TargetSource</div><div class="v mono">${ts.id}</div>
-          <div class="k">계정</div><div class="v mono">${ts.account}</div>
-          <div class="k">서비스</div><div class="v">${esc(svcName)} <span class="muted">(${ts.serviceCode})</span></div>
-          <div class="k">설치 상태</div><div class="v">${ts.processStatus} <span class="muted" style="font-size:12px">process_status · getProcessStatus 🔵</span></div>
+          <div class="k">계정</div><div class="v mono">${esc(ts.account)}</div>
+          <div class="k">서비스</div><div class="v">${esc(svcName)} <span class="muted">(${esc(ts.serviceCode)})</span></div>
+          <div class="k">설치 상태</div><div class="v">${esc(ts.processStatus)} <span class="muted" style="font-size:12px">process_status · getProcessStatus 🔵</span></div>
         </div>
         <button class="btn secondary sm" id="refresh">⟳ 상태 새로고침</button>
       </div>
@@ -623,16 +637,27 @@ function viewTarget(id){
   }else{
     lc.innerHTML=`<div class="empty"><span class="ico">📭</span>실행 이력 없음<br><span style="font-size:12px">[설치 시작]으로 첫 파이프라인을 만드세요</span></div>`;
   }
-  // history
+  // history (P7 pagination — PAGE_SIZE 초과 시에만 컨트롤 노출)
   const hist=root.querySelector('#hist');
+  if(histState.id!==id){histState.id=id;histState.page=1;}
+  const hpages=Math.max(1,Math.ceil(ids.length/PAGE_SIZE));
+  histState.page=Math.min(histState.page,hpages);
+  const hslice=ids.slice((histState.page-1)*PAGE_SIZE, histState.page*PAGE_SIZE);
   if(ids.length){
     hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>유형</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
-      ids.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${p.type}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p))}</td><td class="muted">${p.createdAt}</td><td class="chev">›</td></tr>`).join('')}</tbody></table>`;
+      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p))}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev">›</td></tr>`).join('')}</tbody></table>${
+      hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">‹ 이전</button>
+        <span class="muted" style="font-size:13px">${histState.page} / ${hpages}</span>
+        <button class="btn ghost sm" ${histState.page>=hpages?'disabled':''} id="hnext">다음 ›</button></div>`:''}`;
     hist.querySelectorAll('tr[data-pid]').forEach(tr=>{
       tr.setAttribute('role','button');tr.setAttribute('tabindex','0');
       const go=()=>nav(`#/pipeline/${tr.dataset.pid}`,{serviceCode:ts.serviceCode, serviceName:svcName, targetId:ts.id, provider:ts.provider});
       tr.onclick=go; tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
     });
+    const hp=hist.querySelector('#hprev'), hn=hist.querySelector('#hnext');
+    if(hp) hp.onclick=()=>{histState.page--;render();};
+    if(hn) hn.onclick=()=>{histState.page++;render();};
   }else{
     hist.innerHTML=`<div class="empty"><span class="ico">📭</span>파이프라인 이력이 없어요</div>`;
   }
@@ -674,7 +699,7 @@ function viewPipeline(id){
           <div class="k">상태</div><div class="v">${pill(p.status)}</div>
           <div class="k">생성</div><div class="v">${p.createdAt}</div>
           <div class="k">마지막 활동</div><div class="v">${p.lastActivityAt}</div>
-          <div class="k">현재 / 최종 task</div><div class="v">${cur?`seq ${cur.seq}`:'완료'} / seq ${finalSeq(p)} <span class="ftag approx">파생 ⚙️</span></div>
+          <div class="k">현재 / 최종 task</div><div class="v">${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="ftag approx">파생 ⚙️</span></div>
           <div class="k">실패 / 한계</div><div class="v">${cur?`${cur.failCount} / ${cur.maxFail}`:'—'} <span class="ftag approx">파생 ⚙️</span></div>
         </div>
         <div style="margin-top:16px"><button class="btn danger" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
@@ -708,7 +733,7 @@ function viewPipeline(id){
       <div class="nm">${esc(t.operation)}</div>
       <span class="kindchip ${cond?'ext':''}">${cond?'CONDITION_CHECK · 외부확인':'TERRAFORM_JOB'}</span>
       <div style="margin-top:8px">${pill(t.status)}</div>
-      <div class="meta">${t.failCount?`fail ${t.failCount}`:''}${t.errorCode?` · ${t.errorCode}`:''}${t.startedAt?` · ${t.startedAt}${t.finishedAt?'~'+t.finishedAt:''}`:''}</div>
+      <div class="meta">${t.failCount?`fail ${t.failCount}`:''}${t.errorCode?` · ${esc(t.errorCode)}`:''}${t.startedAt?` · ${t.startedAt}${t.finishedAt?'~'+t.finishedAt:''}`:''}</div>
     </div>`);
     const sel=()=>{app.selectedTaskId=t.seq; renderTaskDetail(root,p);
       flow.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('sel',n.dataset.seq==t.seq));};
@@ -731,7 +756,7 @@ function renderTaskDetail(root,p){
       (c?`<div class="kv" style="grid-template-columns:150px 1fr">
         <div class="k">call / not_met</div><div class="v">${c.callCount} / ${c.notMetCount}</div>
         <div class="k">api_error / timeout</div><div class="v">${c.apiErrorCount} / ${c.callTimeoutCount}</div>
-        <div class="k">last_external_status</div><div class="v">${c.lastExternalStatus}</div>
+        <div class="k">last_external_status</div><div class="v">${esc(c.lastExternalStatus)}</div>
         <div class="k">last_checked_at</div><div class="v">${c.lastCheckedAt}</div>
         <div class="k">last_response_code</div><div class="v">${c.lastResponseCode??'null'} <span class="ftag null">미채움 ⚠️</span></div>
         <div class="k">last_response_summary</div><div class="v">${c.lastResponseSummary??'null'} <span class="ftag null">미채움 ⚠️</span></div>
@@ -739,7 +764,7 @@ function renderTaskDetail(root,p){
   }else{
     detail=`<div class="section-title">Attempts <span class="muted" style="font-weight:400">(TERRAFORM_JOB)</span></div>`+
       (t.attempts&&t.attempts.length?`<table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response (원시 text)</th></tr></thead><tbody>${
-        t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode||'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table>
+        t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode?esc(a.errorCode):'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table>
         <div class="muted" style="font-size:12px;margin-top:8px">job_ids · dispatch_response_* 는 제거된 필드(❌) — job id는 response 원시 text 안에 있습니다.</div>`
       :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`);
   }
@@ -771,7 +796,9 @@ function mountModal(html){
   root.innerHTML=`<div class="overlay">${html}</div>`;
   root.querySelector('.overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
   document.addEventListener('keydown',escClose);
-  return root.querySelector('.modal');
+  const modal=root.querySelector('.modal');
+  const focusable=modal.querySelector('.btn.primary,.btn.danger,button'); if(focusable) focusable.focus();
+  return modal;
 }
 function openPreview(ts,type){
   app.modal={kind:'preview',type,id:ts.id};
@@ -784,11 +811,12 @@ function openPreview(ts,type){
   </div>`);
   m.querySelector('#mcancel').onclick=closeModal;
   m.querySelector('#mrun').onclick=()=>{
-    // A10 POST — mock: 진행 중 run 있으면 그걸 반환(멱등), 없으면 최신 run으로 이동
+    // A10 POST(멱등): 진행 중 run 있으면 그 run으로 이동(기존 run 반환). 없으면 새 run 생성 —
+    // mock은 실제 run을 만들지 못하므로 대상 페이지에 머물며 toast만(무관한 과거 run으로 점프 금지).
     const running=(BY_TARGET[ts.id]||[]).map(id=>PIPELINES[id]).find(p=>p.status==='RUNNING');
     closeModal();
     if(running){ toast('이미 진행 중인 파이프라인으로 이동합니다'); nav(`#/pipeline/${running.id}`,{serviceCode:ts.serviceCode,serviceName:ts.serviceName,targetId:ts.id,provider:ts.provider}); }
-    else { const latest=(BY_TARGET[ts.id]||[])[0]; toast(`${type==='INSTALL'?'설치':'삭제'} 파이프라인이 실행됐어요`); if(latest) nav(`#/pipeline/${latest}`,{serviceCode:ts.serviceCode,serviceName:ts.serviceName,targetId:ts.id,provider:ts.provider}); }
+    else { toast(`${type==='INSTALL'?'설치':'삭제'} 파이프라인 생성 요청됨 (mock — 실제 run 미생성)`); render(); }
   };
 }
 function openCancel(pipelineId){
