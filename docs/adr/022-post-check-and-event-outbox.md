@@ -4,9 +4,10 @@
 
 제안됨 — 2026-07-01.
 
-[ADR-016](016-install-delete-pipeline-domain-model.md)(도메인 모델)과
-[ADR-021](021-pipeline-execution-model.md)(실행 모델)에서 **의도적으로 미룬 두 가지**를
-다룬다.
+[ADR-016](016-install-delete-pipeline-domain-model.md)(도메인 모델)·
+[ADR-021](021-pipeline-execution-model.md)(실행 모델)의 **후속 두 가지**를 다룬다 —
+**eventOutbox는 ADR-016/021이 명시적으로 유보한 사항**이고, **postCheck는 그 위에서
+새로 식별한 간극**이다.
 
 - ADR-016 「Costs we accept」(원문 축약 인용):
   *"No full per-call audit ledger or event outbox. … Worker-outage and queue-wait
@@ -19,10 +20,10 @@
 
 이 ADR은 그 두 개념을 얹되, **현재 결정(게이팅 postCheck + eventOutbox)은 ADR-016의
 도메인 테이블을 바꾸지 않는다**(유보된 자문 postCheck를 실제 도입할 때만 `pipeline`에
-컬럼 하나가 추가된다 — 「스키마」·「수용하는 비용」 참조). ADR-016/021의 불변식(“DB row가
+컬럼 하나가 추가된다 — 「수용하는 비용」·「스키마」 참조). ADR-016/021의 불변식(“DB row가
 곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지, 개념 최소화)을 그대로 상속하고,
 실행 substrate는 ADR-021의 `SKIP LOCKED` 선점 기법을 재사용한다(relay는 batch claim,
-자문 postCheck는 claim/lease까지 — 아래 참조).
+자문 postCheck는 도입 시 claim/lease까지 — 아래 참조).
 **postCheck·eventOutbox 정책은 이 ADR 소관**이며 그 변경은 이 ADR만 대체한다. 단
 유보된 자문 postCheck를 도입해 `pipeline`에 컬럼을 더할 때는 그 스키마 확장이 ADR-016
 소유이므로 ADR-016의 Schema·Links도 함께 갱신한다. claim-pull 실행 모델 변경은 ADR-021 소관.
@@ -88,7 +89,8 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 - **종단 상태를 절대 부활시키지 않는다**(ADR-016 §7). 이미 `DONE`인 파이프라인을
   검증 실패로 `FAILED`로 되돌리지 않는다 — 그것이 자문(advisory)인 이유다.
 - 파이프라인/task **도메인 상태에 대해 read-only**. claim·스케줄링·전이는 이를 읽지 않는다.
-- 결과를 작은 관측 행(`post_check`)에 기록하고, **이벤트를 방출**한다
+- 결과를 작은 방출/진단 행(`post_check`, ADR-016 observation table과는 별개)에 기록하고,
+  **이벤트를 방출**한다
   (`POST_CHECK_OK` / `POST_CHECK_MISMATCH`) — eventOutbox를 통해.
 - 별도 스케줄러를 만들지 않는다. 필요해지면 ADR-021의 `SKIP LOCKED` 기반 claim/lease
   패턴을 재사용한다(스캔 대상·predicate는 별도 — RUNNING 파이프라인이 아니라
@@ -266,7 +268,8 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 ## 개정 이력
 
 - 2026-07-01: 생성. ADR-016(Costs we accept)이 유보한 event outbox와 아직 어느 ADR에서도
-  다루지 않았던 postCheck를 도메인 모델 변경 없이 얹는 후속 결정으로 작성.
+  다루지 않았던 postCheck를, 현재 결정 범위에서는 도메인 상태 테이블 변경 없이 얹는 후속
+  결정으로 작성.
 - 2026-07-01: 리뷰 반영(codex/sonnet). 인용 정확도(§6/§7→§2 projection), 범위 스코핑
   (도메인 테이블 불변 = 현재 결정 한정, 유보 자문 postCheck 컬럼은 미래 비용), 이벤트
   집합 현재/유보 분리, `post_check` cardinality 고정, relay는 claim/lease가 아닌
