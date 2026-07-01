@@ -38,7 +38,7 @@ button{font-family:inherit;letter-spacing:inherit}
 .topnav{height:52px;background:var(--toss-card-bg);border-bottom:1px solid var(--toss-divider);
   display:flex;align-items:center;gap:20px;padding:0 24px;position:sticky;top:0;z-index:20}
 .topnav .brand{font-weight:700;font-size:16px}
-.topnav .nav-item{color:var(--toss-weak);font-size:14px;padding:6px 4px;cursor:pointer}
+.topnav .nav-item{color:var(--toss-weak);font-size:14px;padding:6px 4px}
 .topnav .nav-item.active{color:var(--toss-strong);font-weight:600}
 .topnav .nav-item.active::after{content:"●";color:var(--color-primary);font-size:9px;margin-left:4px;vertical-align:middle}
 .layout{display:flex;min-height:calc(100vh - 52px)}
@@ -316,12 +316,13 @@ const BY_TARGET = {};
 Object.values(PIPELINES).forEach(p=>{(BY_TARGET[p.target]=BY_TARGET[p.target]||[]).push(p.id)});
 Object.values(BY_TARGET).forEach(a=>a.sort((x,y)=>y-x));
 
-// 🆕 A1 live stats — 실데이터 파생(✅ count는 정확). slotLimit 분모만 ❌
-const LIVE = {
+// 🆕 A1 live stats — 실데이터 파생(✅ count는 정확). slotLimit 분모만 ❌.
+// 함수로 계산(순간값) — 생성/취소 mutation 후에도 대시보드 카드가 목록과 일관되게 유지.
+const liveStats = () => ({
   runningCount: Object.values(PIPELINES).filter(p=>p.status==='RUNNING').length,
   tfInProgress: Object.values(PIPELINES).flatMap(p=>p.tasks).filter(t=>t.kind==='TERRAFORM_JOB'&&t.status==='IN_PROGRESS').length,
   slotLimit: null,
-};
+});
 // 🆕 A2 period stats
 const PERIOD_STATS = {'1h':{running:3,failed:0,done:4}, '1d':{running:8,failed:2,done:41}, '7d':{running:12,failed:5,done:180}};
 
@@ -494,7 +495,8 @@ function viewDashboard(){
       <div id="listwrap"></div>
     </div>
   </div>`);
-  // live
+  // live (순간값 — 매 render마다 재계산)
+  const LIVE=liveStats();
   root.querySelector('#live').append(
     el(`<div class="stat"><div class="lbl">동작 중 파이프라인 <span class="muted">(사용 slot)</span></div><div class="val">${LIVE.runningCount}</div><div class="sub">count(status=RUNNING)</div></div>`),
     el(`<div class="stat unavailable"><div class="lbl">사용 / 총 slot 리밋 ${naTag}</div><div class="val">${LIVE.runningCount} <span class="den">/ —</span></div><div class="sub">분모(총 리밋)=ADR-021 러너 용량, 이 저장소 없음</div></div>`),
@@ -855,6 +857,7 @@ function openCancel(pipelineId){
     if(p && p.status==='RUNNING'){ // 즉시 반영: 파이프라인 + 비종단 task를 CANCELLED로 종단화
       p.status='CANCELLED';
       p.tasks.forEach(t=>{ if(['BLOCKED','READY','IN_PROGRESS'].includes(t.status)) t.status='CANCELLED'; });
+      p.lastActivityAt=new Date().toISOString().slice(0,16).replace('T',' ');
     }
     closeModal(); toast(`#${pipelineId} 취소됨(즉시)`); render();
   };
