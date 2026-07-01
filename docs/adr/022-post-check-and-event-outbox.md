@@ -17,10 +17,13 @@
   (design/pipeline/adr-016-history.md 참조), `postCheck`(자기 보고와 무관한 end-state
   검증)는 아직 어느 ADR에서도 다루지 않은 후속 과제였다.
 
-이 ADR은 그 두 개념을 **파이프라인 도메인 모델을 바꾸지 않고** 얹는다. ADR-016/021의
-불변식(“DB row가 곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지, 개념 최소화)을
-그대로 상속한다. 실행 substrate는 ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을
-재사용하며, 미래 변경은 이 ADR만 대체한다.
+이 ADR은 그 두 개념을 얹되, **현재 결정(게이팅 postCheck + eventOutbox)은 ADR-016의
+도메인 테이블을 바꾸지 않는다**(유보된 자문 postCheck를 실제 도입할 때만 `pipeline`에
+컬럼 하나가 추가된다 — 「스키마」·「수용하는 비용」 참조). ADR-016/021의 불변식(“DB row가
+곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지, 개념 최소화)을 그대로 상속하고,
+실행 substrate는 ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을 재사용한다.
+**postCheck·eventOutbox 정책의 미래 변경은 이 ADR만 대체한다**(claim-pull 실행 모델
+변경은 ADR-021 소관).
 
 ## 맥락
 
@@ -70,7 +73,8 @@ completion check(자기 보고 신뢰)와 별개로 **end-state를 독립 검증
 **(A) 게이팅 postCheck — 기본. 기존 `CONDITION_CHECK`를 재사용.**
 recipe의 **마지막 task**로 `CONDITION_CHECK`를 둔다. 새 task kind도, 새 상태도, 새
 실패 의미도 없다(ADR-016의 개념 최소화 원칙). end-state 계약을 단언하고, 실패 시 여느
-CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7). INSTALL의 “리소스
+CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §6), 그에 따라
+파이프라인도 `FAILED`로 전이한다(§7의 “실패 파이프라인은 실패 task를 FAILED로 표시”). INSTALL의 “리소스
 조회 가능”, DELETE의 “리소스 소멸 확인”이 여기 해당한다. **이 경우 새 메커니즘은 전혀
 필요 없다 — recipe 작성 규약일 뿐이다.**
 
@@ -113,10 +117,13 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 - **at-least-once.** 전달 성공 후 `sent_at` 기록 전에 크래시하면 재전달된다 — ADR-016의
   at-least-once 철학과 동일. 따라서 **소비자는 멱등해야 한다**(`event_id`로 dedupe).
 - **동시 relay 안전.** relay가 여럿이어도 ADR-021의 `FOR UPDATE SKIP LOCKED`로 행을
-  집으면 같은 행을 이중 전달하지 않는다(락 창 안에서). ADR-021의 `SKIP LOCKED` 기반
-  claim/lease 패턴을 재사용한다(스캔 대상은 `event_outbox` 미전송 행으로 별도).
+  집으면 **동시에 같은 행을 처리하지 않는다**(락 창 안에서). 다만 전달 성공 후 `sent_at`
+  기록 전 크래시는 위 at-least-once대로 재전달될 수 있다 — 배타는 동시성 한정이다.
+  ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을 재사용한다(스캔 대상은 `event_outbox`
+  미전송 행으로 별도).
 - **`attempt_count`/`last_error`** 로 재시도·poison 가시성을 남긴다. 상한 초과 행은
-  전달을 멈추고 알림으로 승격(운영 이벤트) — 파이프라인 상태에는 영향 없음.
+  전달을 멈추고 **지표/모니터링으로 노출**한다(아웃박스 이벤트가 아니라 운영 지표) —
+  파이프라인 상태에는 영향 없음.
 
 ### 4. 아웃박스는 방출 전용 — 도메인 상태가 아니다
 
@@ -156,10 +163,11 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 ### 좋은 점
 
 - **신뢰성 있는 알림/이벤트**를 dual-write 없이 얻는다 — 상태 전이와 원자적.
-- **도메인 모델 불변.** ADR-016 테이블·enum·상태는 그대로. postCheck 게이팅은 순수
-  recipe 규약, eventOutbox는 tx2에 INSERT 한 줄 + 방출 전용 테이블.
-- **실행 substrate 재사용.** relay/자문 postCheck 모두 ADR-021 claim-pull을 재사용 —
-  새 스케줄러·리더·저널 없음.
+- **현재 결정은 ADR-016 도메인 테이블을 바꾸지 않는다.** 게이팅 postCheck는 순수 recipe
+  규약(`pipeline`/`task`·enum·상태 그대로), eventOutbox는 tx2에 INSERT 한 줄 + **신규**
+  방출 전용 테이블 `event_outbox`만 추가한다. (유보된 자문 postCheck는 예외 — 아래 비용 참조.)
+- **실행 substrate 재사용.** relay/자문 postCheck 모두 ADR-021의 `SKIP LOCKED` 기반
+  claim/lease 패턴을 재사용 — 새 스케줄러·리더·저널 없음.
 - **자기 보고와 실제 상태의 간극을 검증**할 수단(postCheck)이 명시된다.
 
 ### 수용하는 비용
@@ -168,7 +176,9 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
   없이 신뢰성 있는 알림을 하려면 불가피 — 정당화된다.
 - **at-least-once → 멱등 소비자 필수.** 소비자가 `event_id`로 dedupe해야 한다.
 - **전역 순서·exactly-once 미보장**(위 §5). 규모상 수용.
-- **종단 후 자문 postCheck 머신러리는 유보** — 드리프트 감지 요구가 생기면 그때 도입.
+- **종단 후 자문 postCheck 메커니즘은 유보** — 드리프트 감지 요구가 생기면 그때 도입.
+  구현 시에는 **ADR-016의 `pipeline` 테이블에 컬럼 하나(`post_check_due_at`)와 `post_check`
+  테이블이 추가**된다 — 즉 그 시점에는 도메인 테이블이 한 번 확장된다(현재 결정 범위 밖).
 
 ## 스키마
 
@@ -181,13 +191,18 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
   - `payload`: 소비자가 필요로 하는 최소 바디(멱등 dedupe용 `event_id`는 `id`로 충분).
   - `attempt_count`/`last_error`: 재시도·poison 가시성.
 
-**종단 후 자문 postCheck (유보 — 구현 시)**
+**종단 후 자문 postCheck — 미래 확장 스키마(현재 미구현, 현재 결정 범위 밖)**
+
+> 아래는 자문 모드를 실제로 도입할 때의 스키마이며, **지금은 만들지 않는다.** 이 블록만
+> 유일하게 ADR-016의 도메인 테이블(`pipeline`)을 건드린다.
 
 - `post_check(id, pipeline_id, status, checked_at, detail)` — 자문 검증 1회 결과.
-  `status ∈ {OK, MISMATCH}`. 도메인 상태 아님(read-only 방출용).
-- 파이프라인 tx2에서 `DONE` 전이 시 `pipeline.post_check_due_at`을 seed(자문 모드일 때만).
+  `status ∈ {OK, MISMATCH}`. 도메인 상태 아님(read-only 방출용). **신규 테이블.**
+- `pipeline.post_check_due_at` — 파이프라인 tx2에서 `DONE` 전이 시 seed(자문 모드일 때만).
+  **ADR-016 `pipeline` 테이블에 추가되는 컬럼.**
 
-**관계**: `pipeline 1:N event_outbox`(aggregate 기준 논리적), `pipeline 1:0..1 post_check`.
+**관계**: `pipeline 1:N event_outbox`(aggregate 기준 논리적). `pipeline 1:0..1 post_check`는
+위 유보 스키마 도입 시에만 성립.
 
 **불변식**
 
@@ -214,8 +229,8 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
   (event outbox·worker/queue 알림을 “Costs we accept”로 유보한 원출처).
 - [ADR-021](021-pipeline-execution-model.md) — relay·자문 postCheck가 재사용하는
   claim-pull 실행 모델.
-- [adr-016-history.md](../../design/pipeline/adr-016-history.md) — event outbox가 최대
-  모델에서 제거된 경위.
+- [adr-016-history.md](../../design/pipeline/adr-016-history.md) — event outbox 등 최대
+  모델 요소가 재범위 축소로 정리된 경위.
 
 ## 용어
 
