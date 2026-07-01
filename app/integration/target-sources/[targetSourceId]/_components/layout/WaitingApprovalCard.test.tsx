@@ -2,77 +2,81 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const getApprovedIntegrationMock = vi.fn();
 const getApprovalRequestLatestMock = vi.fn();
 
+// Step 2 now sources both the table (resources, split by `selected`) and the request
+// meta from the single approval-requests/latest call — approved-integration is no
+// longer fetched here (it stays on step 3).
 vi.mock('@/app/lib/api', () => ({
-  getApprovedIntegration: (...args: unknown[]) => getApprovedIntegrationMock(...args),
   getApprovalRequestLatest: (...args: unknown[]) => getApprovalRequestLatestMock(...args),
 }));
 
 import { WaitingApprovalCard } from '@/app/integration/target-sources/[targetSourceId]/_components/layout/WaitingApprovalCard';
 
-const buildResponse = () => ({
-  approved_integration: {
-    id: 'ai-1',
-    request_id: 'req-1',
-    approved_at: '2026-04-30T00:00:00Z',
-    resource_infos: [
-      {
-        resource_id: 'mysql-prod-01',
-        resource_type: 'MySQL',
-        endpoint_config: null,
-        credential_id: null,
-        database_region: 'ap-northeast-1',
-        resource_name: 'sea-live-space-prod',
-        scan_status: 'NEW_SCAN' as const,
-        integration_status: null,
-      },
-    ],
-    excluded_resource_ids: ['pg-analytics-03'],
-    excluded_resource_infos: [
-      {
-        resource_id: 'pg-analytics-03',
-        exclusion_reason: 'Stg DB',
-        resource_name: 'sea-live-space-prd',
-        database_type: 'PostgreSQL',
-        database_region: 'ap-northeast-1',
-        scan_status: 'UNCHANGED' as const,
-        integration_status: null,
-      },
-    ],
-    exclusion_reason: undefined,
+interface ResourceOpts {
+  selected: boolean;
+  reason?: string;
+  dbType?: string;
+  region?: string;
+}
+
+const res = (resourceId: string, opts: ResourceOpts) => ({
+  resource_id: resourceId,
+  resource_name: `${resourceId}-name`,
+  resource_type: opts.dbType ?? 'MySQL',
+  selected: opts.selected,
+  integration_category: 'TARGET' as const,
+  ...(opts.reason ? { exclusion_reason: opts.reason } : {}),
+  metadata: {
+    provider: 'AWS',
+    region: opts.region ?? 'ap-northeast-1',
+    database_type: opts.dbType ?? 'MySQL',
   },
 });
 
-const buildApprovalRequestLatest = () => ({
+const requestMeta = {
+  id: 1,
+  target_source_id: 1003,
+  status: 'PENDING' as const,
+  requested_by: { user_id: 'tester' },
+  requested_at: '2026-04-29T05:30:00Z',
+  resource_total_count: 2,
+  resource_selected_count: 1,
+};
+
+// Single latest response: request meta + resources (table source).
+const buildResponse = () => ({
+  request: requestMeta,
+  resources: [
+    res('mysql-prod-01', { selected: true }),
+    res('pg-analytics-03', { selected: false, reason: 'Stg DB', dbType: 'PostgreSQL' }),
+  ],
+  result: { request_id: 1, status: 'PENDING' as const },
+});
+
+const buildLargeResponse = (selectedCount: number, excludedCount: number) => ({
   request: {
-    id: 1,
-    target_source_id: 1003,
-    status: 'PENDING' as const,
-    requested_by: { user_id: 'tester' },
-    requested_at: '2026-04-29T05:30:00Z',
-    resource_total_count: 2,
-    resource_selected_count: 1,
+    ...requestMeta,
+    resource_total_count: selectedCount + excludedCount,
+    resource_selected_count: selectedCount,
   },
-  resources: [],
-  result: {
-    request_id: 0,
-    status: 'PENDING' as const,
-    processed_by: { user_id: '' },
-    processed_at: '',
-  },
+  resources: [
+    ...Array.from({ length: selectedCount }, (_, idx) =>
+      res(`sel-${String(idx).padStart(2, '0')}`, { selected: true })),
+    ...Array.from({ length: excludedCount }, (_, idx) =>
+      res(`exc-${String(idx).padStart(2, '0')}`, { selected: false, reason: 'Stg DB', dbType: 'PostgreSQL' })),
+  ],
+  result: { request_id: 1, status: 'PENDING' as const },
 });
 
 describe('WaitingApprovalCard', () => {
   beforeEach(() => {
-    getApprovedIntegrationMock.mockReset();
     getApprovalRequestLatestMock.mockReset();
     getApprovalRequestLatestMock.mockRejectedValue(new Error('not mocked'));
   });
 
   it('step-2 toolbar keeps the Region filter and omits the 연동 상태 filter', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -84,7 +88,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('renders the card title with the cardStyles.cardTitle token', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     const heading = screen.getByRole('heading', { name: '연동 대상 승인 대기' });
@@ -97,7 +101,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('renders title, sub-text, status pill, and banner copy', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     expect(screen.getByText('연동 대상 승인 대기')).toBeTruthy();
@@ -116,10 +120,10 @@ describe('WaitingApprovalCard', () => {
     expect(screen.getByText('pg-analytics-03')).toBeTruthy();
   });
 
-  it('falls back to empty table on missing approved-integration (404)', async () => {
+  it('falls back to empty table on missing latest request (404)', async () => {
     const error = Object.assign(new Error('not found'), { code: 'NOT_FOUND' });
     Object.setPrototypeOf(error, (await import('@/lib/errors')).AppError.prototype);
-    getApprovedIntegrationMock.mockRejectedValueOnce(error);
+    getApprovalRequestLatestMock.mockRejectedValueOnce(error);
 
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
@@ -129,7 +133,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('renders cancelSlot and reselectSlot when provided', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(
       <WaitingApprovalCard
         targetSourceId={1003}
@@ -145,7 +149,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('does not render footer when no slots are provided', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -156,7 +160,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('renders stats with selected/excluded counts and percentages', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildLargeResponse(3, 2));
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildLargeResponse(3, 2));
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -175,7 +179,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('filter "대상" hides excluded rows', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -192,7 +196,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('search filters by resourceId case-insensitively', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -208,7 +212,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('changing page size resets page to first', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildLargeResponse(12, 0));
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildLargeResponse(12, 0));
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -230,7 +234,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('"다음 페이지" is disabled when on the last page', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildLargeResponse(5, 0));
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildLargeResponse(5, 0));
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -242,16 +246,10 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('empty response renders zero-count stats and the table empty state', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce({
-      approved_integration: {
-        id: 'ai-empty',
-        request_id: 'req-empty',
-        approved_at: '2026-04-30T00:00:00Z',
-        resource_infos: [],
-        excluded_resource_ids: [],
-        excluded_resource_infos: [],
-        exclusion_reason: undefined,
-      },
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      request: { ...requestMeta, resource_total_count: 0, resource_selected_count: 0 },
+      resources: [],
+      result: { request_id: 1, status: 'PENDING' as const },
     });
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
@@ -264,7 +262,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('filter combination yielding no results shows the filter empty message', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -279,7 +277,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('excluded row renders the reason chip in 제외 사유 column', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -289,7 +287,7 @@ describe('WaitingApprovalCard', () => {
   });
 
   it('selected row shows a dash placeholder in 제외 사유 column', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -298,10 +296,8 @@ describe('WaitingApprovalCard', () => {
     expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders 요청일시 + 요청자 in the subtitle when getApprovalRequestLatest returns metadata', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
-    getApprovalRequestLatestMock.mockReset();
-    getApprovalRequestLatestMock.mockResolvedValueOnce(buildApprovalRequestLatest());
+  it('renders 요청일시 + 요청자 in the subtitle from the latest request meta', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce(buildResponse());
 
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
@@ -311,9 +307,12 @@ describe('WaitingApprovalCard', () => {
     expect(screen.getByText('tester')).toBeTruthy();
   });
 
-  it('falls back to bare subtitle when getApprovalRequestLatest rejects', async () => {
-    getApprovedIntegrationMock.mockResolvedValueOnce(buildResponse());
-    // getApprovalRequestLatestMock is set to reject by default in beforeEach
+  it('renders a bare subtitle (table still loads) when the response has no request meta', async () => {
+    getApprovalRequestLatestMock.mockResolvedValueOnce({
+      request: null,
+      resources: buildResponse().resources,
+      result: { request_id: 0, status: 'PENDING' as const },
+    });
     render(<WaitingApprovalCard targetSourceId={1003} />);
 
     await waitFor(() => {
@@ -322,33 +321,4 @@ describe('WaitingApprovalCard', () => {
     expect(screen.queryByText(/요청일시/)).toBeNull();
     expect(screen.queryByText(/요청자/)).toBeNull();
   });
-});
-
-const buildLargeResponse = (selectedCount: number, excludedCount: number) => ({
-  approved_integration: {
-    id: 'ai-large',
-    request_id: 'req-large',
-    approved_at: '2026-04-30T00:00:00Z',
-    resource_infos: Array.from({ length: selectedCount }, (_, idx) => ({
-      resource_id: `sel-${String(idx).padStart(2, '0')}`,
-      resource_type: 'MySQL',
-      endpoint_config: null,
-      credential_id: null,
-      database_region: 'ap-northeast-1',
-      resource_name: `selected-${idx}`,
-      scan_status: 'NEW_SCAN' as const,
-      integration_status: null,
-    })),
-    excluded_resource_ids: Array.from({ length: excludedCount }, (_, idx) => `exc-${String(idx).padStart(2, '0')}`),
-    excluded_resource_infos: Array.from({ length: excludedCount }, (_, idx) => ({
-      resource_id: `exc-${String(idx).padStart(2, '0')}`,
-      exclusion_reason: 'Stg DB',
-      resource_name: `excluded-${idx}`,
-      database_type: 'PostgreSQL',
-      database_region: 'ap-northeast-1',
-      scan_status: 'UNCHANGED' as const,
-      integration_status: null,
-    })),
-    exclusion_reason: undefined,
-  },
 });
