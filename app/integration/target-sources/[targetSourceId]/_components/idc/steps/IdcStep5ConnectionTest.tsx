@@ -83,7 +83,7 @@ export const IdcStep5ConnectionTest = ({
   const [approvalEnabled, setApprovalEnabled] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
 
-  const { latestJob, uiState, trigger, triggerError } = useTestConnectionPolling(targetSourceId);
+  const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
   const toast = useToast();
   const logicalModal = useModal<LogicalModalTarget>();
 
@@ -324,6 +324,11 @@ export const IdcStep5ConnectionTest = ({
               />
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
+              )}
+              {fetchError && (
+                <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+                  연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.
+                </p>
               )}
               {/* Keep the table frame flush with its attached footer pagination
                   (Pagination is a border-t-0 / rounded-b table footer). Without this

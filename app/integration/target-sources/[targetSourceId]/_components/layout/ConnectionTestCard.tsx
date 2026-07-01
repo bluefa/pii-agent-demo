@@ -60,7 +60,7 @@ export const ConnectionTestCard = ({
   providerLabel,
   refreshProject,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, trigger, triggerError } = useTestConnectionPolling(targetSourceId);
+  const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
@@ -231,6 +231,11 @@ export const ConnectionTestCard = ({
         />
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
+        )}
+        {fetchError && (
+          <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+            연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.
+          </p>
         )}
         <div className={idcStyles.table.frame}>
           <table className="w-full">

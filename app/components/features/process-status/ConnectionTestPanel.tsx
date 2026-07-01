@@ -36,6 +36,7 @@ export const ConnectionTestPanel = ({
     latestJob,
     uiState,
     loading,
+    fetchError,
     triggerError,
     trigger,
   } = useTestConnectionPolling(targetSourceId);
@@ -157,6 +158,12 @@ export const ConnectionTestPanel = ({
 
         {triggerError && (
           <p className={cn('text-xs', statusColors.error.text)}>{triggerError}</p>
+        )}
+
+        {fetchError && (
+          <p className={cn('text-xs', statusColors.error.text)}>
+            연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.
+          </p>
         )}
 
         {isPending && latestJob && (

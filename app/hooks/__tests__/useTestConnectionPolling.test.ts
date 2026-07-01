@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
+import { getTestConnectionLatest } from '@/app/lib/api';
+import { AppError } from '@/lib/errors';
 import {
   isInProgress,
   computeUIState,
   shouldStopPolling,
+  fetchLatestTest,
 } from '@/app/hooks/useTestConnectionPolling';
+
+vi.mock('@/app/lib/api', () => ({
+  getTestConnectionLatest: vi.fn(),
+  triggerTestConnection: vi.fn(),
+}));
 
 // ADR-019: connection_status gained RUNNING. The polling state machine must
 // treat PENDING and RUNNING as in-progress (keep polling) and only settle on
@@ -45,6 +53,26 @@ describe('computeUIState', () => {
     expect(computeUIState(makeJob('SUCCESS'))).toBe('SUCCESS');
     expect(computeUIState(makeJob('FAIL'))).toBe('FAIL');
     expect(computeUIState(null)).toBe('IDLE');
+  });
+});
+
+describe('fetchLatestTest', () => {
+  it('maps NOT_FOUND to null (no test yet — legitimate IDLE)', async () => {
+    vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(
+      new AppError({ status: 404, code: 'NOT_FOUND', message: 'no test', retriable: false }),
+    );
+    await expect(fetchLatestTest(1)).resolves.toBeNull();
+  });
+
+  it('rethrows every other error instead of masking it as IDLE', async () => {
+    const err = new AppError({
+      status: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'boom',
+      retriable: true,
+    });
+    vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(err);
+    await expect(fetchLatestTest(1)).rejects.toBe(err);
   });
 });
 

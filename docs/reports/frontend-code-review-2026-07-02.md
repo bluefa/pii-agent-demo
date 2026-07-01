@@ -17,7 +17,7 @@ Codebase-wide review of the frontend (432 TS/TSX files). Successor to `frontend-
 
 Note: a local `node_modules` drift (zod 4.3.6 installed vs 3.25.76 locked) initially produced phantom tsc errors in `lib/generated/install-v1.ts` and `ScanPanel.tsx`; `npm install` resolved it. Not a code issue, but worth knowing if tsc suddenly reports `z.record` arity errors.
 
-Overall the codebase is in good shape: no `any`, no relative imports, generated contract not hand-edited, casing boundaries (D1/D6) respected in routes, and several exemplary patterns (`useApprovalTableState`, `ServiceListPanel`, the IDC abort-guard hooks). The problems are concentrated in four areas: **correctness bugs in shared hooks**, **dead code**, **contract-type drift**, and **Cloud↔IDC duplication**.
+Overall the codebase is in good shape: no `any`, generated contract not hand-edited, casing boundaries (D1/D6) respected in routes, and several exemplary patterns (`useApprovalTableState`, `ServiceListPanel`, the IDC abort-guard hooks). The problems are concentrated in four areas: **correctness bugs in shared hooks**, **dead code**, **contract-type drift**, and **Cloud↔IDC duplication**.
 
 ## Severity legend
 
@@ -33,7 +33,7 @@ The one cluster of genuine runtime bugs. All four live in hooks that back live U
 
 ### P1-1 `useInstallationStatus` has no abort/stale-response guard (race condition)
 
-`app/hooks/useInstallationStatus.ts:43-68` — `run()` awaits `fetcher(targetSourceId)` then unconditionally `setStatus(data)`. No AbortController, no "is this still the current id?" check; the effect refires on id change but never cancels the in-flight request, so a late response from the previous `targetSourceId` overwrites the current one. Backs all three cloud install panels (`AwsInstallationInline.tsx:67`, `AzureInstallationInline.tsx:84`, `GcpInstallationInline.tsx:45`). The sibling `useIdcInstallationStatus.ts` already solves exactly this — the generic hook is the drift. **Impact: high · Effort: M**
+`app/hooks/useInstallationStatus.ts:43-68` — `run()` awaits `fetcher(targetSourceId)` then unconditionally `setStatus(data)`. No AbortController, no "is this still the current id?" check; the effect refires on id change but never cancels the in-flight request, so a late response from the previous `targetSourceId` overwrites the current one. Backs all three cloud install panels (`AwsInstallationInline.tsx:48`, `AzureInstallationInline.tsx:90`, `GcpInstallationInline.tsx:44`). The sibling `useIdcInstallationStatus.ts` already solves exactly this — the generic hook is the drift. **Impact: high · Effort: M**
 
 ### P1-2 `useTestConnectionPolling` swallows every fetch error as "no test yet"
 
@@ -43,11 +43,11 @@ The one cluster of genuine runtime bugs. All four live in hooks that back live U
 
 `app/hooks/usePollingBase.ts:65-103` — in `tick()`, the catch (88-91) sets error state but never clears the interval; `shouldStop` is only consulted on success. A persistently failing endpoint is hammered indefinitely with `isPolling === true`. **Impact: medium · Effort: M**
 
-### P1-4 `usePollingBase.refresh()` commits state after unmount
+### P1-4 `usePollingBase.refresh()` calls state setters after unmount
 
-`app/hooks/usePollingBase.ts:51-60` — the polling effect has a `cancelled` flag but the standalone `refresh` callback does not; a slow refresh resolving after unmount still calls `setData`. (Refresh after `stop()` is legitimate manual usage — the gap is unmount only.) **Impact: low · Effort: S**
+`app/hooks/usePollingBase.ts:51-60` — the polling effect has a `cancelled` flag but the standalone `refresh` callback does not; a slow refresh resolving after unmount still calls `setData`/`setError`/`onUpdate` unguarded. (Refresh after `stop()` is legitimate manual usage — the gap is unmount only.) **Impact: low · Effort: S**
 
-**→ Selected as the implementation target of this PR.** Rationale: only cluster with real user-facing failure modes (stale install status rendered for the wrong target source; failures silently shown as idle; runaway polling), bounded scope (2 files + tests), and existing test infrastructure (`useTestConnectionPolling.test.ts`) to extend.
+**→ Selected as the implementation target of this PR.** Rationale: only cluster with real user-facing failure modes (stale install status rendered for the wrong target source; failures silently shown as idle; runaway polling), bounded scope (3 hook files + tests), and existing test infrastructure (`useTestConnectionPolling.test.ts`) to extend.
 
 ---
 
