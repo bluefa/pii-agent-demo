@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-06-27.
+Proposed — 2026-06-27 (revised 2026-07-01: condition rebased from `ttl` to a retry count; see Revision history).
 
 This is the **execution half** of the install/delete pipeline design: how the durable state
 machine of [ADR-016](016-install-delete-pipeline-domain-model.md) is actually driven forward.
@@ -149,7 +149,7 @@ transaction that advances task/pipeline state also clears `claimed_by`/`claimed_
 the new `next_due_at` (seeded at creation by the trigger endpoint). Without this release a
 pipeline that finishes a step but stays `RUNNING` would sit locked until `claimed_until` passes,
 blocking other workers. When the current task reaches `DONE`, the same tx2 flips the next task
-`BLOCKED → READY`. Each step writes a `task_attempt` row carrying that attempt's `response`, plus a `task_check`
+`BLOCKED → READY`. Each attempt writes a `task_attempt` row carrying its `response`, plus a `task_check`
 summary — both under the verified pipeline claim (single writer, no task-level claim needed). The
 two kinds differ in shape: a `TERRAFORM_JOB` attempt polls job status many times, so tx2 UPDATEs
 the same attempt's `task_check` in place across polls; a `CONDITION_CHECK` poll **is** one attempt

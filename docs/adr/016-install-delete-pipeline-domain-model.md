@@ -186,7 +186,7 @@ cancel is applied against a live worker is an execution concern (ADR-021).
 - `task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,
   call_timeout_count, last_external_status, last_response_code, last_response_summary,
   last_checked_at)` — at most one row per attempt (1:0..1). A `TERRAFORM_JOB` attempt polls job
-  status many times, so its row is UPDATEd in place (`call_count > 1`) and rows grow with attempts,
+  status many times, so its row is UPDATEd in place (typically `call_count > 1`) and rows grow with attempts,
   not polls, the not-met/error counts accumulating within that one row. A `CONDITION_CHECK` poll
   **is** one attempt (`call_count = 1`), so a row is inserted per poll (bounded by `maxFailCount`)
   and its count columns are degenerate (0/1, mirroring the attempt's outcome); the row is kept for
