@@ -225,6 +225,7 @@ open/configured set uses a registry instead.
 ## Links
 
 - [ADR-021](021-pipeline-execution-model.md) — the execution model that drives this state machine
+- [ADR-022](022-post-check-and-event-outbox.md) — postCheck & terminal notification. Rather than the "event outbox" from Costs we accept, it derives notifications from state (a `notified_at` marker), honoring this model's original cut. Adds ADR-022-owned notification metadata columns to `pipeline` (same category as ADR-021's execution columns); domain state is unchanged.
 - [adr-016-history.md](../../design/pipeline/adr-016-history.md) — design history & rationale (maximal → minimal, revisions)
 - Related: ADR-006 (confirmation model), ADR-009 (process status). A pipeline runs between CONFIRMED and INSTALLED.
 

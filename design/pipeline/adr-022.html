@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADR-022: Install/Delete Pipeline — 완료 검증(postCheck)과 종단 상태 알림</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+    --bg:          #f8f8f7;
+    --surface:     #ffffff;
+    --border:      #ddd;
+    --border-light: #e8e8e6;
+    --text:        #1a1a1a;
+    --text-muted:  #555;
+    --text-faint:  #888;
+    --accent:      #2d5a8e;
+    --accent-dim:  #d9e6f2;
+    --callout-bg:  #f3f6fb;
+    --callout-border: #b0c8e0;
+    --code-bg:     #f0f0ee;
+    --pre-bg:      #1e1e1e;
+    --pre-text:    #d4d4d4;
+    --table-head:  #f0f0ee;
+    --table-alt:   #fafaf9;
+    --badge-bg:    #e8f0fa;
+    --badge-text:  #1a4a7a;
+    --badge-border:#a8c4e0;
+    --good:        #2a7a3b;
+    --good-bg:     #eef7f0;
+    --good-border: #b7ddc0;
+    --bad:         #b0402f;
+    --bad-bg:      #faf0ee;
+    --bad-border:  #e0b8b0;
+    --toc-width:   230px;
+    --content-max: 830px;
+  }
+
+  html { font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── TOC Sidebar ── */
+  #toc {
+    width: var(--toc-width);
+    min-width: var(--toc-width);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2rem 1rem 2rem 1.25rem;
+    border-right: 1px solid var(--border-light);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  #toc h2 {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-faint);
+    margin-bottom: 0.9rem; border: none; padding: 0;
+  }
+  #toc ul { list-style: none; padding: 0; margin: 0; }
+  #toc li { margin-bottom: 0.2rem; }
+  #toc a {
+    display: block; font-size: 0.82rem; color: var(--text-muted);
+    text-decoration: none; padding: 0.18rem 0.5rem; border-radius: 4px;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s; line-height: 1.4;
+  }
+  #toc a:hover { color: var(--accent); background: var(--accent-dim); }
+  #toc a.active {
+    color: var(--accent); font-weight: 600;
+    border-left-color: var(--accent); background: var(--accent-dim);
+  }
+  #toc .toc-sub { padding-left: 1.1rem; }
+  #toc .toc-sub a { font-size: 0.76rem; color: var(--text-faint); }
+
+  /* ── Main Content ── */
+  #content { flex: 1; padding: 2.5rem 3rem; max-width: calc(var(--content-max) + 6rem); min-width: 0; }
+  article { max-width: var(--content-max); }
+
+  /* ── Typography ── */
+  h1 { font-size: 1.6rem; font-weight: 700; line-height: 1.28; margin-bottom: 0.5rem; }
+  h2 {
+    font-size: 1.15rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem; border-bottom: 2px solid var(--border-light);
+  }
+  h3 { font-size: 0.97rem; font-weight: 700; color: var(--accent); margin-top: 1.6rem; margin-bottom: 0.55rem; }
+  p { margin-bottom: 0.85rem; }
+  a { color: var(--accent); }
+  a:hover { text-decoration: underline; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    background: var(--badge-bg); color: var(--badge-text); border: 1px solid var(--badge-border);
+    border-radius: 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem; margin-bottom: 1.1rem; vertical-align: middle;
+  }
+  .status-badge::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--badge-text); opacity: 0.6;
+  }
+  .doc-meta {
+    color: var(--text-faint); font-size: 0.82rem; margin-bottom: 2rem;
+    padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-light);
+  }
+
+  code {
+    font-family: var(--font-mono); font-size: 0.85em; background: var(--code-bg);
+    border: 1px solid var(--border-light); border-radius: 3px; padding: 0.1em 0.32em; color: #333;
+  }
+  pre {
+    background: var(--pre-bg); color: var(--pre-text); border-radius: 6px;
+    padding: 1.1rem 1.25rem; overflow-x: auto; margin: 0.9rem 0 1.2rem;
+    font-size: 0.8rem; line-height: 1.55;
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+  ul, ol { padding-left: 1.5rem; margin-bottom: 0.85rem; }
+  li { margin-bottom: 0.3rem; }
+  li p { margin-bottom: 0.3rem; }
+
+  .table-wrap { overflow-x: auto; margin: 1rem 0 1.3rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  th {
+    background: var(--table-head); font-weight: 600; text-align: left;
+    padding: 0.5rem 0.75rem; border: 1px solid var(--border); font-size: 0.82rem;
+  }
+  td { padding: 0.48rem 0.75rem; border: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--table-alt); }
+  td:first-child { font-weight: 500; }
+  .verdict-yes { color: var(--good); font-weight: 700; }
+  .verdict-no  { color: var(--bad);  font-weight: 700; }
+
+  .callout {
+    background: var(--callout-bg); border: 1px solid var(--callout-border);
+    border-left: 4px solid var(--accent); border-radius: 5px;
+    padding: 0.9rem 1.1rem; margin: 1rem 0 1.3rem;
+  }
+  .callout-title {
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 0.5rem;
+  }
+  .callout ol, .callout ul { margin-bottom: 0; }
+  .callout li { margin-bottom: 0.25rem; }
+
+  .decision-section { margin-top: 1.5rem; padding-top: 0.1rem; }
+  .decision-section h3 { display: flex; align-items: baseline; gap: 0.6rem; }
+  .decision-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 700;
+    width: 1.45rem; height: 1.45rem; border-radius: 50%; flex-shrink: 0; top: -0.05rem; position: relative;
+  }
+
+  .schema-block {
+    font-family: var(--font-mono); font-size: 0.8rem; background: var(--code-bg);
+    border: 1px solid var(--border); border-radius: 5px; padding: 0.75rem 1rem;
+    margin: 0.4rem 0 0.9rem; line-height: 1.6; word-break: break-word; overflow-wrap: break-word;
+  }
+
+  .consequences-good, .consequences-cost { margin-bottom: 1rem; }
+  .consequences-label {
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.4rem;
+  }
+  .consequences-good .consequences-label { color: var(--good); }
+  .consequences-cost .consequences-label { color: #8a5f00; }
+
+  /* ── Diagram: flow ── */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.5rem;
+    margin: 1rem 0 1.3rem; font-size: 0.82rem;
+  }
+  .flow-step {
+    flex: 1; min-width: 150px; background: var(--surface); border: 1px solid var(--border);
+    border-top: 3px solid var(--accent); border-radius: 6px; padding: 0.7rem 0.85rem;
+  }
+  .flow-step .fs-tag {
+    font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--accent);
+    letter-spacing: 0.03em; display: block; margin-bottom: 0.3rem;
+  }
+  .flow-step .fs-body { color: var(--text-muted); font-size: 0.8rem; line-height: 1.45; }
+  .flow-step.outside { border-top-color: var(--text-faint); border-style: dashed; background: #fbfbfa; }
+  .flow-step.outside .fs-tag { color: var(--text-faint); }
+  .flow-arrow { align-self: center; color: var(--text-faint); font-size: 1.2rem; font-weight: 700; padding: 0 0.1rem; }
+
+  /* ── Diagram: compare (rejected vs chosen) ── */
+  .compare { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 1rem 0 1.3rem; }
+  .compare-col { flex: 1; min-width: 250px; border-radius: 7px; padding: 0.9rem 1rem; }
+  .compare-col.bad  { background: var(--bad-bg);  border: 1px solid var(--bad-border); }
+  .compare-col.good { background: var(--good-bg); border: 1px solid var(--good-border); }
+  .compare-col h4 { font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .compare-col.bad h4  { color: var(--bad); }
+  .compare-col.good h4 { color: var(--good); }
+  .compare-col ul { padding-left: 1.1rem; margin-bottom: 0; }
+  .compare-col li { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+  .compare-col .parts {
+    font-family: var(--font-mono); font-size: 0.74rem; margin-top: 0.55rem;
+    padding-top: 0.5rem; border-top: 1px dashed var(--border);
+  }
+
+  /* ── Split (postCheck A/B) ── */
+  .split { display: flex; flex-wrap: wrap; gap: 0.9rem; margin: 1rem 0 1.3rem; }
+  .split-col { flex: 1; min-width: 250px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 0.9rem 1rem; }
+  .split-col .sc-head { font-weight: 700; font-size: 0.88rem; margin-bottom: 0.15rem; }
+  .split-col .sc-tag {
+    display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; padding: 0.1rem 0.45rem; border-radius: 3px; margin-bottom: 0.5rem;
+  }
+  .split-col .sc-tag.now { background: var(--good-bg); color: var(--good); border: 1px solid var(--good-border); }
+  .split-col .sc-tag.later { background: #fbf4e6; color: #8a5f00; border: 1px solid #e6d3a8; }
+  .split-col ul { padding-left: 1.1rem; margin-bottom: 0; }
+  .split-col li { font-size: 0.82rem; color: var(--text-muted); }
+
+  footer {
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border-light);
+    font-size: 0.76rem; color: var(--text-faint); font-style: italic;
+  }
+
+  @media (max-width: 860px) {
+    #toc { display: none; }
+    #content { padding: 1.5rem 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="toc" aria-label="Table of Contents">
+  <h2>목차</h2>
+  <ul>
+    <li><a href="#status">상태</a></li>
+    <li><a href="#tldr">한눈에</a></li>
+    <li><a href="#context">배경</a></li>
+    <li><a href="#decision">결정</a>
+      <ul class="toc-sub">
+        <li><a href="#d1">1. postCheck 게이팅/자문</a></li>
+        <li><a href="#d2">2. 상태 파생 알림</a></li>
+        <li><a href="#d3">3. claim/lease 재사용 전달</a></li>
+        <li><a href="#d4">4. 운영 알림은 밖</a></li>
+        <li><a href="#d5">5. 보장과 한계</a></li>
+      </ul>
+    </li>
+    <li><a href="#options">검토한 대안</a></li>
+    <li><a href="#consequences">결과</a></li>
+    <li><a href="#schema">스키마</a></li>
+    <li><a href="#signals">알림/신호 분류</a></li>
+    <li><a href="#links">링크</a></li>
+    <li><a href="#glossary">용어</a></li>
+  </ul>
+</nav>
+
+<div id="content">
+<article>
+
+  <h1>ADR-022: Install/Delete Pipeline — 완료 검증(postCheck)과 종단 상태 알림</h1>
+
+  <section id="status">
+    <span class="status-badge">제안됨</span>
+    <div class="doc-meta">제안됨 — 2026-07-01 · <a href="016-install-delete-pipeline-domain-model.md">ADR-016</a>(도메인)·<a href="021-pipeline-execution-model.md">ADR-021</a>(실행)의 후속</div>
+  </section>
+
+  <!-- ── TL;DR ── -->
+  <h2 id="tldr">한눈에</h2>
+  <p>두 가지 후속 결정을 다룬다. <strong>① postCheck</strong> — 자기 보고 완료 판정과 별개로
+  end-state를 독립 검증. <strong>② 종단 알림</strong> — 파이프라인 완료/실패/취소를 신뢰성 있게
+  알리기.</p>
+
+  <div class="callout">
+    <div class="callout-title">핵심 통찰</div>
+    <p style="margin-bottom:0">종단 전이는 <strong>이미 <code>pipeline.status</code>에 durable</strong>하게 있다.
+    그러니 별도 이벤트 저장소(트랜잭션 아웃박스)를 두지 말고, 마커 컬럼 <code>notified_at</code> 하나로
+    <strong>상태에서 알림을 파생</strong>하고, 전달은 <a href="021-pipeline-execution-model.md">ADR-021</a>의
+    claim/lease를 그대로 쓴다. 이벤트가 이미 도메인 행에 있으니 dual-write가 없고, 파이프라인 행에는
+    lease/fencing이 이미 있으니 별도 relay가 겪던 lease 문제가 애초에 없다.</p>
+  </div>
+
+  <h3>아웃박스(기각) vs 상태 파생(채택)</h3>
+  <div class="compare">
+    <div class="compare-col bad">
+      <h4>✗ 트랜잭션 아웃박스</h4>
+      <ul>
+        <li>이벤트가 이미 <code>status</code>에 있는데 <strong>두 번째 저장소</strong>를 둠</li>
+        <li>relay가 외부 전달에 <strong>lease가 필요</strong>한데 <code>SKIP LOCKED</code>만으론 락을 외부 호출에 물리거나(ADR-021 §3 위반) 이중 전달</li>
+        <li>다중 sink·poison·pruner를 새로 떠안음</li>
+      </ul>
+      <div class="parts">2 테이블 + 3 루프 + 8 이벤트</div>
+    </div>
+    <div class="compare-col good">
+      <h4>✓ 상태 파생 (notified_at)</h4>
+      <ul>
+        <li>이벤트 = 상태 → <strong>dual-write 없음</strong></li>
+        <li>알림 대상은 pipeline 행 → ADR-021 claim/lease/two-tx <strong>그대로 재사용</strong> → relay-lease 문제 소멸</li>
+        <li>운영 알림은 기존 metrics/alerting으로 분리</li>
+      </ul>
+      <div class="parts">컬럼 3개 + 스캔 술어 1개</div>
+    </div>
+  </div>
+
+  <!-- ── Context ── -->
+  <h2 id="context">배경</h2>
+
+  <h3>postCheck — "작업이 끝났다" ≠ "인프라가 실제로 원하는 상태다"</h3>
+  <p>ADR-016 §5의 완료 판정 <code>check(attempt, task)</code>은 <strong>InfraManager의 자기 보고 결과</strong>를
+  읽어 "job이 성공적으로 끝났는가"를 답한다. 이는 "대상 인프라가 지금 의도한 상태인가"와 다르다:</p>
+  <ul>
+    <li>INSTALL: job은 성공 보고했지만 리소스가 eventual-consistency로 아직 조회 불가</li>
+    <li>부분 적용: apply가 절반만 반영됐는데 job 응답엔 안 드러남(silent partial)</li>
+    <li>DELETE: job은 성공 보고했으나 의존 리소스(PII 저장소 등)가 잔존</li>
+  </ul>
+  <p>즉 자기 보고 신뢰만으론 종단 상태의 실제 정합성을 보장하지 못한다 — end-state를 <strong>독립 재확인</strong>할 수단이 필요하다.</p>
+
+  <h3>종단 알림 — 신뢰성 있게 "끝났다" 전달하기</h3>
+  <p>파이프라인이 종단에 도달해도 오퍼레이터·다운스트림에 신뢰성 있게 알릴 경로가 없다. 순진한 두 방법은 모두 틀렸다:</p>
+  <ul>
+    <li><strong>전이 트랜잭션 안에서 알림 호출</strong> → dual-write. 알림 성공+트랜잭션 롤백이면 갈라지고, 느린 알림 서버가 전이를 막는다.</li>
+    <li><strong>커밋 후 best-effort 알림</strong> → 커밋~알림 사이 크래시로 조용히 유실.</li>
+  </ul>
+  <p>관건은 "전이는 커밋됐는데 알림은 아직"을 <strong>durable하게 기억</strong>하는 것. 그런데 그 상태는
+  <strong>이미 도메인 행에 있다</strong> — <code>status</code>가 종단이면 "알림 대상"이라는 뜻. 필요한 건
+  "이미 알렸는가" 마커 하나뿐이다.</p>
+
+  <div class="callout">
+    <div class="callout-title">규모 (ADR-016/021과 동일)</div>
+    <p style="margin-bottom:0">대상 ~2,000개, 분 단위 job, 단일 조직 내부 도구. 별도 이벤트 저장소·relay·CDC/브로커를 정당화하지 않는다.</p>
+  </div>
+
+  <!-- ── Decision ── -->
+  <h2 id="decision">결정</h2>
+
+  <div class="decision-section" id="d1">
+    <h3><span class="decision-num">1</span> postCheck는 "게이팅"이 기본, "종단 후 자문"은 필요 시에만</h3>
+    <p>검증이 <strong>파이프라인 성공 자체를 게이팅해야 하는지</strong>로 배치가 갈린다.</p>
+
+    <div class="split">
+      <div class="split-col">
+        <div class="sc-tag now">현재 · 기본</div>
+        <div class="sc-head">(A) 게이팅 postCheck</div>
+        <ul>
+          <li>recipe의 <strong>마지막 task로 기존 <code>CONDITION_CHECK</code></strong>를 둔다</li>
+          <li>새 task kind·상태·실패 의미 <strong>0</strong> (개념 최소화)</li>
+          <li>실패 → task <code>FAILED</code>(§6) → projection으로 파이프라인 <code>FAILED</code>(§2)</li>
+          <li>ADR-016 개정(#526)으로 <code>CONDITION_CHECK</code>는 <strong>retry-count 바운드의 빠른 probe</strong> → 대기 ≈ <code>polling_interval × maxFailCount</code>, not-met 종료 시 <code>CONDITION_NOT_MET</code></li>
+          <li><em>순수 recipe 규약 — 새 메커니즘 없음</em></li>
+        </ul>
+      </div>
+      <div class="split-col">
+        <div class="sc-tag later">유보</div>
+        <div class="sc-head">(B) 종단 후 자문 postCheck</div>
+        <ul>
+          <li>종단을 커밋한 <em>뒤</em> 검증(드리프트·장기 eventual-consistency) — 게이팅 count-bound를 넘는 긴 검증은 여기로</li>
+          <li><strong>종단 부활 금지</strong>(§7) — 되돌리지 않고 <strong>불일치 신호만</strong></li>
+          <li>도입 시 §2의 상태-파생 claim-pull 재사용, MISMATCH만(OK 없음)</li>
+          <li><em>드리프트 요구 생기기 전까지 코드·스키마 안 만듦</em></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision-section" id="d2">
+    <h3><span class="decision-num">2</span> 종단 알림은 상태에서 파생한다 — 별도 저장소 없음</h3>
+    <p><code>pipeline</code>에 nullable 컬럼 <code>notified_at</code> 하나. 알림 대상은 <strong>쿼리로 파생</strong>된다:</p>
+    <pre><code>status IN ('DONE','FAILED','CANCELLED') AND notified_at IS NULL</code></pre>
+    <p>"전이는 커밋됐는데 알림은 아직"이 이 술어로 완전히 표현된다 — 별도 이벤트 행 INSERT가 없다.
+    종단 전이 자체가 durable하므로 <strong>dual-write가 원천적으로 없다</strong>. payload는 이미 커밋된
+    <code>pipeline</code>/<code>task</code> 행에서 구성한다(실패 시 실패 task+<code>error_code</code> 포함) —
+    <code>TASK_FAILED</code>를 별도 이벤트로 둘 필요가 없다.</p>
+  </div>
+
+  <div class="decision-section" id="d3">
+    <h3><span class="decision-num">3</span> 알림 전달은 ADR-021의 claim/lease <em>메커니즘</em>을 재사용 (쿼리는 별개)</h3>
+    <p><strong>핵심 이점</strong>: 알림 대상은 <code>pipeline</code> 행이고, 그 행에는 ADR-021의 lease/fencing
+    컬럼(<code>claimed_by</code>, <code>claimed_until</code>)이 <strong>이미 있다</strong>. 그래서 알림은
+    "종단 파이프라인에 대한 또 하나의 클레임 가능한 작업"일 뿐 — 별도 relay가 재발명해야 했던
+    lease 문제가 애초에 발생하지 않는다.</p>
+
+    <div class="flow">
+      <div class="flow-step">
+        <span class="fs-tag">tx1 · claim</span>
+        <span class="fs-body">종단+미알림+backoff·lease 게이트 행을 <code>SKIP LOCKED</code>로 집고 fresh UUID lease 스탬프</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step outside">
+        <span class="fs-tag">외부 호출</span>
+        <span class="fs-body">알림 sink에 전달 (트랜잭션 <strong>밖</strong>, per-call 타임아웃)</span>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <span class="fs-tag">tx2 · guarded</span>
+        <span class="fs-body"><code>SET notified_at=now() WHERE claimed_by=:token</code> — 성공 시 클레임 해제</span>
+      </div>
+    </div>
+
+    <pre><code>-- tx1: 종단-미알림 파이프라인 claim (RUNNING 스캔과 별개 술어)
+SELECT id FROM pipeline
+ WHERE status IN ('DONE','FAILED','CANCELLED')
+   AND notified_at IS NULL
+   AND (notify_next_at IS NULL OR notify_next_at &lt;= now())
+   AND (claimed_until IS NULL OR claimed_until &lt; now())
+ ORDER BY notify_next_at NULLS FIRST
+ LIMIT 1 FOR UPDATE SKIP LOCKED;</code></pre>
+
+    <p>ADR-021 §3의 <strong>two-transaction split</strong>(락을 외부 호출에 안 물림)과 fencing이 그대로 적용된다.
+    종단 알림은 <strong>별도 work-kind</strong>로 자체 claim 쿼리를 쓴다(전용 loop 또는 공유 워커의 추가
+    claim 쿼리). 종단 행에는 READY task·<code>cancel_requested</code>·slot-gate가 없으므로 RUNNING 전용 분기를 타지 않는다.</p>
+
+    <div class="callout">
+      <div class="callout-title">실패·격리·보장</div>
+      <ul>
+        <li><strong>실패 backoff</strong>: 전달 실패 시 <code>notify_attempts++</code>, <code>notify_next_at=now()+backoff</code>(지수, ADR-021 429/503→next_due_at와 동형); 상한 초과 시 크게 밀고 <strong>운영 알림으로 승격</strong>("가장 오래된 미알림 종단 행 age" 지표로 감시).</li>
+        <li><strong>워커풀 격리</strong>: 종단 알림은 전용 풀/loop 또는 작은 동시성 상한으로 처리 — 느린 sink가 파이프라인 실행을 굶기지 않게. notify 클레임은 <code>runningPipelineCap</code>/<code>slotCap</code>에 계상 안 함.</li>
+        <li><strong>at-least-once</strong>: <code>notified_at</code>은 1회 마커(알림 <em>상태</em> 1개)지만 외부 전달은 at-least-once — 중복 가능 → 소비자는 <code>pipeline_id</code>로 멱등 dedupe(파이프라인당 종단 1개).</li>
+        <li><strong>stale straggler 안전</strong>: lease 만료 후 되살아난 tx2는 <code>claimed_by</code> 가드에서 no-op(ADR-021 §4).</li>
+      </ul>
+    </div>
+    <p>V1은 <strong>단일 논리 sink</strong> 가정. 독립 재시도가 필요한 다중 sink가 생기면 그때 per-sink 상태(또는 작은 outbox)를 도입한다.</p>
+  </div>
+
+  <div class="decision-section" id="d4">
+    <h3><span class="decision-num">4</span> 운영 알림(worker-outage/queue-wait)은 이 메커니즘 밖</h3>
+    <p><code>WORKER_OUTAGE</code>/<code>QUEUE_WAIT</code>는 상태 전이가 아니라 <strong>지표 임계</strong>에서 나온다(도메인 행 없음).
+    ADR-021이 이미 정의한 지표(lease-expired reclaim count, due-pipeline lag)에 대한 임계 알림으로,
+    <strong>조직이 이미 운영하는 metrics/alerting 스택</strong>에서 처리한다. 상태-파생 경로에 억지로 태우면
+    도메인 행 없는 이벤트를 위해 범용 저장소를 되살려야 하므로 그러지 않는다.</p>
+  </div>
+
+  <div class="decision-section" id="d5">
+    <h3><span class="decision-num">5</span> 보장과 한계 (수용)</h3>
+    <ul>
+      <li><strong>exactly-once 없음</strong> — at-least-once + 멱등 소비자로 충분(ADR-016 §5와 동일 이유).</li>
+      <li><strong>소비자 계약</strong> — dedupe 키 <code>pipeline_id</code> 장기 보관; payload에 <code>schema_version</code>;
+        <strong>PII 최소화</strong>: 허용 필드만(<code>pipeline_id</code>, <code>type</code>, <code>terminal_status</code>,
+        <code>target</code>, 실패 시 <code>failed_task</code>/<code>error_code</code>, <code>schema_version</code>).</li>
+      <li><strong>알림 지연 = 스캔 주기</strong> — 저지연 필요 시 LISTEN/NOTIFY 힌트를 나중에 얹음.</li>
+      <li><strong>알림 전용 지표</strong> — 미알림 종단 행 최고 age, 재시도/실패 수, give-up 승격 수.</li>
+    </ul>
+  </div>
+
+  <!-- ── Considered Options ── -->
+  <h2 id="options">검토한 대안</h2>
+
+  <h3>종단 알림</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>대안</th><th>판정</th><th>이유</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>A. 상태 파생 + <code>notified_at</code></strong></td>
+          <td><span class="verdict-yes">채택</span></td>
+          <td>이벤트가 이미 도메인 행에 있어 dual-write 없음; ADR-021 claim/lease/two-tx를 그대로 재사용해 relay-lease 문제 없음; 새 테이블·relay·pruner 0.</td>
+        </tr>
+        <tr>
+          <td>B. 트랜잭션 아웃박스(별도 <code>event_outbox</code> + relay)</td>
+          <td><span class="verdict-no">기각</span></td>
+          <td>이벤트가 이미 <code>status</code>에 있어 불필요; relay가 외부 전달에 lease 필요(§3 위반 or 이중 전달); 다중 sink·poison·pruner를 떠안음; ADR-016이 이미 잘라낸 메커니즘.</td>
+        </tr>
+        <tr>
+          <td>C. 전이 트랜잭션 내 동기 알림 호출</td>
+          <td><span class="verdict-no">기각</span></td>
+          <td>dual-write; 느린/실패 알림이 전이를 롤백·차단.</td>
+        </tr>
+        <tr>
+          <td>D. 커밋 후 best-effort 알림</td>
+          <td><span class="verdict-no">기각</span></td>
+          <td>커밋~알림 사이 크래시로 조용히 유실; 재시도·복구 없음.</td>
+        </tr>
+        <tr>
+          <td>E. CDC/브로커(Debezium/Kafka)</td>
+          <td><span class="verdict-no">기각</span></td>
+          <td>규모 대비 운영 비용 과다. 이미 DB 소유 → "상태 스캔 파생"이 같은 아이디어의 경량판.</td>
+        </tr>
+        <tr>
+          <td>F. Postgres <code>LISTEN/NOTIFY</code></td>
+          <td>부분 채택(선택)</td>
+          <td>대체는 못 하나(휘발성) 저지연 wake-up 힌트로 얹을 수 있음. 지연 문제 시 도입, V1 불필요.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>postCheck</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>대안</th><th>판정</th><th>이유</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>A. 게이팅=트레일링 CONDITION_CHECK + 종단 후 자문(유보)</strong></td>
+          <td><span class="verdict-yes">채택</span></td>
+          <td>흔한 경우는 기존 task kind 재사용(새 개념 0); 자문은 필요 시에만.</td>
+        </tr>
+        <tr>
+          <td>B. 새 <code>POST_CHECK</code> task kind 도입</td>
+          <td><span class="verdict-no">기각</span></td>
+          <td>동작이 같은데 enum만 늘림 — 개념 최소화 위반.</td>
+        </tr>
+        <tr>
+          <td>C. 종단 후 mismatch 시 파이프라인 <code>FAILED</code>로 되돌림</td>
+          <td><span class="verdict-no">기각</span></td>
+          <td>ADR-016 §7 "종단 부활 금지" 위반. 올바른 신호는 자문 방출.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Consequences ── -->
+  <h2 id="consequences">결과</h2>
+
+  <div class="consequences-good">
+    <div class="consequences-label">장점</div>
+    <ul>
+      <li>신뢰성 있는 종단 알림을 dual-write·별도 저장소 없이 — 전달은 ADR-021의 검증된 claim/lease를 탄다.</li>
+      <li><strong>relay-lease 딜레마 원천 소멸</strong> — 알림이 pipeline 행 작업이라 two-tx split·fencing이 그대로.</li>
+      <li>움직이는 부품 최소: 새 테이블·relay·pruner·taxonomy 없음 → 컬럼 + 스캔 술어/분기.</li>
+      <li>ADR-016 취지와 일치(잘라낸 outbox를 되살리지 않음). 도메인 상태(<code>status</code>·enum) 불변.</li>
+    </ul>
+  </div>
+
+  <div class="consequences-cost">
+    <div class="consequences-label">감수할 비용</div>
+    <ul>
+      <li><code>pipeline</code>에 알림 메타데이터 컬럼 3개(<code>notified_at</code>/<code>notify_next_at</code>/<code>notify_attempts</code>, ADR-021 실행 컬럼과 동일 범주) + 부분 인덱스 + 워커 분기.</li>
+      <li>at-least-once → 멱등 소비자 필수(<code>pipeline_id</code>).</li>
+      <li>알림 전달을 실행 워커풀에서 <strong>격리</strong>해야 함(relay 없앤 대가).</li>
+      <li><strong>회귀(수용)</strong>: per-event 감사 추적 상실(파이프라인당 <code>notified_at</code> 1개; 로그/지표로 재구성).</li>
+      <li><strong>회귀(수용)</strong>: 종단만·1회성 — 중간 이벤트("시작됨"·"step N 완료")나 성공 내 transient task 실패는 이 경로로 안 나감 → metrics 소관.</li>
+      <li>자문 postCheck는 유보; 도입 시 같은 lease 1쌍을 공유해 알림과 <strong>직렬화</strong>(실행과는 무경합).</li>
+    </ul>
+  </div>
+
+  <!-- ── Schema ── -->
+  <h2 id="schema">스키마</h2>
+
+  <p><strong>종단 알림 (현재 결정)</strong> — 모두 ADR-022 소유 알림 메타데이터 컬럼. ADR-021 실행 컬럼과 동일 범주이며 도메인 상태 컬럼이 아니다. lease 토큰(<code>claimed_by</code>/<code>claimed_until</code>)은 ADR-021 것을 공유.</p>
+  <div class="schema-block">
+    pipeline.notified_at   (nullable)      — 종단 알림 전달 완료(sink ack) 마커<br>
+    pipeline.notify_next_at(nullable)      — 실패 backoff 게이트(다음 재시도 시각)<br>
+    pipeline.notify_attempts (int, def 0)  — backoff 지수·give-up 임계 계산용<br>
+    <span style="color:var(--text-faint)">※ 새 테이블 없음. 대상은 status IN(종단) AND notified_at IS NULL 파생.</span><br>
+    인덱스: (notify_next_at) WHERE status IN('DONE','FAILED','CANCELLED') AND notified_at IS NULL
+  </div>
+
+  <p><strong>종단 후 자문 postCheck — 유보</strong>(현재 미구현, 범위 밖; §1(B)의 상태-파생 claim-pull 재사용)</p>
+  <div class="schema-block">
+    pipeline.post_check_due_at (nullable)  — 자문 검증 due 마커(ADR-022 소유)<br>
+    <span style="color:var(--text-faint)">※ 드리프트 이력 필요 시 결과 1행 UPDATE-in-place (반복 이력 없음)</span>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">불변식</div>
+    <ol>
+      <li>알림/진단 메타데이터는 reconciler·claim·스케줄링·전이의 <strong>의미</strong>에 관여하지 않는다(claim 술어가 읽는 건 "알림 대상 선별"이지 도메인 전이가 아니다).</li>
+      <li>종단 알림 대상은 <strong>커밋된 종단 상태에서 파생</strong> — 전이가 durable해야만 대상이 되고, durable하면 반드시 대상(dual-write 없음, 유실 없음).</li>
+      <li>알림 메타데이터 손상/롤백은 도메인 상태를 오염시키지 않는다 — 최악은 재전달(멱등 흡수)/재클레임(delay)일 뿐 부정확 아님.</li>
+    </ol>
+  </div>
+
+  <!-- ── Signals ── -->
+  <h2 id="signals">알림/신호 분류</h2>
+  <p><strong>현재 범위</strong> — 종단 상태에서 파생, ADR-021 claim/lease로 전달:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>신호</th><th>파생 조건</th><th>payload 요지</th></tr></thead>
+      <tbody>
+        <tr><td>파이프라인 완료</td><td><code>status=DONE</code> &amp; <code>notified_at IS NULL</code></td><td>pipeline id, type, target</td></tr>
+        <tr><td>파이프라인 실패</td><td><code>status=FAILED</code> &amp; 〃</td><td>위 + 실패 task와 <code>error_code</code></td></tr>
+        <tr><td>파이프라인 취소</td><td><code>status=CANCELLED</code> &amp; 〃</td><td>위(취소 계기)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul>
+    <li><strong>운영 알림</strong>(worker-outage/queue-wait) — 이 경로가 아니라 기존 metrics/alerting(§4).</li>
+    <li><strong>유보 모드 전용</strong>: 자문 postCheck 도입 시 종단 후 <strong>불일치 신호 1종</strong>만 추가(OK 없음).</li>
+  </ul>
+
+  <!-- ── Links ── -->
+  <h2 id="links">링크</h2>
+  <ul>
+    <li><a href="016-install-delete-pipeline-domain-model.md">ADR-016</a> — 얹는 도메인 모델(event outbox를 잘라낸 원출처 — 이 ADR은 그 취지를 이어 상태 파생 채택). 알림 메타데이터 컬럼은 ADR-022 소유.</li>
+    <li><a href="021-pipeline-execution-model.md">ADR-021</a> — 알림 전달이 그대로 재사용하는 claim/lease 실행 모델(§2 claim, §3 two-tx, §4 guarded write-back).</li>
+    <li><a href="../../design/pipeline/adr-016-history.md">adr-016-history.md</a> — event outbox 등 최대 모델 요소가 재범위 축소로 정리된 경위.</li>
+  </ul>
+
+  <!-- ── Glossary ── -->
+  <h2 id="glossary">용어</h2>
+  <ul>
+    <li><strong>completion check</strong> — ADR-016 §5의 <code>check(attempt, task)</code>. 자기 보고 결과로 task 완료 판정. postCheck와 다름(자기 보고 vs 독립 end-state 검증).</li>
+    <li><strong>postCheck</strong> — end-state 독립 검증. 게이팅(트레일링 CONDITION_CHECK) 또는 종단 후 자문(read-only·부활 금지·불일치 신호만) 두 배치 방식.</li>
+    <li><strong>derive-from-state</strong> — 별도 저장소 없이 도메인 행 상태(<code>status</code> 종단 + <code>notified_at IS NULL</code>)에서 알림 대상을 쿼리로 파생. 이벤트가 이미 상태에 있어 dual-write 없음.</li>
+    <li><strong>notified_at</strong> — 파이프라인당 종단 알림 전달 완료(sink ack) 마커(알림 메타데이터, 도메인 상태 아님).</li>
+    <li><strong>dual-write</strong> — DB write와 외부 부작용을 한 트랜잭션 경계에서 함께 시도해 부분 실패 시 갈라지는 안티패턴. 상태 파생이 이를 제거.</li>
+  </ul>
+
+  <footer>
+    <code>docs/adr/022-post-check-and-event-outbox.md</code>로부터 렌더링 — 원본 파일이 권위 있는 소스입니다.
+    설계 평가: codex xhigh 92 / opus 91 (sound).
+  </footer>
+
+</article>
+</div>
+
+<script>
+  (function () {
+    var links = document.querySelectorAll('#toc a');
+    var sections = [];
+    links.forEach(function (a) {
+      var id = a.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) sections.push({ id: id, el: el, a: a });
+    });
+    function onScroll() {
+      var scrollY = window.scrollY + 90;
+      var active = sections[0];
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].el.getBoundingClientRect().top + window.scrollY <= scrollY) active = sections[i];
+      }
+      links.forEach(function (a) { a.classList.remove('active'); });
+      if (active) active.a.classList.add('active');
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
