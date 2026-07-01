@@ -955,10 +955,11 @@ export const mockConfirm = {
         resource_id: r.resourceId,
         resource_name: demoResourceName(project.cloudProvider, r),
         resource_type: r.type,
-        database_type: r.databaseType,
         selected: r.isSelected,
         integration_category: r.integrationCategory,
         ...(r.exclusion?.reason ? { exclusion_reason: r.exclusion.reason } : {}),
+        // database_type lives under metadata (swagger TargetSourceResourceMetadataDto),
+        // not top-level — TargetSourceResourceItemDto does not declare it there.
         metadata,
       };
     });
