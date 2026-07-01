@@ -1,4 +1,4 @@
-# ADR-022: Install/Delete 파이프라인 — 완료 후 검증(postCheck)과 트랜잭션 이벤트 아웃박스(eventOutbox)
+# ADR-022: Install/Delete 파이프라인 — 완료 검증(postCheck)과 트랜잭션 이벤트 아웃박스(eventOutbox)
 
 ## 상태
 
@@ -21,7 +21,8 @@
 도메인 테이블을 바꾸지 않는다**(유보된 자문 postCheck를 실제 도입할 때만 `pipeline`에
 컬럼 하나가 추가된다 — 「스키마」·「수용하는 비용」 참조). ADR-016/021의 불변식(“DB row가
 곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지, 개념 최소화)을 그대로 상속하고,
-실행 substrate는 ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을 재사용한다.
+실행 substrate는 ADR-021의 `SKIP LOCKED` 선점 기법을 재사용한다(relay는 batch claim,
+자문 postCheck는 claim/lease까지 — 아래 참조).
 **postCheck·eventOutbox 정책은 이 ADR 소관**이며 그 변경은 이 ADR만 대체한다. 단
 유보된 자문 postCheck를 도입해 `pipeline`에 컬럼을 더할 때는 그 스키마 확장이 ADR-016
 소유이므로 ADR-016의 Schema·Links도 함께 갱신한다. claim-pull 실행 모델 변경은 ADR-021 소관.
@@ -121,8 +122,9 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 - **동시 relay 안전.** relay가 여럿이어도 ADR-021의 `FOR UPDATE SKIP LOCKED`로 행을
   집으면 **동시에 같은 행을 처리하지 않는다**(락 창 안에서). 다만 전달 성공 후 `sent_at`
   기록 전 크래시는 위 at-least-once대로 재전달될 수 있다 — 배타는 동시성 한정이다.
-  ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을 재사용한다(스캔 대상은 `event_outbox`
-  미전송 행으로 별도).
+  여기서 재사용하는 것은 ADR-021의 `SKIP LOCKED` **batch claim**뿐이다(lease/fencing
+  토큰은 불필요 — outbox 행에는 `claimed_by`/`claimed_until` 컬럼이 없다; 스캔 대상도
+  `event_outbox` 미전송 행으로 별도).
 - **`attempt_count`/`last_error`**로 재시도·poison 가시성을 남긴다. 상한 초과 행은
   전달을 멈추고 **지표/모니터링으로 노출**한다(아웃박스 이벤트가 아니라 운영 지표) —
   파이프라인 상태에는 영향 없음.
@@ -169,8 +171,8 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
   게이팅 postCheck는 순수 recipe 규약(enum·상태 그대로), eventOutbox는 tx2에 INSERT 한 줄과
   **별개의 신규** 방출 전용 테이블 `event_outbox`만 추가한다(도메인 테이블은 손대지 않음).
   (유보된 자문 postCheck는 예외 — 아래 비용 참조.)
-- **실행 substrate 재사용.** relay/자문 postCheck 모두 ADR-021의 `SKIP LOCKED` 기반
-  claim/lease 패턴을 재사용 — 새 스케줄러·리더·저널 없음.
+- **실행 substrate 재사용.** relay는 ADR-021의 `SKIP LOCKED` batch claim을, 자문 postCheck는
+  claim/lease까지 재사용 — 새 스케줄러·리더·저널 없음.
 - **자기 보고와 실제 상태의 간극을 검증**할 수단(postCheck)이 명시된다.
 
 ### 수용하는 비용
@@ -216,7 +218,7 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 2. 상태 전이 이벤트는 그 전이를 커밋하는 **동일 tx2**에서만 INSERT된다(원자성).
 3. 아웃박스 행 유실/재생은 pipeline/task 상태를 오염시키지 않는다(ADR-016 관측 테이블과 동일).
 
-## 이벤트 분류(초기 event_type 폐집합)
+## 이벤트 분류(초기 event_type 집합)
 
 현재 결정에 속하는 이벤트와, 유보된 자문 postCheck를 도입할 때 추가되는 이벤트를 구분한다.
 
@@ -252,11 +254,12 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 - **completion check** — ADR-016 §5의 `check(attempt, task)`. InfraManager 자기 보고
   결과를 읽어 task 완료를 판정. **postCheck와 다르다**(자기 보고 vs 독립 end-state 검증).
 - **postCheck** — end-state를 독립 검증. 게이팅(트레일링 CONDITION_CHECK) 또는 종단 후
-  자문(read-only, 부활 금지, 이벤트 방출) 두 배치.
+  자문(read-only, 부활 금지, 이벤트 방출) 두 가지 배치 방식.
 - **트랜잭션 아웃박스** — 상태 전이와 같은 트랜잭션에서 이벤트 행을 write해 dual-write를
   없애고, 별도 relay가 out-of-band·at-least-once로 전달하는 패턴.
 - **relay** — `event_outbox`의 미전송 행을 집어 sink에 전달하고 `sent_at`을 찍는 루프.
-  ADR-021 claim-pull(`SKIP LOCKED`)을 재사용해 동시 relay 이중 전달을 막는다.
+  ADR-021의 `SKIP LOCKED` batch claim만 재사용해(lease/fencing 없이) 동시 relay 이중
+  전달을 막는다.
 - **dual-write** — DB write와 외부 부작용(알림 호출)을 한 트랜잭션 경계 안에서 함께
   시도해 부분 실패 시 갈라지는 안티패턴. 아웃박스가 이를 제거한다.
 
@@ -264,3 +267,7 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 
 - 2026-07-01: 생성. ADR-016(Costs we accept)이 유보한 event outbox와 아직 어느 ADR에서도
   다루지 않았던 postCheck를 도메인 모델 변경 없이 얹는 후속 결정으로 작성.
+- 2026-07-01: 리뷰 반영(codex/sonnet). 인용 정확도(§6/§7→§2 projection), 범위 스코핑
+  (도메인 테이블 불변 = 현재 결정 한정, 유보 자문 postCheck 컬럼은 미래 비용), 이벤트
+  집합 현재/유보 분리, `post_check` cardinality 고정, relay는 claim/lease가 아닌
+  `SKIP LOCKED` batch claim으로 용어 정정, 제목 “완료 후 검증”→“완료 검증”.
