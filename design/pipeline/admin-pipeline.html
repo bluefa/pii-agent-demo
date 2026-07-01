@@ -343,6 +343,22 @@ function previewRecipe(provider, type){
   return src.map((s,i)=>{const [op,kind]=s.split('|');return {seq:i+1, taskName:op, kind, operation:op};});
 }
 
+// A10: recipe로 새 RUNNING 파이프라인 생성(첫 task READY, 나머지 BLOCKED). 반환 id.
+function createPipeline(ts, type){
+  const steps=previewRecipe(ts.provider,type);
+  const newId=Math.max(0,...Object.keys(PIPELINES).map(Number))+1;
+  const now=new Date().toISOString().slice(0,16).replace('T',' ');
+  PIPELINES[newId]={id:newId, type, target:ts.id, provider:ts.provider, status:'RUNNING',
+    createdAt:now, lastActivityAt:now,
+    tasks:steps.map((s,i)=>({seq:s.seq, kind:s.kind, operation:s.operation,
+      status:i===0?'READY':'BLOCKED', failCount:0, maxFail:s.kind==='CONDITION_CHECK'?6:1,
+      errorCode:null, startedAt:null, finishedAt:null,
+      ...(s.kind==='CONDITION_CHECK'?{pollingInterval:'10분', ttl:'7일', check:null}
+                                     :{executionTimeout:'30분', attempts:[]})}))};
+  (BY_TARGET[ts.id]=BY_TARGET[ts.id]||[]).unshift(newId); // desc 정렬 유지(새 id가 최대)
+  return newId;
+}
+
 /* =========================================================================
  * Derivations (§4.5)
  * ========================================================================= */
@@ -402,7 +418,9 @@ function breadcrumb(parts){ // parts: [{label,hash?}] last is current
   return `<div class="breadcrumb">`+parts.map((p,i)=>{
     const last=i===parts.length-1;
     const sep=i>0?'<span class="sep">›</span>':'';
-    return sep+(last?`<span class="cur">${esc(p.label)}</span>`:`<span class="crumb" data-nav="${p.hash}">${esc(p.label)}</span>`);
+    // clickable only when a hash exists AND it's not the current crumb; else inert text (no data-nav="undefined")
+    if(!last && p.hash) return sep+`<span class="crumb" data-nav="${p.hash}">${esc(p.label)}</span>`;
+    return sep+`<span class="${last?'cur':''}">${esc(p.label)}</span>`;
   }).join('')+`</div>`;
 }
 function render(){
@@ -427,7 +445,12 @@ function wireNav(root){
     node.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();node.click();}});
   });
 }
-document.querySelectorAll('.sidebar [data-nav]').forEach(n=>n.addEventListener('click',()=>location.hash=n.getAttribute('data-nav')));
+document.querySelectorAll('.sidebar [data-nav]').forEach(n=>{
+  n.setAttribute('role','link'); n.setAttribute('tabindex','0');
+  const goSb=()=>location.hash=n.getAttribute('data-nav');
+  n.addEventListener('click',goSb);
+  n.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();goSb();}});
+});
 window.addEventListener('hashchange',()=>{closeModal();app.selectedTaskId=null;render();});
 
 /* =========================================================================
@@ -811,12 +834,12 @@ function openPreview(ts,type){
   </div>`);
   m.querySelector('#mcancel').onclick=closeModal;
   m.querySelector('#mrun').onclick=()=>{
-    // A10 POST(멱등): 진행 중 run 있으면 그 run으로 이동(기존 run 반환). 없으면 새 run 생성 —
-    // mock은 실제 run을 만들지 못하므로 대상 페이지에 머물며 toast만(무관한 과거 run으로 점프 금지).
+    // A10 POST(멱등): 진행 중 run 있으면 그 run으로 이동(기존 run 반환). 없으면 recipe로 새 run 생성 후 이동.
     const running=(BY_TARGET[ts.id]||[]).map(id=>PIPELINES[id]).find(p=>p.status==='RUNNING');
     closeModal();
-    if(running){ toast('이미 진행 중인 파이프라인으로 이동합니다'); nav(`#/pipeline/${running.id}`,{serviceCode:ts.serviceCode,serviceName:ts.serviceName,targetId:ts.id,provider:ts.provider}); }
-    else { toast(`${type==='INSTALL'?'설치':'삭제'} 파이프라인 생성 요청됨 (mock — 실제 run 미생성)`); render(); }
+    const navTo=id=>nav(`#/pipeline/${id}`,{serviceCode:ts.serviceCode,serviceName:ts.serviceName,targetId:ts.id,provider:ts.provider});
+    if(running){ toast('이미 진행 중인 파이프라인으로 이동합니다'); navTo(running.id); }
+    else { const id=createPipeline(ts,type); toast(`${type==='INSTALL'?'설치':'삭제'} 파이프라인이 실행됐어요`); navTo(id); }
   };
 }
 function openCancel(pipelineId){
@@ -827,7 +850,14 @@ function openCancel(pipelineId){
     <div class="foot"><button class="btn ghost" id="mkeep">닫기</button><button class="btn danger" id="mdo">취소 실행</button></div>
   </div>`);
   m.querySelector('#mkeep').onclick=closeModal;
-  m.querySelector('#mdo').onclick=()=>{ closeModal(); toast(`#${pipelineId} 취소 요청됨(즉시)`); };
+  m.querySelector('#mdo').onclick=()=>{
+    const p=PIPELINES[pipelineId];
+    if(p && p.status==='RUNNING'){ // 즉시 반영: 파이프라인 + 비종단 task를 CANCELLED로 종단화
+      p.status='CANCELLED';
+      p.tasks.forEach(t=>{ if(['BLOCKED','READY','IN_PROGRESS'].includes(t.status)) t.status='CANCELLED'; });
+    }
+    closeModal(); toast(`#${pipelineId} 취소됨(즉시)`); render();
+  };
 }
 
 /* ── Toast ── */
