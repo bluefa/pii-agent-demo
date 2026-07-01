@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-06-27.
+Proposed — 2026-06-27 (revised 2026-07-01: `CONDITION_CHECK` bounded by a retry count, not `ttl`).
 
 The **domain half** of the install/delete pipeline design: the durable state, data model,
 uniqueness rule, failure semantics, and lifecycle. The **execution model** — how the state
@@ -32,7 +32,7 @@ Constraints:
    execution API is **idempotent**, so the infrastructure result is unharmed.
 2. Results can be lost (rare worker failure); we do not distinguish "still running" from "lost"
    — for a `TERRAFORM_JOB` an execution timeout absorbs both (a condition has no async result to
-   lose; it re-polls on its next scheduled attempt).
+   lose; a lost poll is reclaimed on lease expiry and re-polled).
 
 ## Decision
 
@@ -71,8 +71,8 @@ limit (`CONDITION_NOT_MET`) or by the check erroring (`CHECK_ERROR`/`CALL_TIMEOU
 `check(attempt, task)` reads** to decide a task is done — the reconciler reads only the *latest*
 attempt row, and only for that; claim, scheduling, and pipeline transitions never read them.
 Losing a row never corrupts state: for a `TERRAFORM_JOB` a missing latest result falls through to
-`executionTimeout` and re-dispatches (idempotent); a `CONDITION_CHECK` has no async result to lose
-and simply re-checks on its next scheduled poll — either way the cost is a delay, not correctness
+`executionTimeout` and re-dispatches (idempotent); a `CONDITION_CHECK` has no async result to lose —
+a poll lost to a crash is reclaimed on lease expiry (ADR-021 Decision 5) and re-polled — either way the cost is a delay, not correctness
 (the three invariants are in the **Schema** section). They add no domain column and no enum.
 
 ### 4. One active pipeline per target
@@ -102,7 +102,7 @@ recorded the attempt result" is healed by re-dispatch — and lets the state mac
 create *harmless duplicate* jobs. A single `TERRAFORM_JOB` dispatch produces a set of **`N` job
 ids**; the attempt's raw `response` (which carries those job ids) is recorded in `task_attempt`,
 and task completion is a **code-level check** over that result — `check(attempt, task) → done?`,
-each `TaskKind` deserializing its own `response` — not a domain job column. If the result is lost,
+each `TaskKind` deserializing its own `response` — not a domain job column. For a `TERRAFORM_JOB`, if the result is lost,
 the task does not stall: the per-task
 `executionTimeout` fires and the task re-dispatches as a fresh run (idempotent), so correctness
 never depends on retaining the job ids. We never "reclaim" prior jobs; `(task_id, attempt_no)` is
@@ -179,9 +179,9 @@ cancel is applied against a live worker is an execution concern (ADR-021).
 - `task_attempt(id, task_id, attempt_no, response, status, error_code, started_at, finished_at)`
   — one row per retry attempt; `attempt_no` is assigned at creation as the pre-attempt
   `fail_count + 1`, so once a failed attempt commits `task.fail_count` equals its `attempt_no`.
-  `response` (text) holds the raw
-  InfraManager dispatch response — for a `TERRAFORM_JOB` it carries the **set** of `N` job ids
-  (one dispatch → `N` jobs); each `TaskKind` deserializes its own `response`. The latest attempt
+  `response` (text) holds the raw external
+  response — for a `TERRAFORM_JOB` the **set** of `N` job ids (one dispatch → `N` jobs), for a
+  `CONDITION_CHECK` the check payload; each `TaskKind` deserializes its own `response`. The latest attempt
   row is the input to the completion `check`.
 - `task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,
   call_timeout_count, last_external_status, last_response_code, last_response_summary,
@@ -207,8 +207,8 @@ Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
    inserts); a `CONDITION_CHECK` inserts one per poll, bounded by `maxFailCount`. No RLE, no pruner.
 3. Losing an observation row never corrupts state: for a `TERRAFORM_JOB` a missing latest result
    makes `check` fall through to the per-task `executionTimeout`, which re-dispatches a fresh run
-   (idempotent); a `CONDITION_CHECK` has no async result to lose and re-checks on its next poll —
-   the cost of loss is a re-dispatch or a delayed poll (delay + harmless duplicate jobs), not incorrectness.
+   (idempotent); a `CONDITION_CHECK` has no async result to lose — a lost poll is reclaimed on lease
+   expiry (Decision 5, ADR-021) and re-polled, so the cost of loss is a re-dispatch or a delayed poll (delay + harmless duplicate jobs), not incorrectness.
 
 **Enums** (canonical values)
 

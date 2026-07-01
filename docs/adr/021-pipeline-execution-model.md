@@ -17,7 +17,7 @@ dispatch is idempotent (so at-least-once delivery is correct). What it does not 
 the runtime: where the orchestrator runs, how many instances, how it finds due work, and how
 it bounds concurrent external calls.
 
-The dominant runtime constraint is **unbounded external-call latency**. InfraManager's "run"
+The dominant runtime constraint is **external work that runs long relative to a DB transaction**. InfraManager's "run"
 API is asynchronous — a short call returns a job id, but the Terraform job it starts runs for
 **minutes**, and a condition check re-polls on its interval, bounded by a retry count (ADR-016 §6). The execution model must absorb
 that without stalling, and must survive process restarts (ADR-016 guarantees no state is
@@ -52,7 +52,7 @@ this ADR is how those mechanisms work.
 | **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (so **no `status` guard is needed**) | Decision 4, 6 |
 | **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
 | **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
-| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition re-checks on its next scheduled poll) | Decision 4, ADR-016 §5, §6 |
+| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition's lost poll heals via lease-expiry reclaim, then re-polls) | Decision 4, ADR-016 §5, §6 |
 
 ### 1. Workers pull work from the DB; no single-instance constraint, no leader election
 
@@ -156,12 +156,14 @@ the same attempt's `task_check` in place across polls; a `CONDITION_CHECK` poll 
 (ADR-016 §6), so each failed poll — not-met or check-error alike — writes a fresh
 `task_attempt`/`task_check` pair, increments `fail_count`, and reschedules the next poll (the task's
 `next_check_at`, projected to the pipeline's `next_due_at` for the claim scan) at
-`now() + polling_interval` — no in-place poll loop.
+`now() + polling_interval` — no in-place poll loop. A met poll instead writes the final
+`task_attempt`/`task_check` pair (the latest row the completion `check` reads) and drives the task
+`DONE`, without incrementing `fail_count` or rescheduling.
 Task completion is a code-level `check(attempt, task)` over the **latest** attempt row — the
 reconciler reads only that row, and only for completion; claim, scheduling, and pipeline
 transitions never read the attempt tables. For a `TERRAFORM_JOB` a lost attempt result does not
 stall the task: it falls through to `executionTimeout` and re-dispatches a fresh `N`-job run
-(idempotent); a condition instead re-checks on its next scheduled poll.
+(idempotent); a lost condition poll instead heals via lease-expiry reclaim (Decision 5) and re-polls.
 
 *The above is the mechanism; the rest is why it is race-free.*
 
@@ -430,7 +432,7 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 ## Glossary
 
 - **Claim** — the act of stamping a per-claim fencing token (a fresh UUID minted at claim time) into `claimed_by`, plus a deadline into `claimed_until`, in a short committed transaction (tx1). Each claim generates a new unique token; the same worker re-claiming the same pipeline after lease expiry receives a different token, ensuring any in-flight tx2 from the prior claim is rejected by the ownership guard. On claim, the worker also checks `cancel_requested` before proceeding.
-- **Cooperative cancel (Case B)** — for a pipeline under a live lease, the Admin/API path writes only `cancel_requested = true` (and sets `next_due_at = now()` to wake a sleeping pipeline); the claim-holding worker reads the flag at its safe points and applies the terminal `CANCELLED` transition itself, remaining the sole status writer for that live-lease pipeline. (An **idle** pipeline is instead terminated immediately by the API path — Case A in Decision 6.) Neither case needs a per-write `status` guard to prevent terminal resurrection.
+- **Cooperative cancel (Case B)** — for a pipeline under a live lease, the Admin/API path writes only `cancel_requested = true` (and sets `next_due_at = now()` so the next scan re-claims it promptly once the live claim releases); the claim-holding worker reads the flag at its safe points and applies the terminal `CANCELLED` transition itself, remaining the sole status writer for that live-lease pipeline. (An **idle** pipeline is instead terminated immediately by the API path — Case A in Decision 6.) Neither case needs a per-write `status` guard to prevent terminal resurrection.
 - **Due pipeline** — one whose `next_due_at <= now()` and whose lease has expired (or was never set).
 - **Guarded write-back** — an `UPDATE ... WHERE id = :id AND claimed_by = :token` that no-ops if the ownership guard fails. Defends against lease-expired straggler clobber; a `status` guard is not required because cancel is cooperative and `status` has a single writer (Decision 6).
 - **Lease** — the `claimed_until` timestamp; expiry automatically releases the claim for reclaim by any worker.
@@ -442,3 +444,7 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
   superseded independently of the domain model.
 - 2026-06-27: replaced the single-server/in-memory model with multi-worker claim-pull after
   the single-writer premise was found to break under concurrent cancel and multi-session.
+- 2026-07-01: aligned with ADR-016's condition rebase (wall-clock `ttl` → retry count) — a
+  `CONDITION_CHECK` poll is one attempt, failed polls (not-met or check-error) reschedule at
+  `polling_interval`, `executionTimeout` is `TERRAFORM_JOB`-only, and a lost condition poll heals
+  via lease-expiry reclaim rather than a fresh schedule.
