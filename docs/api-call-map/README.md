@@ -62,3 +62,10 @@ ProjectDetail → {Aws|Azure|Gcp|Idc}ProjectPage
    를 호출한다. AWS/Azure 와 동일. → GCP Step 7 에 추가.
 
 그 외 follow-on `refreshProject` GET, 오류 `다시 시도` 버튼 호출 등은 세 결과의 합집합으로 보강했다.
+
+### 2차 per-(Cloud,Step) 검증 라운드
+
+완성된 문서를 다시 Cloud마다 Sonnet 2 + Codex 1로 **Step(셀) 단위 재검증**(총 8+4)했다. 엔드포인트·
+Method·트리거 분류는 4 Cloud × 7 Step 전부 정확했고, 유일한 내용 누락은 **Step 5 confirmed-integration
+로드 오류 시 `다시 시도` 버튼**(`WaitingConnectionTestStep.tsx:39` `ErrorRow onRetry` → `getConfirmedIntegration`,
+AWS/Azure/GCP 공유)으로, 세 문서 Step 5에 추가했다. 나머지 지적은 모두 ±1~4줄 인용 오차(내용 무관)였다.

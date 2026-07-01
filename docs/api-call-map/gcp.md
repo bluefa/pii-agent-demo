@@ -86,6 +86,7 @@
 | 화면진입 | 확정된 연동 대상 | GET | `/integration/api/v1/target-sources/{id}/confirmed-integration` | `getConfirmedIntegration` | `ConfirmedIntegrationDataProvider.tsx:41`; `api/index.ts:404` |
 | 화면진입 | 최신 연결 테스트 + polling 4s (PENDING/RUNNING 동안) | GET | `/integration/api/v1/target-sources/{id}/test-connection/latest_version` | `useTestConnectionPolling` → `getTestConnectionLatest` | `ConnectionTestCard.tsx:63`; `useTestConnectionPolling.ts:52`; `api/index.ts:586` |
 | 화면진입 | DB Credential 옵션 | GET | `/integration/api/v1/target-sources/{id}/secrets` | `getSecrets` | `ConnectionTestCard.tsx:76`; `api/index.ts:556` |
+| 버튼클릭 | 확정 리소스 로드 오류 `다시 시도` | GET | `/integration/api/v1/target-sources/{id}/confirmed-integration` | `ErrorRow onRetry` → `retry` → `getConfirmedIntegration` | `WaitingConnectionTestStep.tsx:39`; `ConfirmedIntegrationDataProvider.tsx:59`; `api/index.ts:404` |
 | 버튼클릭 | `Run Test` | POST | `/integration/api/v1/target-sources/{id}/test-connection/async` | `trigger` → `triggerTestConnection` | `ConnectionTestCard.tsx:128`; `useTestConnectionPolling.ts:91`; `api/index.ts:572` |
 | 버튼클릭 | `Run Test` 직후 refresh + polling 시작 | GET | `/integration/api/v1/target-sources/{id}/test-connection/latest_version` | `baseRefresh()` → `getTestConnectionLatest` | `useTestConnectionPolling.ts:102`; `api/index.ts:586` |
 | 버튼클릭 | DB Credential 드롭다운 변경 (행별) | PUT | `/integration/api/v1/target-sources/{id}/resources/credential` | `handleCredChange` → `updateResourceCredential` | `ConnectionTestCard.tsx:134`; `api/index.ts:622` |
