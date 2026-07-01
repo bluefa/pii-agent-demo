@@ -203,7 +203,7 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 | `PIPELINE_FAILED` | tx2 | 파이프라인 `RUNNING → FAILED` |
 | `PIPELINE_CANCELLED` | tx2 | 파이프라인 `RUNNING → CANCELLED` |
 | `TASK_FAILED` | tx2 | task가 `maxFailCount`에서 `FAILED`(ADR-016 §6) |
-| `WORKER_OUTAGE` | 모니터 | lease-expiry reclaim 급증(ADR-021 지표) |
+| `WORKER_OUTAGE` | 모니터 | lease-expired reclaim 급증(ADR-021 지표) |
 | `QUEUE_WAIT_EXCEEDED` | 모니터 | due-pipeline lag 임계 초과(ADR-021 지표) |
 | `POST_CHECK_OK` | 자문 postCheck | 종단 후 end-state 확인(유보 모드) |
 | `POST_CHECK_MISMATCH` | 자문 postCheck | 종단 후 end-state 불일치(유보 모드) |
@@ -232,5 +232,5 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 
 ## 개정 이력
 
-- 2026-07-01: 생성. ADR-016(§Costs)·ADR-021이 유보한 event outbox와 v2-deferred였던
-  postCheck를 도메인 모델 변경 없이 얹는 후속 결정으로 작성.
+- 2026-07-01: 생성. ADR-016(Costs we accept)이 유보한 event outbox와 아직 어느 ADR에서도
+  다루지 않았던 postCheck를 도메인 모델 변경 없이 얹는 후속 결정으로 작성.
