@@ -76,13 +76,22 @@ and re-dispatches (idempotent), costing a delay, not correctness (the three inva
 ### 4. One active pipeline per target
 
 A uniqueness rule allows only one non-terminal pipeline per target. A duplicate create — of any
-type — returns the existing active run rather than erroring; the trigger endpoint must honor
-this **contract**. It is the premise that lets ADR-021 reason about a single owner per pipeline.
+type — is **rejected with `409 Conflict`** (code `ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`, "already
+an active run for this target") rather than returning the existing run; the trigger endpoint must
+honor this **contract**. The trigger is a human call — an operator pressing "try" in the web admin,
+not a machine's at-least-once redelivery — so a duplicate (double-click, re-click after a timeout)
+is most honestly shown as "already running": a person reads and understands a 409, and needs no
+idempotent reinterpretation of a silent no-op. Single-owner per pipeline is guaranteed by the
+`active_target` uniqueness constraint, independent of this trigger contract; the orchestrator and
+scheduler never call create — they only claim an existing pipeline — so this rejection affects the
+admin trigger path alone and leaves ADR-021 untouched.
 
 ### 5. Correctness rests on idempotency, not exactly-once
 
-Every dispatch is idempotent: a duplicate submit still leaves the infrastructure correct
-("already in the desired state" counts as success). This lets the execution model be
+This idempotency is about **dispatch to InfraManager** (a re-dispatch does not harm the
+infrastructure) and is unchanged by Decision 4's trigger contract, which governs only the
+duplicate-*create* response. Every dispatch is idempotent: a duplicate submit still leaves the
+infrastructure correct ("already in the desired state" counts as success). This lets the execution model be
 **at-least-once** and still correct — a crash between "InfraManager started the job" and "we
 recorded the attempt result" is healed by re-dispatch — and lets the state machine drop a
 `DISPATCHING` state. InfraManager does not de-duplicate (Constraint 1), so a re-dispatch may
