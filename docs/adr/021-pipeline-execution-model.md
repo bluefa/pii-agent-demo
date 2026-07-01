@@ -433,7 +433,7 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 ## Links
 
 - [ADR-016](016-install-delete-pipeline-domain-model.md) — the durable domain model this drives
-- [ADR-022](022-post-check-and-event-outbox.md) — postCheck & event outbox reuse this claim-pull substrate (relay + optional advisory post-terminal check)
+- [ADR-022](022-post-check-and-event-outbox.md) — terminal notification & postCheck reuse this claim/lease model directly: a terminal-unnotified pipeline is claimable work (tx1 claim → deliver → guarded `notified_at` write-back), so notification inherits the two-transaction split and fencing with no separate relay/lease
 
 ## Glossary
 
