@@ -164,8 +164,8 @@ export const AzureInstallationInline = ({
           </p>
         </div>
         {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className="text-[11.5px] text-[#8B95A1]">
-          Provider: <strong className="text-[#191F28]">Azure</strong>
+        <span className={cardStyles.providerTag}>
+          Provider: <strong className={cardStyles.providerTagName}>Azure</strong>
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>
