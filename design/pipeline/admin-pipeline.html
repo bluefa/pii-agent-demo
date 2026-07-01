@@ -820,7 +820,7 @@ function renderTaskDetail(root,p){
   box.innerHTML=`<div class="card">
     <div class="section-title">Task seq ${t.seq} · ${esc(t.operation)}</div>
     <div class="vrow" style="gap:8px;margin-bottom:16px">
-      <span class="kindchip ${cond?'ext':''}">${t.kind}</span>${pill(t.status)}
+      <span class="kindchip ${cond?'cond':''}">${t.kind}</span>${pill(t.status)}
     </div>
     <div class="kv wide" style="margin-bottom:16px">
       <div class="k">operation</div><div class="v">${esc(t.operation)}</div>
@@ -855,7 +855,7 @@ function openPreview(ts,type){
   const m=mountModal(`<div class="modal">
     <h3>${type==='INSTALL'?'설치':'삭제'} 실행 미리보기</h3>
     <div class="desc">${esc(ts.id)} · ${PROVIDERS[ts.provider]} — 아래 순서(recipe)로 파이프라인이 생성됩니다. <span class="muted">유일성: 진행 중 run이 있으면 기존 run을 반환합니다.</span></div>
-    <div class="recipe">${steps.map(s=>`<div class="step"><span class="sq">${s.seq}</span>${esc(s.operation)} <span class="kindchip ${s.kind==='CONDITION_CHECK'?'ext':''}" style="margin-left:auto">${s.kind}</span></div>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
+    <div class="recipe">${steps.map(s=>`<div class="step"><span class="sq">${s.seq}</span>${esc(s.operation)} <span class="kindchip ${s.kind==='CONDITION_CHECK'?'cond':''}" style="margin-left:auto">${s.kind}</span></div>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
     <div class="foot"><button class="btn ghost" id="mcancel">취소</button><button class="btn primary" id="mrun">${type==='INSTALL'?'설치':'삭제'} 실행</button></div>
   </div>`);
   m.querySelector('#mcancel').onclick=closeModal;

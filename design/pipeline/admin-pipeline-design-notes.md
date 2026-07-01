@@ -71,6 +71,18 @@ off-scale(9·10·11·14·18·22·26·28·34) 전면 제거.
 - **notice**: primary-light(=READY pill색과 혼동) → inner-bg + medium 텍스트.
 - **topnav brand** 16 → 18.
 
-## 4. 구현/검증 루프
+## 4. 라운드 2 확정 (재리뷰 Opus×2 + Codex 반영)
 
-토큰 재작성 → 페이지별 브라우저 스크린샷 검증 → Opus/Codex 재리뷰 → 반복. 목표: off-scale 0, 계층 역전 0, 어포던스·대비 일관.
+- **자간**: base는 canonical `-0.018em`로 확정(라운드1의 −0.011은 과하게 느슨 → 철회). 대형(28/22/18)만 −0.02/−0.015.
+- **kv**: key 13/500/medium, value 14/600/strong(둘 다 line-height 1.4). 긴 라벨용 `.kv.wide`(150px) 클래스로 인라인 override 제거.
+- **subsection-title**: weak→**medium**(헤더로 읽히게).
+- **.meta**: `font-weight:500` 포함(인라인 band-aid 제거). 읽어야 할 설명 문단은 `.meta`(12/weak) 대신 **`.note`(13/medium/1.5)**.
+- **전역 규칙 추가**: `.mono`·`.link`(마크업에서 쓰였으나 미정의였음).
+- **CONDITION_CHECK 노드/칩**: orange `.ext`(=`외부`/warning과 의미 충돌) 대신 **`.kindchip.cond` info-blue**. dashed border는 gray-400로 가시성↑. (flow·task패널·preview 모달 3곳 모두 `cond`.)
+- **데이터 배지 이모지 제거**: `근사 ⚙️`/`파생 ⚙️`/`미채움 ⚠️` → 텍스트만(색이 의미 전달). empty-state 아이콘(📭/👈)은 유지.
+- **기간 stat 값**: medium + weight **600**(grey+700 혼재 신호 해소).
+- **판정 유지(기각)**: `.meta-2 align-items:start`(자연 높이 — stretch는 실행메타 카드에 빈 여백), 페이지타이틀 22 vs 섹션 18 동일 weight(22→18은 표준 스텝) — 스크린샷상 top-heavy 아님.
+
+## 5. 구현/검증 루프
+
+토큰 재작성 → 페이지별 브라우저 스크린샷 검증 → Opus/Codex 재리뷰 → 반복. 목표: off-scale 0, 계층 역전 0, 어포던스·대비 일관. **결과**: Codex 최종 사인오프 "design system coherent", 콘솔 에러 0.
