@@ -30,14 +30,17 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--toss-page-bg);color:var(--toss-strong);
-  font-family:var(--font-sans);font-size:15px;letter-spacing:-.011em;line-height:1.5;-webkit-font-smoothing:antialiased}
+  font-family:var(--font-sans);font-size:15px;letter-spacing:-.018em;line-height:1.5;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;letter-spacing:inherit}
 
 /* ── Type roles ── */
 .formula{font-family:var(--font-mono);font-size:11px;color:var(--toss-faint);letter-spacing:0;line-height:1.4}
-.meta{font-size:12px;color:var(--toss-weak);letter-spacing:-.005em;line-height:1.4}
-.pager-count{font-size:13px;color:var(--toss-weak);font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+.meta{font-size:12px;font-weight:500;color:var(--toss-weak);line-height:1.4}
+.note{font-size:13px;color:var(--toss-medium);line-height:1.5;letter-spacing:-.01em}
+.pager-count{font-size:13px;color:var(--toss-weak);font-variant-numeric:tabular-nums}
+.mono{font-family:var(--font-mono);font-size:13px;color:var(--toss-strong)}
+.link{color:var(--color-primary);font-weight:600;cursor:pointer}
 .mt-16{margin-top:16px}.mt-12{margin-top:12px}
 .vrow{display:inline-flex;align-items:center;gap:6px}
 
@@ -66,7 +69,7 @@ button{font-family:inherit;letter-spacing:inherit}
 .page-head h1{font-size:22px;font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.25}
 .section-title{font-size:18px;font-weight:700;color:var(--toss-strong);margin:24px 0 16px;letter-spacing:-.015em;line-height:1.35}
 .section-title:first-child{margin-top:0}
-.subsection-title{font-size:14px;font-weight:600;color:var(--toss-weak);margin:16px 0 12px;letter-spacing:-.006em}
+.subsection-title{font-size:14px;font-weight:600;color:var(--toss-medium);margin:16px 0 12px;line-height:1.4}
 
 /* ── Card ── */
 .card{background:var(--toss-card-bg);border-radius:var(--toss-radius-card);box-shadow:var(--toss-shadow-sm);padding:24px}
@@ -77,11 +80,11 @@ button{font-family:inherit;letter-spacing:inherit}
 .stat{background:var(--toss-card-bg);border-radius:var(--toss-radius-card-sm);box-shadow:var(--toss-shadow-sm);padding:20px}
 .stat .lbl{font-size:13px;color:var(--toss-medium);display:flex;align-items:center;gap:6px;letter-spacing:-.005em}
 .stat .val{font-size:28px;font-weight:700;margin-top:8px;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.stat .val .den{color:var(--toss-faint);font-weight:600;font-size:22px}
+.stat .val .den{color:var(--toss-faint);font-weight:600;font-size:22px;letter-spacing:-.02em}
 .stat .sub{margin-top:8px}
 .stat.unavailable{background:var(--toss-inner-bg);border:1px dashed var(--gray-300);box-shadow:none}
 .stat.unavailable .val{color:var(--toss-faint)}
-.stat.range .val{color:var(--toss-medium);font-weight:700}
+.stat.range .val{color:var(--toss-medium);font-weight:600}
 
 /* ── FieldTag ── */
 .ftag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;
@@ -93,7 +96,7 @@ button{font-family:inherit;letter-spacing:inherit}
 
 /* ── Pills ── */
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-  padding:3px 10px;border-radius:var(--toss-radius-pill);letter-spacing:-.005em}
+  padding:3px 8px;border-radius:var(--toss-radius-pill);letter-spacing:-.005em}
 .pill .dot{width:6px;height:6px;border-radius:50%}
 .pill.s-RUNNING,.pill.s-IN_PROGRESS{background:#EAF2FE;color:var(--color-info-dark)} .pill.s-RUNNING .dot,.pill.s-IN_PROGRESS .dot{background:var(--color-info)}
 .pill.s-READY{background:var(--color-primary-light);color:var(--color-info-dark)} .pill.s-READY .dot{background:var(--color-info)}
@@ -156,9 +159,10 @@ button{font-family:inherit;letter-spacing:inherit}
 
 /* ── KeyValueGrid ── */
 .kv{display:grid;grid-template-columns:130px 1fr;gap:12px 16px;font-size:14px}
-.kv .k{color:var(--toss-medium);letter-spacing:-.005em}
-.kv .v{color:var(--toss-strong);font-weight:600;letter-spacing:-.006em}
+.kv .k{font-size:13px;font-weight:500;color:var(--toss-medium);line-height:1.4}
+.kv .v{color:var(--toss-strong);font-weight:600;line-height:1.4}
 .kv .v.mono{font-family:var(--font-mono);font-size:13px}
+.kv.wide{grid-template-columns:150px 1fr}
 
 /* ── Collapsible ── */
 details.collap{border:1px solid var(--toss-divider);border-radius:12px;margin-top:12px;background:var(--toss-card-bg)}
@@ -174,7 +178,7 @@ details.collap>.body{padding:0 16px 16px}
   background:var(--toss-card-bg);cursor:pointer;position:relative}
 .tnode:hover{border-color:var(--color-primary);box-shadow:var(--toss-shadow-sm)}
 .tnode.sel{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-light)}
-.tnode.cond{border-style:dashed;border-color:var(--gray-300)}
+.tnode.cond{border-style:dashed;border-color:var(--gray-400)}
 .tnode .seq{font-size:12px;color:var(--toss-weak);font-weight:600;display:flex;align-items:center;gap:5px;letter-spacing:-.005em}
 .tnode .ticon{font-size:13px}
 .tnode .ticon.s-DONE{color:var(--color-success)}
@@ -185,7 +189,7 @@ details.collap>.body{padding:0 16px 16px}
 .tnode .nm{font-size:14px;font-weight:600;margin:6px 0 8px;color:var(--toss-strong);letter-spacing:-.006em;line-height:1.35}
 .tnode .meta{font-size:11px;color:var(--toss-weak);margin-top:8px;line-height:1.4;letter-spacing:0}
 .kindchip{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--gray-100);color:var(--toss-medium);letter-spacing:0}
-.kindchip.ext{background:#FFF4E6;color:var(--color-warning-dark)}
+.kindchip.cond{background:#EFF6FF;color:var(--color-info-dark)}
 .connector{flex:none;width:32px;display:flex;align-items:center;justify-content:center;color:var(--toss-weak);font-size:16px}
 #taskdetail>.card{margin-top:16px}
 
@@ -491,10 +495,10 @@ const PAGE_SIZE=5;
 function viewDashboard(){
   const root=el(`<div>
     <div class="page-head"><h1>대시보드</h1></div>
-    <div class="section-title">실시간 현황 <span class="meta" style="font-weight:500">순간값</span></div>
+    <div class="section-title">실시간 현황 <span class="meta">순간값</span></div>
     <div class="stat-row" id="live"></div>
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>기간 통계 <span class="meta" style="font-weight:500">created_at 기준</span></span>
+      <span>기간 통계 <span class="meta">created_at 기준</span></span>
       <span class="seg" id="periodseg">
         <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
       </span>
@@ -520,7 +524,7 @@ function viewDashboard(){
   root.querySelector('#live').append(
     el(`<div class="stat"><div class="lbl">동작 중 파이프라인 <span class="muted">(사용 slot)</span></div><div class="val">${LIVE.runningCount}</div><div class="sub formula">count(status=RUNNING)</div></div>`),
     el(`<div class="stat unavailable"><div class="lbl">사용 / 총 slot 리밋 ${naTag}</div><div class="val">${LIVE.runningCount} <span class="den">/ —</span></div><div class="sub meta">분모(총 리밋)=ADR-021 러너 용량, 이 저장소 없음</div></div>`),
-    el(`<div class="stat"><div class="lbl">동작 중 Terraform task <span class="ftag approx" title="count는 정확하나 worker 부하의 근사 지표">근사 ⚙️</span></div><div class="val">${LIVE.tfInProgress}</div><div class="sub formula">count(kind=TERRAFORM_JOB, IN_PROGRESS)</div></div>`),
+    el(`<div class="stat"><div class="lbl">동작 중 Terraform task <span class="ftag approx" title="count는 정확하나 worker 부하의 근사 지표">근사</span></div><div class="val">${LIVE.tfInProgress}</div><div class="sub formula">count(kind=TERRAFORM_JOB, IN_PROGRESS)</div></div>`),
   );
   renderPeriod(root);
   root.querySelector('#periodseg').querySelectorAll('button').forEach(b=>{
@@ -744,15 +748,15 @@ function viewPipeline(id){
           <div class="k">상태</div><div class="v">${pill(p.status)}</div>
           <div class="k">생성</div><div class="v">${esc(p.createdAt)}</div>
           <div class="k">마지막 활동</div><div class="v">${esc(p.lastActivityAt)}</div>
-          <div class="k">현재 / 최종 task</div><div class="v vrow">${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="ftag approx">파생 ⚙️</span></div>
-          <div class="k">실패 / 한계</div><div class="v vrow">${cur?`${cur.failCount} / ${cur.maxFail}`:'—'} <span class="ftag approx">파생 ⚙️</span></div>
+          <div class="k">현재 / 최종 task</div><div class="v vrow">${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="ftag approx">파생</span></div>
+          <div class="k">실패 / 한계</div><div class="v vrow">${cur?`${cur.failCount} / ${cur.maxFail}`:'—'} <span class="ftag approx">파생</span></div>
         </div>
         <div class="mt-16 vrow"><button class="btn danger" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
           ${canCancel(p)?'':'<span class="meta">진행 중(RUNNING)만 취소 가능</span>'}</div>
       </div>
       <div class="card">
         <div class="section-title">실행 메타 <span class="meta">ADR-021</span></div>
-        <div class="meta" style="line-height:1.5">ADR-021 실행 필드(next_due_at·lease·cancel_requested·지연 lag)는 이 저장소(ADR-016 도메인) 범위 밖이라 값이 없습니다. 취소는 즉시 CANCELLED로 종단화(플래그 없음).</div>
+        <div class="note">ADR-021 실행 필드(next_due_at·lease·cancel_requested·지연 lag)는 이 저장소(ADR-016 도메인) 범위 밖이라 값이 없습니다. 취소는 즉시 CANCELLED로 종단화(플래그 없음).</div>
         <details class="collap"><summary>미제공 필드 4개 보기</summary><div class="body">
           <div class="kv">
             <div class="k">next_due_at</div><div class="v">${naTag}</div>
@@ -776,7 +780,7 @@ function viewPipeline(id){
     const node=el(`<div class="tnode ${cond?'cond':''} ${app.selectedTaskId==t.seq?'sel':''}" data-seq="${t.seq}" role="button" tabindex="0">
       <div class="seq"><span class="ticon s-${t.status}">${icon}</span> seq ${t.seq}</div>
       <div class="nm">${esc(t.operation)}</div>
-      <span class="kindchip ${cond?'ext':''}">${cond?'CONDITION_CHECK':'TERRAFORM_JOB'}</span>
+      <span class="kindchip ${cond?'cond':''}">${cond?'CONDITION_CHECK':'TERRAFORM_JOB'}</span>
       <div style="margin-top:8px">${pill(t.status)}</div>
       <div class="meta">${t.failCount?`fail ${t.failCount}`:''}${t.errorCode?` · ${esc(t.errorCode)}`:''}${t.startedAt?` · ${t.startedAt}${t.finishedAt?'~'+t.finishedAt:''}`:''}</div>
     </div>`);
@@ -798,13 +802,13 @@ function renderTaskDetail(root,p){
   if(cond){
     const c=t.check;
     detail=`<div class="subsection-title">Check 요약 <span class="meta">CONDITION_CHECK</span></div>`+
-      (c?`<div class="kv" style="grid-template-columns:150px 1fr">
+      (c?`<div class="kv wide">
         <div class="k">call / not_met</div><div class="v">${c.callCount} / ${c.notMetCount}</div>
         <div class="k">api_error / timeout</div><div class="v">${c.apiErrorCount} / ${c.callTimeoutCount}</div>
         <div class="k">last_external_status</div><div class="v">${esc(c.lastExternalStatus)}</div>
         <div class="k">last_checked_at</div><div class="v">${esc(c.lastCheckedAt)}</div>
-        <div class="k">last_response_code</div><div class="v vrow">${c.lastResponseCode??'null'} <span class="ftag null">미채움 ⚠️</span></div>
-        <div class="k">last_response_summary</div><div class="v vrow">${c.lastResponseSummary??'null'} <span class="ftag null">미채움 ⚠️</span></div>
+        <div class="k">last_response_code</div><div class="v vrow">${c.lastResponseCode??'null'} <span class="ftag null">미채움</span></div>
+        <div class="k">last_response_summary</div><div class="v vrow">${c.lastResponseSummary??'null'} <span class="ftag null">미채움</span></div>
       </div>`:`<div class="empty">아직 폴링 기록 없음</div>`);
   }else{
     detail=`<div class="subsection-title">Attempts <span class="meta">TERRAFORM_JOB</span></div>`+
@@ -818,7 +822,7 @@ function renderTaskDetail(root,p){
     <div class="vrow" style="gap:8px;margin-bottom:16px">
       <span class="kindchip ${cond?'ext':''}">${t.kind}</span>${pill(t.status)}
     </div>
-    <div class="kv" style="grid-template-columns:150px 1fr;margin-bottom:16px">
+    <div class="kv wide" style="margin-bottom:16px">
       <div class="k">operation</div><div class="v">${esc(t.operation)}</div>
       ${cond?`<div class="k">pollingInterval / ttl</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
         <div class="k">maxFailCount</div><div class="v vrow">${t.maxFail} <span class="formula">count-bound(ttl→finite)</span></div>`
