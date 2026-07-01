@@ -66,8 +66,7 @@ pipeline's recipe (its ordered task list) is a code default per `(type, provider
 
 Two **observation tables** — `task_attempt` (per-retry-attempt outcome) and `task_check`
 (per-attempt poll summary) — carry what an operator needs to first-diagnose a failure: the raw external
-`response` per attempt (a TF dispatch, or a condition's check payload), the final outcome, whether a condition failed by staying not-met to its retry
-limit (`CONDITION_NOT_MET`) or by the check erroring (`CHECK_ERROR`/`CALL_TIMEOUT`), poll counts, the last external response. They also hold the **result the completion
+`response` per attempt (a TF dispatch, or a condition's check payload), the final outcome, whether the condition's terminal poll was not-met (`CONDITION_NOT_MET`) or a check error (`CHECK_ERROR`/`CALL_TIMEOUT`), with the per-cause split in `task_check`, poll counts, the last external response. They also hold the **result the completion
 `check(attempt, task)` reads** to decide a task is done — the reconciler reads only the *latest*
 attempt row, and only for that; claim, scheduling, and pipeline transitions never read them.
 Losing a row never corrupts state: for a `TERRAFORM_JOB` a missing latest result falls through to
@@ -117,7 +116,7 @@ a logical attempt identity, not an InfraManager key.
   (`CHECK_ERROR`/`CALL_TIMEOUT`) share this one budget; the poll that pushes `fail_count` to
   `maxFailCount` fails the task, and its cause sets the **terminal `error_code`**
   (`CONDITION_NOT_MET` when that last poll was still not-met) — the authoritative per-cause
-  breakdown lives in `task_check`, not in the single `error_code`. A condition is thus a fast
+  breakdown lives in `task_check`, not in the single `error_code`. Each poll's own `task_attempt.error_code` records that poll's cause, so the task's terminal `error_code` is the last attempt's. A condition is thus a fast
   probe bounded by a **retry count**, not a wall-clock deadline: the first poll is immediate and
   each retry waits `polling_interval`, so retry spacing totals about `(maxFailCount − 1) ×
   polling_interval`, with total elapsed also including each poll's call/queue time (slow checks or
