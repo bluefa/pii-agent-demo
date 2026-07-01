@@ -31,7 +31,8 @@ Constraints:
 1. InfraManager has **no de-duplication** — the same job submitted twice runs twice — but every
    execution API is **idempotent**, so the infrastructure result is unharmed.
 2. Results can be lost (rare worker failure); we do not distinguish "still running" from "lost"
-   — an execution timeout absorbs both.
+   — for a `TERRAFORM_JOB` an execution timeout absorbs both (a condition has no async result to
+   lose; it re-polls on its next scheduled attempt).
 
 ## Decision
 
@@ -69,9 +70,10 @@ dispatch `response` per attempt, the final outcome, whether a condition failed b
 limit (`CONDITION_NOT_MET`) or by the check erroring (`CHECK_ERROR`/`CALL_TIMEOUT`), poll counts, the last external response. They also hold the **result the completion
 `check(attempt, task)` reads** to decide a task is done — the reconciler reads only the *latest*
 attempt row, and only for that; claim, scheduling, and pipeline transitions never read them.
-Losing a row never corrupts state: a missing latest result falls through to `executionTimeout`
-and re-dispatches (idempotent), costing a delay, not correctness (the three invariants are in the
-**Schema** section). They add no domain column and no enum.
+Losing a row never corrupts state: for a `TERRAFORM_JOB` a missing latest result falls through to
+`executionTimeout` and re-dispatches (idempotent); a `CONDITION_CHECK` has no async result to lose
+and simply re-checks on its next scheduled poll — either way the cost is a delay, not correctness
+(the three invariants are in the **Schema** section). They add no domain column and no enum.
 
 ### 4. One active pipeline per target
 
@@ -111,11 +113,16 @@ a logical attempt identity, not an InfraManager key.
 - `fail_count` per task. A failed dispatch or poll increments it; below `maxFailCount` the task
   re-runs as a **fresh run** (completed work is a no-op — Terraform converges), at or above it
   the task is `FAILED`. For a `CONDITION_CHECK` a **not-met poll is a failed poll**: it increments
-  `fail_count` and re-checks after `polling_interval`, and `maxFailCount` not-mets fail the task
-  with `CONDITION_NOT_MET`. A condition is thus a fast probe bounded by a **retry count**, not a
-  wall-clock deadline — effective wait ≈ `polling_interval × maxFailCount`, so size
-  `polling_interval` to the condition's cadence and keep `maxFailCount` modest (each not-met poll
-  writes one attempt/observation row).
+  `fail_count` and re-checks after `polling_interval`. Not-met polls and check errors
+  (`CHECK_ERROR`/`CALL_TIMEOUT`) share this one budget; the poll that pushes `fail_count` to
+  `maxFailCount` fails the task, and its cause sets the **terminal `error_code`**
+  (`CONDITION_NOT_MET` when that last poll was still not-met) — the authoritative per-cause
+  breakdown lives in `task_check`, not in the single `error_code`. A condition is thus a fast
+  probe bounded by a **retry count**, not a wall-clock deadline: the first poll is immediate and
+  each retry waits `polling_interval`, so it gives up after about `(maxFailCount − 1) ×
+  polling_interval` when every poll is not-met (transient check errors consume the same budget and
+  shorten that). Size `polling_interval` to the condition's cadence and keep `maxFailCount` modest
+  (each poll writes one attempt/observation row).
 - One **per-task** deadline: `executionTimeout`, for `TERRAFORM_JOB` only (a condition has no
   long-running job to time out); with the **per-call** timeout, both map to canonical `ErrorCode`
   values, not separate states.
@@ -170,18 +177,24 @@ cancel is applied against a live worker is an execution concern (ADR-021).
 **Observation tables** (per attempt; only the *latest* row is read — by the completion `check` — nothing else)
 
 - `task_attempt(id, task_id, attempt_no, response, status, error_code, started_at, finished_at)`
-  — one row per retry attempt; `attempt_no = task.fail_count + 1`. `response` (text) holds the raw
+  — one row per retry attempt; `attempt_no` is assigned at creation as the pre-attempt
+  `fail_count + 1`, so once a failed attempt commits `task.fail_count` equals its `attempt_no`.
+  `response` (text) holds the raw
   InfraManager dispatch response — for a `TERRAFORM_JOB` it carries the **set** of `N` job ids
   (one dispatch → `N` jobs); each `TaskKind` deserializes its own `response`. The latest attempt
   row is the input to the completion `check`.
 - `task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,
   call_timeout_count, last_external_status, last_response_code, last_response_summary,
-  last_checked_at)` — at most one row per attempt (1:0..1), UPDATE-in-place. A `TERRAFORM_JOB`
-  attempt polls job status many times, so the row accumulates in place (`call_count > 1`) and rows
-  grow with attempts, not polls. A `CONDITION_CHECK` poll **is** one attempt (`call_count = 1`),
-  so its rows grow one-per-poll, bounded by `maxFailCount`; the row carries that poll's typed
-  outcome (`last_external_status`, the counts) while the raw payload stays in `task_attempt.response`,
-  and `not_met_count`/`api_error_count` record the not-met-vs-error breakdown for both kinds.
+  last_checked_at)` — at most one row per attempt (1:0..1). A `TERRAFORM_JOB` attempt polls job
+  status many times, so its row is UPDATEd in place (`call_count > 1`) and rows grow with attempts,
+  not polls, the not-met/error counts accumulating within that one row. A `CONDITION_CHECK` poll
+  **is** one attempt (`call_count = 1`), so a row is inserted per poll (bounded by `maxFailCount`)
+  and its count columns are degenerate (0/1, mirroring the attempt's outcome); the row is kept for
+  **one schema and one completion-check code path across both kinds**, carrying the poll's typed
+  outcome (`last_external_status`) while the raw payload stays in `task_attempt.response`. The
+  not-met-vs-error breakdown for a condition is therefore a **cross-row diagnostic aggregate**
+  (summing the per-poll rows), distinct from the completion `check`, which reads only the latest
+  row (invariant #1).
 
 Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 
@@ -190,11 +203,12 @@ Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 1. The reconciler reads **only the latest `task_attempt`/`task_check` row**, and only to evaluate
    task completion (`check(attempt, task)`); claim, scheduling, and pipeline transitions depend
    only on `pipeline`/`task`.
-2. `task_check` is UPDATE-in-place within an attempt (one row per attempt): a TF attempt takes no
-   per-poll inserts; a condition's rows are one-per-poll but bounded by `maxFailCount`. No RLE, no pruner.
-3. Losing an observation row never corrupts state: a missing latest result makes `check` fall
-   through to the per-task `executionTimeout`, which re-dispatches a fresh run (idempotent) — the
-   cost of loss is a re-dispatch (delay + harmless duplicate jobs), not incorrectness.
+2. `task_check` is one row per attempt: a `TERRAFORM_JOB` attempt UPDATEs it in place (no per-poll
+   inserts); a `CONDITION_CHECK` inserts one per poll, bounded by `maxFailCount`. No RLE, no pruner.
+3. Losing an observation row never corrupts state: for a `TERRAFORM_JOB` a missing latest result
+   makes `check` fall through to the per-task `executionTimeout`, which re-dispatches a fresh run
+   (idempotent); a `CONDITION_CHECK` has no async result to lose and re-checks on its next poll —
+   the cost of loss is a re-dispatch or a delayed poll (delay + harmless duplicate jobs), not incorrectness.
 
 **Enums** (canonical values)
 

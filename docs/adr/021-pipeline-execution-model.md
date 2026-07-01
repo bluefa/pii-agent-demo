@@ -52,7 +52,7 @@ this ADR is how those mechanisms work.
 | **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (so **no `status` guard is needed**) | Decision 4, 6 |
 | **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
 | **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
-| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost result → `executionTimeout` → fresh idempotent re-dispatch | Decision 4, ADR-016 §5 |
+| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition re-checks on its next scheduled poll) | Decision 4, ADR-016 §5 |
 
 ### 1. Workers pull work from the DB; no single-instance constraint, no leader election
 
@@ -153,8 +153,10 @@ blocking other workers. When the current task reaches `DONE`, the same tx2 flips
 summary — both under the verified pipeline claim (single writer, no task-level claim needed). The
 two kinds differ in shape: a `TERRAFORM_JOB` attempt polls job status many times, so tx2 UPDATEs
 the same attempt's `task_check` in place across polls; a `CONDITION_CHECK` poll **is** one attempt
-(ADR-016 §6), so each not-met poll writes a fresh `task_attempt`/`task_check` pair, increments
-`fail_count`, and reschedules `next_due_at = now() + polling_interval` — no in-place poll loop.
+(ADR-016 §6), so each failed poll — not-met or check-error alike — writes a fresh
+`task_attempt`/`task_check` pair, increments `fail_count`, and reschedules the next poll (the task's
+`next_check_at`, projected to the pipeline's `next_due_at` for the claim scan) at
+`now() + polling_interval` — no in-place poll loop.
 Task completion is a code-level `check(attempt, task)` over the **latest** attempt row — the
 reconciler reads only that row, and only for completion; claim, scheduling, and pipeline
 transitions never read the attempt tables. For a `TERRAFORM_JOB` a lost attempt result does not
@@ -348,7 +350,7 @@ loop:
 | A. Multi-worker claim-pull (SKIP LOCKED + lease + guarded writes) | **Chosen** | Multi-process safe by construction; HA + horizontal scale inherent; survives cancel-vs-worker and deploy-overlap races; crash recovery via lease expiry. |
 | B. Single server (replicas=1) + in-memory in-flight guard | **Rejected** | Fails the moment there is a second writer: cancel races a worker into terminal resurrection, and any process overlap (rolling deploy / scale / restart) double-transitions status. Idempotency covers double-dispatch but not status-transition races. |
 | C. Workflow engine (Temporal / Airflow / broker) | Rejected | A 2–4 step linear chain of minute-scale polls does not justify the operational cost. |
-| D. In-memory async chain (no scan) | Rejected | Loses runs on restart/deploy; cannot durably express multi-day waits. ADR-016 already requires the DB to be the only state. |
+| D. In-memory async chain (no scan) | Rejected | Loses runs on restart/deploy; cannot durably hold delayed retries and due work across restarts. ADR-016 already requires the DB to be the only state. |
 
 ## Consequences
 
