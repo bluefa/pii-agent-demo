@@ -433,6 +433,7 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 ## Links
 
 - [ADR-016](016-install-delete-pipeline-domain-model.md) — the durable domain model this drives
+- [ADR-022](022-post-check-and-event-outbox.md) — postCheck & event outbox reuse this claim-pull substrate (relay + optional advisory post-terminal check)
 
 ## Glossary
 

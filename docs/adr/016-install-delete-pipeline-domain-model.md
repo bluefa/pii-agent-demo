@@ -225,6 +225,7 @@ open/configured set uses a registry instead.
 ## Links
 
 - [ADR-021](021-pipeline-execution-model.md) — the execution model that drives this state machine
+- [ADR-022](022-post-check-and-event-outbox.md) — postCheck & event outbox, layered on this model without changing it (picks up the deferred "event outbox" from Costs we accept)
 - [adr-016-history.md](../../design/pipeline/adr-016-history.md) — design history & rationale (maximal → minimal, revisions)
 - Related: ADR-006 (confirmation model), ADR-009 (process status). A pipeline runs between CONFIRMED and INSTALLED.
 
