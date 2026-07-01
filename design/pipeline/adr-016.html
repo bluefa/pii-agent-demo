@@ -606,7 +606,9 @@ Pipeline:  RUNNING ────────────────────�
 
   <div class="schema-block">
     pipeline(id, type, target, status, created_at, last_activity_at)<br>
-    &nbsp;&nbsp;— 실행 시 추가: next_due_at, claimed_by, claimed_until, cancel_requested (ADR-021 참고)
+    &nbsp;&nbsp;— 실행 시 추가: next_due_at, claimed_by, claimed_until, cancel_requested (ADR-021 참고)<br>
+    &nbsp;&nbsp;— 비종단 status에 대한 target <strong>부분 유일 인덱스</strong>가 Decision 4의 타겟당 유일성을 강제한다;
+    동시 중복 create는 insert 경쟁에서 패배하여 <code>409 Conflict</code>(<code>ORCHESTRATION_PIPELINE_ALREADY_ACTIVE</code>)로 표면화된다
   </div>
 
   <div class="schema-block">

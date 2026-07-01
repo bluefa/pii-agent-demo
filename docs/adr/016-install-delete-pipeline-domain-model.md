@@ -152,7 +152,10 @@ cancel is applied against a live worker is an execution concern (ADR-021).
 **Domain state tables**
 
 - `pipeline(id, type, target, status, created_at, last_activity_at)` — execution adds
-  `next_due_at, claimed_by, claimed_until, cancel_requested` (see ADR-021).
+  `next_due_at, claimed_by, claimed_until, cancel_requested` (see ADR-021). A **partial unique
+  index on `target` over non-terminal `status`** enforces Decision 4's per-target uniqueness; a
+  concurrent duplicate create loses the insert race and surfaces as `409 Conflict`
+  (`ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`).
 - `task(id, pipeline_id, seq, kind, operation, status, fail_count, error_code,
   started_at, ready_at, finished_at, next_check_at, ttl, polling_interval, execution_timeout,
   max_fail_count)` — no job-id column: one dispatch's `N` job ids live inside the `task_attempt`
