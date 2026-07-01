@@ -21,7 +21,7 @@
 | [ADR-018](./018-state-view-components.md) | State-View Components (Empty / Error / Permission) | Accepted | 2026-06-20 |
 | [ADR-019](./019-bff-casing-boundary-and-runtime-validation.md) | BFF Casing Boundary Consolidation + Runtime Schema Validation | Proposed | 2026-06-20 |
 | [ADR-020](./020-boundary-read-rendering.md) | Boundary-Hoisted Read Rendering (Suspense + Error Boundary) | Proposed | 2026-06-20 |
-| [ADR-021](./021-pipeline-execution-model.md) | Install/Delete Pipeline — Single-Server Execution Model | Proposed | 2026-06-27 |
+| [ADR-021](./021-pipeline-execution-model.md) | Install/Delete Pipeline — Claim-Pull Execution Model | Proposed | 2026-06-27 |
 | [ADR-022](./022-post-check-and-event-outbox.md) | Install/Delete 파이프라인 — 완료 후 검증(postCheck)과 트랜잭션 이벤트 아웃박스(eventOutbox) | Proposed | 2026-07-01 |
 
 ## ADR 작성 규칙

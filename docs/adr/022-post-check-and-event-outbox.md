@@ -8,17 +8,19 @@
 [ADR-021](021-pipeline-execution-model.md)(실행 모델)에서 **의도적으로 미룬 두 가지**를
 다룬다.
 
-- ADR-016 「Costs we accept」: *"No full per-call audit ledger or **event outbox**. …
-  Worker-outage and queue-wait alerts are deferred."*
-- ADR-021 「Admission control」/「Considered Options B」: 상태 전이에 반응하는
-  알림·이벤트 경로가 없음.
-- ADR-016 초기 최대 모델(Option B)에 있던 `event outbox`는 재범위 축소 때 제거되었고,
-  `postCheck`는 v2-deferred로 남았다.
+- ADR-016 「Costs we accept」(원문 축약 인용):
+  *"No full per-call audit ledger or event outbox. … Worker-outage and queue-wait
+  alerts are deferred."*
+- ADR-021은 worker-outage/queue-wait를 감지할 **지표**(lease-expired reclaim count,
+  due-pipeline lag)를 정의하지만, 그것을 알림으로 **방출하는 경로는 없다.**
+- ADR-016 초기 최대 모델(Option B)에 있던 `event outbox`는 재범위 축소 때 제거되었고
+  (design/pipeline/adr-016-history.md 참조), `postCheck`(자기 보고와 무관한 end-state
+  검증)는 아직 어느 ADR에서도 다루지 않은 후속 과제였다.
 
 이 ADR은 그 두 개념을 **파이프라인 도메인 모델을 바꾸지 않고** 얹는다. ADR-016/021의
 불변식(“DB row가 곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지, 개념 최소화)을
-그대로 상속한다. 실행 substrate는 ADR-021의 claim-pull을 재사용하며, 미래 변경은 이
-ADR만 대체한다.
+그대로 상속한다. 실행 substrate는 ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을
+재사용하며, 미래 변경은 이 ADR만 대체한다.
 
 ## 맥락
 
@@ -44,10 +46,12 @@ end-state를 **독립적으로 재확인**하는 수단이 필요하다.
   **dual-write**. 알림이 성공했는데 tx2가 롤백되면(또는 반대) 상태와 알림이 갈라지고,
   느린 알림 서버가 상태 전이를 막는다 — 상태 정합성이 알림 서버 가용성에 종속된다.
 - **커밋 후 best-effort 알림**: 커밋과 알림 호출 사이에 크래시가 나면 이벤트가 **조용히
-  유실**된다(ADR-021 §4의 tx2/외부호출 분리와 동일한 창).
+  유실**된다(ADR-021 §3 two-transaction split의 커밋/외부호출 경계와 유사한 창 —
+  다만 방향이 반대다: §4 window (b)는 외부호출 후 크래시라 멱등 재실행으로 복구되지만,
+  여기서는 커밋 후 유실이라 복구 불가 — 그래서 아웃박스가 필요하다).
 
-두 개념은 자연스럽게 짝을 이룬다: **postCheck가 이벤트를 만들고, eventOutbox가 그것을
-신뢰성 있게 전달한다.**
+두 개념은 자연스럽게 짝을 이룬다: **postCheck의 자문 결과도 이벤트가 되고, eventOutbox는
+이를 포함한 상태 전이·운영 알림 이벤트를 하나의 신뢰성 있는 경로로 전달한다.**
 
 ### 규모(ADR-016/021과 동일)
 
@@ -59,11 +63,13 @@ end-state를 **독립적으로 재확인**하는 수단이 필요하다.
 ### 1. postCheck는 “게이팅”이 기본, “종단 후 자문(advisory)”은 필요 시에만
 
 completion check(자기 보고 신뢰)와 별개로 **end-state를 독립 검증**하는 것이 postCheck다.
-검증이 **파이프라인 성공 자체를 게이팅해야 하는지**로 배치가 갈린다.
+검증이 **파이프라인 성공 자체를 게이팅해야 하는지**로 배치가 갈린다(여기서 “게이팅”은
+파이프라인 성공 판정을 막는다는 뜻으로, ADR-021 §7의 admission/slot “게이트”와는 다른
+층위다).
 
 **(A) 게이팅 postCheck — 기본. 기존 `CONDITION_CHECK`를 재사용.**
 recipe의 **마지막 task**로 `CONDITION_CHECK`를 둔다. 새 task kind도, 새 상태도, 새
-실패 의미도 없다(ADR-016 §개념 최소화). end-state 계약을 단언하고, 실패 시 여느
+실패 의미도 없다(ADR-016의 개념 최소화 원칙). end-state 계약을 단언하고, 실패 시 여느
 CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7). INSTALL의 “리소스
 조회 가능”, DELETE의 “리소스 소멸 확인”이 여기 해당한다. **이 경우 새 메커니즘은 전혀
 필요 없다 — recipe 작성 규약일 뿐이다.**
@@ -77,10 +83,11 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 - 파이프라인/task **도메인 상태에 대해 read-only**. claim·스케줄링·전이는 이를 읽지 않는다.
 - 결과를 작은 관측 행(`post_check`)에 기록하고, **이벤트를 방출**한다
   (`POST_CHECK_OK` / `POST_CHECK_MISMATCH`) — eventOutbox를 통해.
-- 별도 스케줄러를 만들지 않는다. 필요해지면 ADR-021의 claim-pull scan을 재사용한다:
-  파이프라인이 `DONE`에 도달하는 tx2에서 `post_check_due_at`을 seed하고, 동일 worker
-  scan이 그 행을 집어 검증 호출을 돌린 뒤 결과 기록·이벤트 방출·`post_check_due_at`을
-  비운다.
+- 별도 스케줄러를 만들지 않는다. 필요해지면 ADR-021의 `SKIP LOCKED` 기반 claim/lease
+  패턴을 재사용한다(스캔 대상·predicate는 별도 — RUNNING 파이프라인이 아니라
+  `post_check_due_at`이 도래한 행): 파이프라인이 `DONE`에 도달하는 tx2에서
+  `post_check_due_at`을 seed하고, worker가 그 행을 집어 검증 호출을 돌린 뒤 결과 기록·
+  이벤트 방출·`post_check_due_at` 클리어를 한다.
 
 (B)는 **구체적 드리프트 감지 요구가 생기기 전까지 유보한다**(테이블·컬럼·scan 확장은
 그때 도입). 스펙만 못박고 코드는 만들지 않는다 — ADR-016/021의 “필요할 때까지 안 만든다”
@@ -106,7 +113,8 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 - **at-least-once.** 전달 성공 후 `sent_at` 기록 전에 크래시하면 재전달된다 — ADR-016의
   at-least-once 철학과 동일. 따라서 **소비자는 멱등해야 한다**(`event_id`로 dedupe).
 - **동시 relay 안전.** relay가 여럿이어도 ADR-021의 `FOR UPDATE SKIP LOCKED`로 행을
-  집으면 같은 행을 이중 전달하지 않는다(락 창 안에서). claim-pull을 그대로 재사용한다.
+  집으면 같은 행을 이중 전달하지 않는다(락 창 안에서). ADR-021의 `SKIP LOCKED` 기반
+  claim/lease 패턴을 재사용한다(스캔 대상은 `event_outbox` 미전송 행으로 별도).
 - **`attempt_count`/`last_error`** 로 재시도·poison 가시성을 남긴다. 상한 초과 행은
   전달을 멈추고 알림으로 승격(운영 이벤트) — 파이프라인 상태에는 영향 없음.
 
@@ -131,7 +139,7 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 | 대안 | 판정 | 이유 |
 |---|---|---|
 | **A. 게이팅=트레일링 CONDITION_CHECK(기본) + 종단 후 자문(필요 시)** | **채택** | 흔한 경우는 기존 task kind 재사용(새 개념 0); 자문 모드는 드리프트 감지 필요 시에만. |
-| B. 새 `POST_CHECK` task kind 도입 | 기각 | CONDITION_CHECK와 동작이 같은데 enum 값만 늘림 — ADR-016 §개념 최소화 위반. |
+| B. 새 `POST_CHECK` task kind 도입 | 기각 | CONDITION_CHECK와 동작이 같은데 enum 값만 늘림 — ADR-016의 개념 최소화 원칙 위반. |
 | C. 종단 후 mismatch 시 파이프라인을 `FAILED`로 되돌림 | 기각 | ADR-016 §7 “종단 상태 부활 금지” 위반. 올바른 신호는 자문 이벤트다. |
 
 ### eventOutbox
@@ -197,8 +205,8 @@ CONDITION_CHECK처럼 파이프라인을 `FAILED`로 만든다(ADR-016 §6/§7).
 | `TASK_FAILED` | tx2 | task가 `maxFailCount`에서 `FAILED`(ADR-016 §6) |
 | `WORKER_OUTAGE` | 모니터 | lease-expiry reclaim 급증(ADR-021 지표) |
 | `QUEUE_WAIT_EXCEEDED` | 모니터 | due-pipeline lag 임계 초과(ADR-021 지표) |
-| `POST_CHECK_MISMATCH` | 자문 postCheck | 종단 후 end-state 불일치(유보 모드) |
 | `POST_CHECK_OK` | 자문 postCheck | 종단 후 end-state 확인(유보 모드) |
+| `POST_CHECK_MISMATCH` | 자문 postCheck | 종단 후 end-state 불일치(유보 모드) |
 
 ## 링크
 
