@@ -52,7 +52,7 @@ this ADR is how those mechanisms work.
 | **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (so **no `status` guard is needed**) | Decision 4, 6 |
 | **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
 | **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
-| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition re-checks on its next scheduled poll) | Decision 4, ADR-016 §5 |
+| **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition re-checks on its next scheduled poll) | Decision 4, ADR-016 §5, §6 |
 
 ### 1. Workers pull work from the DB; no single-instance constraint, no leader election
 
@@ -241,8 +241,9 @@ UPDATE pipeline SET cancel_requested = true, next_due_at = now()
 The claim-holding worker reads `cancel_requested` at its safe points — right after claiming,
 before dispatch, and inside the report transaction (tx2) — and if set, terminalizes **every
 non-terminal task** (the current task plus any still-`BLOCKED` successors) and the pipeline to
-`CANCELLED` itself, then releases the claim. `next_due_at = now()` wakes a sleeping pipeline (e.g.
-one sleeping between condition polls) so the next scan claims it promptly.
+`CANCELLED` itself, then releases the claim. `next_due_at = now()` makes the pipeline immediately due, so the next scan re-claims it promptly
+once the live claim releases. (A condition merely sleeping between polls holds no live claim and is
+cancelled immediately by Case A, not here.)
 
 **Why both cases are race-free:**
 - **vs a concurrent claim** — both contend on the pipeline row, so whichever commits first wins:

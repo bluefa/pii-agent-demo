@@ -65,8 +65,8 @@ pipeline's recipe (its ordered task list) is a code default per `(type, provider
 ### 3. Observation is separate from state
 
 Two **observation tables** — `task_attempt` (per-retry-attempt outcome) and `task_check`
-(per-attempt poll summary) — carry what an operator needs to first-diagnose a failure: the raw
-dispatch `response` per attempt, the final outcome, whether a condition failed by staying not-met to its retry
+(per-attempt poll summary) — carry what an operator needs to first-diagnose a failure: the raw external
+`response` per attempt (a TF dispatch, or a condition's check payload), the final outcome, whether a condition failed by staying not-met to its retry
 limit (`CONDITION_NOT_MET`) or by the check erroring (`CHECK_ERROR`/`CALL_TIMEOUT`), poll counts, the last external response. They also hold the **result the completion
 `check(attempt, task)` reads** to decide a task is done — the reconciler reads only the *latest*
 attempt row, and only for that; claim, scheduling, and pipeline transitions never read them.
@@ -120,8 +120,8 @@ a logical attempt identity, not an InfraManager key.
   breakdown lives in `task_check`, not in the single `error_code`. A condition is thus a fast
   probe bounded by a **retry count**, not a wall-clock deadline: the first poll is immediate and
   each retry waits `polling_interval`, so it gives up after about `(maxFailCount − 1) ×
-  polling_interval` when every poll is not-met (transient check errors consume the same budget and
-  shorten that). Size `polling_interval` to the condition's cadence and keep `maxFailCount` modest
+  polling_interval` plus call/queue time (each failed poll — not-met or check-error — reschedules at
+  `polling_interval`, so the cause mix changes only how many not-met samples occur, not the wall-clock). Size `polling_interval` to the condition's cadence and keep `maxFailCount` modest
   (each poll writes one attempt/observation row).
 - One **per-task** deadline: `executionTimeout`, for `TERRAFORM_JOB` only (a condition has no
   long-running job to time out); with the **per-call** timeout, both map to canonical `ErrorCode`
