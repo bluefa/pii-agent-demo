@@ -274,7 +274,8 @@ Their exact values live in operational config, not in this ADR:
 
 - **Worker count `N`** caps *concurrent external calls* (`≤ min(N, due pipelines)`). It is
   **not** a requests-per-second guarantee — `429`/`503` back off by pushing `next_due_at`
-  forward.
+  forward (for a `CONDITION_CHECK`, this backpressure deferral pushes the next poll beyond
+  `polling_interval`, extending the effective elapsed bound in ADR-016 §6).
 - **Lease duration** (`lease_seconds`) must exceed max single-call timeout plus pool queue-wait
   plus a scheduling margin (see Decision 5). Tune conservatively; a too-short lease has two
   distinct effects: (1) the **guarded write** prevents the stale straggler from clobbering DB

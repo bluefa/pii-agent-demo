@@ -122,7 +122,7 @@ a logical attempt identity, not an InfraManager key.
   each retry waits `polling_interval`, so retry spacing totals about `(maxFailCount − 1) ×
   polling_interval`, with total elapsed also including each poll's call/queue time (slow checks or
   call timeouts lengthen it; the not-met/error mix changes only how many not-met samples occur). Size `polling_interval` to the condition's cadence and keep `maxFailCount` modest
-  (each poll writes one attempt/observation row).
+  (each poll writes one attempt/observation row; `max_fail_count ≥ 1`, so at least one poll runs).
 - One **per-task** deadline: `executionTimeout`, for `TERRAFORM_JOB` only (a condition has no
   long-running job to time out); with the **per-call** timeout, both map to canonical `ErrorCode`
   values, not separate states.
