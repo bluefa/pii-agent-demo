@@ -24,7 +24,7 @@ visible run history.
 - **BackendManager** owns integration/approval and target-source data.
 
 Scale: ~2,000 targets; ~12 pipeline shapes (provider × install/delete). Terraform jobs run for
-**minutes**; condition checks poll for seconds to days.
+**minutes**; condition checks are fast readiness probes, bounded by a retry count rather than a long wall-clock wait.
 
 Constraints:
 
@@ -65,8 +65,8 @@ pipeline's recipe (its ordered task list) is a code default per `(type, provider
 
 Two **observation tables** — `task_attempt` (per-retry-attempt outcome) and `task_check`
 (per-attempt poll summary) — carry what an operator needs to first-diagnose a failure: the raw
-dispatch `response` per attempt, the final outcome, whether a TTL-expired condition was NOT_MET vs
-API-failed, poll counts, the last external response. They also hold the **result the completion
+dispatch `response` per attempt, the final outcome, whether a condition failed by staying not-met to its retry
+limit (`CONDITION_NOT_MET`) or by the check erroring (`CHECK_ERROR`/`CALL_TIMEOUT`), poll counts, the last external response. They also hold the **result the completion
 `check(attempt, task)` reads** to decide a task is done — the reconciler reads only the *latest*
 attempt row, and only for that; claim, scheduling, and pipeline transitions never read them.
 Losing a row never corrupts state: a missing latest result falls through to `executionTimeout`
@@ -110,9 +110,15 @@ a logical attempt identity, not an InfraManager key.
 
 - `fail_count` per task. A failed dispatch or poll increments it; below `maxFailCount` the task
   re-runs as a **fresh run** (completed work is a no-op — Terraform converges), at or above it
-  the task is `FAILED`.
-- Two deadlines: a **per-call** timeout and a **per-task** `executionTimeout` (TF) / `ttl`
-  (condition); both map to canonical `ErrorCode` values, not separate states.
+  the task is `FAILED`. For a `CONDITION_CHECK` a **not-met poll is a failed poll**: it increments
+  `fail_count` and re-checks after `polling_interval`, and `maxFailCount` not-mets fail the task
+  with `CONDITION_NOT_MET`. A condition is thus a fast probe bounded by a **retry count**, not a
+  wall-clock deadline — effective wait ≈ `polling_interval × maxFailCount`, so size
+  `polling_interval` to the condition's cadence and keep `maxFailCount` modest (each not-met poll
+  writes one attempt/observation row).
+- One **per-task** deadline: `executionTimeout`, for `TERRAFORM_JOB` only (a condition has no
+  long-running job to time out); with the **per-call** timeout, both map to canonical `ErrorCode`
+  values, not separate states.
 - No circuit breaker — a systemic failure is delay (timeout + retry + alert), not corruption.
 
 ### 7. Minimal lifecycle
@@ -157,7 +163,7 @@ cancel is applied against a live worker is an execution concern (ADR-021).
   concurrent duplicate create loses the insert race and surfaces as `409 Conflict`
   (`ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`).
 - `task(id, pipeline_id, seq, kind, operation, status, fail_count, error_code,
-  started_at, ready_at, finished_at, next_check_at, ttl, polling_interval, execution_timeout,
+  started_at, ready_at, finished_at, next_check_at, polling_interval, execution_timeout,
   max_fail_count)` — no job-id column: one dispatch's `N` job ids live inside the `task_attempt`
   `response`, and completion is a code-level `check(attempt, task)` over the latest attempt result.
 
@@ -170,9 +176,12 @@ cancel is applied against a live worker is an execution concern (ADR-021).
   row is the input to the completion `check`.
 - `task_check(id, task_attempt_id, call_count, not_met_count, api_error_count,
   call_timeout_count, last_external_status, last_response_code, last_response_summary,
-  last_checked_at)` — at most one row per attempt (1:0..1), UPDATE-in-place; row count grows
-  with attempts, not polls. Summarizes the poll/check phase of an attempt for **both** task
-  kinds (TF-job status polling and condition checks).
+  last_checked_at)` — at most one row per attempt (1:0..1), UPDATE-in-place. A `TERRAFORM_JOB`
+  attempt polls job status many times, so the row accumulates in place (`call_count > 1`) and rows
+  grow with attempts, not polls. A `CONDITION_CHECK` poll **is** one attempt (`call_count = 1`),
+  so its rows grow one-per-poll, bounded by `maxFailCount`; the row carries that poll's typed
+  outcome (`last_external_status`, the counts) while the raw payload stays in `task_attempt.response`,
+  and `not_met_count`/`api_error_count` record the not-met-vs-error breakdown for both kinds.
 
 Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 
@@ -181,7 +190,8 @@ Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 1. The reconciler reads **only the latest `task_attempt`/`task_check` row**, and only to evaluate
    task completion (`check(attempt, task)`); claim, scheduling, and pipeline transitions depend
    only on `pipeline`/`task`.
-2. `task_check` is UPDATE-in-place (one row per attempt): no per-poll inserts, no RLE, no pruner.
+2. `task_check` is UPDATE-in-place within an attempt (one row per attempt): a TF attempt takes no
+   per-poll inserts; a condition's rows are one-per-poll but bounded by `maxFailCount`. No RLE, no pruner.
 3. Losing an observation row never corrupts state: a missing latest result makes `check` fall
    through to the per-task `executionTimeout`, which re-dispatches a fresh run (idempotent) — the
    cost of loss is a re-dispatch (delay + harmless duplicate jobs), not incorrectness.
@@ -194,7 +204,7 @@ Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 | `PipelineStatus` | RUNNING, DONE, FAILED, CANCELLED |
 | `TaskKind` | TERRAFORM_JOB, CONDITION_CHECK |
 | `PipelineType` | INSTALL, DELETE |
-| `ErrorCode` | JOB_FAILED, EXECUTION_TIMEOUT, TTL_EXPIRED, CHECK_ERROR, CALL_TIMEOUT |
+| `ErrorCode` | JOB_FAILED, EXECUTION_TIMEOUT, CONDITION_NOT_MET, CHECK_ERROR, CALL_TIMEOUT |
 
 `TaskOperation` is a conditional sixth enum, present only when the operation set is closed; an
 open/configured set uses a registry instead.
