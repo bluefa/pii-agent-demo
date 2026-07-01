@@ -6,8 +6,8 @@
 
 [ADR-016](016-install-delete-pipeline-domain-model.md)(도메인 모델)·
 [ADR-021](021-pipeline-execution-model.md)(실행 모델)의 **후속 두 가지**를 다룬다 —
-**eventOutbox는 ADR-016/021이 명시적으로 유보한 사항**이고, **postCheck는 그 위에서
-새로 식별한 간극**이다.
+**eventOutbox는 ADR-016이 유보하고(ADR-021은 관련 지표만 정의) 아직 방출 경로가 없는
+사항**이고, **postCheck는 그 위에서 새로 식별한 간극**이다.
 
 - ADR-016 「Costs we accept」(원문 축약 인용):
   *"No full per-call audit ledger or event outbox. … Worker-outage and queue-wait
@@ -89,7 +89,7 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 - **종단 상태를 절대 부활시키지 않는다**(ADR-016 §7). 이미 `DONE`인 파이프라인을
   검증 실패로 `FAILED`로 되돌리지 않는다 — 그것이 자문(advisory)인 이유다.
 - 파이프라인/task **도메인 상태에 대해 read-only**. claim·스케줄링·전이는 이를 읽지 않는다.
-- 결과를 진단용 행(`post_check`의 최신 1행 — ADR-016 observation table과는 별개)에
+- 결과를 진단용 행(`post_check`의 최신 1행 — ADR-016 관측 테이블과는 별개)에
   기록하고, **이벤트를 방출**한다
   (`POST_CHECK_OK` / `POST_CHECK_MISMATCH`) — eventOutbox를 통해.
 - 별도 스케줄러를 만들지 않는다. 필요해지면 ADR-021의 `SKIP LOCKED` 기반 claim/lease
@@ -99,8 +99,8 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
   이벤트 방출·`post_check_due_at` 클리어를 한다.
 
 (B)는 **구체적 드리프트 감지 요구가 생기기 전까지 유보한다**(테이블·컬럼·scan 확장은
-그때 도입). 스펙만 못박고 코드는 만들지 않는다 — ADR-016/021의 “필요할 때까지 안 만든다”
-자세 그대로다.
+그때 도입). 스펙만 못박고 코드는 만들지 않는다 — ADR-016/021이 견지한 “필요할 때까지
+만들지 않는다”는 자세를 따른다.
 
 ### 2. eventOutbox는 트랜잭션 아웃박스 — 상태 전이와 같은 트랜잭션에서 이벤트를 쓴다
 
@@ -210,11 +210,12 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 - `pipeline.post_check_due_at` — 파이프라인 tx2에서 `DONE` 전이 시 seed(자문 모드일 때만).
   **ADR-016 `pipeline` 테이블에 추가되는 컬럼.**
 
-`post_check`는 파이프라인당 **최신 1행(1회성 검증 결과)**을 남긴다(반복 이력 아님) —
-재검증이 필요하면 같은 행을 UPDATE-in-place한다(ADR-016 `task_check`와 동일 방식).
+`post_check`는 파이프라인당 **최신 결과 1행만 UPDATE-in-place로 유지**한다(반복 이력
+없음; ADR-016 `task_check`와 동일 방식).
 
-**관계**: `pipeline 1:N event_outbox`(aggregate 기준 논리적). `pipeline 1:0..1 post_check`는
-위 유보 스키마 도입 시에만 성립.
+**관계**: `event_outbox`는 `aggregate_type`/`aggregate_id`로 출처를 가리키며,
+pipeline 관련 이벤트(`TASK_FAILED` 포함)는 pipeline에 논리적으로 귀속된다.
+`pipeline 1:0..1 post_check`는 위 유보 스키마 도입 시에만 성립.
 
 **불변식**
 
