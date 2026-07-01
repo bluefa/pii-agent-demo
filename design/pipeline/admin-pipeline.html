@@ -538,7 +538,7 @@ function renderList(root){
   wrap.innerHTML=`<table class="tbl"><thead><tr>
     <th>target</th><th>Provider</th><th>상태</th><th>진행</th><th></th></tr></thead><tbody>${
     slice.map(p=>`<tr class="click" data-pid="${p.id}">
-      <td class="mono">${p.target}</td>
+      <td class="mono">${esc(p.target)}</td>
       <td>${provTag(p.provider,true)}</td>
       <td>${pill(p.status)}</td>
       <td>${progressBar(progressN(p),progressM(p))}</td>
@@ -598,11 +598,11 @@ function renderTsPanel(root){
   const name=SERVICES.find(s=>s.code===svc).name;
   panel.innerHTML=`<div class="section-title" style="margin-top:0">${esc(name)} 의 Target Source</div>`+
     (list.length?`<table class="tbl"><thead><tr><th>Provider</th><th>TargetSourceId</th><th></th></tr></thead><tbody>${
-      list.map(t=>`<tr class="click" data-ts="${t.id}"><td>${provTag(t.provider)}</td><td class="mono">${t.id}</td><td class="chev">›</td></tr>`).join('')}</tbody></table>`
+      list.map(t=>`<tr class="click" data-ts="${esc(t.id)}"><td>${provTag(t.provider)}</td><td class="mono">${esc(t.id)}</td><td class="chev">›</td></tr>`).join('')}</tbody></table>`
     :`<div class="empty"><span class="ico">📭</span>target source 없음</div>`);
   panel.querySelectorAll('tr[data-ts]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
-    const go=()=>{const t=TS_INDEX[tr.dataset.ts]; nav(`#/target/${t.id}`,{serviceCode:svc, serviceName:name, targetId:t.id, provider:t.provider});};
+    const go=()=>{const t=TS_INDEX[tr.dataset.ts]; nav(`#/target/${encodeURIComponent(t.id)}`,{serviceCode:svc, serviceName:name, targetId:t.id, provider:t.provider});};
     tr.onclick=go; tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
   });
   authwrap.innerHTML=`<details class="collap"><summary>(참고) 서비스 권한 사용자 — getServiceAuthorizedUsers 🔵</summary>
@@ -625,7 +625,7 @@ function viewTarget(id){
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div class="kv" style="grid-template-columns:120px 1fr">
           <div class="k">Cloud Provider</div><div class="v">${provTag(ts.provider)} <span class="ftag na" style="background:#E9F8F0;color:var(--color-success-dark)">🔵 direct</span></div>
-          <div class="k">TargetSource</div><div class="v mono">${ts.id}</div>
+          <div class="k">TargetSource</div><div class="v mono">${esc(ts.id)}</div>
           <div class="k">계정</div><div class="v mono">${esc(ts.account)}</div>
           <div class="k">서비스</div><div class="v">${esc(svcName)} <span class="muted">(${esc(ts.serviceCode)})</span></div>
           <div class="k">설치 상태</div><div class="v">${esc(ts.processStatus)} <span class="muted" style="font-size:12px">process_status · getProcessStatus 🔵</span></div>
@@ -705,10 +705,10 @@ function viewPipeline(id){
   const svcName=app.navState.serviceName || (ts&&ts.serviceName);
   if(svcName && app.navState.serviceCode!==null && (app.navState.targetId===p.target)) {
     crumbs.push({label:svcName});
-    crumbs.push({label:p.target, hash:`#/target/${p.target}`});
+    crumbs.push({label:p.target, hash:`#/target/${encodeURIComponent(p.target)}`});
   } else {
     // dashboard 직행: service 컨텍스트 없음 → target 조각만
-    crumbs.push({label:p.target, hash:`#/target/${p.target}`});
+    crumbs.push({label:p.target, hash:`#/target/${encodeURIComponent(p.target)}`});
   }
   crumbs.push({label:`파이프라인 #${p.id}`});
   const cur=currentTask(p);
@@ -720,7 +720,7 @@ function viewPipeline(id){
         <div class="section-title" style="margin-top:0">파이프라인 정보</div>
         <div class="kv">
           <div class="k">ID / 타입</div><div class="v mono">#${p.id} · ${p.type}</div>
-          <div class="k">target</div><div class="v mono">${p.target} ${provTag(p.provider,true)}</div>
+          <div class="k">target</div><div class="v mono">${esc(p.target)} ${provTag(p.provider,true)}</div>
           <div class="k">상태</div><div class="v">${pill(p.status)}</div>
           <div class="k">생성</div><div class="v">${p.createdAt}</div>
           <div class="k">마지막 활동</div><div class="v">${p.lastActivityAt}</div>
@@ -830,7 +830,7 @@ function openPreview(ts,type){
   const steps=previewRecipe(ts.provider,type);
   const m=mountModal(`<div class="modal">
     <h3>${type==='INSTALL'?'설치':'삭제'} 실행 미리보기</h3>
-    <div class="desc">${ts.id} · ${PROVIDERS[ts.provider]} — 아래 순서(recipe)로 파이프라인이 생성됩니다. <span class="muted">유일성: 진행 중 run이 있으면 기존 run을 반환합니다.</span></div>
+    <div class="desc">${esc(ts.id)} · ${PROVIDERS[ts.provider]} — 아래 순서(recipe)로 파이프라인이 생성됩니다. <span class="muted">유일성: 진행 중 run이 있으면 기존 run을 반환합니다.</span></div>
     <div class="recipe">${steps.map(s=>`<div class="step"><span class="sq">${s.seq}</span>${esc(s.operation)} <span class="kindchip ${s.kind==='CONDITION_CHECK'?'ext':''}" style="margin-left:auto">${s.kind}</span></div>`).join('')||'<span class="muted">recipe 없음</span>'}</div>
     <div class="foot"><button class="btn ghost" id="mcancel">취소</button><button class="btn primary" id="mrun">${type==='INSTALL'?'설치':'삭제'} 실행</button></div>
   </div>`);
