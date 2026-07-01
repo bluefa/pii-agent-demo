@@ -12,6 +12,7 @@ import {
   type ConnProgressState,
 } from '@/app/components/features/process-status/ConnProgressStrip';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   updateResourceCredential,
@@ -234,7 +235,7 @@ export const ConnectionTestCard = ({
         )}
         {fetchError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-            연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.
+            {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
           </p>
         )}
         <div className={idcStyles.table.frame}>

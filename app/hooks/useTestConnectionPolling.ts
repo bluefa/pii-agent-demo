@@ -4,7 +4,7 @@ import {
   getTestConnectionLatest,
 } from '@/app/lib/api';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
-import type { AppError } from '@/lib/errors';
+import { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
 
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
@@ -13,7 +13,7 @@ export interface UseTestConnectionPollingReturn {
   latestJob: TestConnectionVersionResult | null;
   uiState: TestConnectionUIState;
   loading: boolean;
-  /** 최신 결과 조회 실패 (NOT_FOUND 제외 — 그건 "테스트 없음"으로 정상) */
+  /** Latest-result fetch failure. NOT_FOUND is excluded — that is the legitimate "no test yet" state. */
   fetchError: AppError | null;
   triggerError: string | null;
   trigger: () => Promise<void>;
@@ -49,9 +49,8 @@ export const fetchLatestTest = async (
   try {
     return await getTestConnectionLatest(targetSourceId);
   } catch (err) {
-    const appErr = err as AppError;
-    if (appErr.code === 'NOT_FOUND') return null;
-    throw appErr;
+    if (err instanceof AppError && err.code === 'NOT_FOUND') return null;
+    throw err;
   }
 };
 

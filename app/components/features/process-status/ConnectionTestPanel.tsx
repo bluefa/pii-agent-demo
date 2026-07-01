@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { SecretKey, needsCredential } from '@/lib/types';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import { getSecrets } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { statusColors, textColors, borderColors, bgColors, getButtonClass, cn } from '@/lib/theme';
@@ -162,7 +163,7 @@ export const ConnectionTestPanel = ({
 
         {fetchError && (
           <p className={cn('text-xs', statusColors.error.text)}>
-            연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.
+            {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
           </p>
         )}
 

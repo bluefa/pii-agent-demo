@@ -74,6 +74,12 @@ describe('fetchLatestTest', () => {
     vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(err);
     await expect(fetchLatestTest(1)).rejects.toBe(err);
   });
+
+  it('rethrows a non-AppError rejection even if it carries code NOT_FOUND', async () => {
+    const impostor = { code: 'NOT_FOUND' };
+    vi.mocked(getTestConnectionLatest).mockRejectedValueOnce(impostor);
+    await expect(fetchLatestTest(1)).rejects.toBe(impostor);
+  });
 });
 
 describe('shouldStopPolling', () => {

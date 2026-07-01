@@ -12,6 +12,7 @@ import {
 import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   getTestConnectionCompletionStatus,
@@ -327,7 +328,7 @@ export const IdcStep5ConnectionTest = ({
               )}
               {fetchError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
-                  연결 테스트 결과 조회에 실패했습니다. 잠시 후 다시 시도해주세요.
+                  {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
                 </p>
               )}
               {/* Keep the table frame flush with its attached footer pagination
