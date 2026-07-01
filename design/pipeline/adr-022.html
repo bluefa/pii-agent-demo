@@ -351,6 +351,7 @@
           <li>recipe의 <strong>마지막 task로 기존 <code>CONDITION_CHECK</code></strong>를 둔다</li>
           <li>새 task kind·상태·실패 의미 <strong>0</strong> (개념 최소화)</li>
           <li>실패 → task <code>FAILED</code>(§6) → projection으로 파이프라인 <code>FAILED</code>(§2)</li>
+          <li>ADR-016 개정(#526)으로 <code>CONDITION_CHECK</code>는 <strong>retry-count 바운드의 빠른 probe</strong> → 대기 ≈ <code>polling_interval × maxFailCount</code>, not-met 종료 시 <code>CONDITION_NOT_MET</code></li>
           <li><em>순수 recipe 규약 — 새 메커니즘 없음</em></li>
         </ul>
       </div>
@@ -358,7 +359,7 @@
         <div class="sc-tag later">유보</div>
         <div class="sc-head">(B) 종단 후 자문 postCheck</div>
         <ul>
-          <li>종단을 커밋한 <em>뒤</em> 검증(드리프트·장기 eventual-consistency)</li>
+          <li>종단을 커밋한 <em>뒤</em> 검증(드리프트·장기 eventual-consistency) — 게이팅 count-bound를 넘는 긴 검증은 여기로</li>
           <li><strong>종단 부활 금지</strong>(§7) — 되돌리지 않고 <strong>불일치 신호만</strong></li>
           <li>도입 시 §2의 상태-파생 claim-pull 재사용, MISMATCH만(OK 없음)</li>
           <li><em>드리프트 요구 생기기 전까지 코드·스키마 안 만듦</em></li>
