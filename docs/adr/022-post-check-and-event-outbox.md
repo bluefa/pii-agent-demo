@@ -89,8 +89,8 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 - **종단 상태를 절대 부활시키지 않는다**(ADR-016 §7). 이미 `DONE`인 파이프라인을
   검증 실패로 `FAILED`로 되돌리지 않는다 — 그것이 자문(advisory)인 이유다.
 - 파이프라인/task **도메인 상태에 대해 read-only**. claim·스케줄링·전이는 이를 읽지 않는다.
-- 결과를 작은 방출/진단 행(`post_check`, ADR-016 observation table과는 별개)에 기록하고,
-  **이벤트를 방출**한다
+- 결과를 진단용 행(`post_check`의 최신 1행 — ADR-016 observation table과는 별개)에
+  기록하고, **이벤트를 방출**한다
   (`POST_CHECK_OK` / `POST_CHECK_MISMATCH`) — eventOutbox를 통해.
 - 별도 스케줄러를 만들지 않는다. 필요해지면 ADR-021의 `SKIP LOCKED` 기반 claim/lease
   패턴을 재사용한다(스캔 대상·predicate는 별도 — RUNNING 파이프라인이 아니라
@@ -107,9 +107,11 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 상태 전이가 일어나는 **바로 그 트랜잭션 안에서** 이벤트 행을 INSERT한다. dual-write를
 없애는 핵심이다.
 
-- **상태 전이 이벤트**는 tx2(ADR-021 §4의 report 트랜잭션)에 편승한다. task/pipeline
-  `status`를 전이시키는 동일 tx2가 `event_outbox` 행을 함께 INSERT한다. 이벤트는
-  **상태 전이가 커밋된 경우에만, 그때 정확히** 존재한다 — 원자적.
+- **상태 전이 이벤트**는 **그 전이를 커밋하는 트랜잭션**에 편승한다. 보통은 tx2(ADR-021
+  §4의 report 트랜잭션)이지만, **유휴 파이프라인 즉시 취소(ADR-021 §6 Case A)는 API
+  cancel 트랜잭션**이 `CANCELLED`를 커밋하므로 그 트랜잭션이 `event_outbox` 행을 INSERT한다.
+  어느 경우든 `status`를 전이시키는 동일 트랜잭션이 이벤트를 함께 INSERT한다 — 이벤트는
+  **상태 전이가 커밋된 경우에만, 그때 정확히** 존재한다(원자적).
 - **운영 알림**(상태 전이에서 나오지 않는 것: worker-outage, queue-wait)은 편승할 tx2가
   없다. 이는 **모니터/스캔 관측에서 파생**되며, 모니터가 자신의 트랜잭션에서 같은
   `event_outbox`에 쓴다. 이렇게 **모든 이벤트가 하나의 신뢰성 있는 전달 경로**를 공유한다.
@@ -217,8 +219,11 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 **불변식**
 
 1. `event_outbox`/`post_check`는 방출 전용 — reconciler·claim·스케줄링·전이가 읽지 않는다.
-2. 상태 전이 이벤트는 그 전이를 커밋하는 **동일 tx2**에서만 INSERT된다(원자성).
-3. 아웃박스 행 유실/재생은 pipeline/task 상태를 오염시키지 않는다(ADR-016 관측 테이블과 동일).
+2. 상태 전이 이벤트는 **그 전이를 커밋하는 동일 트랜잭션**(tx2, 또는 즉시 취소 시 API
+   cancel tx)에서만 INSERT된다(원자성).
+3. 아웃박스 행은 상태와 함께 커밋되어 durable하며, 전송 완료 후에만 pruning된다. 설령
+   행이 유실/재생되더라도 pipeline/task **상태**는 오염되지 않는다(ADR-016 관측 테이블과
+   동일한 상태-무결성 보장). 전달 신뢰성 자체는 relay 재시도 + at-least-once가 담당한다.
 
 ## 이벤트 분류(초기 event_type 집합)
 
@@ -230,7 +235,7 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
 |---|---|---|
 | `PIPELINE_DONE` | tx2 | 파이프라인 `RUNNING → DONE` |
 | `PIPELINE_FAILED` | tx2 | 파이프라인 `RUNNING → FAILED` |
-| `PIPELINE_CANCELLED` | tx2 | 파이프라인 `RUNNING → CANCELLED` |
+| `PIPELINE_CANCELLED` | tx2 / API cancel tx | 파이프라인 `RUNNING → CANCELLED`(협력 취소는 tx2, 즉시 취소는 API tx — ADR-021 §6) |
 | `TASK_FAILED` | tx2 | task가 `maxFailCount`에서 `FAILED`(ADR-016 §6) |
 | `WORKER_OUTAGE` | 모니터 | lease-expired reclaim 급증(ADR-021 지표) |
 | `QUEUE_WAIT_EXCEEDED` | 모니터 | due-pipeline lag 임계 초과(ADR-021 지표) |
@@ -257,7 +262,7 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §
   결과를 읽어 task 완료를 판정. **postCheck와 다르다**(자기 보고 vs 독립 end-state 검증).
 - **postCheck** — end-state를 독립 검증. 게이팅(트레일링 CONDITION_CHECK) 또는 종단 후
   자문(read-only, 부활 금지, 이벤트 방출) 두 가지 배치 방식.
-- **트랜잭션 아웃박스** — 상태 전이와 같은 트랜잭션에서 이벤트 행을 write해 dual-write를
+- **트랜잭션 아웃박스** — 상태 전이와 같은 트랜잭션에서 이벤트 행을 기록해 dual-write를
   없애고, 별도 relay가 out-of-band·at-least-once로 전달하는 패턴.
 - **relay** — `event_outbox`의 미전송 행을 집어 sink에 전달하고 `sent_at`을 찍는 루프.
   ADR-021의 `SKIP LOCKED` batch claim만 재사용해(lease/fencing 없이) 동시 relay 이중
