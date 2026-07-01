@@ -3,12 +3,9 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   getApprovalRequestLatest,
-  getApprovedIntegration,
   type ApprovalRequestLatestResponse,
-  type ApprovedIntegrationExcludedResourceItem,
-  type ApprovedIntegrationResourceItem,
 } from '@/app/lib/api';
-import { AppError, isMissingApprovedIntegrationError } from '@/lib/errors';
+import { AppError } from '@/lib/errors';
 import { formatDate } from '@/lib/utils/date';
 import { ClockIcon } from '@/app/components/ui/icons';
 import { Pagination } from '@/app/components/ui/Pagination';
@@ -38,25 +35,21 @@ interface WaitingApprovalCardProps {
 const FETCH_ERROR_MESSAGE = '승인 요청 정보를 불러오지 못했습니다.';
 const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 
-const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
-  resourceId: item.resource_id,
-  resourceType: item.resource_type,
-  region: item.database_region ?? '',
-  resourceName: item.resource_name ?? '',
-  selected: true,
-  displayDbType: item.endpoint_config?.db_type ?? item.resource_type,
-  integrationStatus: item.integration_status ?? null,
-});
+// Step 2 sources its table from approval-requests/latest.resources (which the BFF
+// already returns alongside the request meta), split by `selected` — so the separate
+// approved-integration GET is no longer needed here (that endpoint stays on step 3).
+// integration_status is a step-3 column with no source in this DTO, so it stays null.
+type LatestResourceItem = NonNullable<ApprovalRequestLatestResponse['resources']>[number];
 
-const toExcludedRow = (
-  item: ApprovedIntegrationExcludedResourceItem,
-): WaitingApprovalResource => ({
+const toResourceRow = (item: LatestResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id ?? '',
-  resourceType: item.database_type ?? '',
-  region: item.database_region ?? '',
+  resourceType: item.resource_type ?? item.metadata?.database_type ?? '',
+  region: item.metadata?.region ?? '',
   resourceName: item.resource_name ?? '',
-  selected: false,
+  selected: item.selected ?? false,
+  displayDbType: item.metadata?.database_type ?? item.resource_type ?? undefined,
   exclusionReason: item.exclusion_reason ?? undefined,
+  integrationStatus: null,
 });
 
 interface RequestSummary {
@@ -83,33 +76,20 @@ export const WaitingApprovalCard = ({
   useEffect(() => {
     const controller = new AbortController();
 
-    void getApprovedIntegration(targetSourceId, { signal: controller.signal })
-      .then((response) => {
-        const approved = response.approved_integration;
-        if (!approved) {
-          setState({ status: 'ready', data: [] });
-          return;
-        }
-        const selectedRows = approved.resource_infos.map(toSelectedRow);
-        const excludedRows = approved.excluded_resource_infos.map(toExcludedRow);
-        setState({ status: 'ready', data: [...selectedRows, ...excludedRows] });
-      })
-      .catch((error: unknown) => {
-        if (error instanceof AppError && error.code === 'ABORTED') return;
-        if (isMissingApprovedIntegrationError(error)) {
-          setState({ status: 'ready', data: [] });
-          return;
-        }
-        setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
-      });
-
     void getApprovalRequestLatest(targetSourceId, { signal: controller.signal })
       .then((response) => {
+        const rows = (response.resources ?? []).map(toResourceRow);
+        setState({ status: 'ready', data: rows });
         setRequestSummary(toRequestSummary(response));
       })
       .catch((error: unknown) => {
         if (error instanceof AppError && error.code === 'ABORTED') return;
-        setRequestSummary(null);
+        if (error instanceof AppError && error.code === 'NOT_FOUND') {
+          setState({ status: 'ready', data: [] });
+          setRequestSummary(null);
+          return;
+        }
+        setState({ status: 'error', message: FETCH_ERROR_MESSAGE });
       });
 
     return () => controller.abort();
