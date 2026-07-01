@@ -19,7 +19,7 @@ it bounds concurrent external calls.
 
 The dominant runtime constraint is **unbounded external-call latency**. InfraManager's "run"
 API is asynchronous — a short call returns a job id, but the Terraform job it starts runs for
-**minutes**, and condition checks poll for seconds to days. The execution model must absorb
+**minutes**, and a condition check re-polls on its interval, bounded by a retry count (ADR-016 §6). The execution model must absorb
 that without stalling, and must survive process restarts (ADR-016 guarantees no state is
 lost, only that progress pauses).
 
@@ -149,13 +149,17 @@ transaction that advances task/pipeline state also clears `claimed_by`/`claimed_
 the new `next_due_at` (seeded at creation by the trigger endpoint). Without this release a
 pipeline that finishes a step but stays `RUNNING` would sit locked until `claimed_until` passes,
 blocking other workers. When the current task reaches `DONE`, the same tx2 flips the next task
-`BLOCKED → READY`. On dispatch the worker writes a `task_attempt` row (the attempt's `job_ids`
-set + responses), and on each poll it UPDATEs that attempt's `task_check` summary (counts + last
-response) in place; both under the verified pipeline claim (single writer, no task-level claim
-needed). Task completion is a code-level `check(attempt, task)` over the **latest** attempt row —
-the reconciler reads only that row, and only for completion; claim, scheduling, and pipeline
-transitions never read the attempt tables. A lost attempt result does not stall the task: it
-falls through to `executionTimeout` and re-dispatches a fresh `N`-job run (idempotent).
+`BLOCKED → READY`. Each step writes a `task_attempt` row carrying that attempt's `response`, plus a `task_check`
+summary — both under the verified pipeline claim (single writer, no task-level claim needed). The
+two kinds differ in shape: a `TERRAFORM_JOB` attempt polls job status many times, so tx2 UPDATEs
+the same attempt's `task_check` in place across polls; a `CONDITION_CHECK` poll **is** one attempt
+(ADR-016 §6), so each not-met poll writes a fresh `task_attempt`/`task_check` pair, increments
+`fail_count`, and reschedules `next_due_at = now() + polling_interval` — no in-place poll loop.
+Task completion is a code-level `check(attempt, task)` over the **latest** attempt row — the
+reconciler reads only that row, and only for completion; claim, scheduling, and pipeline
+transitions never read the attempt tables. For a `TERRAFORM_JOB` a lost attempt result does not
+stall the task: it falls through to `executionTimeout` and re-dispatches a fresh `N`-job run
+(idempotent); a condition instead re-checks on its next scheduled poll.
 
 *The above is the mechanism; the rest is why it is race-free.*
 
@@ -236,7 +240,7 @@ The claim-holding worker reads `cancel_requested` at its safe points — right a
 before dispatch, and inside the report transaction (tx2) — and if set, terminalizes **every
 non-terminal task** (the current task plus any still-`BLOCKED` successors) and the pipeline to
 `CANCELLED` itself, then releases the claim. `next_due_at = now()` wakes a sleeping pipeline (e.g.
-one in a long poll/condition wait) so the next scan claims it promptly.
+one sleeping between condition polls) so the next scan claims it promptly.
 
 **Why both cases are race-free:**
 - **vs a concurrent claim** — both contend on the pipeline row, so whichever commits first wins:
