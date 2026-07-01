@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { InstallationLoadingView } from '@/app/components/features/process-status/shared/InstallationLoadingView';
 import { InstallationErrorView } from '@/app/components/features/process-status/shared/InstallationErrorView';
 import { InstallTaskPipeline } from '@/app/components/features/process-status/install-task-pipeline/InstallTaskPipeline';
@@ -78,8 +78,15 @@ export const AzureInstallationInline = ({
   onInstallComplete,
 }: AzureInstallationInlineProps) => {
   const detailModal = useModal<GcpStepKey>();
-  const getStatus = (id: number) =>
-    getAzureInstallationStatus(id).then(buildAzureInstallationStatus);
+  // Must be stable: useInstallationStatus re-runs its fetch effect whenever
+  // getFn's identity changes. An inline (unmemoized) getFn made the mount-only
+  // fetch effect re-run every render → unbounded refetch loop, most visibly a
+  // tight loop of retries when the endpoint keeps returning 500 (nothing
+  // unmounts the component to break the cycle). Matches GcpInstallationInline.
+  const getStatus = useCallback(
+    (id: number) => getAzureInstallationStatus(id).then(buildAzureInstallationStatus),
+    [],
+  );
   const { status, loading, error, fetchStatus } =
     useInstallationStatus<AzureV1InstallationStatus>({
       targetSourceId,
@@ -157,8 +164,8 @@ export const AzureInstallationInline = ({
           </p>
         </div>
         {/* v16 L6606 — provider indicator (not a control), short provider name. */}
-        <span className="text-[11.5px] text-[#8B95A1]">
-          Provider: <strong className="text-[#191F28]">Azure</strong>
+        <span className={cardStyles.providerTag}>
+          Provider: <strong className={cardStyles.providerTagName}>Azure</strong>
         </span>
       </header>
       <div className={cn(cardStyles.body, 'space-y-3')}>

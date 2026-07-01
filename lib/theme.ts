@@ -274,6 +274,9 @@ export const cardStyles = {
   cardTitle: 'text-[26px] font-extrabold tracking-[-0.045em] leading-[1.2] text-[#191F28]',
   /** Paragraph beneath a display title (ADR-014 card-subtitle) — v15 13.5/500/#8B95A1. */
   subtitle: 'text-[13.5px] font-medium text-[#8B95A1] leading-[1.55]',
+  /** Inline "Provider: X" indicator in a card header — weak label + strong name. */
+  providerTag: 'text-[11.5px] text-[#8B95A1]',
+  providerTagName: 'text-[#191F28]',
   /** Guide CMS editor wrapper — single border + radius-8 + overflow-hidden */
   editorFrame: 'border border-gray-200 rounded-lg bg-white overflow-hidden',
   /** Toolbar surface — muted bg sitting above the Tiptap area */
