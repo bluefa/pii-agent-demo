@@ -30,51 +30,62 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--toss-page-bg);color:var(--toss-strong);
-  font-family:var(--font-sans);font-size:15px;letter-spacing:-.018em;-webkit-font-smoothing:antialiased}
+  font-family:var(--font-sans);font-size:15px;letter-spacing:-.011em;line-height:1.5;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit;letter-spacing:inherit}
+
+/* ── Type roles ── */
+.formula{font-family:var(--font-mono);font-size:11px;color:var(--toss-faint);letter-spacing:0;line-height:1.4}
+.meta{font-size:12px;color:var(--toss-weak);letter-spacing:-.005em;line-height:1.4}
+.pager-count{font-size:13px;color:var(--toss-weak);font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+.mt-16{margin-top:16px}.mt-12{margin-top:12px}
+.vrow{display:inline-flex;align-items:center;gap:6px}
 
 /* ── App shell ── */
 .topnav{height:52px;background:var(--toss-card-bg);border-bottom:1px solid var(--toss-divider);
   display:flex;align-items:center;gap:20px;padding:0 24px;position:sticky;top:0;z-index:20}
-.topnav .brand{font-weight:700;font-size:16px}
+.topnav .brand{font-weight:700;font-size:18px;letter-spacing:-.015em}
 .topnav .nav-item{color:var(--toss-weak);font-size:14px;padding:6px 4px}
 .topnav .nav-item.active{color:var(--toss-strong);font-weight:600}
 .topnav .nav-item.active::after{content:"●";color:var(--color-primary);font-size:9px;margin-left:4px;vertical-align:middle}
 .layout{display:flex;min-height:calc(100vh - 52px)}
 .sidebar{width:220px;flex:none;background:var(--toss-card-bg);border-right:1px solid var(--toss-divider);padding:20px 12px}
 .sidebar .sb-title{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--toss-weak);
-  text-transform:uppercase;padding:6px 12px 10px}
-.sidebar .sb-item{display:block;padding:10px 12px;border-radius:10px;color:var(--toss-medium);
-  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
+  text-transform:uppercase;padding:8px 12px 12px}
+.sidebar .sb-item{display:block;padding:8px 12px;border-radius:8px;color:var(--toss-medium);
+  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:4px}
 .sidebar .sb-item:hover{background:var(--toss-inner-bg)}
 .sidebar .sb-item.active{background:var(--color-primary-light);color:var(--color-primary);font-weight:600}
-.content{flex:1;padding:28px 32px;min-width:0}
-.breadcrumb{font-size:13px;color:var(--toss-weak);margin-bottom:14px}
+.content{flex:1;padding:24px 32px;min-width:0}
+.breadcrumb{font-size:13px;color:var(--toss-weak);margin-bottom:16px;letter-spacing:-.005em}
 .breadcrumb .crumb{cursor:pointer}
 .breadcrumb .crumb:hover{color:var(--toss-medium)}
-.breadcrumb .sep{margin:0 7px;color:var(--toss-faint)}
+.breadcrumb .sep{margin:0 8px;color:var(--toss-faint)}
 .breadcrumb .cur{color:var(--toss-strong);font-weight:600}
-.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.page-head h1{font-size:22px;font-weight:700;margin:0}
-.section-title{font-size:14px;font-weight:700;color:var(--toss-medium);margin:22px 0 12px}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.page-head h1{font-size:22px;font-weight:700;margin:0;letter-spacing:-.02em;line-height:1.25}
+.section-title{font-size:18px;font-weight:700;color:var(--toss-strong);margin:24px 0 16px;letter-spacing:-.015em;line-height:1.35}
+.section-title:first-child{margin-top:0}
+.subsection-title{font-size:14px;font-weight:600;color:var(--toss-weak);margin:16px 0 12px;letter-spacing:-.006em}
 
 /* ── Card ── */
-.card{background:var(--toss-card-bg);border-radius:var(--toss-radius-card);box-shadow:var(--toss-shadow-sm);padding:22px}
+.card{background:var(--toss-card-bg);border-radius:var(--toss-radius-card);box-shadow:var(--toss-shadow-sm);padding:24px}
 .card+.card{margin-top:16px}
 
 /* ── StatCard ── */
-.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.stat{background:var(--toss-card-bg);border-radius:var(--toss-radius-card-sm);box-shadow:var(--toss-shadow-sm);padding:18px 20px}
-.stat .lbl{font-size:13px;color:var(--toss-weak);display:flex;align-items:center;gap:6px}
-.stat .val{font-size:30px;font-weight:700;margin-top:8px;line-height:1.1}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.stat{background:var(--toss-card-bg);border-radius:var(--toss-radius-card-sm);box-shadow:var(--toss-shadow-sm);padding:20px}
+.stat .lbl{font-size:13px;color:var(--toss-medium);display:flex;align-items:center;gap:6px;letter-spacing:-.005em}
+.stat .val{font-size:28px;font-weight:700;margin-top:8px;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stat .val .den{color:var(--toss-faint);font-weight:600;font-size:22px}
+.stat .sub{margin-top:8px}
+.stat.unavailable{background:var(--toss-inner-bg);border:1px dashed var(--gray-300);box-shadow:none}
 .stat.unavailable .val{color:var(--toss-faint)}
-.stat .sub{font-size:12px;color:var(--toss-weak);margin-top:4px}
+.stat.range .val{color:var(--toss-medium);font-weight:700}
 
 /* ── FieldTag ── */
-.ftag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;
-  padding:1px 7px;border-radius:6px;vertical-align:middle}
+.ftag{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;
+  padding:1px 8px;border-radius:6px;vertical-align:middle;letter-spacing:0}
 .ftag.ext{background:#FFF4E6;color:var(--color-warning-dark)}
 .ftag.approx{background:#EFF6FF;color:var(--color-info-dark)}
 .ftag.na{background:var(--gray-100);color:var(--toss-weak)}
@@ -82,7 +93,7 @@ button{font-family:inherit;letter-spacing:inherit}
 
 /* ── Pills ── */
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
-  padding:3px 10px;border-radius:var(--toss-radius-pill)}
+  padding:3px 10px;border-radius:var(--toss-radius-pill);letter-spacing:-.005em}
 .pill .dot{width:6px;height:6px;border-radius:50%}
 .pill.s-RUNNING,.pill.s-IN_PROGRESS{background:#EAF2FE;color:var(--color-info-dark)} .pill.s-RUNNING .dot,.pill.s-IN_PROGRESS .dot{background:var(--color-info)}
 .pill.s-READY{background:var(--color-primary-light);color:var(--color-info-dark)} .pill.s-READY .dot{background:var(--color-info)}
@@ -105,33 +116,33 @@ button{font-family:inherit;letter-spacing:inherit}
 .pbar{display:inline-flex;align-items:center;gap:8px}
 .pbar .track{width:96px;height:8px;border-radius:6px;background:var(--gray-200);overflow:hidden}
 .pbar .fill{height:100%;background:var(--color-primary);border-radius:6px}
-.pbar .lbl{font-size:12px;color:var(--toss-medium);font-variant-numeric:tabular-nums}
+.pbar .lbl{font-size:12px;color:var(--toss-medium);font-variant-numeric:tabular-nums;letter-spacing:-.005em}
 
 /* ── Table ── */
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
-.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--toss-weak);padding:10px 12px;
-  border-bottom:1px solid var(--toss-divider)}
-.tbl td{padding:12px;border-bottom:1px solid var(--toss-divider);color:var(--toss-medium);vertical-align:middle}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--toss-weak);padding:8px 12px;
+  border-bottom:1px solid var(--toss-divider);letter-spacing:0}
+.tbl td{padding:12px;border-bottom:1px solid var(--toss-divider);color:var(--toss-medium);
+  vertical-align:middle;font-variant-numeric:tabular-nums;letter-spacing:-.006em}
 .tbl tr.click{cursor:pointer}
 .tbl tr.click:hover td{background:var(--toss-inner-bg)}
 .tbl .mono{font-family:var(--font-mono);font-size:13px;color:var(--toss-strong)}
-.link{color:var(--color-primary);font-weight:600;cursor:pointer}
+.tbl td.chev{color:var(--toss-faint);text-align:right;width:24px}
 .chev{color:var(--toss-faint)}
 
 /* ── FilterBar ── */
-.filterbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.filterbar .grow{flex:1}
+.filterbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .input,select.sel{height:36px;border:1px solid var(--gray-200);border-radius:10px;padding:0 12px;
-  font-size:14px;background:var(--toss-card-bg);color:var(--toss-strong)}
+  font-size:14px;background:var(--toss-card-bg);color:var(--toss-strong);letter-spacing:-.006em}
 .input:focus,select.sel:focus{outline:2px solid var(--color-primary);outline-offset:1px;border-color:transparent}
 .seg{display:inline-flex;background:var(--toss-inner-bg);border-radius:10px;padding:3px}
-.seg button{border:0;background:transparent;padding:6px 14px;border-radius:8px;font-size:13px;
-  font-weight:600;color:var(--toss-weak);cursor:pointer}
+.seg button{border:0;background:transparent;padding:6px 16px;border-radius:8px;font-size:13px;
+  font-weight:600;color:var(--toss-weak);cursor:pointer;letter-spacing:-.005em}
 .seg button.on{background:var(--toss-card-bg);color:var(--color-primary);box-shadow:var(--toss-shadow-sm)}
 
 /* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border-radius:10px;
-  font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .12s}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:10px;
+  font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .12s;letter-spacing:-.006em}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn.primary{background:var(--color-primary);color:#fff}
 .btn.primary:not(:disabled):hover{background:var(--color-primary-hover)}
@@ -141,65 +152,74 @@ button{font-family:inherit;letter-spacing:inherit}
 .btn.ghost:not(:disabled):hover{background:var(--gray-100)}
 .btn.danger{background:#fff;color:var(--color-error);border-color:#F3C6C6}
 .btn.danger:not(:disabled):hover{background:#FDECEC}
-.btn.sm{height:30px;padding:0 11px;font-size:13px}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
 
 /* ── KeyValueGrid ── */
-.kv{display:grid;grid-template-columns:130px 1fr;gap:9px 14px;font-size:14px}
-.kv .k{color:var(--toss-weak)}
-.kv .v{color:var(--toss-strong);font-weight:500}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:12px 16px;font-size:14px}
+.kv .k{color:var(--toss-medium);letter-spacing:-.005em}
+.kv .v{color:var(--toss-strong);font-weight:600;letter-spacing:-.006em}
 .kv .v.mono{font-family:var(--font-mono);font-size:13px}
 
 /* ── Collapsible ── */
 details.collap{border:1px solid var(--toss-divider);border-radius:12px;margin-top:12px;background:var(--toss-card-bg)}
-details.collap>summary{cursor:pointer;padding:12px 16px;font-size:14px;font-weight:600;color:var(--toss-medium);list-style:none}
+details.collap>summary{cursor:pointer;padding:12px 16px;font-size:14px;font-weight:600;color:var(--toss-medium);list-style:none;letter-spacing:-.006em}
 details.collap>summary::-webkit-details-marker{display:none}
 details.collap>summary::before{content:"▸";margin-right:8px;color:var(--toss-faint)}
 details.collap[open]>summary::before{content:"▾"}
 details.collap>.body{padding:0 16px 16px}
 
 /* ── Task flow ── */
-.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 2px 12px}
-.tnode{flex:none;width:190px;border:1.5px solid var(--gray-200);border-radius:14px;padding:14px;
+.flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:4px 2px 8px}
+.tnode{flex:none;width:190px;border:1px solid var(--gray-200);border-radius:12px;padding:16px;
   background:var(--toss-card-bg);cursor:pointer;position:relative}
 .tnode:hover{border-color:var(--color-primary);box-shadow:var(--toss-shadow-sm)}
 .tnode.sel{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-light)}
-.tnode.cond{border-style:dashed}
-.tnode .seq{font-size:12px;color:var(--toss-weak);font-weight:600}
-.tnode .nm{font-size:14px;font-weight:600;margin:4px 0 8px;color:var(--toss-strong)}
-.tnode .meta{font-size:11px;color:var(--toss-weak);margin-top:8px}
-.tnode .kindchip{font-size:10px;font-weight:700;padding:1px 6px;border-radius:5px;background:var(--gray-100);color:var(--toss-medium)}
-.tnode .kindchip.ext{background:#FFF4E6;color:var(--color-warning-dark)}
-.connector{flex:none;width:34px;display:flex;align-items:center;justify-content:center;color:var(--toss-faint);font-size:18px}
+.tnode.cond{border-style:dashed;border-color:var(--gray-300)}
+.tnode .seq{font-size:12px;color:var(--toss-weak);font-weight:600;display:flex;align-items:center;gap:5px;letter-spacing:-.005em}
+.tnode .ticon{font-size:13px}
+.tnode .ticon.s-DONE{color:var(--color-success)}
+.tnode .ticon.s-IN_PROGRESS,.tnode .ticon.s-READY{color:var(--color-info)}
+.tnode .ticon.s-FAILED{color:var(--color-error)}
+.tnode .ticon.s-BLOCKED{color:var(--toss-faint)}
+.tnode .ticon.s-CANCELLED{color:var(--color-pending)}
+.tnode .nm{font-size:14px;font-weight:600;margin:6px 0 8px;color:var(--toss-strong);letter-spacing:-.006em;line-height:1.35}
+.tnode .meta{font-size:11px;color:var(--toss-weak);margin-top:8px;line-height:1.4;letter-spacing:0}
+.kindchip{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;background:var(--gray-100);color:var(--toss-medium);letter-spacing:0}
+.kindchip.ext{background:#FFF4E6;color:var(--color-warning-dark)}
+.connector{flex:none;width:32px;display:flex;align-items:center;justify-content:center;color:var(--toss-weak);font-size:16px}
+#taskdetail>.card{margin-top:16px}
 
 /* ── Modal ── */
 .overlay{position:fixed;inset:0;background:rgba(17,24,39,.4);display:flex;align-items:center;
   justify-content:center;z-index:50}
 .modal{background:#fff;border-radius:var(--toss-radius-card);box-shadow:var(--toss-shadow-md);
   width:460px;max-width:90vw;padding:24px}
-.modal h3{margin:0 0 6px;font-size:18px}
-.modal .desc{font-size:14px;color:var(--toss-medium);margin-bottom:16px}
+.modal h3{margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-.015em}
+.modal .desc{font-size:14px;color:var(--toss-medium);margin-bottom:16px;line-height:1.5;letter-spacing:-.006em}
 .modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
-.recipe{background:var(--toss-inner-bg);border-radius:12px;padding:12px 14px}
+.recipe{background:var(--toss-inner-bg);border-radius:12px;padding:12px 16px}
 .recipe .step{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0}
 .recipe .step .sq{width:20px;height:20px;border-radius:50%;background:var(--color-primary-light);
   color:var(--color-primary);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
 
 /* ── Toast ── */
-.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--toss-strong);
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--toss-strong);
   color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;box-shadow:var(--toss-shadow-md);z-index:60}
 
 /* ── Empty ── */
-.empty{text-align:center;padding:34px;color:var(--toss-weak);font-size:14px}
-.empty .ico{font-size:26px;display:block;margin-bottom:8px;opacity:.5}
-#svclist .sb-item{display:block;padding:10px 12px;border-radius:10px;color:var(--toss-medium);
-  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:4px;border:1px solid var(--toss-divider)}
+.empty{text-align:center;padding:32px;color:var(--toss-weak);font-size:14px;line-height:1.5}
+.empty.center{display:flex;flex-direction:column;justify-content:center;min-height:220px}
+.empty .ico{font-size:28px;display:block;margin-bottom:8px;opacity:.5}
+#svclist .sb-item{display:block;padding:8px 12px;border-radius:8px;color:var(--toss-medium);
+  font-size:14px;font-weight:500;cursor:pointer;margin-bottom:2px}
 #svclist .sb-item:hover{background:var(--toss-inner-bg)}
-#svclist .sb-item.active{background:var(--color-primary-light);color:var(--color-primary);border-color:transparent;font-weight:600}
-.two-col{display:grid;grid-template-columns:320px 1fr;gap:16px}
+#svclist .sb-item.active{background:var(--color-primary-light);color:var(--color-primary);font-weight:600}
+.two-col{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
 .meta-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.meta-2>.card{margin-top:0}
 .muted{color:var(--toss-weak)}
-.notice{background:var(--color-primary-light);color:var(--color-info-dark);font-size:12px;
-  padding:6px 10px;border-radius:8px;display:inline-block}
+.notice{background:var(--toss-inner-bg);color:var(--toss-medium);font-size:12px;
+  padding:8px 12px;border-radius:8px;display:inline-block;line-height:1.4;letter-spacing:-.005em}
 </style>
 </head>
 <body>
@@ -395,7 +415,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const provTag = (prov,external)=>`<span class="ptag pv-${prov} ${external?'external':''}"><span class="pdot"></span>${PROVIDERS[prov]||prov}${external?' <span class="ftag ext">외부</span>':''}</span>`;
 const pill = (status)=>`<span class="pill s-${status}"><span class="dot"></span>${status}</span>`;
 const progressBar = (n,m)=>`<span class="pbar"><span class="track"><span class="fill" style="width:${m?Math.round(n/m*100):0}%"></span></span><span class="lbl">${n}/${m}</span></span>`;
-const naTag = '<span class="ftag na">미제공 ❌</span>';
+const naTag = '<span class="ftag na">미제공</span>';
 
 /* =========================================================================
  * Router
@@ -471,10 +491,10 @@ const PAGE_SIZE=5;
 function viewDashboard(){
   const root=el(`<div>
     <div class="page-head"><h1>대시보드</h1></div>
-    <div class="section-title">실시간 현황 <span class="muted" style="font-weight:400">(순간값)</span></div>
+    <div class="section-title">실시간 현황 <span class="meta" style="font-weight:500">순간값</span></div>
     <div class="stat-row" id="live"></div>
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-      <span>기간 통계 <span class="muted" style="font-weight:400">(created_at 기준)</span></span>
+      <span>기간 통계 <span class="meta" style="font-weight:500">created_at 기준</span></span>
       <span class="seg" id="periodseg">
         <button data-p="1h">1시간</button><button data-p="1d">1일</button><button data-p="7d">7일</button>
       </span>
@@ -482,15 +502,15 @@ function viewDashboard(){
     <div class="stat-row" id="period"></div>
     <div class="section-title">파이프라인 목록</div>
     <div class="card">
-      <div class="filterbar" style="margin-bottom:14px">
-        <input class="input grow" id="q" placeholder="🔍 target 검색" style="max-width:260px">
+      <div class="filterbar" style="margin-bottom:16px">
+        <input class="input" id="q" placeholder="🔍 target 검색" style="width:260px">
         <select class="sel" id="fstatus">
           <option value="">상태 전체</option><option>RUNNING</option><option>DONE</option><option>FAILED</option><option>CANCELLED</option>
         </select>
         <select class="sel" id="fprov">
           <option value="">Provider 전체</option><option value="aws">AWS</option><option value="azure">Azure</option><option value="gcp">GCP</option><option value="idc">IDC</option>
         </select>
-        <button class="btn ghost sm" id="refresh">⟳ 새로고침</button>
+        <button class="btn ghost" id="refresh" style="margin-left:auto">⟳ 새로고침</button>
       </div>
       <div id="listwrap"></div>
     </div>
@@ -498,9 +518,9 @@ function viewDashboard(){
   // live (순간값 — 매 render마다 재계산)
   const LIVE=liveStats();
   root.querySelector('#live').append(
-    el(`<div class="stat"><div class="lbl">동작 중 파이프라인 <span class="muted">(사용 slot)</span></div><div class="val">${LIVE.runningCount}</div><div class="sub">count(status=RUNNING)</div></div>`),
-    el(`<div class="stat unavailable"><div class="lbl">사용 / 총 slot 리밋 ${naTag}</div><div class="val">${LIVE.runningCount} <span class="den">/ —</span></div><div class="sub">분모(총 리밋)=ADR-021 러너 용량, 이 저장소 없음</div></div>`),
-    el(`<div class="stat"><div class="lbl">동작 중 Terraform task <span class="ftag approx" title="count는 정확하나 worker 부하의 근사 지표">근사 ⚙️</span></div><div class="val">${LIVE.tfInProgress}</div><div class="sub">count(kind=TERRAFORM_JOB, IN_PROGRESS)</div></div>`),
+    el(`<div class="stat"><div class="lbl">동작 중 파이프라인 <span class="muted">(사용 slot)</span></div><div class="val">${LIVE.runningCount}</div><div class="sub formula">count(status=RUNNING)</div></div>`),
+    el(`<div class="stat unavailable"><div class="lbl">사용 / 총 slot 리밋 ${naTag}</div><div class="val">${LIVE.runningCount} <span class="den">/ —</span></div><div class="sub meta">분모(총 리밋)=ADR-021 러너 용량, 이 저장소 없음</div></div>`),
+    el(`<div class="stat"><div class="lbl">동작 중 Terraform task <span class="ftag approx" title="count는 정확하나 worker 부하의 근사 지표">근사 ⚙️</span></div><div class="val">${LIVE.tfInProgress}</div><div class="sub formula">count(kind=TERRAFORM_JOB, IN_PROGRESS)</div></div>`),
   );
   renderPeriod(root);
   root.querySelector('#periodseg').querySelectorAll('button').forEach(b=>{
@@ -519,9 +539,9 @@ function renderPeriod(root){
   const s=PERIOD_STATS[dashPeriod];
   const p=root.querySelector('#period'); p.innerHTML='';
   p.append(
-    el(`<div class="stat"><div class="lbl">Running</div><div class="val">${s.running}</div></div>`),
-    el(`<div class="stat"><div class="lbl">실패 (FAILED)</div><div class="val">${s.failed}</div></div>`),
-    el(`<div class="stat"><div class="lbl">성공 (DONE)</div><div class="val">${s.done}</div></div>`),
+    el(`<div class="stat range"><div class="lbl">Running</div><div class="val">${s.running}</div></div>`),
+    el(`<div class="stat range"><div class="lbl">실패 (FAILED)</div><div class="val">${s.failed}</div></div>`),
+    el(`<div class="stat range"><div class="lbl">성공 (DONE)</div><div class="val">${s.done}</div></div>`),
   );
 }
 function renderList(root){
@@ -542,12 +562,12 @@ function renderList(root){
       <td>${provTag(p.provider,true)}</td>
       <td>${pill(p.status)}</td>
       <td>${progressBar(progressN(p),progressM(p))}</td>
-      <td><span class="link">상세보기 ›</span></td></tr>`).join('')}</tbody></table>
-    <div class="filterbar" style="justify-content:flex-end;margin-top:12px">
+      <td class="chev">›</td></tr>`).join('')}</tbody></table>${
+    pages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
       <button class="btn ghost sm" ${dashPage<=1?'disabled':''} id="prev">‹ 이전</button>
-      <span class="muted" style="font-size:13px">${dashPage} / ${pages}</span>
+      <span class="pager-count">${dashPage} / ${pages}</span>
       <button class="btn ghost sm" ${dashPage>=pages?'disabled':''} id="next">다음 ›</button>
-    </div>`;
+    </div>`:''}`;
   wrap.querySelectorAll('tr[data-pid]').forEach(tr=>{
     tr.setAttribute('role','button'); tr.setAttribute('tabindex','0');
     const go=()=>{const p=PIPELINES[tr.dataset.pid]; nav(`#/pipeline/${p.id}`,{targetId:p.target, serviceCode:null, serviceName:null}); };
@@ -583,8 +603,8 @@ function viewServices(){
 function renderSvcList(root){
   const list=root.querySelector('#svclist');
   const items=SERVICES.filter(s=> !svcQuery || (s.code+s.name).toLowerCase().includes(svcQuery.toLowerCase()));
-  if(!items.length){ list.innerHTML=`<div class="empty" style="padding:20px"><span class="ico">🔍</span>검색 결과 없음</div>`; return; }
-  list.innerHTML=items.map(s=>`<a class="sb-item ${app.selectedServiceCode===s.code?'active':''}" data-svc="${s.code}" role="button" tabindex="0">● ${esc(s.name)} <span class="muted" style="font-size:12px">(${s.code})</span></a>`).join('');
+  if(!items.length){ list.innerHTML=`<div class="empty"><span class="ico">🔍</span>검색 결과 없음</div>`; return; }
+  list.innerHTML=items.map(s=>`<a class="sb-item ${app.selectedServiceCode===s.code?'active':''}" data-svc="${esc(s.code)}" role="button" tabindex="0">${esc(s.name)} <span class="meta">${esc(s.code)}</span></a>`).join('');
   list.querySelectorAll('[data-svc]').forEach(a=>{
     const pick=()=>{app.selectedServiceCode=a.dataset.svc; renderSvcList(root); renderTsPanel(root);};
     a.onclick=pick; a.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}};
@@ -593,7 +613,7 @@ function renderSvcList(root){
 function renderTsPanel(root){
   const panel=root.querySelector('#tspanel'); const authwrap=root.querySelector('#authwrap');
   const svc=app.selectedServiceCode;
-  if(!svc){ panel.innerHTML=`<div class="empty"><span class="ico">👈</span>좌측에서 서비스를 선택하세요</div>`; authwrap.innerHTML=''; return; }
+  if(!svc){ panel.innerHTML=`<div class="empty center"><span class="ico">👈</span>좌측에서 서비스를 선택하세요</div>`; authwrap.innerHTML=''; return; }
   const list=TARGET_SOURCES[svc]||[];
   const name=SERVICES.find(s=>s.code===svc).name;
   panel.innerHTML=`<div class="section-title" style="margin-top:0">${esc(name)} 의 Target Source</div>`+
@@ -605,7 +625,7 @@ function renderTsPanel(root){
     const go=()=>{const t=TS_INDEX[tr.dataset.ts]; nav(`#/target/${encodeURIComponent(t.id)}`,{serviceCode:svc, serviceName:name, targetId:t.id, provider:t.provider});};
     tr.onclick=go; tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}};
   });
-  authwrap.innerHTML=`<details class="collap"><summary>(참고) 서비스 권한 사용자 — getServiceAuthorizedUsers 🔵</summary>
+  authwrap.innerHTML=`<details class="collap"><summary>(참고) 서비스 권한 사용자</summary>
     <div class="body">${(AUTH_USERS[svc]||[]).map(u=>`<div style="padding:4px 0;font-size:14px;color:var(--toss-medium)">• ${esc(u)}</div>`).join('')||'<span class="muted">없음</span>'}</div></details>`;
 }
 
@@ -622,13 +642,13 @@ function viewTarget(id){
   const root=el(`<div>
     ${breadcrumb([{label:'서비스 검색',hash:'#/services'},{label:svcName},{label:ts.id}])}
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div class="kv" style="grid-template-columns:120px 1fr">
-          <div class="k">Cloud Provider</div><div class="v">${provTag(ts.provider)} <span class="ftag na" style="background:#E9F8F0;color:var(--color-success-dark)">🔵 direct</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+        <div class="kv">
+          <div class="k">Cloud Provider</div><div class="v">${provTag(ts.provider)}</div>
           <div class="k">TargetSource</div><div class="v mono">${esc(ts.id)}</div>
           <div class="k">계정</div><div class="v mono">${esc(ts.account)}</div>
-          <div class="k">서비스</div><div class="v">${esc(svcName)} <span class="muted">(${esc(ts.serviceCode)})</span></div>
-          <div class="k">설치 상태</div><div class="v">${esc(ts.processStatus)} <span class="muted" style="font-size:12px">process_status · getProcessStatus 🔵</span></div>
+          <div class="k">서비스</div><div class="v">${esc(svcName)} <span class="meta">${esc(ts.serviceCode)}</span></div>
+          <div class="k">설치 상태</div><div class="v vrow">${esc(ts.processStatus)} <span class="formula">process_status</span></div>
         </div>
         <button class="btn secondary sm" id="refresh">⟳ 상태 새로고침</button>
       </div>
@@ -640,9 +660,9 @@ function viewTarget(id){
         <div class="filterbar">
           <button class="btn primary" id="btn-install" ${btns.install?'':'disabled'}>설치 시작</button>
           <button class="btn secondary" id="btn-delete" ${btns.delete?'':'disabled'}>삭제 시작</button>
-          <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'}>취소</button>
+          <button class="btn danger" id="btn-cancel" ${btns.cancel?'':'disabled'} style="margin-left:auto">취소</button>
         </div>
-        <div class="notice" style="margin-top:12px">${btns.cancel?'진행 중 파이프라인이 있어 설치·삭제는 잠금(중복 방지). 취소만 가능.':'설치/삭제는 process_status에 따라 하나만 활성화됩니다.'}</div>
+        <div class="notice mt-12">${btns.cancel?'진행 중 파이프라인이 있어 설치·삭제는 잠금(중복 방지). 취소만 가능.':'설치/삭제는 process_status에 따라 하나만 활성화됩니다.'}</div>
       </div>
     </div>
     <div class="section-title">파이프라인 이력</div>
@@ -651,16 +671,16 @@ function viewTarget(id){
   // latest card
   const lc=root.querySelector('#latest');
   if(latest){
-    lc.innerHTML=`<div class="section-title" style="margin-top:0">최근 파이프라인</div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span class="mono" style="font-weight:600">#${latest.id}</span>
-        <span class="muted">${latest.type}</span>${pill(latest.status)}
+    lc.innerHTML=`<div class="section-title">최근 파이프라인</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="mono" style="font-weight:600;font-size:14px">#${latest.id}</span>
+        <span class="meta">${esc(latest.type)}</span>${pill(latest.status)}
       </div>
-      <div style="margin-top:12px">${progressBar(progressN(latest),progressM(latest))}
-        <span class="muted" style="font-size:12px;margin-left:8px">생성 ${latest.createdAt}</span></div>
-      <button class="btn ghost sm" style="margin-top:12px" data-nav="#/pipeline/${latest.id}">상세 보기 ›</button>`;
+      <div class="mt-16 vrow" style="gap:8px">${progressBar(progressN(latest),progressM(latest))}
+        <span class="meta">생성 ${esc(latest.createdAt)}</span></div>
+      <button class="btn ghost sm mt-16" data-nav="#/pipeline/${latest.id}">상세 보기 ›</button>`;
   }else{
-    lc.innerHTML=`<div class="empty"><span class="ico">📭</span>실행 이력 없음<br><span style="font-size:12px">[설치 시작]으로 첫 파이프라인을 만드세요</span></div>`;
+    lc.innerHTML=`<div class="empty center"><span class="ico">📭</span>실행 이력 없음<br><span class="meta">[설치 시작]으로 첫 파이프라인을 만드세요</span></div>`;
   }
   // history (P7 pagination — PAGE_SIZE 초과 시에만 컨트롤 노출)
   const hist=root.querySelector('#hist');
@@ -671,9 +691,9 @@ function viewTarget(id){
   if(ids.length){
     hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>유형</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
       hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p))}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev">›</td></tr>`).join('')}</tbody></table>${
-      hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:12px">
+      hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">‹ 이전</button>
-        <span class="muted" style="font-size:13px">${histState.page} / ${hpages}</span>
+        <span class="pager-count">${histState.page} / ${hpages}</span>
         <button class="btn ghost sm" ${histState.page>=hpages?'disabled':''} id="hnext">다음 ›</button></div>`:''}`;
     hist.querySelectorAll('tr[data-pid]').forEach(tr=>{
       tr.setAttribute('role','button');tr.setAttribute('tabindex','0');
@@ -717,46 +737,46 @@ function viewPipeline(id){
     <div class="page-head"><h1>파이프라인 #${p.id}</h1></div>
     <div class="meta-2">
       <div class="card">
-        <div class="section-title" style="margin-top:0">파이프라인 정보</div>
+        <div class="section-title">파이프라인 정보</div>
         <div class="kv">
-          <div class="k">ID / 타입</div><div class="v mono">#${p.id} · ${p.type}</div>
-          <div class="k">target</div><div class="v mono">${esc(p.target)} ${provTag(p.provider,true)}</div>
+          <div class="k">ID / 타입</div><div class="v mono">#${p.id} · ${esc(p.type)}</div>
+          <div class="k">target</div><div class="v mono vrow">${esc(p.target)} ${provTag(p.provider,true)}</div>
           <div class="k">상태</div><div class="v">${pill(p.status)}</div>
-          <div class="k">생성</div><div class="v">${p.createdAt}</div>
-          <div class="k">마지막 활동</div><div class="v">${p.lastActivityAt}</div>
-          <div class="k">현재 / 최종 task</div><div class="v">${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="ftag approx">파생 ⚙️</span></div>
-          <div class="k">실패 / 한계</div><div class="v">${cur?`${cur.failCount} / ${cur.maxFail}`:'—'} <span class="ftag approx">파생 ⚙️</span></div>
+          <div class="k">생성</div><div class="v">${esc(p.createdAt)}</div>
+          <div class="k">마지막 활동</div><div class="v">${esc(p.lastActivityAt)}</div>
+          <div class="k">현재 / 최종 task</div><div class="v vrow">${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="ftag approx">파생 ⚙️</span></div>
+          <div class="k">실패 / 한계</div><div class="v vrow">${cur?`${cur.failCount} / ${cur.maxFail}`:'—'} <span class="ftag approx">파생 ⚙️</span></div>
         </div>
-        <div style="margin-top:16px"><button class="btn danger" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
-          ${canCancel(p)?'':'<span class="muted" style="font-size:12px;margin-left:8px">진행 중(RUNNING)만 취소 가능</span>'}</div>
+        <div class="mt-16 vrow"><button class="btn danger" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
+          ${canCancel(p)?'':'<span class="meta">진행 중(RUNNING)만 취소 가능</span>'}</div>
       </div>
       <div class="card">
-        <div class="section-title" style="margin-top:0">실행 메타 <span class="muted" style="font-weight:400">(ADR-021)</span></div>
-        <details class="collap" open><summary>미제공 필드 (이 저장소에 데이터 없음)</summary><div class="body">
+        <div class="section-title">실행 메타 <span class="meta">ADR-021</span></div>
+        <div class="meta" style="line-height:1.5">ADR-021 실행 필드(next_due_at·lease·cancel_requested·지연 lag)는 이 저장소(ADR-016 도메인) 범위 밖이라 값이 없습니다. 취소는 즉시 CANCELLED로 종단화(플래그 없음).</div>
+        <details class="collap"><summary>미제공 필드 4개 보기</summary><div class="body">
           <div class="kv">
             <div class="k">next_due_at</div><div class="v">${naTag}</div>
             <div class="k">lease (claimed_until)</div><div class="v">${naTag}</div>
             <div class="k">cancel_requested</div><div class="v">${naTag}</div>
             <div class="k">지연 lag</div><div class="v">${naTag}</div>
           </div>
-          <div class="muted" style="font-size:12px;margin-top:10px">ADR-021 실행 필드 — ADR-016 도메인 저장소 범위 밖. 취소는 즉시 CANCELLED(플래그 없음).</div>
         </div></details>
       </div>
     </div>
-    <div class="section-title">Task 흐름 <span class="muted" style="font-weight:400">(읽기 전용 · 노드 클릭 → 하단 상세)</span></div>
+    <div class="section-title">Task 흐름 <span class="meta">읽기 전용 · 노드 클릭 → 하단 상세</span></div>
     <div class="card"><div class="flow" id="flow"></div></div>
     <div id="taskdetail"></div>
   </div>`);
   // flow
   const flow=root.querySelector('#flow');
   p.tasks.forEach((t,i)=>{
-    if(i>0) flow.appendChild(el(`<div class="connector">─▶</div>`));
+    if(i>0) flow.appendChild(el(`<div class="connector">→</div>`));
     const cond=t.kind==='CONDITION_CHECK';
     const icon={DONE:'✔',IN_PROGRESS:'▶',BLOCKED:'○',READY:'◔',FAILED:'✕',CANCELLED:'⊘'}[t.status];
     const node=el(`<div class="tnode ${cond?'cond':''} ${app.selectedTaskId==t.seq?'sel':''}" data-seq="${t.seq}" role="button" tabindex="0">
-      <div class="seq">${icon} seq ${t.seq}</div>
+      <div class="seq"><span class="ticon s-${t.status}">${icon}</span> seq ${t.seq}</div>
       <div class="nm">${esc(t.operation)}</div>
-      <span class="kindchip ${cond?'ext':''}">${cond?'CONDITION_CHECK · 외부확인':'TERRAFORM_JOB'}</span>
+      <span class="kindchip ${cond?'ext':''}">${cond?'CONDITION_CHECK':'TERRAFORM_JOB'}</span>
       <div style="margin-top:8px">${pill(t.status)}</div>
       <div class="meta">${t.failCount?`fail ${t.failCount}`:''}${t.errorCode?` · ${esc(t.errorCode)}`:''}${t.startedAt?` · ${t.startedAt}${t.finishedAt?'~'+t.finishedAt:''}`:''}</div>
     </div>`);
@@ -777,36 +797,36 @@ function renderTaskDetail(root,p){
   let detail;
   if(cond){
     const c=t.check;
-    detail=`<div class="section-title">Check 요약 <span class="muted" style="font-weight:400">(CONDITION_CHECK)</span></div>`+
+    detail=`<div class="subsection-title">Check 요약 <span class="meta">CONDITION_CHECK</span></div>`+
       (c?`<div class="kv" style="grid-template-columns:150px 1fr">
         <div class="k">call / not_met</div><div class="v">${c.callCount} / ${c.notMetCount}</div>
         <div class="k">api_error / timeout</div><div class="v">${c.apiErrorCount} / ${c.callTimeoutCount}</div>
         <div class="k">last_external_status</div><div class="v">${esc(c.lastExternalStatus)}</div>
-        <div class="k">last_checked_at</div><div class="v">${c.lastCheckedAt}</div>
-        <div class="k">last_response_code</div><div class="v">${c.lastResponseCode??'null'} <span class="ftag null">미채움 ⚠️</span></div>
-        <div class="k">last_response_summary</div><div class="v">${c.lastResponseSummary??'null'} <span class="ftag null">미채움 ⚠️</span></div>
+        <div class="k">last_checked_at</div><div class="v">${esc(c.lastCheckedAt)}</div>
+        <div class="k">last_response_code</div><div class="v vrow">${c.lastResponseCode??'null'} <span class="ftag null">미채움 ⚠️</span></div>
+        <div class="k">last_response_summary</div><div class="v vrow">${c.lastResponseSummary??'null'} <span class="ftag null">미채움 ⚠️</span></div>
       </div>`:`<div class="empty">아직 폴링 기록 없음</div>`);
   }else{
-    detail=`<div class="section-title">Attempts <span class="muted" style="font-weight:400">(TERRAFORM_JOB)</span></div>`+
+    detail=`<div class="subsection-title">Attempts <span class="meta">TERRAFORM_JOB</span></div>`+
       (t.attempts&&t.attempts.length?`<table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response (원시 text)</th></tr></thead><tbody>${
         t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode?esc(a.errorCode):'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table>
-        <div class="muted" style="font-size:12px;margin-top:8px">job_ids · dispatch_response_* 는 제거된 필드(❌) — job id는 response 원시 text 안에 있습니다.</div>`
+        <div class="meta" style="margin-top:8px">job_ids · dispatch_response_* 는 제거된 필드 — job id는 response 원시 text 안에 있습니다.</div>`
       :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`);
   }
   box.innerHTML=`<div class="card">
-    <div class="section-title" style="margin-top:0">Task seq ${t.seq} · ${esc(t.operation)}</div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
-      <span class="kindchip ${cond?'ext':''}" style="font-size:11px;padding:2px 8px;border-radius:6px">${t.kind}</span>${pill(t.status)}
+    <div class="section-title">Task seq ${t.seq} · ${esc(t.operation)}</div>
+    <div class="vrow" style="gap:8px;margin-bottom:16px">
+      <span class="kindchip ${cond?'ext':''}">${t.kind}</span>${pill(t.status)}
     </div>
     <div class="kv" style="grid-template-columns:150px 1fr;margin-bottom:16px">
       <div class="k">operation</div><div class="v">${esc(t.operation)}</div>
-      ${cond?`<div class="k">pollingInterval / ttl</div><div class="v">${t.pollingInterval} / ${t.ttl}</div>
-        <div class="k">maxFailCount</div><div class="v">${t.maxFail} <span class="muted" style="font-size:12px">count-bound(ttl→유한)</span></div>`
-        :`<div class="k">executionTimeout</div><div class="v">${t.executionTimeout}</div>
+      ${cond?`<div class="k">pollingInterval / ttl</div><div class="v">${esc(t.pollingInterval)} / ${esc(t.ttl)}</div>
+        <div class="k">maxFailCount</div><div class="v vrow">${t.maxFail} <span class="formula">count-bound(ttl→finite)</span></div>`
+        :`<div class="k">executionTimeout</div><div class="v">${esc(t.executionTimeout)}</div>
         <div class="k">fail / maxFail</div><div class="v">${t.failCount} / ${t.maxFail}</div>`}
       <div class="k">started / finished</div><div class="v">${t.startedAt||'-'} / ${t.finishedAt||'-'}</div>
     </div>
-    <div class="muted" style="font-size:12px;margin-bottom:12px">설정은 읽기 전용 — 원본 10-API에 task 편집(PATCH) 없음.</div>
+    <div class="meta" style="margin-bottom:16px">설정은 읽기 전용 — 원본 10-API에 task 편집(PATCH) 없음.</div>
     ${detail}
   </div>`;
 }
