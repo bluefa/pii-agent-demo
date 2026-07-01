@@ -22,8 +22,9 @@
 컬럼 하나가 추가된다 — 「스키마」·「수용하는 비용」 참조). ADR-016/021의 불변식(“DB row가
 곧 상태”, at-least-once + 멱등성, 종단 상태 부활 금지, 개념 최소화)을 그대로 상속하고,
 실행 substrate는 ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을 재사용한다.
-**postCheck·eventOutbox 정책의 미래 변경은 이 ADR만 대체한다**(claim-pull 실행 모델
-변경은 ADR-021 소관).
+**postCheck·eventOutbox 정책은 이 ADR 소관**이며 그 변경은 이 ADR만 대체한다. 단
+유보된 자문 postCheck를 도입해 `pipeline`에 컬럼을 더할 때는 그 스키마 확장이 ADR-016
+소유이므로 ADR-016의 Schema·Links도 함께 갱신한다. claim-pull 실행 모델 변경은 ADR-021 소관.
 
 ## 맥락
 
@@ -72,10 +73,11 @@ completion check(자기 보고 신뢰)와 별개로 **end-state를 독립 검증
 
 **(A) 게이팅 postCheck — 기본. 기존 `CONDITION_CHECK`를 재사용.**
 recipe의 **마지막 task**로 `CONDITION_CHECK`를 둔다. 새 task kind도, 새 상태도, 새
-실패 의미도 없다(ADR-016의 개념 최소화 원칙). end-state 계약을 단언하고, 실패 시 여느
-CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §6), 그에 따라
-파이프라인도 `FAILED`로 전이한다(§7의 “실패 파이프라인은 실패 task를 FAILED로 표시”). INSTALL의 “리소스
-조회 가능”, DELETE의 “리소스 소멸 확인”이 여기 해당한다. **이 경우 새 메커니즘은 전혀
+실패 의미도 없다(ADR-016의 개념 최소화 원칙). end-state 계약을 단언한다. 실패 시 여느
+CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되고(ADR-016 §6), 파이프라인
+상태는 그 task 전이의 projection이므로 파이프라인도 `FAILED`로 귀결된다(ADR-016 §2의
+상태 머신·projection 규칙). 예: INSTALL의 “리소스 조회 가능”, DELETE의 “리소스 소멸 확인”.
+**이 경우 새 메커니즘은 전혀
 필요 없다 — recipe 작성 규약일 뿐이다.**
 
 **(B) 종단 후 자문 postCheck — 파이프라인이 `DONE`을 커밋한 *뒤* 검증해야 할 때만.**
@@ -121,7 +123,7 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §
   기록 전 크래시는 위 at-least-once대로 재전달될 수 있다 — 배타는 동시성 한정이다.
   ADR-021의 `SKIP LOCKED` 기반 claim/lease 패턴을 재사용한다(스캔 대상은 `event_outbox`
   미전송 행으로 별도).
-- **`attempt_count`/`last_error`** 로 재시도·poison 가시성을 남긴다. 상한 초과 행은
+- **`attempt_count`/`last_error`**로 재시도·poison 가시성을 남긴다. 상한 초과 행은
   전달을 멈추고 **지표/모니터링으로 노출**한다(아웃박스 이벤트가 아니라 운영 지표) —
   파이프라인 상태에는 영향 없음.
 
@@ -163,17 +165,18 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §
 ### 좋은 점
 
 - **신뢰성 있는 알림/이벤트**를 dual-write 없이 얻는다 — 상태 전이와 원자적.
-- **현재 결정은 ADR-016 도메인 테이블을 바꾸지 않는다.** 게이팅 postCheck는 순수 recipe
-  규약(`pipeline`/`task`·enum·상태 그대로), eventOutbox는 tx2에 INSERT 한 줄 + **신규**
-  방출 전용 테이블 `event_outbox`만 추가한다. (유보된 자문 postCheck는 예외 — 아래 비용 참조.)
+- **현재 결정은 ADR-016의 `pipeline`/`task` 도메인 상태 테이블을 변경하지 않는다.**
+  게이팅 postCheck는 순수 recipe 규약(enum·상태 그대로), eventOutbox는 tx2에 INSERT 한 줄과
+  **별개의 신규** 방출 전용 테이블 `event_outbox`만 추가한다(도메인 테이블은 손대지 않음).
+  (유보된 자문 postCheck는 예외 — 아래 비용 참조.)
 - **실행 substrate 재사용.** relay/자문 postCheck 모두 ADR-021의 `SKIP LOCKED` 기반
   claim/lease 패턴을 재사용 — 새 스케줄러·리더·저널 없음.
 - **자기 보고와 실제 상태의 간극을 검증**할 수단(postCheck)이 명시된다.
 
 ### 수용하는 비용
 
-- **새 테이블 `event_outbox` + relay 루프**(+ 전송 완료 행 pruner)의 운영 무게. dual-write
-  없이 신뢰성 있는 알림을 하려면 불가피 — 정당화된다.
+- **새 테이블 `event_outbox` + relay 루프**(+ 전송 완료 행 pruner)의 운영 무게를 수용한다.
+  dual-write 없이 신뢰성 있는 알림을 하려면 불가피하다.
 - **at-least-once → 멱등 소비자 필수.** 소비자가 `event_id`로 dedupe해야 한다.
 - **전역 순서·exactly-once 미보장**(위 §5). 규모상 수용.
 - **종단 후 자문 postCheck 메커니즘은 유보** — 드리프트 감지 요구가 생기면 그때 도입.
@@ -201,6 +204,9 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §
 - `pipeline.post_check_due_at` — 파이프라인 tx2에서 `DONE` 전이 시 seed(자문 모드일 때만).
   **ADR-016 `pipeline` 테이블에 추가되는 컬럼.**
 
+`post_check`는 파이프라인당 **최신 1행(1회성 검증 결과)**을 남긴다(반복 이력 아님) —
+재검증이 필요하면 같은 행을 UPDATE-in-place한다(ADR-016 `task_check`와 동일 방식).
+
 **관계**: `pipeline 1:N event_outbox`(aggregate 기준 논리적). `pipeline 1:0..1 post_check`는
 위 유보 스키마 도입 시에만 성립.
 
@@ -210,7 +216,11 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §
 2. 상태 전이 이벤트는 그 전이를 커밋하는 **동일 tx2**에서만 INSERT된다(원자성).
 3. 아웃박스 행 유실/재생은 pipeline/task 상태를 오염시키지 않는다(ADR-016 관측 테이블과 동일).
 
-## 이벤트 분류(초기 폐집합)
+## 이벤트 분류(초기 event_type 폐집합)
+
+현재 결정에 속하는 이벤트와, 유보된 자문 postCheck를 도입할 때 추가되는 이벤트를 구분한다.
+
+**현재 범위**
 
 | event_type | 출처 | 계기 |
 |---|---|---|
@@ -220,8 +230,13 @@ CONDITION_CHECK처럼 `maxFailCount`에서 task가 `FAILED`가 되며(ADR-016 §
 | `TASK_FAILED` | tx2 | task가 `maxFailCount`에서 `FAILED`(ADR-016 §6) |
 | `WORKER_OUTAGE` | 모니터 | lease-expired reclaim 급증(ADR-021 지표) |
 | `QUEUE_WAIT_EXCEEDED` | 모니터 | due-pipeline lag 임계 초과(ADR-021 지표) |
-| `POST_CHECK_OK` | 자문 postCheck | 종단 후 end-state 확인(유보 모드) |
-| `POST_CHECK_MISMATCH` | 자문 postCheck | 종단 후 end-state 불일치(유보 모드) |
+
+**유보 모드 전용**(자문 postCheck 도입 시 추가)
+
+| event_type | 출처 | 계기 |
+|---|---|---|
+| `POST_CHECK_OK` | 자문 postCheck | 종단 후 end-state 확인 |
+| `POST_CHECK_MISMATCH` | 자문 postCheck | 종단 후 end-state 불일치 |
 
 ## 링크
 
