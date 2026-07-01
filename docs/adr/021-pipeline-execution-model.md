@@ -154,9 +154,10 @@ summary — both under the verified pipeline claim (single writer, no task-level
 two kinds differ in shape: a `TERRAFORM_JOB` attempt polls job status many times, so tx2 UPDATEs
 the same attempt's `task_check` in place across polls; a `CONDITION_CHECK` poll **is** one attempt
 (ADR-016 §6), so each failed poll — not-met or check-error alike — writes a fresh
-`task_attempt`/`task_check` pair, increments `fail_count`, and reschedules the next poll (the task's
-`next_check_at`, projected to the pipeline's `next_due_at` for the claim scan) at
-`now() + polling_interval` — no in-place poll loop. A met poll instead writes the final
+`task_attempt`/`task_check` pair and increments `fail_count`; while `fail_count < maxFailCount` it
+reschedules the next poll (the task's `next_check_at`, projected to the pipeline's `next_due_at` for
+the claim scan) at `now() + polling_interval`, and the poll that reaches `maxFailCount` sets the task
+(and pipeline) `FAILED` with that poll's `error_code`, scheduling nothing further — no in-place poll loop. A met poll instead writes the final
 `task_attempt`/`task_check` pair (the latest row the completion `check` reads) and drives the task
 `DONE`, without incrementing `fail_count` or rescheduling.
 Task completion is a code-level `check(attempt, task)` over the **latest** attempt row — the
@@ -189,7 +190,10 @@ windows where InfraManager may be called twice:
 
 In all three the duplicate **external call** is safe by **infra-idempotency** — TF APIs are
 duplicate-harmless (a re-dispatch may create harmless duplicate jobs; the `job_ids` recorded for
-the attempt are the latest dispatch's set). The guarded DB write solves a *different* problem:
+the attempt are the latest dispatch's set). A `CONDITION_CHECK` call is a side-effect-free **read**,
+so a repeated poll in these windows is inherently harmless (no idempotency contract needed); and
+because `fail_count`/`maxFailCount` count only *committed* attempts, a poll lost before its tx2 is
+re-run by reclaim without consuming the budget. The guarded DB write solves a *different* problem:
 stopping a stale straggler from clobbering DB state. The two are **complementary, not
 interchangeable** — idempotency covers the external duplicate, the guard covers the DB write.
 

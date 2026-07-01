@@ -119,9 +119,9 @@ a logical attempt identity, not an InfraManager key.
   (`CONDITION_NOT_MET` when that last poll was still not-met) — the authoritative per-cause
   breakdown lives in `task_check`, not in the single `error_code`. A condition is thus a fast
   probe bounded by a **retry count**, not a wall-clock deadline: the first poll is immediate and
-  each retry waits `polling_interval`, so it gives up after about `(maxFailCount − 1) ×
-  polling_interval` plus call/queue time (each failed poll — not-met or check-error — reschedules at
-  `polling_interval`, so the cause mix changes only how many not-met samples occur, not the wall-clock). Size `polling_interval` to the condition's cadence and keep `maxFailCount` modest
+  each retry waits `polling_interval`, so retry spacing totals about `(maxFailCount − 1) ×
+  polling_interval`, with total elapsed also including each poll's call/queue time (slow checks or
+  call timeouts lengthen it; the not-met/error mix changes only how many not-met samples occur). Size `polling_interval` to the condition's cadence and keep `maxFailCount` modest
   (each poll writes one attempt/observation row).
 - One **per-task** deadline: `executionTimeout`, for `TERRAFORM_JOB` only (a condition has no
   long-running job to time out); with the **per-call** timeout, both map to canonical `ErrorCode`
@@ -208,7 +208,7 @@ Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 3. Losing an observation row never corrupts state: for a `TERRAFORM_JOB` a missing latest result
    makes `check` fall through to the per-task `executionTimeout`, which re-dispatches a fresh run
    (idempotent); a `CONDITION_CHECK` has no async result to lose — a lost poll is reclaimed on lease
-   expiry (Decision 5, ADR-021) and re-polled, so the cost of loss is a re-dispatch or a delayed poll (delay + harmless duplicate jobs), not incorrectness.
+   expiry (Decision 5, ADR-021) and re-polled. The cost of loss is by kind — a TF re-dispatch (delay + harmless duplicate jobs) or a condition's delayed re-poll — never incorrectness.
 
 **Enums** (canonical values)
 
