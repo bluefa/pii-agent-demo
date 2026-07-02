@@ -12,6 +12,7 @@ import {
 import { useToast } from '@/app/components/ui/toast';
 import { useModal } from '@/app/hooks/useModal';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   getTestConnectionCompletionStatus,
@@ -83,7 +84,7 @@ export const IdcStep5ConnectionTest = ({
   const [approvalEnabled, setApprovalEnabled] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
 
-  const { latestJob, uiState, trigger, triggerError } = useTestConnectionPolling(targetSourceId);
+  const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
   const toast = useToast();
   const logicalModal = useModal<LogicalModalTarget>();
 
@@ -324,6 +325,11 @@ export const IdcStep5ConnectionTest = ({
               />
               {triggerError && (
                 <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
+              )}
+              {fetchError && (
+                <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+                  {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+                </p>
               )}
               {/* Keep the table frame flush with its attached footer pagination
                   (Pagination is a border-t-0 / rounded-b table footer). Without this

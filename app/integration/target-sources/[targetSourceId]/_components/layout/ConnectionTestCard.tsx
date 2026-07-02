@@ -12,6 +12,7 @@ import {
   type ConnProgressState,
 } from '@/app/components/features/process-status/ConnProgressStrip';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import {
   getSecrets,
   updateResourceCredential,
@@ -60,7 +61,7 @@ export const ConnectionTestCard = ({
   providerLabel,
   refreshProject,
 }: ConnectionTestCardProps) => {
-  const { latestJob, uiState, trigger, triggerError } = useTestConnectionPolling(targetSourceId);
+  const { latestJob, uiState, trigger, triggerError, fetchError } = useTestConnectionPolling(targetSourceId);
   const [creds, setCreds] = useState<CredMap>(() => seedCreds(confirmed));
   const [approvalOpen, setApprovalOpen] = useState(false);
   const { page, pageSize, setPage, setPageSize, pageItems: pageRows } = usePagination(confirmed, {
@@ -231,6 +232,11 @@ export const ConnectionTestCard = ({
         />
         {triggerError && (
           <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>{triggerError}</p>
+        )}
+        {fetchError && (
+          <p className={cn('text-[12px]', idcStyles.tag.red, 'bg-transparent px-0')}>
+            {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+          </p>
         )}
         <div className={idcStyles.table.frame}>
           <table className="w-full">

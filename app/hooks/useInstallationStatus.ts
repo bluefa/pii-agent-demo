@@ -40,18 +40,30 @@ export function useInstallationStatus<T>({
   onCompleteRef.current = onComplete;
   isCompleteRef.current = isComplete;
 
+  // Stale-response guard: the fetch effect refires on targetSourceId change
+  // without cancelling the in-flight request, so a slow response for the
+  // previous id must not overwrite the current one. Last started run wins.
+  const runIdRef = useRef(0);
+
   const run = useCallback(
     async (fetcher: (id: number) => Promise<T>, setInFlight: (value: boolean) => void) => {
+      const runId = ++runIdRef.current;
+      // A new run supersedes any in-flight one, whose guarded finally will not
+      // execute — clear both flags up front so it cannot leave a stuck spinner.
+      setLoading(false);
+      setRefreshing(false);
       try {
         setInFlight(true);
         setError(null);
         const data = await fetcher(targetSourceId);
+        if (runIdRef.current !== runId) return;
         setStatus(data);
         if (isCompleteRef.current?.(data)) onCompleteRef.current?.(data);
       } catch (err) {
+        if (runIdRef.current !== runId) return;
         setError(toErrorMessage(err));
       } finally {
-        setInFlight(false);
+        if (runIdRef.current === runId) setInFlight(false);
       }
     },
     [targetSourceId],

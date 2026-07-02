@@ -4,7 +4,7 @@ import {
   getTestConnectionLatest,
 } from '@/app/lib/api';
 import type { TestConnectionVersionResult } from '@/app/lib/api';
-import type { AppError } from '@/lib/errors';
+import { AppError } from '@/lib/errors';
 import { usePollingBase } from '@/app/hooks/usePollingBase';
 
 export type TestConnectionUIState = 'IDLE' | 'PENDING' | 'SUCCESS' | 'FAIL';
@@ -13,6 +13,8 @@ export interface UseTestConnectionPollingReturn {
   latestJob: TestConnectionVersionResult | null;
   uiState: TestConnectionUIState;
   loading: boolean;
+  /** Latest-result fetch failure. NOT_FOUND is excluded — that is the legitimate "no test yet" state. */
+  fetchError: AppError | null;
   triggerError: string | null;
   trigger: () => Promise<void>;
 }
@@ -39,13 +41,16 @@ export const computeUIState = (job: TestConnectionVersionResult | null): TestCon
 export const shouldStopPolling = (job: TestConnectionVersionResult | null): boolean =>
   !job || !isInProgress(job.connection_status);
 
-const fetchLatestTest = async (
+// Only NOT_FOUND means "no test yet" (legitimate IDLE); every other failure
+// must surface instead of masquerading as an idle state. Exported for tests.
+export const fetchLatestTest = async (
   targetSourceId: number,
 ): Promise<TestConnectionVersionResult | null> => {
   try {
     return await getTestConnectionLatest(targetSourceId);
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof AppError && err.code === 'NOT_FOUND') return null;
+    throw err;
   }
 };
 
@@ -76,6 +81,7 @@ export const useTestConnectionPolling = (
 
   const {
     data: latestJob,
+    error: baseError,
     refresh: baseRefresh,
     start,
   } = usePollingBase<TestConnectionVersionResult | null>({
@@ -107,7 +113,10 @@ export const useTestConnectionPolling = (
   return {
     latestJob,
     uiState,
-    loading,
+    // A failed first fetch must still end the loading state — otherwise the
+    // panel shows an infinite spinner instead of the error.
+    loading: loading && baseError === null,
+    fetchError: baseError as AppError | null,
     triggerError,
     trigger,
   };

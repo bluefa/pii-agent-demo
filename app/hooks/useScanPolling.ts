@@ -120,11 +120,14 @@ export const useScanPolling = (
     }
   }, [baseRefresh]);
 
+  // Auto-restart only while healthy: after usePollingBase stops a session on
+  // consecutive fetch errors, baseError is set and a stale SCANNING job must
+  // not immediately start a new session (that would defeat the error stop).
   useEffect(() => {
-    if (latestJob?.scan_status === 'SCANNING' && !isPolling) {
+    if (latestJob?.scan_status === 'SCANNING' && !isPolling && !baseError) {
       start();
     }
-  }, [latestJob, isPolling, start]);
+  }, [latestJob, isPolling, baseError, start]);
 
   const uiState = computeUIState(latestJob);
 

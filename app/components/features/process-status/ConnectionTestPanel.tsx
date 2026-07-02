@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { SecretKey, needsCredential } from '@/lib/types';
 import type { ConfirmedResource } from '@/lib/types/resources';
 import { useTestConnectionPolling } from '@/app/hooks/useTestConnectionPolling';
+import { ERROR_MESSAGES } from '@/lib/constants/messages';
 import { getSecrets } from '@/app/lib/api';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
 import { statusColors, textColors, borderColors, bgColors, getButtonClass, cn } from '@/lib/theme';
@@ -36,6 +37,7 @@ export const ConnectionTestPanel = ({
     latestJob,
     uiState,
     loading,
+    fetchError,
     triggerError,
     trigger,
   } = useTestConnectionPolling(targetSourceId);
@@ -157,6 +159,12 @@ export const ConnectionTestPanel = ({
 
         {triggerError && (
           <p className={cn('text-xs', statusColors.error.text)}>{triggerError}</p>
+        )}
+
+        {fetchError && (
+          <p className={cn('text-xs', statusColors.error.text)}>
+            {ERROR_MESSAGES.TEST_CONNECTION_FETCH_FAILED}
+          </p>
         )}
 
         {isPending && latestJob && (
