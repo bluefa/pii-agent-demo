@@ -22,6 +22,7 @@
 | [ADR-019](./019-bff-casing-boundary-and-runtime-validation.md) | BFF Casing Boundary Consolidation + Runtime Schema Validation | Proposed | 2026-06-20 |
 | [ADR-020](./020-boundary-read-rendering.md) | Boundary-Hoisted Read Rendering (Suspense + Error Boundary) | Proposed | 2026-06-20 |
 | [ADR-021](./021-pipeline-execution-model.md) | Install/Delete Pipeline — Single-Server Execution Model | Proposed | 2026-06-27 |
+| [ADR-022](./022-process-status-snapshot.md) | ProcessStatus Snapshot — Two-Tier Freshness and Confirm-Epoch Invalidation | Proposed | 2026-07-02 |
 
 ## ADR 작성 규칙
 
