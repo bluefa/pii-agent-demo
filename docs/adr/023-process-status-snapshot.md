@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-07-02.
+Proposed — 2026-07-02 (simplified + constraints made explicit 2026-07-03).
 
 This ADR decides **how the SIT BFF computes and serves ProcessStatus at acceptable cost**,
 without changing what ProcessStatus *means*. The seven-stage model and its derivation rules
@@ -45,18 +45,26 @@ and let everything else stay live.
 
 ### Measured cost (operations stats, pre-#8332)
 
-661 successful status reads, 0 failures:
+Cloud status reads — 661 calls, all successful (failure accounting covers the cloud
+segment only):
 
 | Segment | n | median | avg | p90 | p95 | p99 | max |
 |---|---|---|---|---|---|---|---|
-| ALL | 661 | 3.98s | 4.79s | 8.09s | 8.74s | 26.74s | 28.14s |
+| ALL (cloud) | 661 | 3.98s | 4.79s | 8.09s | 8.74s | 26.74s | 28.14s |
 | AWS | 539 | 4.59s | 5.32s | 8.30s | 8.97s | 27.31s | 28.14s |
 | Azure | 84 | 3.04s | 3.19s | 3.92s | 4.24s | 8.32s | 13.49s |
 | GCP | 38 | 0.50s | 0.77s | 1.48s | 1.98s | 2.27s | 2.31s |
-| IDC | 628 | 1.01s | 2.45s | — | — | — | 7.79s |
+| IDC (tracked separately) | 628 | 1.01s | 2.45s | — | — | — | 7.79s |
 
-AWS dominates both volume and tail. An interactive read that can take 27 seconds is the
-problem; a *list* of such reads is not implementable at all with live computation.
+AWS dominates the cloud tail. An interactive read that can take 27 seconds is the problem;
+a *list* of such reads is not implementable at all with live computation.
+
+**IDC scope note.** The stated bottleneck ("three CSPs make live SDK calls") covers
+AWS/GCP/Azure, yet IDC accounts for roughly half of all status-read volume at multi-second
+latency (avg 2.45s, max 7.8s). Whether IDC's installation check is also an external call
+(→ it needs a snapshot row like any CSP) or its latency has another cause (→ explicitly
+out of scope) is **not decidable from the provided facts** — carried as Open Question 2.
+Nothing in the design below is CSP-count-specific; adding IDC is one more `csp` value.
 
 ### Who reads ProcessStatus, and what they actually need
 
@@ -78,16 +86,43 @@ server. Those runs emit no `terraform-worker-event`. Any design whose only refre
 is an event stream will silently miss exactly the changes admins most need to see. Events
 can *accelerate* detection; they cannot *bound* it. Polling must exist regardless.
 
-### Operational constraints
+### Constraints as provided (stakeholder, 2026-07-02)
 
-- **No Redis.** GCP Pub/Sub is available.
-- Infra Manager runs as **3 pods** in production — every mechanism must be safe under
-  concurrent instances.
-- Persistence is **MySQL** (production) / H2 `MODE=MYSQL` (tests), `ddl-auto: update`.
-- ProcessStatus derivation rules are immutable (StoryBoard).
-- Fleet size is small: on the order of ~2,000 target sources
-  ([ADR-021](021-pipeline-execution-model.md) context), of which only targets at
-  CONFIRMED or beyond need SDK calls.
+Verbatim inputs this ADR must satisfy — kept separate from assumptions so each can be
+re-checked independently:
+
+| # | Constraint | Where it binds |
+|---|---|---|
+| C1 | ProcessStatus derivation rules are a StoryBoard spec and **must not change** | Status; D2/D3 run the rules unmodified |
+| C2 | InstallationStatus is the bottleneck; needed **only when `ConfirmStatus == CONFIRMED`**; only **one signal** is read from the heavy response | D1 (cache unit), D3 (enrollment scope) |
+| C3 | AWS/GCP/Azure checks are live SDK calls at read time, **no persistence, recomputed every read** | Problem 1; D1 introduces the only persistence |
+| C4 | **No Redis**; GCP Pub/Sub is available | D1 (MySQL table); Option E (Pub/Sub deferred) |
+| C5 | **Infra Manager runs as 3 pods** in production | D5 (any owner must be N-replica-safe); see placement assumption A2 |
+| C6 | DB is **MySQL** (prod) / **H2 `MODE=MYSQL`** (test), **`ddl-auto: update`** | D1 schema notes; D5 (no `GET_LOCK`) |
+| C7 | Local terraform runs exist (AWS/Azure) → **events cannot capture all changes** | Option E deferred; sweep is mandatory |
+| C8 | Freshness targets: **30s single-target / 1h fleet-wide** (stakeholder-proposed) | D2/D3 — adopted as the freshness contract |
+| C9 | `confirmedAt` is obtainable from Infra Manager; **no version counter exists** | D4 (epoch = timestamp as opaque token) |
+| C10 | ProcessStatus can **regress at any stage, including COMPLETED** | D3 (no terminal state; perpetual sweep) |
+
+Assumptions this ADR **adds** (not stakeholder-provided — each must be verified before
+implementation):
+
+- **A1 — Fleet size ~2,000 target sources.** Imported from ADR-021's context, not from
+  this ADR's inputs. The D3 capacity math scales linearly in it.
+- **A2 — Component placement is undecided.** ProcessStatus is computed/served by the SIT
+  BFF, while `confirmedAt` and the 3-pod fact belong to Infra Manager. This ADR specifies
+  the *mechanism* (which is safe at any replica count, D5) but deliberately does not
+  decide which deployable owns the snapshot table and the sweeper — carried as Open
+  Question 3. The capacity math assumes 3 sweep workers total, whichever component hosts
+  them.
+- **A3 — The SDK check is an idempotent read.** Running it twice concurrently for the
+  same target is harmless (wasted quota only). This underwrites the simplified read path
+  (D5).
+
+### Operational constraint recap
+
+No Redis (C4) · 3 pods (C5) · MySQL/H2 `ddl-auto: update` (C6) · frozen rules (C1) ·
+events incomplete (C7).
 
 ### Relation to ADR-001 / ADR-004 ("computed, not stored")
 
@@ -121,9 +156,8 @@ mutated by any API. The rules remain the single computation authority.
 - Every CONFIRMED target's signal must be recomputed on a bounded cadence regardless of
   viewers.
 - A post-confirm read must never consume a pre-confirm signal.
-- Safe with 3 concurrent pods; no Redis; MySQL only; `ddl-auto: update` compatible.
-- CSP API quotas must be respected (AWS enumeration is heavy).
-- Minimum new machinery — no new infrastructure component if a table and a scheduler do it.
+- Safe at any replica count; no Redis; MySQL only; `ddl-auto: update` compatible.
+- Minimum machinery — every mechanism must justify itself against a simpler alternative.
 
 ## Considered Options
 
@@ -145,9 +179,9 @@ Rejected as a *complete* answer, for three reasons:
 2. **The list's cache miss is catastrophic.** On cold start or TTL expiry, one unlucky
    admin request pays *N × ~5s* of live SDK calls (minutes), and concurrent requests
    stampede the same misses.
-3. **Where would it live?** No Redis; per-pod memory gives 3 inconsistent views and dies on
-   restart; which leads to a DB-backed cache — at which point Option C is the same table
-   with a better refresh policy.
+3. **Where would it live?** No Redis (C4); per-pod memory gives divergent views and dies
+   on restart; which leads to a DB-backed cache — at which point Option D is the same
+   table with a better refresh policy.
 
 The **30-second single-target tier survives** into the chosen design as the read-through
 path. Only the list tier changes shape: from "lazy 1h TTL" to "background refresh with a
@@ -157,9 +191,9 @@ path. Only the list tier changes shape: from "lazy 1h TTL" to "background refres
 
 Persist the derived seven-state value and serve reads from it. Rejected in review
 (2026-07-02): it stales the wrong thing. Every non-installation input is a fast local DB
-read, so caching the derived value gratuitously delays transitions that could be exact —
-a target moving `IDLE → PENDING` would keep showing `IDLE` for up to a sweep cycle even
-though no expensive input is involved. It also stores a derived status, which sits
+read (C2), so caching the derived value gratuitously delays transitions that could be
+exact — a target moving `IDLE → PENDING` would keep showing `IDLE` for up to a sweep cycle
+even though no expensive input is involved. It also stores a derived status, which sits
 uncomfortably against ADR-001/004. Only the SDK-bounded input deserves caching.
 
 ### Option D — Signal-only snapshot + background sweeper + read-through *(chosen)*
@@ -173,17 +207,17 @@ stricter 30s freshness is not met. Detailed below.
 ### Option E — Event-driven invalidation via Pub/Sub (+ snapshot)
 
 `terraform-worker-event → Pub/Sub → mark signal stale → immediate refresh`. Deferred, not
-rejected: local terraform runs emit no events, so the sweep must exist anyway — events only
-shorten detection latency for the server-run subset. That is a v2 accelerator bolted onto
-Option D's table (`next_check_at = NOW()` on event), not an alternative to it. Adding a
-message pipeline for a latency improvement on a subset is not justified in v1.
+rejected: local terraform runs emit no events (C7), so the sweep must exist anyway —
+events only shorten detection latency for the server-run subset. That is a v2 accelerator
+bolted onto Option D's table (`next_check_at = NOW()` on event), not an alternative to it.
+Adding a message pipeline for a latency improvement on a subset is not justified in v1.
 
 ### Option F — Per-pod in-memory cache (Caffeine)
 
-Three pods → three divergent views of the same target; nothing persists for change
-detection or operator observability; cold after every deploy. Rejected. (A tiny per-pod
-micro-cache of a few seconds may later be layered on top of Option D if read QPS ever
-matters; it changes nothing decided here.)
+Multiple pods → divergent views of the same target; nothing persists for change detection
+or operator observability; cold after every deploy. Rejected. (A tiny per-pod micro-cache
+of a few seconds may later be layered on top of Option D if read QPS ever matters; it
+changes nothing decided here.)
 
 ## Decision
 
@@ -195,9 +229,9 @@ matters; it changes nothing decided here.)
 | Non-installation transitions are exact on every read | live derivation over live DB inputs | D2 |
 | Warm reads make no SDK call | cached signal | D2, D3 |
 | Single-target signal freshness ≤ 30s | read-through on age or epoch miss | D2 |
-| Every CONFIRMED target's signal recomputed ≤ 1h, viewers or not | sweeper over `next_check_at` + enrollment | D3 |
-| No pre-confirm signal consumed post-confirm | confirm-epoch validity + CAS write-back | D4 |
-| No duplicate SDK calls under concurrent readers/pods | row claim (`FOR UPDATE SKIP LOCKED` + lease), single-flight | D5 |
+| Every CONFIRMED target's signal recomputed ≤ 1h, viewers or not | sweeper over one due-query | D3 |
+| No pre-confirm signal consumed post-confirm | confirm-epoch validity + epoch-guarded write-back | D4 |
+| No two sweep workers check the same row; crash recovery without leases | claim-by-rescheduling (`SKIP LOCKED` + due-bump) | D5 |
 | Operators can see failures and staleness | attempt/success/error columns + signal age in responses | D6 |
 | "How long has it been stuck?" answerable | `status_changed_at` (observability metadata) | D6 |
 
@@ -215,9 +249,7 @@ CREATE TABLE installation_signal_snapshot (
   computed_at        DATETIME     NOT NULL,            -- DB clock, last successful check
   process_status     VARCHAR(32)  NOT NULL,            -- observability ONLY (D6); never served to clients
   status_changed_at  DATETIME     NOT NULL,            -- observability ONLY: last observed value change
-  next_check_at      DATETIME     NOT NULL,            -- sweeper schedule
-  claimed_by         VARCHAR(64)  NULL,                -- lease (sweeper + read-through single-flight)
-  claimed_until      DATETIME     NULL,
+  next_check_at      DATETIME     NOT NULL,            -- sweeper schedule; doubles as the in-flight guard (D5)
   last_attempt_at    DATETIME     NULL,
   last_success_at    DATETIME     NULL,
   fail_count         INT          NOT NULL DEFAULT 0,  -- consecutive failures
@@ -228,17 +260,19 @@ CREATE TABLE installation_signal_snapshot (
 
 Notes:
 
-- All timestamps use **DB time** (`NOW()` / JPA with DB-sourced clock) — three pods must
-  never compare wall clocks against each other. (`confirm_epoch` is the exception: an
-  opaque Infra-Manager-issued token, D4.)
-- `ddl-auto: update` creates this table and adds columns, but does **not** reliably
+- All timestamps use **DB time** (`NOW()` / JPA with DB-sourced clock) — pods must never
+  compare wall clocks against each other. (`confirm_epoch` is the exception: an opaque
+  Infra-Manager-issued token, D4.)
+- `ddl-auto: update` (C6) creates this table and adds columns, but does **not** reliably
   retrofit indexes or constraints onto existing tables — the entity must carry the index
   and PK definitions from its first deploy.
-- Only the one consumed boolean is stored. The heavy SDK payloads are not persisted —
+- Only the one consumed boolean is stored (C2). The heavy SDK payloads are not persisted —
   per the frozen rules nothing else is ever read from them.
 - `process_status` / `status_changed_at` here are **operator metadata** maintained as a
   byproduct of recomputes (D6). No read path ever serves them; clients always get the
   live derivation of D2/D3.
+- There are no lease/claim columns: sweeper mutual exclusion rides on `next_check_at`
+  itself (D5).
 
 ### D2. Single-target read: live derivation + 30s read-through on the signal
 
@@ -250,8 +284,8 @@ inputs  ← local DB reads                          (always live — zero stalen
 rules don't need the signal (pre-CONFIRMED)?      → answer immediately; no snapshot, no SDK
 signal valid ⇔ confirm_epoch matches AND age(computed_at) ≤ 30s
 signal valid                                      → derive with cached signal (warm path)
-signal invalid/missing                            → blocking SDK check (single-flight, D5),
-                                                    CAS write-back (D4), derive with fresh signal
+signal invalid/missing                            → blocking SDK check, epoch-guarded
+                                                    write-back (D4), derive with fresh signal
 ```
 
 Two properties fall out:
@@ -263,11 +297,17 @@ Two properties fall out:
   here only the first read after signal expiry or a confirm-epoch change pays it.
   Responses include the signal's `computed_at` so the client can display data age.
 
-Deliberate simplification: no "serve stale while refreshing in the background" on the
-single-target path in v1. The service owner is actively working the installation; a fresh
-answer is worth the occasional wait they already tolerate today. Upgrade path: bounded wait
-(e.g., 10s) then derive with the stale signal flagged `refreshing: true` — add only if the
-tail wait proves painful in practice.
+Two deliberate simplifications, each with a named ceiling:
+
+- **No read-path single-flight.** Concurrent readers of the same expired target may
+  duplicate the SDK check. The check is an idempotent read (A3), duplicates are bounded by
+  per-target viewer count within one 30s window, and every result is epoch-guarded on
+  write. Ceiling: SDK quota waste under FE polling of one target — add row-claim
+  single-flight only if quota pressure materializes.
+- **No "serve stale while refreshing".** The service owner is actively working the
+  installation; a fresh answer is worth the occasional wait they already tolerate today.
+  Ceiling: the ~28s AWS tail — upgrade path is a bounded wait (e.g., 10s) then derive
+  with the stale signal flagged `refreshing: true`.
 
 ### D3. Full list: live derivation over cached signals; sweeper maintains a 1h SLO
 
@@ -278,41 +318,49 @@ that is missing or epoch-invalid render as *refreshing* rather than blocking the
 Cheap-input transitions appear in the list **immediately**; only the installation
 dimension carries the snapshot's age, which each row exposes honestly.
 
-Signal freshness is maintained **proactively** by a sweeper:
+Signal freshness is maintained **proactively** by a sweeper — one scheduled loop, one
+query:
 
-- **Enrollment:** a cheap periodic query inserts a row (`next_check_at = NOW()`) for any
-  target that has reached CONFIRMED and has no row yet (`INSERT IGNORE`; the PK makes it
-  race-safe across pods).
-- Each pod runs a scheduled loop that claims due rows (`next_check_at <= NOW()`, D5),
-  re-runs the SDK check, and reschedules `next_check_at = NOW() + 1h ± jitter`.
-- Rescheduling per row (rather than a cron-style full-fleet burst) spreads SDK load evenly
-  across the hour and lets individual rows be prioritized (D4 sets `next_check_at = NOW()`
-  on epoch invalidation; a Pub/Sub event would do the same in v2).
+```sql
+-- discovery and due-selection in a single scan (no separate enrollment mechanism):
+SELECT ts.id FROM target_source ts
+  LEFT JOIN installation_signal_snapshot s ON s.target_source_id = ts.id
+ WHERE ts.confirm_status = 'CONFIRMED'
+   AND (s.target_source_id IS NULL OR s.next_check_at <= NOW())
+ LIMIT :k FOR UPDATE OF s SKIP LOCKED;
+```
+
+- Missing rows are inserted on first encounter (`INSERT IGNORE`; the PK makes the race
+  across pods harmless). A target that reaches CONFIRMED is thus picked up within one
+  loop tick, with **no separate enrollment job**.
+- After each check the row is rescheduled: `next_check_at = NOW() + 1h` on success,
+  backoff on failure (D6). Per-row rescheduling self-spreads the load across the hour
+  after the first cycle — no cron-style fleet-wide burst, no explicit jitter needed.
 - **The 1h is a staleness SLO, not a cache TTL.** The distinction is the heart of this
   ADR: a TTL waits for a viewer; the SLO is enforced by the sweeper for every CONFIRMED
   target, continuously — which is what "detect Process changes across all targets"
-  actually requires. Installation-driven changes are detected within the SLO;
-  cheap-input-driven changes are exact at any read, with no sweep involved.
+  actually requires (C8, admin persona). Installation-driven changes are detected within
+  the SLO; cheap-input-driven changes are exact at any read, with no sweep involved.
 
-Capacity check: ~2,000 targets, worst case all CONFIRMED and needing SDK calls at avg ≈ 5s
-(AWS-dominant) → ≈ 2.8 worker-hours per sweep cycle. Three pods × one sweep worker sustain
-the 1h SLO at ~93% utilization in that worst case — and the worst case is the operative
-sizing, because **ProcessStatus can regress at any stage, including from COMPLETED
-(Step 7)** (stakeholder-confirmed 2026-07-02): the sweeper has no terminal state to retire
-targets into, so every enrolled row stays in the sweep permanently. Targets not yet
-CONFIRMED cost nothing — they have no row. If the fleet grows: two workers per pod, or
-tiered cadence (active installs every 10 min, others hourly) — both are parameter changes,
-not design changes.
+Capacity check (under A1, fleet ≈ 2,000): worst case all CONFIRMED and needing SDK calls
+at avg ≈ 5s (AWS-dominant) → ≈ 2.8 worker-hours per sweep cycle. Three sweep workers (one
+per pod under C5) sustain the 1h SLO at ~93% utilization in that worst case — and the
+worst case is the operative sizing, because **ProcessStatus can regress at any stage,
+including from COMPLETED (Step 7)** (C10): the sweeper has no terminal state to retire
+targets into, so every row stays in the sweep permanently. Targets not yet CONFIRMED cost
+nothing — they have no row. If the fleet outgrows this: more workers per pod, or tiered
+cadence (active installs every 10 min, others hourly) — parameter changes, not design
+changes. **A1 must be verified**: the math is linear in fleet size.
 
 ### D4. Confirm-epoch invalidation
 
 Infra Manager knows when confirmation happened, and exposes it **only as a timestamp**
-(`confirmedAt`) — no version counter exists (stakeholder-confirmed 2026-07-02). The confirm
-epoch is therefore that timestamp **treated as an opaque token**: the snapshot stores the
-target's `confirmedAt` verbatim (`DATETIME(6)`), and the token is compared only against
-other values of the same token — equality for validity, ordering for the CAS guard. Both
-operands always originate from Infra Manager, and the token is **never compared against DB
-or pod clocks**, so clock skew cannot corrupt epoch decisions. Residual risk: two
+(`confirmedAt`, C9) — no version counter exists. The confirm epoch is therefore that
+timestamp **treated as an opaque token**: the snapshot stores the target's `confirmedAt`
+verbatim (`DATETIME(6)`), and the token is compared only against other values of the same
+token — equality for validity, ordering for the write guard. Both operands always
+originate from Infra Manager, and the token is **never compared against DB or pod
+clocks**, so clock skew cannot corrupt epoch decisions. Residual risk: two
 re-confirmations within one representable instant are indistinguishable — accepted; the
 window is at worst the source precision, and the next sweep re-syncs the row regardless.
 
@@ -326,33 +374,47 @@ Rules:
 - **List on mismatch → serve honestly, refresh urgently.** The row is rendered with a
   *refreshing* marker (the UI decides presentation), and `next_check_at` is set to `NOW()`
   so the sweeper picks it up immediately. The list never blocks on one target's SDK call.
-- **CAS write-back.** A check that started under epoch *E* writes back
-  `... WHERE target_source_id = :id AND confirm_epoch <= :E`-style guarded, stamping the
-  epoch it checked under. If a re-confirmation raced a long-running SDK call, the stale
-  result loses the write and the row stays due for refresh. (Same
+- **Epoch-guarded write-back.** Every writer (sweeper or read-through) writes
+  `... WHERE target_source_id = :id AND confirm_epoch <= :E`, stamping the epoch it
+  checked under. If a re-confirmation raced a long-running SDK call, the stale result
+  loses the write and the row stays due for refresh. Between two same-epoch writers,
+  last-write-wins is acceptable — both wrote fresh results. (Same
   ownership-guarded-write-back discipline as ADR-021 Decision 4.)
 
-### D5. Three-pod coordination: claim-pull, same pattern as ADR-021
+Why not simply "invalidate on confirm" (hook the confirmation code path and delete the
+row)? It was considered: if every (re-)confirmation demonstrably flows through one code
+path in our own system, a synchronous row-delete there is simpler at read time. But
+confirmation state is owned by Infra Manager (C9), and this ADR does not want correctness
+to depend on hooking every present and future confirm path. Compare-on-read is hook-free
+and self-healing. If placement (A2/OQ3) lands the mechanism *inside* Infra Manager next to
+the confirm transition, this decision may be revisited in favor of the hook.
 
-Both the sweeper and the read-through path serialize per-row work with the mechanism
-already proven in [ADR-021](021-pipeline-execution-model.md): a short claiming transaction
-using `SELECT ... FOR UPDATE SKIP LOCKED` plus a lease (`claimed_by`, `claimed_until`),
-external calls strictly outside the transaction, ownership-guarded write-back.
+### D5. Multi-pod coordination: claim-by-rescheduling, no leases
 
-- **Sweeper:** claim up to *k* due, unclaimed rows; run the SDK check; write back; release.
-  `SKIP LOCKED` makes three pods drain the due set without contention or leader election.
-- **Read-through single-flight:** the reader claims the row before checking. If the row
-  is already claimed (another reader or the sweeper is mid-check), the reader does
-  **not** duplicate the SDK call — it polls the snapshot briefly for the in-flight result.
-  This is the anti-stampede property Option B lacked.
-- No MySQL named locks (`GET_LOCK`): not portable to H2 `MODE=MYSQL`, and row leases
-  already do the job. H2 2.x supports `FOR UPDATE SKIP LOCKED`, keeping tests faithful.
+Sweeper mutual exclusion needs no lease columns. A worker claims due rows in a short
+transaction — `SELECT ... FOR UPDATE SKIP LOCKED` (D3's query), then immediately
+`UPDATE next_check_at = NOW() + :inflight_window` (e.g., 5 min) and commit — before making
+any SDK call. The bump **is** the claim:
+
+- Concurrent workers skip locked rows (`SKIP LOCKED`), and a bumped row is no longer due —
+  no two workers check the same target.
+- If a pod dies mid-check, the row simply comes due again after the in-flight window —
+  crash recovery with no lease-expiry bookkeeping, no reclaim scan, no leader election.
+- The write-back after the SDK call sets the real `next_check_at` (+1h / backoff) and is
+  epoch-guarded (D4).
+- Works identically at any replica count — C5's "3 pods" is an instance of N, not a
+  design input.
+- No MySQL named locks (`GET_LOCK`): not portable to H2 `MODE=MYSQL` (C6). H2 2.x supports
+  `FOR UPDATE SKIP LOCKED`, keeping tests faithful.
+
+The read-through path does not participate in claiming at all (D2): it checks, writes
+epoch-guarded, and tolerates bounded duplicates (A3).
 
 **Why not reuse the ADR-016/021 pipeline itself:** its `CONDITION_CHECK` tasks are
 count-bounded with terminal states — a poll that eventually *ends*. Signal refresh is a
-**perpetual, per-target recurring job with no terminal state**. Forcing it into the
+**perpetual, per-target recurring job with no terminal state** (C10). Forcing it into the
 pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse the
-*claim-pull pattern*, not the pipeline tables.
+*claim-pull idea*, not the pipeline tables.
 
 ### D6. Failure handling and observability (the operator persona)
 
@@ -361,7 +423,9 @@ pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse th
   untouched**. Readers derive with the last known good signal and its visible age; they
   are never handed an error page because a background refresh failed.
 - Failed rows are retried with backoff: `next_check_at = NOW() + min(base × 2^fail_count,
-  cap)`, with per-CSP concurrency caps so an AWS brownout cannot monopolize sweep workers.
+  cap)`. Global SDK concurrency is naturally capped by the sweep worker count (3);
+  per-CSP concurrency caps are **not** built in v1 — add only if a real quota incident
+  shows one CSP's brownout starving the others.
 - On every recompute (sweep or read-through), the worker also derives ProcessStatus and
   maintains the **operator metadata** columns: `status_changed_at` updates only when the
   derived **value** differs from the stored `process_status`. This single column answers
@@ -384,23 +448,25 @@ pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse th
 - The Admin fleet view becomes buildable at all: one query, live derivation, uniformly
   bounded signal staleness, honest per-row age, and a sortable "stuck since" signal.
 - SDK call volume becomes **bounded and scheduled** (≤ enrolled fleet per hour +
-  read-through misses) instead of proportional to page views — jittered, not bursty.
+  read-through misses) instead of proportional to page views.
 - Operators gain a monitorable surface (staleness, failures, error causes) where today
   there is none.
-- No new infrastructure: one table, one scheduled loop, mechanisms already proven in
-  ADR-021.
+- Minimal machinery: **one table, one scheduled loop, one due-query**; no leases, no
+  enrollment job, no read-path locking, no new infrastructure.
 
 ### Negative / accepted costs
 
 - The installation signal is stale by design: up to 30s (single read) / 1h (list).
-  Accepted per persona analysis; both bounds are tunable parameters.
+  Accepted per persona analysis (C8); both bounds are tunable parameters.
 - The unlucky first reader after signal expiry or confirmation still waits for a live SDK
   call (up to ~28s worst observed). Accepted in v1: strictly rarer than today, with a
   defined upgrade path (D2).
+- Concurrent readers of one expired target can duplicate an SDK check (A3). Bounded and
+  harmless; single-flight is a known upgrade if quota pressure appears.
 - Every read now runs the derivation rules in-process. Negligible: the rules are pure
   logic over local reads; this is what the BFF did before, minus the SDK call.
-- A new background responsibility (sweeper + enrollment) in Infra Manager pods — more
-  moving parts to operate, mitigated by D6 being designed in from the start.
+- A new background responsibility (the sweeper) — one more moving part, mitigated by D6
+  being designed in from the start.
 - Detection granularity for *installation-driven* changes on unwatched targets is the
   sweep cadence (1h). If Admin ever needs minutes-level detection fleet-wide, that is the
   D3 tiered-cadence knob or the Option E accelerator — both anticipated, neither built now.
@@ -409,35 +475,42 @@ pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse th
 
 | Risk | Mitigation |
 |---|---|
-| CSP quota/throttling from sweeping (AWS enumeration is heavy) | per-CSP concurrency caps; per-row jittered scheduling (no fleet-wide burst); backoff on 429/503 |
-| Re-confirmation racing a long SDK check writes a stale-epoch signal | CAS write-back guarded on `confirm_epoch` (D4) |
+| CSP quota/throttling from sweeping (AWS enumeration is heavy) | sweep worker count caps global concurrency; per-row rescheduling self-spreads load; backoff on failure; per-CSP caps as a known knob if an incident occurs |
+| Re-confirmation racing a long SDK check writes a stale-epoch signal | epoch-guarded write-back (D4) |
 | Pod clock skew corrupting age/epoch comparisons | DB clock for signal ages; the confirm epoch is an opaque Infra-Manager-issued token compared only against itself |
 | `ddl-auto: update` won't retrofit indexes | full index/PK definitions on the entity from first deploy |
-| H2/MySQL divergence in tests | row leases + `SKIP LOCKED` only (H2 2.x-compatible); no `GET_LOCK` |
+| H2/MySQL divergence in tests | `SKIP LOCKED` + due-bump only (H2 2.x-compatible); no `GET_LOCK`, no vendor-specific locks |
 | Deleted/offboarded target sources leave orphan snapshot rows | sweeper prunes rows whose target no longer exists |
+| Fleet size assumption (A1) wrong → SLO math off | verify count before implementation; math is linear, workers-per-pod is the dial |
 | Reintroducing ADR-004's stored-field drift | the derived status is never served from storage at all; only an input is cached, written solely by the SDK check, with provenance columns |
 
 ## Open Questions
 
-Two of the original questions were answered by the stakeholder on 2026-07-02 and are
-folded into the decisions above:
+Resolved by stakeholder (2026-07-02), folded into the decisions above:
 
-- ~~Can ProcessStatus regress after COMPLETED?~~ **Yes — any stage can regress at any
-  time, including COMPLETED (Step 7).** Consequence: the sweeper has no terminal state;
-  every enrolled target stays in the perpetual sweep, and D3's worst-case capacity math is
-  the operative sizing.
-- ~~Does Infra Manager expose a confirm version?~~ **No — only `confirmedAt`.**
-  Consequence: D4 uses the timestamp-as-opaque-token form.
-
-A third review round (2026-07-02) redefined the cache unit from the derived ProcessStatus
-to the installation signal (Option C → Option D); non-installation inputs are all fast DB
-reads and must never be staled by the cache.
+- ~~Can ProcessStatus regress after COMPLETED?~~ **Yes — any stage, any time** (C10) →
+  perpetual sweep, worst-case sizing.
+- ~~Does Infra Manager expose a confirm version?~~ **No — only `confirmedAt`** (C9) →
+  timestamp-as-opaque-token (D4).
+- A design-review round (2026-07-02) redefined the cache unit from the derived
+  ProcessStatus to the installation signal (Option C → Option D). A simplification round
+  (2026-07-03) removed lease columns (→ claim-by-rescheduling), the separate enrollment
+  job (→ folded into the due-query), read-path single-flight (→ bounded duplicates under
+  A3), and v1 per-CSP caps/jitter (→ worker count + self-spreading schedule).
 
 Remaining:
 
 1. Should the Admin page eventually need a **status transition log** (who changed when,
    full history) beyond `status_changed_at`? Out of scope for v1; the sweeper is the
    natural place to append such a log later since it observes every transition.
+2. **Is IDC in scope?** IDC is ~half of status-read volume at avg 2.45s, but the stated
+   SDK bottleneck covers AWS/GCP/Azure only. If IDC's installation check is also an
+   external call, it enrolls like any CSP (one more `csp` value); if its latency has
+   another cause, this ADR should state it out of scope explicitly.
+3. **Which deployable owns the table and the sweeper** — SIT BFF (which serves the reads)
+   or Infra Manager (which owns `confirmedAt` and runs 3 pods)? The mechanism is
+   replica-count-agnostic (D5), but placement decides operational ownership, the replica
+   count behind the capacity math, and whether D4's hook alternative becomes attractive.
 
 ## Related
 
@@ -449,5 +522,5 @@ Remaining:
 - [ADR-009](009-process-status-terminology.md) — the seven-state model and FE mapping this
   ADR serves faster, unchanged.
 - [ADR-016](016-install-delete-pipeline-domain-model.md) /
-  [ADR-021](021-pipeline-execution-model.md) — the claim-pull machinery pattern reused in
-  D5, and why the pipeline itself is not reused.
+  [ADR-021](021-pipeline-execution-model.md) — the claim-pull idea reused in D5, and why
+  the pipeline itself is not reused.
