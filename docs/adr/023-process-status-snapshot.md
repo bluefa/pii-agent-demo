@@ -1,4 +1,4 @@
-# ADR-022: ProcessStatus Snapshot — Two-Tier Freshness and Confirm-Epoch Invalidation
+# ADR-023: ProcessStatus Snapshot — Two-Tier Freshness and Confirm-Epoch Invalidation
 
 ## Status
 
@@ -185,7 +185,7 @@ CREATE TABLE process_status_snapshot (
   target_source_id   VARCHAR(...) PRIMARY KEY,
   csp                VARCHAR(16)  NOT NULL,
   process_status     VARCHAR(32)  NOT NULL,          -- one of the 7 ADR-009 values
-  confirm_epoch      BIGINT       NOT NULL,           -- epoch the computation was based on
+  confirm_epoch      DATETIME(6)  NOT NULL,           -- target's confirmedAt at compute time (opaque token)
   computed_at        DATETIME     NOT NULL,           -- DB clock, last successful compute
   status_changed_at  DATETIME     NOT NULL,           -- last time process_status VALUE changed
   next_check_at      DATETIME     NOT NULL,           -- sweeper schedule
@@ -253,17 +253,25 @@ Freshness is maintained **proactively** by a sweeper:
 
 Capacity check: ~2,000 targets, worst case all needing CSP calls at avg ≈ 5s (AWS-dominant)
 → ≈ 2.8 worker-hours per sweep cycle. Three pods × one sweep worker sustain the 1h SLO at
-~93% utilization in that worst case; in reality only the CONFIRMED-but-not-COMPLETED subset
-is expensive, leaving ample headroom. If the fleet grows: two workers per pod, or tiered
+~93% utilization in that worst case — and the worst case is the operative sizing, because
+**ProcessStatus can regress at any stage, including from COMPLETED (Step 7)**
+(stakeholder-confirmed 2026-07-02): the sweeper has no terminal state to retire targets
+into, so everything at CONFIRMED or beyond stays in the sweep permanently. Headroom comes
+only from targets not yet CONFIRMED, whose recompute is local and CSP-free. If the fleet grows: two workers per pod, or tiered
 cadence (active installs every 10 min, COMPLETED hourly) — both are parameter changes, not
 design changes.
 
 ### D4. Confirm-epoch invalidation
 
-Infra Manager knows when confirmation happened. Each target carries a **`confirm_epoch`**
-— preferably a monotonically increasing integer bumped on every (re-)confirmation;
-`confirmed_at` compared under the DB clock is the fallback if only a timestamp exists
-(integers are immune to clock questions and to two confirms in one second).
+Infra Manager knows when confirmation happened, and exposes it **only as a timestamp**
+(`confirmedAt`) — no version counter exists (stakeholder-confirmed 2026-07-02). The confirm
+epoch is therefore that timestamp **treated as an opaque token**: the snapshot stores the
+target's `confirmedAt` verbatim (`DATETIME(6)`), and the token is compared only against
+other values of the same token — equality for validity, ordering for the CAS guard. Both
+operands always originate from Infra Manager, and the token is **never compared against DB
+or pod clocks**, so clock skew cannot corrupt epoch decisions. Residual risk: two
+re-confirmations within one representable instant are indistinguishable — accepted; the
+window is at worst the source precision, and the next sweep re-syncs the row regardless.
 
 Rules:
 
@@ -352,7 +360,7 @@ pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse th
 |---|---|
 | CSP quota/throttling from sweeping (AWS enumeration is heavy) | per-CSP concurrency caps; per-row jittered scheduling (no fleet-wide burst); backoff on 429/503 |
 | Re-confirmation racing a long recompute writes a stale-epoch result | CAS write-back guarded on `confirm_epoch` (D4) |
-| Pod clock skew corrupting age/epoch comparisons | DB clock for all timestamps; integer `confirm_epoch` preferred over timestamps |
+| Pod clock skew corrupting age/epoch comparisons | DB clock for snapshot ages; the confirm epoch is an opaque Infra-Manager-issued token compared only against itself |
 | `ddl-auto: update` won't retrofit indexes | full index/PK definitions on the entity from first deploy |
 | H2/MySQL divergence in tests | row leases + `SKIP LOCKED` only (H2 2.x-compatible); no `GET_LOCK` |
 | Deleted/offboarded target sources leave orphan snapshot rows | sweeper prunes rows whose target no longer exists |
@@ -360,12 +368,19 @@ pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse th
 
 ## Open Questions
 
-1. **Can ProcessStatus regress after COMPLETED** (e.g., health check turns unhealthy)?
-   If yes, COMPLETED targets stay in the hourly sweep (current default). If provably
-   terminal, they can be excluded and the sweep budget shrinks substantially.
-2. **What does Infra Manager actually expose for the confirm epoch** — a monotonic
-   version, or only `confirmedAt`? Determines D4's preferred vs. fallback form.
-3. Should the Admin page eventually need a **status transition log** (who changed when,
+Two of the original questions were answered by the stakeholder on 2026-07-02 and are
+folded into the decisions above:
+
+- ~~Can ProcessStatus regress after COMPLETED?~~ **Yes — any stage can regress at any
+  time, including COMPLETED (Step 7).** Consequence: the sweeper has no terminal state;
+  every target stays in the perpetual sweep, and D3's worst-case capacity math is the
+  operative sizing.
+- ~~Does Infra Manager expose a confirm version?~~ **No — only `confirmedAt`.**
+  Consequence: D4 uses the timestamp-as-opaque-token form.
+
+Remaining:
+
+1. Should the Admin page eventually need a **status transition log** (who changed when,
    full history) beyond `status_changed_at`? Out of scope for v1; the sweeper is the
    natural place to append such a log later since it observes every transition.
 
