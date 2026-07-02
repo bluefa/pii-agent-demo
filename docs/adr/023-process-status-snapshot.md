@@ -103,6 +103,7 @@ re-checked independently:
 | C8 | Freshness targets: **30s single-target / 1h fleet-wide** (stakeholder-proposed) | D2/D3 — adopted as the freshness contract |
 | C9 | `confirmedAt` is obtainable from Infra Manager; **no version counter exists** | D4 (epoch = timestamp as opaque token) |
 | C10 | ProcessStatus can **regress at any stage, including COMPLETED** | D3 (no terminal state; perpetual sweep) |
+| C11 | Confirmation records are **create/delete only — never updated** (stakeholder, 2026-07-03). "Re-confirmation" = delete → create; a target can dwell with no confirmation, and installation-status queries are meaningless in that state | D4 (epoch lifecycle), D7 (deleted-confirm case) |
 
 Assumptions this ADR **adds** (not stakeholder-provided — each must be verified before
 implementation):
@@ -234,6 +235,8 @@ changes nothing decided here.)
 | No two sweep workers check the same row; crash recovery without leases | claim-by-rescheduling (`SKIP LOCKED` + due-bump) | D5 |
 | Operators can see failures and staleness | attempt/success/error columns + signal age in responses | D6 |
 | "How long has it been stuck?" answerable | `status_changed_at` (observability metadata) | D6 |
+| A deleted confirmation is honored with zero staleness, no special-case code | live derivation stops consulting the signal; sweep filter drops the row | D4, D7 |
+| A cross-epoch signal is never consumed; a read never fails because the SDK failed | exception matrix: floor stage + `signalUnavailable` | D7 |
 
 ### D1. Signal snapshot table — cache the input, not the derivation
 
@@ -294,8 +297,11 @@ Two properties fall out:
   `IDLE → PENDING → CONFIRMING → CONFIRMED`, or any other cheap-input change, is visible
   on the very next read — the cache cannot stale it, because it is not cached.
 - The blocking SDK check is **no worse than the status quo** — today *every* read pays it;
-  here only the first read after signal expiry or a confirm-epoch change pays it.
-  Responses include the signal's `computed_at` so the client can display data age.
+  here only the first read after signal expiry or a confirm-epoch change pays it — and
+  D3's enrollment usually pays it first: a newly CONFIRMED target is picked up and checked
+  by the sweeper within one loop tick, so the blocking first read happens only when a
+  human beats the sweeper to it. Responses include the signal's `computed_at` so the
+  client can display data age.
 
 Two deliberate simplifications, each with a named ceiling:
 
@@ -363,6 +369,24 @@ originate from Infra Manager, and the token is **never compared against DB or po
 clocks**, so clock skew cannot corrupt epoch decisions. Residual risk: two
 re-confirmations within one representable instant are indistinguishable — accepted; the
 window is at worst the source precision, and the next sweep re-syncs the row regardless.
+
+**Confirmation lifecycle (C11): create/delete only, never updated.** "Re-confirmation" is
+delete → create, so a new confirmation is always a *new record* with a fresh `confirmedAt`
+token. Deletion without re-creation leaves the target unconfirmed, and that case needs
+**no special-case code** — it falls out of the existing mechanisms:
+
+- The very next read stops consulting the signal at all: `ConfirmStatus` is no longer
+  CONFIRMED, so live derivation (D2) answers from DB facts alone. A deleted confirmation
+  is honored with **zero staleness** — the snapshot cannot serve a meaningless
+  installation answer, because the rules never ask for it.
+- The sweeper's due-query no longer selects the row (`confirm_status = 'CONFIRMED'`
+  filter), so no SDK quota is spent on unconfirmed targets. The row sits inert until
+  pruned with the orphan sweep, or revived by a future confirmation — whose fresh token
+  then fails the equality check and forces a new SDK check before the signal is ever
+  consumed again.
+- A confirmation deleted *mid-check* is equally harmless: the in-flight result writes
+  back stamped with the old token, into a row nothing reads or sweeps; if a new
+  confirmation appears, the equality check rejects that signal on first contact.
 
 Rules:
 
@@ -436,6 +460,35 @@ pipeline's lifecycle (attempts, fail-caps, DONE) would distort both. We reuse th
   row exceeds 2× SLO; consecutive-failure alert on `fail_count ≥ N`; per-CSP check
   latency and error rate.
 
+### D7. Exception matrix — every lifecycle/failure case, decided
+
+Two absolute rules govern every cell below:
+
+1. **A cross-epoch signal is never consumed.** Same-epoch-but-old is *stale* (servable,
+   with visible age); different-epoch is *invalid* (never servable, at any age).
+2. **A status read never fails because the SDK failed.** When the rules need a signal and
+   no valid one can be obtained, the response is the **floor stage** — the highest stage
+   provable from DB facts alone (CONFIRMED) — plus an explicit `signalUnavailable` marker.
+   Asserting `installation_done = false` would be a claim we cannot back; the floor +
+   marker states exactly what is known and what is not.
+
+| # | Case | Single-target read | List row | Sweeper |
+|---|---|---|---|---|
+| 1 | Signal fresh, epoch match | derive with signal (warm path) | same | not due |
+| 2 | Signal stale (> 30s), same epoch | blocking SDK check → derive fresh | derive with stale signal + visible age (≤ 1h SLO) | due at `next_check_at` |
+| 3 | Case 2 and the SDK check **fails** | derive with last-known-good same-epoch signal + age + `fail_count` visible (D6) | same | backoff retry; alert on threshold |
+| 4 | **Epoch mismatch** (confirm deleted + recreated) | blocking SDK check → derive fresh | *refreshing* marker + floor stage; `next_check_at = NOW()` | picks up immediately |
+| 5 | Case 4 and the SDK check **fails** | **floor stage (CONFIRMED) + `signalUnavailable`** — the old signal is never consumed | same | backoff retry from `NOW()` |
+| 6 | **No row yet** (confirmation just created) | blocking SDK check (first read) — usually pre-empted by enrollment within one sweep tick (D2/D3) | *refreshing* marker + floor stage | enrolls + checks within one tick |
+| 7 | **Confirmation deleted**, not recreated | rules never consult the signal → exact answer from DB facts, zero staleness (D4/C11) | same | row not selected (filter); inert until pruned or revived |
+| 8 | Confirmation deleted **mid-check** | in-flight result lands in an inert row; harmless (D4) | — | next tick no longer selects the row |
+| 9 | **Long SDK call right after confirmation** (the ~28s AWS tail) | bounded by the blocking path; mitigations: enrollment prefetch (case 6), bounded-wait + `refreshing: true` upgrade path (D2) | never blocks — *refreshing* marker until the check lands | in-flight window (5 min) guards against double-checking |
+| 10 | Target source deleted | domain 404 path (unchanged) | absent | orphan prune |
+
+The floor-stage-plus-marker contract (rule 2) is the API's honesty guarantee: the client
+can always distinguish "installation not done" (`installation_done = false`, fresh) from
+"installation unknown" (`signalUnavailable`), and the UI decides how to render each.
+
 ## Consequences
 
 ### Positive
@@ -496,7 +549,11 @@ Resolved by stakeholder (2026-07-02), folded into the decisions above:
   ProcessStatus to the installation signal (Option C → Option D). A simplification round
   (2026-07-03) removed lease columns (→ claim-by-rescheduling), the separate enrollment
   job (→ folded into the due-query), read-path single-flight (→ bounded duplicates under
-  A3), and v1 per-CSP caps/jitter (→ worker count + self-spreading schedule).
+  A3), and v1 per-CSP caps/jitter (→ worker count + self-spreading schedule). An
+  exception round (2026-07-03) added C11 (confirmations are create/delete only) and the
+  D7 matrix, closing a previously undefined case: epoch-invalid signal + SDK failure now
+  yields floor stage + `signalUnavailable` — never a cross-epoch signal, never an error
+  page.
 
 Remaining:
 
