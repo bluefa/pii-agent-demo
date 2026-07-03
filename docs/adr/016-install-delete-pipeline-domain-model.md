@@ -52,6 +52,17 @@ Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED
 Pipeline:  PENDING ──▶ RUNNING ─────────────▶ DONE | FAILED | CANCELLED
 ```
 
+(Two edges the linear diagram elides: `startDelay == 0` enters `RUNNING` directly, skipping
+`PENDING` — the fast path; and a `PENDING` pipeline can go straight to `CANCELLED` without ever
+passing through `RUNNING` — an idle-cancel, ADR-021 Decision 6 Case A.)
+
+**Why `PENDING` exists.** A pipeline may be created with a **start delay** — a configured grace
+period before it should begin (the `pipeline.start-delay` knob; a delay of zero means "start
+now"). Before this state a start-delayed pipeline was created directly as `RUNNING` with
+`next_due_at = now + startDelay`, so throughout the delay window it *looked* like it was executing
+when it was really only waiting — an operator dashboard could not tell "delay-waiting" from
+"actively running." `PENDING` makes that wait a **first-class, filterable state**.
+
 `PENDING` is the **start-delay wait state** and exists **only when a start delay is configured**.
 A pipeline created with `startDelay > 0` enters `PENDING` with `next_due_at = now + startDelay`;
 one created with `startDelay == 0` enters `RUNNING` directly (the fast path, saving a transition).
@@ -66,8 +77,11 @@ The **current task** is the lowest-`seq` `READY`/`IN_PROGRESS` task; tasks ahead
 explicitly `BLOCKED` until their predecessor reaches `DONE` (a task is created BLOCKED and
 flips to READY; the first task starts READY). A `PENDING` pipeline already owns its full task
 chain (created with the pipeline); those tasks begin executing once it transitions to `RUNNING`.
-Pipeline status is a stored projection, written in the same transaction as the task transition
-that changes it, so a scan can filter on it cheaply.
+Pipeline status is a stored projection: each **task-driven** change is written in the same
+transaction as the task transition that causes it, and the one **non-task-driven** change —
+`PENDING → RUNNING` — is written by the claiming worker in its claim transaction (ADR-021
+Decision 2), atomically with the lease stamp and without any task transition. Either way a scan
+can filter on `status` cheaply.
 
 Five core enums (`TaskStatus`, `PipelineStatus`, `TaskKind`, `PipelineType`, `ErrorCode`), plus
 a conditional `TaskOperation` when the operation set is closed (an open set is registry-validated).

@@ -50,7 +50,7 @@ this ADR is how those mechanisms work.
 |---|---|---|
 | **One owner per pipeline at a time** | `FOR UPDATE SKIP LOCKED` claim + lease stamp | Decision 2 |
 | **No stale clobber** (an expired-lease straggler can't overwrite state) | ownership-guarded write-back `WHERE claimed_by = :claim_token` + a fresh per-claim fencing token | Decision 2, 4 |
-| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (the claim holder, which also applies `PENDING → RUNNING`) — so **no `status` guard is needed** | Decision 2, 4, 6 |
+| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (Case A: the API path, for an idle row; Case B: the claim holder, which also applies `PENDING → RUNNING` in tx1) — so **no `status` guard is needed** | Decision 2, 4, 6 |
 | **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
 | **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
 | **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition's lost poll heals via lease-expiry reclaim, then re-polls) | Decision 4, ADR-016 §5, §6 |
@@ -69,7 +69,7 @@ touching any external system:
 
 ```sql
 BEGIN;
-SELECT id, status FROM pipeline
+SELECT id FROM pipeline
  WHERE status IN ('RUNNING', 'PENDING')
    AND next_due_at <= now()
    AND (claimed_until IS NULL OR claimed_until < now())
@@ -285,15 +285,22 @@ cancelled immediately by Case A, not here.)
   commits first wins: a claim no longer sees a `RUNNING`/`PENDING` row once Case A cancelled it;
   Case A's `A1` no longer sees a free claim once a worker claimed it (so it updates 0 rows and
   falls through to Case B).
-- **vs a claim that transitions `PENDING → RUNNING` (Decision 2, tx1)** — the same serialization
-  holds and terminal resurrection stays impossible either way. If **tx1 commits first**, the row
-  is `RUNNING` with a live lease; Case A's `A1` then finds `(claimed_by IS NULL OR expired)`
-  false, updates 0 rows, and falls through to Case B — cooperative cancel, applied by the claim
-  holder. If **Case A commits first**, the row is `CANCELLED` with the claim cleared; tx1 either
-  skipped the locked row (`SKIP LOCKED`) or, if it already held the lock, blocks then re-reads
-  `status = 'CANCELLED' ∉ ('RUNNING', 'PENDING')` and claims nothing. The claim predicate's
-  `status IN (...)` and Case A's guard both exclude terminal rows, so neither path can revive a
-  terminal pipeline — the same argument as the `RUNNING`-only case, now covering `PENDING`.
+- **vs a claim that transitions `PENDING → RUNNING` (Decision 2, tx1)** — tx1's
+  `SELECT ... FOR UPDATE SKIP LOCKED` and Case A's plain `UPDATE` both need the pipeline row's
+  write lock, so exactly one acquires it first; there is no third interleaving:
+  - **tx1's `FOR UPDATE` takes the row lock first** — it stamps the lease and sets `RUNNING`, then
+    commits. Case A's `UPDATE` blocks on that lock until tx1 commits, then re-evaluates its guard,
+    finds a live lease (`claimed_until` in the future), updates **0 rows**, and falls through to
+    Case B — cooperative cancel, applied by the claim holder. (This is the "tx1 first" case.)
+  - **Case A's `UPDATE` takes the row lock first** — it sets `CANCELLED`, clears the claim, and
+    commits. tx1 never blocks here: `SKIP LOCKED` means that if tx1's scan runs while Case A still
+    holds the lock it simply **skips** the row (claims nothing this pass), and if it runs after
+    Case A commits the now-free row no longer matches `status IN ('RUNNING','PENDING')` (it is
+    `CANCELLED`), so again it claims nothing. (This is the "Case A first" case.)
+
+  Either way the claim predicate's `status IN (...)` and Case A's guard both exclude terminal
+  rows, so no path can revive a terminal pipeline — the same argument as the `RUNNING`-only case,
+  now covering `PENDING`.
 - **vs an expired-lease straggler** — Case A fires only when the claim is null/expired and
   **clears `claimed_by`/`claimed_until`** in the same statement, so a GC-paused straggler that
   resumes finds its token gone and its tx2 `claimed_by` guard no-ops — no resurrection. This is
@@ -445,7 +452,7 @@ operation** against observed InfraManager latency, not fixed at design time.
 | `workerPerPod` | Thread-pool size per pod; caps concurrent external calls per replica |
 | `activePodCount` | Number of running pods/replicas |
 | `maxReplicas` | Upper bound for autoscaler |
-| `runningPipelineCap` | Soft admission target for concurrent `RUNNING` pipelines |
+| `runningPipelineCap` | Soft pickup target for concurrently claimed pipeline work (candidates are `RUNNING`, plus due `PENDING` about to transition at claim) |
 | `slotCap` | Soft admission target for concurrent TF-dispatch slots |
 | `slotRetry` | Delay before re-checking slot availability when slot is full |
 | `leaseDuration` | Claim lease window; see required relationship below |
@@ -465,8 +472,8 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 - **concurrent API calls** — in-flight external calls to InfraManager / condition checks
 - **RUNNING pipeline count** — current `status = 'RUNNING'` row count (excludes `PENDING`)
 - **PENDING pipeline count** — current `status = 'PENDING'` row count (start-delayed, not yet
-  claimed); the two non-terminal counts are tracked separately so "waiting on a start delay" is
-  distinguishable from "actively executing"
+  first-claimed — a row may already be due yet awaiting pickup under cap/worker pressure); tracked
+  separately from RUNNING so "not yet started" is distinguishable from "actively executing"
 - **pipeline-cap overshoot count** — admissions above `runningPipelineCap`
 - **empty-claim rate** — fraction of claim polls that returned no row
 - **claim QPS** — claim-poll throughput
@@ -489,7 +496,8 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 
 - **Claim** — the act of stamping a per-claim fencing token (a fresh UUID minted at claim time) into `claimed_by`, plus a deadline into `claimed_until`, in a short committed transaction (tx1). Each claim generates a new unique token; the same worker re-claiming the same pipeline after lease expiry receives a different token, ensuring any in-flight tx2 from the prior claim is rejected by the ownership guard. On claim, the worker also checks `cancel_requested` before proceeding.
 - **Cooperative cancel (Case B)** — for a pipeline under a live lease, the Admin/API path writes only `cancel_requested = true` (and sets `next_due_at = now()` so the next scan re-claims it promptly once the live claim releases); the claim-holding worker reads the flag at its safe points and applies the terminal `CANCELLED` transition itself, remaining the sole status writer for that live-lease pipeline. (An **idle** pipeline is instead terminated immediately by the API path — Case A in Decision 6.) Neither case needs a per-write `status` guard to prevent terminal resurrection.
-- **Due pipeline** — one whose `next_due_at <= now()` and whose lease has expired (or was never set).
+- **Due pipeline** — a non-terminal pipeline (`status IN ('RUNNING', 'PENDING')`) whose
+  `next_due_at <= now()` and whose lease has expired (or was never set); a terminal row is never due.
 - **Guarded write-back** — an `UPDATE ... WHERE id = :id AND claimed_by = :token` that no-ops if the ownership guard fails. Defends against lease-expired straggler clobber; a `status` guard is not required because cancel is cooperative and `status` has a single writer (Decision 6).
 - **Lease** — the `claimed_until` timestamp; expiry automatically releases the claim for reclaim by any worker.
 - **Two-transaction split** — tx1 (claim) and tx2 (report) are separate committed transactions; the external call runs between them, outside any transaction.
