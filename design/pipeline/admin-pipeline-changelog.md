@@ -4,6 +4,38 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 4 — LIN-20 B1: 모던 어드민 리디자인
+
+방향 전환: Toss-소프트 → **모던 어드민(밀도형)**. 로직·라우팅·mock·§4.5 파생 규칙은 무변경,
+비주얼/UX 레이어만 교체. (Round 1–3은 Toss 토큰 기준의 정제 이력)
+
+**파운데이션**
+- 토큰 전면 교체: Toss surface → 중립 gray 스케일 + 시맨틱 변수(`--bg-*`/`--text-*`/`--border*`).
+  다크모드는 `:root` 오버라이드만 추가하면 되는 구조(이번 범위 밖)
+- primary `#0064FF`→`#2563EB`, 상태색을 ok/err/info/warn/off 5종 bg·text 페어로 정리(산발 hex 회수)
+- radius 20/16→10/8, 카드 그림자 → **1px border + shadow-xs**
+- 폰트: 미로딩 Geist/Pretendard 선언 정리 → 시스템 스택 확정, letter-spacing 튜닝 제거
+- **이모지·유니코드 글리프 전면 제거 → 인라인 SVG 스프라이트 16종** (외부 의존성 0 유지)
+
+**컴포넌트**
+- 탑네비: active `●` → 2px 하단 보더, 브랜드 마크 추가. 사이드바 active: inset 보더
+- StatCard: `.formula` 노출 → 카드 `title` 툴팁으로 격하. 미제공 카드 점선 제거(조용한 카드로)
+- 테이블: 헤더 11px 캡션, 마지막 행 border 제거, chevron SVG
+- StatusPill: radius 999 + RUNNING/IN_PROGRESS dot **pulse 애니메이션**
+- ProviderTag: 컬러 텍스트 → **중립 텍스트 + 브랜드 dot**(목록 무지개 소음 제거)
+- ProgressBar: N==M이면 success 색(`.pbar.done`)
+- TaskNode: 상태 아이콘 → 원형 칩 + SVG, 선택 시 primary ring, 메타 선행 `·` 구분자 버그 수정
+- 버튼: variant별 disabled 스타일(opacity 흐림 → 회색 배경/보더로 명확화)
+- 검색 입력: placeholder 이모지 → `.searchbox` SVG 아이콘
+- 모달 480px/r12/shadow-lg + recipe step 구분선, 토스트 체크 아이콘
+
+**UX**
+- `파생`/`process_status` 등 내부 용어 배지 → info 아이콘 `title` 툴팁으로 격하
+- Task 노드 선택 시 하단 상세 `scrollIntoView`(클릭 무반응감 해소)
+- 서비스 페이지 two-col stretch + min-height(하단 빈 화면 해소), 파이프라인 메타 그리드 align-start
+
+검증: 4페이지 + preview/cancel 모달 + 생성(A10)·취소(A6) 플로우 브라우저 전수 확인, 콘솔 에러 0.
+
 ## Round 3 — 전체 육안 점검 pass (최종)
 
 4개 페이지 + 모달을 브라우저에서 전수 재점검하여 발견한 2건 수정.
