@@ -96,7 +96,9 @@
 **폭/오버플로 규칙** (codex P1 반영):
 
 - 본문 grid: `grid-template-columns: minmax(0,1fr) 340px`, gap 12px. `min-width:1080px` 유지.
-- 사이드 패널 340px 고정, `position:sticky; top:64px`(상태 바 아래) — 긴 attempts 테이블은 패널 내부 스크롤.
+- 사이드 패널 340px 고정. ~~sticky~~ → **grid `align-items:stretch`로 흐름 카드와 같은 높이**
+  ([admin-pipeline-design-system.md](admin-pipeline-design-system.md) §1-3 나란한 카드 정렬 규칙, Phase 4 개정) —
+  긴 attempts 테이블은 패널 내부 스크롤.
 - Task 흐름 컬럼: 기존 `overflow-x:auto` 유지 + 노드 폭 200→**172px 컴팩트** —
   1280px 뷰포트(사이드바 216 + 콘텐츠 패딩 64 제외 시 flow 컬럼 ≈ 648px)에서
   3노드(172×3+28×2=572px)까지 무스크롤, 4노드부터 가로 스크롤 허용.

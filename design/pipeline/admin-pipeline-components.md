@@ -203,7 +203,8 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 │ │ (FAILED면 error_code 요약을 이 행에 추가 노출)                    │ │
 │ └──────────────────────────────────────────────────────────────────┘ │
 │ ┌ TaskFlowChain (본문, 노드 172px) ────────┐ ┌ TaskDetailPanel ───┐ │
-│ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]  │ │ (우측 340px sticky) │ │
+│ │ [✔①TF권한]─▶[✔②SVC TF]─▶[▶③BDC Common]  │ │ (우측 340px,       │ │
+│ │                                          │ │  흐름 카드와 등고)   │ │
 │ │  DONE        DONE         IN_PROGRESS    │ │ 미선택: 안내문       │ │
 │ │ ─▶[○④BDC SvcLv] BLOCKED  (4+노드: 가로   │ │ FAILED: currentTask │ │
 │ │  스크롤, 각 노드 = P15 TaskNode)          │ │  자동 선택           │ │
@@ -237,7 +238,9 @@ TaskDetailPanel 내용 (kind 게이팅 §4.5g 동일):
 | `TaskFlowChain`(선형, 읽기 전용) = `TaskNode(P15)`×N + 커넥터 | seq/kind(=taskName)/operation/status(P3)/failCount/errorCode(FAILED만)/started·finished | ✅ |
 
 **Task 상세 패널** — 노드 클릭 → A5 `GET /pipelines/{id}/tasks/{taskId}` → `TaskDetail`.
-**우측 사이드 패널**(340px 고정·sticky, LIN-20 Round 5 — [admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md) §3 v2).
+**우측 사이드 패널**(340px 고정, 흐름 카드와 `stretch` 등고 — 정렬 규칙은
+[admin-pipeline-design-system.md](admin-pipeline-design-system.md) §1-3, LIN-20 Round 5→Phase 4 개정 —
+[admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md) §3 v2).
 초기 선택: 파이프라인이 `FAILED`면 `currentTask()`(§4.5(b))의 seq를 자동 선택, 그 외 **미선택이 기본**(패널에 안내문).
 
 | 컴포넌트 | 필드 | 표시 |

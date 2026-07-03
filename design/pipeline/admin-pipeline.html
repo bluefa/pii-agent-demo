@@ -6,7 +6,8 @@
 <title>Admin Pipeline — PII Admin</title>
 <style>
 /* ══ LIN-20 Modern Admin 리디자인 ══
-   토큰은 전부 CSS 변수 — 다크모드는 :root 오버라이드만 추가하면 되는 구조(이번 범위 밖). */
+   치수·표면 규칙: admin-pipeline-design-system.md (variant B: 다크 크롬 + 라이트 캔버스).
+   토큰은 전부 CSS 변수 — 콘텐츠 다크모드는 :root 오버라이드만 추가하면 되는 구조. */
 :root{
   /* neutral */
   --gray-50:#F9FAFB; --gray-100:#F2F4F7; --gray-200:#E4E7EC; --gray-300:#D0D5DD;
@@ -45,7 +46,7 @@ button{font-family:inherit}
 /* ── Icons (inline SVG sprite) ── */
 svg.ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
-svg.ic.sm{width:13px;height:13px;vertical-align:-2px}
+svg.ic.sm{width:14px;height:14px;vertical-align:-2px}
 svg.ic.lg{width:22px;height:22px}
 .hint{display:inline-flex;color:var(--text-faint);cursor:help;vertical-align:-2px}
 .hint svg.ic{width:14px;height:14px}
@@ -64,22 +65,22 @@ svg.ic.lg{width:22px;height:22px}
 .muted{color:var(--text-weak)}
 
 /* ── App shell ── */
-.topnav{height:52px;background:var(--bg-card);border-bottom:1px solid var(--border);
+.topnav{height:52px;background:#101828;border-bottom:1px solid #101828;
   display:flex;align-items:stretch;gap:4px;padding:0 24px;position:sticky;top:0;z-index:20}
-.topnav .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;margin-right:20px}
+.topnav .brand{color:#fff;font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;margin-right:20px}
 .topnav .brand::before{content:"";width:20px;height:20px;border-radius:6px;flex:none;
   background:linear-gradient(135deg,var(--primary),#7F56D9)}
-.topnav .nav-item{color:var(--text-weak);font-size:13px;font-weight:500;display:flex;align-items:center;
+.topnav .nav-item{color:#98A2B3;font-size:13px;font-weight:500;display:flex;align-items:center;
   padding:0 12px;border-bottom:2px solid transparent;cursor:default}
-.topnav .nav-item.active{color:var(--text-strong);font-weight:600;border-bottom-color:var(--primary)}
+.topnav .nav-item.active{color:#fff;font-weight:600;border-bottom-color:var(--primary)}
 .layout{display:flex;min-height:calc(100vh - 52px)}
-.sidebar{width:216px;flex:none;background:var(--bg-card);border-right:1px solid var(--border);padding:16px 12px}
+.sidebar{width:216px;flex:none;background:#101828;border-right:1px solid #101828;padding:16px 12px}
 .sidebar .sb-title{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-faint);
-  text-transform:uppercase;padding:8px 10px 10px}
-.sidebar .sb-item{display:block;padding:7px 10px;border-radius:6px;color:var(--text-medium);
+  text-transform:uppercase;padding:8px 10px 10px;color:#667085}
+.sidebar .sb-item{display:block;padding:7px 10px;border-radius:6px;color:#B9C0CC;
   font-size:13px;font-weight:500;cursor:pointer;margin-bottom:2px}
-.sidebar .sb-item:hover{background:var(--gray-100)}
-.sidebar .sb-item.active{background:var(--gray-100);color:var(--text-strong);font-weight:600;
+.sidebar .sb-item:hover{background:#1D2939}
+.sidebar .sb-item.active{background:#1D2939;color:#fff;font-weight:600;
   box-shadow:inset 2px 0 0 var(--primary)}
 .content{flex:1;padding:24px 32px 48px;min-width:0;max-width:1280px}
 .breadcrumb{font-size:12px;color:var(--text-weak);margin-bottom:12px}
@@ -108,6 +109,7 @@ svg.ic.lg{width:22px;height:22px}
 .stat .val .den{color:var(--text-faint);font-weight:500;font-size:20px}
 .stat .sub{margin-top:6px}
 .stat.unavailable .val{color:var(--text-faint)}
+.stat.failed .val{color:var(--err-text)} /* 실패 카운트>0일 때만 부여 — 비대칭 강조 */
 
 /* ── FieldTag ── */
 .ftag{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:600;
@@ -119,7 +121,7 @@ svg.ic.lg{width:22px;height:22px}
 
 /* ── Pills ── */
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600; /* role: t-micro */
-  padding:2px 9px 2px 8px;border-radius:999px;letter-spacing:.02em}
+  height:20px;padding:0 9px 0 8px;border-radius:999px;letter-spacing:.02em}
 .pill .dot{width:6px;height:6px;border-radius:50%}
 .pill.s-RUNNING,.pill.s-IN_PROGRESS{background:var(--info-bg);color:var(--info-text)}
 .pill.s-RUNNING .dot,.pill.s-IN_PROGRESS .dot{background:var(--info);animation:pulse 1.6s ease-in-out infinite}
@@ -144,13 +146,16 @@ svg.ic.lg{width:22px;height:22px}
 .pbar .track{display:block;width:110px;height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden}
 .pbar .fill{display:block;height:100%;background:var(--primary);border-radius:999px}
 .pbar.done .fill{background:var(--ok)}
-.pbar .lbl{font-size:11.5px;font-weight:500;color:var(--text-weak);font-variant-numeric:tabular-nums}
+/* 바 색 = 상태색 문법 (게이트 B P1-1: FAILED가 RUNNING과 같은 파랑이면 "진행 중"으로 오독) */
+.pbar.s-FAILED .fill{background:var(--err)}
+.pbar.s-CANCELLED .fill{background:var(--off)}
+.pbar .lbl{font-size:12px;font-weight:600;color:var(--text-weak);font-variant-numeric:tabular-nums} /* role: t-key */
 
 /* ── Table ── */
 .tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl th{text-align:left;font-size:11px;font-weight:600;color:var(--text-weak);letter-spacing:.03em;
-  padding:6px 12px 8px;border-bottom:1px solid var(--border)}
-.tbl td{padding:11px 12px;border-bottom:1px solid var(--gray-100);color:var(--text-medium);
+  height:34px;padding:0 12px;border-bottom:1px solid var(--border)}
+.tbl td{height:44px;padding:8px 12px;border-bottom:1px solid var(--gray-100);color:var(--text-medium);
   vertical-align:middle;font-variant-numeric:tabular-nums}
 .tbl tbody tr:last-child td{border-bottom:0}
 .tbl tr.click{cursor:pointer}
@@ -165,17 +170,17 @@ svg.ic.lg{width:22px;height:22px}
 .searchbox svg.ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;
   color:var(--text-faint);pointer-events:none}
 .searchbox .input{padding-left:30px;width:100%}
-.input,select.sel{height:34px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);padding:0 10px;
+.input,select.sel{height:32px;border:1px solid var(--border-strong);border-radius:var(--r-ctl);padding:0 10px;
   font-size:13px;background:var(--bg-card);color:var(--text-strong);font-family:inherit}
 .input::placeholder{color:var(--text-faint)}
 .input:focus,select.sel:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
 .seg{display:inline-flex;background:var(--gray-100);border-radius:var(--r-ctl);padding:2px}
-.seg button{border:0;background:transparent;padding:4px 12px;border-radius:6px;font-size:12px;
+.seg button{border:0;background:transparent;height:28px;padding:0 12px;border-radius:6px;font-size:12px;
   font-weight:600;color:var(--text-weak);cursor:pointer}
 .seg button.on{background:var(--bg-card);color:var(--text-strong);box-shadow:var(--shadow-xs)}
 
 /* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 14px;
   border-radius:var(--r-ctl);font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;
   transition:background .12s,border-color .12s,color .12s}
 .btn:disabled{cursor:not-allowed}
@@ -214,7 +219,7 @@ details.collap>.body{padding:0 14px 14px}
 
 /* ── Task flow ── */
 .flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:2px}
-.tnode{flex:none;width:172px;border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;
+.tnode{flex:none;width:172px;height:164px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;
   background:var(--bg-card);cursor:pointer;position:relative;transition:border-color .12s,box-shadow .12s}
 .tnode:hover{border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
 .tnode.sel{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
@@ -229,18 +234,19 @@ details.collap>.body{padding:0 14px 14px}
 .tnode .ticon.s-FAILED{background:var(--err-bg);color:var(--err-text)}
 .tnode .ticon.s-BLOCKED{background:var(--off-bg);color:var(--text-faint)}
 .tnode .ticon.s-CANCELLED{background:var(--off-bg);color:var(--off-text)}
-.tnode .nm{font-size:13px;font-weight:600;margin:8px 0;color:var(--text-strong);line-height:1.4}
-.tnode .meta{font-size:11px;color:var(--text-weak);margin-top:8px;line-height:1.4;min-height:14px}
-.kindchip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:600; /* role: t-micro */padding:2px 6px;
+.tnode .nm{font-size:13px;font-weight:600;margin:8px 0;color:var(--text-strong);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tnode .meta{font-size:11px;color:var(--text-weak);margin-top:auto;padding-top:8px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.kindchip{display:inline-flex;flex:none;align-items:center;font-size:10.5px;font-weight:600; /* role: t-micro */height:20px;padding:0 6px;
   border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
-.kindchip.cond{background:var(--info-bg);color:var(--info-text)}
+.kindchip.cond{background:var(--off-bg);color:var(--text-medium);border:1px dashed var(--gray-300)} /* kind=분류 정보 — 파랑(상태·액션)과 분리, tnode.cond의 dashed 문법 공유 */
 .connector{flex:none;width:28px;display:flex;align-items:center;justify-content:center;color:var(--gray-300)}
 #taskdetail>.card{margin-top:0}
 
 /* ── Pipeline status bar + side panel (IA v2, admin-pipeline-detail-ia.md §3) ── */
 .statusbar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
   box-shadow:var(--shadow-xs);padding:14px 18px;display:flex;flex-direction:column;gap:8px}
-.statusbar.failed{box-shadow:inset 3px 0 0 var(--err),var(--shadow-xs)}
+.statusbar.failed{background:linear-gradient(135deg,#FFF1F0,#FFFFFF 55%);border-color:#F4B3AD;box-shadow:var(--shadow-xs)}
+.statusbar.failed .pill.lg{box-shadow:0 0 0 1px var(--err-border)}
 .sb-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .sb-cur{font-size:13px;font-weight:600;color:var(--text-medium)}
 .sb-err{font-family:var(--font-mono);font-size:12.5px;color:var(--err-text);background:var(--err-bg);
@@ -248,11 +254,13 @@ details.collap>.body{padding:0 14px 14px}
 .sb-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-weak)}
 .sb-meta .sep{color:var(--gray-300)}
 .statusbar .pbar .track{width:160px}
-.pill.lg{font-size:12.5px;padding:5px 12px 5px 10px}
+.pill.lg{height:28px;font-size:12.5px;padding:0 12px 0 10px}
 .pill.lg .dot{width:8px;height:8px}
-.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start;margin-top:12px}
-.sidepanel{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow-y:auto;min-width:0}
-.sidepanel>.card{margin-top:0;padding:16px;overflow-x:auto}
+.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:stretch;margin-top:12px}
+.detail-grid>.card{min-height:300px}
+.sidepanel{min-width:0}
+.sidepanel>.card{margin-top:0;padding:16px;height:100%;min-height:300px}
+.tblwrap{overflow-x:auto} /* 넘치는 건 표만 — 카드 전체가 밀리지 않게 */
 .sidepanel .tbl th{padding:4px 8px 6px}
 .sidepanel .tbl td{padding:8px}
 
@@ -286,7 +294,7 @@ details.collap>.body{padding:0 14px 14px}
 #svclist .sb-item:hover{background:var(--gray-100)}
 #svclist .sb-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600}
 .two-col{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:stretch}
-.two-col>.card{min-height:420px}
+.two-col>.card{min-height:420px;margin-top:0}
 .meta-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 .meta-2>.card{margin-top:0}
 .notice{background:var(--bg-inner);border:1px solid var(--border);color:var(--text-weak);font-size:12px;
@@ -522,7 +530,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ic = (name,cls='ic')=>`<svg class="${cls}" aria-hidden="true"><use href="#${name}"/></svg>`;
 const provTag = (prov,external)=>`<span class="ptag pv-${prov} ${external?'external':''}"><span class="pdot"></span>${PROVIDERS[prov]||prov}${external?' <span class="ftag ext">외부</span>':''}</span>`;
 const pill = (status)=>`<span class="pill s-${status}"><span class="dot"></span>${status}</span>`;
-const progressBar = (n,m)=>`<span class="pbar${m&&n===m?' done':''}"><span class="track"><span class="fill" style="width:${m?Math.round(n/m*100):0}%"></span></span><span class="lbl">${n}/${m}</span></span>`;
+const progressBar = (n,m,status)=>`<span class="pbar${m&&n===m?' done':''}${status?` s-${status}`:''}"><span class="track"><span class="fill" style="width:${m?Math.round(n/m*100):0}%"></span></span><span class="lbl">${n}/${m}</span></span>`;
 const naTag = '<span class="ftag na">미제공</span>';
 
 /* =========================================================================
@@ -647,8 +655,8 @@ function renderPeriod(root){
   const s=PERIOD_STATS[dashPeriod];
   const p=root.querySelector('#period'); p.innerHTML='';
   p.append(
-    el(`<div class="stat range"><div class="lbl">Running</div><div class="val">${s.running}</div></div>`),
-    el(`<div class="stat range"><div class="lbl">실패 (FAILED)</div><div class="val">${s.failed}</div></div>`),
+    el(`<div class="stat range"><div class="lbl">실행 중 (RUNNING)</div><div class="val">${s.running}</div></div>`),
+    el(`<div class="stat range${s.failed>0?' failed':''}"><div class="lbl">실패 (FAILED)</div><div class="val">${s.failed}</div></div>`),
     el(`<div class="stat range"><div class="lbl">성공 (DONE)</div><div class="val">${s.done}</div></div>`),
   );
 }
@@ -669,7 +677,7 @@ function renderList(root){
       <td class="mono">${esc(p.target)}</td>
       <td>${provTag(p.provider,true)}</td>
       <td>${pill(p.status)}</td>
-      <td>${progressBar(progressN(p),progressM(p))}</td>
+      <td>${progressBar(progressN(p),progressM(p),p.status)}</td>
       <td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>${
     pages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
       <button class="btn ghost sm" ${dashPage<=1?'disabled':''} id="prev">${ic('i-chev-l','ic sm')} 이전</button>
@@ -784,7 +792,7 @@ function viewTarget(id){
         <span class="mono" style="font-weight:600;font-size:14px">#${latest.id}</span>
         <span class="meta">${esc(latest.type)}</span>${pill(latest.status)}
       </div>
-      <div class="mt-16 vrow" style="gap:8px">${progressBar(progressN(latest),progressM(latest))}
+      <div class="mt-16 vrow" style="gap:8px">${progressBar(progressN(latest),progressM(latest),latest.status)}
         <span class="meta">생성 ${esc(latest.createdAt)}</span></div>
       <button class="btn ghost sm mt-16" data-nav="#/pipeline/${latest.id}">상세 보기 ${ic('i-chev-r','ic sm')}</button>`;
   }else{
@@ -798,7 +806,7 @@ function viewTarget(id){
   const hslice=ids.slice((histState.page-1)*PAGE_SIZE, histState.page*PAGE_SIZE);
   if(ids.length){
     hist.innerHTML=`<table class="tbl"><thead><tr><th>#</th><th>유형</th><th>상태</th><th>진행</th><th>생성일</th><th></th></tr></thead><tbody>${
-      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p))}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>${
+      hslice.map(p=>`<tr class="click" data-pid="${p.id}"><td class="mono">#${p.id}</td><td>${esc(p.type)}</td><td>${pill(p.status)}</td><td>${progressBar(progressN(p),progressM(p),p.status)}</td><td class="muted">${esc(p.createdAt)}</td><td class="chev">${ic('i-chev-r','ic sm')}</td></tr>`).join('')}</tbody></table>${
       hpages>1?`<div class="filterbar" style="justify-content:flex-end;margin-top:16px">
         <button class="btn ghost sm" ${histState.page<=1?'disabled':''} id="hprev">${ic('i-chev-l','ic sm')} 이전</button>
         <span class="pager-count">${histState.page} / ${hpages}</span>
@@ -849,7 +857,7 @@ function viewPipeline(id){
     <div class="statusbar${p.status==='FAILED'?' failed':''}">
       <div class="sb-main">
         <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
-        ${progressBar(progressN(p),progressM(p))}
+        ${progressBar(progressN(p),progressM(p),p.status)}
         <span class="sb-cur">${curLabel}</span>
         ${failedTask&&failedTask.errorCode?`<span class="sb-err" title="seq ${failedTask.seq} · ${esc(failedTask.operation)}">${esc(failedTask.errorCode)}</span>`:''}
         <span class="vrow" style="margin-left:auto;gap:8px">
@@ -928,8 +936,8 @@ function renderTaskDetail(root,p){
       </div>`:`<div class="empty">아직 폴링 기록 없음</div>`);
   }else{
     detail=`<div class="subsection-title">Attempts <span class="meta">TERRAFORM_JOB</span></div>`+
-      (t.attempts&&t.attempts.length?`<table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response (원시 text)</th></tr></thead><tbody>${
-        t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode?esc(a.errorCode):'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table>
+      (t.attempts&&t.attempts.length?`<div class="tblwrap"><table class="tbl"><thead><tr><th>#</th><th>상태</th><th>error_code</th><th>시각</th><th>response (원시 text)</th></tr></thead><tbody>${
+        t.attempts.map(a=>`<tr><td>${a.attemptNo}</td><td>${pill(a.status)}</td><td>${a.errorCode?esc(a.errorCode):'-'}</td><td class="muted">${a.at}</td><td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.response)}">${esc(a.response)}</td></tr>`).join('')}</tbody></table></div>
         <div class="meta" style="margin-top:8px">job_ids · dispatch_response_* 는 제거된 필드 — job id는 response 원시 text 안에 있습니다.</div>`
       :`<div class="empty">아직 시도 없음 (BLOCKED)</div>`);
   }

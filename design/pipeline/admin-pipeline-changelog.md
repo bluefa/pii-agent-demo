@@ -4,6 +4,45 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 6 — LIN-20 B1: Phase 4 — variant B(다크 크롬) + 사이징 스케일 적용
+
+계약 문서: [design-process.md](design-process.md)(프로세스)·
+[admin-pipeline-design-system.md](admin-pipeline-design-system.md)(치수·표면·금지 목록).
+오너 결정: Phase 0 캐릭터 = n8n(구조)+Linear(표면), Phase 3 variant = **B 선택**.
+
+**사이징 정렬** (design-system §1 — 실측 결함 7건 해소, 26치환+수정 2건 전부 제자리 편집)
+- 컨트롤 높이 3단 고정: `.input`/`select`/`.btn` **32** · `.btn.sm`/`.seg button`/`.pill.lg` **28** ·
+  `.pill`/`.kindchip` **20** (kindchip `flex:none` — tnode flex 안 수축 방지)
+- 고정 리듬: 아이콘 sm 13→**14**, 테이블 th **34**/td **44**, Task 노드 **높이 164 고정**
+  (flex column, nm·meta 2줄 클램프 — 전문은 사이드 패널 몫)
+- 나란한 카드 등고: `.detail-grid` sticky→**stretch**(+`min-height:300px`),
+  `.two-col` 카드 `margin-top:0`(그리드 안 `.card+.card` 마진 누출 수정) —
+  detail-ia.md·components.md의 sticky 계약 동시 개정
+
+**variant B — 다크 크롬 + 라이트 캔버스** (design-system §2)
+- 탑네비·사이드바 **#101828 다크** (brand/nav/active/hover 색 재정의, active 인디케이터 유지)
+- FAILED 상태 바: inset 좌측 바 → **붉은 틴트 표면**(gradient)+보더, pill.lg 1px 링
+- 헤더 주석을 design-system.md 참조로 갱신
+
+**검증** (Phase 4 게이트)
+- 게이트 A(기계): 치수 audit 스크립트 4페이지 — 초회 위반 2건(two-col 12px 차·kindchip 19px)
+  수정 후 **전 페이지 PASS**. §4.5 스팟체크(FAILED 자동선택·취소 매트릭스·N/M) OK, JS 에러 0
+- 게이트 B(비평): fresh-eyes 비전 에이전트가 렌더 4페이지 직접 관찰·채점 —
+  R1: P0 0 / **P1 5** → 전건 수정 후 R2 재검증:
+  ① FAILED/CANCELLED 진행 바가 RUNNING과 같은 파랑("진행 중" 오독) → progressBar에
+  status 인자, `.pbar.s-FAILED .fill` err 색 (바 색=상태색 문법 완성)
+  ② 실패 stat 값이 성공과 같은 무채색 → failed>0일 때만 err-text 조건부 틴트
+  ③ CONDITION_CHECK kindchip이 primary 파랑(상태 IN_PROGRESS와 등가로 오독,
+  anti-slop §3-7) → 무채 + dashed 보더(tnode.cond 문법 공유)
+  ④ 사이드 패널 카드 전체 가로 스크롤(kv·제목까지 밀림) → Attempts 표만
+  `.tblwrap` 내부 스크롤
+  ⑤ `.pbar .lbl` 11.5px/500 = 9롤 밖 → 12px/600 (t-key)
+  (+P2: stat 레이블 "Running"→"실행 중 (RUNNING)" 언어 통일)
+  **R2: 5건 해소 + 회귀 없음 확인 → PASS.** 잔여 P2 백로그(비차단):
+  Attempts 시각 열 기본 절단(error_code ellipsis로 해결 가능) ·
+  count-bound 주석 중간 개행 · 노드 상태 아이콘 형태 통일(원형)
+- 게이트 C(오너): before/after 승인 후 커밋
+
 ## Round 5 — LIN-20 B1: 파이프라인 상세 IA v2 + 타이포그래피 스펙 적용
 
 계약 문서: [admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md)(레이아웃)·

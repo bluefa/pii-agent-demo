@@ -30,7 +30,7 @@ input 34 vs seg 23(11px 차), 상태 바에서 pill.lg 29 vs 취소 버튼 28(1p
 
 | 항목 | 값 |
 |---|---|
-| 아이콘 | 16(기본) / **14(sm·hint·검색)** — 13px 금지 |
+| 아이콘 | 16(기본) / **14(sm·hint·검색)** / 12(20px 원형 칩 내부 글리프·collapsible chevron 전용) — 13px 금지 |
 | 테이블 | th 34, td 44 고정 (43/44.5/45 혼재 금지) |
 | Task 노드 | **높이 164 고정** — 콘텐츠 의존 금지. nm 2줄·meta 2줄 클램프, 전문은 사이드 패널이 담당 |
 | radius | card 10 / inner·ctl 8 / 배지 4 / pill 999 (variant C는 8/6/6) |
