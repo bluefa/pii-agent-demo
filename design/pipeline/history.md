@@ -44,3 +44,34 @@
 3. h1 "파이프라인 #128"(식별자)이 최상단 강조인 게 의문 — **상태를 보러 들어온 페이지**
 
 → 정보 인벤토리 + 강조 계층 제안: [admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md)
+
+후속 결정 (오너):
+
+- v1 문서형 배치(hero 카드 → 컨텍스트 밴드 → 흐름 → 하단 상세) 기각 —
+  "Task 흐름과 현재 상태/CTA가 강조되어야" 피드백
+- **n8n 실행 화면 참조로 v2 확정**: 슬림 상태 바(상태+진행+CTA 상주) + Task 흐름 본문 +
+  Task 상세 우측 사이드 패널 + 하단 접힘 각주(CSP kv, ADR-021) — IA 문서 §3 v2 반영
+
+## 진행 중 — 타이포그래피 스펙 (Round 5 선행 작업)
+
+폰트·층위별 크기·층위 간 거리·자간이 미정이라는 오너 지적 → 조사 후 스펙 문서 작성:
+[admin-pipeline-typography.md](admin-pipeline-typography.md)
+
+- 근거: App 실측 — Geist(next/font, 라틴 전용) + 한글 폴백(Apple SD Gothic Neo/Pretendard),
+  전역 자간 -0.018em, `00-tokens.md`의 ds-* 스케일 / 한글 자간 관행(큰 사이즈 음수,
+  11px 이하 0~양수) / 어드민 13px 본문 관행
+- 선언: 9개 타입 롤(26/18/14/13/12/11/10.5 + mono 12.5, kv key 전용 t-key 12), IA 층위(L1~L5) 매핑,
+  3단 거리 체계(4~6/8~12/24, 섹션 제목 위 24·아래 10 비대칭), tabular-nums 규칙
+- Round 4에서 제거했던 Geist 스택 선언은 **App 정렬 관점에서 복원 예정** (외부 의존성 0 유지 —
+  로컬 미설치 시 시스템 고딕 폴백)
+
+### Codex 크로스 리뷰 (gpt-5.5 xhigh, 6라운드 → MERGE-READY)
+
+- R1: P1×3+P2×1 — FAILED 자동 선택의 상태 규칙 미정의 / 사이드 패널 폭·오버플로 규칙 미정의 /
+  "D1 1:1 변환" 주장 과장(컴팩트 스케일 명시+매핑 표 필요) / 한글 11px 레이블 과공격(t-key 분리)
+- R2~R5: 수정 검증 + 잔존 충돌 소탕 — IA v2와 **components.md(권위 계약)의 v1 잔재**
+  (하단 상세/인패널 표현, 15px/-0.018em 타이포 선언, §4.4 스케치·컴포넌트 표,
+  PipelineMetaPanel 명칭·A4 API 맵) 순차 개정
+- R6: 3문서(components/detail-ia/typography)가 단일 구현 계약임을 확인 — **MERGE-READY yes**
+- 교훈: IA 변경은 스케치·표·파생식 제목·API 맵까지 **권위 문서 전체를 함께 개정**해야 함
+  (부분 개정은 경합 계약을 남김)
