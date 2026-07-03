@@ -56,9 +56,12 @@ Pipeline:  PENDING ──▶ RUNNING ─────────────▶ 
 `PENDING` — the fast path; and a `PENDING` pipeline can go straight to `CANCELLED` without ever
 passing through `RUNNING` — an idle-cancel, ADR-021 Decision 6 Case A.)
 
-**Why `PENDING` exists.** A pipeline may be created with a **start delay** — a configured grace
-period before it should begin (the `pipeline.start-delay` knob; a delay of zero means "start
-now"). Before this state a start-delayed pipeline was created directly as `RUNNING` with
+**Why `PENDING` exists.** A pipeline may be created with a **start delay** — a grace period before
+it should begin. The delay is a **creation-time input sourced from server configuration**
+(`pipeline.start-delay`, a deployment default such as 15 s, applied by the creator when it seeds
+`next_due_at`); this ADR does **not** model it as an API-mutable per-request field, and a
+configured delay of zero means "start now" (the `startDelay == 0` fast path below). Before this
+state a start-delayed pipeline was created directly as `RUNNING` with
 `next_due_at = now + startDelay`, so throughout the delay window it *looked* like it was executing
 when it was really only waiting — an operator dashboard could not tell "delay-waiting" from
 "actively running." `PENDING` makes that wait a **first-class, filterable state**.

@@ -474,7 +474,7 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 - **PENDING pipeline count** — current `status = 'PENDING'` row count (start-delayed, not yet
   first-claimed — a row may already be due yet awaiting pickup under cap/worker pressure); tracked
   separately from RUNNING so "not yet started" is distinguishable from "actively executing"
-- **pipeline-cap overshoot count** — admissions above `runningPipelineCap`
+- **pipeline-cap overshoot count** — claims admitted above `runningPipelineCap`
 - **empty-claim rate** — fraction of claim polls that returned no row
 - **claim QPS** — claim-poll throughput
 - **claim latency** — p50/p99 duration of the tx1 claim query
