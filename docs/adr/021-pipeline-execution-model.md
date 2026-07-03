@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed — 2026-06-27 (revised 2026-07-01: condition rebased from `ttl` to a retry count; see Revision history).
+Proposed — 2026-06-27 (revised 2026-07-01: condition rebased from `ttl` to a retry count;
+revised 2026-07-03: `PENDING` start-delay wait state, `PENDING → RUNNING` at claim — LIN-30; see Revision history).
 
 This is the **execution half** of the install/delete pipeline design: how the durable state
 machine of [ADR-016](016-install-delete-pipeline-domain-model.md) is actually driven forward.
@@ -49,7 +50,7 @@ this ADR is how those mechanisms work.
 |---|---|---|
 | **One owner per pipeline at a time** | `FOR UPDATE SKIP LOCKED` claim + lease stamp | Decision 2 |
 | **No stale clobber** (an expired-lease straggler can't overwrite state) | ownership-guarded write-back `WHERE claimed_by = :claim_token` + a fresh per-claim fencing token | Decision 2, 4 |
-| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (so **no `status` guard is needed**) | Decision 4, 6 |
+| **No terminal resurrection** (a `CANCELLED`/`DONE` pipeline never reverts) | ownership-guarded write-back + exactly one `status` writer per cancel case (the claim holder, which also applies `PENDING → RUNNING`) — so **no `status` guard is needed** | Decision 2, 4, 6 |
 | **At-least-once is correct** (a duplicate dispatch is harmless) | infra-idempotency: TF APIs are duplicate-harmless | ADR-016 §5 |
 | **Crash recovery** (a dead worker's pipeline resumes) | lease expiry → reclaim by the next scan; no leader, no journal | Decision 5 |
 | **Completion survives a lost result** | code-level `check(attempt, task)` over the latest attempt; a lost `TERRAFORM_JOB` result → `executionTimeout` → fresh idempotent re-dispatch (a condition's lost poll heals via lease-expiry reclaim, then re-polls) | Decision 4, ADR-016 §5, §6 |
@@ -68,8 +69,8 @@ touching any external system:
 
 ```sql
 BEGIN;
-SELECT id FROM pipeline
- WHERE status = 'RUNNING'
+SELECT id, status FROM pipeline
+ WHERE status IN ('RUNNING', 'PENDING')
    AND next_due_at <= now()
    AND (claimed_until IS NULL OR claimed_until < now())
  ORDER BY next_due_at
@@ -77,10 +78,26 @@ SELECT id FROM pipeline
  FOR UPDATE SKIP LOCKED;
 UPDATE pipeline
    SET claimed_by = :claim_token,
-       claimed_until = now() + (:lease_seconds * interval '1 second')
+       claimed_until = now() + (:lease_seconds * interval '1 second'),
+       status = 'RUNNING'          -- PENDING → RUNNING; a no-op when the row is already RUNNING
  WHERE id = :pipeline_id;
 COMMIT;
 ```
+
+**The claim predicate spans both non-terminal states.** A start-delayed pipeline sits in
+`PENDING` until its delay elapses (ADR-016 Decision 2); once `next_due_at <= now()` it becomes
+claimable exactly like a `RUNNING` one, so the predicate is `status IN ('RUNNING', 'PENDING')`.
+
+**`PENDING → RUNNING` is applied inside the claim transaction (tx1), not the report (tx2).**
+The same `UPDATE` that stamps `claimed_by`/`claimed_until` also sets `status = 'RUNNING'` (a
+no-op for a row already `RUNNING`), so a claimed pipeline is `RUNNING` the instant a live lease
+exists. *Why tx1, not tx2:* it preserves this ADR's invariant that **the claim holder is the only
+writer of `status`**, and — because the transition lands atomically with the claim — there is
+never a "live claim but still `PENDING`" window. Deferring the transition to tx2 (the first
+report) would open exactly that window, and it would break cancel: Case A's guard would reject
+the row (a live lease is held) while Case B's `status = 'RUNNING'` guard would also reject it
+(still `PENDING`), so the cancel would land nowhere and be silently lost. Doing it in tx1 closes
+the window and lets the existing cancel guards stand with the minimal change (Decision 6).
 
 `SKIP LOCKED` ensures two workers racing the same scan claim different pipelines without
 blocking each other. The `claimed_by` / `claimed_until` stamp — not a process count — is what
@@ -221,14 +238,17 @@ applies `CANCELLED`. Neither ever shares a live claim token with a worker's tx2,
 `status` guard is needed**.
 
 **Case A — the pipeline is NOT being run (no claim, or the lease has expired): cancel immediately.**
-This is the common "waiting / not yet picked up" pipeline. The API path terminates it directly,
-in its own transaction, with no worker round-trip:
+This is the common "waiting / not yet picked up" pipeline. A **`PENDING` (start-delayed) pipeline
+is always Case A** — it has no live claim by construction (its `PENDING → RUNNING` transition is
+performed *by* a claim, Decision 2), so it can never be under a live lease while `PENDING`. The
+API path terminates it directly, in its own transaction, with no worker round-trip:
 
 ```sql
 -- A1: terminate the pipeline AND clear the claim (so an expired-lease straggler's tx2 fails
---     its claimed_by guard); fires only when no live worker owns the row
+--     its claimed_by guard); fires only when no live worker owns the row.
+--     The guard spans both non-terminal states so a PENDING pipeline is cancellable here.
 UPDATE pipeline SET status = 'CANCELLED', claimed_by = NULL, claimed_until = NULL
- WHERE id = :pid AND status = 'RUNNING'
+ WHERE id = :pid AND status IN ('RUNNING', 'PENDING')
    AND (claimed_by IS NULL OR claimed_until < now());
 -- A2: terminalize every non-terminal task (runs only if A1 updated a row)
 UPDATE task SET status = 'CANCELLED'
@@ -244,6 +264,14 @@ UPDATE pipeline SET cancel_requested = true, next_due_at = now()
  WHERE id = :pid AND status = 'RUNNING';
 ```
 
+**Case B's guard stays `status = 'RUNNING'` — it deliberately does *not* add `PENDING`.** Any
+pipeline under a live lease has already been transitioned to `RUNNING` by its claim (Decision 2:
+the transition is in tx1, atomic with the lease stamp). So a live-lease pipeline is never
+`PENDING`, and a `PENDING` pipeline never has a live lease — it is picked up by Case A above.
+Widening Case B to `PENDING` would guard against a state that cannot co-occur with a live claim.
+This is the payoff of putting the transition in tx1: the two cancel guards partition cleanly —
+Case A owns `PENDING`, Case B owns live-lease `RUNNING` — with no overlap window.
+
 The claim-holding worker reads `cancel_requested` at its safe points — right after claiming,
 before dispatch, and inside the report transaction (tx2) — and if set, terminalizes **every
 non-terminal task** (the current task plus any still-`BLOCKED` successors) and the pipeline to
@@ -252,9 +280,20 @@ once the live claim releases. (A condition merely sleeping between polls holds n
 cancelled immediately by Case A, not here.)
 
 **Why both cases are race-free:**
-- **vs a concurrent claim** — both contend on the pipeline row, so whichever commits first wins:
-  a claim no longer sees `RUNNING` once Case A cancelled it; Case A's `A1` no longer sees a free
-  claim once a worker claimed it (so it updates 0 rows and falls through to Case B).
+- **vs a concurrent claim** — both contend on the same pipeline row (the claim via
+  `FOR UPDATE SKIP LOCKED`, Case A via its plain `UPDATE`), so they serialize and whichever
+  commits first wins: a claim no longer sees a `RUNNING`/`PENDING` row once Case A cancelled it;
+  Case A's `A1` no longer sees a free claim once a worker claimed it (so it updates 0 rows and
+  falls through to Case B).
+- **vs a claim that transitions `PENDING → RUNNING` (Decision 2, tx1)** — the same serialization
+  holds and terminal resurrection stays impossible either way. If **tx1 commits first**, the row
+  is `RUNNING` with a live lease; Case A's `A1` then finds `(claimed_by IS NULL OR expired)`
+  false, updates 0 rows, and falls through to Case B — cooperative cancel, applied by the claim
+  holder. If **Case A commits first**, the row is `CANCELLED` with the claim cleared; tx1 either
+  skipped the locked row (`SKIP LOCKED`) or, if it already held the lock, blocks then re-reads
+  `status = 'CANCELLED' ∉ ('RUNNING', 'PENDING')` and claims nothing. The claim predicate's
+  `status IN (...)` and Case A's guard both exclude terminal rows, so neither path can revive a
+  terminal pipeline — the same argument as the `RUNNING`-only case, now covering `PENDING`.
 - **vs an expired-lease straggler** — Case A fires only when the claim is null/expired and
   **clears `claimed_by`/`claimed_until`** in the same statement, so a GC-paused straggler that
   resumes finds its token gone and its tx2 `claimed_by` guard no-ops — no resurrection. This is
@@ -281,10 +320,11 @@ Their exact values live in operational config, not in this ADR:
   distinct effects: (1) the **guarded write** prevents the stale straggler from clobbering DB
   state; (2) **idempotency (ADR-016)** makes the duplicate *external call* to InfraManager
   harmless. Neither causes corruption, but redundant InfraManager calls consume quota.
-- **Claim-predicate index** — the claim predicate (`status='RUNNING' AND next_due_at <= now()
-  AND (claimed_until IS NULL OR claimed_until < now())`) needs a supporting index; without one,
-  every claim degrades to a full sequential scan + sort under concurrent multi-worker polling.
-  A partial btree index on `(next_due_at) WHERE status = 'RUNNING'` covers the hot path.
+- **Claim-predicate index** — the claim predicate (`status IN ('RUNNING','PENDING') AND
+  next_due_at <= now() AND (claimed_until IS NULL OR claimed_until < now())`) needs a supporting
+  index; without one, every claim degrades to a full sequential scan + sort under concurrent
+  multi-worker polling. A partial btree index on `(next_due_at) WHERE status IN
+  ('RUNNING','PENDING')` covers the hot path.
 - **Terraform-job concurrency cap (`slotCap`)** — the soft gate behavior is defined in
   Decision 7; hard-cap enforcement (counter-CAS) remains deferred. InfraManager's fixed pool
   is the real ceiling; over-submission only deepens its idempotent queue.
@@ -299,12 +339,20 @@ Their exact values live in operational config, not in this ADR:
 ### 7. Admission control and TF slot gate (soft caps)
 
 **`runningPipelineCap`** is a **soft pickup target**, not a hard invariant, and it gates
-**claiming, not creation.** Pipeline creation enforces only per-target uniqueness (ADR-016) —
-a created pipeline enters `RUNNING` immediately. The cap limits how many `RUNNING` pipelines
-are **concurrently claimed for work**: before claiming beyond the cap, a worker checks the
-count of actively-claimed pipelines. Pipelines over the cap simply stay **unclaimed in
-`RUNNING`** and are picked up later via `next_due_at` ordering as slots free — there is **no
-`QUEUED` or `WAITING_SLOT` state**. The check is a count-read, so it can **overshoot**: for cap
+**claiming, not creation.** Pipeline creation enforces only per-target uniqueness (ADR-016); its
+initial status is set **solely by the start delay**, not by admission: `startDelay > 0` creates
+the pipeline `PENDING` — transitioned to `RUNNING` by the first claim once the delay elapses
+(Decision 2) — and `startDelay == 0` creates it `RUNNING` immediately, the prior fast path,
+unchanged.
+
+**`PENDING` is a start-delay timer, not an admission queue.** These are different axes. `PENDING`
+is a wait on a *time* (`next_due_at`); when that time arrives the pipeline is simply
+claim-eligible, transitioning to `RUNNING` in the claim itself. It is **not** a slot- or
+admission-wait — there is still **no `QUEUED` or `WAITING_SLOT` state**, and a pipeline over the
+soft cap is never parked in a distinct status. The cap limits how many pipelines (`RUNNING`, or
+`PENDING` whose delay has elapsed) are **concurrently claimed for work**: before claiming beyond
+the cap, a worker checks the count of actively-claimed pipelines. Pipelines over the cap simply
+stay **unclaimed** and are picked up later via `next_due_at` ordering as slots free. The check is a count-read, so it can **overshoot**: for cap
 `M` and `C` concurrent claiming workers, worst-case concurrently-claimed is `M + C − 1`. This
 bounded overshoot is **accepted in V1**. A hard cap would require atomic admission (e.g.
 `UPDATE pipeline_admission_counter SET used = used + 1 WHERE used < cap`, released on
@@ -333,7 +381,7 @@ so pod count needs no governance here.
 
 ```
 loop:
-  row = claim_one_due_pipeline()          // tx1: SKIP LOCKED + lease stamp
+  row = claim_one_due_pipeline()          // tx1: SKIP LOCKED + lease stamp (+ PENDING → RUNNING)
   if row is None:
     sleep(backoff_with_jitter())
     continue
@@ -415,7 +463,10 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
 - **active workers** — worker threads currently executing a step
 - **total worker count** — `activePodCount × workerPerPod`
 - **concurrent API calls** — in-flight external calls to InfraManager / condition checks
-- **RUNNING pipeline count** — current `status = 'RUNNING'` row count
+- **RUNNING pipeline count** — current `status = 'RUNNING'` row count (excludes `PENDING`)
+- **PENDING pipeline count** — current `status = 'PENDING'` row count (start-delayed, not yet
+  claimed); the two non-terminal counts are tracked separately so "waiting on a start delay" is
+  distinguishable from "actively executing"
 - **pipeline-cap overshoot count** — admissions above `runningPipelineCap`
 - **empty-claim rate** — fraction of claim polls that returned no row
 - **claim QPS** — claim-poll throughput
@@ -453,3 +504,9 @@ Required relationship: `leaseDuration > maxApiCallTimeout + poolQueueWait + safe
   `CONDITION_CHECK` poll is one attempt, failed polls (not-met or check-error) reschedule at
   `polling_interval`, `executionTimeout` is `TERRAFORM_JOB`-only, and a lost condition poll heals
   via lease-expiry reclaim rather than a fresh schedule.
+- 2026-07-03: introduce the `PENDING` start-delay wait state; `PENDING → RUNNING` at claim
+  (LIN-30). Claim predicate and its index widen to `status IN ('RUNNING','PENDING')`; tx1 applies
+  the transition atomically with the lease stamp so the claim holder stays the sole `status`
+  writer; Case A cancel guard widens to include `PENDING` while Case B stays `RUNNING`-only
+  (a live-lease pipeline is already `RUNNING`); Decision 7 restated (creation status set by start
+  delay, `PENDING` is a start-delay timer not an admission queue); PENDING pipeline metric added.

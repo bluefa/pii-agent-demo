@@ -2,7 +2,8 @@
 
 ## Status
 
-Proposed — 2026-06-27 (revised 2026-07-01: `CONDITION_CHECK` bounded by a retry count, not `ttl`).
+Proposed — 2026-06-27 (revised 2026-07-01: `CONDITION_CHECK` bounded by a retry count, not `ttl`;
+revised 2026-07-03: introduce the `PENDING` start-delay wait state, `PENDING → RUNNING` at claim — LIN-30).
 
 The **domain half** of the install/delete pipeline design: the durable state, data model,
 uniqueness rule, failure semantics, and lifecycle. The **execution model** — how the state
@@ -48,14 +49,25 @@ resumes. Every decision below depends on this.
 
 ```
 Task:      BLOCKED ──▶ READY ──▶ IN_PROGRESS ──▶ DONE | FAILED | CANCELLED
-Pipeline:  RUNNING ─────────────────────────▶ DONE | FAILED | CANCELLED
+Pipeline:  PENDING ──▶ RUNNING ─────────────▶ DONE | FAILED | CANCELLED
 ```
+
+`PENDING` is the **start-delay wait state** and exists **only when a start delay is configured**.
+A pipeline created with `startDelay > 0` enters `PENDING` with `next_due_at = now + startDelay`;
+one created with `startDelay == 0` enters `RUNNING` directly (the fast path, saving a transition).
+`PENDING → RUNNING` happens **at claim** — the delay having elapsed (`next_due_at <= now`), the
+worker that claims the row transitions it to `RUNNING` in the **same claim transaction** before
+dispatching the first task, so the claim holder stays the only writer of `status` (the mechanism
+and its rationale are ADR-021 Decision 2). `PENDING` is **non-terminal**: it is subject to the
+per-target uniqueness rule (Decision 4) and is cancelled immediately (no live claim exists yet)
+rather than terminalized by a worker.
 
 The **current task** is the lowest-`seq` `READY`/`IN_PROGRESS` task; tasks ahead of it are
 explicitly `BLOCKED` until their predecessor reaches `DONE` (a task is created BLOCKED and
-flips to READY; the first task starts READY). Pipeline status is a stored projection, written
-in the same transaction as the task transition that changes it, so a scan can filter on it
-cheaply.
+flips to READY; the first task starts READY). A `PENDING` pipeline already owns its full task
+chain (created with the pipeline); those tasks begin executing once it transitions to `RUNNING`.
+Pipeline status is a stored projection, written in the same transaction as the task transition
+that changes it, so a scan can filter on it cheaply.
 
 Five core enums (`TaskStatus`, `PipelineStatus`, `TaskKind`, `PipelineType`, `ErrorCode`), plus
 a conditional `TaskOperation` when the operation set is closed (an open set is registry-validated).
@@ -76,8 +88,9 @@ a poll lost to a crash is reclaimed on lease expiry (ADR-021 Decision 5) and re-
 
 ### 4. One active pipeline per target
 
-A uniqueness rule allows only one non-terminal pipeline per target. A duplicate create — of any
-type — is **rejected with `409 Conflict`** (code `ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`, "already
+A uniqueness rule allows only one non-terminal pipeline per target (`PENDING` counts as
+non-terminal, so a start-delayed pipeline holds the slot the instant it is created). A duplicate
+create — of any type — is **rejected with `409 Conflict`** (code `ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`, "already
 an active run for this target") rather than returning the existing run; the trigger endpoint must
 honor this **contract**. The trigger is a human call — an operator pressing "try" in the web admin,
 not a machine's at-least-once redelivery — so a duplicate (double-click, re-click after a timeout)
@@ -165,7 +178,8 @@ cancel is applied against a live worker is an execution concern (ADR-021).
 
 - `pipeline(id, type, target, status, created_at, last_activity_at)` — execution adds
   `next_due_at, claimed_by, claimed_until, cancel_requested` (see ADR-021). A **partial unique
-  index on `target` over non-terminal `status`** enforces Decision 4's per-target uniqueness; a
+  index on `target` over non-terminal `status`** (non-terminal = `PENDING`, `RUNNING`) enforces
+  Decision 4's per-target uniqueness; a
   concurrent duplicate create loses the insert race and surfaces as `409 Conflict`
   (`ORCHESTRATION_PIPELINE_ALREADY_ACTIVE`).
 - `task(id, pipeline_id, seq, kind, operation, status, fail_count, error_code,
@@ -214,7 +228,7 @@ Relationships: `pipeline 1:N task 1:N task_attempt 1:0..1 task_check`.
 | enum | values |
 |---|---|
 | `TaskStatus` | BLOCKED, READY, IN_PROGRESS, DONE, FAILED, CANCELLED |
-| `PipelineStatus` | RUNNING, DONE, FAILED, CANCELLED |
+| `PipelineStatus` | PENDING, RUNNING, DONE, FAILED, CANCELLED (`PENDING` and `RUNNING` are the two non-terminal values) |
 | `TaskKind` | TERRAFORM_JOB, CONDITION_CHECK |
 | `PipelineType` | INSTALL, DELETE |
 | `ErrorCode` | JOB_FAILED, EXECUTION_TIMEOUT, CONDITION_NOT_MET, CHECK_ERROR, CALL_TIMEOUT |
@@ -233,4 +247,9 @@ open/configured set uses a registry instead.
 - **InfraManager** — runs Terraform jobs (async; one dispatch returns a set of `N` job ids; a worker pod runs each apply).
 - **BackendManager** — the integration/approval and target-source service.
 - **Terraform job** — one infrastructure apply; runs for minutes.
-- **Current task** — the lowest-`seq` `READY`/`IN_PROGRESS` task of a RUNNING pipeline.
+- **Current task** — the lowest-`seq` `READY`/`IN_PROGRESS` task of a pipeline that is executing,
+  i.e. one that has reached `RUNNING`. A `PENDING` pipeline already holds its full task chain but
+  runs none of it until it transitions to `RUNNING` at claim.
+- **PENDING pipeline** — a start-delayed pipeline (`startDelay > 0`) awaiting its `next_due_at`; a
+  non-terminal state with no live claim, transitioned to `RUNNING` by the claiming worker (ADR-021
+  Decision 2). Cancelled immediately (ADR-021 Decision 6, Case A) since no worker owns it.
