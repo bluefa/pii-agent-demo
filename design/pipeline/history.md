@@ -57,6 +57,23 @@
 스펙 확정 후 admin-pipeline.html에 구현 — changelog Round 5 참조.
 #128(RUNNING)·#124(FAILED 자동 선택+error_code 칩)·전 페이지 타이포 브라우저 검증, 콘솔 에러 0.
 
+## 2026-07-03 — 디자인 프로세스 구축 (오너 지시: "프로세스가 먼저")
+
+Round 5 결과에 대한 오너 피드백: 멋이 없고 타이포 변화가 안 보임, 컴포넌트 크기 제각각,
+너무 밝아 강조가 없음, "프로세스가 많이 생략된 채 작업된 것 같다".
+
+- [awesome-claude-design](https://github.com/rohitg00/awesome-claude-design) 조사 + 실측 audit
+  → 놓친 단계 확인: 캐릭터 결정 / 사이징 스케일 / variant 분기 / 렌더 결과 채점.
+  크기 결함 실측 7건 (같은 행 34vs23px, 나란한 카드 264vs411px, 노드 가변 높이 등)
+- **[design-process.md](design-process.md) 신설**: 5 Phase(캐릭터→시스템→IA→variant→구현+3중 게이트)
+  + 오너/기계/비평 게이트 + Phase별 모델 배정
+- Phase 0 결정(오너): **n8n 실행 화면(구조) + Linear(표면·밀도)**
+- Phase 1: **[admin-pipeline-design-system.md](admin-pipeline-design-system.md)** —
+  컨트롤 높이 3단(32/28/20)·고정 리듬·나란한 카드 정렬 규칙·anti-slop 금지 7항·게이트 A 체크리스트
+- Phase 3: variant A(전면 다크)/B(다크 크롬+라이트)/C(고대비 라이트) 실물 렌더 비교
+  (크기 정렬은 3종 공통 적용) → **오너 B 선택**
+- 다음: Phase 4 — B를 원본에 적용 → 치수 audit → 픽셀 비평 → 오너 승인 후 확정
+
 ## 타이포그래피 스펙 (Round 5 선행 작업)
 
 폰트·층위별 크기·층위 간 거리·자간이 미정이라는 오너 지적 → 조사 후 스펙 문서 작성:
