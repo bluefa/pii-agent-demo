@@ -267,6 +267,8 @@ open/configured set uses a registry instead.
 - **Current task** — the lowest-`seq` `READY`/`IN_PROGRESS` task of a pipeline that is executing,
   i.e. one that has reached `RUNNING`. A `PENDING` pipeline already holds its full task chain but
   runs none of it until it transitions to `RUNNING` at claim.
-- **PENDING pipeline** — a start-delayed pipeline (`startDelay > 0`) awaiting its `next_due_at`; a
-  non-terminal state with no live claim, transitioned to `RUNNING` by the claiming worker (ADR-021
-  Decision 2). Cancelled immediately (ADR-021 Decision 6, Case A) since no worker owns it.
+- **PENDING pipeline** — a start-delayed pipeline not yet first-claimed: before `next_due_at` it
+  waits on the start-delay timer, and once due it is claim-eligible (it may briefly sit unclaimed
+  under cap/worker pressure) until a worker transitions it to `RUNNING` in the claim (ADR-021
+  Decision 2). A non-terminal state with no live claim, so it is cancelled immediately (ADR-021
+  Decision 6, Case A) since no worker owns it.
