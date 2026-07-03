@@ -52,7 +52,12 @@
 - **n8n 실행 화면 참조로 v2 확정**: 슬림 상태 바(상태+진행+CTA 상주) + Task 흐름 본문 +
   Task 상세 우측 사이드 패널 + 하단 접힘 각주(CSP kv, ADR-021) — IA 문서 §3 v2 반영
 
-## 진행 중 — 타이포그래피 스펙 (Round 5 선행 작업)
+## 2026-07-03 — Round 5 구현 완료 (타이포 스펙 + 상세 v2)
+
+스펙 확정 후 admin-pipeline.html에 구현 — changelog Round 5 참조.
+#128(RUNNING)·#124(FAILED 자동 선택+error_code 칩)·전 페이지 타이포 브라우저 검증, 콘솔 에러 0.
+
+## 타이포그래피 스펙 (Round 5 선행 작업)
 
 폰트·층위별 크기·층위 간 거리·자간이 미정이라는 오너 지적 → 조사 후 스펙 문서 작성:
 [admin-pipeline-typography.md](admin-pipeline-typography.md)

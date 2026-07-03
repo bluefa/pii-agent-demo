@@ -4,6 +4,28 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 5 — LIN-20 B1: 파이프라인 상세 IA v2 + 타이포그래피 스펙 적용
+
+계약 문서: [admin-pipeline-detail-ia.md](admin-pipeline-detail-ia.md)(레이아웃)·
+[admin-pipeline-typography.md](admin-pipeline-typography.md)(타이포) — codex 6라운드 크로스 리뷰 MERGE-READY.
+
+**타이포그래피** (typography.md §0 적용)
+- 폰트 스택에 Geist/Geist Mono 복원(App next/font 정렬 — 미설치 시 시스템 고딕 폴백, 외부 의존성 0)
+- base 13px + 전역 자간 -0.014em(13px 보정 tier), line-height 1.55
+- 롤 정렬: h1 20→18(t-title), kv key weight 500→600(t-key), pill/kindchip 10.5(t-micro),
+  formula 12.5(t-mono), stat 값 -0.02em(t-display)
+
+**파이프라인 상세 v2** (components.md §4.4 계약)
+- h1·"파이프라인 정보"/"실행 메타" 2카드 해체 → **PipelineStatusBar**(대형 pill + ProgressBar +
+  현재 task + 취소 CTA 상주, meta 행에 타입/#id/Provider 칩/서비스/시각/파생 task)
+- FAILED: 상태 바 좌측 err 액센트 + error_code 칩 + **실패 노드 자동 선택**(selectedTaskId 초기 파생)
+- Task 상세 → **우측 340px sticky 사이드 패널**(grid minmax(0,1fr)+340px, 노드 200→172px 컴팩트,
+  scrollIntoView 제거)
+- 하단 접힘 각주 2개: **대상 상세 metadata**(CSP별 kv — mock에 App CloudTargetSource 필드명 그대로
+  awsAccountId/tenantId/subscriptionId/gcpProjectId 추가, idc는 계정+안내 문구) · ADR-021 미제공 4필드
+
+검증: #128(RUNNING)·#124(FAILED 자동선택)·대시보드/검색/target 타이포 영향 브라우저 확인, 콘솔 에러 0.
+
 ## Round 4 — LIN-20 B1: 모던 어드민 리디자인
 
 방향 전환: Toss-소프트 → **모던 어드민(밀도형)**. 로직·라우팅·mock·§4.5 파생 규칙은 무변경,

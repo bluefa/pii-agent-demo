@@ -31,12 +31,14 @@
   --r-card:10px; --r-inner:8px; --r-ctl:8px;
   --shadow-xs:0 1px 2px rgba(16,24,40,.05);
   --shadow-lg:0 12px 32px -8px rgba(16,24,40,.16),0 4px 10px -4px rgba(16,24,40,.08);
-  --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
-  --font-mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Pretendard','Malgun Gothic',system-ui,sans-serif;
+  --font-mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
+/* base = t-body (admin-pipeline-typography.md §0) */
 html,body{margin:0;padding:0;background:var(--bg-page);color:var(--text-strong);
-  font-family:var(--font-sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;min-width:1080px}
+  font-family:var(--font-sans);font-size:13px;letter-spacing:-0.014em;line-height:1.55;
+  -webkit-font-smoothing:antialiased;min-width:1080px}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit}
 
@@ -50,7 +52,7 @@ svg.ic.lg{width:22px;height:22px}
 .hint:hover{color:var(--text-weak)}
 
 /* ── Type roles ── */
-.formula{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);line-height:1.4}
+.formula{font-family:var(--font-mono);font-size:12.5px;color:var(--text-faint);line-height:1.4} /* role: t-mono(캡션 변형) */
 .meta{font-size:12px;font-weight:400;color:var(--text-weak);line-height:1.4}
 .note{font-size:13px;color:var(--text-medium);line-height:1.6}
 .pager-count{font-size:12px;color:var(--text-weak);font-variant-numeric:tabular-nums}
@@ -86,7 +88,7 @@ svg.ic.lg{width:22px;height:22px}
 .breadcrumb .sep{margin:0 6px;color:var(--text-faint)}
 .breadcrumb .cur{color:var(--text-medium);font-weight:600}
 .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.page-head h1{font-size:20px;font-weight:700;margin:0;line-height:1.3}
+.page-head h1{font-size:18px;font-weight:700;margin:0;line-height:1.3;letter-spacing:-.02em} /* role: t-title */
 .section-title{font-size:14px;font-weight:600;color:var(--text-strong);margin:24px 0 10px;line-height:1.4}
 .section-title:first-child{margin-top:0}
 .section-title .meta{font-weight:400}
@@ -102,7 +104,7 @@ svg.ic.lg{width:22px;height:22px}
 .stat{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
   box-shadow:var(--shadow-xs);padding:16px 18px}
 .stat .lbl{font-size:12.5px;font-weight:500;color:var(--text-weak);display:flex;align-items:center;gap:6px}
-.stat .val{font-size:26px;font-weight:600;margin-top:6px;line-height:1.15;font-variant-numeric:tabular-nums}
+.stat .val{font-size:26px;font-weight:600;margin-top:6px;line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums} /* role: t-display */
 .stat .val .den{color:var(--text-faint);font-weight:500;font-size:20px}
 .stat .sub{margin-top:6px}
 .stat.unavailable .val{color:var(--text-faint)}
@@ -116,7 +118,7 @@ svg.ic.lg{width:22px;height:22px}
 .ftag.null{background:var(--off-bg);color:var(--text-faint)}
 
 /* ── Pills ── */
-.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600; /* role: t-micro */
   padding:2px 9px 2px 8px;border-radius:999px;letter-spacing:.02em}
 .pill .dot{width:6px;height:6px;border-radius:50%}
 .pill.s-RUNNING,.pill.s-IN_PROGRESS{background:var(--info-bg);color:var(--info-text)}
@@ -193,7 +195,7 @@ svg.ic.lg{width:22px;height:22px}
 
 /* ── KeyValueGrid ── */
 .kv{display:grid;grid-template-columns:130px 1fr;gap:10px 16px;font-size:13px}
-.kv .k{font-size:12px;font-weight:500;color:var(--text-weak);line-height:1.5}
+.kv .k{font-size:12px;font-weight:600;color:var(--text-weak);line-height:1.4} /* role: t-key */
 .kv .v{color:var(--text-strong);font-weight:500;line-height:1.5}
 .kv .v.mono{font-family:var(--font-mono);font-size:12.5px}
 .kv.wide{grid-template-columns:150px 1fr}
@@ -212,7 +214,7 @@ details.collap>.body{padding:0 14px 14px}
 
 /* ── Task flow ── */
 .flow{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:2px}
-.tnode{flex:none;width:200px;border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;
+.tnode{flex:none;width:172px;border:1px solid var(--border);border-radius:var(--r-card);padding:12px 14px;
   background:var(--bg-card);cursor:pointer;position:relative;transition:border-color .12s,box-shadow .12s}
 .tnode:hover{border-color:var(--border-strong);box-shadow:var(--shadow-xs)}
 .tnode.sel{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-ring)}
@@ -229,11 +231,30 @@ details.collap>.body{padding:0 14px 14px}
 .tnode .ticon.s-CANCELLED{background:var(--off-bg);color:var(--off-text)}
 .tnode .nm{font-size:13px;font-weight:600;margin:8px 0;color:var(--text-strong);line-height:1.4}
 .tnode .meta{font-size:11px;color:var(--text-weak);margin-top:8px;line-height:1.4;min-height:14px}
-.kindchip{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 6px;
+.kindchip{display:inline-flex;align-items:center;font-size:10.5px;font-weight:600; /* role: t-micro */padding:2px 6px;
   border-radius:4px;background:var(--off-bg);color:var(--text-weak);font-family:var(--font-mono)}
 .kindchip.cond{background:var(--info-bg);color:var(--info-text)}
 .connector{flex:none;width:28px;display:flex;align-items:center;justify-content:center;color:var(--gray-300)}
-#taskdetail>.card{margin-top:12px}
+#taskdetail>.card{margin-top:0}
+
+/* ── Pipeline status bar + side panel (IA v2, admin-pipeline-detail-ia.md §3) ── */
+.statusbar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-card);
+  box-shadow:var(--shadow-xs);padding:14px 18px;display:flex;flex-direction:column;gap:8px}
+.statusbar.failed{box-shadow:inset 3px 0 0 var(--err),var(--shadow-xs)}
+.sb-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sb-cur{font-size:13px;font-weight:600;color:var(--text-medium)}
+.sb-err{font-family:var(--font-mono);font-size:12.5px;color:var(--err-text);background:var(--err-bg);
+  padding:2px 8px;border-radius:6px}
+.sb-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-weak)}
+.sb-meta .sep{color:var(--gray-300)}
+.statusbar .pbar .track{width:160px}
+.pill.lg{font-size:12.5px;padding:5px 12px 5px 10px}
+.pill.lg .dot{width:8px;height:8px}
+.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start;margin-top:12px}
+.sidepanel{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow-y:auto;min-width:0}
+.sidepanel>.card{margin-top:0;padding:16px;overflow-x:auto}
+.sidepanel .tbl th{padding:4px 8px 6px}
+.sidepanel .tbl td{padding:8px}
 
 /* ── Modal ── */
 .overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);display:flex;align-items:center;
@@ -325,15 +346,18 @@ const AUTH_USERS = {
 };
 const TARGET_SOURCES = {
   SVC001:[
-    {id:'ts-aws-001', provider:'aws', account:'1234-5678-9012', processStatus:'CONNECTED'},
-    {id:'ts-gcp-002', provider:'gcp', account:'gcp-proj-77', processStatus:'COMPLETED'},
+    {id:'ts-aws-001', provider:'aws', account:'1234-5678-9012', processStatus:'CONNECTED',
+     awsAccountId:'1234-5678-9012', awsLinkedAccountId:'9012-3456-7890', awsRegionType:'global', isTerraformExecutionGranted:true},
+    {id:'ts-gcp-002', provider:'gcp', account:'gcp-proj-77', processStatus:'COMPLETED', gcpProjectId:'gcp-proj-77'},
     {id:'ts-idc-003', provider:'idc', account:'idc-zone-a', processStatus:'INSTALLED'},
   ],
   SVC002:[
-    {id:'ts-az-004', provider:'azure', account:'az-sub-01', processStatus:'DISCONNECTED'},
+    {id:'ts-az-004', provider:'azure', account:'az-sub-01', processStatus:'DISCONNECTED',
+     tenantId:'a1b2c3d4-1111-4222-8333-d4e5f6a7b8c9', subscriptionId:'az-sub-01'},
   ],
   SVC003:[
-    {id:'ts-aws-005', provider:'aws', account:'2345-6789-0123', processStatus:'PENDING'},
+    {id:'ts-aws-005', provider:'aws', account:'2345-6789-0123', processStatus:'PENDING',
+     awsAccountId:'2345-6789-0123', awsRegionType:'global', isTerraformExecutionGranted:false},
   ],
 };
 const TS_INDEX = {}; // id -> {serviceCode, ...}
@@ -472,6 +496,22 @@ function targetButtons(ts){                                                // (d
   if(run) return {install:false, delete:false, cancel:true, runId:run.id};
   const installed = ['CONNECTED','COMPLETED','INSTALLED'].includes(ts.processStatus);
   return {install:!installed, delete:installed, cancel:false, runId:null};
+}
+// IA v2: CSP별 metadata rows — App CloudTargetSource 필드명 그대로(D1 매핑 최소화).
+// metadata 없는 CSP(idc 등)는 계정 필드만 + target 페이지 안내(결정 로그).
+function cspMetaRows(ts){
+  if(!ts) return [['대상','정보 없음']];
+  const rows=[['서비스',`${ts.serviceName} (${ts.serviceCode})`],['설치 상태',ts.processStatus],['계정',ts.account]];
+  const byProv={
+    aws:[['AWS Account',ts.awsAccountId],['Linked Account',ts.awsLinkedAccountId],['Region Type',ts.awsRegionType],
+         ['TF 실행 권한',ts.isTerraformExecutionGranted==null?null:(ts.isTerraformExecutionGranted?'허용':'미허용')]],
+    azure:[['Tenant ID',ts.tenantId],['Subscription ID',ts.subscriptionId]],
+    gcp:[['GCP Project',ts.gcpProjectId]],
+  };
+  const csp=(byProv[ts.provider]||[]).filter(r=>r[1]!=null);
+  if(csp.length) rows.push(...csp);
+  else rows.push(['CSP metadata','target 페이지에서 확인']);
+  return rows;
 }
 
 /* =========================================================================
@@ -800,40 +840,52 @@ function viewPipeline(id){
   }
   crumbs.push({label:`파이프라인 #${p.id}`});
   const cur=currentTask(p);
+  // IA v2: FAILED 파이프라인은 진입 시 실패 task 자동 선택 (§4.5(b) currentTask가 FAILED를 짚음)
+  if(app.selectedTaskId===null && p.status==='FAILED' && cur) app.selectedTaskId=cur.seq;
+  const failedTask=p.tasks.find(t=>t.status==='FAILED');
+  const curLabel=cur?`현재 seq ${cur.seq} · ${esc(cur.operation)}`:currentTaskLabel(p);
   const root=el(`<div>
     ${breadcrumb(crumbs)}
-    <div class="page-head"><h1>파이프라인 #${p.id}</h1></div>
-    <div class="meta-2">
-      <div class="card">
-        <div class="section-title">파이프라인 정보</div>
-        <div class="kv">
-          <div class="k">ID / 타입</div><div class="v mono">#${p.id} · ${esc(p.type)}</div>
-          <div class="k">target</div><div class="v mono vrow">${esc(p.target)} ${provTag(p.provider,true)}</div>
-          <div class="k">상태</div><div class="v">${pill(p.status)}</div>
-          <div class="k">생성</div><div class="v">${esc(p.createdAt)}</div>
-          <div class="k">마지막 활동</div><div class="v">${esc(p.lastActivityAt)}</div>
-          <div class="k">현재 / 최종 task</div><div class="v vrow">${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="hint" title="tasks 배열에서 파생된 값(별도 저장 필드 아님)">${ic('i-info')}</span></div>
-          <div class="k">실패 / 한계</div><div class="v vrow">${cur?`${cur.failCount} / ${cur.maxFail}`:'—'} <span class="hint" title="현재 task에서 파생된 값(별도 저장 필드 아님)">${ic('i-info')}</span></div>
-        </div>
-        <div class="mt-16 vrow"><button class="btn danger" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
-          ${canCancel(p)?'':'<span class="meta">진행 중(RUNNING)만 취소 가능</span>'}</div>
+    <div class="statusbar${p.status==='FAILED'?' failed':''}">
+      <div class="sb-main">
+        <span class="pill lg s-${p.status}"><span class="dot"></span>${p.status}</span>
+        ${progressBar(progressN(p),progressM(p))}
+        <span class="sb-cur">${curLabel}</span>
+        ${failedTask&&failedTask.errorCode?`<span class="sb-err" title="seq ${failedTask.seq} · ${esc(failedTask.operation)}">${esc(failedTask.errorCode)}</span>`:''}
+        <span class="vrow" style="margin-left:auto;gap:8px">
+          ${canCancel(p)?'':'<span class="meta">진행 중(RUNNING)만 취소 가능</span>'}
+          <button class="btn danger sm" id="pcancel" ${canCancel(p)?'':'disabled'}>파이프라인 취소</button>
+        </span>
       </div>
-      <div class="card">
-        <div class="section-title">실행 메타 <span class="meta">ADR-021</span></div>
-        <div class="note">ADR-021 실행 필드(next_due_at·lease·cancel_requested·지연 lag)는 이 저장소(ADR-016 도메인) 범위 밖이라 값이 없습니다. 취소는 즉시 CANCELLED로 종단화(플래그 없음).</div>
-        <details class="collap"><summary>미제공 필드 4개 보기</summary><div class="body">
-          <div class="kv">
-            <div class="k">next_due_at</div><div class="v">${naTag}</div>
-            <div class="k">lease (claimed_until)</div><div class="v">${naTag}</div>
-            <div class="k">cancel_requested</div><div class="v">${naTag}</div>
-            <div class="k">지연 lag</div><div class="v">${naTag}</div>
-          </div>
-        </div></details>
+      <div class="sb-meta">
+        <span>${esc(p.type)} <span class="mono">#${p.id}</span></span><span class="sep">·</span>
+        <span class="vrow" style="gap:6px">${provTag(p.provider,true)} <span class="mono">${esc(p.target)}</span></span><span class="sep">·</span>
+        <span>${esc(svcName||(ts&&ts.serviceName)||'')}</span><span class="sep">·</span>
+        <span>생성 ${esc(p.createdAt)}</span><span class="sep">·</span>
+        <span>마지막 활동 ${esc(p.lastActivityAt)}</span><span class="sep">·</span>
+        <span class="vrow" style="gap:4px">task ${currentTaskLabel(p)} / seq ${finalSeq(p)} <span class="hint" title="현재/최종 task는 tasks 배열에서 파생된 값(별도 저장 필드 아님)">${ic('i-info')}</span></span>
       </div>
     </div>
-    <div class="section-title">Task 흐름 <span class="meta">읽기 전용 · 노드 클릭 → 하단 상세</span></div>
-    <div class="card"><div class="flow" id="flow"></div></div>
-    <div id="taskdetail"></div>
+    <div class="detail-grid">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px">Task 흐름 <span class="meta">읽기 전용 · 노드 클릭 → 우측 상세</span></div>
+        <div class="flow" id="flow"></div>
+      </div>
+      <aside class="sidepanel" id="taskdetail"></aside>
+    </div>
+    <details class="collap"><summary>대상 상세 metadata — ${PROVIDERS[p.provider]||p.provider} · ${esc(p.target)}</summary><div class="body">
+      <div class="kv wide">${cspMetaRows(ts).map(r=>`<div class="k">${esc(r[0])}</div><div class="v mono">${esc(r[1])}</div>`).join('')}</div>
+      <button class="btn ghost sm mt-12" data-nav="#/target/${encodeURIComponent(p.target)}">대상 상세 ${ic('i-chev-r','ic sm')}</button>
+    </div></details>
+    <details class="collap"><summary>실행 메타 (ADR-021) — 미제공 필드 4개</summary><div class="body">
+      <div class="note" style="margin-bottom:12px">ADR-021 실행 필드(next_due_at·lease·cancel_requested·지연 lag)는 이 저장소(ADR-016 도메인) 범위 밖이라 값이 없습니다. 취소는 즉시 CANCELLED로 종단화(플래그 없음).</div>
+      <div class="kv">
+        <div class="k">next_due_at</div><div class="v">${naTag}</div>
+        <div class="k">lease (claimed_until)</div><div class="v">${naTag}</div>
+        <div class="k">cancel_requested</div><div class="v">${naTag}</div>
+        <div class="k">지연 lag</div><div class="v">${naTag}</div>
+      </div>
+    </div></details>
   </div>`);
   // flow
   const flow=root.querySelector('#flow');
@@ -849,8 +901,7 @@ function viewPipeline(id){
       <div class="meta">${[t.failCount?`fail ${t.failCount}`:'',t.errorCode?esc(t.errorCode):'',t.startedAt?`${t.startedAt}${t.finishedAt?'~'+t.finishedAt:''}`:''].filter(Boolean).join(' · ')}</div>
     </div>`);
     const sel=()=>{app.selectedTaskId=t.seq; renderTaskDetail(root,p);
-      flow.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('sel',n.dataset.seq==t.seq));
-      root.querySelector('#taskdetail').scrollIntoView({behavior:'smooth',block:'nearest'});};
+      flow.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('sel',n.dataset.seq==t.seq));};
     node.onclick=sel; node.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();sel();}};
     flow.appendChild(node);
   });
