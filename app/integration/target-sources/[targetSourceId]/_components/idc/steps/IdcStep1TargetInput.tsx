@@ -43,13 +43,37 @@ const toRow = (view: IdcResourceView): IdcStep1Row => ({
   exclusionCustom: view.excluded && !!view.exclusionReason && !IDC_EXCL_PRESETS.includes(view.exclusionReason as (typeof IDC_EXCL_PRESETS)[number]),
 });
 
+type IdcMetadata = z.infer<typeof schemas.TargetSourceResourceMetadataDto>;
+
 /**
- * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. IDC has no
- * `/resources` scan, so the manually-entered DB type is only known here — carry it
- * (with provider) under `metadata` on selected rows so the backend and Step2/Step3
- * keep it. Excluded rows carry only selection/exclusion.
+ * A selected IDC row's manually-entered connection info → contract
+ * `TargetSourceResourceMetadataDto`. IDC has no scan and no dedicated submit
+ * endpoint, so this is the ONLY channel that carries host/port/format/etc. to the
+ * backend. Mirrors the `IdcResourceInput` round-trip (previous-request read): kind→
+ * idc_host_format, hosts→idc_ips/idc_host, service→oracle_service_id. `idc_source_ips`
+ * is Step-2-assigned (absent from IdcResourceInput), so it is not sent here.
  */
-const toIdcApprovalRequestInput = (
+const idcSelectedMetadata = (r: IdcStep1Row): IdcMetadata => {
+  const isDomain = r.kind === 'DOMAIN';
+  return {
+    provider: 'IDC',
+    idc_host_format: isDomain ? 'HOST' : 'IP',
+    ...(r.databaseTypeWire ? { database_type: r.databaseTypeWire } : {}),
+    ...(isDomain
+      ? (r.hosts[0] ? { idc_host: r.hosts[0] } : {})
+      : (r.hosts.length > 0 ? { idc_ips: r.hosts } : {})),
+    ...(r.port ? { port: r.port } : {}),
+    ...(r.oracleSid ? { oracle_service_id: r.oracleSid } : {}),
+    ...(r.credentialId ? { credential_id: r.credentialId } : {}),
+  };
+};
+
+/**
+ * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. Selected rows
+ * carry the manually-entered connection info under `metadata` (see idcSelectedMetadata)
+ * so the backend and Step2/Step3 keep it. Excluded rows carry only selection/exclusion.
+ */
+export const toIdcApprovalRequestInput = (
   rows: readonly IdcStep1Row[],
 ): z.infer<typeof schemas.ApprovalRequestInputDto> => ({
   resources: rows.map((r) =>
@@ -63,10 +87,7 @@ const toIdcApprovalRequestInput = (
       : {
           resource_id: r.resourceId,
           selected: true as const,
-          metadata: {
-            provider: 'IDC',
-            ...(r.databaseTypeWire ? { database_type: r.databaseTypeWire } : {}),
-          },
+          metadata: idcSelectedMetadata(r),
         },
   ),
 });
