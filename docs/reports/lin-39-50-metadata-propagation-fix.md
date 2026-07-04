@@ -85,7 +85,7 @@ Step3: ApplyingApprovedCard.toSelectedRow                [LIN-46/47]
 | **LIN-48** | `app/components/features/process-status/ApprovalRequestModal.tsx` | `ApprovalRequestResource` 에 `databaseType` 필드·컬럼 없음. 승인자가 어떤 DB인지 확인 불가. | 필드 추가 + "포함 리소스" 테이블에 Database Type 컬럼(빈값 `—`). |
 | **LIN-40** | `.../idc/steps/IdcStep1TargetInput.tsx` `toIdcApprovalRequestInput` | 선택 IDC 행을 `metadata:{}` 로 보내, 수동 입력한 `databaseTypeWire` 가 유실(IDC는 스캔이 없어 백엔드가 복원 불가). | 선택 행 metadata에 `provider:'IDC'`·`database_type: r.databaseTypeWire`. 낡은 "metadata is empty" 주석 갱신. |
 | **LIN-46** | `lib/types.ts` `ResourceSnapshot` | approval 응답 metadata를 담을 자리가 없어 Step3에서 region/db_type 유실. | `metadata?: { provider?; region?; database_type? } | null` 추가. |
-| **LIN-47** | `.../layout/ApplyingApprovedCard.tsx` `toSelectedRow` | region을 계약 밖 `database_region`, db_type을 `endpoint_config.db_type` 에서 읽음. | `metadata.region`·`metadata.database_type` 우선, 기존 값 fallback 유지. |
+| **LIN-47** | `.../layout/ApplyingApprovedCard.tsx` `toSelectedRow` | region을 계약 밖 `database_region`, db_type을 `endpoint_config.db_type` 에서 읽음. | `metadata.region`·`metadata.database_type`(+계약 필드 `resource_type`)에서만 read, 계약 밖 fallback 제거. `integration_status`는 계약에 홈이 없어 유지(완료 카운트 소스, §9 후속). |
 | **LIN-43** | `.../candidate/CandidateResourceTable.tsx` | `effectiveDbType===''` 이면 빈 파란 badge가 렌더(`getDatabaseLabel('')===''`). | 빈 문자열이면 badge 대신 `—`. |
 | **LIN-39** | `app/hooks/useScanPolling.ts` | `loading` 은 성공 콜백(`handleUpdate`)에서만 `false` 로 풀림. 첫 폴링이 에러면 콜백이 안 불려 `loading` 이 영구 `true` → `CandidateResourceSection` L229 `disabled={initialLoading...}` 로 Run Infra Scan 버튼이 잠김. | 첫 응답이 에러로 settle돼도 `loading=false`(baseError effect에서 `firstFetchRef` 리셋). |
 
@@ -163,3 +163,21 @@ settle에서 풀어주는 것이며, 에러 처리·불변식은 그대로 보�
   (`endpoint_config`/`credential_id`/`database_region`/`scan_status`/`integration_status`)를 방출한다는
   지적은 **본 변경 이전부터 존재**하던 §8의 systemic root(`as unknown as ResourceSnapshot` 캐스팅)이며,
   본 PR은 metadata 를 **추가**했을 뿐 해당 필드를 새로 도입하지 않음. 전면 정합은 별도 리팩터로 분리.
+
+## 10. Codex 2차 리뷰 — 잔여 지적은 선존 계약 gap (수렴 불가)
+
+2차 codex는 동일 systemic root를 3 Critical로 재지적(Mergeable: No). 근거 확인 결과:
+
+- **계약에 홈이 없는 필드**: `integration_status`·`endpoint_config` 는 생성 계약 전체에 **부재**.
+  `scan_status` 는 `ScanJobResponse`(스캔 잡)에만, `database_region` 은 `ResourceConfigDto`
+  (confirmed-integration)에만 있고 **approved-integration/resources 의 `TargetSourceResourceItemDto`
+  에는 없음**. 그런데 이 필드들은 신규/변경 태그·Step3 완료 카운트·테이블 필터 등 **본 12건과 무관한
+  기존 기능**이 광범위하게 사용(`lib/types.ts` 주석이 "ResourceConfigDto extension fields — preserved
+  through the approved-integration mapping"으로 **의도적 팀 관례**임을 명시). codegen 자체가 LOOSE
+  (partial+passthrough)라 런타임 통과.
+- **결론**: 이 필드들을 제거하면 기존 기능이 깨지고, swagger 추가는 **spec/BFF 소유자 권한**(수정 금지).
+  즉 codex-0 은 본 PR 범위 안에서 달성 불가 → 매 라운드 동일 지적 반복(수렴하지 않음).
+- **본 PR이 한 것**: LIN-47에서 내가 만진 `toSelectedRow` 의 죽은 계약-밖 fallback
+  (`database_region`/`endpoint_config.db_type`)만 제거해 계약 정합화. 나머지 선존 필드는 미변경.
+- **후속**: systemic root(`as unknown as ResourceSnapshot` 캐스팅 + `scan_status`/`integration_status`
+  계약 gap)는 API 소유자 대상 별도 이슈로 분리.
