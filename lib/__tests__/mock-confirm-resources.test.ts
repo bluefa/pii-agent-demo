@@ -7,12 +7,12 @@ import { ProcessStatus } from '@/lib/types';
 import type { Project, MockResource } from '@/lib/types';
 
 // ADR-019: mock emits raw snake CloudResourceResponse wire (TargetSourceResourceItemDto items).
+// Contract: database_type lives under metadata, not top-level on the item.
 interface MockResourceCatalogResponse {
   resources: Array<{
     resource_id: string;
     resource_name: string;
     resource_type: string;
-    database_type: string;
     integration_category: string;
     scan_status: string | null;
     metadata: Record<string, unknown>;
@@ -99,40 +99,43 @@ describe('mockConfirm.getResources', () => {
 
     expect(body.total_count).toBe(2);
 
-    // vm-db-001 (AZURE_VM with vmDatabaseConfig)
+    // vm-db-001 (AZURE_VM with vmDatabaseConfig) — database_type lives under metadata (contract)
     expect(body.resources[0]).toMatchObject({
       resource_id: 'vm-db-001',
       resource_type: 'AZURE_VM',
-      database_type: 'ORACLE',
       integration_category: 'NO_INSTALL_NEEDED',
       scan_status: expect.any(String),
       metadata: expect.objectContaining({
         provider: 'AZURE',
         resource_type: 'AZURE_VM',
         region: 'ap-northeast-1',
+        database_type: 'ORACLE',
         host: 'db.internal',
         port: 1521,
         oracle_service_id: 'ORCL',
         network_interface_id: 'nic-1',
       }),
     });
-    // no legacy top-level fields (from extractResourceCatalog)
+    // no legacy top-level fields (from extractResourceCatalog); database_type is
+    // metadata-only per TargetSourceResourceItemDto.
     expect(body.resources[0]).not.toHaveProperty('id');
     expect(body.resources[0]).not.toHaveProperty('name');
     expect(body.resources[0]).not.toHaveProperty('host');
+    expect(body.resources[0]).not.toHaveProperty('database_type');
     expect(body.resources[0]).not.toHaveProperty('selected_credential_id');
 
     // pg-flex-001 (AZURE_POSTGRESQL, no vmDatabaseConfig)
     expect(body.resources[1]).toMatchObject({
       resource_id: 'pg-flex-001',
       resource_type: 'AZURE_POSTGRESQL',
-      database_type: 'POSTGRESQL',
       integration_category: 'TARGET',
       metadata: expect.objectContaining({
         provider: 'AZURE',
         resource_type: 'AZURE_POSTGRESQL',
         region: 'ap-northeast-1',
+        database_type: 'POSTGRESQL',
       }),
     });
+    expect(body.resources[1]).not.toHaveProperty('database_type');
   });
 });

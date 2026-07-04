@@ -45,8 +45,9 @@ const toRow = (view: IdcResourceView): IdcStep1Row => ({
 
 /**
  * Input adapter: IDC manual rows → contract `ApprovalRequestInputDto`. IDC has no
- * `/resources` PUT in the contract, so submission carries only selection/exclusion
- * ("select와 같이 선택/미선택 여부"). metadata is empty — there is no per-row metadata here.
+ * `/resources` scan, so the manually-entered DB type is only known here — carry it
+ * (with provider) under `metadata` on selected rows so the backend and Step2/Step3
+ * keep it. Excluded rows carry only selection/exclusion.
  */
 const toIdcApprovalRequestInput = (
   rows: readonly IdcStep1Row[],
@@ -59,7 +60,14 @@ const toIdcApprovalRequestInput = (
           ...(r.exclusionReason ? { exclusion_reason: r.exclusionReason } : {}),
           metadata: {},
         }
-      : { resource_id: r.resourceId, selected: true as const, metadata: {} },
+      : {
+          resource_id: r.resourceId,
+          selected: true as const,
+          metadata: {
+            provider: 'IDC',
+            ...(r.databaseTypeWire ? { database_type: r.databaseTypeWire } : {}),
+          },
+        },
   ),
 });
 

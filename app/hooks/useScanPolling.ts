@@ -109,6 +109,13 @@ export const useScanPolling = (
     const appErr = baseError as AppError;
     setError(appErr);
     onErrorRef.current?.(appErr);
+    // A first poll that settles as an error still ends the initial load — otherwise
+    // `loading` stays true forever and any button gated on it (e.g. Run Infra Scan)
+    // is frozen disabled. The error is surfaced via `error`; it must not block the UI.
+    if (firstFetchRef.current) {
+      firstFetchRef.current = false;
+      setLoading(false);
+    }
   }, [baseError]);
 
   const refresh = useCallback(async () => {

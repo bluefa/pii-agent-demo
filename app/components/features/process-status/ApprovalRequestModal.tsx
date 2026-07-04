@@ -4,7 +4,8 @@ import { useState, useMemo } from 'react';
 import { Modal } from '@/app/components/ui/Modal';
 import { Button } from '@/app/components/ui/Button';
 import { LoadingSpinner } from '@/app/components/ui/LoadingSpinner';
-import { cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
+import { getDatabaseLabel } from '@/app/components/ui/DatabaseIcon';
+import { borderColors, cn, statusColors, tableStyles, textColors, getInputClass } from '@/lib/theme';
 import type { IntegrationCategory, VmDatabaseType } from '@/lib/types';
 
 // ===== Types =====
@@ -19,6 +20,8 @@ export interface ApprovalRequestResource {
   type: string;
   isSelected: boolean;
   integrationCategory: IntegrationCategory;
+  /** Actual DB type (rendered as `—` when absent). Lets the approver see what they approve. */
+  databaseType?: string;
   endpoint?: { databaseType: VmDatabaseType; host?: string; port: number };
 }
 
@@ -146,12 +149,13 @@ export const ApprovalRequestModal = ({
             <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
               포함 리소스 ({includedResources.length}건)
             </h3>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className={cn('border rounded-lg overflow-hidden', borderColors.default)}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className={tableStyles.header}>
                     <th className={tableStyles.headerCell}>리소스 ID</th>
                     <th className={tableStyles.headerCell}>타입</th>
+                    <th className={tableStyles.headerCell}>DB 종류</th>
                     <th className={tableStyles.headerCell}>엔드포인트</th>
                   </tr>
                 </thead>
@@ -163,6 +167,9 @@ export const ApprovalRequestModal = ({
                       </td>
                       <td className={cn(tableStyles.cell, textColors.secondary)}>
                         {r.type}
+                      </td>
+                      <td className={cn(tableStyles.cell, textColors.secondary)}>
+                        {r.databaseType ? getDatabaseLabel(r.databaseType) : '—'}
                       </td>
                       <td className={cn(tableStyles.cell, textColors.tertiary)}>
                         {getEndpointSummary(r)}
@@ -181,7 +188,7 @@ export const ApprovalRequestModal = ({
             <h3 className={cn('text-sm font-semibold mb-2', textColors.primary)}>
               제외 리소스 ({excludedResources.length}건)
             </h3>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className={cn('border rounded-lg overflow-hidden', borderColors.default)}>
               <table className="w-full text-sm">
                 <thead>
                   <tr className={tableStyles.header}>

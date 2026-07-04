@@ -86,6 +86,7 @@ export const catalogToCandidates = (
     return {
       id: item.id,
       resourceId: item.resourceId,
+      resourceName: item.name,
       type: item.resourceType,
       databaseType: item.databaseType,
       integrationCategory: item.integrationCategory,

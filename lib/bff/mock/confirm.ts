@@ -4,7 +4,7 @@ import * as mockHistory from '@/lib/mock-history';
 import * as tcFns from '@/lib/mock-test-connection';
 import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
-import { ProcessStatus } from '@/lib/types';
+import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { schemas } from '@/lib/generated/install-v1';
 import type {
@@ -195,7 +195,11 @@ const demoHost = (provider: Project['cloudProvider'], resource: MockResource): s
 function buildMetadata(resource: MockResource, project: Project): Record<string, unknown> {
   const region = demoRegion(project.cloudProvider, resource);
   const vm = resource.vmDatabaseConfig;
+  // Contract: database_type lives under metadata (TargetSourceResourceMetadataDto),
+  // never as a top-level item field — emit it here so the client reads the real value.
+  const database_type = vm?.databaseType ?? resource.databaseType;
   const vmFields = {
+    ...(database_type ? { database_type } : {}),
     ...(vm?.host !== undefined ? { host: vm.host } : {}),
     ...(vm?.port !== undefined ? { port: vm.port } : {}),
     ...(vm?.oracleServiceId ? { oracle_service_id: vm.oracleServiceId } : {}),
@@ -248,7 +252,8 @@ function toResourceCatalogItem(
     resource_id: resource.resourceId,
     resource_name: demoResourceName(project.cloudProvider, resource),
     resource_type: resource.type,
-    database_type: resource.vmDatabaseConfig?.databaseType ?? resource.databaseType,
+    // database_type intentionally NOT top-level — it lives under metadata
+    // (buildMetadata), matching TargetSourceResourceItemDto.
     integration_category: resource.integrationCategory,
     scan_status: deriveCandidateScanStatus(resource),
     metadata: buildMetadata(resource, project),
@@ -291,6 +296,12 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     resource_type: r.type,
     endpoint_config,
     credential_id: demoCredential(r),
+    // Contract metadata (TargetSourceResourceMetadataDto) — Step3 reads region/database_type here.
+    metadata: {
+      provider: cloudProviderToWireProvider(project.cloudProvider),
+      region: demoRegion(project.cloudProvider, r),
+      database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
+    },
     database_region: demoRegion(project.cloudProvider, r),
     resource_name: demoResourceName(project.cloudProvider, r),
     scan_status: deriveScanStatus(r),

@@ -54,4 +54,20 @@ describe('useScanPolling', () => {
     expect(vi.mocked(getLatestScanJob).mock.calls.length).toBe(callsAtStop);
     expect(result.current.isPolling).toBe(false);
   });
+
+  // A first poll that settles as an error must still end the initial load, or the
+  // Run Infra Scan button (gated on `loading`) freezes disabled forever. (LIN-39)
+  it('clears loading when the first poll fails', async () => {
+    vi.mocked(getLatestScanJob).mockRejectedValue(new Error('endpoint down'));
+
+    const { result } = renderHook(() => useScanPolling(1, { interval: 1000 }));
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0); // first poll settles as an error
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error?.message).toBe('endpoint down');
+  });
 });

@@ -87,6 +87,13 @@ describe('mockConfirm.updateResourceCredential', () => {
         resource_type: 'AZURE_MSSQL',
         endpoint_config: null,
         credential_id: 'cred-new',
+        // Contract metadata (region/database_type live here for Step3).
+        // provider is the wire value (AZURE), not the internal CloudProvider ('Azure').
+        metadata: {
+          provider: 'AZURE',
+          region: 'ap-northeast-1',
+          database_type: 'MSSQL',
+        },
         // Demo enrichment: Azure region + friendly name are derived deterministically.
         database_region: 'ap-northeast-1',
         resource_name: 'sea-payments-prod',

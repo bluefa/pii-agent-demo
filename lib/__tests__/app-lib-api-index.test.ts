@@ -140,11 +140,12 @@ describe('app/lib/api/index', () => {
               resource_id: 'vm-db-001',
               resource_name: 'vm-db-001',
               resource_type: 'AZURE_VM',
-              database_type: 'ORACLE',
               integration_category: 'NO_INSTALL_NEEDED',
               metadata: {
                 provider: 'Azure',
                 resource_type: 'AZURE_VM',
+                // Contract: database_type lives under metadata, not top-level.
+                database_type: 'ORACLE',
                 host: 'db.internal',
                 port: 1521,
                 oracle_service_id: 'ORCL',

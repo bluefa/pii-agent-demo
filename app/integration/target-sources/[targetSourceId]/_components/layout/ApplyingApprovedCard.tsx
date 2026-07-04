@@ -34,10 +34,13 @@ const FILTER_EMPTY_MESSAGE = '조건에 맞는 결과가 없어요.';
 const toSelectedRow = (item: ApprovedIntegrationResourceItem): WaitingApprovalResource => ({
   resourceId: item.resource_id,
   resourceType: item.resource_type,
-  region: item.database_region ?? '',
+  // Contract: region/database_type live under metadata (TargetSourceResourceItemDto);
+  // resource_type is the declared placeholder. (integration_status has no contract home —
+  // see the follow-up issue; it drives the Step3 완료 count so it is kept as-is.)
+  region: item.metadata?.region ?? '',
   resourceName: item.resource_name ?? '',
   selected: true,
-  displayDbType: item.endpoint_config?.db_type ?? item.resource_type,
+  displayDbType: item.metadata?.database_type ?? item.resource_type,
   integrationStatus: item.integration_status ?? null,
 });
 

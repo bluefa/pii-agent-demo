@@ -14,6 +14,8 @@ export type EndpointConfigDraft = VmDatabaseConfig;
 export interface CandidateResource {
   id: string;
   resourceId: string;
+  /** Original `resource_name` from the `/resources` response; sent as the approval payload's resource_name. */
+  resourceName: string;
   type: string;
   databaseType: DatabaseType;
   integrationCategory: IntegrationCategory;

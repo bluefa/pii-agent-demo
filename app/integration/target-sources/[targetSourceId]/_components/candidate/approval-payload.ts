@@ -5,6 +5,7 @@ import type {
   CandidateDraftState,
   CandidateResource,
 } from '@/lib/types/resources';
+import { cloudProviderToWireProvider } from '@/lib/types';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
@@ -23,6 +24,8 @@ export const toModalResources = (
       type: candidate.type,
       isSelected: selectedIds.has(candidate.id),
       integrationCategory: candidate.integrationCategory,
+      // Show the effective DB type in the confirm modal (draft/endpoint wins for VMs).
+      databaseType: endpoint?.databaseType ?? candidate.databaseType,
       ...(endpoint
         ? {
             endpoint: {
@@ -59,13 +62,24 @@ const buildResourceInputs = (
   candidates.map((candidate): ResourceItem => {
     if (selectedIds.has(candidate.id)) {
       const behavior = getCandidateBehavior(candidate);
-      const metadataFields = behavior.buildMetadataFields(candidate, drafts);
+      // Contract: provider/region/database_type live under metadata
+      // (TargetSourceResourceMetadataDto). Carry them from the candidate so a
+      // backend echoing the payload keeps them through Step2/Step3; the behavior's
+      // endpoint fields (VM db_type/host/port) override on top.
+      const metadata: ResourceItem['metadata'] = {
+        ...(candidate.metadata.provider
+          ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
+          : {}),
+        ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
+        ...(candidate.databaseType ? { database_type: candidate.databaseType } : {}),
+        ...behavior.buildMetadataFields(candidate, drafts),
+      };
       return {
         resource_id: candidate.id,
-        resource_name: candidate.resourceId,
+        resource_name: candidate.resourceName,
         selected: true,
         integration_category: candidate.integrationCategory as ResourceItem['integration_category'],
-        metadata: metadataFields,
+        metadata,
       };
     }
     return {
