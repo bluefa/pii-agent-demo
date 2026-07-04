@@ -14,6 +14,8 @@ export type EndpointConfigDraft = VmDatabaseConfig;
 export interface CandidateResource {
   id: string;
   resourceId: string;
+  /** `/resources` 응답의 원본 `resource_name`. 승인 요청 payload의 resource_name 으로 사용. */
+  resourceName: string;
   type: string;
   databaseType: DatabaseType;
   integrationCategory: IntegrationCategory;

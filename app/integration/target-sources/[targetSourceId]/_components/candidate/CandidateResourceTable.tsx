@@ -206,7 +206,9 @@ const CandidateResourceRow = ({
 
         <td className={idcStyles.table.cell}>
           <div className="flex items-center gap-1.5">
-            <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
+            {effectiveDbType
+              ? <Badge variant="info" size="sm">{getDatabaseLabel(effectiveDbType)}</Badge>
+              : <span className={cn('text-xs', textColors.quaternary)}>—</span>}
             {showConfigNeeded && (
               <span className={cn('text-xs', statusColors.warning.textDark)}>(DB 설정 필요)</span>
             )}

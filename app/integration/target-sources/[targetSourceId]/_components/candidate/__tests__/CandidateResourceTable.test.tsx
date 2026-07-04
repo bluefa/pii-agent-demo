@@ -8,6 +8,7 @@ const candidateFixture = (overrides: Partial<CandidateResource> = {}): Candidate
   ({
     id: 'c-1',
     resourceId: 'res-1',
+    resourceName: 'res-1',
     type: 'RDS',
     databaseType: 'MYSQL',
     integrationCategory: 'TARGET',

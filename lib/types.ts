@@ -815,6 +815,13 @@ export interface ResourceSnapshot {
   resource_type: string;
   endpoint_config: EndpointConfigSnapshot | null;
   credential_id: string | null;
+  // Contract metadata (TargetSourceResourceMetadataDto) — the approval response carries
+  // region/database_type/provider here; Step3 reads them from metadata (with fallback).
+  metadata?: {
+    provider?: string | null;
+    region?: string | null;
+    database_type?: string | null;
+  } | null;
   // ResourceConfigDto extension fields — preserved through the approved-integration mapping.
   database_region?: string | null;
   resource_name?: string | null;

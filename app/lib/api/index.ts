@@ -352,7 +352,9 @@ const toConfirmResourceItem = (item: Record<string, unknown>): ConfirmResourceIt
     resourceType,
     // Keep the real database_type (DatabaseType is a plain string); never coerce an
     // unknown/missing value to MYSQL — that masks the actual DB type in the UI.
-    databaseType: (str(item.database_type) as DatabaseType | undefined) ?? '',
+    // Contract: database_type lives in metadata (TargetSourceResourceMetadataDto),
+    // not top-level on the item — fall back to metadata when the top-level is absent.
+    databaseType: (str(item.database_type) ?? str(meta.database_type) ?? '') as DatabaseType,
     integrationCategory: normalizeIntegrationCategory(item.integration_category),
     host: str(meta.host) ?? null,
     port: num(meta.port) ?? null,
