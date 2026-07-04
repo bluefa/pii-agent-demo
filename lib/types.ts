@@ -33,6 +33,12 @@ export const normalizeCloudProvider = (value: unknown): CloudProvider => {
   return CLOUD_PROVIDER_ALIASES[value.trim().toUpperCase()] ?? 'AWS';
 };
 
+// Internal CloudProvider → wire metadata.provider value. The contract
+// (TargetSourceResourceMetadataDto.provider) is uppercase — AWS | GCP | AZURE | IDC |
+// UNKNOWN — while the internal CloudProvider uses 'Azure'. Never send the internal casing.
+export const cloudProviderToWireProvider = (provider: CloudProvider): string =>
+  provider.toUpperCase();
+
 // DB type is an open string (lowercase-canonical). The historical uppercase literals
 // are kept only as inline docs; pretty display ("MySQL") is a UI-only, exact-match
 // concern — see getDatabaseLabel. Per user directive: accept/store/output lowercase,

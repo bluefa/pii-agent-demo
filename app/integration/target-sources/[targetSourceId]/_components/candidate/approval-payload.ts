@@ -5,6 +5,7 @@ import type {
   CandidateDraftState,
   CandidateResource,
 } from '@/lib/types/resources';
+import { cloudProviderToWireProvider } from '@/lib/types';
 import { getCandidateBehavior } from '@/app/integration/target-sources/[targetSourceId]/_components/candidate/candidate-resource-behavior';
 
 type ResourceItem = z.infer<typeof schemas.TargetSourceResourceItemDto>;
@@ -66,7 +67,9 @@ const buildResourceInputs = (
       // backend echoing the payload keeps them through Step2/Step3; the behavior's
       // endpoint fields (VM db_type/host/port) override on top.
       const metadata: ResourceItem['metadata'] = {
-        ...(candidate.metadata.provider ? { provider: candidate.metadata.provider } : {}),
+        ...(candidate.metadata.provider
+          ? { provider: cloudProviderToWireProvider(candidate.metadata.provider) }
+          : {}),
         ...(candidate.metadata.region ? { region: candidate.metadata.region } : {}),
         ...(candidate.databaseType ? { database_type: candidate.databaseType } : {}),
         ...behavior.buildMetadataFields(candidate, drafts),

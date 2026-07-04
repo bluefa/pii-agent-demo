@@ -88,8 +88,9 @@ describe('mockConfirm.updateResourceCredential', () => {
         endpoint_config: null,
         credential_id: 'cred-new',
         // Contract metadata (region/database_type live here for Step3).
+        // provider is the wire value (AZURE), not the internal CloudProvider ('Azure').
         metadata: {
-          provider: 'Azure',
+          provider: 'AZURE',
           region: 'ap-northeast-1',
           database_type: 'MSSQL',
         },

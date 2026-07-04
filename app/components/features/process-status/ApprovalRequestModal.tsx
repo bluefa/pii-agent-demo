@@ -20,7 +20,7 @@ export interface ApprovalRequestResource {
   type: string;
   isSelected: boolean;
   integrationCategory: IntegrationCategory;
-  /** 실제 DB 종류 (없으면 `—`). 승인자가 무엇을 승인하는지 확인용. */
+  /** Actual DB type (rendered as `—` when absent). Lets the approver see what they approve. */
   databaseType?: string;
   endpoint?: { databaseType: VmDatabaseType; host?: string; port: number };
 }

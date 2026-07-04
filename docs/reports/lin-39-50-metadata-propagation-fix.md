@@ -76,10 +76,10 @@ Step3: ApplyingApprovedCard.toSelectedRow                [LIN-46/47]
 
 | 이슈 | 파일 | 문제(근본 원인) | 수정 |
 |------|------|------|------|
-| **LIN-42** | `app/lib/api/index.ts` `toConfirmResourceItem` | `databaseType` 를 `item.database_type`(계약에 없는 최상위)에서 읽어 항상 `''`. Step1 DB종류 공란의 진짜 원인. | `str(item.database_type) ?? str(meta.database_type)` fallback. |
+| **LIN-42** | `app/lib/api/index.ts` `toConfirmResourceItem` | `databaseType` 를 `item.database_type`(계약에 없는 최상위)에서 읽어 항상 `''`. Step1 DB종류 공란의 진짜 원인. | `metadata.database_type` 에서만 읽음(최상위는 계약에 없어 제거). |
 | **LIN-44** | `lib/types/resources/candidate.ts` | `CandidateResource` 에 원본 리소스명 필드가 없어 `resource_name` 이 유실. | `resourceName: string` 추가. |
 | **LIN-45** | `lib/resource-catalog.ts` `catalogToCandidates` | catalog의 `name`(=resource_name)을 candidate로 전달 안 함. + `buildResourceInputs` 가 `resource_name: candidate.resourceId`(ID를 이름으로) 전송. | `resourceName: item.name` 전달, payload는 `candidate.resourceName` 사용. |
-| **LIN-41** | `.../candidate/approval-payload.ts` `buildResourceInputs` | 선택 리소스 metadata가 endpoint(VM) 필드만 담아, 비-VM(credential/default)은 provider/region/db_type 전부 누락. | metadata 기본값을 `candidate.metadata`(provider/region) + `candidate.databaseType` 로 채우고 behavior 필드를 위에 spread. |
+| **LIN-41** | `.../candidate/approval-payload.ts` `buildResourceInputs` | 선택 리소스 metadata가 endpoint(VM) 필드만 담아, 비-VM(credential/default)은 provider/region/db_type 전부 누락. | metadata 기본값을 `candidate.metadata`(provider/region) + `candidate.databaseType` 로 채우고 behavior 필드를 위에 spread. **provider는 wire 값으로 변환**(`cloudProviderToWireProvider`: 내부 `Azure`→계약 `AZURE`). |
 | **LIN-50** | 위와 동일 | 위 metadata에 `database_type` 이 없음. | 위 수정에 포함(`database_type: candidate.databaseType`). |
 | **LIN-49** | `approval-payload.ts` `toModalResources` | 모달용 resource에 `databaseType` 미포함 → 모달이 DB종류를 못 보여줌. | `databaseType: candidate.databaseType` 추가. |
 | **LIN-48** | `app/components/features/process-status/ApprovalRequestModal.tsx` | `ApprovalRequestResource` 에 `databaseType` 필드·컬럼 없음. 승인자가 어떤 DB인지 확인 불가. | 필드 추가 + "포함 리소스" 테이블에 Database Type 컬럼(빈값 `—`). |
@@ -151,3 +151,15 @@ settle에서 풀어주는 것이며, 에러 처리·불변식은 그대로 보�
 부분만 옮기거나 payload에서 빠뜨린다." 새 필드를 UI에 노출하거나 승인 payload에 실을 때는 **항상
 `TargetSourceResourceItemDto`/`TargetSourceResourceMetadataDto` 의 정확한 위치를 확인**하고, 어댑터가
 그 위치에서 읽고 그 위치로 쓰는지 검증할 것.
+
+## 9. Codex 교차 리뷰 반영 (gpt-5.5 xhigh)
+
+- **provider 값 정합**: 계약 `metadata.provider` enum은 대문자(`AWS|GCP|AZURE|IDC|UNKNOWN`)인데 내부
+  `CloudProvider` 는 `Azure`(혼합). 정규화된 내부값을 그대로 보내면 안 됨 → `cloudProviderToWireProvider`
+  (lib/types.ts)로 wire 대문자 변환 후 전송. 목업 `toResourceSnapshot` 과 관련 테스트도 `AZURE` 로 정합.
+- **LIN-42 강화**: 최상위 `item.database_type` fallback 읽기까지 제거하고 `metadata.database_type` 에서만
+  읽음(최상위는 계약에 없음). 관련 테스트 fixture도 database_type 을 metadata 로 이동.
+- **범위 밖으로 확인된 지적**: approved-integration 목업 응답이 여전히 계약 밖 최상위 필드
+  (`endpoint_config`/`credential_id`/`database_region`/`scan_status`/`integration_status`)를 방출한다는
+  지적은 **본 변경 이전부터 존재**하던 §8의 systemic root(`as unknown as ResourceSnapshot` 캐스팅)이며,
+  본 PR은 metadata 를 **추가**했을 뿐 해당 필드를 새로 도입하지 않음. 전면 정합은 별도 리팩터로 분리.

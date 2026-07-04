@@ -4,7 +4,7 @@ import * as mockHistory from '@/lib/mock-history';
 import * as tcFns from '@/lib/mock-test-connection';
 import * as mockInstallation from '@/lib/mock-installation';
 import { getStore } from '@/lib/mock-store';
-import { ProcessStatus } from '@/lib/types';
+import { ProcessStatus, cloudProviderToWireProvider } from '@/lib/types';
 import { getCurrentStep } from '@/lib/process';
 import { schemas } from '@/lib/generated/install-v1';
 import type {
@@ -298,7 +298,7 @@ function toResourceSnapshot(r: MockResource, project: Project): ResourceSnapshot
     credential_id: demoCredential(r),
     // Contract metadata (TargetSourceResourceMetadataDto) — Step3 reads region/database_type here.
     metadata: {
-      provider: project.cloudProvider,
+      provider: cloudProviderToWireProvider(project.cloudProvider),
       region: demoRegion(project.cloudProvider, r),
       database_type: r.vmDatabaseConfig?.databaseType ?? r.databaseType,
     },
