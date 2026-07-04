@@ -103,11 +103,12 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 ```
 ┌ Sidebar ┬─ 대시보드 ─────────────────────────────────────────────┐
-│●대시보드 │  현황                                 [기간: 1h|1d|7d]   │
-│ 서비스   │  ┌ StatCard ──┐ ┌ StatCard ─┐ ┌ StatCard ──┐          │
-│ 검색     │  │동작중 P     │ │실패(기간)  │ │성공(기간)   │          │
-│          │  │ 3  순간값 ✅│ │  2  ✅    │ │  41  ✅    │          │
-│          │  └────────────┘ └───────────┘ └────────────┘          │
+│●대시보드 │  대시보드(h1)                          [기간: 1h|1d|7d]  │ ← 전역 기간 컨텍스트
+│ 서비스   │  현황                                                   │
+│ 검색     │  ┌ StatCard ──┐ ┌ StatCard ─┐ ┌ StatCard ──┐          │
+│          │  │동작중 P     │ │실패(기간)  │ │성공(기간)   │          │
+│          │  │ 2  순간값 ✅│ │  1  ✅    │ │  0  ✅     │          │
+│          │  └────────────┘ └───────────┘ └────────────┘ (260px 상한)│
 │          │  ─────────────────────────────────────────────────────│
 │          │  파이프라인 목록   🔍 target  [상태▾][Provider▾]   ⟳    │
 │          │  ┌ DataTable ───────────────────────────────────────┐ │
@@ -121,8 +122,9 @@ Pill: 배경 = 상태색 12% tint, 텍스트 = 상태색 dark, 좌측 6px dot, r
 
 | 블록 | 컴포넌트 | 데이터 / 원천 | 표시 |
 |---|---|---|---|
-| 현황 | `StatsRow` = 3×`StatCard` + `FilterBar(period)` | ① 동작중 파이프라인 `count(RUNNING)` ✅ 순간값 / ② **실패** ✅ / ③ **성공(DONE)** ✅ — 실패·성공은 `created_at` 기준 기간 집계(A2), 기간 토글 귀속. 실패>0이면 `.failed` 강조(페이지 유일한 강조색) | A1+A2 |
-| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination`+`FilterBar(search target + status + provider)` | target(id ✅) / **유형(INSTALL/DELETE)** / **CSP(⚠️→`ProviderTag.external`)** / status(P2) / 진행 N/M(P5 ⚙️) / **생성일** / 상세 | A3 |
+| 기간 컨텍스트 | `FilterBar(period)` — **페이지 헤더 우측** | **페이지 전역**: 현황(실패·성공)과 목록이 같은 기간(`created_at` 기준)을 본다 — 컨트롤 위치=지배 범위 원칙([style-guide](admin-pipeline-style-guide.md) §4) | A2+A3 |
+| 현황 | `StatsRow` = 3×`StatCard`(폭 260 상한) | ① 동작중 파이프라인 `count(RUNNING)` ✅ 순간값(기간 무관) / ② **실패** ✅ / ③ **성공(DONE)** ✅ — 실패·성공은 기간 내 파생 집계(하드코딩 표 폐기 — 목록과 숫자 일치 계약). 실패>0이면 `.failed` 강조(페이지 유일한 강조색) | A1+A2 |
+| 파이프라인 목록 | `PipelineListTable` = `DataTable`+`Pagination`+`FilterBar(search target + status + provider)` | **전역 기간 필터 적용** 후: target(id ✅) / **유형(INSTALL/DELETE)** / **CSP(⚠️→`ProviderTag.external`)** / status(P2) / 진행 N/M(P5 ⚙️) / **생성일** / 상세 | A3 |
 
 - **⚠️ 근거 명시**: 목록의 CSP는 pipeline repo에 없어 `external`. §4.3 헤더의 CSP는 `getTargetSourceDetail`(=다른 repo 직접 호출)이라 🔵✅ — 상충 아님.
 - **정렬**: `FAILED > RUNNING > 나머지`, 각 그룹 내 최신(id desc) —

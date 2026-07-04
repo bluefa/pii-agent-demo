@@ -4,6 +4,27 @@
 > 시스템 명세는 [admin-pipeline-design-notes.md](admin-pipeline-design-notes.md), 컴포넌트 명세는
 > [admin-pipeline-components.md](admin-pipeline-components.md) 참조.
 
+## Round 8 — 스타일 가이드 수립 + 타입 스케일 5단화 + 기간 전역 승격 (2026-07-04)
+
+계약 문서: **[admin-pipeline-style-guide.md](admin-pipeline-style-guide.md) 신설** (크기·행간·간격
+SSOT — typography.md 크기 표 대체). 오너 지시: "폰트/사이즈 근거부터 설계, 섹션 구분 논리,
+현황 가로 늘어짐, 기간 필터 위치" → 논리 4개 합의 후 적용 (A안+B안 병합).
+
+- **타입 스케일 11종→5단** {12/14/16/20/32}: 페이지 제목 20/700, 섹션 16/600, 본문 14,
+  캡션·배지 12(10.5·11 폐지 — 12 미만 금지), 디스플레이 숫자 32. 행간 120/140 2단.
+  44치환(전건 1회 매칭 assert).
+- **간격 논리**: 섹션 간 40(>내부×2), 섹션 제목↔내용 12, 카드 패딩 20/24/24,
+  페이지 제목 아래 24. 섹션 제목 옆 설명문 폐지(툴팁 강등).
+- **stat 카드 폭 260 상한** — `repeat(3,1fr)` 폐기, "박스 폭은 내용이 정한다".
+  실측 400×89(4.5:1) → 260×109(2.4:1).
+- **기간 seg 전역 승격**(A+B 병합): 페이지 헤더 우측으로 이동, 실패·성공 카드 **및 목록**이
+  같은 기간(created_at)을 필터 — 컨트롤 위치=지배 범위. PERIOD_STATS 하드코딩 표 폐기
+  → PIPELINES 파생 집계(카드 숫자=목록 행 수 일치). MOCK_NOW(2026-06-30 15:00) 기준.
+- 파생 개정: tnode 높이 164→**184**(14px 2줄 클램프 재산정, 실측 -1px 수납) — design-system §1,
+  typography.md에 대체 선언 헤더.
+- 검증: 4페이지 폰트 크기 집합 ⊆ {12,14,16,20,32} 실측, 섹션 마진 40/12, 카드 260×109,
+  1d 기간 카드 실패 1 = 목록 FAILED 1행 일치, 콘솔 에러 0.
+
 ## Round 7 — 정보 계층 정리: 대시보드 반영 (2026-07-04)
 
 계약 문서: [admin-pipeline-info-hierarchy.md](admin-pipeline-info-hierarchy.md) §1 (4페이지 정보
